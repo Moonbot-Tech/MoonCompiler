@@ -2672,7 +2672,8 @@ implementation
             plist:=ref.firstsym;
             if assigned(plist) and (plist^.sltype=sl_load) and
                assigned(plist^.sym) and (plist^.sym is tabstractvarsym) and
-               (varregable<>tabstractvarsym(plist^.sym).varregable) then
+               ((varregable<>tabstractvarsym(plist^.sym).varregable) or
+                (vardef<>tabstractvarsym(plist^.sym).vardef)) then
               begin
                 varregable:=vr_none;
 	        tabstractvarsym(plist^.sym).varregable:=vr_none;
