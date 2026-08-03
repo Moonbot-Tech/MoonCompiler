@@ -5048,7 +5048,8 @@ implementation
       rr: preplaceregrec absolute para;
     begin
       result := fen_false;
-      if (nf_is_funcret in n.flags) and (fc_exit in flowcontrol) then
+      if (nf_is_funcret in n.flags) and
+        (flowcontrol*[fc_exit,fc_inherited_exit]<>[]) then
         exit;
       case n.nodetype of
         loadn:
@@ -5057,7 +5058,7 @@ implementation
                (tabstractvarsym(tloadnode(n).symtableentry).varoptions * [vo_is_dll_var, vo_is_thread_var] = []) and
                not assigned(tloadnode(n).left) and
                ((tloadnode(n).symtableentry <> rr^.ressym) or
-                not(fc_exit in flowcontrol)
+                (flowcontrol*[fc_exit,fc_inherited_exit]=[])
                ) and
                (tabstractnormalvarsym(tloadnode(n).symtableentry).localloc.loc in [LOC_CREGISTER,LOC_CFPUREGISTER,LOC_CMMXREGISTER,LOC_CMMREGISTER]) and
                (tabstractnormalvarsym(tloadnode(n).symtableentry).localloc.register = rr^.old) then

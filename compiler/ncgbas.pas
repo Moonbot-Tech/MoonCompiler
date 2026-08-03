@@ -459,6 +459,8 @@ interface
             oldexitlabel:=current_procinfo.CurrExitLabel;
             current_asmdata.getjumplabel(current_procinfo.CurrExitLabel);
             oldflowcontrol:=flowcontrol;
+            if fc_exit in flowcontrol then
+              include(flowcontrol,fc_inherited_exit);
             { the nested block will not span an exit statement of the parent }
             exclude(flowcontrol,fc_exit);
             include(flowcontrol,fc_no_direct_exit);
@@ -501,7 +503,8 @@ interface
             current_procinfo.CurrExitLabel:=oldexitlabel;
             { the exit statements inside this block are not exit statements }
             { out of the parent                                             }
-            flowcontrol:=oldflowcontrol+(flowcontrol - [fc_exit,fc_no_direct_exit]);
+            flowcontrol:=oldflowcontrol+
+              (flowcontrol - [fc_exit,fc_inherited_exit,fc_no_direct_exit]);
           end;
 
       end;

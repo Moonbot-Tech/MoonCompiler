@@ -107,7 +107,7 @@ implementation
                  { not function result, or no exit in function }
                  (((tloadnode(n).symtableentry <> rr^.ressym) and
                    not(vo_is_funcret in tabstractvarsym(tloadnode(n).symtableentry).varoptions)) or
-                  not(fc_exit in flowcontrol)) and
+                  (flowcontrol*[fc_exit,fc_inherited_exit]=[])) and
                  { stored in memory... }
                  (tabstractnormalvarsym(tloadnode(n).symtableentry).localloc.loc in [LOC_REFERENCE]) and
                  { ... at the place we are looking for }
