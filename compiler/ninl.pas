@@ -4203,7 +4203,14 @@ implementation
                   else
                     temp_pnode := @left;
                   set_varstate(temp_pnode^,vs_read,[vsf_must_be_valid]);
-                  resultdef:=removefloatupcasts(temp_pnode^,[s32real,s64real,s80real,sc80real,s128real],true);
+                  { Abs commutes with the currency scale: strip the upcast and
+                    take it directly on the scaled value.  The /10000 * 10000
+                    round trip is not exact on the fpu and breaks Abs(C) = C.
+                    sqr/sqrt do not commute with the scale and keep the upcast. }
+                  if inlinenumber=in_abs_real then
+                    resultdef:=removefloatupcasts(temp_pnode^,[s32real,s64real,s80real,sc80real,s128real,s64currency],true)
+                  else
+                    resultdef:=removefloatupcasts(temp_pnode^,[s32real,s64real,s80real,sc80real,s128real],true);
                 end;
 
 {$ifdef SUPPORT_MMX}
