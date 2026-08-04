@@ -425,7 +425,8 @@ uses
         two_N_minus_1:=aWord(1) shl (N-1);
 
         ad:=abs(d);
-        t:=two_N_minus_1+(aWord(d) shr (N-1));
+        { aWord may be wider than the N-bit division operand }
+        t:=two_N_minus_1+((aWord(d) shr (N-1)) and 1);
         anc:=t-1-t mod ad;               { absolute value of nc }
         p:=(N-1);                        { initialize p }
         q1:=two_N_minus_1 div anc;       { initialize q1 = 2**p/abs(nc) }
