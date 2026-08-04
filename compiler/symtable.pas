@@ -3234,7 +3234,8 @@ implementation
       begin
         if not assigned(def) then
           internalerror(2013020501);
-        if def.typ in [recorddef,objectdef] then
+        if (def.typ in [recorddef,objectdef]) and
+           not (df_unique in def.defoptions) then
           result:=make_mangledname('',tabstractrecorddef(def).symtable,'')
         else
           result:=make_mangledname('',def.owner,def.typesym.name);
