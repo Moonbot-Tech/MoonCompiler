@@ -120,6 +120,7 @@ unit optloop;
       var
         unrolls,i : cardinal;
         counts : qword;
+        bigcounts : Tconstexprint;
         unrollstatement,newforstatement : tstatementnode;
         unrollblock : tblocknode;
         getridoffor : boolean;
@@ -132,6 +133,9 @@ unit optloop;
         if ErrorCount<>0 then
           exit;
         if not(node.nodetype in [forn]) then
+          exit;
+        { the unroller assumes a stride of one }
+        if assigned(tfornode(node).loopstep) then
           exit;
         unrolls:=number_unrolls(tfornode(node).t2);
         if (unrolls>1) and
@@ -147,9 +151,13 @@ unit optloop;
             if (tfornode(node).right.nodetype=ordconstn) and (tfornode(node).t1.nodetype=ordconstn) then
               begin
                 if lnf_backward in tfornode(node).loopflags then
-                  counts:=tordconstnode(tfornode(node).right).value-tordconstnode(tfornode(node).t1).value+1
+                  bigcounts:=tordconstnode(tfornode(node).right).value-tordconstnode(tfornode(node).t1).value+1
                 else
-                  counts:=tordconstnode(tfornode(node).t1).value-tordconstnode(tfornode(node).right).value+1;
+                  bigcounts:=tordconstnode(tfornode(node).t1).value-tordconstnode(tfornode(node).right).value+1;
+                { a full-range 64-bit loop does not fit the counter below }
+                if (bigcounts<1) or (bigcounts>high(qword)) then
+                  exit;
+                counts:=bigcounts.uvalue;
 
                 hascontrollflowstatements:=foreachnodestatic(tfornode(node).t2,@checkcontrollflowstatements,nil);
 
@@ -1385,12 +1393,37 @@ unit optloop;
       end;
 
     function OptimizeForLoop_iterforloops(var n: tnode; arg: pointer): foreachnoderesult;
+
+      { The reverted loop runs "to - from + 1" times, and that count is
+        computed and stored in the counter's own type.  It must be provably
+        representable there: a wrapped count runs the wrong number of times
+        (a full-range loop became empty, an empty loop with a runtime bound
+        became almost-full-range).  A constant "from" of exactly 1 is safe
+        for any runtime "to" - the count equals "to" itself; anything else
+        needs both bounds constant and the count checked in the wide domain. }
+      function reverted_count_representable(f: tfornode): boolean;
+        var
+          fromval,physmin,physmax: Tconstexprint;
+        begin
+          fromval:=get_ordinal_value(f.right);
+          if fromval=1 then
+            exit(true);
+          if not is_constnode(f.t1) then
+            exit(false);
+          get_physical_ord_range(f.left.resultdef,physmin,physmax);
+          result:=
+            (get_ordinal_value(f.t1)>=fromval-1) and
+            (get_ordinal_value(f.t1)-fromval+1<=physmax);
+        end;
+
       begin
         Result:=fen_false;
         if (n.nodetype=forn) and
           not(lnf_backward in tfornode(n).loopflags) and
+          not(assigned(tfornode(n).loopstep)) and
           (lnf_dont_mind_loopvar_on_exit in tfornode(n).loopflags) and
           is_constintnode(tfornode(n).right) and
+          reverted_count_representable(tfornode(n)) and
           (([cs_check_overflow,cs_check_range]*n.localswitches)=[]) and
           (([cs_check_overflow,cs_check_range]*tfornode(n).left.localswitches)=[]) and
           ((tfornode(n).left.nodetype=loadn) and (tloadnode(tfornode(n).left).symtableentry is tabstractvarsym) and

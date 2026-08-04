@@ -2770,7 +2770,8 @@ implementation
                           result:=create_simplified_ord_const(vl,resultdef,forinline,cs_check_range in localswitches)
                         else
                           { check the range for enums, chars, booleans }
-                          result:=cordconstnode.create(vl,left.resultdef,not(nf_internal in flags));
+                          result:=cordconstnode.create(vl,left.resultdef,
+                            (cs_check_range in localswitches) and not(nf_internal in flags));
                         result.flags:=result.flags+(flags*[nf_internal]);
                       end;
                     addn,

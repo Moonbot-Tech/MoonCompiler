@@ -1249,7 +1249,8 @@ implementation
 
         procedure check_range(hp:tnode; fordef: tdef);
           begin
-            if (hp.nodetype=ordconstn) and
+            if (cs_check_range in current_settings.localswitches) and
+               (hp.nodetype=ordconstn) and
                (fordef.typ<>errordef) and
                { the node was derived from a generic parameter so ignore range check }
                not(nf_generic_para in hp.flags) then

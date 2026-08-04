@@ -2118,8 +2118,11 @@ implementation
         usefromtemp : boolean;
         storefilepos: tfileposinfo;
         countermin, countermax: Tconstexprint;
-        firsttemp : ttempcreatenode;
+        physmin, physmax: Tconstexprint;
+        firsttemp,prevtemp : ttempcreatenode;
         firstcheck,breakcheck : tnode;
+        stepblock : tblocknode;
+        stepstatements : tstatementnode;
 
       procedure iterate_counter(var s : tstatementnode;fw : boolean);
         var
@@ -2188,23 +2191,45 @@ implementation
             addstatement(statements,cassignmentnode.create_internal(ctemprefnode.create(firsttemp),
               cordconstnode.create(1,pasbool1type,false)));
 
+            prevtemp:=ctempcreatenode.create(left.resultdef,left.resultdef.size,tt_persistent,true);
+            addstatement(statements,prevtemp);
+
             addstatement(statements,cassignmentnode.create_internal(left.getcopy,right.getcopy));
 
-            { if first then first := false else i := i +/- step }
+            { if first then first := false
+              else begin prev := i; i := i +/- step; if i wrapped then break; end
+
+              The wrap check is what terminates a loop whose next step would
+              pass the physical maximum of the counter: the increment wraps,
+              the counter moves against the loop direction, and the plain
+              "i > to" check below would never fire again. }
+            stepblock:=internalstatements(stepstatements);
+            leftcopy:=left.getcopy;
+            node_reset_flags(leftcopy,[nf_modify,nf_write],[tnf_pass1_done]);
+            addstatement(stepstatements,cassignmentnode.create_internal(
+              ctemprefnode.create(prevtemp),leftcopy));
             leftcopy:=left.getcopy;
             node_reset_flags(leftcopy,[nf_modify,nf_write],[tnf_pass1_done]);
             if lnf_backward in loopflags then
-              firstcheck:=cifnode.create(ctemprefnode.create(firsttemp),
-                cassignmentnode.create_internal(ctemprefnode.create(firsttemp),
-                  cordconstnode.create(0,pasbool1type,false)),
-                cassignmentnode.create_internal(left.getcopy,
-                  caddnode.create_internal(subn,leftcopy,ctemprefnode.create(steptemp))))
+              addstatement(stepstatements,cassignmentnode.create_internal(left.getcopy,
+                caddnode.create_internal(subn,leftcopy,ctemprefnode.create(steptemp))))
             else
-              firstcheck:=cifnode.create(ctemprefnode.create(firsttemp),
-                cassignmentnode.create_internal(ctemprefnode.create(firsttemp),
-                  cordconstnode.create(0,pasbool1type,false)),
-                cassignmentnode.create_internal(left.getcopy,
-                  caddnode.create_internal(addn,leftcopy,ctemprefnode.create(steptemp))));
+              addstatement(stepstatements,cassignmentnode.create_internal(left.getcopy,
+                caddnode.create_internal(addn,leftcopy,ctemprefnode.create(steptemp))));
+            leftcopy:=left.getcopy;
+            node_reset_flags(leftcopy,[nf_modify,nf_write],[tnf_pass1_done]);
+            if lnf_backward in loopflags then
+              addstatement(stepstatements,cifnode.create(
+                caddnode.create_internal(gtn,leftcopy,ctemprefnode.create(prevtemp)),
+                cbreaknode.create,nil))
+            else
+              addstatement(stepstatements,cifnode.create(
+                caddnode.create_internal(ltn,leftcopy,ctemprefnode.create(prevtemp)),
+                cbreaknode.create,nil));
+            firstcheck:=cifnode.create(ctemprefnode.create(firsttemp),
+              cassignmentnode.create_internal(ctemprefnode.create(firsttemp),
+                cordconstnode.create(0,pasbool1type,false)),
+              stepblock);
             addstatement(loopstatements,firstcheck);
 
             { if i > to (forward) or i < to (backward) then break }
@@ -2229,6 +2254,7 @@ implementation
               loopblock,true,false));
 
             addstatement(statements,ctempdeletenode.create(firsttemp));
+            addstatement(statements,ctempdeletenode.create(prevtemp));
             addstatement(statements,ctempdeletenode.create(totemp));
             addstatement(statements,ctempdeletenode.create(steptemp));
 
@@ -2251,6 +2277,13 @@ implementation
             Internalerror(2020012601);
         end;
 
+        { Under Delphi $R- the constant bounds may legally lie outside the
+          declared enum/subrange domain, so the declared min/max alone cannot
+          prove that the at-end succ/pred stays representable: at the physical
+          maximum the increment wraps and the exit comparison never becomes
+          true. }
+        get_physical_ord_range(left.resultdef,physmin,physmax);
+
         { check if we can pred/succ the loop var at the end }
         do_loopvar_at_end:=(lnf_dont_mind_loopvar_on_exit in loopflags) and
           is_constnode(t1) and
@@ -2267,6 +2300,8 @@ implementation
 
           not(not(lnf_backward in loopflags) and (get_ordinal_value(t1)=countermax)) and
           not((lnf_backward in loopflags) and (get_ordinal_value(t1)=countermin)) and
+          not(not(lnf_backward in loopflags) and (get_ordinal_value(t1)>=physmax)) and
+          not((lnf_backward in loopflags) and (get_ordinal_value(t1)<=physmin)) and
           { neither might the for loop contain a continue statement as continue in a while loop would skip the increment at the end
             of the loop, this could be overcome by replacing the continue statement with an pred/succ; continue sequence }
           not(has_node_of_type(t2,[continuen])) and

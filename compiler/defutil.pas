@@ -416,6 +416,11 @@ interface
         was negligible, false otherwise }
     function calc_not_ordvalue(var v:Tconstexprint; var def:tdef):boolean;
 
+    { Physical domain of an ordinal's storage.  Under Delphi $R- values may
+      legally lie outside the declared enum/subrange domain but never outside
+      the storage width, so wrap-around proofs must use these bounds. }
+    procedure get_physical_ord_range(def:tdef;out physmin,physmax:Tconstexprint);
+
     { # returns whether the type is potentially a valid type of/for an "univ" parameter
         (basically: it must have a compile-time size) }
     function is_valid_univ_para_type(def: tdef): boolean;
@@ -2204,6 +2209,46 @@ implementation
           else
             result:=false;
         end;
+      end;
+
+
+    procedure get_physical_ord_range(def:tdef;out physmin,physmax:Tconstexprint);
+      var
+        declmin: Tconstexprint;
+      begin
+        case def.typ of
+          enumdef:
+            declmin:=tenumdef(def).min;
+          orddef:
+            declmin:=torddef(def).low;
+          else
+            internalerror(2026082010);
+        end;
+        if declmin<0 then
+          case def.size of
+            1: begin physmin:=low(shortint); physmax:=high(shortint); end;
+            2: begin physmin:=low(smallint); physmax:=high(smallint); end;
+            4: begin physmin:=low(longint);  physmax:=high(longint);  end;
+            8: begin physmin:=low(int64);    physmax:=high(int64);    end;
+            else
+              begin
+                { base 128-bit types have no wider physical envelope }
+                physmin:=torddef(def).low;
+                physmax:=torddef(def).high;
+              end;
+          end
+        else
+          begin
+            physmin:=0;
+            case def.size of
+              1: physmax:=high(byte);
+              2: physmax:=high(word);
+              4: physmax:=high(cardinal);
+              8: physmax:=high(qword);
+              else
+                physmax:=torddef(def).high;
+            end;
+          end;
       end;
 
     function is_valid_univ_para_type(def: tdef): boolean;
