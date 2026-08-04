@@ -37,6 +37,9 @@ interface
         ef_type_only,
         ef_had_specialize,
         ef_check_attr_suffix,
+        { resolve a bare implicit generic specialization before returning
+          from the current precedence level }
+        ef_resolve_specialization,
         { opt-in for the lazy-label creation path: when set, an unknown
           identifier followed by `:` is auto-registered as a label sym
           (used by the unleashed lazy-label feature in statement context).
@@ -6484,6 +6487,10 @@ implementation
                begin
                  consume(_OP_NOT);
                  p1:=factor(false,[]);
+                 if (p1.nodetype=specializen) and
+                     (current_scanner.token in [_LT,_LSHARPBRACKET]) and
+                     (m_implicit_generics in current_settings.modeswitches) then
+                   p1:=sub_expr(oppower,[ef_resolve_specialization],p1);
                  p1:=cnotnode.create(p1);
                end;
 
@@ -7182,6 +7189,22 @@ implementation
           else
            break;
         until false;
+        if (ef_resolve_specialization in flags) and
+            (p1.nodetype=specializen) and
+            (current_scanner.token=_LT) and
+            (m_implicit_generics in current_settings.modeswitches) then
+          begin
+            filepos:=current_tokenpos;
+            consume(current_scanner.token);
+            p2:=factor(false,[]);
+            if maybe_handle_specialization(p1,p2,filepos) then
+              begin
+                sub_expr:=p1;
+                exit;
+              end
+            else
+              message(parser_e_illegal_expression);
+          end;
         if (p1.nodetype=specializen) and
             (current_scanner.token=_LSHARPBRACKET) and
             (m_implicit_generics in current_settings.modeswitches) then
