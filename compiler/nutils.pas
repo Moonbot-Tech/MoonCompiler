@@ -1132,11 +1132,11 @@ implementation
       begin
         if not forinline then
           begin
-            // re-deriving the type from the value makes a folded qword
-            // result signed whenever it fits int64, unlike a direct
-            // qword cast of the same value; keep the unsigned def
-            if (m_unleashed in current_settings.modeswitches) and
-               assigned(def) and (def.typ=orddef) and (torddef(def).ordtype=u64bit) and (value>=0) then
+            // re-deriving the type from the value loses explicitly selected
+            // wide integer types whenever the result fits a smaller type
+            if assigned(def) and (def.typ=orddef) and
+               (((torddef(def).ordtype=u64bit) and (value>=0)) or
+                (torddef(def).ordtype in [s128bit,u128bit])) then
               result:=cordconstnode.create(value,def,rangecheck)
             else
               result:=genintconstnode(value)

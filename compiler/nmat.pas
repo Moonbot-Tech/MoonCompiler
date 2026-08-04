@@ -336,9 +336,15 @@ implementation
            not compatible with tconst node
            as in bug report 21566 PM }
 
-         result:=simplify(false);
-         if assigned(result) then
-           exit;
+         { The 128-bit result definition must be selected below before a
+           constant result is simplified to a value that fits a smaller type. }
+         if not (is_128bitint(left.resultdef) or
+                 is_128bitint(right.resultdef)) then
+           begin
+             result:=simplify(false);
+             if assigned(result) then
+               exit;
+           end;
 
          rd:=torddef(right.resultdef);
          ld:=torddef(left.resultdef);
@@ -1278,6 +1284,9 @@ implementation
          if codegenerror then
            exit;
 
+         { The nonconstant path below selects signed Int128 for unary minus. }
+         if is_128bitint(left.resultdef) then
+           resultdef:=s128inttype;
          result:=simplify(false);
          if assigned(result) then
            exit;
