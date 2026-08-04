@@ -6885,8 +6885,29 @@ implementation
           parseddef,
           gendef : tdef;
           ptmp : tnode;
+          nestedfilepos : tfileposinfo;
+          old_block_type : tblock_type;
         begin
           result:=false;
+          { A nested inline specialization is returned by factor as another
+            bare specializen node.  Resolve it as a type before validating the
+            enclosing specialization.  Type context also keeps adjacent
+            closing brackets from being scanned as a shift operator. }
+          if assigned(p2) and (p2.nodetype=specializen) and
+              (current_scanner.token in [_LT,_LSHARPBRACKET]) then
+            begin
+              old_block_type:=block_type;
+              block_type:=bt_type;
+              try
+                nestedfilepos:=current_tokenpos;
+                consume(current_scanner.token);
+                ptmp:=factor(false,[]);
+                if not maybe_handle_specialization(p2,ptmp,nestedfilepos) then
+                  exit;
+              finally
+                block_type:=old_block_type;
+              end;
+            end;
           { we need to decide whether we have an inline specialization
             (type nodes to the left and right of "<", mode Delphi and
             ">" or "," following) or a normal "<" comparison }
@@ -6895,11 +6916,8 @@ implementation
                    generic is defined (though "same unit" is not
                    necessarily needed) }
           if getgenericsym(p1,gensym) and
-             { Attention: when nested specializations are supported
-                          p2 could be a loadn if a "<" follows }
              istypenode(p2) and
               (m_implicit_generics in current_settings.modeswitches) and
-              { TODO : add _LT, _LSHARPBRACKET for nested specializations }
               (current_scanner.token in [_GT,_RSHARPBRACKET,_COMMA]) then
             begin
               { this is an inline specialization }
