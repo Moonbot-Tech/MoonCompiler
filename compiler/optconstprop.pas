@@ -97,10 +97,13 @@ unit optconstprop;
           iterate manually here so we have full control how all nodes are processed }
 
         { We cannot analyze beyond those nodes, so we terminate to be on the safe side }
-        if (n.nodetype in [addrn,derefn,asmn,casen,whilerepeatn,labeln,continuen,breakn,
+        { An absolute type conversion and its backing storage cannot be handled independently. }
+        if (((n.nodetype=typeconvn) and
+             (nf_absolute in n.flags)) or
+            (n.nodetype in [addrn,derefn,asmn,casen,whilerepeatn,labeln,continuen,breakn,
                            tryexceptn,raisen,tryfinallyn,onn,loadparentfpn,loadvmtaddrn,guidconstn,rttin,addoptn,asn,goton,
                            objcselectorn,objcprotocoln,
-                           arrayconstructorn,arrayconstructorrangen]) then
+                           arrayconstructorn,arrayconstructorrangen])) then
           exit(false)
         else if n.nodetype=assignn then
           begin
