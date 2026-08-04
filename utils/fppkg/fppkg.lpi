@@ -1,0 +1,124 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <General>
+      <Flags>
+        <MainUnitHasUsesSectionForAllUnits Value="False"/>
+        <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
+        <LRSInOutputDirectory Value="False"/>
+      </Flags>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
+    </General>
+    <VersionInfo>
+      <Language Value=""/>
+      <CharSet Value=""/>
+      <StringTable ProductVersion=""/>
+    </VersionInfo>
+    <PublishOptions>
+      <Version Value="2"/>
+      <IgnoreBinaries Value="False"/>
+      <IncludeFileFilter Value="*.(pas|pp|inc|lfm|lpr|lrs|lpi|lpk|sh|xml)"/>
+      <ExcludeFileFilter Value="*.(bak|ppu|ppw|o|so);*~;backup"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+        <CommandLineParams Value="list"/>
+        <LaunchingApplication PathPlusParams="/usr/X11R6/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
+      </local>
+    </RunParams>
+    <Units Count="8">
+      <Unit0>
+        <Filename Value="fppkg.pp"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fppkg"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="pkgropts.pp"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="pkgoptions"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="fprepos.pp"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fprepos"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="fpxmlrep.pp"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="fpxmlrep"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="pkghandler.pp"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="pkghandler"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="pkgmkconv.pp"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="pkgmkconv"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="pkgdownload.pp"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="pkgDownload"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="pkgmessages.pp"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="pkgmessages"/>
+      </Unit7>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="9"/>
+    <SearchPaths>
+      <IncludeFiles Value="lnet/sys"/>
+      <OtherUnitFiles Value="lnet"/>
+    </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <UseAnsiStrings Value="False"/>
+      </SyntaxOptions>
+    </Parsing>
+    <CodeGeneration>
+      <Checks>
+        <IOChecks Value="True"/>
+        <RangeChecks Value="True"/>
+        <OverflowChecks Value="True"/>
+        <StackChecks Value="True"/>
+      </Checks>
+      <Optimizations>
+        <OptimizationLevel Value="0"/>
+      </Optimizations>
+    </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <GenerateDebugInfo Value="True"/>
+      </Debugging>
+    </Linking>
+    <Other>
+      <Verbosity>
+        <ShowHints Value="False"/>
+      </Verbosity>
+      <CompilerMessages>
+        <UseMsgFile Value="True"/>
+      </CompilerMessages>
+      <CustomOptions Value="-FE."/>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="2">
+      <Item1>
+        <Name Value="ECodetoolError"/>
+      </Item1>
+      <Item2>
+        <Name Value="EFOpenError"/>
+      </Item2>
+    </Exceptions>
+  </Debugging>
+</CONFIG>

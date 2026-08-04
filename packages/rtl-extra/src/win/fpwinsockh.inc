@@ -1,0 +1,207 @@
+{
+  Should be aliases but I copy pasted them from winsock2 for now...
+}
+
+const
+{ Address families. }
+  AF_UNSPEC       = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_UNSPEC;               { unspecified }
+  AF_UNIX         = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_UNIX;               { local to host (pipes, portals) }
+  AF_INET         = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_INET;               { internetwork: UDP, TCP, etc. }
+  AF_IMPLINK      = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_IMPLINK;               { arpanet imp addresses }
+  AF_PUP          = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_PUP;               { pup protocols: e.g. BSP }
+  AF_CHAOS        = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_CHAOS;               { mit CHAOS protocols }
+  AF_IPX          = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_IPX;               { IPX and SPX }
+  AF_NS           = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_NS;               { XEROX NS protocols }
+  AF_ISO          = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_ISO;               { ISO protocols }
+  AF_OSI          = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_OSI;          { OSI is ISO }
+  AF_ECMA         = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_ECMA;               { european computer manufacturers }
+  AF_DATAKIT      = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_DATAKIT;               { datakit protocols }
+  AF_CCITT        = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_CCITT;              { CCITT protocols, X.25 etc }
+  AF_SNA          = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_SNA;              { IBM SNA }
+  AF_DECnet       = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_DECnet;              { DECnet }
+  AF_DLI          = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_DLI;              { Direct data link interface }
+  AF_LAT          = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_LAT;              { LAT }
+  AF_HYLINK       = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_HYLINK;              { NSC Hyperchannel }
+  AF_APPLETALK    = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_APPLETALK;              { AppleTalk }
+  AF_NETBIOS      = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_NETBIOS;              { NetBios-style addresses }
+  AF_VOICEVIEW    = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_VOICEVIEW;              { VoiceView }
+  AF_FIREFOX      = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_FIREFOX;              { FireFox }
+  AF_UNKNOWN1     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_UNKNOWN1;              { Somebody is using this! }
+  AF_BAN          = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_BAN;              { Banyan }
+  AF_ATM          = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_ATM; // Native ATM Services
+  AF_INET6        = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_INET6; // Internetwork Version 6
+  AF_MAX          = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.AF_MAX;
+
+  PF_UNSPEC       = AF_UNSPEC;
+  PF_UNIX         = AF_UNIX;
+  PF_INET         = AF_INET;
+  PF_IMPLINK      = AF_IMPLINK;
+  PF_PUP          = AF_PUP;
+  PF_CHAOS        = AF_CHAOS;
+  PF_NS           = AF_NS;
+  PF_IPX          = AF_IPX;
+  PF_ISO          = AF_ISO;
+  PF_OSI          = AF_OSI;
+  PF_ECMA         = AF_ECMA;
+  PF_DATAKIT      = AF_DATAKIT;
+  PF_CCITT        = AF_CCITT;
+  PF_SNA          = AF_SNA;
+  PF_DECnet       = AF_DECnet;
+  PF_DLI          = AF_DLI;
+  PF_LAT          = AF_LAT;
+  PF_HYLINK       = AF_HYLINK;
+  PF_APPLETALK    = AF_APPLETALK;
+  PF_VOICEVIEW    = AF_VOICEVIEW;
+  PF_FIREFOX      = AF_FIREFOX;
+  PF_UNKNOWN1     = AF_UNKNOWN1;
+  PF_BAN          = AF_BAN;
+  PF_ATM          = AF_ATM;
+  PF_INET6        = AF_INET6;
+
+  PF_MAX          = AF_MAX;
+
+{ Protocols }
+  IPPROTO_IP     =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPROTO_IP;
+  IPPROTO_ICMP   =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPROTO_ICMP;
+  IPPROTO_IGMP   =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPROTO_IGMP;
+  IPPROTO_GGP    =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPROTO_GGP;
+  IPPROTO_TCP    =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPROTO_TCP;
+  IPPROTO_PUP    =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPROTO_PUP;
+  IPPROTO_UDP    =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPROTO_UDP;
+  IPPROTO_IDP    =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPROTO_IDP;
+  IPPROTO_ND     =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPROTO_ND;
+
+  IPPROTO_RAW    =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPROTO_RAW;
+  IPPROTO_MAX    =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPROTO_MAX;
+
+{ Port/socket numbers: network standard functions}
+
+  IPPORT_ECHO    =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_ECHO;
+  IPPORT_DISCARD =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_DISCARD;
+  IPPORT_SYSTAT  =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_SYSTAT;
+  IPPORT_DAYTIME =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_DAYTIME;
+  IPPORT_NETSTAT =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_NETSTAT;
+  IPPORT_FTP     =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_FTP;
+  IPPORT_TELNET  =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_TELNET;
+  IPPORT_SMTP    =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_SMTP;
+  IPPORT_TIMESERVER  =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_TIMESERVER;
+  IPPORT_NAMESERVER  =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_NAMESERVER;
+  IPPORT_WHOIS       =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_WHOIS;
+  IPPORT_MTP         =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_MTP;
+
+{ Port/socket numbers: host specific functions }
+
+  IPPORT_TFTP        =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_TFTP;
+  IPPORT_RJE         =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_RJE;
+  IPPORT_FINGER      =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_FINGER;
+  IPPORT_TTYLINK     =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_TTYLINK;
+  IPPORT_SUPDUP      =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_SUPDUP;
+
+{ UNIX TCP sockets }
+
+  IPPORT_EXECSERVER  =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_EXECSERVER;
+  IPPORT_LOGINSERVER =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_LOGINSERVER;
+  IPPORT_CMDSERVER   =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_CMDSERVER;
+  IPPORT_EFSSERVER   =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_EFSSERVER;
+
+{ UNIX UDP sockets }
+
+  IPPORT_BIFFUDP     =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_BIFFUDP;
+  IPPORT_WHOSERVER   =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_WHOSERVER;
+  IPPORT_ROUTESERVER =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_ROUTESERVER;
+
+{ Ports < IPPORT_RESERVED are reserved for
+  privileged processes (e.g. root). }
+
+  IPPORT_RESERVED    =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IPPORT_RESERVED;
+
+{ Options for use with [gs]etsockopt at the IP level. }
+
+  IP_OPTIONS          = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IP_OPTIONS;
+  IP_MULTICAST_IF     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IP_MULTICAST_IF;
+  IP_MULTICAST_TTL    = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IP_MULTICAST_TTL;
+  IP_MULTICAST_LOOP   = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IP_MULTICAST_LOOP;
+  IP_ADD_MEMBERSHIP   = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IP_ADD_MEMBERSHIP;
+  IP_DROP_MEMBERSHIP  = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IP_DROP_MEMBERSHIP;
+  IP_TTL              = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IP_TTL;
+  IP_TOS              = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IP_TOS;
+  IP_DONTFRAGMENT     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.IP_DONTFRAGMENT;
+
+{ This is used instead of -1, since the
+  TSocket type is unsigned.}
+{
+  Tsocket might be unsigned, but the sockets unit uses
+  signed types. So, we cannot use these constants, signed
+  ones are defined in socketh.inc.
+  INVALID_SOCKET                = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.INVALID_SOCKET;
+  SOCKET_ERROR                  = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SOCKET_ERROR;
+}
+
+{ Option flags per-socket. }
+
+  SO_DEBUG        = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_DEBUG;
+  SO_ACCEPTCONN   = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_ACCEPTCONN;
+  SO_REUSEADDR    = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_REUSEADDR;
+  SO_KEEPALIVE    = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_KEEPALIVE;
+  SO_DONTROUTE    = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_DONTROUTE;
+  SO_BROADCAST    = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_BROADCAST;
+  SO_USELOOPBACK  = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_USELOOPBACK;
+  SO_LINGER       = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_LINGER;
+  SO_OOBINLINE    = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_OOBINLINE;
+
+  SO_DONTLINGER  =  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_DONTLINGER;
+
+{ Additional options. }
+
+  SO_SNDBUF       = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_SNDBUF;
+  SO_RCVBUF       = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_RCVBUF;
+  SO_SNDLOWAT     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_SNDLOWAT;
+  SO_RCVLOWAT     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_RCVLOWAT;
+  SO_SNDTIMEO     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_SNDTIMEO;
+  SO_RCVTIMEO     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_RCVTIMEO;
+  SO_ERROR        = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_ERROR;
+  SO_TYPE         = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_TYPE;
+
+{ Options for connect and disconnect data and options.  Used only by
+  non-TCP/IP transports such as DECNet, OSI TP4, etc. }
+
+  SO_CONNDATA     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_CONNDATA;
+  SO_CONNOPT      = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_CONNOPT;
+  SO_DISCDATA     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_DISCDATA;
+  SO_DISCOPT      = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_DISCOPT;
+  SO_CONNDATALEN  = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_CONNDATALEN;
+  SO_CONNOPTLEN   = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_CONNOPTLEN;
+  SO_DISCDATALEN  = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_DISCDATALEN;
+  SO_DISCOPTLEN   = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_DISCOPTLEN;
+
+{ Option for opening sockets for synchronous access. }
+  SO_OPENTYPE     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_OPENTYPE;
+  SO_SYNCHRONOUS_ALERT    = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_SYNCHRONOUS_ALERT;
+  SO_SYNCHRONOUS_NONALERT = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_SYNCHRONOUS_NONALERT;
+
+{ Other NT-specific options. }
+  SO_MAXDG        = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_MAXDG;
+  SO_MAXPATHDG    = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_MAXPATHDG;
+  SO_UPDATE_ACCEPT_CONTEXT     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_UPDATE_ACCEPT_CONTEXT;
+  SO_CONNECT_TIME = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SO_CONNECT_TIME;
+
+{ TCP options. }
+  TCP_NODELAY     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.TCP_NODELAY;
+  TCP_BSDURGENT   = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.TCP_BSDURGENT;
+
+  MSG_OOB         = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.MSG_OOB;
+  MSG_PEEK        = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.MSG_PEEK;
+  MSG_DONTROUTE   = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.MSG_DONTROUTE;
+
+{ WinSock 2 extension -- new flags for WSASend(), WSASendTo(), WSARecv() and WSARecvFrom() }
+  MSG_INTERRUPT = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.MSG_INTERRUPT;
+  MSG_MAXIOVLEN = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.MSG_MAXIOVLEN;
+
+  MSG_PARTIAL     = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.MSG_PARTIAL;
+
+  { options for socket level  }
+  SOL_SOCKET = $ffff;
+
+  INVALID_SOCKET = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.INVALID_SOCKET;
+  SOCKET_ERROR = {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Winsock2.SOCKET_ERROR;
+

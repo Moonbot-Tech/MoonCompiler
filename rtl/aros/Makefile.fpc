@@ -1,0 +1,95 @@
+#
+#   Makefile.fpc for Free Pascal AROS RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=$(LOADERS)
+units=$(SYSTEMUNIT) $(HEAPTRCUNIT) $(UUCHARUNIT) $(OBJPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) buildrtl $(CPALLUNIT) $(CPU_UNITS)
+implicitunits=$(SYSINIT_UNITS) athreads $(FPINTRESUNIT) $(DOSUNIT) \
+      $(CTYPESUNIT)  $(STRINGSUNIT) $(RTLCONSTSUNIT) $(SYSCONSTUNIT) $(TYPESUNIT) \
+      $(FPWIDESTRINGUNIT) $(CHARACTERUNIT) \
+      $(CHARSETUNIT) $(GETOPTSUNIT)  \
+      $(EXEINFOUNIT) \
+      $(SYSUTILSUNIT) $(SORTBASEUNIT) $(FGLUNIT) $(CLASSESUNIT) $(MATHUNIT) $(TYPINFOUNIT)  \
+      $(CP_UNITS) $(UNICODEDATAUNIT) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT) $(UFLOAT128UNIT)
+
+rsts= $(MATHUNIT) $(TYPINFOUNIT) $(RTLCONSTSUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+buildunit=buildrtl
+
+[default]
+target=aros
+cpu=i386
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(CPU_TARGET) $(AMIINC) i386
+sourcedir=$(INC) $(PROCINC) $(CPU_TARGET) $(AMIINC) $(COMMON)
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+AMIINC=$(RTL)/amicommon
+UNITPREFIX=rtl
+LOADERS=prt0
+SYSINIT_UNITS=si_prc
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+ifeq ($(ARCH),arm)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),i386)
+CPU_UNITS=$(CPUUNIT) $(MMXUNIT) $(LINEINFOUNIT) $(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),x86_64)
+CPU_UNITS=$(CPUUNIT) $(INTRINSICSUNIT)
+endif
+
+
+[rules]
+.NOTPARALLEL:
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+
+
+#
+# Loaders
+#
+
+prt0$(OEXT) : $(CPU_TARGET)/prt0.as
+        $(AS) -o $(UNITTARGETDIRPREFIX)prt0$(OEXT) $(CPU_TARGET)/prt0.as
+
+#
+# Base Units (System, strings, os-dependent-base-unit)
+#
+
+
+buildrtl$(PPUEXT): buildrtl.pp $(SYSTEMUNIT)$(PPUEXT) $(OBJPASUNIT)$(PPUEXT) $(HEAPTRCUNIT)$(PPUEXT)
+        $(COMPILER) -Fi$(OBJPASDIR)/sysutils -Fi$(OBJPASDIR)/classes -Fu$(PROCINC) -Fu$(AMIINC) -I$(INC) -Fu$(INC) -Fu$(OBJPASDIR) buildrtl
+

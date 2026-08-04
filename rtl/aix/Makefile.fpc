@@ -1,0 +1,106 @@
+#
+#   Makefile.fpc for Free Pascal AIX RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(UNIXTYPEUNIT) $(CTYPESUNIT) $(STRINGSUNIT) $(OBJPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) $(MACPASUNIT) \
+      $(HEAPTRCUNIT) \
+      $(BASEUNIXUNIT) $(UNIXUTILUNIT) \
+      $(TERMIOUNIT) $(UNIXUNIT) $(INITCUNIT) $(CMEMUNIT) \
+      $(LNFOGDBUNIT) \
+      $(SYSUTILSUNIT) $(TYPINFOUNIT) $(MATHUNIT) $(SORTBASEUNIT) $(FGLUNIT) $(CLASSESUNIT) \
+      $(CHARSETUNIT) $(CPALLUNIT) $(CHARACTERUNIT) $(UNIXCPUNIT) $(GETOPTSUNIT) \
+      $(ERRORSUNIT) \
+      # ipc 
+      $(DLUNIT) $(DYNLIBSUNIT) \
+      $(TYPESUNIT) $(SYSCONSTUNIT) \
+      $(RTLCONSTSUNIT) $(CTHREADSUNIT) \
+      $(DOSUNIT) \
+      $(CWSTRINGUNIT) $(FPWIDESTRINGUNIT) $(FPINTRESUNIT) $(CPU_UNITS) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT) $(UFLOAT128UNIT)
+implicitunits=$(CP_UNITS) $(UNICODEDATAUNIT)
+
+rsts=$(MATHUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(RTLCONSTSUNIT)  $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+
+[default]
+target=aix
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(UNIXINC) # $(OSPROCINC)
+sourcedir=$(INC) $(PROCINC) $(UNIXINC) $(COMMON)
+
+
+[lib]
+libname=libfprtl.so
+libversion=2.0.0
+libunits=$(SYSTEMUNIT) $(OBJPASUNIT) $(STRINGSUNIT) \
+      $(UNIXUNIT)  \
+      $(DOSUNIT) \
+      $(SYSUTILSUNIT) $(TYPINFOUNIT) $(MATHUNIT) \
+      $(CPU_UNITS) $(GETOPTSUNIT) $(HEAPTRCUNIT) \
+      $(ERRORSUNIT)
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+OSPROCINC=$(RTL)/aix/$(CPU_TARGET)
+UNIXINC=$(RTL)/unix
+UNITPREFIX=rtl
+CLASSESDIR=$(UNIXINC)
+CPU_UNITS=
+CWSTRING_DEPS_OS=$(UNIXINC)/cwstraix.inc
+DYNLIBS_DEPS_OS=$(DLUNIT)$(PPUEXT)
+DYNLIBSINCDIR=$(UNIXINC)
+DL_DEPS_OS=$(DLUNIT)aix.inc
+TERMIO_DEPS_OS=$(UNIXTYPEUNIT)$(PPUEXT) $(CTYPESUNIT)$(PPUEXT)
+DOSDIR=$(UNIXINC)
+SYSUTILSDIR=$(UNIXINC)
+SYSUTILS_DEPS_OS = $(UNIXUNIT)$(PPUEXT) $(ERRORSUNIT)$(PPUEXT)
+
+
+
+
+ifeq ($(ARCH),powerpc)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),powerpc64)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+
+# AIX requires libc, no syscalls
+override FPCOPT+=-dFPC_USE_LIBC
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+[rules]
+.NOTPARALLEL:
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+

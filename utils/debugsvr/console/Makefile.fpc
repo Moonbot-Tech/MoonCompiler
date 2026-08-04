@@ -1,0 +1,21 @@
+#
+#   Makefile.fpc for debugserver - Console interface
+#
+
+[target]
+programs=debugserver
+rsts=debugserver
+
+[clean]
+
+[compiler]
+unitdir=..
+
+[install]
+fpcpackage=y
+
+[default]
+fpcdir=../../..
+
+[rules]
+.NOTPARALLEL:

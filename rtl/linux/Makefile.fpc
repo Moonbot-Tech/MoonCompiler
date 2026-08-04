@@ -1,0 +1,390 @@
+#
+#   Makefile.fpc for Free Pascal Linux RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=$(LOADERS)
+units=$(SYSTEMUNIT) $(FPINTRESUNIT) $(SYSINIT_UNITS) \
+      $(UUCHARUNIT) $(UNIXTYPEUNIT) $(CTYPESUNIT) $(BASEUNIXUNIT) $(STRINGSUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) $(SYSCALLUNIT) $(UNIXUTILUNIT) \
+      $(HEAPTRCUNIT) $(LINEINFOUNIT) $(LNFODWRFUNIT) \
+      $(TERMIOUNIT) $(UNIXUNIT) $(LINUXUNIT) $(INITCUNIT) $(CMEMUNIT) $(CPU_UNITS) \
+      $(LINUXVCSUNIT) \
+      $(SYSUTILSUNIT) $(TYPINFOUNIT) $(MATHUNIT)   \
+      $(CHARSETUNIT) $(CPALLUNIT) $(CHARACTERUNIT) $(UNIXCPUNIT) $(GETOPTSUNIT) \
+      $(ERRORSUNIT) $(DLUNIT) $(DYNLIBSUNIT) \
+      $(TYPESUNIT) $(SYSCONSTUNIT) $(FPWIDESTRINGUNIT) \
+      $(CTHREADSUNIT) $(SORTBASEUNIT) $(CLASSESUNIT) $(FGLUNIT) $(RTLCONSTSUNIT) $(DOSUNIT) $(CWSTRINGUNIT) $(FPCYLIXUNIT) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT) $(UFLOAT128UNIT) $(UNIX98PTYUNIT)
+
+implicitunits=$(EXEINFOUNIT) $(CP_UNITS) $(UNICODEDATAUNIT)
+
+rsts=$(MATHUNIT) $(TYPINFOUNIT) $(SYSCONSTUNIT) $(RTLCONSTSUNIT) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[clean]
+units=$(LINUXUNIT)
+
+[install]
+fpcpackage=y
+
+[default]
+target=linux
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(UNIXINC) $(ARCH)
+sourcedir=$(INC) $(PROCINC) $(UNIXINC) $(ARCH) $(COMMON)
+targetdir=.
+
+[shared]
+libunits=$(SYSTEMUNIT) $(OBJPASUNIT) $(STRINGSUNIT) $(DOSUNIT) \
+      $(UNIXUNIT) $(BASEUNIXUNIT) $(UNIXTYPEUNIT) $(UNIXUTILUNIT) \
+      $(SYSUTILSUNIT) $(TYPINFOUNIT) $(MATHUNIT) \
+      $(CPU_UNITS) $(GETOPTSUNIT) \
+      $(ERRORSUNIT)  \
+      $(CLASSESUNIT) $(FGLUNIT) $(SYSCONSTUNIT) $(SYSCALLUNIT) $(RTLCONSTSUNIT) $(TYPESUNIT) \
+      $(LINUXUNIT) $(SORTBASEUNIT) $(UNIX98PTYUNIT)
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(ARCH)
+UNIXINC=$(RTL)/unix
+PORTSDIR=$(RTL)/unix
+EXEINFO_DEPS_OS=$(DLUNIT)$(PPUEXT) $(CTYPESUNIT)$(PPUEXT) $(BASEUNIXUNIT)$(PPUEXT)
+UNITPREFIX=rtl
+NSOSDIR=$(NSDIR)/linux
+
+CTYPES_DEPS_OS=$(UNIXTYPEUNIT)$(PPUEXT)
+DOSDIR=$(UNIXINC)
+DOS_DEPS_OS=$(BASEUNIXUNIT)$(PPUEXT) $(UNIXUTILUNIT)$(PPUEXT) $(UNIXUNIT)$(PPUEXT) $(SYSCALLUNIT)$(PPUEXT) $(INITCUNIT)$(PPUEXT)
+CLASSESDIR=$(UNIXINC)
+DYNLIBS_DEPS_OS=$(DLUNIT)$(PPUEXT)
+DYNLIBSINCDIR=$(UNIXINC)
+CTHREADS_DEPS_OS=$(LINUXUNIT)$(PPUEXT)
+ifeq ($(CPU_TARGET),sparc)
+SYSCALL_DEPS_OS=$(ARCH)/syscallh.inc $(RTL)/sparcgen/sysnr.inc
+else
+ifeq ($(CPU_TARGET),sparc64)
+SYSCALL_DEPS_OS=$(ARCH)/syscallh.inc $(RTL)/sparcgen/sysnr.inc
+else
+SYSCALL_DEPS_OS=$(ARCH)/syscallh.inc $(ARCH)/sysnr.inc
+endif
+endif
+# syscall unit compiled with -dFPC_USE_LIBC
+# required mode objfpc which adds a dependency to
+# objpas unit
+ifneq ($(filter -dFPC_USE_LIBC,$(OPT) $(CROSSOPT)),)
+  SYSCALL_DEPS_OS+=$(OBJPASUNIT)$(PPUEXT)
+endif
+
+SYSUTILSDIR=$(UNIXINC)
+SYSUTILS_DEPS_OS=$(SYSUTILS_UNIX_DEPS) $(LINUXUNIT)$(PPUEXT)
+UNIX_DEPS_OS=$(SYSCALLUNIT)$(PPUEXT)
+CPU_UNITS=
+SYSINIT_UNITS=
+
+LOADERS=prt0 dllprt0 cprt0 gprt0
+
+ifeq ($(ARCH),i386)
+override LOADERS=
+CPU_UNITS=$(X86UNIT) $(PORTSUNIT) $(CPUUNIT) $(MMXUNIT) $(INTRINSICSUNIT)
+SYSINIT_UNITS=si_prc si_c21g si_c21 si_c si_dll si_uc
+endif
+
+ifeq ($(ARCH),x86_64)
+CPU_UNITS=$(X86UNIT) $(PORTSUNIT) $(CPUUNIT) $(INTRINSICSUNIT)
+SYSINIT_UNITS=si_prc si_c si_g si_dll
+override LOADERS=abitag
+endif
+
+ifeq ($(ARCH),aarch64)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),powerpc)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),powerpc64)
+override LOADERS=
+SYSINIT_UNITS=si_prc si_c si_g si_dll
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),sparc64)
+override LOADERS=
+SYSINIT_UNITS=si_prc si_c si_g si_dll
+endif
+
+ifeq ($(ARCH),riscv32)
+override LOADERS=
+SYSINIT_UNITS=si_prc si_dll si_c
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),riscv64)
+override LOADERS=
+SYSINIT_UNITS=si_prc si_dll si_c si_g
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),mips64)
+override LOADERS=
+SYSINIT_UNITS=si_prc si_dll si_c si_g
+endif
+
+ifeq ($(ARCH),mips64el)
+override LOADERS=
+SYSINIT_UNITS=si_prc si_dll si_c si_g
+endif
+
+# mipsel reuses mips files by including so some file names exist
+# twice, this causes the compiler to find sometimes wrong files and it tries
+# to recompile rtl units. To prevent this, compile always as release PPUs, this
+# should not harm.
+ifeq ($(ARCH),mipsel)
+override FPCOPT+=-Ur
+endif
+
+ifeq ($(ARCH),arm)
+override LOADERS+=ucprt0
+CPU_UNITS=$(CPUUNIT) $(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),sparc)
+  override FPCOPT+=-Fisparcgen
+endif
+
+ifeq ($(ARCH),sparc64)
+  override FPCOPT+=-Fisparcgen
+endif
+
+ifeq ($(ARCH),xtensa)
+override LOADERS=
+SYSINIT_UNITS=si_prc si_dll si_c si_uc
+endif
+
+ifeq ($(ARCH),loongarch64)
+override LOADERS=
+SYSINIT_UNITS=si_prc si_dll si_c si_g
+endif
+
+
+# Causes release PPU files not to be recompiled
+ifdef RELEASE
+override FPCOPT+=-Ur
+endif
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+[rules]
+# Get the $(SYSTEMUNIT) independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put $(SYSTEMUNIT) unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+
+SYSNRINC=$(ARCH)/sysnr.inc
+
+# Set PIC_OPT to 1 if -Cg or -fPIC is used
+ifneq ($(findstring -Cg ,$(COMPILER)),)
+  PIC_OPT=1
+endif
+ifneq ($(findstring -fPIC ,$(COMPILER)),)
+  PIC_OPT=1
+endif
+
+# Select 32/64 mode
+ifeq ($(ARCH),i386)
+  ASTARGET=--32
+endif
+ifeq ($(ARCH),x86_64)
+  ASTARGET=--64
+endif
+ifeq ($(ARCH),powerpc)
+  ASTARGET=-a32
+endif
+ifeq ($(ARCH),powerpc64)
+  ASTARGET=-a64
+endif
+# Select 32/64 mode
+ifeq ($(ARCH),mips)
+  ASTARGET=-32 -mabi=32 -mips2 -EB
+  ifeq ($(PIC_OPT),1)
+    ASTARGET+= -KPIC
+  endif
+  ifneq (,$(findstring -ao-xgot, $(FPC_OPT)))
+    ASTARGET+= -xgot
+  endif
+  ASSHAREDOPT=-KPIC
+endif
+ifeq ($(ARCH),mipsel)
+  ASTARGET=-32 -mabi=32 -mips2 -EL
+  ifeq ($(PIC_OPT),1)
+    ASTARGET+= -KPIC
+  endif
+  ifneq (,$(findstring -ao-xgot, $(FPC_OPT)))
+    ASTARGET+= -xgot
+  endif
+  ASSHAREDOPT=-KPIC
+endif
+
+ifeq ($(ARCH),sparc)
+  ifeq ($(PIC_OPT),1)
+    ASTARGET+=-K PIC --defsym PIC=1
+  endif
+  ASTARGET+=-32
+  SYSNRINC=sparcgen/sysnr.inc
+  ASSHAREDOPT=-KPIC
+endif
+
+ifeq ($(ARCH),sparc64)
+  ifeq ($(PIC_OPT),1)
+    ASTARGET+=-K PIC --defsym PIC=1
+  endif
+  ASTARGET+=-64
+  SYSNRINC=sparcgen/sysnr.inc
+  ASSHAREDOPT=-KPIC
+endif
+
+ifeq ($(ARCH),riscv32)
+  ASTARGET=-march=rv32imafdc
+endif
+ifeq ($(ARCH),riscv64)
+  ASTARGET=-march=rv64imafdc
+endif
+
+ifeq ($(ARCH),arm)
+  ifeq ($(SUBARCH),armv6m)
+    ASTARGET+=-mthumb --def __thumb__=1
+    ARMTHUMB=1
+  endif
+  ASTARGET+= -meabi=5
+endif
+
+
+#
+# Loaders
+#
+
+prt0$(OEXT) : $(ARCH)/prt0.as
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+	$(AS) $(ASTARGET) -o $(UNITTARGETDIRPREFIX)prt0$(OEXT) $(ARCH)/prt0.as
+
+abitag$(OEXT) : $(ARCH)/abitag.as
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+	$(AS) $(ASTARGET) -o $(UNITTARGETDIRPREFIX)abitag$(OEXT) $(ARCH)/abitag.as
+
+# ASSHAREDOPT adds -KPIC mandatoy for mips/mipsel objects in shared libs
+#
+# the following startup files do not support thumb yet
+#
+dllprt0$(OEXT) : $(ARCH)/dllprt0.as
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+ifndef ARMTHUMB
+	$(AS) $(ASTARGET) $(ASSHAREDOPT) -o $(UNITTARGETDIRPREFIX)dllprt0$(OEXT) $(ARCH)/dllprt0.as
+endif
+
+gprt0$(OEXT) : $(ARCH)/gprt0.as
+ifndef ARMTHUMB
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+	$(AS) $(ASTARGET) -o $(UNITTARGETDIRPREFIX)gprt0$(OEXT) $(ARCH)/gprt0.as
+endif
+
+cprt0$(OEXT) : $(ARCH)/cprt0.as
+ifndef ARMTHUMB
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+	$(AS) $(ASTARGET) -o $(UNITTARGETDIRPREFIX)cprt0$(OEXT) $(ARCH)/cprt0.as
+endif
+
+cprt21$(OEXT) : $(ARCH)/cprt21.as
+ifndef ARMTHUMB
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+	$(AS) $(ASTARGET) -o $(UNITTARGETDIRPREFIX)cprt21$(OEXT) $(ARCH)/cprt21.as
+endif
+
+gprt21$(OEXT) : $(ARCH)/gprt21.as
+ifndef ARMTHUMB
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+	$(AS) $(ASTARGET) -o $(UNITTARGETDIRPREFIX)gprt21$(OEXT) $(ARCH)/gprt21.as
+endif
+
+ucprt0$(OEXT) : $(ARCH)/ucprt0.as
+ifndef ARMTHUMB
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+	$(AS) $(ASTARGET) -o $(UNITTARGETDIRPREFIX)$@ $<
+endif
+
+
+#
+# $(SYSINIT_UNITS) Units
+#
+
+SI_PRC_DEPS=si_prc.pp si_intf.inc $(SYSNRINC) $(ARCH)/si_prc.inc $(SYSTEMUNIT)$(PPUEXT) \
+            $(SI_PRC_DEPS_OS) $(SI_PRC_DEPS_CPU)
+
+si_prc$(PPUEXT) : $(SI_PRC_DEPS)
+	$(COMPILER) $<
+
+
+SI_C21G_DEPS=si_c21g.pp si_intf.inc $(SYSNRINC) $(ARCH)/si_c21.inc $(SYSTEMUNIT)$(PPUEXT) \
+             $(SI_C21G_DEPS_OS) $(SI_C21G_DEPS_CPU)
+
+si_c21g$(PPUEXT) : $(SI_C21G_DEPS)
+	$(COMPILER) $<
+
+
+SI_C21_DEPS=si_c21.pp si_intf.inc $(SYSNRINC)  $(ARCH)/si_c21.inc $(SYSTEMUNIT)$(PPUEXT) \
+            $(SI_C21_DEPS_OS) $(SI_C21_DEPS_CPU)
+
+si_c21$(PPUEXT) : $(SI_C21_DEPS)
+	$(COMPILER) $<
+
+
+SI_C_DEPS=si_c.pp si_intf.inc $(SYSNRINC)  $(ARCH)/si_c.inc $(SYSTEMUNIT)$(PPUEXT) \
+          $(SI_C_DEPS_OS) $(SI_C_DEPS_CPU)
+
+si_c$(PPUEXT) : $(SI_C_DEPS)
+	$(COMPILER) $<
+
+
+SI_DLL_DEPS=si_dll.pp si_intf.inc $(SYSNRINC)  $(ARCH)/si_dll.inc $(SYSTEMUNIT)$(PPUEXT) \
+            $(SI_DLL_DEPS_OS) $(SI_DLL_DEPS_CPU)
+
+si_dll$(PPUEXT) : $(SI_DLL_DEPS)
+	$(COMPILER) $<
+
+
+SI_UC_DEPS=si_uc.pp si_intf.inc $(SYSNRINC)  $(ARCH)/si_uc.inc $(SYSTEMUNIT)$(PPUEXT) \
+           $(SI_UC_DEPS_OS) $(SI_UC_DEPS_CPU)
+
+si_uc$(PPUEXT) : $(SI_UC_DEPS)
+	$(COMPILER) $<
+
+
+SI_G_DEPS=si_g.pp si_intf.inc $(SYSNRINC) $(ARCH)/si_g.inc $(SYSTEMUNIT)$(PPUEXT) \
+          $(SI_G_DEPS_OS) $(SI_G_DEPS_CPU)
+
+si_g$(PPUEXT) : $(SI_G_DEPS)
+	$(COMPILER) $<
+
+
+
+buildrtl$(PPUEXT): buildrtl.pp $(SYSTEMUNIT)$(PPUEXT) $(OBJPASUNIT)$(PPUEXT) $(HEAPTRCUNIT)$(PPUEXT)
+        $(COMPILER) -Fi$(OBJPASDIR)/sysutils -Fi$(OBJPASDIR)/classes -Fu$(PROCINC) -Fu$(UNIXINC) -Fu$(RTL)/charmaps -I$(INC) -Fu$(INC) -Fu$(OBJPASDIR) buildrtl

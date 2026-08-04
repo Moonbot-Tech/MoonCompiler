@@ -1,0 +1,95 @@
+#
+#   Makefile.fpc for Free Pascal Amiga RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=$(LOADERS)
+units=$(SYSTEMUNIT) $(RESUNIT) $(HEAPTRCUNIT) $(UUCHARUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) buildrtl $(CPALLUNIT)
+implicitunits=$(SYSINIT_UNITS) $(EXEUNITS) athreads $(DOSUNIT) $(SYSUTILSUNIT) $(SYSCONSTUNIT) \
+      $(CTYPESUNIT) $(STRINGSUNIT) $(RTLCONSTSUNIT) $(MATHUNIT) $(TYPESUNIT) \
+      $(TYPINFOUNIT) $(SORTBASEUNIT) $(FGLUNIT) $(CLASSESUNIT) $(CHARSETUNIT) $(CHARACTERUNIT) $(GETOPTSUNIT) $(FPWIDESTRINGUNIT) \
+      $(CP_UNITS) $(UNICODEDATAUNIT) \
+      $(UFLOAT128UNIT)  $(UFLOATX80UNIT) $(SFPU128UNIT) $(SFPUX80UNIT) $(SOFTFPUUNIT) 
+
+
+rsts=$(MATHUNIT) $(RTLCONSTSUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+
+[default]
+target=amiga
+cpu=powerpc
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(CPU_TARGET) $(AMIINC)
+sourcedir=$(INC) $(PROCINC) $(CPU_TARGET) $(AMIINC) $(COMMON)
+
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+AMIINC=$(RTL)/amicommon
+UNITPREFIX=rtl
+LOADERS=prt0
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+ifeq ($(ARCH),m68k)
+override LOADERS=
+SYSINIT_UNITS=si_prc
+RESUNIT=fpextres
+endif
+
+ifeq ($(ARCH),powerpc)
+override LOADERS=
+RESUNIT=$(FPINTRESUNIT)
+SYSINIT_UNITS=si_prc
+EXEUNITS=$(LINEINFOUNIT) $(EXEINFOUNIT) $(INTRINSICSUNIT)
+endif
+
+[rules]
+.NOTPARALLEL:
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+
+
+#
+# Loaders
+#
+
+prt0$(OEXT) : $(CPU_TARGET)/prt0.as
+        $(AS) -o $(UNITTARGETDIRPREFIX)prt0$(OEXT) $(CPU_TARGET)/prt0.as
+
+ifdef FPC_DOTTEDUNITS
+BUILDRTL_OPT:=$(BUILDRTL_OPT) -Fu$(NSINC) -Fu$(NSOSDIR) -dFPC_DOTTEDUNITS 
+endif
+
+#
+# Base Units (System, strings, os-dependent-base-unit)
+#
+
+buildrtl$(PPUEXT): buildrtl.pp $(SYSTEMUNIT)$(PPUEXT) $(OBJPASUNIT)$(PPUEXT) $(HEAPTRCUNIT)$(PPUEXT)
+        $(COMPILER) -Fi$(OBJPASDIR)/sysutils -Fi$(OBJPASDIR)/classes -Fu$(CPU_TARGET) -Fu$(PROCINC) -Fu$(AMIINC) -I$(INC) -Fu$(INC) -Fu$(OBJPASDIR) $(BUILDRTL_OPT) buildrtl
+

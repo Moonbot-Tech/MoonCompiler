@@ -1,0 +1,122 @@
+#
+#   Makefile.fpc for Free Pascal NetBSD RTL
+#
+
+[package]
+main=rtl
+
+[install]
+fpcpackage=y
+
+[target]
+loaders=prt0 cprt0 dllprt0
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(UNIXTYPEUNIT) $(CTYPESUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) \
+      $(STRINGSUNIT) $(SYSCALLUNIT) $(SYSCTLUNIT)  $(BASEUNIXUNIT) $(UNIXUTILUNIT) $(CHARACTERUNIT) \
+      $(UNIXUNIT) $(RTLCONSTSUNIT) $(INITCUNIT) $(CMEMUNIT) \
+      $(DLUNIT) $(TERMIOUNIT) \
+      $(SYSUTILSUNIT) $(MATHUNIT) $(TYPINFOUNIT) $(TYPESUNIT) $(SORTBASEUNIT) $(CLASSESUNIT) $(FGLUNIT) $(DYNLIBSUNIT) \
+      $(CPU_UNITS) $(CHARSETUNIT) $(CPALLUNIT) $(GETOPTSUNIT) $(HEAPTRCUNIT) $(LNFODWRFUNIT) $(LINEINFOUNIT) \
+      $(ERRORSUNIT) $(BSDUNIT) \
+      $(SYSCONSTUNIT) $(CTHREADSUNIT) $(DOSUNIT) $(CWSTRINGUNIT) \
+      $(FPINTRESUNIT) $(UNIXCPUNIT) $(FPWIDESTRINGUNIT) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT) $(UFLOAT128UNIT) $(UNIX98PTYUNIT)
+implicitunits=$(EXEINFOUNIT) $(CP_UNITS) $(UNICODEDATAUNIT)
+
+rsts=$(MATHUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+
+[default]
+target=netbsd
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(UNIXINC) $(BSDINC) $(BSDPROCINC) $(TARGETPROCINC)
+sourcedir=$(INC) $(PROCINC) $(UNIXINC) $(BSDINC)
+
+
+[lib]
+libname=libfprtl.so
+libversion=2.0.0
+libunits=$(SYSTEMUNIT) $(OBJPASUNIT) $(STRINGSUNIT) \
+      $(UNIXUNIT)  \
+      $(DOSUNIT) \
+      $(SYSUTILSUNIT) $(TYPINFOUNIT) $(MATHUNIT) \
+      $(CPUUNIT) $(MMXUNIT) $(GETOPTSUNIT) $(HEAPTRCUNIT) \
+      $(ERRORSUNIT)
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+PORTSDIR=$(RTL)/unix
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+BSDINC=$(RTL)/bsd
+BSDPROCINC=$(BSDINC)/$(CPU_TARGET)
+UNIXINC=$(RTL)/unix
+UNITPREFIX=rtl
+TARGETPROCINC=$(RTL)/netbsd/$(CPU_TARGET)
+
+BASEUNIX_DEPS_OS=$(SYSCTLUNIT)$(PPUEXT)
+BSD_DEPS_OS=$(SYSCALLUNIT)$(PPUEXT)
+CLASSESDIR=$(UNIXINC)
+DOSDIR=$(UNIXINC)
+DYNLIBS_DEPS_OS=$(DLUNIT)$(PPUEXT)
+DYNLIBSINCDIR=$(UNIXINC)
+SYSCALL_DEPS_OS = sysnr.inc $(BSDPROCINC)/syscallh.inc
+SYSTEMDIR = $(BSDINC)
+SYSUTILSDIR=$(UNIXINC)
+SYSUTILS_DEPS_OS = $(UNIXUNIT)$(PPUEXT) $(ERRORSUNIT)$(PPUEXT)
+
+LINUXUNIT=
+PRT0=prt0
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+ifeq ($(ARCH),x86_64)
+CPU_UNITS=$(X86UNIT) $(PORTSUNIT) $(CPUUNIT) $(INTRINSICSUNIT)
+endif
+ifeq ($(ARCH),i386)
+CPU_UNITS=$(X86UNIT) $(PORTSUNIT) $(CPUUNIT) $(MMXUNIT) $(INTRINSICSUNIT)
+endif
+ifeq ($(ARCH),arm)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+ifeq ($(ARCH),powerpc)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+[rules]
+.NOTPARALLEL:
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS = sysconst.inc systypes.inc syscalls.inc $(SYSINCDEPS) $(SYSCPUDEPS)
+
+#
+# Loaders
+#
+
+prt0$(OEXT) : $(CPU_TARGET)/$(PRT0).as
+        $(AS) -o $(UNITTARGETDIRPREFIX)prt0$(OEXT) $(CPU_TARGET)/$(PRT0).as
+
+cprt0$(OEXT) : $(CPU_TARGET)/cprt0.as
+        $(AS) -o $(UNITTARGETDIRPREFIX)cprt0$(OEXT) $(CPU_TARGET)/cprt0.as
+
+dllprt0$(OEXT) : $(CPU_TARGET)/dllprt0.as
+        $(AS) -o $(UNITTARGETDIRPREFIX)dllprt0$(OEXT) $(CPU_TARGET)/dllprt0.as
+

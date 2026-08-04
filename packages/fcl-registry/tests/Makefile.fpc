@@ -1,0 +1,19 @@
+#
+#   Makefile.fpc for Registry TestFramework
+#
+
+[package]
+main=fcl
+
+[target]
+examples=tregtestframework
+
+[install]
+fpcpackage=y
+
+[default]
+fpcdir=../../..
+
+
+[rules]
+.NOTPARALLEL:

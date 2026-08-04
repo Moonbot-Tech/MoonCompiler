@@ -1,0 +1,78 @@
+#
+#   Makefile.fpc for MSDOS RTL
+#
+[package]
+main=rtl
+[target]
+#loaders=prt0s prt0t prt0m prt0c prt0l prt0h # exceptn fpu
+units=$(SYSTEMUNIT) si_prc $(UUCHARUNIT) $(OBJPASUNIT) $(ISO7185UNIT) $(STRINGSUNIT) $(CHARSETUNIT) $(CPALLUNIT) \
+      $(GETOPTSUNIT) $(EXEINFOUNIT) $(HEAPTRCUNIT)
+#$(UUCHARUNIT) $(OBJPASUNIT) $(STRINGSUNIT) $(DOSUNIT) $(HEAPTRCUNIT) $(LNFODWRFUNIT) $(SYSCONSTUNIT) $(SYSUTILSUNIT) \
+#      $(MATHUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) $(RTLCONSTSUNIT) $(TYPINFOUNIT) $(CPUUNIT) $(TYPESUNIT) \
+#      $(GETOPTSUNIT) $(SORTBASEUNIT) $(FGLUNIT) $(CLASSESUNIT) \
+#      $(MSMOUSEUNIT) $(PORTSUNIT)  \
+#      $(CHARSETUNIT) $(CPALLUNIT) $(CTYPESUNIT) \
+#      $(FPWIDESTRINGUNIT) $(CHARACTERUNIT) $(UNICODEDATAUNIT)
+#     $(CMEMUNIT)
+#      $(INITCUNIT) profile dxetype dxeload emu387 \
+#      $(CPUUNIT) $(MMXUNIT) $(INTRINSICSUNIT) \
+#      vesamode \
+# rsts=$(MATHUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+implicitunits= $(CP_UNITS)
+
+[require]
+nortl=y
+[install]
+fpcpackage=y
+[default]
+target=msxdos
+cpu=z80
+[compiler]
+includedir=$(INC) $(PROCINC)
+sourcedir=$(INC) $(PROCINC) $(COMMON)
+[prerules]
+RTL=..
+INC=../inc
+COMMON=$(RTL)/common
+PROCINC=../$(CPU_TARGET)
+UNITPREFIX=rtl
+
+DOS_DEPS_OS =  registers.inc $(INC)/dosh.inc $(INC)/dos.inc $(INC)/fexpand.inc
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+# Insert exception handler in system unit
+ifdef EXCEPTIONS_IN_SYSTEM
+override FPCOPT+=-dEXCEPTIONS_IN_SYSTEM
+endif
+# Insert exception handler in system unit
+ifdef NO_EXCEPTIONS_IN_SYSTEM
+override FPCOPT+=-dNO_EXCEPTIONS_IN_SYSTEM
+endif
+[rules]
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS) $(INC)/tnyheaph.inc $(INC)/tinyheap.inc registers.inc
+
+#
+# Loaders
+#
+ifneq ($(findstring -dTEST_I8086_SMARTLINK_SECTIONS,$(FPCOPT)),)
+override NASM_OPT+=-D__I8086_SMARTLINK_SECTIONS__
+endif
+
+#
+# Other system-dependent RTL Units
+#
+
+si_prc$(PPUEXT) : $(SYSTEMUNIT)$(PPUEXT)
+        $(COMPILER) si_prc.pp

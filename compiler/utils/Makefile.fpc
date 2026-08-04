@@ -1,0 +1,103 @@
+#
+#   Makefile.fpc for Free Pascal Compiler Utils
+#
+
+[target]
+programs=fpc ppufiles ppudump ppumove mka64ins mkarmins mkx86ins msg2inc mkx86inl mkz80ins
+rst=fpcsubst
+
+[clean]
+units=ppu crc
+programs=fpc ppufiles ppudump ppumove mka64ins mkarmins mkx86ins msg2inc mkx86inl mkz80ins gppc386 vppcx64
+
+[compiler]
+unitdir=..
+sourcedir=..
+
+[install]
+fpcpackage=y
+
+[require]
+tools=data2inc
+
+[default]
+fpcdir=../..
+
+[shared]
+build=n
+
+[prerules]
+ifdef OPTNEW
+override FPCOPT+=$(OPTNEW)
+endif
+
+[rules]
+#
+# PPU Tools
+#
+
+# not parallel because systems using an external linker will get conflicts
+# due to overwriting each other's link.res file
+.NOTPARALLEL:
+
+REG_SOURCES=$(wildcard *reg.pp)
+REG_EXES=$(subst .pp,$(EXEEXT),$(REG_SOURCES))
+
+ifndef NOCPUDEF
+ppu$(PPUEXT): ../ppu.pas
+	$(MAKE) ppu$(PPUEXT) NOCPUDEF=1
+
+ppudump$(EXEEXT): ppuutils/ppudump.pp ppu$(PPUEXT)
+	$(MAKE) ppudump$(EXEEXT) NOCPUDEF=1
+
+ppufiles$(EXEEXT): ppufiles.pp ppu$(PPUEXT)
+	$(MAKE) ppufiles$(EXEEXT) NOCPUDEF=1
+
+ppumove$(EXEEXT): ppumove.pp ppu$(PPUEXT)
+	$(MAKE) ppumove$(EXEEXT) NOCPUDEF=1
+
+else
+ppu$(PPUEXT): ../ppu.pas
+        $(COMPILER) ../ppu.pas -Fu../llvm -Fu../generic -dGENERIC_CPU -Fi..
+
+ppudump$(EXEEXT): ppuutils/ppudump.pp ppu$(PPUEXT)
+        $(COMPILER) ppuutils/ppudump.pp -Fu../llvm -Fu../generic -dGENERIC_CPU -Fi..
+
+ppufiles$(EXEEXT): ppufiles.pp ppu$(PPUEXT)
+        $(COMPILER) ppufiles.pp -Fu../llvm -Fu../generic -dGENERIC_CPU -Fi..
+
+ppumove$(EXEEXT): ppumove.pp ppu$(PPUEXT)
+        $(COMPILER) ppumove.pp -Fu../llvm -Fu../generic -dGENERIC_CPU -Fi..
+
+endif
+
+msg2inc$(EXEEXT): $(COMPILER_UNITTARGETDIR) msg2inc.pp
+
+gppc386$(EXEEXT): $(COMPILER_UNITTARGETDIR) gppc386.pp
+
+vppcx64$(EXEEXT): $(COMPILER_UNITTARGETDIR) vppcx64.pp
+
+fpcsubst$(EXEEXT): fpcsubst.pp usubst.pp
+
+fpcmkcfg$(EXEEXT): fpcmkcfg.pp usubst.pp fpccfg.inc fpcfg.inc fpini.inc
+
+ifneq ($(DATA2INC),)
+fpccfg.inc: fpc.cft
+        $(DATA2INC) -b -s fpc.cft fpccfg.inc DefaultConfig
+
+fpcfg.inc : fpinc.cfg
+        $(DATA2INC) -b -s fpinc.cfg fpcfg.inc fpcfg
+
+fpini.inc : fpinc.ini
+        $(DATA2INC) -b -s fpinc.ini fpini.inc fpini
+endif
+
+reg_exes: $(COMPILER_UNITTARGETDIR)
+	$(MAKE) $(REG_EXES)
+
+#
+# Don't export some tools, which are found in the current dir if it's in
+# the path, so are not valid for the subdirs
+#
+
+unexport PPUFILES PPUMOVE

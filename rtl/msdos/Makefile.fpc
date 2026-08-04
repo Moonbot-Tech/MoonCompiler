@@ -1,0 +1,87 @@
+#
+#   Makefile.fpc for MSDOS RTL
+#
+[package]
+main=rtl
+[target]
+loaders=prt0s prt0t prt0m prt0c prt0l prt0h # exceptn fpu
+units=$(SYSTEMUNIT)  \
+      $(UUCHARUNIT) $(CTYPESUNIT) $(STRINGSUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) \
+      $(HEAPTRCUNIT) $(LNFODWRFUNIT) \
+      $(CPUUNIT) \
+      $(SYSUTILSUNIT) $(TYPINFOUNIT) $(MATHUNIT)  \
+      $(CHARSETUNIT) $(CPALLUNIT) $(CHARACTERUNIT) $(GETOPTSUNIT) \
+      $(TYPESUNIT) $(SYSCONSTUNIT) $(FPWIDESTRINGUNIT) $(PORTSUNIT) \ 
+      $(SORTBASEUNIT) $(CLASSESUNIT) $(FGLUNIT) $(RTLCONSTSUNIT) $(DOSUNIT) $(MSMOUSEUNIT)
+      
+implicitunits=$(EXEINFOUNIT) $(CP_UNITS) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+[install]
+fpcpackage=y
+[default]
+target=msdos
+cpu=i8086
+[compiler]
+includedir=$(INC) $(PROCINC)
+sourcedir=$(INC) $(PROCINC) $(COMMON)
+[prerules]
+RTL=..
+INC=../inc
+COMMON=$(RTL)/common
+PROCINC=../$(CPU_TARGET)
+UNITPREFIX=rtl
+# OS specific dependencies
+SYSUTILS_DEPS_OS=$(DOSUNIT)$(PPUEXT)
+
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+# Insert exception handler in system unit
+ifdef EXCEPTIONS_IN_SYSTEM
+override FPCOPT+=-dEXCEPTIONS_IN_SYSTEM
+endif
+# Insert exception handler in system unit
+ifdef NO_EXCEPTIONS_IN_SYSTEM
+override FPCOPT+=-dNO_EXCEPTIONS_IN_SYSTEM
+endif
+[rules]
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+#
+# Loaders
+#
+ifneq ($(findstring -dTEST_I8086_SMARTLINK_SECTIONS,$(FPCOPT)),)
+override NASM_OPT+=-D__I8086_SMARTLINK_SECTIONS__
+endif
+
+prt0s$(OEXT) : prt0s.asm prt0comn.asm
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+        $(NASM) $(NASM_OPT) -f obj -o $(UNITTARGETDIRPREFIX)prt0s$(OEXT) prt0s.asm
+prt0t$(OEXT) : prt0t.asm prt0comn.asm
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+        $(NASM) $(NASM_OPT) -f obj -o $(UNITTARGETDIRPREFIX)prt0t$(OEXT) prt0t.asm
+prt0m$(OEXT) : prt0m.asm prt0comn.asm
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+        $(NASM) $(NASM_OPT) -f obj -o $(UNITTARGETDIRPREFIX)prt0m$(OEXT) prt0m.asm
+prt0c$(OEXT) : prt0c.asm prt0comn.asm
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+        $(NASM) $(NASM_OPT) -f obj -o $(UNITTARGETDIRPREFIX)prt0c$(OEXT) prt0c.asm
+prt0l$(OEXT) : prt0l.asm prt0comn.asm
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+        $(NASM) $(NASM_OPT) -f obj -o $(UNITTARGETDIRPREFIX)prt0l$(OEXT) prt0l.asm
+prt0h$(OEXT) : prt0h.asm prt0comn.asm
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+        $(NASM) $(NASM_OPT) -f obj -o $(UNITTARGETDIRPREFIX)prt0h$(OEXT) prt0h.asm
+

@@ -1,0 +1,136 @@
+#
+#   Makefile.fpc for Go32v2 RTL
+#
+[package]
+main=rtl
+[target]
+loaders=prt0 exceptn fpu
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) $(STRINGSUNIT) \
+      $(GO32UNIT) $(DPMIEXCPUNIT) $(INITCUNIT) $(PORTSUNIT) $(PROFILEUNIT) $(DXETYPEUNIT) $(DXELOADUNIT) $(EMU387UNIT) \
+      $(DOSUNIT) $(CMEMUNIT) $(SORTBASEUNIT) \
+      $(SYSUTILSUNIT) $(CLASSESUNIT) $(MATHUNIT) $(TYPINFOUNIT) \
+      $(CPUUNIT) $(MMXUNIT) $(INTRINSICSUNIT) $(GETOPTSUNIT) $(HEAPTRCUNIT) $(LINEINFOUNIT) $(LNFODWRFUNIT) $(CTYPESUNIT) $(FGLUNIT) \
+      $(MSMOUSEUNIT) $(CHARSETUNIT) $(CPALLUNIT) \
+      $(CHARACTERUNIT) $(FPWIDESTRINGUNIT) $(UNICODEDATAUNIT) \
+      $(TYPESUNIT) $(SYSCONSTUNIT) $(RTLCONSTSUNIT) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT) $(UFLOAT128UNIT)
+rsts=$(MATHUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+implicitunits=$(EXEINFOUNIT) $(CP_UNITS)
+[require]
+nortl=y
+[install]
+fpcpackage=y
+[default]
+target=go32v2
+cpu=i386
+[compiler]
+includedir=$(INC) $(PROCINC)
+sourcedir=$(INC) $(PROCINC) $(COMMON)
+[prerules]
+RTL=..
+INC=../inc
+COMMON=$(RTL)/common
+PROCINC=../$(CPU_TARGET)
+UNITPREFIX=rtl
+ifndef FPC_DOTTEDUNITS
+RTLCONSTSUNIT=rtlconst
+endif
+
+INITC_DEPS_OS=$(DPMIEXCPUNIT)$(PPUEXT)
+DOS_DEPS_OS = $(GO32UNIT)$(PPUEXT)
+SYSUTILS_DEPS_OS = $(DOSUNIT)$(PPUEXT) $(GO32UNIT)$(PPUEXT)
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+# Insert exception handler in system unit
+ifdef EXCEPTIONS_IN_SYSTEM
+override FPCOPT+=-dEXCEPTIONS_IN_SYSTEM
+endif
+# Insert exception handler in system unit
+ifdef NO_EXCEPTIONS_IN_SYSTEM
+override FPCOPT+=-dNO_EXCEPTIONS_IN_SYSTEM
+endif
+[rules]
+
+.NOTPARALLEL:
+
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+
+#
+# Loaders
+#
+prt0$(OEXT) : v2prt0.as
+	$(AS) -o $(UNITTARGETDIRPREFIX)prt0$(OEXT) $<
+
+exceptn$(OEXT) : exceptn.as
+	$(AS) -o $(UNITTARGETDIRPREFIX)exceptn$(OEXT) $<
+
+fpu$(OEXT) : fpu.as
+	$(AS) -o $(UNITTARGETDIRPREFIX)fpu$(OEXT) $<
+
+#
+# System Dependent Units
+#
+
+GO32_DEPS = go32.pp $(SYSTEMUNIT)$(PPUEXT)
+
+go32$(PPUEXT) : $(GO32_DEPS)
+	$(COMPILER) $<
+
+DOSApi.GO32$(PPUEXT) : $(NSOSINC)/DOSApi.GO32.pp $(GO32_DEPS)
+	$(COMPILER) -Sg $(GO32_OPT) $<
+
+DPMIEXCP_DEPS = dpmiexcp.pp exceptn$(OEXT) $(SYSTEMUNIT)$(PPUEXT)
+
+dpmiexcp$(PPUEXT) : $(DPMIEXCP_DEPS)
+	$(COMPILER) -Sg $(DPMIEXCP_OPT) $<
+
+DOSApi.dpmiexcp$(PPUEXT) : $(NSOSINC)/DOSApi.dpmiexcp.pp $(DPMIEXCP_DEPS)
+	$(COMPILER) -Sg $(DPMIEXCP_OPT) $<
+
+PROFILE_DEPS = profile.pp $(DPMIEXCPUNIT)$(PPUEXT) $(GO32UNIT)$(PPUEXT) $(SYSTEMUNIT)$(PPUEXT)
+
+profile$(PPUEXT) : $(PROFILE_DEPS)
+	$(COMPILER) $(PROFILE_OPT) $<
+
+DOSApi.profile$(PPUEXT) : $(NSOSINC)/DOSApi.profile.pp $(PROFILE_DEPS)
+	$(COMPILER) $(PROFILE_OPT) $<
+
+DXETYPE_DEPS = dxetype.pp $(SYSTEMUNIT)$(PPUEXT)
+
+dxetype$(PPUEXT) : $(DXETYPE_DEPS)
+	$(COMPILER) $(DXETYPE_OPT) $<
+
+DOSApi.dxetype$(PPUEXT) : $(NSOSINC)/DOSApi.dxetype.pp $(DXETYPE_DEPS)
+	$(COMPILER) $(DXETYPE_OPT) $<
+
+DXELOAD_DEPS = dxeload.pp $(DXETYPEUNIT)$(PPUEXT) $(SYSTEMUNIT)$(PPUEXT)
+
+dxeload$(PPUEXT) : $(DXELOAD_DEPS)
+	$(COMPILER) $(DXELOAD_OPT) $<
+
+DOSApi.dxeload$(PPUEXT) : $(NSOSINC)/DOSApi.dxeload.pp $(DXELOAD_DEPS)
+	$(COMPILER) $(DXELOAD_OPT) $<
+
+EMU387_DEPS = emu387.pp fpu$(OEXT) $(STRINGSUNIT)$(PPUEXT) $(DXELOADUNIT)$(PPUEXT) \
+		  $(DPMIEXCPUNIT)$(PPUEXT) $(SYSTEMUNIT)$(PPUEXT)
+
+emu387$(PPUEXT) : $(EMU387_DEPS)
+	$(COMPILER) $(EMU387_OPT) $<
+
+DOSApi.EMU387$(PPUEXT) : $(NSOSINC)/DOSApi.EMU387.pp $(EMU387_DEPS)
+	$(COMPILER) $(EMU387_OPT) $<
+

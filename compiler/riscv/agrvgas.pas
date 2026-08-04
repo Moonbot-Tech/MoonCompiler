@@ -1,0 +1,313 @@
+{
+    Copyright (c) 1998-2002 by Florian Klaempfl
+
+    This unit the GAS asm writers for Risc-V32/Risc-V64
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+ ****************************************************************************
+}
+
+{****************************************************************************}
+{                  Helper routines for Instruction Writer                    }
+{****************************************************************************}
+
+unit agrvgas;
+
+{$i fpcdefs.inc}
+
+  interface
+
+    uses
+       systems,aasmbase,
+       aasmtai,aasmdata,
+       aggas,
+       assemble,
+       cpubase,cgutils,
+       globtype;
+
+  type
+    TRVInstrWriter=class(TCPUInstrWriter)
+       procedure WriteInstruction(hp : tai);override;
+    end;
+
+    TRVGNUAssembler=class(TGNUassembler)
+      constructor CreateWithWriter(info: pasminfo; wr: TExternalAssemblerOutputFile; freewriter, smart: boolean); override;
+      function MakeCmdLine: TCmdStr; override;
+    end;
+
+  implementation
+
+    uses
+       cutils,globals,verbose,
+       cgbase, comphook,
+       itcpugas,cpuinfo,
+       aasmcpu;
+
+
+    function getreferencestring(asminfo: pasminfo; var ref : treference) : string;
+    var
+      s : string;
+    begin
+       with ref do
+        begin
+          if ((offset < -2048) or (offset > 2047)) and
+             (refaddr = addr_no) then
+            internalerror(2006052501);
+          case refaddr of
+            addr_no:
+              s := '';
+            addr_pic_no_got:
+              internalerror(2016060501);
+            else
+              begin
+                s :='';
+                if not(refaddr in [addr_no,addr_pic_no_got,addr_plt,addr_full]) then
+                  s := s+'(';
+                if assigned(symbol) then
+                  begin
+                    if asminfo^.dollarsign<>'$' then
+                      begin
+                        s:=s+ApplyAsmSymbolRestrictions(symbol.name);
+                        if assigned(relsymbol) then
+                          s:=s+'-'+ApplyAsmSymbolRestrictions(relsymbol.name)
+                      end
+                    else
+                      begin
+                        s:=s+symbol.name;
+                        if assigned(relsymbol) then
+                          s:=s+'-'+relsymbol.name;
+                      end;
+                  end;
+              end;
+          end;
+          if offset<0 then
+           s:=s+tostr(offset)
+          else
+           if (offset>0) then
+            begin
+              if assigned(symbol) then
+                s:=s+'+'+tostr(offset)
+              else
+                s:=s+tostr(offset);
+            end;
+
+           if not(refaddr in [addr_no,addr_pic_no_got,addr_plt]) then
+             begin
+               s := s+')';
+             end;
+
+           if (index=NR_NO) then
+             begin
+                if offset=0 then
+                  begin
+                    if not (assigned(symbol)) then
+                      s:=s+'0';
+                  end;
+                if (base<>NR_NO) then
+                  s:=s+'('+gas_regname(base)+')'
+                else if not assigned(symbol) then
+                  s:=s+'(0)';
+             end
+           else if (index<>NR_NO) and (base<>NR_NO) then
+             begin
+               if (offset=0) then
+                 s:=s+gas_regname(base)+','+gas_regname(index)
+               else
+                 internalerror(2025011102);
+             end
+           else
+             Internalerror(2021030602);
+
+           case refaddr of
+             addr_lo12: s:='%lo'+s;
+             addr_hi20: s:='%hi'+s;
+             addr_pcrel_lo12: s:='%pcrel_lo'+s;
+             addr_pcrel_hi20: s:='%pcrel_hi'+s;
+             addr_got_pcrel_hi: s:='%got_pcrel_hi'+s;
+             addr_plt: s:=s+'@plt';
+             else
+               ;
+           end;
+        end;
+      getreferencestring:=s;
+    end;
+
+
+    function getopstr(asminfo: pasminfo; const o:toper) : string;
+    var
+      hs : string;
+    begin
+      case o.typ of
+        top_reg:
+          getopstr:=gas_regname(o.reg);
+        top_const:
+          getopstr:=tostr(longint(o.val));
+        top_ref:
+          if o.ref^.refaddr=addr_full then
+            begin
+              hs:=o.ref^.symbol.name;
+              if asminfo^.dollarsign<>'$' then
+                hs:=ApplyAsmSymbolRestrictions(hs);
+              if o.ref^.offset>0 then
+               hs:=hs+'+'+tostr(o.ref^.offset)
+              else
+               if o.ref^.offset<0 then
+                hs:=hs+tostr(o.ref^.offset);
+              getopstr:=hs;
+            end
+          else
+            getopstr:=getreferencestring(asminfo,o.ref^);
+        top_fenceflags:
+          begin
+            getopstr:='';
+            if ffI in o.fenceflags then getopstr:=getopstr+'i';
+            if ffO in o.fenceflags then getopstr:=getopstr+'o';
+            if ffR in o.fenceflags then getopstr:=getopstr+'r';
+            if ffW in o.fenceflags then getopstr:=getopstr+'w';
+          end;
+        top_roundingmode:
+          getopstr:=roundingmode2str[o.roundingmode];
+        top_realconst:
+          case o.special_value of
+            ARSV_None:
+              str(o.val_real,getopstr);
+            ARSV_Nan:
+              getopstr:='nan';
+            ARSV_Min:
+              getopstr:='min';
+            ARSV_Inf:
+              getopstr:='inf';
+          end;
+        else
+          internalerror(2002070604);
+      end;
+    end;
+
+
+    Procedure TRVInstrWriter.WriteInstruction(hp : tai);
+    var op: TAsmOp;
+        s: string;
+        i: byte;
+        sep: string[3];
+    begin
+      s:=#9+gas_op2str[taicpu(hp).opcode];
+
+      if taicpu(hp).condition<>C_None then
+        s:=s+cond2str[taicpu(hp).condition];
+
+      if taicpu(hp).memoryordering<>[] then
+        begin
+          s:=s+'.';
+          if moAq in taicpu(hp).memoryordering then s:=s+'aq';
+          if moRl in taicpu(hp).memoryordering then s:=s+'rl';
+        end;
+
+      if taicpu(hp).ops<>0 then
+        begin
+          sep:=#9;
+          for i:=0 to taicpu(hp).ops-1 do
+            begin
+               s:=s+sep+getopstr(owner.asminfo,taicpu(hp).oper[i]^);
+               sep:=',';
+            end;
+        end;
+
+      owner.writer.AsmWriteLn(s);
+    end;
+
+
+{****************************************************************************}
+{                         GNU RiscV Assembler writer                           }
+{****************************************************************************}
+
+    constructor TRVGNUAssembler.CreateWithWriter(info: pasminfo; wr: TExternalAssemblerOutputFile; freewriter, smart: boolean);
+      begin
+        inherited;
+        InstrWriter := TRVInstrWriter.create(self);
+      end;
+
+
+    function TRVGNUAssembler.MakeCmdLine: TCmdStr;
+      const
+        arch_str: array[boolean,tcputype] of string[26] = (
+{$ifdef RISCV32}
+          ('','rv32imac','rv32imac_zicsr_zifencei','rv32ima','rv32im','rv32i','rv32e','rv32imc','rv32imc_zicsr_zifencei','rv32imafdc','rv32imaf','rv32imafc','rv32imafd','rv32ec','rv32gc','rv32gc_zba_zbb_zbs'),
+          ('','rv32imafdc','rv32imafdc_zicsr_zifencei','rv32imafd','rv32imfd','rv32ifd','rv32efd','rv32imcfd','rv32imcfd_zicsr_zifencei','rv32imafdc','rv32imafc','rv32imaf','rv32imafd','rv32ecfd','rv32gc','rv32gc_zba_zbb_zbs')
+{$endif RISCV32}
+{$ifdef RISCV64}
+          ('','rv64imac','rv64ima','rv64im','rv64i','rv64imafdc','rv64imafd','rv64gc','rv64gc_zba_zbb_zbs'),
+          ('','rv64imafdc','rv64imafd','rv64imfd','rv64ifd','rv64imafdc','rv64imafd','rv64gc','rv64gc_zba_zbb_zbs')
+{$endif RISCV64}
+        );
+      begin
+        result := inherited MakeCmdLine;
+        Replace(result,'$ARCH',arch_str[current_settings.fputype=fpu_fd,current_settings.cputype]);
+{$ifdef RISCV32}
+      case target_info.abi of
+        abi_riscv_ilp32:
+          Replace(result,'$ABI','ilp32');
+        abi_riscv_ilp32d:
+          Replace(result,'$ABI','ilp32d');
+        abi_riscv_ilp32e:
+          Replace(result,'$ABI','ilp32e');
+        abi_riscv_ilp32f:
+          Replace(result,'$ABI','ilp32f');
+	else
+          begin
+            Do_Comment(V_Warning,'Unrecognized riscv32 abi: '+tostr(ord(target_info.abi)));
+            Replace(result,'$ABI','ilp32d');
+	  end;
+      end;
+{$endif RISCV32}
+{$ifdef RISCV64}
+      case target_info.abi of
+        abi_riscv_lp64:
+          Replace(result,'$ABI','lp64');
+        abi_riscv_lp64d:
+          Replace(result,'$ABI','lp64d');
+        abi_riscv_lp64f:
+          Replace(result,'$ABI','lp64f');
+        abi_riscv_lp64q:
+          Replace(result,'$ABI','lp64q');
+	else
+          begin
+            Do_Comment(V_Warning,'Unrecognized riscv64 abi: '+tostr(ord(target_info.abi)));
+            Replace(result,'$ABI','lp64d');
+	  end;
+      end;
+{$endif RISCV64}
+      end;
+
+
+  const
+    as_riscv_gas_info : tasminfo =
+       (
+         id     : as_gas;
+
+         idtxt  : 'AS';
+         asmbin : 'as';
+         asmcmd : '-o $OBJ $EXTRAOPT -march=$ARCH -mabi=$ABI $ASM';
+         supported_targets : [system_riscv32_linux,system_riscv64_linux];
+         flags : [af_needar,af_smartlink_sections,af_supports_dwarf];
+         labelprefix : '.L';
+         labelmaxlen : -1;
+         comment : '# ';
+         dollarsign: '$';
+       );
+
+begin
+  RegisterAssembler(as_riscv_gas_info,TRVGNUAssembler);
+end.

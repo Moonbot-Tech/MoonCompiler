@@ -1,0 +1,65 @@
+#
+#   Makefile.fpc for Free Pascal WII RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) $(STRINGSUNIT) \
+      $(SORTBASEUNIT)  $(SYSUTILSUNIT) $(DOSUNIT) \
+      $(CLASSESUNIT)  $(MATHUNIT) $(TYPINFOUNIT) $(CTYPESUNIT)  \
+      $(CHARSETUNIT) $(CPALLUNIT) $(GETOPTSUNIT) \
+      $(FPWIDESTRINGUNIT) $(CHARACTERUNIT) \
+      $(TYPESUNIT) $(SYSCONSTUNIT) $(RTLCONSTSUNIT) $(LINEINFOUNIT) $(FGLUNIT) $(CMEMUNIT)
+#rsts=$(MATHUNIT) $(RTLCONSTSUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+implicitunits=$(CP_UNITS) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+
+[default]
+target=wii
+cpu=powerpc
+
+[compiler]
+includedir=$(INC) $(PROCINC)
+sourcedir=$(INC) $(PROCINC) $(COMMON)
+
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+UNITPREFIX=rtl
+override FPC_SYSTEM_OPT += @rtl.cfg
+
+ifdef RELEASE
+override FPCOPT+=-Ur
+endif
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+[rules]
+.NOTPARALLEL:
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS) $(INC)/softfpu.pp
+

@@ -1,0 +1,837 @@
+#
+# Makefile.fpc for Free Pascal Tests directory
+#
+
+[install]
+fpcpackage=y
+
+[default]
+fpcdir=..
+rule=allexectests
+
+[target]
+programs=gparmake createlst
+
+[rules]
+unexport FPC_VERSION
+
+################################
+# Test environment setup
+#
+
+TEST_HOSTNAME:=$(firstword $(subst ., ,$(shell hostname)))
+
+override TEST_FPC:=$(subst \,/,$(TEST_FPC))
+
+ifndef TEST_FPC
+#Use development version of the compiler
+TEST_FPC=$(wildcard $(dir $(CURDIR))compiler/$(notdir $(FPC)))
+ifeq ($(TEST_FPC), )
+$(error "*** ERROR: TEST_FPC is missing ***")
+endif
+endif
+
+#Defaults *not* to OPT
+ifndef TEST_OPT
+TEST_OPT=
+endif
+
+# Use TEST_USE_LONGLOG by default, as it transfers less data to server
+ifndef TEST_DISABLE_LONGLOG
+TEST_USE_LONGLOG=1
+endif
+
+# disable directory cache; completely loading all directories significantly
+# slows down running the testsuite because the programs use very few units
+# and most testsuite directories contain thousands of files
+override TEST_OPT+=-Fd
+
+# Retrieve Test compiler info
+ifndef TEST_FPC_VERSION
+TEST_FPC_COMPILERINFO:=$(shell $(TEST_FPC) -iVSPTPSOTODW)
+TEST_FPC_VERSION:=$(word 1,$(TEST_FPC_COMPILERINFO))
+endif
+export TEST_FPC TEST_FPC_VERSION TEST_FPC_COMPILERINFO
+ifneq ($(words $(TEST_FPC_COMPILERINFO)),7)
+TEST_FPC_COMPILERINFO+=$(shell $(TEST_FPC) -iSP)
+TEST_FPC_COMPILERINFO+=$(shell $(TEST_FPC) -iTP)
+TEST_FPC_COMPILERINFO+=$(shell $(TEST_FPC) -iSO)
+TEST_FPC_COMPILERINFO+=$(shell $(TEST_FPC) -iTO)
+TEST_FPC_COMPILERINFO+=$(shell $(TEST_FPC) -iD)
+TEST_FPC_COMPILERINFO+=$(shell $(TEST_FPC) -iW)
+endif
+ifndef TEST_CPU_SOURCE
+TEST_CPU_SOURCE:=$(word 2,$(TEST_FPC_COMPILERINFO))
+endif
+ifndef TEST_CPU_TARGET
+TEST_CPU_TARGET:=$(word 3,$(TEST_FPC_COMPILERINFO))
+endif
+ifndef TEST_OS_SOURCE
+TEST_OS_SOURCE:=$(word 4,$(TEST_FPC_COMPILERINFO))
+endif
+ifndef TEST_OS_TARGET
+TEST_OS_TARGET:=$(word 5,$(TEST_FPC_COMPILERINFO))
+endif
+ifndef TEST_FPC_DATE
+TEST_FPC_DATE:=$(word 6,$(TEST_FPC_COMPILERINFO))
+endif
+ifndef TEST_FPC_FULLVERSION
+TEST_FPC_FULLVERSION:=$(word 7,$(TEST_FPC_COMPILERINFO))
+endif
+TEST_FULL_TARGET=$(TEST_CPU_TARGET)-$(TEST_OS_TARGET)
+ifneq ($(findstring $(OS_SOURCE),$(LIMIT83fs)),)
+TEST_TARGETSUFFIX=$(TEST_OS_TARGET)
+else
+ifneq ($(findstring $(TEST_OS_TARGET),$(LIMIT83fs)),)
+TEST_TARGETSUFFIX=$(TEST_OS_TARGET)
+else
+TEST_TARGETSUFFIX=$(TEST_FULL_TARGET)
+endif
+endif
+
+ifndef TEST_CCOMPILER
+ifeq ($(CPU_TARGET),$(TEST_CPU_TARGET))
+ifeq ($(OS_TARGET),$(TEST_OS_TARGET))
+TEST_CCOMPILER:=$(strip $(wildcard $(addsuffix /gcc$(SRCEXEEXT),$(SEARCHPATH))))
+ifneq ($(TEST_CCOMPILER),)
+TEST_CCOMPILER:=$(firstword $(TEST_CCOMPILER))
+endif
+endif
+endif
+endif
+
+# always enable smartlinking for msdos
+ifeq ($(TEST_OS_TARGET),msdos)
+override TEST_OPT+=-XX
+endif
+
+# Target dir where the ppu and binaries are created
+TEST_OUTPUTDIR=output/$(TEST_TARGETSUFFIX)
+C_SUBDIR=$(TEST_OS_TARGET)/$(TEST_CPU_TARGET)
+
+# Date and time the testsuite was run
+ifneq ($(DATE),__missing_command_DATE)
+TEST_DATETIME:=$(shell $(DATE) -u +%Y%m%d%H%M)
+else
+# Use a spaceless string, as it will be used for file names
+TEST_DATETIME="No-date"
+endif
+
+ifndef TEST_USER
+TEST_USER=$(USER)
+ifeq ($(TEST_USER),)
+TEST_USER=$(USERNAME)
+endif
+endif
+
+# Testsuite upload
+DB_TARGZ=$(TEST_HOSTNAME)-$(TEST_DATETIME).tar.gz
+DB_HOST=fpc@www.freepascal.org
+DB_UPLOADDIR=/home/fpc/testsuite/incoming
+
+ifdef inWinNT
+inWinDOS=1
+endif
+ifeq ($(OS_SOURCE),go32v2)
+inWinDOS=1
+inDOS=1
+SINGLEDOTESTRUNS=1
+endif
+
+################################
+# Misc
+#
+
+ifndef FAILLIST
+export FAILLIST:=$(TEST_OUTPUTDIR)/faillist
+endif
+export TEST_FAILLIST:=$(TEST_OUTPUTDIR)/faillist
+
+ifndef LONGLOG
+export LONGLOG:=$(TEST_OUTPUTDIR)/longlog
+endif
+export TEST_LONGLOG:=$(TEST_OUTPUTDIR)/longlog
+
+ifndef LOG
+export LOG:=$(TEST_OUTPUTDIR)/log
+endif
+export TEST_LOG:=$(TEST_OUTPUTDIR)/log
+
+ifndef TEST_SEPLOG
+ifdef MAKEINC_SEPARATE
+export TEST_SEPLOG:=$(TEST_OUTPUTDIR)/seplog
+endif
+endif
+
+# locations of all logfiles
+LOGFILES=$(TEST_LOG) $(TEST_LONGLOG) $(TEST_FAILLIST) $(TEST_SEPLOG)
+LOGEXT=.testlog .tbslog .tbflog .webtbslog .webtbflog
+
+# Subdirs available in the test subdir
+TESTUNITDIRS=system dos crt objects strings sysutils math sharemem strutils matrix lineinfo ucomplex fpwidestring cpu fmtbcd windows classes character dateutil fpcunit softfpu variants sortbase sortalgs linux unixutil types nullable contnrs convutils
+TESTDIRECTDIRS=
+TESTSUBDIRS=cg cg/variants cg/cdecl cpu8/avr cpu16 cpu16/i8086 library opt wasm $(addprefix units/,$(TESTUNITDIRS))
+
+TESTPACKAGESDIRS=bzip2 cocoaint fcl-base fcl-db fcl-image fcl-registry fcl-xml hash rtl-objpas univint webtbs win-base zlib
+
+TESTPACKAGESUBDIRS=$(addprefix packages/,$(TESTPACKAGESDIRS))
+TESTPACKAGESDIRECTDIRS=rtl-objpas rtl-generics hash regexpr fcl-registry fcl-passrc fcl-json fcl-image pastojs fcl-process libtar
+TESTPACKAGESDIRECTSUBDIRS=$(addprefix ../packages/,$(addsuffix /tests,$(TESTPACKAGESDIRECTDIRS)))
+
+ifdef QUICKTEST
+export QUICKTEST
+else
+override TESTSUBDIRS+=$(TESTPACKAGESUBDIRS) alglib
+override TESTDIRECTDIRS+=$(TESTPACKAGESDIRECTSUBDIRS)
+endif
+
+# number of tests to run per (potentially parallel) chunk/dotest invocation
+ifndef CHUNKSIZE
+export CHUNKSIZE:=100
+endif
+
+# All full dirnames in the test/ dir including the subdir self
+TESTDIRS:=test $(addprefix test/,$(TESTSUBDIRS)) $(TESTDIRECTDIRS)
+
+.PHONY: utils tstunits copyfiles testprep
+
+################################
+# Utilities
+#
+
+$(TEST_OUTPUTDIR):
+	$(MKDIRTREE) $(TEST_OUTPUTDIR)
+
+utils:
+        $(MAKE) -C utils utils
+
+utilsdb:
+        $(MAKE) -C utils utilsdb
+
+ifndef DIGEST
+DIGEST=utils/digest
+endif
+
+ifndef DOTEST
+DOTEST=utils/dotest
+endif
+
+ifndef CONCAT
+CONCAT=utils/concat
+endif
+
+ifndef GPARMAKE
+GPARMAKE=./gparmake$(SRCEXEEXT)
+endif
+
+ifndef PREPUP
+PREPUP=utils/prepup
+endif
+
+ifndef CREATELST
+CREATELST=./createlst$(SRCEXEEXT)
+endif
+
+
+################################
+# Units
+#
+
+tstunits:
+ifdef inOS2
+        $(MAKE) -C tstunits FPC_VERSION= FPC=$(TEST_FPC) NATIVE_FPC=$(FPC) CPU_TARGET=$(TEST_CPU_TARGET) OS_TARGET=$(TEST_OS_TARGET) SUBARCH=$(TEST_SUBARCH) "OPT=$(TEST_OPT)" CCOMPILER=$(TEST_CCOMPILER) BINUTILSPREFIX=$(TEST_BINUTILSPREFIX)
+else
+        $(MAKE) -C tstunits FPC_VERSION= FPC=$(TEST_FPC) NATIVE_FPC=$(FPC) CPU_TARGET=$(TEST_CPU_TARGET) OS_TARGET=$(TEST_OS_TARGET) SUBARCH=$(TEST_SUBARCH) 'OPT=$(TEST_OPT)' CCOMPILER=$(TEST_CCOMPILER) BINUTILSPREFIX=$(TEST_BINUTILSPREFIX)
+endif
+
+################################
+# Copy test environment dependent files ctest.o, cext3.o, cext4.o to test/cg etc
+#
+
+.PHONY: create_c_objects delete_c_objects copyfiles test_c_objects
+
+C_SOURCE_DIR=test/cg/obj
+C_SOURCES=ctest.c tcext3.c tcext4.c tcext5.c tcext6.c tcext7.c
+CPP_SOURCES=cpptcl1.cpp cpptcl2.cpp
+TASM_SOURCES=ttasm1.asm
+ifneq ($(TEST_ABI),)
+C_OBJECTS_DIR=$(C_SOURCE_DIR)/$(TEST_OS_TARGET)/$(TEST_CPU_TARGET)-$(TEST_ABI)
+else
+C_OBJECTS_DIR=$(C_SOURCE_DIR)/$(TEST_OS_TARGET)/$(TEST_CPU_TARGET)
+endif
+C_OBJECTS=$(addprefix $(C_OBJECTS_DIR)/, $(subst .c,.o, $(C_SOURCES)))
+CPP_OBJECTS=$(addprefix $(C_OBJECTS_DIR)/, $(subst .cpp,.o, $(CPP_SOURCES)))
+TASM_OBJECTS=$(addprefix $(C_OBJECTS_DIR)/, $(subst .asm,.obj, $(TASM_SOURCES)))
+
+
+create_c_objects:
+ifneq ($(TEST_CCOMPILER),)
+		$(MKDIRTREE) $(C_OBJECTS_DIR)
+		-$(COPY) $(addprefix $(C_SOURCE_DIR)/, $(C_SOURCES)) $(C_OBJECTS_DIR)
+		$(MAKE) $(C_OBJECTS)
+		-$(COPY) $(addprefix $(C_SOURCE_DIR)/, $(CPP_SOURCES)) $(C_OBJECTS_DIR)
+		$(MAKE) $(CPP_OBJECTS)
+		-$(DEL) $(addprefix $(C_OBJECTS_DIR)/, $(C_SOURCES) $(CPP_SOURCES))
+else
+		$(ECHO) create_c_objects rule needs a valid C compiler in TEST_CCOMPILER variable
+		$(ECHO) TEST_CFLAGS variable is passed as options is used to compile the objects
+endif
+
+delete_c_objects:
+ifneq ($(TEST_CCOMPILER),)
+		-$(DEL) $(C_OBJECTS) $(CPP_OBJECTS)
+else
+		$(ECHO) delete_c_objects rule needs a valid C compiler in TEST_CCOMPILER variable
+		$(ECHO) to be able to recompile the objects using create_objects rule.
+endif
+
+$(C_OBJECTS) : %.o: %.c
+		$(TEST_CCOMPILER) -c $(TEST_CFLAGS) $< -o $@
+
+$(CPP_OBJECTS) : %.o: %.cpp
+		$(TEST_CCOMPILER) -c $(TEST_CFLAGS) $< -o $@
+
+copyfiles:
+        -$(MKDIRTREE) $(TEST_OUTPUTDIR)/test/cg
+        -$(COPY) $(C_OBJECTS) $(TEST_OUTPUTDIR)/test/cg
+        -$(COPY) $(CPP_OBJECTS) $(TEST_OUTPUTDIR)/test/cg
+ifeq ($(FULL_TARGET),i8086-msdos)
+        -$(COPY) $(TASM_OBJECTS) $(TEST_OUTPUTDIR)/test/cg
+endif
+        -$(MKDIRTREE) $(TEST_OUTPUTDIR)/test/units/system
+
+
+################################
+# Preparation for tests
+#
+
+testprep: testprep-stamp.$(TEST_FULL_TARGET)
+testprep-stamp.$(TEST_FULL_TARGET): utils tstunits copyfiles
+        $(ECHOREDIR) $(TEST_DATETIME) > testprep-stamp.$(TEST_FULL_TARGET)
+
+################################
+# Dotest options
+#
+
+ifneq ($(TEST_FPC),ppc386$(EXEEXT))
+ifeq ($(findstring -c$(TEST_FPC),$(DOTESTOPT)),)
+override DOTESTOPT+=-c$(TEST_FPC)
+endif
+endif
+
+ifneq ($(FULL_TARGET),$(TEST_FULL_TARGET))
+override DOTESTOPT+=-T$(TEST_FULL_TARGET)
+endif
+ifneq ($(TEST_BINUTILSPREFIX),)
+override DOTESTOPT+=-Y-XP$(TEST_BINUTILSPREFIX) -Y-Xd
+endif
+# Don't use comspec for dos:
+# command.com returns 0 if it manages to execute a program
+# regardless of the program's exit code
+ifdef inDOS
+override DOTESTOPT+=-X
+endif
+ifdef TEST_RSH
+override DOTESTOPT+=-R$(TEST_RSH)
+endif
+ifdef TEST_SSH
+override DOTESTOPT+=-R$(TEST_SSH) -S
+endif
+ifdef TEST_REMOTEPATH
+override DOTESTOPT+=-P$(TEST_REMOTEPATH)
+endif
+ifdef TEST_DELBEFORE
+override DOTESTOPT+=-B
+endif
+ifdef TEST_DELTEMP
+override DOTESTOPT+=-Z
+endif
+ifdef TEST_TIMEOUT
+override DOTESTOPT+=-O
+endif
+ifdef TEST_VERBOSE
+override DOTESTOPT+=-V
+endif
+ifdef TEST_PARALLEL
+override DOTESTOPT+=-L
+else
+ifneq ($(findstring -j,-$(MAKEFLAGS)),)
+override DOTESTOPT+=-L
+endif
+endif
+# Also display benchmarks
+ifdef TEST_BENCH
+override DOTESTOPT+=-D
+endif
+ifdef V
+Q=
+QECHO=
+else
+Q=@
+QECHO=@echo $(1)
+endif
+ifdef TEST_REMOTEOPT
+override DOTESTOPT+=-U$(TEST_REMOTEOPT)
+endif
+ifdef TEST_PUTTY
+override DOTESTOPT+=-R$(TEST_PUTTY) -W
+endif
+ifdef TEST_ADB
+override DOTESTOPT+=-ADB -R$(TEST_ADB)
+endif
+
+ifdef TEST_OPT
+#  handles several options as well
+override DOTESTOPT+=$(addprefix -Y, $(TEST_OPT))
+endif
+
+ifdef TEST_REMOTEPW
+#  handles several options as well
+override DOTESTOPT+=-U-pw -U$(TEST_REMOTEPW)
+endif
+
+
+ifdef GRAPH
+override DOTESTOPT+=-g
+endif
+
+ifdef INTERACTIVE
+override DOTESTOPT+=-i
+endif
+
+ifdef DOALL
+override DOTESTOPT+=-a
+endif
+
+ifdef EMULATOR
+override DOTESTOPT+=-M$(EMULATOR)
+endif
+
+ifdef EMULATOR_OPTS
+override DOTESTOPT+=-N$(EMULATOR_OPTS)
+endif
+
+
+ifdef USEENV
+override DOTESTENV:=$(DOTESTOPT)
+override DOTESTOPT=!DOTESTENV
+export DOTESTENV
+endif
+
+################################
+# Run tests
+#
+
+DIRS=webtbs webtbf tbs tbf $(TESTDIRS)
+
+vpath %.log $(TEST_OUTPUTDIR)
+vpath %.elg $(TEST_OUTPUTDIR)
+vpath %.o $(C_SUBDIR)
+
+ifdef SINGLEDOTESTRUNS
+TBSREQ=$(patsubst %.pp,%.elg,$(sort $(wildcard tbs/t*.pp)))
+TBFREQ=$(patsubst %.pp,%.elg,$(sort $(wildcard tbf/t*.pp)))
+WEBTBSREQ=$(patsubst %.pp,%.elg,$(sort $(wildcard webtbs/t*.pp)))
+WEBTBFREQ=$(patsubst %.pp,%.elg,$(sort $(wildcard webtbf/t*.pp)))
+TESTREQ=$(patsubst %.pp,%.elg,$(sort $(wildcard $(addsuffix /t*.pp,$(TESTDIRS)))))
+else
+TBSREQ=$(TEST_OUTPUTDIR)/tbsdir-stamp.$(TEST_FULL_TARGET)
+TBFREQ=$(TEST_OUTPUTDIR)/tbfdir-stamp.$(TEST_FULL_TARGET)
+WEBTBSREQ=$(TEST_OUTPUTDIR)/webtbsdir-stamp.$(TEST_FULL_TARGET)
+WEBTBFREQ=$(TEST_OUTPUTDIR)/webtbfdir-stamp.$(TEST_FULL_TARGET)
+TESTREQ=$(TEST_OUTPUTDIR)/testdir-stamp.$(TEST_FULL_TARGET)
+endif
+
+%.log : %.pp testprep-stamp.$(TEST_FULL_TARGET)
+	$(call QECHO,"  COMPILE $<")
+	$(Q)$(DOTEST) $(DOTESTOPT) $<
+
+%.elg : %.pp testprep-stamp.$(TEST_FULL_TARGET)
+	$(call QECHO,"  EXECUTE $<")
+	$(Q)$(DOTEST) $(DOTESTOPT) -e $<
+
+ifdef TEST_CCOMPILER
+%.o : %.c
+	$(TEST_CCOMPILER) -c $< -o $(@D)/$(C_SUBDIR)/$(@F)
+
+%.o : %.cc
+	$(TEST_CCOMPILER) -c $< -o $(@D)/$(C_SUBDIR)/$(@F)
+endif
+
+################################
+# Compile tests
+#
+
+.PHONY: alltbs alltbf allwebtbs allwebtbf alltest alltests
+
+alltbs : testprep $(patsubst %.pp,%.log,$(sort $(wildcard tbs/t*.pp)))
+alltbf : testprep $(patsubst %.pp,%.log,$(sort $(wildcard tbf/t*.pp)))
+
+allwebtbs : testprep $(patsubst %.pp,%.log,$(sort $(wildcard webtbs/t*.pp)))
+allwebtbf : testprep $(patsubst %.pp,%.log,$(sort $(wildcard webtbf/t*.pp)))
+
+alltest : testprep $(patsubst %.pp,%.log,$(sort $(wildcard $(addsuffix /t*.pp,$(TESTDIRS)))))
+ifndef SINGLEDOTESTRUNS
+	$(Q)$(DOTEST) $(DOTESTOPT) -e $(wildcard $(addsuffix /t*.pp,$(TESTDIRS)))
+endif
+
+alltests: alltest alltbs alltbf allwebtbs allwebtbf
+
+test_c_objects: testprep
+	$(MAKE) $(patsubst %.pp,%.log, $(wildcard test/cg/cdecl/tcalext*.pp))
+	$(MAKE) $(patsubst %.pp,%.elg, $(wildcard test/cg/cdecl/tcalext*.pp))
+	$(MAKE) $(patsubst %.pp,%.log, $(wildcard test/cg/cdecl/tcppcl*.pp))
+	$(MAKE) $(patsubst %.pp,%.elg, $(wildcard test/cg/cdecl/tcppcl*.pp))
+
+################################
+# Compile and Run tests
+#
+
+ifdef SINGLEDOTESTRUNS
+.PHONY: allexectbs allexectbf allexecwebtbs allexecwebtbf allexectest allexectests
+
+allexectbs: $(addsuffix .tbslog, $(LOGFILES))
+allexectbf: $(addsuffix .tbflog, $(LOGFILES))
+allexecwebtbs: $(addsuffix .webtbslog, $(LOGFILES))
+allexecwebtbf: $(addsuffix .webtbflog, $(LOGFILES))
+allexectest: $(addsuffix .testlog, $(LOGFILES))
+
+$(TEST_OUTPUTDIR)/%.mergedlog : $(TEST_OUTPUTDIR)/%.testlog $(TEST_OUTPUTDIR)/%.tbslog $(TEST_OUTPUTDIR)/%.tbflog $(TEST_OUTPUTDIR)/%.webtbslog $(TEST_OUTPUTDIR)/%.webtbflog
+	$(Q)$(CONCAT) $^ $@
+	$(Q)$(COPY) $@ $(basename $@)
+
+$(TEST_OUTPUTDIR)/%.tbslog : $(TBSREQ)
+	$(Q)$(ECHO) -n >> $(TEST_OUTPUTDIR)/faillist.tbslog
+	$(Q)$(ECHO) -n >> $(TEST_OUTPUTDIR)/longlog.tbslog
+
+$(TEST_OUTPUTDIR)/%.tbflog : $(TBFREQ)
+	$(Q)$(ECHO) -n >> $(TEST_OUTPUTDIR)/faillist.tbflog
+	$(Q)$(ECHO) -n >> $(TEST_OUTPUTDIR)/longlog.tbflog
+
+$(TEST_OUTPUTDIR)/%.webtbslog : $(WEBTBSREQ)
+	$(Q)$(ECHO) -n >> $(TEST_OUTPUTDIR)/faillist.webtbslog
+	$(Q)$(ECHO) -n >> $(TEST_OUTPUTDIR)/longlog.webtbslog
+
+$(TEST_OUTPUTDIR)/%.webtbflog : $(WEBTBFREQ)
+	$(Q)$(ECHO) -n >> $(TEST_OUTPUTDIR)/faillist.webtbflog
+	$(Q)$(ECHO) -n >> $(TEST_OUTPUTDIR)/longlog.webtbflog
+
+$(TEST_OUTPUTDIR)/%.testlog : $(TESTREQ)
+	$(Q)$(ECHO) -n >> $(TEST_OUTPUTDIR)/faillist.testlog
+	$(Q)$(ECHO) -n >> $(TEST_OUTPUTDIR)/longlog.testlog
+
+# run all tests, then merge log files
+allexectests:  $(TEST_OUTPUTDIR)/log.testlog $(TEST_OUTPUTDIR)/log.tbslog \
+	$(TEST_OUTPUTDIR)/log.tbflog $(TEST_OUTPUTDIR)/log.webtbslog \
+	$(TEST_OUTPUTDIR)/log.webtbflog \
+	$(addprefix $(TEST_OUTPUTDIR)/,$(foreach EXT, $(LOGEXT), $(addsuffix $(EXT), faillist longlog))) \
+	$(addsuffix .mergedlog, $(LOGFILES))
+
+# SINGLEDOTESTRUNS
+else
+
+.PHONY: allexectests gparmake_allexectests
+
+MAKEINC=$(TEST_OUTPUTDIR)/MakeChunks-$(TEST_TARGETSUFFIX).inc
+
+$(GPARMAKE): utils/gparmake.pp $(CREATELST)
+	$(Q)$(MAKE)  $(COMPILER_UNITTARGETDIR)
+	$(FPC) -FE. utils/gparmake.pp $(OPT)
+
+$(CREATELST): utils/createlst.pp
+	$(Q)$(MAKE)  $(COMPILER_UNITTARGETDIR)
+	$(FPC) -FE. utils/createlst.pp $(OPT)
+
+ifdef MAKEINC_SEPARATE
+  GPARMAKE_OPT=-f
+else
+  GPARMAKE_OPT=
+endif
+# Can't have testprep as prerequisite, because that is a phony target and
+# phony targets are always remade. Since the makefile will be reparsed
+# after making the MakeChunks file (because it has to be included) and all
+# up-to-date checks will be re-evaluated, this means that the testprep rule
+# (or testprep timestamp file, which depends on phony rules and hence has
+# the same behaviour) will always be considered newer than the MakeChunks
+# file and hence the MakeChunks will be regenerated in an infinite loop
+# (although some make versions appear to contain a bug that prevents this
+# from happening)
+# As a result, we list TEST_OUTPUTDIR as a dependency (that just creates
+# the directory) and have an explicit rule to build GPARMAKE rather than
+# building it via the utils Makefile
+$(MAKEINC): $(GPARMAKE) $(CREATELST)
+# generate rules for parallel executions of dotest
+# gparmake now also needs an additional parameter for the name of the
+# used subdirectory. Note also that the index must be increasing for each
+# new call with a gap insuring that all the previous files have lower index
+# even if CHUNKSIZE is equal to 1.
+	$(Q)$(MAKE) $(TEST_OUTPUTDIR)
+	$(Q)$(CREATELST) filelisttest.lst $(TESTDIRS)
+	$(Q)$(GPARMAKE) $(GPARMAKE_OPT) $(MAKEINC) test 1 $(CHUNKSIZE) @filelisttest.lst
+	$(Q)$(CREATELST) filelisttbs.lst tbs
+	$(Q)$(GPARMAKE) -a $(GPARMAKE_OPT) $(MAKEINC) tbs 10000 $(CHUNKSIZE) @filelisttbs.lst
+        $(Q)$(CREATELST) filelisttbf.lst tbf
+	$(Q)$(GPARMAKE) -a $(GPARMAKE_OPT) $(MAKEINC) tbf 15000 $(CHUNKSIZE) @filelisttbf.lst
+        $(Q)$(CREATELST) filelistwebtbs.lst webtbs
+	$(Q)$(GPARMAKE) -a $(GPARMAKE_OPT) $(MAKEINC) webtbs 20000 $(CHUNKSIZE) @filelistwebtbs.lst
+        $(Q)$(CREATELST) filelistwebtbf.lst webtbf
+	$(Q)$(GPARMAKE) -a $(GPARMAKE_OPT) $(MAKEINC) webtbf 30000 $(CHUNKSIZE) @filelistwebtbf.lst
+
+
+# only include the targets to compile/run the tests when we want to
+# run them (in particular: not when cleaning)
+ifeq (,$(findstring clean,$(firstword $(MAKECMDGOALS))))
+ifneq (,$(findstring all,$(MAKECMDGOALS)))
+ifneq (,$(wildcard $(MAKEINC)))
+# include the rules we just generated
+include $(TEST_OUTPUTDIR)/MakeChunks-$(TEST_TARGETSUFFIX).inc
+endif
+endif
+endif
+
+# this is pretty cool: MakeChunks-$(TEST_TARGETSUFFIX).inc will contain
+# additional prerequisites for the allexectests target, and after it is
+# generated it will be included by the above "include" statement, and those
+# additional prerequisites will be added on the fly and also be evaluated.
+# However, to avoid problems on some targets that seem to have problems
+# handling missing include files, we first create MAKEINC file
+# and rerun MAKE with gparmake_allexectests target.
+allexectests: $(MAKEINC)
+	$(MAKE) gparmake_allexectests
+
+# SINGLEDOTESTRUNS
+endif
+
+
+################################
+# Clean
+#
+
+.PHONY: clean distclean clean_test clean_sources
+
+# Remove any possible PPU files
+clean_sources:
+	-$(DEL) $(wildcard $(patsubst %.pp,%$(PPUEXT),$(wildcard $(addsuffix /*.pp,$(DIRS)))))
+
+clean_test:
+        -$(DELTREE) $(TEST_OUTPUTDIR)
+        -$(DEL) core gmon.out testprep-stamp.$(TEST_FULL_TARGET) dotgz$(SRCBATCHEXT)
+
+clean: clean_sources fpc_clean
+        $(MAKE) clean_test CPU_TARGET=$(TEST_CPU_TARGET) OS_TARGET=$(TEST_OS_TARGET) SUBARCH=$(TEST_SUBARCH)
+        $(MAKE) -C tstunits clean CPU_TARGET=$(TEST_CPU_TARGET) OS_TARGET=$(TEST_OS_TARGET) SUBARCH=$(TEST_SUBARCH)
+	-$(DEL) filelisttest.lst filelisttbs.lst filelisttbf.lst filelistwebtbs.lst filelistwebtbf.lst
+
+distclean: clean fpc_distclean
+        $(DELTREE) output
+        $(MAKE) -C utils distclean
+        $(MAKE) -C tstunits distclean
+        -$(DEL) testprep-stamp.*
+
+#cleanall: clean
+#        $(MAKE) -C utils cleanall
+
+################################
+# Main rules
+#
+
+.PHONY: all full digest onlyknown onlygraph onlyinteractive
+
+digest : utils
+        -$(DIGEST) $(LOG)
+
+
+SVNVERSION:=$(firstword $(wildcard $(addsuffix /svnversion$(SRCEXEEXT),$(SEARCHPATH))))
+GIT:=$(firstword $(wildcard $(addsuffix /git$(SRCEXEEXT),$(SEARCHPATH))))
+ifneq ($(wildcard ../.git),)
+ifneq ($(GIT),)
+GIT_GET_HASH=$(GIT) log -1 --format=%h
+SVN_TESTS_REV_STR=$(shell $(GIT_GET_HASH) .)
+SVN_COMPILER_REV_STR=$(shell $(GIT_GET_HASH) ../compiler)
+SVN_RTL_REV_STR=$(shell $(GIT_GET_HASH) ../rtl)
+SVN_PACKAGES_REV_STR=$(shell $(GIT_GET_HASH) ../packages)
+endif
+else
+ifneq ($(SVNVERSION),)
+SVN_TESTS_REV_STR=$(shell $(SVNVERSION) -c .)
+SVN_COMPILER_REV_STR=$(shell $(SVNVERSION) -c ../compiler)
+SVN_RTL_REV_STR=$(shell $(SVNVERSION) -c ../rtl)
+SVN_PACKAGES_REV_STR=$(shell $(SVNVERSION) -c ../packages)
+endif
+endif
+
+ifeq ($(TEST_COMMENT),)
+TEST_COMMENT=$(TEST_OPT)
+endif
+
+$(TEST_OUTPUTDIR)/dbdigest.cfg:
+        $(ECHOREDIR) OS=$(TEST_OS_TARGET) > $(TEST_OUTPUTDIR)/dbdigest.cfg
+        $(ECHOREDIR) CPU=$(TEST_CPU_TARGET) >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+        $(ECHOREDIR) Version=$(TEST_FPC_VERSION) >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+        $(ECHOREDIR) LogFile=log >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+ifneq ($(TEST_USE_LONGLOG),)
+        $(ECHOREDIR) LongLogFile=longlog >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+endif
+        $(ECHOREDIR) Submitter=$(TEST_USER) >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+        $(ECHOREDIR) Machine=$(TEST_HOSTNAME) >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+	$(ECHOREDIR) Comment=$(TEST_COMMENT) >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+ifneq ($(TEST_DATETIME),)
+        $(ECHOREDIR) Date=$(TEST_DATETIME) >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+endif
+ifneq ($(TEST_FPC_DATE),)
+        $(ECHOREDIR) CompilerDate=$(TEST_FPC_DATE) >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+endif
+ifneq ($(TEST_FPC_FULLVERSION),)
+        $(ECHOREDIR) CompilerFullVersion=$(TEST_FPC_FULLVERSION) >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+endif
+ifneq ($(SVN_TESTS_REV_STR),)
+        $(ECHOREDIR) svntestsrevision=$(SVN_TESTS_REV_STR) >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+        $(ECHOREDIR) svncompilerrevision=$(SVN_COMPILER_REV_STR) >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+        $(ECHOREDIR) svnrtlrevision=$(SVN_RTL_REV_STR) >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+        $(ECHOREDIR) svnpackagesrevision=$(SVN_PACKAGES_REV_STR) >> $(TEST_OUTPUTDIR)/dbdigest.cfg
+endif
+
+# OpenBSD system tar executable doesn't know
+# about --files-from option, but supports -I
+ifeq ($(OS_SOURCE),openbsd)
+ifeq ($(TARPROG),$(subst gtar,,$(TARPROG)))
+  BSD_SYSTEM_TAR=1
+endif
+endif
+
+ifdef BSD_SYSTEM_TAR
+TARFROM=-I tar.lst
+else
+TARFROM=--files-from=tar.lst
+endif
+
+# Pass option -ll to prepup if we use longlog file
+# instead of add all *.log and *.elg files to DB_TARGZ
+ifneq ($(TEST_USE_LONGLOG),)
+PREPUP_OPT=-ll
+else
+PREPUP_OPT=
+endif
+
+ifndef inWinDOS
+$(TEST_OUTPUTDIR)/tar.lst:
+ifdef inOS2
+ifeq ($(TEST_USE_LONGLOG),)
+        cd $(subst /,\,$(TEST_OUTPUTDIR)) && gnufind . -name "*.log" -o -name "*.elg" > tar.lst
+else
+        $(ECHOREDIR) longlog > $(TEST_OUTPUTDIR)/tar.lst
+endif
+        $(ECHOREDIR) log>> $(TEST_OUTPUTDIR)/tar.lst
+        $(ECHOREDIR) dbdigest.cfg>> $(TEST_OUTPUTDIR)/tar.lst
+else
+ifeq ($(TEST_USE_LONGLOG),)
+        cd $(TEST_OUTPUTDIR) && find . -name '*.log' -o -name '*.elg' > tar.lst
+else
+        $(ECHOREDIR) "longlog" > $(TEST_OUTPUTDIR)/tar.lst
+endif
+        $(ECHOREDIR) "log" >> $(TEST_OUTPUTDIR)/tar.lst
+        $(ECHOREDIR) "dbdigest.cfg" >> $(TEST_OUTPUTDIR)/tar.lst
+endif
+
+$(TEST_OUTPUTDIR)/$(DB_TARGZ): $(TEST_OUTPUTDIR)/tar.lst $(TEST_OUTPUTDIR)/dbdigest.cfg
+ifdef inCygWin
+        dos2unix $(TEST_OUTPUTDIR)/tar.lst
+endif
+ifdef inOS2
+        dos2unix $(TEST_OUTPUTDIR)/tar.lst
+        cd $(subst /,\,$(TEST_OUTPUTDIR)) && $(TARPROG) czf $(DB_TARGZ) $(TARFROM)
+else
+        cd $(TEST_OUTPUTDIR) && $(TARPROG) czf $(DB_TARGZ) $(TARFROM)
+endif
+
+else
+$(TEST_OUTPUTDIR)/$(DB_TARGZ): $(TEST_OUTPUTDIR)/dbdigest.cfg
+ifdef inDOS
+        $(ECHOREDIR) @echo off > dotgz$(SRCBATCHEXT)
+        $(ECHOREDIR) cd $(subst /,\,$(TEST_OUTPUTDIR)) >> dotgz$(SRCBATCHEXT)
+        $(ECHOREDIR) $(subst /,\,../../$(PREPUP)) $(PREPUP_OPT) $(DB_TARGZ) >> dotgz$(SRCBATCHEXT)
+        $(ECHOREDIR) if errorlevel 1 $(DEL) $(DB_TARGZ) >> dotgz$(SRCBATCHEXT)
+        $(ECHOREDIR) cd $(subst /,\,../../) >> dotgz$(SRCBATCHEXT)
+        $(RUNBATCH) dotgz$(SRCBATCHEXT)
+else
+ifdef inOS2
+        cd "$(subst /,\,$(TEST_OUTPUTDIR))" && "$(subst /,\,../../$(PREPUP))" $(PREPUP_OPT) $(DB_TARGZ)
+else
+        cd "$(TEST_OUTPUTDIR)" && "../../$(PREPUP)" $(PREPUP_OPT) $(DB_TARGZ)
+endif
+endif
+endif
+
+
+# Use Putty, unless we set DB_USE_SSH to force ssh usage
+# Useful for cygwin
+ifndef DB_USE_SSH
+ifdef inWinDOS
+UsePutty=1
+endif
+endif
+
+uploadrun: $(TEST_OUTPUTDIR)/$(DB_TARGZ)
+ifdef UsePutty
+        pscp -load "fpc@www.freepascal.org" $(TEST_OUTPUTDIR)/$(DB_TARGZ) $(DB_HOST):$(DB_UPLOADDIR)/$(DB_TARGZ).part $(SSH_EXTRA)
+        plink -load "fpc@www.freepascal.org" "mv $(DB_UPLOADDIR)/$(DB_TARGZ).part $(DB_UPLOADDIR)/$(DB_TARGZ)"
+else
+        scp $(DB_SSH_EXTRA) $(TEST_OUTPUTDIR)/$(DB_TARGZ) $(DB_HOST):$(DB_UPLOADDIR)/$(DB_TARGZ).part
+ifdef inOS2
+        $(ECHOREDIR) . | ssh $(DB_SSH_EXTRA) $(DB_HOST) "mv $(DB_UPLOADDIR)/$(DB_TARGZ).part $(DB_UPLOADDIR)/$(DB_TARGZ)"
+else
+        ssh $(DB_SSH_EXTRA) $(DB_HOST) "mv $(DB_UPLOADDIR)/$(DB_TARGZ).part $(DB_UPLOADDIR)/$(DB_TARGZ)"
+endif
+endif
+
+all : allexectests
+
+full :
+	$(MAKE) clean
+	$(MAKE) allexectests
+	$(MAKE) digest
+
+fulldb :
+	$(MAKE) clean
+	$(MAKE) allexectests
+	$(MAKE) digest
+	$(MAKE) uploadrun
+
+tarfile : $(TEST_OUTPUTDIR)/$(DB_TARGZ)
+
+onlyknown :
+        $(MAKE) full "DOTESTOPT= $(DOTESTOPT) -k-"
+
+onlygraph :
+        $(MAKE) full "DOTESTOPT= $(DOTESTOPT) -g-"
+
+onlyinteractive :
+        $(MAKE) "DOTESTOPT= $(DOTESTOPT) -i-"
+
+info :
+        @$(ECHO) "This Makefile allows to test the compiler"
+        @$(ECHO)
+        @$(ECHO) "Basic Targets:"
+        @$(ECHO) "  all    - continue all tests"
+        @$(ECHO) "  full   - clean and run all tests"
+        @$(ECHO) "  fulldb - full and upload test results"
+        @$(ECHO) "  digest - compute and print test statistics"
+        @$(ECHO)
+        @$(ECHO) "Advanced Targets:"
+        @$(ECHO) "  onlyknown - run only known bugs"
+        @$(ECHO) "  onlygraph - run only graph tests"
+        @$(ECHO) "  onlyinteractive - run only interactive tests"
+        @$(ECHO)
+        @$(ECHO) "Host environment:"
+        @$(ECHO) "  $(FULL_TARGET)"
+        @$(ECHO) "  compiler: $(FPC) ver: $(FPC_VERSION)"
+        @$(ECHO)
+        @$(ECHO) "Test environment:"
+        @$(ECHO) "  $(TEST_FULL_TARGET)"
+        @$(ECHO) "  compiler: $(TEST_FPC) ver: $(TEST_FPC_VERSION)"
+        @$(ECHO)
+        @$(ECHO) "Output settings:"
+        @$(ECHO) "  DateTime : $(TEST_DATETIME)"
+        @$(ECHO) "  Outputdir: $(TEST_OUTPUTDIR)"
+        @$(ECHO) "  Uploaddir: $(DB_UPLOADDIR)"
+        @$(ECHO) "  tar.gz   : $(DB_TARGZ)"

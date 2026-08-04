@@ -1,0 +1,103 @@
+#
+#   Makefile.fpc for Watcom RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=prt0
+#exceptn fpu
+
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(CTYPESUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) $(STRINGSUNIT) \
+      $(WATCOMUNIT) $(DOSUNIT) \
+      $(SYSUTILSUNIT) $(SORTBASEUNIT) $(FGLUNIT) $(CLASSESUNIT) $(MATHUNIT) $(TYPINFOUNIT) \
+      $(CHARSETUNIT) $(CPALLUNIT) $(CPUUNIT) $(MMXUNIT) $(INTRINSICSUNIT) $(GETOPTSUNIT) \
+      $(HEAPTRCUNIT) $(LINEINFOUNIT) $(LNFODWRFUNIT)  \
+      $(TYPESUNIT) $(RTLCONSTSUNIT) $(SYSCONSTUNIT) \
+      $(FPWIDESTRINGUNIT) $(CHARACTERUNIT) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT)       $(UFLOAT128UNIT)
+rsts=$(MATHUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+implicitunits=$(EXEINFOUNIT) $(CP_UNITS) $(UNICODEDATAUNIT)
+
+rsts=$(MATHUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+
+[default]
+target=watcom
+cpu=i386
+
+[compiler]
+includedir=$(INC) $(PROCINC)
+sourcedir=$(INC) $(PROCINC)
+
+
+[prerules]
+RTL=..
+INC=../inc
+PROCINC=../$(CPU_TARGET)
+
+UNITPREFIX=rtl
+ifndef FPC_DOTTEDUNITS
+RTLCONSTSUNIT=rtlconst
+endif
+DOS_DEPS_OS=$(STRINGSUNIT)$(PPUEXT)
+SYSUTILS_DEPS_OS=$(DOSUNIT)$(PPUEXT)
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+# Insert exception handler in system unit
+ifdef EXCEPTIONS_IN_SYSTEM
+override FPCOPT+=-dEXCEPTIONS_IN_SYSTEM
+endif
+
+# Insert exception handler in system unit
+# ifdef NO_EXCEPTIONS_IN_SYSTEM !!!!!!!!!!!!!!!!!!!!1
+override FPCOPT+=-dNO_EXCEPTIONS_IN_SYSTEM
+# endif     !!!!!!!!!!!!!!!!!!!!
+
+
+[rules]
+.NOTPARALLEL:
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+
+
+#
+# Loaders
+#
+
+prt0$(OEXT) : prt0.as
+        wasm prt0.as -fo=prt0$(OEXT) -bt=dos -5s -fp5 -ms -zq
+        $(COPY) prt0$(OEXT) $(UNITTARGETDIRPREFIX)prt0$(OEXT)
+
+#
+# System Dependent Units
+#
+
+WATCOM_DEPS = watcom.pp $(SYSTEMUNIT)$(PPUEXT)
+
+watcom$(PPUEXT) : $(WATCOM_DEPS)
+	$(COMPILER) $(WATCOM_OPT) $<
+
+WatcomApi.WatCom.pp$(PPUEXT) : $(NSOSINC)/WatcomApi.WatCom.pp $(WATCOM_DEPS)
+	$(COMPILER) $(WATCOM_OPT) $<
+

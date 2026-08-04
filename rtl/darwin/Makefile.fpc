@@ -1,0 +1,124 @@
+#
+#   Makefile.fpc for Free Pascal Darwin RTL
+#
+
+[package]
+main=rtl
+
+# disabled units: serial
+[target]
+loaders=
+units=$(SYSTEMUNIT) sysinit $(UUCHARUNIT) $(UNIXTYPEUNIT) $(CTYPESUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) \
+      $(STRINGSUNIT) $(SYSCTLUNIT) $(BASEUNIXUNIT) $(UNIXUTILUNIT) \
+      $(UNIXUNIT) $(INITCUNIT) $(CMEMUNIT) $(DYNLIBSUNIT) $(CPU_UNITS) \
+      $(DOSUNIT) $(DLUNIT) $(BLOCKRTLUNIT) \
+      $(TYPINFOUNIT) $(SORTBASEUNIT) $(FGLUNIT) $(CLASSESUNIT) $(MATHUNIT) $(TYPESUNIT) \
+      $(CHARSETUNIT) $(CPALLUNIT) $(CHARACTERUNIT) $(GETOPTSUNIT) $(HEAPTRCUNIT) $(LINEINFOUNIT) $(LNFODWRFUNIT) $(LNFOGDBUNIT) \
+      $(ERRORSUNIT) $(TERMIOUNIT) \
+      $(SYSCONSTUNIT) $(CTHREADSUNIT) $(RTLCONSTSUNIT) $(CWSTRINGUNIT) $(BSDUNIT) $(SYSUTILSUNIT) $(FPWIDESTRINGUNIT) \
+      $(FPINTRESUNIT) fpextres $(OBJCUNIT) $(OBJCBASEUNIT) $(UNIXCPUNIT) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT) $(UFLOAT128UNIT)
+implicitunits=$(EXEINFOUNIT) $(CP_UNITS) $(UNICODEDATAUNIT)
+
+rsts=$(MATHUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(RTLCONSTSUNIT) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+
+[default]
+target=darwin
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(UNIXINC) $(BSDINC) $(BSDPROCINC) $(OSPROCINC)
+sourcedir=$(INC) $(PROCINC) $(UNIXINC) $(BSDINC) $(COMMON)
+
+
+[lib]
+libname=libfprtl.so
+libversion=2.0.0
+libunits=$(SYSTEMUNIT) $(OBJPASUNIT) $(STRINGSUNIT) \
+      $(UNIXUNIT)  \
+      $(DOSUNIT) $(CRTUNIT) $(OBJECTSUNIT)  \
+      $(SYSUTILSUNIT) $(TYPINFOUNIT) $(MATHUNIT) \
+      $(CPUUNIT) $(MMXUNIT) $(GETOPTSUNIT) $(HEAPTRCUNIT) \
+      $(ERRORSUNIT)
+
+[prerules]
+ifeq ($(CPU_TARGET),i386)
+CPU_UNITS=$(MMXUNIT) $(CPUUNIT) $(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),x86_64)
+CPU_UNITS=$(CPUUNIT) $(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),aarch64)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),powerpc)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),powerpc64)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+BSDINC=$(RTL)/bsd
+BSDPROCINC=$(BSDINC)/$(CPU_TARGET)
+OSPROCINC=$(RTL)/darwin/$(CPU_TARGET)
+UNIXINC=$(RTL)/unix
+UNITPREFIX=rtl
+INITCDIR=$(UNIXINC)
+
+SYSUTILS_DEPS_OS=$(SYSCTLUNIT)$(PPUEXT) $(BASEUNIXUNIT)$(PPUEXT) $(UNIXUNIT)$(PPUEXT) $(ERRORSUNIT)$(PPUEXT) $(UNIXTYPEUNIT)$(PPUEXT)
+BASEUNIX_DEPS_OS=$(SYSCTLUNIT)$(PPUEXT)
+DYNLIBS_DEPS_OS=$(DLUNIT)$(PPUEXT)
+DYNLIBSINCDIR=$(UNIXINC)
+CTYPES_DEPS_OS=$(UNIXTYPEUNIT)$(PPUEXT)
+EXEINFO_DEPS_OS=$(BASEUNIXUNIT)$(PPUEXT) $(CTYPESUNIT)$(PPUEXT) $(DLUNIT)$(PPUEXT)
+FPEXTRES_DEPS_OS=$(BASEUNIXUNIT)$(PPUEXT)
+DOS_DEPS_OS=$(BASEUNIXUNIT)$(PPUEXT) $(UNIXUTILUNIT)$(PPUEXT) $(UNIXUNIT)$(PPUEXT)
+
+
+# Darwin requires libc, no syscalls
+override FPCOPT+=-dFPC_USE_LIBC
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+[rules]
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS) $(OSPROCINC)/sighnd.inc $(OSPROCINC)/sig_cpu.inc
+
+
+#
+# System Units (System, Objpas, Strings)
+#
+
+
+
+SYSINIT_DEPS=sysinit.pas $(SYSTEMUNIT)$(PPUEXT) \
+             $(SYSINIT_DEPS_OS) $(SYSINIT_DEPS_CPU)
+
+sysinit$(PPUEXT) : $(SYSINIT_DEPS)
+	$(COMPILER) $<

@@ -1,0 +1,93 @@
+#
+#   Makefile.fpc for Free Pascal EMX RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=prt0 prt1
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(CTYPESUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) $(STRINGSUNIT) \
+      $(PORTSUNIT) $(OS2DEFUNIT) $(DOSCALLSUNIT) $(DOSCALL2UNIT) $(KBDCALLSUNIT) \
+      $(MOUCALLSUNIT) $(VIOCALLSUNIT) $(SO32DLLUNIT) \
+      $(PMBITMAPUNIT) $(PMWINUNIT) $(PMGPIUNIT) $(PMSTDDLGUNIT) \
+      $(PMHELPUNIT) $(PMDEVUNIT) $(PMSPLUNIT) $(PMSHLUNIT) $(PMWPUNIT) $(PMWSOCKUNIT) $(PMBIDI) \
+      $(DOSUNIT) \
+      $(SUSITILSUNIT) $(SORTBASEUNIT) $(FGLUNIT) $(CLASSESUNIT) $(MATHUNIT) $(TYPINFOUNIT) \
+      $(CHARSETUNIT) $(CPALLUNIT) $(CPUNIT) $(MMXUNIT) $(INTRINSICSUNIT) $(GETOPTSUNIT) \
+      $(HEAPTRCUNIT) $(LINEINFOUNIT) $(LNFODWRFUNIT) $(DYNLIBSUNIT) \
+      $(TYPESUNIT) $(RTLCONSTSUNIT) $(SYSCONSTUNIT) \
+      $(FPWIDESTRINGUNIT) $(CHARACTERUNIT) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT)       $(UFLOAT128UNIT)
+rsts=$(MATHUNIT) $(TYPINFOUNIT) $(PMHELPUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+implicitunits=$(EXEINFOUNIT) $(CP_UNITS) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+
+[default]
+target=emx
+cpu=i386
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(OS2INC)
+sourcedir=$(INC) $(PROCINC) $(OS2INC)
+
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+PROCINC=$(RTL)/$(CPU_TARGET)
+OS2INC=$(RTL)/os2
+OS2DIR=$(RTL)/os2
+DOS_DEPS_OS=$(DOSCALLSUNIT)$(PPUEXT)
+SYSUTILS_DEPS_OS=$(DOSUNIT)$(PPUEXT)
+DYNLIBS_DEPS_OS=$(DOSCALLSUNIT)$(PPUEXT)
+
+UNITPREFIX=rtl
+
+ifndef FPC_DOTTEDUNITS
+RTLCONSTSUNIT=rtlconst
+endif
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+SYSTEMUNITEXT=pas
+DOSUNITEXT=pas
+PORTSUNITEXT=pas
+
+
+[rules]
+.NOTPARALLEL:
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+
+
+#
+# Loaders
+#
+
+%$(OEXT) : %.as
+        $(AS) -o $(UNITTARGETDIRPREFIX)$*$(OEXT) $*.as
+
+#
+# Base Units (System, strings, os-dependent-base-unit)
+#
+
+

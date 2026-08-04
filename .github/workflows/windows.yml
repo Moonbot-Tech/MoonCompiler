@@ -1,0 +1,92 @@
+name: Windows
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Download bootstrap FPC 3.2.2
+      run: |
+        curl -L -o fpc.exe https://downloads.freepascal.org/fpc/dist/3.2.2/i386-win32/fpc-3.2.2.i386-win32.exe
+      shell: cmd
+
+    - name: Verify bootstrap FPC hash
+      run: |
+        $expected = "7EC78B1790ECAC7685F440B17F9E03865BC09846B7C068A9270C4D37704B5AC8"
+        $actual = Get-FileHash -Algorithm SHA256 -Path "fpc.exe" | Select-Object -ExpandProperty Hash
+        Write-Host "Expected: $expected"
+        Write-Host "Actual:   $actual"
+        if ($actual -ne $expected) {
+          Write-Error "SHA256 mismatch! Aborting."
+          exit 1
+        }
+      shell: powershell
+
+    - name: Install bootstrap FPC compiler
+      run: fpc.exe /VERYSILENT /DIR="C:\fpc322"
+      shell: cmd
+
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Update PATH env
+      run: echo "C:\fpc322\bin\i386-win32" >> $env:GITHUB_PATH
+      shell: powershell
+
+    - name: Build FPC x86_64 (native)
+      run: |
+        make distclean
+        make all OS_TARGET=win64 CPU_TARGET=x86_64 PP=C:\fpc322\bin\i386-win32\ppc386.exe
+      shell: cmd
+
+    - name: Build FPC x86_64 (utils)
+      run: make utils OS_TARGET=win64 CPU_TARGET=x86_64 PP=%GITHUB_WORKSPACE%\compiler\ppcx64.exe
+      shell: cmd
+
+    - name: Install FPC x86_64
+      run: make install OS_TARGET=win64 CPU_TARGET=x86_64 INSTALL_PREFIX=C:\fpc PP=compiler\ppcx64.exe
+      shell: cmd
+
+    - name: Build i386 cross-compiler
+      run: |
+        make crossinstall OS_TARGET=win32 CPU_TARGET=i386 INSTALL_PREFIX=C:\fpc PP=C:\fpc\bin\x86_64-win64\ppcx64.exe OPT="-dFPC_SOFT_FPUX80"
+      shell: cmd
+
+    - name: Cleanup
+      run: Remove-Item -Path 'C:\fpc\bin\i386-win32' -Recurse -Force
+      shell: powershell
+
+    - name: Package artifacts
+      run: |
+        powershell -Command "Remove-Item -Recurse -Force 'C:\fpc\doc','C:\fpc\examples','C:\fpc\fpmkinst','C:\fpc\msg'"
+        pushd C:\
+        "C:\Program Files\7-Zip\7z.exe" a -tzip -mx=3 -bd "%GITHUB_WORKSPACE%\windows-bundle.zip" fpc >nul
+        popd
+        "C:\Program Files\7-Zip\7z.exe" a -tzip -mx=3 -bd "windows-ppcx64.zip" "C:\fpc\bin\x86_64-win64\ppcx64.exe" >nul
+        "C:\Program Files\7-Zip\7z.exe" a -tzip -mx=3 -bd "windows-ppcross386.zip" "C:\fpc\bin\x86_64-win64\ppcross386.exe" >nul
+      shell: cmd
+
+    - name: Upload windows-bundle.zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-bundle.zip
+        path: windows-bundle.zip
+        retention-days: 7
+
+    - name: Upload windows-ppcx64.zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-ppcx64.zip
+        path: windows-ppcx64.zip
+        retention-days: 7
+
+    - name: Upload windows-ppcross386.zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-ppcross386.zip
+        path: windows-ppcross386.zip
+        retention-days: 7

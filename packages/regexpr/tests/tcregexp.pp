@@ -1,0 +1,443 @@
+{ %norun }
+unit tcregexp;
+
+{$mode objfpc}{$H+}
+
+{ $DEFINE DUMPTESTS} //define this to dump a
+
+interface
+
+uses
+  Classes, SysUtils, fpcunit, testregistry, regexpr;
+
+type
+
+  { TOrgTestRegexpr }
+
+  TOrgTestRegexpr = class(TTestCase)
+  private
+    FRE: TRegExpr;
+  protected
+    class function PrintableString(AString: AnsiString): AnsiString;
+    Procedure RunRETest(aIndex : Integer);
+    procedure SetUp; override;
+    procedure TearDown; override;
+    Property RE : TRegExpr read FRE;
+  published
+    procedure TestEmpty;
+    Procedure RunTest1;
+    Procedure RunTest2;
+    Procedure RunTest3;
+    Procedure RunTest4;
+    Procedure RunTest5;
+    Procedure RunTest6;
+    Procedure RunTest7;
+    Procedure RunTest8;
+    Procedure RunTest9;
+    Procedure RunTest10;
+    Procedure RunTest11;
+    Procedure RunTest12;
+    Procedure RunTest13;
+    Procedure RunTest14;
+    Procedure RunTest15;
+    Procedure RunTest16;
+    Procedure RunTest17;
+    Procedure RunTest18;
+    Procedure RunTest19;
+    Procedure RunTest20;
+    Procedure RunTest21;
+    Procedure RunTest22;
+    Procedure RunTest23;
+    Procedure RunTest24;
+    Procedure RunTest25;
+  end;
+
+implementation
+
+Type
+  TRegExTest = record
+    Expression: AnsiString;
+    InputText: AnsiString;
+    SubstitutionText: AnsiString;
+    ExpectedResult: AnsiString;
+    MatchStart: integer;
+  end;
+
+const
+  testCases: array [1..25] of TRegExTest = (
+    (
+    expression: '\nd';
+    inputText: 'abc'#13#10'def';
+    substitutionText: '\n\x{10}\r\\';
+    expectedResult: 'abc'#13#10#16#13'\ef';
+    MatchStart: 0
+    ),
+    (
+    expression: '(\w*)';
+    inputText: 'name.ext';
+    substitutionText: '$1.new';
+    expectedResult: 'name.new.new.ext.new.new';
+    MatchStart: 0
+    ),
+    (
+    expression: #$d'('#$a')';
+    inputText: 'word'#$d#$a;
+    substitutionText: '$1';
+    expectedResult: 'word'#$a;
+    MatchStart: 0
+    ),
+    (
+    expression: '(word)';
+    inputText: 'word';
+    substitutionText: '\U$1\\r';
+    expectedResult: 'WORD\r';
+    MatchStart: 0
+    ),
+    (
+    expression: '(word)';
+    inputText: 'word';
+    substitutionText: '$1\n';
+    expectedResult: 'word'#$a;
+    MatchStart: 0
+    ),
+    (
+    expression: '[A-Z]';
+    inputText: '234578923457823659GHJK38';
+    substitutionText: '';
+    expectedResult: 'G';
+    matchStart: 19;
+    ),
+    (
+    expression: '[A-Z]*?';
+    inputText: '234578923457823659ARTZU38';
+    substitutionText: '';
+    expectedResult: '';
+    matchStart: 1
+    ),
+    (
+    expression: '[A-Z]+';
+    inputText: '234578923457823659ARTZU38';
+    substitutionText: '';
+    expectedResult: 'ARTZU';
+    matchStart: 19
+    ),
+    (
+    expression: '[A-Z][A-Z]*';
+    inputText: '234578923457823659ARTZU38';
+    substitutionText: '';
+    expectedResult: 'ARTZU';
+    matchStart: 19
+    ),
+    (
+    expression: '[A-Z][A-Z]?';
+    inputText: '234578923457823659ARTZU38';
+    substitutionText: '';
+    expectedResult: 'AR';
+    matchStart: 19
+    ),
+    (
+    expression: '[^\d]+';
+    inputText: '234578923457823659ARTZU38';
+    substitutionText: '';
+    expectedResult: 'ARTZU';
+    matchStart: 19
+    ),
+    (
+    expression: '[A-Z][A-Z]?[A-Z]';
+    inputText: '234578923457823659ARTZU38';
+    substitutionText: '';
+    expectedResult: 'ART';
+    matchStart: 19
+    ),
+    (
+    expression: '[A-Z][A-Z]*[0-9]';
+    inputText: '234578923457823659ARTZU38';
+    substitutionText: '';
+    expectedResult: 'ARTZU3';
+    matchStart: 19
+    ),
+    (
+    expression: '[A-Z]+[0-9]';
+    inputText: '234578923457823659ARTZU38';
+    substitutionText: '';
+    expectedResult: 'ARTZU3';
+    matchStart: 19
+    ),
+    (
+    expression: '(?i)[A-Z]';
+    inputText: '234578923457823659a38';
+    substitutionText: '';
+    expectedResult: 'a';
+    matchStart: 19
+    ),
+    (
+    expression: '(?i)[a-z]';
+    inputText: '234578923457823659A38';
+    substitutionText: '';
+    expectedResult: 'A';
+    matchStart: 19
+    ),
+    (
+    expression: '(foo)1234';
+    inputText: '1234   foo1234XXXX';
+    substitutionText: '';
+    expectedResult: 'foo1234';
+    matchStart: 8
+    ),
+    (
+    expression: '(((foo)))1234';
+    inputText: '1234   foo1234XXXX';
+    substitutionText: '';
+    expectedResult: 'foo1234';
+    matchStart: 8
+    ),
+    (
+    expression: '(foo)(1234)';
+    inputText: '1234   foo1234XXXX';
+    substitutionText: '';
+    expectedResult: 'foo1234';
+    matchStart: 8
+    ),
+    (
+    expression: 'nofoo|foo';
+    inputText: '1234   foo1234XXXX';
+    substitutionText: '';
+    expectedResult: 'foo';
+    matchStart: 8
+    ),
+    (
+    expression: '(nofoo|foo)1234';
+    inputText: '1234   nofoo1234XXXX';
+    substitutionText: '';
+    expectedResult: 'nofoo1234';
+    matchStart: 8
+    ),
+    (
+    expression: '(nofoo|foo|anotherfoo)1234';
+    inputText: '1234   nofoo1234XXXX';
+    substitutionText: '';
+    expectedResult: 'nofoo1234';
+    matchStart: 8
+    ),
+    (
+    expression: 'nofoo1234|foo1234';
+    inputText: '1234   foo1234XXXX';
+    substitutionText: '';
+    expectedResult: 'foo1234';
+    matchStart: 8
+    ),
+    (
+    expression: '(\w*)';
+    inputText: 'name.ext';
+    substitutionText: '';
+    expectedResult: 'name';
+    matchStart: 1
+    ),
+    (
+    expression: '\r(\n)';
+    inputText: #$d#$a;
+    substitutionText: '';
+    expectedResult: #$d#$a;
+    matchStart: 1
+    )
+  );
+
+
+procedure TOrgTestRegexpr.TestEmpty;
+begin
+  AssertNotNull('Have RE',RE);
+  AssertFalse('UseOsLineEndOnReplace correctly set', RE.UseOsLineEndOnReplace);
+end;
+
+procedure TOrgTestRegexpr.RunTest1;
+begin
+  RunRETest(1);
+end;
+
+procedure TOrgTestRegexpr.RunTest2;
+begin
+  RunRETest(2);
+end;
+
+procedure TOrgTestRegexpr.RunTest3;
+begin
+  RunRETest(3);
+end;
+
+procedure TOrgTestRegexpr.RunTest4;
+begin
+  RunRETest(4);
+end;
+
+procedure TOrgTestRegexpr.RunTest5;
+begin
+  RunRETest(5);
+end;
+
+procedure TOrgTestRegexpr.RunTest6;
+begin
+  RunRETest(6);
+end;
+
+procedure TOrgTestRegexpr.RunTest7;
+begin
+  RunRETest(7);
+end;
+
+procedure TOrgTestRegexpr.RunTest8;
+begin
+  RunRETest(8);
+end;
+
+procedure TOrgTestRegexpr.RunTest9;
+begin
+  RunRETest(9);
+end;
+
+procedure TOrgTestRegexpr.RunTest10;
+begin
+  RunRETest(10);
+end;
+
+procedure TOrgTestRegexpr.RunTest11;
+begin
+  RunRETest(11);
+end;
+
+procedure TOrgTestRegexpr.RunTest12;
+begin
+  RunRETest(12);
+end;
+
+procedure TOrgTestRegexpr.RunTest13;
+begin
+  RunRETest(13);
+end;
+
+procedure TOrgTestRegexpr.RunTest14;
+begin
+  RunRETest(14);
+end;
+
+procedure TOrgTestRegexpr.RunTest15;
+begin
+  RunRETest(15);
+end;
+
+procedure TOrgTestRegexpr.RunTest16;
+begin
+  RunRETest(16);
+end;
+
+procedure TOrgTestRegexpr.RunTest17;
+begin
+  RunRETest(17);
+end;
+
+procedure TOrgTestRegexpr.RunTest18;
+begin
+  RunRETest(18);
+end;
+
+procedure TOrgTestRegexpr.RunTest19;
+begin
+  RunRETest(19);
+end;
+
+procedure TOrgTestRegexpr.RunTest20;
+begin
+  RunRETest(20);
+end;
+
+procedure TOrgTestRegexpr.RunTest21;
+begin
+  RunRETest(21);
+end;
+
+procedure TOrgTestRegexpr.RunTest22;
+begin
+  RunRETest(22);
+end;
+
+procedure TOrgTestRegexpr.RunTest23;
+begin
+  RunRETest(23);
+end;
+
+procedure TOrgTestRegexpr.RunTest24;
+begin
+  RunRETest(24);
+end;
+
+procedure TOrgTestRegexpr.RunTest25;
+begin
+  RunRETest(25);
+end;
+
+
+Class function TOrgTestRegexpr.PrintableString(AString: AnsiString): AnsiString;
+
+var
+    ch: AnsiChar;
+
+begin
+  Result := '';
+  for ch in AString do
+    if ch < #31 then
+      Result := Result + '#' + IntToStr(Ord(ch))
+    else
+      Result := Result + ch;
+end;
+
+procedure TOrgTestRegexpr.RunRETest(aIndex: Integer);
+
+
+var
+  T: TRegExTest;
+  act : AnsiString;
+
+begin
+  T:=testCases[aIndex];
+  RE.Expression:=T.Expression;
+  RE.Compile;
+{$IFDEF DUMPTESTS}
+  Writeln('Test: ',TestName);
+  writeln('  Modifiers "', RE.ModifierStr, '"');
+  writeln('  Regular expression: ', T.Expression,' ,');
+  writeln('  compiled into p-code: ');
+  writeln('  ',RE.Dump);
+  writeln('  Input text: "', PrintableString(T.inputText), '"');
+  if (T.substitutionText <> '')  then
+    Writeln('  Substitution text: "', PrintableString(T.substitutionText), '"');
+{$ENDIF}
+  if (T.SubstitutionText <> '') then
+    begin
+    act:=RE.Replace(T.InputText,T.SubstitutionText,True);
+    AssertEquals('Replace failed', T.ExpectedResult,Act)
+    end
+  else
+    begin
+    RE.Exec(T.inputText);
+    AssertEquals('Search position',T.MatchStart,RE.MatchPos[0]);
+    AssertEquals('Matched text',T.ExpectedResult,RE.Match[0]);
+    end;
+end;
+
+procedure TOrgTestRegexpr.SetUp;
+begin
+  Inherited;
+  FRE := TRegExpr.Create;
+  FRE.UseOsLineEndOnReplace:=False;
+end;
+
+procedure TOrgTestRegexpr.TearDown;
+begin
+  FreeAndNil(FRE);
+  Inherited;
+end;
+
+initialization
+
+  RegisterTest(TOrgTestRegexpr);
+end.
+

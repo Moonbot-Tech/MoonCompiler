@@ -1,0 +1,116 @@
+#
+#   Makefile.fpc for Free Pascal WinCE RTL
+#
+
+[package]
+main=rtl
+
+[target]
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(FPINTRESUNIT) $(CTYPESUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) $(STRINGSUNIT) \
+      $(CPU_UNITS)  $(HEAPTRCUNIT) $(LINEINFOUNIT) \
+      $(WINDOWSUNIT) $(MESSAGESUNIT) $(DYNLIBSUNIT) \
+      $(DOSUNIT) \
+      $(RTLCONSTSUNIT) $(SYSCONSTUNIT) $(SYSUTILSUNIT) \
+      $(TYPINFOUNIT) $(TYPESUNIT) $(SORTBASEUNIT) $(FGLUNIT) $(CLASSESUNIT) \
+      $(MATHUNIT)   $(FPWIDESTRINGUNIT)  \
+      $(CHARSETUNIT) $(CPALLUNIT) $(CHARACTERUNIT) $(GETOPTSUNIT) \
+      $(CMEMUNIT)  $(SHARMEMUNIT) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT) $(UFLOAT128UNIT)
+
+#    $(INITCUNIT)  signals \
+#    wincrt winmouse winevent  printer \
+#    video mouse keyboard \
+#    winsysut
+
+# rsts=$(MATHUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+implicitunits=$(EXEINFOUNIT) $(CP_UNITS) $(UNICODEDATAUNIT)
+
+# fake dll
+# programs=fpcmemdll
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+
+[default]
+target=wince
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(RTL)/win
+sourcedir=$(INC) $(PROCINC) $(COMMON)
+
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+WINDIR=../win
+WININC=$(WINDIR)/wininc
+
+UNITPREFIX=rtl
+
+PRT0=wprt0
+
+ifeq ($(ARCH),arm)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+ifeq ($(ARCH),i386)
+CPU_UNITS=$(CPUUNIT) $(MMXUNIT) $(INTRINSICSUNIT)
+CPU_DEPS_CPU=$(SYSUTILSUNIT)$(PPUEXT)
+MMX_DEPS_CPU=$(CPUUNIT)$(PPUEXT)
+endif
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+GRAPHDIR=$(INC)/graph
+
+# Files used by windows.pp
+include $(WININC)/makefile.inc
+
+WINDOWS_SOURCE_FILES=$(addprefix $(WININC)/,$(addsuffix .inc,$(WINDOWS_FILES)))
+WINDOWS_OPT=-Fi$(WININC)
+DOS_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT)
+SYSUTILSDIR=.
+SYSUTILS_OPT=-Fi../win
+SYSUTILS_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT)
+FPWIDESTRING_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT)
+TYPES_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT)
+TTHREADINCDIR=$(WINDIR)
+
+[rules]
+.NOTPARALLEL:
+SYSTEMPPU=$(addsuffix $(PPUEXT),$(SYSTEMUNIT))
+
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+# Change WINDIR and WININC now
+WINDIR = .
+WININC = $(WINDIR)/wininc
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS) winres.inc
+
+#
+# System Units (System, Objpas, Strings)
+#
+
+WINMESSAGESDIR=$(OSDIR)
+
+sharemem$(PPUEXT) : $(WINDIR)/sharemem.pp $(SYSTEMUNIT)$(PPUEXT)
+        $(COMPILER) $(WINDIR)/sharemem.pp
+
+fpcmemdll.dll : $(WINDIR)/fpcmemdll.pp $(SYSTEMUNIT)$(PPUEXT)
+        $(COMPILER) $(WINDIR)/fpcmemdll.pp
+

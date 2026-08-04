@@ -1,0 +1,113 @@
+#
+#   Makefile.fpc for Free Pascal Win32 RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=$(LOADERS)
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(WINDOWSUNIT) $(SYSUTILSUNIT) buildrtl $(CPALLUNIT) $(LINEINFOUNIT) $(LNFODWRFUNIT)
+implicitunits=sysinitpas sysinitcyg sysinitgprof $(INITCUNIT) $(EXTPASUNIT) $(HEAPTRCUNIT) \
+      $(WINSYSUTUNIT) $(CTYPESUNIT) $(STRINGSUNIT) \
+      $(DOSUNIT) $(MESSAGESUNIT) \
+      $(CHARSETUNIT) $(CMEMUNIT) $(DYNLIBSUNIT) \
+      $(RTLCONSTSUNIT) $(SYSCONSTUNIT) $(MATHUNIT) $(TYPESUNIT) \
+      $(TYPINFOUNIT) $(SORTBASEUNIT) $(FGLUNIT) $(CLASSESUNIT) $(GETOPTSUNIT) \
+      $(CHARACTERUNIT) $(FPWIDESTRINGUNIT) \
+      $(SHAREMEMUNIT) $(EXEINFOUNIT) $(FPINTRESUNIT) $(WINDIRSUNIT) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT) $(UFLOAT128UNIT) \
+      $(CP_UNITS) $(UNICODEDATAUNIT) \
+      $(CPU_UNITS)
+
+# shared=$(DLLS)
+
+rsts=$(MATHUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+buildunit=buildrtl
+
+[default]
+target=win32
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(WINDIR) ./$(ARCH) $(WININC)
+sourcedir=$(INC) $(PROCINC) $(COMMON) $(WINDIR) ../$(ARCH)
+
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+WININC=../win/wininc
+WINDIR=../win
+NSOSDIR=$(NSDIR)/windows
+
+UNITPREFIX=rtl
+DLLS=fpcmemdll
+CPU_UNITS=$(CPUUNIT) $(SIGNALSUNIT) $(MMXUNIT) $(INTRINSICSUNIT)
+# Paths
+OBJPASDIR=$(RTL)/objpas
+override FPC_SYSTEM_OPT += -Fu$(WINDIR)
+SYSUTILSDIR=$(WINDIR)
+SYSUTILS_OPT=-Fi$(WINDIR)
+SYSUTILS_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT) $(WINDIRSUNIT)$(PPUEXT)
+WINDIRSDIR=$(WINDIR)
+DYNLIBSINCDIR=$(WINDIR)
+TTHREADINCDIR=$(WINDIR)
+
+# Files used by windows.pp
+include $(WININC)/makefile.inc
+
+WINDOWS_SOURCE_FILES=$(addprefix $(WININC)/,$(addsuffix .inc,$(WINDOWS_FILES)))
+
+EXEINFO_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT)
+EXTPAS_DEPS_OS=buildrtl$(PPUEXT)
+FPWIDESTRING_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT)
+TYPES_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT)
+
+[rules]
+.NOTPARALLEL:
+SYSTEMPPU=$(addsuffix $(PPUEXT),system)
+
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+
+
+BUILDINCLUDEPATHS= -Fi$(OBJPASDIR)/sysutils -Fi$(WINDIR) -Fi$(OBJPASDIR) \
+                   -Fi$(OBJPASDIR)/classes -Fi$(WININC) -Fi$(INC)
+
+BUILDUNITPATHS=-Fu$(WININC) -Fu$(WINDIR) -Fu$(INC) -Fu$(OBJPASDIR) -Fu../$(ARCH)
+
+ifdef FPC_DOTTEDUNITS
+BUILDRTL_OPT:=$(BUILDRTL_OPT) -Fu$(NSINC) -Fu$(NSOSDIR) -dFPC_DOTTEDUNITS
+endif
+
+#
+# Unit specific rules
+#
+
+BUILDRTL_DEPS=buildrtl.pp $(SYSTEMUNIT)$(PPUEXT) $(OBJPASUNIT)$(PPUEXT) $(WINDOWSUNIT)$(PPUEXT) $(SYSUTILSUNIT)$(PPUEXT) \
+              $(BUILDRTL_DEPS_OS) $(BUILDRTL_DEPS_CPU)
+
+buildrtl$(PPUEXT) : $(BUILDRTL_DEPS)
+	$(COMPILER) $(BUILDUNITPATHS) $(BUILDINCLUDEPATHS) $(BUILDRTL_OPT) $<
+
+

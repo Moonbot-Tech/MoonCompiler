@@ -1,0 +1,31 @@
+#
+#   Makefile.fpc for FPDoc Editor (fpde)
+#
+
+[package]
+name=fpde
+version=3.3.1
+
+[require]
+packages=fcl-base fcl-xml fcl-passrc fpgtk
+
+[target]
+programs=fpde
+
+[install]
+fpcpackage=y
+
+[default]
+fpcdir=../../..
+
+[clean]
+units=fpdeopts frmlink frmmakeskel frmoptions pgeditor fpdemsg frmabout \
+      frmmain frmnewnode frmtable xpms
+
+files=fpdemsg.rst  frmmakeskel.rst
+
+[rules]
+.NOTPARALLEL:
+fpde$(EXEEXT): fpde.pp fpdeopts.pp frmlink.pp frmmakeskel.pp frmoptions.pp\
+               pgeditor.pp fpdemsg.pp frmabout.pp frmmain.pp frmnewnode.pp\
+               frmtable.pp xpms.pp

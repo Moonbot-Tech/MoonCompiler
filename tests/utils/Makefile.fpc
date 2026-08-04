@@ -1,0 +1,70 @@
+#
+# Makefile.fpc for Free Pascal testing utilities
+#
+
+[install]
+fpcpackage=y
+
+[default]
+fpcdir=../..
+
+[require]
+# We depend on the installed compiler with it's fpc.cfg
+nortl=y
+
+[target]
+programs=dotest fptime fail testfail digest concat $(DBDIGEST)
+programs_win32=prepup
+programs_win64=prepup
+programs_go32v2=prepup $(DOSBOX_WRAPPER)
+programs_msdos=prepup $(EXITCODE_MSDOS) $(DOSBOX_WRAPPER)
+
+[clean]
+programs=dbdigest dbconfig dosbox/dosbox_wrapper dosbox/exitcode
+files=dosbox/exitcode$(OEXT)
+
+[prerules]
+
+ifneq ($(findstring dosbox_wrapper,$(EMULATOR)),)
+  DOSBOX_WRAPPER=dosbox/dosbox_wrapper$(SRCEXEEXT)
+ifeq ($(TEST_OS_TARGET),msdos)
+  EXITCODE_MSDOS=dosbox/exitcode$(EXEEXT)
+else
+  EXITCODE_MSDOS=
+endif
+else
+  DOSBOX_WRAPPER=
+  EXITCODE_MSDOS=
+endif
+
+[rules]
+.NOTPARALLEL:
+
+utils: all
+
+dbconfig$(SRCEXEEXT): dbconfig.pp tsstring$(PPUEXT) tsutils$(PPUEXT) tstypes$(PPUEXT) tsdb$(PPUEXT)
+        $(COMPILER) $<
+
+dbdigest$(SRCEXEEXT): dbdigest.pp digestanalyst$(PPUEXT) tsstring$(PPUEXT) tsutils$(PPUEXT) tstypes$(PPUEXT) tsdb$(PPUEXT)
+        $(COMPILER) $<
+
+digest$(SRCEXEEXT): digest.pp tsstring$(PPUEXT)
+        $(COMPILER) $<
+
+dosbox/dosbox_wrapper$(SRCEXEEXT): dosbox/dosbox_wrapper.pas  
+	$(COMPILER) -FE./dosbox $<
+
+dosbox/exitcode$(EXEEXT): dosbox/exitcode.pas
+	$(TEST_FPC) $(TEST_OPT) -FE./dosbox $<
+
+dotest$(SRCEXEEXT): dotest.pp bench$(PPUEXT) tsstring$(PPUEXT) redir$(PPUEXT) tsutils$(PPUEXT)
+        $(COMPILER) $<
+
+fptime$(SRCEXEEXT): fptime.pp bench$(PPUEXT)
+        $(COMPILER) $<
+
+testfail$(SRCEXEEXT): testfail.pp redir$(PPUEXT)
+        $(COMPILER) $<
+
+utilsdb:
+	$(MAKE) utils DBDIGEST="dbdigest dbconfig"

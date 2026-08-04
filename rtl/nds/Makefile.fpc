@@ -1,0 +1,87 @@
+#
+#   Makefile.fpc for Free Pascal NDS RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=$(LOADERS)
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) $(STRINGSUNIT) \
+      $(SORTBASEUNIT)  $(SYSUTILSUNIT) \
+      $(CLASSESUNIT)  $(MATHUNIT) $(TYPINFOUNIT) $(CTYPESUNIT)  \
+      $(CHARSETUNIT) $(CPALLUNIT) $(GETOPTSUNIT) \
+      $(FPWIDESTRINGUNIT) $(CHARACTERUNIT) \
+      $(TYPESUNIT) $(SYSCONSTUNIT) $(RTLCONSTSUNIT) $(LINEINFOUNIT) $(FGLUNIT) 
+#rsts=$(MATHUNIT) $(RTLCONSTSUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+implicitunits=$(CP_UNITS) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+
+[default]
+target=nds
+cpu=arm
+
+[compiler]
+includedir=$(INC) $(PROCINC)
+sourcedir=$(INC) $(PROCINC) $(COMMON)
+
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+UNITPREFIX=rtl
+LOADERS=prt07 prt09 cprt07 cprt09
+
+ifdef RELEASE
+override FPCOPT+=-Ur
+endif
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+SYSUTILS_DEPS_OS=$(DOSUNIT)$(PPUEXT)
+
+ifeq ($(ARCH),arm)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+[rules]
+.NOTPARALLEL:
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS) $(INC)/softfpu.pp
+override FPC_SYSTEM_OPT += @rtl.cfg
+
+#
+# Loaders
+#
+
+prt07$(OEXT) : prt07.as
+        $(AS) $(ASTARGET) -o $(UNITTARGETDIRPREFIX)prt07$(OEXT) prt07.as
+
+prt09$(OEXT) : prt09.as
+        $(AS) $(ASTARGET) -o $(UNITTARGETDIRPREFIX)prt09$(OEXT) prt09.as
+
+cprt07$(OEXT) : cprt07.as
+        $(AS) $(ASTARGET) -o $(UNITTARGETDIRPREFIX)cprt07$(OEXT) cprt07.as
+
+cprt09$(OEXT) : cprt09.as
+        $(AS) $(ASTARGET) -o $(UNITTARGETDIRPREFIX)cprt09$(OEXT) cprt09.as
+

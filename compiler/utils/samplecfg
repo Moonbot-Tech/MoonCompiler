@@ -1,0 +1,112 @@
+#!/bin/sh
+#
+#  $Id: samplecfg,v 1.13 2005/02/19 18:50:20 florian Exp $
+#
+#  Generate Sample Free Pascal configuration file
+#
+
+HOSTOS=`uname -s | tr A-Z a-z`
+echo Running on $HOSTOS
+
+if [ $# = 0 ]; then
+  echo 'Usage :'
+  echo 'samplecfg fpcdir confdir'
+  echo 'fpcdir = Path where FPC is installed'
+  echo 'confdir = Path to /etc'
+  echo 'Example :'
+  echo 'samplecfg /usr/local/lib/fpc/3.0.2'
+  exit 1
+fi
+if [ "$2" ]; then
+  sysdir="$2"
+  [ -d "$sysdir" ] || mkdir "$sysdir"
+else
+  sysdir=/etc
+fi
+FPCBIN=`dirname "$1"`/../../bin/fpc
+FPBIN=`dirname "$1"`/../../bin/fp
+FPPKGBIN=`dirname "$1"`/../../bin/fppkg
+FPCMKCFGBIN=`dirname "$1"`/../../bin/fpcmkcfg
+SHAREPATH=`dirname "$1"`/../../share/fpc/\$fpcversion
+# Look for one in the PATH, if no new one was installed.
+if [ ! -f $FPCMKCFGBIN ]; then
+  FPCMKCFGBIN=fpcmkcfg
+fi
+
+sysfpdirbase=`dirname "$1"`/`"$FPCBIN" -iV`
+sysfpdirbase2=$sysfpdirbase/ide
+sysfpdir=$sysfpdirbase2/text
+
+# Detect if we have write permission in sysdir.
+if [ -w "$sysdir" ] ; then
+  echo Write permission in $sysdir.
+  fpccfgfile="$sysdir"/fpc.cfg
+  fppkgfile="$sysdir"/fppkg.cfg
+  defaultfile="$sysdir"/fppkg/default
+  compilerconfigdir="-d CompilerConfigDir=$sysdir/fppkg/"
+  fppkgconfdir=$sysdir/fppkg/conf.d
+else
+  echo No write premission in $sysdir.
+  fpccfgfile="$HOME"/.fpc.cfg
+  fppkgfile="$HOME"/.config/fppkg.cfg
+  defaultfile="$HOME"/.fppkg/config/default
+  fppkgconfdir="$HOME"/.fppkg/config/conf.d
+fi
+#
+
+# Don't mess with IDE configuration if fp binary does not exist
+if [ -f "$FPBIN" ] ; then
+
+# Assume local FP IDE configuration unless writing system-wide version possible
+  fpinifile="$HOME"/.fp/fp.ini
+  fpcfgfile="$HOME"/.fp/fp.cfg
+
+# Detect if we have write permission in sysfpdir, or that the directory can be made
+  if ( [ -d "$sysfpdirbase" ] && [ -w "$sysfpdirbase" ] && ! [ -d "$sysfpdirbase2" ] ) ||
+     ( [ -d "$sysfpdirbase2" ] && [ -w "$sysfpdirbase2" ] && ! [ -d "$sysfpdir" ] ) ||
+     ( [ -d "$sysfpdir" ] && [ -w "$sysfpdir" ] ) ; then
+    fpinifile="$sysfpdir"/fp.ini
+    fpcfgfile="$sysfpdir"/fp.cfg
+  fi
+#
+fi
+
+# set right path to FPC with $fpcversion
+FPCPATH=`dirname "$1"`/\$fpcversion
+# set right prefix to FPC
+FPCGLOBALPATH=`dirname "$1"`
+FPCGLOBALPREFIX="$FPCGLOBALPATH"/../../
+
+# Write (.)fpc.cfg
+echo Writing sample configuration file to $fpccfgfile
+${FPCMKCFGBIN} -d "basepath=$FPCPATH" -d "sharepath=$SHAREPATH" -o $fpccfgfile
+
+if [ -f "$FPBIN" ] ; then
+  # Write fp.cfg
+  echo Writing sample configuration file to $fpcfgfile
+  ${FPCMKCFGBIN} -p -1 -d "basepath=$FPCPATH" -d "sharepath=$SHAREPATH" -o $fpcfgfile
+
+  # Write fp.ini
+  echo Writing sample configuration file to $fpinifile
+  ${FPCMKCFGBIN} -p -2 -o $fpinifile
+fi
+
+# Do not write fppkg configuration when fppkg is not available
+if [ ! -f "$FPPKGBIN" ] ; then
+  echo "No fppkg binary available, not generating fppkg config."
+  exit
+fi
+
+# Write fppkg.cfg
+echo Writing sample configuration file to $fppkgfile
+${FPCMKCFGBIN} -p -3 -d "GlobalPrefix=$FPCGLOBALPREFIX" -d "GlobalPath=$FPCGLOBALPATH/{CompilerVersion}/" $compilerconfigdir -o $fppkgfile
+
+# Write default
+echo Writing sample configuration file to $defaultfile
+${FPCMKCFGBIN} -p -4 -d "GlobalPrefix=$FPCGLOBALPREFIX" -d "FpcBin=$FPCBIN" -o $defaultfile
+
+# Create (empty) directory for fppkg-configuration files for extensions
+if [ ! -d "$fppkgconfdir" ] ; then
+  echo "Creating fpkkg configuration extensions directory $fppkgconfdir"
+  mkdir "$fppkgconfdir"
+fi

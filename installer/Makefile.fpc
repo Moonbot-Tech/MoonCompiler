@@ -1,0 +1,52 @@
+#
+#   Makefile.fpc for Free Pascal installer
+#
+
+[package]
+name=installer
+version=3.3.1
+
+[target]
+programs_go32v2=install writeidx
+programs_win32=install writeidx
+programs_os2=install writeidx
+programs_linux=installer writeidx
+programs_freebsd=installer writeidx
+
+[clean]
+units=scroll insthelp
+files_linux=installer.pas
+files_freebsd=installer.pas
+programs=install writeidx
+
+[require]
+packages=rtl-unicode rtl-console fv unzip rtl-extra ide
+
+[compiler]
+
+[install]
+fpcpackage=y
+
+[default]
+fpcdir=..
+
+
+[rules]
+.NOTPARALLEL:
+
+#
+# FVision or old FV detection
+#
+ifneq ($(wildcard $(UNITDIR_FV)/fvconsts$(PPUEXT)),)
+override COMPILER+=-dFVISION
+endif
+
+installer.pas: install.pas
+        $(COPY) install.pas installer.pas
+        $(COPY) install.dat installer.dat
+
+install$(EXEEXT) : install.pas scroll.pas
+
+installer$(EXEEXT) : installer.pas scroll.pas
+
+writeidx$(EXEEXT) : writeidx.pas insthelp.pas

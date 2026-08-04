@@ -1,0 +1,78 @@
+#
+#   Makefile.fpc for MIPSEL PlayStation 1
+#
+[package]
+main=rtl
+[target]
+loaders=sysintern
+units=$(SYSTEMUNIT) $(OBJPASUNIT) $(FPINTRESUNIT) $(ISO7185UNIT) $(CTYPESUNIT) \
+  $(SYSCONSTUNIT) $(UUCHARUNIT) $(STRINGSUNIT) \
+  ps1System ps1CDRom ps1COP0 ps1GPU ps1GTE ps1SPU \
+  si_prc
+
+[require]
+nortl=y
+[install]
+fpcpackage=y
+[default]
+target=ps1
+cpu=mipsel
+[compiler]
+includedir=$(INC) $(PROCINC)
+sourcedir=$(INC) $(PROCINC) $(COMMON) ./bare-metal
+[prerules]
+RTL=..
+INC=../inc
+COMMON=$(RTL)/common
+PROCINC=../$(CPU_TARGET)
+UNITPREFIX=rtl
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+# Insert exception handler in system unit
+ifdef EXCEPTIONS_IN_SYSTEM
+override FPCOPT+=-dEXCEPTIONS_IN_SYSTEM
+endif
+# Insert exception handler in system unit
+ifdef NO_EXCEPTIONS_IN_SYSTEM
+override FPCOPT+=-dNO_EXCEPTIONS_IN_SYSTEM
+endif
+[rules]
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+
+
+# BARE-METAL units
+ps1System$(PPUEXT) : bare-metal/ps1System.pas $(OBJPASUNIT)$(PPUEXT) $(SYSTEMUNIT)$(PPUEXT)
+        $(COMPILER) $<
+
+ps1CDRom$(PPUEXT) : bare-metal/ps1CDRom.pas ps1System$(PPUEXT) $(OBJPASUNIT)$(PPUEXT) $(SYSTEMUNIT)$(PPUEXT)
+        $(COMPILER) $<
+
+ps1COP0$(PPUEXT) : bare-metal/ps1COP0.pas ps1System$(PPUEXT) $(OBJPASUNIT)$(PPUEXT) $(SYSTEMUNIT)$(PPUEXT)
+        $(COMPILER) $<
+
+ps1GPU$(PPUEXT) : bare-metal/ps1GPU.pas ps1System$(PPUEXT) $(OBJPASUNIT)$(PPUEXT) $(SYSTEMUNIT)$(PPUEXT)
+        $(COMPILER) $<
+
+ps1GTE$(PPUEXT) : bare-metal/ps1GTE.pas ps1System$(PPUEXT) ps1GPU$(PPUEXT) $(OBJPASUNIT)$(PPUEXT) $(SYSTEMUNIT)$(PPUEXT)
+        $(COMPILER) $<
+
+ps1SPU$(PPUEXT) : bare-metal/ps1SPU.pas ps1System$(PPUEXT) $(OBJPASUNIT)$(PPUEXT) $(SYSTEMUNIT)$(PPUEXT)
+        $(COMPILER) $<      
+
+sysintern$(OEXT) : bare-metal/sysintern.sa
+        $(AS) -EL -mabi=32 -msoft-float bare-metal/sysintern.sa -o $(UNITTARGETDIRPREFIX)sysintern$(OEXT) 
+
+si_prc$(PPUEXT) : $(SYSTEMUNIT)$(PPUEXT)
+        $(COMPILER) si_prc.pp

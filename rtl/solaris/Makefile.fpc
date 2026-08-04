@@ -1,0 +1,103 @@
+#
+#   Makefile.fpc for Free Pascal solaris RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(UNIXTYPEUNIT) $(CTYPESUNIT) $(STRINGSUNIT) $(OBJPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) $(MACPASUNIT) \
+      $(HEAPTRCUNIT) $(LINEINFOUNIT) $(LNFODWRFUNIT) \
+      $(BASEUNIXUNIT) $(UNIXUTILUNIT) $(UNIXCPUNIT) \
+      $(TERMIOUNIT) $(UNIXUNIT) $(INITCUNIT) $(CMEMUNIT) \
+      $(SYSUTILSUNIT) $(TYPINFOUNIT) $(MATHUNIT) $(SORTBASEUNIT) $(FGLUNIT) $(CLASSESUNIT) \
+      $(CHARSETUNIT) $(CPALLUNIT) $(GETOPTSUNIT) \
+      $(ERRORSUNIT) \
+      $(DLUNIT) $(DYNLIBSUNIT) \
+      $(TYPESUNIT) $(SYSCONSTUNIT) $(CHARACTERUNIT) \
+      $(RTLCONSTSUNIT) $(CTHREADSUNIT) \
+      $(DOSUNIT) $(FPWIDESTRINGUNIT) \
+      $(CWSTRINGUNIT) $(FPINTRESUNIT) $(CPU_UNITS) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT) $(UFLOAT128UNIT)
+
+implicitunits=$(EXEINFOUNIT) $(CP_UNITS) $(UNICODEDATAUNIT)
+
+rsts=$(MATHUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(RTLCONSTSUNIT) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+
+[default]
+target=solaris
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(UNIXINC) $(OSPROCINC)
+sourcedir=$(INC) $(PROCINC) $(UNIXINC) $(COMMON)
+
+
+[lib]
+libname=libfprtl.so
+libversion=2.0.0
+libunits=$(SYSTEMUNIT) $(OBJPASUNIT) $(STRINGSUNIT) \
+      $(UNIXUNIT)  \
+      $(DOSUNIT) \
+      $(SYSUTILSUNIT) $(TYPINFOUNIT) $(MATHUNIT) \
+      $(CPU_UNITS) $(GETOPTSUNIT) $(HEAPTRCUNIT) \
+      $(ERRORSUNIT)
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+OSPROCINC=$(RTL)/solaris/$(CPU_TARGET)
+UNIXINC=$(RTL)/unix
+UNITPREFIX=rtl
+CLASSESDIR=$(UNIXINC)
+CPU_UNITS=
+DOSDIR=$(UNIXINC)
+DYNLIBS_DEPS_OS=$(DLUNIT)$(PPUEXT)
+DYNLIBSINCDIR=$(UNIXINC)
+TERMIO_DEPS_OS=$(UNIXTYPEUNIT)$(PPUEXT)
+SYSUTILSDIR=$(UNIXINC)
+SYSUTILS_DEPS_OS = $(UNIXUNIT)$(PPUEXT) $(ERRORSUNIT)$(PPUEXT)
+
+
+
+ifeq ($(ARCH),i386)
+CPU_UNITS=$(CPUUNIT) $(MMXUNIT) $(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),x86_64)
+CPU_UNITS=$(CPUUNIT)
+SYSINIT_UNITS=   # si_prc si_c si_dll
+endif
+
+
+# Solaris requires libc, no syscalls
+override FPCOPT+=-dFPC_USE_LIBC
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+[rules]
+.NOTPARALLEL:
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+

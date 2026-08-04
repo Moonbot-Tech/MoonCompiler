@@ -1,0 +1,108 @@
+#
+#   Makefile.fpc for Free Pascal NativeNT RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=
+#units=$(SYSTEMUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) buildrtl $(LINEINFOUNIT) $(LNFODWRFUNIT)
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(OBJPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) $(CPALLUNIT) buildrtl
+implicitunits=ndk ndkutils ddk \
+      $(CTYPESUNIT) $(STRINGSUNIT) \
+#      $(HEAPTRCUNIT)
+#      $(INITCUNIT) $(CMEMUNIT) $(DYNLIBSUNIT) signals \
+      $(DOSUNIT) \
+      $(RTLCONSTSUNIT) $(SYSCONSTUNIT) $(SYSUTILSUNIT) $(MATHUNIT) $(TYPESUNIT) \
+      $(TYPINFOUNIT) $(FGLUNIT) $(CLASSESUNIT) \
+      $(CPU_UNITS) $(CHARSETUNIT) $(GETOPTSUNIT) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT) $(UFLOAT128UNIT) \
+#      printer \
+#      keyboard
+#      sharemem exeinfo $(FPINTRESUNIT) \
+      $(CP_UNITS)
+
+# shared=$(DLLS)
+
+rsts=$(MATHUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+
+[default]
+target=nativent
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(DDKINC) $(NDKINC)
+sourcedir=$(INC) $(PROCINC) $(COMMON)
+
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+DDKINC=ddk
+NDKINC=ndk
+# Not used DYNLIBSINCDIR=$(WINDIR)
+
+UNITPREFIX=rtl
+
+CPU_UNITS=
+
+ifeq ($(ARCH),i386)
+CPU_UNITS=$(CPUUNIT) $(MMXUNIT) $(INTRINSICSUNIT)
+endif
+
+ifeq ($(ARCH),x86_64)
+CPU_UNITS=$(CPUUNIT) $(INTRINSICSUNIT)
+endif
+
+DLLS=fpcmemdll
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+# Files used by windows.pp
+#include $(WININC)/makefile.inc
+
+WINDOWS_SOURCE_FILES=$(addprefix $(WININC)/,$(addsuffix .inc,$(WINDOWS_FILES)))
+
+
+[rules]
+.NOTPARALLEL:
+SYSTEMPPU=$(addsuffix $(PPUEXT),system)
+
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+
+
+#
+# Loaders
+#
+
+# none
+
+#
+# Unit specific rules
+#
+
+buildrtl$(PPUEXT): buildrtl.pp $(SYSTEMUNIT)$(PPUEXT) $(OBJPASUNIT)$(PPUEXT)
+        $(COMPILER) -Fi$(OBJPASDIR)/sysutils -Fi$(OBJPASDIR)/classes -Fu$(PROCINC) -I$(OBJPASDIR) -Fi$(DDKINC) -I$(INC) -Fu$(INC) -Fu$(OBJPASDIR) buildrtl
+

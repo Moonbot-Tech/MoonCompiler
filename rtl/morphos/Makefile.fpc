@@ -1,0 +1,80 @@
+#
+#   Makefile.fpc for Free Pascal MorphOS RTL
+#
+
+[package]
+main=rtl
+
+[target]
+#loaders=prt0
+units=$(SYSTEMUNIT) $(HEAPTRCUNIT) $(UUCHARUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) buildrtl $(CPALLUNIT)
+implicitunits=$(SYSINIT_UNITS) athreads $(FPINTRESUNIT) $(DOSUNIT) $(SYSUTILSUNIT) \
+               $(CTYPESUNIT) $(STRINGSUNIT) $(RTLCONSTSUNIT) $(SYSCONSTUNIT) $(MATHUNIT) $(TYPESUNIT) \
+               $(TYPINFOUNIT) $(SORTBASEUNIT) $(FGLUNIT) $(CLASSESUNIT) $(CHARSETUNIT) $(CHARACTERUNIT) $(GETOPTSUNIT) \
+               $(FPWIDESTRINGUNIT) $(EXEINFOUNIT) $(LINEINFOUNIT) $(INTRINSICSUNIT) \
+               $(CP_UNITS) $(UNICODEDATAUNIT) \
+               $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT)  $(UFLOAT128UNIT)
+
+
+rsts=$(MATHUNIT) $(RTLCONSTSUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+buildunit=buildrtl
+
+[default]
+target=morphos
+cpu=powerpc
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(AMIINC)
+sourcedir=$(INC) $(PROCINC) $(AMIINC) $(COMMON)
+
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+AMIINC=$(RTL)/amicommon
+UNITPREFIX=rtl
+SYSINIT_UNITS=si_prc
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+[rules]
+.NOTPARALLEL:
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+
+
+#
+# Loaders
+#
+
+%$(OEXT) : %.as
+        $(AS) -o $(UNITTARGETDIRPREFIX)$*$(OEXT) $*.as
+
+#
+# Base Units (System, strings, os-dependent-base-unit)
+#
+
+buildrtl$(PPUEXT): buildrtl.pp $(SYSTEMUNIT)$(PPUEXT) $(OBJPASUNIT)$(PPUEXT) $(HEAPTRCUNIT)$(PPUEXT)
+        $(COMPILER) -Fi$(OBJPASDIR)/sysutils -Fi$(OBJPASDIR)/classes -Fu$(PROCINC) -Fu$(AMIINC) -I$(INC) -Fu$(INC) -Fu$(OBJPASDIR) buildrtl
+

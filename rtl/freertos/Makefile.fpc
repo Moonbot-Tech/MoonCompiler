@@ -1,0 +1,183 @@
+#
+#   Makefile.fpc for Free Pascal FreeRTOS RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=$(LOADERS)
+
+
+# not all targets include enough features to build all units so
+# the common units which are not compiled for all CPUs are stored in
+# CPU_SPECIFIC_COMMON_UNITS
+units=$(SYSTEMUNIT) $(CPU_UNITS) $(UUCHARUNIT) $(OBJPASUNIT) $(ISO7185UNIT) $(EXTPASUNIT) heapmgr consoleio  $(CPU_SPECIFIC_COMMON_UNITS) \
+# $(MACPASUNIT) $(ISO7185UNIT) $(STRINGSUNIT)
+       $(STRINGSUNIT) \
+       $(SORTBASEUNIT) \
+       $(DOSUNIT) \
+       $(CTYPESUNIT) \
+       $(CHARSETUNIT) $(CPALLUNIT) \
+       $(SYSCONSTUNIT) \
+       $(CHARACTERUNIT)
+implicitunits=$(EXEINFOUNIT) $(CP_UNITS) $(UNICODEDATAUNIT)
+
+#rsts=$(MATHUNIT) $(RTLCONSTSUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+
+[default]
+target=freertos
+
+[compiler]
+includedir=$(INC) $(PROCINC)
+sourcedir=$(INC) $(PROCINC) $(COMMON) $(ARCH)
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+UNITPREFIX=rtl
+LOADERS=
+
+ifdef RELEASE
+override FPCOPT+=-Ur
+endif
+
+CPU_UNITS=
+SYSINIT_UNITS=
+CPU_SPECIFIC_COMMON_UNITS=
+
+# Dos unit, local source
+DOSDIR=.
+# Dos unit uses objfpc mode
+DOS_DEPS_OS=$(OBJPASUNIT)$(PPUEXT)
+
+ifeq ($(ARCH),arm)
+CPU_SPECIFIC_COMMON_UNITS=$(SYSUTILSUNIT) $(MATHUNIT) $(CLASSESUNIT) $(FGLUNIT) $(MACPASUNIT) $(TYPINFOUNIT) $(TYPESUNIT) $(RTLCONSTSUNIT) $(GETOPTSUNIT) $(LINEINFOUNIT) $(INTRINSICSUNIT)
+ifeq ($(SUBARCH),armv7m)
+CPU_UNITS=stm32f103xe cortexm3 cortexm4 # thumb2_bare
+CPU_UNITS_DEFINED=1
+endif
+ifeq ($(SUBARCH),armv7em)
+CPU_UNITS=stm32f401xe cortexm3 cortexm4 cortexm7 # thumb2_bare
+CPU_UNITS_DEFINED=1
+endif
+ifeq ($(SUBARCH),armv6m)
+CPU_UNITS=stm32g071xx cortexm0
+CPU_UNITS_DEFINED=1
+endif
+ifeq ($(CPU_UNITS_DEFINED),)
+$(error No CPUs enabled for given SUBARCH, pass either a SUBARCH or set CPU_UNITS_DEFINED=1 if you know what you are doing)
+endif
+endif
+
+ifeq ($(ARCH),riscv32)
+CPU_SPECIFIC_COMMON_UNITS=$(SYSUTILSUNIT) $(MATHUNIT) $(CLASSESUNIT) $(FGLUNIT) $(MACPASUNIT) $(TYPINFOUNIT) $(TYPESUNIT) $(RTLCONSTSUNIT) $(GETOPTSUNIT) $(LINEINFOUNIT)
+ifeq ($(SUBARCH),rv32imc)
+override FPCOPT+=-Cprv32imc
+CPU_UNITS=
+CPU_UNITS_DEFINED=1
+endif
+ifeq ($(SUBARCH),rv32imac)
+override FPCOPT+=-Cprv32imac
+CPU_UNITS=
+CPU_UNITS_DEFINED=1
+endif
+ifeq ($(SUBARCH),rv32imc_zicsr_zifencei)
+override FPCOPT+=-Cprv32imc_zicsr_zifencei
+CPU_UNITS=esp32c2 esp32c2idf_50000 esp32c2idf_50200 esp32c3 esp32c3idf_40400 esp32c3idf_50000 esp32c3idf_50200 esp32c3idf_50300
+CPU_UNITS_DEFINED=1
+endif
+ifeq ($(SUBARCH),rv32imac_zicsr_zifencei)
+override FPCOPT+=-Cprv32imac_zicsr_zifencei
+CPU_UNITS=esp32c6 esp32c6idf_50200
+CPU_UNITS_DEFINED=1
+endif
+ifeq ($(SUBARCH),rv32imafc)
+override FPCOPT+=-Cprv32imafc
+CPU_UNITS=
+CPU_UNITS_DEFINED=1
+endif
+ifeq ($(CPU_UNITS_DEFINED),)
+$(error No CPUs enabled for given SUBARCH, pass either a SUBARCH or set CPU_UNITS_DEFINED=1 if you know what you are doing)
+endif
+endif
+
+ifeq ($(ARCH),xtensa)
+CPU_SPECIFIC_COMMON_UNITS=$(SYSUTILSUNIT) $(MATHUNIT) $(CLASSESUNIT) $(FGLUNIT) $(MACPASUNIT) $(TYPINFOUNIT) $(TYPESUNIT) $(RTLCONSTSUNIT) $(GETOPTSUNIT) $(LINEINFOUNIT)
+ifeq ($(SUBARCH),lx6)
+CPU_UNITS=esp32 espidf_40100 espidf_40200 espidf_40400 espidf_50000 espidf_50200
+CPU_UNITS_DEFINED=1
+endif
+ifeq ($(SUBARCH),lx7hf)
+CPU_UNITS=esp32s3 espidf_40400 espidf_50000 espidf_50200
+CPU_UNITS_DEFINED=1
+endif
+ifeq ($(SUBARCH),lx7)
+CPU_UNITS=esp32s2 espidf_40400 espidf_50000 espidf_50200
+CPU_UNITS_DEFINED=1
+endif
+ifeq ($(SUBARCH),lx106)
+CPU_UNITS=esp8266 esp8266rtos_30300 esp8266rtos_30400
+CPU_UNITS_DEFINED=1
+endif
+ifeq ($(CPU_UNITS_DEFINED),)
+$(error No CPUs enabled for given SUBARCH, pass either a SUBARCH or set CPU_UNITS_DEFINED=1 if you know what you are doing)
+endif
+endif
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+[rules]
+# .NOTPARALLEL:
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS) $(INC)/softfpu.pp
+override FPC_SYSTEM_OPT += @system.cfg
+
+#
+# Base Units (System, $(STRINGSUNIT), os-dependent-base-unit)
+#
+
+consoleio$(PPUEXT) : consoleio.pp $(SYSTEMUNIT)$(PPUEXT)
+	$(COMPILER) $<
+
+heapmgr$(PPUEXT) : heapmgr.pp $(SYSTEMUNIT)$(PPUEXT)
+	$(COMPILER) $<
+
+#
+# Unit specific rules
+#
+
+define CPU_UNITS_RULE
+ifneq ($(filter $(ARCH),arm riscv32 xtensa),)
+$(1)$(PPUEXT): $(ARCH)/$(1).pp consoleio$(PPUEXT) heapmgr$(PPUEXT) $(SYSTEMUNIT)$(PPUEXT)
+else
+$(1)$(PPUEXT): $(ARCH)/$(1).pp $(SYSTEMUNIT)$(PPUEXT)
+endif
+endef
+
+$(foreach unit,$(CPU_UNITS),$(eval $(call CPU_UNITS_RULE,$(unit))))
+
+$(addsuffix $(PPUEXT),$(CPU_UNITS)):
+	$(COMPILER) -g $<
+

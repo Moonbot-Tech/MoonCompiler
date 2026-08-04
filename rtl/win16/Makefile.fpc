@@ -1,0 +1,81 @@
+#
+#   Makefile.fpc for Free Pascal Win16 RTL
+#
+[package]
+main=rtl
+[target]
+loaders=prt0s prt0m prt0c prt0l prt0h 
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(OBJPASUNIT) $(STRINGSUNIT) $(ISO7185UNIT) $(EXTPASUNIT) $(DOSUNIT) \
+      $(WINTYPESUNIT) $(WINPROCSUNIT) $(WIN31UNIT) $(PORTSUNIT) $(DYNLIBSUNIT) $(SORTBASEUNIT) \
+      $(SYSCONSTUNIT) $(RTLCONSTSUNIT) $(SYSUTILSUNIT) $(MATHUNIT) $(TYPESUNIT) $(TYPINFOUNIT) $(FGLUNIT) \
+      $(CLASSESUNIT) $(CHARSETUNIT) $(CPUUNIT) $(GETOPTSUNIT) $(CPALLUNIT) \
+      $(UNICODEDATAUNIT) $(CHARACTERUNIT) $(CTYPESUNIT)
+implicitunits=$(CP_UNITS)
+
+[require]
+nortl=y
+[install]
+fpcpackage=y
+[default]
+target=msdos
+cpu=i8086
+[compiler]
+includedir=$(INC) $(PROCINC)
+sourcedir=$(INC) $(PROCINC) $(COMMON)
+[prerules]
+RTL=..
+INC=../inc
+COMMON=$(RTL)/common
+PROCINC=../$(CPU_TARGET)
+UNITPREFIX=rtl
+
+TYPES_DEPS_OS=$(WINTYPESUNIT)$(PPUEXT)
+DOS_DEPS_OS = registers.inc $(INC)/dosh.inc $(INC)/dos.inc $(INC)/fexpand.inc $(WINTYPESUNIT)$(PPUEXT) $(WINPROCSUNIT)$(PPUEXT)
+SYSUTILS_DEPS_OS = $(DOSUNIT)$(PPUEXT) $(WINTYPESUNIT)$(PPUEXT) $(WINPROCSUNIT)$(PPUEXT)
+CLASSES_DEPS_OS = $(WINPROCSUNIT)$(PPUEXT) $(WINTYPESUNIT)$(PPUEXT)
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+# Insert exception handler in system unit
+ifdef EXCEPTIONS_IN_SYSTEM
+override FPCOPT+=-dEXCEPTIONS_IN_SYSTEM
+endif
+# Insert exception handler in system unit
+ifdef NO_EXCEPTIONS_IN_SYSTEM
+override FPCOPT+=-dNO_EXCEPTIONS_IN_SYSTEM
+endif
+[rules]
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS) wintypes.inc winprocsh.inc winprocs.inc \
+                  glbheap.inc glbheaph.inc locheap.inc locheaph.inc \
+                  sysdl.inc sysdlh.inc
+
+#
+# Loaders
+#
+prt0s$(OEXT) : prt0s.asm prt0comn.asm
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+        $(NASM) -f obj -o $(UNITTARGETDIRPREFIX)prt0s$(OEXT) prt0s.asm
+prt0m$(OEXT) : prt0m.asm prt0comn.asm
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+        $(NASM) -f obj -o $(UNITTARGETDIRPREFIX)prt0m$(OEXT) prt0m.asm
+prt0c$(OEXT) : prt0c.asm prt0comn.asm
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+        $(NASM) -f obj -o $(UNITTARGETDIRPREFIX)prt0c$(OEXT) prt0c.asm
+prt0l$(OEXT) : prt0l.asm prt0comn.asm
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+        $(NASM) -f obj -o $(UNITTARGETDIRPREFIX)prt0l$(OEXT) prt0l.asm
+prt0h$(OEXT) : prt0h.asm prt0comn.asm
+	$(MAKE) $(COMPILER_UNITTARGETDIR)
+        $(NASM) -f obj -o $(UNITTARGETDIRPREFIX)prt0h$(OEXT) prt0h.asm
+

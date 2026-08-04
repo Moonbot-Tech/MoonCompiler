@@ -1,0 +1,63 @@
+name: Linux
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install bootstrap compiler
+      run: |
+        sudo rm -rf /var/lib/apt/lists/*
+        sudo apt-get clean
+        sudo apt-get update -o Acquire::Retries=3
+        sudo apt-get install -y --no-install-recommends fpc-3.2.2
+
+    - name: Checkout source
+      uses: actions/checkout@v3
+
+    - name: Build FPC x86_64 (native)
+      run: |
+        make distclean
+        make all CPU_TARGET=x86_64
+
+    - name: Install FPC x86_64
+      run: make install CPU_TARGET=x86_64 INSTALL_PREFIX=$PWD/fpc
+
+    - name: Build i386 cross-compiler
+      run: make crossinstall OS_TARGET=linux CPU_TARGET=i386 INSTALL_PREFIX=$PWD/fpc PP=$PWD/compiler/ppcx64
+
+    - name: Package artifacts
+      run: |
+        mv compiler/ppcx64 fpc/bin
+        mv compiler/ppcross386 fpc/bin
+        mv fpc/lib/fpc/3.3.1/units fpc/units
+        rm -rf fpc/lib
+        rm -rf fpc/share
+        zip -rq linux-bundle.zip fpc
+        zip -j linux-ppcx64.zip fpc/bin/ppcx64
+        zip -j linux-ppcross386.zip fpc/bin/ppcross386
+
+    - name: Upload linux-bundle.zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-bundle.zip
+        path: linux-bundle.zip
+        retention-days: 7
+
+    - name: Upload linux-ppcx64.zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-ppcx64.zip
+        path: linux-ppcx64.zip
+        retention-days: 7
+
+    - name: Upload linux-ppcross386.zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-ppcross386.zip
+        path: linux-ppcross386.zip
+        retention-days: 7

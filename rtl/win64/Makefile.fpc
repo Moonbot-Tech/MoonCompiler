@@ -1,0 +1,131 @@
+#
+#   Makefile.fpc for Free Pascal Win64 RTL
+#
+
+[package]
+main=rtl
+
+[target]
+loaders=$(LOADERS)
+units=$(SYSTEMUNIT) $(UUCHARUNIT) $(OBJPASUNIT) $(MACPASUNIT) $(ISO7185UNIT) $(WINDOWSUNIT) $(SYSUTILSUNIT) buildrtl $(CHARSETUNIT) $(CPALLUNIT) $(LINEINFOUNIT) $(LNFODWRFUNIT) $(CPU_UNITS)
+implicitunits=sysinit $(EXTPASUNIT) $(HEAPTRCUNIT) $(FPINTRESUNIT) \
+      $(CTYPESUNIT) $(STRINGSUNIT) \
+      $(DOSUNIT) $(MESSAGESUNIT) \
+      $(CMEMUNIT) $(DYNLIBSUNIT) \
+      $(RTLCONSTSUNIT) $(SYSCONSTUNIT) $(MATHUNIT) $(TYPESUNIT) \
+      $(TYPINFOUNIT) $(SORTBASEUNIT) $(FGLUNIT) $(CLASSESUNIT) $(GETOPTSUNIT) \
+      $(CHARACTERUNIT) $(FPWIDESTRINGUNIT) \
+      $(SHAREMEMUNIT) $(EXEINFOUNIT) $(WINDIRSUNIT) \
+      $(SOFTFPUUNIT) $(SFPUX80UNIT) $(UFLOATX80UNIT) $(SFPU128UNIT) $(UFLOAT128UNIT) \
+      $(CP_UNITS) $(UNICODEDATAUNIT)
+
+rsts=$(MATHUNIT) $(TYPINFOUNIT) $(CLASSESUNIT) $(SYSCONSTUNIT) $(UNICODEDATAUNIT)
+
+programs=
+
+shared=fpcmemdll
+
+[require]
+nortl=y
+
+[install]
+fpcpackage=y
+buildunit= buildrtl
+
+[default]
+target=win64
+
+[compiler]
+includedir=$(INC) $(PROCINC) $(ARCH) ../$(ARCH) $(WININC)
+sourcedir=$(INC) $(PROCINC) $(COMMON) $(WINDIR) ../$(ARCH)
+
+
+[prerules]
+RTL=..
+INC=$(RTL)/inc
+COMMON=$(RTL)/common
+PROCINC=$(RTL)/$(CPU_TARGET)
+WININC=../win/wininc
+WINDIR=../win
+NSOSDIR=$(NSDIR)/windows
+SYSUTILSDIR=$(WINDIR)
+SYSUTILS_OPT=-Fi../win
+SYSUTILS_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT) $(WINDIRSUNIT)$(PPUEXT)
+WINDIRSDIR=$(WINDIR)
+DYNLIBSINCDIR=$(WINDIR)
+TTHREADINCDIR=$(WINDIR)
+
+UNITPREFIX=rtl
+EXEINFO_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT)
+# buildrtl contains charset
+# so let's state that $(CPALLUNIT) depends on buildrtl
+# to avoid charset being compiled twice
+CPALL_DEPS_OS=buildrtl$(PPUEXT)
+# exeinfo unit is inside buildrtl
+# so add a dependency on buildrtl
+# for $(LINEINFOUNIT) and $(LNFODWRFUNIT) units
+# which depend on exeinfo
+LINEINFO_DEPS_OS=buildrtl$(PPUEXT)
+LNFODWRF_DEPS_OS=buildrtl$(PPUEXT)
+
+ifeq ($(ARCH),x86_64)
+# signals unit is x86 specific for now
+CPU_UNITS=$(CPUUNIT) $(SIGNALSUNIT) $(INTRINSICSUNIT)
+endif
+ifeq ($(ARCH),aarch64)
+CPU_UNITS=$(INTRINSICSUNIT)
+endif
+
+# Paths
+OBJPASDIR=$(RTL)/objpas
+
+# Files used by windows.pp
+#include $(WININC)/makefile.inc
+
+WINDOWS_SOURCE_FILES=$(addprefix $(WININC)/,$(addsuffix .inc,$(WINDOWS_FILES)))
+override FPC_SYSTEM_OPT += -Fi../win
+EXEINFO_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT)
+FPWIDESTRING_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT)
+TYPES_DEPS_OS=$(WINDOWSUNIT)$(PPUEXT)
+
+[rules]
+.NOTPARALLEL:
+SYSTEMPPU=$(addsuffix $(PPUEXT),system)
+
+# Get the system independent include file names.
+# This will set the following variables :
+# SYSINCNAMES
+include $(INC)/makefile.inc
+SYSINCDEPS=$(addprefix $(INC)/,$(SYSINCNAMES))
+
+# Get the processor dependent include file names.
+# This will set the following variables :
+# CPUINCNAMES
+include $(PROCINC)/makefile.cpu
+SYSCPUDEPS=$(addprefix $(PROCINC)/,$(CPUINCNAMES))
+
+# Put system unit dependencies together.
+SYSDEPS=$(SYSINCDEPS) $(SYSCPUDEPS)
+
+BUILDINCLUDEPATHS= -Fi$(OBJPASDIR)/sysutils -Fi$(WINDIR) -Fi$(OBJPASDIR) \
+                   -Fi$(OBJPASDIR)/classes -Fi$(WININC) -Fi$(INC)
+
+BUILDUNITPATHS=-Fu$(WININC) -Fu$(WINDIR) -Fu$(INC) -Fu$(OBJPASDIR) -Fu../$(ARCH)
+
+ifdef FPC_DOTTEDUNITS
+BUILDRTL_OPT:=$(BUILDRTL_OPT) -Fu$(NSINC) -Fu$(NSOSDIR) -dFPC_DOTTEDUNITS
+endif
+
+#
+# Unit specific rules
+#
+
+BUILDRTL_DEPS=buildrtl.pp $(SYSTEMUNIT)$(PPUEXT) $(OBJPASUNIT)$(PPUEXT) $(WINDOWSUNIT)$(PPUEXT) $(SYSUTILSUNIT)$(PPUEXT) \
+              $(BUILDRTL_DEPS_OS) $(BUILDRTL_DEPS_CPU)
+
+buildrtl$(PPUEXT) : $(BUILDRTL_DEPS)
+	$(COMPILER) $(BUILDUNITPATHS) $(BUILDINCLUDEPATHS) $(BUILDRTL_OPT) $<
+
+WinApi.Signals$(PPUEXT) : $(NSWINDOWSDIR)/WinApi.Signals.pp
+	$(COMPILER) $<
+

@@ -1,0 +1,11 @@
+ - mouse input for macOS
+ - OpenGL support for macOS
+ - fullscreen and resizable window support for macOS
+ - mouse grab support
+ - add more event types (expose, focus in, focus out, etc.)
+ - mouse support for the x11 dga console
+ - key release events support in dos
+ - multiple video pages support for the x11 w/dga console
+ - make hermes thread safe
+ - better timing under dos
+ - delphi (kylix? c++?) bindings

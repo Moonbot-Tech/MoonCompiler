@@ -1,0 +1,138 @@
+{
+    Copyright (c) 1998-2010 by Florian Klaempfl and Jonas Maebe
+    Member of the Free Pascal development team
+
+    This unit contains high-level code generator support for ppc64
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+ ****************************************************************************
+}
+
+unit hlcgcpu;
+
+{$i fpcdefs.inc}
+
+interface
+
+uses
+  globtype,
+  aasmdata,
+  symtype,
+  cgbase,cgutils,hlcgobj,hlcgppc;
+
+type
+  thlcgcpu = class(thlcgppcgen)
+    procedure a_load_subsetreg_reg(list : TAsmList; subsetsize, tosize: tdef; const sreg: tsubsetregister; destreg: tregister); override;
+    procedure a_load_const_subsetreg(list: TAsmlist; tosubsetsize: tdef; a: tcgint; const sreg: tsubsetregister); override;
+   protected
+    procedure a_load_regconst_subsetreg_intern(list : TAsmList; fromsize, subsetsize: tdef; fromreg: tregister; const sreg: tsubsetregister; slopt: tsubsetloadopt); override;
+  end;
+
+implementation
+
+  uses
+    cpubase,aasmcpu,
+    defutil,
+{$ifdef extdebug}
+    aasmtai,cutils,cgppc,
+{$endif}
+    cgobj,cgcpu;
+
+  { thlcgcpu }
+
+  procedure thlcgcpu.a_load_subsetreg_reg(list: TAsmList; subsetsize, tosize: tdef; const sreg: tsubsetregister; destreg: tregister);
+    var
+      subsetcgsize: tcgsize;
+      tocgsize: tcgsize;
+      bitlen, ssbitlen, tobitlen: word;
+    begin
+      subsetcgsize:=def_cgsize(subsetsize);
+      tocgsize:=def_cgsize(tosize);
+      bitlen:=sreg.bitlen;
+      tobitlen:=tcgsize2size[tocgsize]*8;
+      ssbitlen:=tcgsize2size[subsetcgsize]*8;
+{$ifdef extdebug}
+      list.concat(tai_comment.create(strpnew('a_load_subsetreg_reg subsetregsize = ' + tcgsize2str(sreg.subsetregsize) + ' subsetsize = ' + tcgsize2str(subsetcgsize) + ' startbit = ' + ToStr(sreg.startbit) + ' tosize = ' + tcgsize2str(tocgsize))));
+{$endif}
+      { do the extraction if required and then extend the sign correctly. (The latter is actually required only for signed subsets
+      and if that subset is not >= the tosize). }
+      if (sreg.startbit<>0) or (bitlen<>ssbitlen) or (bitlen<>ssbitlen) then
+        begin
+          if (subsetcgsize in [OS_8..OS_128]) and (bitlen>tobitlen) then
+            bitlen:=tobitlen;
+          list.concat(taicpu.op_reg_reg_const_const(A_RLDICL,destreg,sreg.subsetreg,(64-sreg.startbit) and 63,64-bitlen));
+          if subsetcgsize in [OS_S8..OS_S128] then
+            if (sreg.bitlen mod 8)=0 then
+              begin
+                cg.a_load_reg_reg(list, tcgsize2unsigned[subsetcgsize],subsetcgsize,destreg,destreg);
+                cg.a_load_reg_reg(list,subsetcgsize,def_cgsize(tosize),destreg,destreg);
+              end
+            else
+              begin
+                cg.a_op_const_reg(list,OP_SHL,OS_INT,64-sreg.bitlen,destreg);
+                cg.a_op_const_reg(list,OP_SAR,OS_INT,64-sreg.bitlen,destreg);
+             end;
+        end
+      else
+        begin
+          cg.a_load_reg_reg(list,tcgsize2unsigned[sreg.subsetregsize],subsetcgsize,sreg.subsetreg,destreg);
+          cg.a_load_reg_reg(list,subsetcgsize,def_cgsize(tosize),destreg,destreg);
+        end;
+    end;
+
+
+  procedure thlcgcpu.a_load_const_subsetreg(list: TAsmlist; tosubsetsize: tdef; a: tcgint; const sreg: tsubsetregister);
+    var
+      tmpreg : TRegister;
+    begin
+{$ifdef extdebug}
+      list.concat(tai_comment.create(strpnew('a_load_const_subsetreg subsetregsize = ' + tcgsize2str(sreg.subsetregsize) + ' subsetsize = ' + tcgsize2str(def_cgsize(tosubsetsize)) + ' startbit = ' + ToStr(sreg.startbit) + ' a = ' + ToStr(a))));
+{$endif}
+      { loading the constant into the lowest bits of a temp register and then inserting is
+        better than loading some usually large constants and do some masking and shifting on ppc64 }
+      tmpreg:=getintregister(list,tosubsetsize);
+      a_load_const_reg(list,tosubsetsize,a,tmpreg);
+      a_load_reg_subsetreg(list,tosubsetsize,tosubsetsize,tmpreg,sreg);
+    end;
+
+
+  procedure thlcgcpu.a_load_regconst_subsetreg_intern(list: TAsmList; fromsize, subsetsize: tdef; fromreg: tregister; const sreg: tsubsetregister; slopt: tsubsetloadopt);
+    begin
+{$ifdef extdebug}
+      list.concat(tai_comment.create(strpnew('a_load_reg_subsetreg fromsize = ' + tcgsize2str(def_cgsize(fromsize)) + ' subsetregsize = ' + tcgsize2str(sreg.subsetregsize) + ' subsetsize = ' + tcgsize2str(def_cgsize(subsetsize)) + ' startbit = ' + ToStr(sreg.startbit))));
+{$endif}
+      if slopt in [SL_SETZERO,SL_SETMAX] then
+        inherited a_load_regconst_subsetreg_intern(list,fromsize,subsetsize,fromreg,sreg,slopt)
+      else if sreg.bitlen<>sizeof(aint)*8 then
+        { simply use the INSRDI instruction }
+        list.concat(taicpu.op_reg_reg_const_const(A_INSRDI,sreg.subsetreg,fromreg,sreg.bitlen,(64-(sreg.startbit+sreg.bitlen)) and 63))
+      else
+        a_load_reg_reg(list,fromsize,subsetsize,fromreg,sreg.subsetreg);
+    end;
+
+
+  procedure create_hlcodegen_cpu;
+    begin
+      hlcg:=thlcgcpu.create;
+      create_codegen;
+    end;
+
+
+
+begin
+  chlcgobj:=thlcgcpu;
+  create_hlcodegen:=@create_hlcodegen_cpu;
+end.
