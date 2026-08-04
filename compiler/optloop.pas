@@ -671,6 +671,10 @@ unit optloop;
         InitialRead: Boolean;
         FieldRead: Boolean;
         FieldWritten: Boolean;
+        { the field is handed to a call by reference, so the callee holds
+          the address of the original storage and the field cannot live in
+          a temp across that call }
+        AddressEscapes: Boolean;
         Score: LongInt;
         FirstDepth: Integer;
       end;
@@ -683,6 +687,52 @@ unit optloop;
       end;
 
     function recordloopfindrefs(var n: tnode; arg: pointer): foreachnoderesult; forward;
+
+    { marks the field whose address a by-reference actual hands to the
+      callee.  Only the designator itself counts: index and other
+      subexpressions are evaluated into values before the call, so a field
+      appearing in them keeps its promoted temp. }
+    procedure recordloopmarkescapes(n: tnode; arg: pointer);
+      var
+        ThisTemp: TFieldTempPair;
+      begin
+        while Assigned(n) do
+          case n.nodetype of
+            typeconvn:
+              { only a conversion that keeps the same storage passes the
+                address of the field along; one that builds a new value
+                (Single field into a constref Double, say) hands over the
+                address of that temporary instead, and the field stays
+                promotable }
+              if TTypeConvNode(n).retains_value_location then
+                n:=TTypeConvNode(n).left
+              else
+                Break;
+            vecn:
+              n:=TVecNode(n).left;
+            subscriptn:
+              begin
+                if (TSubscriptNode(n).left.nodetype=loadn) and
+                  (TLoadNode(TSubscriptNode(n).left).symtableentry=PRecordData(arg)^.BaseSymbol) then
+                  begin
+                    ThisTemp:=TFieldTempPair(PRecordData(arg)^.Fields.First);
+                    while Assigned(ThisTemp) do
+                      begin
+                        if (ThisTemp.BaseSymbol=PRecordData(arg)^.BaseSymbol) and
+                          (ThisTemp.Field=TSubscriptNode(n).vs) then
+                          begin
+                            ThisTemp.AddressEscapes:=True;
+                            Break;
+                          end;
+                        ThisTemp:=TFieldTempPair(ThisTemp.Next);
+                      end;
+                  end;
+                n:=TSubscriptNode(n).left;
+              end;
+            else
+              Break;
+          end;
+      end;
 
     { Needed as we can't reference recordloopfindrefs directly within itself }
     function recordloopfindrefs_recursive(var n: tnode; arg: pointer): foreachnoderesult;
@@ -732,6 +782,7 @@ unit optloop;
                     ThisTemp.TempCreate:=CTempCreateNode.Create(TSubscriptNode(n).vs.vardef,TSubscriptNode(n).vs.vardef.size,tt_persistent,True);
                     ThisTemp.InitialRead:=(nf_modify in TLoadNode(TSubscriptNode(n).left).flags) or not (nf_write in TLoadNode(TSubscriptNode(n).left).flags);
                     ThisTemp.FieldWritten:=False;
+                    ThisTemp.AddressEscapes:=False;
                     ThisTemp.Score:=0;
                     ThisTemp.FirstDepth:=PRecordData(arg)^.Depth;
                     if not Assigned(PRecordData(arg)^.Fields.Last) then
@@ -760,6 +811,19 @@ unit optloop;
                 result:=fen_true;
                 Exit;
               end;
+          callparan:
+            { any by-reference actual hands the callee the address of the
+              original field.  var/out let it store a new value at once;
+              constref only reads, but the callee may keep the pointer and
+              write through it later - and that cannot be ruled out here:
+              the addr_taken flag of a formal describes the statically
+              selected routine, while a virtual override that keeps the
+              address is picked at run time.  Promoting the field would
+              hand out the address of a throwaway temp and lose every such
+              write (tconstrefvirt) }
+            if assigned(tcallparanode(n).parasym) and
+              (tcallparanode(n).parasym.varspez in [vs_var,vs_out,vs_constref]) then
+              recordloopmarkescapes(tcallparanode(n).left, arg);
           else
             if n.InheritsFrom(TLoopNode) then
               begin
@@ -944,6 +1008,19 @@ unit optloop;
                               Dec(record_limit);
                           end;
                       end;
+                  end;
+
+                { Fields whose address escapes into a call cannot be promoted }
+                ThisTemp:=TFieldTempPair(RecordData.Fields.First);
+                while Assigned(ThisTemp) do
+                  begin
+                    NextTemp:=TFieldTempPair(ThisTemp.Next);
+                    if ThisTemp.AddressEscapes then
+                      begin
+                        ThisTemp.TempCreate.Free;
+                        RecordData.Fields.Remove(ThisTemp);
+                      end;
+                    ThisTemp:=NextTemp;
                   end;
 
                 if (RecordData.Fields.Count > 0) and
