@@ -267,7 +267,10 @@ type
        CPUX86_HINT_FAST_PDEP_PEXT,             { The BMI2 instructions PDEP and PEXT execute in a single cycle }
        CPUX86_HINT_FAST_3COMP_ADDR,            { A 3-component address (base, index and offset) has the same latency as the 2-component version (most notable with LEA instructions) }
        CPUX86_HINT_FAST_SHORT_REP_MOVS,        { short rep movs instruction }
-       CPUX86_HINT_BSX_DEST_UNCHANGED_ON_ZF_1  { BSR/F does not change the destination if ZF is set }
+       CPUX86_HINT_BSX_DEST_UNCHANGED_ON_ZF_1  { BSR/F does not change the destination if ZF is set.
+                                                  Do not consume: the register allocator treats BSF/BSR as
+                                                  write-only, so a preloaded destination is not guaranteed
+                                                  to reach the same physical register (issue 41810). }
       );
 
  const

@@ -2500,36 +2500,20 @@ unit cgx86;
          tmpreg:=dst;
        opsize:=tcgsize2opsize[srcsize];
 
-       { AMD docs: BSF/R dest, 0 “sets ZF to 1 and does not change the contents of the destination register.”
-         Intel docs: “If the content source operand is 0, the content of the destination operand is undefined.”
-         (However, Intel silently implements the same behavior as AMD, which is understandable.)
+       { BSF/R leaves the destination undefined on zero according to Intel, while
+         the compiler contract requires $FF.  Do not rely on AMD preserving the
+         destination here: the register allocator treats BSF/R as write-only and
+         may assign the preload and result to different physical registers. }
 
-         If relying on this behavior, do
-
-         mov tmpreg, $FF
-         bsx tmpreg, src
-
-         If not relying, do
-
-         bsx tmpreg, src
-         jnz .LDone
-         mov tmpreg, $FF
-.LDone:
-
-         If not_zero: just a lone bsx suffices. }
-
-       if (not not_zero) and (CPUX86_HINT_BSX_DEST_UNCHANGED_ON_ZF_1 in cpu_optimization_hints[current_settings.optimizecputype]) then
-         begin
-           list.concat(taicpu.op_const_reg(A_MOV,opsize,$ff,tmpreg));
-           a_reg_alloc(list,NR_DEFAULTFLAGS);
-         end;
+       if not not_zero then
+         a_reg_alloc(list,NR_DEFAULTFLAGS);
 
        if not reverse then
          list.concat(taicpu.op_reg_reg(A_BSF,opsize,src,tmpreg))
        else
          list.concat(taicpu.op_reg_reg(A_BSR,opsize,src,tmpreg));
 
-       if (not not_zero) and not (CPUX86_HINT_BSX_DEST_UNCHANGED_ON_ZF_1 in cpu_optimization_hints[current_settings.optimizecputype]) then
+       if not not_zero then
          begin
            current_asmdata.getjumplabel(l);
            a_jmp_cond(list,OC_NE,l);
