@@ -1291,7 +1291,9 @@ implementation
              if not(tfloatdef(left.resultdef).floattype in [s64comp,s64currency]) and
                (cs_excessprecision in current_settings.localswitches) then
                begin
-                 inserttypeconv(left,pbestrealtype^);
+                 { an operator computes in the widest type of the target
+                   while excess precision is on }
+                 inserttypeconv(left,widerrealdef(left.resultdef,excesspromotiondef));
                  resultdef:=left.resultdef
                end;
            end

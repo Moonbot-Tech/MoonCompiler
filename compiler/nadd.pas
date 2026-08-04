@@ -142,6 +142,20 @@ interface
        { specific node types can be created               }
        caddnode : taddnodeclass = taddnode;
 
+    { the widest real type the current target computes with efficiently:
+      the 80-bit extended type on an x87 fpu, double on SSE units }
+    function maxcomputationrealdef : tdef;
+
+    { the type excess precision promotes computations to.  mode Delphi
+      models Delphi: promotion stops at the efficient computation type of
+      the target (Delphi Win64 has no 80-bit type at all), while the plain
+      FPC EXCESSPRECISION contract promotes to the best real type. }
+    function excesspromotiondef : tdef;
+
+    { the wider of two real types by computation width; comp and currency
+      are narrower than every binary float here, matching getbestreal }
+    function widerrealdef(t1,t2 : tdef) : tdef;
+
 implementation
 
     uses
@@ -172,10 +186,48 @@ const
 
 {$maxfpuregisters 0}
 
+    { the widest real type the target computes with efficiently: the 80-bit
+      extended type on an x87 fpu, double on SSE units }
+    function maxcomputationrealdef : tdef;
+      begin
+{$if defined(i386) or defined(i8086)}
+        if current_settings.fputype=fpu_x87 then
+          result:=pbestrealtype^
+        else
+          result:=s64floattype;
+{$elseif defined(x86_64)}
+        { x86-64 has no x87 only mode, so use always double as default }
+        result:=s64floattype;
+{$else}
+        result:=pbestrealtype^;
+{$endif}
+      end;
+
+
+    function excesspromotiondef : tdef;
+      begin
+        if m_delphi in current_settings.modeswitches then
+          result:=maxcomputationrealdef
+        else
+          result:=pbestrealtype^;
+      end;
+
+
+    const
+      floatweight : array[tfloattype] of byte =
+        (2,3,4,5,0,1,6);
+
+    function widerrealdef(t1,t2 : tdef) : tdef;
+      begin
+        if (t1.typ=floatdef) and (t2.typ=floatdef) and
+           (floatweight[tfloatdef(t2).floattype]>floatweight[tfloatdef(t1).floattype]) then
+          result:=t2
+        else
+          result:=t1;
+      end;
+
+
     function getbestreal(t1,t2 : tdef) : tdef;
-      const
-        floatweight : array[tfloattype] of byte =
-          (2,3,4,5,0,1,6);
       begin
         if t1.typ=floatdef then
           begin
@@ -185,17 +237,32 @@ const
                 { when a comp or currency is used, use always the
                   best float type to calculate the result }
                 if (tfloatdef(t1).floattype in [s64comp,s64currency]) or
-                  (tfloatdef(t2).floattype in [s64comp,s64currency]) or
-                  (cs_excessprecision in current_settings.localswitches) then
+                   (tfloatdef(t2).floattype in [s64comp,s64currency]) then
                   result:=pbestrealtype^
                 else
-                  if floatweight[tfloatdef(t2).floattype]>floatweight[tfloatdef(t1).floattype] then
-                    result:=t2;
+                  begin
+                    if floatweight[tfloatdef(t2).floattype]>floatweight[tfloatdef(t1).floattype] then
+                      result:=t2;
+                    { excess precision computes in the widest type the target
+                      offers, never narrower than the operands }
+                    if cs_excessprecision in current_settings.localswitches then
+                      result:=widerrealdef(result,excesspromotiondef);
+                  end;
               end;
           end
         else if t2.typ=floatdef then
           result:=t2
         else internalerror(200508061);
+        { an integer operand mixed with a float computes in the widest
+          efficient type of the target: Delphi promotes int/float mixes to
+          its extended type, which is double on Win64.  Without this a
+          single-typed literal drags an Int64 operand into single precision
+          and throws away up to 40 bits of it. }
+        if ((t1.typ<>floatdef) or (t2.typ<>floatdef)) and
+           (cs_excessprecision in current_settings.localswitches) and
+           (result.typ=floatdef) and
+           not(tfloatdef(result).floattype in [s64comp,s64currency]) then
+          result:=widerrealdef(result,excesspromotiondef);
       end;
 
 
@@ -2585,21 +2652,7 @@ const
         { is one a real float, then both need to be floats, this
           need to be done before the constant folding so constant
           operation on a float and int are also handled }
-{$ifdef x86}
-        { use extended as default real type only when the x87 fpu is used }
-  {$if defined(i386) or defined(i8086)}
-        if not(current_settings.fputype=fpu_x87) then
-          resultrealdef:=s64floattype
-        else
-          resultrealdef:=pbestrealtype^;
-  {$endif i386 or i8086}
-  {$ifdef x86_64}
-        { x86-64 has no x87 only mode, so use always double as default }
-        resultrealdef:=s64floattype;
-  {$endif x86_6}
-{$else not x86}
-        resultrealdef:=pbestrealtype^;
-{$endif not x86}
+        resultrealdef:=maxcomputationrealdef;
 
         if (right.resultdef.typ=floatdef) or (left.resultdef.typ=floatdef) then
          begin
@@ -2610,11 +2663,17 @@ const
               (tfloatdef(left.resultdef).floattype=tfloatdef(right.resultdef).floattype) and
               not(tfloatdef(left.resultdef).floattype in [s64comp,s64currency]) then
              begin
+               { excess precision computes a same-type pair in the widest
+                 type of the target as well (measured: Delphi Win64 keeps
+                 single*single in double while EXCESSPRECISION is on) }
                if cs_excessprecision in current_settings.localswitches then
                  begin
-                   resultrealdef:=pbestrealtype^;
-                   inserttypeconv(right,resultrealdef);
-                   inserttypeconv(left,resultrealdef);
+                   resultrealdef:=widerrealdef(left.resultdef,excesspromotiondef);
+                   if resultrealdef<>left.resultdef then
+                     begin
+                       inserttypeconv(right,resultrealdef);
+                       inserttypeconv(left,resultrealdef);
+                     end;
                  end
                else
                  resultrealdef:=left.resultdef

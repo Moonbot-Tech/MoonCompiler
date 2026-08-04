@@ -750,15 +750,22 @@ implementation
                  include(init_settings.localswitches,cs_strict_var_strings);
              end;
 
-           { in delphi mode, excess precision and open strings are by default on }
+           { in delphi mode, excess precision and open strings are by default on;
+             untyped real literals have at least double precision, as in Delphi
+             (an exactly representable literal must not narrow the expression
+             around it to single) }
            if ([m_delphi] * current_settings.modeswitches <> []) then
              begin
                include(current_settings.localswitches,cs_excessprecision);
                include(current_settings.localswitches,cs_openstring);
+               if current_settings.minfpconstprec=s32real then
+                 current_settings.minfpconstprec:=s64real;
                if changeinit then
                  begin
                    include(init_settings.localswitches,cs_excessprecision);
                    include(init_settings.localswitches,cs_openstring);
+                   if init_settings.minfpconstprec=s32real then
+                     init_settings.minfpconstprec:=s64real;
                  end;
              end;
 

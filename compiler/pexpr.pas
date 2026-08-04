@@ -2944,6 +2944,11 @@ implementation
         else if (current_settings.minfpconstprec=s64real) and
                 (d = double(d)) then
           result:=crealconstnode.create(d,s64floattype)
+        else if (m_delphi in current_settings.modeswitches) and
+                (excesspromotiondef<>pbestrealtype^) then
+          { Delphi has no 80-bit literals on SSE targets: an untyped real
+            literal carries double precision and rounds at parse time }
+          result:=crealconstnode.create(double(d),s64floattype)
         else
           result:=crealconstnode.create(d,pbestrealtype^);
         val(current_scanner.pattern,cur,code);

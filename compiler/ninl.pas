@@ -3272,9 +3272,10 @@ implementation
       type
         tfloattypeset = set of tfloattype;
 
-      function removefloatupcasts(var p: tnode; const floattypes: tfloattypeset): tdef;
+      function removefloatupcasts(var p: tnode; const floattypes: tfloattypeset; widenresult: boolean): tdef;
         var
           hnode: tnode;
+          hdef: tdef;
         begin
           { System unit declares internal functions like this:
               function foo(x: valreal): valreal; [internproc: number];
@@ -3282,7 +3283,11 @@ implementation
             which typechecks the arguments, possibly inserting conversion to valreal.
             To handle smaller types without excess precision, we need to remove
             these extra typecasts. }
-          if not(cs_excessprecision in current_settings.localswitches) and
+          if (not(cs_excessprecision in current_settings.localswitches) or
+              { under the Delphi model intrinsics compute in the target
+                computation type, so the valreal upcast is removed here and
+                the operand is re-widened to that type below }
+              (m_delphi in current_settings.modeswitches)) and
              (p.nodetype=typeconvn) and
              (ttypeconvnode(p).left.resultdef.typ=floatdef) and
              (p.flags*[nf_explicit,nf_internal]=[]) and
@@ -3293,6 +3298,28 @@ implementation
               p.free;
               p:=hnode;
               result:=p.resultdef;
+              { Under the Delphi model an intrinsic still computes in its
+                declared type - measured, independent of excess precision -
+                so dropping the upcast must land on the target computation
+                type rather than on a narrower operand type.  The mode is
+                the cause and is asked for directly: deriving it from the
+                types would silently switch this off on targets whose best
+                real type already is the computation type (win64).
+                Outside mode Delphi the upstream contract applies: keep the
+                operand type, which is what lets narrow intrinsics use SSE.
+                widenresult is false where the intrinsic returns an integer
+                and the operand width cannot be observed. }
+              if widenresult and
+                 (m_delphi in current_settings.modeswitches) and
+                 (result.typ=floatdef) then
+                begin
+                  hdef:=widerrealdef(result,excesspromotiondef);
+                  if hdef<>result then
+                    begin
+                      inserttypeconv(p,hdef);
+                      result:=p.resultdef;
+                    end;
+                end;
             end
           else if (p.nodetype=typeconvn) and
              (p.flags*[nf_explicit,nf_internal]=[]) and
@@ -4105,6 +4132,17 @@ implementation
                   set_varstate(temp_pnode^,vs_read,[vsf_must_be_valid]);
                   { converting an int64 to double on platforms without }
                   { extended can cause precision loss                  }
+                  { KNOWN DEVIATION from the Delphi model: these keep the
+                    best real type because their x86 code generators are
+                    built around it - declaring the computation type here
+                    raises internal error 200402222 in the float compare.
+                    The 80-bit type is not contained: getbestreal keeps it
+                    for the enclosing expression, so Exp(S)*S2 computes in
+                    x87 where Delphi overflows to +Inf (measured: 9.01e272
+                    against +Inf for S=716, S2=1e-38).  Closing this needs
+                    the x86 first_*_real lowerings to accept the narrower
+                    result type; until then the deviation is recorded
+                    rather than hidden. }
                   if not(temp_pnode^.nodetype in [ordconstn,realconstn]) then
                     inserttypeconv(temp_pnode^,pbestrealtype^);
                   resultdef:=pbestrealtype^;
@@ -4125,9 +4163,9 @@ implementation
                     handled via inlined system helpers (-> no need for special
                     handling of s64currency/s64comp for them) }
                   if inlinenumber=in_trunc_real then
-                    removefloatupcasts(temp_pnode^,[s32real,s64real,s80real,sc80real,s128real,s64currency,s64comp])
+                    removefloatupcasts(temp_pnode^,[s32real,s64real,s80real,sc80real,s128real,s64currency,s64comp],false)
                   else
-                    removefloatupcasts(temp_pnode^,[s32real,s64real,s80real,sc80real,s128real,s64comp]);
+                    removefloatupcasts(temp_pnode^,[s32real,s64real,s80real,sc80real,s128real,s64comp],false);
                   if (inlinenumber=in_trunc_real) and
                      is_currency(temp_pnode^.resultdef) then
                     begin
@@ -4165,7 +4203,7 @@ implementation
                   else
                     temp_pnode := @left;
                   set_varstate(temp_pnode^,vs_read,[vsf_must_be_valid]);
-                  resultdef:=removefloatupcasts(temp_pnode^,[s32real,s64real,s80real,sc80real,s128real]);
+                  resultdef:=removefloatupcasts(temp_pnode^,[s32real,s64real,s80real,sc80real,s128real],true);
                 end;
 
 {$ifdef SUPPORT_MMX}
