@@ -86,10 +86,11 @@ var
   Re : PRecordElement;
 begin
   Re:=AlignTypeData(Pointer(@Ri^.Count)+SizeOf(Ri^.Count));
+  Inc(Re,Ri^.Count);
   for i:=Ri^.Count downto 1 Do
     begin
+      Dec(Re);
       int_finalize(Data+Re^.Offset,Re^.TypeInfo^);
-      Inc(Re);
     end;
 end;
 
@@ -465,4 +466,3 @@ procedure CopyArray(dest, source, typeInfo: Pointer; count: SizeInt);
       for i:=0 to count-1 do
         int_Copy(source+size*i, dest+size*i, typeInfo);
   end;
-
