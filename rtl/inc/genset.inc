@@ -126,11 +126,11 @@ procedure fpc_varset_set_range(const orgset; var dest;l,h,size : ptrint); compil
     bp : pbyte;
     nbits,partbits,partbytes : sizeint;
   begin
+    if @orgset<>@dest then
+      move(orgset,dest,size);
     nbits:=h-l+1;
     if nbits<=0 then
       exit;
-    if @orgset<>@dest then
-      move(orgset,dest,size);
     bp:=pbyte(@dest)+l shr 3;
     partbits:=-l and 7;
     if partbits<>0 then { Head. }
