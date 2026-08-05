@@ -247,6 +247,7 @@ unit aoptx86;
 
         function CheckJumpMovTransferOpt(var p: tai; hp1: tai; LoopCount: Integer; out Count: Integer): Boolean;
         function FlagsReadBySignedCondition(p_start, p_cmp: tai): Boolean;
+        function FlagsOnlyReadByEqualCondition(p_start, p_cmp: tai): Boolean;
         function TrySwapMovOp(var p, hp1: tai): Boolean;
         function TrySwapMovCmp(var p, hp1: tai): Boolean;
         function TryCmpCMovOpts(var p, hp1: tai) : Boolean;
@@ -10361,6 +10362,36 @@ unit aoptx86;
     end;
 
 
+  { Narrowing a comparison changes SF/OF/CF.  It is only safe when every live
+    consumer depends solely on ZF, until the flags are overwritten. }
+  function TX86AsmOptimizer.FlagsOnlyReadByEqualCondition(p_start, p_cmp: tai): Boolean;
+    var
+      hp_next: tai;
+    begin
+      Result := False;
+      TransferUsedRegs(TmpUsedRegs);
+      UpdateUsedRegsBetween(TmpUsedRegs, p_start, p_cmp);
+      UpdateUsedRegs(TmpUsedRegs, tai(p_cmp.Next));
+      while RegInUsedRegs(NR_DEFAULTFLAGS, TmpUsedRegs) do
+        begin
+          if not GetNextInstruction(p_cmp, hp_next) then
+            Exit;
+          if InstrReadsFlags(hp_next) and
+            not(MatchInstruction(hp_next,A_Jcc,A_SETcc,A_CMOVcc,[]) and
+                (taicpu(hp_next).condition in [C_E,C_Z,C_NE,C_NZ])) then
+            Exit;
+          if RegModifiedByInstruction(NR_DEFAULTFLAGS, hp_next) then
+            begin
+              Result := True;
+              Exit;
+            end;
+          p_cmp := hp_next;
+          UpdateUsedRegs(TmpUsedRegs, tai(p_cmp.Next));
+        end;
+      Result := True;
+    end;
+
+
   function TX86AsmOptimizer.TrySwapMovOp(var p, hp1: tai): Boolean;
     var
       hp2: tai;
@@ -16134,6 +16165,8 @@ unit aoptx86;
         hp1, hp2 : tai;
         MaskLength : Cardinal;
         MaskedBits : TCgInt;
+        MaskSize : topsize;
+        MaskSubReg : tsubregister;
         ActiveReg : TRegister;
       begin
         Result:=false;
@@ -16202,39 +16235,56 @@ unit aoptx86;
                     else if ((taicpu(p).oper[0]^.val=$ff) or (taicpu(p).oper[0]^.val=$ffff) or (taicpu(p).oper[0]^.val=$ffffffff)) and
                       MatchOpType(taicpu(hp1),top_const,top_reg) and
                       (taicpu(p).oper[0]^.val>=taicpu(hp1).oper[0]^.val) and
-                      SuperRegistersEqual(taicpu(p).oper[1]^.reg,taicpu(hp1).oper[1]^.reg) then
+                      SuperRegistersEqual(taicpu(p).oper[1]^.reg,taicpu(hp1).oper[1]^.reg) and
+                      (taicpu(p).opsize in [S_B,S_W,S_L{$ifdef x86_64},S_Q{$endif x86_64}]) and
+                      (taicpu(hp1).opsize in [S_B,S_W,S_L{$ifdef x86_64},S_Q{$endif x86_64}]) and
+                      (getsubreg(taicpu(p).oper[1]^.reg) in [R_SUBL,R_SUBW,R_SUBD{$ifdef x86_64},R_SUBQ{$endif x86_64}]) and
+                      (getsubreg(taicpu(hp1).oper[1]^.reg) in [R_SUBL,R_SUBW,R_SUBD{$ifdef x86_64},R_SUBQ{$endif x86_64}]) and
+                      (topsize2memsize[taicpu(p).opsize]>=topsize2memsize[taicpu(hp1).opsize]) then
                         { change
-                            and  $ff/$ff/$ffff, reg
-                            cmp  val<=$ff/val<=$ffff/val<=$ffffffff, reg
+                            and  $ff/$ffff/$ffffffff, reg
+                            cmp  val<=$ff/$ffff/$ffffffff, reg
                             dealloc reg
                           to
-                            cmp  val<=$ff/val<=$ffff/val<=$ffffffff, resized reg
-                        }
+                            cmp  val<=$ff/$ffff/$ffffffff, reg
+
+                          Only narrow CMP when all flag consumers use equality.
+                          If CMP is already no wider than the mask, keep its
+                          original size and subregister. }
                       begin
+                        case taicpu(p).oper[0]^.val of
+                          $ff:
+                            begin
+                              MaskSize:=S_B;
+                              MaskSubReg:=R_SUBL;
+                            end;
+                          $ffff:
+                            begin
+                              MaskSize:=S_W;
+                              MaskSubReg:=R_SUBW;
+                            end;
+                          $ffffffff:
+                            begin
+                              MaskSize:=S_L;
+                              MaskSubReg:=R_SUBD;
+                            end;
+                          else
+                            Internalerror(2023030401);
+                        end;
+                        MaskLength:=topsize2memsize[MaskSize];
                         TransferUsedRegs(TmpUsedRegs);
                         UpdateUsedRegs(TmpUsedRegs, tai(p.Next));
-                        if not RegUsedAfterInstruction(taicpu(p).oper[1]^.reg, hp1, TmpUsedRegs) then
+                        if not RegUsedAfterInstruction(taicpu(p).oper[1]^.reg, hp1, TmpUsedRegs) and
+                          ((topsize2memsize[taicpu(hp1).opsize]<=MaskLength) or
+                           ((taicpu(hp1).oper[0]^.val>=0) and
+                            FlagsOnlyReadByEqualCondition(p,hp1))) then
                           begin
                             DebugMsg(SPeepholeOptimization + 'AND/CMP -> CMP', p);
-                            case taicpu(p).oper[0]^.val of
-                              $ff:
-                                begin
-                                  setsubreg(taicpu(hp1).oper[1]^.reg, R_SUBL);
-                                  taicpu(hp1).opsize:=S_B;
-                                end;
-                              $ffff:
-                                begin
-                                  setsubreg(taicpu(hp1).oper[1]^.reg, R_SUBW);
-                                  taicpu(hp1).opsize:=S_W;
-                                end;
-                              $ffffffff:
-                                begin
-                                  setsubreg(taicpu(hp1).oper[1]^.reg, R_SUBD);
-                                  taicpu(hp1).opsize:=S_L;
-                                end;
-                              else
-                                Internalerror(2023030401);
-                            end;
+                            if topsize2memsize[taicpu(hp1).opsize]>MaskLength then
+                              begin
+                                setsubreg(taicpu(hp1).oper[1]^.reg,MaskSubReg);
+                                taicpu(hp1).opsize:=MaskSize;
+                              end;
                             RemoveCurrentP(p);
                             Result := True;
                             Exit;
