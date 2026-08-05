@@ -3122,6 +3122,15 @@ const
                begin
                  { done here }
                end
+             { Delphi compares Int64 and UInt64 by mathematical value. }
+             else if (m_delphi in current_settings.modeswitches) and
+                     (nodetype in [equaln,unequaln,gtn,gten,ltn,lten]) and
+                     (((torddef(ld).ordtype=s64bit) and (torddef(rd).ordtype=u64bit)) or
+                      ((torddef(ld).ordtype=u64bit) and (torddef(rd).ordtype=s64bit))) then
+               begin
+                 inserttypeconv(left,s128inttype);
+                 inserttypeconv(right,s128inttype);
+               end
              { is there a signed 128 bit type ? }
              else if ((torddef(rd).ordtype=s128bit) or (torddef(ld).ordtype=s128bit)) then
                begin
