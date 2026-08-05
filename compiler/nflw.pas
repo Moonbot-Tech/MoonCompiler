@@ -1744,6 +1744,8 @@ implementation
         in_nr:=Default(tinlinenumber);
         if (cs_opt_level2 in current_settings.optimizerswitches) and
            (left.nodetype in [gtn,gten,ltn,lten]) and IsSingleStatement(right,thenstmnt) and
+           not ((left.nodetype in [gten,lten]) and
+             (taddnode(left).left.resultdef.typ=floatdef)) and
            ((t1=nil) or IsSingleStatement(t1,elsestmnt)) and
           (thenstmnt.nodetype=assignn) and ((t1=nil) or (elsestmnt.nodetype=assignn)) and
           not(might_have_sideeffects(left)) and
