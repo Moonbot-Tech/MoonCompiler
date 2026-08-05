@@ -6425,6 +6425,13 @@ implementation
                      else
                        consume(_RKLAMMER);
                    end;
+                 if p1.nodetype=ordconstn then
+                   begin
+                     if tordconstnode(p1).delphisign=ds_negative then
+                       tordconstnode(p1).delphisign:=ds_none;
+                   end
+                 else if p1.nodetype=unaryminusn then
+                   tunaryminusnode(p1).unparenthesizedsign:=false;
                  { it's not a good solution
                    but (a+b)^ makes some problems  }
                  if current_scanner.token in postfixoperator_tokens then
@@ -6485,6 +6492,13 @@ implementation
                        p1:=sub_expr(oppower,[],nil);
 
                      p1:=cunaryminusnode.create(p1);
+                   end;
+                 if m_delphi in current_settings.modeswitches then
+                   begin
+                     if p1.nodetype=ordconstn then
+                       tordconstnode(p1).delphisign:=ds_negative
+                     else if p1.nodetype=unaryminusn then
+                       tunaryminusnode(p1).unparenthesizedsign:=true;
                    end;
                end;
 

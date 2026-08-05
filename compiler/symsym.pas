@@ -447,6 +447,8 @@ interface
           constdef    : tdef;
           constdefderef : tderef;
           consttyp    : tconsttyp;
+          explicitdef : boolean;
+          delphiplus  : boolean;
           value       : tconstvalue;
           constructor create_ord(const n : TSymStr;t : tconsttyp;v : tconstexprint;def:tdef);virtual;
           constructor create_ordptr(const n : TSymStr;t : tconsttyp;v : tconstptruint;def:tdef);virtual;
@@ -2875,6 +2877,8 @@ implementation
          inherited ppuload(constsym,ppufile);
          constdef:=nil;
          consttyp:=tconsttyp(ppufile.getbyte);
+         explicitdef:=ppufile.getbyte<>0;
+         delphiplus:=ppufile.getbyte<>0;
          fillchar(value, sizeof(value), #0);
          case consttyp of
            constord :
@@ -3004,6 +3008,8 @@ implementation
       begin
          inherited ppuwrite(ppufile);
          ppufile.putbyte(byte(consttyp));
+         ppufile.putbyte(byte(explicitdef));
+         ppufile.putbyte(byte(delphiplus));
          case consttyp of
            constnil :
              ppufile.putderef(constdefderef);

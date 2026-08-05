@@ -406,6 +406,8 @@ interface
         both ld and rd; if keep_sign_if_equal, then if ld and rd have the same
         signedness, the result will also get that signedness }
     function get_common_intdef(ld, rd: torddef; keep_sign_if_equal: boolean): torddef;
+    { Delphi evaluates ordinal arithmetic in at least a 32-bit domain. }
+    function get_delphi_int_arithmetic_def(ld, rd: torddef): torddef;
 
     { # calculates "not v" based on the provided def; returns true if the def
         was negligible, false otherwise }
@@ -2122,6 +2124,14 @@ implementation
             else
               ;
           end;
+      end;
+
+
+    function get_delphi_int_arithmetic_def(ld, rd: torddef): torddef;
+      begin
+        result:=get_common_intdef(ld,rd,true);
+        if result.size<s32inttype.size then
+          result:=torddef(s32inttype);
       end;
 
 

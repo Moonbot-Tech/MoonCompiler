@@ -61,11 +61,14 @@ interface
        end;
        trealconstnodeclass = class of trealconstnode;
 
+       tdelphisign = (ds_none,ds_negative,ds_positive);
+
        tordconstnode = class(tconstnode)
           typedef : tdef;
           typedefderef : tderef;
           value : TConstExprInt;
           rangecheck : boolean;
+          delphisign : tdelphisign;
           { create an ordinal constant node of the specified type and value.
             _rangecheck determines if the value of the ordinal should be checked
             against the ranges of the type definition.
@@ -426,6 +429,13 @@ implementation
         { transfer generic param flag from symbol to node }
         if sp_generic_para in p.symoptions then
           include(p1.flags,nf_generic_para);
+        if p.explicitdef and
+           (m_delphi in current_settings.modeswitches) then
+          include(p1.flags,nf_explicit);
+        if p.delphiplus and
+           (m_delphi in current_settings.modeswitches) and
+           (p1.nodetype=ordconstn) then
+          tordconstnode(p1).delphisign:=ds_positive;
         genconstsymtree:=p1;
       end;
 
@@ -650,6 +660,7 @@ implementation
          value:=v;
          typedef:=def;
          rangecheck := _rangecheck;
+         delphisign:=ds_none;
       end;
 
 
@@ -658,6 +669,7 @@ implementation
         inherited ppuload(t,ppufile);
         ppufile.getderef(typedefderef);
         value:=ppufile.getexprint;
+        delphisign:=tdelphisign(ppufile.getbyte);
         { normally, the value is already compiled, so we don't need
           to do once again a range check
         }
@@ -670,6 +682,7 @@ implementation
         inherited ppuwrite(ppufile);
         ppufile.putderef(typedefderef);
         ppufile.putexprint(value);
+        ppufile.putbyte(byte(delphisign));
       end;
 
 
@@ -696,6 +709,7 @@ implementation
          n:=tordconstnode(inherited dogetcopy);
          n.value:=value;
          n.typedef := typedef;
+         n.delphisign:=delphisign;
          dogetcopy:=n;
       end;
 
@@ -717,9 +731,10 @@ implementation
 
     function tordconstnode.docompare(p: tnode): boolean;
       begin
-        docompare :=
+         docompare :=
           inherited docompare(p) and
           (value = tordconstnode(p).value) and
+          (delphisign = tordconstnode(p).delphisign) and
           equal_defs(typedef,tordconstnode(p).typedef);
       end;
 

@@ -78,7 +78,12 @@ interface
        tshlshrnodeclass = class of tshlshrnode;
 
        tunaryminusnode = class(tunarynode)
+          unparenthesizedsign : boolean;
           constructor create(expr : tnode);virtual;
+          constructor ppuload(t:tnodetype;ppufile:tcompilerppufile);override;
+          procedure ppuwrite(ppufile:tcompilerppufile);override;
+          function dogetcopy : tnode;override;
+          function docompare(p: tnode) : boolean;override;
           function pass_1 : tnode;override;
           function pass_typecheck:tnode;override;
           function simplify(forinline : boolean) : tnode;override;
@@ -167,11 +172,21 @@ implementation
             rv:=tordconstnode(right).value;
             if rv = 1 then
               begin
+                { Delphi chooses the promoted operation type below. Keep the
+                  live identity node until that type has been selected. }
+                if (m_delphi in current_settings.modeswitches) and
+                   not assigned(resultdef) and
+                   not is_constintnode(left) then
+                  exit;
                 case nodetype of
                   modn:
                     result := cordconstnode.create(0,left.resultdef,true);
                   divn:
-                    result := left.getcopy;
+                    begin
+                      result:=left.getcopy;
+                      if result.nodetype=ordconstn then
+                        tordconstnode(result).delphisign:=ds_none;
+                    end;
                   else
                     internalerror(2019050518);
                 end;
@@ -364,7 +379,17 @@ implementation
              (not is_signed(ld) and
               (rd.size >= ld.size))) then
            begin
-             if rd.size<uinttype.size then
+             if (m_delphi in current_settings.modeswitches) and
+               (rd.size<=u32inttype.size) then
+               begin
+                 if rd.size<u32inttype.size then
+                   nd:=torddef(s32inttype)
+                 else
+                   nd:=rd;
+                 inserttypeconv(left,nd);
+                 inserttypeconv(right,nd);
+               end
+             else if rd.size<uinttype.size then
                begin
                  inserttypeconv(left,uinttype);
                  inserttypeconv(right,uinttype);
@@ -380,7 +405,17 @@ implementation
              (not is_signed(rd) and
               (ld.size >= rd.size))) then
            begin
-             if ld.size<uinttype.size then
+             if (m_delphi in current_settings.modeswitches) and
+               (ld.size<=u32inttype.size) then
+               begin
+                 if ld.size<u32inttype.size then
+                   nd:=torddef(s32inttype)
+                 else
+                   nd:=ld;
+                 inserttypeconv(left,nd);
+                 inserttypeconv(right,nd);
+               end
+             else if ld.size<uinttype.size then
                begin
                  inserttypeconv(left,uinttype);
                  inserttypeconv(right,uinttype);
@@ -475,11 +510,20 @@ implementation
            end
          else
            begin
-              { Make everything always default signed int }
-              if not(rd.ordtype in [torddef(sinttype).ordtype,torddef(uinttype).ordtype]) then
-                inserttypeconv(right,sinttype);
-              if not(ld.ordtype in [torddef(sinttype).ordtype,torddef(uinttype).ordtype]) then
-                inserttypeconv(left,sinttype);
+              if m_delphi in current_settings.modeswitches then
+                begin
+                  nd:=get_delphi_int_arithmetic_def(ld,rd);
+                  inserttypeconv(right,nd);
+                  inserttypeconv(left,nd);
+                end
+              else
+                begin
+                  { Make everything always default signed int }
+                  if not(rd.ordtype in [torddef(sinttype).ordtype,torddef(uinttype).ordtype]) then
+                    inserttypeconv(right,sinttype);
+                  if not(ld.ordtype in [torddef(sinttype).ordtype,torddef(uinttype).ordtype]) then
+                    inserttypeconv(left,sinttype);
+                end;
               resultdef:=right.resultdef;
            end;
 
@@ -1156,27 +1200,101 @@ implementation
     constructor tunaryminusnode.create(expr : tnode);
       begin
         inherited create(unaryminusn,expr);
+        unparenthesizedsign:=false;
+      end;
+
+
+    constructor tunaryminusnode.ppuload(t:tnodetype;ppufile:tcompilerppufile);
+      begin
+        inherited ppuload(t,ppufile);
+        unparenthesizedsign:=ppufile.getbyte<>0;
+      end;
+
+
+    procedure tunaryminusnode.ppuwrite(ppufile:tcompilerppufile);
+      begin
+        inherited ppuwrite(ppufile);
+        ppufile.putbyte(byte(unparenthesizedsign));
+      end;
+
+
+    function tunaryminusnode.dogetcopy : tnode;
+      begin
+        result:=inherited dogetcopy;
+        tunaryminusnode(result).unparenthesizedsign:=unparenthesizedsign;
+      end;
+
+
+    function tunaryminusnode.docompare(p: tnode) : boolean;
+      begin
+        result:=inherited docompare(p) and
+          (unparenthesizedsign=tunaryminusnode(p).unparenthesizedsign);
       end;
 
 
     function tunaryminusnode.simplify(forinline : boolean):tnode;
       var
         v : tconstexprint;
+        folddef : torddef;
+        foldbasedef : tdef;
+        wrapped : boolean;
       begin
         result:=nil;
         { constant folding }
         if is_constintnode(left) then
           begin
              v:=-tordconstnode(left).value;
-             if v.overflow or
-                (not(m_int128 in current_settings.modeswitches) and not v.representable64) then
+             folddef:=torddef(resultdef);
+             { Delphi accepts exactly -UInt64(2^63) as Low(Int64). Other
+               negative UInt64 constants written in source are rejected even
+               with Q-. Constants introduced by inlining must retain the live
+               expression's checked or wrapping behaviour. }
+             if (m_delphi in current_settings.modeswitches) and
+                (folddef.ordtype=u64bit) and (v<0) then
+               begin
+                 if forinline and
+                    (cs_check_overflow in localswitches) then
+                   exit;
+                 if not forinline and
+                    (v<>torddef(s64inttype).low) then
+                   begin
+                     Message(parser_e_arithmetic_operation_overflow);
+                     result:=genintconstnode(0);
+                     exit;
+                   end;
+                 if not forinline then
+                   folddef:=torddef(s64inttype);
+               end;
+             wrapped:=v.overflow or (v<folddef.low) or (v>folddef.high);
+             if wrapped and (cs_check_overflow in localswitches) then
                begin
                  Message(parser_e_arithmetic_operation_overflow);
                  { Recover }
                  result:=genintconstnode(0);
                  exit;
                end;
-             result:=create_simplified_ord_const(v,resultdef,forinline,cs_check_overflow in localswitches);
+             if wrapped then
+               begin
+                 { Match unchecked runtime negation by retaining only the
+                   result type's low bits. }
+                 v.overflow:=false;
+                 result:=cordconstnode.create(v,folddef,false);
+               end
+             else if (m_delphi in current_settings.modeswitches) and
+                     not is_128bitint(folddef) then
+               begin
+                 range_to_type(v,v,foldbasedef);
+                 folddef:=torddef(foldbasedef);
+                 result:=cordconstnode.create(v,folddef,
+                   cs_check_overflow in localswitches);
+               end
+             else
+               result:=create_simplified_ord_const(v,resultdef,forinline,cs_check_overflow in localswitches);
+             if assigned(result) and (result.nodetype=ordconstn) then
+               begin
+                 if unparenthesizedsign then
+                   tordconstnode(result).delphisign:=ds_negative;
+               end;
              exit;
           end;
         if is_constrealnode(left) then
@@ -1284,14 +1402,40 @@ implementation
          if codegenerror then
            exit;
 
-         { The nonconstant path below selects signed Int128 for unary minus. }
-         if is_128bitint(left.resultdef) then
-           resultdef:=s128inttype;
+         { Delphi promotes a live narrow operand to Integer. Select the
+           operation type before constant folding too. }
+         if is_currency(left.resultdef) then
+           resultdef:=left.resultdef
+         else if is_128bitint(left.resultdef) then
+           resultdef:=s128inttype
+         else if left.resultdef.typ=orddef then
+           begin
+             if m_delphi in current_settings.modeswitches then
+               case torddef(left.resultdef).ordtype of
+                 u32bit:
+                   resultdef:=s64inttype;
+                 u64bit:
+                   resultdef:=u64inttype;
+                 else
+                   begin
+                     resultdef:=get_signed_inttype(left.resultdef);
+                     if resultdef.size<s32inttype.size then
+                       resultdef:=s32inttype;
+                   end;
+               end
+             else
+               begin
+                 resultdef:=get_signed_inttype(left.resultdef);
+                 if resultdef.size<sinttype.size then
+                   resultdef:=torddef(sinttype);
+               end;
+           end;
          result:=simplify(false);
          if assigned(result) then
            exit;
 
-         resultdef:=left.resultdef;
+         if left.resultdef.typ<>orddef then
+           resultdef:=left.resultdef;
          if is_currency(left.resultdef) then
            begin
            end
@@ -1321,11 +1465,15 @@ implementation
 {$endif SUPPORT_MMX}
          else if is_128bit(left.resultdef) then
            begin
-             { express as 0 - l so it lowers through the int128 sub helper }
-             result:=caddnode.create(subn,cordconstnode.create(0,s128inttype,false),left);
-             left:=nil;
-             typecheckpass(result);
-             exit;
+             if not(m_delphi in current_settings.modeswitches) then
+               begin
+                 { Preserve the checked conversion semantics of other modes. }
+                 result:=caddnode.create(subn,
+                   cordconstnode.create(0,s128inttype,false),left);
+                 left:=nil;
+                 typecheckpass(result);
+                 exit;
+               end;
            end
          else if is_oversizedord(left.resultdef) then
            begin
@@ -1341,8 +1489,11 @@ implementation
            end
          else if (left.resultdef.typ=orddef) then
            begin
-             inserttypeconv(left,sinttype);
-             resultdef:=left.resultdef
+             { Keep same-width unsigned operands identifiable so checked
+               code generation can validate the signed result domain. }
+             if (left.resultdef.size<resultdef.size) or
+                not(m_delphi in current_settings.modeswitches) then
+               inserttypeconv(left,resultdef);
            end
          else
            begin
@@ -1390,7 +1541,7 @@ implementation
               end;
             if cs_check_overflow in current_settings.localswitches then
               begin
-                if is_signed(resultdef) then
+                if is_signed(left.resultdef) then
                   procname:='fpc_neg_int128_checkoverflow'
                 else
                   procname:='fpc_neg_uint128_checkoverflow';
@@ -1493,6 +1644,17 @@ implementation
 {$endif SUPPORT_MMX}
         then
           begin
+            if (m_delphi in current_settings.modeswitches) and
+               (left.nodetype=ordconstn) then
+              tordconstnode(left).delphisign:=ds_positive;
+            result:=left;
+            left:=nil;
+          end
+        else if (m_delphi in current_settings.modeswitches) and
+                (left.resultdef.typ=orddef) then
+          begin
+            if left.resultdef.size<s32inttype.size then
+              inserttypeconv(left,s32inttype);
             result:=left;
             left:=nil;
           end

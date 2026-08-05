@@ -96,7 +96,7 @@ interface
              end
 {$endif SUPPORT_MMX}
          else
-           inherited pass_1;
+           result:=inherited pass_1;
       end;
 
 

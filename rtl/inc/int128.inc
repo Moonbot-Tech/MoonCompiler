@@ -399,10 +399,15 @@ end;
 
 function fpc_neg_uint128_checkoverflow(a:Int128):Int128; [public,alias:'FPC_NEG_UINT128_CHECKOVERFLOW']; compilerproc;
 begin
-  { negating any non-zero unsigned value leaves the unsigned range }
-  if (tint128rec(a).lo<>0) or (tint128rec(a).hi<>0) then
+  { Unary minus has a signed Int128 result.  The magnitude 2^127 is
+    representable as low(Int128); only larger unsigned inputs overflow. }
+  if (tint128rec(a).hi>qword($8000000000000000)) or
+     ((tint128rec(a).hi=qword($8000000000000000)) and
+      (tint128rec(a).lo<>0)) then
     HandleErrorAddrFrameInd(215,get_pc_addr,get_frame);
-  result:=a;
+  tint128rec(result).lo:=tint128rec(a).lo;
+  tint128rec(result).hi:=tint128rec(a).hi;
+  int128_neg(tint128rec(result).lo,tint128rec(result).hi);
 end;
 
 {****************************************************************************

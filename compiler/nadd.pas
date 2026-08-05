@@ -2479,6 +2479,41 @@ const
               inserttypeconv(n,adef);
           end;
 
+        function maybe_cast_delphi_untyped_const(var n: tnode; adef: tdef): boolean;
+          begin
+            result:=(n.nodetype=ordconstn) and
+              not (nf_explicit in n.flags) and
+              (torddef(adef).ordtype=u32bit) and
+              (tordconstnode(n).value>=0) and
+              (tordconstnode(n).value<=torddef(adef).high);
+            if result then
+              inserttypeconv(n,adef);
+          end;
+
+        function is_typed_const_load(n: tnode): boolean;
+          begin
+            if n.nodetype<>loadn then
+              exit(false);
+            if not (tloadnode(n).symtableentry.typ in
+                [staticvarsym,localvarsym]) then
+              exit(false);
+            result:=vo_is_typed_const in
+              tabstractvarsym(tloadnode(n).symtableentry).varoptions;
+          end;
+
+        function is_bitwise_const(n: tnode): boolean;
+          begin
+            result:=(n.nodetype=ordconstn) or is_typed_const_load(n);
+          end;
+
+        function delphi_sign(n: tnode): tdelphisign;
+          begin
+            if n.nodetype=ordconstn then
+              result:=tordconstnode(n).delphisign
+            else
+              result:=ds_none;
+          end;
+
         function maybe_convert_to_insert:tnode;
 
           function element_count(arrconstr: tarrayconstructornode):asizeint;
@@ -2991,6 +3026,55 @@ const
                      (nodetype in [equaln,unequaln,gtn,gten,ltn,lten]) then
                begin
                end
+             { Delphi evaluates a narrow bitwise expression as Integer when
+               it starts with a raw minus, or either operand has unary plus. }
+             else if (m_delphi in current_settings.modeswitches) and
+                     is_integer(ld) and is_integer(rd) and
+                     (ld.size<4) and (rd.size<4) and
+                     (nodetype in [andn,orn,xorn]) and
+                     ((delphi_sign(left)=ds_negative) or
+                      (delphi_sign(left)=ds_positive) or
+                      (delphi_sign(right)=ds_positive)) then
+               begin
+                 inserttypeconv(left,s32inttype);
+                 inserttypeconv(right,s32inttype);
+               end
+             { Delphi keeps mixed-sign bitwise expressions below 32 bits at
+               their narrow common type when exactly one operand is constant. }
+             else if (m_delphi in current_settings.modeswitches) and
+                     is_integer(ld) and is_integer(rd) and
+                     (is_signed(ld)<>is_signed(rd)) and
+                     (ld.size<4) and (rd.size<4) and
+                     (nodetype in [andn,orn,xorn]) and
+                     (is_bitwise_const(left)<>is_bitwise_const(right)) then
+               begin
+                 if lt=ordconstn then
+                   begin
+                     if (nf_explicit in left.flags) or
+                        not maybe_cast_ordconst(left,rd) then
+                       begin
+                         nd:=get_common_intdef(torddef(ld),torddef(rd),true);
+                         inserttypeconv(left,nd);
+                         inserttypeconv(right,nd);
+                       end;
+                   end
+                 else if rt=ordconstn then
+                   begin
+                     if (nf_explicit in right.flags) or
+                        not maybe_cast_ordconst(right,ld) then
+                       begin
+                         nd:=get_common_intdef(torddef(ld),torddef(rd),true);
+                         inserttypeconv(left,nd);
+                         inserttypeconv(right,nd);
+                       end;
+                   end
+                 else
+                   begin
+                     nd:=get_common_intdef(torddef(ld),torddef(rd),true);
+                     inserttypeconv(left,nd);
+                     inserttypeconv(right,nd);
+                   end;
+               end
              { "and" does't care about the sign of integers }
              { "xor", "or" and compares don't need extension to native int }
              { size either as long as both values are signed or unsigned   }
@@ -3127,14 +3211,23 @@ const
                        inserttypeconv(right,uinttype);
                    end;
                end
-             { generic ord conversion is sinttype }
+             { generic ordinal conversion }
              else
                begin
-                 { When there is a signed type or there is a minus operation
-                   or in TP mode for 16-bit CPUs
-                   we convert to signed int. Otherwise (both are unsigned) we keep
-                   the result also unsigned. This is compatible with Delphi (PFV) }
-                 if is_signed(ld) or
+                 if m_delphi in current_settings.modeswitches then
+                   begin
+                     if not ((nodetype in [addn,subn,muln]) and
+                        (((torddef(ld).ordtype=u32bit) and
+                          maybe_cast_delphi_untyped_const(right,ld)) or
+                         ((torddef(rd).ordtype=u32bit) and
+                          maybe_cast_delphi_untyped_const(left,rd)))) then
+                       begin
+                         nd:=get_delphi_int_arithmetic_def(torddef(ld),torddef(rd));
+                         inserttypeconv(right,nd);
+                         inserttypeconv(left,nd);
+                       end;
+                   end
+                 else if is_signed(ld) or
                     is_signed(rd) or
                     (([m_iso,m_extpas]*current_settings.modeswitches)<>[]) or
 {$if defined(cpu16bitalu)}

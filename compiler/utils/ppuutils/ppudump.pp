@@ -3870,6 +3870,8 @@ begin
              constdef:=TPpuConstDef.Create(ParentDef);
              readcommonsym('Constant symbol ',constdef);
              b:=getbyte;
+             writeln([space,'      Explicit : ',getbyte<>0]);
+             writeln([space,'    Delphi plus : ',getbyte<>0]);
              case tconsttyp(b) of
                constord :
                  begin
@@ -5544,4 +5546,3 @@ begin
     (has_more_infos or has_warnings) then
     Halt(2);
 end.
-

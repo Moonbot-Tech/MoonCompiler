@@ -332,7 +332,14 @@ implementation
         if (cs_check_overflow in current_settings.localswitches) then
           begin
             current_asmdata.getjumplabel(hl);
-            hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList,resultdef,OC_NE,torddef(resultdef).low.svalue,location.register,hl);
+            if is_signed(left.resultdef) then
+              hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList,resultdef,
+                OC_NE,torddef(resultdef).low.svalue,location.register,hl)
+            else
+              { Delphi checked negation of an unsigned same-width operand
+                succeeds only for zero. }
+              hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList,resultdef,
+                OC_EQ,0,location.register,hl);
             hlcg.a_reg_dealloc(current_asmdata.CurrAsmList, NR_DEFAULTFLAGS);
             hlcg.g_call_system_proc(current_asmdata.CurrAsmList,'fpc_overflow',[],nil).resetiftemp;
             hlcg.a_label(current_asmdata.CurrAsmList,hl);

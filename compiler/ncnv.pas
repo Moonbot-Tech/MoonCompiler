@@ -3819,6 +3819,8 @@ implementation
                    else
                      { no longer an ordconst with an explicit typecast }
                      exclude(left.flags, nf_explicit);
+                   if nf_explicit in flags then
+                     tordconstnode(left).delphisign:=ds_none;
                    { when converting from one boolean type to another, force }
                    { booleans to 0/1, and byte/word/long/qwordbool to 0/-1   }
                    { (Delphi-compatible)                                     }

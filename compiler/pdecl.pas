@@ -206,6 +206,14 @@ implementation
                  Message(parser_e_illegal_expression);
              end;
         end;
+        if assigned(hp) then
+          begin
+            hp.explicitdef:=(p.nodetype=ordconstn) and
+              (nf_explicit in p.flags);
+            hp.delphiplus:=not hp.explicitdef and
+              (p.nodetype=ordconstn) and
+              (tordconstnode(p).delphisign=ds_positive);
+          end;
         { transfer generic param flag from node to symbol }
         if nf_generic_para in p.flags then
           begin
