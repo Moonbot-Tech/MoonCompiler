@@ -11904,14 +11904,11 @@ unit aoptx86;
         { Data flow analysis }
         TestValMin, TestValMax, TestValSignedMax: TCgInt;
         BitwiseOnly, OrXorUsed,
-        ShiftDownOverflow, UpperSignedOverflow, UpperUnsignedOverflow, LowerSignedOverflow, LowerUnsignedOverflow: Boolean;
+        ShiftDownOverflow, UpperUnsignedOverflow, LowerSignedOverflow, LowerUnsignedOverflow: Boolean;
 
         function CheckOverflowConditions: Boolean;
           begin
             Result := True;
-            if (TestValSignedMax > SignedUpperLimit) then
-              UpperSignedOverflow := True;
-
             if (TestValSignedMax > SignedLowerLimit) or (TestValSignedMax < SignedLowerLimitBottom) then
               LowerSignedOverflow := True;
 
@@ -12484,7 +12481,6 @@ unit aoptx86;
         RegChanged := False;
         BitwiseOnly := True;
         OrXorUsed := False;
-        UpperSignedOverflow := False;
         LowerSignedOverflow := False;
         UpperUnsignedOverflow := False;
         LowerUnsignedOverflow := False;
@@ -12934,8 +12930,14 @@ unit aoptx86;
 *)
               A_MOVSX{$ifdef x86_64}, A_MOVSXD{$endif x86_64}:
                 begin
-                  { If there are no instructions in between, then we might be able to make a saving }
-                  if UpperSignedOverflow or (taicpu(hp1).oper[0]^.typ <> top_reg) or (taicpu(hp1).oper[0]^.reg <> ThisReg) then
+                  { Sign extension is redundant only while every possible
+                    value remains non-negative and fits its signed domain.
+                    Arithmetic and multi-step shifts can wrap at the actual
+                    instruction width, which this range tracker does not model. }
+                  if not BitwiseOnly or
+                     (TestValMin<0) or (TestValMax>SignedUpperLimit) or
+                     (taicpu(hp1).oper[0]^.typ<>top_reg) or
+                     (taicpu(hp1).oper[0]^.reg<>ThisReg) then
                     Break;
 
                   { We have something like:
@@ -18631,4 +18633,3 @@ unit aoptx86;
       end;
 
 end.
-
