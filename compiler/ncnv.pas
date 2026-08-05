@@ -3716,6 +3716,18 @@ implementation
 
           realconstn :
             begin
+              { Keep an implicit C long double -> Pascal Extended conversion
+                visible until an inline intrinsic has selected its result
+                type.  Folding it here loses the sc80 source identity and
+                makes constants behave differently from variables. }
+              if (m_delphi in current_settings.modeswitches) and
+                 (convtype=tc_real_2_real) and
+                 (flags*[nf_explicit,nf_internal]=[]) and
+                 (left.resultdef.typ=floatdef) and
+                 (tfloatdef(left.resultdef).floattype=sc80real) and
+                 (resultdef.typ=floatdef) and
+                 (tfloatdef(resultdef).floattype=s80real) then
+                exit;
               if (convtype = tc_real_2_currency) then
                 result := typecheck_real_to_currency
               else if (convtype = tc_real_2_real) then

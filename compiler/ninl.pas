@@ -2187,7 +2187,7 @@ implementation
 
       procedure setconstrealvalue(r : bestreal);
         begin
-           result:=crealconstnode.create(r,pbestrealtype^);
+           result:=crealconstnode.create(r,resultdef);
         end;
 
 
@@ -2196,18 +2196,18 @@ implementation
           if r<=0.0 then
             if floating_point_range_check_error then
                begin
-                 result:=crealconstnode.create(0,pbestrealtype^);
+                 result:=crealconstnode.create(0,resultdef);
                  CGMessage(type_e_wrong_math_argument)
                end
             else
               begin
                 if r=0.0 then
-                  result:=crealconstnode.create(MathNegInf.Value,pbestrealtype^)
+                  result:=crealconstnode.create(MathNegInf.Value,resultdef)
                 else
-                  result:=crealconstnode.create(MathQNaN.Value,pbestrealtype^)
+                  result:=crealconstnode.create(MathQNaN.Value,resultdef)
               end
           else
-            result:=crealconstnode.create(ln(r),pbestrealtype^)
+            result:=crealconstnode.create(ln(r),resultdef)
         end;
 
 
@@ -2216,13 +2216,13 @@ implementation
           if r<0.0 then
             if floating_point_range_check_error then
                begin
-                 result:=crealconstnode.create(0,pbestrealtype^);
+                 result:=crealconstnode.create(0,resultdef);
                  CGMessage(type_e_wrong_math_argument)
                end
             else
-              result:=crealconstnode.create(MathQNaN.Value,pbestrealtype^)
+              result:=crealconstnode.create(MathQNaN.Value,resultdef)
           else
-            result:=crealconstnode.create(sqrt(r),pbestrealtype^)
+            result:=crealconstnode.create(sqrt(r),resultdef)
         end;
 
 
@@ -2847,11 +2847,11 @@ implementation
                 begin
                   if left.nodetype in [ordconstn,realconstn] then
                     begin
-                      result:=crealconstnode.create(exp(getconstrealvalue),pbestrealtype^);
+                      result:=crealconstnode.create(exp(getconstrealvalue),resultdef);
                       if (trealconstnode(result).value_real=MathInf.Value) and
                          floating_point_range_check_error then
                         begin
-                          result:=crealconstnode.create(0,pbestrealtype^);
+                          result:=crealconstnode.create(0,resultdef);
                           CGMessage(parser_e_range_check_error);
                         end;
                     end
