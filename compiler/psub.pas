@@ -187,6 +187,16 @@ implementation
        {$endif}
        ;
 
+    procedure check_inline_managed_local(p: TObject; arg: pointer);
+      begin
+        if (tsym(p).typ=localvarsym) and
+           (tlocalvarsym(p).refs>0) and
+           not(vo_is_funcret in tlocalvarsym(p).varoptions) and
+           is_managed_type(tlocalvarsym(p).vardef) then
+          pboolean(arg)^:=true;
+      end;
+
+
     function checknodeinlining(procdef: tprocdef): boolean;
 
       procedure _no_inline(const reason: TMsgStr);
@@ -197,8 +207,10 @@ implementation
         end;
 
       var
-        i : integer;
+        i,
+        blk_i : integer;
         currpara : tparavarsym;
+        hasmanagedlocal: boolean;
       begin
         result := false;
         { this code will never be used (only specialisations can be inlined),
@@ -220,6 +232,19 @@ implementation
         if pi_has_nested_exit in current_procinfo.flags then
           begin
             _no_inline('nested exit');
+            exit;
+          end;
+        { Inlined managed locals would otherwise be finalized at the end of
+          the caller instead of at the end of the inlined routine. Managed
+          parameters are checked per call by tcallnode.doinlining. }
+        hasmanagedlocal:=false;
+        procdef.localst.SymList.ForEachCall(@check_inline_managed_local,@hasmanagedlocal);
+        if assigned(procdef.blocklocalsymtables) then
+          for blk_i:=0 to procdef.blocklocalsymtables.count-1 do
+            TSymtable(procdef.blocklocalsymtables[blk_i]).SymList.ForEachCall(@check_inline_managed_local,@hasmanagedlocal);
+        if hasmanagedlocal then
+          begin
+            _no_inline('managed lifetime');
             exit;
           end;
         if pi_calls_c_varargs in current_procinfo.flags then

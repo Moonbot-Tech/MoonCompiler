@@ -96,6 +96,7 @@ interface
 
        protected
           function safe_call_self_node: tnode;
+          procedure getinlineparatempinfo(para: tcallparanode; out complexpara, pushconstaddr: boolean);
           procedure load_in_temp(var p:tnode);
           procedure gen_vmt_entry_load; virtual;
           procedure gen_syscall_para(para: tcallparanode); virtual;
@@ -5276,12 +5277,45 @@ implementation
       end;
 
 
+    function nonlocalvars(var n: tnode; arg: pointer): foreachnoderesult; forward;
+
+
     function tcallnode.doinlining: boolean;
+      var
+        para: tcallparanode;
+        complexpara,
+        pushconstaddr: boolean;
       begin
         result:=not((po_inline in procdefinition.procoptions) and
           (procdefinition.typ=procdef) and
           ((pio_inline_not_possible in tprocdef(procdefinition).implprocoptions) or
-           not(cnf_do_inline in callnodeflags)))
+           not(cnf_do_inline in callnodeflags)));
+        if not result then
+          exit;
+
+        { A managed value parameter that needs a private copy cannot be
+          substituted safely: the current inliner gives its temp the caller's
+          lifetime instead of the called routine's lifetime. Keep only this
+          call uninlined; managed parameters that need no copy remain eligible. }
+        para:=tcallparanode(left);
+        while assigned(para) do
+          begin
+            if para.parasym.typ=paravarsym then
+              begin
+                getinlineparatempinfo(para,complexpara,pushconstaddr);
+                if ((para.parasym.varspez=vs_value) and
+                    is_managed_type(para.parasym.vardef) and
+                    paraneedsinlinetemp(para,pushconstaddr,complexpara)) or
+                   { A const parameter passed by reference must keep aliasing
+                     non-local storage across calls made by the callee. CSE
+                     cannot currently preserve that relation after inlining. }
+                   ((para.parasym.varspez=vs_const) and
+                    pushconstaddr and
+                    foreachnodestatic(para.left,@nonlocalvars,pointer(symtableproc))) then
+                  exit(false);
+              end;
+            para:=tcallparanode(para.right);
+          end;
       end;
 
 
@@ -5825,29 +5859,11 @@ implementation
       end;
 
 
-    function tcallnode.maybecreateinlineparatemp(para: tcallparanode; out complexpara: boolean): boolean;
+    procedure tcallnode.getinlineparatempinfo(para: tcallparanode; out complexpara, pushconstaddr: boolean);
       var
-        tempnode: ttempcreatenode;
         realtarget: tnode;
         paracomplexity: longint;
-        pushconstaddr: boolean;
       begin
-        result:=false;
-        { determine how a parameter is passed to the inlined body
-          There are three options:
-            - insert the node tree of the callparanode directly
-              If a parameter is used only once, this is the best option if we can do so
-            - get the address of the argument, store it in a temp and insert a dereference to this temp
-              If the node tree cannot be inserted directly, taking the address of the argument and using it
-              is the second best option, but even this is not always possible
-            - assign the value of the argument to a newly created temp
-              This is the fall back which works always
-          Notes:
-            - we need to take care that we use the type of the defined parameter and not of the
-              passed parameter, because these can be different in case of a formaldef (PFV)
-        }
-
-        { pre-compute some values }
         paracomplexity:=node_complexity(para.left);
         if para.parasym.varspez=vs_const then
           pushconstaddr:=paramanager.push_addr_param(vs_const,para.parasym.vardef,procdefinition.proccalloption)
@@ -5873,6 +5889,30 @@ implementation
             not(realtarget.nodetype=realconstn)
            )
           );
+      end;
+
+
+    function tcallnode.maybecreateinlineparatemp(para: tcallparanode; out complexpara: boolean): boolean;
+      var
+        tempnode: ttempcreatenode;
+        pushconstaddr: boolean;
+      begin
+        result:=false;
+        { determine how a parameter is passed to the inlined body
+          There are three options:
+            - insert the node tree of the callparanode directly
+              If a parameter is used only once, this is the best option if we can do so
+            - get the address of the argument, store it in a temp and insert a dereference to this temp
+              If the node tree cannot be inserted directly, taking the address of the argument and using it
+              is the second best option, but even this is not always possible
+            - assign the value of the argument to a newly created temp
+              This is the fall back which works always
+          Notes:
+            - we need to take care that we use the type of the defined parameter and not of the
+              passed parameter, because these can be different in case of a formaldef (PFV)
+        }
+
+        getinlineparatempinfo(para,complexpara,pushconstaddr);
 
         { check if we have to create a temp, assign the parameter's
           contents to that temp and then substitute the parameter
