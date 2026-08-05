@@ -539,6 +539,13 @@
          handler_switch_value: longint;
          language_specific_data: PByte;
          landing_pad: PtrUInt;
+         { A catch-all landing pad implements a Pascal finally.  Calls from
+           its body are protected by the next outer action, so these fields
+           identify the exact lexical boundary at which another exception
+           replaces this one rather than being caught locally. }
+         replacement_boundary_cfa: PtrUInt;
+         replacement_outer_action: PByte;
+         replaced_by: PExceptObject;
 {$endif __ARM_EABI_UNWINDER__}
          { libunwind exception handling data (must be last!) }
          unwind_exception: FPC_Unwind_Exception;

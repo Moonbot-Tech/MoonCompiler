@@ -698,6 +698,91 @@ function FPC_psabieh_find_handler(const info: FPC_psabieh_lsda_header_info; cons
       end;
   end;
 
+{$ifndef __ARM_EABI_UNWINDER__}
+function FPC_psabieh_next_action_record(action_record: PByte): PByte; inline;
+var
+  ar_filter, ar_disp: PtrInt;
+  p: PByte;
+begin
+  if not assigned(action_record) then
+    exit(nil);
+  p:=fpc_read_sleb128(action_record,ar_filter);
+  fpc_read_sleb128(p,ar_disp);
+  if ar_disp=0 then
+    result:=nil
+  else
+    result:=p+ar_disp;
+end;
+
+function FPC_psabieh_is_catch_all(const info: FPC_psabieh_lsda_header_info;
+  action_record: PByte): Boolean; inline;
+var
+  ar_filter: PtrInt;
+begin
+  if not assigned(action_record) then
+    exit(false);
+  fpc_read_sleb128(action_record,ar_filter);
+  result:=(ar_filter>0) and
+          not assigned(FPC_psabieh_get_ttype_entry(info,ar_filter));
+end;
+
+function FPC_psabieh_crosses_replacement_boundary(action_record,
+  matched_action, boundary_action: PByte): Boolean;
+begin
+  while assigned(action_record) do
+    begin
+      if action_record=boundary_action then
+        exit(true);
+      if assigned(matched_action) and (action_record=matched_action) then
+        exit(false);
+      action_record:=FPC_psabieh_next_action_record(action_record);
+    end;
+  result:=false;
+end;
+
+procedure FPC_psabieh_mark_replaced_exceptions(Current: PExceptObject;
+  const cfa: PtrUInt; action_record, matched_action: PByte);
+var
+  Previous: PExceptObject;
+begin
+  Previous:=Current^.Next;
+  while assigned(Previous) do
+    begin
+      if (Previous^.RefCount=0) and
+         (Previous^.replacement_boundary_cfa=cfa) and
+         not assigned(Previous^.replaced_by) and
+         FPC_psabieh_crosses_replacement_boundary(action_record,
+           matched_action,Previous^.replacement_outer_action) then
+        Previous^.replaced_by:=Current;
+      Previous:=Previous^.Next;
+    end;
+end;
+
+procedure FPC_psabieh_drop_marked_exceptions(Current: PExceptObject;
+  const cfa: PtrUInt);
+var
+  Previous, Replaced: PExceptObject;
+begin
+  Previous:=Current;
+  Replaced:=Current^.Next;
+  while assigned(Replaced) do
+    if (Replaced^.replaced_by=Current) and
+       (Replaced^.replacement_boundary_cfa=cfa) then
+      begin
+        Previous^.Next:=Replaced^.Next;
+        if Replaced^.FObject=Current^.FObject then
+          Replaced^.FObject:=nil;
+        _Unwind_DeleteException(@Replaced^.unwind_exception);
+        Replaced:=Previous^.Next;
+      end
+    else
+      begin
+        Previous:=Replaced;
+        Replaced:=Replaced^.Next;
+      end;
+end;
+{$endif not __ARM_EABI_UNWINDER__}
+
 {$ifdef FPC_PSABIEH_CPLUSPLUSSUPPORT}
 procedure __gxx_personality_v0(version: cint; actions: FPC_Unwind_Action; exceptionClass: cuint64; libunwind_exception: PFPC_Unwind_Exception; context: PFPC_Unwind_Context); cdecl; external;
 {$endif FPC_PSABIEH_CPLUSPLUSSUPPORT}
@@ -727,7 +812,7 @@ function _FPC_psabieh_personality_v0(version: longint; actions: FPC_Unwind_Actio
     found_type: FPC_psabieh_found_handler_type;
     info: FPC_psabieh_lsda_header_info;
     language_specific_data: PByte;
-    action_record: PByte;
+    action_record, action_record_start, matched_action: PByte;
     p: PByte;
     landing_pad, ip: PtrUInt; { _Unwind_Ptr }
     handler_switch_value: longint;
@@ -788,6 +873,15 @@ function _FPC_psabieh_personality_v0(version: longint; actions: FPC_Unwind_Actio
 {$endif FPC_PSABIEH_CPLUSPLUSSUPPORT}
 
     WrappedException:=FPC_psabieh_GetExceptionWrapper(libunwind_exception);
+    action_record_start:=nil;
+    matched_action:=nil;
+
+{$ifndef __ARM_EABI_UNWINDER__}
+    if ((actions and FPC_UA_CLEANUP_PHASE)<>0) and
+       not foreign_exception then
+      FPC_psabieh_drop_marked_exceptions(WrappedException,
+        _Unwind_GetCFA(context));
+{$endif not __ARM_EABI_UNWINDER__}
 
 {$ifdef excdebug}
     writeln('Personality (version = ',{$ifndef __ARM_EABI_UNWINDER__}version{$else}0{$endif},', actions = $',hexstr(actions,4),') started for wrapper ',hexstr(WrappedException),' = fpc exc ',hexstr(WrappedException^.FObject),
@@ -832,6 +926,7 @@ function _FPC_psabieh_personality_v0(version: longint; actions: FPC_Unwind_Actio
         dec(ip);
         landing_pad:=0;
         action_record:=nil;
+        action_record_start:=nil;
         handler_switch_value:=0;
 
         // Search the call-site table for the action associated with this IP.
@@ -856,7 +951,10 @@ function _FPC_psabieh_personality_v0(version: longint; actions: FPC_Unwind_Actio
             else
               begin
                 // Otherwise we have a catch handler or exception specification.
+                action_record_start:=action_record;
                 found_type:=FPC_psabieh_find_handler(info,foreign_exception,actions,WrappedException^.FObject,action_record,handler_switch_value);
+                if found_type=found_handler then
+                  matched_action:=action_record;
               end
           end
         else
@@ -875,6 +973,22 @@ function _FPC_psabieh_personality_v0(version: longint; actions: FPC_Unwind_Actio
 
         if (actions and FPC_UA_SEARCH_PHASE)<>0 then
           begin
+{$ifndef __ARM_EABI_UNWINDER__}
+            if not foreign_exception then
+              begin
+                FPC_psabieh_mark_replaced_exceptions(WrappedException,
+                  _Unwind_GetCFA(context),action_record_start,
+                  matched_action);
+                if (found_type=found_handler) and
+                   FPC_psabieh_is_catch_all(info,action_record) then
+                  begin
+                    WrappedException^.replacement_boundary_cfa:=
+                      _Unwind_GetCFA(context);
+                    WrappedException^.replacement_outer_action:=
+                      FPC_psabieh_next_action_record(action_record);
+                  end;
+              end;
+{$endif not __ARM_EABI_UNWINDER__}
             if found_type=found_cleanup then
               exit(continue_unwinding(libunwind_exception,context));
 

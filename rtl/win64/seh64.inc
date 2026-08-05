@@ -313,6 +313,16 @@ type
     RvaHandler: DWord;
   end;
 
+  PSEHFinallyContext=^TSEHFinallyContext;
+  TSEHFinallyContext=record
+    Previous: PSEHFinallyContext;
+    ExceptionObject: TObject;
+    Frames: PPointer;
+  end;
+
+threadvar
+  ActiveSEHFinallyContext: PSEHFinallyContext;
+
 
 function CaptureBacktrace(skipframes,count:sizeint;frames:PCodePointer):sizeint;
 begin
@@ -565,7 +575,21 @@ var
   scopeIdx: DWord;
   TargetAddr: Pointer;
   obj:TObject;
+  FinallyContext: TSEHFinallyContext;
 begin
+  if ((rec.ExceptionFlags and EXCEPTION_COLLIDED_UNWIND)<>0) and
+     Assigned(ActiveSEHFinallyContext) then
+  begin
+    obj:=ActiveSEHFinallyContext^.ExceptionObject;
+    if Assigned(ActiveSEHFinallyContext^.Frames) and
+       (ActiveSEHFinallyContext^.Frames<>Pointer(rec.ExceptionInformation[3])) then
+      FreeMem(ActiveSEHFinallyContext^.Frames);
+    ActiveSEHFinallyContext^.ExceptionObject:=nil;
+    ActiveSEHFinallyContext^.Frames:=nil;
+    ActiveSEHFinallyContext:=ActiveSEHFinallyContext^.Previous;
+    if Assigned(obj) and (obj<>TObject(rec.ExceptionInformation[1])) then
+      obj.Free;
+  end;
 {$ifdef DEBUG_SEH}
   if IsConsole then
   begin
@@ -653,7 +677,12 @@ begin
         if IsConsole then
           writeln(stderr,'calling handler @',hexstr(dispatch.imagebase+scope^.RvaHandler,16));
 {$endif DEBUG_SEH}
+        FinallyContext.Previous:=ActiveSEHFinallyContext;
+        FinallyContext.ExceptionObject:=TObject(rec.ExceptionInformation[1]);
+        FinallyContext.Frames:=rec.ExceptionInformation[3];
+        ActiveSEHFinallyContext:=@FinallyContext;
         TUnwindProc(dispatch.ImageBase+scope^.RvaHandler)(ContextGetFP(context));
+        ActiveSEHFinallyContext:=FinallyContext.Previous;
       end;
       Inc(ScopeIdx);
     end;

@@ -34,8 +34,8 @@ Type
 {$else CPU16}
     frametype : Longint;
 {$endif CPU16}
+    objectstack : Pointer;
   end;
 
 Const
   CatchAllExceptions = PtrInt(-1);
-

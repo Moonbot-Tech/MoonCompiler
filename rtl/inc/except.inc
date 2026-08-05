@@ -79,6 +79,7 @@ begin
   _ExceptAddrStack^:=PExceptAddr(_newaddr);
   PExceptAddr(_newaddr)^.Buf:=PJmp_Buf(_buf);
   PExceptAddr(_newaddr)^.FrameType:=ft;
+  PExceptAddr(_newaddr)^.ObjectStack:=ExceptObjectStack;
   result:=PJmp_Buf(_buf);
 end;
 
@@ -158,6 +159,31 @@ begin
     Halt(errorcode);
 end;
 
+
+procedure DropReplacedExceptObjects(Base: Pointer);
+var
+  Previous: PExceptObject;
+  PreviousObject: TObject;
+begin
+  while assigned(ExceptObjectStack) and
+        assigned(ExceptObjectStack^.Next) and
+        (Pointer(ExceptObjectStack^.Next)<>Base) do
+    begin
+      Previous:=ExceptObjectStack^.Next;
+      ExceptObjectStack^.Next:=Previous^.Next;
+      if (Previous^.RefCount=0) and
+         (Previous^.FObject<>ExceptObjectStack^.FObject) then
+        PreviousObject:=Previous^.FObject
+      else
+        PreviousObject:=nil;
+      if assigned(Previous^.Frames) then
+        FreeMem(Previous^.Frames);
+      Dispose(Previous);
+      PreviousObject.Free;
+    end;
+end;
+
+
 {$ifndef FPC_SYSTEM_HAS_RAISEEXCEPTION}
 procedure fpc_RaiseException (Obj : TObject; AnAddr : CodePointer; AFrame : Pointer);[Public, Alias : 'FPC_RAISEEXCEPTION']; compilerproc;
 var
@@ -177,6 +203,7 @@ begin
   _ExceptAddrstack:=ExceptAddrStack;
   If _ExceptAddrStack=Nil then
     DoUnhandledException;
+  DropReplacedExceptObjects(_ExceptAddrStack^.ObjectStack);
   _ExceptObjectStack:=ExceptObjectStack;
   if (RaiseProc <> nil) and (_ExceptObjectStack <> nil) then
     with _ExceptObjectStack^ do
@@ -283,6 +310,7 @@ begin
   _ExceptAddrStack:=ExceptAddrStack;
   If _ExceptAddrStack=Nil then
     DoUnHandledException;
+  DropReplacedExceptObjects(_ExceptAddrStack^.ObjectStack);
   ExceptObjectStack^.refcount := 0;
   longjmp(_ExceptAddrStack^.Buf^,FPC_Exception);
 end;
@@ -365,4 +393,3 @@ begin
   exc.Free;
 end;
 {$endif FPC_SYSTEM_HAS_SAFECALLHANDLER}
-
