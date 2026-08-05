@@ -921,6 +921,24 @@ const
         end;
 
 
+      function constantarithmeticoverflow(var value: Tconstexprint; out wrapped: boolean): boolean;
+        begin
+          wrapped:=value.overflow or
+            (not(m_int128 in current_settings.modeswitches) and not value.representable64);
+          result:=wrapped;
+          if wrapped and
+             not(cs_check_overflow in localswitches) and
+             is_integer(resultdef) then
+            begin
+              { Runtime integer arithmetic wraps when overflow checking is off;
+                keep the low bits when constant propagation performs the same
+                operation at compile time. }
+              value.overflow:=false;
+              result:=false;
+            end;
+        end;
+
+
       var
         hp: taddnode;
         t,vl,lefttarget,righttarget: tnode;
@@ -935,7 +953,7 @@ const
         s1,s2,stmp   : pchar;
         l1,l2   : longint;
         resultset : Tconstset;
-        res,
+        res,wrapped,
         b       : boolean;
         cr, cl  : Tconstexprint;
         v2p, c2p, c1p, v1p: pnode;
@@ -1014,8 +1032,7 @@ const
                addn :
                  begin
                    v:=lv+rv;
-                   if v.overflow or
-                      (not(m_int128 in current_settings.modeswitches) and not v.representable64) then
+                    if constantarithmeticoverflow(v,wrapped) then
                      begin
                        Message(parser_e_arithmetic_operation_overflow);
                        { Recover }
@@ -1023,17 +1040,16 @@ const
                      end
                    else if is_constpointernode(left) or is_constpointernode(right) then
                      t := cpointerconstnode.create(qword(v),resultdef)
-                   else
-                     if is_integer(ld) then
-                       t := create_simplified_ord_const(v,resultdef,forinline,cs_check_overflow in localswitches)
+                    else
+                      if is_integer(ld) then
+                       t := create_simplified_ord_const(v,resultdef,forinline or wrapped,cs_check_overflow in localswitches)
                      else
                        t := cordconstnode.create(v,resultdef,(ld.typ<>enumdef));
                  end;
                subn :
                  begin
                    v:=lv-rv;
-                   if v.overflow or
-                      (not(m_int128 in current_settings.modeswitches) and not v.representable64) then
+                    if constantarithmeticoverflow(v,wrapped) then
                      begin
                        Message(parser_e_arithmetic_operation_overflow);
                        { Recover }
@@ -1051,24 +1067,23 @@ const
                        end
                      else
                        t:=cpointerconstnode.create(qword(v),resultdef)
-                   else
-                     if is_integer(ld) then
-                       t:=create_simplified_ord_const(v,resultdef,forinline,cs_check_overflow in localswitches)
+                    else
+                      if is_integer(ld) then
+                       t:=create_simplified_ord_const(v,resultdef,forinline or wrapped,cs_check_overflow in localswitches)
                      else
                        t:=cordconstnode.create(v,resultdef,(ld.typ<>enumdef));
                  end;
                muln :
                  begin
                    v:=lv*rv;
-                   if v.overflow or
-                      (not(m_int128 in current_settings.modeswitches) and not v.representable64) then
+                    if constantarithmeticoverflow(v,wrapped) then
                      begin
                        message(parser_e_arithmetic_operation_overflow);
                        { Recover }
                        t:=genintconstnode(0)
                      end
                    else
-                     t := create_simplified_ord_const(v,resultdef,forinline,cs_check_overflow in localswitches)
+                     t := create_simplified_ord_const(v,resultdef,forinline or wrapped,cs_check_overflow in localswitches)
                  end;
                xorn :
                  if is_integer(ld) then
