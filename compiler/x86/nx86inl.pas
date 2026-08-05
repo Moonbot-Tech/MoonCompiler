@@ -84,6 +84,7 @@ interface
           procedure second_minmax;override;
        private
           procedure load_fpu_location(lnode: tnode);
+          procedure finish_fpu_result;
        end;
 
 implementation
@@ -217,7 +218,10 @@ implementation
 {$endif i8086}
         if (tfloatdef(pbestrealtype^).floattype=s80real) then
           begin
-            expectloc:=LOC_FPUREGISTER;
+            if use_vectorfpu(resultdef) then
+              expectloc:=LOC_MMREGISTER
+            else
+              expectloc:=LOC_FPUREGISTER;
             first_arctan_real := nil;
           end
         else
@@ -255,7 +259,10 @@ implementation
       begin
         if (tfloatdef(pbestrealtype^).floattype=s80real) then
           begin
-            expectloc:=LOC_FPUREGISTER;
+            if use_vectorfpu(resultdef) then
+              expectloc:=LOC_MMREGISTER
+            else
+              expectloc:=LOC_FPUREGISTER;
             first_ln_real := nil;
           end
         else
@@ -274,7 +281,10 @@ implementation
 {$endif i8086}
         if (tfloatdef(pbestrealtype^).floattype=s80real) then
           begin
-            expectloc:=LOC_FPUREGISTER;
+            if use_vectorfpu(resultdef) then
+              expectloc:=LOC_MMREGISTER
+            else
+              expectloc:=LOC_FPUREGISTER;
             result:=nil;
           end
         else
@@ -293,7 +303,10 @@ implementation
 {$endif i8086}
         if (tfloatdef(pbestrealtype^).floattype=s80real) then
           begin
-            expectloc:=LOC_FPUREGISTER;
+            if use_vectorfpu(resultdef) then
+              expectloc:=LOC_MMREGISTER
+            else
+              expectloc:=LOC_FPUREGISTER;
             result:=nil;
           end
         else
@@ -372,7 +385,6 @@ implementation
          if (current_settings.fputype>=fpu_sse41) and
            ((is_double(resultdef)) or (is_single(resultdef))) then
            begin
-             maybe_remove_round_trunc_typeconv;
              expectloc:=LOC_MMREGISTER;
              Result:=nil;
            end
@@ -767,11 +779,24 @@ implementation
        end;
 
 
+     procedure tx86inlinenode.finish_fpu_result;
+       var
+         hdef: tdef;
+       begin
+         if use_vectorfpu(resultdef) then
+           begin
+             hdef:=resultdef;
+             hlcg.location_force_mmregscalar(current_asmdata.CurrAsmList,location,hdef,false);
+           end;
+       end;
+
+
      procedure tx86inlinenode.second_arctan_real;
        begin
          load_fpu_location(left);
          emit_none(A_FLD1,S_NO);
          emit_none(A_FPATAN,S_NO);
+         finish_fpu_result;
        end;
 
 
@@ -1027,6 +1052,7 @@ implementation
          emit_none(A_FLDLN2,S_NO);
          emit_none(A_FXCH,S_NO);
          emit_none(A_FYL2X,S_NO);
+         finish_fpu_result;
        end;
 
      procedure tx86inlinenode.second_cos_real;
@@ -1041,6 +1067,7 @@ implementation
 {$endif i8086}
          load_fpu_location(left);
          emit_none(A_FCOS,S_NO);
+         finish_fpu_result;
        end;
 
      procedure tx86inlinenode.second_sin_real;
@@ -1054,7 +1081,8 @@ implementation
          end;
 {$endif i8086}
          load_fpu_location(left);
-         emit_none(A_FSIN,S_NO)
+         emit_none(A_FSIN,S_NO);
+         finish_fpu_result;
        end;
 
      procedure tx86inlinenode.second_prefetch;

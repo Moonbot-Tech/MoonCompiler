@@ -3291,9 +3291,12 @@ implementation
                 the operand is re-widened to that type below }
               (m_delphi in current_settings.modeswitches)) and
              (p.nodetype=typeconvn) and
-             (ttypeconvnode(p).left.resultdef.typ=floatdef) and
              (p.flags*[nf_explicit,nf_internal]=[]) and
-             (tfloatdef(ttypeconvnode(p).left.resultdef).floattype in (floattypes*[s32real,s64real,s80real,sc80real,s128real])) then
+             (((ttypeconvnode(p).left.resultdef.typ=floatdef) and
+               (tfloatdef(ttypeconvnode(p).left.resultdef).floattype in (floattypes*[s32real,s64real,s80real,sc80real,s128real]))) or
+              (widenresult and
+               (m_delphi in current_settings.modeswitches) and
+               (ttypeconvnode(p).left.resultdef.typ=orddef))) then
             begin
               hnode:=ttypeconvnode(p).left;
               ttypeconvnode(p).left:=nil;
@@ -3312,10 +3315,12 @@ implementation
                 widenresult is false where the intrinsic returns an integer
                 and the operand width cannot be observed. }
               if widenresult and
-                 (m_delphi in current_settings.modeswitches) and
-                 (result.typ=floatdef) then
+                 (m_delphi in current_settings.modeswitches) then
                 begin
-                  hdef:=widerrealdef(result,excesspromotiondef);
+                  if result.typ=floatdef then
+                    hdef:=widerrealdef(result,excesspromotiondef)
+                  else
+                    hdef:=excesspromotiondef;
                   if hdef<>result then
                     begin
                       inserttypeconv(p,hdef);
@@ -3360,6 +3365,21 @@ implementation
               if not(p.nodetype in [ordconstn,realconstn]) then
                 inserttypeconv(P,pbestrealtype^);
               result:=p.resultdef
+            end;
+        end;
+
+
+      procedure setdelphirealintrinsicresult(var p: tnode; var def: tdef);
+        begin
+          if (m_delphi in current_settings.modeswitches) and
+             ((def.typ=orddef) or
+              ((p.nodetype=realconstn) and (def=pbestrealtype^)) or
+              ((def.typ=floatdef) and
+               (tfloatdef(def).floattype in [s32real,s64real,s80real]))) then
+            begin
+              if def<>excesspromotiondef then
+                inserttypeconv(p,excesspromotiondef);
+              def:=excesspromotiondef;
             end;
         end;
 
@@ -4132,22 +4152,9 @@ implementation
                   else
                     temp_pnode := @left;
                   set_varstate(temp_pnode^,vs_read,[vsf_must_be_valid]);
-                  { converting an int64 to double on platforms without }
-                  { extended can cause precision loss                  }
-                  { KNOWN DEVIATION from the Delphi model: these keep the
-                    best real type because their x86 code generators are
-                    built around it - declaring the computation type here
-                    raises internal error 200402222 in the float compare.
-                    The 80-bit type is not contained: getbestreal keeps it
-                    for the enclosing expression, so Exp(S)*S2 computes in
-                    x87 where Delphi overflows to +Inf (measured: 9.01e272
-                    against +Inf for S=716, S2=1e-38).  Closing this needs
-                    the x86 first_*_real lowerings to accept the narrower
-                    result type; until then the deviation is recorded
-                    rather than hidden. }
-                  if not(temp_pnode^.nodetype in [ordconstn,realconstn]) then
-                    inserttypeconv(temp_pnode^,pbestrealtype^);
-                  resultdef:=pbestrealtype^;
+                  resultdef:=removefloatupcasts(temp_pnode^,
+                    [s32real,s64real,s80real,sc80real,s128real],true);
+                  setdelphirealintrinsicresult(temp_pnode^,resultdef);
                 end;
 
               in_trunc_real,
@@ -4213,6 +4220,8 @@ implementation
                     resultdef:=removefloatupcasts(temp_pnode^,[s32real,s64real,s80real,sc80real,s128real,s64currency],true)
                   else
                     resultdef:=removefloatupcasts(temp_pnode^,[s32real,s64real,s80real,sc80real,s128real],true);
+                  if inlinenumber=in_sqrt_real then
+                    setdelphirealintrinsicresult(temp_pnode^,resultdef);
                 end;
 
 {$ifdef SUPPORT_MMX}
@@ -4949,6 +4958,7 @@ implementation
 
      function tinlinenode.first_arctan_real : tnode;
       var
+        callnode: tcallnode;
         temp_pnode: pnode;
       begin
         { create the call to the helper }
@@ -4957,8 +4967,9 @@ implementation
           temp_pnode := @tcallparanode(left).left
         else
           temp_pnode := @left;
-        result := ccallnode.createintern('fpc_arctan_real',
-                ccallparanode.create(temp_pnode^,nil));
+        callnode := ccallnode.createintern('fpc_arctan_real',
+          ccallparanode.create(temp_pnode^,nil));
+        result := ctypeconvnode.create(callnode,resultdef);
         temp_pnode^ := nil;
       end;
 
@@ -5054,6 +5065,7 @@ implementation
 
      function tinlinenode.first_ln_real : tnode;
       var
+        callnode: tcallnode;
         temp_pnode: pnode;
       begin
         { create the call to the helper }
@@ -5062,14 +5074,16 @@ implementation
           temp_pnode := @tcallparanode(left).left
         else
           temp_pnode := @left;
-        result := ccallnode.createintern('fpc_ln_real',
-                ccallparanode.create(temp_pnode^,nil));
-        include(tcallnode(result).callnodeflags,cnf_check_fpu_exceptions);
+        callnode := ccallnode.createintern('fpc_ln_real',
+          ccallparanode.create(temp_pnode^,nil));
+        result := ctypeconvnode.create(callnode,resultdef);
+        include(callnode.callnodeflags,cnf_check_fpu_exceptions);
         temp_pnode^ := nil;
       end;
 
      function tinlinenode.first_cos_real : tnode;
       var
+        callnode: tcallnode;
         temp_pnode: pnode;
       begin
         { create the call to the helper }
@@ -5078,14 +5092,16 @@ implementation
           temp_pnode := @tcallparanode(left).left
         else
           temp_pnode := @left;
-        result := ccallnode.createintern('fpc_cos_real',
-                ccallparanode.create(temp_pnode^,nil));
-        include(tcallnode(result).callnodeflags,cnf_check_fpu_exceptions);
+        callnode := ccallnode.createintern('fpc_cos_real',
+          ccallparanode.create(temp_pnode^,nil));
+        result := ctypeconvnode.create(callnode,resultdef);
+        include(callnode.callnodeflags,cnf_check_fpu_exceptions);
         temp_pnode^ := nil;
       end;
 
      function tinlinenode.first_sin_real : tnode;
       var
+        callnode: tcallnode;
         temp_pnode: pnode;
       begin
         { create the call to the helper }
@@ -5094,14 +5110,16 @@ implementation
           temp_pnode := @tcallparanode(left).left
         else
           temp_pnode := @left;
-        result := ccallnode.createintern('fpc_sin_real',
-                ccallparanode.create(temp_pnode^,nil));
-        include(tcallnode(result).callnodeflags,cnf_check_fpu_exceptions);
+        callnode := ccallnode.createintern('fpc_sin_real',
+          ccallparanode.create(temp_pnode^,nil));
+        result := ctypeconvnode.create(callnode,resultdef);
+        include(callnode.callnodeflags,cnf_check_fpu_exceptions);
         temp_pnode^ := nil;
       end;
 
      function tinlinenode.first_exp_real : tnode;
       var
+        callnode: tcallnode;
         temp_pnode: pnode;
       begin
         { create the call to the helper }
@@ -5110,13 +5128,15 @@ implementation
           temp_pnode := @tcallparanode(left).left
         else
           temp_pnode := @left;
-        result := ccallnode.createintern('fpc_exp_real',ccallparanode.create(temp_pnode^,nil));
-        include(tcallnode(result).callnodeflags,cnf_check_fpu_exceptions);
+        callnode := ccallnode.createintern('fpc_exp_real',ccallparanode.create(temp_pnode^,nil));
+        result := ctypeconvnode.create(callnode,resultdef);
+        include(callnode.callnodeflags,cnf_check_fpu_exceptions);
         temp_pnode^ := nil;
       end;
 
      function tinlinenode.first_int_real : tnode;
       var
+        callnode: tcallnode;
         temp_pnode: pnode;
       begin
         { create the call to the helper }
@@ -5125,13 +5145,15 @@ implementation
           temp_pnode := @tcallparanode(left).left
         else
           temp_pnode := @left;
-        result := ccallnode.createintern('fpc_int_real',ccallparanode.create(temp_pnode^,nil));
-        include(tcallnode(result).callnodeflags,cnf_check_fpu_exceptions);
+        callnode := ccallnode.createintern('fpc_int_real',ccallparanode.create(temp_pnode^,nil));
+        result := ctypeconvnode.create(callnode,resultdef);
+        include(callnode.callnodeflags,cnf_check_fpu_exceptions);
         temp_pnode^ := nil;
       end;
 
      function tinlinenode.first_frac_real : tnode;
       var
+        callnode: tcallnode;
         temp_pnode: pnode;
       begin
         { create the call to the helper }
@@ -5140,8 +5162,9 @@ implementation
           temp_pnode := @tcallparanode(left).left
         else
           temp_pnode := @left;
-        result := ccallnode.createintern('fpc_frac_real',ccallparanode.create(temp_pnode^,nil));
-        include(tcallnode(result).callnodeflags,cnf_check_fpu_exceptions);
+        callnode := ccallnode.createintern('fpc_frac_real',ccallparanode.create(temp_pnode^,nil));
+        result := ctypeconvnode.create(callnode,resultdef);
+        include(callnode.callnodeflags,cnf_check_fpu_exceptions);
         temp_pnode^ := nil;
       end;
 
