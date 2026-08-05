@@ -10916,7 +10916,8 @@ unit aoptx86;
                           { Found a constant! }
                           taicpu(p).loadconst(0, taicpu(hp1).oper[0]^.val);
 
-                          if not RegUsedAfterInstruction(taicpu(hp1).oper[1]^.reg, p, UsedRegs) then
+                          if not RegUsedBetween(taicpu(hp1).oper[1]^.reg, hp1, p) and
+                            not RegUsedAfterInstruction(taicpu(hp1).oper[1]^.reg, p, UsedRegs) then
                             { The source register is no longer in use }
                             RemoveInstruction(hp1);
 
