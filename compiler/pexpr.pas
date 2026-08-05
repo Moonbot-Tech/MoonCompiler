@@ -5993,7 +5993,8 @@ implementation
                                      else
                                        begin
                                          hdef:=tdef(srsym.Owner.defowner);
-                                         useself:=true;
+                                         { Delphi binds inherited helper calls statically. }
+                                         useself:=not (m_delphi in current_settings.modeswitches);
                                        end;
                                    end
                                  else
