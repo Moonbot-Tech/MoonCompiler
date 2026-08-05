@@ -6089,9 +6089,15 @@ implementation
 
              _INTCONST :
                begin
-                 {Try first wether the value fits in an int64.}
+                 { Try first whether the value fits in an Int64. Val treats
+                   radix literals with bit 63 set as negative Int64 values,
+                   while Delphi classifies those unsigned bit patterns as
+                   UInt64. }
                  val(current_scanner.pattern,ic,code);
-                 if code=0 then
+                 if (code=0) and
+                    not ((m_delphi in current_settings.modeswitches) and
+                         (ic<0) and
+                         (current_scanner.pattern[1] in ['$','%'])) then
                    begin
                       consume(_INTCONST);
                       int_to_type(ic,hdef);
