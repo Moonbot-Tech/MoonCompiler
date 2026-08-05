@@ -2555,22 +2555,30 @@ implementation
                 begin
                   if left.nodetype=ordconstn then
                     begin
-                      case inlinenumber of
-                        in_lo_word :
-                          result:=cordconstnode.create(tordconstnode(left).value and $ff,u8inttype,true);
-                        in_hi_word :
-                          result:=cordconstnode.create(tordconstnode(left).value shr 8,u8inttype,true);
-                        in_lo_long :
-                          result:=cordconstnode.create(tordconstnode(left).value and $ffff,u16inttype,true);
-                        in_hi_long :
-                          result:=cordconstnode.create(tordconstnode(left).value shr 16,u16inttype,true);
-                        in_lo_qword :
-                          result:=cordconstnode.create(tordconstnode(left).value and $ffffffff,u32inttype,true);
-                        in_hi_qword :
-                          result:=cordconstnode.create(tordconstnode(left).value shr 32,u32inttype,true);
-                        else
-                          internalerror(2019050514);
-                      end;
+                      if m_delphi in current_settings.modeswitches then
+                        begin
+                          if inlinenumber in [in_lo_word,in_lo_long,in_lo_qword] then
+                            result:=cordconstnode.create(tordconstnode(left).value and $ff,u8inttype,true)
+                          else
+                            result:=cordconstnode.create((tordconstnode(left).value shr 8) and $ff,u8inttype,true);
+                        end
+                      else
+                        case inlinenumber of
+                          in_lo_word :
+                            result:=cordconstnode.create(tordconstnode(left).value and $ff,u8inttype,true);
+                          in_hi_word :
+                            result:=cordconstnode.create(tordconstnode(left).value shr 8,u8inttype,true);
+                          in_lo_long :
+                            result:=cordconstnode.create(tordconstnode(left).value and $ffff,u16inttype,true);
+                          in_hi_long :
+                            result:=cordconstnode.create(tordconstnode(left).value shr 16,u16inttype,true);
+                          in_lo_qword :
+                            result:=cordconstnode.create(tordconstnode(left).value and $ffffffff,u32inttype,true);
+                          in_hi_qword :
+                            result:=cordconstnode.create(tordconstnode(left).value shr 32,u32inttype,true);
+                          else
+                            internalerror(2019050514);
+                        end;
                     end;
                 end;
               in_ord_x:
@@ -3497,27 +3505,29 @@ implementation
               in_lo_word,
               in_hi_word :
                 begin
-                  { give warning for incompatibility with tp and delphi }
+                  { give warning for incompatibility with tp }
                   if (inlinenumber in [in_lo_long,in_hi_long,in_lo_qword,in_hi_qword]) and
-                     ((m_tp7 in current_settings.modeswitches) or
-                      (m_delphi in current_settings.modeswitches)) then
+                     (m_tp7 in current_settings.modeswitches) then
                     CGMessage(type_w_maybe_wrong_hi_lo);
                   set_varstate(left,vs_read,[vsf_must_be_valid]);
                   if not is_integer(left.resultdef) then
                     CGMessage1(type_e_integer_expr_expected,left.resultdef.typename);
-                  case inlinenumber of
-                    in_lo_word,
-                    in_hi_word :
-                      resultdef:=u8inttype;
-                    in_lo_long,
-                    in_hi_long :
-                      resultdef:=u16inttype;
-                    in_lo_qword,
-                    in_hi_qword :
-                      resultdef:=u32inttype;
-                    else
-                      ;
-                  end;
+                  if m_delphi in current_settings.modeswitches then
+                    resultdef:=u8inttype
+                  else
+                    case inlinenumber of
+                      in_lo_word,
+                      in_hi_word :
+                        resultdef:=u8inttype;
+                      in_lo_long,
+                      in_hi_long :
+                        resultdef:=u16inttype;
+                      in_lo_qword,
+                      in_hi_qword :
+                        resultdef:=u32inttype;
+                      else
+                        ;
+                    end;
                 end;
 
               in_sizeof_x:
@@ -4519,16 +4529,20 @@ implementation
           in_hi_word:
             begin
               shiftconst := 0;
-              case inlinenumber of
-                in_hi_qword:
-                  shiftconst := 32;
-                in_hi_long:
-                  shiftconst := 16;
-                in_hi_word:
-                  shiftconst := 8;
-                else
-                  ;
-              end;
+              if (m_delphi in current_settings.modeswitches) and
+                 (inlinenumber in [in_hi_word,in_hi_long,in_hi_qword]) then
+                shiftconst := 8
+              else
+                case inlinenumber of
+                  in_hi_qword:
+                    shiftconst := 32;
+                  in_hi_long:
+                    shiftconst := 16;
+                  in_hi_word:
+                    shiftconst := 8;
+                  else
+                    ;
+                end;
               if shiftconst <> 0 then
                 result := ctypeconvnode.create_internal(cshlshrnode.create(shrn,left,
                     cordconstnode.create(shiftconst,sinttype,false)),resultdef)
