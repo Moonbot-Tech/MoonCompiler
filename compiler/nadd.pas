@@ -2866,9 +2866,10 @@ const
                     begin
                       { in case of xor or 'and' with cbool: convert both to Pascal bool and then
                         perform the xor/and to prevent issues with "longbool(1) and/xor
-                        longbool(2)" }
+                        longbool(2)". Delphi also normalizes 'or'. }
                       if (is_cbool(ld) or is_cbool(rd)) and
-                         (nodetype in [xorn,andn]) then
+                         ((nodetype in [xorn,andn]) or
+                          ((nodetype=orn) and (m_delphi in current_settings.modeswitches))) then
                         begin
                           resultdef:=nil;
                           if is_cbool(ld) then
