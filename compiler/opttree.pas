@@ -139,6 +139,10 @@ unit opttree;
             begin
               if assigned(tblocknode(n).left) and (tblocknode(n).left.nodetype<>statementn) then
                 internalerror(2013120502);
+              { Keep nested blocks inside the lifetime of any enclosing
+                temporaries by normalizing the inner blocks first. }
+              if assigned(tblocknode(n).left) then
+                foreachnodestatic(tblocknode(n).left,@searchstatements,normalize_success);
 
               { blocks used as statements (void result) cannot be extracted -
                 replacing the statement slot with a value would produce a
@@ -149,8 +153,6 @@ unit opttree;
               if not assigned(tblocknode(n).resultdef) or
                  is_void(tblocknode(n).resultdef) then
                 begin
-                  if assigned(tblocknode(n).left) then
-                    foreachnodestatic(tblocknode(n).left,@searchstatements,normalize_success);
                   { tell the outer foreachnodestatic not to descend again -
                     we've already walked the body with searchstatements }
                   result:=fen_norecurse_true;
