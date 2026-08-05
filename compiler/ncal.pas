@@ -171,6 +171,10 @@ interface
           { If an inline node is transmuted into a call node, this is the index of
             the original internal routine }
           intrinsiccode : TInlineNumber;
+          { destination type retained when Str is transmuted into a
+            compilerproc whose formal output parameter erases it }
+          strresultdef : tdef;
+          strresultdefderef : tderef;
 
           { separately specified resultdef for some compilerprocs (e.g.
             you can't have a function with an "array of char" resultdef
@@ -1618,6 +1622,7 @@ implementation
          paralength:=-1;
          varargsparas:=nil;
          intrinsiccode:=Default(TInlineNumber);
+         strresultdef:=nil;
          if assigned(current_structdef) and
             assigned(mp) and
             assigned(current_procinfo) then
@@ -1791,6 +1796,8 @@ implementation
         ppufile.getderef(procdefinitionderef);
         ppufile.getset(tppuset4(callnodeflags));
         intrinsiccode:=TInlineNumber(ppufile.getword);
+        if intrinsiccode=in_str_x_string then
+          ppufile.getderef(strresultdefderef);
       end;
 
 
@@ -1807,6 +1814,8 @@ implementation
         ppufile.putderef(procdefinitionderef);
         ppufile.putset(tppuset4(callnodeflags));
         ppufile.putword(word(intrinsiccode));
+        if intrinsiccode=in_str_x_string then
+          ppufile.putderef(strresultdefderef);
       end;
 
 
@@ -1815,6 +1824,8 @@ implementation
         inherited buildderefimpl;
         symtableprocentryderef.build(symtableprocentry);
         procdefinitionderef.build(procdefinition);
+        if intrinsiccode=in_str_x_string then
+          strresultdefderef.build(strresultdef);
         if assigned(methodpointer) then
           methodpointer.buildderefimpl;
         if assigned(call_self_node) then
@@ -1840,6 +1851,8 @@ implementation
         if assigned(symtableprocentry) then
           symtableproc:=symtableprocentry.owner;
         procdefinition:=tabstractprocdef(procdefinitionderef.resolve);
+        if intrinsiccode=in_str_x_string then
+          strresultdef:=tdef(strresultdefderef.resolve);
         if assigned(methodpointer) then
           methodpointer.derefimpl;
         if assigned(call_self_node) then
@@ -1899,6 +1912,7 @@ implementation
         n.callnodeflags := callnodeflags;
         n.pushedparasize := pushedparasize;
         n.intrinsiccode := intrinsiccode;
+        n.strresultdef := strresultdef;
         if assigned(callinitblock) then
           n.callinitblock:=tblocknode(callinitblock.dogetcopy)
         else
@@ -1981,6 +1995,11 @@ implementation
           inherited docompare(p) and
           (symtableprocentry = tcallnode(p).symtableprocentry) and
           (procdefinition = tcallnode(p).procdefinition) and
+          (((not assigned(strresultdef)) and
+            (not assigned(tcallnode(p).strresultdef))) or
+           (assigned(strresultdef) and
+            assigned(tcallnode(p).strresultdef) and
+            equal_defs(strresultdef,tcallnode(p).strresultdef))) and
           { this implicitly also compares the vmt_entry node, as it is
             deterministically based on the methodpointer }
           (methodpointer.isequal(tcallnode(p).methodpointer)) and
@@ -2898,6 +2917,7 @@ implementation
         qw: QWord;
         paracount: Integer;
         val128: Boolean;
+        foldedstringdef: tstringdef;
       begin
         result := nil;
         case intrinsiccode of
@@ -2980,7 +3000,16 @@ implementation
                                             Exit;
                                         end;
 
-                                      if Length(StringLiteral) = 1 then
+                                      if is_ansistring(outnode.resultdef) then
+                                        begin
+                                          { The output node has already been converted to the
+                                            RawByteString helper formal. }
+                                          foldedstringdef:=tstringdef(strresultdef);
+                                          if foldedstringdef.encoding=globals.CP_NONE then
+                                            foldedstringdef:=tstringdef(cansistringtype);
+                                          constnode:=cstringconstnode.createpchar(pchar(@StringLiteral[1]),Length(StringLiteral),foldedstringdef);
+                                        end
+                                      else if Length(StringLiteral) = 1 then
                                         constnode := cordconstnode.create(Ord(StringLiteral[1]), cchartype, False)
                                       else
                                         constnode := cstringconstnode.createstr(StringLiteral);
@@ -6132,4 +6161,3 @@ implementation
       end;
 
 end.
-

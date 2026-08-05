@@ -480,6 +480,8 @@ implementation
         result.free;
         { create the call node, }
         result := ccallnode.createfromintrinsic(intrinsiccode,procname,newparas);
+        if intrinsiccode=in_str_x_string then
+          tcallnode(result).strresultdef:=dest.resultdef;
       end;
 
 
@@ -6598,4 +6600,3 @@ implementation
        end;
 
 end.
-
