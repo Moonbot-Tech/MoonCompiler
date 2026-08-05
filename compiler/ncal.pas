@@ -5636,6 +5636,11 @@ implementation
       begin
         result := fen_false;
         n.fileinfo := pfileposinfo(arg)^;
+        if n.nodetype=calln then
+          begin
+            foreachnode(pm_preprocess,tcallnode(n).call_self_node,@self.replaceparaload,arg);
+            foreachnode(pm_preprocess,tcallnode(n).call_vmt_node,@self.replaceparaload,arg);
+          end;
         if (n.nodetype = loadn) then
           begin
             case tloadnode(n).symtableentry.typ of
