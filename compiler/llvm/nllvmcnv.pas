@@ -296,6 +296,7 @@ procedure tllvmtypeconvnode.second_nothing;
         if not is_void(left.resultdef) and
            not(nf_absolute in flags) and
            (left.resultdef.typ<>formaldef) and
+           not(tcnf_formal_storage_view in convnodeflags) and
            (resultdef.typ<>formaldef) and
            { can't get/check the size of open arrays, and they are allowed to
              change sizesduring conversions }

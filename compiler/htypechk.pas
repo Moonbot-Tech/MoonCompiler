@@ -1832,6 +1832,8 @@ implementation
                    - typecast from pointer to array }
                  fromdef:=ttypeconvnode(hp).left.resultdef;
                  todef:=hp.resultdef;
+                 if fromdef.typ=formaldef then
+                   include(ttypeconvnode(hp).convnodeflags,tcnf_formal_storage_view);
                  { typeconversions on the assignment side must keep
                    left.location the same }
                  if not((target_info.system in systems_jvm) and
@@ -1857,6 +1859,7 @@ implementation
                         ((nf_explicit in hp.flags) and
                          ttypeconvnode(hp).target_specific_explicit_typeconv) or
                         (fromdef.typ=formaldef) or
+                        (tcnf_formal_storage_view in ttypeconvnode(hp).convnodeflags) or
                         is_void(fromdef) or
                         is_open_array(fromdef) or
                         is_open_array(todef) or

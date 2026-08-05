@@ -43,7 +43,11 @@ interface
             procedure must be far). }
           tcnf_proc_2_procvar_2_voidpointer,
           { proc_2_procvar, generated internally by Ofs() }
-          tcnf_proc_2_procvar_get_offset_only
+          tcnf_proc_2_procvar_get_offset_only,
+          { assignment-side storage view originating from an untyped var/out
+            parameter; it remains valid after inline substitution gives the
+            underlying storage a concrete type }
+          tcnf_formal_storage_view
        );
        ttypeconvnodeflags = set of ttypeconvnodeflag;
 
@@ -3243,6 +3247,7 @@ implementation
                          { structured types                         }
                          if not(
                                 (left.resultdef.typ=formaldef) or
+                                (tcnf_formal_storage_view in convnodeflags) or
 {$ifdef jvm}
                                 { enums /are/ class instances on the JVM
                                   platform }
@@ -4803,6 +4808,7 @@ implementation
                 { typecasting from void is always allowed }
                 is_void(left.resultdef) or
                 (left.resultdef.typ=formaldef) or
+                (tcnf_formal_storage_view in convnodeflags) or
                 { int 2 int with same size reuses same location, or for
                   tp7 mode also allow size < original size }
                 (
