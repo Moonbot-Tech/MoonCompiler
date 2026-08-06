@@ -4351,6 +4351,8 @@ EXECPPAS:=@$(PPAS)
 endif
 endif
 .PHONY: fpc_exes
+# ptop is built from the ptop subdirectory, not as a top-level program.
+override TARGET_PROGRAMS:=$(filter-out ptop,$(TARGET_PROGRAMS))
 ifndef CROSSINSTALL
 ifneq ($(TARGET_PROGRAMS),)
 override EXEFILES=$(addsuffix $(EXEEXT),$(TARGET_PROGRAMS))
