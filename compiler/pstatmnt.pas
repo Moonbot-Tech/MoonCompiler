@@ -129,6 +129,64 @@ implementation
           end;
       end;
 
+    { Delphi activates a managed inline variable at its declaration, not at
+      procedure entry.  The compiler defer marker records that Initialize
+      completed before the initializer is evaluated; the surrounding lexical
+      scope later lowers all such markers to one LIFO finally. }
+    procedure add_inline_managed_lifetime(var stat: tstatementnode;
+      vs: tabstractnormalvarsym);
+      var
+        hp: tnode;
+      begin
+        if not(m_delphi in current_settings.modeswitches) or
+           not assigned(vs) or not is_managed_type(vs.vardef) then
+          exit;
+        vs.inline_scope_managed:=true;
+        hp:=cloadnode.create(vs,vs.owner);
+        include(hp.flags,nf_load_procvar);
+        addstatement(stat,cnodeutils.initialize_data_node(hp,false));
+        hp:=cloadnode.create(vs,vs.owner);
+        include(hp.flags,nf_load_procvar);
+        addstatement(stat,cdefernode.create(cnodeutils.finalize_data_node(hp)));
+      end;
+
+    function wrap_inline_managed_lifetimes(body: tnode;
+      syms: TFPObjectList): tnode;
+      var
+        block: tblocknode;
+        stat: tstatementnode;
+        i: longint;
+      begin
+        result:=body;
+        if not assigned(body) or (body.nodetype=errorn) then
+          exit;
+        block:=internalstatements(stat);
+        for i:=0 to syms.count-1 do
+          add_inline_managed_lifetime(stat,tabstractnormalvarsym(syms[i]));
+        if not assigned(tstatementnode(block.left).right) then
+          begin
+            block.free;
+            exit;
+          end;
+        addstatement(stat,body);
+        include(block.blocknodeflags,bnf_defer_transparent);
+        result:=block;
+      end;
+
+    function wrap_inline_managed_lifetime(body: tnode;
+      vs: tabstractnormalvarsym): tnode;
+      var
+        syms: TFPObjectList;
+      begin
+        syms:=TFPObjectList.create(false);
+        try
+          syms.add(vs);
+          result:=wrap_inline_managed_lifetimes(body,syms);
+        finally
+          syms.free;
+        end;
+      end;
+
     function branch_type(olddef, branchdef: tdef): tdef; inline;
       begin
         olddef:=constructor_to_dynarray(olddef);
@@ -1682,6 +1740,7 @@ implementation
               uniq : string;
               orig_hloopvar : tnode;
               forblockst : tblocksymtable;
+              lifetime_syms : TFPObjectList;
             begin
               result := nil;
               consume(_LKLAMMER);
@@ -1747,10 +1806,12 @@ implementation
                 end;
 
               { hidden loop variable holds each collection element }
+              lifetime_syms:=TFPObjectList.create(false);
               str(current_tokenpos.line, uniq);
               itempvs := create_inline_var_sym('$forTup'+uniq, elemdef);
               itempvs.register_sym;
               symtablestack.top.insertsym(itempvs);
+              lifetime_syms.add(itempvs);
               if itempvs.typ = staticvarsym then
                 cnodeutils.insertbssdata(tstaticvarsym(itempvs));
               include(itempvs.varoptions, vo_is_loop_counter);
@@ -1764,6 +1825,7 @@ implementation
                   uservs := create_inline_var_sym(tnames[i], fieldsyms[i].vardef);
                   uservs.register_sym;
                   symtablestack.top.insertsym(uservs);
+                  lifetime_syms.add(uservs);
                   if uservs.typ = staticvarsym then
                     cnodeutils.insertbssdata(tstaticvarsym(uservs));
                   uservs.varstate := vs_initialised;
@@ -1796,17 +1858,22 @@ implementation
 
               result := create_for_in_loop(orig_hloopvar, wrappedbody, collexpr);
               collexpr.free;
+              result:=wrap_inline_managed_lifetimes(result,lifetime_syms);
+              lifetime_syms.free;
 
               { pop block scope and wrap in blocknode }
               if assigned(forblockst) then
                 begin
+                  wrappedbody:=cblocknode.create(cstatementnode.create(result,nil));
+                  wrappedbody.fileinfo:=result.fileinfo;
+                  tblocknode(wrappedbody).blocksymtable:=forblockst;
+                  hbody:=tblocknode(wrappedbody).left;
+                  rewrite_defers_in_block(hbody);
+                  tblocknode(wrappedbody).left:=hbody;
                   symtablestack.pop(forblockst);
                   if not assigned(current_procinfo.procdef.blocklocalsymtables) then
                     current_procinfo.procdef.blocklocalsymtables:=tfpobjectlist.create(true);
                   current_procinfo.procdef.blocklocalsymtables.add(forblockst);
-                  wrappedbody:=cblocknode.create(cstatementnode.create(result,nil));
-                  wrappedbody.fileinfo:=result.fileinfo;
-                  tblocknode(wrappedbody).blocksymtable:=forblockst;
                   result:=wrappedbody;
                 end;
             end;
@@ -2506,13 +2573,17 @@ implementation
                properly. }
              if assigned(forblockst) then
                begin
+                 result:=wrap_inline_managed_lifetime(result,vs);
+                 hloopvar:=cblocknode.create(cstatementnode.create(result,nil));
+                 hloopvar.fileinfo:=result.fileinfo;
+                 tblocknode(hloopvar).blocksymtable:=forblockst;
+                 result:=tblocknode(hloopvar).left;
+                 rewrite_defers_in_block(result);
+                 tblocknode(hloopvar).left:=result;
                  symtablestack.pop(forblockst);
                  if not assigned(current_procinfo.procdef.blocklocalsymtables) then
                    current_procinfo.procdef.blocklocalsymtables:=tfpobjectlist.create(true);
                  current_procinfo.procdef.blocklocalsymtables.add(forblockst);
-                 hloopvar:=cblocknode.create(cstatementnode.create(result,nil));
-                 hloopvar.fileinfo:=result.fileinfo;
-                 tblocknode(hloopvar).blocksymtable:=forblockst;
                  result:=hloopvar;
                end;
            end
@@ -2937,6 +3008,8 @@ implementation
             if lifetime_handled then
               begin
                 newblock := internalstatements(newstatement);
+                if assigned(withblockst) then
+                  add_inline_managed_lifetime(newstatement,lifetime_var);
                 if assigned(lifetime_init) then
                   addstatement(newstatement, cassignmentnode.create(
                     cloadnode.create(lifetime_var, lifetime_var.owner),
@@ -3141,19 +3214,6 @@ implementation
             withsymtablelist.free;
             withsymtablelist := nil;
 
-            { pop the with-var block symtable (if any) and hand it to the
-              procdef so its locals get stack space allocated; the wrapping
-              newblock keeps a reference for debug-info scoping }
-            if assigned(withblockst) then
-              begin
-                symtablestack.pop(withblockst);
-                if not assigned(current_procinfo.procdef.blocklocalsymtables) then
-                  current_procinfo.procdef.blocklocalsymtables := tfpobjectlist.create(true);
-                current_procinfo.procdef.blocklocalsymtables.add(withblockst);
-                if assigned(newblock) then
-                  tblocknode(newblock).blocksymtable := withblockst;
-              end;
-
             { scoped-with -- rewrite any defers the body
               registered (e.g. `with X do defer Foo;` or stray defers in
               a begin..end body that wasn't already a defer-scope) so they
@@ -3190,8 +3250,24 @@ implementation
                  addstatement(newstatement,ctempdeletenode.create(tempnode));
                if assigned(calltempnode) then
                  addstatement(newstatement,ctempdeletenode.create(calltempnode));
+               if assigned(withblockst) then
+                 begin
+                   hp:=tblocknode(newblock).left;
+                   rewrite_defers_in_block(hp);
+                   tblocknode(newblock).left:=hp;
+                   tblocknode(newblock).blocksymtable:=withblockst;
+                 end;
                p:=newblock;
              end;
+            { hand the with-var scope to the procdef only after its cleanup
+              markers were lowered while that scope was still active }
+            if assigned(withblockst) then
+              begin
+                symtablestack.pop(withblockst);
+                if not assigned(current_procinfo.procdef.blocklocalsymtables) then
+                  current_procinfo.procdef.blocklocalsymtables:=tfpobjectlist.create(true);
+                current_procinfo.procdef.blocklocalsymtables.add(withblockst);
+              end;
             result:=p;
           end
          else
@@ -3941,6 +4017,7 @@ implementation
         fieldcount : longint;
         j : longint;
         destruct_var : tabstractnormalvarsym;
+        destruct_syms : TFPObjectList;
         { autofree state }
         autofree_active : boolean;
         free_sym        : tsym;
@@ -4016,28 +4093,34 @@ implementation
                 exit;
               end;
             { temp := initexpr; var_i := temp.f_i }
-            blk := internalstatements(laststmt);
-            tempnode := ctempcreatenode.create(recdef, recdef.size, tt_persistent, false);
-            addstatement(laststmt, tempnode);
-            addstatement(laststmt,
-              cassignmentnode.create(ctemprefnode.create(tempnode), initexpr));
-            for j := 0 to namecount-1 do
-              begin
-                if names[j]='_' then
-                  continue;
-                destruct_var := create_inline_var_sym(names[j], fieldsyms[j].vardef);
-                destruct_var.register_sym;
-                symtablestack.top.insertsym(destruct_var);
-                destruct_var.varstate := vs_initialised;
-                if destruct_var.typ = staticvarsym then
-                  cnodeutils.insertbssdata(tstaticvarsym(destruct_var));
-                addstatement(laststmt,
-                  cassignmentnode.create(
-                    cloadnode.create(destruct_var, destruct_var.owner),
-                    csubscriptnode.create(fieldsyms[j], ctemprefnode.create(tempnode))));
-              end;
-            addstatement(laststmt, ctempdeletenode.create_normal_temp(tempnode));
-            result := blk;
+            destruct_syms:=TFPObjectList.create(false);
+            try
+              blk := internalstatements(laststmt);
+              tempnode := ctempcreatenode.create(recdef, recdef.size, tt_persistent, false);
+              addstatement(laststmt, tempnode);
+              addstatement(laststmt,
+                cassignmentnode.create(ctemprefnode.create(tempnode), initexpr));
+              for j := 0 to namecount-1 do
+                begin
+                  if names[j]='_' then
+                    continue;
+                  destruct_var := create_inline_var_sym(names[j], fieldsyms[j].vardef);
+                  destruct_var.register_sym;
+                  symtablestack.top.insertsym(destruct_var);
+                  destruct_var.varstate := vs_initialised;
+                  if destruct_var.typ = staticvarsym then
+                    cnodeutils.insertbssdata(tstaticvarsym(destruct_var));
+                  destruct_syms.add(destruct_var);
+                  addstatement(laststmt,
+                    cassignmentnode.create(
+                      cloadnode.create(destruct_var, destruct_var.owner),
+                      csubscriptnode.create(fieldsyms[j], ctemprefnode.create(tempnode))));
+                end;
+              addstatement(laststmt, ctempdeletenode.create_normal_temp(tempnode));
+              result:=wrap_inline_managed_lifetimes(blk,destruct_syms);
+            finally
+              destruct_syms.free;
+            end;
             exit;
           end;
 
@@ -4151,20 +4234,25 @@ implementation
                   { no initializer: re-initialize managed vars at the
                     declaration point, so a loop pass over the declaration
                     gets a fresh value instead of the previous iteration's }
-                  result := nil;
-                  for i := 0 to sc.count - 1 do
-                    if is_managed_type(tabstractnormalvarsym(sc[i]).vardef) and
-                       is_valid_for_default(tabstractnormalvarsym(sc[i]).vardef) then
-                      begin
-                        if not assigned(result) then
-                          result := internalstatements(statements);
-                        addstatement(statements, cassignmentnode.create(
-                          cloadnode.create(tsym(sc[i]), tsym(sc[i]).owner),
-                          cinlinenode.create(in_default_x, false,
-                            ctypenode.create(tabstractnormalvarsym(sc[i]).vardef))));
-                      end;
-                  if not assigned(result) then
-                    result := cnothingnode.create;
+                  if m_delphi in current_settings.modeswitches then
+                    result:=cnothingnode.create
+                  else
+                    begin
+                      result := nil;
+                      for i := 0 to sc.count - 1 do
+                        if is_managed_type(tabstractnormalvarsym(sc[i]).vardef) and
+                           is_valid_for_default(tabstractnormalvarsym(sc[i]).vardef) then
+                          begin
+                            if not assigned(result) then
+                              result := internalstatements(statements);
+                            addstatement(statements, cassignmentnode.create(
+                              cloadnode.create(tsym(sc[i]), tsym(sc[i]).owner),
+                              cinlinenode.create(in_default_x, false,
+                                ctypenode.create(tabstractnormalvarsym(sc[i]).vardef))));
+                          end;
+                      if not assigned(result) then
+                        result := cnothingnode.create;
+                    end;
                 end;
             end
           else if current_scanner.token = _ASSIGNMENT then
@@ -4327,6 +4415,7 @@ implementation
             end;
         finally
           block_type := old_block_type;
+          result:=wrap_inline_managed_lifetimes(result,sc);
           sc.free;
         end;
       end;
@@ -5497,7 +5586,7 @@ implementation
     type
       pdeferinfo = ^tdeferinfo;
       tdeferinfo = record
-        flagvar : tlocalvarsym;
+        flagvar : tabstractnormalvarsym;
         body    : tnode;
       end;
 
@@ -5509,6 +5598,16 @@ implementation
           only when rewriting the routine's main begin..end -- otherwise
           they leak into try-body / nested-block / with-body scopes }
         is_routine_body : boolean;
+      end;
+
+    function create_defer_flag(const n: TIDString): tabstractnormalvarsym;
+      begin
+        result:=create_inline_var_sym(n,pasbool1type);
+        if result.typ=staticvarsym then
+          result.register_sym;
+        symtablestack.top.insertsym(result);
+        if result.typ=staticvarsym then
+          cnodeutils.insertbssdata(tstaticvarsym(result));
       end;
 
 
@@ -6068,7 +6167,7 @@ implementation
     function defer_collect_callback(var n: tnode; arg: pointer): foreachnoderesult;
       var
         ctx     : pdefercollect;
-        flagvar : tlocalvarsym;
+        flagvar : tabstractnormalvarsym;
         flagname: TIDString;
         linestr : string[12];
         info    : pdeferinfo;
@@ -6097,8 +6196,7 @@ implementation
             str(n.fileinfo.line,flagname);
             str(ctx^.counter,linestr);
             flagname:='$defer_flag_'+flagname+'_'+linestr;
-            flagvar:=tlocalvarsym.create(flagname,vs_value,pasbool1type,[]);
-            symtablestack.top.insertsym(flagvar);
+            flagvar:=create_defer_flag(flagname);
             // detach deferred body before freeing the marker
             deferred:=tunarynode(n).left;
             tunarynode(n).left:=nil;
@@ -6171,8 +6269,7 @@ implementation
           body_block.fileinfo:=saved_filepos;
           typecheckpass(body_block);
           first:=cstatementnode.create(
-                   ctryfinallynode.create(body_block,finally_block),
-                   nil);
+                   ctryfinallynode.create(body_block,finally_block),nil);
           first.fileinfo:=saved_filepos;
           typecheckpass(first);
         finally

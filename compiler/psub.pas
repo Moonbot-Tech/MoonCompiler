@@ -324,7 +324,7 @@ implementation
          exit;
         with tabstractnormalvarsym(p) do
          begin
-           if assigned(defaultconstsym) then
+           if assigned(defaultconstsym) and not inline_scope_managed then
             begin
               b:=tblocknode(arg);
               b.left:=cstatementnode.create(
@@ -355,6 +355,7 @@ implementation
         { include the result: it needs to be finalized in case an exception }
         { occurs                                                            }
         if (tsym(p).typ=localvarsym) and
+           not(tlocalvarsym(p).inline_scope_managed) and
            (tlocalvarsym(p).refs>0) and
            is_managed_type(tlocalvarsym(p).vardef) then
           begin
@@ -368,6 +369,7 @@ implementation
         { block-scoped inline vars are finalized by the routine itself; in
           the main program body they are static syms, so accept both kinds }
         if (tsym(p).typ in [localvarsym,staticvarsym]) and
+           not(tabstractnormalvarsym(p).inline_scope_managed) and
            (tabstractnormalvarsym(p).refs>0) and
            is_managed_type(tabstractnormalvarsym(p).vardef) then
           begin

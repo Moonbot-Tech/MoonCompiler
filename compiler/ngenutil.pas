@@ -344,7 +344,9 @@ implementation
     var
       hp : tnode;
     begin
-      if ((tsym(p).typ = localvarsym) or
+      if not((p is tabstractnormalvarsym) and
+             tabstractnormalvarsym(p).inline_scope_managed) and
+         ((tsym(p).typ = localvarsym) or
           { check staticvarsym for record management operators and for objects
             which might contain record with management operators }
           ((tsym(p).typ = staticvarsym) and
@@ -389,6 +391,7 @@ implementation
   class procedure tnodeutils.local_varsyms_finalize(p: TObject; arg: pointer);
     begin
       if (tsym(p).typ=localvarsym) and
+         not(tlocalvarsym(p).inline_scope_managed) and
          (tlocalvarsym(p).refs>0) and
          not(vo_is_typed_const in tlocalvarsym(p).varoptions) and
          not(vo_is_external in tlocalvarsym(p).varoptions) and
@@ -413,7 +416,8 @@ implementation
             { local (procedure or unit) variables only need finalization
               if they are used
             }
-            if ((tstaticvarsym(p).refs>0) or
+            if not(tstaticvarsym(p).inline_scope_managed) and
+               ((tstaticvarsym(p).refs>0) or
                 { global (unit) variables always need finalization, since
                   they may also be used in another unit
                 }
@@ -548,7 +552,8 @@ implementation
 
   class procedure tnodeutils.procdef_block_add_implicit_finalize_nodes(pd: tprocdef; var stat: tstatementnode);
     var
-      blk_i: longint;
+      blk_i,
+      sym_i: longint;
     begin
       { no finalization in exceptfilters, they /are/ the finalization code }
       if current_procinfo.procdef.proctypeoption=potype_exceptfilter then
@@ -571,25 +576,37 @@ implementation
          potype_unitinit: ;
          { program init/final is generated in separate procedure,
            but block-scoped local vars need explicit finalization }
-         potype_proginit:
-           begin
-             if assigned(pd.blocklocalsymtables) then
-               for blk_i:=0 to pd.blocklocalsymtables.count-1 do
-                 begin
-                   TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@local_varsyms_finalize,@stat);
-                   { main-body block-scoped inline vars are static syms and
-                     live outside the staticsymtable walked at unit finalize }
-                   TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@static_syms_finalize,@stat);
-                 end;
-           end;
-         else
-           begin
-             current_procinfo.procdef.localst.SymList.ForEachCall(@local_varsyms_finalize,@stat);
-             { also finalize managed vars in block-scoped symtables (m_inline_var) }
-             if assigned(pd.blocklocalsymtables) then
-               for blk_i:=0 to pd.blocklocalsymtables.count-1 do
-                 TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@local_varsyms_finalize,@stat);
-           end;
+          potype_proginit:
+            begin
+              if assigned(pd.blocklocalsymtables) then
+                for blk_i:=0 to pd.blocklocalsymtables.count-1 do
+                  begin
+                    TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@local_varsyms_finalize,@stat);
+                    { main-body block-scoped inline vars are static syms and
+                      live outside the staticsymtable walked at unit finalize }
+                    TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@static_syms_finalize,@stat);
+                  end;
+            end;
+          else
+            begin
+              if m_delphi in current_settings.modeswitches then
+                begin
+                  if assigned(pd.blocklocalsymtables) then
+                    for blk_i:=pd.blocklocalsymtables.count-1 downto 0 do
+                      for sym_i:=TSymtable(pd.blocklocalsymtables[blk_i]).SymList.Count-1 downto 0 do
+                        local_varsyms_finalize(TSymtable(pd.blocklocalsymtables[blk_i]).SymList[sym_i],@stat);
+                  for sym_i:=current_procinfo.procdef.localst.SymList.Count-1 downto 0 do
+                    local_varsyms_finalize(current_procinfo.procdef.localst.SymList[sym_i],@stat);
+                end
+              else
+                begin
+                  current_procinfo.procdef.localst.SymList.ForEachCall(@local_varsyms_finalize,@stat);
+                  { also finalize managed vars in block-scoped symtables (m_inline_var) }
+                  if assigned(pd.blocklocalsymtables) then
+                    for blk_i:=0 to pd.blocklocalsymtables.count-1 do
+                      TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@local_varsyms_finalize,@stat);
+                end;
+            end;
       end;
     end;
 

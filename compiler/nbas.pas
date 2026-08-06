@@ -535,6 +535,7 @@ implementation
     constructor tdefernode.create(l:tnode);
       begin
         inherited create(defern,l);
+        var_scope:=false;
       end;
 
 

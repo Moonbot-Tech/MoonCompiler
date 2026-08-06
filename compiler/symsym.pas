@@ -292,6 +292,9 @@ interface
           { the variable is not living at entry of the scope, so it does not need to be initialized if it is a reg. var
             (not written to ppu, because not important and would change interface crc) }
           noregvarinitneeded : boolean;
+          { Delphi managed inline variables are initialized at their declaration
+            and finalized by the declaration scope (not written to PPU) }
+          inline_scope_managed : boolean;
           { not stored in PPU! }
           capture_sym : tsym;
           constructor create(st:tsymtyp;const n : TSymStr;vsp:tvarspez;def:tdef;vopts:tvaroptions);
@@ -2274,6 +2277,7 @@ implementation
          inherited create(st,n,vsp,def,vopts);
          fillchar(localloc,sizeof(localloc),0);
          fillchar(initialloc,sizeof(initialloc),0);
+         inline_scope_managed:=false;
          defaultconstsym:=nil;
          defaultconstsymderef.reset;
       end;
@@ -2284,6 +2288,7 @@ implementation
          inherited ppuload(st,ppufile);
          fillchar(localloc,sizeof(localloc),0);
          fillchar(initialloc,sizeof(initialloc),0);
+         inline_scope_managed:=false;
          ppufile.getderef(defaultconstsymderef);
       end;
 
