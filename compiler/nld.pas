@@ -931,7 +931,7 @@ implementation
 
     function tassignmentnode.pass_1 : tnode;
 
-      function tempreturnfromcall:boolean;
+      function tempreturnfromcall(allowinterfacewrappers:boolean):boolean;
         var
           node:tnode;
         begin
@@ -949,6 +949,21 @@ implementation
                   node:=tstatementnode(node).right
                 else
                   node:=tstatementnode(node).left;
+              typeconvn:
+                if allowinterfacewrappers and
+                   ttypeconvnode(node).retains_value_location and
+                   is_interfacecom_or_dispinterface(node.resultdef) and
+                   is_interfacecom_or_dispinterface(ttypeconvnode(node).left.resultdef) and
+                   (not(nf_explicit in node.flags) or
+                    (nf_internal in node.flags)) then
+                  node:=ttypeconvnode(node).left
+                else
+                  break;
+              asn:
+                if allowinterfacewrappers then
+                  node:=tasnode(node).call
+                else
+                  break;
               else
                 break;
               end;
@@ -1033,7 +1048,7 @@ implementation
                ccallparanode.create(ctypeconvnode.create_internal(
                  caddrnode.create_internal(right),voidpointertype),
                nil)));
-           if tempreturnfromcall then
+            if tempreturnfromcall(false) then
              result:=ccallnode.createintern('fpc_copy_with_move_semantics_proc',hp)
            else
              result:=ccallnode.createintern('fpc_copy_proc',hp);
@@ -1074,7 +1089,21 @@ implementation
             else if is_unicodestring(left.resultdef) then
               hs:='fpc_unicodestr_assign'
             else if is_interfacecom_or_dispinterface(left.resultdef) then
-              hs:='fpc_intf_assign'
+              begin
+                if tempreturnfromcall(true) then
+                  begin
+                    hp:=ccallparanode.create(ctypeconvnode.create_internal(
+                        caddrnode.create_internal(right),voidpointertype),
+                      ccallparanode.create(ctypeconvnode.create_internal(
+                        caddrnode.create_internal(left),voidpointertype),nil));
+                    result:=ccallnode.createintern('fpc_intf_move',hp);
+                    firstpass(result);
+                    left:=nil;
+                    right:=nil;
+                    exit;
+                  end;
+                hs:='fpc_intf_assign';
+              end
             else if is_dynamic_array(left.resultdef) then
               begin
                 hs:='fpc_dynarray_assign';

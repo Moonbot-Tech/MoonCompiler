@@ -116,6 +116,19 @@ var
 
     procedure fpc_intf_assign(var D: pointer; const s: pointer); [external name 'FPC_INTF_ASSIGN'];
 
+    procedure fpc_intf_move(D, S: pointer);[public,alias: 'FPC_INTF_MOVE']; compilerproc;
+      begin
+         if D<>S then
+           begin
+             if assigned(PPointer(D)^) then
+               IUnknown(PPointer(D)^)._Release;
+             PPointer(D)^:=PPointer(S)^;
+             PPointer(S)^:=nil;
+           end;
+      end;
+
+    procedure fpc_intf_move(D, S: pointer); [external name 'FPC_INTF_MOVE'];
+
     {procedure fpc_intf_assign_by_iid(var D: pointer; const S: pointer; const iid: TGUID);[public,alias: 'FPC_INTF_ASSIGN2']; compilerproc;
       var
         tmp : pointer;
