@@ -4408,7 +4408,10 @@ implementation
              savesize:=packedsavesize;
 {$if not defined(cpu8bitalu) and not defined(cpu16bitalu)}
              if savesize=3 then
-               savesize:=4;
+               savesize:=4
+             else if (m_delphi in current_settings.modeswitches) and
+                     (savesize in [5..7]) then
+               savesize:=8;
 {$endif}
            end;
       end;
@@ -4470,9 +4473,14 @@ implementation
 
     function tsetdef.alignment: shortint;
       begin
-        Result:=inherited;
-        if result>sizeof(aint) then
-          result:=sizeof(aint);
+        if m_delphi in current_settings.modeswitches then
+          result:=1
+        else
+          begin
+            Result:=inherited;
+            if result>sizeof(aint) then
+              result:=sizeof(aint);
+          end;
       end;
 
 
