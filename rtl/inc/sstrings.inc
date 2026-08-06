@@ -1081,7 +1081,7 @@ type
     minusPos:SizeInt;
   end;
 
-Function InitVal(const s:shortstring;out vc:ValCommon):ValSInt;
+Function InitVal(const s:shortstring;out vc:ValCommon;delphiMode:boolean):ValSInt;
 var
   ns : SizeInt;
 begin
@@ -1090,8 +1090,9 @@ begin
   vc.base:=10;
   vc.baseIndex:=0;
   ns:=length(s);
-{Skip Spaces and Tab}
-  while (result<=ns) and (s[result] in [' ',#9]) do
+{Skip Spaces and Tab (Delphi accepts spaces only)}
+  while (result<=ns) and
+        ((s[result]=' ') or ((s[result]=#9) and not delphiMode)) do
    inc(result);
 {Sign}
   if result<=ns then
@@ -1113,16 +1114,18 @@ begin
             vc.baseIndex:=1;
             inc(result);
           end;
-    '%' : begin
-            vc.base:=2;
-            vc.baseIndex:=2;
-            inc(result);
-          end;
-    '&' : begin
-            vc.base:=8;
-            vc.baseIndex:=3;
-            inc(result);
-          end;
+    '%' : if not delphiMode then
+            begin
+              vc.base:=2;
+              vc.baseIndex:=2;
+              inc(result);
+            end;
+    '&' : if not delphiMode then
+            begin
+              vc.base:=8;
+              vc.baseIndex:=3;
+              inc(result);
+            end;
     '0' : if (result<ns) and (s[result+1] in ['x', 'X']) then
           begin
             vc.base:=16;
@@ -1185,9 +1188,13 @@ var
   digitsLeft,sh : ALUSint;
   temp, prev, lim: ValUInt;
   vc: ValCommon;
+  delphiMode: boolean;
 begin
   fpc_Val_SInt_ShortStr:=0;
-  sp:=InitVal(s,vc);
+  delphiMode:=DestSize<0;
+  if delphiMode then
+    DestSize:=-DestSize;
+  sp:=InitVal(s,vc,delphiMode);
   ns:=length(s);
   if (sp>ns) or (s[sp]=#0) then
    begin
@@ -1224,13 +1231,6 @@ begin
        dec(sp); { Overflow. Step 1 digit back. }
    end;
 
-  if (sp<=ns) and (s[sp]<>#0) then
-   begin
-     Code:=sp;
-     exit;
-   end;
-
-  Code:=0;
   fpc_Val_SInt_ShortStr := ValSInt(Temp);
   If vc.Negative Then
     fpc_Val_SInt_ShortStr := -fpc_Val_SInt_ShortStr;
@@ -1246,6 +1246,16 @@ begin
 {$else} {$error unknown ValSint size}
 {$endif} (fpc_Val_SInt_ShortStr shl sh, sh);
     End;
+
+  if (sp<=ns) and (s[sp]<>#0) then
+   begin
+     Code:=sp;
+     if not delphiMode then
+       fpc_Val_SInt_ShortStr:=0;
+     exit;
+   end;
+
+  Code:=0;
 end;
 
 
@@ -1257,6 +1267,12 @@ Function int_Val_SInt_ShortStr(DestSize: SizeInt; Const S: ShortString; out Code
 {$endif FPC_HAS_INT_VAL_SINT_SHORTSTR}
 
 
+{$ifndef FPC_HAS_INT_VAL_UINT_SHORTSTR}
+{$define FPC_HAS_INT_VAL_UINT_SHORTSTR}
+Function int_Val_UInt_ShortStr({$ifndef VER3_2}DestSize: SizeInt;{$endif VER3_2} Const S: ShortString; out Code: ValSInt): ValUInt; [external name 'FPC_VAL_UINT_SHORTSTR'];
+{$endif FPC_HAS_INT_VAL_UINT_SHORTSTR}
+
+
 Function fpc_Val_UInt_Shortstr({$ifndef VER3_2}DestSize: SizeInt;{$endif VER3_2} Const S: ShortString; out Code: ValSInt): ValUInt; [public, alias:'FPC_VAL_UINT_SHORTSTR']; compilerproc;
 var
   sp,ns : SizeInt;
@@ -1264,13 +1280,27 @@ var
   digitsLeft : ALUSint;
   prev: ValUInt;
   vc: ValCommon;
+  delphiMode,overflow: boolean;
 begin
   fpc_Val_UInt_Shortstr:=0;
-  sp:=InitVal(s,vc);
+{$ifndef VER3_2}
+  delphiMode:=DestSize<0;
+  if delphiMode then
+    DestSize:=-DestSize;
+{$else VER3_2}
+  delphiMode:=false;
+{$endif VER3_2}
+  sp:=InitVal(s,vc,delphiMode);
   ns:=length(s);
   If vc.negative or (sp>ns) or (s[sp]=#0) Then
     begin
-      if vc.negative then sp:=vc.minusPos;
+      if vc.negative then
+        begin
+          if delphiMode then
+            sp:=vc.minusPos+1
+          else
+            sp:=vc.minusPos;
+        end;
       Code:=sp;
       Exit;
     end;
@@ -1292,19 +1322,26 @@ begin
     inc(sp);
   until sp>ns;
 
+  overflow:=false;
   if digitsLeft<=0 then { Maybe an overflow. If so, step 1 digit back. }
    begin
      if sp<=ns then { If the loop was stopped not by sp>ns check... }
        u:=ValData.ValueArray[ord(s[sp-1])-ord('0')]; { Then recover previous u. }
      if prev>ValUInt(High(result) {$ifndef VER3_2} shr (bitsizeof(result)-8*DestSize) {$endif}-u) div ValNonZeroBase(vc.base) then
-       dec(sp);
+       begin
+         dec(sp);
+         overflow:=true;
+       end;
    end;
 
   code:=0;
   if (sp<=ns) and (s[sp]<>#0) then
    begin
      Code:=sp;
-     fpc_Val_UInt_Shortstr:=0;
+     if not delphiMode then
+       fpc_Val_UInt_Shortstr:=0
+     else if overflow then
+       fpc_Val_UInt_Shortstr:=prev;
    end;
 end;
 
@@ -1324,7 +1361,7 @@ end;
     runerror(219);
   {$else EXCLUDE_COMPLEX_PROCS}
     fpc_val_int64_shortstr := 0;
-    sp:=InitVal(s,vc);
+    sp:=InitVal(s,vc,false);
     ns:=length(s);
     if (sp>ns) or (s[sp]=#0) then
      begin
@@ -1387,7 +1424,7 @@ end;
     vc: ValCommon;
   begin
     fpc_val_qword_shortstr:=0;
-    sp:=InitVal(s,vc);
+    sp:=InitVal(s,vc,false);
     ns:=length(s);
     If vc.negative or (sp>ns) or (s[sp]=#0) Then
       begin
@@ -1442,7 +1479,7 @@ end;
   begin
     fpc_val_longint_shortstr := 0;
     Temp:=0;
-    Code:=InitVal(s,vc);
+    Code:=InitVal(s,vc,false);
     if (Code>length(s)) or (s[Code]=#0) then
       exit;
     maxprevvalue := maxlongword div vc.base;
@@ -1489,7 +1526,7 @@ end;
 
   begin
     fpc_val_longword_shortstr:=0;
-    Code:=InitVal(s,vc);
+    Code:=InitVal(s,vc,false);
     If vc.Negative or (Code>length(s)) or (s[Code]=#0) Then
       Exit;
     while Code<=Length(s) do
@@ -1523,7 +1560,7 @@ end;
   begin
     fpc_val_smallint_shortstr := 0;
     Temp:=0;
-    Code:=InitVal(s,vc);
+    Code:=InitVal(s,vc,false);
     if (vc.base=10) or vc.negative then
       UnsignedUpperLimit := Word(High(SmallInt))+Ord(vc.negative)
     else
@@ -1570,7 +1607,7 @@ end;
 
   begin
     fpc_val_word_shortstr:=0;
-    Code:=InitVal(s,vc);
+    Code:=InitVal(s,vc,false);
     If vc.Negative or (Code>length(s)) or (s[Code]=#0) Then
       begin
         if vc.Negative then Code:=vc.minusPos;

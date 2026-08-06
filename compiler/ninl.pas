@@ -1694,6 +1694,7 @@ implementation
         newblock      : tblocknode;
         tempcode      : ttempcreatenode;
         valsinttype   : tdef;
+        destsize      : aint;
       begin
         { for easy exiting if something goes wrong }
         result := cerrornode.create;
@@ -1813,8 +1814,23 @@ implementation
                     suffix := get_val_int_func(destpara.resultdef) + '_';
                     { we also need a destsize para in the case of sint or uint }
                     if (suffix = 'sint_') or (suffix = 'uint_') then
-                      sizepara := ccallparanode.create(cordconstnode.create
-                        (destpara.resultdef.size,s32inttype,true),nil);
+                      begin
+                        destsize:=destpara.resultdef.size;
+                        { Delphi parses signed integers at a minimum of 32 bits
+                          and unsigned integers at 64 bits, then narrows the
+                          result to the destination.  A negative size also
+                          selects Delphi lexical and error-result semantics. }
+                        if m_delphi in current_settings.modeswitches then
+                          begin
+                            if is_signed(destpara.resultdef) then
+                              destsize:=max(destsize,4)
+                            else
+                              destsize:=max(destsize,8);
+                            destsize:=-destsize;
+                          end;
+                        sizepara:=ccallparanode.create(cordconstnode.create
+                          (destsize,s32inttype,true),nil);
+                      end;
                   end;
                 scurrency: suffix := 'currency_';
                 else

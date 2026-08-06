@@ -3069,6 +3069,11 @@ implementation
                           if val128 then
                             ValCode:=val_to_tconstexprint(TStringConstNode(valnode).asrawbytestring,not ValOutput.signed,ValOutput)
                           else
+                          { The compiler's own Val follows the FPC dialect, so it
+                            cannot fold calls marked for Delphi target semantics. }
+                          if tordconstnode(GetParaFromIndex(2).paravalue).value.svalue<0 then
+                            exit
+                          else
 {$PUSH}
 {$R-}
                           case Longint(tordconstnode(GetParaFromIndex(2).paravalue).value.svalue) of
