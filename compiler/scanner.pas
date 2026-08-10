@@ -1132,6 +1132,7 @@ type
     consttyp: tconsttyp;
     value: tconstvalue;
     def: tdef;
+    unresolved_identifier: boolean;
     constructor create_const(c:tconstsym);
     constructor create_error;
     constructor create_ord(v: Tconstexprint);
@@ -1370,7 +1371,10 @@ type
         end;
         _OP_NOT:
         begin
-          if isBoolean then
+          if unresolved_identifier and
+             (m_delphi in current_settings.modeswitches) then
+            result:=texprvalue.create_bool(false)
+          else if isBoolean then
             result:=texprvalue.create_bool(not asBool)
           else if is_ordinal(def) then
             begin
@@ -1958,7 +1962,10 @@ type
                   result:=texprvalue.create_str(searchstr^); { just to have something }
                 end
               else
-                result:=texprvalue.create_str(searchstr^);
+                begin
+                  result:=texprvalue.create_str(searchstr^);
+                  result.unresolved_identifier:=not foundmacro;
+                end;
             end;
         end;
 
@@ -2767,7 +2774,10 @@ type
         hs: texprvalue;
       begin
         hs:=preproc_comp_expr(nil);
-        if hs.isBoolean then
+        if hs.unresolved_identifier and
+           (m_delphi in current_settings.modeswitches) then
+          result:=false
+        else if hs.isBoolean then
           result:=hs.asBool
         else
           begin
