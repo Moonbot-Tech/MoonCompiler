@@ -1886,6 +1886,7 @@ type
          { generate rtti/init tables }
          write_persistent_type_info(module.globalsymtable,true);
          write_persistent_type_info(module.localsymtable,false);
+         write_rtti_types_table(module.globalsymtable);
 
          { Tables }
          cnodeutils.InsertThreadvars;
@@ -2681,6 +2682,7 @@ type
 
         { generate rtti/init tables }
         write_persistent_type_info(curr.localsymtable,false);
+        write_rtti_types_table(curr.localsymtable);
 
         { if an Objective-C module, generate rtti and module info }
         MaybeGenerateObjectiveCImageInfo(nil,curr.localsymtable);
@@ -2711,6 +2713,7 @@ type
         cnodeutils.InsertResourceTablesTable;
         cnodeutils.InsertWideInitsTablesTable;
         cnodeutils.InsertResStrTablesTable;
+        cnodeutils.InsertRttiTypesTablesTable;
         cnodeutils.InsertMemorySizes;
 
         { Insert symbol to resource info }

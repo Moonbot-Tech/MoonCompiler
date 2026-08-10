@@ -343,7 +343,7 @@ type
     function GetType(ATypeInfo: PTypeInfo): TRttiType;
     function GetType(AClass: TClass): TRttiType;
     property UsePublishedOnly: Boolean read FUsePublishedOnly write SetUsePublishedOnly;
-    //function GetTypes: specialize TArray<TRttiType>;
+    function GetTypes: specialize TArray<TRttiType>;
   end;
 
   { TRttiObject }
@@ -8411,11 +8411,53 @@ begin
     result := nil;
 end;
 
-{function TRttiContext.GetTypes: specialize TArray<TRttiType>;
+type
+  PRttiTypeTable = ^TRttiTypeTable;
+  TRttiTypeTable = packed record
+    Count: SizeInt;
+  end;
+  TRttiTypeTables = packed record
+    Count: SizeInt;
+  end;
+
+var
+  RttiTypeTables: TRttiTypeTables; external name 'FPC_RTTITYPETABLES';
+
+function TRttiContext.GetTypes: specialize TArray<TRttiType>;
+
+var
+  I,
+  J,
+  TypeCount: SizeInt;
+  Table: PRttiTypeTable;
+  Tables,
+  Types: PPointer;
 
 begin
-  result := EnsurePool(Self).GetTypes;
-end;}
+  TypeCount:=0;
+  Tables:=PPointer(PByte(@RttiTypeTables)+SizeOf(RttiTypeTables.Count));
+  for I:=0 to RttiTypeTables.Count-1 do
+    begin
+      Table:=PRttiTypeTable(Tables^);
+      Inc(TypeCount,Table^.Count);
+      Inc(Tables);
+    end;
+  SetLength(Result,TypeCount);
+  TypeCount:=0;
+  Tables:=PPointer(PByte(@RttiTypeTables)+SizeOf(RttiTypeTables.Count));
+  for I:=0 to RttiTypeTables.Count-1 do
+    begin
+      Table:=PRttiTypeTable(Tables^);
+      Types:=PPointer(PByte(Table)+SizeOf(Table^.Count));
+      for J:=0 to Table^.Count-1 do
+        begin
+          Result[TypeCount]:=GetType(PTypeInfo(Types^));
+          Inc(TypeCount);
+          Inc(Types);
+        end;
+      Inc(Tables);
+    end;
+end;
 
 { TVirtualInterface }
 

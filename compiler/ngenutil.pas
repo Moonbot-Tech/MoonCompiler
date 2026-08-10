@@ -129,6 +129,7 @@ interface
       class procedure InsertWideInits; virtual;
       class procedure InsertResStrInits; virtual;
       class procedure InsertResStrTablesTable; virtual;
+      class procedure InsertRttiTypesTablesTable; virtual;
       class procedure InsertResourceTablesTable; virtual;
       class procedure InsertResourceInfo(ResourcesUsed : boolean); virtual;
 
@@ -1604,6 +1605,13 @@ implementation
   class procedure tnodeutils.InsertResStrTablesTable;
     begin
       InsertRuntimeInitsTablesTable('RESSTRINITS','FPC_RESSTRINITTABLES',mf_resstrinits);
+    end;
+
+
+  class procedure tnodeutils.InsertRttiTypesTablesTable;
+    begin
+      if not(target_info.system in systems_managed_vm) then
+        InsertRuntimeInitsTablesTable('RTTITYPES','FPC_RTTITYPETABLES',mf_rttitypes);
     end;
 
 

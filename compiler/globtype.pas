@@ -434,7 +434,8 @@ interface
          mf_wasm_exnref_exceptions,   { unit was compiled in WebAssembly exceptions with exnref mode }
          mf_wasm_native_exceptions,   { unit was compiled in WebAssembly native legacy exceptions mode }
          mf_wasm_threads,             { unit was compiled with WebAssembly multithreading support turned on }
-         mf_system_unit               { unit was compiled as a System unit }
+         mf_system_unit,              { unit was compiled as a System unit }
+         mf_rttitypes                  { unit has a table of discoverable RTTI types }
        );
        tmoduleflags = set of tmoduleflag;
 

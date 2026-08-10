@@ -90,6 +90,7 @@ interface
 
     { generate RTTI and init tables }
     procedure write_persistent_type_info(st:tsymtable;is_global:boolean);
+    procedure write_rtti_types_table(st:tsymtable);
 
     var
       RTTIWriter : TRTTIWriter;
@@ -242,6 +243,79 @@ implementation
                ) then
               RTTIWriter.write_rtti(def,fullrtti);
           end;
+      end;
+
+
+    function is_rtti_types_candidate(def: tdef; st: tsymtable): boolean;
+      begin
+        result:=
+          assigned(def.typesym) and
+          (def.typesym.owner=st) and
+          not(df_internal in def.defoptions) and
+          ([df_generic,df_genconstraint]*def.defoptions=[]) and
+          not tstoreddef(def).has_generic_paras and
+          not is_objc_class_or_protocol(def);
+        if result and (def.typ=objectdef) then
+          result:=
+            not(oo_is_forward in tobjectdef(def).objectoptions) and
+            not tobjectdef(def).is_unique_objpasdef and
+            (not(oo_has_vmt in tobjectdef(def).objectoptions) or
+             (ds_vmt_written in def.defstates));
+      end;
+
+
+    procedure write_rtti_types_table(st: tsymtable);
+      var
+        i,
+        count: longint;
+        def: tdef;
+        tcb: ttai_typedconstbuilder;
+        tabledef: tdef;
+        tablesym: tasmsymbol;
+        s: string;
+      begin
+        if target_info.system in systems_managed_vm then
+          exit;
+
+        for i:=0 to st.DefList.Count-1 do
+          begin
+            def:=tdef(st.DefList[i]);
+            if is_rtti_types_candidate(def,st) then
+              include(def.defstates,ds_rtti_table_used);
+          end;
+        write_persistent_type_info(st,false);
+
+        count:=0;
+        for i:=0 to st.DefList.Count-1 do
+          begin
+            def:=tdef(st.DefList[i]);
+            if is_rtti_types_candidate(def,st) and
+               (ds_rtti_table_written in def.defstates) then
+              inc(count);
+          end;
+        if count=0 then
+          exit;
+
+        tcb:=ctai_typedconstbuilder.create([tcalo_make_dead_strippable,tcalo_new_section]);
+        tcb.begin_anonymous_record('',default_settings.packrecords,sizeof(pint),
+          targetinfos[target_info.system]^.alignment.recordalignmin);
+        tcb.emit_tai(Tai_const.Create_sizeint(count),sizesinttype);
+        for i:=0 to st.DefList.Count-1 do
+          begin
+            def:=tdef(st.DefList[i]);
+            if not is_rtti_types_candidate(def,st) or
+               not(ds_rtti_table_written in def.defstates) then
+              continue;
+            tcb.emit_tai(Tai_const.Create_sym(
+              RTTIWriter.get_rtti_label(def,fullrtti,false)),voidpointertype);
+          end;
+        tabledef:=tcb.end_anonymous_record;
+        s:=make_mangledname('RTTITYPES',st,'');
+        tablesym:=current_asmdata.DefineAsmSymbol(s,AB_GLOBAL,AT_DATA,tabledef);
+        current_asmdata.asmlists[al_globals].concatlist(
+          tcb.get_final_asmlist(tablesym,tabledef,sec_rodata,s,const_align(sizeof(pint))));
+        tcb.free;
+        include(current_module.moduleflags,mf_rttitypes);
       end;
 
 
