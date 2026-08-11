@@ -2242,9 +2242,19 @@ procedure initunicodestringmanager;
 {$ifndef FPC_HAS_TOSINGLEBYTEFILESYSTEMENCODEDFILENAME_UNICODESTRING}
 {$define FPC_HAS_TOSINGLEBYTEFILESYSTEMENCODEDFILENAME_UNICODESTRING}
 Function ToSingleByteFileSystemEncodedFileName(const Str: UnicodeString): RawByteString;
+{$ifdef unix}
+Var
+  I: SizeInt;
+{$endif unix}
 Begin
   widestringmanager.Unicode2AnsiMoveProc(punicodechar(Str),Result,
     DefaultFileSystemCodePage,Length(Str));
+{$ifdef unix}
+  If TreatBackslashAsDirectorySeparator then
+    For I:=1 to Length(Result) do
+      If Result[I]='\' then
+        Result[I]:='/';
+{$endif unix}
 End;
 {$endif FPC_HAS_TOSINGLEBYTEFILESYSTEMENCODEDFILENAME_UNICODESTRING}
 
@@ -2252,16 +2262,36 @@ End;
 {$ifndef FPC_HAS_TOSINGLEBYTEFILESYSTEMENCODEDFILENAME_UNICODECHARARRAY}
 {$define FPC_HAS_TOSINGLEBYTEFILESYSTEMENCODEDFILENAME_UNICODECHARARRAY}
 Function ToSingleByteFileSystemEncodedFileName(const arr: array of widechar): RawByteString;
+{$ifdef unix}
+Var
+  I: SizeInt;
+{$endif unix}
 Begin
   widestringmanager.Unicode2AnsiMoveProc(@arr[0],Result,
     DefaultFileSystemCodePage,length(pwidechar(@arr[0])));
+{$ifdef unix}
+  If TreatBackslashAsDirectorySeparator then
+    For I:=1 to Length(Result) do
+      If Result[I]='\' then
+        Result[I]:='/';
+{$endif unix}
 End;
 {$endif FPC_HAS_TOSINGLEBYTEFILESYSTEMENCODEDFILENAME_UNICODECHARARRAY}
 
 Function ToSingleByteFileSystemEncodedFileName(const Str: RawByteString): RawByteString;
+{$ifdef unix}
+Var
+  I: SizeInt;
+{$endif unix}
 Begin
   Result:=Str;
   SetCodePage(Result,DefaultFileSystemCodePage,True);
+{$ifdef unix}
+  If TreatBackslashAsDirectorySeparator then
+    For I:=1 to Length(Result) do
+      If Result[I]='\' then
+        Result[I]:='/';
+{$endif unix}
 End;
 
 { Delphi compatibility: always interpret the data in the string as UTF-8,

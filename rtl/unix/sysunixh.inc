@@ -51,6 +51,10 @@ const
 
   FileNameCaseSensitive : boolean = true;
   FileNameCasePreserving: boolean = true;
+  { Optional Delphi application compatibility.  POSIX normally permits a
+    backslash as an ordinary filename character, so this remains disabled
+    unless an application explicitly opts in. }
+  TreatBackslashAsDirectorySeparator: boolean = false;
   CtrlZMarksEOF: boolean = false; (* #26 not considered as end of file *)
 
   sLineBreak = LineEnding;

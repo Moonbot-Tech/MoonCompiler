@@ -1983,7 +1983,7 @@ procedure do_open(var f; p: pwidechar; flags: longint; pchangeable: boolean);
 var
   s: RawByteString;
 begin
-  widestringmanager.Unicode2AnsiMoveProc(p,s,DefaultFileSystemCodePage,length(p));
+  s:=ToSingleByteFileSystemEncodedFileName(UnicodeString(p));
   do_open(f,pansichar(s),flags,true);
 end;
 
@@ -1991,7 +1991,7 @@ procedure do_erase(p: pwidechar; pchangeable: boolean);
 var
   s: RawByteString;
 begin
-  widestringmanager.Unicode2AnsiMoveProc(p,s,DefaultFileSystemCodePage,length(p));
+  s:=ToSingleByteFileSystemEncodedFileName(UnicodeString(p));
   do_erase(pansichar(s),true);
 end;
 
@@ -1999,8 +1999,8 @@ procedure do_rename(src, dst: pwidechar; srcchangeable, dstchangeable: boolean);
 var
   rsrc, rdst: RawByteString;
 begin
-  widestringmanager.Unicode2AnsiMoveProc(src,rsrc,DefaultFileSystemCodePage,length(src));
-  widestringmanager.Unicode2AnsiMoveProc(dst,rdst,DefaultFileSystemCodePage,length(dst));
+  rsrc:=ToSingleByteFileSystemEncodedFileName(UnicodeString(src));
+  rdst:=ToSingleByteFileSystemEncodedFileName(UnicodeString(dst));
   do_rename(pansichar(rsrc),pansichar(rdst),true,true);
 end;
 
@@ -2008,7 +2008,7 @@ procedure do_rename(src: pwidechar; dst: pansichar; srcchangeable, dstchangeable
 var
   rsrc: RawByteString;
 begin
-  widestringmanager.Unicode2AnsiMoveProc(src,rsrc,DefaultFileSystemCodePage,length(src));
+  rsrc:=ToSingleByteFileSystemEncodedFileName(UnicodeString(src));
   do_rename(pansichar(rsrc),dst,true,dstchangeable);
 end;
 {$endif not FPC_ANSI_TEXTFILEREC}
@@ -2244,4 +2244,3 @@ begin
   CtrlBreakHandler := Handler;
 end;
 {$ENDIF FPC_HAS_SETCTRLBREAKHANDLER}
-
