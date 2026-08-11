@@ -490,6 +490,11 @@ implementation
             if para.left.nodetype=stringconstn then
               inserttypeconv_internal(para.left,cwidestringtype)
 
+            { Delphi passes Char arguments to variant dispatch as strings. }
+            else if (m_delphi in current_settings.modeswitches) and
+                    (is_char(para.left.resultdef) or is_widechar(para.left.resultdef)) then
+              inserttypeconv_internal(para.left,cwidestringtype)
+
             { force automatable boolean type }
             else if is_boolean(para.left.resultdef) then
               inserttypeconv_internal(para.left,bool16type)
