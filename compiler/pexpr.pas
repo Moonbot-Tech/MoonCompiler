@@ -2213,12 +2213,12 @@ implementation
 
 
     { the following procedure handles the access to a property symbol }
-    procedure handle_propertysym(propsym : tpropertysym;st : TSymtable;var p1 : tnode);
+    procedure handle_propertysym(propsym : tpropertysym;st : TSymtable;var p1 : tnode;callflags:tcallnodeflags);
       var
          paras : tnode;
          p2    : tnode;
          membercall : boolean;
-         callflags  : tcallnodeflags;
+         accessorcallflags : tcallnodeflags;
          propaccesslist : tpropaccesslist;
          sym: tsym;
       begin
@@ -2292,12 +2292,12 @@ implementation
                    case sym.typ of
                      procsym :
                        begin
-                         callflags:=[];
+                         accessorcallflags:=callflags*[cnf_inherited,cnf_anon_inherited];
                          { generate the method call }
                          membercall:=maybe_load_methodpointer(st,p1);
                          if membercall then
-                           include(callflags,cnf_member_call);
-                         p1:=ccallnode.create(paras,tprocsym(sym),st,p1,callflags,nil);
+                           include(accessorcallflags,cnf_member_call);
+                         p1:=ccallnode.create(paras,tprocsym(sym),st,p1,accessorcallflags,nil);
                          addsymref(sym);
                          paras:=nil;
                          consume(_ASSIGNMENT);
@@ -2371,12 +2371,12 @@ implementation
                        end;
                      procsym :
                        begin
-                          callflags:=[];
+                          accessorcallflags:=callflags*[cnf_inherited,cnf_anon_inherited];
                           { generate the method call }
                           membercall:=maybe_load_methodpointer(st,p1);
                           if membercall then
-                            include(callflags,cnf_member_call);
-                          p1:=ccallnode.create(paras,tprocsym(sym),st,p1,callflags,nil);
+                            include(accessorcallflags,cnf_member_call);
+                          p1:=ccallnode.create(paras,tprocsym(sym),st,p1,accessorcallflags,nil);
                           paras:=nil;
                           include(p1.flags,nf_isproperty);
                           include(p1.flags,nf_no_lvalue);
@@ -2595,7 +2595,7 @@ implementation
                    begin
                       if isclassref and not (sp_static in sym.symoptions) then
                         Message(parser_e_only_class_members_via_class_ref);
-                      handle_propertysym(tpropertysym(sym),sym.owner,p1);
+                      handle_propertysym(tpropertysym(sym),sym.owner,p1,callflags);
                    end;
                  typesym:
                    begin
@@ -3316,7 +3316,7 @@ implementation
                      begin
                        { The property symbol is referenced indirect }
                        protsym.IncRefCount;
-                       handle_propertysym(protsym,protsym.owner,p1);
+                       handle_propertysym(protsym,protsym.owner,p1,[]);
                      end;
                  end
                else
@@ -4383,7 +4383,7 @@ implementation
               else
               { no method pointer }
                 begin
-                  handle_propertysym(tpropertysym(srsym),srsymtable,result);
+                  handle_propertysym(tpropertysym(srsym),srsymtable,result,[]);
                 end;
             end;
 
@@ -6550,8 +6550,8 @@ implementation
              _PROCEDURE,
              _FUNCTION:
                begin
-                 if (block_type=bt_body) and
-                     (m_anonymous_functions in current_settings.modeswitches) then
+                  if (block_type=bt_body) and
+                      (m_anonymous_functions in current_settings.modeswitches) then
                    begin
                      filepos:=current_filepos;
                      oldprocvardef:=getprocvardef;
