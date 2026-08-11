@@ -5318,8 +5318,6 @@ implementation
 
 
     function nonlocalvars(var n: tnode; arg: pointer): foreachnoderesult; forward;
-
-
     function tcallnode.doinlining: boolean;
       var
         para: tcallparanode;
@@ -5693,8 +5691,11 @@ implementation
                   if assigned(paras) then
                     begin
                       temp:=paras.left.getcopy;
-                      { inherit modification information, this is needed by the dfa/cse }
-                      temp.flags:=temp.flags+(n.flags*[nf_modify,nf_write,nf_address_taken]);
+                      { Preserve access semantics of the replaced load. In
+                        particular, nf_load_procvar keeps an invokable value
+                        from being called while its hidden carriers are built. }
+                      temp.flags:=temp.flags+
+                        (n.flags*[nf_modify,nf_write,nf_address_taken,nf_load_procvar]);
                       n.free;
                       n:=temp;
                       typecheckpass(n);
@@ -5711,8 +5712,10 @@ implementation
                      not assigned(inlinelocals[indexnr]) then
                     internalerror(20040720);
                   temp := tnode(inlinelocals[indexnr]).getcopy;
-                  { inherit modification information, this is needed by the dfa/cse }
-                  temp.flags:=temp.flags+(n.flags*[nf_modify,nf_write,nf_address_taken]);
+                  { Preserve access semantics of the replaced load; see the
+                    parameter case above. }
+                  temp.flags:=temp.flags+
+                    (n.flags*[nf_modify,nf_write,nf_address_taken,nf_load_procvar]);
                   n.free;
                   n:=temp;
                   typecheckpass(n);
