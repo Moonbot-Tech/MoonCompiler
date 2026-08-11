@@ -406,19 +406,32 @@ implementation
                  inline vars - they inherit the enclosing procedure as
                  defowner so the parentfp/capture logic below works }
                if assigned(current_procinfo) and
-                  (symtable.symtabletype in [localsymtable,parasymtable,blocksymtable]) and
-                  (symtable.symtablelevel<>current_procinfo.procdef.parast.symtablelevel) and
-                  { a block-scoped var whose blocksymtable belongs to the current procdef
-                    lives on the current frame, not a parent's. when an anonymous function
-                    is reparented into a capturer method its block symtables keep the old
-                    nested level, so a managed var's finalization would otherwise look like
-                    a parent-frame access - compare defowner identity, not just level }
-                  (symtable.defowner<>current_procinfo.procdef) then
+                  (symtable.symtabletype in [localsymtable,parasymtable,blocksymtable,exceptsymtable]) and
+                  (
+                    { exception variables live in a temporary level-0 symtable,
+                      so ownership rather than level identifies an outer handler }
+                    ((symtable.symtabletype=exceptsymtable) and
+                     (symtable.defowner<>current_procinfo.procdef)) or
+                    ((symtable.symtabletype<>exceptsymtable) and
+                     (symtable.symtablelevel<>current_procinfo.procdef.parast.symtablelevel) and
+                     { a block-scoped var whose blocksymtable belongs to the current procdef
+                       lives on the current frame, not a parent's. when an anonymous function
+                       is reparented into a capturer method its block symtables keep the old
+                       nested level, so a managed var's finalization would otherwise look like
+                       a parent-frame access - compare defowner identity, not just level }
+                     (symtable.defowner<>current_procinfo.procdef))
+                 ) then
                  begin
-                   if assigned(left) then
-                     internalerror(200309289);
-                   left:=cloadparentfpnode.create(tprocdef(symtable.defowner),lpf_forload);
-                   current_procinfo.set_needs_parentfp(tprocdef(symtable.defowner).parast.symtablelevel);
+                   { The exception load is guaranteed to be rewritten to its
+                     capturer field before code generation. Unlike a regular
+                     outer local, it has no addressable parent-frame slot. }
+                   if symtable.symtabletype<>exceptsymtable then
+                     begin
+                       if assigned(left) then
+                         internalerror(200309289);
+                       left:=cloadparentfpnode.create(tprocdef(symtable.defowner),lpf_forload);
+                       current_procinfo.set_needs_parentfp(tprocdef(symtable.defowner).parast.symtablelevel);
+                     end;
                    { reference this as a captured symbol }
                    current_procinfo.add_captured_sym(symtableentry,resultdef,fileinfo);
                    { reference in nested procedures, variable needs to be in memory }

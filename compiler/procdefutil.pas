@@ -1406,11 +1406,27 @@ implementation
         acceptable_typ:=true;
     end;
 
+
+  function capturer_sym_name(pd:tprocdef):tsymstr;
+    begin
+      result:=capturer_var_name;
+      if pd.proctypeoption in [potype_unitfinalize,potype_unitinit,potype_proginit] then
+        result:=result+'_'+fileinfo_to_suffix(pd.fileinfo);
+    end;
+
+
+  function capturer_sym_name_for_def(def:tobjectdef):tsymstr;
+    begin
+      result:=capturer_var_name;
+      if def.typesym.owner.symtabletype=staticsymtable then
+        result:=result+'_'+fileinfo_to_suffix(def.typesym.fileinfo);
+    end;
+
   function get_capturer(pd:tprocdef):tabstractvarsym;
 
     function getsym(st:tsymtable;typ:tsymtyp):tabstractvarsym;
       begin
-        result:=tabstractvarsym(st.find(capturer_var_name));
+        result:=tabstractvarsym(st.find(capturer_sym_name(pd)));
         if not assigned(result) then
           internalerror(2022010703);
        if not acceptable_typ(result,typ) then
@@ -1445,7 +1461,7 @@ implementation
 
     function getsym(st:tsymtable;typ:tsymtyp):tabstractvarsym;
       begin
-        result:=tabstractvarsym(st.find(capturer_var_name+keepalive_suffix));
+        result:=tabstractvarsym(st.find(capturer_sym_name(pd)+keepalive_suffix));
         if not assigned(result) then
           internalerror(2022051703);
         if not acceptable_typ(result,typ) then
@@ -1526,18 +1542,19 @@ implementation
               include(def.defoptions,df_specialization);
             end;}
 
+          name:=capturer_sym_name(pd);
           if st.symtabletype=localsymtable then
-            result:=clocalvarsym.create('$'+capturer_var_name,vs_value,def,[vo_is_internal])
+            result:=clocalvarsym.create('$'+name,vs_value,def,[vo_is_internal])
           else
-            result:=cstaticvarsym.create('$'+capturer_var_name,vs_value,def,[vo_is_internal]);
+            result:=cstaticvarsym.create('$'+name,vs_value,def,[vo_is_internal]);
           result.fileinfo:=pd.fileinfo;
           st.insertsym(result);
           addsymref(result);
 
           if st.symtabletype=localsymtable then
-            keepalive:=clocalvarsym.create('$'+capturer_var_name+keepalive_suffix,vs_value,interface_iunknown,[vo_is_internal])
+            keepalive:=clocalvarsym.create('$'+name+keepalive_suffix,vs_value,interface_iunknown,[vo_is_internal])
           else
-            keepalive:=cstaticvarsym.create('$'+capturer_var_name+keepalive_suffix,vs_value,interface_iunknown,[vo_is_internal]);
+            keepalive:=cstaticvarsym.create('$'+name+keepalive_suffix,vs_value,interface_iunknown,[vo_is_internal]);
           keepalive.fileinfo:=pd.fileinfo;
           st.insertsym(keepalive);
           addsymref(keepalive);
@@ -1653,6 +1670,8 @@ implementation
               if (sym.owner=curpd.localst) or
                   (sym.owner=curpd.parast) or
                   ((sym.owner.symtabletype=blocksymtable) and
+                   (sym.owner.defowner=curpd)) or
+                  ((sym.owner.symtabletype=exceptsymtable) and
                    (sym.owner.defowner=curpd)) then
                 begin
                   {$ifdef DEBUG_CAPTURER}writeln('Symbol ',sym.name,' captured from ',curpd.procsym.name);{$endif}
@@ -1660,9 +1679,19 @@ implementation
                     the capturer if it doesn't already exist }
                   if vo_is_self in tabstractnormalvarsym(sym).varoptions then
                     fieldname:=outer_self_field_name
+                  else if sym.owner.symtabletype=exceptsymtable then
+                    fieldname:='$except_'+fileinfo_to_suffix(sym.fileinfo)
                   else
                     fieldname:=sym.name;
-                  fieldsym:=tfieldvarsym(subcapturer.symtable.find(fieldname));
+                  if (sym.owner.symtabletype=exceptsymtable) and
+                      assigned(tabstractnormalvarsym(sym).capture_sym) then
+                    begin
+                      fieldsym:=tfieldvarsym(tabstractnormalvarsym(sym).capture_sym);
+                      if fieldsym.owner<>subcapturer.symtable then
+                        internalerror(2022011602);
+                    end
+                  else
+                    fieldsym:=tfieldvarsym(subcapturer.symtable.find(fieldname));
                   if not assigned(fieldsym) then
                     begin
                       {$ifdef DEBUG_CAPTURER}writeln('Adding field ',fieldname,' to ',subcapturer.typesym.name);{$endif}
@@ -1778,9 +1807,12 @@ implementation
       if n.nodetype<>loadn then
         exit;
       sym:=tsym(tloadnode(n).symtableentry);
-      if not (sym.owner.symtabletype in [parasymtable,localsymtable,blocksymtable]) then
+      if not (sym.owner.symtabletype in [parasymtable,localsymtable,blocksymtable,exceptsymtable]) then
         exit;
-      if sym.owner.symtablelevel>normal_function_level then begin
+      if ((sym.owner.symtabletype=exceptsymtable) and
+          (sym.owner.defowner<>pd)) or
+         ((sym.owner.symtabletype<>exceptsymtable) and
+          (sym.owner.symtablelevel>normal_function_level)) then begin
         pd.add_captured_sym(sym,tloadnode(n).resultdef,n.fileinfo);
         result:=fen_true;
       end;
@@ -2521,6 +2553,12 @@ implementation
     end;
     pconvert_mapping=^tconvert_mapping;
 
+    texception_capture_arg=record
+      procdef:tprocdef;
+      syms:tfplist;
+    end;
+    pexception_capture_arg=^texception_capture_arg;
+
 
   function convert_captured_sym(var n:tnode;arg:pointer):foreachnoderesult;
     var
@@ -2608,6 +2646,82 @@ implementation
     end;
 
 
+  function initialize_captured_exception_sym(var n:tnode;arg:pointer):foreachnoderesult;
+    var
+      pd : tprocdef;
+      onnode : tonnode;
+      exceptsym : tlocalvarsym;
+      capturer : tabstractvarsym;
+      assignment,
+      body : tnode;
+      statements : tstatementnode;
+      block : tblocknode;
+    begin
+      pd:=tprocdef(arg);
+      result:=fen_false;
+      if n.nodetype<>onn then
+        exit;
+      onnode:=tonnode(n);
+      if not assigned(onnode.exceptsymtable) or
+          (onnode.exceptsymtable.symlist.count=0) or
+          not assigned(onnode.right) then
+        exit;
+      exceptsym:=tlocalvarsym(onnode.exceptsymtable.symlist[0]);
+      if not assigned(exceptsym.capture_sym) then
+        exit;
+
+      capturer:=get_capturer(pd);
+      assignment:=cassignmentnode.create(
+        csubscriptnode.create(exceptsym.capture_sym,
+          cloadnode.create(capturer,capturer.owner)),
+        cloadnode.create(exceptsym,exceptsym.owner));
+      typecheckpass(assignment);
+      if codegenerror then
+        begin
+          assignment.free;
+          exit;
+        end;
+
+      body:=onnode.right;
+      onnode.right:=nil;
+      statements:=cstatementnode.create(assignment,
+        cstatementnode.create(body,nil));
+      statements.resultdef:=voidtype;
+      tstatementnode(statements.right).resultdef:=voidtype;
+      block:=cblocknode.create(statements);
+      include(block.blocknodeflags,bnf_strippable);
+      block.resultdef:=body.resultdef;
+      block.fileinfo:=body.fileinfo;
+      onnode.right:=block;
+      result:=fen_true;
+    end;
+
+
+  function collect_captured_exception_syms(var n:tnode;arg:pointer):foreachnoderesult;
+    var
+      capturearg : pexception_capture_arg absolute arg;
+      onnode : tonnode;
+      sym : tsym;
+      i : longint;
+    begin
+      result:=fen_false;
+      if n.nodetype<>onn then
+        exit;
+      onnode:=tonnode(n);
+      if not assigned(onnode.exceptsymtable) then
+        exit;
+      for i:=0 to onnode.exceptsymtable.symlist.count-1 do
+        begin
+          sym:=tsym(onnode.exceptsymtable.symlist[i]);
+          if (sym.typ=localvarsym) and
+             (sym.owner.defowner=capturearg^.procdef) and
+             assigned(tlocalvarsym(sym).capture_sym) and
+             (capturearg^.syms.indexof(sym)<0) then
+            capturearg^.syms.add(sym);
+        end;
+    end;
+
+
   procedure convert_captured_syms(pd:tprocdef;tree:tnode);
 
     function self_tree_for_sym(selfsym:tsym;fieldsym:tsym):tnode;
@@ -2633,6 +2747,7 @@ implementation
       tocapture,
       capturedsyms : tfplist;
       convertarg : tconvert_arg;
+      exceptioncapturearg : texception_capture_arg;
       mapping : pconvert_mapping;
       selfsym,
       sym : tsym;
@@ -2716,7 +2831,7 @@ implementation
                 internalerror(2022012701);
               if not (capturer.typesym.owner.symtabletype in [localsymtable,staticsymtable]) then
                 internalerror(2022012702);
-              selfsym:=tsym(capturer.typesym.owner.find(capturer_var_name));
+              selfsym:=tsym(capturer.typesym.owner.find(capturer_sym_name_for_def(capturer)));
               if not assigned(selfsym) then
                 internalerror(2022012703);
               mapping^.selfnode:=self_tree_for_sym(selfsym,mapping^.newsym);
@@ -2776,6 +2891,14 @@ implementation
                   tocapture.add(sym);
             end;
 
+          { An exception variable is lexical like any other captured local.
+            Rewrite explicit reads and writes in the handler to the same field
+            used by its closures; the raw handler value is copied there later. }
+          exceptioncapturearg.procdef:=pd;
+          exceptioncapturearg.syms:=tocapture;
+          foreachnodestatic(pm_postprocess,tree,
+            @collect_captured_exception_syms,@exceptioncapturearg);
+
           convertarg.mappings.capacity:=convertarg.mappings.count+tocapture.count;
           for i:=0 to tocapture.count-1 do
             begin
@@ -2799,6 +2922,11 @@ implementation
 
       if convertarg.mappings.count>0 then
         foreachnodestatic(pm_postprocess,tree,@convert_captured_sym,@convertarg);
+
+      { The regular on-node code generator materializes the handler-local
+        exception object. Copy its raw, non-owning value into the capturer
+        before running the handler body. }
+      foreachnodestatic(pm_postprocess,tree,@initialize_captured_exception_sym,pointer(pd));
 
       for i:=0 to convertarg.mappings.count-1 do
         begin

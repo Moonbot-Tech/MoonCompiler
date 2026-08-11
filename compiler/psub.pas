@@ -53,6 +53,7 @@ interface
         procedure setup_tempgen;
         procedure TransformNodeTree;
         procedure convert_captured_syms;
+        procedure generate_code_tree_converted;
       protected
         procedure generate_code_exceptfilters;
       public
@@ -1745,7 +1746,7 @@ implementation
       end;
 {$endif DEBUG_NODE_XML}
 
-    procedure tcgprocinfo.generate_code_tree;
+    procedure tcgprocinfo.generate_code_tree_converted;
       var
         hpi : tcgprocinfo;
       begin
@@ -1756,10 +1757,19 @@ implementation
         while assigned(hpi) do
           begin
             if not (df_generic in hpi.procdef.defoptions) then
-              hpi.generate_code_tree;
+              hpi.generate_code_tree_converted;
             hpi:=tcgprocinfo(hpi.next);
           end;
         resetprocdef;
+      end;
+
+
+    procedure tcgprocinfo.generate_code_tree;
+      begin
+        { All code trees, including the program body and unit init/final
+          routines, must have captured loads rewritten before code generation. }
+        convert_captured_syms;
+        generate_code_tree_converted;
       end;
 
 
@@ -3169,9 +3179,6 @@ implementation
                 { also generate the bodies for all previously done
                   specializations so that we might inline them }
                 generate_specialization_procs;
-                { convert all load nodes that might have been captured by a
-                  capture object }
-                tcgprocinfo(current_procinfo).convert_captured_syms;
                 tcgprocinfo(current_procinfo).generate_code_tree;
               end;
           end;

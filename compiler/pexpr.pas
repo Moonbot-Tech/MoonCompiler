@@ -6550,7 +6550,7 @@ implementation
              _PROCEDURE,
              _FUNCTION:
                begin
-                  if (block_type=bt_body) and
+                  if (block_type in [bt_body,bt_except]) and
                       (m_anonymous_functions in current_settings.modeswitches) then
                    begin
                      filepos:=current_filepos;
