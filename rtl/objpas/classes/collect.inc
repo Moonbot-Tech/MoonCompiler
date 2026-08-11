@@ -360,6 +360,13 @@ begin
 end;
 
 
+procedure TCollection.ClearAndResetID;
+begin
+  Clear;
+  FNextID:=0;
+end;
+
+
 procedure TCollection.DoClear;
 begin
   While FItems.Count>0 do TCollectionItem(FItems.Last).Free;

@@ -840,6 +840,7 @@ type
     procedure Assign(Source: TPersistent); override;
     procedure BeginUpdate; virtual;
     procedure Clear;
+    procedure ClearAndResetID;
     procedure EndUpdate; virtual;
     procedure Delete(Index: Integer);
     function GetEnumerator: TCollectionEnumerator;
