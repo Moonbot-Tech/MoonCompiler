@@ -4027,6 +4027,20 @@ implementation
         free_guarded    : tnode;
         chain_block     : tblocknode;
         chain_stat      : tstatementnode;
+
+      function inline_init_expr : tnode;
+        var
+          old_afterassignment : boolean;
+        begin
+          { A typed or inferred inline initializer has the same expression
+            context as the right-hand side of a regular assignment. This is
+            required for late-bound Variant members to produce a value. }
+          old_afterassignment:=afterassignment;
+          afterassignment:=true;
+          result:=expr(true);
+          afterassignment:=old_afterassignment;
+        end;
+
       begin
         result := nil;
         consume(_VAR);
@@ -4062,7 +4076,7 @@ implementation
             until not try_to_consume(_COMMA);
             consume(_RKLAMMER);
             consume(_ASSIGNMENT);
-            initexpr := expr(true);
+            initexpr := inline_init_expr;
             do_typecheckpass(initexpr);
             if not assigned(initexpr.resultdef) or
                (initexpr.resultdef.typ <> recorddef) then
@@ -4202,7 +4216,7 @@ implementation
                         cloadnode.create(tcsym, tcsym.owner));
                       exit;
                     end;
-                  initexpr := expr(true);
+                  initexpr := inline_init_expr;
                   if sc.count = 1 then
                     begin
                       tabstractnormalvarsym(sc[0]).varstate := vs_initialised;
@@ -4276,7 +4290,7 @@ implementation
               { Restore block_type before parsing the expression so that the
                 scanner does not misinterpret keywords in the RHS. }
               block_type := old_block_type;
-              initexpr := expr(true);
+              initexpr := inline_init_expr;
               do_typecheckpass(initexpr);
               hdef := initexpr.resultdef;
               { unleashed: array literal `[...]` -> infer element type from the
@@ -4437,6 +4451,8 @@ implementation
         old_block_type : tblock_type;
         varspez : tvarspez;
         asmtype : tasmlisttype;
+        initexpr : tnode;
+        tokenbuf : tdynamicarray;
       begin
         result:=nil;
         consume(_CONST);
@@ -4457,9 +4473,50 @@ implementation
         consume(_ID);
         old_block_type:=block_type;
         block_type:=bt_const;
+        tokenbuf:=nil;
         if try_to_consume(_EQ) then
           begin
+            { Delphi infers a comma-separated bracket literal in a block-scoped
+              const as a read-only dynamic array. Parse once to infer its
+              element type, then replay the literal through the existing typed
+              constant writer. A range literal such as [1..3] remains a set and
+              follows the ordinary constant path below. }
+            if (m_delphi in current_settings.modeswitches) and
+               (current_scanner.token=_LECKKLAMMER) then
+              begin
+                tokenbuf:=tdynamicarray.create(256);
+                current_scanner.startrecordtokens(tokenbuf);
+                block_type:=old_block_type;
+                initexpr:=expr(true);
+                block_type:=bt_const;
+                current_scanner.stoprecordtokens;
+                do_typecheckpass(initexpr);
+                if assigned(initexpr) and
+                   (initexpr.nodetype=arrayconstructorn) and
+                   assigned(initexpr.resultdef) and
+                   (initexpr.resultdef.typ=arraydef) and
+                   (ado_IsConstructor in tarraydef(initexpr.resultdef).arrayoptions) then
+                  begin
+                    hdef:=unleashed_infer_array_literal(tarrayconstructornode(initexpr));
+                    vsym:=cstaticvarsym.create(orgname,vs_const,hdef,[]);
+                    symtablestack.top.insertsym(vsym);
+                    vsym.register_sym;
+                    initexpr.free;
+                    tokenbuf.seek(0);
+                    current_scanner.startreplaytokens(tokenbuf,false);
+                    read_typed_const(current_asmdata.asmlists[al_rotypedconsts],vsym,false,false);
+                    tokenbuf.free;
+                    result:=cnothingnode.create;
+                    block_type:=old_block_type;
+                    exit;
+                  end;
+                initexpr.free;
+                tokenbuf.seek(0);
+                current_scanner.startreplaytokens(tokenbuf,false);
+              end;
             csym:=readconstant(orgname,filepos,nt);
+            if assigned(tokenbuf) then
+              tokenbuf.free;
             if assigned(csym) then
               begin
                 csym.register_sym;
