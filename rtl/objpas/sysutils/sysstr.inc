@@ -906,6 +906,11 @@ begin
  System.Str(Value, result);
 end ;
 
+function UIntToStr(Value: Int64): string;
+begin
+  Result:=UIntToStr(QWord(Value));
+end;
+
 function UIntToStr(Value: QWord): string;
 
 begin

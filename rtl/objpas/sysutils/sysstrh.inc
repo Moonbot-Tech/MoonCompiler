@@ -119,6 +119,7 @@ function IsValidIdent(const Ident: string; AllowDots: Boolean = False; StrictDot
 function IntToStr(Value: Longint): string; {$ifdef SYSUTILSINLINE}inline;{$ENDIF}
 function IntToStr(Value: Int64): string; {$ifdef SYSUTILSINLINE}inline;{$ENDIF}
 function IntToStr(Value: QWord): string; {$ifdef SYSUTILSINLINE}inline;{$ENDIF}
+function UIntToStr(Value: Int64): string; {$ifdef SYSUTILSINLINE}inline;{$ENDIF}
 function UIntToStr(Value: QWord): string; {$ifdef SYSUTILSINLINE}inline;{$ENDIF}
 function UIntToStr(Value: Cardinal): string; {$ifdef SYSUTILSINLINE}inline;{$ENDIF}
 function IntToHex(Value: Longint; Digits: integer): string;
