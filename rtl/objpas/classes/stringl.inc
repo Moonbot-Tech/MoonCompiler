@@ -502,6 +502,17 @@ begin
   GetNameValue(Index,Result,V);
 end;
 
+function TStrings.GetKeyName(Index: Integer): string;
+var
+  P: SizeInt;
+begin
+  CheckSpecialChars;
+  Result:=Get(Index);
+  P:=Pos(FNameValueSeparator,Result);
+  if P<>0 then
+    SetLength(Result,P-1);
+end;
+
 function TStrings.GetStrictDelimiter: Boolean;
 begin
   Result:=soStrictDelimiter in FOptions;

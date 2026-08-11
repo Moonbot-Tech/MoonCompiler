@@ -919,6 +919,7 @@ type
     function GetCommaText: string;
     function GetLineBreakCharLBS: string;
     function GetMissingNameValueSeparatorAction: TMissingNameValueSeparatorAction;
+    function GetKeyName(Index: Integer): string;
     function GetName(Index: Integer): string;
     function GetStrictDelimiter: Boolean;
     function GetTrailingLineBreak: Boolean;
@@ -1068,6 +1069,7 @@ type
     property LineBreak : string Read GetLineBreak write SetLineBreak;
     Property MissingNameValueSeparatorAction : TMissingNameValueSeparatorAction Read GetMissingNameValueSeparatorAction Write SetMissingNameValueSeparatorAction;
     property Names[Index: Integer]: string read GetName;
+    property KeyNames[Index: Integer]: string read GetKeyName;
     Property NameValueSeparator : Char Read GetNameValueSeparator Write SetNameValueSeparator;
     property Objects[Index: Integer]: TObject read GetObject write PutObject;
     property Options: TStringsOptions read FOptions write FOptions;
