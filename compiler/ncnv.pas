@@ -2916,6 +2916,75 @@ implementation
 
     function ttypeconvnode.pass_typecheck:tnode;
 
+      function next_visible_para(pd:tabstractprocdef;var index:longint):tparavarsym;
+        begin
+          result:=nil;
+          while index<pd.paras.count do
+            begin
+              result:=tparavarsym(pd.paras[index]);
+              inc(index);
+              if not(vo_is_hidden_para in result.varoptions) then
+                exit;
+            end;
+          result:=nil;
+        end;
+
+      procedure normalize_explicit_delphi_anonymous_const_paras;
+        var
+          sourcepd,
+          targetpd: tabstractprocdef;
+          sourcepara,
+          targetpara: tparavarsym;
+          sourceidx,
+          targetidx: longint;
+        begin
+          if not(nf_explicit in flags) or
+             not(m_delphi in current_settings.modeswitches) or
+             (left.resultdef.typ<>procdef) or
+             not(po_anonymous in tprocdef(left.resultdef).procoptions) then
+            exit;
+          sourcepd:=tprocdef(left.resultdef);
+          if resultdef.typ=procvardef then
+            targetpd:=tprocvardef(resultdef)
+          else if is_funcref(resultdef) then
+            targetpd:=get_invoke_procdef(tobjectdef(resultdef))
+          else
+            exit;
+          if (sourcepd.proccalloption<>targetpd.proccalloption) or
+             (compare_rettype(sourcepd.returndef,targetpd.returndef)<te_equal) or
+             (compare_paras(sourcepd.paras,targetpd.paras,cp_all,
+               [cpo_ignorehidden,cpo_ignorevarspez])<te_equal) then
+            exit;
+
+          sourceidx:=0;
+          targetidx:=0;
+          sourcepara:=next_visible_para(sourcepd,sourceidx);
+          targetpara:=next_visible_para(targetpd,targetidx);
+          while assigned(sourcepara) do
+            begin
+              if (sourcepara.varspez<>targetpara.varspez) and
+                 not((sourcepara.varspez=vs_const) and
+                     (targetpara.varspez=vs_value)) then
+                exit;
+              sourcepara:=next_visible_para(sourcepd,sourceidx);
+              targetpara:=next_visible_para(targetpd,targetidx);
+            end;
+
+          sourceidx:=0;
+          targetidx:=0;
+          sourcepara:=next_visible_para(sourcepd,sourceidx);
+          targetpara:=next_visible_para(targetpd,targetidx);
+          while assigned(sourcepara) do
+            begin
+              { the anonymous body was checked with a read-only parameter;
+                generate its ABI as the explicitly requested value callback }
+              if sourcepara.varspez<>targetpara.varspez then
+                sourcepara.varspez:=targetpara.varspez;
+              sourcepara:=next_visible_para(sourcepd,sourceidx);
+              targetpara:=next_visible_para(targetpd,targetidx);
+            end;
+        end;
+
       var
         hdef : tdef;
         hp : tnode;
@@ -2983,6 +3052,7 @@ implementation
               include(cdoptions,cdo_explicit);
             if nf_internal in flags then
               include(cdoptions,cdo_internal);
+            normalize_explicit_delphi_anonymous_const_paras;
             aprocdef:=nil;
             eq:=compare_defs_ext(left.resultdef,resultdef,left.nodetype,convtype,aprocdef,cdoptions);
             case eq of
