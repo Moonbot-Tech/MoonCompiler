@@ -3887,7 +3887,8 @@ end;
 procedure TOption.Interpret_U_U(opt, more: TCmdStr);
 
 var
-  j : integer;
+  j,aliassep : integer;
+  aliasespec : TCmdStr;
 
 begin
   j:=1;
@@ -3897,7 +3898,12 @@ begin
 {$ifdef UNITALIASES}
        'a' :
           begin
-            AddUnitAlias(Copy(More,j+1));
+            aliasespec:=Copy(More,j+1);
+            aliassep:=pos('=',aliasespec);
+            if (aliassep<=1) or (aliassep=length(aliasespec)) then
+              IllegalPara(opt)
+            else
+              AddUnitAlias(aliasespec);
             break;
           end;
 {$endif UNITALIASES}

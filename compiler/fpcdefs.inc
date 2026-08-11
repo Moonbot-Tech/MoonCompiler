@@ -12,6 +12,8 @@
 {$endif}
 {$interfaces corba}
 
+{$define UNITALIASES}
+
 { This reduces the memory requirements a lot }
 {$PACKENUM 1}
 {$PACKSET 1}

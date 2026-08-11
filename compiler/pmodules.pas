@@ -616,7 +616,7 @@ implementation
     procedure parseusesclause(curr: tmodule);
 
       var
-         s,sorg  : ansistring;
+         s,sorg,lookupname  : ansistring;
          fn      : string;
          pu  : tused_unit;
          hp2     : tmodule;
@@ -644,6 +644,9 @@ implementation
           if not(m_tp7 in current_settings.modeswitches) and
              try_to_consume(_OP_IN) then
             fn:=FixFileName(get_stringconst);
+          lookupname:=sorg;
+          if fn='' then
+            lookupname:=getunitalias(lookupname);
           { Give a warning if lineinfo is loaded }
           if s='LINEINFO' then
             begin
@@ -656,14 +659,14 @@ implementation
           if s='OBJPAS' then
            Message(parser_w_no_objpas_use_mode);
           { Using the unit itself is not possible }
-          if (s<>curr.modulename^) then
+          if (Upper(lookupname)<>curr.modulename^) then
            begin
              { check if the unit is already used }
              hp2:=nil;
              pu:=tused_unit(curr.used_units.first);
              while assigned(pu) do
               begin
-                if (pu.u.modulename^=s) then
+                if (pu.u.modulename^=Upper(lookupname)) then
                  begin
                    hp2:=pu.u;
                    break;
@@ -672,7 +675,7 @@ implementation
               end;
              if not assigned(hp2) then
                begin
-               hp2:=registerunit(curr,sorg,fn,isnew);
+               hp2:=registerunit(curr,lookupname,fn,isnew);
                if isnew then
                  usedunits.concat(tused_unit.create(hp2,curr.in_interface,true,nil));
                end
@@ -781,7 +784,7 @@ implementation
 
      var
        pu  : tused_unit;
-       sorg   : ansistring;
+       sorg,aliasname : ansistring;
        unitsymtable: tabstractunitsymtable;
 
      begin
@@ -814,7 +817,16 @@ implementation
            pu.checksum:=pu.u.crc;
            pu.interface_checksum:=pu.u.interface_crc;
            pu.indirect_checksum:=pu.u.indirect_crc;
-           if tppumodule(pu.u).nsprefix<>'' then
+           aliasname:=getunitalias(pu.unitsym.realname);
+           if (Upper(aliasname)=pu.u.modulename^) and
+              (Upper(aliasname)<>Upper(pu.unitsym.realname)) then
+             begin
+               { Keep the spelling from the uses clause as the source-level
+                 qualifier while binding it to the aliased module. }
+               pu.unitsym.module:=pu.u;
+               pu.unitsym.register_sym;
+             end
+           else if tppumodule(pu.u).nsprefix<>'' then
              begin
                { use the name as declared in the uses section for -Un }
                sorg:=tppumodule(pu.u).nsprefix+'.'+pu.unitsym.realname;

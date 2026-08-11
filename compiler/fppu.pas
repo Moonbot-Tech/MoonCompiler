@@ -2765,9 +2765,119 @@ var
             Result:=false;
           end;
 
+          function FindLoadedUnit(const UnitName:TIDString):tppumodule;
+          begin
+            Result:=tppumodule(loaded_units.first);
+            while assigned(Result) and
+                  ((Result.modulename^<>UnitName) or not Result.is_unit) do
+              Result:=tppumodule(Result.next);
+          end;
+
+          function UnitInPackage(const UnitName:TIDString):boolean;
+            var
+              I : Integer;
+              PackageEntry : PPackageEntry;
+            begin
+              Result:=false;
+              for I:=0 to PackageList.Count-1 do
+                begin
+                  PackageEntry:=PPackageEntry(PackageList[I]);
+                  if assigned(PackageEntry^.Package) and
+                     (PackageEntry^.Package.ContainedModules.FindIndexOf(UnitName)>=0) then
+                    exit(true);
+                end;
+            end;
+
+          function UnitFileExists(const UnitName,Prefix:TCmdStr):boolean;
+            var
+              filename,
+              foundfile : TCmdStr;
+
+              function PPUExistsInPath(const Path:TCmdStr):boolean;
+                begin
+                  Result:=FindFile(filename+target_info.unitext,Path,true,foundfile);
+                end;
+
+              function SourceExistsInPath(const Path:TCmdStr):boolean;
+                begin
+                  Result:=FindFile(filename+sourceext,Path,true,foundfile) or
+                          FindFile(filename+pasext,Path,true,foundfile);
+                  if not Result and
+                     ((m_mac in current_settings.modeswitches) or
+                      (tf_p_ext_support in target_info.flags)) then
+                    Result:=FindFile(filename+pext,Path,true,foundfile);
+                end;
+
+              function ExistsInPathList(List:TSearchPathList):boolean;
+                var
+                  Item : TCmdStrListItem;
+                begin
+                  Result:=false;
+                  Item:=TCmdStrListItem(List.First);
+                  while assigned(Item) do
+                    begin
+                      if PPUExistsInPath(Item.Str) or
+                         SourceExistsInPath(Item.Str) then
+                        exit(true);
+                      Item:=TCmdStrListItem(Item.Next);
+                    end;
+                end;
+
+              function ExistsWithName(const FileNamePart:TCmdStr):boolean;
+                begin
+                  filename:=FileNamePart;
+                  if Prefix<>'' then
+                    filename:=Prefix+'.'+filename;
+                  Result:=PPUExistsInPath('.') or
+                          (assigned(callermodule) and
+                           (callermodule.outputpath<>'') and
+                           PPUExistsInPath(callermodule.outputpath)) or
+                          (assigned(main_module) and
+                           (main_module.Path<>'') and
+                           PPUExistsInPath(main_module.Path)) or
+                          SourceExistsInPath('.') or
+                          (assigned(main_module) and
+                           (main_module.Path<>'') and
+                           SourceExistsInPath(main_module.Path)) or
+                          (assigned(callermodule) and
+                           ExistsInPathList(callermodule.LocalUnitSearchPath)) or
+                          ExistsInPathList(UnitSearchPath);
+                end;
+
+            begin
+              Result:=ExistsWithName(FixFileName(UnitName));
+              if not Result and
+                 (ft83 in AllowedFilenameTransFormations) and
+                 (Length(UnitName)>8) then
+                Result:=ExistsWithName(FixFileName(Copy(UnitName,1,8)));
+            end;
+
+          function FindLoadedNamespacedUnit(const UnitName:TIDString;
+            Prefixes:TCmdStrList;out Resolved:boolean):tppumodule;
+            var
+              Item : TCmdStrListItem;
+            begin
+              Result:=nil;
+              Resolved:=false;
+              if not assigned(Prefixes) then
+                exit;
+              Item:=TCmdStrListItem(Prefixes.First);
+              while assigned(Item) do
+                begin
+                  if UnitFileExists(UnitName,Item.Str) then
+                    begin
+                      Resolved:=true;
+                      Result:=FindLoadedUnit(Upper(Item.Str+'.'+UnitName));
+                      exit;
+                    end;
+                  Item:=TCmdStrListItem(Item.Next);
+                end;
+            end;
+
       var
         ups   : TIDString;
         hp    : tppumodule;
+        namespace_resolved : boolean;
         cycle : TFPList;
 {$IFDEF DEBUGCYCLE}
         cyclepath : ansistring;
@@ -2779,9 +2889,25 @@ var
         ups:=upper(s);
 
         { search all loaded units, skip program/library }
-        hp:=tppumodule(loaded_units.first);
-        while assigned(hp) and ((hp.modulename^<>ups) or not hp.is_unit) do
-          hp:=tppumodule(hp.next);
+        hp:=FindLoadedUnit(ups);
+
+        { Default namespaces are applied later by search_unit_files(). Reuse
+          an already loaded namespaced unit before registering a duplicate,
+          while preserving the precedence of a real unqualified unit. }
+        if not assigned(hp) and
+           (fn='') and
+           not UnitInPackage(ups) and
+           not UnitFileExists(s,'') and
+           ((assigned(current_namespacelist) and
+             (current_namespacelist.count>0)) or
+            (namespacelist.count>0)) then
+          begin
+            hp:=FindLoadedNamespacedUnit(s,current_namespacelist,
+              namespace_resolved);
+            if not namespace_resolved then
+              hp:=FindLoadedNamespacedUnit(s,namespacelist,
+                namespace_resolved);
+          end;
 
         is_new:=not assigned(hp);
         if is_new then

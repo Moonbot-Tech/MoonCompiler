@@ -2933,6 +2933,11 @@ uses
               unitsyms.add(upper(n),sym);
               end;
           end;
+      { PPU loading clears tunitsym.module. Reconnect the generic unit's own
+        symbol as well as the used-unit symbols handled below. }
+      sym:=tsym(unitsyms.find(hmodule.modulename^));
+      if assigned(sym) and not assigned(tunitsym(sym).module) then
+        tunitsym(sym).module:=hmodule;
       { add all units if we are specializing inside the current unit (as the
         generic could have been declared in the implementation part), but load
         only interface units, if we are in a different unit as then the generic

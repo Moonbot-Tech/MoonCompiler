@@ -430,9 +430,12 @@ implementation
 
     function try_consume_unitsym(var srsym:tsym;var srsymtable:TSymtable;var tokentoconsume:ttoken;flags:tconsume_unitsym_flags;out is_specialize:boolean;sympattern:TSymStr):boolean;
       var
-        hmodule: tmodule;
+        hmodule,
+        sourcemodule: tmodule;
         ns:ansistring;
-        nssym:tsym;
+        nssym,
+        sourcesym:tsym;
+        sourcesymtable:TSymtable;
         nsitem : TCmdStrListItem;
 
         procedure consume_namespace;
@@ -490,6 +493,19 @@ implementation
             hmodule:=find_module_from_symtable(srsym.Owner);
             if not Assigned(hmodule) then
               internalerror(2010011201);
+            if hmodule.moduleid<>current_filepos.moduleindex then
+              begin
+                sourcemodule:=get_module(current_filepos.moduleindex);
+                if assigned(sourcemodule) and
+                   searchsym_in_module(sourcemodule,sympattern,
+                     sourcesym,sourcesymtable) and
+                   (sourcesym.typ in [unitsym,namespacesym]) then
+                  begin
+                    srsym:=sourcesym;
+                    srsymtable:=sourcesymtable;
+                    hmodule:=sourcemodule;
+                  end;
+              end;
             if hmodule.moduleid=current_filepos.moduleindex then
               begin
                 if cuf_consume_id in flags then

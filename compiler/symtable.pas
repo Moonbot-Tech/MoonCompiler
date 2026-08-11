@@ -443,14 +443,11 @@ interface
 
 {$ifdef UNITALIASES}
     type
-       punit_alias = ^tunit_alias;
-       tunit_alias = object(TNamedIndexItem)
-          newname : pshortstring;
-          constructor init(const n:string);
-          destructor  done;virtual;
-       end;
+       tunit_alias = class
+          newname : TIDString;
+        end;
     var
-       unitaliases : pdictionary;
+       unitaliases : TFPHashObjectList;
 
     procedure addunitalias(const n:string);
     function getunitalias(const n:string):string;
@@ -5384,38 +5381,29 @@ implementation
                               TUNIT_ALIAS
  ****************************************************************************}
 
-    constructor tunit_alias.create(const n:string);
+    procedure addunitalias(const n:string);
       var
         i : longint;
+        alias : tunit_alias;
       begin
         i:=pos('=',n);
-        if i=0 then
-         fail;
-        inherited createname(Copy(n,1,i-1));
-        newname:=stringdup(Copy(n,i+1,255));
-      end;
-
-
-    destructor tunit_alias.destroy;
-      begin
-        stringdispose(newname);
-        inherited destroy;
-      end;
-
-
-    procedure addunitalias(const n:string);
-      begin
-        unitaliases^.insert(tunit_alias,init(Upper(n))));
+        alias:=tunit_alias(unitaliases.Find(Upper(Copy(n,1,i-1))));
+        if not assigned(alias) then
+          begin
+            alias:=tunit_alias.create;
+            unitaliases.Add(Upper(Copy(n,1,i-1)),alias);
+          end;
+        alias.newname:=Copy(n,i+1,255);
       end;
 
 
     function getunitalias(const n:string):string;
       var
-        p : punit_alias;
+        alias : tunit_alias;
       begin
-        p:=punit_alias(unitaliases^.Find(Upper(n)));
-        if assigned(p) then
-         getunitalias:=punit_alias(p).newname^
+        alias:=tunit_alias(unitaliases.Find(Upper(n)));
+        if assigned(alias) then
+         getunitalias:=alias.newname
         else
          getunitalias:=n;
       end;
