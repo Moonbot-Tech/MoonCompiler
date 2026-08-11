@@ -2996,6 +2996,7 @@ implementation
         newblock: tblocknode;
         newstatement: tstatementnode;
         tempnode: ttempcreatenode;
+        baseorddef: tdef;
       begin
         result:=nil;
         resultdef:=totypedef;
@@ -3120,6 +3121,14 @@ implementation
                   hp:=ccallnode.create(ccallparanode.create(left,nil),Tprocsym(aprocdef.procsym),nil,nil,[],nil);
                   { tell explicitly which def we must use !! (PM) }
                   tcallnode(hp).procdefinition:=aprocdef;
+                  if (m_delphi in current_settings.modeswitches) and
+                     (resultdef.typ=orddef) and
+                     (df_unique in resultdef.defoptions) then
+                    begin
+                      baseorddef:=get_unique_base_def(resultdef);
+                      if aprocdef.returndef=baseorddef then
+                        hp:=ctypeconvnode.create_internal(hp,resultdef);
+                    end;
                   left:=nil;
                   result:=hp;
                   exit;

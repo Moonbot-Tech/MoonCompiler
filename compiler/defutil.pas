@@ -409,6 +409,9 @@ interface
     { Delphi evaluates ordinal arithmetic in at least a 32-bit domain. }
     function get_delphi_int_arithmetic_def(ld, rd: torddef): torddef;
 
+    { Return the first non-distinct definition underlying def. }
+    function get_unique_base_def(def: tdef): tdef;
+
     { # calculates "not v" based on the provided def; returns true if the def
         was negligible, false otherwise }
     function calc_not_ordvalue(var v:Tconstexprint; var def:tdef):boolean;
@@ -2132,6 +2135,15 @@ implementation
         result:=get_common_intdef(ld,rd,true);
         if result.size<s32inttype.size then
           result:=torddef(s32inttype);
+      end;
+
+
+    function get_unique_base_def(def: tdef): tdef;
+      begin
+        result:=def;
+        while (df_unique in result.defoptions) and
+              assigned(tstoreddef(result).orgdef) do
+          result:=tstoreddef(result).orgdef;
       end;
 
 

@@ -339,6 +339,7 @@ implementation
          diff : boolean;
          symfrom,symto : tsym;
          genconstrfrom,genconstrto : tgenericconstraintdata;
+         baseorddef : tdef;
       begin
          eq:=te_incompatible;
          doconv:=tc_not_possible;
@@ -2252,6 +2253,19 @@ implementation
            ) then
           begin
             operatorpd:=search_assignment_operator(def_from,def_to,cdo_explicit in cdoptions);
+            { Delphi applies the base ordinal Variant conversion to distinct
+              ordinal types as well (e.g. TUnixTime = type Int64). }
+            if not assigned(operatorpd) and
+               (m_delphi in current_settings.modeswitches) and
+               (def_from.typ=variantdef) and
+               (def_to.typ=orddef) and
+               (df_unique in def_to.defoptions) then
+              begin
+                baseorddef:=get_unique_base_def(def_to);
+                if baseorddef.typ=orddef then
+                  operatorpd:=search_assignment_operator(def_from,
+                    baseorddef,cdo_explicit in cdoptions);
+              end;
             if assigned(operatorpd) then
              eq:=te_convert_operator;
           end;
