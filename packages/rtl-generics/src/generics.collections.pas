@@ -70,6 +70,30 @@ type
     CompareResult: SizeInt;
   end;
 
+  TArray = record
+    class procedure Sort<T>(var AValues: array of T); static; overload;
+    class procedure Sort<T>(var AValues: array of T;
+      const AComparer: IComparer<T>); static; overload;
+    class procedure Sort<T>(var AValues: array of T;
+      const AComparer: IComparer<T>; AIndex, ACount: SizeInt); static; overload;
+    class function BinarySearch<T>(const AValues: array of T; const AItem: T;
+      out AFoundIndex: SizeInt; const AComparer: IComparer<T>;
+      AIndex, ACount: SizeInt): Boolean; static; overload;
+    class function BinarySearch<T>(const AValues: array of T; const AItem: T;
+      out AFoundIndex: SizeInt; const AComparer: IComparer<T>): Boolean; static; overload;
+    class function BinarySearch<T>(const AValues: array of T; const AItem: T;
+      out AFoundIndex: SizeInt): Boolean; static; overload;
+    {$ifdef CPU64}
+    class function BinarySearch<T>(const AValues: array of T; const AItem: T;
+      out AFoundIndex: Integer; const AComparer: IComparer<T>;
+      AIndex, ACount: Integer): Boolean; static; overload;
+    class function BinarySearch<T>(const AValues: array of T; const AItem: T;
+      out AFoundIndex: Integer; const AComparer: IComparer<T>): Boolean; static; overload;
+    class function BinarySearch<T>(const AValues: array of T; const AItem: T;
+      out AFoundIndex: Integer): Boolean; static; overload;
+    {$endif CPU64}
+  end;
+
   TCustomArrayHelper<T> = class abstract
   private
     type
@@ -333,6 +357,10 @@ type
     procedure Sort(const AComparer: IComparer<T>); overload;
     function BinarySearch(const AItem: T; out AIndex: SizeInt): Boolean; overload;
     function BinarySearch(const AItem: T; out AIndex: SizeInt; const AComparer: IComparer<T>): Boolean; overload;
+    {$ifdef CPU64}
+    function BinarySearch(const AItem: T; out AIndex: Integer): Boolean; overload;
+    function BinarySearch(const AItem: T; out AIndex: Integer; const AComparer: IComparer<T>): Boolean; overload;
+    {$endif CPU64}
 
     property Count: SizeInt read FLength write SetCount;
     property Items[Index: SizeInt]: T read GetItem write SetItem; default;
@@ -1063,6 +1091,78 @@ begin
     Exit;
   QuickSort(AValues, AIndex, Pred(AIndex + ACount), AComparer);
 end;
+
+class procedure TArray.Sort<T>(var AValues: array of T);
+begin
+  TArrayHelper<T>.Sort(AValues);
+end;
+
+class procedure TArray.Sort<T>(var AValues: array of T;
+  const AComparer: IComparer<T>);
+begin
+  TArrayHelper<T>.Sort(AValues, AComparer);
+end;
+
+class procedure TArray.Sort<T>(var AValues: array of T;
+  const AComparer: IComparer<T>; AIndex, ACount: SizeInt);
+begin
+  TArrayHelper<T>.Sort(AValues, AComparer, AIndex, ACount);
+end;
+
+class function TArray.BinarySearch<T>(const AValues: array of T;
+  const AItem: T; out AFoundIndex: SizeInt; const AComparer: IComparer<T>;
+  AIndex, ACount: SizeInt): Boolean;
+begin
+  Result := TArrayHelper<T>.BinarySearch(AValues, AItem, AFoundIndex,
+    AComparer, AIndex, ACount);
+end;
+
+class function TArray.BinarySearch<T>(const AValues: array of T;
+  const AItem: T; out AFoundIndex: SizeInt;
+  const AComparer: IComparer<T>): Boolean;
+begin
+  Result := TArrayHelper<T>.BinarySearch(AValues, AItem, AFoundIndex,
+    AComparer);
+end;
+
+class function TArray.BinarySearch<T>(const AValues: array of T;
+  const AItem: T; out AFoundIndex: SizeInt): Boolean;
+begin
+  Result := TArrayHelper<T>.BinarySearch(AValues, AItem, AFoundIndex);
+end;
+
+{$ifdef CPU64}
+class function TArray.BinarySearch<T>(const AValues: array of T;
+  const AItem: T; out AFoundIndex: Integer; const AComparer: IComparer<T>;
+  AIndex, ACount: Integer): Boolean;
+var
+  NativeIndex: SizeInt;
+begin
+  Result := TArrayHelper<T>.BinarySearch(AValues, AItem, NativeIndex,
+    AComparer, AIndex, ACount);
+  AFoundIndex := Integer(NativeIndex);
+end;
+
+class function TArray.BinarySearch<T>(const AValues: array of T;
+  const AItem: T; out AFoundIndex: Integer;
+  const AComparer: IComparer<T>): Boolean;
+var
+  NativeIndex: SizeInt;
+begin
+  Result := TArrayHelper<T>.BinarySearch(AValues, AItem, NativeIndex,
+    AComparer);
+  AFoundIndex := Integer(NativeIndex);
+end;
+
+class function TArray.BinarySearch<T>(const AValues: array of T;
+  const AItem: T; out AFoundIndex: Integer): Boolean;
+var
+  NativeIndex: SizeInt;
+begin
+  Result := TArrayHelper<T>.BinarySearch(AValues, AItem, NativeIndex);
+  AFoundIndex := Integer(NativeIndex);
+end;
+{$endif CPU64}
 
 { TArrayHelper<T> }
 
@@ -2167,6 +2267,25 @@ function TList<T>.BinarySearch(const AItem: T; out AIndex: SizeInt; const ACompa
 begin
   Result := TArrayHelperBugHack.BinarySearch(FItems, AItem, AIndex, AComparer, 0, Count);
 end;
+
+{$ifdef CPU64}
+function TList<T>.BinarySearch(const AItem: T; out AIndex: Integer): Boolean;
+var
+  NativeIndex: SizeInt;
+begin
+  Result := BinarySearch(AItem, NativeIndex, FComparer);
+  AIndex := Integer(NativeIndex);
+end;
+
+function TList<T>.BinarySearch(const AItem: T; out AIndex: Integer;
+  const AComparer: IComparer<T>): Boolean;
+var
+  NativeIndex: SizeInt;
+begin
+  Result := BinarySearch(AItem, NativeIndex, AComparer);
+  AIndex := Integer(NativeIndex);
+end;
+{$endif CPU64}
 
 { TSortedList<T> }
 
