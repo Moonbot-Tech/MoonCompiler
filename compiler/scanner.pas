@@ -6901,6 +6901,11 @@ type
            if (idtoken=_ID) and (m_thread_static in current_settings.modeswitches)
               and (pattern='TSTATIC') then
              idtoken:=_THREADSTATIC;
+         { Delphi accepts reserved words as qualified member names, e.g.
+           TParallel.For. Keep idtoken for parser-specific soft keywords. }
+           if (lasttoken=_POINT) and (m_delphi in current_settings.modeswitches) and
+              (token<>_ID) then
+             token:=_ID;
          { Fold word-style compound assignments into dedicated tokens. These
            operators are always available and are not gated by $COPERATORS. }
            if (c='=') then
