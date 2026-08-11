@@ -230,6 +230,7 @@ function EnsureRange(const AValue, AMin, AMax: Double): Double;inline;  overload
 procedure DivMod(Dividend: LongInt; Divisor: Word;  var Result, Remainder: Word);
 procedure DivMod(Dividend: LongInt; Divisor: Word; var Result, Remainder: SmallInt);
 procedure DivMod(Dividend: DWord; Divisor: DWord; var Result, Remainder: DWord);
+procedure DivMod(Dividend: QWord; Divisor: QWord; var Result, Remainder: QWord);
 procedure DivMod(Dividend: LongInt; Divisor: LongInt; var Result, Remainder: LongInt);
 
 { Floating point modulo}
@@ -3752,6 +3753,12 @@ begin
     end;
 end;
 {$endif FPC_MATH_HAS_DIVMOD}
+
+procedure DivMod(Dividend: QWord; Divisor: QWord; var Result, Remainder: QWord);
+begin
+  Result:=Dividend Div Divisor;
+  Remainder:=Dividend-(Result*Divisor);
+end;
 
 { Floating point modulo}
 {$ifdef FPC_HAS_TYPE_SINGLE}
