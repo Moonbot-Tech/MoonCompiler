@@ -668,6 +668,13 @@ end;
 
 Procedure InitSystemThreads; public name '_FPC_InitSystemThreads';
 begin
+  {$ifdef FPC_HAS_FEATURE_MONITOR}
+  { Install the inert System monitor manager before a support unit replaces
+    it.  The support unit restores this manager during finalization; leaving
+    the record zeroed makes later TObject.CleanupInstance calls jump through
+    a nil DoFreeMonitorData callback. }
+  InitMonitor;
+  {$endif FPC_HAS_FEATURE_MONITOR}
   { This should be changed to a real value during
     thread driver initialization if appropriate. }
   ThreadID := TThreadID(1);
