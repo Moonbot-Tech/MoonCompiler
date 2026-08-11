@@ -3,6 +3,7 @@ unit Trees;
 {$ENDIF FPC_DOTTEDUNITS}
 
 {$T-}
+{$pointermath on}
 {$define ORG_DEBUG}
 {
   trees.c -- output deflated data using Huffman coding

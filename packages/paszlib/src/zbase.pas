@@ -420,6 +420,9 @@ implementation
 
 function zError(err : integer) : string;
 
+var
+  ErrorNumber: string;
+
 begin
   case err of
     Z_VERSION_ERROR:
@@ -441,8 +444,8 @@ begin
     Z_NEED_DICT:
       zerror:=Sneed_dict;
     else
-      str(err,zerror);
-      zerror:='Unknown zlib error '+zerror;
+      str(err,ErrorNumber);
+      zerror:='Unknown zlib error '+ErrorNumber;
   end;
 end;
 
