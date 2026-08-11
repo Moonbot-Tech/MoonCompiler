@@ -955,10 +955,10 @@ implementation
         hadspecialize:=false;
         addgendummy:=false;
 
-        { ensure that we don't insert into a withsymtable or blocksymtable
-          (can happen with anonymous functions inside begin..end blocks) }
+        { ensure that we don't insert into a temporary symtable
+          (can happen with anonymous functions inside begin..end or except blocks) }
         checkstack:=symtablestack.stack;
-        while checkstack^.symtable.symtabletype in [withsymtable,blocksymtable] do
+        while checkstack^.symtable.symtabletype in [withsymtable,blocksymtable,exceptsymtable] do
           checkstack:=checkstack^.next;
         insertst:=checkstack^.symtable;
 

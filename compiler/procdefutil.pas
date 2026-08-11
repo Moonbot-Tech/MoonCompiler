@@ -2305,11 +2305,13 @@ implementation
                   info:=pcapturedsyminfo(pd.capturedsyms[i]);
                   if not can_be_captured(info^.sym,pd) then
                     MessagePos1(info^.fileinfo,sym_e_symbol_no_capture,info^.sym.realname)
-                  else if info^.sym=selfsym then
+                  else if (info^.sym.typ=paravarsym) and
+                      (vo_is_self in tparavarsym(info^.sym).varoptions) and
+                      (info^.sym.owner.defowner<>owner.get_normal_proc.procdef) then
                     begin
-                      { we need to replace the captured "dummy" self parameter
-                        with the real self parameter symbol from the surrounding
-                        method }
+                      { nested anonymous routines can capture the dummy Self of
+                        another anonymous routine; all such lexical Self symbols
+                        denote the real Self parameter of the surrounding method }
                       if not assigned(outerself) then
                         outerself:=tsym(owner.get_normal_proc.procdef.parast.find('self'));
                       if not assigned(outerself) then
