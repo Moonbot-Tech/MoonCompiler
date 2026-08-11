@@ -462,6 +462,11 @@ implementation
                   begin
                     def_system_macro('FPC_UNICODESTRINGS');
                     def_system_macro('UNICODE');
+                  end
+                else
+                  begin
+                    undef_system_macro('FPC_UNICODESTRINGS');
+                    undef_system_macro('UNICODE');
                   end;
               end
             else
