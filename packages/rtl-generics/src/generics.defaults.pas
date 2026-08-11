@@ -785,10 +785,12 @@ type
 
   TOnEqualityComparison<T> = function(const ALeft, ARight: T): Boolean of object;
   TEqualityComparisonFunc<T> = function(const ALeft, ARight: T): Boolean;
+  TEqualityComparison<T> = reference to function(const ALeft, ARight: T): Boolean;
 
   TOnHasher<T> = function(const AValue: T): UInt32 of object;
   TOnExtendedHasher<T> = procedure(const AValue: T; AHashList: PUInt32) of object;
   THasherFunc<T> = function(const AValue: T): UInt32;
+  THasher<T> = reference to function(const AValue: T): Integer;
   TExtendedHasherFunc<T> = procedure(const AValue: T; AHashList: PUInt32);
 
   TEqualityComparer<T> = class(TInterfacedObject, IEqualityComparer<T>)
@@ -800,6 +802,8 @@ type
       const AHasher: TOnHasher<T>): IEqualityComparer<T>; overload;
     class function Construct(const AEqualityComparison: TEqualityComparisonFunc<T>;
       const AHasher: THasherFunc<T>): IEqualityComparer<T>; overload;
+    class function Construct(const AEqualityComparison: TEqualityComparison<T>;
+      const AHasher: THasher<T>): IEqualityComparer<T>; overload;
 
     function Equals(const ALeft, ARight: T): Boolean; virtual; overload; abstract;
     function GetHashCode(const AValue: T): UInt32;  virtual; overload; abstract;
@@ -829,6 +833,18 @@ type
 
     constructor Create(const AEqualityComparison: TEqualityComparisonFunc<T>;
       const AHasher: THasherFunc<T>);
+  end;
+
+  TDelegatedEqualityComparer<T> = class(TEqualityComparer<T>)
+  private
+    FEqualityComparison: TEqualityComparison<T>;
+    FHasher: THasher<T>;
+  public
+    function Equals(const ALeft, ARight: T): Boolean; override;
+    function GetHashCode(const AValue: T): UInt32; override;
+
+    constructor Create(const AEqualityComparison: TEqualityComparison<T>;
+      const AHasher: THasher<T>);
   end;
 
   { TExtendedEqualityComparer }
@@ -2778,6 +2794,13 @@ begin
   Result := TDelegatedEqualityComparerFunc<T>.Create(AEqualityComparison, AHasher);
 end;
 
+class function TEqualityComparer<T>.Construct(
+  const AEqualityComparison: TEqualityComparison<T>;
+  const AHasher: THasher<T>): IEqualityComparer<T>;
+begin
+  Result := TDelegatedEqualityComparer<T>.Create(AEqualityComparison, AHasher);
+end;
+
 { TDelegatedEqualityComparerEvents<T> }
 
 function TDelegatedEqualityComparerEvents<T>.Equals(const ALeft, ARight: T): Boolean;
@@ -2811,6 +2834,26 @@ end;
 
 constructor TDelegatedEqualityComparerFunc<T>.Create(const AEqualityComparison: TEqualityComparisonFunc<T>;
   const AHasher: THasherFunc<T>);
+begin
+  FEqualityComparison := AEqualityComparison;
+  FHasher := AHasher;
+end;
+
+{ TDelegatedEqualityComparer<T> }
+
+function TDelegatedEqualityComparer<T>.Equals(const ALeft, ARight: T): Boolean;
+begin
+  Result := FEqualityComparison(ALeft, ARight);
+end;
+
+function TDelegatedEqualityComparer<T>.GetHashCode(const AValue: T): UInt32;
+begin
+  Result := UInt32(FHasher(AValue));
+end;
+
+constructor TDelegatedEqualityComparer<T>.Create(
+  const AEqualityComparison: TEqualityComparison<T>;
+  const AHasher: THasher<T>);
 begin
   FEqualityComparison := AEqualityComparison;
   FHasher := AHasher;
