@@ -838,6 +838,15 @@ operator :=(const source : olevariant) dest : widestring;{$ifdef SYSTEMINLINE}in
   end;
 
 
+operator :=(const source : olevariant) dest : UTF8String;{$ifdef SYSTEMINLINE}inline;{$endif}
+  var
+    temp : WideString;
+  begin
+    variantmanager.vartowstr(temp,variant(tvardata(source)));
+    dest:=UTF8Encode(temp);
+  end;
+
+
 {$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
 operator :=(const source : olevariant) dest : UnicodeString;{$ifdef SYSTEMINLINE}inline;{$endif}
   var

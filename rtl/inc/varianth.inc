@@ -409,6 +409,7 @@ operator :=(const source : olevariant) dest : widechar;{$ifdef SYSTEMINLINE}inli
 operator :=(const source : olevariant) dest : shortstring;{$ifdef SYSTEMINLINE}inline;{$endif}
 operator :=(const source : olevariant) dest : ansistring;{$ifdef SYSTEMINLINE}inline;{$endif}
 operator :=(const source : olevariant) dest : widestring;{$ifdef SYSTEMINLINE}inline;{$endif}
+operator :=(const source : olevariant) dest : UTF8String;{$ifdef SYSTEMINLINE}inline;{$endif}
 {$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
 operator :=(const source : olevariant) dest : UnicodeString;{$ifdef SYSTEMINLINE}inline;{$endif}
 {$endif FPC_WIDESTRING_EQUAL_UNICODESTRING}
