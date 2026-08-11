@@ -1054,7 +1054,11 @@ type
   end;
 
   TGStringComparer<T> = class(TGStringComparer<T, TDelphiQuadrupleHashFactory>);
+  {$ifdef FPC_DOTTEDUNITS}
+  TStringComparer = class(TGStringComparer<UnicodeString>);
+  {$else FPC_DOTTEDUNITS}
   TStringComparer = class(TGStringComparer<string>);
+  {$endif FPC_DOTTEDUNITS}
   TAnsiStringComparer = class(TGStringComparer<AnsiString>);
   TUnicodeStringComparer = class(TGStringComparer<UnicodeString>);
 
@@ -1071,7 +1075,11 @@ type
   end;
 
   TGOrdinalStringComparer<T> = class(TGOrdinalStringComparer<T, TDelphiQuadrupleHashFactory>);
+  {$ifdef FPC_DOTTEDUNITS}
+  TOrdinalStringComparer = class(TGOrdinalStringComparer<UnicodeString>);
+  {$else FPC_DOTTEDUNITS}
   TOrdinalStringComparer = class(TGOrdinalStringComparer<string>);
+  {$endif FPC_DOTTEDUNITS}
 
   TGIStringComparer<T, THashFactory> = class(TOrdinalComparer<T, THashFactory>)
   private class var
@@ -1082,7 +1090,11 @@ type
   end;
 
   TGIStringComparer<T> = class(TGIStringComparer<T, TDelphiQuadrupleHashFactory>);
+  {$ifdef FPC_DOTTEDUNITS}
+  TIStringComparer = class(TGIStringComparer<UnicodeString>);
+  {$else FPC_DOTTEDUNITS}
   TIStringComparer = class(TGIStringComparer<string>);
+  {$endif FPC_DOTTEDUNITS}
   TIAnsiStringComparer = class(TGIStringComparer<AnsiString>);
   TIUnicodeStringComparer = class(TGIStringComparer<UnicodeString>);
 
@@ -1095,7 +1107,11 @@ type
   end;
 
   TGOrdinalIStringComparer<T> = class(TGOrdinalIStringComparer<T, TDelphiQuadrupleHashFactory>);
+  {$ifdef FPC_DOTTEDUNITS}
+  TOrdinalIStringComparer = class(TGOrdinalIStringComparer<UnicodeString>);
+  {$else FPC_DOTTEDUNITS}
   TOrdinalIStringComparer = class(TGOrdinalIStringComparer<string>);
+  {$endif FPC_DOTTEDUNITS}
 
 // Delphi version of Bob Jenkins Hash
 function BobJenkinsHash(const AData; ALength, AInitData: Integer): Integer; // same result as HashLittle_Delphi, just different interface
