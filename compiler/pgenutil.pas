@@ -927,9 +927,10 @@ uses
                 exit(false)
               else
                 begin
-                  if not assigned(paravar.vardef.typesym) then
-                    internalerror(2021020905);
-                  result:=(genericparam=paravar.vardef.typesym) and owner.is_generic_param(paravar.vardef)
+                  if assigned(paravar.vardef.typesym) then
+                    result:=(genericparam=paravar.vardef.typesym) and owner.is_generic_param(paravar.vardef)
+                  else
+                    result:=(genericparam.typedef=paravar.vardef) and owner.is_generic_param(paravar.vardef)
                 end;
 
               { exit if we find a used parameter }
