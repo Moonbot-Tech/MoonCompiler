@@ -72,7 +72,7 @@ interface
     uses
       cutils,verbose,globtype,globals,
       aasmbase,aasmdata,symconst,symtype,symdef,symtable,
-      nutils,ncon,
+      nutils,ncon,nadd,
       cpubase,systems,
       pass_2,
       cgbase,
@@ -104,6 +104,19 @@ interface
         hreg : tregister;
       begin
         newsize:=def_cgsize(resultdef);
+
+        if ((resultdef.size>left.resultdef.size) or
+            ((resultdef.size=left.resultdef.size) and not is_signed(resultdef))) and
+           (left.nodetype=muln) and
+           (anf_delphi_unsigned_widening in taddnode(left).addnodeflags) then
+          begin
+            if (flags*[nf_explicit,nf_internal])=[] then
+              hlcg.g_rangecheck(current_asmdata.CurrAsmList,left.location,u32inttype,resultdef);
+            location_copy(location,left.location);
+            location.size:=def_cgsize(u32inttype);
+            hlcg.location_force_reg(current_asmdata.CurrAsmList,location,u32inttype,resultdef,false);
+            exit;
+          end;
 
         { insert range check if not explicit or internally generated conversion }
         if (flags*[nf_explicit,nf_internal])=[] then

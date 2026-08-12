@@ -35,7 +35,10 @@ interface
        TAddNodeFlag = (
          anf_has_pointerdiv,
          { the node shall be short boolean evaluated, this flag has priority over localswitches }
-         anf_short_bool
+         anf_short_bool,
+         { Delphi exposes unsigned narrow multiplication as Integer for
+           overload resolution, but zero-extends its value when widening it. }
+         anf_delphi_unsigned_widening
        );
 
        TAddNodeFlags = set of TAddNodeFlag;
@@ -1025,6 +1028,10 @@ const
              { load values }
              lv:=get_int_value(left);
              rv:=get_int_value(right);
+             if anf_delphi_unsigned_widening in addnodeflags then
+               hdef:=u32inttype
+             else
+               hdef:=resultdef;
 
              { type checking already took care of multiplying      }
              { integer constants with pointeddef.size if necessary }
@@ -1083,7 +1090,7 @@ const
                        t:=genintconstnode(0)
                      end
                    else
-                     t := create_simplified_ord_const(v,resultdef,forinline or wrapped,cs_check_overflow in localswitches)
+                     t := create_simplified_ord_const(v,hdef,forinline or wrapped,cs_check_overflow in localswitches)
                  end;
                xorn :
                  if is_integer(ld) then
@@ -3232,6 +3239,10 @@ const
                          ((torddef(rd).ordtype=u32bit) and
                           maybe_cast_delphi_untyped_const(left,rd)))) then
                        begin
+                         if (nodetype=muln) and
+                            not is_signed(ld) and not is_signed(rd) and
+                            (ld.size<4) and (rd.size<4) then
+                           include(addnodeflags,anf_delphi_unsigned_widening);
                          nd:=get_delphi_int_arithmetic_def(torddef(ld),torddef(rd));
                          inserttypeconv(right,nd);
                          inserttypeconv(left,nd);
