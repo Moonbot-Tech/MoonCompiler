@@ -2809,6 +2809,9 @@ implementation
             begin
               if assigned(tobjectdef(def).childof) then
                 write_rtti(tobjectdef(def).childof,rt);
+              if (rt=fullrtti) and is_objectpascal_helper(def) and
+                  assigned(tobjectdef(def).extendeddef) then
+                write_rtti(tobjectdef(def).extendeddef,rt);
               if (rt=initrtti) or (tobjectdef(def).objecttype=odt_object) then
                 fields_write_rtti(tobjectdef(def).symtable,rt)
               else
