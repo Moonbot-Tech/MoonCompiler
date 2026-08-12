@@ -129,6 +129,13 @@ implementation
           end;
       end;
 
+    { load a read-only variable for compiler-generated initialization }
+    function load_ignoreconst(sym: tabstractnormalvarsym): tnode;
+      begin
+        result:=cloadnode.create(sym,sym.owner);
+        include(tloadnode(result).loadnodeflags,loadnf_isinternal_ignoreconst);
+      end;
+
     { Delphi activates a managed inline variable at its declaration, not at
       procedure entry.  The compiler defer marker records that Initialize
       completed before the initializer is evaluated; the surrounding lexical
@@ -142,13 +149,19 @@ implementation
            not assigned(vs) or not is_managed_type(vs.vardef) then
           exit;
         vs.inline_scope_managed:=true;
-        hp:=cloadnode.create(vs,vs.owner);
+        if vo_is_const in vs.varoptions then
+          hp:=load_ignoreconst(vs)
+        else
+          hp:=cloadnode.create(vs,vs.owner);
         include(hp.flags,nf_load_procvar);
         hp:=cdefernode.create(cnodeutils.initialize_data_node(hp,false));
         tdefernode(hp).lifetime_sym:=vs;
         tdefernode(hp).lifetime_init:=true;
         addstatement(stat,hp);
-        hp:=cloadnode.create(vs,vs.owner);
+        if vo_is_const in vs.varoptions then
+          hp:=load_ignoreconst(vs)
+        else
+          hp:=cloadnode.create(vs,vs.owner);
         include(hp.flags,nf_load_procvar);
         hp:=cdefernode.create(cnodeutils.finalize_data_node(hp));
         tdefernode(hp).lifetime_sym:=vs;
@@ -1069,14 +1082,6 @@ implementation
         pd.localst.insertsym(result);
         if result.typ=staticvarsym then
           cnodeutils.insertbssdata(tstaticvarsym(result));
-      end;
-
-    { load a read-only worker-local for an internal write; the flag lets the
-      assignment pass the const check that blocks user code }
-    function parfor_load_ignoreconst(sym: tabstractnormalvarsym): tnode;
-      begin
-        result:=cloadnode.create(sym,sym.owner);
-        include(tloadnode(result).loadnodeflags,loadnf_isinternal_ignoreconst);
       end;
 
     { Inline-var type inference reads the typechecked init expression, whose
@@ -2207,12 +2212,12 @@ implementation
               { worker entry: claim a worker slot, publish the pool size }
               iexpr:=workerloop;
               workerloop:=internalstatements(setupstat);
-              addstatement(setupstat,cassignmentnode.create(parfor_load_ignoreconst(widsym),
+              addstatement(setupstat,cassignmentnode.create(load_ignoreconst(widsym),
                 caddnode.create(subn,
                   ccallnode.createintern('INTERLOCKEDINCREMENT',
                     ccallparanode.create(cloadnode.create(parslot,parslot.owner),nil)),
                   cordconstnode.create(1,s32inttype,false))));
-              addstatement(setupstat,cassignmentnode.create(parfor_load_ignoreconst(wcntsym),
+              addstatement(setupstat,cassignmentnode.create(load_ignoreconst(wcntsym),
                 cloadnode.create(parnthreads,parnthreads.owner)));
               addstatement(setupstat,iexpr);
               { wrap the dispatch in try/except: the first worker to fault claims
@@ -4000,6 +4005,39 @@ implementation
         result := dyndef;
       end;
 
+    function inline_inferred_def(initexpr: tnode;
+      infer_array_literal: boolean): tdef;
+      begin
+        if not assigned(initexpr) then
+          begin
+            result:=nil;
+            exit;
+          end;
+        result:=initexpr.resultdef;
+        if infer_array_literal and
+           (initexpr.nodetype=arrayconstructorn) and
+           assigned(result) and (result.typ=arraydef) and
+           (ado_IsConstructor in tarraydef(result).arrayoptions) and
+           not (ado_IsDynamicArray in tarraydef(result).arrayoptions) then
+          result:=unleashed_infer_array_literal(tarrayconstructornode(initexpr));
+        if not assigned(result) or (result=generrordef) then
+          exit;
+        if is_conststring_array(result) or
+           (not(nf_explicit in initexpr.flags) and is_char(result)) then
+          begin
+            if m_default_unicodestring in current_settings.modeswitches then
+              result:=cunicodestringtype
+            else if m_default_ansistring in current_settings.modeswitches then
+              result:=getansistringdef
+            else
+              result:=cshortstringtype;
+          end;
+        if not(nf_explicit in initexpr.flags) and is_integer(result) and
+           (torddef(result).ordtype in [s8bit,u8bit,s16bit,u16bit]) then
+          result:=s32inttype;
+        result:=unleashed_infer_natural_intdef(initexpr,result);
+      end;
+
     function inline_var_statement : tnode;
       var
         vs             : tabstractnormalvarsym;
@@ -4297,21 +4335,8 @@ implementation
               block_type := old_block_type;
               initexpr := inline_init_expr;
               do_typecheckpass(initexpr);
-              hdef := initexpr.resultdef;
-              { unleashed: array literal `[...]` -> infer element type from the
-                first non-nil element's category, force every element to that
-                type (compile error on mismatch), and wrap the constructor's
-                static carrier into a proper `array of T` dynamic def for the
-                inferred var. Diverges from the legacy fall-through behaviour
-                that would silently produce a static array of the first
-                element's exact byte width and truncate everything else. }
-              if (m_unleashed in current_settings.modeswitches) and
-                 assigned(initexpr) and
-                 (initexpr.nodetype = arrayconstructorn) and
-                 assigned(hdef) and (hdef.typ = arraydef) and
-                 (ado_IsConstructor in tarraydef(hdef).arrayoptions) and
-                 not (ado_IsDynamicArray in tarraydef(hdef).arrayoptions) then
-                hdef := unleashed_infer_array_literal(tarrayconstructornode(initexpr));
+              hdef := inline_inferred_def(initexpr,
+                m_unleashed in current_settings.modeswitches);
               if not assigned(hdef) or (hdef = generrordef) then
                 begin
                   { Type inference failed – keep error def on the sym so that
@@ -4321,33 +4346,6 @@ implementation
                 end
               else
                 begin
-                  { String literal constants get type array[0..n] of char
-                    (cst_conststring).  Promote to the default string type
-                    so that comparisons and assignments behave as expected.
-                    Single char literals are also promoted to string so
-                    that var s := 'x' behaves consistently with var s := 'xx'. }
-                  if is_conststring_array(hdef) or
-                     (not(nf_explicit in initexpr.flags) and is_char(hdef)) then
-                    begin
-                      if m_default_unicodestring in current_settings.modeswitches then
-                        hdef := cunicodestringtype
-                      else if m_default_ansistring in current_settings.modeswitches then
-                        hdef := getansistringdef
-                      else
-                        hdef := cshortstringtype;
-                    end;
-                  { For inline var declarations, promote sub-32-bit integer
-                    types to LongInt so that e.g. var i := 10 yields a 4-byte
-                    signed integer instead of a signed byte. Skip promotion
-                    when the user wrote an explicit typecast (e.g. byte(10))
-                    - detected via nf_explicit flag preserved through
-                    constant folding by the typeconv node. }
-                  if not(nf_explicit in initexpr.flags) and is_integer(hdef) and
-                     (torddef(hdef).ordtype in [s8bit,u8bit,s16bit,u16bit]) then
-                    hdef := s32inttype;
-                  { undo native-int promotion of 32-bit arithmetic so the
-                    inferred type matches 32-bit targets }
-                  hdef := unleashed_infer_natural_intdef(initexpr, hdef);
                   for i := 0 to sc.count - 1 do
                     begin
                       tabstractnormalvarsym(sc[i]).vardef := hdef;
@@ -4444,7 +4442,8 @@ implementation
         const name = expr
         const name : Type = expr
       Scoped like inline vars: the symbol lands in the current block-scope
-      symtable. The typed form creates the usual typed-constant storage. }
+      symtable. In Delphi mode even a folded initializer produces a read-only
+      declaration-point local, not a compile-time constant. }
     function inline_const_statement : tnode;
       var
         orgname : TIDString;
@@ -4454,10 +4453,29 @@ implementation
         hdef : tdef;
         nt : tnodetype;
         old_block_type : tblock_type;
-        varspez : tvarspez;
-        asmtype : tasmlisttype;
         initexpr : tnode;
         tokenbuf : tdynamicarray;
+        recorded : boolean;
+
+        function runtime_const(expr:tnode;def:tdef):tnode;
+          var
+            sym : tabstractnormalvarsym;
+          begin
+            if not assigned(def) or (def=generrordef) then
+              begin
+                expr.free;
+                exit(cerrornode.create);
+              end;
+            sym:=create_inline_var_sym(orgname,def);
+            include(sym.varoptions,vo_is_const);
+            sym.register_sym;
+            symtablestack.top.insertsym(sym);
+            sym.varstate:=vs_initialised;
+            if sym.typ=staticvarsym then
+              cnodeutils.insertbssdata(tstaticvarsym(sym));
+            result:=cassignmentnode.create(load_ignoreconst(sym),expr);
+            result:=wrap_inline_managed_lifetime(result,sym);
+          end;
       begin
         result:=nil;
         consume(_CONST);
@@ -4481,28 +4499,73 @@ implementation
         tokenbuf:=nil;
         if try_to_consume(_EQ) then
           begin
-            { Delphi infers a comma-separated bracket literal in a block-scoped
-              const as a read-only dynamic array. Parse once to infer its
-              element type, then replay the literal through the existing typed
-              constant writer. A range literal such as [1..3] remains a set and
-              follows the ordinary constant path below. }
-            if (m_delphi in current_settings.modeswitches) and
-               (current_scanner.token=_LECKKLAMMER) then
+            block_type:=old_block_type;
+            initexpr:=comp_expr([ef_accept_equal]);
+            block_type:=bt_const;
+            if not (m_delphi in current_settings.modeswitches) and
+               assigned(initexpr) and
+               (initexpr.nodetype in nodetype_const+[typen,inlinen]) then
               begin
-                tokenbuf:=tdynamicarray.create(256);
-                current_scanner.startrecordtokens(tokenbuf);
-                block_type:=old_block_type;
-                initexpr:=expr(true);
-                block_type:=bt_const;
-                current_scanner.stoprecordtokens;
-                do_typecheckpass(initexpr);
-                if assigned(initexpr) and
-                   (initexpr.nodetype=arrayconstructorn) and
-                   assigned(initexpr.resultdef) and
-                   (initexpr.resultdef.typ=arraydef) and
-                   (ado_IsConstructor in tarraydef(initexpr.resultdef).arrayoptions) then
+                csym:=constsym_from_node(orgname,filepos,initexpr,nt);
+                if assigned(csym) then
                   begin
-                    hdef:=unleashed_infer_array_literal(tarrayconstructornode(initexpr));
+                    csym.register_sym;
+                    symtablestack.top.insertsym(csym);
+                    result:=cnothingnode.create;
+                  end
+                else
+                  result:=cerrornode.create;
+              end
+            else
+              result:=runtime_const(initexpr,inline_inferred_def(initexpr,
+                m_delphi in current_settings.modeswitches));
+          end
+        else if current_scanner.token=_COLON then
+          begin
+            { A literal aggregate still belongs to the typed-constant writer;
+              other initializers are parsed as expressions so Delphi runtime
+              inline constants can be initialized where execution reaches
+              the declaration. }
+            block_type:=bt_const_type;
+            consume(_COLON);
+            read_anon_type(hdef,false,nil);
+            block_type:=bt_const;
+            consume(_EQ);
+            if (hdef.typ in [arraydef,recorddef]) and
+              (current_scanner.token=_LKLAMMER) then
+              begin
+                if m_delphi in current_settings.modeswitches then
+                  vsym:=cstaticvarsym.create('$inlinetc_'+orgname,vs_const,hdef,[])
+                else
+                  vsym:=cstaticvarsym.create(orgname,vs_const,hdef,[]);
+                if m_delphi in current_settings.modeswitches then
+                  include(vsym.symoptions,sp_internal);
+                symtablestack.top.insertsym(vsym);
+                vsym.register_sym;
+                read_typed_const(current_asmdata.asmlists[al_rotypedconsts],vsym,false,false);
+                if m_delphi in current_settings.modeswitches then
+                  result:=runtime_const(cloadnode.create(vsym,vsym.owner),hdef)
+                else
+                  result:=cnothingnode.create;
+              end
+            else
+              begin
+                recorded:=not (m_delphi in current_settings.modeswitches) and
+                  not current_scanner.is_recording_tokens;
+                if recorded then
+                  begin
+                    tokenbuf:=tdynamicarray.create(256);
+                    current_scanner.startrecordtokens(tokenbuf);
+                  end;
+                block_type:=old_block_type;
+                initexpr:=comp_expr([ef_accept_equal]);
+                block_type:=bt_const;
+                if recorded then
+                  current_scanner.stoprecordtokens;
+                if not (m_delphi in current_settings.modeswitches) and
+                   assigned(initexpr) and is_constnode(initexpr) and
+                   assigned(tokenbuf) then
+                  begin
                     vsym:=cstaticvarsym.create(orgname,vs_const,hdef,[]);
                     symtablestack.top.insertsym(vsym);
                     vsym.register_sym;
@@ -4512,49 +4575,14 @@ implementation
                     read_typed_const(current_asmdata.asmlists[al_rotypedconsts],vsym,false,false);
                     tokenbuf.free;
                     result:=cnothingnode.create;
-                    block_type:=old_block_type;
-                    exit;
+                  end
+                else
+                  begin
+                    if assigned(tokenbuf) then
+                      tokenbuf.free;
+                    result:=runtime_const(initexpr,hdef);
                   end;
-                initexpr.free;
-                tokenbuf.seek(0);
-                current_scanner.startreplaytokens(tokenbuf,false);
               end;
-            csym:=readconstant(orgname,filepos,nt);
-            if assigned(tokenbuf) then
-              tokenbuf.free;
-            if assigned(csym) then
-              begin
-                csym.register_sym;
-                symtablestack.top.insertsym(csym);
-                result:=cnothingnode.create;
-              end
-            else
-              result:=cerrornode.create;
-          end
-        else if current_scanner.token=_COLON then
-          begin
-            { typed constant - static storage scoped to the block }
-            block_type:=bt_const_type;
-            consume(_COLON);
-            read_anon_type(hdef,false,nil);
-            block_type:=bt_const;
-            if not (cs_typed_const_writable in current_settings.localswitches) then
-              begin
-                varspez:=vs_const;
-                asmtype:=al_rotypedconsts;
-              end
-            else
-              begin
-                varspez:=vs_value;
-                asmtype:=al_typedconsts;
-              end;
-            vsym:=cstaticvarsym.create(orgname,varspez,hdef,[]);
-            symtablestack.top.insertsym(vsym);
-            vsym.register_sym;
-            consume(_EQ);
-            { parse_tail=false: the statement loop owns the semicolon }
-            read_typed_const(current_asmdata.asmlists[asmtype],vsym,false,false);
-            result:=cnothingnode.create;
           end
         else
           begin
@@ -4671,23 +4699,7 @@ implementation
                   result := cerrornode.create;
                   exit;
                 end;
-              hdef := initexpr.resultdef;
-              { same inference rules as inline var: char promotes to default
-                string type, sub-32-bit integers promote to LongInt }
-              if is_conststring_array(hdef) or
-                 (not(nf_explicit in initexpr.flags) and is_char(hdef)) then
-                begin
-                  if m_default_unicodestring in current_settings.modeswitches then
-                    hdef := cunicodestringtype
-                  else if m_default_ansistring in current_settings.modeswitches then
-                    hdef := getansistringdef
-                  else
-                    hdef := cshortstringtype;
-                end;
-              if not(nf_explicit in initexpr.flags) and is_integer(hdef) and
-                 (torddef(hdef).ordtype in [s8bit,u8bit,s16bit,u16bit]) then
-                hdef := s32inttype;
-              hdef := unleashed_infer_natural_intdef(initexpr, hdef);
+              hdef := inline_inferred_def(initexpr,false);
             end
           else
             begin

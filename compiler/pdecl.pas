@@ -35,6 +35,8 @@ interface
       { pass_1 }
       node;
 
+    { Converts and frees an already typechecked constant expression node. }
+    function  constsym_from_node(const orgname:string;const filepos:tfileposinfo;p:tnode;out nodetype:tnodetype):tconstsym;
     function  readconstant(const orgname:string;const filepos:tfileposinfo; out nodetype: tnodetype):tconstsym;
 
     procedure const_dec(out had_generic:boolean);
@@ -84,10 +86,9 @@ implementation
       Result:=def_is_related(def,class_tcustomattribute);
     end;
 
-    function readconstant(const orgname:string;const filepos:tfileposinfo; out nodetype: tnodetype):tconstsym;
+    function constsym_from_node(const orgname:string;const filepos:tfileposinfo;p:tnode;out nodetype:tnodetype):tconstsym;
       var
         hp : tconstsym;
-        p : tnode;
         ps : pconstset;
         pd : pbestreal;
         pg : pguid;
@@ -95,11 +96,10 @@ implementation
         pw : tcompilerwidestring;
         storetokenpos : tfileposinfo;
       begin
-        readconstant:=nil;
+        constsym_from_node:=nil;
         if orgname='' then
          internalerror(9584582);
         hp:=nil;
-        p:=comp_expr([ef_accept_equal]);
         nodetype:=p.nodetype;
         storetokenpos:=current_tokenpos;
         current_tokenpos:=filepos;
@@ -215,15 +215,20 @@ implementation
               (tordconstnode(p).delphisign=ds_positive);
           end;
         { transfer generic param flag from node to symbol }
-        if nf_generic_para in p.flags then
+        if assigned(hp) and (nf_generic_para in p.flags) then
           begin
             include(hp.symoptions,sp_generic_const);
             include(hp.symoptions,sp_generic_para);
           end;
         current_tokenpos:=storetokenpos;
         p.free;
-        p := nil;
-        readconstant:=hp;
+        constsym_from_node:=hp;
+      end;
+
+    function readconstant(const orgname:string;const filepos:tfileposinfo; out nodetype: tnodetype):tconstsym;
+      begin
+        result:=constsym_from_node(orgname,filepos,
+          comp_expr([ef_accept_equal]),nodetype);
       end;
 
     procedure const_dec(out had_generic:boolean);

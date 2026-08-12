@@ -2182,7 +2182,8 @@ implementation
                            exit;
                          end;
                        { read-only variable? }
-                       if (tabstractvarsym(tloadnode(hp).symtableentry).varspez in [vs_const,vs_constref,vs_final]) then
+                       if (tabstractvarsym(tloadnode(hp).symtableentry).varspez in [vs_const,vs_constref,vs_final]) or
+                          (vo_is_const in tabstractvarsym(tloadnode(hp).symtableentry).varoptions) then
                         begin
                           result:=constaccessok(tabstractvarsym(tloadnode(hp).symtableentry));
                           mayberesettypeconvs;

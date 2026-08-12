@@ -635,7 +635,7 @@ type
     vo_is_dll_var,
     vo_is_thread_var,
     vo_has_local_copy,
-    vo_is_const,  { variable is declared as const (parameter) and can't be written to }
+    vo_is_const,  { variable is declared as const and can't be written to }
     vo_is_public,
     vo_is_high_para,
     vo_is_funcret,
