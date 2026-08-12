@@ -51,6 +51,12 @@ interface
             autofree desugar) - inner-block rewrites must skip it, only the
             variable's owning scope captures it }
           var_scope : boolean;
+          { set only for the compiler-generated lifetime of an inline managed
+            variable; the symbol itself is owned by its lexical symtable }
+          lifetime_sym : tsym;
+          { true for the matching declaration-point initialization marker;
+            false for an ordinary deferred finalizer }
+          lifetime_init : boolean;
           constructor create(l:tnode);virtual;
           function pass_1 : tnode;override;
           function pass_typecheck:tnode;override;
@@ -536,6 +542,8 @@ implementation
       begin
         inherited create(defern,l);
         var_scope:=false;
+        lifetime_sym:=nil;
+        lifetime_init:=false;
       end;
 
 

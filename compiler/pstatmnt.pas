@@ -144,10 +144,15 @@ implementation
         vs.inline_scope_managed:=true;
         hp:=cloadnode.create(vs,vs.owner);
         include(hp.flags,nf_load_procvar);
-        addstatement(stat,cnodeutils.initialize_data_node(hp,false));
+        hp:=cdefernode.create(cnodeutils.initialize_data_node(hp,false));
+        tdefernode(hp).lifetime_sym:=vs;
+        tdefernode(hp).lifetime_init:=true;
+        addstatement(stat,hp);
         hp:=cloadnode.create(vs,vs.owner);
         include(hp.flags,nf_load_procvar);
-        addstatement(stat,cdefernode.create(cnodeutils.finalize_data_node(hp)));
+        hp:=cdefernode.create(cnodeutils.finalize_data_node(hp));
+        tdefernode(hp).lifetime_sym:=vs;
+        addstatement(stat,hp);
       end;
 
     function wrap_inline_managed_lifetimes(body: tnode;
@@ -6239,6 +6244,28 @@ implementation
           exit(fen_norecurse_false);
         if n.nodetype=defern then
           begin
+            { Captured managed values live in the capturer object, whose field
+              is already initialized and finalized with that object.  Drop
+              both lexical lifetime markers; in particular, re-initializing
+              the field on every loop iteration would leak its old value. }
+            if assigned(tdefernode(n).lifetime_sym) and
+               tabstractnormalvarsym(tdefernode(n).lifetime_sym).is_captured then
+              begin
+                n.free;
+                n:=cnothingnode.create;
+                exit(fen_norecurse_false);
+              end;
+            { The initialization half is a parser marker only.  Non-captured
+              values execute it at the declaration point; the finalizer half
+              continues through the normal defer lowering below. }
+            if tdefernode(n).lifetime_init then
+              begin
+                deferred:=tunarynode(n).left;
+                tunarynode(n).left:=nil;
+                n.free;
+                n:=deferred;
+                exit(fen_norecurse_false);
+              end;
             // classic-var autofree's defer is bound to the variable's scope,
             // not whatever block surrounds the assignment - leave it alone
             // for an outer rewrite to capture at the variable's owning scope
