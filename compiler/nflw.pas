@@ -2053,10 +2053,17 @@ implementation
            { statements must be error free }
            not(tnf_error in t2.transientflags) then
            begin
-             typecheckpass(t2);
-             res:=t2.simplify(false);
-             if assigned(res) then
-               t2:=res;
+             { On Win64, simplifying a handler before unrolling may outline it
+               and hide its temps from the parent's first pass.  Unrolling the
+               original tree is safe and must remain available. }
+             if not((target_info.system in systems_x86_64_seh) and
+               has_node_of_type(t2,[tryexceptn,tryfinallyn])) then
+               begin
+                 typecheckpass(t2);
+                 res:=t2.simplify(false);
+                 if assigned(res) then
+                   t2:=res;
+               end;
              res:=unroll_loop(self);
              if assigned(res) then
                begin
