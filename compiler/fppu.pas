@@ -50,6 +50,7 @@ interface
        tppumodule = class(tmodule)
           ppufile    : tcompilerppufile; { the PPU file }
           sourcefn   : TPathStr; { Source specified with "uses .. in '..'" }
+          pinnedsource : boolean; { source selected by --pinned-unit }
           comments   : TCmdStrList;
           nsprefix   : TCmdStr; { Namespace prefix the unit was found with }
 {$ifdef Test_Double_checksum}
@@ -175,6 +176,7 @@ var
         inherited create(LoadedFrom,amodulename,afilename,_is_unit);
         ppufile:=nil;
         sourcefn:=afilename;
+        pinnedsource:=false;
         unitimportsymsderefs:=tfplist.create;
       end;
 
@@ -663,8 +665,25 @@ var
          fnd : TAvailableUnitFiles;
          hs : TPathStr;
        begin
-         fnd:=[];
-         if shortname then
+          fnd:=[];
+          if pinnedsource then
+            begin
+              if CheckVerbosity(V_Tried) then
+                Message1(unit_t_unitsearch,sourcefn);
+              if FindFile(sourcefn,'',true,hs) then
+                begin
+                  sources_avail:=true;
+                  state:=ms_compile;
+                  recompile_reason:=rr_noppu;
+                  mainsource:=hs;
+                  SetFileName(hs,false);
+                  include(fnd,auSrc);
+                end
+              else
+                sources_avail:=false;
+              exit(fnd);
+            end;
+          if shortname then
            filename:=FixFileName(Copy(realmodulename^,1,8))
          else
            filename:=FixFileName(realmodulename^);
@@ -2403,7 +2422,8 @@ var
 
       begin
         { try to load it as a package unit first }
-        Result:=(packagelist.count>0) and loadfrompackage;
+        Result:=not pinnedsource and
+          (packagelist.count>0) and loadfrompackage;
         if Result then
           begin
             do_reload:=false;
@@ -2876,6 +2896,7 @@ var
 
       var
         ups   : TIDString;
+        pinnedfn : TPathStr;
         hp    : tppumodule;
         namespace_resolved : boolean;
         cycle : TFPList;
@@ -2887,9 +2908,14 @@ var
       begin
         { Info }
         ups:=upper(s);
+        pinnedfn:=pinnedunitfiles.Find(ups);
+        if (pinnedfn<>'') and (fn<>'') then
+          Message2(unit_f_pinned_unit_explicit_source,ups,fn);
 
         { search all loaded units, skip program/library }
         hp:=FindLoadedUnit(ups);
+        if (pinnedfn<>'') and assigned(hp) and not hp.pinnedsource then
+          Message1(unit_f_pinned_unit_already_loaded,ups);
 
         { Default namespaces are applied later by search_unit_files(). Reuse
           an already loaded namespaced unit before registering a duplicate,
@@ -2915,7 +2941,11 @@ var
           { the unit is not in the loaded units,
             we create an entry and register the unit }
           Message1(unit_u_registering_new_unit,ups);
-          hp:=tppumodule.create(callermodule,s,fn,true);
+          if pinnedfn<>'' then
+            hp:=tppumodule.create(callermodule,s,pinnedfn,true)
+          else
+            hp:=tppumodule.create(callermodule,s,fn,true);
+          hp.pinnedsource:=pinnedfn<>'';
           addloadedunit(hp);
         end
         else if callermodule.in_interface then

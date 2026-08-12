@@ -380,6 +380,8 @@ Const
 
        { list of default namespaces }
        namespacelist : TCmdStrList;
+       { unit name -> exact source file mappings supplied by --pinned-unit }
+       pinnedunitfiles : TLinkStrMap;
        // lowercased glob patterns from `--rttiexpose=` CLI flags;
        // per-unit patterns from `{$rttiexpose}` directive live on tmodule
        cli_rtti_expose_patterns : TCmdStrList;
@@ -1769,6 +1771,8 @@ implementation
        packagesearchpath := nil;
        namespacelist.Free;
        namespacelist := nil;
+       pinnedunitfiles.Free;
+       pinnedunitfiles := nil;
        cli_rtti_expose_patterns.Free;
        cli_rtti_expose_patterns := nil;
        premodule_namespacelist.Free;
@@ -1815,6 +1819,7 @@ implementation
         frameworksearchpath:=TSearchPathList.Create;
         packagesearchpath:=TSearchPathList.Create;
         namespacelist:=TCmdStrList.Create;
+        pinnedunitfiles:=TLinkStrMap.Create;
         cli_rtti_expose_patterns:=TCmdStrList.Create;
         premodule_namespacelist:=TCmdStrList.Create;
         current_namespacelist:=Nil;

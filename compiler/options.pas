@@ -1582,7 +1582,11 @@ end;
 
 procedure TOption.interpret_option(const opt:TCmdStr;ispara:boolean);
 var
-  more : TCmdStr;
+  more,
+  pinnedname,
+  pinnedfile,
+  previous : TCmdStr;
+  separator : SizeInt;
 
 begin
   if opt='' then
@@ -1611,6 +1615,20 @@ begin
       IllegalPara(opt)
     else
       autoproperty_field_prefix := more;
+    exit;
+  end;
+  if opt.StartsWith('--pinned-unit=') then begin
+    more:=Copy(opt,Length('--pinned-unit=')+1);
+    separator:=Pos('=',more);
+    if (separator<=1) or (separator=Length(more)) then
+      IllegalPara(opt);
+    pinnedname:=Upper(Copy(more,1,separator-1));
+    pinnedfile:=ExpandFileName(FixFileName(Copy(more,separator+1,MaxInt)));
+    previous:=pinnedunitfiles.Find(pinnedname);
+    if previous='' then
+      pinnedunitfiles.Add(pinnedname,pinnedfile)
+    else if previous<>pinnedfile then
+      IllegalPara(opt);
     exit;
   end;
   if opt='--striprtti' then begin

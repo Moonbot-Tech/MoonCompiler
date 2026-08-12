@@ -3880,6 +3880,8 @@ unit_u_ppu_wasm_threads_mismatch=10070_U_PPU and program must both be compiled w
 unit_w_unsupported_esp_idf_version=10071_W_Unsupported esp-idf version
 % FPC supports only certain ESP-IDF versions. It is very unlikely that the resulting program works if this
 % warning is thrown.
+unit_f_pinned_unit_explicit_source=10073_F_Pinned unit $1 cannot use explicit source file $2
+unit_f_pinned_unit_already_loaded=10074_F_Pinned unit $1 was already loaded from another source
 % \end{description}
 # EndOfTeX
 
