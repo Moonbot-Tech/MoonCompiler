@@ -1514,6 +1514,9 @@ implementation
         while assigned(n) and
               (n.nodetype=typeconvn) do
           begin
+            if not assigned(n.resultdef) or
+               not assigned(ttypeconvnode(n).left.resultdef) then
+              exit;
             { look for type conversion nodes which convert a }
             { refcounted type into a non-refcounted type     }
             if not is_managed_type(n.resultdef) and
@@ -1521,6 +1524,8 @@ implementation
               exit;
             n:=ttypeconvnode(n).left;
           end;
+        if not assigned(n) then
+          exit;
         { also check for dereferencing constant pointers, like }
         { tsomerecord(nil^) passed to a const r: tsomerecord   }
         { parameter                                           }
