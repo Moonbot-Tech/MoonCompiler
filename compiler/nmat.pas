@@ -956,12 +956,16 @@ implementation
         lvalue, rvalue, mask : Tconstexprint;
         rangedef: tdef;
         size: longint;
+        targetshift: boolean;
       begin
         result:=nil;
+        targetshift:=forinline or
+          ((m_delphi in current_settings.modeswitches) and
+           (target_info.cpu in [cpu_i386,cpu_x86_64]));
         { constant folding }
         if is_constintnode(right) then
           begin
-            if forinline then
+            if targetshift then
               begin
                 case resultdef.size of
                   1,2,4:
@@ -981,7 +985,7 @@ implementation
                  lvalue:=tordconstnode(left).value;
                  getrangedefmasksize(resultdef, rangedef, mask, size);
                  { shr is an unsigned operation, so cut off upper bits }
-                 if forinline then
+                 if targetshift then
                    lvalue:=lvalue and mask;
                  { 128 bit types shift over the full payload, the operators
                    keep the historical 64 bit window }
@@ -1000,10 +1004,10 @@ implementation
                       internalerror(2019050517);
                  end;
                  { discard shifted-out bits (shl never triggers overflow/range errors) }
-                 if forinline and
+                 if targetshift and
                     (nodetype=shln) then
                    lvalue:=lvalue and mask;
-                 result:=create_simplified_ord_const(lvalue,resultdef,forinline,false);
+                 result:=create_simplified_ord_const(lvalue,resultdef,targetshift,false);
                end
             else if rvalue=0 then
               begin
