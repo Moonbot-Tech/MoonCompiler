@@ -1970,7 +1970,8 @@ const
                          v2p:=@taddnode(right).left;
                          c2p:=@taddnode(right).right;
                        end;
-                     if v1p^.resultdef.size=v2p^.resultdef.size then
+                     if (v1p^.resultdef.size=v2p^.resultdef.size) and
+                        (v1p^.resultdef.size in [1,2,4,8]) then
                        begin
                          case v1p^.resultdef.size of
                            1:
@@ -1981,8 +1982,6 @@ const
                              inttype:=u32inttype;
                            8:
                              inttype:=u64inttype;
-                           else
-                             Internalerror(2020060101);
                          end;
 
                          result:=caddnode.create_internal(equaln,
@@ -2490,7 +2489,9 @@ const
           begin
             result:=(n.nodetype=ordconstn) and
               not (nf_explicit in n.flags) and
-              (torddef(adef).ordtype=u32bit) and
+              ((torddef(adef).ordtype=u32bit) or
+               ((torddef(adef).ordtype=u64bit) and
+                is_delphi_uint64_adopting_const(n))) and
               (tordconstnode(n).value>=0) and
               (tordconstnode(n).value<=torddef(adef).high);
             if result then
@@ -3048,13 +3049,13 @@ const
                  inserttypeconv(right,s32inttype);
                end
              { Delphi keeps mixed-sign bitwise expressions below 32 bits at
-               their narrow common type when exactly one operand is constant. }
+               their narrow common type unless both operands were folded. }
              else if (m_delphi in current_settings.modeswitches) and
                      is_integer(ld) and is_integer(rd) and
                      (is_signed(ld)<>is_signed(rd)) and
                      (ld.size<4) and (rd.size<4) and
                      (nodetype in [andn,orn,xorn]) and
-                     (is_bitwise_const(left)<>is_bitwise_const(right)) then
+                     not (is_bitwise_const(left) and is_bitwise_const(right)) then
                begin
                  if lt=ordconstn then
                    begin
@@ -3130,14 +3131,39 @@ const
                begin
                  { done here }
                end
-             { Delphi compares Int64 and UInt64 by mathematical value. }
+             { Delphi compares a signed integer and UInt64 by mathematical
+               value. Constants fitting the opposite operand were handled
+               above without introducing a 128-bit runtime operation. }
              else if (m_delphi in current_settings.modeswitches) and
                      (nodetype in [equaln,unequaln,gtn,gten,ltn,lten]) and
-                     (((torddef(ld).ordtype=s64bit) and (torddef(rd).ordtype=u64bit)) or
-                      ((torddef(ld).ordtype=u64bit) and (torddef(rd).ordtype=s64bit))) then
+                     (((torddef(rd).ordtype=u64bit) and is_signed(ld)) or
+                      ((torddef(ld).ordtype=u64bit) and is_signed(rd))) then
                begin
                  inserttypeconv(left,s128inttype);
                  inserttypeconv(right,s128inttype);
+               end
+             { A positive Delphi untyped constant that still has a sub-64-bit
+               natural type adopts the UInt64 type of the other operand.  A
+               typed signed constant/variable and a naturally Int64-sized
+               literal keep the mixed signed/UInt64 rule below. }
+             else if (m_delphi in current_settings.modeswitches) and
+                     (nodetype in [addn,subn,muln,orn,xorn]) and
+                     (((torddef(rd).ordtype=u64bit) and
+                       maybe_cast_delphi_untyped_const(left,rd)) or
+                      ((torddef(ld).ordtype=u64bit) and
+                       maybe_cast_delphi_untyped_const(right,ld))) then
+               begin
+                 { both operands now have the UInt64 domain }
+               end
+             { Delphi uses a signed 64-bit domain for mixed signed/UInt64
+               arithmetic and or/xor.  And, div and mod have separate rules. }
+             else if (m_delphi in current_settings.modeswitches) and
+                     (nodetype in [addn,subn,muln,orn,xorn]) and
+                     (((torddef(rd).ordtype=u64bit) and is_signed(ld)) or
+                      ((torddef(ld).ordtype=u64bit) and is_signed(rd))) then
+               begin
+                 inserttypeconv(left,s64inttype);
+                 inserttypeconv(right,s64inttype);
                end
              { is there a signed 128 bit type ? }
              else if ((torddef(rd).ordtype=s128bit) or (torddef(ld).ordtype=s128bit)) then

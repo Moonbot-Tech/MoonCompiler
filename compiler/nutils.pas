@@ -1133,10 +1133,9 @@ implementation
         if not forinline then
           begin
             // re-deriving the type from the value loses explicitly selected
-            // wide integer types whenever the result fits a smaller type
+            // 128-bit types whenever the result fits a smaller type
             if assigned(def) and (def.typ=orddef) and
-               (((torddef(def).ordtype=u64bit) and (value>=0)) or
-                (torddef(def).ordtype in [s128bit,u128bit])) then
+               (torddef(def).ordtype in [s128bit,u128bit]) then
               result:=cordconstnode.create(value,def,rangecheck)
             else
               result:=genintconstnode(value)

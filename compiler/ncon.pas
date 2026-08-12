@@ -224,6 +224,10 @@ interface
     function get_string_value(p : tnode; def: tstringdef) : tstringconstnode;
     function is_constresourcestringnode(p : tnode) : boolean;
     function is_emptyset(p : tnode):boolean;
+    { Delphi lets a positive, naturally sub-64-bit untyped constant adopt a
+      neighbouring UInt64 operand.  Typed constants and naturally Int64-sized
+      constants deliberately do not match. }
+    function is_delphi_uint64_adopting_const(p : tnode):boolean;
     { true when the constant node's value is the all-zero-bytes representation
       (0 ordinal, nil pointer, empty string, empty set), so zeroed storage
       already holds it and no explicit initializer assignment is needed }
@@ -268,6 +272,16 @@ implementation
       begin
          htype:=v.definition;
          genenumnode:=cordconstnode.create(int64(v.value),htype,true);
+      end;
+
+
+    function is_delphi_uint64_adopting_const(p : tnode):boolean;
+      begin
+        result:=(p.nodetype=ordconstn) and
+          not (nf_explicit in p.flags) and
+          (p.resultdef.typ=orddef) and
+          (p.resultdef.size<u64inttype.size) and
+          (tordconstnode(p).value>=0);
       end;
 
 

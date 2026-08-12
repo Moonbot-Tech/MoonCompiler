@@ -951,8 +951,9 @@ DefaultDiv:
             else
               emit_reg_reg(A_XOR,opsize,regd,regd);
 
-            { Division depends on the result type }
-            if is_signed(resultdef) then
+            { Division follows the operand domain; Delphi may expose a signed
+              result type for an unsigned mixed UInt64 operation. }
+            if is_signed(left.resultdef) then
               op:=A_IDIV
             else
               op:=A_DIV;

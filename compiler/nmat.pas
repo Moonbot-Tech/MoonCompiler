@@ -372,7 +372,30 @@ implementation
          { Additionally, do the same for cardinal/qwords and other positive types, but    }
          { always in a way that a smaller type is converted to a bigger type              }
          { (webtbs/tw8870)                                                                }
-         if (rd.ordtype in [u8bit,u16bit,u32bit,u64bit,u128bit]) and
+         { Delphi evaluates div/mod with a UInt64 operand in the UInt64
+           domain, even when the other ordinary integer operand is signed. }
+         if (m_delphi in current_settings.modeswitches) and
+            ((ld.ordtype=u64bit) or (rd.ordtype=u64bit)) and
+            not is_128bitint(left.resultdef) and
+            not is_128bitint(right.resultdef) then
+           begin
+              { DCC performs an unsigned operation but exposes Int64 as the
+                expression type for genuinely typed mixed signed/UInt64
+                operands.  A positive sub-64-bit untyped constant adopts the
+                UInt64 operand instead. }
+              if (is_signed(ld) and
+                  not ((rd.ordtype=u64bit) and
+                    is_delphi_uint64_adopting_const(left))) or
+                 (is_signed(rd) and
+                  not ((ld.ordtype=u64bit) and
+                    is_delphi_uint64_adopting_const(right))) then
+                resultdef:=s64inttype
+              else
+                resultdef:=u64inttype;
+              inserttypeconv(left,u64inttype);
+              inserttypeconv(right,u64inttype);
+           end
+         else if (rd.ordtype in [u8bit,u16bit,u32bit,u64bit,u128bit]) and
             ((is_constintnode(left) and
               (tordconstnode(left).value >= 0) and
               (tordconstnode(left).value <= get_max_value(rd))) or
