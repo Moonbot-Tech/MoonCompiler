@@ -2666,7 +2666,14 @@ implementation
           else
             begin
               if srsym.typ=typesym then
-                spezdef:=ttypesym(srsym).typedef
+                begin
+                  if (m_implicit_generics in current_settings.modeswitches) and
+                      not (sp_generic_dummy in srsym.symoptions) and
+                      could_be_generic(srsym.name) then
+                    spezdef:=nil
+                  else
+                    spezdef:=ttypesym(srsym).typedef;
+                end
               else if tprocsym(srsym).procdeflist.count>0 then
                 spezdef:=tdef(tprocsym(srsym).procdeflist[0])
               else
@@ -4240,7 +4247,8 @@ implementation
               else
                begin
                  if (m_implicit_generics in current_settings.modeswitches) and
-                     (sp_generic_dummy in srsym.symoptions) and
+                     ((sp_generic_dummy in srsym.symoptions) or
+                      could_be_generic(srsym.name)) and
                      (current_scanner.token in [_LT,_LSHARPBRACKET]) then
                    begin
                      if block_type in [bt_type,bt_const_type,bt_var_type] then
