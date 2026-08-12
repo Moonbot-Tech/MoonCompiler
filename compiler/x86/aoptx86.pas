@@ -3078,6 +3078,16 @@ unit aoptx86;
         ReplaceReg := taicpu(p_mov).oper[0]^.reg;
         CurrentReg := taicpu(p_mov).oper[1]^.reg;
 
+        { Later passes use CMP register reads to keep the loop-bound value live,
+          so don't turn this instruction into a readless reg,reg form. }
+        if (hp.opcode = A_CMP) and
+          MatchOpType(hp, top_reg, top_reg) and
+          (((hp.oper[0]^.reg = CurrentReg) and
+            (hp.oper[1]^.reg = ReplaceReg)) or
+           ((hp.oper[1]^.reg = CurrentReg) and
+            (hp.oper[0]^.reg = ReplaceReg))) then
+          Exit;
+
         case hp.opcode of
           A_FSTSW, A_FNSTSW,
           A_IN,   A_INS,  A_OUT,  A_OUTS,
