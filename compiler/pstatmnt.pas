@@ -2668,6 +2668,25 @@ implementation
       end;
 
 
+    function find_first_with_storage_sym(var n:tnode;arg:pointer):foreachnoderesult;
+      var
+        storage : ^tsym absolute arg;
+        sym : tsym;
+      begin
+        if assigned(storage^) then
+          exit(fen_norecurse_true);
+        result:=fen_false;
+        if n.nodetype<>loadn then
+          exit;
+        sym:=tloadnode(n).symtableentry;
+        if not (sym.owner.symtabletype in
+            [parasymtable,localsymtable,blocksymtable,exceptsymtable]) then
+          exit;
+        storage^:=sym;
+        result:=fen_norecurse_true;
+      end;
+
+
     { build the body for a scoped-with autofree cleanup:
         if vs<>nil then begin vs.Free; vs:=nil end
       Returned node is intended to be wrapped in a cdefernode. }
@@ -2712,7 +2731,8 @@ implementation
          withvar : tabstractnormalvarsym;
          valuenode,
          hp,
-         refnode  : tnode;
+         refnode : tnode;
+         capturesym : tsym;
          hdef : tdef;
          helperdef : tobjectdef;
          hasimplicitderef : boolean;
@@ -2746,13 +2766,15 @@ implementation
              pushobjchild(withdef,parenthelperdef.childof);
            { keep the original tobjectdef as owner, because that is used for
              visibility of the symtable }
-           st:=twithsymtable.create(withdef,obj.symtable.SymList,refnode.getcopy);
+           st:=twithsymtable.create(withdef,obj.symtable.SymList,refnode.getcopy,
+             capturesym,current_procinfo.procdef);
            symtablestack.push(st);
            withsymtablelist.add(st);
            { push the symtable of the helper }
            if assigned(parenthelperdef) then
              begin
-               st:=twithsymtable.create(withdef,parenthelperdef.symtable.SymList,refnode.getcopy);
+               st:=twithsymtable.create(withdef,parenthelperdef.symtable.SymList,refnode.getcopy,
+                 capturesym,current_procinfo.procdef);
                symtablestack.push(st);
                withsymtablelist.add(st);
              end;
@@ -3013,6 +3035,7 @@ implementation
             valuenode:=nil;
             tempnode:=nil;
             withvar:=nil;
+            capturesym:=nil;
 
             { scoped-with -- always wrap in a block so we
               can prepend `lifetime_var := init_expr;` before the with-body.
@@ -3029,7 +3052,9 @@ implementation
               end;
 
             hp:=skip_nodes_before_load(p);
-            if (hp.nodetype=loadn) and
+            if ((p.nodetype=loadn) or
+                not (m_delphi in current_settings.modeswitches)) and
+               (hp.nodetype=loadn) and
                (
                 (tloadnode(hp).symtable=current_procinfo.procdef.localst) or
                 (tloadnode(hp).symtable=current_procinfo.procdef.parast) or
@@ -3085,6 +3110,37 @@ implementation
                     p:=cloadnode.create(withvar,withvar.owner);
                     typecheckpass(p);
                     refnode:=p;
+                  end
+                else if (m_delphi in current_settings.modeswitches) and
+                        (p.resultdef.typ=recorddef) and
+                        valid_for_addr(p,false) then
+                  begin
+                    { Evaluate a complex lvalue once, retain its address for
+                      member access, and preserve the underlying storage when
+                      a nested routine captures a with-member. }
+                    if not assigned(withblockst) then
+                      begin
+                        withblockst:=tblocksymtable.create(current_procinfo.procdef.localst);
+                        symtablestack.push(withblockst);
+                      end;
+                    foreachnodestatic(p,@find_first_with_storage_sym,@capturesym);
+                    hdef:=cpointerdef.create(p.resultdef);
+                    withvar:=create_inline_var_sym('$with_ref_'+
+                      tostr(entrypos.line)+'_'+tostr(entrypos.column),hdef);
+                    include(withvar.varoptions,vo_is_internal);
+                    withvar.register_sym;
+                    symtablestack.top.insertsym(withvar);
+                    withvar.varstate:=vs_initialised;
+                    if withvar.typ=staticvarsym then
+                      cnodeutils.insertbssdata(tstaticvarsym(withvar));
+                    newblock:=internalstatements(newstatement);
+                    valuenode:=caddrnode.create_internal_nomark(p);
+                    include(taddrnode(valuenode).addrnodeflags,anf_typedaddr);
+                    addstatement(newstatement,cassignmentnode.create(
+                      cloadnode.create(withvar,withvar.owner),valuenode));
+                    refnode:=cderefnode.create(cloadnode.create(withvar,withvar.owner));
+                    fillchar(refnode.fileinfo,sizeof(tfileposinfo),0);
+                    typecheckpass(refnode);
                   end
                 else
                   begin
@@ -3155,7 +3211,8 @@ implementation
                    if assigned(helperdef) then
                      pushobjchild(helperdef,helperdef.childof);
                    { push object symtable }
-                   st:=twithsymtable.Create(tobjectdef(p.resultdef),tobjectdef(p.resultdef).symtable.SymList,refnode);
+                   st:=twithsymtable.Create(tobjectdef(p.resultdef),tobjectdef(p.resultdef).symtable.SymList,refnode,
+                     capturesym,current_procinfo.procdef);
                    symtablestack.push(st);
                    withsymtablelist.add(st);
                  end;
@@ -3169,7 +3226,8 @@ implementation
                    if assigned(helperdef) then
                      pushobjchild(helperdef,helperdef.childof);
                    { push object symtable }
-                   st:=twithsymtable.Create(tobjectdef(tclassrefdef(p.resultdef).pointeddef),tobjectdef(tclassrefdef(p.resultdef).pointeddef).symtable.SymList,refnode);
+                   st:=twithsymtable.Create(tobjectdef(tclassrefdef(p.resultdef).pointeddef),tobjectdef(tclassrefdef(p.resultdef).pointeddef).symtable.SymList,refnode,
+                     capturesym,current_procinfo.procdef);
                    symtablestack.push(st);
                    withsymtablelist.add(st);
                 end;
@@ -3181,7 +3239,8 @@ implementation
                    if assigned(helperdef) then
                      pushobjchild(helperdef,helperdef.childof);
                    { push record symtable }
-                   st:=twithsymtable.create(trecorddef(p.resultdef),trecorddef(p.resultdef).symtable.SymList,refnode);
+                   st:=twithsymtable.create(trecorddef(p.resultdef),trecorddef(p.resultdef).symtable.SymList,refnode,
+                     capturesym,current_procinfo.procdef);
                    symtablestack.push(st);
                    withsymtablelist.add(st);
                 end;
@@ -3191,7 +3250,8 @@ implementation
                      internalerror(2012122802);
                    helperdef:=nil;
                    { push record symtable }
-                   st:=twithsymtable.create(p.resultdef,nil,refnode);
+                   st:=twithsymtable.create(p.resultdef,nil,refnode,
+                     capturesym,current_procinfo.procdef);
                    symtablestack.push(st);
                    withsymtablelist.add(st);
                 end;
@@ -3202,7 +3262,8 @@ implementation
             { push helper symtable }
             if assigned(helperdef) then
               begin
-                st:=twithsymtable.Create(helperdef,helperdef.symtable.SymList,refnode.getcopy);
+                st:=twithsymtable.Create(helperdef,helperdef.symtable.SymList,refnode.getcopy,
+                  capturesym,current_procinfo.procdef);
                 symtablestack.push(st);
                 withsymtablelist.add(st);
               end;

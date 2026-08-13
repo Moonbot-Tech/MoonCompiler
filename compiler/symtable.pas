@@ -288,7 +288,10 @@ interface
 
        twithsymtable = class(TSymtable)
           withrefnode : tobject; { tnode }
-          constructor create(aowner:tdef;ASymList:TFPHashObjectList;refnode:tobject{tnode});
+          withcapturesym : tsym;
+          withownerproc : tdef;
+          constructor create(aowner:tdef;ASymList:TFPHashObjectList;refnode:tobject{tnode};
+            capturesym:tsym=nil;ownerproc:tdef=nil);
           destructor  destroy;override;
           procedure clear;override;
           procedure insertdef(def:TDefEntry);override;
@@ -2974,11 +2977,14 @@ implementation
                               TWITHSYMTABLE
 ****************************************************************************}
 
-    constructor twithsymtable.create(aowner:tdef;ASymList:TFPHashObjectList;refnode:tobject{tnode});
+    constructor twithsymtable.create(aowner:tdef;ASymList:TFPHashObjectList;
+      refnode:tobject{tnode};capturesym:tsym;ownerproc:tdef);
       begin
          inherited create('');
          symtabletype:=withsymtable;
          withrefnode:=refnode;
+         withcapturesym:=capturesym;
+         withownerproc:=ownerproc;
          { Replace SymList with the passed symlist }
          SymList.free;
          SymList:=ASymList;

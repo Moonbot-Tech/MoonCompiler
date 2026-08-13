@@ -25,6 +25,7 @@ type
   end;
 
   TProc = reference to procedure;
+  TPointArray = array of TPoint;
 
   TPointSource = class
   private
@@ -36,6 +37,7 @@ type
 var
   Callback: TProc;
   EvalCount: Integer;
+  IndexCount: Integer;
   InitCount: Integer;
   FinalizeCount: Integer;
   SeenX: Integer;
@@ -59,6 +61,12 @@ begin
   Inc(EvalCount);
   Result.X:=17;
   Result.Y:=25;
+end;
+
+function NextIndex: Integer;
+begin
+  Inc(IndexCount);
+  Result:=1;
 end;
 
 function MakePlainManaged: TPlainManaged;
@@ -114,21 +122,79 @@ end;
 
 procedure CaptureArrayElement;
 var
-  Points: array[0..0] of TPoint;
+  Points: array[0..1] of TPoint;
 begin
-  Points[0].X:=3;
-  Points[0].Y:=4;
-  with Points[0] do
+  Points[0].X:=9;
+  Points[0].Y:=9;
+  Points[1].X:=3;
+  Points[1].Y:=4;
+  with Points[NextIndex] do
     Callback:=
       procedure
       begin
         SeenX:=X;
         SeenY:=Y;
       end;
-  Points[0].X:=50;
-  Callback();
-  if (SeenX<>50) or (SeenY<>4) then
-    Halt(10);
+  Points[1].X:=50;
+end;
+
+procedure CaptureArrayElementByLocalIndex;
+var
+  Points: array[0..1] of TPoint;
+  Index: Integer;
+begin
+  Index:=1;
+  Points[0].X:=9;
+  Points[0].Y:=9;
+  Points[1].X:=5;
+  Points[1].Y:=6;
+  with Points[Index] do
+    Callback:=
+      procedure
+      begin
+        SeenX:=X;
+        SeenY:=Y;
+      end;
+  Points[1].X:=60;
+end;
+
+procedure CaptureDynamicArray;
+var
+  Points: TPointArray;
+begin
+  SetLength(Points, 2);
+  Points[1].X:=70;
+  Points[1].Y:=8;
+  with Points[NextIndex] do
+    Callback:=
+      procedure
+      begin
+        SeenX:=X;
+        SeenY:=Y;
+      end;
+  Points[1].X:=71;
+end;
+
+procedure CaptureDynamicArrayParameter(const Points: TPointArray);
+begin
+  with Points[NextIndex] do
+    Callback:=
+      procedure
+      begin
+        SeenX:=X;
+        SeenY:=Y;
+      end;
+end;
+
+procedure CaptureDynamicArrayThroughParameter;
+var
+  Points: TPointArray;
+begin
+  SetLength(Points, 2);
+  Points[1].X:=80;
+  Points[1].Y:=9;
+  CaptureDynamicArrayParameter(Points);
+  Points[1].X:=81;
 end;
 
 procedure CaptureProperty;
@@ -206,6 +272,28 @@ begin
     Halt(3);
 
   CaptureArrayElement;
+  if IndexCount<>1 then
+    Halt(10);
+  Callback();
+  if (IndexCount<>1) or (SeenX<>50) or (SeenY<>4) then
+    Halt(14);
+
+  CaptureArrayElementByLocalIndex;
+  Callback();
+  if (SeenX<>60) or (SeenY<>6) then
+    Halt(15);
+
+  CaptureDynamicArray;
+  Callback();
+  if (IndexCount<>2) or (SeenX<>71) or (SeenY<>8) then
+    Halt(16);
+  Callback:=nil;
+
+  CaptureDynamicArrayThroughParameter;
+  Callback();
+  if (IndexCount<>3) or (SeenX<>81) or (SeenY<>9) then
+    Halt(17);
+  Callback:=nil;
 
   CaptureProperty;
   if EvalCount<>2 then

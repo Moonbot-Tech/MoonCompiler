@@ -22,7 +22,7 @@ COMPILER_ROOT=$(realpath "$(dirname "$FPC")/../../..")
 mkdir -p "$RUN"
 
 run_case() {
-  local source=$1 expected=$2 source_group=$3 option out
+  local source=$1 expected=$2 source_group=$3 option tag out
   local -a source_paths
   source_paths=()
   case "$source_group" in
@@ -55,26 +55,28 @@ run_case() {
       )
       ;;
   esac
-  for option in O2 O3; do
-    out="$RUN/$source-${option,,}"
+  for option in O- O2 O3; do
+    [[ "$option" == O- ]] && tag=debug || tag=${option,,}
+    out="$RUN/$source-$tag"
     mkdir -p "$out"
     "$FPC" -n "@$CFG" -B "-$option" -Fu"$ROOT/tests/smoke" \
       "${source_paths[@]}" \
       -FU"$out" -FE"$out" "$ROOT/tests/smoke/$source.pas" \
-      >"$RUN/$source-${option,,}.compile.log" 2>&1
-    timeout 30 "$out/$source" >"$RUN/$source-${option,,}.run.log" 2>&1
-    grep -qx "$expected" "$RUN/$source-${option,,}.run.log"
+      >"$RUN/$source-$tag.compile.log" 2>&1
+    timeout 30 "$out/$source" >"$RUN/$source-$tag.run.log" 2>&1
+    grep -qx "$expected" "$RUN/$source-$tag.run.log"
   done
 }
 
 run_rejected() {
   local source=$1 diagnostic=$2
   shift 2
-  local option out log
-  for option in O2 O3; do
-    out="$RUN/$source-rejected-${option,,}"
+  local option tag out log
+  for option in O- O2 O3; do
+    [[ "$option" == O- ]] && tag=debug || tag=${option,,}
+    out="$RUN/$source-rejected-$tag"
     mkdir -p "$out"
-    log="$RUN/$source-rejected-${option,,}.compile.log"
+    log="$RUN/$source-rejected-$tag.compile.log"
     if "$FPC" -n "@$CFG" -B "-$option" -Fu"$ROOT/tests/smoke" \
       "$@" -FU"$out" -FE"$out" "$ROOT/tests/smoke/$source.pas" \
       >"$log" 2>&1; then
@@ -86,9 +88,10 @@ run_rejected() {
 }
 
 run_alias_replay() {
-  local option out
-  for option in O2 O3; do
-    out="$RUN/generic_alias_replay-${option,,}"
+  local option tag out
+  for option in O- O2 O3; do
+    [[ "$option" == O- ]] && tag=debug || tag=${option,,}
+    out="$RUN/generic_alias_replay-$tag"
     mkdir -p "$out"
     "$FPC" -n "@$CFG" "-$option" -Mdelphi \
       -UaSystem.Generics.Collections=Generics.Collections \
@@ -158,4 +161,4 @@ run_rejected inline_const_compiletime_rejected \
   find "$RUN" -type f ! -name SHA256SUMS -print0 |
     sort -z | xargs -0 -r sha256sum
 } >"$RUN/SHA256SUMS"
-echo "SERVICE_REGRESSIONS_GATE_OK positive=8 negative=8 modes=2"
+echo "SERVICE_REGRESSIONS_GATE_OK positive=8 negative=8 modes=3"

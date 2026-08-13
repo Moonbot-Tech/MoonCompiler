@@ -1250,14 +1250,35 @@ implementation
       end;
 
 
-    function copy_with_refnode(st:twithsymtable):tnode;
+    function reset_with_capture_node(var n:tnode;arg:pointer):foreachnoderesult;
       begin
+        n.resultdef:=nil;
+        exclude(n.transientflags,tnf_pass1_done);
+        result:=fen_false;
+      end;
+
+
+    function copy_with_refnode(st:twithsymtable):tnode;
+      var
+        sym : tabstractvarsym;
+      begin
+        if assigned(st.withcapturesym) and assigned(current_procinfo) and
+           (st.withownerproc<>current_procinfo.procdef) then
+          begin
+            sym:=tabstractvarsym(st.withcapturesym);
+            current_procinfo.add_captured_sym(sym,sym.vardef,tnode(st.withrefnode).fileinfo);
+            sym.different_scope:=true;
+            sym.varregable:=vr_none;
+          end;
         result:=tnode(st.withrefnode).getcopy;
-        { The template was typechecked before the with body was parsed. A
-          copied direct load used inside an anonymous routine must run load
-          typecheck there so the ordinary capture machinery sees it. }
-        if result.nodetype=loadn then
-          result.resultdef:=nil;
+        { The template was typechecked before the with body was parsed. A copy
+          used inside a nested routine must be typechecked in that routine so
+          every outer symbol in a composed target is registered for capture. }
+        if (result.nodetype=loadn) or
+           ((m_delphi in current_settings.modeswitches) and
+            assigned(current_procinfo) and
+            (st.withownerproc<>current_procinfo.procdef)) then
+          foreachnodestatic(result,@reset_with_capture_node,nil);
       end;
 
 

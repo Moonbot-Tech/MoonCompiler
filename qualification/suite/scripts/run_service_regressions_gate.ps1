@@ -15,8 +15,9 @@ If (Test-Path -LiteralPath $Run) { throw "run already exists: $Run" }
 New-Item -ItemType Directory -Path $Run | Out-Null
 
 function Invoke-Case([string]$Name, [string]$Expected, [string[]]$SourceArgs = @()) {
-  foreach ($Option in @('O2', 'O3')) {
-    $Out = Join-Path $Run "$Name-$($Option.ToLower())"
+  foreach ($Option in @('O-', 'O2', 'O3')) {
+    $Tag = If ($Option -eq 'O-') { 'debug' } Else { $Option.ToLower() }
+    $Out = Join-Path $Run "$Name-$Tag"
     New-Item -ItemType Directory -Path $Out | Out-Null
     $Log = Join-Path $Out 'compile.log'
     & $Compiler -n "@$Config" -B "-$Option" "-Fu$Root\tests\smoke" `
@@ -36,8 +37,9 @@ function Invoke-Rejected(
   [string]$Diagnostic = 'Error: (Incompatible types|Illegal type conversion)',
   [string[]]$SourceArgs = @()
 ) {
-  foreach ($Option in @('O2', 'O3')) {
-    $Out = Join-Path $Run "$Name-rejected-$($Option.ToLower())"
+  foreach ($Option in @('O-', 'O2', 'O3')) {
+    $Tag = If ($Option -eq 'O-') { 'debug' } Else { $Option.ToLower() }
+    $Out = Join-Path $Run "$Name-rejected-$Tag"
     New-Item -ItemType Directory -Path $Out | Out-Null
     $Log = Join-Path $Out 'compile.log'
     & $Compiler -n "@$Config" -B "-$Option" "-Fu$Root\tests\smoke" `
@@ -50,8 +52,9 @@ function Invoke-Rejected(
 }
 
 function Invoke-AliasReplay {
-  foreach ($Option in @('O2', 'O3')) {
-    $Out = Join-Path $Run "generic_alias_replay-$($Option.ToLower())"
+  foreach ($Option in @('O-', 'O2', 'O3')) {
+    $Tag = If ($Option -eq 'O-') { 'debug' } Else { $Option.ToLower() }
+    $Out = Join-Path $Run "generic_alias_replay-$Tag"
     New-Item -ItemType Directory -Path $Out | Out-Null
     & $Compiler -n "@$Config" "-$Option" -Mdelphi `
       '-UaSystem.Generics.Collections=Generics.Collections' `
@@ -137,4 +140,4 @@ $Inputs | Sort-Object -Unique | ForEach-Object {
   $Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_).Hash.ToLowerInvariant()
   "$Hash *$([IO.Path]::GetFullPath($_))"
 } | Set-Content -LiteralPath (Join-Path $Run 'SHA256SUMS') -Encoding ascii
-Write-Output 'SERVICE_REGRESSIONS_GATE_OK positive=8 negative=8 modes=2'
+Write-Output 'SERVICE_REGRESSIONS_GATE_OK positive=8 negative=8 modes=3'
