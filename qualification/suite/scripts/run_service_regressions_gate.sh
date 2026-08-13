@@ -46,6 +46,14 @@ run_case() {
         -UaSystem.SysUtils=SysUtils
       )
       ;;
+    generic-source)
+      source_paths=(
+        -Fu"$COMPILER_ROOT/packages/rtl-generics/src"
+        -Fi"$COMPILER_ROOT/packages/rtl-generics/src"
+        -Fi"$COMPILER_ROOT/packages/rtl-generics/src/inc"
+        -UaSystem.Generics.Collections=Generics.Collections
+      )
+      ;;
   esac
   for option in O2 O3; do
     out="$RUN/$source-${option,,}"
@@ -64,9 +72,9 @@ run_rejected() {
   shift 2
   local option out log
   for option in O2 O3; do
-    out="$RUN/$source-${option,,}"
+    out="$RUN/$source-rejected-${option,,}"
     mkdir -p "$out"
-    log="$RUN/$source-${option,,}.compile.log"
+    log="$RUN/$source-rejected-${option,,}.compile.log"
     if "$FPC" -n "@$CFG" -B "-$option" -Fu"$ROOT/tests/smoke" \
       "$@" -FU"$out" -FE"$out" "$ROOT/tests/smoke/$source.pas" \
       >"$log" 2>&1; then
@@ -74,6 +82,27 @@ run_rejected() {
       exit 1
     fi
     grep -Eq "$diagnostic" "$log"
+  done
+}
+
+run_alias_replay() {
+  local option out
+  for option in O2 O3; do
+    out="$RUN/generic_alias_replay-${option,,}"
+    mkdir -p "$out"
+    "$FPC" -n "@$CFG" "-$option" -Mdelphi \
+      -UaSystem.Generics.Collections=Generics.Collections \
+      -FU"$out" -FE"$out" \
+      "$ROOT/tests/smoke/generic_alias_replay_unit.pas" \
+      >"$out/unit.compile.log" 2>&1
+    cp "$ROOT/tests/smoke/generic_alias_replay.pas" "$out/"
+    "$FPC" -n "@$CFG" "-$option" -Mdelphi \
+      -UaSystem.Generics.Collections=Generics.Collections \
+      -Fu"$out" -FU"$out" -FE"$out" \
+      "$out/generic_alias_replay.pas" \
+      >"$out/program.compile.log" 2>&1
+    timeout 30 "$out/generic_alias_replay" >"$out/run.log" 2>&1
+    grep -qx GENERIC_ALIAS_REPLAY_OK "$out/run.log"
   done
 }
 
@@ -85,10 +114,22 @@ run_rejected variant_distinct_objfpc_rejected \
   'Error: (Incompatible types|Illegal type conversion)'
 run_case dotted_unicode_comparer DOTTED_UNICODE_COMPARER_OK dotted-generics
 run_case paszlib_delphi_unicode PASZLIB_DELPHI_UNICODE_OK dotted-paszlib
+run_case delphi_tlist_arrayoft DELPHI_TLIST_ARRAYOFT_OK generic-source
+run_alias_replay
+run_case generic_return_alias GENERIC_RETURN_ALIAS_OK plain
+run_case delphi_with_anonymous DELPHI_WITH_ANONYMOUS_OK plain
 run_rejected anonymous_callback_var_rejected \
   'Error: (Incompatible types|Illegal type conversion)'
 run_rejected anonymous_callback_out_rejected \
   'Error: (Incompatible types|Illegal type conversion)'
+run_rejected generic_return_distinct_rejected \
+  'Overloaded functions have the same parameter list'
+run_rejected generic_return_mismatch_rejected \
+  'Overloaded functions have the same parameter list'
+run_rejected with_rvalue_write_rejected \
+  "Can't assign values to const variable"
+run_rejected inline_const_compiletime_rejected \
+  "Can't evaluate constant expression"
 
 {
   sha256sum "$FPC" "$CFG" \
@@ -98,7 +139,16 @@ run_rejected anonymous_callback_out_rejected \
     "$ROOT/tests/smoke/dotted_unicode_comparer.pas" \
     "$ROOT/tests/smoke/paszlib_delphi_unicode.pas" \
     "$ROOT/tests/smoke/anonymous_callback_var_rejected.pas" \
-    "$ROOT/tests/smoke/anonymous_callback_out_rejected.pas"
+    "$ROOT/tests/smoke/anonymous_callback_out_rejected.pas" \
+    "$ROOT/tests/smoke/delphi_tlist_arrayoft.pas" \
+    "$ROOT/tests/smoke/generic_alias_replay.pas" \
+    "$ROOT/tests/smoke/generic_alias_replay_unit.pas" \
+    "$ROOT/tests/smoke/generic_return_alias.pas" \
+    "$ROOT/tests/smoke/generic_return_distinct_rejected.pas" \
+    "$ROOT/tests/smoke/generic_return_mismatch_rejected.pas" \
+    "$ROOT/tests/smoke/delphi_with_anonymous.pas" \
+    "$ROOT/tests/smoke/with_rvalue_write_rejected.pas" \
+    "$ROOT/tests/smoke/inline_const_compiletime_rejected.pas"
   find "$COMPILER_ROOT/packages/rtl-generics/src" \
     "$COMPILER_ROOT/packages/rtl-generics/namespaced" \
     "$COMPILER_ROOT/packages/paszlib/src" \
@@ -108,4 +158,4 @@ run_rejected anonymous_callback_out_rejected \
   find "$RUN" -type f ! -name SHA256SUMS -print0 |
     sort -z | xargs -0 -r sha256sum
 } >"$RUN/SHA256SUMS"
-echo "SERVICE_REGRESSIONS_GATE_OK positive=4 negative=4 modes=2"
+echo "SERVICE_REGRESSIONS_GATE_OK positive=8 negative=8 modes=2"
