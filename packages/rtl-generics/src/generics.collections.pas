@@ -290,6 +290,7 @@ type
       // bug workaround
       TEnumerator = class(TCustomListEnumerator<T>);
       TEmptyFunc = reference to function (const L, R: T): Boolean;
+      arrayofT = TArrayOfT;
 
     function GetEnumerator: TEnumerator; reintroduce;
   protected
