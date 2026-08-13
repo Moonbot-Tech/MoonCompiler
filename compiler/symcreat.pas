@@ -536,7 +536,8 @@ implementation
           if (sym.typ=fieldvarsym) then
             begin
               fsym:=tfieldvarsym(sym);
-              if fsym.vardef.needs_inittable then
+              if not fsym.skip_implicit_init_final and
+                 fsym.vardef.needs_inittable then
                 str:=str+(internal_macro_escape_unit_namespace_name+'system.initialize(&')+fsym.realname+');';
             end;
         end;

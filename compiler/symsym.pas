@@ -245,6 +245,10 @@ interface
           custom_size    : longint;
           custom_align   : longword;
           custom_bitalign: longword;
+          { Compiler-generated capturer fields may be finalized explicitly at
+            their lexical source scope. Such fields must not also appear in
+            the capturer class' implicit init/final table. Not written to PPU. }
+          skip_implicit_init_final: boolean;
 {$ifdef llvm}
           { the llvm version of the record does not support variants,   }
           { so the llvm equivalent field may not be at the exact same   }
@@ -295,6 +299,9 @@ interface
           { Delphi managed inline variables are initialized at their declaration
             and finalized by the declaration scope (not written to PPU) }
           inline_scope_managed : boolean;
+          { A captured managed value whose lifetime still ends at its lexical
+            source scope instead of at capturer destruction. Not written to PPU. }
+          capture_lexical_lifetime : boolean;
           { not stored in PPU! }
           capture_sym : tsym;
           constructor create(st:tsymtyp;const n : TSymStr;vsp:tvarspez;def:tdef;vopts:tvaroptions);
@@ -2151,6 +2158,7 @@ implementation
          custom_size:=-1;
          custom_align:=0;
          custom_bitalign:=0;
+         skip_implicit_init_final:=false;
       end;
 
 
@@ -2166,6 +2174,7 @@ implementation
          custom_size:=-1;
          custom_align:=0;
          custom_bitalign:=0;
+         skip_implicit_init_final:=false;
          ppuload_platform(ppufile);
       end;
 
@@ -2278,6 +2287,7 @@ implementation
          fillchar(localloc,sizeof(localloc),0);
          fillchar(initialloc,sizeof(initialloc),0);
          inline_scope_managed:=false;
+         capture_lexical_lifetime:=false;
          defaultconstsym:=nil;
          defaultconstsymderef.reset;
       end;
@@ -2289,6 +2299,7 @@ implementation
          fillchar(localloc,sizeof(localloc),0);
          fillchar(initialloc,sizeof(initialloc),0);
          inline_scope_managed:=false;
+         capture_lexical_lifetime:=false;
          ppufile.getderef(defaultconstsymderef);
       end;
 

@@ -2709,6 +2709,7 @@ implementation
          newstatement : tstatementnode;
          calltempnode,
          tempnode : ttempcreatenode;
+         withvar : tabstractnormalvarsym;
          valuenode,
          hp,
          refnode  : tnode;
@@ -3011,6 +3012,7 @@ implementation
             newblock:=nil;
             valuenode:=nil;
             tempnode:=nil;
+            withvar:=nil;
 
             { scoped-with -- always wrap in a block so we
               can prepend `lifetime_var := init_expr;` before the with-body.
@@ -3046,56 +3048,97 @@ implementation
               end
             else
               begin
-                { complex load, load in temp first }
-                newblock:=internalstatements(newstatement);
-                { when we can't take the address of p, load it in a temp }
-                { since we may need its address later on                 }
-                if not valid_for_addr(p,false) then
+                { A non-addressable Delphi record rvalue must survive an
+                  escaped anonymous routine. Materialize the value itself in
+                  a lexical read-only local so the ordinary capturer can own
+                  it without changing addressable-with by-reference semantics. }
+                if (m_delphi in current_settings.modeswitches) and
+                   (p.resultdef.typ=recorddef) and
+                   not valid_for_addr(p,false) then
                   begin
-                    calltempnode:=ctempcreatenode.create(p.resultdef,p.resultdef.size,tt_persistent,true);
-                    addstatement(newstatement,calltempnode);
+                    if not assigned(withblockst) then
+                      begin
+                        withblockst:=tblocksymtable.create(current_procinfo.procdef.localst);
+                        symtablestack.push(withblockst);
+                      end;
+                    withvar:=create_inline_var_sym('$with_value_'+
+                      tostr(entrypos.line)+'_'+tostr(entrypos.column),p.resultdef);
+                    include(withvar.varoptions,vo_is_const);
+                    include(withvar.varoptions,vo_is_internal);
+                    { Delphi keeps an ordinary record value alive when a
+                      closure captures one of its fields. A record with custom
+                      management operators is different: its lexical Finalize
+                      still runs at with-scope exit, and the closure observes
+                      the resulting record state. }
+                    withvar.capture_lexical_lifetime:=
+                      trecordsymtable(trecorddef(p.resultdef).symtable).
+                        managementoperators<>[];
+                    withvar.register_sym;
+                    symtablestack.top.insertsym(withvar);
+                    withvar.varstate:=vs_initialised;
+                    if withvar.typ=staticvarsym then
+                      cnodeutils.insertbssdata(tstaticvarsym(withvar));
+                    newblock:=internalstatements(newstatement);
+                    add_inline_managed_lifetime(newstatement,withvar);
                     addstatement(newstatement,cassignmentnode.create(
-                        ctemprefnode.create(calltempnode),
-                        p));
-                    p:=ctemprefnode.create(calltempnode);
+                      load_ignoreconst(withvar),p));
+                    p:=cloadnode.create(withvar,withvar.owner);
                     typecheckpass(p);
-                  end;
-                { several object types have implicit dereferencing }
-                { is_implicit_pointer_object_type() returns true for records
-                  on the JVM target because they are implemented as classes
-                  there, but we definitely have to take their address here
-                  since otherwise a deep copy is made and changes are made to
-                  this copy rather than to the original one }
-                hasimplicitderef:=
-                  (is_implicit_pointer_object_type(p.resultdef) or
-                   (p.resultdef.typ=classrefdef)) and
-                  not((target_info.system in systems_jvm) and
-                      ((p.resultdef.typ=recorddef) or
-                       is_object(p.resultdef)));
-                if hasimplicitderef then
-                  hdef:=p.resultdef
+                    refnode:=p;
+                  end
                 else
-                  hdef:=cpointerdef.create(p.resultdef);
-                { load address of the value in a temp }
-                tempnode:=ctempcreatenode.create_withnode(hdef,sizeof(pint),tt_persistent,true,p);
-                typecheckpass(tnode(tempnode));
-                valuenode:=p;
-                refnode:=ctemprefnode.create(tempnode);
-                fillchar(refnode.fileinfo,sizeof(tfileposinfo),0);
-                { add address call for valuenode and deref for refnode if this
-                  is not done implicitly }
-                if not hasimplicitderef then
                   begin
-                    valuenode:=caddrnode.create_internal_nomark(valuenode);
-                    include(taddrnode(valuenode).addrnodeflags,anf_typedaddr);
-                    refnode:=cderefnode.create(refnode);
+                    { complex addressable forms keep the classic pointer temp. }
+                    newblock:=internalstatements(newstatement);
+                    { when we can't take the address of p, load it in a temp }
+                    { since we may need its address later on                 }
+                    if not valid_for_addr(p,false) then
+                      begin
+                        calltempnode:=ctempcreatenode.create(p.resultdef,p.resultdef.size,tt_persistent,true);
+                        addstatement(newstatement,calltempnode);
+                        addstatement(newstatement,cassignmentnode.create(
+                            ctemprefnode.create(calltempnode),
+                            p));
+                        p:=ctemprefnode.create(calltempnode);
+                        typecheckpass(p);
+                      end;
+                    { several object types have implicit dereferencing }
+                    { is_implicit_pointer_object_type() returns true for records
+                      on the JVM target because they are implemented as classes
+                      there, but we definitely have to take their address here
+                      since otherwise a deep copy is made and changes are made to
+                      this copy rather than to the original one }
+                    hasimplicitderef:=
+                      (is_implicit_pointer_object_type(p.resultdef) or
+                       (p.resultdef.typ=classrefdef)) and
+                      not((target_info.system in systems_jvm) and
+                          ((p.resultdef.typ=recorddef) or
+                           is_object(p.resultdef)));
+                    if hasimplicitderef then
+                      hdef:=p.resultdef
+                    else
+                      hdef:=cpointerdef.create(p.resultdef);
+                    { load address of the value in a temp }
+                    tempnode:=ctempcreatenode.create_withnode(hdef,sizeof(pint),tt_persistent,true,p);
+                    typecheckpass(tnode(tempnode));
+                    valuenode:=p;
+                    refnode:=ctemprefnode.create(tempnode);
                     fillchar(refnode.fileinfo,sizeof(tfileposinfo),0);
+                    { add address call for valuenode and deref for refnode if this
+                      is not done implicitly }
+                    if not hasimplicitderef then
+                      begin
+                        valuenode:=caddrnode.create_internal_nomark(valuenode);
+                        include(taddrnode(valuenode).addrnodeflags,anf_typedaddr);
+                        refnode:=cderefnode.create(refnode);
+                        fillchar(refnode.fileinfo,sizeof(tfileposinfo),0);
+                      end;
+                    addstatement(newstatement,tempnode);
+                    addstatement(newstatement,cassignmentnode.create(
+                        ctemprefnode.create(tempnode),
+                        valuenode));
+                    typecheckpass(refnode);
                   end;
-                addstatement(newstatement,tempnode);
-                addstatement(newstatement,cassignmentnode.create(
-                    ctemprefnode.create(tempnode),
-                    valuenode));
-                typecheckpass(refnode);
               end;
             { Note: the symtable of the helper is pushed after the following
                     "case", the symtables of the helper's parents are passed in
@@ -6256,12 +6299,14 @@ implementation
           exit(fen_norecurse_false);
         if n.nodetype=defern then
           begin
-            { Captured managed values live in the capturer object, whose field
-              is already initialized and finalized with that object.  Drop
-              both lexical lifetime markers; in particular, re-initializing
-              the field on every loop iteration would leak its old value. }
+            { Ordinary captured managed values live in the capturer object,
+              whose field is initialized and finalized with that object. Drop
+              both lexical markers so a loop cannot re-initialize the field
+              and leak its old value. A custom-managed temporary with-target
+              deliberately keeps Delphi's lexical Finalize instead. }
             if assigned(tdefernode(n).lifetime_sym) and
-               tabstractnormalvarsym(tdefernode(n).lifetime_sym).is_captured then
+               tabstractnormalvarsym(tdefernode(n).lifetime_sym).is_captured and
+               not tabstractnormalvarsym(tdefernode(n).lifetime_sym).capture_lexical_lifetime then
               begin
                 n.free;
                 n:=cnothingnode.create;

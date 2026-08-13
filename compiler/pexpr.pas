@@ -1250,6 +1250,17 @@ implementation
       end;
 
 
+    function copy_with_refnode(st:twithsymtable):tnode;
+      begin
+        result:=tnode(st.withrefnode).getcopy;
+        { The template was typechecked before the with body was parsed. A
+          copied direct load used inside an anonymous routine must run load
+          typecheck there so the ordinary capture machinery sees it. }
+        if result.nodetype=loadn then
+          result.resultdef:=nil;
+      end;
+
+
     function maybe_load_methodpointer(st:TSymtable;var p1:tnode):boolean;
       var
         pd: tprocdef;
@@ -1261,7 +1272,7 @@ implementation
              withsymtable :
                begin
                  if (st.defowner.typ=objectdef) then
-                   p1:=tnode(twithsymtable(st).withrefnode).getcopy;
+                   p1:=copy_with_refnode(twithsymtable(st));
                end;
              ObjectSymtable,
              recordsymtable:
@@ -4110,7 +4121,7 @@ implementation
                internalerror(2007012002);
 
               hdef:=tnode(twithsymtable(st).withrefnode).resultdef;
-              p1:=tnode(twithsymtable(st).withrefnode).getcopy;
+              p1:=copy_with_refnode(twithsymtable(st));
 
               { composablerecords: a flat name resolved through a
                 composition carrier lives in a record def deeper than

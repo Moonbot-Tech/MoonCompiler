@@ -1704,6 +1704,8 @@ implementation
                         end;
                       fieldsym:=cfieldvarsym.create(fieldname,vs_value,fielddef,[]);
                       fieldsym.fileinfo:=sym.fileinfo;
+                      if tabstractnormalvarsym(sym).capture_lexical_lifetime then
+                        fieldsym.skip_implicit_init_final:=true;
                       subcapturer.symtable.insertsym(fieldsym);
                       tabstractrecordsymtable(subcapturer.symtable).addfield(fieldsym,vis_public);
                     end;

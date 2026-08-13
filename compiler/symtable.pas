@@ -1168,6 +1168,9 @@ implementation
            localvarsym,
            paravarsym :
              begin
+               if (tsym(sym).typ=fieldvarsym) and
+                  tfieldvarsym(sym).skip_implicit_init_final then
+                 exit;
                if assigned(tabstractvarsym(sym).vardef) then
                  begin
                    if is_managed_type(tabstractvarsym(sym).vardef) then

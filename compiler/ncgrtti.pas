@@ -802,7 +802,9 @@ implementation
                 begin
                   subsym := tsym(carrier_def.symtable.symlist[m]);
                   if not is_normal_fieldvarsym(subsym) then continue;
-                  if (rt<>fullrtti) and not tfieldvarsym(subsym).vardef.needs_inittable then continue;
+                  if (rt<>fullrtti) and
+                     (tfieldvarsym(subsym).skip_implicit_init_final or
+                      not tfieldvarsym(subsym).vardef.needs_inittable) then continue;
                   if is_objc_class_or_protocol(tfieldvarsym(subsym).vardef) then continue;
                   if compose_carrier(subsym) then continue;
                   new(fe);
@@ -844,7 +846,8 @@ implementation
             if is_normal_fieldvarsym(sym) and
                (
                 (rt=fullrtti) or
-                tfieldvarsym(sym).vardef.needs_inittable
+                (not tfieldvarsym(sym).skip_implicit_init_final and
+                 tfieldvarsym(sym).vardef.needs_inittable)
                ) and
                not is_objc_class_or_protocol(tfieldvarsym(sym).vardef) and
                not compose_carrier(sym) then
@@ -894,7 +897,8 @@ implementation
             if is_normal_fieldvarsym(sym) and
                (
                 (rt=fullrtti) or
-                tfieldvarsym(sym).vardef.needs_inittable
+                (not tfieldvarsym(sym).skip_implicit_init_final and
+                 tfieldvarsym(sym).vardef.needs_inittable)
                ) then
               write_rtti(tfieldvarsym(sym).vardef,rt);
           end;
