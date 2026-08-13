@@ -92,11 +92,16 @@ interface
          next     : treplaystack;
          pending  : tpendingstate;
          verbosity : longint;
+         current_filepos,
+         current_tokenpos : tfileposinfo;
+         restore_positions : boolean;
          constructor Create(atoken: ttoken;aidtoken:ttoken;
            const aorgpattern,apattern:string;const acstringpattern:ansistring;
            apatternw:tcompilerwidestring;asettings:tsettings;
            atokenbuf:tdynamicarray;change_endian:boolean;const apending:tpendingstate;
-           averbosity:longint;anext:treplaystack);
+           averbosity:longint;const acurrent_filepos,
+           acurrent_tokenpos:tfileposinfo;arestore_positions:boolean;
+           anext:treplaystack);
          destructor destroy;override;
        end;
 
@@ -261,7 +266,12 @@ interface
           procedure free_recordouterstack;
           function is_recording_tokens:boolean;
           procedure replaytoken;
-          procedure startreplaytokens(buf:tdynamicarray; change_endian:boolean);
+          procedure startreplaytokens(buf:tdynamicarray; change_endian:boolean); overload;
+          procedure startreplaytokens(buf:tdynamicarray; change_endian:boolean;
+            const restore_filepos,restore_tokenpos:tfileposinfo); overload;
+          procedure startreplaytokens_internal(buf:tdynamicarray; change_endian:boolean;
+            const restore_filepos,restore_tokenpos:tfileposinfo;
+            restore_positions:boolean);
           { bit length asizeint is target depend }
           procedure tokenwritesizeint(val : asizeint);
           procedure tokenwritelongint(val : longint);
@@ -3458,7 +3468,9 @@ type
       const aorgpattern,apattern:string;const acstringpattern:ansistring;
       apatternw:tcompilerwidestring;asettings:tsettings;
       atokenbuf:tdynamicarray;change_endian:boolean;const apending:tpendingstate;
-      averbosity:longint;anext:treplaystack);
+      averbosity:longint;const acurrent_filepos,
+      acurrent_tokenpos:tfileposinfo;arestore_positions:boolean;
+      anext:treplaystack);
       begin
         token:=atoken;
         idtoken:=aidtoken;
@@ -3473,6 +3485,9 @@ type
         settings:=asettings;
         pending:=apending;
         verbosity:=averbosity;
+        current_filepos:=acurrent_filepos;
+        current_tokenpos:=acurrent_tokenpos;
+        restore_positions:=arestore_positions;
         tokenbuf:=atokenbuf;
         tokenbuf_needs_swapping:=change_endian;
         next:=anext;
@@ -4294,13 +4309,29 @@ type
 
     procedure tscannerfile.startreplaytokens(buf:tdynamicarray; change_endian:boolean);
       begin
+        startreplaytokens_internal(buf,change_endian,current_filepos,current_tokenpos,false);
+      end;
+
+
+    procedure tscannerfile.startreplaytokens(buf:tdynamicarray; change_endian:boolean;
+      const restore_filepos,restore_tokenpos:tfileposinfo);
+      begin
+        startreplaytokens_internal(buf,change_endian,restore_filepos,restore_tokenpos,true);
+      end;
+
+
+    procedure tscannerfile.startreplaytokens_internal(buf:tdynamicarray;
+      change_endian:boolean;const restore_filepos,restore_tokenpos:tfileposinfo;
+      restore_positions:boolean);
+      begin
         if not assigned(buf) then
           internalerror(200511175);
 
         { save current scanner state }
         replaystack:=treplaystack.create(token,idtoken,orgpattern,pattern,
           cstringpattern,patternw,current_settings,replaytokenbuf,change_endian_for_replay,
-          pendingstate,status.verbosity,replaystack);
+          pendingstate,status.verbosity,restore_filepos,restore_tokenpos,
+          restore_positions,replaystack);
 {$ifdef check_inputpointer_limits}
         if assigned(hidden_inputpointer) then
           dec_inputpointer;
@@ -4369,6 +4400,11 @@ type
             recordpendingverbosityfullswitch(replaystack.verbosity);
             pendingstate.nextmessagerecord:=current_settings.pmessage;
             current_settings.pmessage:=nil;
+            if replaystack.restore_positions then
+              begin
+                current_filepos:=replaystack.current_filepos;
+                current_tokenpos:=replaystack.current_tokenpos;
+              end;
             popreplaystack;
 {$ifdef check_inputpointer_limits}
             if assigned(hidden_inputpointer) then

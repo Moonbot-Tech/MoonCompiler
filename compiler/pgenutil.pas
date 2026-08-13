@@ -1787,7 +1787,8 @@ uses
         old_current_procinfo : tprocinfo;
         old_module_procinfo : tobject;
         hmodule : tmodule;
-        oldcurrent_filepos : tfileposinfo;
+        oldcurrent_filepos,
+        oldcurrent_tokenpos : tfileposinfo;
         recordbuf : tdynamicarray;
         hadtypetoken : boolean;
         i,
@@ -2113,6 +2114,7 @@ uses
                 if hmodule=nil then
                   internalerror(2012051202);
                 oldcurrent_filepos:=current_filepos;
+                oldcurrent_tokenpos:=current_tokenpos;
                 { use the index the module got from the current compilation process }
                 current_filepos.moduleindex:=hmodule.moduleid;
                 current_tokenpos:=current_filepos;
@@ -2126,7 +2128,8 @@ uses
                 replaydepth:=current_scanner.replay_stack_depth;
                 if genericdef.typ=procdef then
                   begin
-                    current_scanner.startreplaytokens(tprocdef(genericdef).genericdecltokenbuf,hmodule.change_endian);
+                    current_scanner.startreplaytokens(tprocdef(genericdef).genericdecltokenbuf,
+                      hmodule.change_endian,oldcurrent_filepos,oldcurrent_tokenpos);
                     parse_proc_head(tprocdef(genericdef).struct,tprocdef(genericdef).proctypeoption,[],genericdef,generictypelist,pd);
                     if assigned(pd) then
                       begin
@@ -2143,7 +2146,8 @@ uses
                   end
                 else
                   begin
-                    current_scanner.startreplaytokens(genericdef.generictokenbuf,hmodule.change_endian);
+                    current_scanner.startreplaytokens(genericdef.generictokenbuf,
+                      hmodule.change_endian,oldcurrent_filepos,oldcurrent_tokenpos);
                     if assigned(context.forwarddef) then
                       begin
                         tsrsym:=nil;
@@ -2171,6 +2175,7 @@ uses
                       ttypesym(result.typesym).fprettyname:=prettyname;
                   end;
                 current_filepos:=oldcurrent_filepos;
+                current_tokenpos:=oldcurrent_tokenpos;
 
                 { Note regarding hint directives:
                   There is no need to remove the flags for them from the
@@ -2932,6 +2937,9 @@ uses
               if (Copy(n,1,7)='$hidden') then
                 Delete(n,1,7);
               unitsyms.add(upper(n),sym);
+              n:=getunitalias(n);
+              if not assigned(unitsyms.find(upper(n))) then
+                unitsyms.add(upper(n),sym);
               end;
           end;
       { PPU loading clears tunitsym.module. Reconnect the generic unit's own
@@ -3016,7 +3024,8 @@ uses
 
     procedure process_procdef(def:tprocdef;hmodule:tmodule);
       var
-        oldcurrent_filepos : tfileposinfo;
+        oldcurrent_filepos,
+        oldcurrent_tokenpos : tfileposinfo;
       begin
         if assigned(def.genericdef) and
             (def.genericdef.typ=procdef) and
@@ -3025,13 +3034,16 @@ uses
             if not assigned(tprocdef(def.genericdef).generictokenbuf) then
               internalerror(2015061902);
             oldcurrent_filepos:=current_filepos;
+            oldcurrent_tokenpos:=current_tokenpos;
             current_filepos:=tprocdef(def.genericdef).fileinfo;
             { use the index the module got from the current compilation process }
             current_filepos.moduleindex:=hmodule.moduleid;
             current_tokenpos:=current_filepos;
-            current_scanner.startreplaytokens(tprocdef(def.genericdef).generictokenbuf,hmodule.change_endian);
+            current_scanner.startreplaytokens(tprocdef(def.genericdef).generictokenbuf,
+              hmodule.change_endian,oldcurrent_filepos,oldcurrent_tokenpos);
             read_proc_body(def);
             current_filepos:=oldcurrent_filepos;
+            current_tokenpos:=oldcurrent_tokenpos;
           end
         { synthetic routines will be implemented afterwards }
         else if def.synthetickind=tsk_none then
