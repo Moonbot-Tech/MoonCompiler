@@ -45,4 +45,18 @@ compile source_wins.dpr missing_source_rejected fail 'no sources available' \
   '--pinned-unit=PinFixture=/missing/PinFixture.pas'
 compile normal_lookup.dpr normal_lookup pass ''
 compile foreign_lookup.dpr foreign_lookup pass ''
+compile source_wins.dpr required_first pass '' "$pin" \
+  --required-first-unit=PinFixture
+compile normal_lookup.dpr required_missing fail \
+  'first explicit unit is NORMALFIXTURE' \
+  --required-first-unit=PinFixture
+compile no_uses_rejected.dpr required_no_uses fail \
+  'first explicit unit is <none>' \
+  --required-first-unit=PinFixture
+compile second_unit_rejected.dpr required_second fail \
+  'first explicit unit is NORMALFIXTURE' "$pin" \
+  --required-first-unit=PinFixture
+compile conditional_first_rejected.dpr required_conditional fail \
+  'first explicit unit is NORMALFIXTURE' "$pin" \
+  --required-first-unit=PinFixture
 echo 'pinned-unit: PASS'

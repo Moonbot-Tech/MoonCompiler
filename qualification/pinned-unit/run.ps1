@@ -69,5 +69,19 @@ Invoke-Compile 'source_wins.dpr' 'missing_source_rejected' @('--pinned-unit=PinF
   -MustFail -ExpectedDiagnostic 'no sources available'
 Invoke-Compile 'normal_lookup.dpr'
 Invoke-Compile 'foreign_lookup.dpr'
+Invoke-Compile 'source_wins.dpr' 'required_first' @(
+  $PinOption, '--required-first-unit=PinFixture')
+Invoke-Compile 'normal_lookup.dpr' 'required_missing' @(
+  '--required-first-unit=PinFixture') -MustFail `
+  -ExpectedDiagnostic 'first explicit unit is NORMALFIXTURE'
+Invoke-Compile 'no_uses_rejected.dpr' 'required_no_uses' @(
+  '--required-first-unit=PinFixture') -MustFail `
+  -ExpectedDiagnostic 'first explicit unit is <none>'
+Invoke-Compile 'second_unit_rejected.dpr' 'required_second' @(
+  $PinOption, '--required-first-unit=PinFixture') -MustFail `
+  -ExpectedDiagnostic 'first explicit unit is NORMALFIXTURE'
+Invoke-Compile 'conditional_first_rejected.dpr' 'required_conditional' @(
+  $PinOption, '--required-first-unit=PinFixture') -MustFail `
+  -ExpectedDiagnostic 'first explicit unit is NORMALFIXTURE'
 
 Write-Host 'pinned-unit: PASS'

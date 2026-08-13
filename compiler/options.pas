@@ -1631,6 +1631,14 @@ begin
       IllegalPara(opt);
     exit;
   end;
+  if opt.StartsWith('--required-first-unit=') then begin
+    more:=Upper(Copy(opt,Length('--required-first-unit=')+1));
+    if (more='') or
+       ((requiredfirstunit<>'') and (requiredfirstunit<>more)) then
+      IllegalPara(opt);
+    requiredfirstunit:=more;
+    exit;
+  end;
   if opt='--striprtti' then begin
     force_striprtti_cli:=true;
     exit;

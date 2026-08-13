@@ -382,6 +382,8 @@ Const
        namespacelist : TCmdStrList;
        { unit name -> exact source file mappings supplied by --pinned-unit }
        pinnedunitfiles : TLinkStrMap;
+       { first explicit program/library unit required by --required-first-unit }
+       requiredfirstunit : TIDString;
        // lowercased glob patterns from `--rttiexpose=` CLI flags;
        // per-unit patterns from `{$rttiexpose}` directive live on tmodule
        cli_rtti_expose_patterns : TCmdStrList;
@@ -1820,6 +1822,7 @@ implementation
         packagesearchpath:=TSearchPathList.Create;
         namespacelist:=TCmdStrList.Create;
         pinnedunitfiles:=TLinkStrMap.Create;
+        requiredfirstunit:='';
         cli_rtti_expose_patterns:=TCmdStrList.Create;
         premodule_namespacelist:=TCmdStrList.Create;
         current_namespacelist:=Nil;

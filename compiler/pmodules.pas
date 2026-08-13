@@ -698,7 +698,26 @@ implementation
            end
           else
            break;
-        until false;
+         until false;
+       end;
+
+    procedure checkrequiredfirstunit(curr: tmodule);
+      var
+        pu : tused_unit;
+        actual : TIDString;
+      begin
+        if requiredfirstunit='' then
+          exit;
+        pu:=tused_unit(curr.used_units.first);
+        while assigned(pu) and not pu.in_uses do
+          pu:=tused_unit(pu.next);
+        if assigned(pu) then
+          actual:=pu.u.modulename^
+        else
+          actual:='<none>';
+        if actual<>requiredfirstunit then
+          Message1(option_illegal_para,'--required-first-unit='+
+            requiredfirstunit+' (first explicit unit is '+actual+')');
       end;
 
     function loadunits(curr: tmodule; frominterface : boolean) : boolean;
@@ -3241,11 +3260,13 @@ type
              else
                current_namespacelist:=Nil;
              parseusesclause(curr);
+             checkrequiredfirstunit(curr);
              load_ok:=loadunits(curr,false) and load_ok;
              curr.consume_semicolon_after_uses:=true;
            end
          else begin
            curr.consume_semicolon_after_uses:=false;
+           checkrequiredfirstunit(curr);
            if tmodule.ctask_fast_backtrack then
              load_ok:=false; { some used units are not fully compiled }
          end;
