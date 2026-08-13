@@ -1,5 +1,4 @@
 { %norun }
-{ %fail }
 
 unit tw10425a;
 

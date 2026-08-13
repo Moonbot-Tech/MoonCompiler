@@ -821,14 +821,24 @@ implementation
         begin
           sameparas:=compare_paras(fwpd.paras,currpd.paras,cp_none,[cpo_ignorehidden,cpo_openequalisexact,cpo_ignoreuniv])=te_exact;
           sameret:=compare_rettype(fwpd.returndef,currpd.returndef)=te_exact;
-          { anon return type on both sides (no typesym): two distinct tdef
-            instances of the same shape. re-point currpd's returndef + its
-            hidden funcret paravarsym to the forward's def so the strict
-            te_exact compares downstream see identical pointers }
+          { Anonymous return types in Unleashed mode and non-distinct aliases
+            in Delphi mode can produce two semantically equal tdef instances.
+            Re-point currpd's returndef and its hidden funcret paravarsym to
+            the forward's def so the strict comparisons downstream see the
+            same definition. }
           if not sameret and
-             (m_unleashed in current_settings.modeswitches) and
              assigned(fwpd.returndef) and assigned(currpd.returndef) and
-             (fwpd.returndef.typesym=nil) and (currpd.returndef.typesym=nil) and
+             (
+               (
+                 (m_unleashed in current_settings.modeswitches) and
+                 (fwpd.returndef.typesym=nil) and (currpd.returndef.typesym=nil)
+               ) or
+               (
+                 (m_delphi in current_settings.modeswitches) and
+                 not(df_unique in fwpd.returndef.defoptions) and
+                 not(df_unique in currpd.returndef.defoptions)
+               )
+             ) and
              (compare_rettype(fwpd.returndef,currpd.returndef)>=te_equal) then
             begin
               for j:=0 to currpd.parast.SymList.Count-1 do
