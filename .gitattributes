@@ -1,6 +1,10 @@
 * text=auto !eol
+build text eol=lf
+*.sh text eol=lf
 *.pp gitlab-language=pascal
 *.inc gitlab-language=pascal
 *.pp diff=pascal
 *.pas diff=pascal
 *.inc diff=pascal
+runtime/mm/mormot.core.fpcx64mm.pas -text
+runtime/mm/LICENSE.md -text

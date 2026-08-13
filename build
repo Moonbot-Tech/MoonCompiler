@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  echo "usage: ./build compiler" >&2
+  echo "       ./build project.dpr debug|release" >&2
+  exit 2
+}
+
+ROOT=$(cd "$(dirname "$0")" && pwd)
+STATE="$ROOT/.moonbot"
+TOOLCHAIN="$STATE/toolchain"
+MM_SOURCE="$ROOT/runtime/mm/mormot.core.fpcx64mm.pas"
+new_toolchain=
+old_toolchain=
+
+source "$ROOT/scripts/publish_toolchain.sh"
+
+cleanup_compiler_build() {
+  [[ -z "$new_toolchain" ]] || rm -rf "$new_toolchain"
+  if [[ -n "$old_toolchain" && -e "$TOOLCHAIN" ]]; then
+    rm -rf "$old_toolchain"
+  fi
+}
+
+[[ "$(uname -s)" == Linux && "$(uname -m)" == x86_64 ]] || {
+  echo "this driver runs only on Linux x86-64; use build.ps1 on Win64" >&2
+  exit 1
+}
+
+build_compiler() {
+  local bootstrap version_dir
+  bootstrap=${MOONBOT_BOOTSTRAP_FPC:-$(command -v fpc || true)}
+  [[ -n "$bootstrap" && -x "$bootstrap" ]] || {
+    echo "FPC 3.2.2 is required once; set MOONBOT_BOOTSTRAP_FPC" >&2
+    exit 1
+  }
+  [[ "$($bootstrap -iV)" == 3.2.2 ]] || {
+    echo "bootstrap compiler must be FPC 3.2.2" >&2
+    exit 1
+  }
+
+  mkdir -p "$STATE"
+  new_toolchain="$STATE/toolchain.new.$$"
+  old_toolchain="$STATE/toolchain.old.$$"
+  trap cleanup_compiler_build EXIT
+  rm -rf "$new_toolchain" "$old_toolchain"
+
+  make -C "$ROOT" clean
+  make -C "$ROOT" -j1 all FPC="$bootstrap" OPT=-O2
+  make -C "$ROOT" install FPC="$bootstrap" OPT=-O2 \
+    INSTALL_PREFIX="$new_toolchain"
+
+  version_dir=$(find "$new_toolchain/lib/fpc" -mindepth 1 -maxdepth 1 \
+    -type d -name '[0-9]*' -printf '%f\n')
+  [[ -n "$version_dir" && "$version_dir" != *$'\n'* ]] || {
+    echo "could not identify the installed compiler version" >&2
+    exit 1
+  }
+  ln -s "../lib/fpc/$version_dir/ppcx64" "$new_toolchain/bin/ppcx64"
+  mkdir -p "$new_toolchain/etc"
+  "$new_toolchain/bin/fpcmkcfg" \
+    -d "basepath=$TOOLCHAIN/lib/fpc/$version_dir" \
+    -o "$new_toolchain/etc/fpc.cfg"
+
+  publish_toolchain "$new_toolchain" "$TOOLCHAIN" "$old_toolchain"
+  trap - EXIT
+  echo "MoonBot Compiler installed in $TOOLCHAIN"
+}
+
+if [[ $# -eq 1 && "$1" == compiler ]]; then
+  build_compiler
+  exit 0
+fi
+
+[[ $# -eq 2 ]] || usage
+project=$1
+profile=$2
+[[ -f "$project" && "$project" == *.dpr ]] || usage
+case "$profile" in
+  debug|release) ;;
+  *) usage ;;
+esac
+[[ -x "$TOOLCHAIN/bin/fpc" && -f "$TOOLCHAIN/etc/fpc.cfg" ]] || {
+  echo "MoonBot Compiler is not built; run ./build compiler" >&2
+  exit 1
+}
+
+project=$(realpath "$project")
+project_dir=$(dirname "$project")
+project_id=$(printf '%s' "$project" | sha256sum | cut -d' ' -f1)
+unit_dir="$STATE/units/linux/$project_id/$profile"
+mkdir -p "$unit_dir"
+
+options=(
+  -n "@$TOOLCHAIN/etc/fpc.cfg" -Mdelphi
+  -Mansistrings -MduplicateLocals -Madvancedrecords -Marrayoperators
+  -Munderscoreisseparator -Mfunctionreferences -Manonymousfunctions
+  -Minlinevars -Mimplicitgenerics -Mautoderef
+  -Px86_64 -Tlinux -Rintel -dPOSIX -B
+  -dMOONBOT_MM_PROFILE_REQUIRED -dFPCMM_BOOSTER -dFPCMM_MOONSHARD
+  "--pinned-unit=mormot.core.fpcx64mm=$MM_SOURCE"
+  --required-first-unit=mormot.core.fpcx64mm
+  "-FU$unit_dir" "-FE$project_dir"
+)
+while IFS= read -r -d '' path; do
+  options+=("-Fu$path" "-Fi$path")
+done < <(find "$project_dir" -type d \
+  -not -path '*/.git' -not -path '*/.git/*' \
+  -not -path '*/.moonbot' -not -path '*/.moonbot/*' \
+  -not -path '*/dcu' -not -path '*/dcu/*' \
+  -not -path '*/build' -not -path '*/build/*' \
+  -print0 | sort -z)
+
+if [[ "$profile" == debug ]]; then
+  options+=(-O- -gl -gw3 -Criot -Sa)
+else
+  options+=(-O3 -gl -gw3)
+fi
+
+echo "building $project ($profile, Linux x86-64)"
+"$TOOLCHAIN/bin/fpc" "${options[@]}" "$project"
