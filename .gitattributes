@@ -1,6 +1,7 @@
 * text=auto !eol
 build text eol=lf
 *.sh text eol=lf
+*.tsv text eol=lf
 *.pp gitlab-language=pascal
 *.inc gitlab-language=pascal
 *.pp diff=pascal
