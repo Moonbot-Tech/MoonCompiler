@@ -133,6 +133,8 @@ run_rejected with_rvalue_write_rejected \
   "Can't assign values to const variable"
 run_rejected inline_const_compiletime_rejected \
   "Can't evaluate constant expression"
+run_rejected inline_const_var_parameter_rejected \
+  "Can't assign values to const variable"
 
 {
   sha256sum "$FPC" "$CFG" \
@@ -151,7 +153,8 @@ run_rejected inline_const_compiletime_rejected \
     "$ROOT/tests/smoke/generic_return_mismatch_rejected.pas" \
     "$ROOT/tests/smoke/delphi_with_anonymous.pas" \
     "$ROOT/tests/smoke/with_rvalue_write_rejected.pas" \
-    "$ROOT/tests/smoke/inline_const_compiletime_rejected.pas"
+    "$ROOT/tests/smoke/inline_const_compiletime_rejected.pas" \
+    "$ROOT/tests/smoke/inline_const_var_parameter_rejected.pas"
   find "$COMPILER_ROOT/packages/rtl-generics/src" \
     "$COMPILER_ROOT/packages/rtl-generics/namespaced" \
     "$COMPILER_ROOT/packages/paszlib/src" \
@@ -161,4 +164,4 @@ run_rejected inline_const_compiletime_rejected \
   find "$RUN" -type f ! -name SHA256SUMS -print0 |
     sort -z | xargs -0 -r sha256sum
 } >"$RUN/SHA256SUMS"
-echo "SERVICE_REGRESSIONS_GATE_OK positive=8 negative=8 modes=3"
+echo "SERVICE_REGRESSIONS_GATE_OK positive=8 negative=9 modes=3"

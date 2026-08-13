@@ -112,6 +112,8 @@ Invoke-Rejected with_rvalue_write_rejected `
   "Can't assign values to const variable"
 Invoke-Rejected inline_const_compiletime_rejected `
   "Can't evaluate constant expression"
+Invoke-Rejected inline_const_var_parameter_rejected `
+  "Can't assign values to const variable"
 $Inputs = @(
   $Compiler, $Config,
   (Join-Path $Root 'tests\smoke\service_compiler_regressions.pas'),
@@ -129,7 +131,8 @@ $Inputs = @(
   (Join-Path $Root 'tests\smoke\generic_return_mismatch_rejected.pas'),
   (Join-Path $Root 'tests\smoke\delphi_with_anonymous.pas'),
   (Join-Path $Root 'tests\smoke\with_rvalue_write_rejected.pas'),
-  (Join-Path $Root 'tests\smoke\inline_const_compiletime_rejected.pas'))
+  (Join-Path $Root 'tests\smoke\inline_const_compiletime_rejected.pas'),
+  (Join-Path $Root 'tests\smoke\inline_const_var_parameter_rejected.pas'))
 $Inputs += Get-ChildItem -File -Recurse -Path `
   (Join-Path $Generics 'src'), (Join-Path $Generics 'namespaced'), `
   (Join-Path $Paszlib 'src'), (Join-Path $Paszlib 'namespaced') `
@@ -140,4 +143,4 @@ $Inputs | Sort-Object -Unique | ForEach-Object {
   $Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_).Hash.ToLowerInvariant()
   "$Hash *$([IO.Path]::GetFullPath($_))"
 } | Set-Content -LiteralPath (Join-Path $Run 'SHA256SUMS') -Encoding ascii
-Write-Output 'SERVICE_REGRESSIONS_GATE_OK positive=8 negative=8 modes=3'
+Write-Output 'SERVICE_REGRESSIONS_GATE_OK positive=8 negative=9 modes=3'

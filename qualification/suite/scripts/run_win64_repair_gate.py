@@ -37,6 +37,7 @@ NEGATIVE_TESTS = (
     ("inline_const_typed_reassign_fail", "Can't assign values to const variable"),
     ("inline_const_record_field_reassign_fail", "Can't assign values to const variable"),
     ("inline_const_string_char_reassign_fail", "Can't assign values to const variable"),
+    ("inline_const_var_parameter_rejected", "Can't assign values to const variable"),
 )
 
 
