@@ -197,9 +197,8 @@ Var
   OldDestP, NewDestP, RealDestP, Src : Pointer;
 begin
   DestCP:=cp;
-  if DestCp=CP_NONE then
-    DestCP:=DefaultSystemCodePage;
-  DestCP:=TranslatePlaceholderCP(DestCP);
+  if DestCP<>CP_NONE then
+    DestCP:=TranslatePlaceholderCP(DestCP);
   if (Pointer(S1)=nil) or (Pointer(S2)=nil) then
     begin
       Src:=Pointer(S1);
@@ -217,8 +216,13 @@ begin
     end;
   S1CP:=PAnsiRec(Pointer(S1)-AnsiFirstOff)^.CodePage;
   S2CP:=PAnsiRec(Pointer(S2)-AnsiFirstOff)^.CodePage;
+  { RawByteString concatenation is byte-preserving.  Its dynamic code page is
+    inherited from the first nonempty operand, just like a RawByteString
+    assignment, and must not trigger a Unicode round trip. }
+  if cp=CP_NONE then
+    DestCP:=S1CP
   { Attempt to skip TranslatePlaceholderCPs: codepages are usually already equal to cp or DestCP. }
-  if (DestCP<>S1CP) and (cp<>S1CP) or (cp<>S2CP) and (DestCP<>S2CP) then
+  else if (DestCP<>S1CP) and (cp<>S1CP) or (cp<>S2CP) and (DestCP<>S2CP) then
     begin
       S1CP:=TranslatePlaceholderCP(S1CP);
       { if codepages are different then concat using unicodestring;
@@ -286,8 +290,6 @@ Var
   DestCP,tmpCP,tmpCPuntrans,ithCP : TSystemCodePage;
 begin
   DestCP:=cp;
-  if DestCp=CP_NONE then
-    DestCP:=DefaultSystemCodePage;
   lowstart:=low(sarr);
   { skip empty strings }
   while (lowstart<=high(sarr)) and
@@ -299,7 +301,8 @@ begin
       exit;
     end;
   tmpCPuntrans:=DestCP;
-  DestCP:=TranslatePlaceholderCP(DestCP);
+  if DestCP<>CP_NONE then
+    DestCP:=TranslatePlaceholderCP(DestCP);
   tmpCP:=DestCP;
   NewLen:=0;
   for i:=lowstart to high(sarr) do
@@ -309,6 +312,18 @@ begin
         continue;
       inc(NewLen,PAnsiRec(p-AnsiFirstOff)^.Len);
       ithCP:=PAnsiRec(p-AnsiFirstOff)^.CodePage;
+      { RawByteString concatenation copies every operand byte-for-byte and
+        inherits the dynamic code page of the first nonempty operand. }
+      if cp=CP_NONE then
+        begin
+          if i=lowstart then
+            begin
+              DestCP:=ithCP;
+              tmpCP:=ithCP;
+              tmpCPuntrans:=ithCP;
+            end;
+          continue;
+        end;
       if (ithCP=tmpCP) or (ithCP=tmpCPuntrans) then { Attempt to skip TranslatePlaceholderCP. }
         continue;
       ithCP:=TranslatePlaceholderCP(ithCP);
@@ -649,6 +664,39 @@ begin
     result:=CompareByte(S1[1],S2[1],MaxI);
 end;
 {$endif FPC_HAS_ANSISTR_COMPARE_EQUAL}
+
+
+{$ifndef FPC_HAS_ANSISTR_COMPARE_RAW}
+{$define FPC_HAS_ANSISTR_COMPARE_RAW}
+Function fpc_AnsiStr_Compare_Raw(const S1,S2 : RawByteString): SizeInt;[Public,Alias : 'FPC_ANSISTR_COMPARE_RAW']; compilerproc;
+var
+  Len1, Len2, CmpLen: SizeInt;
+begin
+  if (Pointer(S1)=Pointer(S2)) or (Pointer(S1)=nil) or (Pointer(S2)=nil) then
+    exit(ord(Pointer(S1)<>nil)-ord(Pointer(S2)<>nil));
+  Len1:=PAnsiRec(Pointer(S1)-AnsiFirstOff)^.Len;
+  Len2:=PAnsiRec(Pointer(S2)-AnsiFirstOff)^.Len;
+  CmpLen:=Len1;
+  if Len1>Len2 then
+    CmpLen:=Len2;
+  Result:=CompareByte(S1[1],S2[1],CmpLen);
+  if Result=0 then
+    Result:=Len1-Len2;
+end;
+
+
+Function fpc_AnsiStr_Compare_Raw_equal(const S1,S2 : RawByteString): SizeInt;[Public,Alias : 'FPC_ANSISTR_COMPARE_RAW_EQUAL']; compilerproc;
+var
+  Len: SizeInt;
+begin
+  if (Pointer(S1)=Pointer(S2)) or (Pointer(S1)=nil) or (Pointer(S2)=nil) then
+    exit(ord(Pointer(S1)<>Pointer(S2)));
+  Len:=PAnsiRec(Pointer(S1)-AnsiFirstOff)^.Len;
+  Result:=Len-PAnsiRec(Pointer(S2)-AnsiFirstOff)^.Len;
+  if Result=0 then
+    Result:=CompareByte(S1[1],S2[1],Len);
+end;
+{$endif FPC_HAS_ANSISTR_COMPARE_RAW}
 
 {$ifndef FPC_HAS_ANSISTR_RANGECHECK}
 {$define FPC_HAS_ANSISTR_RANGECHECK}

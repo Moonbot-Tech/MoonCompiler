@@ -38,7 +38,10 @@ interface
          anf_short_bool,
          { Delphi exposes unsigned narrow multiplication as Integer for
            overload resolution, but zero-extends its value when widening it. }
-         anf_delphi_unsigned_widening
+         anf_delphi_unsigned_widening,
+         { At least one source operand was statically RawByteString before
+           explicit casts and constant folding were simplified. }
+         anf_rawbytestring_concat
        );
 
        TAddNodeFlags = set of TAddNodeFlag;
@@ -2405,11 +2408,38 @@ const
 
 
     function taddnode.pass_typecheck:tnode;
+      var
+        rawbytestringconcat: boolean;
+
+      function is_rawbytestring_concat_operand(n: tnode): boolean;
+        begin
+          result:=assigned(n.resultdef) and is_rawbytestring(n.resultdef);
+          if not result and (n.nodetype=typeconvn) then
+            result:=(nf_explicit in n.flags) and
+              not(nf_internal in n.flags) and
+              is_rawbytestring(ttypeconvnode(n).totypedef)
+          else if not result and (n.nodetype=addn) then
+            result:=anf_rawbytestring_concat in
+              taddnode(n).addnodeflags;
+        end;
+
       begin
         { This function is small to keep the stack small for recursive of
           large + operations }
+        rawbytestringconcat:=(nodetype=addn) and
+          (is_rawbytestring_concat_operand(left) or
+           is_rawbytestring_concat_operand(right));
         typecheckpass(left);
         typecheckpass(right);
+        { Plain variable/load nodes learn their result definitions only during
+          the child typecheck above.  Keep the pre-typecheck check for an
+          explicit RawByteString cast that may be folded away, and repeat it
+          here for ordinary RawByteString operands. }
+        if rawbytestringconcat or
+           ((nodetype=addn) and
+            (is_rawbytestring_concat_operand(left) or
+             is_rawbytestring_concat_operand(right))) then
+          include(addnodeflags,anf_rawbytestring_concat);
         { tuple equality / inequality }
         if (nodetype in [equaln,unequaln]) and
            assigned(left.resultdef) and assigned(right.resultdef) and
@@ -3558,31 +3588,39 @@ const
                     end;
                   st_ansistring :
                     begin
-                      { use same code page if possible (don't force same code
-                        page in case both are ansistrings with code page <>
-                        CP_NONE, since then data loss can occur: the ansistring
-                        helpers will convert them at run time to an encoding
-                        that can represent both encodings) }
-                      if is_ansistring(ld) and
-                         (tstringdef(ld).encoding<>0) and
-                         (tstringdef(ld).encoding<>globals.CP_NONE) and
-                         (not is_ansistring(rd) or
-                          (tstringdef(rd).encoding=0) or
-                          (tstringdef(rd).encoding=globals.CP_NONE)) then
-                        inserttypeconv(right,ld)
-                      else if is_ansistring(rd) and
-                         (tstringdef(rd).encoding<>0) and
-                         (tstringdef(rd).encoding<>globals.CP_NONE) and
-                         (not is_ansistring(ld) or
-                          (tstringdef(ld).encoding=0) or
-                          (tstringdef(ld).encoding=globals.CP_NONE)) then
-                        inserttypeconv(left,rd)
-                      else
+                      { Delphi compares RawByteString operands byte-for-byte;
+                        keep the raw static type so first_addstring can select
+                        the matching helper. }
+                      if not((nodetype in [equaln,unequaln,lten,gten,ltn,gtn]) and
+                         (m_delphi in current_settings.modeswitches) and
+                         (is_rawbytestring(ld) or is_rawbytestring(rd))) then
                         begin
-                          if not is_ansistring(ld) then
-                            inserttypeconv(left,getansistringdef);
-                          if not is_ansistring(rd) then
-                            inserttypeconv(right,getansistringdef);
+                          { use same code page if possible (don't force same
+                            code page in case both are ansistrings with code
+                            page <> CP_NONE, since then data loss can occur: the
+                            ansistring helpers will convert them at run time to
+                            an encoding that can represent both encodings) }
+                          if is_ansistring(ld) and
+                             (tstringdef(ld).encoding<>0) and
+                             (tstringdef(ld).encoding<>globals.CP_NONE) and
+                             (not is_ansistring(rd) or
+                              (tstringdef(rd).encoding=0) or
+                              (tstringdef(rd).encoding=globals.CP_NONE)) then
+                            inserttypeconv(right,ld)
+                          else if is_ansistring(rd) and
+                             (tstringdef(rd).encoding<>0) and
+                             (tstringdef(rd).encoding<>globals.CP_NONE) and
+                             (not is_ansistring(ld) or
+                              (tstringdef(ld).encoding=0) or
+                              (tstringdef(ld).encoding=globals.CP_NONE)) then
+                            inserttypeconv(left,rd)
+                          else
+                            begin
+                              if not is_ansistring(ld) then
+                                inserttypeconv(left,getansistringdef);
+                              if not is_ansistring(rd) then
+                                inserttypeconv(right,getansistringdef);
+                            end;
                         end;
                     end;
                   st_longstring :
@@ -4044,6 +4082,7 @@ const
         tempnode : ttempcreatenode;
         cmpfuncname: string;
         para: tcallparanode;
+        concatcp: word;
       begin
         result:=nil;
         { when we get here, we are sure that both the left and the right }
@@ -4051,6 +4090,16 @@ const
         case nodetype of
           addn:
             begin
+              if is_ansistring(resultdef) then
+                begin
+                  concatcp:=tstringdef(resultdef).encoding;
+                  { A RawByteString destination does not make an expression
+                    over two typed AnsiStrings raw.  Delphi converts that
+                    expression through the system code page. }
+                  if (concatcp=globals.CP_NONE) and
+                     not(anf_rawbytestring_concat in addnodeflags) then
+                    concatcp:=0;
+                end;
               if (left.nodetype=stringconstn) and (tstringconstnode(left).len=0) then
                 begin
                   result:=right;
@@ -4091,7 +4140,7 @@ const
                             cordconstnode.create(
                               { don't use getparaencoding(), we have to know
                                 when the result is rawbytestring }
-                              tstringdef(resultdef).encoding,
+                              concatcp,
                               u16inttype,
                               true
                             ),
@@ -4131,7 +4180,7 @@ const
                             cordconstnode.create(
                               { don't use getparaencoding(), we have to know
                                 when the result is rawbytestring }
-                              tstringdef(resultdef).encoding,
+                              concatcp,
                               u16inttype,
                               true
                             ),
@@ -4202,7 +4251,12 @@ const
                   exit;
                 end;
               { no string constant -> call compare routine }
-              cmpfuncname := 'fpc_'+tstringdef(left.resultdef).stringtypname+'_compare';
+              if (m_delphi in current_settings.modeswitches) and
+                 (is_rawbytestring(left.resultdef) or
+                  is_rawbytestring(right.resultdef)) then
+                cmpfuncname := 'fpc_ansistr_compare_raw'
+              else
+                cmpfuncname := 'fpc_'+tstringdef(left.resultdef).stringtypname+'_compare';
               { for equality checks use optimized version }
               if nodetype in [equaln,unequaln] then
                 cmpfuncname := cmpfuncname + '_equal';

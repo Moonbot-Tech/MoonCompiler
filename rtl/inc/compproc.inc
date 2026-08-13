@@ -354,6 +354,8 @@ Function fpc_CharArray_To_AnsiStr(const arr: array of AnsiChar; cp : TSystemCode
 procedure fpc_ansistr_to_chararray(out res: array of AnsiChar; const src: RawByteString)compilerproc;
 Function fpc_AnsiStr_Compare(const S1,S2 : RawByteString): SizeInt; compilerproc;
 Function fpc_AnsiStr_Compare_equal(const S1,S2 : RawByteString): SizeInt; compilerproc;
+Function fpc_AnsiStr_Compare_Raw(const S1,S2 : RawByteString): SizeInt; compilerproc;
+Function fpc_AnsiStr_Compare_Raw_equal(const S1,S2 : RawByteString): SizeInt; compilerproc;
 Procedure fpc_AnsiStr_RangeCheck(p : Pointer; index : SizeInt); compilerproc;
 Procedure fpc_AnsiStr_ZeroBased_RangeCheck(p : Pointer; index : SizeInt); compilerproc;
 
