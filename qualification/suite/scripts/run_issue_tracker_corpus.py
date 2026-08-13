@@ -126,6 +126,11 @@ def main() -> None:
     parser.add_argument("--timeout", type=int, default=20)
     parser.add_argument("--jobs", type=int, default=1)
     parser.add_argument("--case", action="append", default=[])
+    parser.add_argument(
+        "--enforce",
+        action="store_true",
+        help="fail unless every MoonBot Compiler observation matches the manifest",
+    )
     args = parser.parse_args()
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     selected = set(args.case)
@@ -146,15 +151,35 @@ def main() -> None:
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         rows = list(pool.map(execute, jobs))
     summary: dict[str, int] = {}
+    mismatches: list[str] = []
     for row in rows:
         key = f"{row['compiler']}/{row['option']}/{row['observed']}"
         summary[key] = summary.get(key, 0) + 1
+        if args.enforce and row["compiler"] == "fpc":
+            case = next(item for item in cases if item["id"] == row["id"])
+            expected = str(case.get(
+                "fpc_expected",
+                "compile_pass" if case.get("compile_only") else "pass",
+            ))
+            diagnostic = case.get("expected_diagnostic")
+            if row["observed"] != expected:
+                mismatches.append(
+                    f"{row['id']}/{row['option']}: expected {expected}, "
+                    f"observed {row['observed']}"
+                )
+            elif diagnostic and str(diagnostic) not in str(row["compile"]["output"]):
+                mismatches.append(
+                    f"{row['id']}/{row['option']}: expected diagnostic missing: "
+                    f"{diagnostic}"
+                )
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "results.json").write_text(
         json.dumps({"schema": 1, "summary": summary, "rows": rows}, indent=2) + "\n",
         encoding="utf-8",
     )
     print(json.dumps(summary, sort_keys=True))
+    if mismatches:
+        raise SystemExit("tracker contract mismatch:\n" + "\n".join(mismatches))
 
 
 if __name__ == "__main__":

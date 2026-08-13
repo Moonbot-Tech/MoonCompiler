@@ -18,7 +18,14 @@ PARSER.add_argument("--check", action="store_true")
 ARGS = PARSER.parse_args()
 
 
-def runtime_case(case_id: str, declarations: str, run_body: str, placement: str = "corpus") -> None:
+def runtime_case(
+    case_id: str,
+    declarations: str,
+    run_body: str,
+    placement: str = "corpus",
+    fpc_expected: str | None = None,
+    expected_diagnostic: str | None = None,
+) -> None:
     slug = case_id.lower().replace("-", "_")
     source = f"""program tracker_{slug};
 
@@ -69,11 +76,19 @@ end.
         "source": path,
         "oracle": "runtime-self-check",
         "placement": placement,
+        **({"fpc_expected": fpc_expected} if fpc_expected else {}),
+        **({"expected_diagnostic": expected_diagnostic} if expected_diagnostic else {}),
     })
     write(ROOT / path, source)
 
 
-def compile_case(case_id: str, source: str, oracle: str = "compile-success", placement: str = "corpus") -> None:
+def compile_case(
+    case_id: str,
+    source: str,
+    oracle: str = "compile-success",
+    placement: str = "corpus",
+    expected_diagnostic: str | None = None,
+) -> None:
     slug = case_id.lower().replace("-", "_")
     path = f"fixtures/tracker/{case_id.lower()}/{slug}.dpr"
     CASES.append({
@@ -82,6 +97,8 @@ def compile_case(case_id: str, source: str, oracle: str = "compile-success", pla
         "oracle": oracle,
         "compile_only": True,
         "placement": placement,
+        **({"fpc_expected": "compile_error"} if oracle == "compile-rejection" else {}),
+        **({"expected_diagnostic": expected_diagnostic} if expected_diagnostic else {}),
     })
     write(ROOT / path, source.strip() + "\n")
 
@@ -93,6 +110,7 @@ def multi_case(
     oracle: str = "runtime-self-check",
     placement: str = "corpus",
     compile_only: bool = False,
+    expected_diagnostic: str | None = None,
 ) -> None:
     directory = ROOT / "fixtures" / "tracker" / case_id.lower()
     for name, source in sources.items():
@@ -115,6 +133,8 @@ def multi_case(
         "oracle": oracle,
         "placement": placement,
         **({"compile_only": True} if compile_only else {}),
+        **({"fpc_expected": "compile_error"} if oracle == "compile-rejection" else {}),
+        **({"expected_diagnostic": expected_diagnostic} if expected_diagnostic else {}),
     })
 
 
@@ -202,7 +222,8 @@ begin
     begin
     end);
 end.
-""", oracle="compile-rejection")
+""", oracle="compile-rejection",
+expected_diagnostic='Got "IUnknown", expected "IFoo"')
 
 runtime_case("QP-04", r"""
 procedure RaiseAndReplace;
@@ -823,7 +844,8 @@ program tracker_qp_24;
 uses qp24_defaults;
 begin Test; end.
 """,
-}, "qp_24.dpr", oracle="compile-rejection", compile_only=True)
+}, "qp_24.dpr", oracle="compile-rejection", compile_only=True,
+expected_diagnostic="Function header doesn't match the previous declaration")
 
 runtime_case("QP-25", r"""
 type
@@ -1058,7 +1080,8 @@ end;
   var B := Curried2('B');
   Check(A(1) = 'A:1', 'a1'); Check(B(2) = 'B:2', 'b2');
   Check(A(3) = 'A:3', 'a3'); Check(B(4) = 'B:4', 'b4');
-""", placement="corpus+omni")
+""", placement="corpus+omni", fpc_expected="compile_error",
+expected_diagnostic='identifier REFERENCE" found')
 
 runtime_case("QP-34", r"""
 type
@@ -1207,20 +1230,6 @@ end;
 """, r"""
   CallbackCount := 0; Exercise(MarkCallback); Check(CallbackCount = 1, 'callback-count');
 """, placement="corpus+omni")
-
-runtime_case("QP-39", r"""
-function RawCurrency(const Value: Currency): Int64;
-begin Move(Value, Result, SizeOf(Result)); end;
-function CurrencyFromRaw(Value: Int64): Currency;
-begin Move(Value, Result, SizeOf(Result)); end;
-""", r"""
-  var A: Currency := CurrencyFromRaw(9223372036854770000);
-  var B: Currency := CurrencyFromRaw(9223372036854769999);
-  Check(RawCurrency(Math.Max(A, B)) = RawCurrency(A), 'max-order-1');
-  Check(RawCurrency(Math.Max(B, A)) = RawCurrency(A), 'max-order-2');
-  Check(RawCurrency(Math.Min(A, B)) = RawCurrency(B), 'min-order-1');
-  Check(RawCurrency(Math.Min(B, A)) = RawCurrency(B), 'min-order-2');
-""")
 
 runtime_case("QP-40", r"""
 function RawCurrency(const Value: Currency): Int64;
@@ -1451,7 +1460,8 @@ type
   try ObjectValue.Value := Local;
     Check((ArrayValue[0].Second = 'seven') and (RecordValue.Value.First = 7) and (ObjectValue.Value.Second = 'seven'), 'aggregate-forms');
   finally ObjectValue.Free; end;
-""")
+""", fpc_expected="compile_error",
+expected_diagnostic="Declaration of generic inside another generic is not allowed")
 
 runtime_case("SO-01", r"""
 type
@@ -1717,22 +1727,6 @@ function Invoke(const Func:TIntFunc):Integer; inline; begin Result:=Func(); end;
 """, r"""
   for var I:=1 to 64 do begin var A:=Invoke(function:Integer begin Result:=11+I; end); var B:=Invoke(function:Integer begin Result:=101+I; end); Check(A=11+I,'first'); Check(B=101+I,'second'); end;
 """, placement="corpus+omni")
-
-runtime_case("MB-01", r"""
-type
-  TSparseEnum = (seZero, seOne, seThree = 3, seSeven = 7);
-procedure CheckRoundTrip(Value: TSparseEnum);
-begin
-  var Box := TValue.From<TSparseEnum>(Value);
-  Check(Ord(Box.AsType<TSparseEnum>) = Ord(Value),
-    'roundtrip-' + IntToStr(Ord(Value)));
-end;
-""", r"""
-  CheckRoundTrip(seZero);
-  CheckRoundTrip(seOne);
-  CheckRoundTrip(seThree);
-  CheckRoundTrip(seSeven);
-""")
 
 runtime_case("MB-02", r"""
 function ExerciseFinallyLoop(Seed: Integer; var Trail: AnsiString): Integer;

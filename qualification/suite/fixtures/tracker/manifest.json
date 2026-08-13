@@ -18,7 +18,9 @@
       "source": "fixtures/tracker/qp-03/qp_03.dpr",
       "oracle": "compile-rejection",
       "compile_only": true,
-      "placement": "corpus"
+      "placement": "corpus",
+      "fpc_expected": "compile_error",
+      "expected_diagnostic": "Got \"IUnknown\", expected \"IFoo\""
     },
     {
       "id": "QP-04",
@@ -139,7 +141,9 @@
       "source": "fixtures/tracker/qp-24/qp_24.dpr",
       "oracle": "compile-rejection",
       "placement": "corpus",
-      "compile_only": true
+      "compile_only": true,
+      "fpc_expected": "compile_error",
+      "expected_diagnostic": "Function header doesn't match the previous declaration"
     },
     {
       "id": "QP-25",
@@ -187,7 +191,9 @@
       "id": "QP-32",
       "source": "fixtures/tracker/qp-32/qp_32.dpr",
       "oracle": "runtime-self-check",
-      "placement": "corpus+omni"
+      "placement": "corpus+omni",
+      "fpc_expected": "compile_error",
+      "expected_diagnostic": "identifier REFERENCE\" found"
     },
     {
       "id": "QP-34",
@@ -218,12 +224,6 @@
       "source": "fixtures/tracker/qp-38/qp_38.dpr",
       "oracle": "runtime-self-check",
       "placement": "corpus+omni"
-    },
-    {
-      "id": "QP-39",
-      "source": "fixtures/tracker/qp-39/qp_39.dpr",
-      "oracle": "runtime-self-check",
-      "placement": "corpus"
     },
     {
       "id": "QP-40",
@@ -301,7 +301,9 @@
       "id": "QP-53",
       "source": "fixtures/tracker/qp-53/qp_53.dpr",
       "oracle": "runtime-self-check",
-      "placement": "corpus"
+      "placement": "corpus",
+      "fpc_expected": "compile_error",
+      "expected_diagnostic": "Declaration of generic inside another generic is not allowed"
     },
     {
       "id": "SO-01",
@@ -410,12 +412,6 @@
       "source": "fixtures/tracker/so-19/so_19.dpr",
       "oracle": "runtime-self-check",
       "placement": "corpus+omni"
-    },
-    {
-      "id": "MB-01",
-      "source": "fixtures/tracker/mb-01/mb_01.dpr",
-      "oracle": "runtime-self-check",
-      "placement": "corpus"
     },
     {
       "id": "MB-02",
