@@ -35,6 +35,14 @@ jobs:
           ./qualification/memory-manager/profile_contract.sh
           ./qualification/memory-manager/medium_arenas.sh
           ./qualification/suite/scripts/run_extra_corpus.sh
+          python3 qualification/suite/tests/test_runner_contracts.py
+          python3 qualification/suite/tests/test_issue_tracker_runner.py
+      - name: Run issue-tracker contract
+        run: |
+          python3 qualification/suite/scripts/run_issue_tracker_corpus.py \
+            --fpc .moonbot/toolchain/bin/fpc \
+            --fpc-config .moonbot/toolchain/etc/fpc.cfg \
+            --output .qualification/ci-linux-tracker --jobs 4 --enforce
       - name: Run Linux language and integration gates
         working-directory: qualification/suite
         run: |
@@ -58,6 +66,12 @@ jobs:
           scripts/run_rtti_gettypes_gate.sh \
             ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
             ci-linux-rtti
+      - name: Run product smoke
+        run: |
+          ./build qualification/suite/tests/smoke/build_smoke.dpr debug
+          test "$(./qualification/suite/tests/smoke/build_smoke)" = MOONBOT_BUILD_OK
+          ./build qualification/suite/tests/smoke/build_smoke.dpr release
+          test "$(./qualification/suite/tests/smoke/build_smoke)" = MOONBOT_BUILD_OK
 
   win64-x86-64:
     runs-on: windows-2022
@@ -81,6 +95,15 @@ jobs:
           .\qualification\memory-manager\profile_contract.ps1
           .\qualification\memory-manager\medium_arenas.ps1
           .\qualification\suite\scripts\run_extra_corpus.ps1
+          python .\qualification\suite\tests\test_runner_contracts.py
+          python .\qualification\suite\tests\test_issue_tracker_runner.py
+      - name: Run issue-tracker contract
+        shell: powershell
+        run: |
+          python .\qualification\suite\scripts\run_issue_tracker_corpus.py `
+            --fpc .\.moonbot\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --fpc-config .\.moonbot\toolchain\bin\x86_64-win64\fpc.cfg `
+            --output .\.qualification\ci-win64-tracker --jobs 4 --enforce
       - name: Run Win64 language and integration gates
         shell: powershell
         run: |
@@ -94,3 +117,12 @@ jobs:
             $Compiler $Config ci-win64-rtti
           .\qualification\suite\scripts\run_forms_gate.ps1 `
             $Compiler $Config ci-win64-forms
+      - name: Run product smoke
+        shell: powershell
+        run: |
+          .\build.ps1 .\qualification\suite\tests\smoke\build_smoke.dpr debug
+          If ((& .\qualification\suite\tests\smoke\build_smoke.exe) -ne `
+              'MOONBOT_BUILD_OK') { throw 'Debug product smoke failed' }
+          .\build.ps1 .\qualification\suite\tests\smoke\build_smoke.dpr release
+          If ((& .\qualification\suite\tests\smoke\build_smoke.exe) -ne `
+              'MOONBOT_BUILD_OK') { throw 'Release product smoke failed' }
