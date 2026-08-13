@@ -1,0 +1,445 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "QP-01",
+      "source": "fixtures/tracker/qp-01/qp_01.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-02",
+      "source": "fixtures/tracker/qp-02/qp_02.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-03",
+      "source": "fixtures/tracker/qp-03/qp_03.dpr",
+      "oracle": "compile-rejection",
+      "compile_only": true,
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-04",
+      "source": "fixtures/tracker/qp-04/qp_04.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-05",
+      "source": "fixtures/tracker/qp-05/qp_05.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-06",
+      "source": "fixtures/tracker/qp-06/qp_06.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-07",
+      "source": "fixtures/tracker/qp-07/qp_07.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-08",
+      "source": "fixtures/tracker/qp-08/qp_08.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-09",
+      "source": "fixtures/tracker/qp-09/qp_09.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-10",
+      "source": "fixtures/tracker/qp-10/qp_10.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-11",
+      "source": "fixtures/tracker/qp-11/qp_11.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-12",
+      "source": "fixtures/tracker/qp-12/qp_12.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-13",
+      "source": "fixtures/tracker/qp-13/qp_13.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-14",
+      "source": "fixtures/tracker/qp-14/qp_14.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-15",
+      "source": "fixtures/tracker/qp-15/qp_15.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-16",
+      "source": "fixtures/tracker/qp-16/qp_16.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-17",
+      "source": "fixtures/tracker/qp-17/qp_17.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-18",
+      "source": "fixtures/tracker/qp-18/qp_18.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-19",
+      "source": "fixtures/tracker/qp-19/qp_19.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-20",
+      "source": "fixtures/tracker/qp-20/qp_20.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-22",
+      "source": "fixtures/tracker/qp-22/qp_22.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-23",
+      "source": "fixtures/tracker/qp-23/qp_23.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-24",
+      "source": "fixtures/tracker/qp-24/qp_24.dpr",
+      "oracle": "compile-rejection",
+      "placement": "corpus",
+      "compile_only": true
+    },
+    {
+      "id": "QP-25",
+      "source": "fixtures/tracker/qp-25/qp_25.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-26",
+      "source": "fixtures/tracker/qp-26/qp_26.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-27",
+      "source": "fixtures/tracker/qp-27/qp_27.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-28",
+      "source": "fixtures/tracker/qp-28/qp_28.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-29",
+      "source": "fixtures/tracker/qp-29/qp_29.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-30",
+      "source": "fixtures/tracker/qp-30/qp_30.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-31",
+      "source": "fixtures/tracker/qp-31/qp_31.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-32",
+      "source": "fixtures/tracker/qp-32/qp_32.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-34",
+      "source": "fixtures/tracker/qp-34/qp_34.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-35",
+      "source": "fixtures/tracker/qp-35/qp_35.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-36",
+      "source": "fixtures/tracker/qp-36/qp_36.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-37",
+      "source": "fixtures/tracker/qp-37/qp_37.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-38",
+      "source": "fixtures/tracker/qp-38/qp_38.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-39",
+      "source": "fixtures/tracker/qp-39/qp_39.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-40",
+      "source": "fixtures/tracker/qp-40/qp_40.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-41",
+      "source": "fixtures/tracker/qp-41/qp_41.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-42",
+      "source": "fixtures/tracker/qp-42/qp_42.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-44",
+      "source": "fixtures/tracker/qp-44/qp_44.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-45",
+      "source": "fixtures/tracker/qp-45/qp_45.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-46",
+      "source": "fixtures/tracker/qp-46/qp_46.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-47",
+      "source": "fixtures/tracker/qp-47/qp_47.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-48",
+      "source": "fixtures/tracker/qp-48/qp_48.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-49",
+      "source": "fixtures/tracker/qp-49/qp_49.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-50",
+      "source": "fixtures/tracker/qp-50/qp_50.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "QP-51",
+      "source": "fixtures/tracker/qp-51/qp_51.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-52",
+      "source": "fixtures/tracker/qp-52/qp_52.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "QP-53",
+      "source": "fixtures/tracker/qp-53/qp_53.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "SO-01",
+      "source": "fixtures/tracker/so-01/so_01.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "SO-02",
+      "source": "fixtures/tracker/so-02/so_02.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "SO-03",
+      "source": "fixtures/tracker/so-03/so_03.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "SO-04",
+      "source": "fixtures/tracker/so-04/so_04.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "SO-05",
+      "source": "fixtures/tracker/so-05/so_05.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "SO-06",
+      "source": "fixtures/tracker/so-06/so_06.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "SO-07",
+      "source": "fixtures/tracker/so-07/so_07.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "SO-08",
+      "source": "fixtures/tracker/so-08/so_08.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "SO-09",
+      "source": "fixtures/tracker/so-09/so_09.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "SO-10",
+      "source": "fixtures/tracker/so-10/so_10.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "SO-11",
+      "source": "fixtures/tracker/so-11/so_11.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "SO-13",
+      "source": "fixtures/tracker/so-13/so_13.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "SO-14",
+      "source": "fixtures/tracker/so-14/so_14.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "SO-15",
+      "source": "fixtures/tracker/so-15/so_15.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "SO-16",
+      "source": "fixtures/tracker/so-16/so_16.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "SO-17",
+      "source": "fixtures/tracker/so-17/so_17.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "SO-18",
+      "source": "fixtures/tracker/so-18/so_18.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "SO-19",
+      "source": "fixtures/tracker/so-19/so_19.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus+omni"
+    },
+    {
+      "id": "MB-01",
+      "source": "fixtures/tracker/mb-01/mb_01.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "MB-02",
+      "source": "fixtures/tracker/mb-02/mb_02.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "MB-03",
+      "source": "fixtures/tracker/mb-03/mb_03.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "MB-04",
+      "source": "fixtures/tracker/mb-04/mb_04.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    },
+    {
+      "id": "MB-05",
+      "source": "fixtures/tracker/mb-05/mb_05.dpr",
+      "oracle": "runtime-self-check",
+      "placement": "corpus"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+!static/x86_64-linux/*.a
+!static/x86_64-linux/*.o
+!static/x86_64-win64/*.a
+!static/x86_64-win64/*.o

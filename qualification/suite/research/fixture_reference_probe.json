@@ -1,0 +1,529 @@
+{
+  "references": {
+    "fpc-40212": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "ec96bba3702162ebf806e109e1c3ec35bf3180bb4bafe9b0d49c1a5f8f565b80"
+    },
+    "fpc-41126": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "82e207d59740b1f8dea5914bb5e7df541dcff86ff8343c6523705c3de15d6fce"
+    },
+    "fpc-41317": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "58b852f3f6ff20402824fb3a652fde61799d8f790224e8a97dfc34ce51623a82"
+    },
+    "fpc-41447": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "8907de28e6131db5bb032aba360298cf427ee445d45ed902564abb156f6d9edd"
+    },
+    "fpc-41480": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "1aa84b014ecfa7ed617933fbd307837313d79979f3542bbcfdc7121c999f41c9"
+    },
+    "fpc-41485": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "101e47ef5e9e9a9439fb4e27e635f877fed2f677939698b09f9705b53b76d398"
+    },
+    "fpc-41541": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "740148e4a00d68ecdd700dec2d00323237901cfcde32082715abb2ab4eabefd1"
+    },
+    "fpc-41558": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "28d04da6dd8164b178b08bbae5a57daad4dcdf9cfbd2fc251a7bd15550ea8d28"
+    },
+    "fpc-41581": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "d43a174f06819dbe1d417c7b7e975ca42abd319184964dd5c859e3f0074a82f9"
+    },
+    "fpc-41630": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "287c1a04ac9b19ce1f0493c21beff73f29602cfe41ebed191814b4aefa9139db"
+    },
+    "fpc-41781": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "2d90926616476eeb2cdec0350460fa28faa617a53bc02f8cab8f63022c1f02ce"
+    },
+    "fpc-41788": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "b8a82a6261cdf1f1059aeae5c872b7c669aed551a3904f2afa598fcfd1b2644c"
+    },
+    "fpc-41813": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "578b9cb7021a36554f7f3ae2e4fae1a8db10bbef855e10e1d801a06161c81015"
+    },
+    "fpc-41820": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "371c461ede6dce73b7bc8bde24935d96b7d1c2b1b1fecdd8c5bb171615b6498f"
+    },
+    "fpc-41824": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "d0763b78e50317f206175fd8da101d7637046061f3f9772c926119cc81347b5a"
+    },
+    "fpc-41834": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "a88d5228ecbb96e41f94b8f16ba2ed399e4f8c1a7af7fbda068fafb97f963ae9"
+    },
+    "fpc-41836": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "46beba219e7625485579a0804ca927b3feb01215c3116cc32d2eaf8eff9a6820"
+    },
+    "lab-001-constprop-absolute": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "dd0b93b43e37b89afeef6859bcd2f90c2d8d0e426971ac07ae8c508ed2ba1609"
+    },
+    "lab-002-o3-ppu-unicode-pointer": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "1dfb20a0388687adde48c5feb67dc6cdb136591f463cb626b530f1fadfb063d9"
+    },
+    "lab-003-o3-untyped-var-huge-array": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "65068b8e9d703a734cbaa4e621a59542f62b33f3c9fb1e043ea30fff9ccbc239"
+    },
+    "mega-001-negative-constant-div": {
+      "compilers": {
+        "fpc-3.2.2": {
+          "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+          "info": "3.2.2 x86_64 x86_64 linux linux 2026/08/03 3.2.2",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        },
+        "fpc-fixes-3.2": {
+          "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+          "info": "3.2.3 x86_64 x86_64 linux linux 2026/07/17 3.2.3",
+          "passing_options": [
+            "O1",
+            "O2",
+            "O3",
+            "default"
+          ]
+        }
+      },
+      "source_sha256": "61ed0fa8b7830e1e981011d50fe526e01c2c92eea6506cb8e1b859e93929fd17"
+    }
+  },
+  "schema": 1,
+  "source_run": {
+    "path": "results/runs/fixtures-audited-001/results.jsonl",
+    "run_id": "fixtures-audited-001",
+    "sha256": "5cbe9013db08128f4395ecda6f507eb9765c89e04c36f1e9cb321bbea61a6fdf"
+  }
+}

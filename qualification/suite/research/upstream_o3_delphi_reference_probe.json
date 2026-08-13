@@ -1,0 +1,33 @@
+{
+  "candidate": {
+    "O2": "both pass",
+    "O3": {
+      "lab-004-o3-byte-record-cast": "exit 2; errors at positions 9 and 13",
+      "lab-005-o3-ansistring-codepage": "exit 1"
+    },
+    "artifact_sha256": "ec46030e1e674ae9a311776c805cb74188846dd0848437ca4a2b722e546d77c5",
+    "commit": "872907d95f301fcc90f07b011ee97341a9dc8448"
+  },
+  "delphi_12_2_win64": {
+    "lab-004-o3-byte-record-cast": "227=227 and 87=87",
+    "lab-005-o3-ansistring-codepage": "StringCodePage=866"
+  },
+  "direct_linux_probe": "results/research/upstream-o3-direct-audit-001",
+  "fpc_3_2_4_rc1_O3": {
+    "artifact_sha256": "cb78d5d9b48a8be79b34719db07ae745b6073713e1626c62389227b7aaf43a80",
+    "commit": "d78e2897014a69f56a1cfb53c75335c4cc37ba0e",
+    "lab-004-o3-byte-record-cast": "exit 0",
+    "lab-005-o3-ansistring-codepage": "exit 0"
+  },
+  "schema": 1,
+  "upstream_sources": {
+    "lab-004-o3-byte-record-cast": {
+      "path": "checkouts/upstream-tests-latest/tests/test/cg/tbytetypecast.pp",
+      "sha256": "29b6fec7de5b1800fe6c38ff32165fba959f4648bb0ec8854b769f5b0336c2d1"
+    },
+    "lab-005-o3-ansistring-codepage": {
+      "path": "checkouts/upstream-tests-latest/tests/test/tcpstr14.pp",
+      "sha256": "374109e46ec0bc125156e7bdcaacca1bd49b19c252ea41771acd35e6e56cc6fa"
+    }
+  }
+}

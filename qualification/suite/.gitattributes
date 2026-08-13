@@ -1,0 +1,9 @@
+*.sh text eol=lf
+*.py text eol=lf
+tests/mega/omni/omni_generated_forms.inc text eol=lf
+tests/mega/omni/omni_generated_manifest.json text eol=lf
+tests/mega/omni/omni_generated_oracle.dpr text eol=lf
+tests/mega/omni/omni_generated_breadth.inc text eol=lf
+tests/mega/omni/omni_generated_breadth_manifest.json text eol=lf
+tests/mega/omni/omni_generated_breadth_oracle.dpr text eol=lf
+fixtures/tracker/** text eol=lf

@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "run_id": "benchmark-oracle-long-001",
+  "host": "hl-node-hel1",
+  "oracle_source": "tests/benchmark/benchmark_oracle.py",
+  "oracle_source_sha256": "dd65d83e446eacec07ac930ec9b0be10112745338196c2f7f69f3a995a7ca4dc",
+  "execution": {
+    "priority": "nice 15, ionice best-effort 7",
+    "hyper_services_before": [
+      "active",
+      "active",
+      "active",
+      "active",
+      "active",
+      "active",
+      "active",
+      "active"
+    ],
+    "hyper_services_after": [
+      "active",
+      "active",
+      "active",
+      "active",
+      "active",
+      "active",
+      "active",
+      "active"
+    ]
+  },
+  "results": [
+    {
+      "name": "int64-mix",
+      "iterations": 25000000,
+      "digest": "6166242EB0DE19AA",
+      "seconds": 14.587
+    },
+    {
+      "name": "int64-mix",
+      "iterations": 400000000,
+      "digest": "DB7C76CB3D137823",
+      "seconds": 215.188
+    },
+    {
+      "name": "int32-divmod",
+      "iterations": 2500000,
+      "digest": "8263BF5DF37A4ED1",
+      "seconds": 3.767
+    },
+    {
+      "name": "int32-divmod",
+      "iterations": 40000000,
+      "digest": "AD6AF83721C00513",
+      "seconds": 57.85
+    },
+    {
+      "name": "float64-affine",
+      "iterations": 6250000,
+      "digest": "E2C737BF0209B801",
+      "seconds": 0.477
+    },
+    {
+      "name": "float64-affine",
+      "iterations": 100000000,
+      "digest": "C1E19BB3337C1BBB",
+      "seconds": 6.545
+    },
+    {
+      "name": "byte-scan",
+      "iterations": 62500,
+      "digest": "662CA2BD6A8E8E7C",
+      "seconds": 5.362
+    },
+    {
+      "name": "byte-scan",
+      "iterations": 1000000,
+      "digest": "D4ECEC3D20184CE9",
+      "seconds": 86.032
+    },
+    {
+      "name": "move-256",
+      "iterations": 2500000,
+      "digest": "BCF343A206910823",
+      "seconds": 0.614
+    },
+    {
+      "name": "move-256",
+      "iterations": 40000000,
+      "digest": "417D73B07457A2B7",
+      "seconds": 9.098
+    },
+    {
+      "name": "utf8-scan",
+      "iterations": 62500,
+      "digest": "B9E3FD8202FA6FF5",
+      "seconds": 6.556
+    },
+    {
+      "name": "utf8-scan",
+      "iterations": 1000000,
+      "digest": "06647ACB3AF49825",
+      "seconds": 109.005
+    },
+    {
+      "name": "small-alloc",
+      "iterations": 625000,
+      "digest": "A13EFD753AB1B62E",
+      "seconds": 0.476
+    },
+    {
+      "name": "small-alloc",
+      "iterations": 10000000,
+      "digest": "7F081986611C32D7",
+      "seconds": 7.005
+    }
+  ]
+}

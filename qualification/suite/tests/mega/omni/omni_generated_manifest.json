@@ -1,0 +1,10 @@
+{
+  "case_count": 17478,
+  "extra_oracle_count": 0,
+  "generator": "scripts/generate_expanded_omni.py",
+  "missing_oracle_count": 0,
+  "oracle_complete": true,
+  "oracle_count": 17478,
+  "schema": 1,
+  "unique_case_count": 17478
+}

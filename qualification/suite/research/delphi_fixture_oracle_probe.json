@@ -1,0 +1,57 @@
+{
+    "schema":  1,
+    "compiler":  "Delphi 12.2 Win64 compiler 36.0",
+    "compiler_sha256":  "68cf81c0b1044e585eb584d96947a01e669605d8ac1ed048a2de44fd867fdb88",
+    "transformation":  "Remove FPC-only mode, modeswitch, optimization, and objectchecks directives",
+    "tests":  [
+                  {
+                      "test_id":  "fpc-41451",
+                      "source_sha256":  "5c9fb44fd99fd680c96994da1f8c388b7756c74cb97526516f71dbb2388eaa3b",
+                      "adapted_source_sha256":  "62e625c39497adab7c3be32fb9ccd4fb3ee6ce90a98908a967992ec345f01559",
+                      "compile_exit_code":  0,
+                      "run_exit_code":  0
+                  },
+                  {
+                      "test_id":  "fpc-41558",
+                      "source_sha256":  "28d04da6dd8164b178b08bbae5a57daad4dcdf9cfbd2fc251a7bd15550ea8d28",
+                      "adapted_source_sha256":  "f126145d4f5d1c59826da547cd2bc5cfcdf9a3ed41b21c295f77c3f68b9d08cc",
+                      "compile_exit_code":  0,
+                      "run_exit_code":  0
+                  },
+                  {
+                      "test_id":  "fpc-41564",
+                      "source_sha256":  "2c4257c9c789d424ecdf72ab708c5c12d4731bf52cdd1d6b20b10612a7657aa9",
+                      "adapted_source_sha256":  "a2f0111ec37fd13525c09daf32b3ed33ad225333428f892a52f8527443e7e6e4",
+                      "compile_exit_code":  0,
+                      "run_exit_code":  0
+                  },
+                  {
+                      "test_id":  "fpc-41589",
+                      "source_sha256":  "3098fdcf4e054040c424f631535fd38e6a2ef767c5e424256c0e7dc96f1016cc",
+                      "adapted_source_sha256":  "9b5648a99fc9201478a1be37827b69eda12597ee73f7d69f3332487901e93478",
+                      "compile_exit_code":  0,
+                      "run_exit_code":  0
+                  },
+                  {
+                      "test_id":  "fpc-41711",
+                      "source_sha256":  "15c07659afcfb7d523dbf1e65c42d1e9f8fa50f2fb6d07e3fbabacc93655e1a3",
+                      "adapted_source_sha256":  "a0ecf750d88f92fee3601df775dd6b0ad33c2bdef125e2838446daf9667255f7",
+                      "compile_exit_code":  0,
+                      "run_exit_code":  0
+                  },
+                  {
+                      "test_id":  "fpc-41808",
+                      "source_sha256":  "49fabd1ec0bf53eb200b3d186283169c46571f29001d8e78581ad1cbc0d05282",
+                      "adapted_source_sha256":  "c07fecfe1832e358342eb38b975b4def55616b3fa630d1554889d9088374e142",
+                      "compile_exit_code":  0,
+                      "run_exit_code":  0
+                  },
+                  {
+                      "test_id":  "lab-001-constprop-absolute",
+                      "source_sha256":  "dd0b93b43e37b89afeef6859bcd2f90c2d8d0e426971ac07ae8c508ed2ba1609",
+                      "adapted_source_sha256":  "e6aeaeac4ac730d59ba515b951e29a2500c7454c377b0faaa8fb351ca1f3f1e8",
+                      "compile_exit_code":  0,
+                      "run_exit_code":  0
+                  }
+              ]
+}

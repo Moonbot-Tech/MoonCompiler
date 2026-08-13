@@ -1,0 +1,150 @@
+{
+  "benchmark_evidence": {
+    "all_long_digests_equal": true,
+    "all_measurement_quality_pass": true,
+    "all_semantic_pass": true,
+    "category_geomean_o3_over_o2": {
+      "codegen": 1.002314963,
+      "rtl": 0.977339522
+    },
+    "runs": {
+      "forward_o2": {
+        "input_manifest_sha256": "069f5908f6b7304b69fae9df82cbe6039c3cb6d6c7a506d6a4d1bd8a4fe7271c",
+        "results_sha256": "3f77a3257272136d774f93d3b6540c7c37479f679b4085c9e645a852341ee5b4",
+        "run_id": "benchmark-pinned-long-rc1-o2-001",
+        "runner_sha256": "06112e44c83599c7b3deb3c5e63207544533f0cc0f0e2ed220b3c233d79bbf43"
+      },
+      "forward_o3": {
+        "input_manifest_sha256": "069f5908f6b7304b69fae9df82cbe6039c3cb6d6c7a506d6a4d1bd8a4fe7271c",
+        "results_sha256": "ce66be034fa8f42d2ce00aa9ce9f020d19fe143a9c8a7b9a65ebace8b8321d0d",
+        "run_id": "benchmark-pinned-long-rc1-o3-003",
+        "runner_sha256": "06112e44c83599c7b3deb3c5e63207544533f0cc0f0e2ed220b3c233d79bbf43"
+      },
+      "reverse_o2": {
+        "input_manifest_sha256": "069f5908f6b7304b69fae9df82cbe6039c3cb6d6c7a506d6a4d1bd8a4fe7271c",
+        "results_sha256": "f89c8bbd06b312bb90d519f079733b71d23168d855c20bdbb025a709d13bfe55",
+        "run_id": "benchmark-pinned-long-rc1-o2-002",
+        "runner_sha256": "06112e44c83599c7b3deb3c5e63207544533f0cc0f0e2ed220b3c233d79bbf43"
+      },
+      "reverse_o3": {
+        "input_manifest_sha256": "069f5908f6b7304b69fae9df82cbe6039c3cb6d6c7a506d6a4d1bd8a4fe7271c",
+        "results_sha256": "9b65ac85c27536119a15c5f43ba0cb251c623425af9dd3dcf9f29e3d37567d35",
+        "run_id": "benchmark-pinned-long-rc1-o3-004",
+        "runner_sha256": "06112e44c83599c7b3deb3c5e63207544533f0cc0f0e2ed220b3c233d79bbf43"
+      }
+    },
+    "workloads": [
+      {
+        "kind": "codegen-byte-scan",
+        "o3_over_o2_forward": 1.002105367,
+        "o3_over_o2_reverse": 0.991673832,
+        "paired_geomean_change_percent": -0.312405,
+        "paired_geomean_o3_over_o2": 0.996875955,
+        "performance_digest": "D4ECEC3D20184CE9",
+        "test_id": "benchmark-byte-scan"
+      },
+      {
+        "kind": "codegen-float64",
+        "o3_over_o2_forward": 0.990334298,
+        "o3_over_o2_reverse": 1.009007506,
+        "paired_geomean_change_percent": -0.03727,
+        "paired_geomean_o3_over_o2": 0.999627301,
+        "performance_digest": "C1E19BB3337C1BBB",
+        "test_id": "benchmark-float64-affine"
+      },
+      {
+        "kind": "codegen-divmod",
+        "o3_over_o2_forward": 0.995994225,
+        "o3_over_o2_reverse": 1.009803465,
+        "paired_geomean_change_percent": 0.287508,
+        "paired_geomean_o3_over_o2": 1.002875077,
+        "performance_digest": "AD6AF83721C00513",
+        "test_id": "benchmark-int32-divmod"
+      },
+      {
+        "kind": "codegen-integer",
+        "o3_over_o2_forward": 1.00711072,
+        "o3_over_o2_reverse": 0.964633881,
+        "paired_geomean_change_percent": -1.435649,
+        "paired_geomean_o3_over_o2": 0.985643507,
+        "performance_digest": "DB7C76CB3D137823",
+        "test_id": "benchmark-int64-mix"
+      },
+      {
+        "kind": "rtl-move",
+        "o3_over_o2_forward": 1.012864144,
+        "o3_over_o2_reverse": 0.986142567,
+        "paired_geomean_change_percent": -0.058595,
+        "paired_geomean_o3_over_o2": 0.999414052,
+        "performance_digest": "417D73B07457A2B7",
+        "test_id": "benchmark-move-256"
+      },
+      {
+        "kind": "rtl-memory-manager",
+        "o3_over_o2_forward": 0.94882474,
+        "o3_over_o2_reverse": 0.96273097,
+        "paired_geomean_change_percent": -4.424744,
+        "paired_geomean_o3_over_o2": 0.955752563,
+        "performance_digest": "7F081986611C32D7",
+        "test_id": "benchmark-small-alloc"
+      },
+      {
+        "kind": "codegen-utf8-scan",
+        "o3_over_o2_forward": 1.023505325,
+        "o3_over_o2_reverse": 1.030528877,
+        "paired_geomean_change_percent": 2.70111,
+        "paired_geomean_o3_over_o2": 1.027011097,
+        "performance_digest": "06647ACB3AF49825",
+        "test_id": "benchmark-utf8-scan"
+      }
+    ]
+  },
+  "compared_against_options_id": "O2",
+  "correctness_evidence": {
+    "aslr_dependent_fact_values_excluded": true,
+    "known_reference_fact_failures": [
+      "known-absolute-pointer-result",
+      "known-absolute-pointer-result-inline",
+      "known-absolute-result-double",
+      "known-int64-float-bits"
+    ],
+    "known_reference_failures": [
+      "known-absolute-pointer-result",
+      "known-absolute-pointer-result-inline",
+      "known-absolute-result-double",
+      "known-int64-float-literal"
+    ],
+    "o2_o3_exact_equal_fields": [
+      "observed_result",
+      "mega_failures",
+      "mega_fact_failures",
+      "portable_checks",
+      "portable_digest",
+      "mega_checks",
+      "mega_execution"
+    ],
+    "results_sha256": "2bfab565965a92384c4ff2e3ce5f578443e8ea873d4912cb7f409974db8bc803",
+    "run_id": "mega-facts-full-003",
+    "seeds": [
+      1,
+      2,
+      3,
+      7885642623054963745,
+      11400714819323198485,
+      18446744073709551615
+    ]
+  },
+  "decision": {
+    "qualified": true,
+    "scope": "Reference for the selected fork after correctness-based base selection; not a claim that RC1 is defect-free.",
+    "use_as_stable_performance_reference": "fpc-3.2.4-rc1/O3"
+  },
+  "reference": {
+    "compiler_artifact_sha256": "cb78d5d9b48a8be79b34719db07ae745b6073713e1626c62389227b7aaf43a80",
+    "compiler_commit": "d78e2897014a69f56a1cfb53c75335c4cc37ba0e",
+    "compiler_id": "fpc-3.2.4-rc1",
+    "options_id": "O3"
+  },
+  "result_id": "benchmark-reference-rc1-o2-o3-001",
+  "schema": 1
+}

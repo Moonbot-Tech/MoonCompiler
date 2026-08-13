@@ -1,0 +1,1868 @@
+{
+  "benchmark": {
+    "compile_timeout_seconds": 120,
+    "compiler_ids": [
+      "fpc-3.2.2",
+      "fpc-fixes-3.2",
+      "fpc-3.2.4-rc1",
+      "fpc-current",
+      "unleashed-latest",
+      "unleashed-o3-safe-bsxfix-001",
+      "unleashed-o3-safe-exitfix-001",
+      "unleashed-o3-safe-u64fix-001",
+      "unleashed-o3-safe-promofix-001",
+      "unleashed-o3-safe-rangefix-002",
+      "unleashed-o3-safe-movssfix-001",
+      "unleashed-o3-safe-audited-001",
+      "moonbot-compiler-beta"
+    ],
+    "dependencies": {
+      "tests/benchmark/benchmark_portable.pas": "d2bf96d8005f882195ac192a4c428b40da0ef8a2c221139019e894869a1e5a85"
+    },
+    "extra_options": [
+      "-MDelphi",
+      "-B"
+    ],
+    "id": "benchmark",
+    "long_oracle_proof": "results/reference/benchmark-oracle-long-001.json",
+    "long_oracle_proof_sha256": "8fdc284cb04a4516d1ae34007935990259e1f9cafcb53f6d813862a57f75ba52",
+    "max_best3_stability_ratio": 1.05,
+    "oracle": "tests/benchmark/benchmark_oracle.py",
+    "oracle_iterations": 4096,
+    "oracle_sha256": "dd65d83e446eacec07ac930ec9b0be10112745338196c2f7f69f3a995a7ca4dc",
+    "performance_affinity_cpu": 6,
+    "reference": {
+      "compiler_id": "fpc-3.2.4-rc1",
+      "options_id": "O3",
+      "qualification": "results/reference/benchmark-reference-rc1-o2-o3-001.json",
+      "qualification_sha256": "644303d440b151c34a191a1b9b219a3072b03431cfd71fa0b25052668370f4d6"
+    },
+    "run_timeout_seconds": 120,
+    "samples": 9,
+    "source": "tests/benchmark/benchmark_driver.dpr",
+    "source_sha256": "ca3ed6d15470f1dc712a3859aa0d32f00cc0e46f1a2adfd4b4c8ac3f636772ce",
+    "workloads": {
+      "byte-scan": {
+        "iterations": 1000000,
+        "kind": "codegen-byte-scan",
+        "oracle_digest": "F9500EB0D9BE5C09"
+      },
+      "float64-affine": {
+        "iterations": 100000000,
+        "kind": "codegen-float64",
+        "oracle_digest": "CA4A2F517962A03D"
+      },
+      "int32-divmod": {
+        "iterations": 40000000,
+        "kind": "codegen-divmod",
+        "oracle_digest": "FA19D8F397962D25"
+      },
+      "int64-mix": {
+        "iterations": 400000000,
+        "kind": "codegen-integer",
+        "oracle_digest": "FB62DC5D1FE96D67"
+      },
+      "move-256": {
+        "iterations": 40000000,
+        "kind": "rtl-move",
+        "oracle_digest": "FBAA1C4B0AFF1C19"
+      },
+      "small-alloc": {
+        "iterations": 10000000,
+        "kind": "rtl-memory-manager",
+        "oracle_digest": "6E414D08516A1DB8"
+      },
+      "utf8-scan": {
+        "iterations": 1000000,
+        "kind": "codegen-utf8-scan",
+        "oracle_digest": "6F599B17C7C56325"
+      }
+    }
+  },
+  "compilers": {
+    "fpc-3.2.2": {
+      "artifact_paths": [
+        "toolchains/fpc-3.2.2"
+      ],
+      "artifact_sha256": "9c5b8865f304eec8a11af4477e4d2da665d05339a59e02af532ceaff58ff6614",
+      "commit": "0d122c49534b480be9284c21bd60b53d99904346",
+      "config": "toolchains/fpc-3.2.2/etc/fpc.cfg",
+      "driver": "toolchains/fpc-3.2.2/bin/fpc",
+      "kind": "installed",
+      "source_path": "checkouts/fpc-3.2.2"
+    },
+    "fpc-3.2.4-rc1": {
+      "artifact_paths": [
+        "toolchains/fpc-3.2.4-rc1"
+      ],
+      "artifact_sha256": "cb78d5d9b48a8be79b34719db07ae745b6073713e1626c62389227b7aaf43a80",
+      "commit": "d78e2897014a69f56a1cfb53c75335c4cc37ba0e",
+      "config": "toolchains/fpc-3.2.4-rc1/etc/fpc.cfg",
+      "driver": "toolchains/fpc-3.2.4-rc1/bin/fpc",
+      "kind": "pinned-stable-reference",
+      "source_path": "checkouts/fpc-3.2.4-rc1"
+    },
+    "fpc-current": {
+      "artifact_paths": [
+        "toolchains/fpc-current"
+      ],
+      "artifact_sha256": "9494ee22330961725019e90f93524d9c86722c666371ed9dce8e78d8fd997305",
+      "commit": "3095698a96498400a0eedffc26f10ab23007f65e",
+      "config": "toolchains/fpc-current/etc/fpc.cfg",
+      "driver": "toolchains/fpc-current/bin/fpc",
+      "kind": "installed-upstream-comparison",
+      "source_path": "checkouts/fpc-current"
+    },
+    "moonbot-compiler-beta": {
+      "config": "../../.moonbot/toolchain/etc/fpc.cfg",
+      "driver": "../../.moonbot/toolchain/bin/fpc",
+      "fixture_compatibility_alias": "unleashed-latest",
+      "kind": "current-worktree"
+    },
+    "fpc-ea11517-affected": {
+      "artifact_paths": [
+        "checkouts/fpc-ea11517-affected/compiler/ppcx64",
+        "checkouts/fpc-ea11517-affected/rtl/units/x86_64-linux"
+      ],
+      "artifact_sha256": "8518aa2a0afe5cdd3bda1bdc4d3744de457e4d84e0de8c122f332d585eb6c361",
+      "base_args": [
+        "-n",
+        "-Fucheckouts/fpc-ea11517-affected/rtl/units/x86_64-linux"
+      ],
+      "commit": "ea11517d27fa00f40b626e47213f0caa8832d155",
+      "driver": "checkouts/fpc-ea11517-affected/compiler/ppcx64",
+      "kind": "historical-first-affected",
+      "source_path": "checkouts/fpc-ea11517-affected"
+    },
+    "fpc-fixes-3.2": {
+      "artifact_paths": [
+        "toolchains/fpc-fixes-3.2"
+      ],
+      "artifact_sha256": "78e1412d6b9f930d694f44240826922a2b2c48e981b8046627783e5738725c24",
+      "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
+      "config": "toolchains/fpc-fixes-3.2/etc/fpc.cfg",
+      "driver": "toolchains/fpc-fixes-3.2/bin/fpc",
+      "kind": "installed",
+      "source_path": "checkouts/fpc-fixes-3.2"
+    },
+    "fpc-pre-ea11517": {
+      "artifact_paths": [
+        "checkouts/fpc-pre-ea11517/compiler/ppcx64",
+        "checkouts/fpc-pre-ea11517/rtl/units/x86_64-linux"
+      ],
+      "artifact_sha256": "9187e85e2a97f27f24cbe7400cd4b920f1dd8d735d9e0be3d9c6514fd2696dc8",
+      "base_args": [
+        "-n",
+        "-Fucheckouts/fpc-pre-ea11517/rtl/units/x86_64-linux"
+      ],
+      "commit": "ebb199b9d465a72c1784c5cfcb4f07b4d324f38c",
+      "driver": "checkouts/fpc-pre-ea11517/compiler/ppcx64",
+      "kind": "historical-first-affected-parent",
+      "source_path": "checkouts/fpc-pre-ea11517"
+    },
+    "unleashed-41836-parent-cycle": {
+      "artifact_paths": [
+        "checkouts/unleashed-41836-affected/compiler/ppcx64",
+        "checkouts/unleashed-41836-affected/rtl/units/x86_64-linux"
+      ],
+      "artifact_sha256": "499a8d45f74b32001aba65b3dca186d26965d517044a70b522ffd1c7b7a9beb6",
+      "base_args": [
+        "-n",
+        "-Fucheckouts/unleashed-41836-affected/rtl/units/x86_64-linux"
+      ],
+      "commit": "4cf023cf02f08f8ebe6356cd536d4821d85b366f",
+      "driver": "checkouts/unleashed-41836-affected/compiler/ppcx64",
+      "kind": "self-consistent-cycle-only",
+      "note": "Exact fix parent: compiler cycle completed, but repository make all later failed because ppudump lacked the new optimizer-switch entry. Used only for the affected #41836 proof.",
+      "source_path": "checkouts/unleashed-41836-affected"
+    },
+    "unleashed-latest": {
+      "artifact_paths": [
+        "toolchains/unleashed-latest"
+      ],
+      "artifact_sha256": "b1a31ed555b0ef0a57f0dd94b57585564154c9b018a6bfb95a3cf987fd27e74f",
+      "commit": "0e0f064ba22622111ff06567d46040c9c2cfd74d",
+      "config": "toolchains/unleashed-latest/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-latest/bin/fpc",
+      "kind": "installed",
+      "source_path": "checkouts/unleashed-latest"
+    },
+    "unleashed-o3-safe-absfix-001": {
+      "artifact_paths": [
+        "toolchains/unleashed-o3-safe-absfix-001"
+      ],
+      "artifact_sha256": "dc0ce06e38c1e794ceb81b1c345a163a01a592bac35b3acfc716eb377e540a36",
+      "commit": "46968177e78c343f242c7b6c8c20f623b9a30b10",
+      "config": "toolchains/unleashed-o3-safe-absfix-001/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-o3-safe-absfix-001/bin/fpc",
+      "kind": "candidate-absolute-fix",
+      "source_path": "checkouts/unleashed-o3-safe-base"
+    },
+    "unleashed-o3-safe-audited-001": {
+      "artifact_paths": [
+        "toolchains/unleashed-o3-safe-audited-001"
+      ],
+      "artifact_sha256": "ec46030e1e674ae9a311776c805cb74188846dd0848437ca4a2b722e546d77c5",
+      "commit": "872907d95f301fcc90f07b011ee97341a9dc8448",
+      "config": "toolchains/unleashed-o3-safe-audited-001/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-o3-safe-audited-001/bin/fpc",
+      "fixture_compatibility_alias": "unleashed-latest",
+      "fixture_exact_expectation_alias": "unleashed-o3-safe-audited-001",
+      "kind": "candidate-audited-safe-fixes",
+      "source_path": "checkouts/unleashed-o3-safe-base"
+    },
+    "unleashed-o3-safe-base": {
+      "artifact_paths": [
+        "toolchains/unleashed-o3-safe-base"
+      ],
+      "artifact_sha256": "d2500615ca81511eada96b2511d69ff825c4cccf0c5301e1a47f3c51fffc1c2c",
+      "commit": "342327ddfbfe6f4a6c4298a20c1973c051b17e70",
+      "config": "toolchains/unleashed-o3-safe-base/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-o3-safe-base/bin/fpc",
+      "kind": "candidate-safe-o3-base",
+      "source_path": "checkouts/unleashed-o3-safe-base"
+    },
+    "unleashed-o3-safe-bsxfix-001": {
+      "artifact_paths": [
+        "toolchains/unleashed-o3-safe-bsxfix-001"
+      ],
+      "artifact_sha256": "0de14a433a7685e4ef98ad33092beae3c29339b113befee97758afb3a82bd5ad",
+      "commit": "b22dc5667b68c3bcf5367dc1f50bd1ecaa2edbd7",
+      "config": "toolchains/unleashed-o3-safe-bsxfix-001/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-o3-safe-bsxfix-001/bin/fpc",
+      "fixture_compatibility_alias": "unleashed-latest",
+      "fixture_exact_expectation_alias": "unleashed-o3-safe-floatfix-001",
+      "kind": "candidate-bsx-zero-fix",
+      "source_path": "checkouts/unleashed-o3-safe-bsxfix-001"
+    },
+    "unleashed-o3-safe-divfix-002": {
+      "artifact_paths": [
+        "toolchains/unleashed-o3-safe-divfix-002"
+      ],
+      "artifact_sha256": "38dd36d10c0ba5e05cbc6aa538fee39562bb2f7a732896810885600207bfc347",
+      "commit": "4823b17665935ab18b0b29b153dd389ca3f6f872",
+      "config": "toolchains/unleashed-o3-safe-divfix-002/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-o3-safe-divfix-002/bin/fpc",
+      "kind": "candidate-divfix",
+      "source_path": "checkouts/unleashed-o3-safe-base"
+    },
+    "unleashed-o3-safe-exitfix-001": {
+      "artifact_paths": [
+        "toolchains/unleashed-o3-safe-exitfix-001"
+      ],
+      "artifact_sha256": "d4f3aa6eba5487c9aa02eba8b994fc9d460defdc73ea267e1380fdf08e8e0408",
+      "commit": "9a263c9eb81d7d0629f4cddeb9538c79519127c9",
+      "config": "toolchains/unleashed-o3-safe-exitfix-001/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-o3-safe-exitfix-001/bin/fpc",
+      "fixture_compatibility_alias": "unleashed-latest",
+      "fixture_exact_expectation_alias": "unleashed-o3-safe-floatfix-001",
+      "kind": "candidate-inherited-exit-fix",
+      "source_path": "checkouts/unleashed-o3-safe-exitfix-001"
+    },
+    "unleashed-o3-safe-floatfix-001": {
+      "artifact_paths": [
+        "toolchains/unleashed-o3-safe-floatfix-001"
+      ],
+      "artifact_sha256": "0698185ad942b4f0be55ce75877c2fd7b522ca71901cd8b5d87e559f75e3b4a3",
+      "commit": "b66d3886dff0e6c9a808c6b6290d904ccef14705",
+      "config": "toolchains/unleashed-o3-safe-floatfix-001/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-o3-safe-floatfix-001/bin/fpc",
+      "fixture_compatibility_alias": "unleashed-latest",
+      "kind": "candidate-float-fix",
+      "source_path": "checkouts/unleashed-o3-safe-floatfix-001"
+    },
+    "unleashed-o3-safe-movssfix-001": {
+      "artifact_paths": [
+        "toolchains/unleashed-o3-safe-movssfix-001"
+      ],
+      "artifact_sha256": "dfcb08efd56357b1f6e0f88664a49cc0c51d8d5aa06618bd93ab2348ddb5e39f",
+      "commit": "56b11f50e55c6c27b73efd3f489a195ba0b303fa",
+      "config": "toolchains/unleashed-o3-safe-movssfix-001/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-o3-safe-movssfix-001/bin/fpc",
+      "fixture_compatibility_alias": "unleashed-latest",
+      "fixture_exact_expectation_alias": "unleashed-o3-safe-floatfix-001",
+      "kind": "candidate-register-reference-and-constref-fix",
+      "source_path": "checkouts/unleashed-o3-safe-movssfix-001"
+    },
+    "unleashed-o3-safe-promofix-001": {
+      "artifact_paths": [
+        "toolchains/unleashed-o3-safe-promofix-001"
+      ],
+      "artifact_sha256": "e449b73328d3c0be7b09b3b9ee282809559b0002ee7780a46e14074801ff25b1",
+      "commit": "7bca1928161161b9a946b294a4106f6259511dcd",
+      "config": "toolchains/unleashed-o3-safe-promofix-001/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-o3-safe-promofix-001/bin/fpc",
+      "fixture_compatibility_alias": "unleashed-latest",
+      "fixture_exact_expectation_alias": "unleashed-o3-safe-floatfix-001",
+      "kind": "candidate-integer-promotion-fix",
+      "source_path": "checkouts/unleashed-o3-safe-promofix-001"
+    },
+    "unleashed-o3-safe-rangefix-002": {
+      "artifact_paths": [
+        "toolchains/unleashed-o3-safe-rangefix-002"
+      ],
+      "artifact_sha256": "42015fe90123f78c4eefd1a88bdddffa32d091a621eba5f8c872b6089e732728",
+      "commit": "216aa3595ba5d642a5cb9e986041363c0a1164e3",
+      "config": "toolchains/unleashed-o3-safe-rangefix-002/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-o3-safe-rangefix-002/bin/fpc",
+      "fixture_compatibility_alias": "unleashed-latest",
+      "fixture_exact_expectation_alias": "unleashed-o3-safe-floatfix-001",
+      "kind": "candidate-disabled-range-check-fix",
+      "source_path": "checkouts/unleashed-o3-safe-rangefix-002"
+    },
+    "unleashed-o3-safe-u64fix-001": {
+      "artifact_paths": [
+        "toolchains/unleashed-o3-safe-u64fix-001"
+      ],
+      "artifact_sha256": "aaae5ea0ba32eda7d58e3d792c4db2e23b9adb85eb7a89141afafe1b023dde2f",
+      "commit": "343733b1022bf604ddb0f6dd1961c5d3e8df3311",
+      "config": "toolchains/unleashed-o3-safe-u64fix-001/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-o3-safe-u64fix-001/bin/fpc",
+      "fixture_compatibility_alias": "unleashed-latest",
+      "fixture_exact_expectation_alias": "unleashed-o3-safe-floatfix-001",
+      "kind": "candidate-uint64-fold-fix",
+      "source_path": "checkouts/unleashed-o3-safe-u64fix-001"
+    },
+    "unleashed-o3-safe-varfix-001": {
+      "artifact_paths": [
+        "toolchains/unleashed-o3-safe-varfix-001"
+      ],
+      "artifact_sha256": "8522f9ef65cd4e6a853dae3cb2668f5d4c7aa117dce42d41dbd17e719b962cd4",
+      "commit": "2de8b00ff736306f26b9443e550f6e0791c452b9",
+      "config": "toolchains/unleashed-o3-safe-varfix-001/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-o3-safe-varfix-001/bin/fpc",
+      "kind": "candidate-record-var-fix",
+      "source_path": "checkouts/unleashed-o3-safe-base"
+    },
+    "unleashed-pre-experimental": {
+      "artifact_paths": [
+        "toolchains/unleashed-pre-experimental"
+      ],
+      "artifact_sha256": "bc8c72a4e062e7df732465c972e30ba87d43376000a3e40a39ab70fba506a26a",
+      "commit": "8e665b20fc222fab3ccbfd8f558ca4321d9833e9",
+      "config": "toolchains/unleashed-pre-experimental/etc/fpc.cfg",
+      "driver": "toolchains/unleashed-pre-experimental/bin/fpc",
+      "kind": "candidate-under-evaluation",
+      "source_path": "checkouts/unleashed-pre-experimental"
+    }
+  },
+  "fixture_expectations": {
+    "path": "research/fixture_expected_outcomes.audited-002.json",
+    "sha256": "1addd11ed7b550ba7b539323c1ba467be5ac0c5c440f494572187732ae6126ed"
+  },
+  "fixture_oracles": {
+    "path": "research/fixture_oracles.json",
+    "sha256": "97e34f2262af34e7adc32d3345fb083464c93401ad5617fe87faa73636438c93"
+  },
+  "fixture_qualification_compilers": [
+    "moonbot-compiler-beta"
+  ],
+  "fixture_qualification_exclusions": {
+    "fpc-39890": "FPC-only global generic specialization; Delphi 12.2 rejects the construct",
+    "fpc-40661": "FPC generic/specialize dialect absent from both applications",
+    "fpc-41184": "Artificial recursive metaclass call absent from both applications",
+    "fpc-41346": "FPC generic-forward constraint syntax outside the Delphi contract",
+    "fpc-41447": "FPC noreturn directive placement absent from both applications",
+    "fpc-41456-attachment": "Lazarus ObjFPC generic-object container outside the Delphi contract",
+    "fpc-41485": "Unspecialized FPC global generic procedure outside the Delphi contract",
+    "fpc-41497": "FPC generic/specialize procedure outside the Delphi contract",
+    "fpc-41544": "Self-referential SizeOf during enum declaration is not used; ordinary PACKENUM remains covered",
+    "fpc-41579": "FPC generic nested-type method-address construct outside the Delphi contract",
+    "fpc-41696": "FPC global generic function and specialize syntax outside the Delphi contract",
+    "fpc-41700": "FPC generic alias inside a global generic procedure outside the Delphi contract",
+    "fpc-41702": "FPC global generic procedure dispatch outside the Delphi contract",
+    "fpc-41741": "Nested class-var property form is rejected by Delphi 12.2",
+    "fpc-41761": "Non-type floating generic parameters are not a Delphi language feature",
+    "fpc-41794": "Pointer-alias record-helper call is rejected by Delphi 12.2",
+    "fpc-41805": "FPC implicit specialization of a global generic function is not a Delphi feature"
+  },
+  "fixtures": [
+    {
+      "expected_observed": {
+        "fpc-3.2.2/O2": "run_fail",
+        "fpc-3.2.2/O3": "run_fail",
+        "fpc-fixes-3.2/O2": "run_fail",
+        "fpc-fixes-3.2/O3": "run_fail"
+      },
+      "id": "fpc-40212",
+      "source": "fixtures/known/fpc_40212_absolute_result.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_failure_class": {
+        "fpc-current/*": "compile_error",
+        "unleashed-latest/*": "compile_error"
+      },
+      "expected_observed": {
+        "fpc-current/*": "compile_fail",
+        "unleashed-latest/*": "compile_fail"
+      },
+      "id": "fpc-39890",
+      "source": "fixtures/known/fpc_39890_implicit_specialization_overload.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_failure_class": {
+        "fpc-current/*": "compiler_internal_error",
+        "unleashed-latest/*": "compiler_internal_error"
+      },
+      "expected_observed": {
+        "fpc-current/*": "compile_fail",
+        "unleashed-latest/*": "compile_fail"
+      },
+      "id": "fpc-40661",
+      "source": "fixtures/known/fpc_40661_generic_overload_call.pas"
+    },
+    {
+      "id": "fpc-41126",
+      "source": "fixtures/known/fpc_41126_unsigned_empty_loop.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_failure_class": {
+        "fpc-current/*": "compiler_crash",
+        "unleashed-latest/*": "compiler_crash"
+      },
+      "expected_observed": {
+        "fpc-current/*": "compile_fail",
+        "unleashed-latest/*": "compile_fail"
+      },
+      "id": "fpc-41184",
+      "source": "fixtures/known/fpc_41184_inline_class_function_call.pas"
+    },
+    {
+      "id": "fpc-41317",
+      "source": "fixtures/known/fpc_41317_cmov_int64.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_failure_class": {
+        "fpc-current/*": "compiler_exception",
+        "unleashed-latest/*": "compiler_exception"
+      },
+      "expected_observed": {
+        "fpc-current/*": "compile_fail",
+        "unleashed-latest/*": "compile_fail"
+      },
+      "id": "fpc-41346",
+      "source": "fixtures/known/fpc_41346_matching_generic_forward.pas"
+    },
+    {
+      "id": "fpc-41781",
+      "source": "fixtures/known/fpc_41781_parentfp_nested_string.pas"
+    },
+    {
+      "expected_observed": {
+        "*/*": "run_fail",
+        "unleashed-o3-safe-floatfix-001/*": "pass"
+      },
+      "id": "fpc-41796",
+      "source": "fixtures/known/fpc_41796_absolute_result_layout.pas"
+    },
+    {
+      "compiler_allow": [
+        "unleashed-latest"
+      ],
+      "expected_observed": {
+        "*/*": "run_fail"
+      },
+      "extra_options": [
+        "-CpZEN",
+        "-OpZEN"
+      ],
+      "id": "fpc-41810",
+      "option_allow": [
+        "O3"
+      ],
+      "source": "fixtures/known/fpc_41810_bsf_registers.pas"
+    },
+    {
+      "expected_observed": {
+        "*/*": "run_fail",
+        "unleashed-o3-safe-floatfix-001/*": "pass"
+      },
+      "id": "fpc-41811",
+      "source": "fixtures/known/fpc_41811_int64_float_literal.pas"
+    },
+    {
+      "expected_observed": {
+        "fpc-current/O3": "run_fail"
+      },
+      "id": "fpc-41813",
+      "source": "fixtures/known/fpc_41813_partial_write_o3.pas"
+    },
+    {
+      "expected_observed": {
+        "fpc-current/*": "run_fail"
+      },
+      "id": "fpc-41820",
+      "source": "fixtures/known/fpc_41820_inline_shift.pas"
+    },
+    {
+      "expected_observed": {
+        "fpc-current/O2": "run_fail",
+        "fpc-current/O3": "run_fail"
+      },
+      "id": "fpc-41824",
+      "source": "fixtures/known/fpc_41824_narrow_compare.pas"
+    },
+    {
+      "compiler_allow": [
+        "unleashed-latest"
+      ],
+      "id": "fpc-41828",
+      "source": "fixtures/known/fpc_41828_captured_rmw.pas"
+    },
+    {
+      "compiler_allow": [
+        "fpc-3.2.2",
+        "fpc-fixes-3.2",
+        "unleashed-latest",
+        "unleashed-41836-parent-cycle"
+      ],
+      "expected_observed": {
+        "unleashed-41836-parent-cycle/*": "run_fail"
+      },
+      "id": "fpc-41836",
+      "source": "fixtures/known/fpc_41836_inline_shortstring_literal.pas"
+    },
+    {
+      "expected_failure_class": {
+        "fpc-3.2.2/*": "compile_error",
+        "fpc-fixes-3.2/*": "compile_error"
+      },
+      "expected_observed": {
+        "fpc-3.2.2/*": "compile_fail",
+        "fpc-current/*": "run_fail",
+        "fpc-fixes-3.2/*": "compile_fail",
+        "unleashed-latest/*": "run_fail"
+      },
+      "id": "fpc-41805",
+      "source": "fixtures/known/fpc_41805_implicit_specialization_literals.pas"
+    },
+    {
+      "expected_failure_class": {
+        "unleashed-latest/O3": "compile_error",
+        "unleashed-o3-safe-floatfix-001/O3": null
+      },
+      "expected_observed": {
+        "*/*": "run_fail",
+        "unleashed-latest/O3": "compile_fail",
+        "unleashed-o3-safe-floatfix-001/O3": "run_fail"
+      },
+      "id": "fpc-41808",
+      "source": "fixtures/known/fpc_41808_integer_promotion_overflow.pas"
+    },
+    {
+      "expected_failure_class": {
+        "fpc-current/*": "compile_error"
+      },
+      "expected_observed": {
+        "fpc-current/*": "compile_fail"
+      },
+      "id": "fpc-41834",
+      "source": "fixtures/known/fpc_41834_corba_generic_name.pas"
+    },
+    {
+      "expected_failure_class": {
+        "fpc-3.2.2/*": "compile_error",
+        "fpc-fixes-3.2/*": "compile_error",
+        "unleashed-latest/*": "compiler_exception"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41761",
+      "kind": "ppu_consumer",
+      "producer_source": "fixtures/known/units/fpc_41761_float_generic_const_unit.pas",
+      "source": "fixtures/known/fpc_41761_float_generic_const_consumer.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41794",
+      "source": "fixtures/known/fpc_41794_pointer_record_helper.pas"
+    },
+    {
+      "expected_failure_class": {
+        "fpc-current/*": "compile_error",
+        "unleashed-latest/*": "compile_error"
+      },
+      "expected_observed": {
+        "fpc-current/*": "compile_fail",
+        "unleashed-latest/*": "compile_fail"
+      },
+      "id": "fpc-41788",
+      "source": "fixtures/known/fpc_41788_generic_virtual_link.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41770",
+      "source": "fixtures/known/fpc_41770_generic_constraint_header.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41766",
+      "source": "fixtures/known/fpc_41766_constref_absolute.pas"
+    },
+    {
+      "expected_observed": {
+        "*/*": "run_fail"
+      },
+      "id": "fpc-41741",
+      "source": "fixtures/known/fpc_41741_nested_class_var_property.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41712",
+      "source": "fixtures/known/fpc_41712_generic_with_call.pas"
+    },
+    {
+      "expected_observed": {
+        "*/*": "run_fail"
+      },
+      "id": "fpc-41711",
+      "source": "fixtures/known/fpc_41711_generic_with_binding.pas"
+    },
+    {
+      "expected_failure_class": {
+        "fpc-3.2.2/*": "compile_error",
+        "fpc-fixes-3.2/*": "compile_error"
+      },
+      "expected_observed": {
+        "fpc-3.2.2/*": "compile_fail",
+        "fpc-fixes-3.2/*": "compile_fail"
+      },
+      "id": "fpc-41704",
+      "source": "fixtures/known/fpc_41704_volatile_address.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41702",
+      "source": "fixtures/known/fpc_41702_empty_generic_call.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compiler_internal_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41700",
+      "source": "fixtures/known/fpc_41700_nested_generic_alias.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41497",
+      "kind": "ppu_consumer",
+      "producer_source": "fixtures/known/units/fpc_41497_forward_constraint_unit.pas",
+      "source": "fixtures/known/fpc_41497_forward_constraint_consumer.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_failure_class": {
+        "fpc-current/*": "compiler_internal_error",
+        "unleashed-latest/*": "compiler_internal_error"
+      },
+      "expected_observed": {
+        "fpc-current/*": "compile_fail",
+        "unleashed-latest/*": "compile_fail"
+      },
+      "id": "fpc-41485",
+      "kind": "ppu_consumer",
+      "producer_source": "fixtures/known/units/fpc_41485_unspecialized_generic_unit.pas",
+      "source": "fixtures/known/fpc_41485_unspecialized_generic_consumer.pas"
+    },
+    {
+      "expected_failure_class": {
+        "fpc-current/O2": "compile_error",
+        "fpc-current/O3": "compile_error",
+        "unleashed-latest/O2": "compile_error",
+        "unleashed-latest/O3": "compile_error"
+      },
+      "expected_observed": {
+        "fpc-current/O2": "compile_fail",
+        "fpc-current/O3": "compile_fail",
+        "unleashed-latest/O2": "compile_fail",
+        "unleashed-latest/O3": "compile_fail"
+      },
+      "id": "fpc-41480",
+      "source": "fixtures/known/fpc_41480_regvar_word_bounds.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_failure_class": {
+        "fpc-3.2.2/*": "compiler_exception",
+        "fpc-fixes-3.2/*": "compiler_exception",
+        "unleashed-latest/*": "compiler_internal_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41456-attachment",
+      "kind": "ppu_consumer",
+      "producer_source": "fixtures/known/attachments/41456/lazlistclassesbase.pas",
+      "source": "fixtures/known/attachments/41456/lazlistclasses.pas"
+    },
+    {
+      "expected_observed": {
+        "*/*": "run_fail"
+      },
+      "id": "fpc-41451",
+      "source": "fixtures/known/fpc_41451_static_managed_record_init.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_failure_class": {
+        "fpc-current/*": "compile_error",
+        "unleashed-latest/*": "compile_error"
+      },
+      "expected_observed": {
+        "fpc-current/*": "compile_fail",
+        "unleashed-latest/*": "compile_fail"
+      },
+      "id": "fpc-41447",
+      "source": "fixtures/known/fpc_41447_noreturn_definition.pas"
+    },
+    {
+      "expected_observed": {
+        "fpc-3.2.2/*": "run_fail",
+        "fpc-current/*": "run_fail",
+        "fpc-fixes-3.2/*": "run_fail"
+      },
+      "id": "fpc-41431-attachment",
+      "kind": "ppu_consumer",
+      "producer_source": "fixtures/known/attachments/41431/lazlistclasses.pas",
+      "source": "fixtures/known/attachments/41431/prog.lpr"
+    },
+    {
+      "expected_failure_class": {
+        "fpc-3.2.2/*": "compile_error",
+        "fpc-fixes-3.2/*": "compile_error"
+      },
+      "expected_observed": {
+        "fpc-3.2.2/*": "compile_fail",
+        "fpc-fixes-3.2/*": "compile_fail"
+      },
+      "id": "fpc-41419",
+      "source": "fixtures/known/fpc_41419_generic_sizeof_const.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41410",
+      "source": "fixtures/known/fpc_41410_published_generic_method.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compiler_exception"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41598",
+      "source": "fixtures/known/fpc_41598_managed_nested_generic.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compiler_exception"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41594",
+      "source": "fixtures/known/fpc_41594_nested_delphi_generics.pas"
+    },
+    {
+      "expected_observed": {
+        "*/*": "run_fail"
+      },
+      "id": "fpc-41589",
+      "source": "fixtures/known/fpc_41589_record_helper_property.pas"
+    },
+    {
+      "id": "fpc-41581",
+      "source": "fixtures/known/fpc_41581_inline_math.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41579",
+      "source": "fixtures/known/fpc_41579_nested_generic_proc_address.pas"
+    },
+    {
+      "expected_observed": {
+        "*/*": "run_fail"
+      },
+      "id": "fpc-41564",
+      "source": "fixtures/known/fpc_41564_distinct_type_helpers.pas"
+    },
+    {
+      "expected_observed": {
+        "fpc-current/*": "run_fail",
+        "unleashed-latest/*": "run_fail"
+      },
+      "id": "fpc-41558",
+      "source": "fixtures/known/fpc_41558_regvar_objectchecks_inline.pas"
+    },
+    {
+      "expected_observed": {
+        "fpc-3.2.2/*": "run_fail",
+        "fpc-fixes-3.2/*": "run_fail"
+      },
+      "id": "fpc-41554",
+      "source": "fixtures/known/fpc_41554_bitpacked_record_size.pas"
+    },
+    {
+      "expected_failure_class": {
+        "fpc-current/*": "compile_error",
+        "unleashed-latest/*": "compile_error"
+      },
+      "expected_observed": {
+        "fpc-3.2.2/*": "run_fail",
+        "fpc-current/*": "compile_fail",
+        "fpc-fixes-3.2/*": "run_fail",
+        "unleashed-latest/*": "compile_fail"
+      },
+      "id": "fpc-41544",
+      "source": "fixtures/known/fpc_41544_packenum_sizeof.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_failure_class": {
+        "fpc-current/*": "compiler_exception",
+        "unleashed-latest/*": "compiler_exception"
+      },
+      "expected_observed": {
+        "fpc-current/*": "compile_fail",
+        "unleashed-latest/*": "compile_fail"
+      },
+      "id": "fpc-41541",
+      "kind": "ppu_consumer",
+      "producer_source": "fixtures/known/units/fpc_41541_anon_record_generic_unit.pas",
+      "source": "fixtures/known/fpc_41541_anon_record_generic_consumer.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41696",
+      "source": "fixtures/known/fpc_41696_generic_class_subprogram.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compiler_exception"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41679",
+      "source": "fixtures/known/fpc_41679_generic_advanced_record_result.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41678",
+      "source": "fixtures/known/fpc_41678_rangechecks_off_enum.pas"
+    },
+    {
+      "expected_failure_class": {
+        "fpc-current/*": "compile_error",
+        "unleashed-latest/*": "compile_error"
+      },
+      "expected_observed": {
+        "fpc-current/*": "compile_fail",
+        "unleashed-latest/*": "compile_fail"
+      },
+      "extra_options": [
+        "-RIntel"
+      ],
+      "id": "fpc-41630",
+      "source": "fixtures/known/fpc_41630_movss_pointer_asm.pas"
+    },
+    {
+      "expected_failure_class": {
+        "fpc-3.2.2/*": "compile_error",
+        "fpc-current/*": "compile_error",
+        "fpc-fixes-3.2/*": "compile_error"
+      },
+      "expected_observed": {
+        "fpc-3.2.2/*": "compile_fail",
+        "fpc-current/*": "compile_fail",
+        "fpc-fixes-3.2/*": "compile_fail"
+      },
+      "id": "fpc-41612-bug1",
+      "source": "fixtures/known/fpc_41612_generic_expression.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41612-bug2",
+      "source": "fixtures/known/fpc_41612_generic_comparer.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41612-bug3",
+      "source": "fixtures/known/fpc_41612_generic_container_alias.pas"
+    },
+    {
+      "expected_failure_class": {
+        "*/*": "compile_error"
+      },
+      "expected_observed": {
+        "*/*": "compile_fail"
+      },
+      "id": "fpc-41614",
+      "source": "fixtures/known/fpc_41614_generic_open_array_overload.pas"
+    },
+    {
+      "compiler_allow": [
+        "unleashed-latest"
+      ],
+      "id": "unleashed-17",
+      "source": "fixtures/known/unleashed_17_packed_unions.pas"
+    },
+    {
+      "compiler_allow": [
+        "unleashed-latest"
+      ],
+      "id": "unleashed-20",
+      "source": "fixtures/known/unleashed_20_class_var_union.pas"
+    },
+    {
+      "expected_observed": {
+        "*/*": "run_fail",
+        "unleashed-o3-safe-floatfix-001/*": "pass"
+      },
+      "id": "min-fpc-41796",
+      "source": "fixtures/minimized/fpc_41796_absolute_result_min.pas"
+    },
+    {
+      "compiler_allow": [
+        "unleashed-latest"
+      ],
+      "expected_observed": {
+        "*/*": "run_fail"
+      },
+      "extra_options": [
+        "-CpZEN",
+        "-OpZEN"
+      ],
+      "id": "min-fpc-41810",
+      "option_allow": [
+        "O3"
+      ],
+      "source": "fixtures/minimized/fpc_41810_bsf_zero_min.pas"
+    },
+    {
+      "expected_failure_class": {
+        "fpc-3.2.2/O3": "compiler_internal_error",
+        "fpc-fixes-3.2/O3": "compiler_internal_error"
+      },
+      "expected_observed": {
+        "fpc-3.2.2/O3": "compile_fail",
+        "fpc-current/O3": "run_fail",
+        "fpc-fixes-3.2/O3": "compile_fail",
+        "unleashed-latest/O3": "run_fail"
+      },
+      "id": "lab-001-constprop-absolute",
+      "source": "fixtures/minimized/lab_001_absolute_constant_autoinline.pas"
+    },
+    {
+      "compile_only": true,
+      "expected_observed": {
+        "unleashed-latest/O3": "compile_fail",
+        "unleashed-o3-safe-floatfix-001/O3": "pass"
+      },
+      "id": "lab-002-o3-ppu-unicode-pointer",
+      "kind": "ppu_consumer",
+      "producer_source": "fixtures/minimized/units/lab_002_unicode_const_pointer_unit.pas",
+      "source": "fixtures/minimized/lab_002_unicode_const_pointer_consumer.pas"
+    },
+    {
+      "expected_observed": {
+        "unleashed-latest/O3": "compile_fail",
+        "unleashed-o3-safe-floatfix-001/O3": "pass"
+      },
+      "id": "lab-003-o3-untyped-var-huge-array",
+      "source": "fixtures/minimized/lab_003_untyped_var_huge_array_o3.pas"
+    },
+    {
+      "compiler_allow": [
+        "fpc-3.2.2",
+        "fpc-fixes-3.2",
+        "fpc-pre-ea11517",
+        "fpc-ea11517-affected",
+        "fpc-current",
+        "unleashed-latest"
+      ],
+      "expected_observed": {
+        "fpc-current/*": "run_fail",
+        "fpc-ea11517-affected/*": "run_fail",
+        "unleashed-latest/*": "run_fail",
+        "unleashed-o3-safe-floatfix-001/*": "pass"
+      },
+      "id": "mega-001-negative-constant-div",
+      "run_args": [
+        "162784145"
+      ],
+      "source": "fixtures/minimized/mega_001_negative_constant_div_case.pas",
+      "stage": "mega-finding"
+    },
+    {
+      "compiler_allow": [
+        "unleashed-latest"
+      ],
+      "id": "lab-004-o3-byte-record-cast",
+      "source": "fixtures/minimized/lab_004_o3_byte_record_cast.pas"
+    },
+    {
+      "compiler_allow": [
+        "unleashed-latest"
+      ],
+      "id": "lab-005-o3-ansistring-codepage",
+      "source": "fixtures/minimized/lab_005_o3_ansistring_codepage.pas"
+    }
+  ],
+  "mega": {
+    "compiler_ids": [
+      "fpc-3.2.2",
+      "fpc-fixes-3.2",
+      "fpc-3.2.4-rc1",
+      "fpc-current",
+      "unleashed-latest",
+      "unleashed-pre-experimental",
+      "unleashed-o3-safe-base",
+      "unleashed-o3-safe-divfix-002",
+      "unleashed-o3-safe-absfix-001",
+      "unleashed-o3-safe-floatfix-001",
+      "unleashed-o3-safe-bsxfix-001",
+      "unleashed-o3-safe-exitfix-001",
+      "unleashed-o3-safe-u64fix-001",
+      "unleashed-o3-safe-promofix-001",
+      "unleashed-o3-safe-rangefix-002",
+      "unleashed-o3-safe-movssfix-001",
+      "unleashed-o3-safe-audited-001",
+      "moonbot-compiler-beta"
+    ],
+    "dependencies": [
+      "tests/mega/mega_portable.pas"
+    ],
+    "expectation_aliases": {
+      "unleashed-o3-safe-audited-001": "unleashed-o3-safe-floatfix-001",
+      "unleashed-o3-safe-bsxfix-001": "unleashed-o3-safe-floatfix-001",
+      "unleashed-o3-safe-exitfix-001": "unleashed-o3-safe-floatfix-001",
+      "unleashed-o3-safe-movssfix-001": "unleashed-o3-safe-floatfix-001",
+      "unleashed-o3-safe-promofix-001": "unleashed-o3-safe-floatfix-001",
+      "unleashed-o3-safe-rangefix-002": "unleashed-o3-safe-floatfix-001",
+      "unleashed-o3-safe-u64fix-001": "unleashed-o3-safe-floatfix-001",
+      "moonbot-compiler-beta": "unleashed-o3-safe-floatfix-001"
+    },
+    "expected_checks": {
+      "fpc-3.2.2/*": {
+        "1": 6437253,
+        "11400714819323198485": 6438649,
+        "18446744073709551615": 6631184,
+        "2": 6455098,
+        "3": 6625186,
+        "7885642623054963745": 6574502
+      },
+      "fpc-3.2.4-rc1/*": {
+        "1": 6437253,
+        "11400714819323198485": 6438649,
+        "18446744073709551615": 6631184,
+        "2": 6455098,
+        "3": 6625186,
+        "7885642623054963745": 6574502
+      },
+      "fpc-current/*": {
+        "1": 6437285,
+        "11400714819323198485": 6438681,
+        "18446744073709551615": 6631216,
+        "2": 6455130,
+        "3": 6625218,
+        "7885642623054963745": 6574534
+      },
+      "fpc-fixes-3.2/*": {
+        "1": 6437253,
+        "11400714819323198485": 6438649,
+        "18446744073709551615": 6631184,
+        "2": 6455098,
+        "3": 6625186,
+        "7885642623054963745": 6574502
+      },
+      "unleashed-latest/*": {
+        "1": 6437285,
+        "11400714819323198485": 6438681,
+        "18446744073709551615": 6631216,
+        "2": 6455130,
+        "3": 6625218,
+        "7885642623054963745": 6574534
+      },
+      "unleashed-o3-safe-absfix-001/*": {
+        "1": 6437285,
+        "11400714819323198485": 6438681,
+        "18446744073709551615": 6631216,
+        "2": 6455130,
+        "3": 6625218,
+        "7885642623054963745": 6574534
+      },
+      "unleashed-o3-safe-base/*": {
+        "1": 6437285,
+        "11400714819323198485": 6438681,
+        "18446744073709551615": 6631216,
+        "2": 6455130,
+        "3": 6625218,
+        "7885642623054963745": 6574534
+      },
+      "unleashed-o3-safe-divfix-002/*": {
+        "1": 6437285,
+        "11400714819323198485": 6438681,
+        "18446744073709551615": 6631216,
+        "2": 6455130,
+        "3": 6625218,
+        "7885642623054963745": 6574534
+      },
+      "unleashed-o3-safe-floatfix-001/*": {
+        "1": 6437285,
+        "11400714819323198485": 6438681,
+        "18446744073709551615": 6631216,
+        "2": 6455130,
+        "3": 6625218,
+        "7885642623054963745": 6574534
+      },
+      "unleashed-pre-experimental/*": {
+        "1": 6437285,
+        "11400714819323198485": 6438681,
+        "18446744073709551615": 6631216,
+        "2": 6455130,
+        "3": 6625218,
+        "7885642623054963745": 6574534
+      }
+    },
+    "expected_execution": {
+      "cross": 64,
+      "managed_finalizes": 768,
+      "managed_initializes": 768,
+      "peak": 4,
+      "visits": 16
+    },
+    "expected_fact_failures": {
+      "fpc-3.2.2/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-absolute-result-double",
+        "known-int64-float-bits"
+      ],
+      "fpc-3.2.2/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits"
+      ],
+      "fpc-3.2.2/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits"
+      ],
+      "fpc-3.2.4-rc1/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-absolute-result-double",
+        "known-int64-float-bits"
+      ],
+      "fpc-3.2.4-rc1/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits"
+      ],
+      "fpc-3.2.4-rc1/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits"
+      ],
+      "fpc-current/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-inline-shifts",
+        "known-inline-shortstring-literal",
+        "known-int64-float-bits",
+        "known-narrow-compare"
+      ],
+      "fpc-current/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-inline-shifts",
+        "known-inline-shortstring-literal",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "fpc-current/O2": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-inline-shifts",
+        "known-inline-shortstring-literal",
+        "known-int64-float-bits",
+        "known-narrow-compare",
+        "known-negative-constant-divmod"
+      ],
+      "fpc-current/O3-checks": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-inline-shortstring-literal",
+        "known-int64-float-bits"
+      ],
+      "fpc-current/O3-noconstprop": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-inline-shifts",
+        "known-inline-shortstring-literal",
+        "known-int64-float-bits",
+        "known-narrow-compare",
+        "known-negative-constant-divmod"
+      ],
+      "fpc-current/O3-nopeephole": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-inline-shifts",
+        "known-inline-shortstring-literal",
+        "known-int64-float-bits"
+      ],
+      "fpc-current/default": [
+        "known-absolute-pointer-result-inline",
+        "known-inline-shifts",
+        "known-inline-shortstring-literal",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "fpc-fixes-3.2/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-absolute-result-double",
+        "known-int64-float-bits"
+      ],
+      "fpc-fixes-3.2/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits"
+      ],
+      "fpc-fixes-3.2/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits"
+      ],
+      "unleashed-latest/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits"
+      ],
+      "unleashed-latest/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "unleashed-latest/O2": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "unleashed-latest/O3-noconstprop": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "unleashed-latest/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "unleashed-o3-safe-absfix-001/*": [
+        "known-int64-float-bits"
+      ],
+      "unleashed-o3-safe-base/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits"
+      ],
+      "unleashed-o3-safe-base/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "unleashed-o3-safe-base/O2": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "unleashed-o3-safe-base/O3-noconstprop": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "unleashed-o3-safe-base/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "unleashed-o3-safe-divfix-002/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits"
+      ],
+      "unleashed-o3-safe-divfix-002/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits"
+      ],
+      "unleashed-o3-safe-divfix-002/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits"
+      ],
+      "unleashed-pre-experimental/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits"
+      ],
+      "unleashed-pre-experimental/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "unleashed-pre-experimental/O2": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "unleashed-pre-experimental/O3-noconstprop": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ],
+      "unleashed-pre-experimental/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-bits",
+        "known-negative-constant-divmod"
+      ]
+    },
+    "expected_facts": {
+      "known-absolute-pointer-result": "3344556677881122",
+      "known-absolute-pointer-result-inline": "3344556677881122",
+      "known-absolute-result-double": "4122E5313EC2209D",
+      "known-absolute-result-layout": "3344556677881122",
+      "known-bsf-zero": "255,255,255,255",
+      "known-cmov": "-1,17",
+      "known-inline-shifts": "0,0",
+      "known-inline-shortstring-literal": "68656C6C6F00",
+      "known-int64-float-bits": "40E426057258BF26",
+      "known-narrow-compare": "2,1",
+      "known-negative-constant-divmod": "-8567586,11",
+      "known-unsigned-empty-loop": "0"
+    },
+    "expected_failures": {
+      "fpc-3.2.2/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-absolute-result-double",
+        "known-int64-float-literal"
+      ],
+      "fpc-3.2.2/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal"
+      ],
+      "fpc-3.2.2/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal"
+      ],
+      "fpc-3.2.4-rc1/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-absolute-result-double",
+        "known-int64-float-literal"
+      ],
+      "fpc-3.2.4-rc1/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal"
+      ],
+      "fpc-3.2.4-rc1/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal"
+      ],
+      "fpc-current/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-inline-shift-left",
+        "known-inline-shift-right",
+        "known-inline-shortstring-literal",
+        "known-int64-float-literal",
+        "known-narrow-compare",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ],
+      "fpc-current/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-inline-shift-left",
+        "known-inline-shift-right",
+        "known-inline-shortstring-literal",
+        "known-int64-float-literal",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ],
+      "fpc-current/O3-checks": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-inline-shortstring-literal",
+        "known-int64-float-literal"
+      ],
+      "fpc-current/O3-nopeephole": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-inline-shift-left",
+        "known-inline-shift-right",
+        "known-inline-shortstring-literal",
+        "known-int64-float-literal",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ],
+      "fpc-current/default": [
+        "known-absolute-pointer-result-inline",
+        "known-inline-shift-left",
+        "known-inline-shift-right",
+        "known-inline-shortstring-literal",
+        "known-int64-float-literal",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ],
+      "fpc-fixes-3.2/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-absolute-result-double",
+        "known-int64-float-literal"
+      ],
+      "fpc-fixes-3.2/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal"
+      ],
+      "fpc-fixes-3.2/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal"
+      ],
+      "unleashed-latest/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ],
+      "unleashed-latest/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ],
+      "unleashed-latest/O3-checks": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal"
+      ],
+      "unleashed-latest/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ],
+      "unleashed-o3-safe-absfix-001/*": [
+        "known-int64-float-literal"
+      ],
+      "unleashed-o3-safe-base/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ],
+      "unleashed-o3-safe-base/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ],
+      "unleashed-o3-safe-base/O3-checks": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal"
+      ],
+      "unleashed-o3-safe-base/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ],
+      "unleashed-o3-safe-divfix-002/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal"
+      ],
+      "unleashed-o3-safe-divfix-002/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal"
+      ],
+      "unleashed-o3-safe-divfix-002/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal"
+      ],
+      "unleashed-pre-experimental/*": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ],
+      "unleashed-pre-experimental/O1": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ],
+      "unleashed-pre-experimental/O3-checks": [
+        "known-absolute-pointer-result",
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal"
+      ],
+      "unleashed-pre-experimental/default": [
+        "known-absolute-pointer-result-inline",
+        "known-int64-float-literal",
+        "signed-constant-div-binary-oracle",
+        "signed-divmod-recomposition"
+      ]
+    },
+    "expected_observed": {
+      "*/*": "run_fail",
+      "unleashed-o3-safe-floatfix-001/*": "pass"
+    },
+    "id": "mega",
+    "option_sets": {
+      "O1": [
+        "-O1"
+      ],
+      "O2": [
+        "-O2"
+      ],
+      "O3": [
+        "-O3"
+      ],
+      "O3-checks": [
+        "-O3",
+        "-Cr",
+        "-Ci",
+        "-Ct"
+      ],
+      "O3-noautoinline": [
+        "-O3",
+        "-OoNOAUTOINLINE"
+      ],
+      "O3-noconstprop": [
+        "-O3",
+        "-OoNOCONSTPROP"
+      ],
+      "O3-nopeephole": [
+        "-O3",
+        "-OoNOPEEPHOLE"
+      ],
+      "default": []
+    },
+    "portable_reference": {
+      "1": {
+        "checks": 24559296,
+        "digest": "B09E21450D996675"
+      },
+      "11400714819323198485": {
+        "checks": 24711390,
+        "digest": "4E5DC5FDAE26BAC3"
+      },
+      "18446744073709551615": {
+        "checks": 24405788,
+        "digest": "71E0418C96B820FD"
+      },
+      "2": {
+        "checks": 23987571,
+        "digest": "C7B93F45BFD5668A"
+      },
+      "3": {
+        "checks": 24779646,
+        "digest": "BA089DCEB1A7632F"
+      },
+      "7885642623054963745": {
+        "checks": 24226203,
+        "digest": "9DD07F47A72B1D82"
+      }
+    },
+    "portable_reference_meta": {
+      "compiler": "Delphi 12.2 Win64 compiler 36.0",
+      "source": "tests/mega/mega_delphi.dpr",
+      "source_sha256": "899bfc472f1f966367f63e8d316494ab2795b9cc06618d86d62256f910c4e05d",
+      "unit": "tests/mega/mega_portable.pas",
+      "unit_sha256": "4c8b7596e676e4cad1b59abd5c3ef71bbc9da776795cb20f73cc65f339eca541"
+    },
+    "seeds": [
+      1,
+      2,
+      3,
+      7885642623054963745,
+      11400714819323198485,
+      18446744073709551615
+    ],
+    "source": "tests/mega/mega_test.pas"
+  },
+  "mormot": {
+    "probes": {
+      "current-o3-partial-set": {
+        "compile_timeout_seconds": 300,
+        "compiler_allow": [
+          "moonbot-compiler-beta"
+        ],
+        "expected_marker": "PASS value=2 end=0",
+        "mormot_source": "current",
+        "option_sets": {
+          "O3": [
+            "-O3"
+          ]
+        },
+        "run_timeout_seconds": 5,
+        "source": "fixtures/minimized/fpc_current_o3_mormot_partial_set.pas",
+        "source_sha256": "dc9b55c9ab829f2fe43d87cf034764047b6d0f5e46fb6c68106d023e6567a738"
+      },
+      "moonbot-json-decimal": {
+        "compile_timeout_seconds": 300,
+        "compiler_allow": [
+          "moonbot-compiler-beta"
+        ],
+        "expected_marker": "PASS moonbot-json-decimal-default-as-string",
+        "mormot_source": "current",
+        "option_sets": {
+          "O2": [
+            "-O2"
+          ],
+          "O3": [
+            "-O3"
+          ]
+        },
+        "run_timeout_seconds": 5,
+        "source": "fixtures/minimized/mormot_variant_bson_probe.pas",
+        "source_sha256": "f8c4e03e7a3cafcb4c486855ce6dbed751760ac6e84eea7abfd23638436fa063"
+      }
+    },
+    "sources": {
+      "current": {
+        "compiler_allow": [
+          "moonbot-compiler-beta"
+        ],
+        "expected_qualification_failures": {
+          "*/*": []
+        },
+        "memory_manager": "../../runtime/mm/mormot.core.fpcx64mm.pas",
+        "path": "../vendor/mormot-product",
+        "static_dir": "../vendor/mormot-product/static/x86_64-linux",
+        "static_manifest": "fixtures/mormot-static/x86_64-linux.SHA256SUMS",
+        "test_commit": "38874e16c03373a5275b959fdb1cc38d5597f67f",
+        "test_path": "fixtures/mormot-2.3.8832/test"
+      },
+      "compiler-corpus-2026": {
+        "commit": "bc189414f1b9ea163d24029cc8e814405e8e0cb5",
+        "compiler_allow": [
+          "moonbot-compiler-beta"
+        ],
+        "expected_qualification_failures": {
+          "*/*": []
+        },
+        "memory_manager": "../../runtime/mm/mormot.core.fpcx64mm.pas",
+        "path": "../../.qualification/deps/mormot2-compiler-corpus",
+        "rtsp_ports": [
+          "23999",
+          "23998"
+        ],
+        "static_dir": "fixtures/mormot-compiler-corpus-2026/static/x86_64-linux",
+        "static_manifest": "fixtures/mormot-compiler-corpus-2026/static/x86_64-linux.SHA256SUMS"
+      },
+      "historical-2023": {
+        "commit": "da0ffb987d00303fd9140099e7bf22dce1641f33",
+        "compiler_allow": [
+          "fpc-3.2.2",
+          "fpc-fixes-3.2",
+          "fpc-3.2.4-rc1",
+          "fpc-current",
+          "unleashed-latest",
+          "unleashed-pre-experimental",
+          "unleashed-o3-safe-base",
+          "unleashed-o3-safe-floatfix-001",
+          "unleashed-o3-safe-varfix-001"
+        ],
+        "expected_compile_diagnostic": {
+          "unleashed-latest/O3": "test.core.base.pas(539,5) Error: (4037) Typecast has different size (256 -> 2147483644) in assignment"
+        },
+        "expected_failure_class": {
+          "unleashed-latest/O3": "compile_error"
+        },
+        "expected_observed": {
+          "fpc-3.2.2/*": "run_fail",
+          "unleashed-latest/O3": "compile_fail"
+        },
+        "expected_qualification_failures": {
+          "*/*": [],
+          "fpc-3.2.2/*": [
+            {
+              "assertions": 7001,
+              "failed": 3969,
+              "method": "relay soa callback via binary websockets"
+            },
+            {
+              "assertions": 7001,
+              "failed": 3969,
+              "method": "relay soa callback via json websockets"
+            },
+            {
+              "assertions": 4646,
+              "failed": 2646,
+              "method": "soa callback on server side"
+            },
+            {
+              "assertions": 7000,
+              "failed": 3969,
+              "method": "soa callback via binary websockets"
+            },
+            {
+              "assertions": 7000,
+              "failed": 3969,
+              "method": "soa callback via json websockets"
+            }
+          ]
+        },
+        "path": "checkouts/mormot2-historical",
+        "static_archive": "cache/mormot-releases/mormot2static-2.0.stable.tgz",
+        "static_archive_sha256": "908a746562018c7db13fce29d8b19f11393dbeedde16a597797cf308ed758f52",
+        "static_dir": "cache/mormot-releases/mormot2static-2.0.stable/x86_64-linux"
+      }
+    }
+  },
+  "option_sets": {
+    "O1": [
+      "-O1"
+    ],
+    "O2": [
+      "-O2"
+    ],
+    "O3": [
+      "-O3"
+    ],
+    "default": []
+  },
+  "primary_compilers": [
+    "fpc-3.2.2",
+    "fpc-fixes-3.2",
+    "fpc-current",
+    "unleashed-latest"
+  ],
+  "schema": 1,
+  "stable_reference_compilers": [
+    "fpc-3.2.4-rc1"
+  ],
+  "upstream": {
+    "clean_timeout_seconds": 600,
+    "compiler_allow": [
+      "moonbot-compiler-beta"
+    ],
+    "expected_outcomes": "research/upstream_expected_outcomes.audited-001.json",
+    "delphi_contract_exclusions": {
+      "test/tcpstrconcat4.pp": "the FPC-specific RawByteString destination oracle conflicts with Delphi 12.2, which converts both same- and mixed-codepage typed AnsiString expressions through DefaultSystemCodePage",
+      "test/cg/tint128constfold1.pp": "FPC UInt128 and Int128 extensions are outside the Delphi application contract",
+      "test/tsetsize.pp": "legacy FPC set-size oracle conflicts with the measured Delphi record ABI",
+      "webtbs/tw41827.pp": "TypeInfo(expression) is rejected by Delphi 12.2 and is outside the Delphi application contract"
+    },
+    "known_deviations": {
+      "O2": {
+        "webtbs/tw40453.pp": {
+          "failure_class": "compile_error",
+          "first_diagnostic": "tw40453.pp(14,18) Error: Definition System. from module system.pp registered with current module webtbs/tw40453.pp",
+          "observed_result": "compile_fail"
+        },
+        "webtbs/tw41282.pp": {
+          "failure_class": "compiler_internal_error",
+          "first_diagnostic": "tw41282.pp(9,3) Fatal: Internal error 200409241",
+          "observed_result": "compile_fail"
+        }
+      },
+      "O3": {
+        "webtbs/tw40453.pp": {
+          "failure_class": "compile_error",
+          "first_diagnostic": "tw40453.pp(14,18) Error: Definition System. from module system.pp registered with current module webtbs/tw40453.pp",
+          "observed_result": "compile_fail"
+        },
+        "webtbs/tw41282.pp": {
+          "failure_class": "compiler_internal_error",
+          "first_diagnostic": "tw41282.pp(9,3) Fatal: Internal error 200409241",
+          "observed_result": "compile_fail"
+        }
+      }
+    },
+    "jobs": 27,
+    "note": "Run the upstream compiler test suite from the current editable worktree.",
+    "path": "../..",
+    "test_support_options": [
+      "-Fl/usr/lib/gcc/x86_64-linux-gnu/13"
+    ],
+    "timeout_seconds": 1800
+  }
+}

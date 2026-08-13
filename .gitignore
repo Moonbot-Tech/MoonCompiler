@@ -94,6 +94,12 @@ symbol_order*.fpc
 /utils/fpmake
 /utils/fpcm/fpcmake
 units
+!/qualification/suite/fixtures/known/units/
+!/qualification/suite/fixtures/known/units/*.pas
+!/qualification/suite/fixtures/minimized/units/
+!/qualification/suite/fixtures/minimized/units/*.pas
+!/qualification/vendor/mormot-product/src/*.res
+!/qualification/vendor/mormot-product/src/tools/*/*.res
 /tests/createlst
 /tests/gparmake
 /tests/output
@@ -110,3 +116,5 @@ units
 bin/
 fpmake
 packages/fcl-db/tests/database.ini
+.moonbot/
+/.qualification/

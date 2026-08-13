@@ -1,0 +1,1418 @@
+{
+  "schema": 1,
+  "tests": {
+    "fpc-39890": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "2663cf98681457f89ee6ae3bfb6964580b4167b181b2815c9bba4e3161997d9a",
+        "issue_iid": 39890,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/39890"
+      },
+      "oracle_kind": "compile-success",
+      "provenance": {
+        "source_sha256": "5a64ba955bedd157c88fa0def3e455787cbc87e75f6cb443152cda53617a1a92",
+        "spec_sha256": "f6fbc20d3fc613d2bab73a6197eac2e354d54ab9dc251e6dcc4656cba3a43a75"
+      }
+    },
+    "fpc-40212": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "d1b4ef5779b20266d06a437db478ddff4ca94be3a71f524c1fb1d3d2d59c4b0f",
+        "issue_iid": 40212,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/40212"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "ec96bba3702162ebf806e109e1c3ec35bf3180bb4bafe9b0d49c1a5f8f565b80",
+        "spec_sha256": "ff5faed494c7033c692f53873a42e18b0e1846695c9a02c05aa6f0c3c8dd530e"
+      }
+    },
+    "fpc-40661": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "5190e6e23a80339193bb7467e6b2e5b5900480820cbd08c5a57cbb06f3357f05",
+        "issue_iid": 40661,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/40661"
+      },
+      "oracle_kind": "compile-success",
+      "provenance": {
+        "source_sha256": "c5e1e9ca368a6c09465c1f088f7ff4777324331a56cc65b4df475664311c194b",
+        "spec_sha256": "cde97ca5032c68f37ac2fa9f6cfd9b96e410686692dcca7d962d4b85938aadbc"
+      }
+    },
+    "fpc-41126": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "079d878ace3fcc6cd6d0cfd39a68eef7306db00aa1e668f6d042161c5f2d94b5",
+        "issue_iid": 41126,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41126"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "82e207d59740b1f8dea5914bb5e7df541dcff86ff8343c6523705c3de15d6fce",
+        "spec_sha256": "40d0e02b4562075dd66309f93f4dab906dee364c5d476860dab3572d689c46a5"
+      }
+    },
+    "fpc-41184": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "7a49e9a4adf93f24f8c3c292395cda8078f83cd0680e59b92f47ad7338f2f235",
+        "issue_iid": 41184,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41184"
+      },
+      "oracle_kind": "compile-success",
+      "provenance": {
+        "source_sha256": "ad75a3e3e94c09427f3516b4171328d12a23adba5d306fb92869a957cb359d00",
+        "spec_sha256": "41b4d3b9ea2307b280ee0ec74414004c9603c35b8e17537246ca97586a7b90ae"
+      }
+    },
+    "fpc-41317": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "a845c924ade0f15b9327005aed15278480b58e6e76f8fc9842f74ace2a67eee7",
+        "issue_iid": 41317,
+        "issue_state": "closed",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41317"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "58b852f3f6ff20402824fb3a652fde61799d8f790224e8a97dfc34ce51623a82",
+        "spec_sha256": "a500137202a1811f4629b25158c38dc6cecc648ad1110491c55809913a36e63f"
+      }
+    },
+    "fpc-41346": {
+      "acceptance": {
+        "diagnostic_contains": "Forward type definition does not match",
+        "failure_class": "compile_error",
+        "observed_result": "compile_fail"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "a3851baa2001d3679a59fc877ae91b444dc71ebccfbae6e12f84f1d046bfa7f6",
+        "issue_iid": 41346,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41346"
+      },
+      "oracle_kind": "clean-diagnostic",
+      "provenance": {
+        "source_sha256": "538954aa06ec6f8633418d486e40585ec1ee1fe5db5c4f48a4e7c75ebb1bf90c",
+        "spec_sha256": "9b168ec8978fd37d6737c743eee1d68bce53e2cb947d4a3ffb1eecaa0ff0e844"
+      }
+    },
+    "fpc-41410": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "ff68cd418246901b0708884fb57f5c58710e8b07fd68d9b43097bd422417aef7",
+        "issue_iid": 41410,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41410"
+      },
+      "oracle_kind": "compile-success",
+      "provenance": {
+        "source_sha256": "e1a82d8d42084507ec0755c4711e3fe050c66dfd4d219c8ea3586317bc164ce3",
+        "spec_sha256": "ed9d1ae53edf578cd74be7aa18ce28fbd1da3490e74142c3df4dfbd0d2881b96"
+      }
+    },
+    "fpc-41419": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "3cbeeaf15b88e94b329adc1a88824787f600d39ddf0249710391d5c36b1a42f9",
+        "issue_iid": 41419,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41419"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "d9778ba4d593ea504d3e613090a9e61d824e12a38a331594f38b7f45ca08312b",
+        "spec_sha256": "6b87a6b4b1b4cc19499c373583eef72d6f41cae3f83238daeb73aec770543a60"
+      }
+    },
+    "fpc-41431-attachment": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "61e8ff9dd71312a17ca9e66a66c3b122efe4edea470d712231a65a9211b92f9a",
+        "issue_iid": 41431,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41431"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "spec_sha256": "489716d3b671af2611576b5c320dc3a612ed2dc5cef6b9a8cf0c34896bbd1539",
+        "source_sha256": "c0f16cd3b056f66c17b3ffc9142a102060d8ccc3fc2af24ed436340002cf3aae",
+        "producer_source_sha256": "f49efc44eaeafa821d58289e8503b5eddd1f2ef040e46e2a8b43aa10c25a4a95"
+      }
+    },
+    "fpc-41447": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "ce3063b307651a7438742d515c1c69931212ee13fa25546050065538f59a4c4f",
+        "issue_iid": 41447,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41447"
+      },
+      "oracle_kind": "compile-success",
+      "provenance": {
+        "source_sha256": "8907de28e6131db5bb032aba360298cf427ee445d45ed902564abb156f6d9edd",
+        "spec_sha256": "ab5e551f46243bbc4495a180e28bd61c0ae29274d8cc69943e5af2b9a66c9239"
+      }
+    },
+    "fpc-41451": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "adapted_source_sha256": "62e625c39497adab7c3be32fb9ccd4fb3ee6ce90a98908a967992ec345f01559",
+            "kind": "delphi-12.2-win64",
+            "path": "research/delphi_fixture_oracle_probe.json",
+            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+          }
+        ],
+        "issue_description_sha256": "48b09833652b72a371a911dd62cd71ecb46777821fa3659db72a9b31aa6ff0fd",
+        "issue_iid": 41451,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41451"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "5c9fb44fd99fd680c96994da1f8c388b7756c74cb97526516f71dbb2388eaa3b",
+        "spec_sha256": "04dff371f30c7f5f93972055b20be6464d95a3d899036b225d169a8eedd0fabf"
+      }
+    },
+    "fpc-41456-attachment": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "0b2ca7eebb5b75744faea5faeba6ccb12276b8e60590d1130eb0f53332973245",
+        "issue_iid": 41456,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41456"
+      },
+      "oracle_kind": "ppu-compile-success",
+      "provenance": {
+        "spec_sha256": "71cfaa032e9a8e1150b0c92de2394b83aaa2671604fef213727c600b895dcf5d",
+        "source_sha256": "ff7bd35660dde25740289f23b01fa8cf701a8e116afda05df59049319cc2965a",
+        "producer_source_sha256": "3481e9e524e3f2f1800caf5c7f7eedfbd4f507d577ead8a4e86b8dabae416e44"
+      }
+    },
+    "fpc-41480": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "bee052dc4725bb4ce886648bd5218eb5f9e6d6a396aeb5679aacdb164a6606ea",
+        "issue_iid": 41480,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41480"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "1aa84b014ecfa7ed617933fbd307837313d79979f3542bbcfdc7121c999f41c9",
+        "spec_sha256": "a40afaedd6613f9eceb1df0b370ab5204a14234d54e1c6915fc0a61ed5cac94c"
+      }
+    },
+    "fpc-41485": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "5c0ea020e7a3f33001f38614e124c5f1765543b8992ce620fe56f6adb3b1bd52",
+        "issue_iid": 41485,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41485"
+      },
+      "oracle_kind": "ppu-compile-success",
+      "provenance": {
+        "producer_source_sha256": "8c9e2a6b22475aaba039fe576c3c73b7fc0878dc78bb31257168e6c5d5e4dde5",
+        "source_sha256": "101e47ef5e9e9a9439fb4e27e635f877fed2f677939698b09f9705b53b76d398",
+        "spec_sha256": "a5c11663362b2c71d84b6649947b77c5bbd21010f88d6c0f69df851e542b704a"
+      }
+    },
+    "fpc-41497": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "684a05b10961ba609ecc3877ef81fb4543d4682461a24e2c578261ddb2a7d06f",
+        "issue_iid": 41497,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41497"
+      },
+      "oracle_kind": "ppu-compile-success",
+      "provenance": {
+        "producer_source_sha256": "d8977c9460490bf4f8a8c2c61b20163a8edc2c195251db2da0c07812fcf780a0",
+        "source_sha256": "4ab3e38974f30cc453833c48768bc67ef2938ba4549d5533a2df6231fa1dcd86",
+        "spec_sha256": "8130f4996ef49c0c98e89f3b12b164c5378c92f21c61d603eacc2017b5dd8585"
+      }
+    },
+    "fpc-41541": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "407d62c8097ad41e2af408369b10f1ebae0a2f555f2c26ba4b2db1804979e5ff",
+        "issue_iid": 41541,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41541"
+      },
+      "oracle_kind": "ppu-compile-success",
+      "provenance": {
+        "producer_source_sha256": "fed35520ef96d61cf28c9371d38b18f00cff239b7e553bf1c425c6498e97eb77",
+        "source_sha256": "740148e4a00d68ecdd700dec2d00323237901cfcde32082715abb2ab4eabefd1",
+        "spec_sha256": "5258591cb21c616e57382e3b6e1dd4bf5f535c084753035f2511bc19f5c8efdf"
+      }
+    },
+    "fpc-41544": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "c000c520b2feefb579464883b060269cd3b1540ea63fa9727b91a2be7d717852",
+        "issue_iid": 41544,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41544"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "63d5fde13354ec15e3bf281df13edba757133e368dfccfc89cab8a63ccebb8f2",
+        "spec_sha256": "d01e538f4ce9b3f9afc4ad90387164937b205bff8a3b3232dbb336f85b67dbc8"
+      }
+    },
+    "fpc-41554": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "31780e461c6fe560ed64f6f4a6affac59cb4a077d48e94f9693a9423e3ce7671",
+        "issue_iid": 41554,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41554"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "572190c5a7cd04dbb275e02459a52d248351d9b25a15e93fbf531bfcd57a6c36",
+        "spec_sha256": "730ff2c5f2d5bdb08009bf4057eff18c4f383bd87fb73139d16fb85e608ae5d5"
+      }
+    },
+    "fpc-41558": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "adapted_source_sha256": "f126145d4f5d1c59826da547cd2bc5cfcdf9a3ed41b21c295f77c3f68b9d08cc",
+            "kind": "delphi-12.2-win64",
+            "path": "research/delphi_fixture_oracle_probe.json",
+            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+          },
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "e5119456e1610e794f883e9b8d3f73924c4027b54aa1761e0c40c0e2a43aa4e5",
+        "issue_iid": 41558,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41558"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "28d04da6dd8164b178b08bbae5a57daad4dcdf9cfbd2fc251a7bd15550ea8d28",
+        "spec_sha256": "79fac13552df3fe42f1554f5ea78c4b260c0fe2746b380aa28ac0efe15544433"
+      }
+    },
+    "fpc-41564": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "adapted_source_sha256": "a2f0111ec37fd13525c09daf32b3ed33ad225333428f892a52f8527443e7e6e4",
+            "kind": "delphi-12.2-win64",
+            "path": "research/delphi_fixture_oracle_probe.json",
+            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+          }
+        ],
+        "issue_description_sha256": "54a6df096d1e4b27247cfffcaa10fff7758bc3316f2daf7d09860d7b22066f07",
+        "issue_iid": 41564,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41564"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "2c4257c9c789d424ecdf72ab708c5c12d4731bf52cdd1d6b20b10612a7657aa9",
+        "spec_sha256": "bae55b98472bb66fa05dcbeea6b6f24f29ed89d6e67081358a9d736f07455d27"
+      }
+    },
+    "fpc-41579": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "25bb84ab533a58497f8b9a61f6cfd9063ae8364d1cf5a9129f1a3768e9ad25f5",
+        "issue_iid": 41579,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41579"
+      },
+      "oracle_kind": "compile-success",
+      "provenance": {
+        "source_sha256": "6cb9585f29a8e7342803c09ebf8b288beb64252159725fdefb84b4f2c632f79a",
+        "spec_sha256": "cf62a3b2579627588975170812bcc90c17cd7fe1e97a1426f2bb1a4444d102d2"
+      }
+    },
+    "fpc-41581": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "ff307675921e10f53e1f2619b9e9958e1c2b5656baf5278e2063ac645fd87821",
+        "issue_iid": 41581,
+        "issue_state": "closed",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41581"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "d43a174f06819dbe1d417c7b7e975ca42abd319184964dd5c859e3f0074a82f9",
+        "spec_sha256": "f1cd34ff63baf85d53c94e8dde201e2ee01d2c415b0a2773f9e18f0ae795a488"
+      }
+    },
+    "fpc-41589": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "adapted_source_sha256": "9b5648a99fc9201478a1be37827b69eda12597ee73f7d69f3332487901e93478",
+            "kind": "delphi-12.2-win64",
+            "path": "research/delphi_fixture_oracle_probe.json",
+            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+          }
+        ],
+        "issue_description_sha256": "a4f85df94e668eb43fdcdb598c7ad1bb6a668e03094e8259343c6353c3040509",
+        "issue_iid": 41589,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41589"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "3098fdcf4e054040c424f631535fd38e6a2ef767c5e424256c0e7dc96f1016cc",
+        "spec_sha256": "e361b47d862618160a0598229b4a201b41dd33c278adc6dcc3dc1f20dcdf4987"
+      }
+    },
+    "fpc-41594": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "3749d4bedc7593b3946a6816fc5489666e1500ae876ebf54ea2073bbfcd20e12",
+        "issue_iid": 41594,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41594"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "2be5a470baecf91772a8d00c05b373dadd3804e191b950fad166e68d3e76fda6",
+        "spec_sha256": "8e0eac1cd160776fc39308eaeb3be84702336f16340abee43497ac807509e5aa"
+      }
+    },
+    "fpc-41598": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "dd79f947b544546c5b475b8d3ff0a2e082334e2fce472d6ed47e23dcca8d986b",
+        "issue_iid": 41598,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41598"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "b13ba16b7dac19ee1412d10e0acb41cde322f34045c025cce57a56f3009400d8",
+        "spec_sha256": "5fbd7b5c70b85cd37f8d7a71d93b8dd28f144d17f37752a18ab4f22e8c25222a"
+      }
+    },
+    "fpc-41612-bug1": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "96ee574d976ab254b2cd267efc808308478388659d74f002abfbfa6b6fa060a6",
+        "issue_iid": 41612,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41612"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "9124e7d03f0573d4ca434786b56b0fa10e89ca4f4daf965669ea66b207d83259",
+        "spec_sha256": "1b571637ae85cd6943511b18ba064334a4a2beb6fb08ba7c79f5b713d8014500"
+      }
+    },
+    "fpc-41612-bug2": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "96ee574d976ab254b2cd267efc808308478388659d74f002abfbfa6b6fa060a6",
+        "issue_iid": 41612,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41612"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "5f13ddd5e3a1881371f5a8d37711a90d844cff2e9e96bdfd600fb71184eb3b0a",
+        "spec_sha256": "1468e452fd633108887a3b73f8be95e31c93032a984c204b55c1d77ab3a225d4"
+      }
+    },
+    "fpc-41612-bug3": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "96ee574d976ab254b2cd267efc808308478388659d74f002abfbfa6b6fa060a6",
+        "issue_iid": 41612,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41612"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "abc1714d84f0a1e66de103044554c6fa990fe9b1b8c2ab458ea6dc4286b2c8a5",
+        "spec_sha256": "f1c8ecad96ede51affc63df391674ed9084b24c0ad752cb692ac8b6f3c01e92b"
+      }
+    },
+    "fpc-41614": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "306867fb23c50d253571d7e2592be6a331201b9bc35a7467032c65d6752b56b1",
+        "issue_iid": 41614,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41614"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "0bd127e4dc798b7a4831f1c66b811787f6ee871f1594ca5db18761257af49944",
+        "spec_sha256": "090fbd5263109c2d2ac578b05da3d711362d7c03044cff12f6de2d5297e3a87d"
+      }
+    },
+    "fpc-41630": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "da6d1e3362d4a5ca823c2b581a1774df292868b6303a94b293c0b7782a7155a9",
+        "issue_iid": 41630,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41630"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "287c1a04ac9b19ce1f0493c21beff73f29602cfe41ebed191814b4aefa9139db",
+        "spec_sha256": "d220f17caabfa1d33deb29c48d8fcca62d0714e5f38577ab94816b94a98d2b99"
+      }
+    },
+    "fpc-41678": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "ce98f30c9e528b1232de9adf5c64cbbe991f2c827ef55490b5dd4282c53a8096",
+        "issue_iid": 41678,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41678"
+      },
+      "oracle_kind": "compile-success",
+      "provenance": {
+        "source_sha256": "fedb0bcd6f81fb7ae4b38d52491ed2b08e6af43d97b9e2fc7d0e4869641f438a",
+        "spec_sha256": "c53469a6ccbe80cd9af792e18601df240bfd0053d02b8b1b55baab5e37f00cbe"
+      }
+    },
+    "fpc-41679": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "713a267554a3a31419cf23534f66338bdf9c7174baae2224fd41d6ebeed09500",
+        "issue_iid": 41679,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41679"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "729ff534af26fd9dff3deff9d8e2a9ef305dc2fc41400de40b6f6f20458fc57e",
+        "spec_sha256": "716b7d5e0f413fd195c2fe618036a4e50e2a9a65f2865ee4703f1297ef165b42"
+      }
+    },
+    "fpc-41696": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "b6eea2b2c43682489c220f1ac96d0c9a01ee2cceefccf1eaeab9269c53a1dc5a",
+        "issue_iid": 41696,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41696"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "3c9544aeee317bf1365a9e6a7a5d67043a510c52a2eec00539ad15c96217c4dd",
+        "spec_sha256": "6ceacdfee2d797aceb913605c6502ad6f1a25e0c3db5d1105a18f873fc188da0"
+      }
+    },
+    "fpc-41700": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "8e8202889bb2ba7835a9256376000e9b400fa3a87579d356321ae405395d8c8a",
+        "issue_iid": 41700,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41700"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "c811d7a950c8509e987d9594c450bee3d2b1061ca80df504ce55444749abeafc",
+        "spec_sha256": "b1891ab0982e617424c6a38cf7172b9a562776d439e876e55a68fff949dc2dd4"
+      }
+    },
+    "fpc-41702": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "95c82ec6d75171fbae5ff24dad5590642f51acb2c34db47c80a3da22c1c133d5",
+        "issue_iid": 41702,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41702"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "b8ea2b6046b25dc3cf3f6f84adc42689f64b9d6449c6954d737d7b31f9998cae",
+        "spec_sha256": "3f2ab22009c7b487a2c4a5d5bc7e028ce9438f71d6040e02a4a03a82511903fb"
+      }
+    },
+    "fpc-41704": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "31aa46bf2d99e91d1a94f6e1612690d99eb7c6bcced3fac2c0b199656390b365",
+        "issue_iid": 41704,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41704"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "a3660bee9db8f13570c4581334dffa8e399b98c809f1308f3f2dadbd4c88492f",
+        "spec_sha256": "18f510e867dda434cfb0889b50167a3e9d3e1b1aff0b56253ee8a926034987e9"
+      }
+    },
+    "fpc-41711": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "adapted_source_sha256": "a0ecf750d88f92fee3601df775dd6b0ad33c2bdef125e2838446daf9667255f7",
+            "kind": "delphi-12.2-win64",
+            "path": "research/delphi_fixture_oracle_probe.json",
+            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+          }
+        ],
+        "issue_description_sha256": "979f387df0dc70c5357baf0200fc4c960abd306a82733d7e7616c74c245d8a61",
+        "issue_iid": 41711,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41711"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "15c07659afcfb7d523dbf1e65c42d1e9f8fa50f2fb6d07e3fbabacc93655e1a3",
+        "spec_sha256": "4730206cbf701a46465694f3bf6f2f597483b15b1cda094bea5f61052f7d480f"
+      }
+    },
+    "fpc-41712": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "5458dce6a3e484ee1251a42f70d3797d572879722c3ea8676e459a4a45019f98",
+        "issue_iid": 41712,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41712"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "654f725c47abe8427044da3c1b75fdb832af71212ba77a2e6a34cc708f971b1d",
+        "spec_sha256": "202b82d45f93221d79c4202aaf2a16ae1bbf3dc2273b6f62f21e8036dc9988f0"
+      }
+    },
+    "fpc-41741": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "77517c4d576abd3087f4aded68cfda39aca46e4c656ad04d0d3bee54f3668876",
+        "issue_iid": 41741,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41741"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "26770bdcf390335b1d088de2586b3982d49e9c38b0f623f3c985787aab7437bf",
+        "spec_sha256": "51e908a4b3fa335ea77a6485dbfa4174d01cbecfeb5162a10d061e24217b2e50"
+      }
+    },
+    "fpc-41761": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "abf42ec82876df76153b782252684f155e86ed4b6bc8548bf62dd8f6f69d520c",
+        "issue_iid": 41761,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41761"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "producer_source_sha256": "ba60fa9de4dce725fa8d5931bd148a3186631239bdcaddaeb2ae28a7cb5590ec",
+        "source_sha256": "fcaf577801e5391ca5e40273646e93942866e8108a226ed5c032c64afc1928b7",
+        "spec_sha256": "0b3a6847420cc98d11c3710811b8bbf2edbce1c3424d48c3fbbd6841283ebd4e"
+      }
+    },
+    "fpc-41766": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "20b82a88b4d8b5989209b826d69e594f26c63768a26dd41a95c2f279bbcd788b",
+        "issue_iid": 41766,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41766"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "52f8f5e48c994084726b2bd5210e6a042ce56daf88d7ddc69c70dc3bf325783c",
+        "spec_sha256": "287c31413f6bad66319b6bed61ee4be8574d30a48417dbcdd4024ba144e3c2e6"
+      }
+    },
+    "fpc-41770": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "f08c921e6b53ebbc3b9259d2c7ea33dd91d0aba864f3161c8fd56e2b0f453b25",
+        "issue_iid": 41770,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41770"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "9d5f466d71228e9ec5fe8a3adb6f5062f1b1568921b1422ac94bc997605c3bb4",
+        "spec_sha256": "9ea0651df6e4f2b9d66a68ba0ae6ef6efbf16a6bd8c957113aaf98782fce3ce6"
+      }
+    },
+    "fpc-41781": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "bbc43d4b42f3765458ee870b3760cfc95464a7e61440f0adc458ad725ed9f956",
+        "issue_iid": 41781,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41781"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "2d90926616476eeb2cdec0350460fa28faa617a53bc02f8cab8f63022c1f02ce",
+        "spec_sha256": "0bbe7991bc54aca8b9a3652d0420a23660f50a2894bf505b0d5e9a522f7be30a"
+      }
+    },
+    "fpc-41788": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "44cd4649edeb63f574793f94636932051b39fb1b056eb6c3d387fd21bab53a89",
+        "issue_iid": 41788,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41788"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "b8a82a6261cdf1f1059aeae5c872b7c669aed551a3904f2afa598fcfd1b2644c",
+        "spec_sha256": "84930505ed540f9328e0c357272198294b8ae2466c88d5810ff69fcbc62f599a"
+      }
+    },
+    "fpc-41794": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "7c8465d2c7fc43e9388638c556d14f927fdd607c2c5ab70dcf62e1f142fbb2c6",
+        "issue_iid": 41794,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41794"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "2afcf7ec64cc7adfc0359e51a405f766e794933683af6c366c888c70a795da07",
+        "spec_sha256": "eabd5193f31014a0ddda6076e4d0be2f1febb635570b6af8a0cc0f0f4b127c0b"
+      }
+    },
+    "fpc-41796": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "d0ce0632849a1879117c90bf51c841a136251052aaafe26aef4b4803d315bda3",
+        "issue_iid": 41796,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41796"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "4af87bce4ea3680e515d9eba306475ea0f1e9ba68b4ad4c2eaf75069cf5699d5",
+        "spec_sha256": "f13898b20f8536f26ce71b0094a2be9a252aa5d1f1ad1b0a9c4d2da2ae4760b7"
+      }
+    },
+    "fpc-41805": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "f70641aa3d78c488ca662bd50a16cb9c5f513dd9c9a7bf1b8fbba0d522dca9ba",
+        "issue_iid": 41805,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41805"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "06d70b94fea565e6ff00ee71d3c444b688ee5d5ae8684c9ddf50822ad8f4e76a",
+        "spec_sha256": "e9c17c4838558edb533e9d628af319c10c4ba4b6576bbfbbe24355f2862e6e83"
+      }
+    },
+    "fpc-41808": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "adapted_source_sha256": "c07fecfe1832e358342eb38b975b4def55616b3fa630d1554889d9088374e142",
+            "kind": "delphi-12.2-win64",
+            "path": "research/delphi_fixture_oracle_probe.json",
+            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+          }
+        ],
+        "issue_description_sha256": "2ccb01febcbeb1d85d06a5323a881f7c6b98deb63cfbc0f4197453e2dc2c890c",
+        "issue_iid": 41808,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41808"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "49fabd1ec0bf53eb200b3d186283169c46571f29001d8e78581ad1cbc0d05282",
+        "spec_sha256": "f8ea5d885264f25798d19d3261a34f4d56cfa517e9e90598c43fc080a23d317a"
+      }
+    },
+    "fpc-41810": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "937350976f28cfb93aac4a3205872031b640142a4983f053e0ee7265abde070f",
+        "issue_iid": 41810,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41810"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "b7526a4d66631dca721e52c0276d7f3be0a81468ae6c30f6f4fb6cdc298af2f2",
+        "spec_sha256": "4697da3557ad8942735efda38320491b0b4ae84b0de3ed0729e3b1f07b47e62f"
+      }
+    },
+    "fpc-41811": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "e7eb8d87f5a3f35fbea2d2fb7f89929b6f859a1689476cbdfd80e71725c9d517",
+        "issue_iid": 41811,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41811"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "74aadbd59f46e9eb617519c63cbd04d417480d2d522e5e1a7ffe6020ff35ea1c",
+        "spec_sha256": "3e90d3d1377b462111f13f59e5ce9b058fdfa132eff6ef388b7a8828df60693d"
+      }
+    },
+    "fpc-41813": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "d31565bbcba6a5d9fae343d947b77eb1a1d7e0681f90a3cf7b8d098f73ad18ed",
+        "issue_iid": 41813,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41813"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "578b9cb7021a36554f7f3ae2e4fae1a8db10bbef855e10e1d801a06161c81015",
+        "spec_sha256": "de521c915d0c1bfccf230b340c7c92f9f23d203bfb63cdd54a5913411d672b4a"
+      }
+    },
+    "fpc-41820": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "64598bc4b615716368f93f5187413beaf519eb35602120d6c88d47f96ffa9506",
+        "issue_iid": 41820,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41820"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "371c461ede6dce73b7bc8bde24935d96b7d1c2b1b1fecdd8c5bb171615b6498f",
+        "spec_sha256": "fefa407001eee3b4a1a85e273ee8aa277b2c8df0cff00f783d02d0d5636bd586"
+      }
+    },
+    "fpc-41824": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "9f2e0f91cee02c04bbc768e308db0b8f75b96d63cc87fc2257689ddc8d2ac8ba",
+        "issue_iid": 41824,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41824"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "d0763b78e50317f206175fd8da101d7637046061f3f9772c926119cc81347b5a",
+        "spec_sha256": "8c256079c6689b48f939bdf41de0976a31f5284b21f263c73c22cddbc6a2a8c2"
+      }
+    },
+    "fpc-41828": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "54f1ccf38b4242783f84ccf3d3a8fec5f9112d6806af943c4a43c55395caec5a",
+        "issue_iid": 41828,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41828"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "af4a5477ebe8b5a4a773f3750a29d38a4057ab8e791e8e58e76751cc7f831afa",
+        "spec_sha256": "b488f80cbbe7950b757684dd0cb0cd94050569a99c6a965273a2c586ed0ecf38"
+      }
+    },
+    "fpc-41834": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "9fc32da615200e29b66128d04f12bcc3dbd2eae7d6b98005048e86fd7b4f34e6",
+        "issue_iid": 41834,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41834"
+      },
+      "oracle_kind": "compile-link-run",
+      "provenance": {
+        "source_sha256": "a88d5228ecbb96e41f94b8f16ba2ed399e4f8c1a7af7fbda068fafb97f963ae9",
+        "spec_sha256": "d451f1cbdb20d7c331fd983bc278393f1075308de0c771cb955160ca52aecd9c"
+      }
+    },
+    "fpc-41836": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ],
+        "issue_description_sha256": "42e8ea8b2d381c05c89c49e8dedb17053fa4852e900cea203cc745dcf8f11275",
+        "issue_iid": 41836,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41836"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "46beba219e7625485579a0804ca927b3feb01215c3116cc32d2eaf8eff9a6820",
+        "spec_sha256": "496ac5eaa64ff3e217872cb7259fe7edb76387791efc6e0a080086abb40bac13"
+      }
+    },
+    "lab-001-constprop-absolute": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "lab-reproducer",
+        "independent_references": [
+          {
+            "adapted_source_sha256": "e6aeaeac4ac730d59ba515b951e29a2500c7454c377b0faaa8fb351ca1f3f1e8",
+            "kind": "delphi-12.2-win64",
+            "path": "research/delphi_fixture_oracle_probe.json",
+            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+          },
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ]
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "dd0b93b43e37b89afeef6859bcd2f90c2d8d0e426971ac07ae8c508ed2ba1609",
+        "spec_sha256": "2addff8fd9d94dc8da0dafc384875b35de10ff901c1a6f582be7a633e05c0282"
+      }
+    },
+    "lab-002-o3-ppu-unicode-pointer": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "lab-reproducer",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ]
+      },
+      "oracle_kind": "ppu-compile-success",
+      "provenance": {
+        "producer_source_sha256": "cfb263461a813708027d00479315cfb936fb2064c9915ac3bb6ce86b3280b888",
+        "source_sha256": "1dfb20a0388687adde48c5feb67dc6cdb136591f463cb626b530f1fadfb063d9",
+        "spec_sha256": "98283506281a8b368488c78598982fa35ac8d09e814b2408d62a94d7c146f0d7"
+      }
+    },
+    "lab-003-o3-untyped-var-huge-array": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "lab-reproducer",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ]
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "65068b8e9d703a734cbaa4e621a59542f62b33f3c9fb1e043ea30fff9ccbc239",
+        "spec_sha256": "f8a1cd170200ef58d9599935f6d874d2d5eed6f531282f9d93dcc5da878a337e"
+      }
+    },
+    "lab-004-o3-byte-record-cast": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "upstream-self-check-and-delphi-contract",
+        "independent_references": [
+          {
+            "kind": "delphi-12.2-and-fpc-3.2.4-rc1",
+            "path": "research/upstream_o3_delphi_reference_probe.json",
+            "sha256": "a180e7c82bdefdef33bcaf347526220c2306d8cc3b0650eb92020407ee75e24d"
+          }
+        ]
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "7a238b825e62d632f7dc959e9029ea8d89282726b6fb5e80f2d0cc816555a3c3",
+        "spec_sha256": "aee26cb684ed57d803cae989b3b1484dcb15f98078f31d65be2d82ed1db9ad11"
+      }
+    },
+    "lab-005-o3-ansistring-codepage": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "upstream-self-check-and-delphi-contract",
+        "independent_references": [
+          {
+            "kind": "delphi-12.2-and-fpc-3.2.4-rc1",
+            "path": "research/upstream_o3_delphi_reference_probe.json",
+            "sha256": "a180e7c82bdefdef33bcaf347526220c2306d8cc3b0650eb92020407ee75e24d"
+          }
+        ]
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "711877e6fa59886ef1b255e0f1de3bd1516bd27aa693c5fb27755099742911f5",
+        "spec_sha256": "486398003db564a774cca22e7f3f1c8a1e22cb8ea3d0785c959b63f03ab1f4b0"
+      }
+    },
+    "mega-001-negative-constant-div": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "mega-independent-oracle",
+        "independent_references": [
+          {
+            "kind": "fpc-reference-run",
+            "passing_compilers": [
+              "fpc-3.2.2",
+              "fpc-fixes-3.2"
+            ],
+            "path": "research/fixture_reference_probe.json",
+            "sha256": "e4b5fe833092433eb93b8f816cd477c966d02f09f3c7951496c68a8309f251db"
+          }
+        ]
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "61ed0fa8b7830e1e981011d50fe526e01c2c92eea6506cb8e1b859e93929fd17",
+        "spec_sha256": "83cca7d4d21245a7783c77fd07b58cb883803ce1ccc93739f8daf8f6614e9368"
+      }
+    },
+    "min-fpc-41796": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "d0ce0632849a1879117c90bf51c841a136251052aaafe26aef4b4803d315bda3",
+        "issue_iid": 41796,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41796"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "80433855bdc563f9d064bed1c1f7050b5e8fd125248a3022479c11a4c2800eca",
+        "spec_sha256": "00be871c91777813b528231b5d1d3c2b468bb728a7a34613feb499c4b421cd57"
+      }
+    },
+    "min-fpc-41810": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "fpc-issue",
+        "issue_description_sha256": "937350976f28cfb93aac4a3205872031b640142a4983f053e0ee7265abde070f",
+        "issue_iid": 41810,
+        "issue_state": "opened",
+        "issue_url": "https://gitlab.com/freepascal.org/fpc/source/-/work_items/41810"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "696647991eb9c212edf22af05c6e351f8a84851f0f1eae9727472fb90bd111cb",
+        "spec_sha256": "7533435ae1ee40e94654f42f087aca2a0ed055bc7236288ef9b681c7787a9cde"
+      }
+    },
+    "unleashed-17": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "unleashed-issue"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "01b1f9d8767c139a1b83927fab0d9ebcb5ed06aa4b20a7151d295cf8c38b082f",
+        "spec_sha256": "4115c4067ccb85ef10cab18d532dc245abcef819cc1854169fb44c139aab937e"
+      }
+    },
+    "unleashed-20": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "unleashed-issue"
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "22dfa35992533150455719e597656a7628489ff0fa96feb10797e5417fdd7c3d",
+        "spec_sha256": "5bc6ce2b80964e2389ed5fb761808259bb3a1022ffda759d5c139060bd3ba508"
+      }
+    }
+  }
+}

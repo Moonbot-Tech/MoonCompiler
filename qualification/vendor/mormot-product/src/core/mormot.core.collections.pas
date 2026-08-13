@@ -1,0 +1,2529 @@
+/// Framework Core Low-Level Generics Collection Process
+// - this unit is a part of the Open Source Synopse mORMot framework 2,
+// licensed under a MPL/GPL/LGPL three license - see LICENSE.md
+unit mormot.core.collections;
+
+{
+  *****************************************************************************
+
+   Generics Collections as used by all framework units
+   - JSON-aware IList<> List Storage
+   - JSON-aware IKeyValue<> Dictionary Storage
+   - Collections Factory for IList<> and IKeyValue<> Instances
+
+   In respect to generics.collections, this unit uses interfaces as variable
+  holders, and leverage them to reduce the generated code as much as possible,
+  as the Spring4D 2.0 framework does, but for both Delphi and FPC.
+   It publishes TDynArray and TSynDictionary high-level features like indexing,
+  sorting, JSON/binary serialization or thread safety as Generics strong typing.
+
+  Use Collections.NewList<T> and Collections.NewKeyValue<TKey, TValue> factories
+
+  *****************************************************************************
+}
+
+interface
+
+{$I ..\mormot.defines.inc}
+// current Delphi compiler support: since Delphi XE, but disabled for XE6/XE7
+//   which trigger internal errors; specialization only since Delphi XE8
+
+
+{$ifdef HASGENERICS} // do-nothing unit on oldest compilers (e.g. Delphi 7/2009)
+
+// FPC 3.2+ and Delphi XE8+ allow to gather most common specializations in this
+// unit and not in the end-user units to reduce executable code size
+// - NOSPECIALIZE disable ahead-of-time compilation and make naive bloated generics
+// - you may try this conditional to circumvent some Delphi internal errors
+// - see also SPECIALIZE_HASH, SPECIALIZE_SMALL SPECIALIZE_WSTRING conditionals
+// - on XE8 Win32 we can observe
+//    mormot.core.collections.dcu:  default=496KB  NOSPECIALIZE=75KB
+//    test.core.collections.dcu:    default=181KB  NOSPECIALIZE=263KB
+// -> so the main size reduction of those collections is that they are based on
+//    TDynArray and TSynDictionary, then specialization helps a little more
+{.$define NOSPECIALIZE}
+
+// you could try to define this conditional to generate even less code, which
+// may be slightly slower - perhaps not really noticeable on production
+{.$define SMALLGENERICS}
+
+uses
+  classes,
+  contnrs,
+  sysutils,
+  mormot.core.base,
+  mormot.core.os,
+  mormot.core.unicode,
+  mormot.core.text,
+  mormot.core.buffers,
+  mormot.core.data,
+  mormot.core.rtti,
+  mormot.core.json;
+
+
+// note: we defined "var value"  instead of "out value" to avoid finalizer calls
+
+
+{ ************** JSON-aware IList<> List Storage }
+
+type
+  TIListParent = class;
+
+  /// abstract execution context for the TIListEnumerator<T> record
+  // - as filled from shared TIListParent.NewEnumerator overloaded methods
+  TIListEnumeratorState = record
+    Current, After: PtrUInt; // 2 pointers on stack
+  end;
+
+  /// efficient mean to iterate over a generic collection of a specific type
+  // - as used by IList<T>.GetEnumerator/Range methods
+  // - we redefined our own record type for better performance: it properly
+  // inlines, and allocates as 2 pointers on stack with no try..finally
+  TIListEnumerator<T> = record
+  private
+    fState: TIListEnumeratorState;
+    // some property accessor
+    function DoGetCurrent: T; inline;
+  public
+    type
+      PT = ^T;
+    /// this property is needed for any enumerator
+    property Current: T
+      read DoGetCurrent;
+    /// go to the next item iterated in this collection
+    function MoveNext: boolean; inline;
+    /// self-reference is needed for IList<T>.Range custom enumerator
+    function GetEnumerator: TIListEnumerator<T>; inline;
+  end;
+
+  /// exception class raised by IList<T>
+  EIList = class(ESynException);
+
+  /// how Collections.NewList<T> will handle its IList<T> storage
+  // - by default, string values would be searched following exact case,
+  // unless the loCaseInsensitive option is set
+  // - by default, managed values and T*ObjArray will delete their content
+  // unless the loNoFinalize option is set (handle with care to avoid mem leaks)
+  // - loCreateUniqueIndex will maintain a hash table over the items so that
+  // Add() would avoid any duplicate and Find() perform in O(1) fast lookup -
+  // note that aSortAs could be set in Collections.NewPlainList<> to index the
+  // first field of a record instead of the whole collection item
+  TListOptions = set of (
+    loCaseInsensitive,
+    loNoFinalize,
+    loCreateUniqueIndex);
+
+  /// customize IList<T>.Pop() behaviour
+  // - popPeek won't remove the item from the list, just copy the value
+  // - Add+Pop implement a LIFO (Last-In-First-Out) stack by default, but a
+  // FIFO (First-In-First-Out) if popFromHead is defined in this options set
+  TListPop = set of (
+    popPeek,
+    popFromHead);
+
+  /// gives access to a generics-based collection of items
+  // - as generated by Collections.NewList<T> main factory
+  // - defined as an interface for automatic memory management, and class
+  // prototypes reuse between units, to reduce the executable size
+  // - methods are not thread-safe, but an associated TRWLock is available
+  // - storage is implemented via a TDynArray wrapper, optionally with a hash
+  // table for fast Find() lookup if loCreateUniqueIndex option is set
+  IList<T> = interface
+    // some property accessors
+    function GetItem(ndx: PtrInt): T;
+    procedure SetItem(ndx: PtrInt; const value: T);
+    function GetCount: PtrInt;
+    procedure SetCount(value: PtrInt);
+    function GetCapacity: PtrInt;
+    procedure SetCapacity(value: PtrInt);
+    function GetComparer: TDynArraySortCompare;
+    procedure SetComparer(customcompare: TDynArraySortCompare);
+    /// append a new value to the collection
+    // - returns the index of the newly added item
+    // - always append the new item at the end, unless loCreateUniqueIndex was
+    // defined and then any duplicate is ignored and existing index is returned
+    // - you may pre-allocate the array with a previous set of Capacity property
+    // - a faster alternative is to set the Count then assign values with Items[]
+    function Add(const value: T; wasadded: PBoolean = nil): PtrInt;
+    /// insert a new value to the collection
+    // - raise EIList if loCreateUniqueIndex is set: use Remove() then Add()
+    procedure Insert(ndx: PtrInt; const value: T);
+    /// delete one item inside the collection from its index
+    // - the deleted item is finalized unless loNoFinalize was defined
+    // - raise EIList if loCreateUniqueIndex is defined: use Remove()
+    function Delete(ndx: PtrInt): boolean;
+    /// delete one item inside the collection from its value
+    // - the deleted item is finalized unless loNoFinalize was defined
+    // - is the proper way of deleting an item if loCreateUniqueIndex is defined
+    function Remove(const value: T): boolean;
+    /// get and remove the last item stored in the collection
+    // - set popPeek in opt if you don't want to remove the item, just copy its value
+    // - Add+Pop implement a LIFO (Last-In-First-Out) stack by default
+    // - Add+Pop implement a FIFO (First-In-First-Out) stack if popFromHead is
+    // set - but slower, since all existing data is moved in memory by Pop()
+    // - returns true if the item was successfully copied and removed from the list
+    // - the existing dest is finalized/release before copying the poped value,
+    // unless loNoFinalize was defined
+    function Pop(var dest: T; opt: TListPop = []): boolean;
+    /// delete all stored items
+    // - the items are released/cleared unless loNoFinalize was defined
+    procedure Clear;
+    /// will reverse all collection items, in place
+    procedure Reverse;
+    /// sort the collection items
+    // - use the main Comparer function from RTTI, unless customcompare is set
+    procedure Sort(customcompare: TDynArraySortCompare = nil); overload;
+    /// sort a collection range
+    // - use the main Comparer function from RTTI, unless customcompare is set
+    // - this method allows to sort only some part of the items
+    procedure Sort(start, stop: integer;
+      customcompare: TDynArraySortCompare = nil); overload;
+    /// sort the collection items using an external lookup array of indexes
+    // - use the main Comparer function from RTTI, unless customcompare is set
+    // - in comparison to the Sort method, this overload won't change the
+    // collection content, but only create (or update) the supplied indexes[]
+    // - if the indexes lookup table has less items than the collection,
+    // its content will be recreated
+    procedure Sort(var indexes: TIntegerDynArray;
+      customcompare: TDynArraySortCompare = nil); overload;
+    /// sort the collection, using a comparison property method (not function)
+    // - you could optionally sort in reverse order
+    procedure Sort(const customcompare: TOnDynArraySortCompare;
+      descending: boolean = false); overload;
+    /// search and add an item inside a sorted collection
+    // - a sorted collection will use O(log(n)) binary search
+    // - this method will use the main Comparer function for the search
+    // - returns the index of the existing Item if wasadded^=false
+    // - returns the sorted index of the inserted Item if wasadded^=true
+    // - if the collection is not sorted, returns -1 and wasadded^=false
+    // - raise EIList if loCreateUniqueIndex is set: use plain Add()
+    function AddSorted(const value: T; wasadded: PBoolean = nil): integer;
+    /// will check all items against customcompare, calling Sort() if needed
+    // - faster than plain Sort() if the array is likely to be already sorted
+    // - won't check for the Sorted property flag, so will always compare all
+    procedure EnsureSorted(customcompare: TDynArraySortCompare = nil);
+    /// is true if Sort() has just been called, or AddSorted() used
+    function Sorted: boolean;
+    /// search for a value inside this collection using Comparer function
+    // - if the collection was created with loCreateUniqueIndex, will use
+    // an internal hash table for O(1) efficient lookup - aSortAs could be set
+    // in Collections.NewPlainList<> to hash the first field of a record instead
+    // of the whole collection item
+    // - if the collection is sorted (i.e. AddSorted was used, or Sort was
+    // called after Add) will perform fast O(log(n)) binary search
+    // - on a non-sorted collection, will make O(n) comparisons with the value
+    // - if customcompare is set, a O(n) comparison lookup will be done
+    function IndexOf(const value: T; customcompare: TDynArraySortCompare = nil): PtrInt;
+    /// allow to iterate over a generic collection of a specific type
+    // - this enumerator is faster than for i := 0 to Count - 1 do ... list[i]
+    // - we redefined our own TIListEnumerator<T> record type which is much faster
+    // than using classes or interfaces, and provide very readable code:
+    // ! var i: integer;
+    // !     list: IList<integer>;
+    // ! begin
+    // !   list := Collections.NewList<integer>;
+    // !   for i := 1 to 20 do // populate with some data
+    // !     list.Add(i);
+    // !   for i in list do    // use an enumerator - fast, safe and clean
+    // !     writeln(i);
+    function GetEnumerator: TIListEnumerator<T>;
+    /// allow to iterate over a range of the collection
+    // - returned iterator will efficiently browse the items data in-place:
+    // ! for i in list.Range do         // = for i in list do (all data)
+    // ! for i in list.Range(10) do     // items 10..Count-1
+    // ! for i in list.Range(0, 10) do  // first 0..9 items
+    // ! for i in list.Range(10, 20) do // items 10..29 - truncated if Count<30
+    // ! for i in list.Range(-10) do    // last Count-10..Count-1 items
+    function Range(Offset: PtrInt = 0; Limit: PtrInt = 0): TIListEnumerator<T>;
+    /// low-level pointer over the first item of the collection
+    // - can be nil if there is no item stored yet
+    // - could be used to quickly lookup all items of the array, using Count:
+    // ! var pi: PInteger; ...
+    // !   pi := list.First;        // fastest method
+    // !   for i := 1 to list.Count do
+    // !   begin
+    // !     writeln(pi^);
+    // !     inc(pi);
+    // !   end;
+    // - could be used to set all items of the array, with a previous Count set
+    // (faster than Add or even Count+SetItems)
+    function First: pointer;
+    /// returns a dynamic array containing data of this collection
+    // - is a convenient way to consume such a list as regular SOA parameters
+    // - Offset/Limit could be used to create a new dynamic array with some part
+    // of the existing content (Offset<0 meaning from the end):
+    // ! a := list.AsArray;         // whole data assigned with refcount
+    // ! a := list.AsArray(10);     // items 10..Count-1
+    // ! a := list.AsArray(0, 10);  // first 0..9 items
+    // ! a := list.AsArray(10, 20); // items 10..29 - truncated if Count<30
+    // ! a := list.AsArray(-10);    // last Count-10..Count-1 items
+    function AsArray(Offset: PtrInt = 0; Limit: PtrInt = 0): TArray<T>;
+    /// add some items from another IList<T> instance
+    procedure AddFrom(const Another: IList<T>; Offset: PtrInt = 0;
+      Limit: PtrInt = -1);
+    /// high-level access to the stored values from their associated indexes
+    // - raise EIList if the supplied index is out of range
+    // - SetItem() will raise EIList if loCreateUniqueIndex is defined
+    // - is the default propery so that IList<T> could be used as an array:
+    // !   for i := 0 to list.Count - 1 do // regular Items[] access
+    // !     writeln(list[i]);
+    // - note that using an enumerator is faster than using this property within
+    // a loop, since TIListEnumerator<T> is a record which can be inlined
+    property Items[ndx: PtrInt]: T
+      read GetItem write SetItem; default;
+    /// returns the number of items actually stored
+    // - you can also set the Count value then fill it with Items[] or even
+    // Data.First with pointers for best performance
+    property Count: PtrInt
+      read GetCount write SetCount;
+    /// returns the internal array capacity
+    property Capacity: PtrInt
+      read GetCapacity write SetCapacity;
+    /// the current comparison function, used e.g. for Sort() or Find()
+    // - will be assigned by default from RTTI and the loCaseInsensitive option
+    property Comparer: TDynArraySortCompare
+      read GetComparer write SetComparer;
+    /// the associated lightweight multiple Reads / exclusive Write lock
+    // - TRWLock is spinning on wait, so locks are expected to be released ASAP
+    function Safe: PRWLock;
+    /// low-level access to the internal TDynArray wrapper
+    // - you can use e.g. Data.SaveToJson/SaveTo and
+    // Data.LoadFromJson/LoadFromBinary
+    function Data: PDynArray;
+  end;
+
+  /// abstract parent of TIList<T> to reduce code size
+  // - contains all fields and methods not explicitly related to type T
+  TIListParent = class(TInterfacedObject)
+  protected
+    fSafe: TRWLock;
+    fCount: integer;  // external fDynArray count
+    fOptions: TListOptions;
+    fValue: pointer; // holds the actual dynamic array of <T>
+    fDynArray: TDynArray;
+    fHasher: PDynArrayHasher;
+    function DoPop(var dest; opt: TListPop): boolean;
+    function DoRemove(const value): boolean;
+    function DoAdd(const value; var added: boolean): PtrInt;
+    function DoAddSorted(const value; wasadded: PBoolean): integer;
+    procedure DoAddFrom(Another: PDynArray; Offset, Limit: PtrInt);
+    procedure DoInsert(ndx: PtrInt; const value);
+    function DoFind(const value; customcompare: TDynArraySortCompare): PtrInt;
+    procedure RaiseGetItem(ndx: PtrInt);
+    procedure RaiseSetItem(ndx: PtrInt);
+    procedure NewEnumerator(var state: TIListEnumeratorState); overload;
+    procedure NewEnumerator(var state: TIListEnumeratorState;
+      Offset, Limit: PtrInt); overload;
+    // some property accessors
+    function GetCount: PtrInt;
+    procedure SetCount(value: PtrInt);
+    function GetCapacity: PtrInt;
+    procedure SetCapacity(value: PtrInt);
+    function GetComparer: TDynArraySortCompare;
+    procedure SetComparer(customcompare: TDynArraySortCompare);
+  public
+    /// internal constructor to create an IList<T> instance from RTTI
+    // - main factories are Collections.NewList<T> or NewPlainList<T> class
+    // functions, which returns a IList<> interface for reusing most class
+    // specializations: you should NOT call any TIListParent<>.Create
+    // - constructor is at TIListParent level to reduce the executable size
+    // - if aSortAs is ptNone, will guess the comparison/sort function from RTTI
+    // - used only to circumvent FPC internal error 2010021502 on x86_64/aarch64
+    // (root cause seems comes from T through another generic method), i.e.
+    // direct specialization like Collections.NewList<integer> works fine,
+    // but cascaded generics like TTestCoreCollections.TestOne<T> need this:
+    // ! {$ifdef FPC_64}
+    // ! li := TIList<T>.Create(TypeInfo(TArray<T>), TypeInfo(T));
+    // ! {$else}
+    // ! li := Collections.NewList<T>;
+    // ! {$endif FPC_64}
+    constructor Create(aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo;
+      aOptions: TListOptions = []; aSortAs: TRttiParserType = ptNone);
+    /// internal constructor to create an IList<T> instance from our RTTI
+    constructor CreateRtti(aDynArray: TRttiCustom; aItemTypeInfo: PRttiInfo;
+      aOptions: TListOptions = []; aSortAs: TRttiParserType = ptNone);
+    /// finalize the array storage, mainly the internal TDynArray
+    destructor Destroy; override;
+    /// IList<> method to delete one item inside the collection from its index
+    function Delete(ndx: PtrInt): boolean;
+    /// IList<> method to delete all stored items
+    procedure Clear;
+    /// IList<> method to reverse all collection items, in place
+    procedure Reverse;
+    /// IList<> method to sort the collection items
+    procedure Sort(customcompare: TDynArraySortCompare = nil); overload;
+    /// IList<> method to sort a collection range
+    procedure Sort(start, stop: integer; customcompare: TDynArraySortCompare = nil); overload;
+    /// IList<> method to sort the collection items using an external lookup array
+    procedure Sort(var indexes: TIntegerDynArray;
+      customcompare: TDynArraySortCompare = nil); overload;
+    /// IList<> method to sort the collection, using a comparison method
+    procedure Sort(const customcompare: TOnDynArraySortCompare;
+      descending: boolean = false); overload;
+    /// IList<> method to ensure collection is sorted, using a comparison method
+    procedure EnsureSorted(customcompare: TDynArraySortCompare);
+    /// IList<> method returning true if Sort() or AddSorted() have been used
+    function Sorted: boolean;
+    /// low-level IList<> method to access the first item of the collection
+    function First: pointer; inline;
+    /// IList<> method to return the number of items actually stored
+    property Count: PtrInt
+      read GetCount write SetCount;
+    /// IList<> method to return the internal array capacity
+    property Capacity: PtrInt
+      read GetCapacity write SetCapacity;
+    /// IList<> method to access an associated lightweight read/write lock
+    function Safe: PRWLock; inline;
+    /// low-level IList<> method to access to the internal TDynArray wrapper
+    function Data: PDynArray; inline;
+  end;
+
+  /// meta-class of TIListParent types
+  TIListParentClass = class of TIListParent;
+
+  /// generics-based collection storage
+  // - high level wrapper around our regular TDynArray implementing IList<T>
+  // - main factory is Collections.NewList<T> class function, which returns a
+  // IList<T> interface for reusing most class specializations: you should
+  // NOT have to define a TIList<T> instance anywhere
+  TIList<T> = class(TIListParent, IList<T>)
+  protected
+    // some property accessors
+    function GetItem(ndx: PtrInt): T;
+    procedure SetItem(ndx: PtrInt; const value: T);
+  public
+    /// IList<T> method to append a new value to the collection
+    function Add(const value: T; wasadded: PBoolean = nil): PtrInt;
+    /// IList<T> method to insert a new value to the collection
+    procedure Insert(ndx: PtrInt; const value: T);
+    /// IList<T> method to get and remove the last item stored in the collection
+    function Pop(var dest: T; opt: TListPop): boolean;
+    /// IList<T> method for (sorted) search using a comparison function
+    function IndexOf(const value: T; customcompare: TDynArraySortCompare = nil): PtrInt;
+    /// IList<> method to delete one item inside the collection from its value
+    function Remove(const value: T): boolean;
+    /// IList<T> method to search and add an item inside a sorted collection
+    function AddSorted(const value: T; wasadded: PBoolean = nil): integer;
+    /// IList<T> method to return a dynamic array of this collection items
+    function AsArray(Offset: PtrInt = 0; Limit: PtrInt = 0): TArray<T>;
+    /// IList<T> method to iterate over a generic collection
+    function GetEnumerator: TIListEnumerator<T>;
+    /// IList<T> method to iterate over some range of the generic collection
+    function Range(Offset: PtrInt = 0; Limit: PtrInt = 0): TIListEnumerator<T>;
+    /// IList<T> method to add items from another IList<T> method
+    procedure AddFrom(const Another: IList<T>; Offset: PtrInt = 0;
+      Limit: PtrInt = -1);
+  end;
+
+
+
+
+{ ************** JSON-aware IKeyValue<> Dictionary Storage }
+
+type
+  /// exception class raised by TIKeyValue<TKey, TValue>
+  EIKeyValue = class(ESynException);
+
+  /// pair result as returned by TIKeyValueEnumerator<TKey, TValue>
+  TPair<TKey, TValue> = record
+  public
+    /// the current Key content
+    Key: TKey;
+    /// the current Value content
+    Value: TValue;
+  end;
+
+  /// efficient mean to iterate over a generic collection of key/value pairs
+  // - as used by IKeyValue<>.GetEnumerator
+  TIKeyValueEnumerator<TKey, TValue> = record
+  public
+    type
+      PKey = ^TKey;
+      PValue = ^TValue;
+  private
+    fKey: PKey;
+    fValue: PValue;
+    fCount: integer;
+    function DoGetCurrent: TPair<TKey, TValue>; inline;
+  public
+    /// this property is needed for any enumerator
+    property Current: TPair<TKey, TValue>
+      read DoGetCurrent;
+    /// go to the next key/value pair iterated in this dictionary
+    function MoveNext: boolean; inline;
+    /// self-reference
+    function GetEnumerator: TIKeyValueEnumerator<TKey, TValue>; inline;
+  end;
+
+  /// gives access to a generics-based dictionary holding key/value pairs
+  // - as generated by Collections.NewKeyValue<TKey, TValue> main factory
+  // - defined as an interface for automatic memory management, and class
+  // prototypes reuse between units, to reduce the executable size
+  // - optionally thread-safe when created with the kvoThreadSafe option
+  // - all process is done by an internal TSynDictionary with extended features
+  // like binary or JSON serialization, thread-safety or deprecation/timeout
+  IKeyValue<TKey, TValue> = interface
+    // some property accessors
+    function GetItem(const key: TKey): TValue;
+    procedure SetItem(const key: TKey; const value: TValue);
+    function GetKey(ndx: PtrInt): TKey;
+    function GetValue(ndx: PtrInt): TValue;
+    function GetCapacity: integer;
+    procedure SetCapacity(value: integer);
+    function GetTimeOutSeconds: cardinal;
+    procedure SetTimeOutSeconds(value: cardinal);
+    /// add a key/value pair to be unique
+    // - raise an EIKeyValue if key was already set
+    // - use default Items[] property to add or replace a key/value pair
+    procedure Add(const key: TKey; const value: TValue);
+    /// add a key/value pair if key is not existing
+    // - returns true if was added, false if key was already set
+    // - use default Items[] property to add or replace a key/value pair
+    function TryAdd(const key: TKey; const value: TValue): boolean;
+    /// search a key and return the associated value
+    // - returns true if the key was found, false otherwise
+    function TryGetValue(const key: TKey; var value: TValue): boolean;
+    /// search a key and return the associated value or a supplied default
+    function GetValueOrDefault(const key: TKey; const defaultValue: TValue): TValue;
+    /// remove a key/value pair
+    // - returns true if the entry was deleted, false if key was not found
+    function Remove(const key: TKey): boolean;
+    /// search a key, get the associated value, then delete the key/value pair
+    function Extract(const key: TKey; var value: TValue): boolean;
+    /// search for a key/value pair from a key
+    // - returns true if the key was found, false otherwise
+    function ContainsKey(const key: TKey): boolean;
+    /// search for a key/value pair from a value
+    // - returns true if the value was found, false otherwise
+    function ContainsValue(const value: TValue): boolean;
+    /// search and delete all deprecated items according to TimeoutSeconds
+    // - returns how many items have been deleted
+    // - you can call this method very often: it will ensure that the
+    // search process will take place at most once every second
+    function DeleteDeprecated: integer;
+    /// delete all stored key/value pairs
+    procedure Clear; overload;
+    /// thread-safety protection when accessing Count/Key[]/Value[] members
+    procedure ReadLock;
+    /// thread-safety protection when accessing Count/Key[]/Value[] members
+    procedure ReadUnLock;
+    /// allows to iterate over all key/value pairs in this collection
+    // - this is not thread-safe so to be protected by ReadLock/ReadUnLock
+    // - code is cleaner and safer than using Key[] Value[] and Count:
+    // ! var
+    // !   kv: IKeyValue<RawUtf8, double>;
+    // !   e: TPair<RawUtf8, double>;
+    // !   i: integer;
+    // ! begin
+    // !   kv := Collections.NewKeyValue<RawUtf8, double>;
+    // !   for i := 1 to 20 do
+    // !     kv.Add(UInt32ToUtf8(i), i);   // populate with some data
+    // !   for e in kv do
+    // !     writeln(e.Key, ' = ', e.Value);
+    function GetEnumerator: TIKeyValueEnumerator<TKey, TValue>;
+    /// search the index of given key
+    // - the index could then be used with Key[] and Value[] properties
+    // - this is not thread-safe so to be protected by ReadLock/ReadUnLock
+    // - consider using the safer TryGetValue() or Items[] instead
+    function FindKeyIndex(const key: TKey): PtrInt;
+    /// returns the number of key/value pairs actually stored
+    // - this is not thread-safe so to be protected by ReadLock/ReadUnLock if
+    // you want to use the Key[] Value[] indexed properties
+    function Count: integer;
+    /// high-level access to the stored values from their associated keys
+    // - GetItem() raise an EIKeyValue if the key is not available, unless
+    // kvoDefaultIfNotFound option was set - use TryGetValue() if you want to
+    // detect (without any exception) any non available key
+    // - SetItem() will add or replace the value associated with the key
+    property Items[const key: TKey]: TValue
+      read GetItem write SetItem; default;
+    /// low-level access to the stored keys, in their 0..Count-1 internal order
+    // - indexes are not thread-safe so to be protected by ReadLock/ReadUnLock
+    // - warning: won't raise any exception if ndx is out-of-range
+    // - consider using the safer TPair<TKey, TValue> enumerator instead
+    property Key[ndx: PtrInt]: TKey
+      read GetKey;
+    /// low-level access to the stored values, in their 0..Count-1 internal order
+    // - indexes are not thread-safe so to be protected by ReadLock/ReadUnLock
+    // - warning: won't raise any exception if ndx is out-of-range
+    // - consider using the safer TPair<TKey, TValue> enumerator instead
+    property Value[ndx: PtrInt]: TValue
+      read GetValue;
+    /// returns the internal TSynDictionary capacity
+    property Capacity: integer
+      read GetCapacity write SetCapacity;
+    /// returns the TimeOutSeconds parameter, as specified to NewKeyValue<>
+    // - warning: setting a new timeout will clear all previous content
+    property TimeOutSeconds: cardinal
+      read GetTimeOutSeconds write SetTimeOutSeconds;
+    /// low-level access to the internal TSynDictionary storage
+    // - which handles a lot of other useful methods not included as generics
+    // to reduce the executable code size
+    // - you can use e.g. Data.Keys/Data.Values or Data.SaveToJson/SaveToBinary
+    // and Data.LoadFromJson/LoadFromBinary
+    function Data: TSynDictionary;
+  end;
+
+  /// how TIKeyValue<TKey, TValue>.Create() will handle its storage
+  // - kvoKeyCaseInsensitive will let TKey values lookup ignore the case
+  // - kvoThreadSafe will force the instance to be thread-safe via a TRWLock
+  // - kvoThreadCriticalSection + kvoThreadSafe will force to use a regular
+  // TCriticalSection for the thread safety
+  // - kvoDefaultIfNotFound will let IKeyValue<TKey, TValue>.Items[] return the
+  // default TValue (e.g. 0 or '') and raise no exception if TKey is not found
+  TKeyValueOptions = set of (
+    kvoKeyCaseInsensitive,
+    kvoThreadSafe,
+    kvoThreadCriticalSection,
+    kvoDefaultIfNotFound);
+
+  /// stack parameters to ease TIKeyValue<TKey, TValue> creation
+  TNewKeyValueContext = record
+    Options: TKeyValueOptions;
+    KeySpecific: TRttiParserType;
+    Timeout: cardinal;
+    KeyArrayTypeInfo,
+    KeyItemTypeInfo: PRttiInfo;
+    ValueArrayTypeInfo,
+    ValueItemTypeInfo: PRttiInfo;
+    Compress: TAlgoCompress;
+    Hasher: THasher;
+  end;
+
+  /// abstract parent of TIKeyValue<TKey, TValue> to reduce code size
+  // - contains all fields and methods not explicitly related to TKey/TValue
+  TIKeyValueParent = class(TInterfacedObject)
+  protected
+    fData: TSynDictionary;
+    fOptions: TKeyValueOptions;
+    fHasTimeout, fHasLock: boolean; // internal flags
+    function GetKeyTypeInfo: PRttiInfo;
+    function GetValueTypeInfo: PRttiInfo;
+    procedure AddOne(key, value: pointer);
+    procedure GetDefaultOrRaise(value: pointer);
+    procedure GetDefaultOrUnlockAndRaise(value: pointer);
+    function GetCapacity: integer;
+    procedure SetCapacity(value: integer);
+    function GetTimeOutSeconds: cardinal;
+    procedure SetTimeOutSeconds(value: cardinal);
+    procedure ReadLock;
+    procedure ReadUnLock;
+  public
+    /// initialize the dictionary storage, specifying dynamic array keys/values
+    // - main factory is Collections.NewKeyValue<TKey, TValue> class function,
+    // which returns a IKeyValue<> interface for reusing most class
+    // specializations: you should NOT call any TIKeyValue<> constructor anywhere
+    constructor Create(const aContext: TNewKeyValueContext); reintroduce; virtual;
+    /// finalize the dictionary storage
+    destructor Destroy; override;
+    /// IKeyValue<> method to search and delete all deprecated items
+    function DeleteDeprecated: integer;
+    /// IKeyValue<> method to delete all stored key/value pairs
+    procedure Clear;
+    /// IKeyValue<> method to get the number of key/value pairs actually stored
+    function Count: integer;
+    /// IKeyValue<> method to get the internal TSynDictionary capacity
+    property Capacity: integer
+      read GetCapacity write SetCapacity;
+    /// IKeyValue<> method to get the TimeOutSeconds param of NewKeyValue<>
+    // - warning: setting a new timeout will clear all previous content
+    property TimeOutSeconds: cardinal
+      read GetTimeOutSeconds write SetTimeOutSeconds;
+    /// low-level IKeyValue<> method to get the internal TSynDictionary storage
+    function Data: TSynDictionary;
+    /// low-level IKeyValue<> method to get the NewKeyValue<> TKeyValueOptions
+    property Options: TKeyValueOptions
+      read fOptions;
+    /// low-level TypeInfo(TKey) access
+    property KeyTypeInfo: PRttiInfo
+      read GetKeyTypeInfo;
+    /// low-level TypeInfo(TValue) access
+    property ValueTypeInfo: PRttiInfo
+      read GetValueTypeInfo;
+  end;
+
+  /// meta-class of TIKeyValueParent type definitions
+  TIKeyValueParentClass = class of TIKeyValueParent;
+
+  /// thread-safe generics-based dictionary holding key/value pairs
+  // - is a high level wrapper around our regular TSynDictionary
+  // - main factory is Collections.NewKeyValue<TKey, TValue> class function,
+  // which returns a IKeyValue<> interface for reusing most class
+  // specializations: you should NOT directly use a TIKeyValue<> anywhere
+  TIKeyValue<TKey, TValue> = class(
+    TIKeyValueParent, IKeyValue<TKey, TValue>)
+  protected
+    // some property accessors
+    function GetItem(const key: TKey): TValue;
+    procedure SetItem(const key: TKey; const value: TValue);
+    function GetKey(ndx: PtrInt): TKey;
+    function GetValue(ndx: PtrInt): TValue;
+  public
+    /// IKeyValue<> method to add an unique key/value pair
+    procedure Add(const key: TKey; const value: TValue);
+    /// IKeyValue<> method to add a key/value pair if key is not existing
+    function TryAdd(const key: TKey; const value: TValue): boolean;
+    /// IKeyValue<> method to search a key and return its associated value
+    function TryGetValue(const key: TKey; var value: TValue): boolean;
+      {$ifndef SMALLGENERICS} inline; {$endif}
+    /// IKeyValue<> method to search a key or a supplied default
+    function GetValueOrDefault(const key: TKey;
+      const defaultValue: TValue): TValue;
+    /// IKeyValue<> method to remove a key/value pair
+    function Remove(const key: TKey): boolean;
+    /// IKeyValue<> method to search a key/value, then delete the pair
+    function Extract(const key: TKey; var value: TValue): boolean;
+    /// IKeyValue<> method to search for a key/value pair from a key
+    function ContainsKey(const key: TKey): boolean;
+    /// IKeyValue<> method to search for a key/value pair from a value
+    function ContainsValue(const value: TValue): boolean;
+    /// IKeyValue<> method to iterate over all key/value pairs
+    function GetEnumerator: TIKeyValueEnumerator<TKey, TValue>;
+    /// IKeyValue<> method to search the index of given key
+    function FindKeyIndex(const key: TKey): PtrInt;
+    /// high-level IKeyValue<> method to get the stored values from their keys
+    property Items[const key: TKey]: TValue
+      read GetItem write SetItem; default;
+  end;
+
+
+
+{ ************ Collections Factory for IList<> and IKeyValue<> Instances }
+
+{$ifdef HASGETTYPEKIND} // our specialization rely on new compiler intrinsics
+
+  {$ifndef NOSPECIALIZE} // if not disabled for the project
+
+    // enable generics cold compilation in mormot.core.collections unit
+    {$define SPECIALIZE_ENABLED}
+
+    // small byte/word are not useful in dictionaries (use integer instead)
+    // so are not pre-compiled by default - this conditional generates them
+    // - this affects only IKeyValue<> not IList<> which specializes byte/word
+    {.$define SPECIALIZE_SMALL}
+
+    // enable cold compilation of THash128/TGuid and THash256/THash612
+    // - those types are seldom used, so not cold compiled by default
+    {.$define SPECIALIZE_HASH}
+
+    // WideString are slow - RawUtf8 or UnicodeString are to be used instead -
+    // so are not pre-compiled by default - this conditional generates them
+    {.$define SPECIALIZE_WSTRING}
+
+  {$endif NOSPECIALIZE}
+
+{$else}
+
+  // disable ahead-of-time specialized factories on unsupported compilers
+  {$undef SPECIALIZE_ENABLED}
+
+{$endif HASGETTYPEKIND}
+
+type
+  /// various factories to create instances of our generic collections
+  // - this is main entry point of mormot.core.collections unit
+  // - you should never call TIList<T>.Create nor
+  // TIKeyValue<TKey, TValue>.Create constructors, but the static
+  // Collections.NewList<T> and Collections.NewKeyValue<TKey, TValue> methods
+  // - NewList/NewKeyValue will raise an exception if the types are too complex
+  // (e.g. with a record): redirecting to NewPlainList/NewPlainKeyValue would
+  // generate the whole class anyway (even if not used), so would bloat the exe
+  Collections = class
+  protected
+  {$ifdef SPECIALIZE_ENABLED}
+    {$ifdef FPC}
+    const
+      tkLString = tkAString; // circumvent FPC RTTI incompatibility
+    {$endif FPC}
+    // dedicated factories for most common TIList<T> types
+    class procedure NewOrdinal(aSize: integer; aOptions: TListOptions;
+      aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result); static;
+    class procedure NewFloat(aOptions: TListOptions;
+      aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result); static;
+    class procedure NewLString(aOptions: TListOptions;
+      aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result); static;
+    {$ifdef SPECIALIZE_WSTRING}
+    class procedure NewWString(aOptions: TListOptions;
+      aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result); static;
+    {$endif SPECIALIZE_WSTRING}
+    class procedure NewUString(aOptions: TListOptions;
+      aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result); static;
+    class procedure NewInterface(aOptions: TListOptions;
+      aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result); static;
+    class procedure NewVariant(aOptions: TListOptions;
+      aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result); static;
+    // dedicated factories for most common TIKeyValue<> types
+    class procedure NewOrdinalOrdinal(const aContext: TNewKeyValueContext;
+      aSizeKey, aSizeValue: integer; var result); static;
+    class procedure NewOrdinalFloat(const aContext: TNewKeyValueContext;
+      aSizeKey: integer; var result); static;
+    class procedure NewOrdinalLString(const aContext: TNewKeyValueContext;
+      aSizeKey: integer; var result); static;
+    class procedure NewOrdinalUString(const aContext: TNewKeyValueContext;
+      aSizeKey: integer; var result); static;
+    class procedure NewOrdinalInterface(const aContext: TNewKeyValueContext;
+      aSizeKey: integer; var result); static;
+    class procedure NewOrdinalVariant(const aContext: TNewKeyValueContext;
+      aSizeKey: integer; var result); static;
+    {$ifdef SPECIALIZE_WSTRING}
+    class procedure NewOrdinalWString(const aContext: TNewKeyValueContext;
+      aSizeKey: integer; var result); static;
+    class procedure NewWStringOrdinal(const aContext: TNewKeyValueContext;
+      aSizeValue: integer; var result); static;
+    class procedure NewWStringManaged(const aContext: TNewKeyValueContext;
+      aValue: TTypeKind; var result); static;
+    {$endif SPECIALIZE_WSTRING}
+    class procedure NewLStringOrdinal(const aContext: TNewKeyValueContext;
+      aSizeValue: integer; var result); static;
+    class procedure NewLStringManaged(const aContext: TNewKeyValueContext;
+      aValue: TTypeKind; var result); static;
+    class procedure NewUStringOrdinal(const aContext: TNewKeyValueContext;
+      aSizeValue: integer; var result); static;
+    class procedure NewUStringManaged(const aContext: TNewKeyValueContext;
+      aValue: TTypeKind; var result); static;
+    class procedure NewInterfaceOrdinal(const aContext: TNewKeyValueContext;
+      aSizeValue: integer; var result); static;
+    class procedure NewInterfaceManaged(const aContext: TNewKeyValueContext;
+      aValue: TTypeKind; var result); static;
+    class procedure NewVariantOrdinal(const aContext: TNewKeyValueContext;
+      aSizeValue: integer; var result); static;
+    class procedure NewVariantManaged(const aContext: TNewKeyValueContext;
+      aValue: TTypeKind; var result); static;
+    // the RTTI is too complex -> should call NewPlain*<>() methods instead
+    class function RaiseUseNewPlainList(aItemTypeInfo: PRttiInfo): pointer; static;
+    class function RaiseUseNewPlainKeyValue(
+      const aContext: TNewKeyValueContext): pointer; static;
+  {$endif SPECIALIZE_ENABLED}
+  public
+    /// generate a new IList<T> instance for most simple types
+    // - use this factory method instead of plain TIList<T>.Create
+    // so that the types will be specialized and compiled once in this unit
+    // - by default, string values would be searched following exact case,
+    // unless the loCaseInsensitive option is set
+    // - will associate a TArray<T> storage, unless aDynArrayTypeInfo is set
+    // - raise EIKeyValue if T type is too complex (e.g. record, array or
+    // hash): use NewPlainList<T>() instead
+    class function NewList<T>(aOptions: TListOptions = [];
+      aDynArrayTypeInfo: PRttiInfo = nil): IList<T>; static;
+    /// generate a new IList<T> instance with exact TIList<T>
+    // - to be called for complex types (e.g. record, array or hash) when
+    // NewList<T> fails with "too complex" error and triggers EIList
+    // - by default, string values would be searched following exact case,
+    // unless the loCaseInsensitive option is set
+    // - will associate a TArray<T> storage, unless aDynArrayTypeInfo is set
+    // - if aSortAs is ptNone, will guess the comparison/sort function from RTTI
+    // but you can force one e.g. to sort/compare/hash using a record first field
+    class function NewPlainList<T>(aOptions: TListOptions = [];
+      aDynArrayTypeInfo: PRttiInfo = nil; aSortAs: TRttiParserType = ptNone): IList<T>;
+        static; {$ifdef FPC} inline; {$endif}
+    /// generate a new IKeyValue<TKey, TValue> instance
+    // - use this factory method instead of NewPlainKeyValue<TKey, TValue>
+    // so that simple types will be specialized and compiled once in this unit
+    // - you can set an optional timeout period, in seconds - you should call
+    // DeleteDeprecated periodically to search and delete for deprecated items
+    // - you can provide specific TypeInfo() if TArray<TKey/TValue> is not enough
+    // - by default, this instance won't be thread-safe unless the kvoThreadSafe
+    // option is forced, so that process is protected with a TSynLocker mutex
+    // - by default, string keys would be searched following exact case, unless
+    // the kvoKeyCaseInsensitive option is set
+    // - raise EIKeyValue if T type is too complex (e.g. record, array or
+    // hash): use NewPlainKeyValue<TKey, TValue>() instead
+    class function NewKeyValue<TKey, TValue>(aOptions: TKeyValueOptions = [];
+      aTimeoutSeconds: cardinal = 0; aCompressAlgo: TAlgoCompress = nil;
+      aKeyDynArrayTypeInfo: PRttiInfo = nil; aValueDynArrayTypeInfo: PRttiInfo = nil;
+      aHasher: THasher = nil; aKeySpecific: TRttiParserType = ptNone): IKeyValue<TKey, TValue>;
+        static; {$ifdef FPC} inline; {$endif}
+    /// generate a new IKeyValue<TKey, TValue> instance with exact
+    // TIKeyValue<TKey, TValue>
+    // - to be called for complex types (e.g. record, array or hash) when
+    // NewKeyValue<TKey, TValue> fails and triggers EIKeyValue
+    // - won't be able to reuse specialized IKeyValue<> between types and type
+    // definitions, so resulting executable size may be slightly bigger
+    class function NewPlainKeyValue<TKey, TValue>(aOptions: TKeyValueOptions = [];
+      aTimeoutSeconds: cardinal = 0; aCompressAlgo: TAlgoCompress = nil;
+      aKeyDynArrayTypeInfo: PRttiInfo = nil; aValueDynArrayTypeInfo: PRttiInfo = nil;
+      aHasher: THasher = nil; aKeySpecific: TRttiParserType = ptNone): IKeyValue<TKey, TValue>;
+        static; {$ifdef FPC} inline; {$endif}
+  end;
+
+
+
+implementation
+
+{ ************** JSON-aware IList<> List Storage }
+
+{ TIListEnumerator }
+
+function TIListEnumerator<T>.MoveNext: boolean;
+var
+  c: PtrUInt; // to enhance code generation
+begin
+  c := fState.Current;
+  inc(PT(c));
+  fState.Current := c;
+  result := c < fState.After; // false if fCurrent=fAfter=0
+end;
+
+function TIListEnumerator<T>.GetEnumerator: TIListEnumerator<T>;
+begin
+  result := self; // just a copy of 2 PtrInt
+end;
+
+function TIListEnumerator<T>.DoGetCurrent: T;
+begin
+  result := {%H-}PT(fState.Current)^;
+  // faster than fDynArray^.ItemCopy() - at least for simple types
+end;
+
+
+{ TIListParent }
+
+constructor TIListParent.Create(aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo;
+  aOptions: TListOptions; aSortAs: TRttiParserType);
+begin
+  fOptions := aOptions;
+  if (aDynArrayTypeInfo = nil) or
+     (aDynArrayTypeInfo^.Kind <> rkDynArray) then
+     EIList.RaiseUtf8('%.Create: % should be a dynamic array of T',
+       [self, aDynArrayTypeInfo^.Name^]);
+  CreateRtti(Rtti.RegisterType(aDynArrayTypeInfo), aItemTypeInfo, aOptions, aSortAs);
+end;
+
+constructor TIListParent.CreateRtti(aDynArray: TRttiCustom;
+  aItemTypeInfo: PRttiInfo; aOptions: TListOptions; aSortAs: TRttiParserType);
+begin
+  fDynArray.InitRtti(aDynArray, fValue, @fCount);
+  aSortAs := fDynArray.SetParserType(aSortAs, // aSortAs=ptNone->RTTI
+    loCaseInsensitive in fOptions);
+  if (fDynArray.Info.ArrayRtti = nil) or
+     (fDynArray.Info.ArrayRtti.Kind <> aItemTypeInfo^.Kind)  then
+    EIList.RaiseUtf8('%.Create<%> (%) does not match % (%)',
+      [self, aItemTypeInfo^.RawName, ToText(aItemTypeInfo^.Kind)^,
+       aDynArray.Info^.RawName, ToText(fDynArray.Info.ArrayRtti.Kind)^]);
+  if loNoFinalize in fOptions then
+    fDynArray.NoFinalize := true; // force weak references
+  if loCreateUniqueIndex in fOptions then
+  begin
+    fHasher := AllocMem(SizeOf(fHasher^));
+    fHasher^.InitSpecific(@fDynArray, aSortAs, loCaseInsensitive in fOptions, nil);
+  end;
+end;
+
+destructor TIListParent.Destroy;
+begin
+  inherited Destroy;
+  fDynArray.Clear;
+  if fHasher <> nil then
+    Dispose(fHasher);
+end;
+
+function TIListParent.Delete(ndx: PtrInt): boolean;
+begin
+  if fHasher <> nil then
+    EIList.RaiseUtf8('%.Delete(%) is not allowed  with ' +
+      'loCreateUniqueIndex: use Remove()', [self, ndx]);
+  result := fDynArray.Delete(ndx);
+end;
+
+function TIListParent.DoPop(var dest; opt: TListPop): boolean;
+begin
+  if fHasher <> nil then
+    EIList.RaiseUtf8(
+      '%.Pop() is not compatible with loCreateUniqueIndex', [self]);
+  if popFromHead in opt then
+    if popPeek in opt then
+      result := fDynArray.PeekHead(dest)
+    else
+      result := fDynArray.PopHead(dest)
+  else if popPeek in opt then
+    result := fDynArray.Peek(dest)
+  else
+    result := fDynArray.Pop(dest);
+end;
+
+function TIListParent.DoRemove(const value): boolean;
+var
+  ndx: PtrInt;
+  h: PDynArrayHasher;
+begin
+  h := fHasher;
+  if h <> nil then
+    ndx := h^.FindBeforeDelete(@value)
+  else
+    ndx := fDynArray.Find(value);
+  result := (ndx >= 0) and
+            fDynArray.Delete(ndx);
+end;
+
+function TIListParent.DoAdd(const value; var added: boolean): PtrInt;
+var
+  n: PtrInt;
+  h: PDynArrayHasher;
+begin
+  h := fHasher;
+  if h <> nil then
+  begin
+    result := h^.FindBeforeAdd(@value, added, h^.HashOne(@value));
+    if not added then
+      exit; // already existing -> just return previous value index
+  end
+  else
+    added := true;
+  n := fCount;
+  if n = length(TByteDynArray(fValue)) then // all dyn array share same length()
+    fDynArray.Capacity := NextGrow(n);
+  inc(fCount);
+  result := n;
+end;
+
+function TIListParent.DoAddSorted(const value; wasadded: PBoolean): integer;
+begin
+  if fHasher <> nil then
+    EIList.RaiseUtf8('%.AddSorted() is not allowed  with ' +
+      'loCreateUniqueIndex: use Add()', [self]);
+  result := fDynArray.FastLocateOrAddSorted(value, wasadded);
+end;
+
+procedure TIListParent.DoAddFrom(Another: PDynArray; Offset, Limit: PtrInt);
+var
+  max, i: PtrInt;
+  p: PByte;
+  added: boolean;
+begin
+  if fHasher = nil then
+    // efficient adding of whole bunch
+    fDynArray.AddDynArray(Another, Offset, Limit)
+  else
+  begin
+    // if loCreateUniqueIndex is set, add item by item
+    if Offset < 0 then
+      Offset := 0;
+    max := Another^.Count - Offset;
+    if max <= 0 then
+      exit;
+    if PtrUInt(Limit) > PtrUInt(max) then
+      Limit := max; // Limit=-1 or out of range
+    p := Another^.ItemPtr(Offset);
+    repeat
+      i := DoAdd(p^, added); // to ignore duplicated items
+      if added then
+        fDynArray.ItemCopy(p, fDynArray.ItemPtr(i));
+      inc(p, Another^.Info.Cache.ItemSize);
+      dec(Limit);
+    until Limit = 0;
+  end;
+end;
+
+procedure TIListParent.DoInsert(ndx: PtrInt; const value);
+begin
+  if fHasher <> nil then
+    EIList.RaiseUtf8('%.Insert(%) is not allowed with ' +
+      'loCreateUniqueIndex: use Add()', [self, ndx]);
+  fDynArray.Insert(ndx, value);
+end;
+
+function TIListParent.DoFind(const value;
+  customcompare: TDynArraySortCompare): PtrInt;
+var
+  h: PDynArrayHasher;
+begin
+  h := fHasher;
+  if (h <> nil) and
+     not Assigned(customcompare) then
+    result := h^.Find(@value, h^.HashOne(@value))
+  else
+    result := fDynArray.Find(value, customcompare);
+end;
+
+procedure TIListParent.RaiseGetItem(ndx: PtrInt);
+begin
+  EIList.RaiseUtf8('%.GetItem(%): out of range (Count=%)',
+    [self, ndx, fCount]);
+end;
+
+procedure TIListParent.RaiseSetItem(ndx: PtrInt);
+begin
+  if fHasher <> nil then
+    EIList.RaiseUtf8('%.SetItem(%) is not allowed with ' +
+      'loCreateUniqueIndex: use Remove() then Add()', [self, ndx]);
+  if PtrUInt(ndx) >= PtrUInt(fCount) then
+    EIList.RaiseUtf8('%.SetItem(%): out of range (Count=%)',
+      [self, ndx, fCount]);
+end;
+
+function TIListParent.GetCount: PtrInt;
+begin
+  result := fCount;
+end;
+
+procedure TIListParent.SetCount(value: PtrInt);
+var
+  forcehash: boolean;
+begin
+  forcehash := (fHasher <> nil) and
+               (value < fCount);
+  fDynArray.Count := value; // will resize the dynamic array
+  if forcehash then
+    fHasher^.ForceReHash;
+end;
+
+function TIListParent.GetCapacity: PtrInt;
+begin
+  result := fDynArray.Capacity;
+end;
+
+procedure TIListParent.SetCapacity(value: PtrInt);
+var
+  forcehash: boolean;
+begin
+  forcehash := (fHasher <> nil) and
+               (value < fCount);
+  fDynArray.Capacity := value; // don't change Count, just dynamic array length
+  if forcehash then
+    fHasher^.ForceReHash;
+end;
+
+procedure TIListParent.Clear;
+begin
+  fDynArray.Clear;
+  if fHasher <> nil then
+    fHasher^.ForceReHash;
+end;
+
+procedure TIListParent.Reverse;
+begin
+  fDynArray.Reverse;
+  if fHasher <> nil then
+    fHasher^.ForceReHash;
+end;
+
+function TIListParent.GetComparer: TDynArraySortCompare;
+begin
+  result := fDynArray.Compare;
+end;
+
+procedure TIListParent.SetComparer(customcompare: TDynArraySortCompare);
+begin
+  fDynArray.Compare := customcompare;
+end;
+
+procedure TIListParent.Sort(customcompare: TDynArraySortCompare);
+begin
+  fDynArray.Sort(customcompare);
+  if fHasher <> nil then
+    fHasher^.ForceReHash;
+end;
+
+procedure TIListParent.Sort(start, stop: integer;
+  customcompare: TDynArraySortCompare);
+begin
+  fDynArray.SortRange(start, stop, customcompare);
+  if fHasher <> nil then
+    fHasher^.ForceReHash;
+end;
+
+procedure TIListParent.Sort(var indexes: TIntegerDynArray;
+  customcompare: TDynArraySortCompare);
+begin
+  fDynArray.CreateOrderedIndex(indexes, customcompare);
+end;
+
+procedure TIListParent.Sort(const customcompare: TOnDynArraySortCompare;
+  descending: boolean);
+begin
+  fDynArray.Sort(customcompare, descending);
+  if fHasher <> nil then
+    fHasher^.ForceReHash;
+end;
+
+procedure TIListParent.EnsureSorted(customcompare: TDynArraySortCompare);
+begin
+  fDynArray.EnsureSorted(customcompare);
+  if fHasher <> nil then
+    fHasher^.ForceReHash;
+end;
+
+function TIListParent.Sorted: boolean;
+begin
+  result := fDynArray.Sorted;
+end;
+
+function TIListParent.First: pointer;
+begin
+  result := fValue;
+end;
+
+function TIListParent.Data: PDynArray;
+begin
+  result := @fDynArray;
+end;
+
+function TIListParent.Safe: PRWLock;
+begin
+  result := @fSafe;
+end;
+
+procedure TIListParent.NewEnumerator(var state: TIListEnumeratorState);
+var
+  s: PtrUInt;
+begin
+  state.Current := PtrUInt(fValue);
+  if state.Current = 0 then
+  begin
+    state.After := 0; // ensure MoveNext=false
+    exit;
+  end;
+  s := fDynArray.Info.Cache.ItemSize;
+  state.After := state.Current + s * PtrUInt(fCount);
+  dec(state.Current, s); // for the first MoveNext
+end;
+
+procedure TIListParent.NewEnumerator(var state: TIListEnumeratorState;
+  Offset, Limit: PtrInt);
+var
+  s: PtrUInt;
+  n: PtrInt;
+begin
+  n := fCount;
+  if Offset < 0 then
+  begin
+    inc(Offset, n);
+    if Offset < 0 then
+      Offset := 0;
+  end;
+  state.Current := PtrUInt(fValue);
+  if (state.Current = 0) or
+     (Offset >= n) then
+  begin
+    state.After := 0;  // ensure MoveNext=false
+    exit;
+  end;
+  if Limit = 0 then
+    Limit := n;
+  s := n - Offset;
+  if Limit > PtrInt(s) then
+    Limit := s;
+  s := fDynArray.Info.Cache.ItemSize;
+  inc(state.Current, s * PtrUInt(Offset));
+  state.After := state.Current + s * PtrUInt(Limit);
+  dec(state.Current, s);
+end;
+
+
+{ TIList }
+
+function TIList<T>.GetItem(ndx: PtrInt): T;
+begin
+  if PtrUInt(ndx) >= PtrUInt(fCount) then
+    RaiseGetItem(ndx);
+  result := TArray<T>(fValue)[ndx]; // very efficient code
+end;
+
+procedure TIList<T>.SetItem(ndx: PtrInt; const value: T);
+begin
+  if (fHasher <> nil) or // loCreateUniqueIndex is not compatible with SetItem
+     (PtrUInt(ndx) >= PtrUInt(fCount)) then
+    RaiseSetItem(ndx);
+  TArray<T>(fValue)[ndx] := value;
+end;
+
+function TIList<T>.GetEnumerator: TIListEnumerator<T>;
+begin
+  NewEnumerator(result.fState);
+end;
+
+function TIList<T>.Range(Offset, Limit: PtrInt): TIListEnumerator<T>;
+begin
+  NewEnumerator(result.fState, Offset, Limit);
+end;
+
+function TIList<T>.Add(const value: T; wasadded: PBoolean): PtrInt;
+var
+  added: boolean;
+begin
+  result := DoAdd(value, added);
+  if added then
+    TArray<T>(fValue)[result] := value; // faster than fDynArray.ItemCopy()
+  if wasadded <> nil then
+    wasadded^ := added;
+end;
+
+procedure TIList<T>.Insert(ndx: PtrInt; const value: T);
+begin
+  DoInsert(ndx, value);
+end;
+
+function TIList<T>.Pop(var dest: T; opt: TListPop): boolean;
+begin
+  result := DoPop(dest, opt);
+end;
+
+function TIList<T>.IndexOf(const value: T;
+  customcompare: TDynArraySortCompare): PtrInt;
+begin
+  result := DoFind(value, customcompare);
+end;
+
+function TIList<T>.Remove(const value: T): boolean;
+begin
+  result := DoRemove(value);
+end;
+
+function TIList<T>.AddSorted(const value: T; wasadded: PBoolean): integer;
+begin
+  result := DoAddSorted(value, wasadded);
+end;
+
+function TIList<T>.AsArray(Offset, Limit: PtrInt): TArray<T>;
+begin
+  // assign existing dynamic array instance to TArray<T> result
+  fDynArray.SliceAsDynArray(@result, Offset, Limit);
+end;
+
+procedure TIList<T>.AddFrom(const Another: IList<T>; Offset, Limit: PtrInt);
+begin
+  if Assigned(Another) then
+    DoAddFrom(Another.Data, Offset, Limit);
+end;
+
+
+{ ************** JSON-aware IKeyValue<> Dictionary Storage }
+
+{ TIKeyValueEnumerator }
+
+function TIKeyValueEnumerator<TKey, TValue>.DoGetCurrent: TPair<TKey, TValue>;
+begin
+  result.Key := fKey^;
+  result.Value := fValue^;
+end;
+
+function TIKeyValueEnumerator<TKey, TValue>.MoveNext: boolean;
+begin
+  if fCount > 0 then
+  begin
+    inc(fKey);
+    inc(fValue);
+    dec(fCount);
+    result := true;
+  end
+  else
+    result := false;
+end;
+
+function TIKeyValueEnumerator<TKey, TValue>.
+  GetEnumerator: TIKeyValueEnumerator<TKey, TValue>;
+begin
+  result := self;
+end;
+
+
+{ TIKeyValueParent }
+
+// methods shared among all TIKeyValue<> to reduce exe size
+
+constructor TIKeyValueParent.Create(const aContext: TNewKeyValueContext);
+begin
+  fOptions := aContext.Options;
+  // validate or recognize most simple dynamic arrays from its TKey/TValue types
+  if (aContext.KeyArrayTypeInfo = nil) or
+     (aContext.KeyArrayTypeInfo ^.Kind <> rkDynArray) then
+     EIKeyValue.RaiseUtf8('%.Create: % should be an array of TKey',
+       [self, aContext.KeyArrayTypeInfo^.Name^]);
+  if (aContext.ValueArrayTypeInfo = nil) or
+     (aContext.ValueArrayTypeInfo^.Kind <> rkDynArray) then
+     EIKeyValue.RaiseUtf8('%.Create: % should be an array of TValue',
+       [self, aContext.ValueArrayTypeInfo^.Name^]);
+  // initialize the associated dictionary
+  fHasTimeout := aContext.Timeout <> 0;
+  fData := TSynDictionary.Create(
+    aContext.KeyArrayTypeInfo, aContext.ValueArrayTypeInfo,
+    kvoKeyCaseInsensitive in fOptions, aContext.Timeout, aContext.Compress,
+    aContext.Hasher, aContext.KeySpecific);
+  if not (kvoThreadSafe in fOptions) then
+    fData.ThreadUse := uNoLock // not thread-safe by default
+  else if not (kvoThreadCriticalSection in fOptions) then
+    fData.ThreadUse := uRWLock;
+  fHasLock := fData.ThreadUse <> uNoLock;
+  if (fData.Keys.Info.ArrayRtti = nil) or
+     ((aContext.KeyArrayTypeInfo <> nil) and
+      (fData.Keys.Info.ArrayRtti.Info <> aContext.KeyItemTypeInfo)) then
+    EIKeyValue.RaiseUtf8('%.Create: TKey does not match %',
+      [self, aContext.KeyArrayTypeInfo^.RawName]);
+  if (fData.Values.Info.ArrayRtti = nil) or
+     ((aContext.ValueArrayTypeInfo <> nil) and
+      (fData.Values.Info.ArrayRtti.Info <> aContext.ValueItemTypeInfo)) then
+    EIKeyValue.RaiseUtf8('%.Create: TValue does not match %',
+      [self, aContext.ValueArrayTypeInfo^.RawName]);
+end;
+
+destructor TIKeyValueParent.Destroy;
+begin
+  inherited Destroy;
+  fData.Free;
+end;
+
+function TIKeyValueParent.GetKeyTypeInfo: PRttiInfo;
+begin
+  if self = nil then
+    result := nil
+  else
+    result := fData.Keys.Info.ArrayRtti.Info;
+end;
+
+function TIKeyValueParent.GetValueTypeInfo: PRttiInfo;
+begin
+  if self = nil then
+    result := nil
+  else
+    result := fData.Values.Info.ArrayRtti.Info;
+end;
+
+procedure TIKeyValueParent.AddOne(key, value: pointer);
+begin
+  if fData.Add(key^, value^) < 0 then
+    EIKeyValue.RaiseUtf8('%.Add: duplicated key', [self]);
+end;
+
+procedure TIKeyValueParent.GetDefaultOrRaise(value: pointer);
+begin
+  if kvoDefaultIfNotFound in fOptions then
+    fData.Values.ItemClear(value)
+  else
+    EIKeyValue.RaiseUtf8('%.GetItem: key not found', [self]);
+end;
+
+procedure TIKeyValueParent.GetDefaultOrUnlockAndRaise(value: pointer);
+begin
+  if kvoDefaultIfNotFound in fOptions then
+    fData.Values.ItemClear(value)
+  else
+  begin
+    if fHasLock then
+      fData.Safe^.ReadUnLock; // as expected by TIKeyValue<TKey, TValue>.GetItem
+    EIKeyValue.RaiseUtf8('%.GetItem: key not found', [self]);
+  end;
+end;
+
+function TIKeyValueParent.GetCapacity: integer;
+begin
+  result := fData.Capacity;
+end;
+
+procedure TIKeyValueParent.SetCapacity(value: integer);
+begin
+  fData.Capacity := value;
+end;
+
+function TIKeyValueParent.GetTimeOutSeconds: cardinal;
+begin
+  result := fData.TimeOutSeconds;
+end;
+
+procedure TIKeyValueParent.SetTimeOutSeconds(value: cardinal);
+begin
+  fData.TimeOutSeconds := value;
+  fHasTimeout := value <> 0;
+end;
+
+function TIKeyValueParent.DeleteDeprecated: integer;
+begin
+  result := fData.DeleteDeprecated;
+end;
+
+procedure TIKeyValueParent.Clear;
+begin
+  fData.DeleteAll;
+end;
+
+function TIKeyValueParent.Count: integer;
+begin
+  result := fData.Count;
+end;
+
+function TIKeyValueParent.Data: TSynDictionary;
+begin
+  result := fData;
+end;
+
+procedure TIKeyValueParent.ReadLock;
+begin
+  if fHasLock then
+    fData.Safe^.ReadLock;
+end;
+
+procedure TIKeyValueParent.ReadUnLock;
+begin
+  if fHasLock then
+    fData.Safe^.ReadUnLock;
+end;
+
+
+{ TIKeyValue<TKey, TValue> }
+
+function TIKeyValue<TKey, TValue>.GetItem(const key: TKey): TValue;
+{$ifdef SMALLGENERICS}
+begin
+  if not fData.FindAndCopy(key, result, fHasTimeout) then
+    GetDefaultOrRaise(@result)
+end;
+{$else}
+var
+  ndx: PtrInt; // slightly more verbose but faster than plain FindAndCopy
+begin
+  if fHasLock then
+    fData.Safe^.ReadLock;
+  ndx := fData.Find(key, fHasTimeout);
+  if ndx < 0 then
+    GetDefaultOrUnlockAndRaise(@result) // may ReadUnLock and raise EIKeyValue
+  else
+    result := TArray<TValue>(fData.Values.Value^)[ndx]; // more efficient
+  if fHasLock then
+    fData.Safe^.ReadUnLock;
+end;
+{$endif SMALLGENERICS}
+
+function TIKeyValue<TKey, TValue>.GetKey(ndx: PtrInt): TKey;
+begin
+  result := TArray<TKey>(fData.Keys.Value^)[ndx]; // most efficient
+end;
+
+function TIKeyValue<TKey, TValue>.GetValue(ndx: PtrInt): TValue;
+begin
+  result := TArray<TValue>(fData.Values.Value^)[ndx];
+end;
+
+procedure TIKeyValue<TKey, TValue>.SetItem(const key: TKey;
+  const value: TValue);
+begin
+  fData.AddOrUpdate(key, value);
+end;
+
+procedure TIKeyValue<TKey, TValue>.Add(const key: TKey;
+  const value: TValue);
+begin
+  AddOne(@key, @value);
+end;
+
+function TIKeyValue<TKey, TValue>.TryAdd(const key: TKey;
+  const value: TValue): boolean;
+begin
+  result := fData.Add(key, value) >= 0;
+end;
+
+function TIKeyValue<TKey, TValue>.TryGetValue(const key: TKey;
+  var value: TValue): boolean;
+{$ifdef SMALLGENERICS}
+begin
+  result := fData.FindAndCopy(key, value, fHasTimeout);
+end;
+{$else}
+var
+  ndx: PtrInt;
+begin
+  if fHasLock then
+    fData.Safe^.ReadLock;
+  ndx := fData.Find(key, fHasTimeout);
+  if ndx >= 0 then
+  begin
+    value := TArray<TValue>(fData.Values.Value^)[ndx];
+    result := true;
+  end
+  else
+    result := false;
+  if fHasLock then
+    fData.Safe^.ReadUnLock;
+end;
+{$endif SMALLGENERICS}
+
+function TIKeyValue<TKey, TValue>.GetValueOrDefault(const key: TKey;
+  const defaultValue: TValue): TValue;
+begin
+  {$ifdef SMALLGENERICS}
+  if not fData.FindAndCopy(key, result, fHasTimeout) then
+  {$else}
+  if not TryGetValue(key, result{%H-}) then
+  {$endif SMALLGENERICS}
+    result := defaultValue;
+end;
+
+function TIKeyValue<TKey, TValue>.Remove(const key: TKey): boolean;
+begin
+  result := fData.Delete(key) >= 0;
+end;
+
+function TIKeyValue<TKey, TValue>.Extract(const key: TKey;
+  var value: TValue): boolean;
+begin
+  result := fData.FindAndExtract(key, value);
+end;
+
+function TIKeyValue<TKey, TValue>.ContainsKey(const key: TKey): boolean;
+begin
+  result := fData.Exists(key); // won't flag the timeout of this entry
+end;
+
+function TIKeyValue<TKey, TValue>.ContainsValue(const value: TValue): boolean;
+begin
+  result := fData.ExistsValue(value);
+end;
+
+function TIKeyValue<TKey, TValue>.GetEnumerator: TIKeyValueEnumerator<TKey, TValue>;
+begin
+  result.fKey := fData.Keys.Value^;
+  result.fValue := fData.Values.Value^;
+  result.fCount := fData.Count;
+  dec(result.fKey); // MoveNext will make inc() first
+  dec(result.fValue);
+end;
+
+function TIKeyValue<TKey, TValue>.FindKeyIndex(const key: TKey): PtrInt;
+begin
+  result := fData.Find(key, fHasTimeout);
+end;
+
+
+{ ************ Collections Factory for IList<> and IKeyValue<> Instances }
+
+{ Collections }
+
+{$ifdef SPECIALIZE_ENABLED}
+
+// since Delphi XE8 or FPC 3.2: generate the most common type specializations
+// in this very unit, to reduce units and executable code size
+
+{$ifdef ISDELPHI} {$HINTS OFF} {$endif}
+class function Collections.{%H-}RaiseUseNewPlainList(aItemTypeInfo: PRttiInfo): pointer;
+begin
+  raise EIList.CreateUtf8('Collections.NewList<>: Type is too complex - ' +
+    'use Collections.NewPlainList<%> instead', [aItemTypeInfo.Name^]);
+    // we tried Delphi' "at ReturnAddress" but disabled to avoid internal errors
+end;
+
+class function Collections.{%H-}RaiseUseNewPlainKeyValue(
+  const aContext: TNewKeyValueContext): pointer;
+begin
+  raise EIList.CreateUtf8('Collections.NewKeyValue<>: Types are too ' +
+    'complex - use Collections.NewPlainKeyValue<%, %> instead',
+    [aContext.KeyItemTypeInfo.Name^, aContext.ValueItemTypeInfo.Name^]);
+end;
+{$ifdef ISDELPHI} {$HINTS ON} {$endif}
+
+
+// some shared TIList<> which could be reused for IList<>
+// - ptNone below will use proper RTTI at runtime for process
+
+class procedure Collections.NewOrdinal(aSize: integer; aOptions: TListOptions;
+  aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result);
+var
+  p: pointer;
+begin
+  // IList<T> will assume ordinal parameters are passed in a consistent way
+  case aSize of
+    1:
+      p := TIList<Byte>;
+    2:
+      p := TIList<Word>;
+    4:
+      p := TIList<Integer>;
+    8:
+      p := TIList<Int64>;
+    {$ifdef SPECIALIZE_HASH}
+    16:
+      p := TIList<THash128>;
+    32:
+      p := TIList<THash256>;
+    64:
+      p := TIList<THash512>;
+    {$endif SPECIALIZE_HASH}
+  else
+    p := RaiseUseNewPlainList(aItemTypeInfo);
+  end;
+  p := TIListParentClass(p).Create(
+      aDynArrayTypeInfo, aItemTypeInfo, aOptions, ptNone);
+  // all IList<T> share the same VMT -> assign once
+  IList<Byte>(result) := TIList<Byte>(p);
+end;
+
+class procedure Collections.NewFloat(aOptions: TListOptions;
+  aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result);
+var
+  p: pointer;
+begin
+  case aItemTypeInfo^.RttiFloat of
+    rfSingle:
+      p := TIList<Single>;
+    rfDouble:
+      p := TIList<Double>;
+    rfCurr:
+      p := TIList<Currency>;
+  else
+    p := RaiseUseNewPlainList(aItemTypeInfo);
+  end;
+  p := TIListParentClass(p).Create(
+      aDynArrayTypeInfo, aItemTypeInfo, aOptions, ptNone);
+  IList<Double>(result) := TIList<Double>(p);
+end;
+
+class procedure Collections.NewLString(aOptions: TListOptions;
+  aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result);
+begin
+  IList<RawByteString>(result) := TIList<RawByteString>.Create(
+    aDynArrayTypeInfo, aItemTypeInfo, aOptions, ptNone); // may be RawUtf8/RawJson
+end;
+
+{$ifdef SPECIALIZE_WSTRING}
+class procedure Collections.NewWString(aOptions: TListOptions;
+  aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result);
+begin
+  IList<WideString>(result) := TIList<WideString>.Create(
+    aDynArrayTypeInfo, aItemTypeInfo, aOptions, ptWideString);
+end;
+{$endif SPECIALIZE_WSTRING}
+
+class procedure Collections.NewUString(aOptions: TListOptions;
+  aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result);
+begin
+  IList<UnicodeString>(result) := TIList<UnicodeString>.Create(
+    aDynArrayTypeInfo, aItemTypeInfo, aOptions, ptUnicodeString);
+end;
+
+class procedure Collections.NewInterface(aOptions: TListOptions;
+  aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result);
+begin
+  IList<IInterface>(result) := TIList<IInterface>.Create(
+    aDynArrayTypeInfo, aItemTypeInfo, aOptions, ptInterface);
+end;
+
+class procedure Collections.NewVariant(aOptions: TListOptions;
+  aDynArrayTypeInfo, aItemTypeInfo: PRttiInfo; var result);
+begin
+  IList<Variant>(result) := TIList<Variant>.Create(
+    aDynArrayTypeInfo, aItemTypeInfo, aOptions, ptVariant);
+end;
+
+
+// some shared TIKeyValue<> which could be reused for IKeyValue<>
+
+class procedure Collections.NewOrdinalOrdinal(
+  const aContext: TNewKeyValueContext; aSizeKey, aSizeValue: integer;
+  var result);
+var
+  p: pointer;
+label
+  err;
+begin
+  case aSizeKey of
+    {$ifdef SPECIALIZE_SMALL}
+    1:
+      case aSizeValue of
+        1:
+          p := TIKeyValue<Byte, Byte>;
+        2:
+          p := TIKeyValue<Byte, Word>;
+        4:
+          p := TIKeyValue<Byte, Integer>;
+        8:
+          p := TIKeyValue<Byte, Int64>;
+        {$ifdef SPECIALIZE_HASH}
+        16:
+          p := TIKeyValue<Byte, THash128>;
+        {$endif SPECIALIZE_HASH}
+      else
+        goto err;
+      end;
+    2:
+      case aSizeValue of
+        1:
+          p := TIKeyValue<Word, Byte>;
+        2:
+          p := TIKeyValue<Word, Word>;
+        4:
+          p := TIKeyValue<Word, Integer>;
+        8:
+          p := TIKeyValue<Word, Int64>;
+        {$ifdef SPECIALIZE_HASH}
+        16:
+          p := TIKeyValue<Word, THash128>;
+        {$endif SPECIALIZE_HASH}
+      else
+        goto err;
+      end;
+    {$endif SPECIALIZE_SMALL}
+    4:
+      case aSizeValue of
+        {$ifdef SPECIALIZE_SMALL}
+        1:
+          p := TIKeyValue<Integer, Byte>;
+        2:
+          p := TIKeyValue<Integer, Word>;
+        {$endif SPECIALIZE_SMALL}
+        4:
+          p := TIKeyValue<Integer, Integer>;
+        8:
+          p := TIKeyValue<Integer, Int64>;
+        {$ifdef SPECIALIZE_HASH}
+        16:
+          p := TIKeyValue<Integer, THash128>;
+        {$endif SPECIALIZE_HASH}
+      else
+err:    p := RaiseUseNewPlainKeyValue(aContext);
+      end;
+    8:
+      case aSizeValue of
+        {$ifdef SPECIALIZE_SMALL}
+        1:
+          p := TIKeyValue<Int64, Byte>;
+        2:
+          p := TIKeyValue<Int64, Word>;
+        {$endif SPECIALIZE_SMALL}
+        4:
+          p := TIKeyValue<Int64, Integer>;
+        8:
+          p := TIKeyValue<Int64, Int64>;
+        {$ifdef SPECIALIZE_HASH}
+        16:
+          p := TIKeyValue<Int64, THash128>;
+        {$endif SPECIALIZE_HASH}
+      else
+        goto err;
+      end;
+    {$ifdef SPECIALIZE_HASH}
+    16:
+      case aSizeValue of
+        {$ifdef SPECIALIZE_SMALL}
+        1:
+          p := TIKeyValue<THash128, Byte>;
+        2:
+          p := TIKeyValue<THash128, Word>;
+        {$endif SPECIALIZE_SMALL}
+        4:
+          p := TIKeyValue<THash128, Integer>;
+        8:
+          p := TIKeyValue<THash128, Int64>;
+        16:
+          p := TIKeyValue<THash128, THash128>;
+      else
+        goto err;
+      end;
+    {$endif SPECIALIZE_HASH}
+  else
+    goto err;
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  // all IKeyValue<TKey, TValue> share the same VMT -> assign once
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>({%H-}p);
+end;
+
+class procedure Collections.NewOrdinalFloat(const aContext: TNewKeyValueContext;
+  aSizeKey: integer; var result);
+var
+  p: pointer;
+label
+  err;
+begin
+  case aContext.ValueItemTypeInfo^.RttiFloat of
+    rfSingle:
+      case aSizeKey of
+        {$ifdef SPECIALIZE_SMALL}
+        1:
+          p := TIKeyValue<Byte, Single>;
+        2:
+          p := TIKeyValue<Word, Single>;
+        {$endif SPECIALIZE_SMALL}
+        4:
+          p := TIKeyValue<Integer, Single>;
+        8:
+          p := TIKeyValue<Int64, Single>;
+        {$ifdef SPECIALIZE_HASH}
+        16:
+          p := TIKeyValue<THash128, Single>;
+        {$endif SPECIALIZE_HASH}
+      else
+        goto err;
+      end;
+    rfDouble:
+      case aSizeKey of
+        {$ifdef SPECIALIZE_SMALL}
+        1:
+          p := TIKeyValue<Byte, Double>;
+        2:
+          p := TIKeyValue<Word, Double>;
+        {$endif SPECIALIZE_SMALL}
+        4:
+          p := TIKeyValue<Integer, Double>;
+        8:
+          p := TIKeyValue<Int64, Double>;
+        {$ifdef SPECIALIZE_HASH}
+        16:
+          p := TIKeyValue<THash128, Double>;
+        {$endif SPECIALIZE_HASH}
+      else
+        goto err;
+      end;
+    rfCurr:
+      case aSizeKey of
+        {$ifdef SPECIALIZE_SMALL}
+        1:
+          p := TIKeyValue<Byte, Currency>;
+        2:
+          p := TIKeyValue<Word, Currency>;
+        {$endif SPECIALIZE_SMALL}
+        4:
+          p := TIKeyValue<Integer, Currency>;
+        8:
+          p := TIKeyValue<Int64, Currency>;
+        {$ifdef SPECIALIZE_HASH}
+        16:
+          p := TIKeyValue<THash128, Currency>;
+        {$endif SPECIALIZE_HASH}
+      else
+        goto err;
+      end;
+  else
+err: p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+class procedure Collections.NewOrdinalLString(
+  const aContext: TNewKeyValueContext; aSizeKey: integer; var result);
+var
+  p: pointer;
+begin
+  case aSizeKey of
+    {$ifdef SPECIALIZE_SMALL}
+    1:
+      p := TIKeyValue<Byte, RawByteString>;
+    2:
+      p := TIKeyValue<Word, RawByteString>;
+    {$endif SPECIALIZE_SMALL}
+    4:
+      p := TIKeyValue<Integer, RawByteString>;
+    8:
+      p := TIKeyValue<Int64, RawByteString>;
+    {$ifdef SPECIALIZE_HASH}
+    16:
+      p := TIKeyValue<THash128, RawByteString>;
+    32:
+      p := TIKeyValue<THash256, RawByteString>;
+    64:
+      p := TIKeyValue<THash512, RawByteString>;
+    {$endif SPECIALIZE_HASH}
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+{$ifdef SPECIALIZE_WSTRING}
+class procedure Collections.NewOrdinalWString(
+  const aContext: TNewKeyValueContext; aSizeKey: integer; var result);
+var
+  p: pointer;
+begin
+  case aSizeKey of
+    {$ifdef SPECIALIZE_SMALL}
+    1:
+      p := TIKeyValue<Byte, WideString>;
+    2:
+      p := TIKeyValue<Word, WideString>;
+    {$endif SPECIALIZE_SMALL}
+    4:
+      p := TIKeyValue<Integer, WideString>;
+    8:
+      p := TIKeyValue<Int64, WideString>;
+    {$ifdef SPECIALIZE_HASH}
+    16:
+      p := TIKeyValue<THash128, WideString>;
+    {$endif SPECIALIZE_HASH}
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+{$endif SPECIALIZE_WSTRING}
+
+class procedure Collections.NewOrdinalUString(
+  const aContext: TNewKeyValueContext; aSizeKey: integer; var result);
+var
+  p: pointer;
+begin
+  case aSizeKey of
+    {$ifdef SPECIALIZE_SMALL}
+    1:
+      p := TIKeyValue<Byte, UnicodeString>;
+    2:
+      p := TIKeyValue<Word, UnicodeString>;
+    {$endif SPECIALIZE_SMALL}
+    4:
+      p := TIKeyValue<Integer, UnicodeString>;
+    8:
+      p := TIKeyValue<Int64, UnicodeString>;
+    {$ifdef SPECIALIZE_HASH}
+    16:
+      p := TIKeyValue<THash128, UnicodeString>;
+    {$endif SPECIALIZE_HASH}
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+class procedure Collections.NewOrdinalInterface(
+  const aContext: TNewKeyValueContext; aSizeKey: integer; var result);
+var
+  p: pointer;
+begin
+  case aSizeKey of
+    {$ifdef SPECIALIZE_SMALL}
+    1:
+      p := TIKeyValue<Byte, IInterface>;
+    2:
+      p := TIKeyValue<Word, IInterface>;
+    {$endif SPECIALIZE_SMALL}
+    4:
+      p := TIKeyValue<Integer, IInterface>;
+    8:
+      p := TIKeyValue<Int64, IInterface>;
+    {$ifdef SPECIALIZE_HASH}
+    16:
+      p := TIKeyValue<THash128, IInterface>;
+    {$endif SPECIALIZE_HASH}
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+class procedure Collections.NewOrdinalVariant(
+  const aContext: TNewKeyValueContext; aSizeKey: integer; var result);
+var
+  p: pointer;
+begin
+  case aSizeKey of
+    {$ifdef SPECIALIZE_SMALL}
+    1:
+      p := TIKeyValue<Byte, Variant>;
+    2:
+      p := TIKeyValue<Word, Variant>;
+    {$endif SPECIALIZE_SMALL}
+    4:
+      p := TIKeyValue<Integer, Variant>;
+    8:
+      p := TIKeyValue<Int64, Variant>;
+    {$ifdef SPECIALIZE_HASH}
+    16:
+      p := TIKeyValue<THash128, Variant>;
+    {$endif SPECIALIZE_HASH}
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+class procedure Collections.NewLStringOrdinal(
+  const aContext: TNewKeyValueContext; aSizeValue: integer; var result);
+var
+  p: pointer;
+begin
+  case aSizeValue of
+    {$ifdef SPECIALIZE_SMALL}
+    1:
+      p := TIKeyValue<RawByteString, Byte>;
+    2:
+      p := TIKeyValue<RawByteString, Word>;
+    {$endif SPECIALIZE_SMALL}
+    4:
+      p := TIKeyValue<RawByteString, Integer>;
+    8:
+      p := TIKeyValue<RawByteString, Int64>;
+    {$ifdef SPECIALIZE_HASH}
+    16:
+      p := TIKeyValue<RawByteString, THash128>;
+    32:
+      p := TIKeyValue<RawByteString, THash256>;
+    64:
+      p := TIKeyValue<RawByteString, THash512>;
+    {$endif SPECIALIZE_HASH}
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+class procedure Collections.NewLStringManaged(
+  const aContext: TNewKeyValueContext; aValue: TTypeKind; var result);
+var
+  p: pointer;
+begin
+  case aValue of
+    tkFloat:
+      case aContext.ValueItemTypeInfo^.RttiFloat of
+        rfSingle:
+          p := TIKeyValue<RawByteString, Single>;
+        rfDouble:
+          p := TIKeyValue<RawByteString, Double>;
+        rfCurr:
+          p := TIKeyValue<RawByteString, Currency>;
+      else
+        p := RaiseUseNewPlainKeyValue(aContext);
+      end;
+    tkLString:
+      p := TIKeyValue<RawByteString, RawByteString>;
+    {$ifdef SPECIALIZE_WSTRING}
+    tkWString:
+      p := TIKeyValue<RawByteString, WideString>;
+    {$endif SPECIALIZE_WSTRING}
+    tkUString:
+      p := TIKeyValue<RawByteString, UnicodeString>;
+    tkInterface:
+      p := TIKeyValue<RawByteString, IInterface>;
+    tkVariant:
+      p := TIKeyValue<RawByteString, Variant>;
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+{$ifdef SPECIALIZE_WSTRING}
+class procedure Collections.NewWStringOrdinal(
+  const aContext: TNewKeyValueContext; aSizeValue: integer; var result);
+var
+  p: pointer;
+begin
+  case aSizeValue of
+    {$ifdef SPECIALIZE_SMALL}
+    1:
+      p := TIKeyValue<WideString, Byte>;
+    2:
+      p := TIKeyValue<WideString, Word>;
+    {$endif SPECIALIZE_SMALL}
+    4:
+      p := TIKeyValue<WideString, Integer>;
+    8:
+      p := TIKeyValue<WideString, Int64>;
+    {$ifdef SPECIALIZE_HASH}
+    16:
+      p := TIKeyValue<WideString, THash128>;
+    {$endif SPECIALIZE_HASH}
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+class procedure Collections.NewWStringManaged(
+  const aContext: TNewKeyValueContext; aValue: TTypeKind; var result);
+var
+  p: pointer;
+begin
+  case aValue of
+    tkFloat:
+      case aContext.ValueItemTypeInfo^.RttiFloat of
+        rfSingle:
+          p := TIKeyValue<WideString, Single>;
+        rfDouble:
+          p := TIKeyValue<WideString, Double>;
+      else
+        p := RaiseUseNewPlainKeyValue(aContext);
+      end;
+    tkLString:
+      p := TIKeyValue<WideString, RawByteString>;
+    tkWString:
+      p := TIKeyValue<WideString, WideString>;
+    tkUString:
+      p := TIKeyValue<WideString, UnicodeString>;
+    tkInterface:
+      p := TIKeyValue<WideString, IInterface>;
+    tkVariant:
+      p := TIKeyValue<WideString, Variant>;
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+{$endif SPECIALIZE_WSTRING}
+
+class procedure Collections.NewUStringOrdinal(
+  const aContext: TNewKeyValueContext; aSizeValue: integer; var result);
+var
+  p: pointer;
+begin
+  case aSizeValue of
+    {$ifdef SPECIALIZE_SMALL}
+    1:
+      p := TIKeyValue<UnicodeString, Byte>;
+    2:
+      p := TIKeyValue<UnicodeString, Word>;
+    {$endif SPECIALIZE_SMALL}
+    4:
+      p := TIKeyValue<UnicodeString, Integer>;
+    8:
+      p := TIKeyValue<UnicodeString, Int64>;
+    {$ifdef SPECIALIZE_HASH}
+    16:
+      p := TIKeyValue<UnicodeString, THash128>;
+    {$endif SPECIALIZE_HASH}
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+class procedure Collections.NewUStringManaged(
+  const aContext: TNewKeyValueContext; aValue: TTypeKind; var result);
+var
+  p: pointer;
+begin
+  case aValue of
+    tkFloat:
+      case aContext.ValueItemTypeInfo^.RttiFloat of
+        rfSingle:
+          p := TIKeyValue<UnicodeString, Single>;
+        rfDouble:
+          p := TIKeyValue<UnicodeString, Double>;
+        rfCurr:
+          p := TIKeyValue<UnicodeString, Currency>;
+      else
+        p := RaiseUseNewPlainKeyValue(aContext);
+      end;
+    tkLString:
+      p := TIKeyValue<UnicodeString, RawByteString>;
+    {$ifdef SPECIALIZE_WSTRING}
+    tkWString:
+      p := TIKeyValue<UnicodeString, WideString>;
+    {$endif SPECIALIZE_WSTRING}
+    tkUString:
+      p := TIKeyValue<UnicodeString, UnicodeString>;
+    tkInterface:
+      p := TIKeyValue<UnicodeString, IInterface>;
+    tkVariant:
+      p := TIKeyValue<UnicodeString, Variant>;
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+class procedure Collections.NewInterfaceOrdinal(
+  const aContext: TNewKeyValueContext; aSizeValue: integer; var result);
+var
+  p: pointer;
+begin
+  case aSizeValue of
+    {$ifdef SPECIALIZE_SMALL}
+    1:
+      p := TIKeyValue<IInterface, Byte>;
+    2:
+      p := TIKeyValue<IInterface, Word>;
+    {$endif SPECIALIZE_SMALL}
+    4:
+      p := TIKeyValue<IInterface, Integer>;
+    8:
+      p := TIKeyValue<IInterface, Int64>;
+    {$ifdef SPECIALIZE_HASH}
+    16:
+      p := TIKeyValue<IInterface, THash128>;
+    {$endif SPECIALIZE_HASH}
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+class procedure Collections.NewInterfaceManaged(
+  const aContext: TNewKeyValueContext; aValue: TTypeKind; var result);
+var
+  p: pointer;
+begin
+  case aValue of
+    tkFloat:
+      case aContext.ValueItemTypeInfo^.RttiFloat of
+        rfSingle:
+          p := TIKeyValue<IInterface, Single>;
+        rfDouble:
+          p := TIKeyValue<IInterface, Double>;
+      else
+        p := RaiseUseNewPlainKeyValue(aContext);
+      end;
+    tkLString:
+      p := TIKeyValue<IInterface, RawByteString>;
+    {$ifdef SPECIALIZE_WSTRING}
+    tkWString:
+      p := TIKeyValue<IInterface, WideString>;
+    {$endif SPECIALIZE_WSTRING}
+    tkUString:
+      p := TIKeyValue<IInterface, UnicodeString>;
+    tkInterface:
+      p := TIKeyValue<IInterface, IInterface>;
+    tkVariant:
+      p := TIKeyValue<IInterface, Variant>;
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+class procedure Collections.NewVariantOrdinal(
+  const aContext: TNewKeyValueContext; aSizeValue: integer; var result);
+var
+  p: pointer;
+begin
+  case aSizeValue of
+    {$ifdef SPECIALIZE_SMALL}
+    1:
+      p := TIKeyValue<Variant, Byte>;
+    2:
+      p := TIKeyValue<Variant, Word>;
+    {$endif SPECIALIZE_SMALL}
+    4:
+      p := TIKeyValue<Variant, Integer>;
+    8:
+      p := TIKeyValue<Variant, Int64>;
+    {$ifdef SPECIALIZE_HASH}
+    16:
+      p := TIKeyValue<Variant, THash128>;
+    {$endif SPECIALIZE_HASH}
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+class procedure Collections.NewVariantManaged(
+  const aContext: TNewKeyValueContext; aValue: TTypeKind; var result);
+var
+  p: pointer;
+begin
+  case aValue of
+    tkFloat:
+      case aContext.ValueItemTypeInfo^.RttiFloat of
+        rfSingle:
+          p := TIKeyValue<Variant, Single>;
+        rfDouble:
+          p := TIKeyValue<Variant, Double>;
+      else
+        p := RaiseUseNewPlainKeyValue(aContext);
+      end;
+    tkLString:
+      p := TIKeyValue<Variant, RawByteString>;
+    {$ifdef SPECIALIZE_WSTRING}
+    tkWString:
+      p := TIKeyValue<Variant, WideString>;
+    {$endif SPECIALIZE_WSTRING}
+    tkUString:
+      p := TIKeyValue<Variant, UnicodeString>;
+    tkInterface:
+      p := TIKeyValue<Variant, IInterface>;
+    tkVariant:
+      p := TIKeyValue<Variant, Variant>;
+  else
+    p := RaiseUseNewPlainKeyValue(aContext);
+  end;
+  p := TIKeyValueParentClass(p).Create(aContext);
+  IKeyValue<Int64, Int64>(result) := TIKeyValue<Int64, Int64>(p);
+end;
+
+class function Collections.NewList<T>(aOptions: TListOptions;
+  aDynArrayTypeInfo: PRttiInfo): IList<T>;
+begin
+  if aDynArrayTypeInfo = nil then
+    aDynArrayTypeInfo := TypeInfo(TArray<T>);
+  // IsManagedType() GetTypeKind() SizeOf() intrinsics to compile efficiently
+  if IsManagedType(T) then
+    case GetTypeKind(T) of
+      tkLString:
+        // reuse TIList<RawByteString> for all AnsiString
+        NewLString(aOptions, aDynArrayTypeInfo, TypeInfo(T), result);
+      {$ifdef SPECIALIZE_WSTRING}
+      tkWString:
+        // reuse TIList<WideString> for all WideString
+        NewWString(aOptions, aDynArrayTypeInfo, TypeInfo(T), result);
+      {$endif SPECIALIZE_WSTRING}
+      tkUString:
+        // reuse TIList<UnicodeString> for all UnicodeString
+        NewUString(aOptions, aDynArrayTypeInfo, TypeInfo(T), result);
+      tkInterface:
+        // reuse TIList<IInterface> for all interfaces
+        NewInterface(aOptions, aDynArrayTypeInfo, TypeInfo(T), result);
+      tkVariant:
+        // reuse TIList<Variant> for Variant
+        NewVariant(aOptions, aDynArrayTypeInfo, TypeInfo(T), result);
+      // we can't reuse tkDynArray because its RTL is TypeInfo-specific
+    else
+      // even if NewPlainList<T>() is not called nor used, it would be generated
+      // with its full TIList<T> for no benefit but exe bloating
+      // -> explicit abort at runtime to let the user fix the code ASAP
+      RaiseUseNewPlainList(TypeInfo(T));
+    end
+  else
+    if GetTypeKind(T) = tkFloat then
+      // reuse TIList<> for floats (double/single/currency only)
+      NewFloat(aOptions, aDynArrayTypeInfo, TypeInfo(T), result)
+    else
+      // reuse TIList<integers> for ordinals (including TObject)
+      NewOrdinal(SizeOf(T), aOptions, aDynArrayTypeInfo, TypeInfo(T), result);
+end;
+
+{$else}
+
+class function Collections.NewList<T>(aOptions: TListOptions;
+  aDynArrayTypeInfo: PRttiInfo): IList<T>;
+begin
+  // oldest Delphi will generate (bloated) code for each specific type
+  if aDynArrayTypeInfo = nil then
+    aDynArrayTypeInfo := TypeInfo(TArray<T>);
+  result := TIList<T>.Create(
+    aDynArrayTypeInfo, TypeInfo(T), aOptions, ptNone);
+end;
+
+{$endif SPECIALIZE_ENABLED}
+
+class function Collections.NewPlainList<T>(aOptions: TListOptions;
+  aDynArrayTypeInfo: PRttiInfo; aSortAs: TRttiParserType): IList<T>;
+begin
+  if aDynArrayTypeInfo = nil then
+    aDynArrayTypeInfo := TypeInfo(TArray<T>);
+  result := TIList<T>.Create(aDynArrayTypeInfo, TypeInfo(T), aOptions, aSortAs);
+end;
+
+class function Collections.NewKeyValue<TKey, TValue>(aOptions: TKeyValueOptions;
+  aTimeoutSeconds: cardinal; aCompressAlgo: TAlgoCompress;
+  aKeyDynArrayTypeInfo, aValueDynArrayTypeInfo: PRttiInfo;
+  aHasher: THasher; aKeySpecific: TRttiParserType): IKeyValue<TKey, TValue>;
+var
+  ctx: TNewKeyValueContext;
+begin
+  ctx.Options := aOptions;
+  if aKeyDynArrayTypeInfo = nil then
+    ctx.KeyArrayTypeInfo := TypeInfo(TArray<TKey>)
+  else
+   ctx.KeyArrayTypeInfo := aKeyDynArrayTypeInfo;
+  ctx.KeyItemTypeInfo := TypeInfo(TKey);
+  if aValueDynArrayTypeInfo = nil then
+    ctx.ValueArrayTypeInfo := TypeInfo(TArray<TValue>)
+  else
+    ctx.ValueArrayTypeInfo := aValueDynArrayTypeInfo;
+  ctx.ValueItemTypeInfo := TypeInfo(TValue);
+  ctx.Timeout := aTimeOutSeconds;
+  ctx.Compress := aCompressAlgo;
+  ctx.KeySpecific := aKeySpecific;
+  ctx.Hasher := aHasher;
+  {$ifdef SPECIALIZE_ENABLED}
+  // IsManagedType() GetTypeKind() SizeOf() intrinsics to compile efficiently
+  if IsManagedType(TKey) then
+    case GetTypeKind(TKey) of
+      tkLString:
+        if IsManagedType(TValue) or
+           (GetTypeKind(TValue) = tkFloat) then
+          NewLStringManaged(ctx, GetTypeKind(TValue), result)
+        else
+          NewLStringOrdinal(ctx, SizeOf(TValue), result);
+      {$ifdef SPECIALIZE_WSTRING}
+      tkWString:
+        if IsManagedType(TValue) or
+           (GetTypeKind(TValue) = tkFloat) then
+          NewWStringManaged(ctx, GetTypeKind(TValue), result)
+        else
+          NewWStringOrdinal(ctx, SizeOf(TValue), result);
+      {$endif SPECIALIZE_WSTRING}
+      tkUString:
+        if IsManagedType(TValue) or
+           (GetTypeKind(TValue) = tkFloat) then
+          NewUStringManaged(ctx, GetTypeKind(TValue), result)
+        else
+          NewUStringOrdinal(ctx, SizeOf(TValue), result);
+      tkInterface:
+        if IsManagedType(TValue) or
+           (GetTypeKind(TValue) = tkFloat) then
+          NewInterfaceManaged(ctx, GetTypeKind(TValue), result)
+        else
+          NewInterfaceOrdinal(ctx, SizeOf(TValue), result);
+      tkVariant:
+        if IsManagedType(TValue) or
+           (GetTypeKind(TValue) = tkFloat) then
+          NewVariantManaged(ctx, GetTypeKind(TValue), result)
+        else
+          NewVariantOrdinal(ctx, SizeOf(TValue), result);
+    else
+      RaiseUseNewPlainKeyValue(ctx);
+    end
+  else // ordinal key
+    if IsManagedType(TValue) then
+      case GetTypeKind(TValue) of
+        tkLString:
+          NewOrdinalLString(ctx, SizeOf(TKey), result);
+        {$ifdef SPECIALIZE_WSTRING}
+        tkWString:
+          NewOrdinalWString(ctx, SizeOf(TKey), result);
+        {$endif SPECIALIZE_WSTRING}
+        tkUString:
+          NewOrdinalUString(ctx, SizeOf(TKey), result);
+        tkInterface:
+          NewOrdinalInterface(ctx, SizeOf(TKey), result);
+        tkVariant:
+          NewOrdinalVariant(ctx, SizeOf(TKey), result);
+      else
+        RaiseUseNewPlainKeyValue(ctx);
+      end
+    else if GetTypeKind(TValue) = tkFloat then
+      NewOrdinalFloat(ctx, SizeOf(TKey), result)
+    else
+      NewOrdinalOrdinal(ctx, SizeOf(TKey), SizeOf(TValue), result);
+  {$else}
+  // oldest Delphi will generate bloated code for each specific type
+  result := TIKeyValue<TKey, TValue>.Create(ctx);
+  {$endif SPECIALIZE_ENABLED}
+end;
+
+class function Collections.NewPlainKeyValue<TKey, TValue>(
+  aOptions: TKeyValueOptions; aTimeoutSeconds: cardinal;
+  aCompressAlgo: TAlgoCompress;
+  aKeyDynArrayTypeInfo, aValueDynArrayTypeInfo: PRttiInfo;
+  aHasher: THasher; aKeySpecific: TRttiParserType): IKeyValue<TKey, TValue>;
+var
+  ctx: TNewKeyValueContext;
+begin
+  ctx.Options := aOptions;
+  if aKeyDynArrayTypeInfo = nil then
+    ctx.KeyArrayTypeInfo := TypeInfo(TArray<TKey>)
+  else
+    ctx.KeyArrayTypeInfo := aKeyDynArrayTypeInfo;
+  ctx.KeyItemTypeInfo := TypeInfo(TKey);
+  if aValueDynArrayTypeInfo = nil then
+    ctx.ValueArrayTypeInfo := TypeInfo(TArray<TValue>)
+  else
+    ctx.ValueArrayTypeInfo := aValueDynArrayTypeInfo;
+  ctx.ValueItemTypeInfo := TypeInfo(TValue);
+  ctx.Timeout := aTimeOutSeconds;
+  ctx.Compress := aCompressAlgo;
+  ctx.Hasher := aHasher;
+  ctx.KeySpecific := aKeySpecific;
+  result := TIKeyValue<TKey, TValue>.Create(ctx);
+end;
+
+{$else}
+
+implementation
+
+{$endif HASGENERICS} // do-nothing unit on oldest compilers
+
+
+
+end.

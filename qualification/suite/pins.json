@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "recorded_at_utc": "2026-08-06T00:20:00Z",
+  "host_target": "x86_64-linux",
+  "repositories": {
+    "upstream_fpc": {
+      "url": "https://gitlab.com/freepascal.org/fpc/source.git",
+      "current_corpus_commit": "3095698a96498400a0eedffc26f10ab23007f65e",
+      "stable_3_2_2_commit": "0d122c49534b480be9284c21bd60b53d99904346",
+      "stable_3_2_4_rc1_commit": "d78e2897014a69f56a1cfb53c75335c4cc37ba0e",
+      "fixes_3_2_reference_commit": "483299735faef392a746646bb3d5f5737a9e53a5"
+    },
+    "unleashed": {
+      "url": "https://github.com/UnleashedPascal/compiler.git",
+      "latest_commit": "0e0f064ba22622111ff06567d46040c9c2cfd74d",
+      "issue_17_affected_commit": "5ad7af3194fb9067bcce57e547a5ba5070245d5d",
+      "issue_17_fixed_commit": "d365e4d5de5c43c6e5eff9e6a1635988f3bad6ff",
+      "issue_20_affected_commit": "c7031cc9a017b88f70e7381e9d89ea46bda858bf",
+      "issue_20_fixed_commit": "8e665b20fc222fab3ccbfd8f558ca4321d9833e9"
+    },
+    "mormot2": {
+      "url": "https://github.com/synopse/mORMot2.git",
+      "upstream_snapshot_commit": "bc189414f1b9ea163d24029cc8e814405e8e0cb5"
+    }
+  },
+  "historical_fpc_defects": {
+    "fpc_39438": {
+      "affected_commit": "0d122c49534b480be9284c21bd60b53d99904346",
+      "fixed_commit": "8b21bf1cce2fcf5e62c10a08f0ddd25dfdb6b33b"
+    },
+    "mega_001_negative_constant_div": {
+      "last_passing_parent": "ebb199b9d465a72c1784c5cfcb4f07b4d324f38c",
+      "first_affected_commit": "ea11517d27fa00f40b626e47213f0caa8832d155",
+      "current_upstream_affected_commit": "3095698a96498400a0eedffc26f10ab23007f65e",
+      "latest_unleashed_affected_commit": "0e0f064ba22622111ff06567d46040c9c2cfd74d"
+    }
+  },
+  "issue_snapshots": {
+    "fpc": {"entries": 18280, "pages": 183},
+    "unleashed": {
+      "entries": 11,
+      "tracker_issues": 8,
+      "pull_requests": 3,
+      "pages": 1
+    },
+    "mormot2": {
+      "entries": 506,
+      "tracker_issues": 239,
+      "pull_requests": 267,
+      "pages": 6
+    }
+  },
+  "bootstrap_only": {
+    "path": "/usr/bin/fpc",
+    "reported_version": "3.2.2",
+    "note": "Used only to bootstrap pinned source builds; never used as a qualified test compiler."
+  }
+}
