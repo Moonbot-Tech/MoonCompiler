@@ -510,6 +510,47 @@ begin
   tint128rec(result).hi:=rhi;
 end;
 
+function fpc_mul_currency(a,b:int64):int64; [public,alias:'FPC_MUL_CURRENCY']; compilerproc;
+var
+  alo,blo,plo,phi,qlo,qhi,rlo:qword;
+  negres:boolean;
+begin
+  { Currency stores four decimal places in an Int64.  The unscaled product
+    needs 128 bits; reducing it in Int64 first loses the high half. }
+  negres:=(a<0) xor (b<0);
+  if a<0 then
+    alo:=qword(-(a+1))+1
+  else
+    alo:=qword(a);
+  if b<0 then
+    blo:=qword(-(b+1))+1
+  else
+    blo:=qword(b);
+  int128_mul64(alo,blo,plo,phi);
+  int128_divmodu64(plo,phi,10000,qlo,qhi,rlo);
+
+  { Delphi rounds Currency multiplication to nearest, ties to even. }
+  if (rlo>5000) or
+     ((rlo=5000) and odd(qlo)) then
+    begin
+      inc(qlo);
+      if qlo=0 then
+        inc(qhi);
+    end;
+
+  if (qhi<>0) or
+     (not(negres) and (qlo>qword(high(int64)))) or
+     (negres and (qlo>qword($8000000000000000))) then
+    HandleErrorAddrFrameInd(215,get_pc_addr,get_frame);
+  if negres then
+    if qlo=qword($8000000000000000) then
+      result:=low(int64)
+    else
+      result:=-int64(qlo)
+  else
+    result:=int64(qlo);
+end;
+
 {****************************************************************************
                               shifts
     shl/shr operate on the raw payload, so one signed entry point serves

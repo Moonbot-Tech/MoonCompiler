@@ -4008,7 +4008,18 @@ const
                         end
                       else
                         begin
-                          hp:=cmoddivnode.create(divn,getcopy,cordconstnode.create(10000,s64currencytype,false));
+                          { A Currency value is a scaled Int64 on Win64.  A
+                            plain 64-bit product overflows before the scale
+                            factor can be removed, so preserve both raw
+                            operands and let the RTL use a 128-bit
+                            intermediate with Delphi's rounding rule. }
+                          left.resultdef:=s64inttype;
+                          right.resultdef:=s64inttype;
+                          right:=ccallparanode.create(right,ccallparanode.create(left,nil));
+                          left:=nil;
+                          hp:=ccallnode.createintern('fpc_mul_currency',right);
+                          right:=nil;
+                          hp:=ctypeconvnode.create_internal(hp,s64currencytype);
                           include(hp.flags,nf_is_currency);
                         end
                     end;
