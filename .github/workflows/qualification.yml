@@ -1,0 +1,96 @@
+name: qualification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qualification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-x86-64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bootstrap
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends \
+            make binutils fp-compiler-3.2.2 python3 coreutils util-linux
+          test "$(fpc -iV)" = 3.2.2
+      - name: Build product toolchain
+        run: ./build compiler
+      - name: Run platform contracts
+        run: |
+          python3 qualification/build-driver/ptop_contract.py
+          ./qualification/build-driver/atomic_swap.sh
+          ./qualification/pinned-unit/run.sh
+          ./qualification/memory-manager/profile_contract.sh
+          ./qualification/memory-manager/medium_arenas.sh
+          ./qualification/suite/scripts/run_extra_corpus.sh
+      - name: Run Linux language and integration gates
+        working-directory: qualification/suite
+        run: |
+          python3 runner.py fixtures --compiler moonbot-compiler-beta --option O2 --option O3
+          python3 runner.py mega --compiler moonbot-compiler-beta --option O2 --option O3
+          scripts/run_forms_gate.sh \
+            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ci-linux-forms
+          scripts/run_service_regressions_gate.sh \
+            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ci-linux-service
+          scripts/run_namespace_scope_gate.sh \
+            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ci-linux-namespace
+          scripts/run_monitor_gate.sh \
+            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ci-linux-monitor
+          scripts/run_exception_capture_gate.sh \
+            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ci-linux-exception
+          scripts/run_rtti_gettypes_gate.sh \
+            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ci-linux-rtti
+
+  win64-x86-64:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FPC 3.2.2 bootstrap
+        shell: powershell
+        run: choco install freepascal --version=3.2.2 -y --no-progress
+      - name: Build product toolchain
+        shell: powershell
+        run: |
+          .\build.ps1 compiler `
+            -Bootstrap C:\tools\freepascal\bin\i386-win32\fpc.exe
+      - name: Run platform contracts
+        shell: powershell
+        run: |
+          python .\qualification\build-driver\ptop_contract.py
+          .\qualification\build-driver\atomic_swap.ps1
+          .\qualification\pinned-unit\run.ps1
+          .\qualification\memory-manager\profile_contract.ps1
+          .\qualification\memory-manager\medium_arenas.ps1
+          .\qualification\suite\scripts\run_extra_corpus.ps1
+      - name: Run Win64 language and integration gates
+        shell: powershell
+        run: |
+          $Compiler = '.\.moonbot\toolchain\bin\x86_64-win64\ppcx64.exe'
+          $Config = '.\.moonbot\toolchain\bin\x86_64-win64\fpc.cfg'
+          python .\qualification\suite\scripts\run_win64_repair_gate.py `
+            $Compiler $Config . ci-win64-repairs
+          .\qualification\suite\scripts\run_service_regressions_gate.ps1 `
+            $Compiler $Config ci-win64-service
+          .\qualification\suite\scripts\run_rtti_gettypes_gate.ps1 `
+            $Compiler $Config ci-win64-rtti
+          .\qualification\suite\scripts\run_forms_gate.ps1 `
+            $Compiler $Config ci-win64-forms
