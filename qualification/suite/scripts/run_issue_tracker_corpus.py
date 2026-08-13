@@ -21,6 +21,11 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "fixtures" / "tracker" / "manifest.json"
 
 
+def absolute_cli_path(path: Path) -> Path:
+    """Bind a CLI path to the invocation directory before per-case cwd changes."""
+    return path.expanduser().resolve()
+
+
 def run(command: list[str], cwd: Path, timeout: int) -> dict[str, object]:
     started = time.monotonic()
     try:
@@ -132,6 +137,11 @@ def main() -> None:
         help="fail unless every MoonBot Compiler observation matches the manifest",
     )
     args = parser.parse_args()
+    args.fpc = absolute_cli_path(args.fpc)
+    args.fpc_config = absolute_cli_path(args.fpc_config)
+    if args.delphi is not None:
+        args.delphi = absolute_cli_path(args.delphi)
+    args.output = absolute_cli_path(args.output)
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     selected = set(args.case)
     cases = [case for case in manifest["cases"] if not selected or case["id"] in selected]
