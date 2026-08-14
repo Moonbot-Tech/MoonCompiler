@@ -2542,6 +2542,21 @@ def parse_set(values: list[str] | None) -> set[str] | None:
     return set(values) if values else None
 
 
+def create_run_directory(
+    runs_root: Path,
+    stage: str,
+    requested_run_id: str | None,
+) -> tuple[str, Path]:
+    runs_root.mkdir(parents=True, exist_ok=True)
+    if requested_run_id:
+        run_dir = runs_root / requested_run_id
+        run_dir.mkdir(exist_ok=False)
+    else:
+        timestamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        run_dir = Path(tempfile.mkdtemp(prefix=f"{timestamp}-{stage}-", dir=runs_root))
+    return run_dir.name, run_dir
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -2554,9 +2569,9 @@ def main() -> int:
     parser.add_argument("--run-id")
     args = parser.parse_args()
     manifest = load_manifest()
-    run_id = args.run_id or dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    run_dir = ROOT / "results" / "runs" / run_id
-    run_dir.mkdir(parents=True, exist_ok=False)
+    run_id, run_dir = create_run_directory(
+        ROOT / "results" / "runs", args.stage, args.run_id,
+    )
     runner_snapshot = run_dir / "runner.py"
     shutil.copy2(ROOT / "runner.py", runner_snapshot)
     run_manifest = dict(manifest)

@@ -11,6 +11,22 @@ import runner
 
 
 class RunnerContractsTest(unittest.TestCase):
+    def test_automatic_run_directories_do_not_collide(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first_id, first = runner.create_run_directory(root, "fixtures", None)
+            second_id, second = runner.create_run_directory(root, "mega", None)
+            self.assertNotEqual(first_id, second_id)
+            self.assertNotEqual(first, second)
+            self.assertTrue(first.is_dir())
+            self.assertTrue(second.is_dir())
+            self.assertIn("-fixtures-", first_id)
+            self.assertIn("-mega-", second_id)
+
+            runner.create_run_directory(root, "fixtures", "named-run")
+            with self.assertRaises(FileExistsError):
+                runner.create_run_directory(root, "fixtures", "named-run")
+
     def test_versioned_mormot_source_must_be_clean_exact_commit(self) -> None:
         completed = SimpleNamespace(stdout="expected\n")
         clean = SimpleNamespace(stdout="")
