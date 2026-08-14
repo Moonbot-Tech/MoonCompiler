@@ -85,6 +85,7 @@ interface
         procedure create_candidate_list(flags:tcallcandidatesflags;spezcontext:tspecializationcontext);
         procedure calc_distance(st_root:tsymtable;flags:tcallcandidatesflags);
         function  proc_add(st:tsymtable;pd:tprocdef):pcandidate;
+        function  compare_delphi_contextual_uint64(currpd,bestpd:pcandidate):integer;
       public
         constructor init(sym:tprocsym;st:TSymtable;ppn:tnode;flags:tcallcandidatesflags;spezcontext:tspecializationcontext);
         constructor init_operator(op:ttoken;ppn:tnode);
@@ -3596,6 +3597,77 @@ implementation
 
 
 
+    function tcallcandidates.compare_delphi_contextual_uint64(currpd,bestpd:pcandidate):integer;
+      function contextual_uint64_expression(p:tnode):boolean;
+        function originaldef(n:tnode):tdef;
+          begin
+            while (n.nodetype=typeconvn) and
+                  not (nf_explicit in n.flags) do
+              n:=ttypeconvnode(n).left;
+            result:=n.resultdef;
+          end;
+
+        var
+          ld,
+          rd : tdef;
+        begin
+          result:=false;
+          if not (p.nodetype in [addn,subn,muln,orn,xorn,divn,modn]) or
+             not is_integer(p.resultdef) or
+             (torddef(p.resultdef).ordtype<>s64bit) then
+            exit;
+          { div/mod lower both operands to UInt64 while keeping the visible
+            Delphi result type Int64.  A folded literal conversion can erase
+            its original signed definition, so recognize that exact lowered
+            shape before looking through conversion nodes. }
+          if (p.nodetype in [divn,modn]) and
+             is_integer(tbinopnode(p).left.resultdef) and
+             is_integer(tbinopnode(p).right.resultdef) and
+             (torddef(tbinopnode(p).left.resultdef).ordtype=u64bit) and
+             (torddef(tbinopnode(p).right.resultdef).ordtype=u64bit) then
+            exit(true);
+          ld:=originaldef(tbinopnode(p).left);
+          rd:=originaldef(tbinopnode(p).right);
+          result:=is_integer(ld) and is_integer(rd) and
+            (((torddef(ld).ordtype=u64bit) and is_signed(rd)) or
+             ((torddef(rd).ordtype=u64bit) and is_signed(ld)));
+        end;
+
+      function score(candidate:pcandidate):integer;
+        var
+          paraidx : integer;
+          currpara : tparavarsym;
+          pt : tcallparanode;
+        begin
+          result:=0;
+          paraidx:=candidate^.firstparaidx;
+          while (paraidx>=0) and
+                (vo_is_hidden_para in tparavarsym(candidate^.data.paras[paraidx]).varoptions) do
+            dec(paraidx);
+          pt:=tcallparanode(FParaNode);
+          while assigned(pt) and (paraidx>=0) do
+            begin
+              currpara:=tparavarsym(candidate^.data.paras[paraidx]);
+              if not (currpara.varspez in [vs_var,vs_out]) and
+                 is_integer(currpara.vardef) and
+                 (torddef(currpara.vardef).ordtype=u64bit) and
+                 contextual_uint64_expression(pt.left) then
+                inc(result);
+              pt:=tcallparanode(pt.right);
+              repeat
+                dec(paraidx);
+              until (paraidx<0) or
+                not (vo_is_hidden_para in tparavarsym(candidate^.data.paras[paraidx]).varoptions);
+            end;
+        end;
+
+      begin
+        result:=0;
+        if m_delphi in current_settings.modeswitches then
+          result:=score(currpd)-score(bestpd);
+      end;
+
+
     function is_better_candidate(currpd,bestpd:pcandidate):integer;
       begin
         {
@@ -3862,6 +3934,8 @@ implementation
                 res:=is_better_candidate(hp,besthpstart)
               else
                 res:=is_better_candidate_single_variant(hp,besthpstart);
+              if (res=0) and not hp^.invalid and not besthpstart^.invalid then
+                res:=compare_delphi_contextual_uint64(hp,besthpstart);
               if (res>0) then
                begin
                  { hp is better, flag all procs to be incompatible }
@@ -4033,6 +4107,8 @@ implementation
                      res:=is_better_candidate(hp,besthpstart)
                    else
                      res:=is_better_candidate_single_variant(hp,besthpstart);
+                   if (res=0) and not hp^.invalid and not besthpstart^.invalid then
+                     res:=compare_delphi_contextual_uint64(hp,besthpstart);
                  end;
                  if restart then
                    begin

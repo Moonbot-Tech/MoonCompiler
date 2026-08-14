@@ -38,6 +38,26 @@ function kind(value: uint64): byte; overload;
     result:=2;
   end;
 
+function pairkind(a,b:int64):byte;overload;
+  begin
+    result:=1;
+  end;
+
+function pairkind(a,b:uint64):byte;overload;
+  begin
+    result:=2;
+  end;
+
+function pairkindreverse(a,b:uint64):byte;overload;
+  begin
+    result:=2;
+  end;
+
+function pairkindreverse(a,b:int64):byte;overload;
+  begin
+    result:=1;
+  end;
+
 begin
   s:=-1;
   i:=1;
@@ -92,7 +112,15 @@ begin
     halt(23);
   if max(u,u+1)<>42 then
     halt(24);
+  if pairkind(u,u+typedintegerone)<>2 then
+    halt(25);
+  if pairkind(u+i,u)<>2 then
+    halt(26);
+  if pairkind(u,u mod 4294967296)<>2 then
+    halt(27);
+  if pairkindreverse(u,u+typedintegerone)<>2 then
+    halt(28);
   p:=65536;
   if (p<65536) or (p>1114111) then
-    halt(25);
+    halt(29);
 end.
