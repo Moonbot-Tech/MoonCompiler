@@ -1814,6 +1814,24 @@ var
   Check((LeftValue = 0) and (RightValue = 0), 'uint64-comparison-and');
 """)
 
+compile_case("MB-06", r"""
+program tracker_mb_06;
+
+{$ifdef FPC}
+  {$mode delphiunicode}{$H+}
+{$endif}
+{$APPTYPE CONSOLE}
+
+var
+  Value: Int64;
+
+begin
+  Value := Random(High(UInt64)) + 1;
+  WriteLn(Value);
+end.
+""", oracle="compile-rejection",
+expected_diagnostic="Can't determine which overloaded function to call")
+
 
 def main() -> None:
     write(OUT / "manifest.json", json.dumps({"schema": 1, "cases": CASES}, indent=2) + "\n")

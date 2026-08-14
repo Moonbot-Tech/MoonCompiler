@@ -436,6 +436,15 @@
       "source": "fixtures/tracker/mb-05/mb_05.dpr",
       "oracle": "runtime-self-check",
       "placement": "corpus"
+    },
+    {
+      "id": "MB-06",
+      "source": "fixtures/tracker/mb-06/mb_06.dpr",
+      "oracle": "compile-rejection",
+      "compile_only": true,
+      "placement": "corpus",
+      "fpc_expected": "compile_error",
+      "expected_diagnostic": "Can't determine which overloaded function to call"
     }
   ]
 }
