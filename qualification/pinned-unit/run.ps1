@@ -71,6 +71,11 @@ Invoke-Compile 'normal_lookup.dpr'
 Invoke-Compile 'foreign_lookup.dpr'
 Invoke-Compile 'source_wins.dpr' 'required_first' @(
   $PinOption, '--required-first-unit=PinFixture')
+Invoke-Compile 'required_prefix.dpr' 'required_prefix' @(
+  $PinOption, '--required-first-unit=PinFixture,NormalFixture')
+Invoke-Compile 'source_wins.dpr' 'required_prefix_missing_second' @(
+  $PinOption, '--required-first-unit=PinFixture,NormalFixture') -MustFail `
+  -ExpectedDiagnostic 'explicit unit 2 is <none>'
 Invoke-Compile 'normal_lookup.dpr' 'required_missing' @(
   '--required-first-unit=PinFixture') -MustFail `
   -ExpectedDiagnostic 'first explicit unit is NORMALFIXTURE'

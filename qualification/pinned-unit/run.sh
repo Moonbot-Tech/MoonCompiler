@@ -47,6 +47,11 @@ compile normal_lookup.dpr normal_lookup pass ''
 compile foreign_lookup.dpr foreign_lookup pass ''
 compile source_wins.dpr required_first pass '' "$pin" \
   --required-first-unit=PinFixture
+compile required_prefix.dpr required_prefix pass '' "$pin" \
+  --required-first-unit=PinFixture,NormalFixture
+compile source_wins.dpr required_prefix_missing_second fail \
+  'explicit unit 2 is <none>' "$pin" \
+  --required-first-unit=PinFixture,NormalFixture
 compile normal_lookup.dpr required_missing fail \
   'first explicit unit is NORMALFIXTURE' \
   --required-first-unit=PinFixture

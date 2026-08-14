@@ -112,6 +112,7 @@ function AnsiDefaultStringKind: Integer;
 var
   Value: String;
 begin
+  Value := '';
   Result := Kind(Value);
 end;
 
@@ -139,6 +140,9 @@ end.
 
 uses
   mormot.core.fpcx64mm,
+  {$ifdef UNIX}
+  cthreads,
+  {$endif UNIX}
   System.SysUtils,
   System.Generics.Collections,
   CustomAlias,
@@ -179,6 +183,18 @@ begin
 end.
 """,
     )
+    write(
+        project / "driver_profile_missing_threads.dpr",
+        """program driver_profile_missing_threads;
+
+uses
+  mormot.core.fpcx64mm,
+  System.SysUtils;
+
+begin
+end.
+""",
+    )
     dependency_url = dependency.resolve().as_uri()
     write(
         project / "driver_profile_smoke.mooncompiler",
@@ -205,6 +221,9 @@ def create_invocation_view(project: Path) -> Path:
     (view / "driver_profile_smoke.dpr").symlink_to(
         project / "driver_profile_smoke.dpr"
     )
+    (view / "driver_profile_missing_threads.dpr").symlink_to(
+        project / "driver_profile_missing_threads.dpr"
+    )
     (view / "src").symlink_to(project / "src", target_is_directory=True)
     (view / "ansi").symlink_to(project / "ansi", target_is_directory=True)
     (view / "ansi_bundle.pas").symlink_to(project / "ansi_bundle.pas")
@@ -214,8 +233,8 @@ def create_invocation_view(project: Path) -> Path:
     return view
 
 
-def build_command(project: Path, profile: str) -> list[str]:
-    source = project / "driver_profile_smoke.dpr"
+def build_command(project: Path, profile: str, name: str = "driver_profile_smoke.dpr") -> list[str]:
+    source = project / name
     if os.name == "nt":
         return [
             "powershell",
@@ -248,6 +267,20 @@ def main() -> int:
             runtime = run([str(executable)], cwd=project)
             if runtime.stdout.strip() != "MOONCOMPILER_PROJECT_PROFILE_OK":
                 raise RuntimeError(f"unexpected project output: {runtime.stdout!r}")
+
+        if os.name != "nt":
+            missing_threads = run(
+                build_command(project, "debug", "driver_profile_missing_threads.dpr"),
+                expect=1,
+            )
+            if (
+                "--required-first-unit=MORMOT.CORE.FPCX64MM,CTHREADS" not in missing_threads.stdout
+                or "explicit unit 2 is" not in missing_threads.stdout
+            ):
+                raise RuntimeError(
+                    "missing Linux cthreads was rejected for the wrong reason\n"
+                    + missing_threads.stdout
+                )
 
         cached_source = cache / commit.lower() / "src" / "PinnedDep.pas"
         cached_source.write_text(cached_source.read_text(encoding="utf-8") + "\n", encoding="utf-8")

@@ -131,7 +131,7 @@ options=(
   -Px86_64 -Tlinux -Rintel -dPOSIX -B
   -dMOONBOT_MM_PROFILE_REQUIRED -dFPCMM_BOOSTER -dFPCMM_MOONSHARD
   "--pinned-unit=mormot.core.fpcx64mm=$MM_SOURCE"
-  --required-first-unit=mormot.core.fpcx64mm
+  --required-first-unit=mormot.core.fpcx64mm,cthreads
   "${namespace_options[@]}"
   "-FU$unit_dir/app" "-FE$project_dir"
 )

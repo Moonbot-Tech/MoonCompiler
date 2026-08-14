@@ -1633,7 +1633,8 @@ begin
   end;
   if opt.StartsWith('--required-first-unit=') then begin
     more:=Upper(Copy(opt,Length('--required-first-unit=')+1));
-    if (more='') or
+    if (more='') or (more[1]=',') or (more[Length(more)]=',') or
+       (Pos(',,',more)>0) or
        ((requiredfirstunit<>'') and (requiredfirstunit<>more)) then
       IllegalPara(opt);
     requiredfirstunit:=more;

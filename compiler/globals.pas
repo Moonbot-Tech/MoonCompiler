@@ -382,7 +382,8 @@ Const
        namespacelist : TCmdStrList;
        { unit name -> exact source file mappings supplied by --pinned-unit }
        pinnedunitfiles : TLinkStrMap;
-       { first explicit program/library unit required by --required-first-unit }
+       { ordered explicit program/library unit prefix required by
+         --required-first-unit }
        requiredfirstunit : TIDString;
        // lowercased glob patterns from `--rttiexpose=` CLI flags;
        // per-unit patterns from `{$rttiexpose}` directive live on tmodule

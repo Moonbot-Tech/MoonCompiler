@@ -704,20 +704,40 @@ implementation
     procedure checkrequiredfirstunit(curr: tmodule);
       var
         pu : tused_unit;
-        actual : TIDString;
+        actual,
+        expected,
+        remaining : TIDString;
+        index : longint;
       begin
         if requiredfirstunit='' then
           exit;
+        remaining:=requiredfirstunit;
         pu:=tused_unit(curr.used_units.first);
-        while assigned(pu) and not pu.in_uses do
-          pu:=tused_unit(pu.next);
-        if assigned(pu) then
-          actual:=pu.u.modulename^
-        else
-          actual:='<none>';
-        if actual<>requiredfirstunit then
-          Message1(option_illegal_para,'--required-first-unit='+
-            requiredfirstunit+' (first explicit unit is '+actual+')');
+        index:=0;
+        repeat
+          expected:=GetToken(remaining,',');
+          if expected='' then
+            break;
+          inc(index);
+          while assigned(pu) and not pu.in_uses do
+            pu:=tused_unit(pu.next);
+          if assigned(pu) then
+            actual:=pu.u.modulename^
+          else
+            actual:='<none>';
+          if actual<>expected then
+            begin
+              if index=1 then
+                Message1(option_illegal_para,'--required-first-unit='+
+                  requiredfirstunit+' (first explicit unit is '+actual+')')
+              else
+                Message1(option_illegal_para,'--required-first-unit='+
+                  requiredfirstunit+' (explicit unit '+tostr(index)+' is '+
+                  actual+')');
+            end;
+          if assigned(pu) then
+            pu:=tused_unit(pu.next);
+        until false;
       end;
 
     function loadunits(curr: tmodule; frominterface : boolean) : boolean;
