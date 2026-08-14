@@ -30,6 +30,7 @@ jobs:
       - name: Run platform contracts
         run: |
           python3 qualification/build-driver/ptop_contract.py
+          python3 qualification/build-driver/project_profile_gate.py
           ./qualification/build-driver/atomic_swap.sh
           ./qualification/pinned-unit/run.sh
           ./qualification/memory-manager/profile_contract.sh
@@ -90,6 +91,7 @@ jobs:
         shell: powershell
         run: |
           python .\qualification\build-driver\ptop_contract.py
+          python .\qualification\build-driver\project_profile_gate.py
           .\qualification\build-driver\atomic_swap.ps1
           .\qualification\pinned-unit\run.ps1
           .\qualification\memory-manager\profile_contract.ps1

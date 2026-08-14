@@ -86,37 +86,59 @@ esac
   exit 1
 }
 
-project=$(realpath "$project")
-project_dir=$(dirname "$project")
+case "$project" in
+  /*) ;;
+  *) project="$PWD/$project" ;;
+esac
+project_name=${project##*/}
+project_dir=${project%/*}
+project_dir=$(cd -L -- "$project_dir" && pwd -L)
+project="$project_dir/$project_name"
 project_id=$(printf '%s' "$project" | sha256sum | cut -d' ' -f1)
 unit_dir="$STATE/units/linux/$project_id/$profile"
 mkdir -p "$unit_dir"
 
+namespace_options=(
+  -FNSystem
+  -UaSystem.SysUtils=SysUtils
+  -UaSystem.Variants=Variants
+  -UaSystem.Classes=Classes
+  -UaSystem.DateUtils=DateUtils
+  -UaSystem.Math=Math
+  -UaSystem.Types=Types
+  -UaSystem.TypInfo=TypInfo
+  -UaSystem.Rtti=Rtti
+  -UaSystem.StrUtils=StrUtils
+  -UaSystem.Character=Character
+  -UaSystem.SyncObjs=SyncObjs
+  -UaSystem.Generics.Defaults=Generics.Defaults
+  -UaSystem.Generics.Collections=Generics.Collections
+  -UaSystem.IniFiles=IniFiles
+  -UaSystem.SysConst=SysConst
+  -UaSystem.RTLConsts=RTLConsts
+)
+if [[ "$profile" == debug ]]; then
+  profile_options=(-O- -gl -gw3 -Criot -Sa)
+else
+  profile_options=(-O3 -gl -gw3)
+fi
+
 options=(
   -n "@$TOOLCHAIN/etc/fpc.cfg" -Mdelphi
-  -Mansistrings -MduplicateLocals -Madvancedrecords -Marrayoperators
+  -Municodestrings -MduplicateLocals -Madvancedrecords -Marrayoperators
   -Munderscoreisseparator -Mfunctionreferences -Manonymousfunctions
   -Minlinevars -Mimplicitgenerics -Mautoderef
   -Px86_64 -Tlinux -Rintel -dPOSIX -B
   -dMOONBOT_MM_PROFILE_REQUIRED -dFPCMM_BOOSTER -dFPCMM_MOONSHARD
   "--pinned-unit=mormot.core.fpcx64mm=$MM_SOURCE"
   --required-first-unit=mormot.core.fpcx64mm
-  "-FU$unit_dir" "-FE$project_dir"
+  "${namespace_options[@]}"
+  "-FU$unit_dir/app" "-FE$project_dir"
 )
-while IFS= read -r -d '' path; do
-  options+=("-Fu$path" "-Fi$path")
-done < <(find "$project_dir" -type d \
-  -not -path '*/.git' -not -path '*/.git/*' \
-  -not -path '*/.moonbot' -not -path '*/.moonbot/*' \
-  -not -path '*/dcu' -not -path '*/dcu/*' \
-  -not -path '*/build' -not -path '*/build/*' \
-  -print0 | sort -z)
-
-if [[ "$profile" == debug ]]; then
-  options+=(-O- -gl -gw3 -Criot -Sa)
-else
-  options+=(-O3 -gl -gw3)
-fi
+mkdir -p "$unit_dir/app"
+source "$ROOT/scripts/project_profile.sh"
+configure_project_profile
+options+=("${profile_options[@]}")
 
 echo "building $project ($profile, Linux x86-64)"
 "$TOOLCHAIN/bin/fpc" "${options[@]}" "$project"

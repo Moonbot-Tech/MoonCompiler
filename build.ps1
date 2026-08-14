@@ -19,6 +19,7 @@ $Toolchain = Join-Path $State 'toolchain'
 $MmSource = Join-Path $Root 'runtime\mm\mormot.core.fpcx64mm.pas'
 $MmUnit = 'mormot.core.fpcx64mm'
 . (Join-Path $Root 'scripts\Publish-Toolchain.ps1')
+. (Join-Path $Root 'scripts\Project-Profile.ps1')
 
 function Invoke-Checked {
   param([string]$File, [string[]]$Arguments)
@@ -141,7 +142,10 @@ function Build-Project([string]$Project, [string]$BuildProfile) {
   If ($BuildProfile -notin @('debug', 'release')) {
     throw 'project profile must be debug or release'
   }
-  $projectPath = (Resolve-Path -LiteralPath $Project).Path
+  $projectPath = [IO.Path]::GetFullPath($Project)
+  If (-not (Test-Path -LiteralPath $projectPath -PathType Leaf)) {
+    throw "project does not exist: $projectPath"
+  }
   If ([IO.Path]::GetExtension($projectPath) -ine '.dpr') {
     throw 'the project must be a .dpr file'
   }
@@ -155,32 +159,66 @@ function Build-Project([string]$Project, [string]$BuildProfile) {
   $projectDir = Split-Path -Parent $projectPath
   $projectId = Get-ProjectId $projectPath
   $unitDir = Join-Path $State "units\win64\$projectId\$BuildProfile"
-  New-Item -ItemType Directory -Force -Path $unitDir | Out-Null
+  $appUnitDir = Join-Path $unitDir 'app'
+  New-Item -ItemType Directory -Force -Path $appUnitDir | Out-Null
+  $namespaceOptions = @(
+    '-FNSystem',
+    '-UaSystem.SysUtils=SysUtils',
+    '-UaSystem.Variants=Variants',
+    '-UaSystem.Classes=Classes',
+    '-UaSystem.DateUtils=DateUtils',
+    '-UaSystem.Math=Math',
+    '-UaSystem.Types=Types',
+    '-UaSystem.TypInfo=TypInfo',
+    '-UaSystem.Rtti=Rtti',
+    '-UaSystem.StrUtils=StrUtils',
+    '-UaSystem.Character=Character',
+    '-UaSystem.SyncObjs=SyncObjs',
+    '-UaSystem.Generics.Defaults=Generics.Defaults',
+    '-UaSystem.Generics.Collections=Generics.Collections',
+    '-UaSystem.IniFiles=IniFiles',
+    '-UaSystem.SysConst=SysConst',
+    '-UaSystem.RTLConsts=RTLConsts')
+  If ($BuildProfile -eq 'debug') {
+    $profileOptions = @('-O-', '-gl', '-gw3', '-Criot', '-Sa')
+  } else {
+    $profileOptions = @('-O3', '-gl', '-gw3')
+  }
   $options = @(
     '-n', "@$config", '-Mdelphi',
-    '-Mansistrings', '-MduplicateLocals', '-Madvancedrecords',
+    '-Municodestrings', '-MduplicateLocals', '-Madvancedrecords',
     '-Marrayoperators', '-Munderscoreisseparator', '-Mfunctionreferences',
     '-Manonymousfunctions', '-Minlinevars', '-Mimplicitgenerics', '-Mautoderef',
     '-Px86_64', '-Twin64', '-Rintel', '-B',
     '-dMOONBOT_MM_PROFILE_REQUIRED', '-dFPCMM_BOOSTER', '-dFPCMM_MOONSHARD',
     "--pinned-unit=$MmUnit=$MmSource",
-    "--required-first-unit=$MmUnit",
-    "-FU$unitDir", "-FE$projectDir")
+    "--required-first-unit=$MmUnit")
+  $options += $namespaceOptions
+  $options += @("-FU$appUnitDir", "-FE$projectDir")
 
-  $projectDirs = @($projectDir) + @(
-    Get-ChildItem -LiteralPath $projectDir -Directory -Recurse |
-      Where-Object FullName -NotMatch '\\(\.git|\.moonbot|build|dcu)(\\|$)' |
-      Sort-Object FullName |
-      ForEach-Object FullName)
-  foreach ($dir in $projectDirs) {
-    $options += "-Fu$dir"
-    $options += "-Fi$dir"
+  $projectProfile = Resolve-ProjectProfile $projectPath $projectDir $State
+  If ($projectProfile.AnsiEntry) {
+    $ansiUnitDir = Join-Path $unitDir 'ansi'
+    New-Item -ItemType Directory -Force -Path $ansiUnitDir | Out-Null
+    $ansiOptions = @(
+      '-n', "@$config", '-Mdelphi', '-Mansistrings',
+      '-MduplicateLocals', '-Madvancedrecords', '-Marrayoperators',
+      '-Munderscoreisseparator', '-Mfunctionreferences',
+      '-Manonymousfunctions', '-Minlinevars', '-Mimplicitgenerics', '-Mautoderef',
+      '-Px86_64', '-Twin64', '-Rintel', '-B',
+      '-dMOONBOT_MM_PROFILE_REQUIRED', '-dFPCMM_BOOSTER', '-dFPCMM_MOONSHARD',
+      "--pinned-unit=$MmUnit=$MmSource",
+      "--required-first-unit=$MmUnit")
+    $ansiOptions += $namespaceOptions
+    $ansiOptions += "-FU$ansiUnitDir"
+    foreach ($source in $projectProfile.AnsiSources) {
+      $ansiOptions += Get-ProjectTreeOptions $source
+    }
+    Invoke-Checked $fpc ($ansiOptions + $profileOptions + @($projectProfile.AnsiEntry))
+    $options += "-Fu$ansiUnitDir"
   }
-  If ($BuildProfile -eq 'debug') {
-    $options += @('-O-', '-gl', '-gw3', '-Criot', '-Sa')
-  } else {
-    $options += @('-O3', '-gl', '-gw3')
-  }
+  $options += $projectProfile.Options
+  $options += $profileOptions
 
   Write-Output "building $projectPath ($BuildProfile, Win64 x86-64)"
   Invoke-Checked $fpc ($options + @($projectPath))

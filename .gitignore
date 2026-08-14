@@ -45,6 +45,8 @@ bin
 backup
 lazbuild
 *.wpo
+*.pyc
+__pycache__/
 fp.dsk
 fp.ini
 fp.cfg
