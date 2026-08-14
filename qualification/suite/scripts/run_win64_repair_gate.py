@@ -12,6 +12,8 @@ from pathlib import Path
 
 
 CORE_TESTS = (
+    "tdelphimixeduint641",
+    "tu64modpow2mask1",
     "tdelphicurrencymul1",
     "tdelphirawbyteconcat1",
     "tunsignednarrowarith1",
@@ -33,6 +35,7 @@ GENERIC_TESTS = (
 )
 OPTIONS = ("O2", "O3")
 NEGATIVE_TESTS = (
+    ("delphi_mixed_uint64_pair_ambiguous", "Can't determine which overloaded function to call"),
     ("inline_const_reassign_fail", "Can't assign values to const variable"),
     ("inline_const_typed_reassign_fail", "Can't assign values to const variable"),
     ("inline_const_record_field_reassign_fail", "Can't assign values to const variable"),
