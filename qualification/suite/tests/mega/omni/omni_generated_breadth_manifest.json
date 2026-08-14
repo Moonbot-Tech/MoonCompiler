@@ -1,5 +1,89 @@
 {
-  "case_count": 13956,
+  "case_count": 15236,
+  "cross_axis": {
+    "dimensions": {
+      "consumers": [
+        "kind",
+        "pair-left",
+        "pair-right",
+        "pair-both",
+        "assignment",
+        "case",
+        "loop-bound",
+        "array-index"
+      ],
+      "contexts": [
+        "direct",
+        "runtime-if",
+        "single-loop",
+        "try-finally",
+        "repeat-until",
+        "nested-function",
+        "with-record",
+        "case-branch"
+      ],
+      "operators": [
+        "add",
+        "sub",
+        "mul",
+        "or",
+        "xor",
+        "and",
+        "div",
+        "mod"
+      ],
+      "sources": [
+        "literal-small",
+        "untyped-const",
+        "typed-integer-const",
+        "integer-local",
+        "integer-field",
+        "integer-property",
+        "integer-result",
+        "integer-generic-result",
+        "typed-int64-const",
+        "int64-local",
+        "typed-uint64-const",
+        "uint64-local",
+        "uint64-field",
+        "uint64-property",
+        "uint64-result",
+        "uint64-generic-result",
+        "literal-int32-high",
+        "literal-uint32-low",
+        "literal-uint32-high",
+        "literal-int64-low"
+      ]
+    },
+    "full_source_operator_consumer_product": true,
+    "pair_coverage": {
+      "0-1": {
+        "covered": 160,
+        "possible": 160
+      },
+      "0-2": {
+        "covered": 160,
+        "possible": 160
+      },
+      "0-3": {
+        "covered": 160,
+        "possible": 160
+      },
+      "1-2": {
+        "covered": 64,
+        "possible": 64
+      },
+      "1-3": {
+        "covered": 64,
+        "possible": 64
+      },
+      "2-3": {
+        "covered": 64,
+        "possible": 64
+      }
+    },
+    "tuple_count": 1280
+  },
   "extra_oracle_count": 0,
   "family_counts": {
     "abi": 576,
@@ -8,6 +92,7 @@
     "closure": 384,
     "composed": 768,
     "control": 192,
+    "cross-axis": 1280,
     "dispatch": 384,
     "dynarray": 768,
     "exception": 256,
@@ -34,8 +119,8 @@
   "generator": "scripts/generate_omni_breadth.py",
   "missing_oracle_count": 0,
   "oracle_complete": true,
-  "oracle_count": 13956,
-  "procedure_count": 3768,
+  "oracle_count": 15236,
+  "procedure_count": 5048,
   "schema": 1,
-  "unique_case_count": 13956
+  "unique_case_count": 15236
 }

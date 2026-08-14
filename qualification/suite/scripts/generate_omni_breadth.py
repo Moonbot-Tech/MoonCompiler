@@ -193,6 +193,17 @@ def emit_support(e: Emitter) -> None:
     e.line("    S: AnsiString;")
     e.line("  end;")
     e.line()
+    e.line("  TGBOrdinalSource = record")
+    e.line("  private")
+    e.line("    function GetSigned: Integer;")
+    e.line("    function GetUnsigned: UInt64;")
+    e.line("  public")
+    e.line("    SignedField: Integer;")
+    e.line("    UnsignedField: UInt64;")
+    e.line("    property SignedProperty: Integer read GetSigned;")
+    e.line("    property UnsignedProperty: UInt64 read GetUnsigned;")
+    e.line("  end;")
+    e.line()
     e.line("  TGBFloatRec = packed record")
     e.line("    S: Single;")
     e.line("    D: Double;")
@@ -235,6 +246,12 @@ def emit_support(e: Emitter) -> None:
     e.line("    function MakeFunc(Bias: Integer): TGBIntFunc;")
     e.line("  end;")
     e.line("{$endif}")
+    e.line()
+    e.line("const")
+    e.line("  GBUntypedOne = 1;")
+    e.line("  GBTypedIntegerOne: Integer = 1;")
+    e.line("  GBTypedInt64One: Int64 = 1;")
+    e.line("  GBTypedUInt64One: UInt64 = 1;")
     e.line()
     e.line("{$ifndef GB_SKIP_MANAGED_RECORD}")
     e.line("var")
@@ -490,6 +507,11 @@ def emit_support(e: Emitter) -> None:
     e.line("  Result := X xor Integer(RtZero);")
     e.line("end;")
     e.line()
+    e.line("function GBUInt64NoInline(X: UInt64): UInt64;")
+    e.line("begin")
+    e.line("  Result := X xor UInt64(RtZero);")
+    e.line("end;")
+    e.line()
     e.line("function GBOpenArrayDigest(const A: array of Integer): UInt64;")
     e.line("var I: Integer;")
     e.line("begin")
@@ -606,6 +628,56 @@ def emit_support(e: Emitter) -> None:
     e.line("function GBOverload(A: Integer): Int64; overload;")
     e.line("begin")
     e.line("  Result := Int64(A) * 3 + 1;")
+    e.line("end;")
+    e.line()
+    e.line("function TGBOrdinalSource.GetSigned: Integer;")
+    e.line("begin")
+    e.line("  Result := SignedField;")
+    e.line("end;")
+    e.line()
+    e.line("function TGBOrdinalSource.GetUnsigned: UInt64;")
+    e.line("begin")
+    e.line("  Result := UnsignedField;")
+    e.line("end;")
+    e.line()
+    e.line("function GBIntegerValue(Value: Integer): Integer;")
+    e.line("begin")
+    e.line("  Result := Value;")
+    e.line("end;")
+    e.line()
+    e.line("function GBUInt64Value(Value: UInt64): UInt64;")
+    e.line("begin")
+    e.line("  Result := Value;")
+    e.line("end;")
+    e.line()
+    e.line("function GBOrdinalKind(Value: Integer): UInt64; overload;")
+    e.line("begin")
+    e.line("  Result := 1;")
+    e.line("end;")
+    e.line()
+    e.line("function GBOrdinalKind(Value: Cardinal): UInt64; overload;")
+    e.line("begin")
+    e.line("  Result := 2;")
+    e.line("end;")
+    e.line()
+    e.line("function GBOrdinalKind(Value: Int64): UInt64; overload;")
+    e.line("begin")
+    e.line("  Result := 3;")
+    e.line("end;")
+    e.line()
+    e.line("function GBOrdinalKind(Value: UInt64): UInt64; overload;")
+    e.line("begin")
+    e.line("  Result := 4;")
+    e.line("end;")
+    e.line()
+    e.line("function GBPairKind(A, B: Int64): UInt64; overload;")
+    e.line("begin")
+    e.line("  Result := 3;")
+    e.line("end;")
+    e.line()
+    e.line("function GBPairKind(A, B: UInt64): UInt64; overload;")
+    e.line("begin")
+    e.line("  Result := 4;")
     e.line("end;")
     e.line()
     e.line("function GBOverload(A: Int64; B: Integer = 5): Int64; overload;")
@@ -2152,6 +2224,265 @@ def emit_call_overload_forms(e: Emitter) -> list[str]:
     return calls
 
 
+CROSS_AXIS_SOURCES = (
+    ("literal-small", "1"),
+    ("untyped-const", "GBUntypedOne"),
+    ("typed-integer-const", "GBTypedIntegerOne"),
+    ("integer-local", "I"),
+    ("integer-field", "Source.SignedField"),
+    ("integer-property", "Source.SignedProperty"),
+    ("integer-result", "GBIntegerValue(I)"),
+    ("integer-generic-result", "TGBGenericOps<Integer>.Echo(I)"),
+    ("typed-int64-const", "GBTypedInt64One"),
+    ("int64-local", "I64"),
+    ("typed-uint64-const", "GBTypedUInt64One"),
+    ("uint64-local", "U2"),
+    ("uint64-field", "Source.UnsignedField"),
+    ("uint64-property", "Source.UnsignedProperty"),
+    ("uint64-result", "GBUInt64Value(U2)"),
+    ("uint64-generic-result", "TGBGenericOps<UInt64>.Echo(U2)"),
+    ("literal-int32-high", "2147483647"),
+    ("literal-uint32-low", "2147483648"),
+    ("literal-uint32-high", "4294967295"),
+    ("literal-int64-low", "4294967296"),
+)
+
+CROSS_AXIS_OPERATORS = (
+    ("add", "+"),
+    ("sub", "-"),
+    ("mul", "*"),
+    ("or", "or"),
+    ("xor", "xor"),
+    ("and", "and"),
+    ("div", "div"),
+    ("mod", "mod"),
+)
+
+CROSS_AXIS_CONSUMERS = (
+    "kind",
+    "pair-left",
+    "pair-right",
+    "pair-both",
+    "assignment",
+    "case",
+    "loop-bound",
+    "array-index",
+)
+
+CROSS_AXIS_CONTEXTS = (
+    "direct",
+    "runtime-if",
+    "single-loop",
+    "try-finally",
+    "repeat-until",
+    "nested-function",
+    "with-record",
+    "case-branch",
+)
+
+
+def cross_axis_consumer_lines(
+    consumer: str, expression: str, target: str, indent: str
+) -> list[str]:
+    if consumer == "kind":
+        return [f"{indent}{target} := GBOrdinalKind({expression});"]
+    if consumer == "pair-left":
+        return [f"{indent}{target} := GBPairKind(U, {expression});"]
+    if consumer == "pair-right":
+        return [f"{indent}{target} := GBPairKind({expression}, U);"]
+    if consumer == "pair-both":
+        return [f"{indent}{target} := GBPairKind({expression}, {expression});"]
+    if consumer == "assignment":
+        return [
+            f"{indent}AssignedValue := {expression};",
+            f"{indent}{target} := AssignedValue;",
+        ]
+    if consumer == "case":
+        return [
+            f"{indent}case UInt64({expression}) and 3 of",
+            f"{indent}  0: {target} := 17;",
+            f"{indent}  1: {target} := 34;",
+            f"{indent}  2: {target} := 51;",
+            f"{indent}else",
+            f"{indent}  {target} := 68;",
+            f"{indent}end;",
+        ]
+    if consumer == "loop-bound":
+        return [
+            f"{indent}{target} := 0;",
+            f"{indent}for var LoopIndex := 0 to Integer(UInt64({expression}) and 7) do",
+            f"{indent}  {target} := {target} + UInt64(LoopIndex + 1);",
+        ]
+    if consumer == "array-index":
+        return [f"{indent}{target} := Values[Byte(UInt64({expression}))];"]
+    raise ValueError(consumer)
+
+
+def emit_cross_axis_forms(e: Emitter) -> list[str]:
+    """Full source/operator/consumer product braided through AST contexts."""
+    calls: list[str] = []
+    e.line("{$ifndef GB_SKIP_CROSS_AXIS}")
+    for source_id, (source_name, source_expression) in enumerate(CROSS_AXIS_SOURCES):
+        for operator_id, (operator_name, operator_token) in enumerate(CROSS_AXIS_OPERATORS):
+            expression = f"U {operator_token} {source_expression}"
+            for consumer_id, consumer_name in enumerate(CROSS_AXIS_CONSUMERS):
+                context_id = (source_id + 3 * operator_id + 5 * consumer_id) % len(CROSS_AXIS_CONTEXTS)
+                context_name = CROSS_AXIS_CONTEXTS[context_id]
+                proc = f"GBCrossAxisS{source_id:02d}O{operator_id:02d}C{consumer_id:02d}"
+                calls.append(proc)
+                actual_expression = expression
+                if context_name == "with-record":
+                    actual_expression = actual_expression.replace("Source.SignedField", "SignedField")
+                    actual_expression = actual_expression.replace("Source.UnsignedField", "UnsignedField")
+                    actual_expression = actual_expression.replace("Source.SignedProperty", "SignedProperty")
+                    actual_expression = actual_expression.replace("Source.UnsignedProperty", "UnsignedProperty")
+                name = f"gb-cross-{source_name}-{operator_name}-{consumer_name}-{context_name}"
+                e.line(f"procedure {proc};")
+                e.line("var")
+                e.line("  Source: TGBOrdinalSource;")
+                e.line("  U, U2, Actual: UInt64;")
+                if consumer_name == "assignment":
+                    e.line("  AssignedValue: UInt64;")
+                e.line("  I: Integer;")
+                e.line("  I64: Int64;")
+                if (consumer_name == "array-index") or (context_name == "single-loop"):
+                    e.line("  J: Integer;")
+                if consumer_name == "array-index":
+                    e.line("  Values: array[Byte] of Byte;")
+                if context_name == "nested-function":
+                    e.line("  function NestedEvaluate: UInt64;")
+                    e.line("  begin")
+                    for line in cross_axis_consumer_lines(
+                        consumer_name, expression, "Result", "    "
+                    ):
+                        e.line(line)
+                    e.line("  end;")
+                e.line("begin")
+                e.line("  U := 41;")
+                e.line("  U2 := 1;")
+                e.line("  I := 1;")
+                e.line("  I64 := 1;")
+                e.line("  Source.SignedField := 1;")
+                e.line("  Source.UnsignedField := 1;")
+                if consumer_name == "array-index":
+                    e.line("  for J := 0 to High(Values) do")
+                    e.line("    Values[J] := Byte(J xor $A5);")
+                e.line("  Actual := 0;")
+                if context_name == "direct":
+                    for line in cross_axis_consumer_lines(
+                        consumer_name, actual_expression, "Actual", "  "
+                    ):
+                        e.line(line)
+                elif context_name == "runtime-if":
+                    e.line("  if GBUInt64NoInline(U) = 41 then")
+                    e.line("  begin")
+                    for line in cross_axis_consumer_lines(
+                        consumer_name, actual_expression, "Actual", "    "
+                    ):
+                        e.line(line)
+                    e.line("  end")
+                    e.line("  else")
+                    e.line("    Actual := High(UInt64);")
+                elif context_name == "single-loop":
+                    e.line("  for J := 0 to Integer(GBUInt64NoInline(0)) do")
+                    e.line("  begin")
+                    for line in cross_axis_consumer_lines(
+                        consumer_name, actual_expression, "Actual", "    "
+                    ):
+                        e.line(line)
+                    e.line("  end;")
+                elif context_name == "try-finally":
+                    e.line("  try")
+                    for line in cross_axis_consumer_lines(
+                        consumer_name, actual_expression, "Actual", "    "
+                    ):
+                        e.line(line)
+                    e.line("  finally")
+                    e.line("    U2 := U2 xor 0;")
+                    e.line("  end;")
+                elif context_name == "repeat-until":
+                    e.line("  repeat")
+                    for line in cross_axis_consumer_lines(
+                        consumer_name, actual_expression, "Actual", "    "
+                    ):
+                        e.line(line)
+                    e.line("  until GBUInt64NoInline(1) = 1;")
+                elif context_name == "nested-function":
+                    e.line("  Actual := NestedEvaluate;")
+                elif context_name == "with-record":
+                    e.line("  with Source do")
+                    e.line("  begin")
+                    for line in cross_axis_consumer_lines(
+                        consumer_name, actual_expression, "Actual", "    "
+                    ):
+                        e.line(line)
+                    e.line("  end;")
+                elif context_name == "case-branch":
+                    e.line("  case Integer(GBUInt64NoInline(U) and 1) of")
+                    e.line("    1:")
+                    e.line("    begin")
+                    for line in cross_axis_consumer_lines(
+                        consumer_name, actual_expression, "Actual", "      "
+                    ):
+                        e.line(line)
+                    e.line("    end;")
+                    e.line("  else")
+                    e.line("    Actual := High(UInt64);")
+                    e.line("  end;")
+                else:
+                    raise ValueError(context_name)
+                e.check("cross-axis", name, "Actual")
+                e.line("end;")
+                e.line()
+    e.line("{$endif}")
+    return calls
+
+
+def cross_axis_manifest() -> dict[str, object]:
+    tuples = []
+    for source_id in range(len(CROSS_AXIS_SOURCES)):
+        for operator_id in range(len(CROSS_AXIS_OPERATORS)):
+            for consumer_id in range(len(CROSS_AXIS_CONSUMERS)):
+                context_id = (source_id + 3 * operator_id + 5 * consumer_id) % len(CROSS_AXIS_CONTEXTS)
+                tuples.append((source_id, operator_id, consumer_id, context_id))
+    dimensions = (
+        len(CROSS_AXIS_SOURCES),
+        len(CROSS_AXIS_OPERATORS),
+        len(CROSS_AXIS_CONSUMERS),
+        len(CROSS_AXIS_CONTEXTS),
+    )
+    required_tuples = dimensions[0] * dimensions[1] * dimensions[2]
+    if len(tuples) != required_tuples:
+        raise AssertionError(
+            f"cross-axis product is incomplete: {len(tuples)} != {required_tuples}"
+        )
+    pair_coverage: dict[str, dict[str, int]] = {}
+    for left in range(len(dimensions)):
+        for right in range(left + 1, len(dimensions)):
+            covered = {(row[left], row[right]) for row in tuples}
+            possible = dimensions[left] * dimensions[right]
+            if len(covered) != possible:
+                raise AssertionError(
+                    f"cross-axis pair {left}-{right} is incomplete: "
+                    f"{len(covered)} != {possible}"
+                )
+            pair_coverage[f"{left}-{right}"] = {
+                "covered": len(covered),
+                "possible": possible,
+            }
+    return {
+        "dimensions": {
+            "sources": [name for name, _ in CROSS_AXIS_SOURCES],
+            "operators": [name for name, _ in CROSS_AXIS_OPERATORS],
+            "consumers": list(CROSS_AXIS_CONSUMERS),
+            "contexts": list(CROSS_AXIS_CONTEXTS),
+        },
+        "tuple_count": len(tuples),
+        "full_source_operator_consumer_product": True,
+        "pair_coverage": pair_coverage,
+    }
+
+
 def emit_managed_record_forms(e: Emitter) -> list[str]:
     calls: list[str] = []
     e.line("{$ifndef GB_SKIP_MANAGED_RECORD}")
@@ -2413,6 +2744,7 @@ def guard_for_call(call: str) -> str:
         ("GBOrdinalFlow", "GB_SKIP_ORDINAL_FLOW"),
         ("GBSetRange", "GB_SKIP_SET_RANGE"),
         ("GBCallOverload", "GB_SKIP_CALL_OVERLOAD"),
+        ("GBCrossAxis", "GB_SKIP_CROSS_AXIS"),
         ("GBLifecycle", "GB_SKIP_LIFECYCLE"),
         ("GBFloatAbi", "GB_SKIP_FLOAT_ABI"),
         ("GBThreadRuntime", "GB_SKIP_THREAD_RUNTIME"),
@@ -2453,6 +2785,7 @@ def generate(oracle: dict[str, str]) -> tuple[str, list[str], dict[str, int], in
     calls += emit_ordinal_flow_forms(e)
     calls += emit_set_range_forms(e)
     calls += emit_call_overload_forms(e)
+    calls += emit_cross_axis_forms(e)
     calls += emit_managed_record_forms(e)
     calls += emit_lifecycle_forms(e)
     calls += emit_float_abi_forms(e)
@@ -2577,7 +2910,10 @@ def main() -> None:
     args = parser.parse_args()
     oracle = json.loads(ORACLE.read_text(encoding="utf-8")) if ORACLE.exists() else {}
     if args.capture:
-        oracle = capture_oracle(args.capture)
+        # Delphi cannot parse a small number of deliberate FPC-extension forms.
+        # Their previously reviewed semantic oracles stay intact while a
+        # Delphi run refreshes every row it actually executed.
+        oracle.update(capture_oracle(args.capture))
         write_if_changed(ORACLE, json.dumps(oracle, indent=2, sort_keys=True) + "\n")
 
     generated, names, families, procedure_count = generate(oracle)
@@ -2590,6 +2926,7 @@ def main() -> None:
         "unique_case_count": len(set(names)),
         "procedure_count": procedure_count,
         "family_counts": families,
+        "cross_axis": cross_axis_manifest(),
         "oracle_count": len(oracle),
         "oracle_complete": not missing and not extra,
         "missing_oracle_count": len(missing),

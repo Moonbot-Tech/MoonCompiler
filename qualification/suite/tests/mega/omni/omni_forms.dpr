@@ -68,7 +68,7 @@ uses
 
 const
   DefaultSeed = UInt64($6D6F6F6E626F7421);
-  MaxFailures = 1024;
+  MaxFailures = 4096;
 
 { Two accumulators: "core" compiles on every tested compiler including the
   stable references; "modern" additionally needs Delphi-compatibility

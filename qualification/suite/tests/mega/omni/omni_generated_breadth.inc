@@ -140,6 +140,17 @@ type
     S: AnsiString;
   end;
 
+  TGBOrdinalSource = record
+  private
+    function GetSigned: Integer;
+    function GetUnsigned: UInt64;
+  public
+    SignedField: Integer;
+    UnsignedField: UInt64;
+    property SignedProperty: Integer read GetSigned;
+    property UnsignedProperty: UInt64 read GetUnsigned;
+  end;
+
   TGBFloatRec = packed record
     S: Single;
     D: Double;
@@ -182,6 +193,12 @@ type
     function MakeFunc(Bias: Integer): TGBIntFunc;
   end;
 {$endif}
+
+const
+  GBUntypedOne = 1;
+  GBTypedIntegerOne: Integer = 1;
+  GBTypedInt64One: Int64 = 1;
+  GBTypedUInt64One: UInt64 = 1;
 
 {$ifndef GB_SKIP_MANAGED_RECORD}
 var
@@ -437,6 +454,11 @@ begin
   Result := X xor Integer(RtZero);
 end;
 
+function GBUInt64NoInline(X: UInt64): UInt64;
+begin
+  Result := X xor UInt64(RtZero);
+end;
+
 function GBOpenArrayDigest(const A: array of Integer): UInt64;
 var I: Integer;
 begin
@@ -553,6 +575,56 @@ end;
 function GBOverload(A: Integer): Int64; overload;
 begin
   Result := Int64(A) * 3 + 1;
+end;
+
+function TGBOrdinalSource.GetSigned: Integer;
+begin
+  Result := SignedField;
+end;
+
+function TGBOrdinalSource.GetUnsigned: UInt64;
+begin
+  Result := UnsignedField;
+end;
+
+function GBIntegerValue(Value: Integer): Integer;
+begin
+  Result := Value;
+end;
+
+function GBUInt64Value(Value: UInt64): UInt64;
+begin
+  Result := Value;
+end;
+
+function GBOrdinalKind(Value: Integer): UInt64; overload;
+begin
+  Result := 1;
+end;
+
+function GBOrdinalKind(Value: Cardinal): UInt64; overload;
+begin
+  Result := 2;
+end;
+
+function GBOrdinalKind(Value: Int64): UInt64; overload;
+begin
+  Result := 3;
+end;
+
+function GBOrdinalKind(Value: UInt64): UInt64; overload;
+begin
+  Result := 4;
+end;
+
+function GBPairKind(A, B: Int64): UInt64; overload;
+begin
+  Result := 3;
+end;
+
+function GBPairKind(A, B: UInt64): UInt64; overload;
+begin
+  Result := 4;
 end;
 
 function GBOverload(A: Int64; B: Integer = 5): Int64; overload;
@@ -64280,6 +64352,29908 @@ begin
 end;
 
 {$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+procedure GBCrossAxisS00O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U + 1);
+  GeneratedCheckU('gb-cross-literal-small-add-kind-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-small-add-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U + 1, U);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-add-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U + 1, U + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-add-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U + 1;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-small-add-assignment-repeat-until', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS00O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U + 1) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-small-add-case-runtime-if', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS00O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + 1) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-add-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS00O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U + 1))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-add-array-index-try-finally', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS00O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U - 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-sub-kind-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U - 1);
+  GeneratedCheckU('gb-cross-literal-small-sub-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U - 1, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-small-sub-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U - 1, U - 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-sub-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U - 1;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-sub-assignment-case-branch', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS00O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U - 1) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-small-sub-case-repeat-until', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS00O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - 1) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-small-sub-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS00O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U - 1))];
+  end;
+  GeneratedCheckU('gb-cross-literal-small-sub-array-index-with-record', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS00O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U * 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-mul-kind-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U * 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-mul-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U * 1, U);
+  GeneratedCheckU('gb-cross-literal-small-mul-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U * 1, U * 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-small-mul-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U * 1;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-mul-assignment-single-loop', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS00O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U * 1) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-mul-case-case-branch', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS00O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * 1) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-small-mul-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS00O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U * 1))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-small-mul-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS00O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U or 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-small-or-kind-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U or 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-or-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U or 1, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-or-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U or 1, U or 1);
+  GeneratedCheckU('gb-cross-literal-small-or-pair-both-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U or 1;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-small-or-assignment-nested-function', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS00O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U or 1) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-or-case-single-loop', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS00O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U or 1) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-or-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS00O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U or 1))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-small-or-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS00O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U xor 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-small-xor-kind-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U xor 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-small-xor-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U xor 1, U);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-xor-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U xor 1, U xor 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-xor-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U xor 1;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-literal-small-xor-assignment-direct', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS00O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U xor 1) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-small-xor-case-nested-function', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS00O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor 1) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-xor-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS00O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U xor 1))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-xor-array-index-case-branch', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS00O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U and 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-and-kind-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U and 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-small-and-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U and 1, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-small-and-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U and 1, U and 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-and-pair-both-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U and 1;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-and-assignment-try-finally', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS00O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U and 1) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-and-case-direct', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS00O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and 1) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-small-and-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS00O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U and 1))];
+  end;
+  GeneratedCheckU('gb-cross-literal-small-and-array-index-single-loop', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS00O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U div 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-div-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U div 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-div-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U div 1, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-small-div-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U div 1, U div 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-small-div-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U div 1;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-div-assignment-with-record', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS00O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U div 1) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-div-case-try-finally', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS00O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U div 1) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-literal-small-div-loop-bound-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS00O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U div 1))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-small-div-array-index-nested-function', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS00O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U mod 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-small-mod-kind-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U mod 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-mod-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U mod 1, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-small-mod-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U mod 1, U mod 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-small-mod-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS00O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U mod 1;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-small-mod-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS00O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U mod 1) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-mod-case-with-record', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS00O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod 1) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-small-mod-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS00O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U mod 1))];
+  GeneratedCheckU('gb-cross-literal-small-mod-array-index-direct', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS01O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U + GBUntypedOne);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-untyped-const-add-kind-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U + GBUntypedOne);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-add-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U + GBUntypedOne, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-add-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U + GBUntypedOne, U + GBUntypedOne);
+  GeneratedCheckU('gb-cross-untyped-const-add-pair-both-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U + GBUntypedOne;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-untyped-const-add-assignment-nested-function', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS01O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U + GBUntypedOne) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-add-case-single-loop', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS01O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U + GBUntypedOne) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-add-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS01O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U + GBUntypedOne))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-untyped-const-add-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS01O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U - GBUntypedOne);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-untyped-const-sub-kind-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U - GBUntypedOne);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-untyped-const-sub-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U - GBUntypedOne, U);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-sub-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U - GBUntypedOne, U - GBUntypedOne);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-sub-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U - GBUntypedOne;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-untyped-const-sub-assignment-direct', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS01O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U - GBUntypedOne) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-untyped-const-sub-case-nested-function', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS01O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - GBUntypedOne) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-sub-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS01O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U - GBUntypedOne))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-sub-array-index-case-branch', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS01O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U * GBUntypedOne);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-mul-kind-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U * GBUntypedOne);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-untyped-const-mul-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U * GBUntypedOne, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-untyped-const-mul-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U * GBUntypedOne, U * GBUntypedOne);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-mul-pair-both-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U * GBUntypedOne;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-mul-assignment-try-finally', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS01O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U * GBUntypedOne) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-mul-case-direct', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS01O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * GBUntypedOne) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-untyped-const-mul-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS01O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U * GBUntypedOne))];
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-mul-array-index-single-loop', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS01O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U or GBUntypedOne);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-or-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U or GBUntypedOne);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-or-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U or GBUntypedOne, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-untyped-const-or-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U or GBUntypedOne, U or GBUntypedOne);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-untyped-const-or-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U or GBUntypedOne;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-or-assignment-with-record', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS01O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U or GBUntypedOne) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-or-case-try-finally', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS01O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U or GBUntypedOne) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-untyped-const-or-loop-bound-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS01O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U or GBUntypedOne))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-untyped-const-or-array-index-nested-function', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS01O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U xor GBUntypedOne);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-untyped-const-xor-kind-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U xor GBUntypedOne);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-xor-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U xor GBUntypedOne, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-xor-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U xor GBUntypedOne, U xor GBUntypedOne);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-untyped-const-xor-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U xor GBUntypedOne;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-untyped-const-xor-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS01O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U xor GBUntypedOne) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-xor-case-with-record', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS01O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor GBUntypedOne) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-xor-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS01O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U xor GBUntypedOne))];
+  GeneratedCheckU('gb-cross-untyped-const-xor-array-index-direct', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS01O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U and GBUntypedOne);
+  GeneratedCheckU('gb-cross-untyped-const-and-kind-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U and GBUntypedOne);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-untyped-const-and-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U and GBUntypedOne, U);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-and-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U and GBUntypedOne, U and GBUntypedOne);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-and-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U and GBUntypedOne;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-untyped-const-and-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS01O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U and GBUntypedOne) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-untyped-const-and-case-runtime-if', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS01O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and GBUntypedOne) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-and-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS01O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U and GBUntypedOne))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-and-array-index-try-finally', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS01O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U div GBUntypedOne);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-div-kind-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U div GBUntypedOne);
+  GeneratedCheckU('gb-cross-untyped-const-div-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U div GBUntypedOne, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-untyped-const-div-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U div GBUntypedOne, U div GBUntypedOne);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-div-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U div GBUntypedOne;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-div-assignment-case-branch', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS01O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U div GBUntypedOne) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-untyped-const-div-case-repeat-until', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS01O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div GBUntypedOne) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-untyped-const-div-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS01O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U div GBUntypedOne))];
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-div-array-index-with-record', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS01O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U mod GBUntypedOne);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-mod-kind-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U mod GBUntypedOne);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-mod-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U mod GBUntypedOne, U);
+  GeneratedCheckU('gb-cross-untyped-const-mod-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U mod GBUntypedOne, U mod GBUntypedOne);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-untyped-const-mod-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS01O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U mod GBUntypedOne;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-mod-assignment-single-loop', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS01O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U mod GBUntypedOne) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-untyped-const-mod-case-case-branch', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS01O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod GBUntypedOne) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-untyped-const-mod-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS01O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U mod GBUntypedOne))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-untyped-const-mod-array-index-runtime-if', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS02O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U + GBTypedIntegerOne);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-add-kind-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U + GBTypedIntegerOne);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-add-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U + GBTypedIntegerOne, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-integer-const-add-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U + GBTypedIntegerOne, U + GBTypedIntegerOne);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-integer-const-add-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U + GBTypedIntegerOne;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-add-assignment-with-record', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS02O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U + GBTypedIntegerOne) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-add-case-try-finally', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS02O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U + GBTypedIntegerOne) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-typed-integer-const-add-loop-bound-direct', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS02O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U + GBTypedIntegerOne))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-integer-const-add-array-index-nested-function', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS02O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U - GBTypedIntegerOne);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-integer-const-sub-kind-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U - GBTypedIntegerOne);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-sub-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U - GBTypedIntegerOne, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-sub-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U - GBTypedIntegerOne, U - GBTypedIntegerOne);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-integer-const-sub-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U - GBTypedIntegerOne;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-integer-const-sub-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS02O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U - GBTypedIntegerOne) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-sub-case-with-record', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS02O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - GBTypedIntegerOne) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-sub-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS02O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U - GBTypedIntegerOne))];
+  GeneratedCheckU('gb-cross-typed-integer-const-sub-array-index-direct', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS02O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U * GBTypedIntegerOne);
+  GeneratedCheckU('gb-cross-typed-integer-const-mul-kind-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U * GBTypedIntegerOne);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-integer-const-mul-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U * GBTypedIntegerOne, U);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-mul-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U * GBTypedIntegerOne, U * GBTypedIntegerOne);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-mul-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U * GBTypedIntegerOne;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-integer-const-mul-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS02O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U * GBTypedIntegerOne) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-integer-const-mul-case-runtime-if', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS02O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * GBTypedIntegerOne) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-mul-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U * GBTypedIntegerOne))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-mul-array-index-try-finally', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS02O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U or GBTypedIntegerOne);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-or-kind-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U or GBTypedIntegerOne);
+  GeneratedCheckU('gb-cross-typed-integer-const-or-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U or GBTypedIntegerOne, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-integer-const-or-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U or GBTypedIntegerOne, U or GBTypedIntegerOne);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-or-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U or GBTypedIntegerOne;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-or-assignment-case-branch', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS02O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U or GBTypedIntegerOne) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-integer-const-or-case-repeat-until', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS02O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or GBTypedIntegerOne) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-integer-const-or-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U or GBTypedIntegerOne))];
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-or-array-index-with-record', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS02O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U xor GBTypedIntegerOne);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-xor-kind-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U xor GBTypedIntegerOne);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-xor-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U xor GBTypedIntegerOne, U);
+  GeneratedCheckU('gb-cross-typed-integer-const-xor-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U xor GBTypedIntegerOne, U xor GBTypedIntegerOne);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-integer-const-xor-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U xor GBTypedIntegerOne;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-xor-assignment-single-loop', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS02O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U xor GBTypedIntegerOne) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-xor-case-case-branch', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS02O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor GBTypedIntegerOne) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-integer-const-xor-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS02O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U xor GBTypedIntegerOne))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-integer-const-xor-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS02O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U and GBTypedIntegerOne);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-integer-const-and-kind-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U and GBTypedIntegerOne);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-and-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U and GBTypedIntegerOne, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-and-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U and GBTypedIntegerOne, U and GBTypedIntegerOne);
+  GeneratedCheckU('gb-cross-typed-integer-const-and-pair-both-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U and GBTypedIntegerOne;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-integer-const-and-assignment-nested-function', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS02O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U and GBTypedIntegerOne) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-and-case-single-loop', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS02O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U and GBTypedIntegerOne) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-and-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U and GBTypedIntegerOne))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-integer-const-and-array-index-repeat-until', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS02O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U div GBTypedIntegerOne);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-integer-const-div-kind-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U div GBTypedIntegerOne);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-integer-const-div-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U div GBTypedIntegerOne, U);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-div-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U div GBTypedIntegerOne, U div GBTypedIntegerOne);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-div-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U div GBTypedIntegerOne;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-typed-integer-const-div-assignment-direct', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS02O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U div GBTypedIntegerOne) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-integer-const-div-case-nested-function', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS02O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div GBTypedIntegerOne) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-div-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U div GBTypedIntegerOne))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-div-array-index-case-branch', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS02O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U mod GBTypedIntegerOne);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-mod-kind-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U mod GBTypedIntegerOne);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-integer-const-mod-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U mod GBTypedIntegerOne, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-integer-const-mod-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS02O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U mod GBTypedIntegerOne, U mod GBTypedIntegerOne);
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-mod-pair-both-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS02O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U mod GBTypedIntegerOne;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-mod-assignment-try-finally', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS02O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U mod GBTypedIntegerOne) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-mod-case-direct', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS02O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod GBTypedIntegerOne) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-integer-const-mod-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS02O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U mod GBTypedIntegerOne))];
+  end;
+  GeneratedCheckU('gb-cross-typed-integer-const-mod-array-index-single-loop', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS03O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U + I);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-add-kind-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U + I);
+  GeneratedCheckU('gb-cross-integer-local-add-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U + I, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-local-add-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U + I, U + I);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-add-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U + I;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-add-assignment-case-branch', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS03O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U + I) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-local-add-case-repeat-until', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS03O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + I) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-local-add-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS03O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U + I))];
+  end;
+  GeneratedCheckU('gb-cross-integer-local-add-array-index-with-record', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS03O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U - I);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-sub-kind-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U - I);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-sub-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U - I, U);
+  GeneratedCheckU('gb-cross-integer-local-sub-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U - I, U - I);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-local-sub-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U - I;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-sub-assignment-single-loop', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS03O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U - I) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-sub-case-case-branch', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS03O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - I) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-local-sub-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS03O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U - I))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-local-sub-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS03O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U * I);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-local-mul-kind-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U * I);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-mul-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U * I, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-mul-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U * I, U * I);
+  GeneratedCheckU('gb-cross-integer-local-mul-pair-both-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U * I;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-local-mul-assignment-nested-function', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS03O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U * I) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-mul-case-single-loop', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS03O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U * I) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-mul-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U * I))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-local-mul-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS03O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U or I);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-local-or-kind-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U or I);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-local-or-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U or I, U);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-or-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U or I, U or I);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-or-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U or I;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-integer-local-or-assignment-direct', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS03O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U or I) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-local-or-case-nested-function', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS03O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or I) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-or-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U or I))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-or-array-index-case-branch', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS03O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U xor I);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-xor-kind-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U xor I);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-local-xor-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U xor I, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-local-xor-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U xor I, U xor I);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-xor-pair-both-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U xor I;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-xor-assignment-try-finally', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS03O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U xor I) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-xor-case-direct', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS03O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor I) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-local-xor-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS03O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U xor I))];
+  end;
+  GeneratedCheckU('gb-cross-integer-local-xor-array-index-single-loop', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS03O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U and I);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-and-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U and I);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-and-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U and I, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-local-and-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U and I, U and I);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-local-and-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U and I;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-and-assignment-with-record', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS03O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U and I) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-and-case-try-finally', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS03O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U and I) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-integer-local-and-loop-bound-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U and I))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-local-and-array-index-nested-function', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS03O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U div I);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-local-div-kind-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U div I);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-div-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U div I, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-div-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U div I, U div I);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-local-div-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U div I;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-local-div-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS03O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U div I) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-div-case-with-record', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS03O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div I) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-div-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U div I))];
+  GeneratedCheckU('gb-cross-integer-local-div-array-index-direct', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS03O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U mod I);
+  GeneratedCheckU('gb-cross-integer-local-mod-kind-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U mod I);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-local-mod-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U mod I, U);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-mod-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS03O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U mod I, U mod I);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-mod-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS03O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U mod I;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-local-mod-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS03O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U mod I) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-local-mod-case-runtime-if', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS03O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod I) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-integer-local-mod-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS03O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U mod I))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-local-mod-array-index-try-finally', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS04O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U + Source.SignedField);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-field-add-kind-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U + Source.SignedField);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-field-add-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U + SignedField, U);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-add-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U + Source.SignedField, U + Source.SignedField);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-add-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U + Source.SignedField;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-integer-field-add-assignment-direct', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS04O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U + Source.SignedField) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-field-add-case-nested-function', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS04O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + Source.SignedField) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-add-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS04O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U + Source.SignedField))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-add-array-index-case-branch', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS04O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U - Source.SignedField);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-sub-kind-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U - Source.SignedField);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-field-sub-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U - Source.SignedField, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-field-sub-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U - SignedField, U - SignedField);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-sub-pair-both-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U - Source.SignedField;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-sub-assignment-try-finally', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS04O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U - Source.SignedField) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-sub-case-direct', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS04O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - Source.SignedField) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-field-sub-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS04O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U - Source.SignedField))];
+  end;
+  GeneratedCheckU('gb-cross-integer-field-sub-array-index-single-loop', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS04O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U * Source.SignedField);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-mul-kind-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U * Source.SignedField);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-mul-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U * Source.SignedField, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-field-mul-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U * Source.SignedField, U * Source.SignedField);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-field-mul-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U * SignedField;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-mul-assignment-with-record', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS04O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U * Source.SignedField) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-mul-case-try-finally', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS04O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U * Source.SignedField) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-integer-field-mul-loop-bound-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U * Source.SignedField))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-field-mul-array-index-nested-function', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS04O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U or Source.SignedField);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-field-or-kind-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U or Source.SignedField);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-or-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U or Source.SignedField, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-or-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U or Source.SignedField, U or Source.SignedField);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-field-or-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U or Source.SignedField;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-field-or-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS04O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U or SignedField) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-or-case-with-record', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS04O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or Source.SignedField) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-or-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U or Source.SignedField))];
+  GeneratedCheckU('gb-cross-integer-field-or-array-index-direct', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS04O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U xor Source.SignedField);
+  GeneratedCheckU('gb-cross-integer-field-xor-kind-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U xor Source.SignedField);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-field-xor-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U xor Source.SignedField, U);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-xor-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U xor Source.SignedField, U xor Source.SignedField);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-xor-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U xor Source.SignedField;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-field-xor-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS04O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U xor Source.SignedField) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-field-xor-case-runtime-if', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS04O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor SignedField) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-xor-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS04O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U xor Source.SignedField))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-xor-array-index-try-finally', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS04O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U and Source.SignedField);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-and-kind-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U and Source.SignedField);
+  GeneratedCheckU('gb-cross-integer-field-and-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U and Source.SignedField, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-field-and-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U and Source.SignedField, U and Source.SignedField);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-and-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U and Source.SignedField;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-and-assignment-case-branch', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS04O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U and Source.SignedField) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-field-and-case-repeat-until', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS04O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and Source.SignedField) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-field-and-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U and SignedField))];
+  end;
+  GeneratedCheckU('gb-cross-integer-field-and-array-index-with-record', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS04O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U div SignedField);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-div-kind-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U div Source.SignedField);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-div-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U div Source.SignedField, U);
+  GeneratedCheckU('gb-cross-integer-field-div-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U div Source.SignedField, U div Source.SignedField);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-field-div-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U div Source.SignedField;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-div-assignment-single-loop', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS04O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U div Source.SignedField) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-div-case-case-branch', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS04O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div Source.SignedField) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-field-div-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U div Source.SignedField))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-field-div-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS04O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U mod Source.SignedField);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-field-mod-kind-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U mod SignedField);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-mod-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U mod Source.SignedField, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-mod-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS04O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U mod Source.SignedField, U mod Source.SignedField);
+  GeneratedCheckU('gb-cross-integer-field-mod-pair-both-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS04O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U mod Source.SignedField;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-field-mod-assignment-nested-function', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS04O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U mod Source.SignedField) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-integer-field-mod-case-single-loop', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS04O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U mod Source.SignedField) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-field-mod-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS04O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U mod Source.SignedField))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-field-mod-array-index-repeat-until', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS05O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U + Source.SignedProperty);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-property-add-kind-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U + Source.SignedProperty);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-add-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U + Source.SignedProperty, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-add-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U + Source.SignedProperty, U + Source.SignedProperty);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-property-add-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U + Source.SignedProperty;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-property-add-assignment-runtime-if', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS05O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U + SignedProperty) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-add-case-with-record', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS05O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + Source.SignedProperty) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-add-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS05O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U + Source.SignedProperty))];
+  GeneratedCheckU('gb-cross-integer-property-add-array-index-direct', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS05O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U - Source.SignedProperty);
+  GeneratedCheckU('gb-cross-integer-property-sub-kind-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U - Source.SignedProperty);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-property-sub-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U - Source.SignedProperty, U);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-sub-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U - Source.SignedProperty, U - Source.SignedProperty);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-sub-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U - Source.SignedProperty;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-property-sub-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS05O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U - Source.SignedProperty) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-property-sub-case-runtime-if', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS05O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - SignedProperty) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-sub-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS05O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U - Source.SignedProperty))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-sub-array-index-try-finally', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS05O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U * Source.SignedProperty);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-mul-kind-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U * Source.SignedProperty);
+  GeneratedCheckU('gb-cross-integer-property-mul-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U * Source.SignedProperty, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-property-mul-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U * Source.SignedProperty, U * Source.SignedProperty);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-mul-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U * Source.SignedProperty;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-mul-assignment-case-branch', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS05O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U * Source.SignedProperty) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-property-mul-case-repeat-until', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS05O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * Source.SignedProperty) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-property-mul-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U * SignedProperty))];
+  end;
+  GeneratedCheckU('gb-cross-integer-property-mul-array-index-with-record', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS05O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U or SignedProperty);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-or-kind-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U or Source.SignedProperty);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-or-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U or Source.SignedProperty, U);
+  GeneratedCheckU('gb-cross-integer-property-or-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U or Source.SignedProperty, U or Source.SignedProperty);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-property-or-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U or Source.SignedProperty;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-or-assignment-single-loop', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS05O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U or Source.SignedProperty) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-or-case-case-branch', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS05O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or Source.SignedProperty) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-property-or-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U or Source.SignedProperty))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-property-or-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS05O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U xor Source.SignedProperty);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-property-xor-kind-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U xor SignedProperty);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-xor-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U xor Source.SignedProperty, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-xor-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U xor Source.SignedProperty, U xor Source.SignedProperty);
+  GeneratedCheckU('gb-cross-integer-property-xor-pair-both-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U xor Source.SignedProperty;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-property-xor-assignment-nested-function', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS05O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U xor Source.SignedProperty) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-xor-case-single-loop', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS05O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U xor Source.SignedProperty) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-xor-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS05O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U xor Source.SignedProperty))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-property-xor-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS05O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U and Source.SignedProperty);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-property-and-kind-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U and Source.SignedProperty);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-property-and-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U and SignedProperty, U);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-and-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U and Source.SignedProperty, U and Source.SignedProperty);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-and-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U and Source.SignedProperty;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-integer-property-and-assignment-direct', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS05O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U and Source.SignedProperty) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-property-and-case-nested-function', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS05O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and Source.SignedProperty) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-and-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U and Source.SignedProperty))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-and-array-index-case-branch', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS05O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U div Source.SignedProperty);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-div-kind-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U div Source.SignedProperty);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-property-div-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U div Source.SignedProperty, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-property-div-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U div SignedProperty, U div SignedProperty);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-div-pair-both-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U div Source.SignedProperty;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-div-assignment-try-finally', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS05O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U div Source.SignedProperty) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-div-case-direct', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS05O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div Source.SignedProperty) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-property-div-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U div Source.SignedProperty))];
+  end;
+  GeneratedCheckU('gb-cross-integer-property-div-array-index-single-loop', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS05O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U mod Source.SignedProperty);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-mod-kind-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U mod Source.SignedProperty);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-property-mod-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U mod Source.SignedProperty, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-property-mod-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS05O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U mod Source.SignedProperty, U mod Source.SignedProperty);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-property-mod-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS05O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U mod SignedProperty;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-mod-assignment-with-record', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS05O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U mod Source.SignedProperty) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-property-mod-case-try-finally', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS05O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U mod Source.SignedProperty) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-integer-property-mod-loop-bound-direct', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS05O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U mod Source.SignedProperty))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-property-mod-array-index-nested-function', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS06O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U + GBIntegerValue(I));
+  end;
+  GeneratedCheckU('gb-cross-integer-result-add-kind-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U + GBIntegerValue(I));
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-add-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U + GBIntegerValue(I), U);
+  GeneratedCheckU('gb-cross-integer-result-add-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U + GBIntegerValue(I), U + GBIntegerValue(I));
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-result-add-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U + GBIntegerValue(I);
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-add-assignment-single-loop', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS06O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U + GBIntegerValue(I)) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-result-add-case-case-branch', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS06O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + GBIntegerValue(I)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-result-add-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS06O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U + GBIntegerValue(I)))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-result-add-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS06O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U - GBIntegerValue(I));
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-result-sub-kind-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U - GBIntegerValue(I));
+  end;
+  GeneratedCheckU('gb-cross-integer-result-sub-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U - GBIntegerValue(I), U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-sub-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U - GBIntegerValue(I), U - GBIntegerValue(I));
+  GeneratedCheckU('gb-cross-integer-result-sub-pair-both-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U - GBIntegerValue(I);
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-result-sub-assignment-nested-function', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS06O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U - GBIntegerValue(I)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-sub-case-single-loop', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS06O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U - GBIntegerValue(I)) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-result-sub-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS06O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U - GBIntegerValue(I)))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-result-sub-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS06O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U * GBIntegerValue(I));
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-result-mul-kind-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U * GBIntegerValue(I));
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-result-mul-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U * GBIntegerValue(I), U);
+  end;
+  GeneratedCheckU('gb-cross-integer-result-mul-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U * GBIntegerValue(I), U * GBIntegerValue(I));
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-mul-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U * GBIntegerValue(I);
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-integer-result-mul-assignment-direct', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS06O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U * GBIntegerValue(I)) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-result-mul-case-nested-function', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS06O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * GBIntegerValue(I)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-integer-result-mul-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U * GBIntegerValue(I)))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-result-mul-array-index-case-branch', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS06O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U or GBIntegerValue(I));
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-result-or-kind-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U or GBIntegerValue(I));
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-result-or-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U or GBIntegerValue(I), U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-result-or-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U or GBIntegerValue(I), U or GBIntegerValue(I));
+  end;
+  GeneratedCheckU('gb-cross-integer-result-or-pair-both-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U or GBIntegerValue(I);
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-or-assignment-try-finally', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS06O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U or GBIntegerValue(I)) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-or-case-direct', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS06O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or GBIntegerValue(I)) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-result-or-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U or GBIntegerValue(I)))];
+  end;
+  GeneratedCheckU('gb-cross-integer-result-or-array-index-single-loop', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS06O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U xor GBIntegerValue(I));
+  end;
+  GeneratedCheckU('gb-cross-integer-result-xor-kind-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U xor GBIntegerValue(I));
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-result-xor-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U xor GBIntegerValue(I), U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-result-xor-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U xor GBIntegerValue(I), U xor GBIntegerValue(I));
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-result-xor-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U xor GBIntegerValue(I);
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-xor-assignment-with-record', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS06O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U xor GBIntegerValue(I)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-xor-case-try-finally', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS06O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U xor GBIntegerValue(I)) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-integer-result-xor-loop-bound-direct', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS06O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U xor GBIntegerValue(I)))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-result-xor-array-index-nested-function', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS06O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U and GBIntegerValue(I));
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-result-and-kind-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U and GBIntegerValue(I));
+  end;
+  GeneratedCheckU('gb-cross-integer-result-and-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U and GBIntegerValue(I), U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-result-and-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U and GBIntegerValue(I), U and GBIntegerValue(I));
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-result-and-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U and GBIntegerValue(I);
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-result-and-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS06O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U and GBIntegerValue(I)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-and-case-with-record', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS06O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and GBIntegerValue(I)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-and-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U and GBIntegerValue(I)))];
+  GeneratedCheckU('gb-cross-integer-result-and-array-index-direct', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS06O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U div GBIntegerValue(I));
+  GeneratedCheckU('gb-cross-integer-result-div-kind-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U div GBIntegerValue(I));
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-result-div-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U div GBIntegerValue(I), U);
+  end;
+  GeneratedCheckU('gb-cross-integer-result-div-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U div GBIntegerValue(I), U div GBIntegerValue(I));
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-result-div-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U div GBIntegerValue(I);
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-result-div-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS06O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U div GBIntegerValue(I)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-result-div-case-runtime-if', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS06O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div GBIntegerValue(I)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-integer-result-div-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U div GBIntegerValue(I)))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-div-array-index-try-finally', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS06O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U mod GBIntegerValue(I));
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-result-mod-kind-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U mod GBIntegerValue(I));
+  GeneratedCheckU('gb-cross-integer-result-mod-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U mod GBIntegerValue(I), U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-result-mod-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS06O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U mod GBIntegerValue(I), U mod GBIntegerValue(I));
+  end;
+  GeneratedCheckU('gb-cross-integer-result-mod-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS06O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U mod GBIntegerValue(I);
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-result-mod-assignment-case-branch', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS06O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U mod GBIntegerValue(I)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-result-mod-case-repeat-until', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS06O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod GBIntegerValue(I)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-result-mod-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS06O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U mod GBIntegerValue(I)))];
+  end;
+  GeneratedCheckU('gb-cross-integer-result-mod-array-index-with-record', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS07O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U + TGBGenericOps<Integer>.Echo(I));
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-add-kind-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U + TGBGenericOps<Integer>.Echo(I));
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-generic-result-add-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U + TGBGenericOps<Integer>.Echo(I), U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-generic-result-add-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U + TGBGenericOps<Integer>.Echo(I), U + TGBGenericOps<Integer>.Echo(I));
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-add-pair-both-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U + TGBGenericOps<Integer>.Echo(I);
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-add-assignment-try-finally', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS07O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U + TGBGenericOps<Integer>.Echo(I)) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-add-case-direct', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS07O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + TGBGenericOps<Integer>.Echo(I)) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-generic-result-add-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS07O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U + TGBGenericOps<Integer>.Echo(I)))];
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-add-array-index-single-loop', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS07O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U - TGBGenericOps<Integer>.Echo(I));
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-sub-kind-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U - TGBGenericOps<Integer>.Echo(I));
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-sub-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U - TGBGenericOps<Integer>.Echo(I), U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-generic-result-sub-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U - TGBGenericOps<Integer>.Echo(I), U - TGBGenericOps<Integer>.Echo(I));
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-generic-result-sub-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U - TGBGenericOps<Integer>.Echo(I);
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-sub-assignment-with-record', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS07O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U - TGBGenericOps<Integer>.Echo(I)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-sub-case-try-finally', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS07O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U - TGBGenericOps<Integer>.Echo(I)) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-integer-generic-result-sub-loop-bound-direct', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS07O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U - TGBGenericOps<Integer>.Echo(I)))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-generic-result-sub-array-index-nested-function', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS07O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U * TGBGenericOps<Integer>.Echo(I));
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-generic-result-mul-kind-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U * TGBGenericOps<Integer>.Echo(I));
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-mul-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U * TGBGenericOps<Integer>.Echo(I), U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-mul-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U * TGBGenericOps<Integer>.Echo(I), U * TGBGenericOps<Integer>.Echo(I));
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-generic-result-mul-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U * TGBGenericOps<Integer>.Echo(I);
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-generic-result-mul-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS07O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U * TGBGenericOps<Integer>.Echo(I)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-mul-case-with-record', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS07O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * TGBGenericOps<Integer>.Echo(I)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-mul-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U * TGBGenericOps<Integer>.Echo(I)))];
+  GeneratedCheckU('gb-cross-integer-generic-result-mul-array-index-direct', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS07O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U or TGBGenericOps<Integer>.Echo(I));
+  GeneratedCheckU('gb-cross-integer-generic-result-or-kind-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U or TGBGenericOps<Integer>.Echo(I));
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-generic-result-or-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U or TGBGenericOps<Integer>.Echo(I), U);
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-or-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U or TGBGenericOps<Integer>.Echo(I), U or TGBGenericOps<Integer>.Echo(I));
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-or-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U or TGBGenericOps<Integer>.Echo(I);
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-generic-result-or-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS07O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U or TGBGenericOps<Integer>.Echo(I)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-generic-result-or-case-runtime-if', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS07O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or TGBGenericOps<Integer>.Echo(I)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-or-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U or TGBGenericOps<Integer>.Echo(I)))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-or-array-index-try-finally', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS07O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U xor TGBGenericOps<Integer>.Echo(I));
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-xor-kind-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U xor TGBGenericOps<Integer>.Echo(I));
+  GeneratedCheckU('gb-cross-integer-generic-result-xor-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U xor TGBGenericOps<Integer>.Echo(I), U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-generic-result-xor-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U xor TGBGenericOps<Integer>.Echo(I), U xor TGBGenericOps<Integer>.Echo(I));
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-xor-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U xor TGBGenericOps<Integer>.Echo(I);
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-xor-assignment-case-branch', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS07O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U xor TGBGenericOps<Integer>.Echo(I)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-generic-result-xor-case-repeat-until', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS07O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor TGBGenericOps<Integer>.Echo(I)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-generic-result-xor-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS07O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U xor TGBGenericOps<Integer>.Echo(I)))];
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-xor-array-index-with-record', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS07O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U and TGBGenericOps<Integer>.Echo(I));
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-and-kind-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U and TGBGenericOps<Integer>.Echo(I));
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-and-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U and TGBGenericOps<Integer>.Echo(I), U);
+  GeneratedCheckU('gb-cross-integer-generic-result-and-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U and TGBGenericOps<Integer>.Echo(I), U and TGBGenericOps<Integer>.Echo(I));
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-generic-result-and-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U and TGBGenericOps<Integer>.Echo(I);
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-and-assignment-single-loop', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS07O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U and TGBGenericOps<Integer>.Echo(I)) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-and-case-case-branch', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS07O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and TGBGenericOps<Integer>.Echo(I)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-generic-result-and-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U and TGBGenericOps<Integer>.Echo(I)))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-generic-result-and-array-index-runtime-if', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS07O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U div TGBGenericOps<Integer>.Echo(I));
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-generic-result-div-kind-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U div TGBGenericOps<Integer>.Echo(I));
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-div-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U div TGBGenericOps<Integer>.Echo(I), U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-div-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U div TGBGenericOps<Integer>.Echo(I), U div TGBGenericOps<Integer>.Echo(I));
+  GeneratedCheckU('gb-cross-integer-generic-result-div-pair-both-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U div TGBGenericOps<Integer>.Echo(I);
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-generic-result-div-assignment-nested-function', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS07O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U div TGBGenericOps<Integer>.Echo(I)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-div-case-single-loop', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS07O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U div TGBGenericOps<Integer>.Echo(I)) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-div-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U div TGBGenericOps<Integer>.Echo(I)))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-generic-result-div-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS07O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U mod TGBGenericOps<Integer>.Echo(I));
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-integer-generic-result-mod-kind-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U mod TGBGenericOps<Integer>.Echo(I));
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-integer-generic-result-mod-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U mod TGBGenericOps<Integer>.Echo(I), U);
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-mod-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS07O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U mod TGBGenericOps<Integer>.Echo(I), U mod TGBGenericOps<Integer>.Echo(I));
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-mod-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS07O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U mod TGBGenericOps<Integer>.Echo(I);
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-integer-generic-result-mod-assignment-direct', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS07O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U mod TGBGenericOps<Integer>.Echo(I)) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-integer-generic-result-mod-case-nested-function', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS07O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod TGBGenericOps<Integer>.Echo(I)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-mod-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS07O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U mod TGBGenericOps<Integer>.Echo(I)))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-integer-generic-result-mod-array-index-case-branch', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS08O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U + GBTypedInt64One);
+  GeneratedCheckU('gb-cross-typed-int64-const-add-kind-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U + GBTypedInt64One);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-int64-const-add-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U + GBTypedInt64One, U);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-add-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U + GBTypedInt64One, U + GBTypedInt64One);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-add-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U + GBTypedInt64One;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-int64-const-add-assignment-repeat-until', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS08O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U + GBTypedInt64One) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-int64-const-add-case-runtime-if', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS08O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + GBTypedInt64One) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-add-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS08O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U + GBTypedInt64One))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-add-array-index-try-finally', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS08O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U - GBTypedInt64One);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-sub-kind-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U - GBTypedInt64One);
+  GeneratedCheckU('gb-cross-typed-int64-const-sub-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U - GBTypedInt64One, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-int64-const-sub-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U - GBTypedInt64One, U - GBTypedInt64One);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-sub-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U - GBTypedInt64One;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-sub-assignment-case-branch', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS08O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U - GBTypedInt64One) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-int64-const-sub-case-repeat-until', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS08O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - GBTypedInt64One) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-int64-const-sub-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS08O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U - GBTypedInt64One))];
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-sub-array-index-with-record', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS08O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U * GBTypedInt64One);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-mul-kind-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U * GBTypedInt64One);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-mul-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U * GBTypedInt64One, U);
+  GeneratedCheckU('gb-cross-typed-int64-const-mul-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U * GBTypedInt64One, U * GBTypedInt64One);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-int64-const-mul-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U * GBTypedInt64One;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-mul-assignment-single-loop', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS08O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U * GBTypedInt64One) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-mul-case-case-branch', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS08O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * GBTypedInt64One) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-int64-const-mul-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U * GBTypedInt64One))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-int64-const-mul-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS08O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U or GBTypedInt64One);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-int64-const-or-kind-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U or GBTypedInt64One);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-or-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U or GBTypedInt64One, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-or-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U or GBTypedInt64One, U or GBTypedInt64One);
+  GeneratedCheckU('gb-cross-typed-int64-const-or-pair-both-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U or GBTypedInt64One;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-int64-const-or-assignment-nested-function', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS08O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U or GBTypedInt64One) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-or-case-single-loop', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS08O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U or GBTypedInt64One) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-or-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U or GBTypedInt64One))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-int64-const-or-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS08O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U xor GBTypedInt64One);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-int64-const-xor-kind-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U xor GBTypedInt64One);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-int64-const-xor-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U xor GBTypedInt64One, U);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-xor-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U xor GBTypedInt64One, U xor GBTypedInt64One);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-xor-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U xor GBTypedInt64One;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-typed-int64-const-xor-assignment-direct', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS08O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U xor GBTypedInt64One) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-int64-const-xor-case-nested-function', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS08O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor GBTypedInt64One) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-xor-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS08O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U xor GBTypedInt64One))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-xor-array-index-case-branch', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS08O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U and GBTypedInt64One);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-and-kind-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U and GBTypedInt64One);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-int64-const-and-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U and GBTypedInt64One, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-int64-const-and-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U and GBTypedInt64One, U and GBTypedInt64One);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-and-pair-both-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U and GBTypedInt64One;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-and-assignment-try-finally', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS08O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U and GBTypedInt64One) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-and-case-direct', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS08O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and GBTypedInt64One) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-int64-const-and-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U and GBTypedInt64One))];
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-and-array-index-single-loop', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS08O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U div GBTypedInt64One);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-div-kind-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U div GBTypedInt64One);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-div-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U div GBTypedInt64One, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-int64-const-div-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U div GBTypedInt64One, U div GBTypedInt64One);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-int64-const-div-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U div GBTypedInt64One;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-div-assignment-with-record', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS08O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U div GBTypedInt64One) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-div-case-try-finally', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS08O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U div GBTypedInt64One) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-typed-int64-const-div-loop-bound-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U div GBTypedInt64One))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-int64-const-div-array-index-nested-function', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS08O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U mod GBTypedInt64One);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-int64-const-mod-kind-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U mod GBTypedInt64One);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-mod-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U mod GBTypedInt64One, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-mod-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS08O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U mod GBTypedInt64One, U mod GBTypedInt64One);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-int64-const-mod-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS08O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U mod GBTypedInt64One;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-int64-const-mod-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS08O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U mod GBTypedInt64One) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-mod-case-with-record', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS08O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod GBTypedInt64One) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-int64-const-mod-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS08O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U mod GBTypedInt64One))];
+  GeneratedCheckU('gb-cross-typed-int64-const-mod-array-index-direct', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS09O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U + I64);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-int64-local-add-kind-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U + I64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-add-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U + I64, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-add-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U + I64, U + I64);
+  GeneratedCheckU('gb-cross-int64-local-add-pair-both-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U + I64;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-int64-local-add-assignment-nested-function', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS09O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U + I64) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-add-case-single-loop', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS09O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U + I64) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-add-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS09O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U + I64))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-int64-local-add-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS09O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U - I64);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-int64-local-sub-kind-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U - I64);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-int64-local-sub-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U - I64, U);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-sub-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U - I64, U - I64);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-sub-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U - I64;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-int64-local-sub-assignment-direct', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS09O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U - I64) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-int64-local-sub-case-nested-function', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS09O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - I64) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-sub-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS09O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U - I64))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-sub-array-index-case-branch', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS09O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U * I64);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-mul-kind-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U * I64);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-int64-local-mul-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U * I64, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-int64-local-mul-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U * I64, U * I64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-mul-pair-both-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U * I64;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-mul-assignment-try-finally', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS09O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U * I64) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-mul-case-direct', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS09O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * I64) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-int64-local-mul-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U * I64))];
+  end;
+  GeneratedCheckU('gb-cross-int64-local-mul-array-index-single-loop', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS09O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U or I64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-or-kind-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U or I64);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-or-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U or I64, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-int64-local-or-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U or I64, U or I64);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-int64-local-or-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U or I64;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-or-assignment-with-record', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS09O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U or I64) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-or-case-try-finally', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS09O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U or I64) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-int64-local-or-loop-bound-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U or I64))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-int64-local-or-array-index-nested-function', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS09O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U xor I64);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-int64-local-xor-kind-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U xor I64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-xor-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U xor I64, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-xor-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U xor I64, U xor I64);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-int64-local-xor-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U xor I64;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-int64-local-xor-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS09O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U xor I64) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-xor-case-with-record', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS09O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor I64) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-xor-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS09O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U xor I64))];
+  GeneratedCheckU('gb-cross-int64-local-xor-array-index-direct', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS09O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U and I64);
+  GeneratedCheckU('gb-cross-int64-local-and-kind-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U and I64);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-int64-local-and-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U and I64, U);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-and-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U and I64, U and I64);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-and-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U and I64;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-int64-local-and-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS09O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U and I64) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-int64-local-and-case-runtime-if', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS09O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and I64) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-and-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U and I64))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-and-array-index-try-finally', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS09O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U div I64);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-div-kind-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U div I64);
+  GeneratedCheckU('gb-cross-int64-local-div-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U div I64, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-int64-local-div-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U div I64, U div I64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-div-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U div I64;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-div-assignment-case-branch', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS09O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U div I64) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-int64-local-div-case-repeat-until', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS09O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div I64) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-int64-local-div-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U div I64))];
+  end;
+  GeneratedCheckU('gb-cross-int64-local-div-array-index-with-record', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS09O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U mod I64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-mod-kind-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U mod I64);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-mod-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U mod I64, U);
+  GeneratedCheckU('gb-cross-int64-local-mod-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS09O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U mod I64, U mod I64);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-int64-local-mod-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS09O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U mod I64;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-int64-local-mod-assignment-single-loop', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS09O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U mod I64) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-int64-local-mod-case-case-branch', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS09O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod I64) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-int64-local-mod-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS09O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U mod I64))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-int64-local-mod-array-index-runtime-if', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS10O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U + GBTypedUInt64One);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-add-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U + GBTypedUInt64One);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-add-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U + GBTypedUInt64One, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-uint64-const-add-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U + GBTypedUInt64One, U + GBTypedUInt64One);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-uint64-const-add-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U + GBTypedUInt64One;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-add-assignment-with-record', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS10O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U + GBTypedUInt64One) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-add-case-try-finally', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS10O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U + GBTypedUInt64One) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-typed-uint64-const-add-loop-bound-direct', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS10O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U + GBTypedUInt64One))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-uint64-const-add-array-index-nested-function', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS10O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U - GBTypedUInt64One);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-uint64-const-sub-kind-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U - GBTypedUInt64One);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-sub-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U - GBTypedUInt64One, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-sub-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U - GBTypedUInt64One, U - GBTypedUInt64One);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-uint64-const-sub-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U - GBTypedUInt64One;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-uint64-const-sub-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS10O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U - GBTypedUInt64One) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-sub-case-with-record', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS10O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - GBTypedUInt64One) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-sub-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS10O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U - GBTypedUInt64One))];
+  GeneratedCheckU('gb-cross-typed-uint64-const-sub-array-index-direct', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS10O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U * GBTypedUInt64One);
+  GeneratedCheckU('gb-cross-typed-uint64-const-mul-kind-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U * GBTypedUInt64One);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mul-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U * GBTypedUInt64One, U);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mul-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U * GBTypedUInt64One, U * GBTypedUInt64One);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mul-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U * GBTypedUInt64One;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mul-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS10O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U * GBTypedUInt64One) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-uint64-const-mul-case-runtime-if', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS10O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * GBTypedUInt64One) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mul-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS10O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U * GBTypedUInt64One))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mul-array-index-try-finally', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS10O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U or GBTypedUInt64One);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-or-kind-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U or GBTypedUInt64One);
+  GeneratedCheckU('gb-cross-typed-uint64-const-or-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U or GBTypedUInt64One, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-uint64-const-or-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U or GBTypedUInt64One, U or GBTypedUInt64One);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-or-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U or GBTypedUInt64One;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-or-assignment-case-branch', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS10O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U or GBTypedUInt64One) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-uint64-const-or-case-repeat-until', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS10O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or GBTypedUInt64One) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-uint64-const-or-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS10O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U or GBTypedUInt64One))];
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-or-array-index-with-record', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS10O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U xor GBTypedUInt64One);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-xor-kind-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U xor GBTypedUInt64One);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-xor-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U xor GBTypedUInt64One, U);
+  GeneratedCheckU('gb-cross-typed-uint64-const-xor-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U xor GBTypedUInt64One, U xor GBTypedUInt64One);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-uint64-const-xor-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U xor GBTypedUInt64One;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-xor-assignment-single-loop', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS10O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U xor GBTypedUInt64One) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-xor-case-case-branch', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS10O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor GBTypedUInt64One) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-uint64-const-xor-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS10O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U xor GBTypedUInt64One))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-uint64-const-xor-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS10O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U and GBTypedUInt64One);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-uint64-const-and-kind-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U and GBTypedUInt64One);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-and-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U and GBTypedUInt64One, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-and-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U and GBTypedUInt64One, U and GBTypedUInt64One);
+  GeneratedCheckU('gb-cross-typed-uint64-const-and-pair-both-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U and GBTypedUInt64One;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-uint64-const-and-assignment-nested-function', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS10O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U and GBTypedUInt64One) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-and-case-single-loop', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS10O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U and GBTypedUInt64One) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-and-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS10O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U and GBTypedUInt64One))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-uint64-const-and-array-index-repeat-until', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS10O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U div GBTypedUInt64One);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-uint64-const-div-kind-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U div GBTypedUInt64One);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-uint64-const-div-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U div GBTypedUInt64One, U);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-div-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U div GBTypedUInt64One, U div GBTypedUInt64One);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-div-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U div GBTypedUInt64One;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-typed-uint64-const-div-assignment-direct', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS10O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U div GBTypedUInt64One) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-uint64-const-div-case-nested-function', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS10O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div GBTypedUInt64One) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-div-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS10O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U div GBTypedUInt64One))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-div-array-index-case-branch', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS10O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U mod GBTypedUInt64One);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mod-kind-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U mod GBTypedUInt64One);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mod-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U mod GBTypedUInt64One, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-typed-uint64-const-mod-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U mod GBTypedUInt64One, U mod GBTypedUInt64One);
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mod-pair-both-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS10O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U mod GBTypedUInt64One;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mod-assignment-try-finally', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS10O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U mod GBTypedUInt64One) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mod-case-direct', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS10O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod GBTypedUInt64One) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mod-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS10O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U mod GBTypedUInt64One))];
+  end;
+  GeneratedCheckU('gb-cross-typed-uint64-const-mod-array-index-single-loop', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS11O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U + U2);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-add-kind-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U + U2);
+  GeneratedCheckU('gb-cross-uint64-local-add-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U + U2, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-local-add-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U + U2, U + U2);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-add-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U + U2;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-add-assignment-case-branch', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS11O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U + U2) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-local-add-case-repeat-until', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS11O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + U2) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-local-add-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS11O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U + U2))];
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-add-array-index-with-record', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS11O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U - U2);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-sub-kind-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U - U2);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-sub-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U - U2, U);
+  GeneratedCheckU('gb-cross-uint64-local-sub-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U - U2, U - U2);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-local-sub-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U - U2;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-sub-assignment-single-loop', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS11O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U - U2) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-sub-case-case-branch', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS11O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - U2) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-local-sub-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS11O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U - U2))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-local-sub-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS11O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U * U2);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-local-mul-kind-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U * U2);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-mul-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U * U2, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-mul-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U * U2, U * U2);
+  GeneratedCheckU('gb-cross-uint64-local-mul-pair-both-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U * U2;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-local-mul-assignment-nested-function', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS11O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U * U2) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-mul-case-single-loop', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS11O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U * U2) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-mul-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS11O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U * U2))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-local-mul-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS11O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U or U2);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-local-or-kind-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U or U2);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-local-or-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U or U2, U);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-or-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U or U2, U or U2);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-or-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U or U2;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-uint64-local-or-assignment-direct', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS11O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U or U2) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-local-or-case-nested-function', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS11O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or U2) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-or-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS11O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U or U2))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-or-array-index-case-branch', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS11O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U xor U2);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-xor-kind-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U xor U2);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-local-xor-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U xor U2, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-local-xor-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U xor U2, U xor U2);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-xor-pair-both-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U xor U2;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-xor-assignment-try-finally', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS11O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U xor U2) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-xor-case-direct', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS11O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor U2) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-local-xor-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS11O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U xor U2))];
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-xor-array-index-single-loop', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS11O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U and U2);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-and-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U and U2);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-and-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U and U2, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-local-and-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U and U2, U and U2);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-local-and-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U and U2;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-and-assignment-with-record', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS11O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U and U2) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-and-case-try-finally', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS11O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U and U2) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-uint64-local-and-loop-bound-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS11O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U and U2))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-local-and-array-index-nested-function', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS11O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U div U2);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-local-div-kind-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U div U2);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-div-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U div U2, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-div-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U div U2, U div U2);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-local-div-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U div U2;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-local-div-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS11O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U div U2) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-div-case-with-record', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS11O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div U2) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-div-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS11O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U div U2))];
+  GeneratedCheckU('gb-cross-uint64-local-div-array-index-direct', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS11O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U mod U2);
+  GeneratedCheckU('gb-cross-uint64-local-mod-kind-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U mod U2);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-local-mod-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U mod U2, U);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-mod-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U mod U2, U mod U2);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-mod-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS11O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U mod U2;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-local-mod-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS11O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U mod U2) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-local-mod-case-runtime-if', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS11O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod U2) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-mod-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS11O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U mod U2))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-local-mod-array-index-try-finally', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS12O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U + Source.UnsignedField);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-field-add-kind-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U + Source.UnsignedField);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-field-add-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U + UnsignedField, U);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-add-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U + Source.UnsignedField, U + Source.UnsignedField);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-add-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U + Source.UnsignedField;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-uint64-field-add-assignment-direct', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS12O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U + Source.UnsignedField) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-field-add-case-nested-function', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS12O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + Source.UnsignedField) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-add-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS12O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U + Source.UnsignedField))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-add-array-index-case-branch', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS12O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U - Source.UnsignedField);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-sub-kind-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U - Source.UnsignedField);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-field-sub-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U - Source.UnsignedField, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-field-sub-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U - UnsignedField, U - UnsignedField);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-sub-pair-both-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U - Source.UnsignedField;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-sub-assignment-try-finally', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS12O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U - Source.UnsignedField) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-sub-case-direct', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS12O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - Source.UnsignedField) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-field-sub-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS12O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U - Source.UnsignedField))];
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-sub-array-index-single-loop', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS12O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U * Source.UnsignedField);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-mul-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U * Source.UnsignedField);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-mul-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U * Source.UnsignedField, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-field-mul-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U * Source.UnsignedField, U * Source.UnsignedField);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-field-mul-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U * UnsignedField;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-mul-assignment-with-record', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS12O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U * Source.UnsignedField) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-mul-case-try-finally', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS12O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U * Source.UnsignedField) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-uint64-field-mul-loop-bound-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS12O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U * Source.UnsignedField))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-field-mul-array-index-nested-function', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS12O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U or Source.UnsignedField);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-field-or-kind-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U or Source.UnsignedField);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-or-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U or Source.UnsignedField, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-or-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U or Source.UnsignedField, U or Source.UnsignedField);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-field-or-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U or Source.UnsignedField;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-field-or-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS12O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U or UnsignedField) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-or-case-with-record', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS12O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or Source.UnsignedField) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-or-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS12O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U or Source.UnsignedField))];
+  GeneratedCheckU('gb-cross-uint64-field-or-array-index-direct', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS12O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U xor Source.UnsignedField);
+  GeneratedCheckU('gb-cross-uint64-field-xor-kind-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U xor Source.UnsignedField);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-field-xor-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U xor Source.UnsignedField, U);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-xor-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U xor Source.UnsignedField, U xor Source.UnsignedField);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-xor-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U xor Source.UnsignedField;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-field-xor-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS12O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U xor Source.UnsignedField) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-field-xor-case-runtime-if', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS12O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor UnsignedField) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-xor-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS12O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U xor Source.UnsignedField))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-xor-array-index-try-finally', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS12O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U and Source.UnsignedField);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-and-kind-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U and Source.UnsignedField);
+  GeneratedCheckU('gb-cross-uint64-field-and-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U and Source.UnsignedField, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-field-and-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U and Source.UnsignedField, U and Source.UnsignedField);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-and-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U and Source.UnsignedField;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-and-assignment-case-branch', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS12O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U and Source.UnsignedField) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-field-and-case-repeat-until', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS12O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and Source.UnsignedField) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-field-and-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS12O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U and UnsignedField))];
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-and-array-index-with-record', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS12O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U div UnsignedField);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-div-kind-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U div Source.UnsignedField);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-div-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U div Source.UnsignedField, U);
+  GeneratedCheckU('gb-cross-uint64-field-div-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U div Source.UnsignedField, U div Source.UnsignedField);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-field-div-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U div Source.UnsignedField;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-div-assignment-single-loop', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS12O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U div Source.UnsignedField) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-div-case-case-branch', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS12O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div Source.UnsignedField) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-field-div-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS12O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U div Source.UnsignedField))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-field-div-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS12O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U mod Source.UnsignedField);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-field-mod-kind-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U mod UnsignedField);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-mod-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U mod Source.UnsignedField, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-mod-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U mod Source.UnsignedField, U mod Source.UnsignedField);
+  GeneratedCheckU('gb-cross-uint64-field-mod-pair-both-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS12O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U mod Source.UnsignedField;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-field-mod-assignment-nested-function', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS12O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U mod Source.UnsignedField) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-mod-case-single-loop', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS12O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U mod Source.UnsignedField) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-field-mod-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS12O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U mod Source.UnsignedField))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-field-mod-array-index-repeat-until', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS13O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U + Source.UnsignedProperty);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-property-add-kind-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U + Source.UnsignedProperty);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-add-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U + Source.UnsignedProperty, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-add-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U + Source.UnsignedProperty, U + Source.UnsignedProperty);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-property-add-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U + Source.UnsignedProperty;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-property-add-assignment-runtime-if', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS13O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U + UnsignedProperty) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-add-case-with-record', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS13O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + Source.UnsignedProperty) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-add-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS13O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U + Source.UnsignedProperty))];
+  GeneratedCheckU('gb-cross-uint64-property-add-array-index-direct', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS13O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U - Source.UnsignedProperty);
+  GeneratedCheckU('gb-cross-uint64-property-sub-kind-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U - Source.UnsignedProperty);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-property-sub-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U - Source.UnsignedProperty, U);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-sub-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U - Source.UnsignedProperty, U - Source.UnsignedProperty);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-sub-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U - Source.UnsignedProperty;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-property-sub-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS13O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U - Source.UnsignedProperty) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-property-sub-case-runtime-if', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS13O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - UnsignedProperty) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-sub-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS13O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U - Source.UnsignedProperty))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-sub-array-index-try-finally', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS13O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U * Source.UnsignedProperty);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-mul-kind-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U * Source.UnsignedProperty);
+  GeneratedCheckU('gb-cross-uint64-property-mul-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U * Source.UnsignedProperty, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-property-mul-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U * Source.UnsignedProperty, U * Source.UnsignedProperty);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-mul-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U * Source.UnsignedProperty;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-mul-assignment-case-branch', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS13O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U * Source.UnsignedProperty) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-property-mul-case-repeat-until', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS13O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * Source.UnsignedProperty) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-property-mul-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS13O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U * UnsignedProperty))];
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-mul-array-index-with-record', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS13O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U or UnsignedProperty);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-or-kind-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U or Source.UnsignedProperty);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-or-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U or Source.UnsignedProperty, U);
+  GeneratedCheckU('gb-cross-uint64-property-or-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U or Source.UnsignedProperty, U or Source.UnsignedProperty);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-property-or-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U or Source.UnsignedProperty;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-or-assignment-single-loop', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS13O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U or Source.UnsignedProperty) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-or-case-case-branch', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS13O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or Source.UnsignedProperty) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-property-or-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS13O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U or Source.UnsignedProperty))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-property-or-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS13O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U xor Source.UnsignedProperty);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-property-xor-kind-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U xor UnsignedProperty);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-xor-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U xor Source.UnsignedProperty, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-xor-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U xor Source.UnsignedProperty, U xor Source.UnsignedProperty);
+  GeneratedCheckU('gb-cross-uint64-property-xor-pair-both-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U xor Source.UnsignedProperty;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-property-xor-assignment-nested-function', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS13O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U xor Source.UnsignedProperty) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-xor-case-single-loop', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS13O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U xor Source.UnsignedProperty) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-xor-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS13O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U xor Source.UnsignedProperty))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-property-xor-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS13O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U and Source.UnsignedProperty);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-property-and-kind-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U and Source.UnsignedProperty);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-property-and-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U and UnsignedProperty, U);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-and-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U and Source.UnsignedProperty, U and Source.UnsignedProperty);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-and-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U and Source.UnsignedProperty;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-uint64-property-and-assignment-direct', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS13O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U and Source.UnsignedProperty) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-property-and-case-nested-function', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS13O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and Source.UnsignedProperty) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-and-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS13O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U and Source.UnsignedProperty))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-and-array-index-case-branch', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS13O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U div Source.UnsignedProperty);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-div-kind-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U div Source.UnsignedProperty);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-property-div-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U div Source.UnsignedProperty, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-property-div-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U div UnsignedProperty, U div UnsignedProperty);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-div-pair-both-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U div Source.UnsignedProperty;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-div-assignment-try-finally', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS13O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U div Source.UnsignedProperty) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-div-case-direct', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS13O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div Source.UnsignedProperty) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-property-div-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS13O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U div Source.UnsignedProperty))];
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-div-array-index-single-loop', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS13O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U mod Source.UnsignedProperty);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-mod-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U mod Source.UnsignedProperty);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-mod-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U mod Source.UnsignedProperty, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-property-mod-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U mod Source.UnsignedProperty, U mod Source.UnsignedProperty);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-property-mod-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS13O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U mod UnsignedProperty;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-mod-assignment-with-record', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS13O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U mod Source.UnsignedProperty) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-property-mod-case-try-finally', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS13O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U mod Source.UnsignedProperty) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-uint64-property-mod-loop-bound-direct', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS13O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U mod Source.UnsignedProperty))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-property-mod-array-index-nested-function', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS14O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U + GBUInt64Value(U2));
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-add-kind-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U + GBUInt64Value(U2));
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-add-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U + GBUInt64Value(U2), U);
+  GeneratedCheckU('gb-cross-uint64-result-add-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U + GBUInt64Value(U2), U + GBUInt64Value(U2));
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-result-add-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U + GBUInt64Value(U2);
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-add-assignment-single-loop', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS14O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U + GBUInt64Value(U2)) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-add-case-case-branch', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS14O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + GBUInt64Value(U2)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-result-add-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS14O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U + GBUInt64Value(U2)))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-result-add-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS14O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U - GBUInt64Value(U2));
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-result-sub-kind-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U - GBUInt64Value(U2));
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-sub-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U - GBUInt64Value(U2), U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-sub-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U - GBUInt64Value(U2), U - GBUInt64Value(U2));
+  GeneratedCheckU('gb-cross-uint64-result-sub-pair-both-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U - GBUInt64Value(U2);
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-result-sub-assignment-nested-function', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS14O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U - GBUInt64Value(U2)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-sub-case-single-loop', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS14O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U - GBUInt64Value(U2)) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-sub-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS14O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U - GBUInt64Value(U2)))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-result-sub-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS14O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U * GBUInt64Value(U2));
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-result-mul-kind-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U * GBUInt64Value(U2));
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-result-mul-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U * GBUInt64Value(U2), U);
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-mul-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U * GBUInt64Value(U2), U * GBUInt64Value(U2));
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-mul-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U * GBUInt64Value(U2);
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-uint64-result-mul-assignment-direct', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS14O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U * GBUInt64Value(U2)) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-result-mul-case-nested-function', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS14O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * GBUInt64Value(U2)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-mul-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS14O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U * GBUInt64Value(U2)))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-mul-array-index-case-branch', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS14O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U or GBUInt64Value(U2));
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-or-kind-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U or GBUInt64Value(U2));
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-result-or-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U or GBUInt64Value(U2), U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-result-or-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U or GBUInt64Value(U2), U or GBUInt64Value(U2));
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-or-pair-both-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U or GBUInt64Value(U2);
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-or-assignment-try-finally', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS14O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U or GBUInt64Value(U2)) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-or-case-direct', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS14O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or GBUInt64Value(U2)) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-result-or-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS14O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U or GBUInt64Value(U2)))];
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-or-array-index-single-loop', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS14O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U xor GBUInt64Value(U2));
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-xor-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U xor GBUInt64Value(U2));
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-xor-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U xor GBUInt64Value(U2), U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-result-xor-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U xor GBUInt64Value(U2), U xor GBUInt64Value(U2));
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-result-xor-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U xor GBUInt64Value(U2);
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-xor-assignment-with-record', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS14O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U xor GBUInt64Value(U2)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-xor-case-try-finally', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS14O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U xor GBUInt64Value(U2)) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-uint64-result-xor-loop-bound-direct', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS14O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U xor GBUInt64Value(U2)))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-result-xor-array-index-nested-function', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS14O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U and GBUInt64Value(U2));
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-result-and-kind-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U and GBUInt64Value(U2));
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-and-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U and GBUInt64Value(U2), U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-and-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U and GBUInt64Value(U2), U and GBUInt64Value(U2));
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-result-and-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U and GBUInt64Value(U2);
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-result-and-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS14O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U and GBUInt64Value(U2)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-and-case-with-record', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS14O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and GBUInt64Value(U2)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-and-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS14O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U and GBUInt64Value(U2)))];
+  GeneratedCheckU('gb-cross-uint64-result-and-array-index-direct', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS14O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U div GBUInt64Value(U2));
+  GeneratedCheckU('gb-cross-uint64-result-div-kind-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U div GBUInt64Value(U2));
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-result-div-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U div GBUInt64Value(U2), U);
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-div-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U div GBUInt64Value(U2), U div GBUInt64Value(U2));
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-div-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U div GBUInt64Value(U2);
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-result-div-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS14O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U div GBUInt64Value(U2)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-result-div-case-runtime-if', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS14O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div GBUInt64Value(U2)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-div-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS14O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U div GBUInt64Value(U2)))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-div-array-index-try-finally', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS14O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U mod GBUInt64Value(U2));
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-mod-kind-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U mod GBUInt64Value(U2));
+  GeneratedCheckU('gb-cross-uint64-result-mod-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U mod GBUInt64Value(U2), U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-result-mod-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U mod GBUInt64Value(U2), U mod GBUInt64Value(U2));
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-mod-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS14O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U mod GBUInt64Value(U2);
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-mod-assignment-case-branch', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS14O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U mod GBUInt64Value(U2)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-result-mod-case-repeat-until', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS14O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod GBUInt64Value(U2)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-result-mod-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS14O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U mod GBUInt64Value(U2)))];
+  end;
+  GeneratedCheckU('gb-cross-uint64-result-mod-array-index-with-record', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS15O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U + TGBGenericOps<UInt64>.Echo(U2));
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-add-kind-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U + TGBGenericOps<UInt64>.Echo(U2));
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-generic-result-add-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U + TGBGenericOps<UInt64>.Echo(U2), U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-generic-result-add-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U + TGBGenericOps<UInt64>.Echo(U2), U + TGBGenericOps<UInt64>.Echo(U2));
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-add-pair-both-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U + TGBGenericOps<UInt64>.Echo(U2);
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-add-assignment-try-finally', UInt64(Actual), UInt64($000000000000002A));
+end;
+
+procedure GBCrossAxisS15O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U + TGBGenericOps<UInt64>.Echo(U2)) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-add-case-direct', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS15O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + TGBGenericOps<UInt64>.Echo(U2)) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-generic-result-add-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS15O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U + TGBGenericOps<UInt64>.Echo(U2)))];
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-add-array-index-single-loop', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS15O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U - TGBGenericOps<UInt64>.Echo(U2));
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-sub-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U - TGBGenericOps<UInt64>.Echo(U2));
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-sub-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U - TGBGenericOps<UInt64>.Echo(U2), U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-generic-result-sub-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U - TGBGenericOps<UInt64>.Echo(U2), U - TGBGenericOps<UInt64>.Echo(U2));
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-generic-result-sub-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U - TGBGenericOps<UInt64>.Echo(U2);
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-sub-assignment-with-record', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS15O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U - TGBGenericOps<UInt64>.Echo(U2)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-sub-case-try-finally', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS15O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U - TGBGenericOps<UInt64>.Echo(U2)) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-uint64-generic-result-sub-loop-bound-direct', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS15O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U - TGBGenericOps<UInt64>.Echo(U2)))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-generic-result-sub-array-index-nested-function', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS15O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U * TGBGenericOps<UInt64>.Echo(U2));
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mul-kind-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U * TGBGenericOps<UInt64>.Echo(U2));
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mul-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U * TGBGenericOps<UInt64>.Echo(U2), U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mul-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U * TGBGenericOps<UInt64>.Echo(U2), U * TGBGenericOps<UInt64>.Echo(U2));
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mul-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U * TGBGenericOps<UInt64>.Echo(U2);
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-generic-result-mul-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS15O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U * TGBGenericOps<UInt64>.Echo(U2)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mul-case-with-record', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS15O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * TGBGenericOps<UInt64>.Echo(U2)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mul-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS15O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U * TGBGenericOps<UInt64>.Echo(U2)))];
+  GeneratedCheckU('gb-cross-uint64-generic-result-mul-array-index-direct', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS15O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U or TGBGenericOps<UInt64>.Echo(U2));
+  GeneratedCheckU('gb-cross-uint64-generic-result-or-kind-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U or TGBGenericOps<UInt64>.Echo(U2));
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-generic-result-or-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U or TGBGenericOps<UInt64>.Echo(U2), U);
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-or-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U or TGBGenericOps<UInt64>.Echo(U2), U or TGBGenericOps<UInt64>.Echo(U2));
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-or-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U or TGBGenericOps<UInt64>.Echo(U2);
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-generic-result-or-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS15O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U or TGBGenericOps<UInt64>.Echo(U2)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-generic-result-or-case-runtime-if', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS15O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or TGBGenericOps<UInt64>.Echo(U2)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-or-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS15O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U or TGBGenericOps<UInt64>.Echo(U2)))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-or-array-index-try-finally', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS15O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U xor TGBGenericOps<UInt64>.Echo(U2));
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-xor-kind-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U xor TGBGenericOps<UInt64>.Echo(U2));
+  GeneratedCheckU('gb-cross-uint64-generic-result-xor-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U xor TGBGenericOps<UInt64>.Echo(U2), U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-generic-result-xor-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U xor TGBGenericOps<UInt64>.Echo(U2), U xor TGBGenericOps<UInt64>.Echo(U2));
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-xor-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U xor TGBGenericOps<UInt64>.Echo(U2);
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-xor-assignment-case-branch', UInt64(Actual), UInt64($0000000000000028));
+end;
+
+procedure GBCrossAxisS15O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U xor TGBGenericOps<UInt64>.Echo(U2)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-generic-result-xor-case-repeat-until', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS15O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor TGBGenericOps<UInt64>.Echo(U2)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-generic-result-xor-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS15O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U xor TGBGenericOps<UInt64>.Echo(U2)))];
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-xor-array-index-with-record', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS15O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U and TGBGenericOps<UInt64>.Echo(U2));
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-and-kind-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U and TGBGenericOps<UInt64>.Echo(U2));
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-and-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U and TGBGenericOps<UInt64>.Echo(U2), U);
+  GeneratedCheckU('gb-cross-uint64-generic-result-and-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U and TGBGenericOps<UInt64>.Echo(U2), U and TGBGenericOps<UInt64>.Echo(U2));
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-generic-result-and-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U and TGBGenericOps<UInt64>.Echo(U2);
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-and-assignment-single-loop', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS15O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U and TGBGenericOps<UInt64>.Echo(U2)) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-and-case-case-branch', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS15O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and TGBGenericOps<UInt64>.Echo(U2)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-generic-result-and-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS15O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U and TGBGenericOps<UInt64>.Echo(U2)))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-generic-result-and-array-index-runtime-if', UInt64(Actual), UInt64($00000000000000A4));
+end;
+
+procedure GBCrossAxisS15O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U div TGBGenericOps<UInt64>.Echo(U2));
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-generic-result-div-kind-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U div TGBGenericOps<UInt64>.Echo(U2));
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-div-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U div TGBGenericOps<UInt64>.Echo(U2), U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-div-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U div TGBGenericOps<UInt64>.Echo(U2), U div TGBGenericOps<UInt64>.Echo(U2));
+  GeneratedCheckU('gb-cross-uint64-generic-result-div-pair-both-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U div TGBGenericOps<UInt64>.Echo(U2);
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-generic-result-div-assignment-nested-function', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS15O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U div TGBGenericOps<UInt64>.Echo(U2)) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-div-case-single-loop', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS15O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U div TGBGenericOps<UInt64>.Echo(U2)) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-div-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS15O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U div TGBGenericOps<UInt64>.Echo(U2)))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-generic-result-div-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS15O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U mod TGBGenericOps<UInt64>.Echo(U2));
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mod-kind-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U mod TGBGenericOps<UInt64>.Echo(U2));
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-uint64-generic-result-mod-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U mod TGBGenericOps<UInt64>.Echo(U2), U);
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mod-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U mod TGBGenericOps<UInt64>.Echo(U2), U mod TGBGenericOps<UInt64>.Echo(U2));
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mod-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS15O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U mod TGBGenericOps<UInt64>.Echo(U2);
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mod-assignment-direct', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS15O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U mod TGBGenericOps<UInt64>.Echo(U2)) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mod-case-nested-function', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS15O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod TGBGenericOps<UInt64>.Echo(U2)) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mod-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS15O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U mod TGBGenericOps<UInt64>.Echo(U2)))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-uint64-generic-result-mod-array-index-case-branch', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS16O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U + 2147483647);
+  GeneratedCheckU('gb-cross-literal-int32-high-add-kind-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U + 2147483647);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int32-high-add-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U + 2147483647, U);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-add-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U + 2147483647, U + 2147483647);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-add-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U + 2147483647;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int32-high-add-assignment-repeat-until', UInt64(Actual), UInt64($0000000080000028));
+end;
+
+procedure GBCrossAxisS16O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U + 2147483647) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int32-high-add-case-runtime-if', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS16O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + 2147483647) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-add-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS16O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U + 2147483647))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-add-array-index-try-finally', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS16O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U - 2147483647);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-sub-kind-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U - 2147483647);
+  GeneratedCheckU('gb-cross-literal-int32-high-sub-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U - 2147483647, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int32-high-sub-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U - 2147483647, U - 2147483647);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-sub-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U - 2147483647;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-sub-assignment-case-branch', UInt64(Actual), UInt64($FFFFFFFF8000002A));
+end;
+
+procedure GBCrossAxisS16O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U - 2147483647) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int32-high-sub-case-repeat-until', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS16O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - 2147483647) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int32-high-sub-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS16O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U - 2147483647))];
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-sub-array-index-with-record', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS16O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U * 2147483647);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-mul-kind-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U * 2147483647);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-mul-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U * 2147483647, U);
+  GeneratedCheckU('gb-cross-literal-int32-high-mul-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U * 2147483647, U * 2147483647);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int32-high-mul-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U * 2147483647;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-mul-assignment-single-loop', UInt64(Actual), UInt64($000000147FFFFFD7));
+end;
+
+procedure GBCrossAxisS16O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U * 2147483647) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-mul-case-case-branch', UInt64(Actual), UInt64($0000000000000044));
+end;
+
+procedure GBCrossAxisS16O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * 2147483647) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int32-high-mul-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000024));
+end;
+
+procedure GBCrossAxisS16O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U * 2147483647))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int32-high-mul-array-index-runtime-if', UInt64(Actual), UInt64($0000000000000072));
+end;
+
+procedure GBCrossAxisS16O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U or 2147483647);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int32-high-or-kind-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U or 2147483647);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-or-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U or 2147483647, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-or-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U or 2147483647, U or 2147483647);
+  GeneratedCheckU('gb-cross-literal-int32-high-or-pair-both-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U or 2147483647;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int32-high-or-assignment-nested-function', UInt64(Actual), UInt64($000000007FFFFFFF));
+end;
+
+procedure GBCrossAxisS16O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U or 2147483647) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-or-case-single-loop', UInt64(Actual), UInt64($0000000000000044));
+end;
+
+procedure GBCrossAxisS16O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U or 2147483647) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-or-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000024));
+end;
+
+procedure GBCrossAxisS16O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U or 2147483647))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int32-high-or-array-index-repeat-until', UInt64(Actual), UInt64($000000000000005A));
+end;
+
+procedure GBCrossAxisS16O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U xor 2147483647);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int32-high-xor-kind-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U xor 2147483647);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int32-high-xor-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U xor 2147483647, U);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-xor-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U xor 2147483647, U xor 2147483647);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-xor-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U xor 2147483647;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-literal-int32-high-xor-assignment-direct', UInt64(Actual), UInt64($000000007FFFFFD6));
+end;
+
+procedure GBCrossAxisS16O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U xor 2147483647) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int32-high-xor-case-nested-function', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS16O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor 2147483647) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-xor-loop-bound-single-loop', UInt64(Actual), UInt64($000000000000001C));
+end;
+
+procedure GBCrossAxisS16O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U xor 2147483647))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-xor-array-index-case-branch', UInt64(Actual), UInt64($0000000000000073));
+end;
+
+procedure GBCrossAxisS16O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U and 2147483647);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-and-kind-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U and 2147483647);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int32-high-and-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U and 2147483647, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int32-high-and-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U and 2147483647, U and 2147483647);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-and-pair-both-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U and 2147483647;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-and-assignment-try-finally', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS16O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U and 2147483647) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-and-case-direct', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS16O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and 2147483647) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int32-high-and-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS16O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U and 2147483647))];
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-and-array-index-single-loop', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS16O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U div 2147483647);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-div-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U div 2147483647);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-div-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U div 2147483647, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int32-high-div-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U div 2147483647, U div 2147483647);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int32-high-div-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U div 2147483647;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-div-assignment-with-record', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS16O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U div 2147483647) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-div-case-try-finally', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS16O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U div 2147483647) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-literal-int32-high-div-loop-bound-direct', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS16O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U div 2147483647))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int32-high-div-array-index-nested-function', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS16O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U mod 2147483647);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int32-high-mod-kind-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U mod 2147483647);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-mod-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U mod 2147483647, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-mod-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U mod 2147483647, U mod 2147483647);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int32-high-mod-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS16O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U mod 2147483647;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int32-high-mod-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS16O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U mod 2147483647) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-mod-case-with-record', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS16O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod 2147483647) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int32-high-mod-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS16O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U mod 2147483647))];
+  GeneratedCheckU('gb-cross-literal-int32-high-mod-array-index-direct', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS17O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U + 2147483648);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-low-add-kind-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U + 2147483648);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-add-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U + 2147483648, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-add-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U + 2147483648, U + 2147483648);
+  GeneratedCheckU('gb-cross-literal-uint32-low-add-pair-both-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U + 2147483648;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-low-add-assignment-nested-function', UInt64(Actual), UInt64($0000000080000029));
+end;
+
+procedure GBCrossAxisS17O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U + 2147483648) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-add-case-single-loop', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS17O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U + 2147483648) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-add-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS17O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U + 2147483648))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-low-add-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS17O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U - 2147483648);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-low-sub-kind-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U - 2147483648);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-low-sub-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U - 2147483648, U);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-sub-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U - 2147483648, U - 2147483648);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-sub-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U - 2147483648;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-literal-uint32-low-sub-assignment-direct', UInt64(Actual), UInt64($FFFFFFFF80000029));
+end;
+
+procedure GBCrossAxisS17O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U - 2147483648) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-low-sub-case-nested-function', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS17O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - 2147483648) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-sub-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS17O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U - 2147483648))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-sub-array-index-case-branch', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS17O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U * 2147483648);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mul-kind-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U * 2147483648);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mul-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U * 2147483648, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-low-mul-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U * 2147483648, U * 2147483648);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mul-pair-both-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U * 2147483648;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mul-assignment-try-finally', UInt64(Actual), UInt64($0000001480000000));
+end;
+
+procedure GBCrossAxisS17O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U * 2147483648) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mul-case-direct', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS17O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * 2147483648) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mul-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS17O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U * 2147483648))];
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mul-array-index-single-loop', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS17O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U or 2147483648);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-or-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U or 2147483648);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-or-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U or 2147483648, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-low-or-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U or 2147483648, U or 2147483648);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-low-or-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U or 2147483648;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-or-assignment-with-record', UInt64(Actual), UInt64($0000000080000029));
+end;
+
+procedure GBCrossAxisS17O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U or 2147483648) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-or-case-try-finally', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS17O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U or 2147483648) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-literal-uint32-low-or-loop-bound-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS17O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U or 2147483648))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-low-or-array-index-nested-function', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS17O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U xor 2147483648);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-low-xor-kind-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U xor 2147483648);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-xor-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U xor 2147483648, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-xor-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U xor 2147483648, U xor 2147483648);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-low-xor-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U xor 2147483648;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-low-xor-assignment-runtime-if', UInt64(Actual), UInt64($0000000080000029));
+end;
+
+procedure GBCrossAxisS17O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U xor 2147483648) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-xor-case-with-record', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS17O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor 2147483648) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-xor-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS17O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U xor 2147483648))];
+  GeneratedCheckU('gb-cross-literal-uint32-low-xor-array-index-direct', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS17O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U and 2147483648);
+  GeneratedCheckU('gb-cross-literal-uint32-low-and-kind-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U and 2147483648);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-low-and-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U and 2147483648, U);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-and-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U and 2147483648, U and 2147483648);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-and-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U and 2147483648;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-low-and-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS17O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U and 2147483648) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-low-and-case-runtime-if', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS17O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U and 2147483648) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-and-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS17O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U and 2147483648))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-and-array-index-try-finally', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS17O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U div 2147483648);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-div-kind-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U div 2147483648);
+  GeneratedCheckU('gb-cross-literal-uint32-low-div-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U div 2147483648, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-low-div-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U div 2147483648, U div 2147483648);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-div-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U div 2147483648;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-div-assignment-case-branch', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS17O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U div 2147483648) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-low-div-case-repeat-until', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS17O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div 2147483648) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-low-div-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS17O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U div 2147483648))];
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-div-array-index-with-record', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS17O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U mod 2147483648);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mod-kind-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U mod 2147483648);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mod-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U mod 2147483648, U);
+  GeneratedCheckU('gb-cross-literal-uint32-low-mod-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U mod 2147483648, U mod 2147483648);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mod-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS17O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U mod 2147483648;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mod-assignment-single-loop', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS17O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U mod 2147483648) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mod-case-case-branch', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS17O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod 2147483648) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-low-mod-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS17O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U mod 2147483648))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-low-mod-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS18O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U + 4294967295);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-add-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U + 4294967295);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-add-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U + 4294967295, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-high-add-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U + 4294967295, U + 4294967295);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-high-add-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U + 4294967295;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-add-assignment-with-record', UInt64(Actual), UInt64($0000000100000028));
+end;
+
+procedure GBCrossAxisS18O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U + 4294967295) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-add-case-try-finally', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS18O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U + 4294967295) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-literal-uint32-high-add-loop-bound-direct', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS18O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U + 4294967295))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-high-add-array-index-nested-function', UInt64(Actual), UInt64($000000000000008D));
+end;
+
+procedure GBCrossAxisS18O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U - 4294967295);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-high-sub-kind-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U - 4294967295);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-sub-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U - 4294967295, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-sub-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U - 4294967295, U - 4294967295);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-high-sub-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U - 4294967295;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-high-sub-assignment-runtime-if', UInt64(Actual), UInt64($FFFFFFFF0000002A));
+end;
+
+procedure GBCrossAxisS18O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U - 4294967295) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-sub-case-with-record', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS18O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - 4294967295) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-sub-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000006));
+end;
+
+procedure GBCrossAxisS18O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U - 4294967295))];
+  GeneratedCheckU('gb-cross-literal-uint32-high-sub-array-index-direct', UInt64(Actual), UInt64($000000000000008F));
+end;
+
+procedure GBCrossAxisS18O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U * 4294967295);
+  GeneratedCheckU('gb-cross-literal-uint32-high-mul-kind-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U * 4294967295);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mul-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U * 4294967295, U);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mul-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U * 4294967295, U * 4294967295);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mul-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U * 4294967295;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mul-assignment-repeat-until', UInt64(Actual), UInt64($00000028FFFFFFD7));
+end;
+
+procedure GBCrossAxisS18O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U * 4294967295) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-high-mul-case-runtime-if', UInt64(Actual), UInt64($0000000000000044));
+end;
+
+procedure GBCrossAxisS18O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U * 4294967295) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mul-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000024));
+end;
+
+procedure GBCrossAxisS18O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U * 4294967295))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mul-array-index-try-finally', UInt64(Actual), UInt64($0000000000000072));
+end;
+
+procedure GBCrossAxisS18O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U or 4294967295);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-or-kind-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U or 4294967295);
+  GeneratedCheckU('gb-cross-literal-uint32-high-or-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U or 4294967295, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-high-or-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U or 4294967295, U or 4294967295);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-or-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U or 4294967295;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-or-assignment-case-branch', UInt64(Actual), UInt64($00000000FFFFFFFF));
+end;
+
+procedure GBCrossAxisS18O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U or 4294967295) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-high-or-case-repeat-until', UInt64(Actual), UInt64($0000000000000044));
+end;
+
+procedure GBCrossAxisS18O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or 4294967295) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-high-or-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000024));
+end;
+
+procedure GBCrossAxisS18O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U or 4294967295))];
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-or-array-index-with-record', UInt64(Actual), UInt64($000000000000005A));
+end;
+
+procedure GBCrossAxisS18O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U xor 4294967295);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-xor-kind-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U xor 4294967295);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-xor-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U xor 4294967295, U);
+  GeneratedCheckU('gb-cross-literal-uint32-high-xor-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U xor 4294967295, U xor 4294967295);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-high-xor-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U xor 4294967295;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-xor-assignment-single-loop', UInt64(Actual), UInt64($00000000FFFFFFD6));
+end;
+
+procedure GBCrossAxisS18O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U xor 4294967295) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-xor-case-case-branch', UInt64(Actual), UInt64($0000000000000033));
+end;
+
+procedure GBCrossAxisS18O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor 4294967295) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-high-xor-loop-bound-repeat-until', UInt64(Actual), UInt64($000000000000001C));
+end;
+
+procedure GBCrossAxisS18O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U xor 4294967295))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-high-xor-array-index-runtime-if', UInt64(Actual), UInt64($0000000000000073));
+end;
+
+procedure GBCrossAxisS18O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U and 4294967295);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-high-and-kind-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U and 4294967295);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-and-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U and 4294967295, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-and-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U and 4294967295, U and 4294967295);
+  GeneratedCheckU('gb-cross-literal-uint32-high-and-pair-both-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U and 4294967295;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-high-and-assignment-nested-function', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS18O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U and 4294967295) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-and-case-single-loop', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS18O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U and 4294967295) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-and-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS18O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U and 4294967295))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-high-and-array-index-repeat-until', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS18O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U div 4294967295);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-high-div-kind-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U div 4294967295);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-high-div-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U div 4294967295, U);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-div-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U div 4294967295, U div 4294967295);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-div-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U div 4294967295;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-literal-uint32-high-div-assignment-direct', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS18O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U div 4294967295) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-high-div-case-nested-function', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS18O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div 4294967295) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-div-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS18O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U div 4294967295))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-div-array-index-case-branch', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS18O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U mod 4294967295);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mod-kind-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U mod 4294967295);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mod-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U mod 4294967295, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-uint32-high-mod-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U mod 4294967295, U mod 4294967295);
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mod-pair-both-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS18O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U mod 4294967295;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mod-assignment-try-finally', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS18O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U mod 4294967295) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mod-case-direct', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS18O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod 4294967295) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mod-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS18O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U mod 4294967295))];
+  end;
+  GeneratedCheckU('gb-cross-literal-uint32-high-mod-array-index-single-loop', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS19O00C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBOrdinalKind(U + 4294967296);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-add-kind-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O00C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U, U + 4294967296);
+  GeneratedCheckU('gb-cross-literal-int64-low-add-pair-left-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O00C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U + 4294967296, U);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int64-low-add-pair-right-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O00C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U + 4294967296, U + 4294967296);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-add-pair-both-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O00C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      AssignedValue := U + 4294967296;
+      Actual := AssignedValue;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-add-assignment-case-branch', UInt64(Actual), UInt64($0000000100000029));
+end;
+
+procedure GBCrossAxisS19O00C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    case UInt64(U + 4294967296) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int64-low-add-case-repeat-until', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS19O00C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U + 4294967296) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int64-low-add-loop-bound-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O00C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  with Source do
+  begin
+    Actual := Values[Byte(UInt64(U + 4294967296))];
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-add-array-index-with-record', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS19O01C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBOrdinalKind(U - 4294967296);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-sub-kind-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O01C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U, U - 4294967296);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-sub-pair-left-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O01C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U - 4294967296, U);
+  GeneratedCheckU('gb-cross-literal-int64-low-sub-pair-right-direct', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O01C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U - 4294967296, U - 4294967296);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int64-low-sub-pair-both-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O01C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    AssignedValue := U - 4294967296;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-sub-assignment-single-loop', UInt64(Actual), UInt64($FFFFFFFF00000029));
+end;
+
+procedure GBCrossAxisS19O01C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      case UInt64(U - 4294967296) and 3 of
+        0: Actual := 17;
+        1: Actual := 34;
+        2: Actual := 51;
+      else
+        Actual := 68;
+      end;
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-sub-case-case-branch', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS19O01C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U - 4294967296) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int64-low-sub-loop-bound-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O01C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := Values[Byte(UInt64(U - 4294967296))];
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int64-low-sub-array-index-runtime-if', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS19O02C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBOrdinalKind(U * 4294967296);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int64-low-mul-kind-runtime-if', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O02C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U, U * 4294967296);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-mul-pair-left-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O02C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U * 4294967296, U);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-mul-pair-right-try-finally', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O02C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBPairKind(U * 4294967296, U * 4294967296);
+  GeneratedCheckU('gb-cross-literal-int64-low-mul-pair-both-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O02C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    AssignedValue := U * 4294967296;
+    Result := AssignedValue;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int64-low-mul-assignment-nested-function', UInt64(Actual), UInt64($0000002900000000));
+end;
+
+procedure GBCrossAxisS19O02C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    case UInt64(U * 4294967296) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-mul-case-single-loop', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS19O02C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := 0;
+      for var LoopIndex := 0 to Integer(UInt64(U * 4294967296) and 7) do
+        Actual := Actual + UInt64(LoopIndex + 1);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-mul-loop-bound-case-branch', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS19O02C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  repeat
+    Actual := Values[Byte(UInt64(U * 4294967296))];
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int64-low-mul-array-index-repeat-until', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS19O03C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBOrdinalKind(U or 4294967296);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int64-low-or-kind-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O03C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U, U or 4294967296);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int64-low-or-pair-left-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O03C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U or 4294967296, U);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-or-pair-right-with-record', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O03C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := GBPairKind(U or 4294967296, U or 4294967296);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-or-pair-both-try-finally', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O03C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  AssignedValue := U or 4294967296;
+  Actual := AssignedValue;
+  GeneratedCheckU('gb-cross-literal-int64-low-or-assignment-direct', UInt64(Actual), UInt64($0000000100000029));
+end;
+
+procedure GBCrossAxisS19O03C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    case UInt64(U or 4294967296) and 3 of
+      0: Result := 17;
+      1: Result := 34;
+      2: Result := 51;
+    else
+      Result := 68;
+    end;
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int64-low-or-case-nested-function', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS19O03C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U or 4294967296) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-or-loop-bound-single-loop', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O03C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := Values[Byte(UInt64(U or 4294967296))];
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-or-array-index-case-branch', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS19O04C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBOrdinalKind(U xor 4294967296);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-xor-kind-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O04C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U, U xor 4294967296);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int64-low-xor-pair-left-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O04C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U xor 4294967296, U);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int64-low-xor-pair-right-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O04C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := GBPairKind(U xor 4294967296, U xor 4294967296);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-xor-pair-both-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O04C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    AssignedValue := U xor 4294967296;
+    Actual := AssignedValue;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-xor-assignment-try-finally', UInt64(Actual), UInt64($0000000100000029));
+end;
+
+procedure GBCrossAxisS19O04C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case UInt64(U xor 4294967296) and 3 of
+    0: Actual := 17;
+    1: Actual := 34;
+    2: Actual := 51;
+  else
+    Actual := 68;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-xor-case-direct', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS19O04C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U xor 4294967296) and 7) do
+      Result := Result + UInt64(LoopIndex + 1);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int64-low-xor-loop-bound-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O04C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := Values[Byte(UInt64(U xor 4294967296))];
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-xor-array-index-single-loop', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+procedure GBCrossAxisS19O05C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBOrdinalKind(U and 4294967296);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-and-kind-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O05C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U, U and 4294967296);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-and-pair-left-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O05C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U and 4294967296, U);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int64-low-and-pair-right-repeat-until', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O05C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    Actual := GBPairKind(U and 4294967296, U and 4294967296);
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int64-low-and-pair-both-runtime-if', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O05C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    AssignedValue := U and 4294967296;
+    Actual := AssignedValue;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-and-assignment-with-record', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS19O05C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    case UInt64(U and 4294967296) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-and-case-try-finally', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS19O05C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := 0;
+  for var LoopIndex := 0 to Integer(UInt64(U and 4294967296) and 7) do
+    Actual := Actual + UInt64(LoopIndex + 1);
+  GeneratedCheckU('gb-cross-literal-int64-low-and-loop-bound-direct', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS19O05C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := Values[Byte(UInt64(U and 4294967296))];
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int64-low-and-array-index-nested-function', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS19O06C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBOrdinalKind(U div 4294967296);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int64-low-div-kind-nested-function', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O06C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U, U div 4294967296);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-div-pair-left-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O06C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U div 4294967296, U);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-div-pair-right-case-branch', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O06C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    Actual := GBPairKind(U div 4294967296, U div 4294967296);
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int64-low-div-pair-both-repeat-until', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O06C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    AssignedValue := U div 4294967296;
+    Actual := AssignedValue;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int64-low-div-assignment-runtime-if', UInt64(Actual), UInt64($0000000000000000));
+end;
+
+procedure GBCrossAxisS19O06C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    case UInt64(U div 4294967296) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-div-case-with-record', UInt64(Actual), UInt64($0000000000000011));
+end;
+
+procedure GBCrossAxisS19O06C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  try
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U div 4294967296) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-div-loop-bound-try-finally', UInt64(Actual), UInt64($0000000000000001));
+end;
+
+procedure GBCrossAxisS19O06C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  Actual := Values[Byte(UInt64(U div 4294967296))];
+  GeneratedCheckU('gb-cross-literal-int64-low-div-array-index-direct', UInt64(Actual), UInt64($00000000000000A5));
+end;
+
+procedure GBCrossAxisS19O07C00;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := GBOrdinalKind(U mod 4294967296);
+  GeneratedCheckU('gb-cross-literal-int64-low-mod-kind-direct', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O07C01;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  function NestedEvaluate: UInt64;
+  begin
+    Result := GBPairKind(U, U mod 4294967296);
+  end;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  Actual := NestedEvaluate;
+  GeneratedCheckU('gb-cross-literal-int64-low-mod-pair-left-nested-function', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O07C02;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  for J := 0 to Integer(GBUInt64NoInline(0)) do
+  begin
+    Actual := GBPairKind(U mod 4294967296, U);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-mod-pair-right-single-loop', UInt64(Actual), UInt64($0000000000000004));
+end;
+
+procedure GBCrossAxisS19O07C03;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  case Integer(GBUInt64NoInline(U) and 1) of
+    1:
+    begin
+      Actual := GBPairKind(U mod 4294967296, U mod 4294967296);
+    end;
+  else
+    Actual := High(UInt64);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-mod-pair-both-case-branch', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O07C04;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  AssignedValue: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  repeat
+    AssignedValue := U mod 4294967296;
+    Actual := AssignedValue;
+  until GBUInt64NoInline(1) = 1;
+  GeneratedCheckU('gb-cross-literal-int64-low-mod-assignment-repeat-until', UInt64(Actual), UInt64($0000000000000029));
+end;
+
+procedure GBCrossAxisS19O07C05;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  if GBUInt64NoInline(U) = 41 then
+  begin
+    case UInt64(U mod 4294967296) and 3 of
+      0: Actual := 17;
+      1: Actual := 34;
+      2: Actual := 51;
+    else
+      Actual := 68;
+    end;
+  end
+  else
+    Actual := High(UInt64);
+  GeneratedCheckU('gb-cross-literal-int64-low-mod-case-runtime-if', UInt64(Actual), UInt64($0000000000000022));
+end;
+
+procedure GBCrossAxisS19O07C06;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  Actual := 0;
+  with Source do
+  begin
+    Actual := 0;
+    for var LoopIndex := 0 to Integer(UInt64(U mod 4294967296) and 7) do
+      Actual := Actual + UInt64(LoopIndex + 1);
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-mod-loop-bound-with-record', UInt64(Actual), UInt64($0000000000000003));
+end;
+
+procedure GBCrossAxisS19O07C07;
+var
+  Source: TGBOrdinalSource;
+  U, U2, Actual: UInt64;
+  I: Integer;
+  I64: Int64;
+  J: Integer;
+  Values: array[Byte] of Byte;
+begin
+  U := 41;
+  U2 := 1;
+  I := 1;
+  I64 := 1;
+  Source.SignedField := 1;
+  Source.UnsignedField := 1;
+  for J := 0 to High(Values) do
+    Values[J] := Byte(J xor $A5);
+  Actual := 0;
+  try
+    Actual := Values[Byte(UInt64(U mod 4294967296))];
+  finally
+    U2 := U2 xor 0;
+  end;
+  GeneratedCheckU('gb-cross-literal-int64-low-mod-array-index-try-finally', UInt64(Actual), UInt64($000000000000008C));
+end;
+
+{$endif}
 {$ifndef GB_SKIP_MANAGED_RECORD}
 procedure GBManagedRecordBody0000(out Value: Integer);
 var
@@ -89560,6 +119534,3846 @@ begin
 {$endif}
 {$ifndef GB_SKIP_CALL_OVERLOAD}
   GBCallOverload0159;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS00O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS01O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS02O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS03O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS04O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS05O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS06O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS07O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS08O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS09O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS10O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS11O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS12O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS13O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS14O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS15O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS16O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS17O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS18O07C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O00C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O00C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O00C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O00C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O00C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O00C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O00C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O00C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O01C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O01C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O01C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O01C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O01C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O01C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O01C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O01C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O02C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O02C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O02C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O02C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O02C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O02C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O02C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O02C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O03C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O03C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O03C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O03C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O03C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O03C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O03C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O03C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O04C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O04C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O04C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O04C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O04C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O04C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O04C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O04C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O05C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O05C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O05C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O05C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O05C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O05C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O05C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O05C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O06C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O06C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O06C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O06C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O06C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O06C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O06C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O06C07;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O07C00;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O07C01;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O07C02;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O07C03;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O07C04;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O07C05;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O07C06;
+{$endif}
+{$ifndef GB_SKIP_CROSS_AXIS}
+  GBCrossAxisS19O07C07;
 {$endif}
 {$ifndef GB_SKIP_MANAGED_RECORD}
   GBManagedRecord0000;
