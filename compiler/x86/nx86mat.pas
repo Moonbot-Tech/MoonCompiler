@@ -864,7 +864,11 @@ interface
             { unsigned modulus by a (+/-)power-of-2 constant? }
             if isabspowerof2(tordconstnode(right).value,power) then
               begin
-                emit_const_reg(A_AND,opsize,(aint(1) shl power)-1,hreg1);
+                { A 64-bit AND immediate is sign-extended from 32 bits.  In
+                  particular, $00000000ffffffff cannot be emitted directly;
+                  let the generic helper materialize a non-encodable mask. }
+                cg.a_op_const_reg(current_asmdata.CurrAsmList,OP_AND,cgsize,
+                  (aint(1) shl power)-1,hreg1);
                 location.register:=hreg1;
               end
             else
