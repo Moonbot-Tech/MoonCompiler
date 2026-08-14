@@ -1079,6 +1079,13 @@
       ],
       "id": "lab-005-o3-ansistring-codepage",
       "source": "fixtures/minimized/lab_005_o3_ansistring_codepage.pas"
+    },
+    {
+      "compiler_allow": [
+        "moonbot-compiler-beta"
+      ],
+      "id": "moonbot-inline-pointer-new",
+      "source": "fixtures/minimized/moonbot_inline_pointer_new.pas"
     }
   ],
   "mega": {

@@ -2905,7 +2905,9 @@ implementation
          old_current_genericdef,
          old_current_specializedef: tstoreddef;
          parentfpinitblock: tnode;
-         old_parse_generic: boolean;
+         old_parse_generic,
+         old_afterassignment,
+         old_in_args: boolean;
          recordtokens : boolean;
       begin
          old_current_procinfo:=current_procinfo;
@@ -2914,6 +2916,8 @@ implementation
          old_current_genericdef:=current_genericdef;
          old_current_specializedef:=current_specializedef;
          old_parse_generic:=parse_generic;
+         old_afterassignment:=afterassignment;
+         old_in_args:=in_args;
 
          current_procinfo:=self;
          current_structdef:=procdef.struct;
@@ -2949,6 +2953,12 @@ implementation
          if procdef.parast.symtablelevel>maxnesting then
            Message(parser_e_too_much_lexlevel);
          block_type:=bt_body;
+         { A nested or anonymous routine can be parsed while its declaration is
+           itself the right-hand side of an assignment or a call argument.
+           Those expression-context flags belong to the enclosing expression,
+           not to the routine body. }
+         afterassignment:=false;
+         in_args:=false;
 
     {$ifdef state_tracking}
 {    aktstate:=Tstate_storage.create;}
@@ -3087,6 +3097,8 @@ implementation
          current_specializedef:=old_current_specializedef;
          current_procinfo:=old_current_procinfo;
          parse_generic:=old_parse_generic;
+         afterassignment:=old_afterassignment;
+         in_args:=old_in_args;
 
          { Restore old state }
          block_type:=old_block_type;

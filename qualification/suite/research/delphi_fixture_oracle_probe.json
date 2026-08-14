@@ -52,6 +52,13 @@
                       "adapted_source_sha256":  "e6aeaeac4ac730d59ba515b951e29a2500c7454c377b0faaa8fb351ca1f3f1e8",
                       "compile_exit_code":  0,
                       "run_exit_code":  0
+                  },
+                  {
+                      "test_id":  "moonbot-inline-pointer-new",
+                      "source_sha256":  "dc83501d3a544592ed238945b4807dc47ab50e64d040b5e13e17901a6205197a",
+                      "adapted_source_sha256":  "dc83501d3a544592ed238945b4807dc47ab50e64d040b5e13e17901a6205197a",
+                      "compile_exit_code":  0,
+                      "run_exit_code":  0
                   }
               ]
 }

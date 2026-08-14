@@ -246,7 +246,7 @@
             "adapted_source_sha256": "62e625c39497adab7c3be32fb9ccd4fb3ee6ce90a98908a967992ec345f01559",
             "kind": "delphi-12.2-win64",
             "path": "research/delphi_fixture_oracle_probe.json",
-            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+            "sha256": "da6d099aba5f5ae9ef2244c4d4e26e4d637782bc71df458d3ae2b0767646f354"
           }
         ],
         "issue_description_sha256": "48b09833652b72a371a911dd62cd71ecb46777821fa3659db72a9b31aa6ff0fd",
@@ -427,7 +427,7 @@
             "adapted_source_sha256": "f126145d4f5d1c59826da547cd2bc5cfcdf9a3ed41b21c295f77c3f68b9d08cc",
             "kind": "delphi-12.2-win64",
             "path": "research/delphi_fixture_oracle_probe.json",
-            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+            "sha256": "da6d099aba5f5ae9ef2244c4d4e26e4d637782bc71df458d3ae2b0767646f354"
           },
           {
             "kind": "fpc-reference-run",
@@ -461,7 +461,7 @@
             "adapted_source_sha256": "a2f0111ec37fd13525c09daf32b3ed33ad225333428f892a52f8527443e7e6e4",
             "kind": "delphi-12.2-win64",
             "path": "research/delphi_fixture_oracle_probe.json",
-            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+            "sha256": "da6d099aba5f5ae9ef2244c4d4e26e4d637782bc71df458d3ae2b0767646f354"
           }
         ],
         "issue_description_sha256": "54a6df096d1e4b27247cfffcaa10fff7758bc3316f2daf7d09860d7b22066f07",
@@ -531,7 +531,7 @@
             "adapted_source_sha256": "9b5648a99fc9201478a1be37827b69eda12597ee73f7d69f3332487901e93478",
             "kind": "delphi-12.2-win64",
             "path": "research/delphi_fixture_oracle_probe.json",
-            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+            "sha256": "da6d099aba5f5ae9ef2244c4d4e26e4d637782bc71df458d3ae2b0767646f354"
           }
         ],
         "issue_description_sha256": "a4f85df94e668eb43fdcdb598c7ad1bb6a668e03094e8259343c6353c3040509",
@@ -788,7 +788,7 @@
             "adapted_source_sha256": "a0ecf750d88f92fee3601df775dd6b0ad33c2bdef125e2838446daf9667255f7",
             "kind": "delphi-12.2-win64",
             "path": "research/delphi_fixture_oracle_probe.json",
-            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+            "sha256": "da6d099aba5f5ae9ef2244c4d4e26e4d637782bc71df458d3ae2b0767646f354"
           }
         ],
         "issue_description_sha256": "979f387df0dc70c5357baf0200fc4c960abd306a82733d7e7616c74c245d8a61",
@@ -1006,7 +1006,7 @@
             "adapted_source_sha256": "c07fecfe1832e358342eb38b975b4def55616b3fa630d1554889d9088374e142",
             "kind": "delphi-12.2-win64",
             "path": "research/delphi_fixture_oracle_probe.json",
-            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+            "sha256": "da6d099aba5f5ae9ef2244c4d4e26e4d637782bc71df458d3ae2b0767646f354"
           }
         ],
         "issue_description_sha256": "2ccb01febcbeb1d85d06a5323a881f7c6b98deb63cfbc0f4197453e2dc2c890c",
@@ -1222,7 +1222,7 @@
             "adapted_source_sha256": "e6aeaeac4ac730d59ba515b951e29a2500c7454c377b0faaa8fb351ca1f3f1e8",
             "kind": "delphi-12.2-win64",
             "path": "research/delphi_fixture_oracle_probe.json",
-            "sha256": "0b89b749e891d88590a5f42f358c69af09df079f3ba56d9dcc505a10dd077755"
+            "sha256": "da6d099aba5f5ae9ef2244c4d4e26e4d637782bc71df458d3ae2b0767646f354"
           },
           {
             "kind": "fpc-reference-run",
@@ -1386,6 +1386,27 @@
       "provenance": {
         "source_sha256": "696647991eb9c212edf22af05c6e351f8a84851f0f1eae9727472fb90bd111cb",
         "spec_sha256": "7533435ae1ee40e94654f42f087aca2a0ed055bc7236288ef9b681c7787a9cde"
+      }
+    },
+    "moonbot-inline-pointer-new": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "product-reproducer",
+        "independent_references": [
+          {
+            "adapted_source_sha256": "dc83501d3a544592ed238945b4807dc47ab50e64d040b5e13e17901a6205197a",
+            "kind": "delphi-12.2-win64",
+            "path": "research/delphi_fixture_oracle_probe.json",
+            "sha256": "da6d099aba5f5ae9ef2244c4d4e26e4d637782bc71df458d3ae2b0767646f354"
+          }
+        ]
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "dc83501d3a544592ed238945b4807dc47ab50e64d040b5e13e17901a6205197a",
+        "spec_sha256": "49f1b8b972413bc4ff61073ea3132165de88435ad861de1297ae0a060c31830e"
       }
     },
     "unleashed-17": {

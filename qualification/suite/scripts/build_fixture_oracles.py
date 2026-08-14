@@ -84,6 +84,7 @@ REVIEWED_PASS_FIXTURES = frozenset({
     "mega-001-negative-constant-div",
     "min-fpc-41796",
     "min-fpc-41810",
+    "moonbot-inline-pointer-new",
     "unleashed-17",
     "unleashed-20",
 })
@@ -153,6 +154,8 @@ def issue_evidence(
         result = {"basis": "unleashed-issue"}
     elif test_id.startswith("mega-"):
         result = {"basis": "mega-independent-oracle"}
+    elif test_id.startswith("moonbot-"):
+        result = {"basis": "product-reproducer"}
     else:
         result = {"basis": "lab-reproducer"}
     references = []

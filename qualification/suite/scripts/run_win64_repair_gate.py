@@ -28,6 +28,7 @@ CORE_TESTS = (
     "tforunrollfinally2",
     "tdelphisparseenumtypeinfo1",
     "tdelphiinlineconstruntime1",
+    "tdelphianonymousnew1",
 )
 GENERIC_TESTS = (
     "tinlinegenericcomparer1",

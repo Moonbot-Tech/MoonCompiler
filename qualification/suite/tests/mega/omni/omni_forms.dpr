@@ -6266,6 +6266,119 @@ begin
   Mix(UInt64(UInt32(Shared)));
 end;
 
+{$ifdef HAS_INLINEVAR}
+type
+  TAnonNewManaged = record
+    Text: UnicodeString;
+    Values: TArray<Integer>;
+  end;
+  PAnonNewManaged = ^TAnonNewManaged;
+  PPAnonNewManaged = ^PAnonNewManaged;
+  TAnonNewCarrier = record
+    Value: PAnonNewManaged;
+  end;
+  TAnonNewFactory = reference to function: PAnonNewManaged;
+
+procedure InvokeAnonNew(const Callback: TProcRef);
+begin
+  Callback();
+end;
+
+procedure RunAnonymousPointerNewForms;
+var
+  Callback: TProcRef;
+  Factory: TAnonNewFactory;
+  Value: PAnonNewManaged;
+begin
+  { Assignment context + inline local + managed pointed record: exact bug
+    class. New must select its statement form and initialize managed fields. }
+  Callback := procedure
+    begin
+      var P: PAnonNewManaged;
+      New(P);
+      Check((P^.Text = '') and (P^.Values = nil),
+        'anon-new-assigned-inline-managed-init');
+      P^.Text := 'assigned';
+      P^.Values := [3, 5, 8];
+      Check((P^.Text = 'assigned') and (P^.Values[2] = 8),
+        'anon-new-assigned-inline-managed-use');
+      Dispose(P);
+    end;
+  Callback();
+
+  { Call-argument context used to leak a second parser flag into the body. }
+  InvokeAnonNew(
+    procedure
+    begin
+      var P: PInteger;
+      New(P);
+      P^ := Integer(OpaqueI(42));
+      Check(P^ = 42, 'anon-new-argument-inline-scalar');
+      Dispose(P);
+    end);
+
+  { The New operand need not be a bare local: indexed and record-field
+    lvalues exercise the same statement lowering with different AST shapes. }
+  Callback := procedure
+    begin
+      var Slots: array[0..1] of PAnonNewManaged;
+      var Carrier: TAnonNewCarrier;
+      var I: Integer;
+      for I := Low(Slots) to High(Slots) do
+      begin
+        New(Slots[I]);
+        Slots[I]^.Text := UnicodeString(IntToStr(I + 10));
+      end;
+      Check((Slots[0]^.Text = '10') and (Slots[1]^.Text = '11'),
+        'anon-new-indexed-lvalue');
+      for I := Low(Slots) to High(Slots) do
+        Dispose(Slots[I]);
+      New(Carrier.Value);
+      Carrier.Value^.Values := [13, 21];
+      Check(Carrier.Value^.Values[1] = 21, 'anon-new-record-field-lvalue');
+      Dispose(Carrier.Value);
+    end;
+  Callback();
+
+  { Pointer-to-pointer and a nested closure over the allocated pointer cross
+    parser nesting, capture lowering and managed heap lifetime. }
+  Callback := procedure
+    begin
+      var Holder: PPAnonNewManaged;
+      var Reader: TProcRef;
+      New(Holder);
+      Holder^ := nil;
+      New(Holder^);
+      Holder^^.Text := 'nested';
+      Reader := procedure
+        begin
+          Check(Holder^^.Text = 'nested', 'anon-new-nested-capture-read');
+        end;
+      Reader();
+      Reader := nil;
+      Dispose(Holder^);
+      Dispose(Holder);
+    end;
+  Callback();
+
+  { Anonymous function result: allocation happens in the nested body, while
+    ownership of the pointer crosses back to the enclosing routine. }
+  Factory := function: PAnonNewManaged
+    begin
+      var P: PAnonNewManaged;
+      New(P);
+      P^.Text := 'factory';
+      P^.Values := [34, 55];
+      Result := P;
+    end;
+  Value := Factory();
+  Check((Value^.Text = 'factory') and (Value^.Values[0] = 34),
+    'anon-new-function-result');
+  Mix(UInt64(UInt32(Value^.Values[1])));
+  Dispose(Value);
+end;
+{$endif}
+
 { A nested anonymous procedure passed from CreateAnonymousThread to
   TThread.Queue captures the method Self. The worker is joined before the main
   thread drains the queue, so the exact production form has a deterministic
@@ -14069,6 +14182,9 @@ begin
 {$ifdef HAS_ANON}
   RunGeneratedBreadthModernForms;
   RunAnonymousForms;
+{$ifdef HAS_INLINEVAR}
+  RunAnonymousPointerNewForms;
+{$endif}
   RunComboModernForms;
   RunQueueClosureForms;
   RunExplicitAnonymousConstCastForms;
