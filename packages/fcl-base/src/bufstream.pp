@@ -725,7 +725,7 @@ var
 begin
   WriteDirtyPages;
   inherited SetSize(NewSize); // Call THandleStream.SetSize, will truncate
-  FCacheStreamSize:=inherited Seek(0,soFromEnd);
+  FCacheStreamSize:=inherited Seek(int64(0),soEnd);
   for j := 0 to Pred(FStreamCachePageMaxCount) do begin
     pCache:=FCachePages[j];
     if Assigned(pCache^.Buffer) and (pCache^.PageRealSize+pCache^.PageBegin>FCacheStreamSize) then begin
