@@ -742,7 +742,7 @@ type
     procedure NodeAdded(ANode: PNode); virtual;
     procedure DeletingNode(ANode: PNode; AOrigin: boolean); virtual;
 
-    function DoRemove(ANode: PNode; ACollectionNotification: TCollectionNotification; ADispose: boolean): TValue;
+    procedure DoRemove(ANode: PNode; ACollectionNotification: TCollectionNotification; ADispose: boolean);
     procedure DisposeAllNodes(ANode: PNode); overload;
 
     function Compare(const ALeft, ARight: TKey): Integer; inline;
@@ -3401,8 +3401,8 @@ procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.DeletingNode(ANode: PNode; AOrigin
 begin
 end;
 
-function TCustomAVLTreeMap<TREE_CONSTRAINTS>.DoRemove(ANode: PNode;
-  ACollectionNotification: TCollectionNotification; ADispose: boolean): TValue;
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.DoRemove(ANode: PNode;
+  ACollectionNotification: TCollectionNotification; ADispose: boolean);
 begin
   if ANode=nil then
     raise EArgumentNilException.CreateRes(@SArgumentNilNode);
@@ -4052,7 +4052,8 @@ begin
   if LNode<>nil then
   begin
     Result.Key := AKey;
-    Result.Value := DoRemove(LNode, cnExtracted, ADisposeNode);
+    Result.Value := LNode.Value;
+    DoRemove(LNode, cnExtracted, ADisposeNode);
   end else
     Result := Default(TTreePair);
 end;
@@ -4060,7 +4061,8 @@ end;
 function TCustomAVLTreeMap<TREE_CONSTRAINTS>.ExtractPair(const ANode: PNode; ADispose: boolean = true): TTreePair;
 begin
   Result.Key := ANode.Key;
-  Result.Value := DoRemove(ANode, cnExtracted, ADispose);
+  Result.Value := ANode.Value;
+  DoRemove(ANode, cnExtracted, ADispose);
 end;
 
 function TCustomAVLTreeMap<TREE_CONSTRAINTS>.Extract(const AKey: TKey; ADisposeNode: boolean): PNode;
