@@ -250,10 +250,10 @@ type
   end;
 
   TCustomListEnumerator<T> = class abstract(TEnumerator<T>)
-  private
+  protected
     FList: TCustomList<T>;
     FIndex: SizeInt;
-  protected
+    function DirectCurrent: T; inline;
     function DoMoveNext: boolean; override;
     function DoGetCurrent: T; override;
     function GetCurrent: T; virtual;
@@ -288,7 +288,11 @@ type
     // with this type declaration i found #24285, #24285
     type
       // bug workaround
-      TEnumerator = class(TCustomListEnumerator<T>);
+      TEnumerator = class(TCustomListEnumerator<T>)
+      public
+        function MoveNext: boolean; reintroduce; inline;
+        property Current: T read DirectCurrent;
+      end;
       TEmptyFunc = reference to function (const L, R: T): Boolean;
       arrayofT = TArrayOfT;
 
@@ -436,6 +440,8 @@ type
       TEnumerator = class(TCustomListEnumerator<T>)
       public
         constructor Create(AQueue: TQueue<T>);
+        function MoveNext: boolean; reintroduce; inline;
+        property Current: T read DirectCurrent;
       end;
 
     function GetEnumerator: TEnumerator; reintroduce;
@@ -468,7 +474,11 @@ type
     function DoGetEnumerator: {Generics.Collections.}TEnumerator<T>; override;
   public
     type
-      TEnumerator = class(TCustomListEnumerator<T>);
+      TEnumerator = class(TCustomListEnumerator<T>)
+      public
+        function MoveNext: boolean; reintroduce; inline;
+        property Current: T read DirectCurrent;
+      end;
 
     function GetEnumerator: TEnumerator; reintroduce;
   protected
@@ -1784,6 +1794,11 @@ begin
   Result := FList.FItems[FIndex];
 end;
 
+function TCustomListEnumerator<T>.DirectCurrent: T;
+begin
+  Result := FList.FItems[FIndex];
+end;
+
 constructor TCustomListEnumerator<T>.Create(AList: TCustomList<T>);
 begin
   inherited Create;
@@ -1819,6 +1834,12 @@ begin
 end;
 
 { TList<T> }
+
+function TList<T>.TEnumerator.MoveNext: boolean;
+begin
+  Inc(FIndex);
+  Result := (FList.FLength <> 0) and (FIndex < FList.FLength)
+end;
 
 procedure TList<T>.InitializeList;
 begin
@@ -2521,6 +2542,12 @@ begin
   FIndex := Pred(AQueue.FLow);
 end;
 
+function TQueue<T>.TEnumerator.MoveNext: boolean;
+begin
+  Inc(FIndex);
+  Result := (FList.FLength <> 0) and (FIndex < FList.FLength)
+end;
+
 { TQueue<T> }
 
 function TQueue<T>.PrepareAddingItem: SizeInt;
@@ -2679,6 +2706,12 @@ begin
 end;
 
 { TStack<T> }
+
+function TStack<T>.TEnumerator.MoveNext: boolean;
+begin
+  Inc(FIndex);
+  Result := (FList.FLength <> 0) and (FIndex < FList.FLength)
+end;
 
 function TStack<T>.GetEnumerator: TEnumerator;
 begin
