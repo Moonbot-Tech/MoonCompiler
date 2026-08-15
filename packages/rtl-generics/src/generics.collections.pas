@@ -461,7 +461,7 @@ type
     procedure Enqueue(const AValue: T);
     function Dequeue: T;
     function Extract: T;
-    function Peek: T;
+    function Peek: T; inline;
     procedure Clear;
     procedure TrimExcess; override;
   end;
@@ -493,7 +493,7 @@ type
     procedure Clear;
     procedure Push(const AValue: T);
     function Pop: T; inline;
-    function Peek: T;
+    function Peek: T; inline;
     function Extract: T; inline;
     procedure TrimExcess; override;
   end;
