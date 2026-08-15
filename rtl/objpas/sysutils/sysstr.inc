@@ -890,20 +890,65 @@ end;
 
 {   IntToStr returns a string representing the value of Value    }
 
+function DecimalString(Value: QWord; Negative: Boolean): string;
+var
+  Buffer: array[0..20] of Char;
+  Digit, First, ResultLength: SizeInt;
+  Quotient, Remainder: QWord;
+begin
+  First:=Length(Buffer);
+  while Value>=100 do
+    begin
+    Quotient:=Value div 100;
+    Remainder:=Value-Quotient*100;
+    Dec(First,2);
+    Digit:=Remainder div 10;
+    Buffer[First]:=Char(Ord('0')+Digit);
+    Buffer[First+1]:=Char(Ord('0')+Remainder-Digit*10);
+    Value:=Quotient;
+    end;
+  if Value>=10 then
+    begin
+    Dec(First,2);
+    Digit:=Value div 10;
+    Buffer[First]:=Char(Ord('0')+Digit);
+    Buffer[First+1]:=Char(Ord('0')+Value-Digit*10);
+    end
+  else
+    begin
+    Dec(First);
+    Buffer[First]:=Char(Ord('0')+Value);
+    end;
+  if Negative then
+    begin
+    Dec(First);
+    Buffer[First]:='-';
+    end;
+  ResultLength:=Length(Buffer)-First;
+  SetLength(Result,ResultLength);
+  Move(Buffer[First],Result[1],ResultLength*SizeOf(Char));
+end;
+
 function IntToStr(Value: Longint): string;
 begin
- System.Str(Value, result);
+  if Value<0 then
+    Result:=DecimalString(QWord(-(Int64(Value)+1))+1,True)
+  else
+    Result:=DecimalString(Value,False);
 end ;
 
 
 function IntToStr(Value: int64): string;
 begin
- System.Str(Value, result);
+  if Value<0 then
+    Result:=DecimalString(QWord(-(Value+1))+1,True)
+  else
+    Result:=DecimalString(Value,False);
 end ;
 
 function IntToStr(Value: QWord): string;
 begin
- System.Str(Value, result);
+  Result:=DecimalString(Value,False);
 end ;
 
 function UIntToStr(Value: Int64): string;
@@ -920,7 +965,7 @@ end;
 function UIntToStr(Value: Cardinal): string;
 
 begin
-  System.Str(Value, result);
+  Result:=DecimalString(Value,False);
 end;
 
 {   IntToHex returns a string representing the hexadecimal value of Value   }
@@ -1027,9 +1072,56 @@ begin
     raise EConvertError.createfmt(SInvalidInteger,[S]);
 end;
 
+function TryDecimalInt64(const S: string; out Value: Int64): Boolean;
+var
+  Accumulator, Cutoff: QWord;
+  CutLimit, Digit: Cardinal;
+  Index, Len: SizeInt;
+  Negative: Boolean;
+begin
+  Result:=False;
+  Len:=Length(S);
+  if Len=0 then
+    Exit;
+  Index:=1;
+  Negative:=S[Index]='-';
+  if Negative then
+    begin
+    Inc(Index);
+    if Index>Len then
+      Exit;
+    CutLimit:=8;
+    end
+  else
+    CutLimit:=7;
+  Cutoff:=QWord(High(Int64)) div 10;
+  Accumulator:=0;
+  while Index<=Len do
+    begin
+    Digit:=Ord(S[Index])-Ord('0');
+    if Digit>9 then
+      Exit;
+    if (Accumulator>Cutoff) or
+       ((Accumulator=Cutoff) and (Digit>CutLimit)) then
+      Exit;
+    Accumulator:=Accumulator*10+Digit;
+    Inc(Index);
+    end;
+  if Negative then
+    if Accumulator=QWord(High(Int64))+1 then
+      Value:=Low(Int64)
+    else
+      Value:=-Int64(Accumulator)
+  else
+    Value:=Int64(Accumulator);
+  Result:=True;
+end;
+
 function TryStrToInt64(const s: string; Out i : int64) : boolean;
 var Error : word;
 begin
+  if TryDecimalInt64(s,i) then
+    Exit(True);
   Val(s, i, Error);
   TryStrToInt64:=Error=0
 end;
