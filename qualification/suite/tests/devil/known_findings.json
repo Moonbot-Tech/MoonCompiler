@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "note": "Каждая запись привязана к разобранной находке в findings/. Гейт не прячет их, а считает отдельно, чтобы новое не тонуло в уже известном.",
+  "known": [
+    {
+      "id": "dvl-0001",
+      "kind": "model-mismatch",
+      "check": "^dvl-(expr|unary|unit)-[0-9]+(-form|-generic)?$",
+      "note": "O3 теряет беззнаковое сужение узкого типа перед расширением до 64 бит"
+    },
+    {
+      "id": "dvl-0001",
+      "kind": "model-mismatch",
+      "check": "^dvl-fold-[0-9]+-half-vs-runtime$",
+      "note": "то же сужение на пути литерал op runtime, видно уже на O2"
+    },
+    {
+      "id": "dvl-0003",
+      "kind": "observation-split",
+      "note_name": "^dvl-life-[0-9]+-(order|trail)$",
+      "note": "O2/O3 инвертируют порядок финализации при раскрутке исключения"
+    },
+    {
+      "id": "dvl-0004",
+      "kind": "model-mismatch",
+      "check": "^dvl-abi-[0-9]+-value-[0-9]+$",
+      "note": "сравнение с C-style Boolean не нормализуется в 0/1"
+    },
+    {
+      "id": "dvl-0004",
+      "kind": "observation-split",
+      "note_name": "^dvl-abi-[0-9]+-boolraw-[0-9]+$",
+      "note": "Ord(WordBool/ByteBool) расширяется не в домене типа"
+    },
+    {
+      "id": "dvl-0006",
+      "kind": "model-mismatch",
+      "check": "^dvl-cmp-[0-9]+-fold-vs-runtime$",
+      "note": "Delphi расходится сам с собой на mixed signed/unsigned сравнении констант"
+    },
+    {
+      "id": "dvl-0007",
+      "kind": "model-mismatch",
+      "check": "^dvl-thr-[0-9]+-counter$",
+      "note": "TMonitor.Enter на Win64 падает с AV: тело блокировки не выполняется"
+    },
+    {
+      "id": "dvl-0008",
+      "kind": "model-mismatch",
+      "check": "^dvl-rtti-[0-9]+-finds-self$",
+      "note": "Delphi GetTypes не перечисляет тип без явного RTTI; наш статический каталог полнее — расхождение в нашу пользу"
+    },
+    {
+      "id": "dvl-0009",
+      "kind": "model-mismatch",
+      "check": "^dvl-float-[0-9]+-inf-minus-inf-nan$",
+      "note": "Delphi сворачивает Inf-Inf в ноль вместо NaN; наш компилятор даёт IEEE-верный результат"
+    },
+    {
+      "id": "dvl-0008",
+      "kind": "observation-split",
+      "note_name": "^dvl-rtti-[0-9]+-gettypes$",
+      "note": "размер каталога GetTypes: наш статический каталог полнее Delphi"
+    },
+    {
+      "id": "dvl-0010",
+      "kind": "model-mismatch",
+      "check": "^dvl-flow-[0-9]+-case$",
+      "note": "Delphi усекает Int64-селектор case до 32 бит; наш компилятор корректен"
+    },
+    {
+      "id": "dvl-0001",
+      "kind": "model-mismatch",
+      "check": "^dvl-unit-[0-9]+-(generic-two-units|two-units|inline|const)$",
+      "note": "то же сужение узкого типа на O3, через второй модуль"
+    },
+    {
+      "id": "dvl-0002",
+      "kind": "internal-error",
+      "note": "ICE 200706094 на Odd(UInt64-константа); ловится слоем unary"
+    },
+    {
+      "id": "dvl-0011",
+      "kind": "model-mismatch",
+      "check": "^dvl-i128-[0-9]+-(high|low)$",
+      "note": "O3 знаково расширяет старшую половину 128-битного результата"
+    }
+  ]
+}

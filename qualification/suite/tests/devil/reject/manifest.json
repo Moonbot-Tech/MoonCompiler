@@ -1,0 +1,171 @@
+{
+  "cases": [
+    {
+      "case": "assign-const",
+      "program": "dvl_reject_assign_const",
+      "verdict": "reject"
+    },
+    {
+      "case": "overload-ambiguous",
+      "program": "dvl_reject_overload_ambiguous",
+      "verdict": "accept"
+    },
+    {
+      "case": "out-param-const",
+      "program": "dvl_reject_out_param_const",
+      "verdict": "reject"
+    },
+    {
+      "case": "inherited-without-parent",
+      "program": "dvl_reject_inherited_without_parent",
+      "verdict": "accept"
+    },
+    {
+      "case": "nested-function-capture-in-closure",
+      "program": "dvl_reject_nested_function_capture_in_closure",
+      "verdict": "reject"
+    },
+    {
+      "case": "interface-no-guid-supports",
+      "program": "dvl_reject_interface_no_guid_supports",
+      "verdict": "reject"
+    },
+    {
+      "case": "class-var-access",
+      "program": "dvl_reject_class_var_access",
+      "verdict": "accept"
+    },
+    {
+      "case": "inline-const-runtime",
+      "program": "dvl_reject_inline_const_runtime",
+      "verdict": "accept"
+    },
+    {
+      "case": "wrong-argument-count",
+      "program": "dvl_reject_wrong_argument_count",
+      "verdict": "reject"
+    },
+    {
+      "case": "string-to-pchar-implicit",
+      "program": "dvl_reject_string_to_pchar_implicit",
+      "verdict": "reject"
+    },
+    {
+      "case": "var-param-literal",
+      "program": "dvl_reject_var_param_literal",
+      "verdict": "reject"
+    },
+    {
+      "case": "with-ambiguous-ok",
+      "program": "dvl_reject_with_ambiguous_ok",
+      "verdict": "accept"
+    },
+    {
+      "case": "inline-var-scope",
+      "program": "dvl_reject_inline_var_scope",
+      "verdict": "accept"
+    },
+    {
+      "case": "const-param-write",
+      "program": "dvl_reject_const_param_write",
+      "verdict": "reject"
+    },
+    {
+      "case": "string-index-assign",
+      "program": "dvl_reject_string_index_assign",
+      "verdict": "accept"
+    },
+    {
+      "case": "set-element-out-of-range",
+      "program": "dvl_reject_set_element_out_of_range",
+      "verdict": "reject"
+    },
+    {
+      "case": "type-mismatch-string-int",
+      "program": "dvl_reject_type_mismatch_string_int",
+      "verdict": "reject"
+    },
+    {
+      "case": "assign-to-inline-const",
+      "program": "dvl_reject_assign_to_inline_const",
+      "verdict": "reject"
+    },
+    {
+      "case": "interface-missing-method",
+      "program": "dvl_reject_interface_missing_method",
+      "verdict": "reject"
+    },
+    {
+      "case": "abstract-instantiation-ok",
+      "program": "dvl_reject_abstract_instantiation_ok",
+      "verdict": "accept"
+    },
+    {
+      "case": "duplicate-identifier",
+      "program": "dvl_reject_duplicate_identifier",
+      "verdict": "reject"
+    },
+    {
+      "case": "generic-wrong-arity",
+      "program": "dvl_reject_generic_wrong_arity",
+      "verdict": "reject"
+    },
+    {
+      "case": "case-duplicate-label",
+      "program": "dvl_reject_case_duplicate_label",
+      "verdict": "reject"
+    },
+    {
+      "case": "goto-into-block",
+      "program": "dvl_reject_goto_into_block",
+      "verdict": "accept"
+    },
+    {
+      "case": "record-method-static-self",
+      "program": "dvl_reject_record_method_static_self",
+      "verdict": "reject"
+    },
+    {
+      "case": "for-counter-not-ordinal",
+      "program": "dvl_reject_for_counter_not_ordinal",
+      "verdict": "reject"
+    },
+    {
+      "case": "generic-constraint-violation",
+      "program": "dvl_reject_generic_constraint_violation",
+      "verdict": "reject"
+    },
+    {
+      "case": "set-of-too-large",
+      "program": "dvl_reject_set_of_too_large",
+      "verdict": "reject"
+    },
+    {
+      "case": "array-const-index-out-of-range",
+      "program": "dvl_reject_array_const_index_out_of_range",
+      "verdict": "reject"
+    },
+    {
+      "case": "generic-specialization",
+      "program": "dvl_reject_generic_specialization",
+      "verdict": "accept"
+    },
+    {
+      "case": "missing-result-type",
+      "program": "dvl_reject_missing_result_type",
+      "verdict": "reject"
+    },
+    {
+      "case": "class-abstract-direct",
+      "program": "dvl_reject_class_abstract_direct",
+      "verdict": "accept"
+    },
+    {
+      "case": "undeclared-identifier",
+      "program": "dvl_reject_undeclared_identifier",
+      "verdict": "reject"
+    }
+  ],
+  "schema": 1,
+  "seed": 1
+}

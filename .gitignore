@@ -19,6 +19,7 @@
 *.elg
 *.log
 *.obj
+*.dcu
 *.asm
 *.rsj
 *.res
@@ -120,3 +121,4 @@ fpmake
 packages/fcl-db/tests/database.ini
 .moonbot/
 /.qualification/
+/qualification/suite/tests/devil/run.txt
