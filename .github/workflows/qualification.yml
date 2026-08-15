@@ -67,6 +67,8 @@ jobs:
           scripts/run_rtti_gettypes_gate.sh \
             ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
             ci-linux-rtti
+      - name: Run RTL semantic matrix
+        run: python3 RTL-test/run.py
       - name: Run product smoke
         run: |
           ./build qualification/suite/tests/smoke/build_smoke.dpr debug
@@ -119,6 +121,9 @@ jobs:
             $Compiler $Config ci-win64-rtti
           .\qualification\suite\scripts\run_forms_gate.ps1 `
             $Compiler $Config ci-win64-forms
+      - name: Run RTL semantic matrix
+        shell: powershell
+        run: python .\RTL-test\run.py
       - name: Run product smoke
         shell: powershell
         run: |
