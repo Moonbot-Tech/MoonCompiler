@@ -2610,13 +2610,13 @@ begin
 end;
 
 procedure TQueue<T>.MoveToFront;
-var
-  i: SizeInt;
 begin
   if FLength > FLow then
     if IsManagedType(T) then
-      for i := 0 to FLength - FLow - 1 do
-        FItems[i] := FItems[FLow + i]
+    begin
+      System.Move(FItems[FLow], FItems[0], (FLength - FLow) * SizeOf(T));
+      FillChar(FItems[FLength - FLow], FLow * SizeOf(T), 0);
+    end
     else
       Move(FItems[FLow], FItems[0], (FLength - FLow) * SizeOf(T));
 
