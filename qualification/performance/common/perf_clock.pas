@@ -133,12 +133,13 @@ begin
   If ProcessMask = 0 then
     raise EAbort.Create('process affinity mask is empty');
   Result := 0;
-  SelectedMask := 1;
-  while (ProcessMask and SelectedMask) = 0 do
+  SelectedMask := ProcessMask;
+  while (SelectedMask shr 1) <> 0 do
   begin
     Inc(Result);
-    SelectedMask := SelectedMask shl 1;
+    SelectedMask := SelectedMask shr 1;
   end;
+  SelectedMask := DWORD_PTR(1) shl Result;
   If SetThreadAffinityMask(GetCurrentThread, SelectedMask) = 0 then
     RaiseLastOSError;
 end;

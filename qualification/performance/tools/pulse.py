@@ -1,0 +1,638 @@
+#!/usr/bin/env python3
+"""Build, run and compare the Moon Compiler Pulse qualification suite."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import os
+import platform
+import re
+import shutil
+import statistics
+import subprocess
+import sys
+import time
+from dataclasses import asdict, dataclass
+from pathlib import Path
+
+
+PERF_ROOT = Path(__file__).resolve().parents[1]
+ROOT = PERF_ROOT.parents[1]
+COMMON = PERF_ROOT / "common"
+RESULTS = PERF_ROOT / "results" / "pulse"
+IS_WINDOWS = os.name == "nt"
+DCC64 = Path(r"C:\Program Files (x86)\Embarcadero\Studio\23.0\bin\dcc64.exe")
+if IS_WINDOWS:
+    MOON_FPC = ROOT / ".moonbot" / "toolchain" / "bin" / "x86_64-win64" / "fpc.exe"
+    MOON_CFG = ROOT / ".moonbot" / "toolchain" / "bin" / "x86_64-win64" / "fpc.cfg"
+else:
+    MOON_FPC = ROOT / ".moonbot" / "toolchain" / "bin" / "fpc"
+    MOON_CFG = ROOT / ".moonbot" / "toolchain" / "etc" / "fpc.cfg"
+MM_SOURCE = ROOT / "runtime" / "mm" / "mormot.core.fpcx64mm.pas"
+
+PROGRAMS = {
+    name: PERF_ROOT / name / f"pulse_{name}.dpr"
+    for name in (
+        "calibration",
+        "abi",
+        "codegen",
+        "numeric",
+        "loops",
+        "layout",
+        "dispatch",
+        "managed",
+        "algorithms",
+        "json",
+        "mm",
+        "rtl",
+        "threads",
+        "workloads",
+        "kernels",
+    )
+}
+PROGRAMS["local-pressure"] = PERF_ROOT / "local-pressure" / "pulse_local_pressure.dpr"
+SYSTEM_LABELS = {
+    "delphi": "Delphi 12.2 + default FastMM4",
+    "moon": "Moon Compiler + bundled fpcx64mm",
+    "moon-default": "Moon Compiler + FPC default MM",
+}
+
+
+def run(command: list[str], *, cwd: Path = ROOT, capture: bool = False) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        check=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        stdout=subprocess.PIPE if capture else None,
+        stderr=subprocess.STDOUT if capture else None,
+    )
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def output_dir(program: str, system: str) -> Path:
+    return PERF_ROOT / program / f"build-{system}"
+
+
+def executable(program: str, system: str) -> Path:
+    suffix = ".exe" if IS_WINDOWS else ""
+    return output_dir(program, system) / f"{PROGRAMS[program].stem}{suffix}"
+
+
+def build_delphi(program: str) -> Path:
+    if not DCC64.is_file():
+        raise FileNotFoundError(f"Delphi 12.2 dcc64.exe not found: {DCC64}")
+    source = PROGRAMS[program]
+    target = output_dir(program, "delphi")
+    target.mkdir(parents=True, exist_ok=True)
+    run(
+        [
+            str(DCC64),
+            "-B",
+            "-Q",
+            "-$O+",
+            "--inline:auto",
+            "-NSSystem;Winapi;System.Win;Data;Xml",
+            f"-U{COMMON}",
+            f"-E{target}",
+            f"-N0{target}",
+            str(source),
+        ]
+    )
+    return executable(program, "delphi")
+
+
+def build_moon(program: str, default_mm: bool) -> Path:
+    if not MOON_FPC.is_file() or not MOON_CFG.is_file():
+        raise FileNotFoundError("Moon toolchain is not built; run ./build compiler")
+    system = "moon-default" if default_mm else "moon"
+    target = output_dir(program, system)
+    target.mkdir(parents=True, exist_ok=True)
+    args = [
+        str(MOON_FPC),
+        "-n",
+        f"@{MOON_CFG}",
+        "-Mdelphi",
+        "-O3",
+        "-B",
+        f"-Fu{COMMON}",
+        f"-FE{target}",
+        f"-FU{target}",
+    ]
+    if default_mm:
+        args.append("-dPULSE_DEFAULT_MM")
+    else:
+        args.extend(
+            [
+                "-dFPCMM_BOOSTER",
+                "-dFPCMM_MOONSHARD",
+                "-dMOONBOT_MM_PROFILE_REQUIRED",
+                f"--pinned-unit=mormot.core.fpcx64mm={MM_SOURCE.resolve()}",
+                "--required-first-unit=mormot.core.fpcx64mm",
+                f"-Fu{MM_SOURCE.parent}",
+            ]
+        )
+    run(args + [str(PROGRAMS[program])])
+    return executable(program, system)
+
+
+def build(programs: list[str], systems: list[str]) -> dict[str, dict[str, Path]]:
+    built: dict[str, dict[str, Path]] = {}
+    for system in systems:
+        built[system] = {}
+        for program in programs:
+            print(f"BUILD system={system} program={program}", flush=True)
+            if system == "delphi":
+                path = build_delphi(program)
+            elif system == "moon":
+                path = build_moon(program, False)
+            elif system == "moon-default":
+                path = build_moon(program, True)
+            else:
+                raise ValueError(f"unknown system: {system}")
+            built[system][program] = path
+    return built
+
+
+def git_text(*args: str) -> str:
+    try:
+        return run(["git", *args], capture=True).stdout.strip()
+    except subprocess.CalledProcessError:
+        return "<unavailable>"
+
+
+def machine_metadata() -> dict[str, object]:
+    return {
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "processor": platform.processor(),
+        "logical_cpu_count": os.cpu_count(),
+    }
+
+
+def qualification_input_hashes() -> dict[str, str]:
+    inputs: dict[str, str] = {}
+    fixed = [MOON_FPC, MOON_CFG, MM_SOURCE]
+    if IS_WINDOWS:
+        fixed.append(DCC64)
+    for path in fixed:
+        if path.is_file():
+            key = str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
+            inputs[key] = sha256(path)
+    for path in sorted(PERF_ROOT.rglob("*")):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(PERF_ROOT)
+        if any(
+            part == "results"
+            or part == "__pycache__"
+            or part.startswith("build-")
+            for part in relative.parts
+        ):
+            continue
+        inputs[str(Path("qualification/performance") / relative)] = sha256(path)
+    return inputs
+
+
+def discover_cases(exe: Path) -> list[str]:
+    discovery = run([str(exe), "list", "all"], capture=True).stdout
+    cases = [
+        parse_fields(line)["case"]
+        for line in discovery.splitlines()
+        if line.startswith("PULSE_CASEDEF ")
+    ]
+    if not cases or len(cases) != len(set(cases)):
+        raise RuntimeError(f"invalid case discovery from {exe}")
+    return cases
+
+
+def run_suite(mode: str, programs: list[str], systems: list[str], tag: str) -> Path:
+    built = build(programs, systems)
+    result = RESULTS / tag
+    result.mkdir(parents=True, exist_ok=False)
+    repeats = {"quick": 2, "medium": 7, "long": 9}[mode]
+    palindrome = systems + list(reversed(systems))
+    order = palindrome * (repeats // 2)
+    if repeats % 2:
+        order.extend(systems)
+    runs: list[dict[str, object]] = []
+    schedule: list[tuple[int, str, str, str, Path]] = []
+    if mode == "quick":
+        for program in programs:
+            for sequence, system in enumerate(order, 1):
+                schedule.append((sequence, system, program, "all", built[system][program]))
+    else:
+        for program in programs:
+            expected_cases: list[str] | None = None
+            for system in systems:
+                cases = discover_cases(built[system][program])
+                if expected_cases is None:
+                    expected_cases = cases
+                elif cases != expected_cases:
+                    raise RuntimeError(
+                        f"case matrix differs for {program}: {systems[0]}={expected_cases}, "
+                        f"{system}={cases}"
+                    )
+            assert expected_cases is not None
+            for selected_case in expected_cases:
+                for sequence, system in enumerate(order, 1):
+                    schedule.append(
+                        (sequence, system, program, selected_case, built[system][program])
+                    )
+
+    for sequence, system, program, selected_case, exe in schedule:
+        suffix = "" if selected_case == "all" else f"-{selected_case}"
+        log = result / f"{sequence:02d}-{system}-{program}{suffix}.log"
+        print(
+            f"RUN sequence={sequence} system={system} program={program} "
+            f"mode={mode} case={selected_case}",
+            flush=True,
+        )
+        try:
+            completed = run([str(exe), mode, selected_case], capture=True)
+        except subprocess.CalledProcessError as error:
+            log.write_text(error.stdout or "", encoding="utf-8", newline="\n")
+            raise RuntimeError(f"benchmark failed; complete output is in {log}") from error
+        log.write_text(completed.stdout, encoding="utf-8", newline="\n")
+        if "PULSE_END" not in completed.stdout or "status=PASS" not in completed.stdout:
+            raise RuntimeError(f"missing PASS terminal in {log}")
+        runs.append(
+            {
+                "sequence": sequence,
+                "system": system,
+                "program": program,
+                "case": selected_case,
+                "executable": str(exe.relative_to(ROOT)),
+                "executable_sha256": sha256(exe),
+                "log": log.name,
+                "log_sha256": sha256(log),
+            }
+        )
+    manifest = {
+        "schema": 1,
+        "project": "Moon Compiler Pulse",
+        "created_unix": time.time(),
+        "mode": mode,
+        "git_head": git_text("rev-parse", "HEAD"),
+        "git_status": git_text("status", "--porcelain=v1"),
+        "machine": machine_metadata(),
+        "input_sha256": qualification_input_hashes(),
+        "systems": {system: SYSTEM_LABELS[system] for system in systems},
+        "runs": runs,
+    }
+    (result / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    write_report(result)
+    print(f"PULSE_RESULT {result}")
+    return result
+
+
+def parse_fields(line: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for token in line.split()[1:]:
+        if "=" in token:
+            key, value = token.split("=", 1)
+            fields[key] = value
+    return fields
+
+
+@dataclass(frozen=True)
+class Stats:
+    mode: float
+    median: float
+    mean: float
+    minimum: float
+    maximum: float
+    kept: int
+    rejected: int
+
+
+def half_sample_mode(values: list[float]) -> float:
+    window = sorted(values)
+    while len(window) > 2:
+        width = math.ceil(len(window) / 2)
+        start = min(
+            range(len(window) - width + 1),
+            key=lambda index: window[index + width - 1] - window[index],
+        )
+        window = window[start : start + width]
+    return statistics.mean(window)
+
+
+def robust_stats(values: list[float], process_level: bool = False) -> Stats:
+    center = statistics.median(values)
+    mad = statistics.median(abs(value - center) for value in values)
+    if process_level:
+        high_limit = center * 1.25
+    else:
+        high_limit = center + max(12.0 * mad, center)
+    kept = [value for value in values if value <= high_limit]
+    if len(kept) < math.ceil(len(values) * 0.5):
+        raise ValueError("no stable cluster contains at least half of the samples")
+    return Stats(
+        mode=half_sample_mode(kept),
+        median=statistics.median(kept),
+        mean=statistics.mean(kept),
+        minimum=min(kept),
+        maximum=max(kept),
+        kept=len(kept),
+        rejected=len(values) - len(kept),
+    )
+
+
+def process_balanced_stats(
+    row: dict[str, object], metric: str = "tsc"
+) -> tuple[Stats, list[Stats]]:
+    run_stats = [
+        robust_stats([sample[metric] for sample in samples if sample[metric] > 0])
+        for samples in row["run_samples"]
+    ]
+    return robust_stats([stats.mode for stats in run_stats], True), run_stats
+
+
+def process_balanced_cycles(row: dict[str, object]) -> Stats | None:
+    run_modes: list[float] = []
+    for samples in row["run_samples"]:
+        values = [sample["cycles"] for sample in samples if sample["cycles"] > 0]
+        if values:
+            run_modes.append(robust_stats(values).mode)
+    return robust_stats(run_modes, True) if run_modes else None
+
+
+def effective_core_stats(row: dict[str, object]) -> Stats | None:
+    values = [
+        total["effective_cores"]
+        for total in row["totals"]
+        if total["effective_cores"] > 0
+    ]
+    return robust_stats(values, True) if values else None
+
+
+def collect(result: Path) -> tuple[dict[tuple[str, str, str], dict[str, object]], dict[str, object]]:
+    manifest = json.loads((result / "manifest.json").read_text(encoding="utf-8"))
+    rows: dict[tuple[str, str, str], dict[str, object]] = {}
+    for item in manifest["runs"]:
+        system = item["system"]
+        program = item["program"]
+        log_samples: dict[tuple[str, str, str], list[dict[str, float]]] = {}
+        for line in (result / item["log"]).read_text(encoding="utf-8").splitlines():
+            if line.startswith("PULSE_CASE "):
+                fields = parse_fields(line)
+                key = (system, program, fields["case"])
+                row = rows.setdefault(
+                    key, {"samples": [], "run_samples": [], "totals": [], "oracles": []}
+                )
+                row.update({name: fields[name] for name in ("layer", "unit")})
+                row["oracles"].append(fields["oracle"])
+            elif line.startswith("PULSE_SAMPLE "):
+                fields = parse_fields(line)
+                key = (system, program, fields["case"])
+                operations = int(fields["operations"])
+                sample = {
+                    "wall": int(fields["wall_ns"]) / operations,
+                    "tsc": int(fields["tsc_ticks"]) / operations,
+                    "cycles": int(fields["thread_cycles"]) / operations,
+                }
+                rows.setdefault(
+                    key, {"samples": [], "run_samples": [], "totals": [], "oracles": []}
+                )["samples"].append(sample)
+                log_samples.setdefault(key, []).append(sample)
+            elif line.startswith("PULSE_TOTAL "):
+                fields = parse_fields(line)
+                key = (system, program, fields["case"])
+                wall = int(fields["wall_ns"])
+                cpu = int(fields["process_cpu_ns"])
+                rows.setdefault(
+                    key, {"samples": [], "run_samples": [], "totals": [], "oracles": []}
+                )["totals"].append(
+                    {"wall": wall, "process_cpu": cpu, "effective_cores": cpu / wall if wall else 0.0}
+                )
+        for key, samples in log_samples.items():
+            rows[key]["run_samples"].append(samples)
+    return rows, manifest
+
+
+def write_report(result: Path) -> None:
+    rows, manifest = collect(result)
+    systems = list(manifest["systems"])
+    baseline = (
+        "delphi"
+        if "delphi" in systems
+        else "moon-default"
+        if "moon-default" in systems
+        else systems[0]
+    )
+    candidate = "moon" if "moon" in systems else systems[-1]
+    control = (
+        "moon-default"
+        if "delphi" in systems and "moon-default" in systems
+        else None
+    )
+    cases = sorted({(program, case) for _, program, case in rows})
+    details: dict[str, object] = {}
+    markdown = [
+        "# Moon Compiler Pulse result",
+        "",
+        f"Mode: `{manifest['mode']}`. Baseline: `{baseline}`. Candidate: `{candidate}`.",
+        "",
+        "Primary same-machine metric is actual scheduled thread cycles/op for single-thread cases;",
+        "TSC ticks/op is used for multi-thread cases where one thread's cycle counter is incomplete.",
+        "",
+        f"| Program | Case | Layer | Oracle | Metric | {baseline} stable/mean/max | {candidate} stable/mean/max | Candidate/baseline | Control/op | MM effect |",
+        "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    oracle_failures: list[str] = []
+    drift_failures: list[str] = []
+    program_ratios: dict[str, list[float]] = {}
+    layer_ratios: dict[str, list[float]] = {}
+    mm_program_ratios: dict[str, list[float]] = {}
+    ranked_ratios: list[tuple[float, str]] = []
+    for program, case in cases:
+        base = rows.get((baseline, program, case))
+        cand = rows.get((candidate, program, case))
+        if base is None or cand is None:
+            continue
+        primary_metric = "tsc" if program == "threads" else "cycles"
+        try:
+            base_primary, _ = process_balanced_stats(base, primary_metric)
+            cand_primary, _ = process_balanced_stats(cand, primary_metric)
+            base_tsc, _ = process_balanced_stats(base, "tsc")
+            cand_tsc, _ = process_balanced_stats(cand, "tsc")
+        except ValueError as error:
+            raise ValueError(f"{program}/{case}: {error}") from error
+        base_cycles = process_balanced_cycles(base)
+        cand_cycles = process_balanced_cycles(cand)
+        base_cores = effective_core_stats(base)
+        cand_cores = effective_core_stats(cand)
+        ratio = cand_primary.mode / base_primary.mode
+        program_ratios.setdefault(program, []).append(ratio)
+        for layer in str(base.get("layer", "")).split("+"):
+            layer_ratios.setdefault(layer, []).append(ratio)
+        ranked_ratios.append((ratio, f"{program}/{case}"))
+        base_oracles = sorted(set(base["oracles"]))
+        cand_oracles = sorted(set(cand["oracles"]))
+        oracle_status = "MATCH" if base_oracles == cand_oracles else "DIFF"
+        if oracle_status != "MATCH":
+            oracle_failures.append(f"{program}/{case}")
+        for system, process_stats in (
+            (baseline, base_primary),
+            (candidate, cand_primary),
+        ):
+            if program != "threads" and process_stats.minimum > 0:
+                drift = process_stats.maximum / process_stats.minimum
+                if drift > 1.25:
+                    drift_failures.append(
+                        f"{system}/{program}/{case} process drift {drift:.3f}x"
+                    )
+        control_primary = None
+        mm_effect = None
+        control_row = rows.get((control, program, case)) if control else None
+        if control_row is not None:
+            try:
+                control_primary, _ = process_balanced_stats(
+                    control_row, primary_metric
+                )
+            except ValueError as error:
+                raise ValueError(f"{control}/{program}/{case}: {error}") from error
+            if program != "threads" and control_primary.minimum > 0:
+                drift = control_primary.maximum / control_primary.minimum
+                if drift > 1.25:
+                    drift_failures.append(
+                        f"{control}/{program}/{case} process drift {drift:.3f}x"
+                    )
+            mm_effect = cand_primary.mode / control_primary.mode
+            mm_program_ratios.setdefault(program, []).append(mm_effect)
+        markdown.append(
+            f"| {program} | {case} | {base.get('layer', '')} | {oracle_status} | "
+            f"{primary_metric} | {base_primary.mode:.3f}/{base_primary.mean:.3f}/{base_primary.maximum:.3f} | "
+            f"{cand_primary.mode:.3f}/{cand_primary.mean:.3f}/{cand_primary.maximum:.3f} | {ratio:.3f} | "
+            f"{control_primary.mode if control_primary else 0.0:.3f} | "
+            f"{mm_effect if mm_effect is not None else 0.0:.3f} |"
+        )
+        details[f"{program}/{case}"] = {
+            "layer": base.get("layer"),
+            "unit": base.get("unit"),
+            "primary_metric": primary_metric,
+            "oracle_status": oracle_status,
+            "oracles": {baseline: base_oracles, candidate: cand_oracles},
+            baseline: {"tsc": asdict(base_tsc), "cycles": asdict(base_cycles) if base_cycles else None},
+            candidate: {"tsc": asdict(cand_tsc), "cycles": asdict(cand_cycles) if cand_cycles else None},
+            "candidate_over_baseline": ratio,
+            "moon_mm_over_moon_default": mm_effect,
+        }
+        details[f"{program}/{case}"][baseline]["effective_cores"] = (
+            asdict(base_cores) if base_cores else None
+        )
+        details[f"{program}/{case}"][candidate]["effective_cores"] = (
+            asdict(cand_cores) if cand_cores else None
+        )
+
+    def geometric_mean(values: list[float]) -> float:
+        return math.exp(statistics.mean(math.log(value) for value in values))
+
+    def counts(values: list[float]) -> tuple[int, int, int]:
+        faster = sum(value < 0.95 for value in values)
+        parity = sum(0.95 <= value <= 1.05 for value in values)
+        slower = sum(value > 1.05 for value in values)
+        return faster, parity, slower
+
+    summary = [
+        "## Сводка по программам",
+        "",
+        "`< 0.95` — Moon быстрее, `0.95..1.05` — паритет, `> 1.05` — Moon медленнее.",
+        "",
+        "| Program | Cases | Geomean Moon/baseline | Faster | Parity | Slower | MM geomean |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for program in sorted(program_ratios):
+        values = program_ratios[program]
+        faster, parity, slower = counts(values)
+        mm_values = mm_program_ratios.get(program, [])
+        summary.append(
+            f"| {program} | {len(values)} | {geometric_mean(values):.3f} | "
+            f"{faster} | {parity} | {slower} | "
+            f"{geometric_mean(mm_values) if mm_values else 0.0:.3f} |"
+        )
+    summary.extend([
+        "",
+        "## Сводка по физическим слоям",
+        "",
+        "| Layer | Cases | Geomean Moon/baseline | Faster | Parity | Slower |",
+        "| --- | ---: | ---: | ---: | ---: | ---: |",
+    ])
+    for layer in sorted(layer_ratios):
+        values = layer_ratios[layer]
+        faster, parity, slower = counts(values)
+        summary.append(
+            f"| {layer} | {len(values)} | {geometric_mean(values):.3f} | "
+            f"{faster} | {parity} | {slower} |"
+        )
+    summary.extend(["", "## Крайние результаты", "", "### 15 самых быстрых", ""])
+    summary.extend(
+        f"- `{name}`: `{ratio:.3f}x`" for ratio, name in sorted(ranked_ratios)[:15]
+    )
+    summary.extend(["", "### 15 самых медленных", ""])
+    summary.extend(
+        f"- `{name}`: `{ratio:.3f}x`"
+        for ratio, name in sorted(ranked_ratios, reverse=True)[:15]
+    )
+    summary.extend(["", "## Все cases", ""])
+    markdown = markdown[:7] + summary + markdown[7:]
+    (result / "REPORT.md").write_text("\n".join(markdown) + "\n", encoding="utf-8")
+    (result / "summary.json").write_text(
+        json.dumps(details, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    if oracle_failures:
+        raise ValueError(f"semantic oracle differs: {', '.join(oracle_failures)}")
+    if drift_failures:
+        raise ValueError("unstable process pairs: " + "; ".join(drift_failures))
+
+
+def split_csv(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    sub = parser.add_subparsers(dest="command", required=True)
+    run_parser = sub.add_parser("run")
+    run_parser.add_argument("--mode", choices=("quick", "medium", "long"), default="quick")
+    run_parser.add_argument("--programs", default=",".join(PROGRAMS))
+    run_parser.add_argument(
+        "--systems",
+        default="delphi,moon,moon-default" if IS_WINDOWS else "moon,moon-default",
+    )
+    run_parser.add_argument("--tag")
+    report_parser = sub.add_parser("report")
+    report_parser.add_argument("result", type=Path)
+    args = parser.parse_args()
+    if args.command == "run":
+        programs = split_csv(args.programs)
+        systems = split_csv(args.systems)
+        unknown_programs = sorted(set(programs) - PROGRAMS.keys())
+        unknown_systems = sorted(set(systems) - SYSTEM_LABELS.keys())
+        if not IS_WINDOWS and "delphi" in systems:
+            unknown_systems.append("delphi (Windows-only)")
+        if unknown_programs or unknown_systems:
+            raise ValueError(f"unknown programs={unknown_programs} systems={unknown_systems}")
+        tag = args.tag or time.strftime("%Y%m%d-%H%M%S") + f"-{args.mode}"
+        run_suite(args.mode, programs, systems, tag)
+    else:
+        write_report(args.result.resolve())
+
+
+if __name__ == "__main__":
+    main()
