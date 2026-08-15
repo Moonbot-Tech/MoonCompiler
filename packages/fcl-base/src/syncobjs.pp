@@ -323,9 +323,9 @@ uses Windows;
 
 {$ifdef UNIX}
 {$IFDEF FPC_DOTTEDUNITS}
-uses UnixApi.Unix, UnixApi.Base, UnixApi.Pthreads;
+uses UnixApi.Unix, UnixApi.Base, UnixApi.Pthreads, System.InitC;
 {$ELSE}
-uses unix, baseunix, pthreads;
+uses unix, baseunix, pthreads, initc;
 {$ENDIF}
 {$endif}
 
@@ -748,16 +748,20 @@ begin
 end;
 {$ENDIF WAITLOOP}
 
-procedure MSecsFromNow (tNow : Timeval; aTimeout : Integer; out tfuture: TTimespec);
+procedure MSecsFromNow(tNow: Timeval; aTimeout: Cardinal; out tfuture: TTimespec);
 
 var
-  td,tm : integer;
+  Milliseconds: QWord;
 
 begin
-  td:=aTimeout div 1000;
-  tm:=aTimeout mod 1000;
-  tfuture.tv_sec:=tnow.tv_sec+td;
-  tfuture.tv_nsec:=tnow.tv_usec*1000+(tm*1000*1000);
+  Milliseconds:=aTimeout;
+  tfuture.tv_sec:=tnow.tv_sec+(Milliseconds div 1000);
+  tfuture.tv_nsec:=tnow.tv_usec*1000+((Milliseconds mod 1000)*1000000);
+  if tfuture.tv_nsec>=1000000000 then
+    begin
+    Inc(tfuture.tv_sec);
+    Dec(tfuture.tv_nsec,1000000000);
+    end;
 end;
 {$ENDIF UNIX}
 
@@ -852,7 +856,7 @@ var
 
 {$IFDEF UNIX}
 var
-  errno : integer;
+  ErrorCode : integer;
   {$IFDEF USE_SEM_TRYWAIT}
   tnew : timeval;
   {$ENDIF}
@@ -866,37 +870,55 @@ begin
     begin
     if sem_trywait(@FSem) = 0 then
       Result:=wrSignaled
-    else if (fpGetErrno=ESysEAGAIN) then
-      Result:=wrTimeout
+    else
+      begin
+      ErrorCode:=fpGetCerrno;
+      if ErrorCode=ESysEAGAIN then
+        Result:=wrTimeout;
+      end
     end
   else if (aTimeout<>INFINITE) then
     begin
     fpgettimeofday(@tnow,Nil);
     {$IFNDEF USE_SEM_TRYWAIT} // not in Darwin
     MsecsFromNow(tnow,aTimeOut,tmp);
-    errno:=sem_timedwait(@FSem,@tmp);
+    repeat
+      if sem_timedwait(@FSem,@tmp)=0 then
+        ErrorCode:=0
+      else
+        ErrorCode:=fpGetCerrno;
+    until ErrorCode<>ESysEINTR;
     {$ELSE USE_SEM_TRYWAIT}
     Repeat
-      ErrNo:=sem_trywait(@FSem);
-      if ErrNo=ESysEAGAIN then
+      if sem_trywait(@FSem)=0 then
+        ErrorCode:=0
+      else
+        ErrorCode:=fpGetCerrno;
+      if ErrorCode=ESysEAGAIN then
         begin
         Sleep(10);
         fpgettimeofday(@tnew,Nil);
-        if MSecsBetween(tnew,tnow)>aTimeOut then
-          errNo:=ESysETIMEDOUT;
+        if MSecsBetween(tnew,tnow)>=aTimeOut then
+          ErrorCode:=ESysETIMEDOUT;
         end
-      else if ErrNo=ESysEINTR then
-        ErrNo:=ESysEAGAIN;
-    until (ErrNo<>ESysEAGAIN);
+      else if ErrorCode=ESysEINTR then
+        ErrorCode:=ESysEAGAIN;
+    until (ErrorCode<>ESysEAGAIN);
     {$ENDIF USE_SEM_TRYWAIT}
-    if (errno=0) then
+    if (ErrorCode=0) then
       Result:=wrSignaled
-    else if errno=ESysETIMEDOUT then
+    else if ErrorCode=ESysETIMEDOUT then
       Result:=wrTimeout;
     end
   else
     begin
-    if (sem_wait(@FSem)=0) then
+    repeat
+      if sem_wait(@FSem)=0 then
+        ErrorCode:=0
+      else
+        ErrorCode:=fpGetCerrno;
+    until ErrorCode<>ESysEINTR;
+    if ErrorCode=0 then
       Result:=wrSignaled
     end;
 {$ELSE UNIX}
@@ -1132,7 +1154,7 @@ begin
     ErrNo:=pthread_mutex_trylock(@FMutex);
     if ErrNo=0 then
       Result:=wrSignaled
-    else if (Errno=ESysEAGAIN) then
+    else if (Errno=ESysEBUSY) then
       Result:=wrTimeout
     end
   else if (aTimeout<>INFINITE) then
@@ -1145,16 +1167,16 @@ begin
     {$ELSE}
     Repeat
       ErrNo:=pthread_mutex_trylock(@FMutex);
-      if ErrNo=ESysEAGAIN then
+      if ErrNo=ESysEBUSY then
         begin
         Sleep(10);
         fpgettimeofday(@tnew,Nil);
-        if MSecsBetween(tnew,tnow)>aTimeOut then
+        if MSecsBetween(tnew,tnow)>=aTimeOut then
           errNo:=ESysETIMEDOUT;
         end
       else if ErrNo=ESysEINTR then
-        ErrNo:=ESysEAGAIN;
-    until (ErrNo<>ESysEAGAIN);
+        ErrNo:=ESysEBUSY;
+    until (ErrNo<>ESysEBUSY);
     {$ENDIF}
     if ErrNo=0 then
       Result:=wrSignaled
