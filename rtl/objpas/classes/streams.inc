@@ -1734,12 +1734,13 @@ end;
 function TStringStream.ReadUnicodeString(Count: Longint): UnicodeString;
 
 Var
-  NewLen,SLen : Longint;
+  NewLen : Longint;
 
 begin
   NewLen:=Size-FPosition;
   If NewLen>Count then NewLen:=Count;
   Result:=FEncoding.GetString(FBytes,FPosition,NewLen);
+  Inc(FPosition,NewLen);
 end;
 
 procedure TStringStream.WriteString(const AString: string);
