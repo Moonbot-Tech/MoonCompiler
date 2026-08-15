@@ -1,0 +1,253 @@
+{
+  "schema": 1,
+  "profiles": ["quick", "medium", "long"],
+  "required_families": [
+    "calibration",
+    "local-pressure",
+    "calls-abi",
+    "arithmetic",
+    "loops-control",
+    "memory-layout",
+    "json-text",
+    "collections",
+    "managed-lifetime",
+    "algorithms",
+    "memory-manager",
+    "multithread",
+    "application-pipeline"
+  ],
+  "required_axis_values": {
+    "target": ["win64", "linux-x86_64"],
+    "optimization": [
+      "constant-folding",
+      "copy-propagation",
+      "cse",
+      "dead-code-store",
+      "inlining",
+      "stack-init-final",
+      "register-allocation",
+      "loop-transform",
+      "branch-lowering",
+      "arithmetic-lowering",
+      "address-alias",
+      "rtl-intrinsic",
+      "exception-cleanup",
+      "peephole"
+    ],
+    "type": [
+      "signed-integer",
+      "unsigned-integer",
+      "single",
+      "double",
+      "currency",
+      "pointer",
+      "enum-set",
+      "unicode-string",
+      "raw-byte-string",
+      "dynamic-array",
+      "interface",
+      "variant",
+      "managed-record",
+      "closure"
+    ],
+    "lifetime": [
+      "unused",
+      "write-only",
+      "read-write",
+      "copied",
+      "returned",
+      "escaped",
+      "captured",
+      "early-exit",
+      "exception"
+    ],
+    "call": [
+      "inline",
+      "autoinline",
+      "noinline",
+      "indirect",
+      "virtual",
+      "interface",
+      "generic",
+      "ppu-boundary"
+    ],
+    "memory": [
+      "register",
+      "stack",
+      "heap",
+      "l1",
+      "l2",
+      "llc",
+      "dram",
+      "sequential",
+      "strided",
+      "random",
+      "aliased"
+    ],
+    "concurrency": [
+      "single-unlocked",
+      "single-locked",
+      "independent",
+      "shared-read",
+      "shared-write",
+      "producer-consumer",
+      "cross-thread-free",
+      "false-sharing"
+    ]
+  },
+  "families": [
+    {
+      "id": "calibration",
+      "status": "planned",
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "memory": ["register", "l1", "l2", "llc", "dram", "sequential", "strided", "random"],
+        "concurrency": ["single-unlocked", "independent", "shared-write", "false-sharing"]
+      }
+    },
+    {
+      "id": "local-pressure",
+      "status": "implemented",
+      "source": "local-pressure/local_pressure.dpr",
+      "generated_source": "local-pressure/local_pressure_cases.inc",
+      "cases": [
+        "empty",
+        "unused-plain-100",
+        "unused-strings-100",
+        "unused-buffers-100",
+        "unused-mixed-300",
+        "used-plain-100",
+        "used-strings-100",
+        "used-buffers-100",
+        "used-mixed-300"
+      ],
+      "coverage": {
+        "target": ["win64"],
+        "optimization": ["dead-code-store", "stack-init-final", "register-allocation"],
+        "type": ["unsigned-integer", "unicode-string", "dynamic-array"],
+        "lifetime": ["unused", "read-write"],
+        "call": ["indirect", "noinline"],
+        "memory": ["register", "stack", "heap"],
+        "concurrency": ["single-unlocked"]
+      }
+    },
+    {
+      "id": "calls-abi",
+      "status": "planned",
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["inlining", "register-allocation", "exception-cleanup"],
+        "type": ["signed-integer", "unsigned-integer", "double", "pointer", "unicode-string", "dynamic-array", "interface", "managed-record", "closure"],
+        "lifetime": ["copied", "returned", "escaped", "captured", "early-exit", "exception"],
+        "call": ["inline", "autoinline", "noinline", "indirect", "virtual", "interface", "generic", "ppu-boundary"]
+      }
+    },
+    {
+      "id": "arithmetic",
+      "status": "planned",
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["constant-folding", "copy-propagation", "cse", "branch-lowering", "arithmetic-lowering", "peephole"],
+        "type": ["signed-integer", "unsigned-integer", "single", "double", "currency", "enum-set"]
+      }
+    },
+    {
+      "id": "loops-control",
+      "status": "planned",
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["copy-propagation", "cse", "dead-code-store", "loop-transform", "branch-lowering", "address-alias", "peephole"],
+        "lifetime": ["write-only", "read-write", "early-exit", "exception"],
+        "memory": ["register", "stack", "sequential", "strided", "aliased"]
+      }
+    },
+    {
+      "id": "memory-layout",
+      "status": "planned",
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["register-allocation", "address-alias", "rtl-intrinsic", "peephole"],
+        "type": ["pointer", "raw-byte-string", "dynamic-array", "managed-record"],
+        "memory": ["stack", "heap", "l1", "l2", "llc", "dram", "sequential", "strided", "random", "aliased"]
+      }
+    },
+    {
+      "id": "json-text",
+      "status": "planned",
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["inlining", "register-allocation", "branch-lowering", "address-alias", "rtl-intrinsic"],
+        "type": ["signed-integer", "unsigned-integer", "double", "unicode-string", "raw-byte-string", "dynamic-array", "variant"],
+        "lifetime": ["read-write", "copied", "returned"],
+        "memory": ["heap", "l1", "l2", "llc", "dram", "sequential", "random"]
+      }
+    },
+    {
+      "id": "collections",
+      "status": "planned",
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["inlining", "register-allocation", "branch-lowering", "address-alias"],
+        "type": ["signed-integer", "unsigned-integer", "pointer", "unicode-string", "managed-record"],
+        "call": ["inline", "autoinline", "generic"],
+        "memory": ["heap", "l1", "l2", "llc", "dram", "random"]
+      }
+    },
+    {
+      "id": "managed-lifetime",
+      "status": "planned",
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["dead-code-store", "inlining", "stack-init-final", "exception-cleanup"],
+        "type": ["unicode-string", "raw-byte-string", "dynamic-array", "interface", "variant", "managed-record", "closure"],
+        "lifetime": ["unused", "write-only", "read-write", "copied", "returned", "escaped", "captured", "early-exit", "exception"],
+        "call": ["inline", "autoinline", "noinline", "indirect", "virtual", "interface", "generic", "ppu-boundary"]
+      }
+    },
+    {
+      "id": "algorithms",
+      "status": "planned",
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["constant-folding", "copy-propagation", "cse", "inlining", "register-allocation", "loop-transform", "branch-lowering", "arithmetic-lowering", "address-alias", "peephole"],
+        "type": ["signed-integer", "unsigned-integer", "double", "pointer", "raw-byte-string", "dynamic-array"],
+        "memory": ["register", "stack", "heap", "l1", "l2", "llc", "dram", "sequential", "random", "aliased"]
+      }
+    },
+    {
+      "id": "memory-manager",
+      "status": "planned",
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "type": ["pointer", "unicode-string", "raw-byte-string", "dynamic-array", "interface", "managed-record", "closure"],
+        "lifetime": ["read-write", "copied", "returned", "escaped"],
+        "memory": ["heap", "l1", "l2", "llc", "dram", "random"],
+        "concurrency": ["single-unlocked", "single-locked", "independent", "shared-read", "shared-write", "cross-thread-free", "false-sharing"]
+      }
+    },
+    {
+      "id": "multithread",
+      "status": "planned",
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["inlining", "register-allocation", "address-alias", "rtl-intrinsic"],
+        "type": ["signed-integer", "unsigned-integer", "pointer", "unicode-string", "raw-byte-string", "dynamic-array", "interface", "managed-record"],
+        "memory": ["heap", "l1", "l2", "llc", "dram", "sequential", "random", "aliased"],
+        "concurrency": ["single-locked", "independent", "shared-read", "shared-write", "producer-consumer", "cross-thread-free", "false-sharing"]
+      }
+    },
+    {
+      "id": "application-pipeline",
+      "status": "planned",
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["constant-folding", "copy-propagation", "cse", "dead-code-store", "inlining", "stack-init-final", "register-allocation", "loop-transform", "branch-lowering", "arithmetic-lowering", "address-alias", "rtl-intrinsic", "exception-cleanup", "peephole"],
+        "type": ["signed-integer", "unsigned-integer", "single", "double", "currency", "pointer", "enum-set", "unicode-string", "raw-byte-string", "dynamic-array", "interface", "variant", "managed-record", "closure"],
+        "lifetime": ["write-only", "read-write", "copied", "returned", "escaped", "captured", "early-exit", "exception"],
+        "call": ["inline", "autoinline", "noinline", "indirect", "virtual", "interface", "generic", "ppu-boundary"],
+        "memory": ["register", "stack", "heap", "l1", "l2", "llc", "dram", "sequential", "strided", "random", "aliased"],
+        "concurrency": ["single-unlocked", "single-locked", "independent", "shared-read", "shared-write", "producer-consumer", "cross-thread-free", "false-sharing"]
+      }
+    }
+  ]
+}
