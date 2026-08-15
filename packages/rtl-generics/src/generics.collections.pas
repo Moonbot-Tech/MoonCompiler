@@ -299,8 +299,8 @@ type
     procedure InitializeList; virtual;
     procedure InternalInsert(AIndex: SizeInt; const AValue: T);
   private
-    function GetItem(AIndex: SizeInt): T;
-    procedure SetItem(AIndex: SizeInt; const AValue: T);
+    function GetItem(AIndex: SizeInt): T; inline;
+    procedure SetItem(AIndex: SizeInt; const AValue: T); inline;
   public
     constructor Create; overload;
     constructor Create(const AComparer: IComparer<T>); overload;
