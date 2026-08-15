@@ -981,7 +981,7 @@ end;
            if i>0 then
              WriteBuffer(buffer^,i);
            Inc(Result,i);
-         until i<BufferSize
+         until i=0
          else
          while Count>0 do
          begin
