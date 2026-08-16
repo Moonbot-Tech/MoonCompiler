@@ -724,6 +724,62 @@ begin
     IntToStr(Destroyed));
 end;
 
+procedure CheckListSearch;
+var
+  Bytes: TList<Byte>;
+  CustomStrings: TList<UnicodeString>;
+  Integers: TList<Integer>;
+  QWords: TList<QWord>;
+  S1, S2: UnicodeString;
+  Strings: TList<UnicodeString>;
+  Words: TList<Word>;
+begin
+  Bytes:=TList<Byte>.Create([1,255,1]);
+  Words:=TList<Word>.Create([1,65535,1]);
+  Integers:=TList<Integer>.Create([10,20,10]);
+  QWords:=TList<QWord>.Create([1,High(QWord),1]);
+  Strings:=TList<UnicodeString>.Create(['Alpha','Beta','Alpha']);
+  CustomStrings:=TList<UnicodeString>.Create(TCaseInsensitiveComparer.Create);
+  try
+    Check((Bytes.IndexOf(255)=1) and (Bytes.LastIndexOf(1)=2) and
+      (Bytes.IndexOf(7)=-1),'byte list search');
+    Check((Words.IndexOf(65535)=1) and (Words.LastIndexOf(1)=2) and
+      (Words.IndexOf(7)=-1),'word list search');
+    Check((Integers.IndexOf(10)=0) and (Integers.LastIndexOf(10)=2) and
+      (Integers.IndexOf(99)=-1) and Integers.Contains(20),
+      'ordinal list search found duplicate and missing values');
+    Check((QWords.IndexOf(High(QWord))=1) and
+      (QWords.LastIndexOf(1)=2) and (QWords.IndexOf(7)=-1),
+      'qword list search');
+    Check((Strings.IndexOf('Alpha')=0) and
+      (Strings.LastIndexOf('Alpha')=2) and
+      (Strings.IndexOf('alpha')=-1) and Strings.Contains('Beta'),
+      'Unicode list default search is case sensitive');
+    S1:='separate-'+UnicodeString(#$0416)+UnicodeString(#0)+'value';
+    S2:=S1;
+    UniqueString(S2);
+    Check(Pointer(S1)<>Pointer(S2),'Unicode search distinct storage setup');
+    Strings.Add(S1);
+    Strings.Add('');
+    Check((Strings.IndexOf(S2)=3) and (Strings.LastIndexOf(S2)=3) and
+      (Strings.IndexOf('')=4) and
+      (Strings.IndexOf(S2+'x')=-1),
+      'Unicode list search length, content, NUL and empty cases');
+    CustomStrings.Add('Alpha');
+    CustomStrings.Add('Beta');
+    Check((CustomStrings.IndexOf('alpha')=0) and
+      (CustomStrings.LastIndexOf('BETA')=1),
+      'Unicode list custom comparer search is preserved');
+  finally
+    CustomStrings.Free;
+    Strings.Free;
+    QWords.Free;
+    Integers.Free;
+    Words.Free;
+    Bytes.Free;
+  end;
+end;
+
 procedure CheckCopiedInterfaceList(AList: TList<ITracked>);
 begin
   Check((AList.Count=2) and (AList[0].Number=11) and
@@ -1051,6 +1107,7 @@ begin
     CheckListDeleteRange;
     CheckListReordering;
     CheckDynamicArrayListReordering;
+    CheckListSearch;
     CheckListCopyConstruction;
     CheckQueueCompaction;
     CheckTerminalReads;

@@ -2309,7 +2309,27 @@ function TList<T>.IndexOf(const AValue: T): SizeInt;
 var
   i: SizeInt;
   Items: Pointer;
+  LCurrentUnicode: PUnicodeString;
+  LUnicodeLength: SizeInt;
+  LUnicodeValue: PUnicodeString;
 begin
+  if FUseDefaultComparer and (GetTypeKind(T) = tkUString) then
+    begin
+      if FLength=0 then
+        Exit(-1);
+      Items:=@FItems[0];
+      LCurrentUnicode:=PUnicodeString(Items);
+      LUnicodeValue:=PUnicodeString(@AValue);
+      LUnicodeLength:=Length(LUnicodeValue^);
+      for i:=0 to FLength-1 do
+        if (Pointer(LCurrentUnicode[i])=Pointer(LUnicodeValue^)) or
+           ((Length(LCurrentUnicode[i])=LUnicodeLength) and
+            ((LUnicodeLength=0) or
+             (System.CompareWord(LCurrentUnicode[i][1],LUnicodeValue^[1],
+               LUnicodeLength)=0))) then
+          Exit(i);
+      Exit(-1);
+    end;
   if FUseDefaultComparer and
       (GetTypeKind(T) in [tkInteger,tkChar,tkEnumeration,tkSet,tkClass,
         tkWChar,tkBool,tkInt64,tkQWord,tkUChar,tkClassRef,tkPointer]) and
@@ -2319,22 +2339,10 @@ begin
         Exit(-1);
       Items:=@FItems[0];
       case SizeOf(T) of
-        1:
-          for i:=0 to FLength-1 do
-            if PByte(Items)[i]=PByte(@AValue)^ then
-              Exit(i);
-        2:
-          for i:=0 to FLength-1 do
-            if PWord(Items)[i]=PWord(@AValue)^ then
-              Exit(i);
-        4:
-          for i:=0 to FLength-1 do
-            if PCardinal(Items)[i]=PCardinal(@AValue)^ then
-              Exit(i);
-        8:
-          for i:=0 to FLength-1 do
-            if PQWord(Items)[i]=PQWord(@AValue)^ then
-              Exit(i);
+        1: Exit(System.IndexByte(Items^,FLength,PByte(@AValue)^));
+        2: Exit(System.IndexWord(Items^,FLength,PWord(@AValue)^));
+        4: Exit(System.IndexDWord(Items^,FLength,PCardinal(@AValue)^));
+        8: Exit(System.IndexQWord(Items^,FLength,PQWord(@AValue)^));
       end;
       Exit(-1);
     end;
@@ -2348,7 +2356,27 @@ function TList<T>.LastIndexOf(const AValue: T): SizeInt;
 var
   i: SizeInt;
   Items: Pointer;
+  LCurrentUnicode: PUnicodeString;
+  LUnicodeLength: SizeInt;
+  LUnicodeValue: PUnicodeString;
 begin
+  if FUseDefaultComparer and (GetTypeKind(T) = tkUString) then
+    begin
+      if FLength=0 then
+        Exit(-1);
+      Items:=@FItems[0];
+      LCurrentUnicode:=PUnicodeString(Items);
+      LUnicodeValue:=PUnicodeString(@AValue);
+      LUnicodeLength:=Length(LUnicodeValue^);
+      for i:=FLength-1 downto 0 do
+        if (Pointer(LCurrentUnicode[i])=Pointer(LUnicodeValue^)) or
+           ((Length(LCurrentUnicode[i])=LUnicodeLength) and
+            ((LUnicodeLength=0) or
+             (System.CompareWord(LCurrentUnicode[i][1],LUnicodeValue^[1],
+               LUnicodeLength)=0))) then
+          Exit(i);
+      Exit(-1);
+    end;
   if FUseDefaultComparer and
       (GetTypeKind(T) in [tkInteger,tkChar,tkEnumeration,tkSet,tkClass,
         tkWChar,tkBool,tkInt64,tkQWord,tkUChar,tkClassRef,tkPointer]) and
