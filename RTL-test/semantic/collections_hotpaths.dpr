@@ -356,6 +356,7 @@ end;
 procedure CheckBulkListRanges;
 var
   I: Integer;
+  BulkValues: TArray<Integer>;
   IntegerSource, IntegerTarget: TList<Integer>;
   InterfaceSource, InterfaceTarget: TList<ITracked>;
   NotifyTarget: TOverrideNotifyList;
@@ -382,6 +383,15 @@ begin
       (IntegerSource[2]=20) and (IntegerSource[3]=30) and
       (IntegerSource[4]=20) and (IntegerSource[5]=30),
       'self InsertRange Delphi order');
+
+    SetLength(BulkValues,257);
+    for I:=0 to High(BulkValues) do
+      BulkValues[I]:=I*11+3;
+    IntegerTarget.Clear;
+    IntegerTarget.AddRange(BulkValues);
+    Check((IntegerTarget.Count=257) and (IntegerTarget[0]=3) and
+      (IntegerTarget[128]=1411) and (IntegerTarget[256]=2819),
+      'plain unmanaged AddRange bulk copy');
   finally
     IntegerTarget.Free;
     IntegerSource.Free;

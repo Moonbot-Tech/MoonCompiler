@@ -2028,6 +2028,13 @@ begin
     FillChar(FItems[AIndex], SizeOf(T) * LLength, 0);
   end;
 
+  if (ClassInfo = TypeInfo(TList<T>)) and not Assigned(OnNotify) and
+      not IsManagedType(T) then
+  begin
+    System.Move(AValues[0], FItems[AIndex], LLength * SizeOf(T));
+    Exit;
+  end;
+
   LValue := @AValues[0];
   for i := AIndex to Pred(AIndex + LLength) do
   begin
