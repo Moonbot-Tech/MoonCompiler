@@ -1875,22 +1875,15 @@ begin
 end;
 
 constructor TList<T>.Create(ACollection: TEnumerable<T>);
-var
-  LItem: T;
 begin
   Create;
-  for LItem in ACollection do
-    Add(LItem);
+  InsertRange(0, ACollection);
 end;
 
 constructor TList<T>.Create(aValues : Array of T);
-
-var
-  LItem: T;
 begin
   Create;
-  for LItem in aValues do
-    Add(LItem);
+  AddRange(aValues);
 end;
 
 {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
@@ -1982,11 +1975,8 @@ begin
 end;
 
 procedure TList<T>.AddRange(AEnumerable: TEnumerable<T>);
-var
-  LValue: T;
 begin
-  for LValue in AEnumerable do
-    Add(LValue);
+  InsertRange(Count, AEnumerable);
 end;
 
 {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
@@ -2065,11 +2055,26 @@ end;
 
 procedure TList<T>.InsertRange(AIndex: SizeInt; const AEnumerable: TEnumerable<T>);
 var
+  LList: TList<T>;
   LValue: T;
+  LValues: TArray<T>;
   i:  SizeInt;
 begin
   if (AIndex < 0) or (AIndex > Count) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
+
+  if AEnumerable is TList<T> then
+  begin
+    LList := TList<T>(AEnumerable);
+    if LList = Self then
+    begin
+      LValues := ToArray;
+      InsertRange(AIndex, LValues);
+    end
+    else
+      InsertRange(AIndex, Slice(LList.FItems, LList.FLength));
+    Exit;
+  end;
 
   i := 0;
   for LValue in AEnumerable do

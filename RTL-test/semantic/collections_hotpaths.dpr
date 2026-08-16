@@ -322,6 +322,86 @@ begin
   Check(Destroyed=2,'managed list exact lifetime');
 end;
 
+procedure CheckBulkInterfaceOrder(AList: TList<ITracked>);
+begin
+  Check((AList.Count=6) and
+    (AList[0].Number=1) and
+    (AList[1].Number=1) and
+    (AList[2].Number=2) and
+    (AList[3].Number=3) and
+    (AList[4].Number=2) and
+    (AList[5].Number=3),
+    'managed bulk constructor and InsertRange order');
+end;
+
+procedure CheckBulkListRanges;
+var
+  I: Integer;
+  IntegerSource, IntegerTarget: TList<Integer>;
+  InterfaceSource, InterfaceTarget: TList<ITracked>;
+  NotifyTarget: TOverrideNotifyList;
+begin
+  IntegerSource:=TList<Integer>.Create([10,20,30]);
+  IntegerTarget:=TList<Integer>.Create([1,2,3]);
+  try
+    Check((IntegerSource.Count=3) and (IntegerSource.Capacity=4) and
+      (IntegerSource[0]=10) and (IntegerSource[2]=30),
+      'array constructor bulk values and capacity');
+
+    IntegerTarget.InsertRange(1,TEnumerable<Integer>(IntegerSource));
+    Check((IntegerTarget.Count=6) and (IntegerTarget.Capacity=8),
+      'other-list bulk InsertRange count and capacity');
+    Check((IntegerTarget[0]=1) and (IntegerTarget[1]=10) and
+      (IntegerTarget[2]=20) and (IntegerTarget[3]=30) and
+      (IntegerTarget[4]=2) and (IntegerTarget[5]=3),
+      'other-list bulk InsertRange order');
+
+    IntegerSource.InsertRange(1,TEnumerable<Integer>(IntegerSource));
+    Check((IntegerSource.Count=6) and (IntegerSource.Capacity=8),
+      'self InsertRange count and capacity');
+    Check((IntegerSource[0]=10) and (IntegerSource[1]=10) and
+      (IntegerSource[2]=20) and (IntegerSource[3]=30) and
+      (IntegerSource[4]=20) and (IntegerSource[5]=30),
+      'self InsertRange Delphi order');
+  finally
+    IntegerTarget.Free;
+    IntegerSource.Free;
+  end;
+
+  NotifyTarget:=TOverrideNotifyList.Create;
+  IntegerSource:=TList<Integer>.Create([7,8,9]);
+  try
+    NotifyTarget.Add(1);
+    NotifyTarget.AddRange(TEnumerable<Integer>(IntegerSource));
+    Check((NotifyTarget.Count=4) and (NotifyTarget.Added=4),
+      'bulk AddRange preserves virtual notifications');
+    Check((NotifyTarget[0]=1) and (NotifyTarget[1]=7) and
+      (NotifyTarget[2]=8) and (NotifyTarget[3]=9),
+      'bulk AddRange notification target values');
+  finally
+    IntegerSource.Free;
+    NotifyTarget.Free;
+  end;
+
+  Destroyed:=0;
+  InterfaceSource:=TList<ITracked>.Create;
+  InterfaceTarget:=nil;
+  try
+    for I:=1 to 3 do
+      InterfaceSource.Add(TTracked.Create(I));
+    InterfaceTarget:=TList<ITracked>.Create(
+      TEnumerable<ITracked>(InterfaceSource));
+    InterfaceTarget.InsertRange(1,TEnumerable<ITracked>(InterfaceSource));
+    CheckBulkInterfaceOrder(InterfaceTarget);
+    InterfaceSource.Clear;
+    Check(Destroyed=0,'managed bulk ranges retain every reference');
+  finally
+    InterfaceSource.Free;
+    InterfaceTarget.Free;
+  end;
+  Check(Destroyed=3,'managed bulk ranges exact lifetime');
+end;
+
 procedure CheckInterfaceOrder(AList: TList<ITracked>);
 begin
   Check((AList[0].Number=3) and (AList[2].Number=1),
@@ -718,6 +798,7 @@ begin
     CheckIntegerList;
     CheckListGrowthAndVirtualNotify;
     CheckManagedList;
+    CheckBulkListRanges;
     CheckListReordering;
     CheckDynamicArrayListReordering;
     CheckListCopyConstruction;
