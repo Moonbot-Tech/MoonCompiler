@@ -2197,14 +2197,25 @@ begin
   if ACount = 0 then
     Exit;
 
-  if (ACount < 0) or (AIndex < 0) or (AIndex + ACount > Count) then
+  if (ACount < 0) or (AIndex < 0) or (AIndex > Count) or
+      (ACount > Count - AIndex) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
+
+  LMoveDelta := Count - (AIndex + ACount);
+  if (ClassInfo = TypeInfo(TList<T>)) and not Assigned(OnNotify) and
+      not IsManagedType(T) then
+  begin
+    if LMoveDelta <> 0 then
+      System.Move(FItems[AIndex + ACount], FItems[AIndex],
+        LMoveDelta * SizeOf(T));
+    FillChar(FItems[Count - ACount], ACount * SizeOf(T), 0);
+    Dec(FLength, ACount);
+    Exit;
+  end;
 
   LDeleted := nil;
   SetLength(LDeleted, ACount);
   System.Move(FItems[AIndex], LDeleted[0], ACount * SizeOf(T));
-
-  LMoveDelta := Count - (AIndex + ACount);
 
   if LMoveDelta = 0 then
     FillChar(FItems[AIndex], ACount * SizeOf(T), #0)

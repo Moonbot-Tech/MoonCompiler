@@ -511,6 +511,97 @@ begin
   Check(Destroyed=4,'owning object Pack exact final lifetime');
 end;
 
+procedure CheckDeletedInterfaceOrder(AList: TList<ITracked>);
+begin
+  Check((AList.Count=2) and (AList[0].Number=1) and
+    (AList[1].Number=4),'managed DeleteRange order');
+end;
+
+procedure CheckListDeleteRange;
+var
+  I: Integer;
+  IntegerList: TList<Integer>;
+  InterfaceList: TList<ITracked>;
+  NotifyList: TOverrideNotifyList;
+  ObjectList: TObjectList<TTracked>;
+  Raised: Boolean;
+begin
+  IntegerList:=TList<Integer>.Create;
+  try
+    for I:=0 to 9 do
+      IntegerList.Add(I);
+    IntegerList.DeleteRange(3,4);
+    Check((IntegerList.Count=6) and (IntegerList[0]=0) and
+      (IntegerList[2]=2) and (IntegerList[3]=7) and
+      (IntegerList[5]=9),'unmanaged middle DeleteRange');
+    IntegerList.DeleteRange(4,2);
+    Check((IntegerList.Count=4) and (IntegerList[3]=7),
+      'unmanaged tail DeleteRange');
+    IntegerList.DeleteRange(0,IntegerList.Count);
+    Check(IntegerList.Count=0,'unmanaged full DeleteRange');
+
+    IntegerList.DeleteRange(-1,0);
+    Check(IntegerList.Count=0,'zero DeleteRange preserves established no-op');
+    Raised:=False;
+    try
+      IntegerList.DeleteRange(-1,1);
+    except
+      on EArgumentOutOfRangeException do
+        Raised:=True;
+    end;
+    Check(Raised,'negative DeleteRange rejected');
+    Raised:=False;
+    try
+      IntegerList.DeleteRange(0,High(SizeInt));
+    except
+      on EArgumentOutOfRangeException do
+        Raised:=True;
+    end;
+    Check(Raised and (IntegerList.Count=0),
+      'overflowing DeleteRange rejected before mutation');
+  finally
+    IntegerList.Free;
+  end;
+
+  NotifyList:=TOverrideNotifyList.Create;
+  try
+    NotifyList.AddRange([0,1,2,3,4,5]);
+    NotifyList.DeleteRange(1,3);
+    Check((NotifyList.Count=3) and (NotifyList[0]=0) and
+      (NotifyList[1]=4) and (NotifyList[2]=5) and
+      (NotifyList.Removed=3),'DeleteRange preserves overridden Notify');
+  finally
+    NotifyList.Free;
+  end;
+
+  Destroyed:=0;
+  InterfaceList:=TList<ITracked>.Create;
+  try
+    for I:=1 to 4 do
+      InterfaceList.Add(TTracked.Create(I));
+    InterfaceList.DeleteRange(1,2);
+    Check(Destroyed=2,'managed DeleteRange releases removed values');
+    CheckDeletedInterfaceOrder(InterfaceList);
+  finally
+    InterfaceList.Free;
+  end;
+  Check(Destroyed=4,'managed DeleteRange exact lifetime');
+
+  Destroyed:=0;
+  ObjectList:=TObjectList<TTracked>.Create(True);
+  try
+    for I:=1 to 4 do
+      ObjectList.Add(TTracked.Create(I));
+    ObjectList.DeleteRange(1,2);
+    Check((ObjectList.Count=2) and (ObjectList[0].Number=1) and
+      (ObjectList[1].Number=4) and (Destroyed=2),
+      'owning object DeleteRange preserves destruction');
+  finally
+    ObjectList.Free;
+  end;
+  Check(Destroyed=4,'owning object DeleteRange exact lifetime');
+end;
+
 procedure CheckInterfaceOrder(AList: TList<ITracked>);
 begin
   Check((AList[0].Number=3) and (AList[2].Number=1),
@@ -909,6 +1000,7 @@ begin
     CheckManagedList;
     CheckBulkListRanges;
     CheckListPack;
+    CheckListDeleteRange;
     CheckListReordering;
     CheckDynamicArrayListReordering;
     CheckListCopyConstruction;
