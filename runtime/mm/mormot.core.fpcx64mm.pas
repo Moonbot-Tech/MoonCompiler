@@ -137,7 +137,7 @@ unit mormot.core.fpcx64mm;
 // FPCMM_MOONSHARD enables the complete supported combination
 {$ifdef FPCMM_MOONSHARD}
   {$define FPCMM_MS_ARENAS}    // all classes arena-sharded (PO2 6/5)
-  {$define FPCMM_MS_TABLE}     // size classes up to 17504
+  {$define FPCMM_MS_TABLE}     // 44 classes in a fixed 64-slot arena row
   {$define FPCMM_MS_PERTHREAD} // per-thread arena mapping
   {$define FPCMM_MS_MEDIUM}    // user medium arenas with immutable pool owner
   {$define FPCMM_ASSUMEMULTITHREAD} // MoonBot services are always multi-threaded
@@ -1006,17 +1006,18 @@ const
   {$endif FPCMM_MS_ARENAS}
 
   {$ifdef FPCMM_MS_TABLE}
-  // MoonBot sharding layer A: 64 unique size classes up to 17504 bytes,
-  // ALL of them arena-sharded (NumTinyBlockTypesPO2=6 covers every class),
-  // 32 arenas with per-thread mapping. Kills the per-class single-lock
-  // contention that livelocks under full host load (MoonBot runs at up
-  // to 100% total CPU as its NORMAL regime). See SHARDING_PROOF.md.
-  NumSmallBlockTypes       = 66;
-  NumSmallBlockTypesUnique = NumSmallBlockTypes - 2; // last 2 are redundant
-  MaximumSmallBlockSize    = 17504;
+  // Keep the proven FastMM/mORMot 44-class table up to 2608 bytes.  Each
+  // sharded arena still occupies 64 cache-line slots, so selecting an arena
+  // remains a shift-only 4096-byte stride on the GetMem hot path.  The 20
+  // trailing slots are initialized but no GetmemLookup entry points to them.
+  NumSmallBlockClasses     = 44;
+  NumSmallBlockTypeSlots   = 64;
+  NumSmallBlockTypes       = NumSmallBlockTypeSlots + 2; // fallback entries
+  MaximumSmallBlockSize    = 2608;
   {$else}
   NumSmallBlockTypes       = 46;
-  NumSmallBlockTypesUnique = NumSmallBlockTypes - 2; // last 2 are redundant
+  NumSmallBlockTypeSlots   = NumSmallBlockTypes - 2; // last 2 are redundant
+  NumSmallBlockClasses     = NumSmallBlockTypeSlots;
   MaximumSmallBlockSize    = 2608;
   {$endif FPCMM_MS_TABLE}
   NumTinyBlockTypes        =
@@ -1028,12 +1029,20 @@ const
   SmallBlockSizes: array[0..NumSmallBlockTypes - 1] of word = (
     16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 256,
     272, 288, 304, 320, 352, 384, 416, 448, 480, 528, 576, 624, 672, 736, 800,
-    880, 960, 1056, 1152, 1264, 1376, 1504, 1648, 1808, 1984, 2176, 2384,
-    {$ifdef FPCMM_MS_TABLE}
-    2608, 2864, 3152, 3472, 3808, 4192, 4608, 5072, 5584, 6144, 6752, 7424,
-    8176, 8992, 9888, 10880, 11968, 13168, 14480, 15920,
-    {$endif FPCMM_MS_TABLE}
-    MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize);
+     880, 960, 1056, 1152, 1264, 1376, 1504, 1648, 1808, 1984, 2176, 2384,
+     MaximumSmallBlockSize,
+     {$ifdef FPCMM_MS_TABLE}
+     // Physical padding: no size lookup can select any of these 20 entries.
+     MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
+     MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
+     MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
+     MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
+     MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
+     MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
+     MaximumSmallBlockSize, MaximumSmallBlockSize,
+     {$endif FPCMM_MS_TABLE}
+     // Two redundant entries let a contended allocation try larger slots.
+     MaximumSmallBlockSize, MaximumSmallBlockSize);
 
   SmallBlockGranularity        = 16;
   TargetSmallBlocksPerPool     = 48;
@@ -1145,7 +1154,7 @@ type
     {$ifndef FPCMM_TINYPERTHREAD}
     TinyCurrentArena: integer;
     {$endif FPCMM_TINYPERTHREAD}
-    GetmemSleepCount: array[0..NumSmallBlockTypesUnique - 1] of cardinal;
+    GetmemSleepCount: array[0..NumSmallBlockTypeSlots - 1] of cardinal;
     // some fiedls here because there was no room in TSmallBlockType
     {$ifdef FPCMM_MULTIPLESMALLNOTWITHMEDIUM} // PMediumBlockInfo lookup
     SmallMediumBlockInfo: array[0..NumSmallInfoBlock - 1] of pointer;
@@ -4859,6 +4868,10 @@ begin
   SmallBlockInfo.IsMultiThreadPtr := @IsMultiThread; // call GOT if needed
   small := @SmallBlockInfo;
   assert(SizeOf(small^) = 1 shl SmallBlockTypePO2);  // exactly 64 bytes
+  {$ifdef FPCMM_MS_TABLE}
+  assert(NumSmallBlockTypeSlots = NumTinyBlockTypes); // 64 slots = 4096B
+  assert(NumSmallBlockClasses = 44);
+  {$endif FPCMM_MS_TABLE}
   for a := 0 to NumTinyBlockArenas do
     for i := 0 to NumSmallBlockTypes - 1 do
     begin
@@ -4901,7 +4914,7 @@ begin
   assert(small = @SmallBlockInfo.GetmemLookup);
   start := 0;
   with SmallBlockInfo do
-    for i := 0 to NumSmallBlockTypes - 1 do
+    for i := 0 to NumSmallBlockClasses - 1 do
     begin
       next := PtrUInt(SmallBlockSizes[i]) div SmallBlockGranularity;
       while start < next do
