@@ -48,6 +48,7 @@ PROGRAMS = {
         "json",
         "mm",
         "rtl",
+        "rtl-collections",
         "threads",
         "workloads",
         "kernels",

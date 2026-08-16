@@ -20,6 +20,8 @@ uses
   pulse_harness in '..\common\pulse_harness.pas';
 
 type
+  TIntegerArray = array of Integer;
+
   TPulseObject = class
   private
     FValue: UInt64;
@@ -28,9 +30,17 @@ type
     function Mix(AValue: UInt64): UInt64; virtual;
   end;
 
+  TPlainPulseObject = class
+  end;
+
 var
   SearchText: UnicodeString;
+  SearchUtf8: UTF8String;
   ByteData: TBytes;
+  IntegerData: TIntegerArray;
+  IntegerText: array[0..1023] of UnicodeString;
+  FloatText: array[0..1023] of UnicodeString;
+  StringKeys: array[0..127] of UnicodeString;
   PulseFormatSettings: TFormatSettings;
 
 constructor TPulseObject.Create(AValue: UInt64);
@@ -96,7 +106,17 @@ begin
   end;
 end;
 
-function CaseIntToStr(Iterations: Integer): UInt64;
+function CaseUnicodeCompareText(Iterations: Integer): UInt64;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+    Result := Result + UInt64(CompareText(StringKeys[I and 127],
+      StringKeys[(I * 37) and 127]) + 2);
+end;
+
+function CaseUnicodeLowerCase(Iterations: Integer): UInt64;
 var
   I: Integer;
   Value: UnicodeString;
@@ -104,7 +124,72 @@ begin
   Result := 0;
   for I := 1 to Iterations do
   begin
-    Value := IntToStr(Int64(I) * 1000003 - 7000001);
+    Value := LowerCase(SearchText);
+    Result := Result + UInt64(Length(Value)) + UInt64(Ord(Value[1]));
+  end;
+end;
+
+function CaseUnicodeUpperCase(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Value: UnicodeString;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Value := UpperCase(SearchText);
+    Result := Result + UInt64(Length(Value)) + UInt64(Ord(Value[1]));
+  end;
+end;
+
+function CaseUtf8Encode(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Raw: UTF8String;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Raw := UTF8Encode(SearchText);
+    Result := Result + UInt64(Length(Raw)) + UInt64(Byte(Raw[1]));
+  end;
+end;
+
+function CaseUtf8Decode(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Text: UnicodeString;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Text := UTF8ToString(SearchUtf8);
+    Result := Result + UInt64(Length(Text)) + UInt64(Ord(Text[1]));
+  end;
+end;
+
+function CaseIntToStr32(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Value: UnicodeString;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Value := IntToStr(Integer(I * 1009 - 7000001));
+    Result := Result + UInt64(Length(Value)) + UInt64(Ord(Value[1]));
+  end;
+end;
+
+function CaseIntToStr64(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Value: UnicodeString;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Value := IntToStr(Int64(I) * 1000003 + Int64(5000000000));
     Result := Result + UInt64(Length(Value)) + UInt64(Ord(Value[1]));
   end;
 end;
@@ -115,7 +200,7 @@ var
 begin
   Result := 0;
   for I := 1 to Iterations do
-    Result := Result + UInt64(StrToInt64(IntToStr(Int64(I) * 1000003)));
+    Result := Result + UInt64(StrToInt64(IntegerText[I and High(IntegerText)]));
 end;
 
 function CaseFloatToStr(Iterations: Integer): UInt64;
@@ -131,6 +216,19 @@ begin
   end;
 end;
 
+function CaseStrDoubleGeneral(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Value: ShortString;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Str(I * 0.125:22, Value);
+    Result := Result + UInt64(Length(Value)) + UInt64(Byte(Value[1]));
+  end;
+end;
+
 function CaseStrToFloat(Iterations: Integer): UInt64;
 var
   I: Integer;
@@ -139,7 +237,7 @@ begin
   Result := 0;
   for I := 1 to Iterations do
   begin
-    Value := StrToFloat(IntToStr(I) + '.125', PulseFormatSettings);
+    Value := StrToFloat(FloatText[I and High(FloatText)], PulseFormatSettings);
     Result := Result + UInt64(Trunc(Value * 1000));
   end;
 end;
@@ -157,6 +255,77 @@ begin
   end;
 end;
 
+function CaseFormatInteger(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Value: UnicodeString;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Value := Format('%d', [I], PulseFormatSettings);
+    Result := Result + UInt64(Length(Value));
+  end;
+end;
+
+function CaseFormatLiteral(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Value: UnicodeString;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Value := Format('market-value', [], PulseFormatSettings);
+    Result := Result + UInt64(Length(Value));
+  end;
+end;
+
+function CaseFormatString(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Value: UnicodeString;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Value := Format('%s', [StringKeys[I and High(StringKeys)]], PulseFormatSettings);
+    Result := Result + UInt64(Length(Value));
+  end;
+end;
+
+function CaseFormatFloat(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Value: UnicodeString;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Value := Format('%.3f', [I * 0.125], PulseFormatSettings);
+    Result := Result + UInt64(Length(Value));
+  end;
+end;
+
+function CaseStringListAdd(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  List: TStringList;
+begin
+  Result := 0;
+  for Iteration := 1 to Iterations do
+  begin
+    List := TStringList.Create;
+    try
+      for I := 127 downto 0 do
+        List.Add(StringKeys[I]);
+      Result := Result + UInt64(List.Count) + UInt64(Length(List[0]));
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
 function CaseStringListSort(Iterations: Integer): UInt64;
 var
   Iteration, I: Integer;
@@ -168,12 +337,52 @@ begin
     List := TStringList.Create;
     try
       for I := 127 downto 0 do
-        List.Add(Format('key-%.4d', [I]));
+        List.Add(StringKeys[I]);
       List.Sort;
       Result := Result + UInt64(Length(List[0])) + UInt64(Length(List[127]));
     finally
       List.Free;
     end;
+  end;
+end;
+
+function CaseStringListFind(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  List: TStringList;
+begin
+  Result := 0;
+  List := TStringList.Create;
+  try
+    for I := 127 downto 0 do
+      List.Add(StringKeys[I]);
+    List.Sort;
+    for Iteration := 1 to Iterations do
+      for I := 0 to 127 do
+        Result := Result + UInt64(List.IndexOf(StringKeys[(I * 37) and 127]));
+  finally
+    List.Free;
+  end;
+end;
+
+function CaseStringListNameValue(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TStringList;
+  Value: UnicodeString;
+begin
+  Result := 0;
+  List := TStringList.Create;
+  try
+    for I := 0 to 127 do
+      List.Add(StringKeys[I] + '=' + IntToStr(I * 17));
+    for I := 1 to Iterations do
+    begin
+      Value := List.Values[StringKeys[(I * 37) and 127]];
+      Result := Result + UInt64(Length(Value)) + UInt64(Ord(Value[1]));
+    end;
+  finally
+    List.Free;
   end;
 end;
 
@@ -198,7 +407,7 @@ begin
   end;
 end;
 
-function CaseGenericList(Iterations: Integer): UInt64;
+function CaseGenericListGrowth(Iterations: Integer): UInt64;
 var
   Iteration, I: Integer;
   List: TList<Integer>;
@@ -215,6 +424,268 @@ begin
     finally
       List.Free;
     end;
+  end;
+end;
+
+function CaseGenericListCreateFree(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    List := TList<Integer>.Create;
+    Result := Result + UInt64(List.Count);
+    List.Free;
+  end;
+end;
+
+function CaseGenericListCapacity(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    List := TList<Integer>.Create;
+    try
+      List.Capacity := 512;
+      Result := Result + UInt64(List.Capacity);
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseDynamicArrayCapacity(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Values: TIntegerArray;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    SetLength(Values, 512);
+    Values[511] := I;
+    Result := Result + UInt64(Values[511]) + UInt64(Length(Values));
+    Values := nil;
+  end;
+end;
+
+function CaseDynamicArrayCopy(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Values: TIntegerArray;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Values := Copy(IntegerData, 128 + (I and 31), 512);
+    Result := Result + UInt64(Length(Values)) + UInt64(Values[0]) +
+      UInt64(Values[High(Values)]);
+  end;
+end;
+
+function CaseGenericListAddReserved(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  List := TList<Integer>.Create;
+  try
+    List.Capacity := Iterations;
+    for I := 1 to Iterations do
+      Result := Result + UInt64(List.Add(I));
+  finally
+    List.Free;
+  end;
+end;
+
+function CaseGenericListReserved(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  for Iteration := 1 to Iterations do
+  begin
+    List := TList<Integer>.Create;
+    try
+      List.Capacity := 512;
+      for I := 0 to 511 do
+        List.Add(I xor Iteration);
+      Result := Result + UInt64(List.Count) + UInt64(List[511]);
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseGenericListIndex(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  List := TList<Integer>.Create;
+  try
+    List.Capacity := 512;
+    for I := 0 to 511 do
+      List.Add(I xor $55AA);
+    for Iteration := 1 to Iterations do
+      for I := 0 to 511 do
+        Result := Result + UInt64(List[I]);
+  finally
+    List.Free;
+  end;
+end;
+
+function CaseGenericListEnumerator(Iterations: Integer): UInt64;
+var
+  Iteration, I, Value: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  List := TList<Integer>.Create;
+  try
+    List.Capacity := 512;
+    for I := 0 to 511 do
+      List.Add(I xor $55AA);
+    for Iteration := 1 to Iterations do
+      for Value in List do
+        Result := Result + UInt64(Value);
+  finally
+    List.Free;
+  end;
+end;
+
+function CaseGenericListIndexOf(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  List := TList<Integer>.Create;
+  try
+    List.Capacity := 512;
+    for I := 0 to 511 do
+      List.Add(I * 17);
+    for I := 1 to Iterations do
+      Result := Result + UInt64(List.IndexOf(((I * 37) and 511) * 17));
+  finally
+    List.Free;
+  end;
+end;
+
+function CaseGenericListDeleteTail(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  for Iteration := 1 to Iterations do
+  begin
+    List := TList<Integer>.Create;
+    try
+      List.Capacity := 512;
+      for I := 0 to 511 do
+        List.Add(I xor Iteration);
+      for I := 511 downto 0 do
+        List.Delete(I);
+      Result := Result + UInt64(List.Count);
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseGenericListDeleteFront(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  for Iteration := 1 to Iterations do
+  begin
+    List := TList<Integer>.Create;
+    try
+      List.Capacity := 128;
+      for I := 0 to 127 do
+        List.Add(I xor Iteration);
+      for I := 127 downto 0 do
+        List.Delete(0);
+      Result := Result + UInt64(List.Count);
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseGenericListRemove(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  for Iteration := 1 to Iterations do
+  begin
+    List := TList<Integer>.Create;
+    try
+      List.Capacity := 128;
+      for I := 0 to 127 do
+        List.Add(I * 17);
+      for I := 127 downto 0 do
+        Result := Result + UInt64(List.Remove(I * 17) + 1);
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseGenericListSort(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  for Iteration := 1 to Iterations do
+  begin
+    List := TList<Integer>.Create;
+    try
+      List.Capacity := 512;
+      for I := 0 to 511 do
+        List.Add(((I * 313) xor Iteration) and $FFFF);
+      List.Sort;
+      Result := Result + UInt64(List[0]) + UInt64(List[511]);
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseGenericListBinarySearch(Iterations: Integer): UInt64;
+var
+  Found: Boolean;
+  I, Index: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  List := TList<Integer>.Create;
+  try
+    List.Capacity := 512;
+    for I := 0 to 511 do
+      List.Add(I * 17);
+    for I := 1 to Iterations do
+    begin
+      Found := List.BinarySearch(((I * 37) and 511) * 17, Index);
+      If Found then
+        Result := Result + UInt64(Index);
+    end;
+  finally
+    List.Free;
   end;
 end;
 
@@ -239,6 +710,138 @@ begin
   end;
 end;
 
+function CaseDictionaryAdd(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  Dictionary: TDictionary<Integer, Integer>;
+begin
+  Result := 0;
+  for Iteration := 1 to Iterations do
+  begin
+    Dictionary := TDictionary<Integer, Integer>.Create;
+    try
+      for I := 0 to 511 do
+        Dictionary.Add(I * 17, I xor Iteration);
+      Result := Result + UInt64(Dictionary.Count);
+    finally
+      Dictionary.Free;
+    end;
+  end;
+end;
+
+function CaseDictionaryAddReserved(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  Dictionary: TDictionary<Integer, Integer>;
+begin
+  Result := 0;
+  for Iteration := 1 to Iterations do
+  begin
+    Dictionary := TDictionary<Integer, Integer>.Create;
+    try
+      Dictionary.Capacity := 1024;
+      for I := 0 to 511 do
+        Dictionary.Add(I * 17, I xor Iteration);
+      Result := Result + UInt64(Dictionary.Count);
+    finally
+      Dictionary.Free;
+    end;
+  end;
+end;
+
+function CaseDictionaryCreateFree(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Dictionary: TDictionary<Integer, Integer>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Dictionary := TDictionary<Integer, Integer>.Create;
+    Result := Result + UInt64(Dictionary.Count);
+    Dictionary.Free;
+  end;
+end;
+
+function CaseDictionaryCapacity(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Dictionary: TDictionary<Integer, Integer>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Dictionary := TDictionary<Integer, Integer>.Create;
+    try
+      Dictionary.Capacity := 1024;
+      Result := Result + UInt64(Ord(Dictionary.Capacity >= 1024));
+    finally
+      Dictionary.Free;
+    end;
+  end;
+end;
+
+function CaseDictionaryGet(Iterations: Integer): UInt64;
+var
+  I, Value: Integer;
+  Dictionary: TDictionary<Integer, Integer>;
+begin
+  Result := 0;
+  Dictionary := TDictionary<Integer, Integer>.Create;
+  try
+    for I := 0 to 511 do
+      Dictionary.Add(I * 17, I xor $55AA);
+    for I := 1 to Iterations do
+      If Dictionary.TryGetValue(((I * 37) and 511) * 17, Value) then
+        Result := Result + UInt64(Value);
+  finally
+    Dictionary.Free;
+  end;
+end;
+
+function CaseDictionaryUpdateRemove(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  Dictionary: TDictionary<Integer, Integer>;
+begin
+  Result := 0;
+  for Iteration := 1 to Iterations do
+  begin
+    Dictionary := TDictionary<Integer, Integer>.Create;
+    try
+      for I := 0 to 255 do
+        Dictionary.Add(I * 17, I);
+      for I := 0 to 255 do
+        Dictionary.AddOrSetValue(I * 17, I xor Iteration);
+      for I := 0 to 255 do
+      begin
+        Dictionary.Remove(I * 17);
+        Result := Result + UInt64(Dictionary.Count);
+      end;
+    finally
+      Dictionary.Free;
+    end;
+  end;
+end;
+
+function CaseStringDictionaryGet(Iterations: Integer): UInt64;
+var
+  I, Value: Integer;
+  Dictionary: TDictionary<UnicodeString, Integer>;
+begin
+  Result := 0;
+  Dictionary := TDictionary<UnicodeString, Integer>.Create;
+  try
+    for I := 0 to 127 do
+      Dictionary.Add(StringKeys[I], I xor $55AA);
+    for I := 1 to Iterations do
+      If Dictionary.TryGetValue(StringKeys[(I * 37) and 127], Value) then
+        Result := Result + UInt64(Value);
+  finally
+    Dictionary.Free;
+  end;
+end;
+
 function CaseQueue(Iterations: Integer): UInt64;
 var
   Iteration, I: Integer;
@@ -255,6 +858,48 @@ begin
         Result := Result + UInt64(Queue.Dequeue);
     finally
       Queue.Free;
+    end;
+  end;
+end;
+
+function CaseQueueReserved(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  Queue: TQueue<Integer>;
+begin
+  Result := 0;
+  for Iteration := 1 to Iterations do
+  begin
+    Queue := TQueue<Integer>.Create;
+    try
+      Queue.Capacity := 512;
+      for I := 0 to 511 do
+        Queue.Enqueue(I xor Iteration);
+      while Queue.Count <> 0 do
+        Result := Result + UInt64(Queue.Dequeue);
+    finally
+      Queue.Free;
+    end;
+  end;
+end;
+
+function CaseStack(Iterations: Integer): UInt64;
+var
+  Iteration, I: Integer;
+  Stack: TStack<Integer>;
+begin
+  Result := 0;
+  for Iteration := 1 to Iterations do
+  begin
+    Stack := TStack<Integer>.Create;
+    try
+      Stack.Capacity := 512;
+      for I := 0 to 511 do
+        Stack.Push(I xor Iteration);
+      while Stack.Count <> 0 do
+        Result := Result + UInt64(Stack.Pop);
+    finally
+      Stack.Free;
     end;
   end;
 end;
@@ -286,9 +931,77 @@ begin
   for I := 0 to 255 do
     SearchText := SearchText + UnicodeString('market-') + UnicodeString(IntToStr(I)) +
       UnicodeString(':needle-') + UnicodeString(IntToStr(I)) + UnicodeString(';');
+  SearchUtf8 := UTF8Encode(SearchText);
+  for I := 0 to High(StringKeys) do
+    StringKeys[I] := UnicodeString('key-') + UnicodeString(IntToStr(10000 + I));
+  for I := 0 to High(IntegerText) do
+  begin
+    IntegerText[I] := IntToStr(Int64(I) * 1000003 - 500000000);
+    FloatText[I] := IntToStr(I - 512) + '.125';
+  end;
   SetLength(ByteData, 65536);
   for I := 0 to High(ByteData) do
     ByteData[I] := Byte(I * 17 + 29);
+  SetLength(IntegerData, 1024);
+  for I := 0 to High(IntegerData) do
+    IntegerData[I] := I * 17 + 29;
+end;
+
+function CaseObjectAllocZeroFree(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  P: Pointer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    P := AllocMem(TPlainPulseObject.InstanceSize);
+    Result := Result + UInt64(Ord(P <> nil));
+    FreeMem(P);
+  end;
+end;
+
+function CaseObjectNewFreeInstance(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Instance: TPlainPulseObject;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Instance := TPlainPulseObject(TPlainPulseObject.NewInstance);
+    Result := Result + UInt64(Ord(Instance <> nil));
+    Instance.FreeInstance;
+  end;
+end;
+
+function CaseObjectCreateFree(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Instance: TPlainPulseObject;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Instance := TPlainPulseObject.Create;
+    Result := Result + UInt64(Ord(Instance <> nil));
+    Instance.Free;
+  end;
+end;
+
+function CaseObjectVirtualCall(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Instance: TPulseObject;
+begin
+  Result := 0;
+  Instance := TPulseObject.Create(17);
+  try
+    for I := 1 to Iterations do
+      Result := Result xor Instance.Mix(UInt64(I));
+  finally
+    Instance.Free;
+  end;
 end;
 
 procedure Run;
@@ -306,31 +1019,142 @@ begin
     @CaseUnicodeCopy, 1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'unicode-concat-32', 'rtl+mm', 'UnicodeString',
     @CaseUnicodeConcat32, 32, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'unicode-comparetext', 'rtl', 'CompareText',
+    @CaseUnicodeCompareText, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'unicode-lowercase-4k', 'rtl+mm', 'LowerCase',
+    @CaseUnicodeLowerCase, Length(SearchText), Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'unicode-uppercase-4k', 'rtl+mm', 'UpperCase',
+    @CaseUnicodeUpperCase, Length(SearchText), Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'utf8-encode-decode-4k', 'rtl+mm', 'UTF8String',
     @CaseUtf8EncodeDecode, Length(SearchText), Profile, SelectedCase, Found);
-  PulseRunCase('pulse_rtl', 'inttostr-int64', 'rtl+mm', 'IntToStr', @CaseIntToStr,
+  PulseRunCase('pulse_rtl', 'utf8-encode-4k', 'rtl+mm', 'UTF8Encode',
+    @CaseUtf8Encode, Length(SearchText), Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'utf8-decode-4k', 'rtl+mm', 'UTF8ToString',
+    @CaseUtf8Decode, Length(SearchText), Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'inttostr-int32', 'rtl+mm', 'IntToStr(Integer)',
+    @CaseIntToStr32, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'inttostr-int64', 'rtl+mm', 'IntToStr(Int64)', @CaseIntToStr64,
     1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'strtoint-int64', 'rtl+mm', 'StrToInt64', @CaseStrToInt,
     1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'floattostr-double', 'rtl+mm', 'FloatToStr',
     @CaseFloatToStr, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'str-double-general', 'rtl',
+    'Str(Double general, ShortString)', @CaseStrDoubleGeneral, 1, Profile,
+    SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'strtofloat-double', 'rtl+mm', 'StrToFloat',
     @CaseStrToFloat, 1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'format-mixed', 'rtl+mm', 'Format', @CaseFormat, 1,
     Profile, SelectedCase, Found);
-  PulseRunCase('pulse_rtl', 'stringlist-sort-128', 'rtl+mm', 'TStringList',
-    @CaseStringListSort, 128, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'format-integer', 'rtl+mm', 'Format integer',
+    @CaseFormatInteger, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'format-literal', 'rtl+mm', 'Format literal',
+    @CaseFormatLiteral, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'format-string', 'rtl+mm', 'Format string',
+    @CaseFormatString, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'format-float', 'rtl+mm', 'Format float',
+    @CaseFormatFloat, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'stringlist-add-128', 'rtl+mm', 'TStringList.Add',
+    @CaseStringListAdd, 128, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'stringlist-add-sort-128', 'rtl+mm',
+    'TStringList.Sort', @CaseStringListSort, 128, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'stringlist-indexof-128', 'rtl',
+    'TStringList.IndexOf', @CaseStringListFind, 128, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'stringlist-namevalue', 'rtl',
+    'TStringList.Values', @CaseStringListNameValue, 1, Profile, SelectedCase,
+    Found);
   PulseRunCase('pulse_rtl', 'memorystream-64k', 'rtl+mm', 'TMemoryStream',
     @CaseMemoryStream, Length(ByteData), Profile, SelectedCase, Found);
-  PulseRunCase('pulse_rtl', 'generic-list-512', 'rtl+mm', 'TList<Integer>',
-    @CaseGenericList, 512, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'generic-list-growth-512', 'rtl+mm',
+    'TList<Integer>.Add growth', @CaseGenericListGrowth, 512, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'generic-list-create-free', 'rtl+mm',
+    'TList<Integer>.Create/Free', @CaseGenericListCreateFree, 1, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'generic-list-capacity-512', 'rtl+mm',
+    'TList<Integer>.Capacity', @CaseGenericListCapacity, 1, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'dynamic-array-capacity-512', 'rtl+mm',
+    'SetLength(Integer array)', @CaseDynamicArrayCapacity, 1, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'dynamic-array-copy-512', 'rtl+mm',
+    'Copy(Integer array)', @CaseDynamicArrayCopy, 512, Profile, SelectedCase,
+    Found);
+  PulseRunCase('pulse_rtl', 'generic-list-add-reserved', 'rtl',
+    'TList<Integer>.Add preallocated', @CaseGenericListAddReserved, 1, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'generic-list-reserved-512', 'rtl+mm',
+    'TList<Integer>.Add reserved', @CaseGenericListReserved, 512, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'generic-list-index-512', 'rtl',
+    'TList<Integer>.Items', @CaseGenericListIndex, 512, Profile, SelectedCase,
+    Found);
+  PulseRunCase('pulse_rtl', 'generic-list-enumerator-512', 'rtl',
+    'TList<Integer>.Enumerator', @CaseGenericListEnumerator, 512, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'generic-list-indexof', 'rtl',
+    'TList<Integer>.IndexOf', @CaseGenericListIndexOf, 1, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'generic-list-delete-tail-512', 'rtl',
+    'TList<Integer>.Delete tail', @CaseGenericListDeleteTail, 512, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'generic-list-delete-front-128', 'rtl',
+    'TList<Integer>.Delete front', @CaseGenericListDeleteFront, 128, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'generic-list-remove-128', 'rtl',
+    'TList<Integer>.Remove', @CaseGenericListRemove, 128, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'generic-list-sort-512', 'rtl',
+    'TList<Integer>.Sort', @CaseGenericListSort, 1, Profile, SelectedCase,
+    Found);
+  PulseRunCase('pulse_rtl', 'generic-list-binarysearch', 'rtl',
+    'TList<Integer>.BinarySearch', @CaseGenericListBinarySearch, 1, Profile,
+    SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'dictionary-512', 'rtl+mm',
     'TDictionary<Integer,Integer>', @CaseDictionary, 1024, Profile,
     SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'dictionary-add-512', 'rtl+mm',
+    'TDictionary<Integer,Integer>.Add', @CaseDictionaryAdd, 512, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'dictionary-add-reserved-512', 'rtl+mm',
+    'TDictionary<Integer,Integer>.Add preallocated',
+    @CaseDictionaryAddReserved, 512, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'dictionary-create-free', 'rtl+mm',
+    'TDictionary<Integer,Integer>.Create/Free', @CaseDictionaryCreateFree, 1,
+    Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'dictionary-capacity-1024', 'rtl+mm',
+    'TDictionary<Integer,Integer>.Capacity', @CaseDictionaryCapacity, 1,
+    Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'dictionary-get', 'rtl',
+    'TDictionary<Integer,Integer>.TryGetValue', @CaseDictionaryGet, 1, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'dictionary-update-remove-256', 'rtl+mm',
+    'TDictionary<Integer,Integer>.Update/Remove', @CaseDictionaryUpdateRemove,
+    512, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'dictionary-string-get', 'rtl',
+    'TDictionary<UnicodeString,Integer>.TryGetValue', @CaseStringDictionaryGet,
+    1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'queue-512', 'rtl+mm', 'TQueue<Integer>', @CaseQueue,
+    1024, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'queue-reserved-512', 'rtl',
+    'TQueue<Integer> reserved', @CaseQueueReserved, 1024, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'stack-512', 'rtl', 'TStack<Integer>', @CaseStack,
     1024, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'object-create-virtual-free', 'rtl+mm', 'TObject',
     @CaseObjectLifecycle, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'object-alloc-zero-free', 'mm',
+    'AllocMem/FreeMem object-sized block', @CaseObjectAllocZeroFree, 1,
+    Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'object-new-freeinstance', 'rtl+mm',
+    'TObject.NewInstance/FreeInstance', @CaseObjectNewFreeInstance, 1,
+    Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'object-create-free', 'rtl+mm',
+    'TObject.Create/Free', @CaseObjectCreateFree, 1, Profile, SelectedCase,
+    Found);
+  PulseRunCase('pulse_rtl', 'object-virtual-call', 'rtl',
+    'virtual method dispatch', @CaseObjectVirtualCall, 1, Profile,
+    SelectedCase, Found);
   PulseFinish('pulse_rtl', SelectedCase, Found);
 end;
 
