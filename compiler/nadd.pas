@@ -3536,8 +3536,15 @@ const
                    ((m_default_unicodestring in current_settings.modeswitches) and
                     (cs_refcountedstrings in current_settings.localswitches) and
                     (
-                     is_pwidechar(rd) or is_widechararray(rd) or is_open_widechararray(rd) or (lt = stringconstn) or
-                     is_pwidechar(ld) or is_widechararray(ld) or is_open_widechararray(ld) or (rt = stringconstn)
+                     is_pwidechar(rd) or is_widechararray(rd) or is_open_widechararray(rd) or
+                     is_pwidechar(ld) or is_widechararray(ld) or is_open_widechararray(ld) or
+                     { An explicit/static RawByteString operand owns only the
+                       byte semantics of an untyped string constant.  It must
+                       not suppress a genuinely wide operand above. }
+                     (not(is_rawbytestring(rd) or is_rawbytestring(ld) or
+                          ((nodetype=addn) and
+                           (anf_rawbytestring_concat in addnodeflags))) and
+                      ((lt=stringconstn) or (rt=stringconstn)))
                     )
                    ) then
                   strtype:=st_unicodestring

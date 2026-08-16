@@ -49,6 +49,8 @@ end;
 
 var
   A, B, C, R: RawByteString;
+  U, WideTail: UnicodeString;
+  WideTailPtr: PWideChar;
   A1251: TAnsi1251;
   AUtf8: TAnsiUtf8;
   A850: TAnsi850;
@@ -107,4 +109,19 @@ begin
 
   R := RawByteString('raw/') + RawByteString(#$C3#$A9);
   CheckBytes(R, [$72, $61, $77, $2F, $C3, $A9], 13);
+
+  R := B + '!';
+  CheckBytes(R, [$C2, $A9, $42, $21], 14);
+  R := '!' + B;
+  CheckBytes(R, [$21, $C2, $A9, $42], 15);
+
+  { A genuinely Unicode operand must still select Unicode semantics. }
+  U := B + UnicodeString(#$03A9);
+  if U <> UnicodeString(#$00A9'B'#$03A9) then
+    Fail(16);
+  WideTail := #$03A9;
+  WideTailPtr := PWideChar(WideTail);
+  U := B + WideTailPtr;
+  if U <> UnicodeString(#$00A9'B'#$03A9) then
+    Fail(17);
 end.
