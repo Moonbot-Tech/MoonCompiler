@@ -328,6 +328,15 @@ implementation
                   ctypeconvnode.create_internal(p,search_system_type('TVARDATA').typedef),
                 nil));
             end
+          else if is_dynamic_array(p.resultdef) then
+            result:=ccallnode.createintern('fpc_dynarray_clear',
+              ccallparanode.create(
+                caddrnode.create_internal(
+                  crttinode.create(
+                    tstoreddef(p.resultdef),initrtti,rdt_normal)),
+                ccallparanode.create(
+                  ctypeconvnode.create_internal(p,voidpointertype),
+                  nil)))
           else
             result:=ccallnode.createintern('fpc_finalize',
                   ccallparanode.create(
