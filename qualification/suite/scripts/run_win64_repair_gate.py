@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -29,6 +30,7 @@ CORE_TESTS = (
     "tdelphisparseenumtypeinfo1",
     "tdelphiinlineconstruntime1",
     "tdelphianonymousnew1",
+    "tloopinvariantaddr1",
 )
 GENERIC_TESTS = (
     "tinlinegenericcomparer1",
@@ -102,6 +104,26 @@ def verify_unrolled_seh(assembly: Path) -> None:
         raise RuntimeError("Win64 SEH loop still contains its runtime loop branch")
 
 
+def verify_loop_invariant_address(assembly: Path) -> None:
+    text = assembly.read_text(encoding="utf-8", errors="replace")
+    start_marker = "P$TLOOPINVARIANTADDR1$_$TWORKER_$__$$_BUMP$LONGINT:"
+    start = text.find(start_marker)
+    end = text.find(".section", start + len(start_marker))
+    if start < 0 or end < 0:
+        raise RuntimeError("cannot isolate the invariant-address Bump procedure")
+    body = text[start:end]
+    loop_start = body.find("Inc(Counters[FIndex].Value);")
+    loop_end = body.find("jne\t", loop_start)
+    if loop_start < 0 or loop_end < 0:
+        raise RuntimeError("cannot isolate the invariant-address loop")
+    prefix = body[:loop_start]
+    loop = body[loop_start:loop_end]
+    if "COUNTERS" not in prefix or not re.search(r"addq\s+\$1,\(%[a-z0-9]+\)", loop):
+        raise RuntimeError("static array element address was not materialized before the loop")
+    if "COUNTERS" in loop or re.search(r"\d+\(%[a-z0-9]+\)", loop):
+        raise RuntimeError("loop-invariant array address is still recalculated in the loop")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("compiler", type=Path)
@@ -151,7 +173,7 @@ def main() -> int:
                 f"-FE{output}",
                 *source_args,
             ]
-            if name == "tforunrollfinally2" and option == "O3":
+            if name in ("tforunrollfinally2", "tloopinvariantaddr1") and option == "O3":
                 command.append("-al")
             command.append(str(source))
             compiled = run(command, cwd=output)
@@ -217,6 +239,12 @@ def main() -> int:
         verify_unrolled_seh(result_root / "tforunrollfinally2-o3" / "tforunrollfinally2.s")
     except (OSError, RuntimeError) as error:
         failures.append(f"seh-assembly ({error})")
+    try:
+        verify_loop_invariant_address(
+            result_root / "tloopinvariantaddr1-o3" / "tloopinvariantaddr1.s"
+        )
+    except (OSError, RuntimeError) as error:
+        failures.append(f"loop-invariant-address-assembly ({error})")
 
     (result_root / "results.json").write_text(
         json.dumps(rows, indent=2) + "\n", encoding="utf-8"
@@ -241,7 +269,7 @@ def main() -> int:
     )
     if failures:
         raise RuntimeError("failed checks: " + ", ".join(failures))
-    print(f"WIN64_REPAIR_GATE_OK rows={expected_rows} seh_unrolled=1")
+    print(f"WIN64_REPAIR_GATE_OK rows={expected_rows} seh_unrolled=1 invariant_address=1")
     return 0
 
 

@@ -273,7 +273,41 @@ unit optloop;
       end;
 
 
+    type
+      pinvariantfieldcontext = ^tinvariantfieldcontext;
+      tinvariantfieldcontext = record
+        fieldnode : tsubscriptnode;
+      end;
+
+    function invalidatesinvariantfield(var n : tnode;arg : pointer) : foreachnoderesult;
+      var
+        fieldcontext : pinvariantfieldcontext;
+      begin
+        fieldcontext:=pinvariantfieldcontext(arg);
+        result:=fen_false;
+        case n.nodetype of
+          calln,
+          asmn:
+            result:=fen_norecurse_true;
+          derefn:
+            if n.flags*[nf_write,nf_modify,nf_address_taken]<>[] then
+              result:=fen_norecurse_true;
+          addrn:
+            if tunarynode(n).left.isequal(fieldcontext^.fieldnode) then
+              result:=fen_norecurse_true;
+          subscriptn:
+            if (tsubscriptnode(n).vs=fieldcontext^.fieldnode.vs) and
+              (n.flags*[nf_write,nf_modify,nf_address_taken]<>[]) then
+              result:=fen_norecurse_true;
+          else
+            ;
+        end;
+      end;
+
+
     function is_loop_invariant(loop : tnode;expr : tnode) : boolean;
+      var
+        fieldcontext : tinvariantfieldcontext;
       begin
         result:=is_constnode(expr);
         case expr.nodetype of
@@ -295,6 +329,15 @@ unit optloop;
             end;
           typeconvn:
             result:=is_loop_invariant(loop,ttypeconvnode(expr).left);
+          subscriptn:
+            begin
+              fieldcontext.fieldnode:=tsubscriptnode(expr);
+              result:=not(vo_volatile in tsubscriptnode(expr).vs.varoptions) and
+                (expr.flags*[nf_write,nf_modify,nf_address_taken]=[]) and
+                is_loop_invariant(loop,tsubscriptnode(expr).left) and
+                not(foreachnodestatic(pm_preprocess,tfornode(loop).t2,
+                  @invalidatesinvariantfield,@fieldcontext));
+            end;
           addn,subn:
             result:=is_loop_invariant(loop,taddnode(expr).left) and is_loop_invariant(loop,taddnode(expr).right);
           else
@@ -459,8 +502,43 @@ unit optloop;
             end;
           vecn:
             begin
+              { Hoist an address whose base is fixed and whose index is proven
+                invariant in this loop.  Keep checks in place: moving a range
+                error before a loop that executes zero times would change the
+                program. }
+              if is_normal_array(tvecnode(n).left.resultdef) and
+                not(is_packed_array(tvecnode(n).left.resultdef)) and
+                not(is_managed_type(n.resultdef)) and
+                (tvecnode(n).left.nodetype=loadn) and
+                (([cs_check_overflow,cs_check_range]*n.localswitches)=[]) and
+                is_loop_invariant(currforloop,tvecnode(n).right) then
+                begin
+                  changedforloop:=true;
+                  if not(findpreviousstrengthreduction(n)) then
+                    begin
+                      tempnode:=ctempcreatenode.create(voidpointertype,voidpointertype.size,tt_persistent,true);
+                      addinduction(tempnode,n);
+                      addstatement(initcodestatements,tempnode);
+                      addstatement(initcodestatements,cassignmentnode.create(
+                        ctemprefnode.create(tempnode),
+                        caddrnode.create(cvecnode.create(
+                          tvecnode(n).left.getcopy,
+                          tvecnode(n).right.getcopy))));
+                      n:=ctypeconvnode.create_internal(
+                        cderefnode.create(ctemprefnode.create(tempnode)),n.resultdef);
+                      addstatement(deletecodestatements,ctempdeletenode.create(tempnode));
+                    end;
+                  if nflags*[nf_write,nf_modify]<>[] then
+                    begin
+                      if (n.nodetype<>typeconvn) or (ttypeconvnode(n).left.nodetype<>derefn) then
+                        internalerror(2026081601);
+                      ttypeconvnode(n).left.flags:=ttypeconvnode(n).left.flags+nflags*[nf_write,nf_modify];
+                    end;
+                  do_firstpass(n);
+                  result:=fen_norecurse_false;
+                end
               { is the index the counter variable? }
-              if not(is_special_array(tvecnode(n).left.resultdef)) and
+              else if not(is_special_array(tvecnode(n).left.resultdef)) and
                 not(is_packed_array(tvecnode(n).left.resultdef)) and
                 (tvecnode(n).right.isequal(currforloop.left) or
                  { fpc usually creates a type cast to access an array }
