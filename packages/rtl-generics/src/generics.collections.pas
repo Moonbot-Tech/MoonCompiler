@@ -306,7 +306,7 @@ type
   public
     constructor Create; overload;
     constructor Create(const AComparer: IComparer<T>); overload;
-    constructor Create(ACollection: TCustomList<T>); overload;
+    constructor Create(ACollection: TList<T>); overload;
     constructor Create(ACollection: TEnumerable<T>); overload;
     constructor Create(aValues : Array of T); overload;
     {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
@@ -1867,7 +1867,7 @@ begin
   FUseDefaultComparer := False;
 end;
 
-constructor TList<T>.Create(ACollection: TCustomList<T>);
+constructor TList<T>.Create(ACollection: TList<T>);
 begin
   Create;
   FItems := Copy(ACollection.FItems, 0, ACollection.FLength);

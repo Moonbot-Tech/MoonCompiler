@@ -707,7 +707,9 @@ end;
 
 procedure CheckListCopyConstruction;
 var
+  IntegerCopy: TList<Integer>;
   InterfaceCopy, InterfaceSource: TList<ITracked>;
+  QueueSource: TQueue<Integer>;
   StringCopy, StringSource: TList<UnicodeString>;
 begin
   StringSource:=TList<UnicodeString>.Create;
@@ -740,6 +742,23 @@ begin
     InterfaceCopy.Free;
   end;
   Check(Destroyed=2,'copied interface list exact lifetime');
+
+  QueueSource:=TQueue<Integer>.Create;
+  IntegerCopy:=nil;
+  try
+    QueueSource.Enqueue(10);
+    QueueSource.Enqueue(20);
+    QueueSource.Enqueue(30);
+    Check(QueueSource.Dequeue=10,'queue source preparation');
+    QueueSource.Enqueue(40);
+    IntegerCopy:=TList<Integer>.Create(QueueSource);
+    Check((IntegerCopy.Count=3) and (IntegerCopy[0]=20) and
+      (IntegerCopy[1]=30) and (IntegerCopy[2]=40),
+      'non-list custom collection constructor uses logical enumeration');
+  finally
+    IntegerCopy.Free;
+    QueueSource.Free;
+  end;
 end;
 
 procedure CheckQueueCompaction;
