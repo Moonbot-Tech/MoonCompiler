@@ -526,6 +526,13 @@ var
 begin
   FItemsLength := 0;
   FItemsThreshold := 0;
+  if (ClassInfo = TypeInfo(TDictionary<TKey, TValue>)) and
+      not Assigned(FOnKeyNotify) and not Assigned(FOnValueNotify) then
+  begin
+    FItems := nil;
+    Exit;
+  end;
+
   // ClearTombstones;
   LOldItems := FItems;
   FItems := nil;

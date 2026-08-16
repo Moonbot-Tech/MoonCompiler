@@ -2305,6 +2305,13 @@ end;
 
 procedure TList<T>.Clear;
 begin
+  if (ClassInfo = TypeInfo(TList<T>)) and not Assigned(OnNotify) then
+  begin
+    FLength := 0;
+    FItems := nil;
+    Exit;
+  end;
+
   SetCount(0);
   SetCapacity(0);
 end;

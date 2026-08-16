@@ -243,6 +243,10 @@ begin
         Raised:=True;
     end;
     Check(Raised,'high list write');
+    List.Clear;
+    Check((List.Count=0) and (List.Capacity=0) and
+      (NotifyProbe.Removed=1025) and (NotifyProbe.Added=1),
+      'exact list Clear preserves removal notifications');
   finally
     List.OnNotify:=nil;
     NotifyProbe.Free;
@@ -975,6 +979,10 @@ begin
     end;
     Check(Raised and (Dictionary.Count=384),
       'dictionary duplicate rejected without mutation');
+    Dictionary.Clear;
+    Check((Dictionary.Count=0) and (KeyNotify.Removed=512) and
+      (ValueNotify.Removed=512),
+      'dictionary Clear preserves key and value notifications');
   finally
     Dictionary.OnValueNotify:=nil;
     Dictionary.OnKeyNotify:=nil;
