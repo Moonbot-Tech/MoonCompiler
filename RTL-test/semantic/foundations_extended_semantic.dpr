@@ -1,6 +1,6 @@
 program foundations_extended_semantic;
 
-{$mode delphi}{$H+}
+{$mode delphi}{$H+}{$codepage utf8}
 
 uses
   mormot.core.fpcx64mm,
@@ -319,7 +319,8 @@ begin
   Check(UTF8Decode(Encoded) = Source, 'UTF-8 ASCII/BMP/supplementary roundtrip');
   InvalidUtf8 := RawByteString(AnsiString(#$C3#$28));
   Value := UTF8Decode(InvalidUtf8);
-  Check((Value = '?(') and (Value = UTF8Decode(InvalidUtf8)),
+  Check((Value = UnicodeString(WideChar($FFFD)) + '(') and
+    (Value = UTF8Decode(InvalidUtf8)),
     'UTF-8 invalid replacement handling');
 
   FixedValue := StringOfChar('x', 255);

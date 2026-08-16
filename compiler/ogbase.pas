@@ -271,7 +271,7 @@ interface
 {$endif ARM}
 
        constructor create(AList:TFPHashObjectList;const AName:string);virtual;
-       function  ToString:ansistring;override;
+       function  ToString:RTLString;override;
        function  address:qword;
        procedure SetAddress(apass:byte;aobjsec:TObjSection;abind:TAsmsymbind;atyp:Tasmsymtype);
        function  ObjData: TObjData;
@@ -309,7 +309,7 @@ interface
         constructor CreateGroup(ADataOffset:TObjSectionOfs;grp:TObjSectionGroup;Atyp:TObjRelocationType);
         constructor CreateRaw(ADataOffset:TObjSectionOfs;s:TObjSymbol;ARawType:byte);
         function TargetName:TSymStr;
-        function ToString: ansistring; override;
+        function ToString: RTLString; override;
         property typ: TObjRelocationType read GetType write SetType;
      end;
 
@@ -344,7 +344,7 @@ interface
        VTRefList : TFPObjectList;
        constructor create(AList:TFPHashObjectList;const Aname:string;Aalign:longint;Aoptions:TObjSectionOptions);virtual;
        destructor  destroy;override;
-       function  ToString:ansistring;override;
+       function  ToString:RTLString;override;
        function  write(const d;l:TObjSectionOfs):TObjSectionOfs;
        procedure writeInt8(v: int8);
        procedure writeInt16LE(v: int16);
@@ -862,7 +862,7 @@ implementation
       end;
 
 
-    function TObjSymbol.ToString: ansistring;
+    function TObjSymbol.ToString: RTLString;
       var
         objsectionstr: ansistring;
       begin
@@ -1016,7 +1016,7 @@ implementation
       end;
 
 
-    function TObjRelocation.ToString: ansistring;
+    function TObjRelocation.ToString: RTLString;
       var
         typstr,
         symbolstr,
@@ -1088,7 +1088,7 @@ implementation
       end;
 
 
-    function TObjSection.ToString: ansistring;
+    function TObjSection.ToString: RTLString;
       begin
         System.WriteStr(Result,'(Name:',Name,';index',index,';SecSymIdx:',SecSymIdx,
           ';SecAlign:',SecAlign,';Size:',Size,';DataPos:',DataPos,';MemPos:',

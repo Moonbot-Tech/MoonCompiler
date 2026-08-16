@@ -607,11 +607,11 @@ implementation
 
         if variantdispatch then
           begin
-            tcb.emit_pchar_const(pchar(methodname),length(methodname));
+            tcb.emit_pchar_const(pansichar(methodname),length(methodname));
             if names<>'' then
               { length-1 because we added a null terminator to the string itself
                 already }
-              tcb.emit_pchar_const(pchar(names),length(names)-1);
+              tcb.emit_pchar_const(pansichar(names),length(names)-1);
           end;
 
         { may be referred from other units in case of inlining -> global
@@ -3018,7 +3018,7 @@ implementation
                                           foldedstringdef:=tstringdef(strresultdef);
                                           if foldedstringdef.encoding=globals.CP_NONE then
                                             foldedstringdef:=tstringdef(cansistringtype);
-                                          constnode:=cstringconstnode.createpchar(pchar(@StringLiteral[1]),Length(StringLiteral),foldedstringdef);
+                                          constnode:=cstringconstnode.createpchar(pansichar(@StringLiteral[1]),Length(StringLiteral),foldedstringdef);
                                         end
                                       else if Length(StringLiteral) = 1 then
                                         constnode := cordconstnode.create(Ord(StringLiteral[1]), cchartype, False)

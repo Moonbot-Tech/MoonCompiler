@@ -102,8 +102,6 @@ function Resolve-ProjectProfile {
   If (-not (Test-Path -LiteralPath $manifest -PathType Leaf)) {
     return [pscustomobject]@{
       Options = @(Get-ProjectTreeOptions $ProjectDirectory)
-      AnsiEntry = $null
-      AnsiSources = @()
       Manifest = $null
     }
   }
@@ -112,8 +110,6 @@ function Resolve-ProjectProfile {
   $sources = @()
   $aliases = @()
   $dependencies = @()
-  $ansiSources = @()
-  $ansiEntry = $null
   foreach ($rawLine in Get-Content -LiteralPath $manifest -Encoding UTF8) {
     $line = $rawLine.TrimEnd("`r")
     If (-not $line -or $line.StartsWith('#')) {
@@ -131,15 +127,6 @@ function Resolve-ProjectProfile {
       }
       'alias' { $aliases += $value }
       'dependency' { $dependencies += $value }
-      'ansi-source' {
-        $ansiSources += Resolve-ProjectManifestPath $manifestDirectory $value
-      }
-      'ansi-entry' {
-        If ($ansiEntry) {
-          throw "duplicate ansi-entry in $manifest"
-        }
-        $ansiEntry = Resolve-ProjectManifestPath $manifestDirectory $value
-      }
       default {
         throw "unknown project manifest directive in ${manifest}: $key"
       }
@@ -160,26 +147,8 @@ function Resolve-ProjectProfile {
     $options += Get-ProjectTreeOptions $source
   }
 
-  If ($ansiEntry) {
-    If (-not (Test-Path -LiteralPath $ansiEntry -PathType Leaf)) {
-      throw "ANSI bundle entry does not exist: $ansiEntry"
-    }
-    If ($ansiSources.Count -eq 0) {
-      throw "ansi-entry requires at least one ansi-source in $manifest"
-    }
-    foreach ($source in $ansiSources) {
-      If (-not (Test-Path -LiteralPath $source -PathType Container)) {
-        throw "ANSI source tree does not exist: $source"
-      }
-    }
-  } elseif ($ansiSources.Count -ne 0) {
-    throw "ansi-source requires ansi-entry in $manifest"
-  }
-
   return [pscustomobject]@{
     Options = $options
-    AnsiEntry = $ansiEntry
-    AnsiSources = $ansiSources
     Manifest = $manifest
   }
 }

@@ -349,7 +349,7 @@ type
     function AddPair(const aStr: TJSONString; const aVal: TJSONValue): TJSONObject; overload;
     function AddPair(const aStr: UnicodeString; const aVal: TJSONValue): TJSONObject; overload;
     function AddPair(const aStr: UnicodeString; const aVal: UnicodeString): TJSONObject; overload;
-    function AddPair(const aStr: UnicodeString; const aVal: String): TJSONObject; overload;
+    function AddPair(const aStr: UnicodeString; const aVal: AnsiString): TJSONObject; overload;
     function AddPair(const aStr: UnicodeString; const aVal: Int64): TJSONObject; overload;
     function AddPair(const aStr: UnicodeString; const aVal: Integer): TJSONObject; overload;
     function AddPair(const aStr: UnicodeString; const aVal: Double): TJSONObject; overload;
@@ -2095,7 +2095,7 @@ begin
   Result:=Self;
 end;
 
-function TJSONObject.AddPair(const aStr: UnicodeString; const aVal: String): TJSONObject;
+function TJSONObject.AddPair(const aStr: UnicodeString; const aVal: AnsiString): TJSONObject;
 begin
   AddPair(TJSONPair.Create(aStr, UTF8Decode(aVal)));
   Result:=Self;

@@ -163,7 +163,7 @@ implementation
                      begin
                        pt:=comp_expr([ef_accept_equal]);
                        if pt.nodetype=stringconstn then
-                         hpname:=strpas(pchar(@tstringconstnode(pt).valueas[0]))
+                         hpname:=strpas(pansichar(@tstringconstnode(pt).valueas[0]))
                        else if is_constcharnode(pt) then
                          hpname:=chr(tordconstnode(pt).value.svalue and $ff)
                        else

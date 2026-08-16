@@ -80,7 +80,7 @@ interface
         AsmSize,
         AsmStartSize,
         outcnt   : longint;
-        outbuf   : array[0..AsmOutSize-1] of char;
+        outbuf   : array[0..AsmOutSize-1] of ansichar;
         outfile  : file;
         fioerror : boolean;
         linestart: boolean;
@@ -104,21 +104,21 @@ interface
         function ClearIfEmpty: boolean;
         { these routines will write the filtered version of their argument
           according to the current decorator }
-        procedure AsmWriteFiltered(const c:char);
+        procedure AsmWriteFiltered(const c:ansichar);
         procedure AsmWriteFiltered(const s:string);
         procedure AsmWriteFiltered(const s:ansistring);
-        procedure AsmWriteFiltered(p:pchar; len: longint);
+        procedure AsmWriteFiltered(p:pansichar; len: longint);
 
         {# Write a string to the assembler file }
-        Procedure AsmWrite(const c:char);
+        Procedure AsmWrite(const c:ansichar);
         Procedure AsmWrite(const s:string);
         Procedure AsmWrite(const s:ansistring);
 
         {# Write a string to the assembler file }
-        Procedure AsmWritePChar(p:pchar);
+        Procedure AsmWritePChar(p:pansichar);
 
         {# Write a string to the assembler file followed by a new line }
-        Procedure AsmWriteLn(const c:char);
+        Procedure AsmWriteLn(const c:ansichar);
         Procedure AsmWriteLn(const s:string);
         Procedure AsmWriteLn(const s:ansistring);
 
@@ -220,7 +220,7 @@ interface
         { current processing }
         currlistidx  : byte;
         currlist     : TAsmList;
-        procedure WriteStab(p:pchar);
+        procedure WriteStab(p:pansichar);
         function  MaybeNextList(var hp:Tai):boolean;
         function  SetIndirectToSymbol(hp: Tai; const indirectname: string): Boolean;
         function  TreePass0(hp:Tai):Tai;
@@ -406,7 +406,7 @@ Implementation
       end;
 
 
-    procedure TExternalAssemblerOutputFile.AsmWriteFiltered(const c: char);
+    procedure TExternalAssemblerOutputFile.AsmWriteFiltered(const c: ansichar);
       begin
         MaybeAddLinePrefix;
         AsmWriteAnsiStringUnfiltered(decorator.LineFilter(c));
@@ -427,7 +427,7 @@ Implementation
       end;
 
 
-    procedure TExternalAssemblerOutputFile.AsmWriteFiltered(p: pchar; len: longint);
+    procedure TExternalAssemblerOutputFile.AsmWriteFiltered(p: pansichar; len: longint);
       var
         s: ansistring;
       begin
@@ -499,7 +499,7 @@ Implementation
       end;
 
 
-    Procedure TExternalAssemblerOutputFile.AsmWrite(const c: char);
+    Procedure TExternalAssemblerOutputFile.AsmWrite(const c: ansichar);
       begin
         if assigned(decorator) then
           AsmWriteFiltered(c)
@@ -542,7 +542,7 @@ Implementation
       end;
 
 
-    procedure TExternalAssemblerOutputFile.AsmWriteLn(const c: char);
+    procedure TExternalAssemblerOutputFile.AsmWriteLn(const c: ansichar);
       begin
         AsmWrite(c);
         AsmLn;
@@ -563,7 +563,7 @@ Implementation
       end;
 
 
-    Procedure TExternalAssemblerOutputFile.AsmWritePChar(p:pchar);
+    Procedure TExternalAssemblerOutputFile.AsmWritePChar(p:pansichar);
       var
         i,j : longint;
       begin
@@ -584,7 +584,7 @@ Implementation
                inc(OutCnt,i);
                inc(AsmSize,i);
                dec(j,i);
-               p:=pchar(@p[i]);
+                p:=pansichar(@p[i]);
              end;
           end;
       end;
@@ -1314,7 +1314,7 @@ Implementation
           inc(index,step);
           dec(real_byte_count);
           if real_byte_count<>0 then
-            writer.AsmWrite(',');
+            writer.AsmWrite(ansistring(','));
         until real_byte_count=0;
         { padding }
         for real_byte_count:=tai_realconst(hp).datasize+1 to tai_realconst(hp).savesize do
@@ -1346,9 +1346,9 @@ Implementation
                        (tai_regalloc(hp.next).ratype<>tai_regalloc(hp).ratype) then
                       break;
                     hp:=tai(hp.next);
-                    writer.AsmWrite(',');
+                    writer.AsmWrite(ansistring(','));
                   until false;
-                  writer.AsmWrite(' ');
+                  writer.AsmWrite(ansistring(' '));
                   writer.AsmWriteLn(regallocstr[tai_regalloc(hp).ratype]);
                 end;
             end;
@@ -1434,9 +1434,9 @@ Implementation
       end;
 
 
-    procedure TInternalAssembler.WriteStab(p:pchar);
+    procedure TInternalAssembler.WriteStab(p:pansichar);
 
-        function consumecomma(var p:pchar):boolean;
+        function consumecomma(var p:pansichar):boolean;
         begin
           while (p^=' ') do
             inc(p);
@@ -1444,7 +1444,7 @@ Implementation
           inc(p);
         end;
 
-        function consumenumber(var p:pchar;out value:longint):boolean;
+        function consumenumber(var p:pansichar;out value:longint):boolean;
         var
           hs : string;
           len,
@@ -1470,12 +1470,12 @@ Implementation
           result:=(code=0);
         end;
 
-        function consumeoffset(var p:pchar;out relocsym:tobjsymbol;out value:longint):boolean;
+        function consumeoffset(var p:pansichar;out relocsym:tobjsymbol;out value:longint):boolean;
         var
           hs        : string;
           len,
           code      : integer;
-          pstart    : pchar;
+          pstart    : pansichar;
           sym       : tobjsymbol;
           exprvalue : longint;
           gotmin,
@@ -1592,7 +1592,7 @@ Implementation
         relocsym  : TObjSymbol;
         pstr,
         pcurr,
-        pendquote : pchar;
+         pendquote : pansichar;
         oldsec    : TObjSection;
       begin
         pcurr:=nil;

@@ -181,6 +181,13 @@ end;
                     Internal functions, not in interface.
 ****************************************************************************}
 
+{$ifdef CPUX86_64}
+procedure fpc_UnicodeStr_FreeHeader(Header: Pointer); noinline;
+begin
+  FreeMem(Header);
+end;
+{$endif CPUX86_64}
+
 {$ifndef FPC_HAS_UNICODESTR_DECR_REF}
 {$define FPC_HAS_UNICODESTR_DECR_REF}
 Procedure fpc_UnicodeStr_Decr_Ref (Var S : Pointer);[Public,Alias:'FPC_UNICODESTR_DECR_REF']; compilerproc;
@@ -188,6 +195,33 @@ Procedure fpc_UnicodeStr_Decr_Ref (Var S : Pointer);[Public,Alias:'FPC_UNICODEST
   Decreases the ReferenceCount of a non constant unicodestring;
   If the reference count is zero, deallocate the string;
 }
+{$ifdef CPUX86_64}
+assembler; nostackframe;
+asm
+  movq   {$ifdef FPC_ABI_WIN64} (%rcx),%rdx {$else} (%rdi),%rsi {$endif}
+  testq  {$ifdef FPC_ABI_WIN64} %rdx,%rdx {$else} %rsi,%rsi {$endif}
+  jz     .Lustrdecr_done
+  movq   $0,{$ifdef FPC_ABI_WIN64} (%rcx) {$else} (%rdi) {$endif}
+  cmpl   $1,{$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
+  je     .Lustrdecr_free
+  jle    .Lustrdecr_done
+{$ifdef FPC_PIC}
+  movq   IsMultithread@GOTPCREL(%rip),%rax
+  cmpl   $0,(%rax)
+{$else FPC_PIC}
+  cmpl   $0,IsMultithread(%rip)
+{$endif FPC_PIC}
+  jz     .Lustrdecr_unlocked
+  .byte  0xf0
+.Lustrdecr_unlocked:
+  decl   {$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
+  jnz    .Lustrdecr_done
+.Lustrdecr_free:
+  leaq   {$ifdef FPC_ABI_WIN64} -16(%rdx),%rcx {$else} -16(%rsi),%rdi {$endif}
+  jmp    fpc_UnicodeStr_FreeHeader
+.Lustrdecr_done:
+end;
+{$else CPUX86_64}
 Var
   p: pointer;
 Begin
@@ -200,6 +234,7 @@ Begin
      and declocked(PUnicodeRec(p-UnicodeFirstOff)^.ref) then
     FreeMem(p-UnicodeFirstOff);
 end;
+{$endif CPUX86_64}
 
 { alias for internal use }
 Procedure fpc_UnicodeStr_Decr_Ref (Var S : Pointer);[external name 'FPC_UNICODESTR_DECR_REF'];
@@ -209,6 +244,26 @@ Procedure fpc_UnicodeStr_Decr_Ref (Var S : Pointer);[external name 'FPC_UNICODES
 {$ifndef FPC_HAS_UNICODESTR_INCR_REF}
 {$define FPC_HAS_UNICODESTR_INCR_REF}
 Procedure fpc_UnicodeStr_Incr_Ref(S : Pointer);[Public,Alias:'FPC_UNICODESTR_INCR_REF']; compilerproc;
+{$ifdef CPUX86_64}
+assembler; nostackframe;
+asm
+  testq  {$ifdef FPC_ABI_WIN64} %rcx,%rcx {$else} %rdi,%rdi {$endif}
+  jz     .Lustrincr_done
+  cmpl   $0,{$ifdef FPC_ABI_WIN64} -12(%rcx) {$else} -12(%rdi) {$endif}
+  jl     .Lustrincr_done
+{$ifdef FPC_PIC}
+  movq   IsMultithread@GOTPCREL(%rip),%rax
+  cmpl   $0,(%rax)
+{$else FPC_PIC}
+  cmpl   $0,IsMultithread(%rip)
+{$endif FPC_PIC}
+  jz     .Lustrincr_unlocked
+  .byte  0xf0
+.Lustrincr_unlocked:
+  incl   {$ifdef FPC_ABI_WIN64} -12(%rcx) {$else} -12(%rdi) {$endif}
+.Lustrincr_done:
+end;
+{$else CPUX86_64}
   Begin
     If S=Nil then
       exit;
@@ -217,6 +272,7 @@ Procedure fpc_UnicodeStr_Incr_Ref(S : Pointer);[Public,Alias:'FPC_UNICODESTR_INC
       exit;
     inclocked(PUnicodeRec(S-UnicodeFirstOff)^.Ref);
   end;
+{$endif CPUX86_64}
 
 { alias for internal use }
 Procedure fpc_UnicodeStr_Incr_Ref (S : Pointer);[external name 'FPC_UNICODESTR_INCR_REF'];
@@ -376,18 +432,60 @@ end;
 {$ifndef FPC_HAS_UNICODESTR_ASSIGN}
 {$define FPC_UNICODESTR_ASSIGN}
 { checked against the ansistring routine, 2001-05-27 (FK) }
-Procedure fpc_UnicodeStr_Assign (Var S1 : Pointer;S2 : Pointer);[Public,Alias:'FPC_UNICODESTR_ASSIGN']; compilerproc;
 {
   Assigns S2 to S1 (S1:=S2), taking in account reference counts.
 }
+{$ifdef CPUX86_64}
+Procedure fpc_UnicodeStr_Assign (Var S1 : Pointer;S2 : Pointer);[Public,Alias:'FPC_UNICODESTR_ASSIGN']; compilerproc; assembler; nostackframe;
+asm
+  testq  {$ifdef FPC_ABI_WIN64} %rdx,%rdx {$else} %rsi,%rsi {$endif}
+  jz     .Lustrassign_source_done
+  cmpl   $0,{$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
+  jle    .Lustrassign_source_done
+{$ifdef FPC_PIC}
+  movq   IsMultithread@GOTPCREL(%rip),%rax
+  cmpl   $0,(%rax)
+{$else FPC_PIC}
+  cmpl   $0,IsMultithread(%rip)
+{$endif FPC_PIC}
+  jz     .Lustrassign_source_unlocked
+  .byte  0xf0
+.Lustrassign_source_unlocked:
+  incl   {$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
+.Lustrassign_source_done:
+  movq   {$ifdef FPC_ABI_WIN64} (%rcx),%r8 {$else} (%rdi),%rdx {$endif}
+  movq   {$ifdef FPC_ABI_WIN64} %rdx,(%rcx) {$else} %rsi,(%rdi) {$endif}
+  testq  {$ifdef FPC_ABI_WIN64} %r8,%r8 {$else} %rdx,%rdx {$endif}
+  jz     .Lustrassign_done
+  cmpl   $1,{$ifdef FPC_ABI_WIN64} -12(%r8) {$else} -12(%rdx) {$endif}
+  je     .Lustrassign_free
+  jle    .Lustrassign_done
+{$ifdef FPC_PIC}
+  movq   IsMultithread@GOTPCREL(%rip),%rax
+  cmpl   $0,(%rax)
+{$else FPC_PIC}
+  cmpl   $0,IsMultithread(%rip)
+{$endif FPC_PIC}
+  jz     .Lustrassign_dest_unlocked
+  .byte  0xf0
+.Lustrassign_dest_unlocked:
+  decl   {$ifdef FPC_ABI_WIN64} -12(%r8) {$else} -12(%rdx) {$endif}
+  jnz    .Lustrassign_done
+.Lustrassign_free:
+  leaq   {$ifdef FPC_ABI_WIN64} -16(%r8),%rcx {$else} -16(%rdx),%rdi {$endif}
+  jmp    fpc_UnicodeStr_FreeHeader
+.Lustrassign_done:
+end;
+{$else CPUX86_64}
+Procedure fpc_UnicodeStr_Assign (Var S1 : Pointer;S2 : Pointer);[Public,Alias:'FPC_UNICODESTR_ASSIGN']; compilerproc;
 begin
   If S2<>nil then
     If PUnicodeRec(S2-UnicodeFirstOff)^.Ref>0 then
-      inclocked(PUnicodeRec(S2-UnicodeFirstOff)^.ref);
-  { Decrease the reference count on the old S1 }
-  fpc_unicodestr_decr_ref (S1);
-  s1:=s2;
+      inclocked(PUnicodeRec(S2-UnicodeFirstOff)^.Ref);
+  fpc_unicodestr_decr_ref(S1);
+  S1:=S2;
 end;
+{$endif CPUX86_64}
 
 
 { alias for internal use }
@@ -1170,10 +1268,14 @@ begin
      i:=Offset;
      while (i<=MaxLen) do
       begin
-        d:=IndexWord(Source[i],MaxLen-i+1,word(Substr[1]));
+        { Searching for the last character rejects recurring prefixes before
+          the full comparison.  Searching for Substr[1] made strings such as
+          "needle-...needle-target" compare the whole needle at every false
+          prefix. }
+        d:=IndexWord(Source[i+nsub-1],MaxLen-i+1,word(Substr[nsub]));
         if d<0 then
           exit;
-        if CompareWord(Substr[1],Source[i+d],nsub)=0 then
+        if (nsub=1) or (CompareWord(Substr[1],Source[i+d],nsub-1)=0) then
           exit(i+d);
         i:=i+d+1;
       end;
@@ -1367,19 +1469,47 @@ end;
 {$endif FPC_HAS_SETSTRING_UNICODESTR_PCHAR}
 
 
+procedure fpc_ShortAscii_To_UnicodeStr(const Source: ShortString; out Dest: UnicodeString); inline;
+var
+  I, L: SizeInt;
+begin
+  L:=Length(Source);
+  SetLength(Dest,L);
+  for I:=1 to L do
+    Dest[I]:=UnicodeChar(Byte(Source[I]));
+end;
+
+
+function fpc_UnicodeAscii_To_ShortStr(const Source: UnicodeString; out Dest: ShortString): Boolean; inline;
+var
+  I, L: SizeInt;
+  C: Word;
+begin
+  L:=Length(Source);
+  if L>High(Dest) then
+    exit(False);
+  Dest[0]:=AnsiChar(L);
+  for I:=1 to L do
+    begin
+      C:=Word(Source[I]);
+      if C>$7f then
+        exit(False);
+      Dest[I]:=AnsiChar(Byte(C));
+    end;
+  Result:=True;
+end;
+
+
 {$ifndef FPUNONE}
 Function fpc_Val_Real_UnicodeStr(Const S : UnicodeString; out Code : ValSInt): ValReal; [public, alias:'FPC_VAL_REAL_UNICODESTR']; compilerproc;
 Var
   SS: ShortString;
 begin
   fpc_Val_Real_UnicodeStr:=0;
-  if length(S)>255 then
+  if not fpc_UnicodeAscii_To_ShortStr(S,SS) then
     code:=256
   else
-    begin
-      SS:=ShortString(S);
-      Val(SS,fpc_Val_Real_UnicodeStr,code);
-    end;
+    Val(SS,fpc_Val_Real_UnicodeStr,code);
 end;
 {$endif}
 
@@ -1404,16 +1534,13 @@ Function fpc_Val_Currency_UnicodeStr(Const S : UnicodeString; out Code : ValSInt
 Var
   SS: ShortString;
 begin
-  if length(S)>255 then
+  if not fpc_UnicodeAscii_To_ShortStr(S,SS) then
     begin
       fpc_Val_Currency_UnicodeStr:=0;
       code:=256;
     end
   else
-    begin
-      SS:=ShortString(S);
-      Val(SS,fpc_Val_Currency_UnicodeStr,code);
-    end;
+    Val(SS,fpc_Val_Currency_UnicodeStr,code);
 end;
 
 
@@ -1422,11 +1549,10 @@ Var
   SS: ShortString;
 begin
   fpc_Val_UInt_UnicodeStr:=0;
-  if length(S)>255 then
+  if not fpc_UnicodeAscii_To_ShortStr(S,SS) then
     code:=256
   else
     begin
-      SS:=ShortString(S);
 {$ifndef VER3_2}
       if DestSize<0 then
         fpc_Val_UInt_UnicodeStr:=int_Val_UInt_ShortStr(DestSize,SS,Code)
@@ -1442,13 +1568,10 @@ Var
   SS: ShortString;
 begin
   fpc_Val_SInt_UnicodeStr:=0;
-  if length(S)>255 then
+  if not fpc_UnicodeAscii_To_ShortStr(S,SS) then
     code:=256
   else
-    begin
-      SS:=ShortString(S);
-      fpc_Val_SInt_UnicodeStr := int_Val_SInt_ShortStr(DestSize,SS,Code);
-    end;
+    fpc_Val_SInt_UnicodeStr := int_Val_SInt_ShortStr(DestSize,SS,Code);
 end;
 
 
@@ -1459,13 +1582,10 @@ Var
   SS: ShortString;
 begin
   fpc_Val_qword_UnicodeStr:=0;
-  if length(S)>255 then
+  if not fpc_UnicodeAscii_To_ShortStr(S,SS) then
     code:=256
   else
-    begin
-       SS:=ShortString(S);
-       Val(SS,fpc_Val_qword_UnicodeStr,Code);
-    end;
+    Val(SS,fpc_Val_qword_UnicodeStr,Code);
 end;
 
 
@@ -1474,13 +1594,10 @@ Var
   SS: ShortString;
 begin
   fpc_Val_int64_UnicodeStr:=0;
-  if length(S)>255 then
+  if not fpc_UnicodeAscii_To_ShortStr(S,SS) then
     code:=256
   else
-    begin
-       SS:=ShortString(S);
-       Val(SS,fpc_Val_int64_UnicodeStr,Code);
-    end;
+    Val(SS,fpc_Val_int64_UnicodeStr,Code);
 end;
 
 {$endif CPU64}
@@ -1492,13 +1609,10 @@ Var
   SS: ShortString;
 begin
   fpc_Val_longword_UnicodeStr:=0;
-  if length(S)>255 then
+  if not fpc_UnicodeAscii_To_ShortStr(S,SS) then
     code:=256
   else
-    begin
-       SS:=ShortString(S);
-       Val(SS,fpc_Val_longword_UnicodeStr,Code);
-    end;
+    Val(SS,fpc_Val_longword_UnicodeStr,Code);
 end;
 
 
@@ -1507,13 +1621,10 @@ Var
   SS: ShortString;
 begin
   fpc_Val_longint_UnicodeStr:=0;
-  if length(S)>255 then
+  if not fpc_UnicodeAscii_To_ShortStr(S,SS) then
     code:=256
   else
-    begin
-       SS:=ShortString(S);
-       Val(SS,fpc_Val_longint_UnicodeStr,Code);
-    end;
+    Val(SS,fpc_Val_longint_UnicodeStr,Code);
 end;
 
 
@@ -1522,13 +1633,10 @@ Var
   SS: ShortString;
 begin
   fpc_Val_word_UnicodeStr:=0;
-  if length(S)>255 then
+  if not fpc_UnicodeAscii_To_ShortStr(S,SS) then
     code:=256
   else
-    begin
-       SS:=ShortString(S);
-       Val(SS,fpc_Val_word_UnicodeStr,Code);
-    end;
+    Val(SS,fpc_Val_word_UnicodeStr,Code);
 end;
 
 
@@ -1537,13 +1645,10 @@ Var
   SS: ShortString;
 begin
   fpc_Val_smallint_UnicodeStr:=0;
-  if length(S)>255 then
+  if not fpc_UnicodeAscii_To_ShortStr(S,SS) then
     code:=256
   else
-    begin
-       SS:=ShortString(S);
-       Val(SS,fpc_Val_smallint_UnicodeStr,Code);
-    end;
+    Val(SS,fpc_Val_smallint_UnicodeStr,Code);
 end;
 {$endif CPU16 or CPU8}
 
@@ -1554,7 +1659,7 @@ var
   ss: shortstring;
 begin
   str_real(len,fr,d,treal_type(rt),ss);
-  s:=UnicodeString(ss);
+  fpc_ShortAscii_To_UnicodeStr(ss,s);
 end;
 {$endif}
 
@@ -1582,7 +1687,7 @@ var
   ss: shortstring;
 begin
   str(c:len:fr,ss);
-  s:=UnicodeString(ss);
+  fpc_ShortAscii_To_UnicodeStr(ss,s);
 end;
 
 Procedure fpc_UnicodeStr_SInt(v : ValSint; Len : SizeInt; out S : UnicodeString);compilerproc;
@@ -1590,7 +1695,7 @@ Var
   SS: ShortString;
 begin
   Str (v:Len,SS);
-  S:=UnicodeString(SS);
+  fpc_ShortAscii_To_UnicodeStr(SS,S);
 end;
 
 
@@ -1599,7 +1704,7 @@ Var
   SS: ShortString;
 begin
   str(v:Len,SS);
-  S:=UnicodeString(SS);
+  fpc_ShortAscii_To_UnicodeStr(SS,S);
 end;
 
 
@@ -1610,7 +1715,7 @@ Var
   SS: ShortString;
 begin
   Str (v:Len,SS);
-  S:=UnicodeString(SS);
+  fpc_ShortAscii_To_UnicodeStr(SS,S);
 end;
 
 
@@ -1619,7 +1724,7 @@ Var
   SS: ShortString;
 begin
   str(v:Len,SS);
-  S:=UnicodeString(SS);
+  fpc_ShortAscii_To_UnicodeStr(SS,S);
 end;
 
 {$endif CPU64}
@@ -1631,7 +1736,7 @@ Var
   SS: ShortString;
 begin
   Str (v:Len,SS);
-  S:=UnicodeString(SS);
+  fpc_ShortAscii_To_UnicodeStr(SS,S);
 end;
 
 Procedure fpc_UnicodeStr_UInt128(v : UInt128; Len : SizeInt; out S : UnicodeString);compilerproc;
@@ -1639,7 +1744,7 @@ Var
   SS: ShortString;
 begin
   str(v:Len,SS);
-  S:=UnicodeString(SS);
+  fpc_ShortAscii_To_UnicodeStr(SS,S);
 end;
 
 Function fpc_Val_Int128_UnicodeStr(Const S : UnicodeString; out Code : ValSInt): Int128; compilerproc;
@@ -1647,13 +1752,10 @@ Var
   SS : ShortString;
 begin
   fpc_Val_Int128_UnicodeStr:=0;
-  if length(S)>255 then
+  if not fpc_UnicodeAscii_To_ShortStr(S,SS) then
     code:=256
   else
-    begin
-      SS := ShortString(S);
-      Val(SS,fpc_Val_Int128_UnicodeStr,Code);
-    end;
+    Val(SS,fpc_Val_Int128_UnicodeStr,Code);
 end;
 
 Function fpc_Val_UInt128_UnicodeStr(Const S : UnicodeString; out Code : ValSInt): UInt128; compilerproc;
@@ -1661,13 +1763,10 @@ Var
   SS : ShortString;
 begin
   fpc_Val_UInt128_UnicodeStr:=0;
-  if length(S)>255 then
+  if not fpc_UnicodeAscii_To_ShortStr(S,SS) then
     code:=256
   else
-    begin
-      SS := ShortString(S);
-      Val(SS,fpc_Val_UInt128_UnicodeStr,Code);
-    end;
+    Val(SS,fpc_Val_UInt128_UnicodeStr,Code);
 end;
 
 {$endif}
@@ -1680,7 +1779,7 @@ Var
   SS: ShortString;
 begin
   Str (v:Len,SS);
-  S:=UnicodeString(SS);
+  fpc_ShortAscii_To_UnicodeStr(SS,S);
 end;
 
 
@@ -1689,7 +1788,7 @@ Var
   SS: ShortString;
 begin
   str(v:Len,SS);
-  S:=UnicodeString(SS);
+  fpc_ShortAscii_To_UnicodeStr(SS,S);
 end;
 
 
@@ -1698,7 +1797,7 @@ Var
   SS: ShortString;
 begin
   Str (v:Len,SS);
-  S:=UnicodeString(SS);
+  fpc_ShortAscii_To_UnicodeStr(SS,S);
 end;
 
 
@@ -1707,7 +1806,7 @@ Var
   SS: ShortString;
 begin
   str(v:Len,SS);
-  S:=UnicodeString(SS);
+  fpc_ShortAscii_To_UnicodeStr(SS,S);
 end;
 
 {$endif CPU16 or CPU8}
@@ -1768,12 +1867,12 @@ end;
               $d800..$dbff:
                 {High Surrogates}
                 begin
-                  if j+3>=MaxDestBytes then
-                    break;
                   if (i+1<sourcechars) and
                      (word(Source[i+1]) >= $dc00) and
                      (word(Source[i+1]) <= $dfff) then
                     begin
+                      if j+3>=MaxDestBytes then
+                        break;
                       { $d7c0 is ($d800 - ($10000 shr 10)) }
                       lw:=(longword(lw-$d7c0) shl 10) + (ord(source[i+1]) xor $dc00);
                       Dest[j]:=AnsiChar($f0 or (lw shr 18));
@@ -1782,7 +1881,25 @@ end;
                       Dest[j+3]:=AnsiChar($80 or (lw and $3f));
                       inc(j,4);
                       inc(i);
+                    end
+                  else
+                    begin
+                      if j+2>=MaxDestBytes then
+                        break;
+                      Dest[j]:=AnsiChar($ef);
+                      Dest[j+1]:=AnsiChar($bf);
+                      Dest[j+2]:=AnsiChar($bd);
+                      inc(j,3);
                     end;
+                end;
+              $dc00..$dfff:
+                begin
+                  if j+2>=MaxDestBytes then
+                    break;
+                  Dest[j]:=AnsiChar($ef);
+                  Dest[j+1]:=AnsiChar($bf);
+                  Dest[j+2]:=AnsiChar($bd);
+                  inc(j,3);
                 end;
               end;
             inc(i);
@@ -1812,8 +1929,12 @@ end;
                     begin
                       inc(j,4);
                       inc(i);
-                    end;
+                    end
+                  else
+                    inc(j,3);
                 end;
+              $dc00..$dfff:
+                inc(j,3);
             end;
             inc(i);
           end;
@@ -1846,126 +1967,116 @@ begin
 end;
 {$else EXCLUDE_COMPLEX_PROCS}
   var
-    SourcePos,DestPos: SizeUint;
-    UC: int32;
+    SourcePos,DestPos,Consumed: SizeUint;
+    B0,B1,B2,B3,UC: cardinal;
+    Valid: Boolean;
   begin
     if not Assigned(Source) then
       exit(0);
     SourcePos:=0;
     DestPos:=0;
-
-    if Assigned(Dest) then
+    while SourcePos<SourceBytes do
       begin
-        if SourcePos<SourceBytes then { “repeat until false” + “if C then continue else break” is used instead of “while C” + “continue” for better codegen. }
-          repeat
-            { See generic.inc:Utf8CodePointLen for explanations. Not continuing = invalid or incomplete character. }
-            if DestPos>=MaxDestChars then { Speculate 1 unicodechar. }
-              break;
-            inc(DestPos);
-            UC:=ord(Source[SourcePos]);
-            case uint32(UC) of
-              0..$7F:
-                begin
-                  Dest[DestPos-1]:=unicodechar(UC);
-                  inc(SourcePos);
-                  if SourcePos<SourceBytes then continue else break;
-                end;
-              $C2..$DF:
-                if (SourcePos+1<SourceBytes) and (ord(Source[SourcePos+1]) and $C0=$80) then
-                  begin
-                    Dest[DestPos-1]:=unicodechar(UC and $1F shl 6 or ord(Source[SourcePos+1]) and $3F);
-                    inc(SourcePos,2);
-                    if SourcePos<SourceBytes then continue else break;
-                  end;
-              $E0..$EF:
-                if (SourcePos+2<SourceBytes) and (ord(Source[SourcePos+1]) and $C0=$80) and (ord(Source[SourcePos+2]) and $C0=$80) then
-                  begin
-                    UC:=UC and $F shl 12 or ord(Source[SourcePos+1]) and $3F shl 6 or ord(Source[SourcePos+2]) and $3F;
-                    if (UC>=$800) and (UC<=$FFFD) and not ((UC>=$D800) and (UC<=$DFFF)) then
-                      begin
-                        Dest[DestPos-1]:=unicodechar(UC);
-                        inc(SourcePos,3);
-                        if SourcePos<SourceBytes then continue else break;
-                      end;
-                  end;
-              $F0..$F4:
-                if (SourcePos+3<SourceBytes) and (ord(Source[SourcePos+1]) and $C0=$80) and (ord(Source[SourcePos+2]) and $C0=$80) and (ord(Source[SourcePos+3]) and $C0=$80) then
-                  begin
-                    UC:=UC and $7 shl 18 or ord(Source[SourcePos+1]) and $3F shl 12 or ord(Source[SourcePos+2]) and $3F shl 6 or ord(Source[SourcePos+3]) and $3F-$10000;
-                    if Cardinal(UC)<=$10FFFF-$10000 then
-                      begin
-                        dec(DestPos);
-                        if DestPos+1>=MaxDestChars then { 2 unicodechars. }
-                          break;
-                        Dest[DestPos]:=unicodechar($D800+UC shr 10);
-                        Dest[DestPos+1]:=unicodechar($DC00+UC and $3ff);
-                        inc(SourcePos,4);
-                        inc(DestPos,2);
-                        if SourcePos<SourceBytes then continue else break;
-                      end;
-                  end;
-            end;
-            { Invalid or incomplete character. }
-            if not IgnoreInvalid then
-              HandleError(231); // Will be converted to EConversionError in sysutils
-            inc(SourcePos); { Skip first byte. }
-            if ord(Source[SourcePos-1]) and $C0<>$80 then { If first byte is not a continuation byte... }
-              while (SourcePos<SourceBytes) and (ord(Source[SourcePos]) and $C0=$80) do { ..Then skip continuation bytes. }
-                inc(SourcePos);
-            Dest[DestPos-1]:='?';
-            if SourcePos>=SourceBytes then break; { Do not add a condition to the loop, or “continue”s will jump to it instead of the beginning! }
-          until false;
-        if DestPos<MaxDestChars then { Null-terminate... if there is space. Count in result in either case. }
-          Dest[DestPos]:=#0;
-      end
-    else
-      { Same as above but without writing Dest. }
-      if SourcePos<SourceBytes then
-        repeat
-          UC:=ord(Source[SourcePos]);
-          inc(DestPos); { Speculate 1 unicodechar. }
-          case uint32(UC) of
-            0..$7F:
+        B0:=ord(Source[SourcePos]);
+        UC:=$fffd;
+        Consumed:=1;
+        Valid:=B0<=$7f;
+        if Valid then
+          UC:=B0
+        else if (B0>=$c2) and (B0<=$df) then
+          begin
+            if SourcePos+1<SourceBytes then
               begin
-                inc(SourcePos);
-                if SourcePos<SourceBytes then continue else break;
+                B1:=ord(Source[SourcePos+1]);
+                if B1 and $c0=$80 then
+                  begin
+                    UC:=(B0 and $1f) shl 6 or (B1 and $3f);
+                    Consumed:=2;
+                    Valid:=true;
+                  end;
               end;
-            $C2..$DF:
-              if (SourcePos+1<SourceBytes) and (ord(Source[SourcePos+1]) and $C0=$80) then
-                begin
-                  inc(SourcePos,2);
-                  if SourcePos<SourceBytes then continue else break;
-                end;
-            $E0..$EF:
-              if (SourcePos+2<SourceBytes) and (ord(Source[SourcePos+1]) and $C0=$80) and (ord(Source[SourcePos+2]) and $C0=$80) then
-                begin
-                  UC:=UC and $F shl 12 or ord(Source[SourcePos+1]) and $3F shl 6 or ord(Source[SourcePos+2]) and $3F;
-                  if (UC>=$800) and (UC<=$FFFD) and not ((UC>=$D800) and (UC<=$DFFF)) then
-                    begin
-                      inc(SourcePos,3);
-                      if SourcePos<SourceBytes then continue else break;
-                    end;
-                end;
-            $F0..$F4:
-              if (SourcePos+3<SourceBytes) and (ord(Source[SourcePos+1]) and $C0=$80) and (ord(Source[SourcePos+2]) and $C0=$80) and (ord(Source[SourcePos+3]) and $C0=$80) then
-                begin
-                  UC:=UC and $7 shl 18 or ord(Source[SourcePos+1]) and $3F shl 12 or ord(Source[SourcePos+2]) and $3F shl 6 or ord(Source[SourcePos+3]) and $3F-$10000;
-                  if Cardinal(UC)<=$10FFFF-$10000 then
-                    begin
-                      inc(SourcePos,4);
-                      inc(DestPos); { To 2 unicodechars in total. }
-                      if SourcePos<SourceBytes then continue else break;
-                    end;
-                end;
+          end
+        else if (B0>=$e0) and (B0<=$ef) then
+          begin
+            if SourcePos+1<SourceBytes then
+              begin
+                B1:=ord(Source[SourcePos+1]);
+                if B1 and $c0=$80 then
+                  begin
+                    Consumed:=2;
+                    if (B0<>$e0) or (B1>=$a0) then
+                      if (B0<>$ed) or (B1<$a0) then
+                        if SourcePos+2<SourceBytes then
+                          begin
+                            B2:=ord(Source[SourcePos+2]);
+                            if B2 and $c0=$80 then
+                              begin
+                                UC:=(B0 and $f) shl 12 or (B1 and $3f) shl 6 or (B2 and $3f);
+                                Consumed:=3;
+                                Valid:=true;
+                              end;
+                          end;
+                  end;
+              end;
+          end
+        else if (B0>=$f0) and (B0<=$f4) then
+          begin
+            if SourcePos+1<SourceBytes then
+              begin
+                B1:=ord(Source[SourcePos+1]);
+                if B1 and $c0=$80 then
+                  begin
+                    Consumed:=2;
+                    if (B0<>$f0) or (B1>=$90) then
+                      if (B0<>$f4) or (B1<$90) then
+                        if SourcePos+2<SourceBytes then
+                          begin
+                            B2:=ord(Source[SourcePos+2]);
+                            if B2 and $c0=$80 then
+                              begin
+                                Consumed:=3;
+                                if SourcePos+3<SourceBytes then
+                                  begin
+                                    B3:=ord(Source[SourcePos+3]);
+                                    if B3 and $c0=$80 then
+                                      begin
+                                        UC:=(B0 and $7) shl 18 or (B1 and $3f) shl 12 or (B2 and $3f) shl 6 or (B3 and $3f);
+                                        Consumed:=4;
+                                        Valid:=true;
+                                      end;
+                                  end;
+                              end;
+                          end;
+                  end;
+              end;
           end;
-          if not IgnoreInvalid then
-            HandleError(231);
-          inc(SourcePos);
-          if ord(Source[SourcePos-1]) and $C0<>$80 then
-            while (SourcePos<SourceBytes) and (ord(Source[SourcePos]) and $C0=$80) do
-              inc(SourcePos);
-          if SourcePos>=SourceBytes then break;
-        until false;
+        if not Valid and not IgnoreInvalid then
+          HandleError(231); // Will be converted to EConversionError in sysutils
+        if UC<=$ffff then
+          begin
+            if Assigned(Dest) then
+              begin
+                if DestPos>=MaxDestChars then
+                  break;
+                Dest[DestPos]:=unicodechar(UC);
+              end;
+            inc(DestPos);
+          end
+        else
+          begin
+            if Assigned(Dest) then
+              begin
+                if DestPos+1>=MaxDestChars then
+                  break;
+                Dest[DestPos]:=unicodechar($d7c0+(UC shr 10));
+                Dest[DestPos+1]:=unicodechar($dc00+(UC and $3ff));
+              end;
+            inc(DestPos,2);
+          end;
+        inc(SourcePos,Consumed);
+      end;
+    if Assigned(Dest) and (DestPos<MaxDestChars) then
+      Dest[DestPos]:=#0;
     Result:=DestPos+1 {null terminator, in both branches};
   end;
 {$endif EXCLUDE_COMPLEX_PROCS}
@@ -1977,28 +2088,101 @@ function UTF8Encode(const s : RawByteString) : RawByteString; inline;
   end;
 
 
+{$if defined(CPUX86_64) and defined(ENDIAN_LITTLE)}
+function UTF8EncodeAscii8(source : PUnicodeChar; dest : PAnsiChar;
+  count : SizeInt) : SizeInt; assembler; nostackframe;
+asm
+{$ifndef FPC_ABI_WIN64}
+    movq %rdx,%r8
+    movq %rsi,%rdx
+    movq %rdi,%rcx
+{$endif}
+    xorq %rax,%rax
+    cmpq $8,%r8
+    jl .Ldone
+    pxor %xmm1,%xmm1
+    .p2align 4
+.Lloop:
+    movdqu (%rcx),%xmm0
+    movdqa %xmm0,%xmm2
+    psrlw $7,%xmm2
+    pcmpeqw %xmm1,%xmm2
+    pmovmskb %xmm2,%r9d
+    cmpl $65535,%r9d
+    jne .Ldone
+    packuswb %xmm0,%xmm0
+    movq %xmm0,(%rdx)
+    addq $16,%rcx
+    addq $8,%rdx
+    addq $8,%rax
+    subq $8,%r8
+    cmpq $8,%r8
+    jge .Lloop
+.Ldone:
+end;
+{$endif defined(CPUX86_64) and defined(ENDIAN_LITTLE)}
+
+
 {$ifndef FPC_HAS_UTF8ENCODE_UNICODESTRING}
 {$define FPC_HAS_UTF8ENCODE_UNICODESTRING}
 function UTF8Encode(const s : UnicodeString) : RawByteString;
   var
-    i,ns : SizeInt;
-    p : PAnsiChar;
+    ns,processed,remaining : SizeInt;
+    source : PUnicodeChar;
+    dest : PAnsiChar;
+    c,c2 : Cardinal;
   begin
     result:='';
     if Length(s)=0 then
       exit;
     ns:=Length(s);
     SetLength(utf8string(result),ns);
-    p:=Pointer(result);
-    for i:=0 to ns-1 do
+    source:=Pointer(s);
+    dest:=Pointer(result);
+    remaining:=ns;
+    {$if defined(CPUX86_64) and defined(ENDIAN_LITTLE)}
+    processed:=UTF8EncodeAscii8(source,dest,remaining);
+    inc(source,processed);
+    inc(dest,processed);
+    dec(remaining,processed);
+    while remaining>=4 do
       begin
-      if Word(s[i+1])>$7f then
+      c:=PCardinal(source)^;
+      c2:=PCardinal(source+2)^;
+      if (c or c2) and $ff80ff80<>0 then
+        break;
+      c:=c shr 8 or c;
+      c2:=c2 shr 8 or c2;
+      PCardinal(dest)^:=(c and $ffff) or ((c2 and $ffff) shl 16);
+      inc(source,4);
+      inc(dest,4);
+      dec(remaining,4);
+      end;
+    while remaining>=2 do
+      begin
+      c:=PCardinal(source)^;
+      if c and $ff80ff80<>0 then
+        break;
+      c:=c shr 8 or c;
+      PWord(dest)^:=Word(c);
+      inc(source,2);
+      inc(dest,2);
+      dec(remaining,2);
+      end;
+    {$endif defined(CPUX86_64) and defined(ENDIAN_LITTLE)}
+    while remaining>0 do
+      begin
+      c:=Word(source^);
+      if c>$7f then
         begin
         SetLength(utf8string(result),ns*3);
         SetLength(utf8string(result),UnicodeToUtf8(pointer(result),ns*3+1,pointer(s),ns)-1); { SetLength(-1) is equivalent to SetLength(0). }
         exit;
         end;
-      p[i]:=AnsiChar(s[i+1]);
+      dest^:=AnsiChar(Byte(c));
+      inc(source);
+      inc(dest);
+      dec(remaining);
       end;
   end;
 {$endif FPC_HAS_UTF8ENCODE_UNICODESTRING}
@@ -2008,21 +2192,63 @@ function UTF8Encode(const s : UnicodeString) : RawByteString;
 {$define FPC_HAS_UTF8DECODE_UNICODESTRING}
 function UTF8Decode(const s : RawByteString): UnicodeString;
   var
-    i,ns : SizeInt;
+    ns,remaining : SizeInt;
+    source : PAnsiChar;
+    dest : PUnicodeChar;
+    c : Cardinal;
+    q : QWord;
   begin
     result:='';
     if Length(s)=0 then
       exit;
     ns:=Length(s);
     SetLength(result,ns);
-    for i:=0 to ns-1 do
+    source:=Pointer(s);
+    dest:=Pointer(result);
+    remaining:=ns;
+    {$if defined(CPUX86_64) and defined(ENDIAN_LITTLE)}
+    while remaining>=8 do
       begin
-      if Byte(s[i+1])>$7f then
+      q:=PQWord(source)^;
+      if q and QWord($8080808080808080)<>0 then
+        break;
+      c:=Cardinal(q);
+      PCardinal(dest)^:=(c shl 8 or (c and $ff)) and $00ff00ff;
+      c:=c shr 16;
+      PCardinal(dest+2)^:=(c shl 8 or c) and $00ff00ff;
+      c:=Cardinal(q shr 32);
+      PCardinal(dest+4)^:=(c shl 8 or (c and $ff)) and $00ff00ff;
+      c:=c shr 16;
+      PCardinal(dest+6)^:=(c shl 8 or c) and $00ff00ff;
+      inc(source,8);
+      inc(dest,8);
+      dec(remaining,8);
+      end;
+    while remaining>=4 do
+      begin
+      c:=PCardinal(source)^;
+      if c and $80808080<>0 then
+        break;
+      PCardinal(dest)^:=(c shl 8 or (c and $ff)) and $00ff00ff;
+      c:=c shr 16;
+      PCardinal(dest+2)^:=(c shl 8 or c) and $00ff00ff;
+      inc(source,4);
+      inc(dest,4);
+      dec(remaining,4);
+      end;
+    {$endif defined(CPUX86_64) and defined(ENDIAN_LITTLE)}
+    while remaining>0 do
+      begin
+      c:=Byte(source^);
+      if c>$7f then
         begin
         SetLength(result,Utf8ToUnicode(pointer(result),ns+1,pointer(s),ns)-1);
         exit;
         end;
-      result[i+1]:=UnicodeChar(Byte(s[i+1]));
+      dest^:=UnicodeChar(c);
+      inc(source);
+      inc(dest);
+      dec(remaining);
       end;
   end;
 {$endif FPC_HAS_UTF8DECODE_UNICODESTRING}
@@ -2220,6 +2446,16 @@ function StubCompareUnicodeString(const s1, s2 : UnicodeString; Options : TCompa
     unimplementedunicodestring;
   end;
 
+function StubCompareUnicodeBufferToString(Buffer: PUnicodeChar;
+  BufferLength: SizeInt; const S: UnicodeString;
+  Options: TCompareOptions): PtrInt;
+  var
+    BufferString: UnicodeString;
+  begin
+    SetString(BufferString,Buffer,BufferLength);
+    Result:=widestringmanager.CompareUnicodeStringProc(BufferString,S,Options);
+  end;
+
 function StubWideCase(const s: WideString): WideString;
   begin
     unimplementedunicodestring;
@@ -2252,6 +2488,8 @@ procedure initunicodestringmanager;
     widestringmanager.CompareWideStringProc:=@StubCompareWideString;
 //    widestringmanager.CompareTextWideStringProc:=@StubCompareWideString;
     widestringmanager.CompareUnicodeStringProc:=@StubCompareUnicodeString;
+    widestringmanager.CompareUnicodeBufferToStringProc:=
+      @StubCompareUnicodeBufferToString;
     widestringmanager.CharLengthPCharProc:=@DefaultCharLengthPChar;
     widestringmanager.CodePointLengthProc:=@DefaultCodePointLength;
   end;

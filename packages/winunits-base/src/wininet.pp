@@ -2639,8 +2639,6 @@ Type
              var lpcbEntryInfo:DWORD; lpGroupAttributes:LPVOID; var lpcbGroupAttributes:DWORD; lpReserved:LPVOID):HANDLE;stdcall;external WININETLIBNAME name 'FindFirstUrlCacheEntryExW';
   function FindNextUrlCacheEntryEx(hEnumHandle:HANDLE; lpNextCacheEntryInfo:LPINTERNET_CACHE_ENTRY_INFOW; var lpcbEntryInfo:DWORD; lpGroupAttributes:LPVOID; lpcbGroupAttributes:LPDWORD;
              lpReserved:LPVOID):BOOL;stdcall;external WININETLIBNAME name 'FindNextUrlCacheEntryExW';
-  function FindFirstUrlCacheEntry(lpszUrlSearchPattern:LPCWSTR; lpFirstCacheEntryInfo:LPINTERNET_CACHE_ENTRY_INFOW; var lpcbCacheEntryInfo:DWORD):HANDLE;stdcall;external WININETLIBNAME name 'FindFirstUrlCacheEntryW';
-  function FindNextUrlCacheEntry(hEnumHandle:HANDLE; lpNextCacheEntryInfo:LPINTERNET_CACHE_ENTRY_INFOW; var lpcbCacheEntryInfo:DWORD):BOOL;stdcall;external WININETLIBNAME name 'FindNextUrlCacheEntryW';
   function InternetDial(hwndParent:HWND; lpszConnectoid:LPWSTR; dwFlags:DWORD; var lpdwConnection:DWORD; dwReserved:DWORD):DWORD;stdcall;external WININETLIBNAME name 'InternetDialW';
   function InternetGetConnectedStateEx(var lpdwFlags:DWORD; lpszConnectionName:LPWSTR; dwBufLen:DWORD; dwReserved:DWORD):BOOL;stdcall;external WININETLIBNAME name 'InternetGetConnectedStateExW';
 

@@ -320,7 +320,7 @@ TYPE
 {                              PALETTE RECORD                               }
 {---------------------------------------------------------------------------}
 TYPE
-   TPalette = String;                                 { Palette record }
+   TPalette = ShortString;                            { Palette record }
    PPalette = ^TPalette;                              { Pointer to palette }
 
 {---------------------------------------------------------------------------}

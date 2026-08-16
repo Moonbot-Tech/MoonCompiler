@@ -132,7 +132,7 @@ interface
           astringdefderef : tderef;
           cst_type : tconststringtype;
           constructor createstr(const s : string);virtual;
-          constructor createpchar(s: pchar; l: longint; def: tdef);virtual;
+          constructor createpchar(s: pansichar; l: longint; def: tdef);virtual;
           constructor createunistr(w : tcompilerwidestring);virtual;
           constructor ppuload(t:tnodetype;ppufile:tcompilerppufile);override;
           procedure ppuwrite(ppufile:tcompilerppufile);override;
@@ -142,13 +142,13 @@ interface
           function dogetcopy : tnode;override;
           function pass_1 : tnode;override;
           function pass_typecheck:tnode;override;
-          function getpcharcopy : pchar;
+          function getpcharcopy : pansichar;
           function docompare(p: tnode) : boolean; override;
           procedure changestringtype(def:tdef);
           function fullcompare(p: tstringconstnode): longint;
           function emit_data(tcb:ttai_typedconstbuilder):sizeint; override;
           function asrawbytestring: rawbytestring;
-          function asconstpchar : pchar; inline;
+          function asconstpchar : pansichar; inline;
           { returns whether this platform uses the nil pointer to represent
             empty dynamic strings }
           class function emptydynstrnil: boolean; virtual;
@@ -367,7 +367,7 @@ implementation
       var
         p1  : tnode;
         len : longint;
-        pc  : pchar;
+        pc  : pansichar;
         value_set : pconstset;
       begin
         p1:=nil;
@@ -913,7 +913,7 @@ implementation
       end;
 
 
-    constructor tstringconstnode.createpchar(s: pchar; l: longint; def: tdef);
+    constructor tstringconstnode.createpchar(s: pansichar; l: longint; def: tdef);
       begin
          inherited create(stringconstn);
          len:=l;
@@ -1082,9 +1082,9 @@ implementation
       end;
 
 
-    function tstringconstnode.getpcharcopy : pchar;
+    function tstringconstnode.getpcharcopy : pansichar;
       var
-         pc : pchar;
+         pc : pansichar;
       begin
          pc:=nil;
          getmem(pc,len+1);
@@ -1117,7 +1117,7 @@ implementation
           cst_shortstring,cst_longstring,cst_ansistring,cst_widestring,cst_unicodestring);
       var
         pw : tcompilerwidestring;
-        pc : pchar;
+        pc : pansichar;
         cp1 : tstringencoding;
         cp2 : tstringencoding;
         l,l2 : longint;
@@ -1293,13 +1293,13 @@ implementation
     begin
       Result:='';
       if Length(valueas)>0 then
-        Result:=pchar(@valueas[0]);
+        Result:=pansichar(@valueas[0]);
     end;
 
     var
       cEmptyString : ansichar = #0;
 
-    function tstringconstnode.asconstpchar: pchar;
+    function tstringconstnode.asconstpchar: pansichar;
     begin
       if length(valueas)>0 then
         Result:=@valueas[0]

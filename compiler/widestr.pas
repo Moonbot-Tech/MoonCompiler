@@ -53,20 +53,20 @@ unit widestr;
     procedure copywidestring(s,d : tcompilerwidestring);
     function asciichar2unicode(c : char) : tcompilerwidechar;
     function unicode2asciichar(c : tcompilerwidechar) : char;
-    procedure ascii2unicode(p : pchar;l : SizeInt;cp : tstringencoding;r : tcompilerwidestring;codepagetranslation : boolean = true);
-    procedure unicode2ascii(r : tcompilerwidestring;p : pchar;cp : tstringencoding);
+    procedure ascii2unicode(p : pansichar;l : SizeInt;cp : tstringencoding;r : tcompilerwidestring;codepagetranslation : boolean = true);
+    procedure unicode2ascii(r : tcompilerwidestring;p : pansichar;cp : tstringencoding);
     procedure unicode2ascii(r : tcompilerwidestring;arr:TAnsiCharDynArray;cp : tstringencoding);
     function hasnonasciichars(const p: tcompilerwidestring): boolean;
     function getcharwidestring(r : tcompilerwidestring;l : SizeInt) : tcompilerwidechar;
     function cpavailable(const s: string) : boolean;
     function cpavailable(cp: word) : boolean;
     procedure changecodepage(
-      s : pchar; l : SizeInt; scp : tstringencoding;
-      d : pchar; dcp : tstringencoding
+      s : pansichar; l : SizeInt; scp : tstringencoding;
+      d : pansichar; dcp : tstringencoding
     );
     function codepagebyname(const s : string) : tstringencoding;
-    function charlength(p: pchar; len: sizeint): sizeint;
-    function charlength(const s: string): sizeint;
+    function charlength(p: pansichar; len: sizeint): sizeint;
+    function charlength(const s: ansistring): sizeint;
 
   implementation
 
@@ -202,9 +202,9 @@ unit widestr;
       end;
 
 
-    procedure ascii2unicode(p : pchar;l : SizeInt;cp : tstringencoding;r : tcompilerwidestring;codepagetranslation : boolean = true);
+    procedure ascii2unicode(p : pansichar;l : SizeInt;cp : tstringencoding;r : tcompilerwidestring;codepagetranslation : boolean = true);
       var
-         source : pchar;
+         source : pansichar;
          dest   : tcompilerwidecharptr;
          i      : SizeInt;
          m      : punicodemap;
@@ -249,14 +249,14 @@ unit widestr;
     begin
       if (r.len=0) or (length(arr)=0) then
         exit;
-      unicode2ascii(r,Pchar(@arr[0]),cp);
+      unicode2ascii(r,PAnsiChar(@arr[0]),cp);
     end;
 
-    procedure unicode2ascii(r : tcompilerwidestring;p:pchar;cp : tstringencoding);
+    procedure unicode2ascii(r : tcompilerwidestring;p:pansichar;cp : tstringencoding);
       var
         m : punicodemap;
         source : tcompilerwidecharptr;
-        dest   : pchar;
+         dest   : pansichar;
         i      : longint;
       begin
         { can't implement that here, because the memory size for p() cannot
@@ -311,13 +311,13 @@ unit widestr;
       end;
 
     procedure changecodepage(
-      s : pchar; l : SizeInt; scp : tstringencoding;
-      d : pchar; dcp : tstringencoding
+      s : pansichar; l : SizeInt; scp : tstringencoding;
+      d : pansichar; dcp : tstringencoding
     );
       var
         ms, md : punicodemap;
-        source : pchar;
-        dest   : pchar;
+        source : pansichar;
+        dest   : pansichar;
         i      : longint;
       begin
         ms:=getmap(scp);
@@ -343,9 +343,9 @@ unit widestr;
       end;
 
 
-    function charlength(p: pchar; len: sizeint): sizeint;
+    function charlength(p: pansichar; len: sizeint): sizeint;
       var
-        p2: pchar;
+        p2: pansichar;
         i, chars, codepointlen: sizeint;
       begin
         if len=0 then
@@ -381,7 +381,7 @@ unit widestr;
           result:=len;
       end;
 
-    function charlength(const s: string): sizeint;
+    function charlength(const s: ansistring): sizeint;
       begin
         result:=charlength(@s[1],length(s));
       end;

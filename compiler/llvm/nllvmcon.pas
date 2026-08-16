@@ -37,7 +37,7 @@ interface
        end;
 
        tllvmstringconstnode = class(tcgstringconstnode)
-          constructor createpchar(s: pchar; l: longint; def: tdef); override;
+          constructor createpchar(s: pansichar; l: longint; def: tdef); override;
           function pass_typecheck: tnode; override;
           function pass_1: tnode; override;
           procedure pass_generate_code; override;
@@ -60,7 +60,7 @@ implementation
                            tllvmstringconstnode
 *****************************************************************************}
 
-    constructor tllvmstringconstnode.createpchar(s: pchar; l: longint; def: tdef);
+    constructor tllvmstringconstnode.createpchar(s: pansichar; l: longint; def: tdef);
       begin
         inherited;
         if def=llvm_metadatatype then

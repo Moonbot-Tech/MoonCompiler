@@ -58,15 +58,12 @@ end;
 
 function DecodedScalar(CodePoint: Cardinal): UnicodeString;
 begin
-  if (CodePoint=$fffe) or (CodePoint=$ffff) then
-    Result:='?'
-  else
-    Result:=ScalarString(CodePoint);
+  Result:=ScalarString(CodePoint);
 end;
 
 procedure CheckAscii;
 var
-  I: Integer;
+  I,J: Integer;
   Raw: RawByteString;
   Text: UnicodeString;
 begin
@@ -82,6 +79,17 @@ begin
   Check(UTF8Encode(Text)=Raw,'all ASCII encode including NUL');
   Check(UTF8Decode(Raw)=Text,'all ASCII decode including NUL');
   Check(StringCodePage(UTF8Encode(Text))=CP_UTF8,'UTF-8 code page');
+  for I:=0 to 33 do
+    begin
+    SetLength(Raw,I);
+    SetLength(Text,I);
+    for J:=1 to I do
+      begin
+      Text[J]:=UnicodeChar(32+((J*37) mod 95));
+      Raw[J]:=AnsiChar(Byte(Text[J]));
+      end;
+    Check(UTF8Encode(Text)=Raw,'ASCII vector boundary '+IntToStr(I));
+    end;
 end;
 
 procedure CheckBoundaries;
@@ -104,24 +112,34 @@ begin
       'boundary decode '+IntToHex(Scalars[I],6));
     end;
   Text:='A'+UnicodeChar($d800)+'B'+UnicodeChar($dc00)+'C';
-  Check(UTF8Encode(Text)='ABC','unpaired surrogates are omitted');
+  Check(UTF8Encode(Text)='A'+RawBytes([$ef,$bf,$bd])+'B'+
+    RawBytes([$ef,$bf,$bd])+'C','unpaired surrogates use replacement character');
 end;
 
 procedure CheckInvalidUtf8;
 begin
-  Check(UTF8Decode(RawBytes([$80]))='?','isolated continuation');
-  Check(UTF8Decode(RawBytes([$c0,$af]))='?','overlong two-byte form');
-  Check(UTF8Decode(RawBytes([$e0,$80,$80]))='?','overlong three-byte form');
-  Check(UTF8Decode(RawBytes([$ed,$a0,$80]))='?','encoded surrogate');
-  Check(UTF8Decode(RawBytes([$f4,$90,$80,$80]))='?','above Unicode range');
-  Check(UTF8Decode(RawBytes([$e2,$82]))='?','incomplete sequence');
-  Check(UTF8Decode('A'+RawBytes([$80])+'B')='A?B','invalid byte in text');
+  Check(UTF8Decode(RawBytes([$80]))=UnicodeChar($fffd),
+    'isolated continuation');
+  Check(UTF8Decode(RawBytes([$c0,$af]))=UnicodeChar($fffd)+UnicodeChar($fffd),
+    'overlong two-byte form');
+  Check(UTF8Decode(RawBytes([$e0,$80,$80]))=
+    UnicodeChar($fffd)+UnicodeChar($fffd),'overlong three-byte form');
+  Check(UTF8Decode(RawBytes([$ed,$a0,$80]))=
+    UnicodeChar($fffd)+UnicodeChar($fffd),'encoded surrogate');
+  Check(UTF8Decode(RawBytes([$f4,$90,$80,$80]))=
+    UnicodeChar($fffd)+UnicodeChar($fffd)+UnicodeChar($fffd),
+    'above Unicode range');
+  Check(UTF8Decode(RawBytes([$e2,$82]))=UnicodeChar($fffd),
+    'incomplete sequence');
+  Check(UTF8Decode('A'+RawBytes([$80])+'B')='A'+UnicodeChar($fffd)+'B',
+    'invalid byte in text');
 end;
 
 procedure CheckMixedFallback;
 var
   Expected: RawByteString;
   I: Integer;
+  Prefix: UnicodeString;
   Text: UnicodeString;
 begin
   Text:='ascii-prefix-'+ScalarString($1f680)+'-ascii-suffix';
@@ -131,6 +149,15 @@ begin
   Check(UTF8Decode(Expected)=Text,'mixed fallback decode');
   Check(StringCodePage(UTF8Encode(Text))=CP_UTF8,
     'mixed fallback code page');
+
+  for I:=0 to 17 do
+    begin
+    Prefix:=StringOfChar('a',I);
+    Text:=Prefix+UnicodeChar($20ac)+'z';
+    Expected:=RawByteString(Prefix)+RawBytes([$e2,$82,$ac])+'z';
+    Check(UTF8Encode(Text)=Expected,'chunk boundary encode '+IntToStr(I));
+    Check(UTF8Decode(Expected)=Text,'chunk boundary decode '+IntToStr(I));
+    end;
 
   SetLength(Text,4096);
   for I:=1 to Length(Text) do
@@ -166,6 +193,83 @@ begin
     end;
 end;
 
+procedure CheckInvariantCase;
+var
+  Converted, ExpectedLower, ExpectedUpper, Mixed, Original, Source,
+    Unchanged: UnicodeString;
+  I: Integer;
+begin
+  Check(LowerCase('')='','empty lowercase');
+  Check(UpperCase('')='','empty uppercase');
+  Mixed:='aAzZ09'+UnicodeChar($0100)+UnicodeChar($042F);
+  Check(LowerCase(Mixed)='aazz09'+UnicodeChar($0100)+UnicodeChar($042F),
+    'lowercase changes ASCII only');
+  Check(UpperCase(Mixed)='AAZZ09'+UnicodeChar($0100)+UnicodeChar($042F),
+    'uppercase changes ASCII only');
+  Unchanged:=UnicodeChar($0100)+UnicodeChar($042F)+'-09';
+  Check(LowerCase(Unchanged)=Unchanged,'lowercase unchanged Unicode');
+  Check(UpperCase(Unchanged)=Unchanged,'uppercase unchanged Unicode');
+
+  SetLength(Source,65536);
+  SetLength(ExpectedLower,65536);
+  SetLength(ExpectedUpper,65536);
+  for I:=0 to 65535 do
+    begin
+    Source[I+1]:=UnicodeChar(I);
+    if (I>=Ord('A')) and (I<=Ord('Z')) then
+      ExpectedLower[I+1]:=UnicodeChar(I xor $20)
+    else
+      ExpectedLower[I+1]:=UnicodeChar(I);
+    if (I>=Ord('a')) and (I<=Ord('z')) then
+      ExpectedUpper[I+1]:=UnicodeChar(I xor $20)
+    else
+      ExpectedUpper[I+1]:=UnicodeChar(I);
+    end;
+  Check(LowerCase(Source)=ExpectedLower,'lowercase exhaustive UTF-16');
+  Check(UpperCase(Source)=ExpectedUpper,'uppercase exhaustive UTF-16');
+
+  Original:='already-lowercase-0123';
+  Converted:=LowerCase(Original);
+  Check(Pointer(Converted)<>Pointer(Original),'lowercase owns its result');
+  PWideChar(Converted)^:='X';
+  Check(Original[1]='a','lowercase result does not alias its input');
+
+  Check(CompareText('aZ','Az')=0,'CompareText ASCII case folding');
+  Check(CompareText('a','aa')<0,'CompareText shorter prefix');
+  Check(CompareText('aa','a')>0,'CompareText longer prefix');
+  Check(CompareText(UnicodeChar($0100),UnicodeChar($0200))<0,
+    'CompareText preserves high Unicode byte');
+  Check(CompareText(UnicodeChar($0200),UnicodeChar($0100))>0,
+    'CompareText preserves reverse high Unicode byte');
+  Check(CompareText(UnicodeChar($0141)+'a',UnicodeChar($0141)+'A')=0,
+    'CompareText folds ASCII after non-ASCII');
+end;
+
+procedure CheckOrdinalComparison;
+var
+  A, B: UnicodeString;
+begin
+  Check(UnicodeCompareStr('','')=0,'ordinal both empty');
+  Check(UnicodeCompareStr('','a')<0,'ordinal empty first');
+  Check(UnicodeCompareStr('a','')>0,'ordinal empty second');
+  Check(UnicodeCompareStr('prefix','prefix')=0,'ordinal equal');
+  Check(UnicodeCompareStr('prefix','prefix-a')<0,'ordinal shorter prefix');
+  Check(UnicodeCompareStr('prefix-a','prefix')>0,'ordinal longer prefix');
+  Check(UnicodeCompareStr('abcdX','abcdY')<0,'ordinal qword mismatch');
+  Check(UnicodeCompareStr('abcdefX','abcdefY')<0,'ordinal tail mismatch');
+  Check(UnicodeCompareStr(UnicodeChar($00ff),UnicodeChar($0100))<0,
+    'ordinal compares UTF-16 code units');
+  Check(UnicodeCompareStr(UnicodeChar($d800),UnicodeChar($e000))<0,
+    'ordinal compares surrogate code units');
+
+  A:='ab'+UnicodeChar(0)+'x';
+  B:='ab'+UnicodeChar(0)+'y';
+  Check(UnicodeCompareStr(A,B)<0,'ordinal embedded NUL');
+  Check(not UnicodeSameStr(A,B),'same-str embedded NUL mismatch');
+  B:=A;
+  Check(UnicodeSameStr(A,B),'same-str embedded NUL equal');
+end;
+
 begin
   try
     CheckAscii;
@@ -173,6 +277,8 @@ begin
     CheckInvalidUtf8;
     CheckMixedFallback;
     CheckRandomScalars;
+    CheckInvariantCase;
+    CheckOrdinalComparison;
     WriteLn('UNICODE_CONVERSION_PASS');
   except
     on E: Exception do

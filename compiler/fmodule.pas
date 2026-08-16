@@ -433,7 +433,7 @@ implementation
 
     procedure rtti_expose_add_module(const s: ansistring);
       var
-        parts: TStringArray;
+        parts: TAnsiStringArray;
         i: integer;
         p: ansistring;
       begin

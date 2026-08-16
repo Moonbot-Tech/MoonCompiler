@@ -32,7 +32,7 @@ interface
       symtype,symdef;
 
     { Check whether a string contains a syntactically valid selector name.  }
-    function objcvalidselectorname(value_str: pchar; len: longint): boolean;
+    function objcvalidselectorname(value_str: pansichar; len: longint): boolean;
 
     { Generate a node loading the superclass structure necessary to call
       an inherited Objective-C method.  }
@@ -67,7 +67,7 @@ implementation
                        validselectorname
 *******************************************************************}
 
-function objcvalidselectorname(value_str: pchar; len: longint): boolean;
+function objcvalidselectorname(value_str: pansichar; len: longint): boolean;
   var
     i         : longint;
     gotcolon  : boolean;

@@ -69,13 +69,13 @@ type
     FPartialMatch: boolean;
 
   protected
-    FCurrentExpression: string;
+    FCurrentExpression: AnsiString;
 
     procedure FillExpressList; override;
-    procedure HandleUnknownVariable(VarName: string); override;
-    function  GetVariableInfo(const VarName: string): TDbfFieldDef;
-    function  CurrentExpression: string; override;
-    procedure ValidateExpression(AExpression: string); virtual;
+    procedure HandleUnknownVariable(VarName: AnsiString); override;
+    function  GetVariableInfo(const VarName: AnsiString): TDbfFieldDef;
+    function  CurrentExpression: AnsiString; override;
+    procedure ValidateExpression(AExpression: AnsiString); virtual;
     function  GetResultType: TExpressionType; override;
     function  GetResultLen: Integer;
 
@@ -88,11 +88,11 @@ type
 
     procedure ClearExpressions; override;
 
-    procedure ParseExpression(AExpression: string); virtual;
+    procedure ParseExpression(AExpression: AnsiString); virtual;
     function ExtractFromBuffer(Buffer: TRecordBuffer): PAnsiChar; virtual;
 
     property DbfFile: Pointer read FDbfFile write FDbfFile;
-    property Expression: string read FCurrentExpression;
+    property Expression: AnsiString read FCurrentExpression;
     property ResultLen: Integer read GetResultLen;
 
     property CaseInsensitive: Boolean read FCaseInsensitive write SetCaseInsensitive;
@@ -130,7 +130,7 @@ type
   private
     FFieldDef: TDbfFieldDef;
     FDbfFile: TDbfFile;
-    FFieldName: string;
+    FFieldName: AnsiString;
     FExprWord: TExprWord;
   protected
     function GetFieldVal: Pointer; virtual; abstract;
@@ -147,7 +147,7 @@ type
     property FieldDef: TDbfFieldDef read FFieldDef;
     property FieldType: TExpressionType read GetFieldType;
     property DbfFile: TDbfFile read FDbfFile;
-    property FieldName: string read FFieldName;
+    property FieldName: AnsiString read FFieldName;
   end;
 
   TStringFieldVar = class(TFieldVar)
@@ -479,7 +479,7 @@ end;
 
 procedure TDbfParser.FillExpressList;
 var
-  lExpression: string;
+  lExpression: AnsiString;
 begin
   lExpression := FCurrentExpression;
   ClearExpressions;
@@ -507,12 +507,12 @@ begin
     ParseExpression(lExpression);
 end;
 
-function TDbfParser.GetVariableInfo(const VarName: string): TDbfFieldDef;
+function TDbfParser.GetVariableInfo(const VarName: AnsiString): TDbfFieldDef;
 begin
   Result := TDbfFile(FDbfFile).GetFieldInfo(VarName);
 end;
 
-procedure TDbfParser.HandleUnknownVariable(VarName: string);
+procedure TDbfParser.HandleUnknownVariable(VarName: AnsiString);
 var
   FieldInfo: TDbfFieldDef;
   TempFieldVar: TFieldVar;
@@ -565,7 +565,7 @@ begin
   FFieldVarList.AddObject(VarName, TempFieldVar);
 end;
 
-function TDbfParser.CurrentExpression: string;
+function TDbfParser.CurrentExpression: AnsiString;
 begin
   Result := FCurrentExpression;
 end;
@@ -593,11 +593,11 @@ begin
   FCurrentExpression := EmptyStr;
 end;
 
-procedure TDbfParser.ValidateExpression(AExpression: string);
+procedure TDbfParser.ValidateExpression(AExpression: AnsiString);
 begin
 end;
 
-procedure TDbfParser.ParseExpression(AExpression: string);
+procedure TDbfParser.ParseExpression(AExpression: AnsiString);
 begin
   // clear any current expression
   ClearExpressions;

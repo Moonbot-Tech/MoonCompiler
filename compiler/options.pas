@@ -1963,7 +1963,7 @@ procedure TOption.Interpret_envvar(const envname: TCmdStr);
 var
   argstart,
   env,
-  pc     : pchar;
+  pc     : pansichar;
   arglen : longint;
   quote  : set of char;
   hs     : TCmdStr;

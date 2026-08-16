@@ -95,40 +95,11 @@ ensure_project_dependency() {
   done
 }
 
-compile_project_ansi_bundle() {
-  local entry=$1 ansi_unit_dir="$unit_dir/ansi" source path
-  local ansi_options=(
-    -n "@$TOOLCHAIN/etc/fpc.cfg" -Mdelphi -Mansistrings
-    -MduplicateLocals -Madvancedrecords -Marrayoperators
-    -Munderscoreisseparator -Mfunctionreferences -Manonymousfunctions
-    -Minlinevars -Mimplicitgenerics -Mautoderef
-    -Px86_64 -Tlinux -Rintel -dPOSIX -B
-    -dMOONBOT_MM_PROFILE_REQUIRED -dFPCMM_BOOSTER -dFPCMM_MOONSHARD
-    "--pinned-unit=mormot.core.fpcx64mm=$MM_SOURCE"
-    --required-first-unit=mormot.core.fpcx64mm
-    "${namespace_options[@]}"
-    "-FU$ansi_unit_dir"
-  )
-  mkdir -p "$ansi_unit_dir"
-  for source in "${ansi_sources[@]}"; do
-    while IFS= read -r -d '' path; do
-      ansi_options+=("-Fu$path" "-Fi$path")
-    done < <(find -L "$source" -type d \
-      -not -path '*/.git' -not -path '*/.git/*' \
-      -not -path '*/dcu' -not -path '*/dcu/*' \
-      -not -path '*/build' -not -path '*/build/*' \
-      -print0 | sort -z)
-  done
-  "$TOOLCHAIN/bin/fpc" "${ansi_options[@]}" "${profile_options[@]}" "$entry"
-  options+=("-Fu$ansi_unit_dir")
-}
-
 configure_project_profile() {
-  local line key value source entry=
+  local line key value source
   manifest=$(project_manifest_path)
   manifest_dir=$project_dir
   local -a sources=() dependencies=() aliases=()
-  ansi_sources=()
 
   if [[ ! -f "$manifest" ]]; then
     add_project_source_tree "$project_dir"
@@ -152,14 +123,6 @@ configure_project_profile() {
       source) sources+=("$(manifest_absolute_path "$value")") ;;
       alias) aliases+=("$value") ;;
       dependency) dependencies+=("$value") ;;
-      ansi-source) ansi_sources+=("$(manifest_absolute_path "$value")") ;;
-      ansi-entry)
-        [[ -z "$entry" ]] || {
-          echo "duplicate ansi-entry in $manifest" >&2
-          return 1
-        }
-        entry=$(manifest_absolute_path "$value")
-        ;;
       *)
         echo "unknown project manifest directive in $manifest: $key" >&2
         return 1
@@ -181,25 +144,4 @@ configure_project_profile() {
   for source in "${sources[@]}"; do
     add_project_source_tree "$source"
   done
-
-  if [[ -n "$entry" ]]; then
-    [[ -f "$entry" ]] || {
-      echo "ANSI bundle entry does not exist: $entry" >&2
-      return 1
-    }
-    [[ ${#ansi_sources[@]} -gt 0 ]] || {
-      echo "ansi-entry requires at least one ansi-source in $manifest" >&2
-      return 1
-    }
-    for source in "${ansi_sources[@]}"; do
-      [[ -d "$source" ]] || {
-        echo "ANSI source tree does not exist: $source" >&2
-        return 1
-      }
-    done
-    compile_project_ansi_bundle "$entry"
-  elif [[ ${#ansi_sources[@]} -gt 0 ]]; then
-    echo "ansi-source requires ansi-entry in $manifest" >&2
-    return 1
-  fi
 }

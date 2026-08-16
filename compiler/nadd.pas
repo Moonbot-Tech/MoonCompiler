@@ -955,8 +955,8 @@ const
         rvd,lvd : bestreal;
         ws1,ws2 : tcompilerwidestring;
         concatstrings : boolean;
-        c1,c2   : array[0..1] of char;
-        s1,s2,stmp   : pchar;
+        c1,c2   : array[0..1] of ansichar;
+        s1,s2,stmp   : pansichar;
         l1,l2   : longint;
         resultset : Tconstset;
         res,wrapped,

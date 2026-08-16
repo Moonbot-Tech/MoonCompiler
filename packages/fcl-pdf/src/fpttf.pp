@@ -611,7 +611,7 @@ var
 
 begin
   {$if FPC_FULLVERSION < 30400}
-  SHGetSpecialFolderPath(0,w,CSIDL_FONTS,false);
+  SHGetSpecialFolderPathA(0,w,CSIDL_FONTS,false);
   {$else}
   SHGetKnownFolderPath(FOLDERID_Fonts,0,0,w);
   {$endif}

@@ -718,7 +718,8 @@ var
          //writeln('AM/PM?');
          if (AmPm <> AMPM_None) or DigitPending then Exit;
          OffSet := Cur;
-         while (Cur < Len -1) and (not (S[Cur + 1] in [Separator, #32, defs.DecimalSeparator]))
+         while (Cur < Len -1) and (S[Cur + 1] <> Separator) and
+           (S[Cur + 1] <> #32) and (S[Cur + 1] <> defs.DecimalSeparator)
            and not (S[Cur + 1] in Digits) do Inc(Cur);
          ElemLen := 1 + Cur - OffSet;
          //writeln('  S[Offset] = ',S[Offset], ' S[Cur] = ',S[Cur],' ElemLen = ',ElemLen,' -> ', StrPas(S + Offset, ElemLen));

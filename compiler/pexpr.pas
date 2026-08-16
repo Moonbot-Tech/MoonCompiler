@@ -6264,7 +6264,7 @@ implementation
                    begin
                      if current_scanner.token=_INTERP_FRAG then
                        begin
-                         p1:=cstringconstnode.createpchar(pchar(current_scanner.cstringpattern),
+                         p1:=cstringconstnode.createpchar(pansichar(current_scanner.cstringpattern),
                            length(current_scanner.cstringpattern),nil);
                          consume(_INTERP_FRAG);
                        end
@@ -6316,7 +6316,7 @@ implementation
                    end;
                  consume(_INTERP_END);
                  if interp_count=0 then
-                   p1:=cstringconstnode.createpchar(pchar(''),0,nil)
+                   p1:=cstringconstnode.createpchar(pansichar(''),0,nil)
                  else if not interp_has_expr then
                    begin
                      { all literals - use Concat or return single string }
@@ -6360,7 +6360,7 @@ implementation
 
              _CSTRING :
                begin
-                 p1:=cstringconstnode.createpchar(pchar(current_scanner.cstringpattern),length(current_scanner.cstringpattern),nil);
+                 p1:=cstringconstnode.createpchar(pansichar(current_scanner.cstringpattern),length(current_scanner.cstringpattern),nil);
                  consume(_CSTRING);
                  if current_scanner.token in postfixoperator_tokens then
                    begin

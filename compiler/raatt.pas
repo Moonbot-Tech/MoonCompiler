@@ -1040,7 +1040,7 @@ unit raatt;
                 { in ATT syntax you have 0d in front of the real }
                 { should this be forced ?  yes i think so, as to }
                 { conform to gas as much as possible.            }
-                if (expr[1]='0') and (upper(expr[2])='D') then
+                 if (expr[1]='0') and (expr[2] in ['D','d']) then
                  Delete(expr,1,2);
                 if negativ then
                  expr:='-'+expr;

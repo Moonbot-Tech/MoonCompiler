@@ -497,7 +497,7 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
       var
         strlength,
         defsize   : {$ifdef CPU8BITALU}smallint{$else}aint{$endif};
-        strval    : pchar;
+        strval    : pansichar;
         ll        : tasmlabofs;
         winlike   : boolean;
         hsym      : tconstsym;
@@ -541,7 +541,7 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
         else if is_constresourcestringnode(node) then
           begin
             hsym:=tconstsym(tloadnode(node).symtableentry);
-            strval:=pchar(hsym.value.valueptr);
+            strval:=pansichar(hsym.value.valueptr);
             strlength:=hsym.value.len;
             { Delphi-compatible (mis)feature:
               Link AnsiString constants to their initializing resourcestring,
@@ -1269,7 +1269,7 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
         n : tnode;
         i : longint;
         len : asizeint;
-        ch  : array[0..1] of char;
+        ch  : array[0..1] of byte;
         ca  : pbyte;
         int_const: tai_const;
         char_size: integer;
@@ -1424,13 +1424,13 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
                 begin
                   case char_size of
                     1:
-                      ch[0]:=chr(tordconstnode(n).value.uvalue and $ff);
+                      ch[0]:=byte(tordconstnode(n).value.uvalue and $ff);
                     2:
                       begin
                         inserttypeconv(n,cwidechartype);
                         if not is_constwidecharnode(n) then
                           internalerror(2010033001);
-                        widechar(ch):=widechar(tordconstnode(n).value.uvalue and $ffff);
+                        pword(@ch)^:=word(tordconstnode(n).value.uvalue and $ffff);
                       end;
                     else
                       internalerror(2010033002);
@@ -1446,10 +1446,10 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
                         inserttypeconv(n,cansichartype);
                         if not is_constcharnode(n) then
                           internalerror(2010033006);
-                        ch[0]:=chr(tordconstnode(n).value.uvalue and $ff);
+                        ch[0]:=byte(tordconstnode(n).value.uvalue and $ff);
                       end;
                     2:
-                      widechar(ch):=widechar(tordconstnode(n).value.uvalue and $ffff);
+                      pword(@ch)^:=word(tordconstnode(n).value.uvalue and $ffff);
                     else
                       internalerror(2010033008);
                   end;

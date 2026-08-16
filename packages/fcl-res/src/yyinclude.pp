@@ -35,9 +35,9 @@ type
     constructor Create;
     destructor Destroy; override;
     class function wrapone(): Boolean; static;
-    function push(const incfile: ansistring): Boolean;
+    function push(const incfile: string): Boolean;
     function pop(): Boolean;
-    function expand(fn: AnsiString): AnsiString;
+    function expand(fn: string): string;
   end;
 
 var

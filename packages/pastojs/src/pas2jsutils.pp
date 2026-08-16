@@ -568,7 +568,7 @@ begin
   Result := s; // Kept for compatibility
   {$endif NO_CP_RTL}
   Dst := AllocMem((Length(Result) + 1) * SizeOf(AnsiChar));
-  if CharToOEM(PAnsiChar(Result), Dst) then
+  if CharToOEMA(PAnsiChar(Result), Dst) then
     Result := StrPas(Dst);
   FreeMem(Dst);
   {$ifndef NO_CP_RTL}
@@ -588,7 +588,7 @@ var
   Dst: PAnsiChar;
 begin
   Dst := AllocMem((Length(s) + 1) * SizeOf(AnsiChar));
-  if OemToChar(PAnsiChar(s), Dst) then
+  if OemToCharA(PAnsiChar(s), Dst) then
     Result := StrPas(Dst)
   else
     Result := s;

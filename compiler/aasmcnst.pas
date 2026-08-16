@@ -351,7 +351,7 @@ type
      { the datalist parameter specifies where the data for the string constant
        will be emitted (via an internal data builder)
        Note: data does not have to be #0-terminated (len specifies the length of the valid data) }
-     function emit_ansistring_const(datalist: TAsmList; data: pchar; len: asizeint; encoding: tstringencoding): tasmlabofs;
+     function emit_ansistring_const(datalist: TAsmList; data: pansichar; len: asizeint; encoding: tstringencoding): tasmlabofs;
      function emit_unicodestring_const(datalist: TAsmList; data: tcompilerwidestring; encoding: tstringencoding; winlike: boolean):tasmlabofs;
      { emits a tasmlabofs as returned by emit_*string_const }
      procedure emit_string_offset(const ll: tasmlabofs; const strlength: longint; const st: tstringtype; const winlikewidestring: boolean; const charptrdef: tdef);virtual;
@@ -367,7 +367,7 @@ type
      function emit_shortstring_const(const str: shortstring): tdef;
      { emit a pchar string constant (the characters, not a pointer to them), and return its def;
        len does not include the terminating #0 (will be added) }
-     function emit_pchar_const(str: pchar; len: pint): tdef;
+     function emit_pchar_const(str: pansichar; len: pint): tdef;
      { emit a guid constant }
      procedure emit_guid_const(const guid: tguid);
      { emit a procdef constant }
@@ -1711,7 +1711,7 @@ implementation
      end;
 
 
-   function ttai_typedconstbuilder.emit_ansistring_const(datalist: TAsmList; data: pchar; len: asizeint; encoding: tstringencoding): tasmlabofs;
+   function ttai_typedconstbuilder.emit_ansistring_const(datalist: TAsmList; data: pansichar; len: asizeint; encoding: tstringencoding): tasmlabofs;
      var
        startlab: tasmlabel;
        ansistrrecdef: trecorddef;
@@ -1859,7 +1859,7 @@ implementation
      end;
 
 
-   function ttai_typedconstbuilder.emit_pchar_const(str: pchar; len: pint): tdef;
+   function ttai_typedconstbuilder.emit_pchar_const(str: pansichar; len: pint): tdef;
      begin
        result:=carraydef.getreusable(cansichartype,len+1);
        maybe_begin_aggregate(result);

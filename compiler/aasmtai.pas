@@ -617,7 +617,7 @@ interface
             length: length of the data without #0 terminator (unless the #0
               terminator itself must be included)
             add0: add a terminating zero as part of the data after data  }
-          constructor Create_Data(data : pchar;length : longint; add0: boolean);
+          constructor Create_Data(data : pansichar;length : longint; add0: boolean);
           destructor Destroy;override;
           constructor ppuload(t:taitype;ppufile:tcompilerppufile);override;
           procedure ppuwrite(ppufile:tcompilerppufile);override;
@@ -680,8 +680,8 @@ interface
 
        { Generates an assembler comment }
        tai_comment = class(tai)
-          str : pchar;
-          constructor Create(_str : pchar);
+          str : pansichar;
+          constructor Create(_str : pansichar);
           destructor Destroy; override;
           constructor ppuload(t:taitype;ppufile:tcompilerppufile);override;
           procedure ppuwrite(ppufile:tcompilerppufile);override;
@@ -838,9 +838,9 @@ interface
        { tai_stab }
 
        tai_stab = class(tai)
-          str : pchar;
+          str : pansichar;
           stabtype : TStabType;
-          constructor Create(_stabtype:TStabType;_str : pchar);
+          constructor Create(_stabtype:TStabType;_str : pansichar);
           constructor Create_str(_stabtype:TStabType;const s:string);
           constructor create_ansistr(_stabtype: TStabType; const s: ansistring);
           destructor Destroy;override;
@@ -2449,7 +2449,7 @@ implementation
        end;
 
 
-    constructor tai_string.Create_Data(data : pchar;length : longint; add0: boolean);
+    constructor tai_string.Create_Data(data : pansichar;length : longint; add0: boolean);
        begin
           inherited Create;
           typ:=ait_string;
@@ -2545,7 +2545,7 @@ implementation
           tai_comment  comment to be inserted in the assembler file
  ****************************************************************************}
 
-     constructor tai_comment.Create(_str : pchar);
+     constructor tai_comment.Create(_str : pansichar);
 
        begin
           inherited Create;
@@ -2598,7 +2598,7 @@ implementation
                               TAI_STABS
  ****************************************************************************}
 
-    constructor tai_stab.create(_stabtype:TStabType;_str : pchar);
+    constructor tai_stab.create(_stabtype:TStabType;_str : pansichar);
       begin
          inherited create;
          typ:=ait_stab;

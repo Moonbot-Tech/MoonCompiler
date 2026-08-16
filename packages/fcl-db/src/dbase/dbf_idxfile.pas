@@ -121,7 +121,7 @@ type
   protected
     FResultLen: Integer;
 
-    procedure ValidateExpression(AExpression: string); override;
+    procedure ValidateExpression(AExpression: AnsiString); override;
   public
     property ResultLen: Integer read FResultLen;
   end;
@@ -1767,7 +1767,7 @@ end;
 
 { TDbfIndexParser }
 
-procedure TDbfIndexParser.ValidateExpression(AExpression: string);
+procedure TDbfIndexParser.ValidateExpression(AExpression: AnsiString);
 const
   AnsiStrFuncs: array[0..13] of TExprFunc = (FuncUppercase, FuncLowercase, FuncStrI_EQ,
     FuncStrIP_EQ, FuncStrI_NEQ, FuncStrI_LT, FuncStrI_GT, FuncStrI_LTE, FuncStrI_GTE,

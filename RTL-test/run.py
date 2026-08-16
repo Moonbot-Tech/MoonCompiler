@@ -26,6 +26,7 @@ MODES = {
     "o3": ["-O3", "-gl", "-gw3"],
 }
 LANGUAGE = [
+    "-dMOONCOMPILER_UNICODE_DEFAULT",
     "-Mdelphi",
     "-Municodestrings",
     "-MduplicateLocals",

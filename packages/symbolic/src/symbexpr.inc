@@ -140,9 +140,9 @@ begin
  Raise EExprIE.Create(SExprIE+S+' '+S2);
 end;
 
-CONSTRUCTOR TExpression.Create(Infix:String);
+CONSTRUCTOR TExpression.Create(Infix:ShortString);
 
-var dummy:String;
+var dummy:ShortString;
 
 begin
  ExprTree:=NIL;
@@ -161,9 +161,9 @@ begin
  InfixClean:=false;
 end;
 
-Procedure TExpression.SetNewInfix(Infix:String);
+Procedure TExpression.SetNewInfix(Infix:ShortString);
 
-var dummy:String;
+var dummy:ShortString;
 
 begin
  if Assigned(ExprTree) Then
@@ -184,7 +184,7 @@ begin
  inherited Destroy;
 end;
 
-function TExpression.GetRPN :String;
+function TExpression.GetRPN :ShortString;
 
 begin
  if ExprTree=NIL Then
@@ -193,7 +193,7 @@ begin
   Result:=ParseTreeToRpn(ExprTree);
 end;
 
-function TExpression.GetInfix:String;
+function TExpression.GetInfix:ShortString;
 
 begin
  if Not InfixClean then
@@ -322,7 +322,7 @@ begin
  result:=Simpleopwithresult(expr,mulo);
 end;
 
-Function  TExpression.IntDerive(const derivvariable:String;theexpr:pnode):pnode;
+Function  TExpression.IntDerive(const derivvariable:ShortString;theexpr:pnode):pnode;
 
 function Deriv(t:pnode):pnode;
 {Derive subexpression T. Returns NIL if subexpression derives to 0, to avoid
@@ -472,7 +472,7 @@ begin
 end;
 
 
-Function  TExpression.Derive(derivvariable:String):TExpression;
+Function  TExpression.Derive(derivvariable:ShortString):TExpression;
 
 var tmpvar : Pnode;
     DerivObj: TExpression;
@@ -968,7 +968,7 @@ begin
  InfixClean:=False; {Maybe changed}
 end;
 
-procedure TExpression.SymbolSubst(ToSubst,SubstWith:String);
+procedure TExpression.SymbolSubst(ToSubst,SubstWith:ShortString);
 
 procedure InternalSubst(expr:Pnode);
 
@@ -1026,7 +1026,7 @@ begin
  Result:=TheList;
 end;
 
-function TExpression.Taylor(Degree:ArbInt;const x,x0:String):TExpression;
+function TExpression.Taylor(Degree:ArbInt;const x,x0:ShortString):TExpression;
 {Taylor(x,x0)=sum(m,0,degree, d(f)/d(x))(x0)/ m! * (x-x0)^m)
 
 =   f(x0)+ (x-x0)/1! * df/d(x) + (x-x0)^2  /  2! * d^2(f)/d^2(x) +
@@ -1077,7 +1077,7 @@ begin
  Result:=TaylorPol;
 end;
 
-function TExpression.Newton(x:String):TExpression;
+function TExpression.Newton(x:ShortString):TExpression;
 {
              f(x)
 Newton(x)=x- ----

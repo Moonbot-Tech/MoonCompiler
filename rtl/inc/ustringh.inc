@@ -129,6 +129,12 @@ Type
 
     { codepage retrieve function }
     GetStandardCodePageProc: function(const stdcp: TStandardCodePageEnum): TSystemCodePage;
+
+    { Compare a non-null-terminated UTF-16 buffer with a UnicodeString without
+      materializing the buffer as a temporary managed string. }
+    CompareUnicodeBufferToStringProc : function(Buffer: PUnicodeChar;
+      BufferLength: SizeInt; const S: UnicodeString;
+      Options: TCompareOptions): PtrInt;
   end;
 {$endif FPC_HAS_BUILTIN_WIDESTR_MANAGER}
 

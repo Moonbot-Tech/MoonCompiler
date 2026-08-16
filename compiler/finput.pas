@@ -45,7 +45,7 @@ interface
          bufsize,                   { amount of bytes in the buffer }
          maxbufsize   : longint;    { size in memory for the buffer }
 
-         saveinputpointer : pchar;  { save fields for scanner variables }
+         saveinputpointer : pansichar;  { save fields for scanner variables }
          savelastlinepos,
          saveline_no      : longint;
 

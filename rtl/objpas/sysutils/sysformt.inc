@@ -37,13 +37,205 @@ and relies on 2 macros:
 
 }
 
-Var ChPos,OldPos,ArgPos,DoArg,Len : SizeInt;
+Var ChPos,OldPos,ArgPos,DoArg,Len,ArgType : SizeInt;
     Hs,ToAdd : TFormatString;
-    Index : SizeInt;
+    Index,ResultLength,ResultCapacity : SizeInt;
     Width,Prec : Longint;
-    Left : Boolean;
+    Left,DirectAppend : Boolean;
     Fchar : TFormatChar;
     vq : qword;
+
+  Procedure EnsureResultCapacity(Additional : SizeInt); inline;
+
+  Var Required,NewCapacity : SizeInt;
+
+  begin
+    If Additional<=0 then
+      exit;
+    Required:=ResultLength+Additional;
+    If Required<=ResultCapacity then
+      exit;
+    NewCapacity:=ResultCapacity;
+    If NewCapacity<64 then
+      NewCapacity:=64;
+    While NewCapacity<Required do
+      If NewCapacity>High(SizeInt) div 2 then
+        begin
+        NewCapacity:=Required;
+        break;
+        end
+      else
+        NewCapacity:=NewCapacity*2;
+    SetLength(Result,NewCapacity);
+    ResultCapacity:=NewCapacity;
+  end;
+
+  Procedure AppendText(Const Value : TFormatString); inline;
+
+  Var ValueLength : SizeInt;
+
+  begin
+    ValueLength:=Length(Value);
+    If ValueLength=0 then
+      exit;
+    EnsureResultCapacity(ValueLength);
+    Move(Value[1],Result[ResultLength+1],ValueLength*SizeOf(TFormatChar));
+    Inc(ResultLength,ValueLength);
+  end;
+
+  Procedure AppendFormatSlice(Start,Count : SizeInt); inline;
+
+  begin
+    If Count<=0 then
+      exit;
+    EnsureResultCapacity(Count);
+    Move(Fmt[Start],Result[ResultLength+1],Count*SizeOf(TFormatChar));
+    Inc(ResultLength,Count);
+  end;
+
+  Procedure AppendSpaces(Count : SizeInt); inline;
+
+  begin
+    If Count<=0 then
+      exit;
+    EnsureResultCapacity(Count);
+    While Count>0 do
+      begin
+      Inc(ResultLength);
+      Result[ResultLength]:=' ';
+      Dec(Count);
+      end;
+  end;
+
+  Procedure AppendDecimal(Value : QWord; Negative : Boolean); inline;
+
+  Var
+    ContentLength,DigitCount,I,SpaceCount,ZeroCount : SizeInt;
+    Digits : Array[0..19] of TFormatChar;
+
+  begin
+    DigitCount:=0;
+    repeat
+      Digits[DigitCount]:=TFormatChar(Ord('0')+Value mod 10);
+      Value:=Value div 10;
+      Inc(DigitCount);
+    until Value=0;
+    ZeroCount:=Prec-DigitCount;
+    If ZeroCount<0 then
+      ZeroCount:=0;
+    ContentLength:=DigitCount+ZeroCount+Ord(Negative);
+    SpaceCount:=Width-ContentLength;
+    If SpaceCount<0 then
+      SpaceCount:=0;
+    EnsureResultCapacity(ContentLength+SpaceCount);
+    If not Left then
+      AppendSpaces(SpaceCount);
+    If Negative then
+      begin
+      Inc(ResultLength);
+      Result[ResultLength]:='-';
+      end;
+    While ZeroCount>0 do
+      begin
+      Inc(ResultLength);
+      Result[ResultLength]:='0';
+      Dec(ZeroCount);
+      end;
+    I:=DigitCount;
+    While I>0 do
+      begin
+      Dec(I);
+      Inc(ResultLength);
+      Result[ResultLength]:=Digits[I];
+      end;
+    If Left then
+      AppendSpaces(SpaceCount);
+  end;
+
+  Procedure AppendDecimal32(Value : Cardinal; Negative : Boolean); inline;
+
+  Var
+    ContentLength,DigitCount,SpaceCount,ZeroCount,WriteIndex : SizeInt;
+    Quotient,Remainder : Cardinal;
+
+  begin
+    If Value>=10000 then
+      If Value>=1000000 then
+        If Value>=100000000 then
+          DigitCount:=9+Ord(Value>=1000000000)
+        else
+          DigitCount:=7+Ord(Value>=10000000)
+      else
+        DigitCount:=5+Ord(Value>=100000)
+    else If Value>=100 then
+      DigitCount:=3+Ord(Value>=1000)
+    else
+      DigitCount:=1+Ord(Value>=10);
+    ZeroCount:=Prec-DigitCount;
+    If ZeroCount<0 then
+      ZeroCount:=0;
+    ContentLength:=DigitCount+ZeroCount+Ord(Negative);
+    SpaceCount:=Width-ContentLength;
+    If SpaceCount<0 then
+      SpaceCount:=0;
+    EnsureResultCapacity(ContentLength+SpaceCount);
+    If not Left then
+      AppendSpaces(SpaceCount);
+    If Negative then
+      begin
+      Inc(ResultLength);
+      Result[ResultLength]:='-';
+      end;
+    While ZeroCount>0 do
+      begin
+      Inc(ResultLength);
+      Result[ResultLength]:='0';
+      Dec(ZeroCount);
+      end;
+    Inc(ResultLength,DigitCount);
+    WriteIndex:=ResultLength;
+    While Value>=100 do
+      begin
+      Quotient:=Value div 100;
+      Remainder:=Value-Quotient*100;
+      Result[WriteIndex]:=TFormatChar(Ord('0')+Remainder mod 10);
+      Result[WriteIndex-1]:=TFormatChar(Ord('0')+Remainder div 10);
+      Dec(WriteIndex,2);
+      Value:=Quotient;
+      end;
+    If Value>=10 then
+      begin
+      Result[WriteIndex]:=TFormatChar(Ord('0')+Value mod 10);
+      Result[WriteIndex-1]:=TFormatChar(Ord('0')+Value div 10);
+      end
+    else
+      Result[WriteIndex]:=TFormatChar(Ord('0')+Value);
+    If Left then
+      AppendSpaces(SpaceCount);
+  end;
+
+  Procedure AppendPaddedText(Const Value : TFormatString); inline;
+
+  Var EffectiveLength,SpaceCount : SizeInt;
+
+  begin
+    EffectiveLength:=Length(Value);
+    If (Prec>=0) and (EffectiveLength>Prec) then
+      EffectiveLength:=Prec;
+    SpaceCount:=Width-EffectiveLength;
+    If SpaceCount<0 then
+      SpaceCount:=0;
+    EnsureResultCapacity(EffectiveLength+SpaceCount);
+    If not Left then
+      AppendSpaces(SpaceCount);
+    If EffectiveLength>0 then
+      begin
+      Move(Value[1],Result[ResultLength+1],EffectiveLength*SizeOf(TFormatChar));
+      Inc(ResultLength,EffectiveLength);
+      end;
+    If Left then
+      AppendSpaces(SpaceCount);
+  end;
 
   {
     ReadFormat reads the format string. It returns the type character in
@@ -52,20 +244,28 @@ Var ChPos,OldPos,ArgPos,DoArg,Len : SizeInt;
     In case of an error, DoFormatError is called.
   }
 
-  Function ReadFormat : TFormatChar;
+  Function ReadFormat : TFormatChar; inline;
 
   Var Value : longint;
 
-    Procedure ReadInteger;
+    Procedure ReadInteger; inline;
 
     var
-      Code: Word;
       ArgN: SizeInt;
+      Digit,ParsedValue: Longint;
     begin
       If Value<>-1 then exit; // Was already read.
       OldPos:=ChPos;
+      ParsedValue:=0;
       While (ChPos<=Len) and
-            (Fmt[ChPos]<='9') and (Fmt[ChPos]>='0') do inc(ChPos);
+            (Fmt[ChPos]<='9') and (Fmt[ChPos]>='0') do
+        begin
+        Digit:=Ord(Fmt[ChPos])-Ord('0');
+        If ParsedValue>(High(Longint)-Digit) div 10 then
+          DoFormatError(feInvalidFormat,ansistring(Fmt));
+        ParsedValue:=ParsedValue*10+Digit;
+        inc(ChPos);
+        end;
       If ChPos>len then
         DoFormatError(feInvalidFormat,ansistring(Fmt));
       If Fmt[ChPos]='*' then
@@ -96,17 +296,13 @@ Var ChPos,OldPos,ArgPos,DoArg,Len : SizeInt;
       else
         begin
         If (OldPos<ChPos) Then
-          begin
-          Val (Copy(Fmt,OldPos,ChPos-OldPos),value,code);
-          // This should never happen !!
-          If Code>0 then DoFormatError (feInvalidFormat,ansistring(Fmt));
-          end
+          Value:=ParsedValue
         else
           Value:=-1;
         end;
     end;
 
-    Procedure ReadIndex;
+    Procedure ReadIndex; inline;
 
     begin
       If Fmt[ChPos]<>':' then
@@ -125,7 +321,7 @@ Var ChPos,OldPos,ArgPos,DoArg,Len : SizeInt;
 {$endif}
     end;
 
-    Procedure ReadLeft;
+    Procedure ReadLeft; inline;
 
     begin
       If Fmt[ChPos]='-' then
@@ -140,7 +336,7 @@ Var ChPos,OldPos,ArgPos,DoArg,Len : SizeInt;
 {$endif}
     end;
 
-    Procedure ReadWidth;
+    Procedure ReadWidth; inline;
 
     begin
       ReadInteger;
@@ -154,7 +350,7 @@ Var ChPos,OldPos,ArgPos,DoArg,Len : SizeInt;
 {$endif}
     end;
 
-    Procedure ReadPrec;
+    Procedure ReadPrec; inline;
 
     begin
       If Fmt[ChPos]='.' then
@@ -187,7 +383,7 @@ Var ChPos,OldPos,ArgPos,DoArg,Len : SizeInt;
     If Fmt[ChPos]='%' then
       begin
         Result:='%';
-        exit;                           // VP fix
+        exit;
       end;
     ReadIndex;
     ReadLeft;
@@ -221,32 +417,56 @@ end;
 {$endif}
 
 
-function Checkarg (AT : SizeInt;err:boolean):boolean;
-{
-  Check if argument INDEX is of correct type (AT)
-  If Index=-1, ArgPos is used, and argpos is augmented with 1
-  DoArg is set to the argument that must be used.
-}
+function ReadArgType : SizeInt; inline;
 begin
-  result:=false;
   if Index=-1 then
     DoArg:=Argpos
   else
     DoArg:=Index;
   ArgPos:=DoArg+1;
-  If (Doarg>High(Args)) or (Args[Doarg].Vtype<>AT) then
-   begin
-     if err then
+  If (DoArg<0) or (Doarg>High(Args)) then
       DoFormatError(feInvalidArgindex,ansistring(Fmt));
-     dec(ArgPos);
-     exit;
-   end;
-  result:=true;
+  Result:=Args[DoArg].Vtype;
 end;
 
 begin
-  Result:='';
   Len:=Length(Fmt);
+{$if defined(INWIDEFORMAT) and not defined(INUNICODESTRING)}
+  { The three unqualified one-argument forms need neither the format parser nor
+    a temporary output buffer.  Unicode strings are copy-on-write, so sharing
+    the source value here has the same observable semantics as copying it. }
+  If (Len=2) and (High(Args)=0) and (Fmt[1]='%') then
+    Case UpCase(Fmt[2]) of
+      'S':
+        Case Args[0].VType of
+          vtUnicodeString:
+            exit(UnicodeString(Args[0].VUnicodeString));
+          vtWideChar:
+            exit(UnicodeString(WideChar(Args[0].VWideChar)));
+        end;
+      'D':
+        Case Args[0].VType of
+          vtInteger:
+            exit(IntToStr(Args[0].VInteger));
+          vtInt64:
+            exit(IntToStr(Args[0].VInt64^));
+          vtQWord:
+            exit(IntToStr(Int64(Args[0].VQWord^)));
+        end;
+      'U':
+        Case Args[0].VType of
+          vtInteger:
+            exit(UIntToStr(Cardinal(Args[0].VInteger)));
+          vtInt64:
+            exit(UIntToStr(QWord(Args[0].VInt64^)));
+          vtQWord:
+            exit(UIntToStr(Args[0].VQWord^));
+        end;
+    end;
+{$endif INWIDEFORMAT and not INUNICODESTRING}
+  ResultLength:=0;
+  ResultCapacity:=Len+32;
+  SetLength(Result,ResultCapacity);
   ChPos:=1;
   OldPos:=1;
   ArgPos:=0;
@@ -255,21 +475,27 @@ begin
     While (ChPos<=Len) and (Fmt[ChPos]<>'%') do
       inc(ChPos);
     If ChPos>OldPos Then
-      Result:=Result+Copy(Fmt,OldPos,ChPos-Oldpos);
+      AppendFormatSlice(OldPos,ChPos-Oldpos);
     If ChPos<Len then
       begin
       FChar:=ReadFormat;
+      DirectAppend:=False;
 {$ifdef fmtdebug}
       DumpFormat(FCHar);
 {$endif}
       Case FChar of
         'B' : begin
-              if Checkarg(vtInteger,False) then
-                ToAdd:=BoolToStr((Args[Doarg].VInteger<>0),True)
-              else if Checkarg(vtInt64,False) then
-                ToAdd:=BoolToStr((Args[Doarg].VInt64^<>0),True)
-              else if Checkarg(vtBoolean,True) then
-                ToAdd:=BoolToStr(Args[Doarg].VBoolean,True);
+              ArgType:=ReadArgType;
+              Case ArgType of
+                vtInteger:
+                  ToAdd:=BoolToStr((Args[Doarg].VInteger<>0),True);
+                vtInt64:
+                  ToAdd:=BoolToStr((Args[Doarg].VInt64^<>0),True);
+                vtBoolean:
+                  ToAdd:=BoolToStr(Args[Doarg].VBoolean,True);
+                else
+                  DoFormatError(feInvalidArgindex,ansistring(Fmt));
+              end;
               Index:=Length(ToAdd);
               // Top off
               If (Prec<>-1) and (Index>Prec) then
@@ -279,144 +505,205 @@ begin
                 end;
               end;
         'D' : begin
-              if Checkarg(vtinteger,false) then
-                Str(Args[Doarg].VInteger,ToAdd)
-              else if CheckArg(vtInt64,false) then
-                Str(Args[DoArg].VInt64^,toadd)
-              else if CheckArg(vtQWord,true) then
-                Str(int64(Args[DoArg].VQWord^),toadd);
-              Width:=Abs(width);
-              Index:=Prec-Length(ToAdd);
-              If ToAdd[1]<>'-' then
-                ToAdd:=TFormatString(StringOfChar('0',Index))+ToAdd
+              ArgType:=ReadArgType;
+              Case ArgType of
+              vtInteger:
+                begin
+                Width:=Abs(Width);
+                If Args[Doarg].VInteger<0 then
+                  AppendDecimal32(Cardinal(-(Int64(Args[Doarg].VInteger)+1))+1,True)
+                else
+                  AppendDecimal32(Args[Doarg].VInteger,False);
+                end;
+              vtInt64:
+                begin
+                Width:=Abs(Width);
+                If Args[DoArg].VInt64^<0 then
+                  AppendDecimal(QWord(-(Args[DoArg].VInt64^+1))+1,True)
+                else
+                  AppendDecimal(Args[DoArg].VInt64^,False);
+                end;
+              vtQWord:
+                begin
+                Width:=Abs(Width);
+                If Int64(Args[DoArg].VQWord^)<0 then
+                  AppendDecimal(QWord(-(Int64(Args[DoArg].VQWord^)+1))+1,True)
+                else
+                  AppendDecimal(Args[DoArg].VQWord^,False);
+                end;
               else
-                // + 1 to accommodate for - sign in length !!
-                Insert(TFormatString(StringOfChar('0',Index+1)),toadd,2);
+                DoFormatError(feInvalidArgindex,ansistring(Fmt));
+              end;
+              DirectAppend:=True;
               end;
         'U' : begin
-              if Checkarg(vtinteger,false) then
-                Str(cardinal(Args[Doarg].VInteger),ToAdd)
-              else if CheckArg(vtInt64,false) then
-                Str(qword(Args[DoArg].VInt64^),toadd)
-              else if CheckArg(vtQWord,true) then
-                Str(Args[DoArg].VQWord^,toadd);
-              Width:=Abs(width);
-              Index:=Prec-Length(ToAdd);
-              ToAdd:=TFormatString(StringOfChar('0',Index))+ToAdd
+              ArgType:=ReadArgType;
+              Case ArgType of
+              vtInteger:
+                begin
+                Width:=Abs(Width);
+                AppendDecimal32(Cardinal(Args[Doarg].VInteger),False);
+                end;
+              vtInt64:
+                begin
+                Width:=Abs(Width);
+                AppendDecimal(QWord(Args[DoArg].VInt64^),False);
+                end;
+              vtQWord:
+                begin
+                Width:=Abs(Width);
+                AppendDecimal(Args[DoArg].VQWord^,False);
+                end;
+              else
+                DoFormatError(feInvalidArgindex,ansistring(Fmt));
+              end;
+              DirectAppend:=True;
               end;
 {$ifndef FPUNONE}
         'E' : begin
-              if CheckArg(vtCurrency,false) then
-                ToAdd:=TFormatString(FloatToStrF(Args[doarg].VCurrency^,ffexponent,Prec,3,FormatSettings))
-              else if CheckArg(vtExtended,true) then
-                ToAdd:=TFormatString(FloatToStrF(Args[doarg].VExtended^,ffexponent,Prec,3,FormatSettings));
+              ArgType:=ReadArgType;
+              Case ArgType of
+                vtCurrency:
+                  ToAdd:=TFormatString(FloatToStrF(Args[doarg].VCurrency^,ffexponent,Prec,3,FormatSettings));
+                vtExtended:
+                  ToAdd:=TFormatString(FloatToStrF(Args[doarg].VExtended^,ffexponent,Prec,3,FormatSettings));
+                else
+                  DoFormatError(feInvalidArgindex,ansistring(Fmt));
+              end;
               end;
         'F' : begin
-              if CheckArg(vtCurrency,false) then
-                ToAdd:=TFormatString(FloatToStrF(Args[doarg].VCurrency^,ffFixed,9999,Prec,FormatSettings))
-              else if CheckArg(vtExtended,true) then
-                ToAdd:=TFormatString(FloatToStrF(Args[doarg].VExtended^,ffFixed,9999,Prec,FormatSettings));
+              ArgType:=ReadArgType;
+              Case ArgType of
+                vtCurrency:
+                  ToAdd:=TFormatString(FloatToStrF(Args[doarg].VCurrency^,ffFixed,9999,Prec,FormatSettings));
+                vtExtended:
+                  ToAdd:=TFormatString(FloatToStrF(Args[doarg].VExtended^,ffFixed,9999,Prec,FormatSettings));
+                else
+                  DoFormatError(feInvalidArgindex,ansistring(Fmt));
+              end;
               end;
         'G' : begin
-              if CheckArg(vtCurrency,false) then
-                ToAdd:=TFormatString(FloatToStrF(Args[doarg].VCurrency^,ffGeneral,Prec,3,FormatSettings))
-              else if CheckArg(vtExtended,true) then
-                ToAdd:=TFormatString(FloatToStrF(Args[doarg].VExtended^,ffGeneral,Prec,3,FormatSettings));
+              ArgType:=ReadArgType;
+              Case ArgType of
+                vtCurrency:
+                  ToAdd:=TFormatString(FloatToStrF(Args[doarg].VCurrency^,ffGeneral,Prec,3,FormatSettings));
+                vtExtended:
+                  ToAdd:=TFormatString(FloatToStrF(Args[doarg].VExtended^,ffGeneral,Prec,3,FormatSettings));
+                else
+                  DoFormatError(feInvalidArgindex,ansistring(Fmt));
+              end;
               end;
         'N' : begin
-              if CheckArg(vtCurrency,false) then
-                ToAdd:=TFormatString(FloatToStrF(Args[doarg].VCurrency^,ffNumber,9999,Prec,FormatSettings))
-              else if CheckArg(vtExtended,true) then
-                ToAdd:=TFormatString(FloatToStrF(Args[doarg].VExtended^,ffNumber,9999,Prec,FormatSettings));
+              ArgType:=ReadArgType;
+              Case ArgType of
+                vtCurrency:
+                  ToAdd:=TFormatString(FloatToStrF(Args[doarg].VCurrency^,ffNumber,9999,Prec,FormatSettings));
+                vtExtended:
+                  ToAdd:=TFormatString(FloatToStrF(Args[doarg].VExtended^,ffNumber,9999,Prec,FormatSettings));
+                else
+                  DoFormatError(feInvalidArgindex,ansistring(Fmt));
+              end;
               end;
         'M' : begin
-              if CheckArg(vtExtended,false) then
-                ToAdd:=TFormatString(FloatToStrF(Args[doarg].VExtended^,ffCurrency,9999,Prec,FormatSettings))
-              else if CheckArg(vtCurrency,true) then
-                ToAdd:=TFormatString(FloatToStrF(Args[doarg].VCurrency^,ffCurrency,9999,Prec,FormatSettings));
+              ArgType:=ReadArgType;
+              Case ArgType of
+                vtExtended:
+                  ToAdd:=TFormatString(FloatToStrF(Args[doarg].VExtended^,ffCurrency,9999,Prec,FormatSettings));
+                vtCurrency:
+                  ToAdd:=TFormatString(FloatToStrF(Args[doarg].VCurrency^,ffCurrency,9999,Prec,FormatSettings));
+                else
+                  DoFormatError(feInvalidArgindex,ansistring(Fmt));
+              end;
               end;
 {$else}
         'E','F','G','N','M':
               RunError(207);
 {$endif}
         'S' : begin
-                if CheckArg(vtString,false) then
-                  hs:=TFormatString(Args[doarg].VString^)
-                else
-                  if CheckArg(vtChar,false) then
-                    hs:=TFormatString(Args[doarg].VChar)
-                else
-                  if CheckArg(vtPChar,false) then
-                    hs:=TFormatString(Args[doarg].VPChar)
-                else
-                  if CheckArg(vtPWideChar,false) then
-                    hs:=TFormatString(WideString(Args[doarg].VPWideChar))
-                else
-                  if CheckArg(vtWideChar,false) then
-                    hs:=TFormatString(WideString(Args[doarg].VWideChar))
-                else
-                  if CheckArg(vtWidestring,false) then
-                    hs:=TFormatString(WideString(Args[doarg].VWideString))
-                else
-                  if CheckArg(vtAnsiString,false) then
-                    hs:=TFormatString(ansistring(Args[doarg].VAnsiString))
-                else
-                  if CheckArg(vtUnicodeString,false) then
-                    hs:=TFormatString(UnicodeString(Args[doarg].VUnicodeString))
-                else
-                  if CheckArg(vtVariant,true) then
+                ArgType:=ReadArgType;
+                Case ArgType of
+                  vtString:
+                    hs:=TFormatString(Args[doarg].VString^);
+                  vtChar:
+                    hs:=TFormatString(Args[doarg].VChar);
+                  vtPChar:
+                    hs:=TFormatString(Args[doarg].VPChar);
+                  vtPWideChar:
+                    hs:=TFormatString(WideString(Args[doarg].VPWideChar));
+                  vtWideChar:
+                    hs:=TFormatString(WideString(Args[doarg].VWideChar));
+                  vtWidestring:
+                    hs:=TFormatString(WideString(Args[doarg].VWideString));
+                  vtAnsiString:
+                    hs:=TFormatString(ansistring(Args[doarg].VAnsiString));
+                  vtUnicodeString:
+{$ifdef INWIDEFORMAT}
+                    begin
+                    AppendPaddedText(UnicodeString(Args[doarg].VUnicodeString));
+                    DirectAppend:=True;
+                    end;
+{$else INWIDEFORMAT}
+                    hs:=TFormatString(UnicodeString(Args[doarg].VUnicodeString));
+{$endif INWIDEFORMAT}
+                  vtVariant:
                     hs:=Args[doarg].VVariant^;
-                Index:=Length(hs);
-                If (Prec<>-1) and (Index>Prec) then
-                  SetLength(hs,Prec);
-                ToAdd:=hs;
+                  else
+                    DoFormatError(feInvalidArgindex,ansistring(Fmt));
+                end;
+                If not DirectAppend then
+                  AppendPaddedText(hs);
+                DirectAppend:=True;
               end;
         'O' :
               begin
-              if CheckArg(vtClass,false) then
+              ArgType:=ReadArgType;
+              if ArgType=vtClass then
                 begin
                 if (Args[DoArg].VClass=Nil) then
                   ToAdd:='<Nil>'
                 else
                   ToAdd:=TFormatString(Args[DoArg].VClass.ClassName);
                 end
-              else
+              else if ArgType=vtObject then
                 begin
-                CheckArg(vtObject,True);
                 if (Args[DoArg].VObject=Nil) then
                   ToAdd:='<Nil>'
                 else
                   ToAdd:=TFormatString(Args[DoArg].VObject.ToString);
                 end
+              else
+                DoFormatError(feInvalidArgindex,ansistring(Fmt));
               end;
         'P' : begin
-              if CheckArg(vtObject,false) then
+              ArgType:=ReadArgType;
+              if ArgType=vtObject then
                 ToAdd:=TFormatString(HexStr(ptruint(Args[DoArg].VObject),sizeof(Ptruint)*2))
-              else if CheckArg(vtClass,false) then
+              else if ArgType=vtClass then
                 ToAdd:=TFormatString(HexStr(ptruint(Args[DoArg].VClass),sizeof(Ptruint)*2))
+              else if ArgType=vtPointer then
+                ToAdd:=TFormatString(HexStr(ptruint(Args[DoArg].VPointer),sizeof(Ptruint)*2))
               else
-                begin
-                CheckArg(vtpointer,true);
-                ToAdd:=TFormatString(HexStr(ptruint(Args[DoArg].VPointer),sizeof(Ptruint)*2));
-                end;
+                DoFormatError(feInvalidArgindex,ansistring(Fmt));
               // Insert ':'. Is this needed in 32 bit ? No it isn't.
               // Insert(':',ToAdd,5);
               end;
         'X' : begin
-              if Checkarg(vtinteger,false) then
+              ArgType:=ReadArgType;
+              if ArgType=vtInteger then
                  begin
                    vq:=Cardinal(Args[Doarg].VInteger);
                    index:=16;
                  end
               else
-                 if CheckArg(vtQWord, false) then
+                 if ArgType=vtQWord then
                    begin
                      vq:=Qword(Args[DoArg].VQWord^);
                      index:=31;
                    end
-              else
+                 else
                  begin
-                   CheckArg(vtInt64,true);
+                   If ArgType<>vtInt64 then
+                     DoFormatError(feInvalidArgindex,ansistring(Fmt));
                    vq:=Qword(Args[DoArg].VInt64^);
                    index:=31;
                  end;
@@ -436,22 +723,31 @@ begin
         '%': ToAdd:='%';
       end;
       // Padding ?
-      If (Width=-1) or (Length(ToAdd)>=Width) then
+      If DirectAppend then
+        { Numeric value was written directly into Result. }
+      else If (Width=-1) or (Length(ToAdd)>=Width) then
         // No width specified or the string to add has required width or greater
-        Result:=Result+ToAdd
+        AppendText(ToAdd)
       else
         begin
-        // String to add is less than requested width. Calc padding string
-        hs:=TFormatString(space(Width-Length(ToAdd)));
+        // String to add is less than requested width.
+        Index:=Width-Length(ToAdd);
         if Left then
           // Add left aligned
-          Result:=Result+ToAdd+hs
+          begin
+          AppendText(ToAdd);
+          AppendSpaces(Index);
+          end
         else
           // Add right aligned
-          Result:=Result+hs+ToAdd;
+          begin
+          AppendSpaces(Index);
+          AppendText(ToAdd);
+          end;
         end;
       end;
     inc(ChPos);
     Oldpos:=ChPos;
     end;
+  SetLength(Result,ResultLength);
 end;

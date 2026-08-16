@@ -87,54 +87,6 @@ end.
 """,
     )
     write(
-        project / "ansi" / "AnsiOnlyUnit.pas",
-        """unit AnsiOnlyUnit;
-
-{$mode delphi}
-
-interface
-
-function AnsiDefaultStringKind: Integer;
-
-implementation
-
-function Kind(const Value: AnsiString): Integer; overload;
-begin
-  Result := 1;
-end;
-
-function Kind(const Value: UnicodeString): Integer; overload;
-begin
-  Result := 2;
-end;
-
-function AnsiDefaultStringKind: Integer;
-var
-  Value: String;
-begin
-  Value := '';
-  Result := Kind(Value);
-end;
-
-end.
-""",
-    )
-    write(
-        project / "ansi_bundle.pas",
-        """unit ansi_bundle;
-
-interface
-
-uses
-  mormot.core.fpcx64mm,
-  AnsiOnlyUnit;
-
-implementation
-
-end.
-""",
-    )
-    write(
         project / "driver_profile_smoke.dpr",
         """program driver_profile_smoke;
 
@@ -146,8 +98,7 @@ uses
   System.SysUtils,
   System.Generics.Collections,
   CustomAlias,
-  PinnedDep,
-  AnsiOnlyUnit;
+  PinnedDep;
 
 var
   Values: TList<Integer>;
@@ -167,15 +118,13 @@ begin
   Text := 'Unicode';
   If Kind(Text) <> 2 then
     Halt(1);
-  If AnsiDefaultStringKind <> 1 then
-    Halt(2);
   If AliasValue + PinnedDependencyValue <> 42 then
-    Halt(3);
+    Halt(2);
   Values := TList<Integer>.Create;
   try
     Values.Add(42);
     If Values[0] <> 42 then
-      Halt(4);
+      Halt(3);
   finally
     Values.Free;
   end;
@@ -204,8 +153,6 @@ end.
                 "source=src",
                 "alias=CustomAlias=BuildAliasUnit",
                 f"dependency=profile-gate-{os.getpid()}|{dependency_url}|{commit}|src",
-                "ansi-entry=ansi_bundle.pas",
-                "ansi-source=ansi",
                 "",
             ]
         ),
@@ -225,8 +172,6 @@ def create_invocation_view(project: Path) -> Path:
         project / "driver_profile_missing_threads.dpr"
     )
     (view / "src").symlink_to(project / "src", target_is_directory=True)
-    (view / "ansi").symlink_to(project / "ansi", target_is_directory=True)
-    (view / "ansi_bundle.pas").symlink_to(project / "ansi_bundle.pas")
     (project / "driver_profile_smoke.mooncompiler").replace(
         view / "driver_profile_smoke.mooncompiler"
     )
@@ -288,7 +233,7 @@ def main() -> int:
         if "cached dependency is not clean" not in rejected.stdout:
             raise RuntimeError(f"dirty dependency was rejected for the wrong reason\n{rejected.stdout}")
 
-        print("MOONCOMPILER_PROJECT_PROFILE_GATE_PASS profiles=2 dependency=clean-pinned ansi=separate")
+        print("MOONCOMPILER_PROJECT_PROFILE_GATE_PASS profiles=2 dependency=clean-pinned string=unicode")
         return 0
     finally:
         shutil.rmtree(cache, ignore_errors=True)

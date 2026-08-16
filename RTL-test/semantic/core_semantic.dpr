@@ -1,6 +1,6 @@
 program core_semantic;
 
-{$mode delphi}{$H+}
+{$mode delphi}{$H+}{$codepage utf8}
 
 uses
   mormot.core.fpcx64mm,
@@ -97,6 +97,11 @@ begin
   Check(Pos('missing', Source) = 0, 'Pos miss');
   Check(CompareStr('abc', 'abc') = 0, 'CompareStr equal');
   Check(CompareStr('abc', 'abd') < 0, 'CompareStr order');
+  Check(CompareStr(UnicodeString('a')+#0+'b', UnicodeString('a')+#0+'c') < 0,
+    'CompareStr embedded NUL');
+  Check(CompareStr(UnicodeString(#$0416), UnicodeString(#$20AC)) < 0,
+    'CompareStr UTF-16 ordinal order');
+  Check(CompareStr('abc', 'abcd') < 0, 'CompareStr prefix order');
   Check(UpperCase('Abc') = 'ABC', 'UpperCase ASCII');
   Check(LowerCase('AbC') = 'abc', 'LowerCase ASCII');
   Check(TCharacter.IsLetter(WideChar($0416)), 'Character Unicode letter');

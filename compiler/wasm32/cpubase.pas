@@ -168,7 +168,7 @@ uses
         procedure add_param(param: TWasmBasicType);
         procedure add_result(res: TWasmBasicType);
         function Equals(Obj: TObject): boolean; override;
-        function ToString: ansistring; override;
+        function ToString: RTLString; override;
       end;
 
       {# This should define the array of instructions as string }
@@ -708,7 +708,7 @@ uses
           Result:=inherited Equals(Obj);
       end;
 
-    function TWasmFuncType.ToString: ansistring;
+    function TWasmFuncType.ToString: RTLString;
       var
         i: Integer;
       begin

@@ -65,7 +65,7 @@ implementation
 
     function sizestr(v:qword):string;
       var
-        tmp:array [0..19] of char;
+        tmp:array [0..19] of ansichar;
         i:longint;
       begin
         if v=0 then
@@ -81,7 +81,7 @@ implementation
               end;
             tmp[i]:='x';
             tmp[i-1]:='0';
-            setstring(result,PChar(@tmp[i-1]),high(tmp)+2-i);
+            setstring(result,PAnsiChar(@tmp[i-1]),high(tmp)+2-i);
           end;
       end;
 

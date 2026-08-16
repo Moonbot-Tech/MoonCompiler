@@ -143,7 +143,7 @@ interface
 {$ifdef CHECK_INPUTPOINTER_LIMITS}
        private
           hidden_inputbuffer,                { input buffer }
-          hidden_inputpointer : pchar;
+          hidden_inputpointer : pansichar;
           { Gets char at inputpointer with offset,
             after checking that it doesn't overflow inputfile.bufsize }
           function get_inputpointer_char(offset : longint = 0) : char;
@@ -152,7 +152,7 @@ interface
        public
 {$else not CHECK_INPUTPOINTER_LIMITS}
           inputbuffer,                { input buffer }
-          inputpointer : pchar;
+          inputpointer : pansichar;
 {$endif}
           inputstart   : longint;
 
@@ -635,7 +635,16 @@ implementation
          if s='EXTENDEDPASCAL' then
           current_settings.modeswitches:=extpasmodeswitches
         else
-         b:=false;
+          b:=false;
+
+        { The product RTL and the installed product profile use a Unicode
+          String/Char ABI.  A $mode directive must not silently undo that
+          profile.  Compiler bootstrap and upstream host tools do not define
+          either symbol and therefore retain their original dialect ABI. }
+        if b and
+           (defined_macro('UNICODERTL') or
+            defined_macro('MOONCOMPILER_UNICODE_DEFAULT')) then
+          include(current_settings.modeswitches,m_default_unicodestring);
 
 {$ifdef jvm}
           { enable final fields by default for the JVM targets }
@@ -1653,7 +1662,7 @@ type
           result:=tostr(value.valueord);
         conststring,
         constresourcestring:
-          SetString(result,pchar(value.valueptr),value.len);
+          SetString(result,pansichar(value.valueptr),value.len);
         constreal:
           str(pbestreal(value.valueptr)^,result);
         constset:

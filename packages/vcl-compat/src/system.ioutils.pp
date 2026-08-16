@@ -692,7 +692,7 @@ begin
   Result:=False;
   {$IfDef MSWINDOWS}
     try
-      case GetDriveType(PAnsiChar(ExtractFileDrive(aPath))) of
+      case GetDriveType(PChar(ExtractFileDrive(aPath))) of
         DRIVE_REMOVABLE,
         DRIVE_FIXED,
         DRIVE_REMOTE,

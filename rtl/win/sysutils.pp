@@ -621,7 +621,11 @@ begin
 end;
 
 type
+{$IFDEF UNICODERTL}
+  TGetFinalPathNameByHandle = function(aHandle : THandle; Buf : LPWSTR; BufSize : DWord; Flags : DWord) : DWORD;
+{$ELSE}
   TGetFinalPathNameByHandle = function(aHandle : THandle; Buf : LPSTR; BufSize : DWord; Flags : DWord) : DWORD;
+{$ENDIF}
 var
   GetFinalPathNameByHandle:TGetFinalPathNameByHandle=nil;
 
@@ -633,31 +637,47 @@ Var
   Attrs: Cardinal;
   aHandle: THandle;
   oFlags: DWord;
+{$IFDEF UNICODERTL}
+  Buf : Array[0..Max_Path] of WideChar;
+{$ELSE}
   Buf : Array[0..Max_Path] of AnsiChar;
+{$ENDIF}
   Len : Integer;
 
 begin
   Result:='';
-  FillChar(Buf,MAX_PATH+1,0);
+  FillChar(Buf,SizeOf(Buf),0);
   if Not FileExists(aLink,False) then
     exit;
   if not CheckWin32Version(6, 0) or not(assigned(GetFinalPathNameByHandle)) then
     exit;
-  Attrs:=GetFileAttributes(PAnsiChar(aLink));
+{$IFDEF UNICODERTL}
+  Attrs:=GetFileAttributesW(PWideChar(aLink));
+{$ELSE}
+  Attrs:=GetFileAttributesA(PAnsiChar(aLink));
+{$ENDIF}
   if (Attrs=INVALID_FILE_ATTRIBUTES) or ((Attrs and faSymLink)=0) then
     exit;
   oFLags:=0;
   // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
   if (Attrs and faDirectory)=faDirectory then
     oFlags:=FILE_FLAG_BACKUP_SEMANTICS;
-  aHandle:=CreateFile(PAnsiChar(aLink),GENERIC_READ,FILE_SHARE_READ,nil,OPEN_EXISTING,oFlags,0);
+{$IFDEF UNICODERTL}
+  aHandle:=CreateFileW(PWideChar(aLink),GENERIC_READ,FILE_SHARE_READ,nil,OPEN_EXISTING,oFlags,0);
+{$ELSE}
+  aHandle:=CreateFileA(PAnsiChar(aLink),GENERIC_READ,FILE_SHARE_READ,nil,OPEN_EXISTING,oFlags,0);
+{$ENDIF}
   if aHandle=INVALID_HANDLE_VALUE then
     exit;
   try
     Len:=GetFinalPathNameByHandle(aHandle,@Buf,MAX_PATH,VOLUME_NAME_NT);
     If Len<=0 then
       exit;
+{$IFDEF UNICODERTL}
+    Result:=StrPas(PWideChar(@Buf));
+{$ELSE}
     Result:=StrPas(PAnsiChar(@Buf));
+{$ENDIF}
   finally
     CloseHandle(aHandle);
   end;
@@ -1700,7 +1720,11 @@ begin
   if (kernel32dll<>0) and (Win32MajorVersion>=6) then
     GetTimeZoneInformationForYear:=TGetTimeZoneInformationForYear(GetProcAddress(kernel32dll,'GetTimeZoneInformationForYear'));
   if (kernel32dll<>0) then
+{$IFDEF UNICODERTL}
+    GetFinalPathNameByHandle:=TGetFinalPathNameByHandle(GetProcAddress(kernel32dll,'GetFinalPathNameByHandleW'));
+{$ELSE}
     GetFinalPathNameByHandle:=TGetFinalPathNameByHandle(GetProcAddress(kernel32dll,'GetFinalPathNameByHandleA'));
+{$ENDIF}
 end;
 
 Function GetAppConfigDir(Global : Boolean) : String;
@@ -1759,6 +1783,12 @@ function DoCompareStringA(P1, P2: PWideChar; L1, L2: PtrUInt; Flags: DWORD): Ptr
 
 function DoCompareStringW(P1, P2: PWideChar; L1, L2: PtrUInt; Flags: DWORD): PtrInt;
   begin
+{$ifdef win64}
+    Result:=CompareStringW(LOCALE_USER_DEFAULT,Flags,P1,L1,P2,L2);
+    if Result=0 then
+      RaiseLastOSError;
+    Dec(Result,2);
+{$else}
     SetLastError(0);
     Result:=CompareStringW(LOCALE_USER_DEFAULT,Flags,P1,L1,P2,L2)-2;
     if GetLastError=0 then
@@ -1767,6 +1797,7 @@ function DoCompareStringW(P1, P2: PWideChar; L1, L2: PtrUInt; Flags: DWORD): Ptr
       Result:=DoCompareStringA(P1, P2, L1, L2, Flags);
     if GetLastError<>0 then
       RaiseLastOSError;
+{$endif}
   end;
 
 const
@@ -1782,10 +1813,17 @@ Var
   CO : TCompareOption;
 
 begin
-  O:=0;
-  for CO in TCompareOption do
-    if CO in Options then
-      O:=O or WinAPICompareFlags[CO];
+  if Options=[] then
+    O:=0
+  else if Options=[coIgnoreCase] then
+    O:=NORM_IGNORECASE
+  else
+    begin
+    O:=0;
+    for CO in TCompareOption do
+      if CO in Options then
+        O:=O or WinAPICompareFlags[CO];
+    end;
   Result:=DoCompareStringW(PWideChar(s1), PWideChar(s2), Length(s1), Length(s2), O);
 end;
 
@@ -1880,11 +1918,40 @@ Var
   CO : TCompareOption;
 
 begin
-  O:=0;
-  for CO in TCompareOption do
-    if CO in Options then
-      O:=O or WinAPICompareFlags[CO];
-    Result:=DoCompareStringW(PWideChar(s1), PWideChar(s2), Length(s1), Length(s2), O);
+  if Options=[] then
+    O:=0
+  else if Options=[coIgnoreCase] then
+    O:=NORM_IGNORECASE
+  else
+    begin
+    O:=0;
+    for CO in TCompareOption do
+      if CO in Options then
+        O:=O or WinAPICompareFlags[CO];
+    end;
+  Result:=DoCompareStringW(PWideChar(s1), PWideChar(s2), Length(s1), Length(s2), O);
+end;
+
+
+function Win32CompareUnicodeBufferToString(Buffer: PUnicodeChar;
+  BufferLength: SizeInt; const S: UnicodeString;
+  Options: TCompareOptions): PtrInt;
+var
+  O: LongWord;
+  CO: TCompareOption;
+begin
+  if Options=[] then
+    O:=0
+  else if Options=[coIgnoreCase] then
+    O:=NORM_IGNORECASE
+  else
+    begin
+    O:=0;
+    for CO in TCompareOption do
+      if CO in Options then
+        O:=O or WinAPICompareFlags[CO];
+    end;
+  Result:=DoCompareStringW(Buffer,PWideChar(S),BufferLength,Length(S),O);
 end;
 
 
@@ -1920,6 +1987,8 @@ procedure InitWin32Widestrings;
     widestringmanager.StrLowerAnsiStringProc:=@Win32AnsiStrLower;
     widestringmanager.StrUpperAnsiStringProc:=@Win32AnsiStrUpper;
     widestringmanager.CompareUnicodeStringProc:=@Win32CompareUnicodeString;
+    widestringmanager.CompareUnicodeBufferToStringProc:=
+      @Win32CompareUnicodeBufferToString;
   end;
 
 { Platform-specific exception support }

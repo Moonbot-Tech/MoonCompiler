@@ -123,7 +123,7 @@ begin
       else
         wc.lpfnWndProc := @WndProcSingleThreaded;
       if ACursor then
-        wc.hCursor := LoadCursorA(0, IDC_ARROW)
+        wc.hCursor := LoadCursorA(0, PAnsiChar(IDC_ARROW))
       else
         wc.hCursor := 0;
       RegisterClassExA(wc);
@@ -188,7 +188,8 @@ begin
     if IsUnicode then
       SetClassLongPtrW(FWindow, GCLP_HCURSOR, LoadCursorW(0, PWideChar(IDC_ARROW)))
     else
-      SetClassLongPtrA(FWindow, GCLP_HCURSOR, LoadCursorA(0, IDC_ARROW))
+      SetClassLongPtrA(FWindow, GCLP_HCURSOR,
+        LoadCursorA(0, PAnsiChar(IDC_ARROW)))
   else
     if IsUnicode then
       SetClassLongPtrW(FWindow, GCLP_HCURSOR, 0)
@@ -485,10 +486,20 @@ end;
 class procedure TWin32Window.ThreadFunction(AOwner: TWin32Window);
 var
   message: MSG;
+  NameW, TitleW: WideString;
 begin
   with AOwner do
   begin
-    FWindow := CreateWindowEx(FExtra, PAnsiChar(FName), PAnsiChar(FTitle), FStyle, FX, FY, FWidth, FHeight, 0, 0, 0, nil);
+    if IsUnicode then
+    begin
+      NameW := FName;
+      TitleW := FTitle;
+      FWindow := CreateWindowExW(FExtra, PWideChar(NameW), PWideChar(TitleW),
+        FStyle, FX, FY, FWidth, FHeight, 0, 0, 0, nil);
+    end
+    else
+      FWindow := CreateWindowExA(FExtra, PAnsiChar(FName), PAnsiChar(FTitle),
+        FStyle, FX, FY, FWidth, FHeight, 0, 0, 0, nil);
     if IsWindow(FWindow) then
     begin
       ShowWindow(FWindow, FShow);

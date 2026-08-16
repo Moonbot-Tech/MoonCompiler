@@ -438,6 +438,31 @@ type
 const
   SECONDARY_STRENGTH_LEVEL = 2;
 
+function CompareUnicodeBufferToString(Buffer: PUnicodeChar;
+  BufferLength: SizeInt; const S: UnicodeString;
+  Options: TCompareOptions): PtrInt;
+var
+  BufferString: UnicodeString;
+  ChangedProps: TChangedPropsRecord;
+begin
+  if current_Collation.DataPtr=nil then
+    begin
+    SetString(BufferString,Buffer,BufferLength);
+    exit(OldManager.CompareUnicodeStringProc(BufferString,S,Options));
+    end;
+  ChangedProps.ComparisonStrength:=
+    current_Collation.Data.ComparisonStrength;
+  try
+    if coIgnoreCase in Options then
+      current_Collation.Data.ComparisonStrength:=SECONDARY_STRENGTH_LEVEL;
+    Result:=CompareUnicodeString(Buffer,PUnicodeChar(Pointer(S)),
+      BufferLength,Length(S));
+  finally
+    current_Collation.Data.ComparisonStrength:=
+      ChangedProps.ComparisonStrength;
+  end;
+end;
+
 function CompareUnicodeString(const s1, s2 : UnicodeString;Options : TCompareOptions) : PtrInt;
 
   function DoCompare() : PtrInt;
@@ -857,6 +882,7 @@ begin
       UpperUnicodeStringProc:=@UpperUnicodeString;
       LowerUnicodeStringProc:=@LowerUnicodeString;
       CompareUnicodeStringProc:=@CompareUnicodeString;
+      CompareUnicodeBufferToStringProc:=@CompareUnicodeBufferToString;
     end;
   SetUnicodeStringManager(locWideStringManager);
 

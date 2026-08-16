@@ -463,7 +463,7 @@ interface
           constructor create_ord(const n : TSymStr;t : tconsttyp;v : tconstexprint;def:tdef);virtual;
           constructor create_ordptr(const n : TSymStr;t : tconsttyp;v : tconstptruint;def:tdef);virtual;
           constructor create_ptr(const n : TSymStr;t : tconsttyp;v : pointer;def:tdef);virtual;
-          constructor create_string(const n : TSymStr;t : tconsttyp;str:pchar;l:longint;def:tdef);virtual;
+          constructor create_string(const n : TSymStr;t : tconsttyp;str:pansichar;l:longint;def:tdef);virtual;
           constructor create_wstring(const n : TSymStr;t : tconsttyp;pw:tcompilerwidestring);virtual;
           constructor create_undefined(const n : TSymStr;def:tdef);virtual;
           constructor ppuload(ppufile:tcompilerppufile);
@@ -530,7 +530,7 @@ interface
             override ppuwrite_platform instead }
           procedure ppuwrite(ppufile:tcompilerppufile);override;final;
           destructor  destroy;override;
-          function allocate_buftext(len:longint) : pchar;
+          function allocate_buftext(len:longint) : pansichar;
           procedure free_buftext;
           function GetCopy:tmacro;
        end;
@@ -2824,7 +2824,7 @@ implementation
       end;
 
 
-    constructor tconstsym.create_string(const n : TSymStr;t : tconsttyp;str:pchar;l:longint;def: tdef);
+    constructor tconstsym.create_string(const n : TSymStr;t : tconsttyp;str:pansichar;l:longint;def: tdef);
       begin
          inherited create(constsym,n);
          fillchar(value, sizeof(value), #0);
@@ -3325,7 +3325,7 @@ implementation
       end;
 
 
-    function tmacro.allocate_buftext(len:longint) : pchar;
+    function tmacro.allocate_buftext(len:longint) : pansichar;
       begin
         setlength(buftext,len);
         buflen:=len;

@@ -184,7 +184,7 @@ uses
         setdef : tsetdef;
         enumsym : tsym;
         enumname : string;
-        sp : pchar;
+        sp : pansichar;
         ps : ^tconstset;
         pd : ^bestreal;
         i,l : integer;

@@ -1,16 +1,17 @@
-{ %OPT=-Mdelphiunicode -O2 }
+{ %OPT=-dMOONCOMPILER_UNICODE_DEFAULT -Mdelphi -O2 }
 program tmoonmodedefines1;
 
 {$mode delphi}
 
-{$ifdef FPC_UNICODESTRINGS}
-  {$fatal Delphi mode must clear FPC_UNICODESTRINGS}
+{$ifndef FPC_UNICODESTRINGS}
+  {$fatal Moon Delphi mode must keep FPC_UNICODESTRINGS}
 {$endif}
-{$ifdef UNICODE}
-  {$fatal Delphi mode must clear UNICODE}
+{$ifndef UNICODE}
+  {$fatal Moon Delphi mode must keep UNICODE}
 {$endif}
 
 begin
-  if (SizeOf(Char) <> 1) or (SizeOf(String('x')[1]) <> 1) then
+  if (SizeOf(Char) <> 2) or (SizeOf(String('x')[1]) <> 2) or
+     (SizeOf(AnsiChar) <> 1) or (SizeOf(AnsiString('x')[1]) <> 1) then
     Halt(1);
 end.

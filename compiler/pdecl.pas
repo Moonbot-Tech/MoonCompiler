@@ -92,7 +92,7 @@ implementation
         ps : pconstset;
         pd : pbestreal;
         pg : pguid;
-        sp : pchar;
+        sp : pansichar;
         pw : tcompilerwidestring;
         storetokenpos : tfileposinfo;
       begin
@@ -1950,7 +1950,7 @@ implementation
          deprecatedmsg : pshortstring;
          storetokenpos,filepos : tfileposinfo;
          old_block_type : tblock_type;
-         sp : pchar;
+         sp : pansichar;
          sym : tsym;
          first,
          isgeneric : boolean;

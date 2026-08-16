@@ -186,6 +186,11 @@ end;
 {$ENDIF}
 
 function CompareStr(const S1, S2: string): Integer;
+{$ifdef UNICODERTL}
+begin
+  Result:=CAPSIZEINT(UnicodeCompareStr(S1,S2));
+end;
+{$else UNICODERTL}
 var count, count1, count2: SizeInt;
 begin
   Count1 := Length(S1);
@@ -199,6 +204,7 @@ begin
     // CAPSIZEINT is no-op if Sizeof(Sizeint)<=SizeOF(Integer)
     result:=CAPSIZEINT(Count1-Count2);
 end;
+{$endif UNICODERTL}
 
 function CompareStr(const S1, S2: string; LocaleOptions: TLocaleOptions): Integer; overload;{$ifdef SYSUTILSINLINE}inline;{$endif}
 begin
@@ -243,41 +249,82 @@ function CompareText(const S1, S2: string): Integer; overload;
 
 var
   i, count, count1, count2: sizeint;
-  Chr1, Chr2: byte;
+  {$ifdef UNICODERTL}
+  Chr1, Chr2: Word;
+  {$ifdef CPUX86_64}
+  Pair1, Pair2: Cardinal;
+  {$endif CPUX86_64}
+  {$else UNICODERTL}
+  Chr1, Chr2: Byte;
+  {$endif UNICODERTL}
   P1, P2: PChar;
 begin
-  Count1 := Length(S1);
-  Count2 := Length(S2);
-  if (Count1>Count2) then
-    Count := Count2
+  if Pointer(S1)=Pointer(S2) then
+    Exit(0);
+  Count1:=Length(S1);
+  Count2:=Length(S2);
+  if Count1>Count2 then
+    Count:=Count2
   else
-    Count := Count1;
-  i := 0;
-  if count>0 then
+    Count:=Count1;
+  P1:=PChar(S1);
+  P2:=PChar(S2);
+  i:=0;
+  {$if defined(UNICODERTL) and defined(CPUX86_64)}
+  while i+1<Count do
     begin
-      P1 := @S1[1];
-      P2 := @S2[1];
-      while i < Count do
+      Pair1:=PCardinal(@P1[i])^;
+      Pair2:=PCardinal(@P2[i])^;
+      if Pair1<>Pair2 then
         begin
-          Chr1 := byte(p1^);
-          Chr2 := byte(p2^);
-          if Chr1 <> Chr2 then
+          Chr1:=Word(Pair1);
+          Chr2:=Word(Pair2);
+          if Chr1<>Chr2 then
             begin
-              if Chr1 in [97..122] then
-                dec(Chr1,32);
-              if Chr2 in [97..122] then
-                dec(Chr2,32);
-              if Chr1 <> Chr2 then
-                Break;
+              if (Chr1>=Ord('a')) and (Chr1<=Ord('z')) then
+                Dec(Chr1,32);
+              if (Chr2>=Ord('a')) and (Chr2<=Ord('z')) then
+                Dec(Chr2,32);
+              if Chr1<>Chr2 then
+                Exit(Chr1-Chr2);
             end;
-          Inc(P1); Inc(P2); Inc(I);
+          Chr1:=Pair1 shr 16;
+          Chr2:=Pair2 shr 16;
+          if Chr1<>Chr2 then
+            begin
+              if (Chr1>=Ord('a')) and (Chr1<=Ord('z')) then
+                Dec(Chr1,32);
+              if (Chr2>=Ord('a')) and (Chr2<=Ord('z')) then
+                Dec(Chr2,32);
+              if Chr1<>Chr2 then
+                Exit(Chr1-Chr2);
+            end;
         end;
+      Inc(i,2);
     end;
-  if i < Count then
-    result := Chr1-Chr2
-  else
-    // CAPSIZEINT is no-op if Sizeof(Sizeint)<=SizeOF(Integer)
-    result:=CAPSIZEINT(Count1-Count2);
+  {$endif UNICODERTL and CPUX86_64}
+  while i<Count do
+    begin
+      {$ifdef UNICODERTL}
+      Chr1:=Word(P1[i]);
+      Chr2:=Word(P2[i]);
+      {$else UNICODERTL}
+      Chr1:=Byte(P1[i]);
+      Chr2:=Byte(P2[i]);
+      {$endif UNICODERTL}
+      if Chr1<>Chr2 then
+        begin
+          if (Chr1>=Ord('a')) and (Chr1<=Ord('z')) then
+            Dec(Chr1,32);
+          if (Chr2>=Ord('a')) and (Chr2<=Ord('z')) then
+            Dec(Chr2,32);
+          if Chr1<>Chr2 then
+            Exit(Chr1-Chr2);
+        end;
+      Inc(i);
+    end;
+  // CAPSIZEINT is no-op if Sizeof(Sizeint)<=SizeOF(Integer)
+  Result:=CAPSIZEINT(Count1-Count2);
 end;
 
 function CompareText(const S1, S2: string; LocaleOptions: TLocaleOptions): Integer; overload;{$ifdef SYSUTILSINLINE}inline;{$endif}
@@ -564,27 +611,43 @@ end ;
 
 function AnsiUpperCase(const s: string): string;{$ifdef SYSUTILSINLINE}inline;{$endif}
   begin
+{$ifdef UNICODERTL}
+    result:=widestringmanager.UpperUnicodeStringProc(s);
+{$else}
     result:=widestringmanager.UpperAnsiStringProc(s);
+{$endif}
   end;
 
 
 function AnsiLowerCase(const s: string): string;{$ifdef SYSUTILSINLINE}inline;{$endif}
   begin
+{$ifdef UNICODERTL}
+    result:=widestringmanager.LowerUnicodeStringProc(s);
+{$else}
     result:=widestringmanager.LowerAnsiStringProc(s);
+{$endif}
   end;
 
 
 function AnsiCompareStr(const S1, S2: string): integer;{$ifdef SYSUTILSINLINE}inline;{$endif}
   begin
     // CAPSIZEINT is no-op if Sizeof(Sizeint)<=SizeOF(Integer)
+{$ifdef UNICODERTL}
+    result:=CAPSIZEINT(widestringmanager.CompareUnicodeStringProc(s1,s2,[]));
+{$else}
     result:=CAPSIZEINT(widestringmanager.CompareStrAnsiStringProc(s1,s2));
+{$endif}
   end;
 
 
 function AnsiCompareText(const S1, S2: string): integer;{$ifdef SYSUTILSINLINE}inline;{$endif}
   begin
     // CAPSIZEINT is no-op if Sizeof(Sizeint)<=SizeOF(Integer)
+{$ifdef UNICODERTL}
+    result:=CAPSIZEINT(widestringmanager.CompareUnicodeStringProc(s1,s2,[coIgnoreCase]));
+{$else}
     result:=CAPSIZEINT(widestringmanager.CompareTextAnsiStringProc(s1,s2));
+{$endif}
   end;
 
 
@@ -890,65 +953,181 @@ end;
 
 {   IntToStr returns a string representing the value of Value    }
 
-function DecimalString(Value: QWord; Negative: Boolean): string;
+type
+  TDecimalDigitPair = packed array[0..1] of Char;
+  PDecimalDigitPair = ^TDecimalDigitPair;
+
+const
+  DecimalDigitPairs: array[0..99] of TDecimalDigitPair = (
+    ('0','0'),('0','1'),('0','2'),('0','3'),('0','4'),
+    ('0','5'),('0','6'),('0','7'),('0','8'),('0','9'),
+    ('1','0'),('1','1'),('1','2'),('1','3'),('1','4'),
+    ('1','5'),('1','6'),('1','7'),('1','8'),('1','9'),
+    ('2','0'),('2','1'),('2','2'),('2','3'),('2','4'),
+    ('2','5'),('2','6'),('2','7'),('2','8'),('2','9'),
+    ('3','0'),('3','1'),('3','2'),('3','3'),('3','4'),
+    ('3','5'),('3','6'),('3','7'),('3','8'),('3','9'),
+    ('4','0'),('4','1'),('4','2'),('4','3'),('4','4'),
+    ('4','5'),('4','6'),('4','7'),('4','8'),('4','9'),
+    ('5','0'),('5','1'),('5','2'),('5','3'),('5','4'),
+    ('5','5'),('5','6'),('5','7'),('5','8'),('5','9'),
+    ('6','0'),('6','1'),('6','2'),('6','3'),('6','4'),
+    ('6','5'),('6','6'),('6','7'),('6','8'),('6','9'),
+    ('7','0'),('7','1'),('7','2'),('7','3'),('7','4'),
+    ('7','5'),('7','6'),('7','7'),('7','8'),('7','9'),
+    ('8','0'),('8','1'),('8','2'),('8','3'),('8','4'),
+    ('8','5'),('8','6'),('8','7'),('8','8'),('8','9'),
+    ('9','0'),('9','1'),('9','2'),('9','3'),('9','4'),
+    ('9','5'),('9','6'),('9','7'),('9','8'),('9','9')
+  );
+
+function DecimalString32(Value: Cardinal; Negative: Boolean): string;
 var
-  Buffer: array[0..20] of Char;
-  Digit, First, ResultLength: SizeInt;
-  Quotient, Remainder: QWord;
+  DigitCount, ResultLength, WriteIndex: Integer;
+  P: PChar;
+  Quotient, Remainder: Cardinal;
 begin
-  First:=Length(Buffer);
+  if Value>=10000 then
+    if Value>=1000000 then
+      if Value>=100000000 then
+        DigitCount:=9+Ord(Value>=1000000000)
+      else
+        DigitCount:=7+Ord(Value>=10000000)
+    else
+      DigitCount:=5+Ord(Value>=100000)
+  else if Value>=100 then
+    DigitCount:=3+Ord(Value>=1000)
+  else
+    DigitCount:=1+Ord(Value>=10);
+  ResultLength:=DigitCount+Ord(Negative);
+  SetLength(Result,ResultLength);
+  P:=PChar(Result);
+  if Negative then
+    P[0]:='-';
+  WriteIndex:=ResultLength;
   while Value>=100 do
     begin
     Quotient:=Value div 100;
     Remainder:=Value-Quotient*100;
-    Dec(First,2);
-    Digit:=Remainder div 10;
-    Buffer[First]:=Char(Ord('0')+Digit);
-    Buffer[First+1]:=Char(Ord('0')+Remainder-Digit*10);
+    Dec(WriteIndex,2);
+    PDecimalDigitPair(@P[WriteIndex])^:=DecimalDigitPairs[Remainder];
     Value:=Quotient;
     end;
   if Value>=10 then
     begin
-    Dec(First,2);
-    Digit:=Value div 10;
-    Buffer[First]:=Char(Ord('0')+Digit);
-    Buffer[First+1]:=Char(Ord('0')+Value-Digit*10);
+    Dec(WriteIndex,2);
+    PDecimalDigitPair(@P[WriteIndex])^:=DecimalDigitPairs[Value];
     end
   else
     begin
-    Dec(First);
-    Buffer[First]:=Char(Ord('0')+Value);
+    Dec(WriteIndex);
+    P[WriteIndex]:=Char(Ord('0')+Value);
     end;
-  if Negative then
-    begin
-    Dec(First);
-    Buffer[First]:='-';
-    end;
-  ResultLength:=Length(Buffer)-First;
+end;
+
+function DecimalString64(Value: QWord; Negative: Boolean): string;
+const
+  ChunkBase = Cardinal(100000000);
+var
+  Chunk, ChunkQuotient, Remainder: Cardinal;
+  DigitCount, ResultLength, WriteIndex: Integer;
+  P: PChar;
+  Quotient: QWord;
+begin
+  if Value<=High(Cardinal) then
+    exit(DecimalString32(Cardinal(Value),Negative));
+
+  if Value>=1000000000000000 then
+    if Value>=1000000000000000000 then
+      if Value>=10000000000000000000 then
+        DigitCount:=20
+      else
+        DigitCount:=19
+    else if Value>=10000000000000000 then
+      DigitCount:=17+Ord(Value>=100000000000000000)
+    else
+      DigitCount:=16
+  else if Value>=1000000000000 then
+    if Value>=100000000000000 then
+      DigitCount:=15
+    else
+      DigitCount:=13+Ord(Value>=10000000000000)
+  else if Value>=10000000000 then
+    DigitCount:=11+Ord(Value>=100000000000)
+  else
+    DigitCount:=10;
+  ResultLength:=DigitCount+Ord(Negative);
   SetLength(Result,ResultLength);
-  Move(Buffer[First],Result[1],ResultLength*SizeOf(Char));
+  P:=PChar(Result);
+  if Negative then
+    P[0]:='-';
+  WriteIndex:=ResultLength;
+  while Value>High(Cardinal) do
+    begin
+    Quotient:=Value div ChunkBase;
+    Chunk:=Cardinal(Value-Quotient*ChunkBase);
+    ChunkQuotient:=Chunk div 100;
+    Remainder:=Chunk-ChunkQuotient*100;
+    Dec(WriteIndex,2);
+    PDecimalDigitPair(@P[WriteIndex])^:=DecimalDigitPairs[Remainder];
+    Chunk:=ChunkQuotient;
+    ChunkQuotient:=Chunk div 100;
+    Remainder:=Chunk-ChunkQuotient*100;
+    Dec(WriteIndex,2);
+    PDecimalDigitPair(@P[WriteIndex])^:=DecimalDigitPairs[Remainder];
+    Chunk:=ChunkQuotient;
+    ChunkQuotient:=Chunk div 100;
+    Remainder:=Chunk-ChunkQuotient*100;
+    Dec(WriteIndex,2);
+    PDecimalDigitPair(@P[WriteIndex])^:=DecimalDigitPairs[Remainder];
+    Chunk:=ChunkQuotient;
+    Remainder:=Chunk;
+    Dec(WriteIndex,2);
+    PDecimalDigitPair(@P[WriteIndex])^:=DecimalDigitPairs[Remainder];
+    Value:=Quotient;
+    end;
+
+  Chunk:=Cardinal(Value);
+  while Chunk>=100 do
+    begin
+    ChunkQuotient:=Chunk div 100;
+    Remainder:=Chunk-ChunkQuotient*100;
+    Dec(WriteIndex,2);
+    PDecimalDigitPair(@P[WriteIndex])^:=DecimalDigitPairs[Remainder];
+    Chunk:=ChunkQuotient;
+    end;
+  if Chunk>=10 then
+    begin
+    Dec(WriteIndex,2);
+    PDecimalDigitPair(@P[WriteIndex])^:=DecimalDigitPairs[Chunk];
+    end
+  else
+    begin
+    Dec(WriteIndex);
+    P[WriteIndex]:=Char(Ord('0')+Chunk);
+    end;
 end;
 
 function IntToStr(Value: Longint): string;
 begin
   if Value<0 then
-    Result:=DecimalString(QWord(-(Int64(Value)+1))+1,True)
+    Result:=DecimalString32(Cardinal(-(Int64(Value)+1))+1,True)
   else
-    Result:=DecimalString(Value,False);
+    Result:=DecimalString32(Value,False);
 end ;
 
 
 function IntToStr(Value: int64): string;
 begin
   if Value<0 then
-    Result:=DecimalString(QWord(-(Value+1))+1,True)
+    Result:=DecimalString64(QWord(-(Value+1))+1,True)
   else
-    Result:=DecimalString(Value,False);
+    Result:=DecimalString64(Value,False);
 end ;
 
 function IntToStr(Value: QWord): string;
 begin
-  Result:=DecimalString(Value,False);
+  Result:=DecimalString64(Value,False);
 end ;
 
 function UIntToStr(Value: Int64): string;
@@ -965,7 +1144,7 @@ end;
 function UIntToStr(Value: Cardinal): string;
 
 begin
-  Result:=DecimalString(Value,False);
+  Result:=DecimalString32(Value,False);
 end;
 
 {   IntToHex returns a string representing the hexadecimal value of Value   }
@@ -1634,9 +1813,201 @@ const
 
 Function FloatToStrFIntl(const Value; format: TFloatFormat; Precision, Digits: Integer; ValueType: TFloatValue; Const FormatSettings: TFormatSettings): String;
 Var
-  P, PE, Q, Exponent: Integer;
+  P, Q: Integer;
   Negative: Boolean;
   DS: Char;
+  GeneralText: ShortString;
+
+  procedure SetAsciiResult(const Source: ShortString);
+  var
+    I, L: SizeInt;
+{$if SizeOf(Char)=2}
+    Pair: Word;
+{$endif}
+  begin
+{$if SizeOf(Char)=2}
+    L:=Length(Source);
+    SetLength(Result,L);
+    I:=0;
+  {$if defined(CPUX86_64) and defined(ENDIAN_LITTLE)}
+    while I+1<L do
+      begin
+      Pair:=PWord(@Source[I+1])^;
+      PCardinal(@Result[I+1])^:=Cardinal(Pair and $ff) or
+        (Cardinal(Pair and $ff00) shl 8);
+      Inc(I,2);
+      end;
+  {$endif}
+    while I<L do
+      begin
+      Result[I+1]:=Char(Byte(Source[I+1]));
+      Inc(I);
+      end;
+{$else}
+    Result:=Source;
+{$endif}
+  end;
+
+  procedure SetGeneralResult(const Source: ShortString);
+  var
+    C: AnsiChar;
+    DecimalPos,DigitIndex,DigitLimit,DotPos,EPos,I,OutPos,StartPos: Integer;
+    Exponent,ExponentDigits,ExponentValue: Integer;
+    Negative,NonZero: Boolean;
+    Output: ShortString;
+
+    procedure Put(C: AnsiChar); inline;
+    begin
+      Inc(OutPos);
+      Output[OutPos]:=C;
+    end;
+
+    procedure PutMantissaDigit;
+    begin
+      while (DigitIndex<DigitLimit) and (Source[DigitIndex]='.') do
+        Inc(DigitIndex);
+      if DigitIndex<DigitLimit then
+        begin
+        Put(Source[DigitIndex]);
+        Inc(DigitIndex);
+        end
+      else
+        Put('0');
+    end;
+
+  begin
+    StartPos:=1;
+    while (StartPos<=Length(Source)) and (Source[StartPos]=' ') do
+      Inc(StartPos);
+    DotPos:=0;
+    EPos:=0;
+    for I:=StartPos to Length(Source) do
+      if Source[I]='.' then
+        DotPos:=I
+      else if Source[I]='E' then
+        begin
+        EPos:=I;
+        break;
+        end;
+    if (DotPos=0) or (EPos=0) then
+      begin
+      Output[0]:=AnsiChar(Length(Source)-StartPos+1);
+      for I:=StartPos to Length(Source) do
+        Output[I-StartPos+1]:=Source[I];
+      SetAsciiResult(Output);
+      exit;
+      end;
+
+    Negative:=Source[StartPos]='-';
+    if Negative then
+      Inc(StartPos);
+    Exponent:=0;
+    for I:=EPos+2 to Length(Source) do
+      Exponent:=Exponent*10+Ord(Source[I])-Ord('0');
+    if Source[EPos+1]='-' then
+      Exponent:=-Exponent;
+
+    DigitLimit:=EPos;
+    while (DigitLimit>StartPos) and
+          ((Source[DigitLimit-1]='0') or (Source[DigitLimit-1]='.')) do
+      Dec(DigitLimit);
+    NonZero:=False;
+    for I:=StartPos to DigitLimit-1 do
+      if (Source[I]>='1') and (Source[I]<='9') then
+        begin
+        NonZero:=True;
+        break;
+        end;
+    if not NonZero then
+      begin
+      SetAsciiResult('0');
+      exit;
+      end;
+
+    OutPos:=0;
+    DecimalPos:=0;
+    if Negative then
+      Put('-');
+    DigitIndex:=StartPos;
+    if (Exponent>=-4) and (Exponent<EPos-DotPos) then
+      if Exponent>=0 then
+        begin
+        for I:=0 to Exponent do
+          PutMantissaDigit;
+        while (DigitIndex<DigitLimit) and (Source[DigitIndex]='.') do
+          Inc(DigitIndex);
+        if DigitIndex<DigitLimit then
+          begin
+          Put('.');
+          DecimalPos:=OutPos;
+          while DigitIndex<DigitLimit do
+            begin
+            C:=Source[DigitIndex];
+            Inc(DigitIndex);
+            if C<>'.' then
+              Put(C);
+            end;
+          end;
+        end
+      else
+        begin
+        Put('0');
+        Put('.');
+        DecimalPos:=OutPos;
+        for I:=1 to -Exponent-1 do
+          Put('0');
+        while DigitIndex<DigitLimit do
+          begin
+          C:=Source[DigitIndex];
+          Inc(DigitIndex);
+          if C<>'.' then
+            Put(C);
+          end;
+        end
+    else
+      begin
+      PutMantissaDigit;
+      while (DigitIndex<DigitLimit) and (Source[DigitIndex]='.') do
+        Inc(DigitIndex);
+      if DigitIndex<DigitLimit then
+        begin
+        Put('.');
+        DecimalPos:=OutPos;
+        while DigitIndex<DigitLimit do
+          begin
+          C:=Source[DigitIndex];
+          Inc(DigitIndex);
+          if C<>'.' then
+            Put(C);
+          end;
+        end;
+      Put('E');
+      ExponentValue:=Exponent;
+      if ExponentValue<0 then
+        begin
+        Put('-');
+        ExponentValue:=-ExponentValue;
+        end;
+      ExponentDigits:=1;
+      I:=ExponentValue;
+      while I>=10 do
+        begin
+        I:=I div 10;
+        Inc(ExponentDigits);
+        end;
+      Inc(OutPos,ExponentDigits);
+      I:=OutPos;
+      repeat
+        Output[I]:=AnsiChar(Ord('0')+ExponentValue mod 10);
+        ExponentValue:=ExponentValue div 10;
+        Dec(I);
+      until ExponentValue=0;
+      end;
+    Output[0]:=AnsiChar(OutPos);
+    SetAsciiResult(Output);
+    if DecimalPos<>0 then
+      Result[DecimalPos]:=DS;
+  end;
 
   function RemoveLeadingNegativeSign(var AValue: String): Boolean;
   // removes negative sign in case when result is zero eg. -0.00
@@ -1653,7 +2024,8 @@ Var
     TS := FormatSettings.ThousandSeparator;
     for i := StartPos to length(AValue) do
     begin
-      Result := (AValue[i] in ['0', DS, 'E', '+', TS]);
+      Result := (AValue[i] = '0') or (AValue[i] = DS) or
+        (AValue[i] = 'E') or (AValue[i] = '+') or (AValue[i] = TS);
       if not Result then
         break;
     end;
@@ -1677,91 +2049,15 @@ Begin
         { First convert to scientific format, with correct precision }
         case ValueType of
           fvDouble:
-            Str(Double(Extended(Aligned(Value))):precision+7, Result);
+            Str(Double(Extended(Aligned(Value))):precision+7, GeneralText);
           fvSingle:
-            Str(Single(Extended(Aligned(Value))):precision+6, Result);
+            Str(Single(Extended(Aligned(Value))):precision+6, GeneralText);
           fvCurrency:
-            Str(Currency(Aligned(Value)):precision+6, Result);
+            Str(Currency(Aligned(Value)):precision+6, GeneralText);
           else
-            Str(Extended(Aligned(Value)):precision+8, Result);
+            Str(Extended(Aligned(Value)):precision+8, GeneralText);
         end;
-        { Delete leading spaces }
-        while Result[1] = ' ' do
-          System.Delete(Result, 1, 1);
-        P := Pos('.', Result);
-        if P<>0 then
-          Result[P] := DS
-        else
-          Exit; { NAN or other special case }
-        { Consider removing exponent }
-        PE:=Pos('E',Result);
-        if PE > 0 then begin
-          { Read exponent }
-          Q := PE+2;
-          Exponent := 0;
-          while (Q <= Length(Result)) do begin
-            Exponent := Exponent*10 + Ord(Result[Q])-Ord('0');
-            Inc(Q);
-          end;
-          if Result[PE+1] = '-' then
-            Exponent := -Exponent;
-          if (P+Exponent < PE) and (Exponent > -6) then begin
-            { OK to remove exponent }
-            SetLength(Result,PE-1); { Trim exponent }
-            if Exponent >= 0 then begin
-              { Shift point to right }
-              for Q := 0 to Exponent-1 do begin
-                Result[P] := Result[P+1];
-                Inc(P);
-              end;
-              Result[P] := DS;
-              P := 1;
-              if Result[P] = '-' then
-                Inc(P);
-              while (Result[P] = '0') and (P < Length(Result)) and (Result[P+1] <> DS) do
-                { Trim leading zeros; conversion above should not give any, but occasionally does
-                  because of rounding }
-                System.Delete(Result,P,1);
-            end else begin
-              { Add zeros at start }
-              Insert(Copy('00000',1,-Exponent),Result,P-1);
-              Result[P-Exponent] := Result[P-Exponent-1]; { Copy leading digit }
-              Result[P] := DS;
-              if Exponent <> -1 then
-                Result[P-Exponent-1] := '0';
-            end;
-            { Remove trailing zeros }
-            Q := Length(Result);
-            while (Q > 0) and (Result[Q] = '0') do
-              Dec(Q);
-            if Result[Q] = DS then
-              Dec(Q); { Remove trailing decimal point }
-            if (Q = 0) or ((Q=1) and (Result[1] = '-')) then
-              Result := '0'
-            else
-              SetLength(Result,Q);
-          end else begin
-            { Need exponent, but remove superfluous characters }
-            { Delete trailing zeros }
-            while Result[PE-1] = '0' do begin
-              System.Delete(Result,PE-1,1);
-              Dec(PE);
-            end;
-            { If number ends in decimal point, remove it }
-            if Result[PE-1] = DS then begin
-              System.Delete(Result,PE-1,1);
-              Dec(PE);
-            end;
-            { delete superfluous + in exponent }
-            if Result[PE+1]='+' then
-              System.Delete(Result,PE+1,1)
-            else
-              Inc(PE);
-            while Result[PE+1] = '0' do
-              { Delete leading zeros in exponent }
-              System.Delete(Result,PE+1,1)
-          end;
-        end;
+        SetGeneralResult(GeneralText);
       End;
 
     ffExponent:
@@ -1778,9 +2074,13 @@ Begin
           else
             Str(Extended(Aligned(Value)):Precision+8, Result);
         end;
-        { Delete leading spaces }
-        while Result[1] = ' ' do
-          System.Delete(Result, 1, 1);
+        { Delete leading spaces with a single move. }
+        P:=1;
+        Q:=Length(Result);
+        while (P<=Q) and (Result[P]=' ') do
+          Inc(P);
+        if P>1 then
+          System.Delete(Result,1,P-1);
 
         if (Result[1]='-') and
           { not Nan etc.? }
@@ -2974,7 +3274,9 @@ function sscanf(const s: string; const fmt : string;const Pointers : array of Po
       while (Length(s) > n) and (s[n] = ' ')  do
         inc(n);
       while (Length(s) >= n) and
-            (s[n] in ['0'..'9', '+', '-', FormatSettings.DecimalSeparator, 'e', 'E']) do
+            (((s[n] >= '0') and (s[n] <= '9')) or (s[n] = '+') or
+             (s[n] = '-') or (s[n] = FormatSettings.DecimalSeparator) or
+             (s[n] = 'e') or (s[n] = 'E')) do
         begin
           s1 := s1+s[n];
           inc(n);

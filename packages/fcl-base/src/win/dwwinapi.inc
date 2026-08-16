@@ -102,7 +102,11 @@ begin
     LEntry:=Watch.Watches[i];
     FN:=BD+lEntry.Path;
     lFilters:=EventsToNotifyFilters(lEntry.Events);
-    lHandle := FindFirstChangeNotification(PAnsiChar(FN), False, lFilters);
+{$IFDEF UNICODERTL}
+    lHandle := FindFirstChangeNotificationW(PWideChar(FN), False, lFilters);
+{$ELSE}
+    lHandle := FindFirstChangeNotificationA(PAnsiChar(FN), False, lFilters);
+{$ENDIF}
     if (lHandle<>INVALID_HANDLE_VALUE) then
       begin
       lData:=TWinAPIData.Create(lHandle,Watch,lEntry);

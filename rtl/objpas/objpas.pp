@@ -151,12 +151,22 @@ Var
 
 {$ifdef FPC_HAS_FEATURE_COMMANDARGS}
 {$ifdef MSWINDOWS}
+  {$ifdef UNICODERTL}
+  {$define HAS_PARAMSTRU}
+  {$else UNICODERTL}
   {$define HAS_PARAMSTRA}
+  {$endif UNICODERTL}
   {$undef FPC_HAS_FEATURE_COMMANDARGS} // Skip the implementation of ParamStr()
 {$endif MSWINDOWS}
+  {$ifdef UNICODERTL}
+     { The product RTL follows Delphi: command-line text is Unicode. }
+     Function ParamStr(Param : Integer) : UnicodeString;
+       {$ifdef HAS_PARAMSTRU} external name '_FPC_ParamStrU'; {$endif}
+  {$else UNICODERTL}
      { ParamStr should return also an ansistring }
      Function ParamStr(Param : Integer) : Ansistring;
        {$ifdef HAS_PARAMSTRA} external name '_FPC_ParamStrA'; {$endif}
+  {$endif UNICODERTL}
 {$endif FPC_HAS_FEATURE_COMMANDARGS}
 
 {****************************************************************************
@@ -311,6 +321,17 @@ end;
 {$endif FPC_HAS_FEATURE_FILEIO}
 
 {$ifdef FPC_HAS_FEATURE_COMMANDARGS}
+{$ifdef UNICODERTL}
+Function ParamStr(Param : Integer) : UnicodeString;
+  begin
+    if (Param=0) then
+      Result:=UnicodeString(System.Paramstr(0))
+    else if (Param>0) and (Param<argc) then
+      Result:=UnicodeString(Argv[Param])
+    else
+      Result:='';
+  end;
+{$else UNICODERTL}
 Function ParamStr(Param : Integer) : ansistring;
   begin
   {
@@ -328,6 +349,7 @@ Function ParamStr(Param : Integer) : ansistring;
     else
       Result:='';
   end;
+{$endif UNICODERTL}
 {$endif FPC_HAS_FEATURE_COMMANDARGS}
 
 {$ifdef FPC_HAS_FEATURE_RESOURCES}

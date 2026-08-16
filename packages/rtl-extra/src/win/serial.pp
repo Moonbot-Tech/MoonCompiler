@@ -191,8 +191,13 @@ begin
   securityAttributes.nLength := SizeOf(TSecurityAttributes);
   securityAttributes.lpSecurityDescriptor := nil;
   securityAttributes.bInheritHandle := true;
-  result := CreateFile(
+{$IFDEF UNICODERTL}
+  result := CreateFileW(
+    PWideChar(DeviceName),
+{$ELSE}
+  result := CreateFileA(
     PAnsiChar(DeviceName),
+{$ENDIF}
     GENERIC_READ or GENERIC_WRITE,
     0,
     @securityAttributes,

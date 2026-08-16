@@ -93,12 +93,44 @@ function Build-Compiler {
       "INSTALL_PREFIX=$newToolchain")
 
     $fpc = Join-Path $newToolchain 'bin\x86_64-win64\fpc.exe'
+    $targetCompiler = Join-Path $newToolchain 'bin\x86_64-win64\ppcx64.exe'
     $config = Join-Path $newToolchain 'bin\x86_64-win64\fpc.cfg'
-    If (-not (Test-Path -LiteralPath $fpc)) {
+    If (-not (Test-Path -LiteralPath $fpc) -or
+        -not (Test-Path -LiteralPath $targetCompiler)) {
       throw 'the installed Win64 toolchain is incomplete'
     }
+
+    # Compiler/IDE tools keep their host representation.  The target RTL and
+    # application-facing packages use the modern Delphi Unicode ABI.
+    $unicodeOptions = 'OPT=-O2 -dUNICODERTL -dFPC_OS_UNICODE'
+    Invoke-Checked $makePath @(
+      '-C', (Join-Path $Root 'rtl'), 'clean', "FPC=$targetCompiler",
+      'CPU_TARGET=x86_64', 'OS_TARGET=win64')
+    Invoke-Checked $makePath @(
+      '-C', (Join-Path $Root 'rtl'), '-j1', 'all', "FPC=$targetCompiler",
+      $unicodeOptions, 'CPU_TARGET=x86_64', 'OS_TARGET=win64')
+    Invoke-Checked $makePath @(
+      '-C', (Join-Path $Root 'rtl'), 'install', "FPC=$targetCompiler",
+      $unicodeOptions, 'CPU_TARGET=x86_64', 'OS_TARGET=win64',
+      "INSTALL_PREFIX=$newToolchain")
+    Invoke-Checked $makePath @(
+      '-C', (Join-Path $Root 'packages'), 'clean', "FPC=$targetCompiler",
+      'FPMAKEOPT=--NoIDE=1', 'CPU_TARGET=x86_64', 'OS_TARGET=win64')
+    Invoke-Checked $makePath @(
+      '-C', (Join-Path $Root 'packages'), '-j1', 'all',
+      "FPC=$targetCompiler", $unicodeOptions, 'FPMAKEOPT=--NoIDE=1',
+      'CPU_TARGET=x86_64', 'OS_TARGET=win64')
+    Invoke-Checked $makePath @(
+      '-C', (Join-Path $Root 'packages'), 'install',
+      "FPC=$targetCompiler", $unicodeOptions, 'FPMAKEOPT=--NoIDE=1',
+      'CPU_TARGET=x86_64', 'OS_TARGET=win64',
+      "INSTALL_PREFIX=$newToolchain")
+
     Invoke-Checked $fpcmkcfg @(
       '-d', "basepath=$Toolchain", '-o', $config)
+    Add-Content -LiteralPath $config -Encoding Ascii -Value @(
+      '# Moon Compiler project ABI: Delphi String and Char are Unicode.',
+      '-dMOONCOMPILER_UNICODE_DEFAULT')
     foreach ($tool in @('ar', 'as', 'ld', 'nm', 'objcopy', 'objdump', 'strip', 'windres')) {
       $source = Join-Path $bootstrapDir "x86_64-win64-$tool.exe"
       If (-not (Test-Path -LiteralPath $source)) {
@@ -197,26 +229,6 @@ function Build-Project([string]$Project, [string]$BuildProfile) {
   $options += @("-FU$appUnitDir", "-FE$projectDir")
 
   $projectProfile = Resolve-ProjectProfile $projectPath $projectDir $State
-  If ($projectProfile.AnsiEntry) {
-    $ansiUnitDir = Join-Path $unitDir 'ansi'
-    New-Item -ItemType Directory -Force -Path $ansiUnitDir | Out-Null
-    $ansiOptions = @(
-      '-n', "@$config", '-Mdelphi', '-Mansistrings',
-      '-MduplicateLocals', '-Madvancedrecords', '-Marrayoperators',
-      '-Munderscoreisseparator', '-Mfunctionreferences',
-      '-Manonymousfunctions', '-Minlinevars', '-Mimplicitgenerics', '-Mautoderef',
-      '-Px86_64', '-Twin64', '-Rintel', '-B',
-      '-dMOONBOT_MM_PROFILE_REQUIRED', '-dFPCMM_BOOSTER', '-dFPCMM_MOONSHARD',
-      "--pinned-unit=$MmUnit=$MmSource",
-      "--required-first-unit=$MmUnit")
-    $ansiOptions += $namespaceOptions
-    $ansiOptions += "-FU$ansiUnitDir"
-    foreach ($source in $projectProfile.AnsiSources) {
-      $ansiOptions += Get-ProjectTreeOptions $source
-    }
-    Invoke-Checked $fpc ($ansiOptions + $profileOptions + @($projectProfile.AnsiEntry))
-    $options += "-Fu$ansiUnitDir"
-  }
   $options += $projectProfile.Options
   $options += $profileOptions
 

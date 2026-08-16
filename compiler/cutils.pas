@@ -157,8 +157,8 @@ interface
        terminated string to that allocated memory and returns a pointer
        to that mem
     }
-    function  strpnew(const s : string) : pchar;
-    function  strpnew(const s : ansistring) : pchar;
+    function  strpnew(const s : string) : pansichar;
+    function  strpnew(const s : ansistring) : pansichar;
 
     {# makes the character @var(c) lowercase, with spanish, french and german
        character set
@@ -166,12 +166,12 @@ interface
     function lowercase(c : char) : char;
 
     { allocate a new pchar with the contents of a}
-    function ansistring2pchar(const a: ansistring) : pchar;
+    function ansistring2pchar(const a: ansistring) : pansichar;
 
     { Ansistring (pchar+length) support }
-    procedure ansistringdispose(var p : pchar;length : longint);
-    function compareansistrings(p1,p2 : pchar;length1,length2 : longint) : longint;
-    function concatansistrings(p1,p2 : pchar;length1,length2 : longint) : pchar;
+    procedure ansistringdispose(var p : pansichar;length : longint);
+    function compareansistrings(p1,p2 : pansichar;length1,length2 : longint) : longint;
+    function concatansistrings(p1,p2 : pansichar;length1,length2 : longint) : pansichar;
 
     function LengthUleb128(a: qword) : byte;
     function LengthSleb128(a: int64) : byte;
@@ -1161,7 +1161,7 @@ implementation
     end;
 
 
-    function ansistring2pchar(const a: ansistring) : pchar;
+    function ansistring2pchar(const a: ansistring) : pansichar;
       var
         len: ptrint;
       begin
@@ -1192,9 +1192,9 @@ implementation
        end;
 
 
-    function strpnew(const s : string) : pchar;
+    function strpnew(const s : string) : pansichar;
       var
-         p : pchar;
+         p : pansichar;
       begin
          getmem(p,length(s)+1);
          move(s[1],p^,length(s));
@@ -1202,9 +1202,9 @@ implementation
          result:=p;
       end;
 
-    function strpnew(const s: ansistring): pchar;
+    function strpnew(const s: ansistring): pansichar;
       var
-         p : pchar;
+         p : pansichar;
       begin
         getmem(p,length(s)+1);
         move(s[1],p^,length(s)+1);
@@ -1329,7 +1329,7 @@ implementation
                                Ansistring (PChar+Length)
 *****************************************************************************}
 
-    procedure ansistringdispose(var p : pchar;length : longint);
+    procedure ansistringdispose(var p : pansichar;length : longint);
       begin
          if assigned(p) then
            begin
@@ -1343,7 +1343,7 @@ implementation
     { 0 means equal }
     { 1 means p1 > p2 }
     { -1 means p1 < p2 }
-    function compareansistrings(p1,p2 : pchar;length1,length2 :  longint) : longint;
+    function compareansistrings(p1,p2 : pansichar;length1,length2 :  longint) : longint;
       var
          cmp : SizeInt;
       begin
@@ -1354,9 +1354,9 @@ implementation
       end;
 
 
-    function concatansistrings(p1,p2 : pchar;length1,length2 : longint) : pchar;
+    function concatansistrings(p1,p2 : pansichar;length1,length2 : longint) : pansichar;
       var
-         p : pchar;
+         p : pansichar;
       begin
          getmem(p,length1+length2+1);
          move(p1[0],p[0],length1);

@@ -86,7 +86,7 @@ unit charset;
       AMap     : punicodemap;
       ADest    : tunicodestring
     ) : LongInt;
-    function getascii(c : tunicodechar;p : punicodemap) : string;
+    function getascii(c : tunicodechar;p : punicodemap) : AnsiString;
     function getascii(c : tunicodechar;p : punicodemap; ABuffer : PAnsiChar; ABufferLen : LongInt) : LongInt;
 
   implementation
@@ -693,7 +693,7 @@ unit charset;
         result:=((PtrUInt(pd)-PtrUInt(ADest)) div SizeOf(tunicodechar));
       end;
 
-    function getascii(c : tunicodechar;p : punicodemap) : string;
+    function getascii(c : tunicodechar;p : punicodemap) : AnsiString;
       var
          rm : preversecharmapping;
       begin

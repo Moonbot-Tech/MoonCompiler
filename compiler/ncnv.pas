@@ -1196,7 +1196,7 @@ implementation
         newblock : tblocknode;
         newstat  : tstatementnode;
         restemp  : ttempcreatenode;
-        pchtemp  : pchar;
+        pchtemp  : pansichar;
         arrsize  : tcgint;
         chartype : string[8];
 
@@ -1223,7 +1223,7 @@ implementation
                  { (2.0.x compatible)                               }
                  if (arrsize>tstringconstnode(left).len) then
                    begin
-                     pchtemp:=concatansistrings(tstringconstnode(left).asconstpchar,pchar(StringOfChar(#0,arrsize-tstringconstnode(left).len)),tstringconstnode(left).len,arrsize-tstringconstnode(left).len);
+                      pchtemp:=concatansistrings(tstringconstnode(left).asconstpchar,pansichar(ansistring(StringOfChar(#0,arrsize-tstringconstnode(left).len))),tstringconstnode(left).len,arrsize-tstringconstnode(left).len);
                      left.free;
                      left:=cstringconstnode.createpchar(pchtemp,arrsize,nil);
                      freemem(pchtemp);

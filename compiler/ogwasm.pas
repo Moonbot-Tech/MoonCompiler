@@ -106,7 +106,7 @@ interface
         constructor CreateTypeIndex(ADataOffset:TObjSectionOfs; ATypeIndex: Integer);
         constructor CreateFuncType(ADataOffset:TObjSectionOfs; AFuncType: TWasmFuncType);
         destructor Destroy;override;
-        function ToString:ansistring;override;
+        function ToString:RTLString;override;
       end;
 
       { TWasmObjSymbolExtraData }
@@ -740,7 +740,7 @@ implementation
         inherited Destroy;
       end;
 
-    function TWasmObjRelocation.ToString: ansistring;
+    function TWasmObjRelocation.ToString: RTLString;
       var
         FuncTypeStr: ansistring;
       begin

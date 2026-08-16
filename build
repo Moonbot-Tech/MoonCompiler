@@ -29,7 +29,7 @@ cleanup_compiler_build() {
 }
 
 build_compiler() {
-  local bootstrap version_dir
+  local bootstrap target_compiler version_dir
   bootstrap=${MOONBOT_BOOTSTRAP_FPC:-$(command -v fpc || true)}
   [[ -n "$bootstrap" && -x "$bootstrap" ]] || {
     echo "FPC 3.2.2 is required once; set MOONBOT_BOOTSTRAP_FPC" >&2
@@ -57,11 +57,36 @@ build_compiler() {
     echo "could not identify the installed compiler version" >&2
     exit 1
   }
+  target_compiler="$new_toolchain/lib/fpc/$version_dir/ppcx64"
+  [[ -x "$target_compiler" ]] || {
+    echo "the installed Linux compiler is incomplete" >&2
+    exit 1
+  }
+
+  # Compiler/IDE tools keep their host representation.  The target RTL and
+  # application-facing packages use the modern Delphi Unicode ABI.
+  make -C "$ROOT/rtl" clean FPC="$target_compiler"
+  make -C "$ROOT/rtl" -j1 all FPC="$target_compiler" \
+    OPT='-O2 -dUNICODERTL'
+  make -C "$ROOT/rtl" install FPC="$target_compiler" \
+    OPT='-O2 -dUNICODERTL' INSTALL_PREFIX="$new_toolchain"
+  make -C "$ROOT/packages" clean FPC="$target_compiler" \
+    FPMAKEOPT=--NoIDE=1
+  make -C "$ROOT/packages" -j1 all FPC="$target_compiler" \
+    OPT='-O2 -dUNICODERTL' FPMAKEOPT=--NoIDE=1
+  make -C "$ROOT/packages" install FPC="$target_compiler" \
+    OPT='-O2 -dUNICODERTL' FPMAKEOPT=--NoIDE=1 \
+    INSTALL_PREFIX="$new_toolchain"
+
   ln -s "../lib/fpc/$version_dir/ppcx64" "$new_toolchain/bin/ppcx64"
   mkdir -p "$new_toolchain/etc"
   "$new_toolchain/bin/fpcmkcfg" \
     -d "basepath=$TOOLCHAIN/lib/fpc/$version_dir" \
     -o "$new_toolchain/etc/fpc.cfg"
+  printf '%s\n' \
+    '# Moon Compiler project ABI: Delphi String and Char are Unicode.' \
+    '-dMOONCOMPILER_UNICODE_DEFAULT' \
+    >> "$new_toolchain/etc/fpc.cfg"
 
   publish_toolchain "$new_toolchain" "$TOOLCHAIN" "$old_toolchain"
   trap - EXIT

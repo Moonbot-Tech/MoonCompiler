@@ -765,8 +765,8 @@ Const
 
     procedure DefaultReplacements(var s:ansistring; substitute_env_variables:boolean=true);
 
-    function  GetEnvPChar(const envname:ansistring):pchar;
-    procedure FreeEnvPChar(p:pchar);
+    function  GetEnvPChar(const envname:ansistring):pansichar;
+    procedure FreeEnvPChar(p:pansichar);
 
     function is_number_float(d : double) : boolean;
     { discern +0.0 and -0.0 }
@@ -1098,7 +1098,7 @@ implementation
 {$ifdef openbsd}
        function GetOpenBSDLocalBase: ansistring;
          var
-           envvalue: pchar;
+           envvalue: pansichar;
          begin
            envvalue := GetEnvPChar('LOCALBASE');
            if assigned(envvalue) then
@@ -1109,7 +1109,7 @@ implementation
          end;
        function GetOpenBSDX11Base: ansistring;
          var
-           envvalue: pchar;
+           envvalue: pansichar;
          begin
            envvalue := GetEnvPChar('X11BASE');
            if assigned(envvalue) then
@@ -1121,7 +1121,7 @@ implementation
 {$endif openbsd}
        var
          envstr: string;
-         envvalue: pchar;
+         envvalue: pansichar;
          i: integer;
        begin
          { Replace some macros }
@@ -1203,12 +1203,12 @@ implementation
                                OS Dependent things
  ****************************************************************************}
 
-    function GetEnvPChar(const envname:ansistring):pchar;
+    function GetEnvPChar(const envname:ansistring):pansichar;
       {$ifdef mswindows}
       var
         s     : string;
         i,len : longint;
-        hp,p,p2 : pchar;
+        hp,p,p2 : pansichar;
       {$endif}
       begin
       {$ifdef hasunix}
@@ -1234,7 +1234,7 @@ implementation
            { next string entry}
            hp:=hp+len+1;
          end;
-        FreeEnvironmentStrings(p);
+        FreeEnvironmentStringsA(p);
         {$define GETENVOK}
       {$endif}
       {$ifdef os2}
@@ -1254,7 +1254,7 @@ implementation
       end;
 
 
-    procedure FreeEnvPChar(p:pchar);
+    procedure FreeEnvPChar(p:pansichar);
       begin
       {$ifndef hasunix}
        {$ifndef os2}
@@ -1876,7 +1876,7 @@ implementation
 
    procedure rtti_expose_add_cli(const s: ansistring);
      var
-       parts: TStringArray;
+       parts: TAnsiStringArray;
        i: integer;
        p: ansistring;
      begin

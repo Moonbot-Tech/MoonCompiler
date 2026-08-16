@@ -1056,7 +1056,7 @@ BEGIN
        Inc(Result, {$IFDEF FPC_DOTTEDUNITS}System.Console.{$ENDIF}Video.ExtendedGraphemeClusterDisplayWidth(EGC));
 END;
 {$else FV_UNICODE}
-FUNCTION CStrLen (Const S: String): Sw_Integer;
+FUNCTION CStrLen (Const S: Sw_String): Sw_Integer;
 VAR I, J: Sw_Integer;
 BEGIN
    J := 0;                                            { Set result to zero }
@@ -1083,7 +1083,7 @@ BEGIN
      end;
 END;
 {$else FV_UNICODE}
-PROCEDURE MoveStr (Var Dest; Const Str: String; Attr: Byte);
+PROCEDURE MoveStr (Var Dest; Const Str: Sw_String; Attr: Byte);
 VAR I: Word; P: PWord;
 BEGIN
    For I := 1 To Length(Str) Do Begin                 { For each character }
@@ -1121,7 +1121,7 @@ BEGIN
      end;
 END;
 {$else FV_UNICODE}
-PROCEDURE MoveCStr (Var Dest; Const Str: String; Attrs: Word);
+PROCEDURE MoveCStr (Var Dest; Const Str: Sw_String; Attrs: Word);
 VAR B: Byte; I, J: Sw_Word; P: PWord;
 BEGIN
    J := 0;                                            { Start position }

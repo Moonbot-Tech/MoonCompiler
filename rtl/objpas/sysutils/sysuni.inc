@@ -51,7 +51,50 @@ function TrimRight(const S: unicodestring): unicodestring;
   end;
 
 
-Function InternalChangeCase(Const S : UnicodeString; const Chars: TSysCharSet; const Adjustment: Longint): UnicodeString;
+Function InternalChangeCase(Const S : UnicodeString; FirstChar, LastChar: UnicodeChar): UnicodeString;
+  {$ifdef CPUX86_64}
+  const
+    LaneHigh = UInt64($8000800080008000);
+    LaneLow = UInt64($7fff7fff7fff7fff);
+  var
+    Len, Remaining : Integer;
+    Src, Dst : PWideChar;
+    V, LowBits, GeMask, LeMask, RangeMask, LowRep, HighRep : UInt64;
+    C : UnicodeChar;
+  begin
+    Len:=Length(S);
+    SetLength(Result,Len);
+    if Len=0 then
+      exit;
+    Src:=PWideChar(S);
+    Dst:=PWideChar(Result);
+    Remaining:=Len;
+    LowRep:=UInt64(Word(FirstChar))*UInt64($0001000100010001);
+    HighRep:=UInt64(Word(LastChar))*UInt64($0001000100010001);
+    while Remaining>=4 do
+      begin
+        V:=PUInt64(Src)^;
+        LowBits:=V and LaneLow;
+        GeMask:=((LowBits or LaneHigh)-LowRep) and LaneHigh;
+        LeMask:=((HighRep or LaneHigh)-LowBits) and LaneHigh;
+        RangeMask:=GeMask and LeMask and (not V) and LaneHigh;
+        PUInt64(Dst)^:=V xor (RangeMask shr 10);
+        Inc(Src,4);
+        Inc(Dst,4);
+        Dec(Remaining,4);
+      end;
+    while Remaining<>0 do
+      begin
+        C:=Src^;
+        if (C>=FirstChar) and (C<=LastChar) then
+          C:=UnicodeChar(Word(C) xor $20);
+        Dst^:=C;
+        Inc(Src);
+        Inc(Dst);
+        Dec(Remaining);
+      end;
+  end;
+  {$else CPUX86_64}
   var
     i : Integer;
     P : PWideChar;
@@ -64,7 +107,7 @@ Function InternalChangeCase(Const S : UnicodeString; const Chars: TSysCharSet; c
     P:=PWideChar(Result);
     for i:=1 to Length(Result) do
       begin
-        if CharInSet(P^,Chars) then
+        if (P^>=FirstChar) and (P^<=LastChar) then
           begin
             if not Unique then
               begin
@@ -72,18 +115,19 @@ Function InternalChangeCase(Const S : UnicodeString; const Chars: TSysCharSet; c
                 p:=@Result[i];
                 Unique:=true;
               end;
-            P^:=WideChar(Ord(P^)+Adjustment);
+            P^:=WideChar(Ord(P^) xor $20);
           end;
         Inc(P);
       end;
   end;
+  {$endif CPUX86_64}
 
 
 {   UpperCase returns a copy of S where all lowercase characters ( from a to z )
     have been converted to uppercase   }
 Function UpperCase(Const S : UnicodeString) : UnicodeString;
   begin
-    Result:=InternalChangeCase(S,['a'..'z'],-32);
+    Result:=InternalChangeCase(S,'a','z');
   end;
 
 
@@ -91,7 +135,7 @@ Function UpperCase(Const S : UnicodeString) : UnicodeString;
     have been converted to lowercase  }
 Function Lowercase(Const S : UnicodeString) : UnicodeString;
   begin
-    Result:=InternalChangeCase(S,['A'..'Z'],32);
+    Result:=InternalChangeCase(S,'A','Z');
   end;
 
 
@@ -108,15 +152,52 @@ function UnicodeLowerCase(const s : UnicodeString) : UnicodeString;{$ifdef SYSUT
 
 
 function UnicodeCompareStr(const s1, s2 : UnicodeString) : PtrInt;{$ifdef SYSUTILSINLINE}inline;{$endif}
-  begin
-    result:=widestringmanager.CompareUnicodeStringProc(s1,s2,[]);
-  end;
+var
+  I, CommonLength, Length1, Length2: SizeInt;
+  P1, P2: PUnicodeChar;
+begin
+  P1:=Pointer(S1);
+  P2:=Pointer(S2);
+  if P1=P2 then
+    Exit(0);
+
+  Length1:=Length(S1);
+  Length2:=Length(S2);
+  CommonLength:=Length1;
+  if Length2<CommonLength then
+    CommonLength:=Length2;
+
+  I:=0;
+  {$ifdef CPU64}
+  while I+4<=CommonLength do
+    begin
+    if PQWord(P1+I)^<>PQWord(P2+I)^ then
+      begin
+      if P1[I]<>P2[I] then
+        Exit(PtrInt(P1[I])-PtrInt(P2[I]));
+      if P1[I+1]<>P2[I+1] then
+        Exit(PtrInt(P1[I+1])-PtrInt(P2[I+1]));
+      if P1[I+2]<>P2[I+2] then
+        Exit(PtrInt(P1[I+2])-PtrInt(P2[I+2]));
+      Exit(PtrInt(P1[I+3])-PtrInt(P2[I+3]));
+      end;
+    Inc(I,4);
+    end;
+  {$endif CPU64}
+  while I<CommonLength do
+    begin
+    if P1[I]<>P2[I] then
+      Exit(PtrInt(P1[I])-PtrInt(P2[I]));
+    Inc(I);
+    end;
+  Result:=Length1-Length2;
+end;
 
 
 function UnicodeSameStr(const s1, s2 : UnicodeString) : Boolean;{$ifdef SYSUTILSINLINE}inline;{$endif}
-  begin
-    result:=widestringmanager.CompareUnicodeStringProc(s1,s2,[])=0;
-  end;
+begin
+  Result:=S1=S2;
+end;
 
 
 function UnicodeCompareText(const s1, s2 : UnicodeString) : PtrInt;{$ifdef SYSUTILSINLINE}inline;{$endif}
@@ -134,17 +215,315 @@ function UnicodeSameText(const s1, s2 : UnicodeString) : Boolean;{$ifdef SYSUTIL
 { we've no templates, but with includes we can simulate this :) }
 {$macro on}
 {$define INWIDEFORMAT}
+{$define INUNICODESTRING}
 {$define TFormatString:=unicodestring}
 {$define TFormatChar:=unicodechar}
 
-Function UnicodeFormat (Const Fmt : UnicodeString; const Args : Array of const; Const FormatSettings: TFormatSettings) : UnicodeString;
+Function UnicodeFormatGeneral (Const Fmt : UnicodeString; const Args : Array of const; Const FormatSettings: TFormatSettings) : UnicodeString;
 {$i sysformt.inc}
 
 
 {$undef TFormatString}
 {$undef TFormatChar}
+{$undef INUNICODESTRING}
 {$undef INWIDEFORMAT}
 {$macro off}
+
+Function TryUnicodeFormatSimple(Const Fmt : UnicodeString;
+  const Args : Array of const; Const FormatSettings: TFormatSettings;
+  Out Value: UnicodeString): Boolean;
+var
+  ArgIndex,Capacity,DigitCount,I,L,Precision,ResultLength,Start: Integer;
+  Digits: Array[0..19] of UnicodeChar;
+  Negative: Boolean;
+  Part: UnicodeString;
+  UnsignedValue: QWord;
+
+  Procedure EnsureCapacity(Additional: Integer); inline;
+  var
+    Required: Integer;
+  begin
+    Required:=ResultLength+Additional;
+    if Required<=Capacity then
+      exit;
+    if Capacity=0 then
+      Capacity:=L+32;
+    if Capacity<64 then
+      Capacity:=64;
+    while Capacity<Required do
+      Capacity:=Capacity*2;
+    SetLength(Value,Capacity);
+  end;
+
+  Procedure AppendSlice(SliceStart,Count: Integer); inline;
+  begin
+    if Count<=0 then
+      exit;
+    EnsureCapacity(Count);
+    Move(Fmt[SliceStart],Value[ResultLength+1],Count*SizeOf(UnicodeChar));
+    Inc(ResultLength,Count);
+  end;
+
+  Procedure AppendPart; inline;
+  var
+    PartLength: Integer;
+  begin
+    PartLength:=Length(Part);
+    if PartLength=0 then
+      exit;
+    EnsureCapacity(PartLength);
+    Move(Part[1],Value[ResultLength+1],PartLength*SizeOf(UnicodeChar));
+    Inc(ResultLength,PartLength);
+  end;
+
+  Procedure AppendUnsigned(Number: QWord; IsNegative: Boolean); inline;
+  begin
+    DigitCount:=0;
+    repeat
+      Digits[DigitCount]:=UnicodeChar(Ord('0')+Number mod 10);
+      Number:=Number div 10;
+      Inc(DigitCount);
+    until Number=0;
+    EnsureCapacity(DigitCount+Ord(IsNegative));
+    if IsNegative then
+      begin
+      Inc(ResultLength);
+      Value[ResultLength]:='-';
+      end;
+    while DigitCount>0 do
+      begin
+      Dec(DigitCount);
+      Inc(ResultLength);
+      Value[ResultLength]:=Digits[DigitCount];
+      end;
+  end;
+
+begin
+  Result:=False;
+  L:=Length(Fmt);
+  Capacity:=0;
+  Value:='';
+  ResultLength:=0;
+  ArgIndex:=0;
+  I:=1;
+  Start:=1;
+  while I<=L do
+    begin
+    if Fmt[I]<>'%' then
+      begin
+      Inc(I);
+      continue;
+      end;
+    AppendSlice(Start,I-Start);
+    Inc(I);
+    if I>L then
+      exit;
+    if Fmt[I]='%' then
+      begin
+      EnsureCapacity(1);
+      Inc(ResultLength);
+      Value[ResultLength]:='%';
+      Inc(I);
+      Start:=I;
+      continue;
+      end;
+    if ArgIndex>High(Args) then
+      exit;
+    Case Fmt[I] of
+      'd','D':
+        Case Args[ArgIndex].VType of
+          vtInteger:
+            begin
+            Negative:=Args[ArgIndex].VInteger<0;
+            if Negative then
+              UnsignedValue:=QWord(-(Int64(Args[ArgIndex].VInteger)+1))+1
+            else
+              UnsignedValue:=Args[ArgIndex].VInteger;
+            AppendUnsigned(UnsignedValue,Negative);
+            end;
+          vtInt64:
+            begin
+            Negative:=Args[ArgIndex].VInt64^<0;
+            if Negative then
+              UnsignedValue:=QWord(-(Args[ArgIndex].VInt64^+1))+1
+            else
+              UnsignedValue:=Args[ArgIndex].VInt64^;
+            AppendUnsigned(UnsignedValue,Negative);
+            end;
+          vtQWord:
+            begin
+            Negative:=Int64(Args[ArgIndex].VQWord^)<0;
+            if Negative then
+              UnsignedValue:=QWord(-(Int64(Args[ArgIndex].VQWord^)+1))+1
+            else
+              UnsignedValue:=Args[ArgIndex].VQWord^;
+            AppendUnsigned(UnsignedValue,Negative);
+            end;
+          else
+            exit;
+        end;
+      'u','U':
+        begin
+        Case Args[ArgIndex].VType of
+          vtInteger:
+            UnsignedValue:=Cardinal(Args[ArgIndex].VInteger);
+          vtInt64:
+            UnsignedValue:=QWord(Args[ArgIndex].VInt64^);
+          vtQWord:
+            UnsignedValue:=Args[ArgIndex].VQWord^;
+          else
+            exit;
+        end;
+        AppendUnsigned(UnsignedValue,False);
+        end;
+      's','S':
+        Case Args[ArgIndex].VType of
+          vtUnicodeString:
+            begin
+            Part:=UnicodeString(Args[ArgIndex].VUnicodeString);
+            AppendPart;
+            end;
+          vtWideChar:
+            begin
+            EnsureCapacity(1);
+            Inc(ResultLength);
+            Value[ResultLength]:=UnicodeChar(Args[ArgIndex].VWideChar);
+            end;
+          else
+            exit;
+        end;
+      'f','F':
+        begin
+        Precision:=-1;
+        Case Args[ArgIndex].VType of
+          vtExtended:
+            Part:=FloatToStrF(Args[ArgIndex].VExtended^,ffFixed,9999,
+              Precision,FormatSettings);
+          vtCurrency:
+            Part:=FloatToStrF(Args[ArgIndex].VCurrency^,ffFixed,9999,
+              Precision,FormatSettings);
+          else
+            exit;
+        end;
+        AppendPart;
+        end;
+      '.':
+        begin
+        Precision:=0;
+        Inc(I);
+        Start:=I;
+        while (I<=L) and (Fmt[I]>='0') and (Fmt[I]<='9') do
+          begin
+          if Precision>(High(Integer)-(Ord(Fmt[I])-Ord('0'))) div 10 then
+            exit;
+          Precision:=Precision*10+Ord(Fmt[I])-Ord('0');
+          Inc(I);
+          end;
+        if (I=Start) or (I>L) or
+           ((Fmt[I]<>'f') and (Fmt[I]<>'F')) then
+          exit;
+        Case Args[ArgIndex].VType of
+          vtExtended:
+            Part:=FloatToStrF(Args[ArgIndex].VExtended^,ffFixed,9999,
+              Precision,FormatSettings);
+          vtCurrency:
+            Part:=FloatToStrF(Args[ArgIndex].VCurrency^,ffFixed,9999,
+              Precision,FormatSettings);
+          else
+            exit;
+        end;
+        AppendPart;
+        end;
+      else
+        exit;
+    end;
+    Inc(ArgIndex);
+    Inc(I);
+    Start:=I;
+    end;
+  if Start=1 then
+    Value:=Fmt
+  else
+    begin
+    AppendSlice(Start,L-Start+1);
+    SetLength(Value,ResultLength);
+    end;
+  Result:=True;
+end;
+
+Function UnicodeFormat (Const Fmt : UnicodeString; const Args : Array of const; Const FormatSettings: TFormatSettings) : UnicodeString;
+var
+  I,Precision: Integer;
+begin
+  { Keep the common one-argument forms out of UnicodeFormatGeneral: entering
+    that parser would construct its large stack frame and initialize all of
+    its managed temporaries before it could take the same decision. }
+  If (Length(Fmt)=2) and (High(Args)=0) and (Fmt[1]='%') then
+    Case Fmt[2] of
+      's','S':
+        Case Args[0].VType of
+          vtUnicodeString:
+            exit(UnicodeString(Args[0].VUnicodeString));
+          vtWideChar:
+            exit(UnicodeString(WideChar(Args[0].VWideChar)));
+        end;
+      'd','D':
+        Case Args[0].VType of
+          vtInteger:
+            exit(IntToStr(Args[0].VInteger));
+          vtInt64:
+            exit(IntToStr(Args[0].VInt64^));
+          vtQWord:
+            exit(IntToStr(Int64(Args[0].VQWord^)));
+        end;
+      'u','U':
+        Case Args[0].VType of
+          vtInteger:
+            exit(UIntToStr(Cardinal(Args[0].VInteger)));
+          vtInt64:
+            exit(UIntToStr(QWord(Args[0].VInt64^)));
+          vtQWord:
+            exit(UIntToStr(Args[0].VQWord^));
+        end;
+    end;
+  { An exact single fixed-point conversion is another common complete format,
+    not a prefix of the general grammar.  Parse it here so FloatToStrF can
+    produce the result directly instead of entering the large format parser,
+    allocating a second temporary string and copying it into the output. }
+  If (High(Args)=0) and (Length(Fmt)>=2) and (Fmt[1]='%') and
+     ((Fmt[Length(Fmt)]='f') or (Fmt[Length(Fmt)]='F')) then
+    begin
+    Precision:=-1;
+    if Length(Fmt)=2 then
+      I:=Length(Fmt)
+    else if (Fmt[2]='.') and (Length(Fmt)>3) then
+      begin
+      Precision:=0;
+      I:=3;
+      while (I<Length(Fmt)) and (Fmt[I]>='0') and (Fmt[I]<='9') do
+        begin
+        if Precision>(High(Integer)-(Ord(Fmt[I])-Ord('0'))) div 10 then
+          break;
+        Precision:=Precision*10+Ord(Fmt[I])-Ord('0');
+        Inc(I);
+        end;
+      end
+    else
+      I:=0;
+    if I=Length(Fmt) then
+      Case Args[0].VType of
+        vtExtended:
+          exit(FloatToStrF(Args[0].VExtended^,ffFixed,9999,Precision,
+            FormatSettings));
+        vtCurrency:
+          exit(FloatToStrF(Args[0].VCurrency^,ffFixed,9999,Precision,
+            FormatSettings));
+      end;
+    end;
+  if TryUnicodeFormatSimple(Fmt,Args,FormatSettings,Result) then
+    exit;
+  Result:=UnicodeFormatGeneral(Fmt,Args,FormatSettings);
+end;
 
 Function UnicodeFormat (Const Fmt : UnicodeString; const Args : Array of const) : UnicodeString;
 begin
@@ -154,6 +533,17 @@ end;
 Function Format (Const Fmt : UnicodeString; const Args : Array of const; Const FormatSettings: TFormatSettings) : UnicodeString;
 
 begin
+  { Format is the Delphi-facing entry point.  Keep its overwhelmingly common
+    exact string substitution on this small wrapper instead of paying for the
+    numeric dispatch in UnicodeFormat as well. }
+  If (Length(Fmt)=2) and (High(Args)=0) and (Fmt[1]='%') and
+     ((Fmt[2]='s') or (Fmt[2]='S')) then
+    Case Args[0].VType of
+      vtUnicodeString:
+        exit(UnicodeString(Args[0].VUnicodeString));
+      vtWideChar:
+        exit(UnicodeString(WideChar(Args[0].VWideChar)));
+    end;
   Result:=UnicodeFormat(Fmt,Args,FormatSettings);
 end;
 
@@ -175,7 +565,7 @@ begin
   Setlength(F,fmtlen);
   if fmtlen > 0 then
     Move(fmt,F[1],fmtlen*sizeof(Unicodechar));
-  S:=UnicodeFormat (F,Args);
+  S:=UnicodeFormat(F,Args,FormatSettings);
   If Cardinal(Length(S))<Buflen then
     Result:=Length(S)
   else
@@ -194,7 +584,7 @@ end;
 
 Procedure UnicodeFmtStr(Var Res: UnicodeString; Const Fmt : UnicodeString; Const args: Array of const; Const FormatSettings: TFormatSettings);
 begin
-  Res:=UnicodeFormat(fmt,Args);
+  Res:=UnicodeFormat(Fmt,Args,FormatSettings);
 end;
 
 

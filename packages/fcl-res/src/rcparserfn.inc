@@ -197,7 +197,7 @@ begin
     rc_unget_char(s[i]);
 end;
 
-procedure PragmaCodePage(cp: ansistring);
+procedure PragmaCodePage(cp: string);
 var cpi: integer;
 begin
   if Uppercase(cp) = 'DEFAULT' then

@@ -240,8 +240,8 @@ end;
   var
     Dst: PAnsiChar;
   begin
-    Dst := AllocMem((Length(s) + 1) * SizeOf(Char));
-    if OemToChar(PAnsiChar(s), Dst) then
+    Dst := AllocMem((Length(s) + 1) * SizeOf(AnsiChar));
+    if OemToCharA(PAnsiChar(s), Dst) then
       Result := StrPas(Dst)
     else
       Result := s;
@@ -261,8 +261,8 @@ end;
     Dst: PAnsiChar;
   begin
     Result := UTF8ToWinCP(s);
-    Dst := AllocMem((Length(Result) + 1) * SizeOf(Char));
-    if CharToOEM(PAnsiChar(Result), Dst) then
+    Dst := AllocMem((Length(Result) + 1) * SizeOf(AnsiChar));
+    if CharToOEMA(PAnsiChar(Result), Dst) then
       Result := StrPas(Dst);
     FreeMem(Dst);
     SetCodePage(RawByteString(Result), CP_OEMCP, False);
