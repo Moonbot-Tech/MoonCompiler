@@ -213,7 +213,7 @@ interface
           procedure deref;override;
           function  getsize : asizeint;
           function  getpackedbitsize : longint;
-          function  is_regvar(refpara: boolean):boolean;
+          function  is_regvar(refpara: boolean; ignoreexceptions: boolean=false):boolean;
         private
           _vardef     : tdef;
           vardefderef : tderef;
@@ -2031,7 +2031,7 @@ implementation
       end;
 
 
-    function tabstractvarsym.is_regvar(refpara: boolean):boolean;
+    function tabstractvarsym.is_regvar(refpara: boolean; ignoreexceptions: boolean):boolean;
       var
         tempdef : tdef;
       begin
@@ -2043,7 +2043,8 @@ implementation
            - the value needs to be in memory (i.e. reference counted) }
         result:=(cs_opt_regvar in current_settings.optimizerswitches) and
                 not(pi_has_assembler_block in current_procinfo.flags) and
-                not(pi_uses_exceptions in current_procinfo.flags) and
+                (ignoreexceptions or
+                 not(pi_uses_exceptions in current_procinfo.flags)) and
                 not(pi_has_interproclabel in current_procinfo.flags) and
                 ((refpara and
                   (varregable <> vr_none)) or

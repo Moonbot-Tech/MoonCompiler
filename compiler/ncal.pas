@@ -5948,7 +5948,8 @@ implementation
     function tcallnode.maybecreateinlineparatemp(para: tcallparanode; out complexpara: boolean): boolean;
       var
         tempnode: ttempcreatenode;
-        pushconstaddr: boolean;
+        pushconstaddr,
+        regabletemp: boolean;
       begin
         result:=false;
         { determine how a parameter is passed to the inlined body
@@ -5972,8 +5973,18 @@ implementation
           with the temp everywhere in the function                  }
         if paraneedsinlinetemp(para,pushconstaddr,complexpara) then
           begin
+            { A caller's exception handler cannot observe this compiler-internal
+              temporary.  An un-managed ordinal value therefore stays register-
+              safe when only the caller contains an exception region.  A callee
+              with its own handler may read the parameter after unwinding, so it
+              deliberately keeps the normal stack-backed rule. }
+            regabletemp:=tparavarsym(para.parasym).is_regvar(false,
+              is_ordinal(para.parasym.vardef) and
+              assigned(tprocdef(procdefinition).inlininginfo) and
+              not(pi_uses_exceptions in
+                tprocdef(procdefinition).inlininginfo^.flags));
             tempnode:=ctempcreatenode.create(para.parasym.vardef,para.parasym.vardef.size,
-              tt_persistent,tparavarsym(para.parasym).is_regvar(false));
+              tt_persistent,regabletemp);
             addstatement(inlineinitstatement,tempnode);
 
             addstatement(inlinecleanupstatement,ctempdeletenode.create(tempnode));
@@ -5995,7 +6006,7 @@ implementation
                   ttempcreatenode does
 
                   this way, dyn. array, ansistrings etc. can be put into registers as well }
-                if tparavarsym(para.parasym).is_regvar(false) then
+                if regabletemp then
                   tempnode.includetempflag(ti_may_be_in_reg);
               end;
 

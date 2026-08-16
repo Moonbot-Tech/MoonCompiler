@@ -1297,6 +1297,14 @@ implementation
        { inlining is a heuristics, so we do this very early }
        do_optinline(code,updated);
 
+       { The post-inline simplifier can remove every explicit exception region
+         after a formerly called routine has become proven non-throwing scalar
+         code.  Keep the procedure flag in sync with the final tree so register
+         allocation is not disabled by a handler that no longer exists. }
+       if (pi_uses_exceptions in flags) and
+          not has_node_of_type(code,[tryexceptn,tryfinallyn]) then
+         exclude(flags,pi_uses_exceptions);
+
        { do this before adding the entry code else the tail recursion recognition won't work,
          if this causes troubles, it must be if'ed
        }

@@ -31,6 +31,7 @@ CORE_TESTS = (
     "tdelphiinlineconstruntime1",
     "tdelphianonymousnew1",
     "tloopinvariantaddr1",
+    "tdelphiinlineexceptreg1",
 )
 GENERIC_TESTS = (
     "tinlinegenericcomparer1",
@@ -44,6 +45,7 @@ NEGATIVE_TESTS = (
     ("inline_const_record_field_reassign_fail", "Can't assign values to const variable"),
     ("inline_const_string_char_reassign_fail", "Can't assign values to const variable"),
     ("inline_const_var_parameter_rejected", "Can't assign values to const variable"),
+    ("dead_try_handler_still_checked", 'Identifier not found "MissingInDeadHandler"'),
 )
 
 
@@ -124,6 +126,42 @@ def verify_loop_invariant_address(assembly: Path) -> None:
         raise RuntimeError("loop-invariant array address is still recalculated in the loop")
 
 
+def assembly_procedure(text: str, marker: str) -> str:
+    start = text.find(marker)
+    end = text.find(".section", start + len(marker))
+    if start < 0 or end < 0:
+        raise RuntimeError(f"cannot isolate assembly procedure {marker}")
+    return text[start:end]
+
+
+def verify_inline_exception_registers(assembly: Path) -> None:
+    text = assembly.read_text(encoding="utf-8", errors="replace")
+    pure = assembly_procedure(
+        text,
+        "P$TDELPHIINLINEEXCEPTREG1_$$_PUREINCALLEREXCEPT$LONGINT$$QWORD:",
+    )
+    if ".seh_handler" in pure:
+        raise RuntimeError("proven non-throwing inline body still has a Win64 handler")
+    loop_start = pure.find("Result := Mix(Result + UInt64(J));")
+    loop_end = pure.find("jng\t", loop_start)
+    if loop_start < 0 or loop_end < 0:
+        raise RuntimeError("cannot isolate the pure inline exception loop")
+    loop = pure[loop_start:loop_end]
+    if re.search(r"movq\s+%r[a-z0-9]+,\d+\(%rsp\)", loop):
+        raise RuntimeError("scalar inline parameter still spills into the exception frame")
+
+    for marker in (
+        "P$TDELPHIINLINEEXCEPTREG1_$$_THROWTOCALLER$QWORD$$QWORD:",
+        "P$TDELPHIINLINEEXCEPTREG1_$$_CHECKEDOVERFLOWCAUGHT$LONGINT$$LONGINT:",
+        "P$TDELPHIINLINEEXCEPTREG1_$$_DIVIDEBYZEROCAUGHT$LONGINT$$LONGINT:",
+        "P$TDELPHIINLINEEXCEPTREG1_$$_RANGECHECKCAUGHT$LONGINT$$LONGINT:",
+        "P$TDELPHIINLINEEXCEPTREG1_$$_INDEXEDINCREMENTCAUGHT$$LONGINT:",
+        "P$TDELPHIINLINEEXCEPTREG1_$$_NILVARCAUGHT$$LONGINT:",
+    ):
+        if ".seh_handler __FPC_specific_handler,@except" not in assembly_procedure(text, marker):
+            raise RuntimeError(f"real exception path lost its Win64 handler: {marker}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("compiler", type=Path)
@@ -173,7 +211,11 @@ def main() -> int:
                 f"-FE{output}",
                 *source_args,
             ]
-            if name in ("tforunrollfinally2", "tloopinvariantaddr1") and option == "O3":
+            if name in (
+                "tforunrollfinally2",
+                "tloopinvariantaddr1",
+                "tdelphiinlineexceptreg1",
+            ) and option == "O3":
                 command.append("-al")
             command.append(str(source))
             compiled = run(command, cwd=output)
@@ -245,6 +287,12 @@ def main() -> int:
         )
     except (OSError, RuntimeError) as error:
         failures.append(f"loop-invariant-address-assembly ({error})")
+    try:
+        verify_inline_exception_registers(
+            result_root / "tdelphiinlineexceptreg1-o3" / "tdelphiinlineexceptreg1.s"
+        )
+    except (OSError, RuntimeError) as error:
+        failures.append(f"inline-exception-registers-assembly ({error})")
 
     (result_root / "results.json").write_text(
         json.dumps(rows, indent=2) + "\n", encoding="utf-8"

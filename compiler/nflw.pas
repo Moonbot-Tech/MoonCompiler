@@ -2920,6 +2920,69 @@ implementation
                              TTRYEXCEPTNODE
 *****************************************************************************}
 
+    function try_body_node_may_raise(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_norecurse_true;
+        case n.nodetype of
+          blockn,
+          statementn,
+          nothingn,
+          ordconstn:
+            result:=fen_false;
+          loadn:
+            if assigned(tloadnode(n).symtableentry) and
+               ((tloadnode(n).symtableentry.typ=localvarsym) or
+                ((tloadnode(n).symtableentry.typ=paravarsym) and
+                 (tabstractvarsym(tloadnode(n).symtableentry).varspez=vs_value))) and
+               not(vo_volatile in tabstractvarsym(tloadnode(n).symtableentry).varoptions) and
+               is_ordinal(n.resultdef) then
+              result:=fen_false;
+          tempcreaten,
+          tempdeleten:
+            if is_ordinal(ttempbasenode(n).tempinfo^.typedef) then
+              result:=fen_false;
+          temprefn:
+            { A temp reference can execute delayed initialisation code that is
+              owned by its creator and is not necessarily reached from this
+              subtree.  Its ordinal result type alone therefore does not prove
+              that reading it cannot raise. }
+            if is_ordinal(ttemprefnode(n).tempinfo^.typedef) and
+               not assigned(ttemprefnode(n).tempinfo^.tempinitcode) then
+              result:=fen_false;
+          assignn:
+            if is_ordinal(tassignmentnode(n).left.resultdef) and
+               is_ordinal(tassignmentnode(n).right.resultdef) then
+              result:=fen_false;
+          typeconvn:
+            if is_ordinal(n.resultdef) and
+               is_ordinal(ttypeconvnode(n).left.resultdef) and
+               (n.localswitches*[cs_check_overflow,cs_check_range]=[]) then
+              result:=fen_false;
+          addn,
+          subn,
+          muln,
+          orn,
+          xorn,
+          shrn,
+          shln,
+          andn,
+          notn,
+          unaryminusn,
+          unaryplusn:
+            if is_ordinal(n.resultdef) and
+               (n.localswitches*[cs_check_overflow,cs_check_range]=[]) then
+              result:=fen_false;
+          else
+            ;
+        end;
+      end;
+
+
+    function try_body_cannot_raise(n: tnode): boolean;
+      begin
+        result:=not foreachnodestatic(n,@try_body_node_may_raise,nil);
+      end;
+
     constructor ttryexceptnode.create(l,r,_t1 : tnode);
       begin
          inherited create(tryexceptn,l,r,_t1,nil);
@@ -2964,7 +3027,17 @@ implementation
         result:=nil;
         { empty try -> can never raise exception -> do nothing }
         if has_no_code(left) then
-          result:=cnothingnode.create;
+          result:=cnothingnode.create
+        { Inlining can turn the last remaining call in a try body into plain
+          unchecked scalar operations.  Re-run the same conservative proof on
+          that final tree instead of preserving a dead exception region. }
+        else if forinline and
+                (cs_opt_level2 in current_settings.optimizerswitches) and
+                try_body_cannot_raise(left) then
+          begin
+            result:=left;
+            left:=nil;
+          end;
       end;
 
 
