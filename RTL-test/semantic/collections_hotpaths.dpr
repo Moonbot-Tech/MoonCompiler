@@ -64,6 +64,11 @@ type
     function GetHashCode(const AValue: Integer): UInt32; reintroduce;
   end;
 
+  TMinusOneIsEmptyComparer = class(TInterfacedObject, IComparer<Integer>)
+  public
+    function Compare(const ALeft, ARight: Integer): Integer;
+  end;
+
 var
   Destroyed: Integer;
 
@@ -139,6 +144,20 @@ function TConstantIntegerHashComparer.GetHashCode(
   const AValue: Integer): UInt32;
 begin
   Result:=$FFFFFFFE;
+end;
+
+function TMinusOneIsEmptyComparer.Compare(const ALeft,
+  ARight: Integer): Integer;
+var
+  LeftValue, RightValue: Integer;
+begin
+  LeftValue:=ALeft;
+  RightValue:=ARight;
+  if LeftValue=-1 then
+    LeftValue:=0;
+  if RightValue=-1 then
+    RightValue:=0;
+  Result:=LeftValue-RightValue;
 end;
 
 procedure CheckIntegerList;
@@ -400,6 +419,96 @@ begin
     InterfaceTarget.Free;
   end;
   Check(Destroyed=3,'managed bulk ranges exact lifetime');
+end;
+
+procedure CheckListPack;
+var
+  I: Integer;
+  IntegerList: TList<Integer>;
+  ManagedList: TList<UnicodeString>;
+  NotifyList: TOverrideNotifyList;
+  NotifyProbe: TNotifyProbe;
+  ObjectList: TObjectList<TTracked>;
+begin
+  IntegerList:=TList<Integer>.Create([0,1,0,2,3,0,4,0]);
+  try
+    IntegerList.Pack;
+    Check((IntegerList.Count=4) and (IntegerList[0]=1) and
+      (IntegerList[1]=2) and (IntegerList[2]=3) and
+      (IntegerList[3]=4),'unmanaged Pack stable order');
+
+    IntegerList.Clear;
+    for I:=1 to 32 do
+      IntegerList.Add(I);
+    IntegerList.Pack;
+    Check((IntegerList.Count=32) and (IntegerList[0]=1) and
+      (IntegerList[31]=32),'unmanaged Pack without holes');
+  finally
+    IntegerList.Free;
+  end;
+
+  IntegerList:=TList<Integer>.Create(TMinusOneIsEmptyComparer.Create);
+  try
+    IntegerList.AddRange([-1,1,0,2,-1,3]);
+    IntegerList.Pack;
+    Check((IntegerList.Count=3) and (IntegerList[0]=1) and
+      (IntegerList[1]=2) and (IntegerList[2]=3),
+      'Pack preserves custom comparer semantics');
+  finally
+    IntegerList.Free;
+  end;
+
+  NotifyProbe:=TNotifyProbe.Create;
+  IntegerList:=TList<Integer>.Create([0,1,0,2,0]);
+  try
+    IntegerList.OnNotify:=NotifyProbe.Notify;
+    IntegerList.Pack;
+    Check((IntegerList.Count=2) and (IntegerList[0]=1) and
+      (IntegerList[1]=2) and (NotifyProbe.Removed=3),
+      'Pack with OnNotify preserves removal notifications');
+  finally
+    IntegerList.OnNotify:=nil;
+    IntegerList.Free;
+    NotifyProbe.Free;
+  end;
+
+  NotifyList:=TOverrideNotifyList.Create;
+  try
+    NotifyList.AddRange([0,1,0,2,0]);
+    NotifyList.Pack;
+    Check((NotifyList.Count=2) and (NotifyList.Removed=3) and
+      (NotifyList[0]=1) and (NotifyList[1]=2),
+      'Pack preserves overridden Notify');
+  finally
+    NotifyList.Free;
+  end;
+
+  ManagedList:=TList<UnicodeString>.Create(['','one','','two','']);
+  try
+    ManagedList.Pack;
+    Check((ManagedList.Count=2) and (ManagedList[0]='one') and
+      (ManagedList[1]='two'),'managed Pack values and lifetime');
+  finally
+    ManagedList.Free;
+  end;
+
+  Destroyed:=0;
+  ObjectList:=TObjectList<TTracked>.Create(True);
+  try
+    for I:=1 to 4 do
+      ObjectList.Add(TTracked.Create(I));
+    ObjectList.Pack(
+      function(const L, R: TTracked): Boolean
+      begin
+        Result:=not Odd(L.Number);
+      end);
+    Check((ObjectList.Count=2) and (ObjectList[0].Number=1) and
+      (ObjectList[1].Number=3) and (Destroyed=2),
+      'owning object Pack preserves custom predicate and destruction');
+  finally
+    ObjectList.Free;
+  end;
+  Check(Destroyed=4,'owning object Pack exact final lifetime');
 end;
 
 procedure CheckInterfaceOrder(AList: TList<ITracked>);
@@ -799,6 +908,7 @@ begin
     CheckListGrowthAndVirtualNotify;
     CheckManagedList;
     CheckBulkListRanges;
+    CheckListPack;
     CheckListReordering;
     CheckDynamicArrayListReordering;
     CheckListCopyConstruction;
