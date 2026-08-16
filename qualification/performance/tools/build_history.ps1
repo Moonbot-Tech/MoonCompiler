@@ -35,6 +35,18 @@ $Stages = @(
       'workloads/stream-triad',
       'rtl/object-create-virtual-free'
     )
+  },
+  [ordered]@{
+    id = 'loop_codegen'
+    label = 'Сейчас: + loop codegen'
+    short = 'Loop codegen'
+    note = 'Все прежние значения перенесены без подмены замера; threads/padded-counters-4 повторён отдельно после безопасного выноса доказанно неизменного адреса из цикла. Win64 O3 medium, 8 процессов на compiler, 37 samples на процесс, одинаковое закрепление четырёх workers по CPU.'
+    inherit = 'rtl_containers'
+    files = @()
+    values = [ordered]@{
+      'threads/padded-counters-4' = 0.500379709
+    }
+    unstable = @()
   }
 )
 
@@ -118,6 +130,16 @@ function Get-CaseDescription([string]$Case) {
 
 $Rows = @{}
 foreach ($Stage in $Stages) {
+  if ($Stage.Contains('inherit')) {
+    foreach ($Row in $Rows.Values) {
+      if ($Row.values.Contains($Stage.inherit)) {
+        $Row.values[$Stage.id] = $Row.values[$Stage.inherit]
+        if ($Row.unstable -contains $Stage.inherit) {
+          $Row.unstable += $Stage.id
+        }
+      }
+    }
+  }
   foreach ($RelativeFile in $Stage.files) {
     $SummaryPath = Join-Path $ResultsRoot $RelativeFile
     if (-not (Test-Path -LiteralPath $SummaryPath)) {
@@ -141,6 +163,15 @@ foreach ($Stage in $Stages) {
       if ($Case -in $Stage.unstable) {
         $Rows[$Case].unstable += $Stage.id
       }
+    }
+  }
+  if ($Stage.Contains('values')) {
+    foreach ($Case in $Stage.values.Keys) {
+      if (-not $Rows.ContainsKey($Case)) {
+        throw "Explicit value references unknown case '$Case' in stage '$($Stage.id)'"
+      }
+      $Rows[$Case].values[$Stage.id] = [double]$Stage.values[$Case]
+      $Rows[$Case].unstable = @($Rows[$Case].unstable | Where-Object { $_ -ne $Stage.id })
     }
   }
 }

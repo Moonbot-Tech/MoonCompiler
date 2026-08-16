@@ -22,6 +22,8 @@ type
 
 procedure InitializePerfClock;
 function PinBenchmarkThread: Integer;
+function CanPinWorkerThreads(Count: Integer): Boolean;
+function PinWorkerThread(Ordinal: Integer): Integer;
 function BeginPerfStamp: TPerfStamp;
 function EndPerfStamp(const Started: TPerfStamp): TPerfDelta;
 function MeasureTscOverhead(Iterations: Integer): UInt64;
@@ -147,6 +149,66 @@ end;
 begin
   { Linux qualification pins the process with taskset before program start. }
   Result := -1;
+end;
+{$endif}
+
+function PinWorkerThread(Ordinal: Integer): Integer;
+{$ifdef MSWINDOWS}
+var
+  ProcessMask, SystemMask, CandidateMask: DWORD_PTR;
+  Cpu, Seen: Integer;
+begin
+  If Ordinal < 0 then
+    raise EArgumentOutOfRangeException.Create('worker CPU ordinal is negative');
+  If not GetProcessAffinityMask(GetCurrentProcess, ProcessMask, SystemMask) then
+    RaiseLastOSError;
+  Seen := 0;
+  for Cpu := 0 to SizeOf(DWORD_PTR) * 8 - 1 do
+  begin
+    CandidateMask := DWORD_PTR(1) shl Cpu;
+    If (ProcessMask and CandidateMask) = 0 then
+      Continue;
+    If Seen = Ordinal then
+    begin
+      If SetThreadAffinityMask(GetCurrentThread, CandidateMask) = 0 then
+        RaiseLastOSError;
+      Result := Cpu;
+      Exit;
+    end;
+    Inc(Seen);
+  end;
+  raise EAbort.CreateFmt('worker CPU %d is unavailable', [Ordinal]);
+end;
+{$else}
+begin
+  { Linux qualification pins worker placement outside the process. }
+  Result := -1;
+end;
+{$endif}
+
+function CanPinWorkerThreads(Count: Integer): Boolean;
+{$ifdef MSWINDOWS}
+var
+  ProcessMask, SystemMask, CandidateMask: DWORD_PTR;
+  Cpu, Available: Integer;
+begin
+  If Count < 0 then
+    Exit(False);
+  If not GetProcessAffinityMask(GetCurrentProcess, ProcessMask, SystemMask) then
+    RaiseLastOSError;
+  Available := 0;
+  for Cpu := 0 to SizeOf(DWORD_PTR) * 8 - 1 do
+  begin
+    CandidateMask := DWORD_PTR(1) shl Cpu;
+    If (ProcessMask and CandidateMask) <> 0 then
+      Inc(Available);
+  end;
+  Result := Available >= Count;
+end;
+{$else}
+begin
+  { Linux placement is controlled by the qualification runner. }
+  Result := Count >= 0;
 end;
 {$endif}
 

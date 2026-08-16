@@ -54,6 +54,15 @@ type
     constructor Create(Kind: TWorkKind; Index, Iterations: Integer);
   end;
 
+  TPaddedWorker = class(TThread)
+  private
+    FIndex: Integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(Index: Integer);
+  end;
+
   TQueueRole = (qrProducer, qrConsumer);
 
   TQueueWorker = class(TThread)
@@ -74,6 +83,11 @@ var
   SharedData: array[0..8191] of UInt64;
   Counters: array[0..MaxThreadCount - 1] of TCounter;
   PaddedCounters: array[0..MaxThreadCount - 1] of TPaddedCounter;
+  PaddedWorkers: array[0..3] of TPaddedWorker;
+  PaddedStartEvents: array[0..3] of TEvent;
+  PaddedDoneEvents: array[0..3] of TEvent;
+  PaddedIterations: Integer;
+  PaddedStop: Boolean;
   CrossPointers: array of Pointer;
   CrossPerThread: Integer;
   QueueLock: TCriticalSection;
@@ -155,6 +169,31 @@ begin
       end;
   end;
   Digest := X;
+end;
+
+constructor TPaddedWorker.Create(Index: Integer);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIndex := Index;
+end;
+
+procedure TPaddedWorker.Execute;
+var
+  I, Count: Integer;
+begin
+  PinWorkerThread(FIndex);
+  while True do
+  begin
+    PaddedStartEvents[FIndex].WaitFor(INFINITE);
+    PaddedStartEvents[FIndex].ResetEvent;
+    If PaddedStop then
+      Exit;
+    Count := PaddedIterations;
+    for I := 1 to Count do
+      Inc(PaddedCounters[FIndex].Value);
+    PaddedDoneEvents[FIndex].SetEvent;
+  end;
 end;
 
 constructor TQueueWorker.Create(Role: TQueueRole; Count: Integer);
@@ -298,11 +337,17 @@ function CasePaddedCounters(Iterations: Integer): UInt64;
 var
   I: Integer;
 begin
-  ActiveThreadCount := 4;
   FillChar(PaddedCounters, SizeOf(PaddedCounters), 0);
-  RunWorkers(wkPadded, Iterations * ContentionMultiplier);
+  PaddedIterations := Iterations * ContentionMultiplier * WorkerInner;
+  for I := 0 to High(PaddedWorkers) do
+  begin
+    PaddedDoneEvents[I].ResetEvent;
+    PaddedStartEvents[I].SetEvent;
+  end;
+  for I := 0 to High(PaddedWorkers) do
+    PaddedDoneEvents[I].WaitFor(INFINITE);
   Result := 0;
-  for I := 0 to ActiveThreadCount - 1 do
+  for I := 0 to High(PaddedWorkers) do
     Result := Result + PaddedCounters[I].Value;
 end;
 
@@ -402,6 +447,35 @@ begin
   SharedLock := TCriticalSection.Create;
   QueueLock := TCriticalSection.Create;
   ActiveThreadCount := 4;
+  If not CanPinWorkerThreads(Length(PaddedWorkers)) then
+    raise EAbort.Create('padded-counters-4 requires four available logical CPUs');
+  PaddedStop := False;
+  for I := 0 to High(PaddedWorkers) do
+  begin
+    PaddedStartEvents[I] := TEvent.Create(nil, True, False, '');
+    PaddedDoneEvents[I] := TEvent.Create(nil, True, False, '');
+    PaddedWorkers[I] := TPaddedWorker.Create(I);
+    PaddedWorkers[I].Start;
+  end;
+end;
+
+procedure FinalizeData;
+var
+  I: Integer;
+begin
+  PaddedStop := True;
+  for I := 0 to High(PaddedWorkers) do
+    PaddedStartEvents[I].SetEvent;
+  for I := 0 to High(PaddedWorkers) do
+  begin
+    PaddedWorkers[I].WaitFor;
+    PaddedWorkers[I].Free;
+    PaddedDoneEvents[I].Free;
+    PaddedStartEvents[I].Free;
+  end;
+  QueueLock.Free;
+  SharedLock.Free;
+  StartEvent.Free;
 end;
 
 procedure Run;
@@ -470,9 +544,7 @@ begin
       WorkerInner * AllocWorkMultiplier, Profile,
       SelectedCase, Found);
   finally
-    QueueLock.Free;
-    SharedLock.Free;
-    StartEvent.Free;
+    FinalizeData;
   end;
   PulseFinish('pulse_threads', SelectedCase, Found);
 end;
