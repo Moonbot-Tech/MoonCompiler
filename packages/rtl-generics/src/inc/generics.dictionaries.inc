@@ -197,6 +197,12 @@ begin
   TCustomDictionaryEnumerator<T, CUSTOM_DICTIONARY_CONSTRAINTS>(Result).Create(FDictionary);
 end;
 
+function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, CUSTOM_DICTIONARY_CONSTRAINTS>.
+  GetEnumerator: TDictionaryEnumerator;
+begin
+  Result := DoGetEnumerator;
+end;
+
 function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, CUSTOM_DICTIONARY_CONSTRAINTS>.GetCount: SizeInt;
 begin
   Result := TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>(FDictionary).Count;
@@ -209,7 +215,7 @@ end;
 
 { TOpenAddressingEnumerator<T, DICTIONARY_CONSTRAINTS> }
 
-function TOpenAddressingEnumerator<T, OPEN_ADDRESSING_CONSTRAINTS>.DoMoveNext: Boolean;
+function TOpenAddressingEnumerator<T, OPEN_ADDRESSING_CONSTRAINTS>.DirectMoveNext: Boolean;
 var
   LLength: SizeInt;
 begin
@@ -787,14 +793,34 @@ end;
 
 function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TPairEnumerator.GetCurrent: TPair<TKey, TValue>;
 begin
+  Result := DirectCurrent;
+end;
+
+function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TPairEnumerator.DirectCurrent: TPair<TKey, TValue>;
+begin
   Result := TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>(FDictionary).FItems[FIndex].Pair;
+end;
+
+function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TPairEnumerator.MoveNext: Boolean;
+begin
+  Result := DirectMoveNext;
 end;
 
 { TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TValueEnumerator }
 
 function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TValueEnumerator.GetCurrent: TValue;
 begin
+  Result := DirectCurrent;
+end;
+
+function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TValueEnumerator.DirectCurrent: TValue;
+begin
   Result := TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>(FDictionary).FItems[FIndex].Pair.Value;
+end;
+
+function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TValueEnumerator.MoveNext: Boolean;
+begin
+  Result := DirectMoveNext;
 end;
 
 { TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TPValueEnumerator }
@@ -808,7 +834,17 @@ end;
 
 function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TKeyEnumerator.GetCurrent: TKey;
 begin
+  Result := DirectCurrent;
+end;
+
+function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TKeyEnumerator.DirectCurrent: TKey;
+begin
   Result := TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>(FDictionary).FItems[FIndex].Pair.Key;
+end;
+
+function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TKeyEnumerator.MoveNext: Boolean;
+begin
+  Result := DirectMoveNext;
 end;
 
 { TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TPKeyEnumerator }
@@ -819,6 +855,46 @@ begin
 end;
 
 { TOpenAddressingLP<DICTIONARY_CONSTRAINTS> }
+
+function TOpenAddressingLP<OPEN_ADDRESSING_CONSTRAINTS>.Rehash(
+  ASizePow2: SizeInt; AForce: Boolean): Boolean;
+var
+  LNewItems: TArray<TItem>;
+  LIndex, LLengthMask, LProbe, I: SizeInt;
+  LItem: PItem;
+begin
+  if (ASizePow2 = Length(FItems)) and not AForce then
+    Exit(False);
+  if ASizePow2 < 0 then
+    OutOfMemoryError;
+
+  LNewItems := nil;
+  SetLength(LNewItems, ASizePow2);
+  UpdateItemsThreshold(ASizePow2);
+  LLengthMask := ASizePow2 - 1;
+
+  for I := 0 to High(FItems) do
+  begin
+    LItem := @FItems[I];
+    if (LItem.Hash and UInt32.GetSignMask) = 0 then
+      Continue;
+
+    LProbe := 0;
+    repeat
+      LIndex := TProbeSequence.Probe(LProbe, LItem.Hash) and LLengthMask;
+      Inc(LProbe);
+    until (LNewItems[LIndex].Hash and UInt32.GetSignMask) = 0;
+    LNewItems[LIndex] := LItem^;
+  end;
+
+  FItems := LNewItems;
+  Result := True;
+end;
+
+function TOpenAddressingEnumerator<T, OPEN_ADDRESSING_CONSTRAINTS>.DoMoveNext: Boolean;
+begin
+  Result := DirectMoveNext;
+end;
 
 procedure TOpenAddressingLP<OPEN_ADDRESSING_CONSTRAINTS>.NotifyIndexChange(AFrom, ATo: SizeInt);
 begin

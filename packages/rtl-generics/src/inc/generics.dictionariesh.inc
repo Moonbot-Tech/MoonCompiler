@@ -111,7 +111,7 @@ type
   { TCustomDictionaryEnumerator }
 
   TCustomDictionaryEnumerator<T, CUSTOM_DICTIONARY_CONSTRAINTS> = class abstract(TEnumerator< T >)
-  private
+  protected
     FDictionary: TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>;
     FIndex: SizeInt;
   protected
@@ -133,6 +133,7 @@ type
     function DoGetEnumerator: TDictionaryEnumerator; override;
   public
     constructor Create(ADictionary: TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>);
+    function GetEnumerator: TDictionaryEnumerator; reintroduce; inline;
     function ToArray: TArray<T>; override; final;
     property Count: SizeInt read GetCount;
   end;
@@ -143,6 +144,7 @@ type
 
   TOpenAddressingEnumerator<T, OPEN_ADDRESSING_CONSTRAINTS> = class abstract(TCustomDictionaryEnumerator<T, CUSTOM_DICTIONARY_CONSTRAINTS>)
   protected
+    function DirectMoveNext: Boolean; inline;
     function DoMoveNext: Boolean; override;
   end;
 
@@ -206,12 +208,20 @@ type
       // Enumerators
       TPairEnumerator = class(TOpenAddressingEnumerator<TDictionaryPair, OPEN_ADDRESSING_CONSTRAINTS>)
       protected
+        function DirectCurrent: TPair<TKey,TValue>; inline;
         function GetCurrent: TPair<TKey,TValue>; override;
+      public
+        function MoveNext: Boolean; reintroduce; inline;
+        property Current: TPair<TKey,TValue> read DirectCurrent;
       end;
 
       TValueEnumerator = class(TOpenAddressingEnumerator<TValue, OPEN_ADDRESSING_CONSTRAINTS>)
       protected
+        function DirectCurrent: TValue; inline;
         function GetCurrent: TValue; override;
+      public
+        function MoveNext: Boolean; reintroduce; inline;
+        property Current: TValue read DirectCurrent;
       end;
 
       TPValueEnumerator = class(TOpenAddressingEnumerator<PValue, OPEN_ADDRESSING_CONSTRAINTS>)
@@ -221,7 +231,11 @@ type
 
       TKeyEnumerator = class(TOpenAddressingEnumerator<TKey, OPEN_ADDRESSING_CONSTRAINTS>)
       protected
+        function DirectCurrent: TKey; inline;
         function GetCurrent: TKey; override;
+      public
+        function MoveNext: Boolean; reintroduce; inline;
+        property Current: TKey read DirectCurrent;
       end;
 
       TPKeyEnumerator = class(TOpenAddressingEnumerator<PKey, OPEN_ADDRESSING_CONSTRAINTS>)
@@ -295,6 +309,7 @@ type
     end;
   protected
     procedure NotifyIndexChange(AFrom, ATo: SizeInt); virtual;
+    function Rehash(ASizePow2: SizeInt; AForce: Boolean = False): Boolean; override;
     function DoRemove(AIndex: SizeInt; ACollectionNotification: TCollectionNotification): TValue; override;
     function FindBucketIndex(const AItems: TArray<TItem>; const AKey: TKey; out AHash: UInt32): SizeInt; override; overload;
     function FindBucketIndexForHash(const AItems: TArray<TItem>; const AKey: TKey;

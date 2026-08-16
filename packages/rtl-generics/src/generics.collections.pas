@@ -214,10 +214,6 @@ type
     property Ptr: PPointersCollection read GetPtr;
   end;
 
-  // More info: http://stackoverflow.com/questions/5232198/about-vectors-growth
-  // TODO: custom memory managers (as constraints)
-  {$DEFINE CUSTOM_LIST_CAPACITY_INC := Result + Result div 2} // ~approximation to golden ratio: n = n * 1.5 }
-  // {$DEFINE CUSTOM_LIST_CAPACITY_INC := Result * 2} // standard inc
   TCustomList<T> = class abstract(TEnumerableWithPointers<T>)
   public type
     PT = ^T;
@@ -232,6 +228,7 @@ type
     FLength: SizeInt;
     FItems: TArrayOfT;
 
+    class function GrowCapacity(ACapacity: SizeInt): SizeInt; static; inline;
     function PrepareAddingItem: SizeInt; virtual;
     function PrepareAddingRange(ACount: SizeInt): SizeInt; virtual;
     procedure Notify(const AValue: T; ACollectionNotification: TCollectionNotification); virtual;
@@ -279,6 +276,7 @@ type
   TList<T> = class(TCustomListWithPointers<T>)
   private var
     FComparer: IComparer<T>;
+    FUseDefaultComparer: Boolean;
   protected
     // bug #24287 - workaround for generics type name conflict (Identifier not found)
     // next bug workaround - for another error related to previous workaround
@@ -308,6 +306,7 @@ type
   public
     constructor Create; overload;
     constructor Create(const AComparer: IComparer<T>); overload;
+    constructor Create(ACollection: TCustomList<T>); overload;
     constructor Create(ACollection: TEnumerable<T>); overload;
     constructor Create(aValues : Array of T); overload;
     {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
@@ -1699,47 +1698,57 @@ end;
 
 { TCustomList<T> }
 
+class function TCustomList<T>.GrowCapacity(ACapacity: SizeInt): SizeInt;
+begin
+  if ACapacity > 64 then
+    Result := ACapacity + ACapacity div 2
+  else if ACapacity > 8 then
+    Result := ACapacity + 16
+  else
+    Result := ACapacity + 4;
+  if Result < ACapacity then
+    OutOfMemoryError;
+end;
+
 function TCustomList<T>.PrepareAddingItem: SizeInt;
 begin
-  Result := Length(FItems);
-
-  if (FLength < 4) and (Result < 4) then
-    SetLength(FItems, 4)
-  else if FLength = High(FLength) then
-    OutOfMemoryError
-  else if FLength = Result then
-    SetLength(FItems, CUSTOM_LIST_CAPACITY_INC);
-
   Result := FLength;
+  if Result > High(FItems) then
+  begin
+    if Result = High(Result) then
+      OutOfMemoryError;
+    SetLength(FItems, GrowCapacity(Result));
+  end;
   Inc(FLength);
 end;
 
 function TCustomList<T>.PrepareAddingRange(ACount: SizeInt): SizeInt;
+var
+  LRequired: SizeInt;
 begin
   if ACount < 0 then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
   if ACount = 0 then
     Exit(FLength - 1);
 
-  if (FLength = 0) and (Length(FItems) = 0) then
-    SetLength(FItems, 4)
-  else if FLength = High(FLength) then
+  if ACount > High(FLength) - FLength then
     OutOfMemoryError;
+  LRequired := FLength + ACount;
 
   Result := Length(FItems);
-  while Pred(FLength + ACount) >= Result do
+  while Result < LRequired do
   begin
-    SetLength(FItems, CUSTOM_LIST_CAPACITY_INC);
+    SetLength(FItems, GrowCapacity(Result));
     Result := Length(FItems);
   end;
 
   Result := FLength;
-  Inc(FLength, ACount);
+  FLength := LRequired;
 end;
 
 function TCustomList<T>.ToArray: TArray<T>;
 begin
-  Result := ToArrayImpl(Count);
+  Result := Copy(FItems, 0, FLength);
 end;
 
 function TCustomList<T>.GetCount: SizeInt;
@@ -1849,12 +1858,21 @@ constructor TList<T>.Create;
 begin
   InitializeList;
   FComparer := TComparer<T>.Default;
+  FUseDefaultComparer := True;
 end;
 
 constructor TList<T>.Create(const AComparer: IComparer<T>);
 begin
   InitializeList;
   FComparer := AComparer;
+  FUseDefaultComparer := False;
+end;
+
+constructor TList<T>.Create(ACollection: TCustomList<T>);
+begin
+  Create;
+  FItems := Copy(ACollection.FItems, 0, ACollection.FLength);
+  FLength := Length(FItems);
 end;
 
 constructor TList<T>.Create(ACollection: TEnumerable<T>);
@@ -1916,18 +1934,21 @@ end;
 
 function TList<T>.GetItem(AIndex: SizeInt): T;
 begin
-  if (AIndex < 0) or (AIndex >= Count) then
+  if SizeUInt(AIndex) >= SizeUInt(FLength) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  Result := FItems[AIndex];
+  Result := PT(PByte(Pointer(FItems)) + SizeUInt(AIndex) * SizeOf(T))^;
 end;
 
 procedure TList<T>.SetItem(AIndex: SizeInt; const AValue: T);
+var
+  Item: PT;
 begin
-  if (AIndex < 0) or (AIndex >= Count) then
+  if SizeUInt(AIndex) >= SizeUInt(FLength) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
-  Notify(FItems[AIndex], cnRemoved);
-  FItems[AIndex] := AValue;
+  Item := PT(PByte(Pointer(FItems)) + SizeUInt(AIndex) * SizeOf(T));
+  Notify(Item^, cnRemoved);
+  Item^ := AValue;
   Notify(AValue, cnAdded);
 end;
 
@@ -2180,9 +2201,9 @@ procedure TList<T>.Exchange(AIndex1, AIndex2: SizeInt);
 var
   LTemp: T;
 begin
-  LTemp := FItems[AIndex1];
-  FItems[AIndex1] := FItems[AIndex2];
-  FItems[AIndex2] := LTemp;
+  LTemp:=FItems[AIndex1];
+  FItems[AIndex1]:=FItems[AIndex2];
+  FItems[AIndex2]:=LTemp;
 end;
 
 procedure TList<T>.Move(AIndex, ANewIndex: SizeInt);
@@ -2236,7 +2257,36 @@ end;
 function TList<T>.IndexOf(const AValue: T): SizeInt;
 var
   i: SizeInt;
+  Items: Pointer;
 begin
+  if FUseDefaultComparer and
+      (GetTypeKind(T) in [tkInteger,tkChar,tkEnumeration,tkSet,tkClass,
+        tkWChar,tkBool,tkInt64,tkQWord,tkUChar,tkClassRef,tkPointer]) and
+      (SizeOf(T) in [1,2,4,8]) then
+    begin
+      if FLength=0 then
+        Exit(-1);
+      Items:=@FItems[0];
+      case SizeOf(T) of
+        1:
+          for i:=0 to FLength-1 do
+            if PByte(Items)[i]=PByte(@AValue)^ then
+              Exit(i);
+        2:
+          for i:=0 to FLength-1 do
+            if PWord(Items)[i]=PWord(@AValue)^ then
+              Exit(i);
+        4:
+          for i:=0 to FLength-1 do
+            if PCardinal(Items)[i]=PCardinal(@AValue)^ then
+              Exit(i);
+        8:
+          for i:=0 to FLength-1 do
+            if PQWord(Items)[i]=PQWord(@AValue)^ then
+              Exit(i);
+      end;
+      Exit(-1);
+    end;
   for i := 0 to Count - 1 do
     if FComparer.Compare(AValue, FItems[i]) = 0 then
       Exit(i);
@@ -2246,7 +2296,36 @@ end;
 function TList<T>.LastIndexOf(const AValue: T): SizeInt;
 var
   i: SizeInt;
+  Items: Pointer;
 begin
+  if FUseDefaultComparer and
+      (GetTypeKind(T) in [tkInteger,tkChar,tkEnumeration,tkSet,tkClass,
+        tkWChar,tkBool,tkInt64,tkQWord,tkUChar,tkClassRef,tkPointer]) and
+      (SizeOf(T) in [1,2,4,8]) then
+    begin
+      if FLength=0 then
+        Exit(-1);
+      Items:=@FItems[0];
+      case SizeOf(T) of
+        1:
+          for i:=FLength-1 downto 0 do
+            if PByte(Items)[i]=PByte(@AValue)^ then
+              Exit(i);
+        2:
+          for i:=FLength-1 downto 0 do
+            if PWord(Items)[i]=PWord(@AValue)^ then
+              Exit(i);
+        4:
+          for i:=FLength-1 downto 0 do
+            if PCardinal(Items)[i]=PCardinal(@AValue)^ then
+              Exit(i);
+        8:
+          for i:=FLength-1 downto 0 do
+            if PQWord(Items)[i]=PQWord(@AValue)^ then
+              Exit(i);
+      end;
+      Exit(-1);
+    end;
   for i := Count - 1 downto 0 do
     if FComparer.Compare(AValue, FItems[i]) = 0 then
       Exit(i);
@@ -2262,9 +2341,9 @@ begin
   b := Count - 1;
   while a < b do
   begin
-    LTemp := FItems[a];
-    FItems[a] := FItems[b];
-    FItems[b] := LTemp;
+    LTemp:=FItems[a];
+    FItems[a]:=FItems[b];
+    FItems[b]:=LTemp;
     Inc(a);
     Dec(b);
   end;
