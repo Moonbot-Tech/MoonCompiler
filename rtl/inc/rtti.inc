@@ -417,12 +417,37 @@ procedure fpc_finalize_array(data,typeinfo : pointer;count : SizeInt); [Public,A
   var
     size,i : SizeInt;
   begin
-    if RTTIFlattenInitialize[PTypeKind(typeinfo)^]=RTTIFlattenInitializePointer then
-      for i:=0 to SkipTrailingNils(data,count)-1 do
-        int_finalize(PPointer(data)+i,typeinfo)
-    else if RTTIManagementAndSize(typeinfo, rotFinalize, size, false) then
-      for i:=0 to count-1 do
-        int_finalize(data+size*i,typeinfo);
+    case PTypeKind(typeinfo)^ of
+{$ifdef FPC_HAS_FEATURE_ANSISTRINGS}
+      tkAString:
+        for i:=0 to SkipTrailingNils(data,count)-1 do
+          fpc_AnsiStr_Decr_Ref(PPointer(data)[i]);
+{$endif FPC_HAS_FEATURE_ANSISTRINGS}
+{$ifdef FPC_HAS_FEATURE_WIDESTRINGS}
+      tkUString:
+        for i:=0 to SkipTrailingNils(data,count)-1 do
+          fpc_UnicodeStr_Decr_Ref(PPointer(data)[i]);
+  {$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
+      tkWString:
+        for i:=0 to SkipTrailingNils(data,count)-1 do
+          fpc_WideStr_Decr_Ref(PPointer(data)[i]);
+  {$endif FPC_WIDESTRING_EQUAL_UNICODESTRING}
+{$endif FPC_HAS_FEATURE_WIDESTRINGS}
+{$ifdef FPC_HAS_FEATURE_DYNARRAYS}
+      tkDynArray:
+        for i:=0 to SkipTrailingNils(data,count)-1 do
+          fpc_dynarray_clear(PPointer(data)[i],typeinfo);
+{$endif FPC_HAS_FEATURE_DYNARRAYS}
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+      tkInterface:
+        for i:=0 to SkipTrailingNils(data,count)-1 do
+          Intf_Decr_Ref(PPointer(data)[i]);
+{$endif FPC_HAS_FEATURE_CLASSES}
+    else
+      if RTTIManagementAndSize(typeinfo,rotFinalize,size,false) then
+        for i:=0 to count-1 do
+          int_finalize(data+size*i,typeinfo);
+    end;
   end;
 
 
@@ -430,12 +455,37 @@ procedure fpc_addref_array(data,typeinfo: pointer; count: SizeInt); [public,alia
   var
     size,i : SizeInt;
   begin
-    if RTTIFlattenInitialize[PTypeKind(typeinfo)^]=RTTIFlattenInitializePointer then
-      for i:=0 to SkipTrailingNils(data,count)-1 do
-        int_addref(PPointer(data)+i,typeinfo)
-    else if RTTIManagementAndSize(typeinfo, rotAddRef, size, false) then
-      for i:=0 to count-1 do
-        int_addref(data+size*i,typeinfo);
+    case PTypeKind(typeinfo)^ of
+{$ifdef FPC_HAS_FEATURE_ANSISTRINGS}
+      tkAString:
+        for i:=0 to SkipTrailingNils(data,count)-1 do
+          fpc_AnsiStr_Incr_Ref(PPointer(data)[i]);
+{$endif FPC_HAS_FEATURE_ANSISTRINGS}
+{$ifdef FPC_HAS_FEATURE_WIDESTRINGS}
+      tkUString:
+        for i:=0 to SkipTrailingNils(data,count)-1 do
+          fpc_UnicodeStr_Incr_Ref(PPointer(data)[i]);
+  {$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
+      tkWString:
+        for i:=0 to SkipTrailingNils(data,count)-1 do
+          fpc_WideStr_Incr_Ref(PPointer(data)[i]);
+  {$endif FPC_WIDESTRING_EQUAL_UNICODESTRING}
+{$endif FPC_HAS_FEATURE_WIDESTRINGS}
+{$ifdef FPC_HAS_FEATURE_DYNARRAYS}
+      tkDynArray:
+        for i:=0 to SkipTrailingNils(data,count)-1 do
+          fpc_dynarray_incr_ref(PPointer(data)[i]);
+{$endif FPC_HAS_FEATURE_DYNARRAYS}
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+      tkInterface:
+        for i:=0 to SkipTrailingNils(data,count)-1 do
+          Intf_Incr_Ref(PPointer(data)[i]);
+{$endif FPC_HAS_FEATURE_CLASSES}
+    else
+      if RTTIManagementAndSize(typeinfo,rotAddRef,size,false) then
+        for i:=0 to count-1 do
+          int_addref(data+size*i,typeinfo);
+    end;
   end;
 
 { The following two procedures are now obsolete, needed only for bootstrapping }
