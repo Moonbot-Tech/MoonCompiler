@@ -457,6 +457,17 @@ begin
     IntegerList.Pack;
     Check((IntegerList.Count=32) and (IntegerList[0]=1) and
       (IntegerList[31]=32),'unmanaged Pack without holes');
+
+    IntegerList.Clear;
+    for I:=0 to 256 do
+      if Odd(I) then
+        IntegerList.Add(I)
+      else
+        IntegerList.Add(0);
+    IntegerList.Pack;
+    Check((IntegerList.Count=128) and (IntegerList[0]=1) and
+      (IntegerList[127]=255),
+      'unmanaged Pack one-pass alternating order');
   finally
     IntegerList.Free;
   end;

@@ -2094,42 +2094,21 @@ end;
 procedure TList<T>.Pack;
 var
   I, LOldLength, LWriteIndex: SizeInt;
-  LRemoved: TBytes;
 begin
   if (ClassInfo = TypeInfo(TList<T>)) and FUseDefaultComparer and
       not Assigned(OnNotify) and not IsManagedType(T) then
   begin
     LOldLength := FLength;
-    I := LOldLength - 1;
-    while I >= 0 do
-    begin
-      if FComparer.Compare(FItems[I], Default(T)) = 0 then
-      begin
-        SetLength(LRemoved, LOldLength);
-        LRemoved[I] := 1;
-        Dec(I);
-        Break;
-      end;
-      Dec(I);
-    end;
-    if Length(LRemoved) = 0 then
-      Exit;
-
-    while I >= 0 do
-    begin
-      if FComparer.Compare(FItems[I], Default(T)) = 0 then
-        LRemoved[I] := 1;
-      Dec(I);
-    end;
-
     LWriteIndex := 0;
     for I := 0 to LOldLength - 1 do
-      if LRemoved[I] = 0 then
+      if FComparer.Compare(FItems[I], Default(T)) <> 0 then
       begin
         if LWriteIndex <> I then
           FItems[LWriteIndex] := FItems[I];
         Inc(LWriteIndex);
       end;
+    if LWriteIndex = LOldLength then
+      Exit;
     FillChar(FItems[LWriteIndex],
       (LOldLength - LWriteIndex) * SizeOf(T), 0);
     FLength := LWriteIndex;
