@@ -16,6 +16,13 @@ uses
   {$else}
   System.SysUtils,
   {$endif}
+  {$ifdef PERF_FORCE_MULTITHREAD}
+  {$ifdef FPC}
+  Classes,
+  {$else}
+  System.Classes,
+  {$endif}
+  {$endif PERF_FORCE_MULTITHREAD}
   perf_clock in '..\common\perf_clock.pas';
 
 const
@@ -38,6 +45,30 @@ var
   SourceBuffers: TSourceBuffers;
   SourcePlain: TSourcePlain;
   Sink: UInt64;
+
+{$ifdef PERF_FORCE_MULTITHREAD}
+type
+  TActivationThread = class(TThread)
+  protected
+    procedure Execute; override;
+  end;
+
+procedure TActivationThread.Execute;
+begin
+end;
+
+procedure ActivateMultithreadedRuntime;
+var
+  Thread: TActivationThread;
+begin
+  Thread := TActivationThread.Create(False);
+  try
+    Thread.WaitFor;
+  finally
+    Thread.Free;
+  end;
+end;
+{$endif PERF_FORCE_MULTITHREAD}
 
 {$HINTS OFF}
 {$WARNINGS OFF}
@@ -220,6 +251,9 @@ var
   ExpectedStrings, ExpectedBuffers, ExpectedPlain: UInt64;
   Found: Boolean;
 begin
+  {$ifdef PERF_FORCE_MULTITHREAD}
+  ActivateMultithreadedRuntime;
+  {$endif PERF_FORCE_MULTITHREAD}
   Mode := 'quick';
   SelectedCase := 'all';
   If ParamCount >= 1 then
@@ -241,7 +275,7 @@ begin
   Found := False;
   WriteLn('LOCAL_PRESSURE_BEGIN mode=', Profile.Name,
     ' selected=', SelectedCase, ' locals_per_group=', LocalCount,
-    ' affinity_cpu=', AffinityCpu);
+    ' affinity_cpu=', AffinityCpu, ' multithread=', Ord(IsMultiThread));
   MaybeRun(SelectedCase, 'empty', @CaseEmpty, 0, Profile, TscOverhead, Found);
   MaybeRun(SelectedCase, 'unused-plain-100', @CaseUnusedPlain100, 0, Profile,
     TscOverhead, Found);
