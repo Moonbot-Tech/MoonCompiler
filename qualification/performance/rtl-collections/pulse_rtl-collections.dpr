@@ -21,25 +21,73 @@ uses
 
 const
   ItemCount = 256;
+  BulkItemCount = 4096;
 
 type
   TIntegerArray = array of Integer;
   TStringArray = array of UnicodeString;
 
+  TLargeQueueItem = record
+    Words: array[0..15] of UInt64;
+  end;
+
+  TConstantHashComparer = class(TInterfacedObject,
+    IEqualityComparer<Integer>)
+  public
+    function Equals(const Left, Right: Integer): Boolean; reintroduce;
+    function GetHashCode(const Value: Integer):
+      {$ifdef FPC}UInt32{$else}Integer{$endif}; reintroduce;
+  end;
+
+  TPulseObject = class
+  public
+    Value: Integer;
+    constructor Create(AValue: Integer);
+  end;
+
 var
   Integers: TIntegerArray;
+  BulkIntegers: TIntegerArray;
+  BulkMiddle: TIntegerArray;
+  PackedIntegers: TIntegerArray;
   Strings: TStringArray;
+  BulkStrings: TStringArray;
+  BulkMiddleStrings: TStringArray;
+  PreparedBulkIntegerList: TList<Integer>;
   PreparedIntegerList: TList<Integer>;
   PreparedStringList: TList<UnicodeString>;
   PreparedIntegerDictionary: TDictionary<Integer, Integer>;
   PreparedStringDictionary: TDictionary<UnicodeString, Integer>;
+
+function TConstantHashComparer.Equals(const Left, Right: Integer): Boolean;
+begin
+  Result := Left = Right;
+end;
+
+function TConstantHashComparer.GetHashCode(const Value: Integer):
+  {$ifdef FPC}UInt32{$else}Integer{$endif};
+begin
+  Result := 1;
+end;
+
+constructor TPulseObject.Create(AValue: Integer);
+begin
+  inherited Create;
+  Value := AValue;
+end;
 
 procedure InitializeData;
 var
   I: Integer;
 begin
   SetLength(Integers, ItemCount);
+  SetLength(BulkIntegers, BulkItemCount);
+  SetLength(BulkMiddle, BulkItemCount div 2);
+  SetLength(PackedIntegers, BulkItemCount);
   SetLength(Strings, ItemCount);
+  SetLength(BulkStrings, BulkItemCount);
+  SetLength(BulkMiddleStrings, BulkItemCount div 2);
+  PreparedBulkIntegerList := TList<Integer>.Create;
   PreparedIntegerList := TList<Integer>.Create;
   PreparedStringList := TList<UnicodeString>.Create;
   PreparedIntegerDictionary := TDictionary<Integer, Integer>.Create;
@@ -48,6 +96,7 @@ begin
   PreparedStringList.Capacity := ItemCount;
   PreparedIntegerDictionary.Capacity := ItemCount;
   PreparedStringDictionary.Capacity := ItemCount;
+  PreparedBulkIntegerList.Capacity := BulkItemCount;
   for I := 0 to ItemCount - 1 do begin
     Integers[I] := (I * 197 + 17) and $7fffffff;
     Strings[I] := UnicodeString('item-') + UnicodeString(IntToStr(I * 197 + 17));
@@ -55,6 +104,20 @@ begin
     PreparedStringList.Add(Strings[I]);
     PreparedIntegerDictionary.Add(Integers[I], I);
     PreparedStringDictionary.Add(Strings[I], I);
+  end;
+  for I := 0 to BulkItemCount - 1 do begin
+    BulkIntegers[I] := I + 1;
+    PreparedBulkIntegerList.Add(BulkIntegers[I]);
+    If Odd(I) then
+      PackedIntegers[I] := I + 1
+    else
+      PackedIntegers[I] := 0;
+    If I < Length(BulkMiddle) then
+      BulkMiddle[I] := BulkIntegers[BulkItemCount div 4 + I];
+    BulkStrings[I] := UnicodeString('bulk-item-') +
+      UnicodeString(IntToStr(I + 1));
+    If I < Length(BulkMiddleStrings) then
+      BulkMiddleStrings[I] := BulkStrings[BulkItemCount div 4 + I];
   end;
 end;
 
@@ -64,6 +127,7 @@ begin
   PreparedIntegerDictionary.Free;
   PreparedStringList.Free;
   PreparedIntegerList.Free;
+  PreparedBulkIntegerList.Free;
 end;
 
 function CaseListStringAddReserved(Iterations: Integer): UInt64;
@@ -237,6 +301,233 @@ begin
   end;
 end;
 
+function CaseListIntegerAddRange(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do begin
+    List := TList<Integer>.Create;
+    try
+      List.AddRange(BulkIntegers);
+      Result := Result + UInt64(List.Count) + UInt64(List[0]) +
+        UInt64(List[BulkItemCount - 1]);
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseListIntegerInsertRangeList(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do begin
+    List := TList<Integer>.Create(BulkIntegers);
+    try
+      List.InsertRange(BulkItemCount div 2,
+        TEnumerable<Integer>(PreparedBulkIntegerList));
+      Result := Result + UInt64(List.Count) +
+        UInt64(List[BulkItemCount div 2]) +
+        UInt64(List[BulkItemCount + BulkItemCount div 2]);
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseListIntegerPackAlternating(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do begin
+    List := TList<Integer>.Create(PackedIntegers);
+    try
+      List.Pack;
+      Result := Result + UInt64(List.Count) + UInt64(List[0]) +
+        UInt64(List[List.Count - 1]);
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseListIntegerDeleteInsertRange(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  List := TList<Integer>.Create(BulkIntegers);
+  try
+    List.Capacity := BulkItemCount + 16;
+    for I := 1 to Iterations do begin
+      List.DeleteRange(BulkItemCount div 4, BulkItemCount div 2);
+      List.InsertRange(BulkItemCount div 4, BulkMiddle);
+      Result := Result + UInt64(List.Count) +
+        UInt64(List[BulkItemCount div 4]) + UInt64(List[BulkItemCount - 1]);
+    end;
+  finally
+    List.Free;
+  end;
+end;
+
+function CaseListStringAddRange(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<UnicodeString>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do begin
+    List := TList<UnicodeString>.Create;
+    try
+      List.AddRange(BulkStrings);
+      Result := Result + UInt64(List.Count) + UInt64(Length(List[0])) +
+        UInt64(Length(List[BulkItemCount - 1]));
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseListStringInsertRange(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<UnicodeString>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do begin
+    List := TList<UnicodeString>.Create(BulkStrings);
+    try
+      List.InsertRange(BulkItemCount div 4, BulkMiddleStrings);
+      Result := Result + UInt64(List.Count) +
+        UInt64(Length(List[BulkItemCount div 4])) +
+        UInt64(Length(List[BulkItemCount + BulkItemCount div 4]));
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseListIntegerClear(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  List := TList<Integer>.Create;
+  try
+    for I := 1 to Iterations do begin
+      List.AddRange(BulkIntegers);
+      Result := Result + UInt64(List.Count) + UInt64(List[BulkItemCount - 1]);
+      List.Clear;
+    end;
+  finally
+    List.Free;
+  end;
+end;
+
+function CaseListStringClear(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<UnicodeString>;
+begin
+  Result := 0;
+  List := TList<UnicodeString>.Create;
+  try
+    for I := 1 to Iterations do begin
+      List.AddRange(BulkStrings);
+      Result := Result + UInt64(List.Count) +
+        UInt64(Length(List[BulkItemCount - 1]));
+      List.Clear;
+    end;
+  finally
+    List.Free;
+  end;
+end;
+
+function CaseListIntegerIndexOf(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+    for J := 0 to ItemCount - 1 do begin
+      Result := Result + UInt64(PreparedIntegerList.IndexOf(Integers[J]) + 1);
+      Result := Result + UInt64(PreparedIntegerList.IndexOf(-J - 1) + 1);
+    end;
+end;
+
+function CaseListStringIndexOf(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+    for J := 0 to ItemCount - 1 do
+      Result := Result + UInt64(PreparedStringList.IndexOf(Strings[J]) + 1);
+end;
+
+function CaseListIntegerSort(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<Integer>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do begin
+    List := TList<Integer>.Create(Integers);
+    try
+      List.Sort;
+      Result := Result + UInt64(List[0]) + UInt64(List[ItemCount - 1]);
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseListStringSort(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  List: TList<UnicodeString>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do begin
+    List := TList<UnicodeString>.Create(Strings);
+    try
+      List.Sort;
+      Result := Result + UInt64(Length(List[0])) +
+        UInt64(Length(List[ItemCount - 1]));
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
+function CaseObjectListOwnedClear(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  List: TObjectList<TPulseObject>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do begin
+    List := TObjectList<TPulseObject>.Create(True);
+    try
+      List.Capacity := ItemCount;
+      for J := 0 to ItemCount - 1 do
+        List.Add(TPulseObject.Create(J + 1));
+      Result := Result + UInt64(List.Count) + UInt64(List[ItemCount - 1].Value);
+      List.Clear;
+    finally
+      List.Free;
+    end;
+  end;
+end;
+
 function CaseArrayIntegerSort(Iterations: Integer): UInt64;
 var
   I: Integer;
@@ -405,6 +696,51 @@ begin
       Inc(Result, Ord(PreparedStringDictionary.ContainsKey(Strings[J])));
 end;
 
+function CaseDictionaryCollisionChurn(Iterations: Integer): UInt64;
+var
+  Dictionary: TDictionary<Integer, Integer>;
+  I, J, Value: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do begin
+    Dictionary := TDictionary<Integer, Integer>.Create(
+      TConstantHashComparer.Create);
+    try
+      Dictionary.Capacity := 64;
+      for J := 0 to 63 do
+        Dictionary.Add(J, J * 3);
+      for J := 0 to 63 do begin
+        If Dictionary.TryGetValue(J, Value) then
+          Result := Result + UInt64(Value);
+      end;
+      for J := 0 to 31 do
+        Dictionary.Remove(J * 2);
+      Result := Result + UInt64(Dictionary.Count);
+    finally
+      Dictionary.Free;
+    end;
+  end;
+end;
+
+function CaseDictionaryStringClear(Iterations: Integer): UInt64;
+var
+  Dictionary: TDictionary<UnicodeString, Integer>;
+  I, J: Integer;
+begin
+  Result := 0;
+  Dictionary := TDictionary<UnicodeString, Integer>.Create;
+  try
+    for I := 1 to Iterations do begin
+      for J := 0 to ItemCount - 1 do
+        Dictionary.Add(Strings[J], J);
+      Result := Result + UInt64(Dictionary.Count);
+      Dictionary.Clear;
+    end;
+  finally
+    Dictionary.Free;
+  end;
+end;
+
 function CaseQueueStringRoundTrip(Iterations: Integer): UInt64;
 var
   I, J: Integer;
@@ -469,6 +805,73 @@ begin
   end;
 end;
 
+function CaseQueueLargeRecordSteady(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  Item: TLargeQueueItem;
+  Queue: TQueue<TLargeQueueItem>;
+begin
+  Result := 0;
+  Queue := TQueue<TLargeQueueItem>.Create;
+  try
+    Queue.Capacity := ItemCount;
+    for I := 0 to ItemCount - 1 do begin
+      FillChar(Item,SizeOf(Item),0);
+      Item.Words[0] := UInt64(I + 1);
+      Item.Words[High(Item.Words)] := UInt64(I + 17);
+      Queue.Enqueue(Item);
+    end;
+    for J := 1 to Iterations do begin
+      Item := Queue.Dequeue;
+      Result := Result + Item.Words[0] + Item.Words[High(Item.Words)];
+      Queue.Enqueue(Item);
+    end;
+  finally
+    Queue.Free;
+  end;
+end;
+
+function CaseQueueStringClear(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  Queue: TQueue<UnicodeString>;
+begin
+  Result := 0;
+  Queue := TQueue<UnicodeString>.Create;
+  try
+    Queue.Capacity := ItemCount;
+    for I := 1 to Iterations do begin
+      for J := 0 to ItemCount - 1 do
+        Queue.Enqueue(Strings[J]);
+      Result := Result + UInt64(Queue.Count);
+      Queue.Clear;
+    end;
+  finally
+    Queue.Free;
+  end;
+end;
+
+function CaseQueueIntegerSteady(Iterations: Integer): UInt64;
+var
+  I, J, Value: Integer;
+  Queue: TQueue<Integer>;
+begin
+  Result := 0;
+  Queue := TQueue<Integer>.Create;
+  try
+    Queue.Capacity := ItemCount;
+    for J := 0 to ItemCount - 1 do
+      Queue.Enqueue(Integers[J]);
+    for I := 1 to Iterations do begin
+      Value := Queue.Dequeue;
+      Result := Result + UInt64(Value);
+      Queue.Enqueue(Value);
+    end;
+  finally
+    Queue.Free;
+  end;
+end;
+
 function CaseStackStringRoundTrip(Iterations: Integer): UInt64;
 var
   I, J: Integer;
@@ -508,6 +911,46 @@ begin
         Result := Result + UInt64(J);
   finally
     Stack.Free;
+  end;
+end;
+
+function CaseStackStringClear(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  Stack: TStack<UnicodeString>;
+begin
+  Result := 0;
+  Stack := TStack<UnicodeString>.Create;
+  try
+    Stack.Capacity := ItemCount;
+    for I := 1 to Iterations do begin
+      for J := 0 to ItemCount - 1 do
+        Stack.Push(Strings[J]);
+      Result := Result + UInt64(Stack.Count);
+      Stack.Clear;
+    end;
+  finally
+    Stack.Free;
+  end;
+end;
+
+function CaseStackIntegerRoundTrip(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  Stack: TStack<Integer>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do begin
+    Stack := TStack<Integer>.Create;
+    try
+      Stack.Capacity := ItemCount;
+      for J := 0 to ItemCount - 1 do
+        Stack.Push(Integers[J]);
+      for J := 0 to ItemCount - 1 do
+        Result := Result + UInt64(Stack.Pop);
+    finally
+      Stack.Free;
+    end;
   end;
 end;
 
@@ -554,6 +997,49 @@ begin
     PulseRunCase('pulse_rtl_collections', 'list-integer-reverse', 'rtl',
       'TList<Integer>.Reverse', @CaseListIntegerReverse, ItemCount div 2,
       Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'list-integer-addrange-4096',
+      'rtl+mm', 'TList<Integer>.AddRange(array)', @CaseListIntegerAddRange,
+      BulkItemCount, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'list-integer-insertrange-list-4096',
+      'rtl+mm', 'TList<Integer>.InsertRange(TList)',
+      @CaseListIntegerInsertRangeList, BulkItemCount, Profile, SelectedCase,
+      Found);
+    PulseRunCase('pulse_rtl_collections', 'list-integer-pack-alternating-4096',
+      'rtl+mm', 'TList<Integer>.Pack', @CaseListIntegerPackAlternating,
+      BulkItemCount, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections',
+      'list-integer-delete-insert-range-4096', 'rtl+mm',
+      'TList<Integer>.DeleteRange/InsertRange',
+      @CaseListIntegerDeleteInsertRange, BulkItemCount, Profile, SelectedCase,
+      Found);
+    PulseRunCase('pulse_rtl_collections', 'list-string-addrange-4096',
+      'rtl+mm', 'TList<UnicodeString>.AddRange(array)',
+      @CaseListStringAddRange, BulkItemCount, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'list-string-insertrange-2048',
+      'rtl+mm', 'TList<UnicodeString>.InsertRange(array)',
+      @CaseListStringInsertRange, BulkItemCount div 2, Profile, SelectedCase,
+      Found);
+    PulseRunCase('pulse_rtl_collections', 'list-integer-clear-4096',
+      'rtl+mm', 'TList<Integer>.AddRange/Clear', @CaseListIntegerClear,
+      BulkItemCount, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'list-string-clear-4096',
+      'rtl+mm', 'TList<UnicodeString>.AddRange/Clear', @CaseListStringClear,
+      BulkItemCount, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'list-integer-indexof', 'rtl',
+      'TList<Integer>.IndexOf found/missing', @CaseListIntegerIndexOf,
+      ItemCount * 2, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'list-string-indexof', 'rtl',
+      'TList<UnicodeString>.IndexOf', @CaseListStringIndexOf, ItemCount,
+      Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'list-integer-sort', 'rtl+mm',
+      'TList<Integer>.Sort', @CaseListIntegerSort, ItemCount, Profile,
+      SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'list-string-sort', 'rtl+mm',
+      'TList<UnicodeString>.Sort', @CaseListStringSort, ItemCount, Profile,
+      SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'objectlist-owned-clear', 'rtl+mm',
+      'TObjectList<T>.Add/Clear ownership', @CaseObjectListOwnedClear,
+      ItemCount, Profile, SelectedCase, Found);
     PulseRunCase('pulse_rtl_collections', 'array-integer-sort', 'rtl+mm',
       'TArray.Sort<Integer>', @CaseArrayIntegerSort, ItemCount, Profile,
       SelectedCase, Found);
@@ -590,6 +1076,12 @@ begin
     PulseRunCase('pulse_rtl_collections', 'dictionary-string-contains', 'rtl',
       'TDictionary<UnicodeString,Integer>.ContainsKey',
       @CaseDictionaryStringContains, ItemCount, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'dictionary-collision-churn',
+      'rtl+mm', 'TDictionary constant-hash add/get/remove',
+      @CaseDictionaryCollisionChurn, 160, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'dictionary-string-clear',
+      'rtl+mm', 'TDictionary<UnicodeString,Integer>.Add/Clear',
+      @CaseDictionaryStringClear, ItemCount, Profile, SelectedCase, Found);
     PulseRunCase('pulse_rtl_collections', 'queue-string-roundtrip', 'rtl+mm',
       'TQueue<UnicodeString>.Enqueue/Dequeue', @CaseQueueStringRoundTrip,
       ItemCount * 2, Profile, SelectedCase, Found);
@@ -599,12 +1091,27 @@ begin
     PulseRunCase('pulse_rtl_collections', 'queue-enumerate', 'rtl',
       'TQueue<Integer>.Enumerator', @CaseQueueEnumerate, ItemCount, Profile,
       SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'queue-record128-steady', 'rtl',
+      'TQueue<record[128]> steady Enqueue/Dequeue',
+      @CaseQueueLargeRecordSteady, 2, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'queue-string-clear', 'rtl+mm',
+      'TQueue<UnicodeString>.Enqueue/Clear', @CaseQueueStringClear,
+      ItemCount, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'queue-integer-steady', 'rtl',
+      'TQueue<Integer>.steady Enqueue/Dequeue', @CaseQueueIntegerSteady,
+      ItemCount, Profile, SelectedCase, Found);
     PulseRunCase('pulse_rtl_collections', 'stack-string-roundtrip', 'rtl+mm',
       'TStack<UnicodeString>.Push/Pop', @CaseStackStringRoundTrip,
       ItemCount * 2, Profile, SelectedCase, Found);
     PulseRunCase('pulse_rtl_collections', 'stack-enumerate', 'rtl',
       'TStack<Integer>.Enumerator', @CaseStackEnumerate, ItemCount, Profile,
       SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'stack-string-clear', 'rtl+mm',
+      'TStack<UnicodeString>.Push/Clear', @CaseStackStringClear,
+      ItemCount, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_rtl_collections', 'stack-integer-roundtrip', 'rtl',
+      'TStack<Integer>.Push/Pop', @CaseStackIntegerRoundTrip, ItemCount * 2,
+      Profile, SelectedCase, Found);
     PulseFinish('pulse_rtl_collections', SelectedCase, Found);
   finally
     FinalizeData;
