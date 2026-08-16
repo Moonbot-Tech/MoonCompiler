@@ -537,13 +537,19 @@ Function TStrings.GetValue(const Name: string): string;
 
 Var
   L : Longint;
+{$ifndef UNICODERTL}
   N : String;
+{$endif UNICODERTL}
 
 begin
   Result:='';
   L:=IndexOfName(Name);
   If L<>-1 then
+{$ifdef UNICODERTL}
+    Result:=Copy(Strings[L],Length(Name)+2,MaxInt);
+{$else UNICODERTL}
     GetNameValue(L,N,Result);
+{$endif UNICODERTL}
 end;
 
 Function TStrings.GetValueFromIndex(Index: Integer): string;
@@ -2016,14 +2022,7 @@ begin
         DupIgnore : Exit;
         DupError : Error(SDuplicateString,0)
       end;
-   BeginUpdate;
-   try
-     InsertItem (Result,S);
-     if (aObject<>Nil) then
-      Objects[Result]:=AObject;
-   finally
-     EndUpdate;
-   end;
+  InsertItem(Result,S,AObject);
 end;
 
 function TStringList.Add(const S: string): Integer;
@@ -2159,14 +2158,162 @@ end;
 
 
 function TStringList.IndexOf(const S: string): Integer;
-
+{$ifdef UNICODERTL}
+var
+  Item: PStringItem;
+  SearchLength: SizeInt;
+{$endif}
 begin
   If Not Sorted then
+{$ifdef UNICODERTL}
+    begin
+    Item:=@FList^[0];
+    SearchLength:=Length(S);
+    for Result:=0 to FCount-1 do
+      begin
+      if ((ClassType<>TStringList) or
+          (Length(Item^.FString)=SearchLength)) and
+         (DoCompareText(Item^.FString,S)=0) then
+        Exit;
+      Inc(Item);
+      end;
+    Result:=-1;
+    end
+{$else}
     Result:=Inherited indexOf(S)
+{$endif}
   else
     // faster using binary search...
     If Not Find (S,Result) then
       Result:=-1;
+end;
+
+
+function TStringList.IndexOfName(const Name: string): Integer;
+{$ifdef UNICODERTL}
+const
+  {$ifdef CPUX86_64}
+  LaneHigh = QWord($8000800080008000);
+  LaneLow = QWord($7fff7fff7fff7fff);
+  NonAscii = QWord($ff80ff80ff80ff80);
+  UpperA = QWord($0041004100410041);
+  UpperZ = QWord($005a005a005a005a);
+  {$endif CPUX86_64}
+var
+  I, J, NameLength: Integer;
+  LeftChar, RightChar: Word;
+  Item: PStringItem;
+  ItemChars, NameChars: PWideChar;
+  Equal, NeedsUnicodeCompare: Boolean;
+  {$ifdef CPUX86_64}
+  LeftBlock, RightBlock, LeftLow, RightLow: QWord;
+  LeftRange, RightRange: QWord;
+  {$endif CPUX86_64}
+{$endif UNICODERTL}
+begin
+{$ifdef UNICODERTL}
+  CheckSpecialChars;
+  if ClassType <> TStringList then
+    Exit(inherited IndexOfName(Name));
+
+  NameLength := Length(Name);
+  NameChars := Pointer(Name);
+  Item := Pointer(FList);
+  for I := 0 to FCount - 1 do
+  begin
+    if (Length(Item^.FString) > NameLength) and
+       (Item^.FString[NameLength + 1] = FNameValueSeparator) then
+    begin
+      ItemChars := Pointer(Item^.FString);
+      Equal := True;
+      NeedsUnicodeCompare := False;
+      J := 0;
+      if NameLength=0 then
+        Equal:=True
+      else if UseLocale then
+        begin
+        {$ifdef MSWINDOWS}
+        if FCaseSensitive then
+          Equal:=CompareStringW(LOCALE_USER_DEFAULT,0,ItemChars,NameLength,
+            NameChars,NameLength)=CSTR_EQUAL
+        else
+          Equal:=CompareStringW(LOCALE_USER_DEFAULT,NORM_IGNORECASE,ItemChars,
+            NameLength,NameChars,NameLength)=CSTR_EQUAL;
+        {$else MSWINDOWS}
+        if FCaseSensitive then
+          Equal:=widestringmanager.CompareUnicodeBufferToStringProc(
+            ItemChars,NameLength,Name,[])=0
+        else
+          Equal:=widestringmanager.CompareUnicodeBufferToStringProc(
+            ItemChars,NameLength,Name,[coIgnoreCase])=0;
+        {$endif MSWINDOWS}
+        end
+      else
+        begin
+      {$ifdef CPUX86_64}
+      while J + 4 <= NameLength do
+      begin
+        LeftBlock := PUInt64(ItemChars + J)^;
+        RightBlock := PUInt64(NameChars + J)^;
+        if not FCaseSensitive then
+        begin
+          if ((LeftBlock or RightBlock) and NonAscii) <> 0 then
+          begin
+            NeedsUnicodeCompare := True;
+            Break;
+          end;
+          LeftLow := LeftBlock and LaneLow;
+          RightLow := RightBlock and LaneLow;
+          LeftRange := (((LeftLow or LaneHigh) - UpperA) and
+            ((UpperZ or LaneHigh) - LeftLow) and (not LeftBlock) and LaneHigh);
+          RightRange := (((RightLow or LaneHigh) - UpperA) and
+            ((UpperZ or LaneHigh) - RightLow) and (not RightBlock) and LaneHigh);
+          LeftBlock := LeftBlock xor (LeftRange shr 10);
+          RightBlock := RightBlock xor (RightRange shr 10);
+        end;
+        if LeftBlock <> RightBlock then
+        begin
+          Equal := False;
+          Break;
+        end;
+        Inc(J, 4);
+      end;
+      {$endif CPUX86_64}
+      while Equal and not NeedsUnicodeCompare and (J < NameLength) do
+      begin
+        LeftChar := Word(ItemChars[J]);
+        RightChar := Word(NameChars[J]);
+        if not FCaseSensitive then
+        begin
+          if (LeftChar > 127) or (RightChar > 127) then
+          begin
+            NeedsUnicodeCompare := True;
+            Break;
+          end;
+          if (LeftChar >= Ord('A')) and (LeftChar <= Ord('Z')) then
+            Inc(LeftChar, Ord('a') - Ord('A'));
+          if (RightChar >= Ord('A')) and (RightChar <= Ord('Z')) then
+            Inc(RightChar, Ord('a') - Ord('A'));
+        end;
+        if LeftChar <> RightChar then
+        begin
+          Equal := False;
+          Break;
+        end;
+        Inc(J);
+      end;
+      if NeedsUnicodeCompare then
+        Equal := DoCompareText(Name, Copy(Item^.FString, 1, NameLength)) = 0;
+        end;
+      if Equal then
+        Exit(I);
+    end;
+    Inc(Item);
+  end;
+  Result := -1;
+{$else UNICODERTL}
+  Result := inherited IndexOfName(Name);
+{$endif UNICODERTL}
 end;
 
 

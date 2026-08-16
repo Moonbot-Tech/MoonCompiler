@@ -1154,6 +1154,7 @@ type
     procedure Exchange(Index1, Index2: Integer); override;
     function Find(const S: string; Out Index: Integer): Boolean; virtual;
     function IndexOf(const S: string): Integer; override;
+    function IndexOfName(const Name: string): Integer; override;
     procedure Insert(Index: Integer; const S: string); override;
     procedure Sort; virtual;
     procedure Sort(SortingAlgorithm: PSortingAlgorithm); virtual;
