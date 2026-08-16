@@ -47,6 +47,28 @@ $Stages = @(
       'threads/padded-counters-4' = 0.500379709
     }
     unstable = @()
+  },
+  [ordered]@{
+    id = 'exception_threads'
+    label = 'Сейчас: + exception/thread roots'
+    short = 'Exception + threads'
+    note = 'Post-inline no-throw proof довёл dispatch/try-except-no-raise до такт-в-такт паритета. Все thread workloads повторены с persistent pinned workers; lifecycle остался только в отдельном thread-start-join case. Для padded counter сохранён более строгий отдельный 8-process A-B-B-A замер.'
+    inherit = 'loop_codegen'
+    files = @('threads-persistent-final-20260816\summary.json')
+    values = [ordered]@{
+      'dispatch/try-except-no-raise' = 0.999983309
+      'threads/padded-counters-4' = 0.500379709
+    }
+    unstable = @()
+  },
+  [ordered]@{
+    id = 'mm_44_classes'
+    label = 'Сейчас: + MM 44 класса'
+    short = 'MM 44'
+    note = 'MoonShard возвращён к исходным 44 small-классам до 2600 байт при физической строке 64 cache-line/4096 байт. MM-группа повторена Win64 O3 medium; realloc-grow улучшился с 3.04x до 1.047x. alloc-free-256 помечен как process-drift и не используется как вывод этого этапа.'
+    inherit = 'exception_threads'
+    files = @('mm-44-padding-medium-20260816\summary.json')
+    unstable = @('mm/alloc-free-256')
   }
 )
 
@@ -140,6 +162,7 @@ foreach ($Stage in $Stages) {
       }
     }
   }
+  $LoadedCases = @{}
   foreach ($RelativeFile in $Stage.files) {
     $SummaryPath = Join-Path $ResultsRoot $RelativeFile
     if (-not (Test-Path -LiteralPath $SummaryPath)) {
@@ -156,10 +179,12 @@ foreach ($Stage in $Stages) {
           unstable = @()
         }
       }
-      if ($Rows[$Case].values.Contains($Stage.id)) {
+      if ($LoadedCases.ContainsKey($Case)) {
         throw "Duplicate case '$Case' in stage '$($Stage.id)'"
       }
+      $LoadedCases[$Case] = $true
       $Rows[$Case].values[$Stage.id] = [double]$Summary[$Case].candidate_over_baseline
+      $Rows[$Case].unstable = @($Rows[$Case].unstable | Where-Object { $_ -ne $Stage.id })
       if ($Case -in $Stage.unstable) {
         $Rows[$Case].unstable += $Stage.id
       }

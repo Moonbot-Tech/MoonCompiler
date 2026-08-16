@@ -24,7 +24,9 @@ uses
 const
   MaxThreadCount = 8;
   WorkerInner = 256;
-  CpuWorkMultiplier = 256;
+  { Keep the independent CPU body much longer than one event wake-up so this
+    case measures parallel code throughput rather than its start barrier. }
+  CpuWorkMultiplier = 32768;
   SharedReadMultiplier = 64;
   ContentionMultiplier = 32;
   AllocWorkMultiplier = 16;
@@ -42,25 +44,41 @@ type
     Padding: array[0..7] of UInt64;
   end;
 
-  TPulseWorker = class(TThread)
-  private
+  TPulseWorkerBase = class(TThread)
+  protected
     FKind: TWorkKind;
     FIndex: Integer;
     FIterations: Integer;
+    function InitialDigest: UInt64; inline;
+    function RunIndependent: UInt64;
+    function RunSharedRead: UInt64;
+    function RunLockedWrite: UInt64;
+    function RunFalseSharing: UInt64;
+    function RunPadded: UInt64;
+    function RunAllocFree: UInt64;
+    function RunAllocFree96: UInt64;
+    function RunCrossFree: UInt64;
+    procedure RunWork;
+  public
+    Digest: UInt64;
+  end;
+
+  TPulseWorker = class(TPulseWorkerBase)
   protected
     procedure Execute; override;
   public
-    Digest: UInt64;
     constructor Create(Kind: TWorkKind; Index, Iterations: Integer);
   end;
 
-  TPaddedWorker = class(TThread)
+  TPersistentWorker = class(TPulseWorkerBase)
   private
-    FIndex: Integer;
+    FFailureMessage: string;
   protected
     procedure Execute; override;
   public
     constructor Create(Index: Integer);
+    procedure Configure(Kind: TWorkKind; Iterations: Integer);
+    property FailureMessage: string read FFailureMessage;
   end;
 
   TQueueRole = (qrProducer, qrConsumer);
@@ -83,11 +101,10 @@ var
   SharedData: array[0..8191] of UInt64;
   Counters: array[0..MaxThreadCount - 1] of TCounter;
   PaddedCounters: array[0..MaxThreadCount - 1] of TPaddedCounter;
-  PaddedWorkers: array[0..3] of TPaddedWorker;
-  PaddedStartEvents: array[0..3] of TEvent;
-  PaddedDoneEvents: array[0..3] of TEvent;
-  PaddedIterations: Integer;
-  PaddedStop: Boolean;
+  PersistentWorkers: array[0..MaxThreadCount - 1] of TPersistentWorker;
+  PersistentStartEvents: array[0..MaxThreadCount - 1] of TEvent;
+  PersistentDoneEvents: array[0..MaxThreadCount - 1] of TEvent;
+  PersistentStop: Boolean;
   CrossPointers: array of Pointer;
   CrossPerThread: Integer;
   QueueLock: TCriticalSection;
@@ -105,94 +122,183 @@ begin
 end;
 
 procedure TPulseWorker.Execute;
+begin
+  StartEvent.WaitFor(INFINITE);
+  RunWork;
+end;
+
+function TPulseWorkerBase.InitialDigest: UInt64;
+begin
+  Result := UInt64(FIndex + 1) * UInt64($9E3779B185EBCA87);
+end;
+
+function TPulseWorkerBase.RunIndependent: UInt64;
 var
-  I, J, Offset, Size: Integer;
+  I, J: Integer;
+  X: UInt64;
+begin
+  X := InitialDigest;
+  for I := 1 to FIterations do
+    for J := 1 to WorkerInner do
+      X := X * UInt64(2862933555777941757) + UInt64(3037000493);
+  Result := X;
+end;
+
+function TPulseWorkerBase.RunSharedRead: UInt64;
+var
+  I, J: Integer;
+  X: UInt64;
+begin
+  X := InitialDigest;
+  for I := 1 to FIterations do
+    for J := 0 to 1023 do
+      X := X + SharedData[(J * 7 + FIndex) and High(SharedData)];
+  Result := X;
+end;
+
+function TPulseWorkerBase.RunLockedWrite: UInt64;
+var
+  I: Integer;
+begin
+  for I := 1 to FIterations * WorkerInner do
+  begin
+    SharedLock.Acquire;
+    try
+      Inc(SharedValue);
+    finally
+      SharedLock.Release;
+    end;
+  end;
+  Result := InitialDigest;
+end;
+
+function TPulseWorkerBase.RunFalseSharing: UInt64;
+var
+  I: Integer;
+begin
+  for I := 1 to FIterations * WorkerInner do
+    Inc(Counters[FIndex].Value);
+  Result := InitialDigest;
+end;
+
+function TPulseWorkerBase.RunPadded: UInt64;
+var
+  I: Integer;
+begin
+  for I := 1 to FIterations * WorkerInner do
+    Inc(PaddedCounters[FIndex].Value);
+  Result := InitialDigest;
+end;
+
+function TPulseWorkerBase.RunAllocFree: UInt64;
+var
+  I, Size: Integer;
   X: UInt64;
   P: PByte;
 begin
-  StartEvent.WaitFor(INFINITE);
-  X := UInt64(FIndex + 1) * UInt64($9E3779B185EBCA87);
-  case FKind of
-    wkEmpty:
-      X := UInt64(FIndex);
-    wkIndependent:
-      for I := 1 to FIterations do
-        for J := 1 to WorkerInner do
-          X := X * UInt64(2862933555777941757) + UInt64(3037000493);
-    wkSharedRead:
-      for I := 1 to FIterations do
-        for J := 0 to 1023 do
-          X := X + SharedData[(J * 7 + FIndex) and High(SharedData)];
-    wkLockedWrite:
-      for I := 1 to FIterations * WorkerInner do
-      begin
-        SharedLock.Acquire;
-        try
-          Inc(SharedValue);
-        finally
-          SharedLock.Release;
-        end;
-      end;
-    wkFalseSharing:
-      for I := 1 to FIterations * WorkerInner do
-        Inc(Counters[FIndex].Value);
-    wkPadded:
-      for I := 1 to FIterations * WorkerInner do
-        Inc(PaddedCounters[FIndex].Value);
-    wkAllocFree:
-      for I := 1 to FIterations * 64 do
-      begin
-        Size := 16 + ((I * 37 + FIndex * 101) and 16383);
-        GetMem(P, Size);
-        P[0] := Byte(I);
-        X := X + P[0];
-        FreeMem(P);
-      end;
-    wkAllocFree96:
-      for I := 1 to FIterations * 64 do
-      begin
-        GetMem(P, 96);
-        P[0] := Byte(I);
-        P[95] := Byte(I shr 8);
-        X := X + P[0] + P[95];
-        FreeMem(P);
-      end;
-    wkCrossFree:
-      begin
-        Offset := FIndex * CrossPerThread;
-        for I := 0 to CrossPerThread - 1 do
-        begin
-          P := CrossPointers[Offset + I];
-          X := X + P[0];
-          FreeMem(P);
-        end;
-      end;
+  X := InitialDigest;
+  for I := 1 to FIterations * 64 do
+  begin
+    Size := 16 + ((I * 37 + FIndex * 101) and 16383);
+    GetMem(P, Size);
+    P[0] := Byte(I);
+    X := X + P[0];
+    FreeMem(P);
   end;
-  Digest := X;
+  Result := X;
 end;
 
-constructor TPaddedWorker.Create(Index: Integer);
+function TPulseWorkerBase.RunAllocFree96: UInt64;
+var
+  I: Integer;
+  X: UInt64;
+  P: PByte;
+begin
+  X := InitialDigest;
+  for I := 1 to FIterations * 64 do
+  begin
+    GetMem(P, 96);
+    P[0] := Byte(I);
+    P[95] := Byte(I shr 8);
+    X := X + P[0] + P[95];
+    FreeMem(P);
+  end;
+  Result := X;
+end;
+
+function TPulseWorkerBase.RunCrossFree: UInt64;
+var
+  I, Offset: Integer;
+  X: UInt64;
+  P: PByte;
+begin
+  X := InitialDigest;
+  Offset := FIndex * CrossPerThread;
+  for I := 0 to CrossPerThread - 1 do
+  begin
+    P := CrossPointers[Offset + I];
+    X := X + P[0];
+    FreeMem(P);
+  end;
+  Result := X;
+end;
+
+procedure TPulseWorkerBase.RunWork;
+begin
+  case FKind of
+    wkEmpty:
+      Digest := UInt64(FIndex);
+    wkIndependent:
+      Digest := RunIndependent;
+    wkSharedRead:
+      Digest := RunSharedRead;
+    wkLockedWrite:
+      Digest := RunLockedWrite;
+    wkFalseSharing:
+      Digest := RunFalseSharing;
+    wkPadded:
+      Digest := RunPadded;
+    wkAllocFree:
+      Digest := RunAllocFree;
+    wkAllocFree96:
+      Digest := RunAllocFree96;
+    wkCrossFree:
+      Digest := RunCrossFree;
+  end;
+end;
+
+constructor TPersistentWorker.Create(Index: Integer);
 begin
   inherited Create(True);
   FreeOnTerminate := False;
   FIndex := Index;
 end;
 
-procedure TPaddedWorker.Execute;
-var
-  I, Count: Integer;
+procedure TPersistentWorker.Configure(Kind: TWorkKind; Iterations: Integer);
+begin
+  FKind := Kind;
+  FIterations := Iterations;
+  FFailureMessage := '';
+end;
+
+procedure TPersistentWorker.Execute;
 begin
   PinWorkerThread(FIndex);
   while True do
   begin
-    PaddedStartEvents[FIndex].WaitFor(INFINITE);
-    PaddedStartEvents[FIndex].ResetEvent;
-    If PaddedStop then
+    PersistentStartEvents[FIndex].WaitFor(INFINITE);
+    PersistentStartEvents[FIndex].ResetEvent;
+    If PersistentStop then
       Exit;
-    Count := PaddedIterations;
-    for I := 1 to Count do
-      Inc(PaddedCounters[FIndex].Value);
-    PaddedDoneEvents[FIndex].SetEvent;
+    try
+      RunWork;
+    except
+      on E: Exception do
+        FFailureMessage := E.ClassName + ': ' + E.Message;
+      else
+        FFailureMessage := 'non-Exception object';
+    end;
+    PersistentDoneEvents[FIndex].SetEvent;
   end;
 end;
 
@@ -261,25 +367,73 @@ begin
     end;
 end;
 
-function RunWorkers(Kind: TWorkKind; Iterations: Integer): UInt64;
+function RunOneShotWorkers(Kind: TWorkKind; Iterations: Integer): UInt64;
 var
   Workers: array[0..MaxThreadCount - 1] of TPulseWorker;
-  I: Integer;
+  I, Created: Integer;
+  FailureMessage: string;
 begin
   StartEvent.ResetEvent;
-  for I := 0 to ActiveThreadCount - 1 do
-  begin
-    Workers[I] := TPulseWorker.Create(Kind, I, Iterations);
-    Workers[I].Start;
-  end;
-  StartEvent.SetEvent;
+  Created := 0;
   Result := 0;
+  FailureMessage := '';
+  try
+    for I := 0 to ActiveThreadCount - 1 do
+    begin
+      Workers[I] := TPulseWorker.Create(Kind, I, Iterations);
+      Inc(Created);
+      Workers[I].Start;
+    end;
+    StartEvent.SetEvent;
+    for I := 0 to Created - 1 do
+    begin
+      Workers[I].WaitFor;
+      If assigned(Workers[I].FatalException) then
+      begin
+        If Workers[I].FatalException is Exception then
+          FailureMessage := Exception(Workers[I].FatalException).ClassName + ': ' +
+            Exception(Workers[I].FatalException).Message
+        else
+          FailureMessage := 'non-Exception object';
+      end;
+      Result := Result xor (Workers[I].Digest + UInt64(I));
+    end;
+  finally
+    { A constructor/start failure must not leave already-created suspended
+      workers behind. }
+    StartEvent.SetEvent;
+    for I := 0 to Created - 1 do
+    begin
+      Workers[I].WaitFor;
+      Workers[I].Free;
+    end;
+  end;
+  If FailureMessage <> '' then
+    raise EAbort.Create('worker failed: ' + FailureMessage);
+end;
+
+function RunPersistentWorkers(Kind: TWorkKind; Iterations: Integer): UInt64;
+var
+  I: Integer;
+  FailureMessage: string;
+begin
   for I := 0 to ActiveThreadCount - 1 do
   begin
-    Workers[I].WaitFor;
-    Result := Result xor (Workers[I].Digest + UInt64(I));
-    Workers[I].Free;
+    PersistentWorkers[I].Configure(Kind, Iterations);
+    PersistentDoneEvents[I].ResetEvent;
+    PersistentStartEvents[I].SetEvent;
   end;
+  Result := 0;
+  FailureMessage := '';
+  for I := 0 to ActiveThreadCount - 1 do
+  begin
+    PersistentDoneEvents[I].WaitFor(INFINITE);
+    If PersistentWorkers[I].FailureMessage <> '' then
+      FailureMessage := PersistentWorkers[I].FailureMessage;
+    Result := Result xor (PersistentWorkers[I].Digest + UInt64(I));
+  end;
+  If FailureMessage <> '' then
+    raise EAbort.Create('persistent worker failed: ' + FailureMessage);
 end;
 
 function CaseThreadStartJoin(Iterations: Integer): UInt64;
@@ -289,11 +443,11 @@ begin
   ActiveThreadCount := 4;
   Result := 0;
   for I := 1 to Iterations do
-    Result := Result + RunWorkers(wkEmpty, 1);
+    Result := Result + RunOneShotWorkers(wkEmpty, 1);
 end;
 
 function CaseIndependent(Iterations: Integer): UInt64;
-begin Result := RunWorkers(wkIndependent, Iterations); end;
+begin Result := RunPersistentWorkers(wkIndependent, Iterations); end;
 
 function CaseIndependent1(Iterations: Integer): UInt64;
 begin ActiveThreadCount := 1; Result := CaseIndependent(Iterations * CpuWorkMultiplier); end;
@@ -307,14 +461,14 @@ begin ActiveThreadCount := 8; Result := CaseIndependent(Iterations * CpuWorkMult
 function CaseSharedRead(Iterations: Integer): UInt64;
 begin
   ActiveThreadCount := 4;
-  Result := RunWorkers(wkSharedRead, Iterations * SharedReadMultiplier);
+  Result := RunPersistentWorkers(wkSharedRead, Iterations * SharedReadMultiplier);
 end;
 
 function CaseLockedWrite(Iterations: Integer): UInt64;
 begin
   ActiveThreadCount := 4;
   SharedValue := 0;
-  RunWorkers(wkLockedWrite, Iterations * ContentionMultiplier);
+  RunPersistentWorkers(wkLockedWrite, Iterations * ContentionMultiplier);
   Result := SharedValue;
   If Result <> UInt64(Iterations) * ContentionMultiplier * WorkerInner *
     UInt64(ActiveThreadCount) then
@@ -327,7 +481,7 @@ var
 begin
   ActiveThreadCount := 4;
   FillChar(Counters, SizeOf(Counters), 0);
-  RunWorkers(wkFalseSharing, Iterations * ContentionMultiplier);
+  RunPersistentWorkers(wkFalseSharing, Iterations * ContentionMultiplier);
   Result := 0;
   for I := 0 to ActiveThreadCount - 1 do
     Result := Result + Counters[I].Value;
@@ -337,25 +491,19 @@ function CasePaddedCounters(Iterations: Integer): UInt64;
 var
   I: Integer;
 begin
+  ActiveThreadCount := 4;
   FillChar(PaddedCounters, SizeOf(PaddedCounters), 0);
-  PaddedIterations := Iterations * ContentionMultiplier * WorkerInner;
-  for I := 0 to High(PaddedWorkers) do
-  begin
-    PaddedDoneEvents[I].ResetEvent;
-    PaddedStartEvents[I].SetEvent;
-  end;
-  for I := 0 to High(PaddedWorkers) do
-    PaddedDoneEvents[I].WaitFor(INFINITE);
+  RunPersistentWorkers(wkPadded, Iterations * ContentionMultiplier);
   Result := 0;
-  for I := 0 to High(PaddedWorkers) do
+  for I := 0 to ActiveThreadCount - 1 do
     Result := Result + PaddedCounters[I].Value;
 end;
 
 function CaseParallelAlloc(Iterations: Integer): UInt64;
-begin Result := RunWorkers(wkAllocFree, Iterations); end;
+begin Result := RunPersistentWorkers(wkAllocFree, Iterations); end;
 
 function CaseParallelAlloc96(Iterations: Integer): UInt64;
-begin Result := RunWorkers(wkAllocFree96, Iterations); end;
+begin Result := RunPersistentWorkers(wkAllocFree96, Iterations); end;
 
 function CaseParallelAlloc1(Iterations: Integer): UInt64;
 begin ActiveThreadCount := 1; Result := CaseParallelAlloc(Iterations * AllocWorkMultiplier); end;
@@ -388,7 +536,7 @@ begin
     P := CrossPointers[I];
     P[0] := Byte(I);
   end;
-  Result := RunWorkers(wkCrossFree, Iterations);
+  Result := RunPersistentWorkers(wkCrossFree, Iterations);
   SetLength(CrossPointers, 0);
 end;
 
@@ -447,15 +595,15 @@ begin
   SharedLock := TCriticalSection.Create;
   QueueLock := TCriticalSection.Create;
   ActiveThreadCount := 4;
-  If not CanPinWorkerThreads(Length(PaddedWorkers)) then
-    raise EAbort.Create('padded-counters-4 requires four available logical CPUs');
-  PaddedStop := False;
-  for I := 0 to High(PaddedWorkers) do
+  If not CanPinWorkerThreads(Length(PersistentWorkers)) then
+    raise EAbort.Create('thread workload requires eight available logical CPUs');
+  PersistentStop := False;
+  for I := 0 to High(PersistentWorkers) do
   begin
-    PaddedStartEvents[I] := TEvent.Create(nil, True, False, '');
-    PaddedDoneEvents[I] := TEvent.Create(nil, True, False, '');
-    PaddedWorkers[I] := TPaddedWorker.Create(I);
-    PaddedWorkers[I].Start;
+    PersistentStartEvents[I] := TEvent.Create(nil, True, False, '');
+    PersistentDoneEvents[I] := TEvent.Create(nil, True, False, '');
+    PersistentWorkers[I] := TPersistentWorker.Create(I);
+    PersistentWorkers[I].Start;
   end;
 end;
 
@@ -463,15 +611,15 @@ procedure FinalizeData;
 var
   I: Integer;
 begin
-  PaddedStop := True;
-  for I := 0 to High(PaddedWorkers) do
-    PaddedStartEvents[I].SetEvent;
-  for I := 0 to High(PaddedWorkers) do
+  PersistentStop := True;
+  for I := 0 to High(PersistentWorkers) do
+    PersistentStartEvents[I].SetEvent;
+  for I := 0 to High(PersistentWorkers) do
   begin
-    PaddedWorkers[I].WaitFor;
-    PaddedWorkers[I].Free;
-    PaddedDoneEvents[I].Free;
-    PaddedStartEvents[I].Free;
+    PersistentWorkers[I].WaitFor;
+    PersistentWorkers[I].Free;
+    PersistentDoneEvents[I].Free;
+    PersistentStartEvents[I].Free;
   end;
   QueueLock.Free;
   SharedLock.Free;
