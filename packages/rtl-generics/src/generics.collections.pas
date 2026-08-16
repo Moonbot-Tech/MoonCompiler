@@ -1737,10 +1737,9 @@ begin
 
   Result := Length(FItems);
   while Result < LRequired do
-  begin
-    SetLength(FItems, GrowCapacity(Result));
-    Result := Length(FItems);
-  end;
+    Result := GrowCapacity(Result);
+  if Result <> Length(FItems) then
+    SetLength(FItems, Result);
 
   Result := FLength;
   FLength := LRequired;

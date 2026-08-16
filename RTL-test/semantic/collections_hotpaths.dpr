@@ -236,6 +236,7 @@ var
   I: Integer;
   List: TOverrideNotifyList;
   Raised: Boolean;
+  Values: TArray<Integer>;
 begin
   List:=TOverrideNotifyList.Create;
   try
@@ -258,6 +259,18 @@ begin
     Check(List.Added=78,'overridden Notify survives nil OnNotify');
     List.Clear;
     Check(List.Removed=78,'overridden Notify receives Clear');
+
+    SetLength(Values,1000);
+    for I:=0 to High(Values) do
+      Values[I]:=I*5;
+    List.AddRange(Values);
+    Check((List.Count=1000) and (List.Capacity=1296) and
+      (List[0]=0) and (List[999]=4995),
+      'large AddRange preserves Delphi growth and values');
+    Check(List.Added=1078,'large AddRange notifies every item');
+    List.Clear;
+    Check(List.Removed=1078,'large AddRange clear lifetime');
+
     List.Add(1);
     Raised:=False;
     try
