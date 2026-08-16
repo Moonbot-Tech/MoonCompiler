@@ -5690,11 +5690,6 @@ implementation
           begin
             { create statements with call }
             elesizeppn:=cordconstnode.create(tarraydef(paradef).elesize,sinttype,false);
-            if is_managed_type(tarraydef(paradef).elementdef) then
-              eletypeppn:=caddrnode.create_internal(
-                crttinode.create(tstoreddef(tarraydef(paradef).elementdef),initrtti,rdt_normal))
-            else
-              eletypeppn:=cordconstnode.create(0,voidpointertype,false);
             maxcountppn:=geninlinenode(in_length_x,false,ppn.left.getcopy);
             case counter of
               1:
@@ -5729,17 +5724,36 @@ implementation
             else
               internalerror(2012100704);
 
-            rttippn:=caddrnode.create_internal(crttinode.create(tstoreddef(resultdef),initrtti,rdt_normal));
-
-            { create call to fpc_array_to_dynarray_copy }
-            npara:=ccallparanode.create(eletypeppn,
-                   ccallparanode.create(elesizeppn,
-                   ccallparanode.create(maxcountppn,
-                   ccallparanode.create(countppn,
-                   ccallparanode.create(lowppn,
-                   ccallparanode.create(rttippn,
-                   ccallparanode.create(arrayppn,nil)))))));
-            result:=ccallnode.createinternres('fpc_array_to_dynarray_copy',npara,resultdef);
+            if is_managed_type(tarraydef(paradef).elementdef) then
+              begin
+                { Managed elements need RTTI-driven reference handling. }
+                eletypeppn:=caddrnode.create_internal(
+                  crttinode.create(tstoreddef(tarraydef(paradef).elementdef),
+                    initrtti,rdt_normal));
+                rttippn:=caddrnode.create_internal(
+                  crttinode.create(tstoreddef(resultdef),initrtti,rdt_normal));
+                npara:=ccallparanode.create(eletypeppn,
+                       ccallparanode.create(elesizeppn,
+                       ccallparanode.create(maxcountppn,
+                       ccallparanode.create(countppn,
+                       ccallparanode.create(lowppn,
+                       ccallparanode.create(rttippn,
+                       ccallparanode.create(arrayppn,nil)))))));
+                result:=ccallnode.createinternres(
+                  'fpc_array_to_dynarray_copy',npara,resultdef);
+              end
+            else
+              begin
+                { Unmanaged elements need neither element RTTI nor generic
+                  finalization. }
+                npara:=ccallparanode.create(elesizeppn,
+                       ccallparanode.create(maxcountppn,
+                       ccallparanode.create(countppn,
+                       ccallparanode.create(lowppn,
+                       ccallparanode.create(arrayppn,nil)))));
+                result:=ccallnode.createinternres(
+                  'fpc_array_to_dynarray_copy_unmanaged',npara,resultdef);
+              end;
 
             ppn.left:=nil;
             paras.free;

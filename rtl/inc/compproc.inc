@@ -74,6 +74,10 @@ function fpc_array_to_dynarray_copy(psrc : pointer;ti : pointer;
     elesize : sizeint;
     eletype : pointer
     ) : fpc_stub_dynarray;compilerproc;
+function fpc_array_to_dynarray_copy_unmanaged(psrc : pointer;
+    lowidx,count,maxcount:tdynarrayindex;
+    elesize : sizeint
+    ) : fpc_stub_dynarray;compilerproc;
 function  fpc_dynarray_length(p : pointer) : tdynarrayindex; compilerproc;
 function  fpc_dynarray_high(p : pointer) : tdynarrayindex; compilerproc;
 procedure fpc_dynarray_clear(var p : pointer;ti : pointer); compilerproc;

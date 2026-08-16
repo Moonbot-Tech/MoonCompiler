@@ -298,6 +298,65 @@ function fpc_array_to_dynarray_copy(psrc : pointer;ti : pointer;
      { increment ref. count of members? }
      if assigned(eletype) then
        int_AddRefArray(pointer(result),eletype,count);
+   end;
+
+
+{ Copy an array whose element type needs no finalization.  The compiler knows
+  this property before lowering Copy(), so this path does not need RTTI and
+  does not enter the general dynamic-array finalizer. }
+function fpc_array_to_dynarray_copy_unmanaged(psrc : pointer;
+    lowidx,count,maxcount:tdynarrayindex;
+    elesize : sizeint
+    ) : fpc_stub_dynarray;[Public,Alias:'FPC_ARR_TO_DYNARR_COPY_UNMANAGED'];compilerproc;
+  var
+    size : sizeint;
+    olddata,newdata,newheader : pointer;
+    oldheader : pdynarray;
+  begin
+     newdata:=nil;
+     if psrc<>nil then
+       begin
+{$ifndef FPC_DYNARRAYCOPY_FIXED}
+         if (lowidx=-1) and (count=-1) then
+           begin
+             lowidx:=0;
+             count:=high(tdynarrayindex);
+           end;
+{$endif FPC_DYNARRAYCOPY_FIXED}
+         if lowidx<0 then
+           begin
+             if count>0 then
+               count:=count+lowidx
+             else
+               count:=0;
+             lowidx:=0;
+           end;
+         if count>maxcount-lowidx then
+           count:=maxcount-lowidx;
+         if count>0 then
+           begin
+             size:=elesize*count;
+             getmem(newheader,size+sizeof(tdynarray));
+             pdynarray(newheader)^.refcount:=1;
+             pdynarray(newheader)^.high:=count-1;
+             newdata:=newheader+sizeof(tdynarray);
+             move(pointer(psrc+elesize*lowidx)^,newdata^,size);
+           end;
+       end;
+
+     { Build the replacement before releasing the old value.  Besides giving
+       strong exception safety, this keeps Copy(A,...) valid when A is also
+       the destination selected for the hidden function result. }
+     olddata:=pointer(result);
+     pointer(result):=nil;
+     if olddata<>nil then
+       begin
+         oldheader:=pdynarray(olddata)-1;
+         if (oldheader^.refcount=1) or
+            (oldheader^.refcount>0) and declocked(oldheader^.refcount) then
+           freemem(oldheader);
+       end;
+     pointer(result):=newdata;
   end;
 
 
