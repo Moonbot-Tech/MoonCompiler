@@ -987,7 +987,7 @@ end;
 const
   // define maximum size of tiny blocks, and the number of arenas
   {$ifdef FPCMM_MS_ARENAS}
-  NumTinyBlockTypesPO2  = 6; // ALL 64 unique classes are arena-sharded
+  NumTinyBlockTypesPO2  = 6; // 44 classes in a 64-slot arena row
   NumTinyBlockArenasPO2 = 5; // 32 arenas
   {$else}
   {$ifdef FPCMM_BOOSTER}
@@ -1010,9 +1010,12 @@ const
   // sharded arena still occupies 64 cache-line slots, so selecting an arena
   // remains a shift-only 4096-byte stride on the GetMem hot path.  The 20
   // trailing slots are initialized but no GetmemLookup entry points to them.
+  // In arena 0 the first two retain the allocator's cold same-size fallback
+  // for the largest class.  No tail slot in any row is addressable by lookup;
+  // all other tail records are pure physical padding.
   NumSmallBlockClasses     = 44;
   NumSmallBlockTypeSlots   = 64;
-  NumSmallBlockTypes       = NumSmallBlockTypeSlots + 2; // fallback entries
+  NumSmallBlockTypes       = NumSmallBlockTypeSlots;
   MaximumSmallBlockSize    = 2608;
   {$else}
   NumSmallBlockTypes       = 46;
@@ -1030,21 +1033,27 @@ const
     16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 256,
     272, 288, 304, 320, 352, 384, 416, 448, 480, 528, 576, 624, 672, 736, 800,
      880, 960, 1056, 1152, 1264, 1376, 1504, 1648, 1808, 1984, 2176, 2384,
-     MaximumSmallBlockSize,
+     MaximumSmallBlockSize
      {$ifdef FPCMM_MS_TABLE}
-     // Physical padding: no size lookup can select any of these 20 entries.
+     // No size lookup can select these 20 physical tail entries.  In arena 0
+     // the first two are cold same-size fallback managers after contention.
+     , MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
      MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
      MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
      MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
      MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
      MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
-     MaximumSmallBlockSize, MaximumSmallBlockSize, MaximumSmallBlockSize,
-     MaximumSmallBlockSize, MaximumSmallBlockSize,
-     {$endif FPCMM_MS_TABLE}
+     MaximumSmallBlockSize, MaximumSmallBlockSize
+     {$else}
      // Two redundant entries let a contended allocation try larger slots.
-     MaximumSmallBlockSize, MaximumSmallBlockSize);
+     , MaximumSmallBlockSize, MaximumSmallBlockSize
+     {$endif FPCMM_MS_TABLE}
+     );
 
   SmallBlockGranularity        = 16;
+  NumSmallBlockGranularitySlots =
+    (MaximumSmallBlockSize + SmallBlockGranularity - 1) div
+      SmallBlockGranularity;
   TargetSmallBlocksPerPool     = 48;
   MinimumSmallBlocksPerPool    = 12;
   SmallBlockDownsizeCheckAdder = 64;
@@ -1147,14 +1156,15 @@ type
   TSmallBlockInfo = record
     Small: TSmallBlockTypes;
     Tiny: array[0..NumTinyBlockArenas - 1] of TTinyBlockTypes;
-    GetmemLookup: array[0..
-      (MaximumSmallBlockSize - 1) div SmallBlockGranularity] of byte;
+    GetmemLookup: array[0..NumSmallBlockGranularitySlots - 1] of byte;
     // safe access to IsMultiThread global variable - accessed via GOT sub-call
     IsMultiThreadPtr: PBoolean;
     {$ifndef FPCMM_TINYPERTHREAD}
     TinyCurrentArena: integer;
     {$endif FPCMM_TINYPERTHREAD}
-    GetmemSleepCount: array[0..NumSmallBlockTypeSlots - 1] of cardinal;
+    { Assembly indexes this counter by requested-size granularity, not by
+      logical class ordinal. }
+    GetmemSleepCount: array[0..NumSmallBlockGranularitySlots - 1] of cardinal;
     // some fiedls here because there was no room in TSmallBlockType
     {$ifdef FPCMM_MULTIPLESMALLNOTWITHMEDIUM} // PMediumBlockInfo lookup
     SmallMediumBlockInfo: array[0..NumSmallInfoBlock - 1] of pointer;
@@ -4870,8 +4880,11 @@ begin
   assert(SizeOf(small^) = 1 shl SmallBlockTypePO2);  // exactly 64 bytes
   {$ifdef FPCMM_MS_TABLE}
   assert(NumSmallBlockTypeSlots = NumTinyBlockTypes); // 64 slots = 4096B
+  assert(NumSmallBlockTypes = NumSmallBlockTypeSlots);
   assert(NumSmallBlockClasses = 44);
   {$endif FPCMM_MS_TABLE}
+  assert(length(SmallBlockInfo.GetmemSleepCount) =
+    length(SmallBlockInfo.GetmemLookup));
   for a := 0 to NumTinyBlockArenas do
     for i := 0 to NumSmallBlockTypes - 1 do
     begin

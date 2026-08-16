@@ -25,7 +25,9 @@ program memory_mega;
 uses
 {$ifdef FPC}
   mormot.core.fpcx64mm,
+  {$ifndef windows}
   cthreads,
+  {$endif}
 {$else}
   Winapi.Windows,
 {$endif}
