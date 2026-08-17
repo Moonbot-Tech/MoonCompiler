@@ -6114,9 +6114,115 @@ implementation
 
     function tcallnode.optimize_funcret_assignment(inlineblock: tblocknode): tnode;
       var
-        hp  : tstatementnode;
-        hp2 : tnode;
-        resassign : tassignmentnode;
+        stmts : tfplist;
+        hp2,
+        checknode,
+        srcnode : tnode;
+        destdef : tdef;
+        functempinfo : ptempinfo;
+        srcpara : tcallparanode;
+        srcwrapped : boolean;
+        matchedstmt,
+        editstmt : tstatementnode;
+        assignindex,
+        i : longint;
+
+      { The inlined tree nests statements: the callee body and the call
+        init/cleanup parts each stay their own non-scoping block node.
+        Collect the executed statements in order so the matching below sees
+        one flat sequence.  Scoping blocks stay opaque. }
+      procedure collectstatements(stmt: tstatementnode);
+        begin
+          while assigned(stmt) do
+            begin
+              if assigned(stmt.left) then
+                begin
+                  if (stmt.left.nodetype=blockn) and
+                     not assigned(tblocknode(stmt.left).blocksymtable) then
+                    collectstatements(tstatementnode(tblocknode(stmt.left).left))
+                  else if stmt.left.nodetype<>nothingn then
+                    stmts.add(stmt);
+                end;
+              stmt:=tstatementnode(stmt.right);
+            end;
+        end;
+
+      { A managed assignment to the result temp has already been lowered to a
+        helper call when this optimization runs.  Recognize the exact lowered
+        shape helper(<source>, @<result temp>), plus the leading rtti
+        parameter of the dynamic-array helper, and hand back the source
+        expression.  Each helper only stores <source> into the temp and
+        rebalances reference counts, so eliminating the temp together with
+        the call is the same rewrite as eliminating a plain assignment. }
+      function matchloweredassign(call: tcallnode; out src: tnode): boolean;
+        var
+          para : tcallparanode;
+          expr : tnode;
+          destexpr : tnode;
+          helper : string;
+        begin
+          result:=false;
+          src:=nil;
+          destexpr:=nil;
+          if not assigned(call.procdefinition) or
+             (call.procdefinition.typ<>procdef) or
+             not(po_compilerproc in call.procdefinition.procoptions) or
+             assigned(call.methodpointer) then
+            exit;
+          helper:=upper(tprocdef(call.procdefinition).procsym.name);
+          if (helper<>'FPC_UNICODESTR_ASSIGN') and
+             (helper<>'FPC_ANSISTR_ASSIGN') and
+             (helper<>'FPC_WIDESTR_ASSIGN') and
+             (helper<>'FPC_DYNARRAY_ASSIGN') then
+            exit;
+          para:=tcallparanode(call.left);
+          while assigned(para) do
+            begin
+              expr:=para.left;
+              { the typeinfo parameter of fpc_dynarray_assign }
+              if (expr.nodetype=addrn) and
+                 (taddrnode(expr).left.nodetype=rttin) then
+                begin
+                  para:=tcallparanode(para.right);
+                  continue;
+                end;
+              { the lowering wrapped both arguments in an internal
+                void-pointer conversion; the destination must be exactly the
+                result temp under it }
+              while expr.nodetype=typeconvn do
+                expr:=ttypeconvnode(expr).left;
+              if (expr.nodetype=temprefn) and
+                 (ttemprefnode(expr).tempinfo=functempinfo) then
+                begin
+                  if assigned(destexpr) then
+                    exit;
+                  destexpr:=expr;
+                end
+              else
+                begin
+                  if assigned(src) or
+                     foreachnodestatic(para.left,@UsesTmp,functempinfo) then
+                    exit;
+                  srcpara:=para;
+                  srcwrapped:=false;
+                  expr:=para.left;
+                  if (expr.nodetype=typeconvn) and
+                     (nf_internal in expr.flags) and
+                     (expr.resultdef=voidpointertype) then
+                    begin
+                      srcwrapped:=true;
+                      expr:=ttypeconvnode(expr).left;
+                    end;
+                  src:=expr;
+                end;
+              para:=tcallparanode(para.right);
+            end;
+          result:=assigned(destexpr) and assigned(src) and
+                  (nf_is_funcret in destexpr.flags);
+          if result then
+            destdef:=destexpr.resultdef;
+        end;
+
       begin
         result:=nil;
         if not assigned(funcretnode) or
@@ -6127,67 +6233,140 @@ implementation
         if not(inlineblock.nodetype=blockn) then
           exit;
 
-        { tempcreatenode for the function result }
-        hp:=tstatementnode(inlineblock.left);
-        if not(assigned(hp)) or
-           (hp.left.nodetype <> tempcreaten) or
-           not(nf_is_funcret in hp.left.flags) then
-          exit;
+        stmts:=tfplist.create;
+        try
+          collectstatements(tstatementnode(inlineblock.left));
 
-        hp:=tstatementnode(hp.right);
-        if not(assigned(hp)) or
-           (hp.left.nodetype<>assignn)
-          { FK: check commented, original comment was:
+          { tempcreatenode for the function result }
+          if (stmts.count<4) or
+             (tstatementnode(stmts[0]).left.nodetype<>tempcreaten) or
+             not(nf_is_funcret in tstatementnode(stmts[0]).left.flags) then
+            exit;
+          functempinfo:=ttempcreatenode(tstatementnode(stmts[0]).left).tempinfo;
 
-              constant assignment? right must be a constant (mainly to avoid trying
-              to reuse local temps which may already be freed afterwards once these
-              checks are made looser)
+          { The result assignment may be preceded by inlined statements that
+            do not reference the result temp, e.g. the range check of a
+            collection getter.  They stay in the produced block, in execution
+            order, in front of the returned expression, so removing the temp
+            does not change what runs before the result expression is
+            evaluated.  A statement referencing the temp (an earlier
+            assignment, a read of an uninitialized result, an exit path) or
+            carrying non-local control flow keeps the temp-based form. }
+          assignindex:=-1;
+          srcnode:=nil;
+          destdef:=nil;
+          srcpara:=nil;
+          srcwrapped:=false;
+          for i:=1 to stmts.count-1 do
+            begin
+              checknode:=tstatementnode(stmts[i]).left;
+              if checknode.nodetype=assignn then
+                begin
+                  { left must be function result }
+                  hp2:=tassignmentnode(checknode).left;
+                  { can have extra type conversion due to absolute mapping
+                    of <fucntionname> on function result var }
+                  if (hp2.nodetype=typeconvn) and (ttypeconvnode(hp2).convtype=tc_equal) then
+                    hp2:=ttypeconvnode(hp2).left;
+                  if (hp2.nodetype=temprefn) and
+                     (ttemprefnode(hp2).tempinfo=functempinfo) then
+                    begin
+                      { check if right references the temp. being removed,
+                        i.e. using an uninitialized result }
+                      if not(nf_is_funcret in hp2.flags) or
+                         foreachnodestatic(tassignmentnode(checknode).right,@UsesTmp,functempinfo) then
+                        exit;
+                      srcnode:=tassignmentnode(checknode).right;
+                      destdef:=hp2.resultdef;
+                      assignindex:=i;
+                      break;
+                    end;
+                end
+              else if (checknode.nodetype=calln) and
+                 matchloweredassign(tcallnode(checknode),srcnode) then
+                begin
+                  assignindex:=i;
+                  break;
+                end;
+              if foreachnodestatic(checknode,@UsesTmp,functempinfo) or
+                 { an exit statement cannot be part of a fully inlined body
+                   and assembler statements are opaque to the temp scan;
+                   labels and gotos are safe: the block is edited in place,
+                   so their pairing survives }
+                 has_node_of_type(checknode,[exitn,asmn]) then
+                exit;
+            end;
+          { FK: constant check on the right side removed, original comment was:
 
-            or
-            not is_constnode(tassignmentnode(hp.left).right)
+              constant assignment? right must be a constant (mainly to avoid
+              trying to reuse local temps which may already be freed
+              afterwards once these checks are made looser)
 
-            So far I found no example why removing this check might be a problem.
-            If this needs to be revert, issue #36279 must be checked/solved again.
+            So far I found no example why removing this check might be a
+            problem.  If this needs to be revert, issue #36279 must be
+            checked/solved again.
           }
-          then
-          exit;
+          if (assignindex<0) or
+             not assigned(srcnode) or
+             not assigned(destdef) then
+            exit;
 
-        { left must be function result }
-        resassign:=tassignmentnode(hp.left);
-        hp2:=resassign.left;
-        { can have extra type conversion due to absolute mapping
-          of <fucntionname> on function result var }
-        if (hp2.nodetype=typeconvn) and (ttypeconvnode(hp2).convtype=tc_equal) then
-          hp2:=ttypeconvnode(hp2).left;
-        if (hp2.nodetype<>temprefn) or
-          { check if right references the temp. being removed, i.e. using an uninitialized result }
-          foreachnodestatic(resassign.right,@UsesTmp,ttemprefnode(hp2).tempinfo) or
-          not(nf_is_funcret in hp2.flags) then
-          exit;
+          { tempdelete to normal of the function result, directly after the
+            assignment }
+          if (assignindex+2<>stmts.count-1) or
+             (tstatementnode(stmts[assignindex+1]).left.nodetype<>tempdeleten) or
+             (ttempdeletenode(tstatementnode(stmts[assignindex+1]).left).tempinfo<>functempinfo) then
+            exit;
 
-        { tempdelete to normal of the function result }
-        hp:=tstatementnode(hp.right);
-        if not(assigned(hp)) or
-           (hp.left.nodetype <> tempdeleten) then
-          exit;
+          { the function result once more, as the final value }
+          checknode:=tstatementnode(stmts[stmts.count-1]).left;
+          if (checknode.nodetype<>temprefn) or
+             not(nf_is_funcret in checknode.flags) or
+             (ttemprefnode(checknode).tempinfo<>functempinfo) then
+            exit;
+          { The value of a statement block was historically always a temp
+            reference, so consumers only expect register or memory locations
+            from it: the boolean jump lowering, for one, has no constant,
+            flags or pending-jump case.  Keep the temp whenever the source
+            would put anything else into the block location. }
+          if not(srcnode.expectloc in [LOC_REFERENCE,LOC_CREFERENCE,
+              LOC_REGISTER,LOC_CREGISTER,LOC_MMREGISTER,LOC_CMMREGISTER,
+              LOC_FPUREGISTER,LOC_CFPUREGISTER]) then
+            exit;
 
-        { the function result once more }
-        hp:=tstatementnode(hp.right);
-        if not(assigned(hp)) or
-           (hp.left.nodetype<>temprefn) or
-           not(nf_is_funcret in hp.left.flags) then
-          exit;
+          { we made it!  Edit the block in place: the leading statements and
+            any label references inside them stay in their original tree;
+            only the temp bookkeeping and the storing statement disappear.
+            The detached source expression becomes the final value of the
+            block, which is where the stored temp used to be returned. }
+          matchedstmt:=tstatementnode(stmts[assignindex]);
+          if matchedstmt.left.nodetype=assignn then
+            tassignmentnode(matchedstmt.left).right:=nil
+          else if srcwrapped then
+            ttypeconvnode(srcpara.left).left:=nil
+          else
+            srcpara.left:=nil;
+          matchedstmt.left.free;
+          matchedstmt.left:=cnothingnode.create;
 
-        { should be the end }
-        if assigned(hp.right) then
-          exit;
+          editstmt:=tstatementnode(stmts[0]);
+          editstmt.left.free;
+          editstmt.left:=cnothingnode.create;
+          editstmt:=tstatementnode(stmts[assignindex+1]);
+          editstmt.left.free;
+          editstmt.left:=cnothingnode.create;
+          editstmt:=tstatementnode(stmts[stmts.count-1]);
+          editstmt.left.free;
+          editstmt.left:=ctypeconvnode.create_internal(srcnode,destdef);
 
-        { we made it! }
-        result:=ctypeconvnode.create_internal(tassignmentnode(resassign).right.getcopy,hp2.resultdef);
-        node_reset_flags(result,[],[tnf_pass1_done]);
-        firstpass(result);
-        if assigned(result) then
-          set_para_callnode(nil);
+          result:=inlineblock;
+          node_reset_flags(result,[],[tnf_pass1_done]);
+          firstpass(result);
+          if assigned(result) then
+            set_para_callnode(nil);
+        finally
+          stmts.free;
+        end;
       end;
 
 end.

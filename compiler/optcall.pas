@@ -215,7 +215,9 @@ unit optcall;
         n:=callnode.optimize_funcret_assignment(inlineblock);
         if assigned(n) then
           begin
-            inlineblock.free;
+            { the optimization edits the block in place; the returned node is
+              either that same block or a replacement created by the renewed
+              first pass, which then already freed the edited block }
             inlineblock:=nil;
             _n:=n;
           end;

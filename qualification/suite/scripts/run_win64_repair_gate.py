@@ -32,6 +32,7 @@ CORE_TESTS = (
     "tdelphianonymousnew1",
     "tloopinvariantaddr1",
     "tdelphiinlineexceptreg1",
+    "tdelphiinlinefuncrettemp1",
 )
 GENERIC_TESTS = (
     "tinlinegenericcomparer1",
@@ -162,6 +163,40 @@ def verify_inline_exception_registers(assembly: Path) -> None:
             raise RuntimeError(f"real exception path lost its Win64 handler: {marker}")
 
 
+def verify_inline_funcret_temp(assembly: Path) -> None:
+    text = assembly.read_text(encoding="utf-8", errors="replace")
+    consume = assembly_procedure(
+        text,
+        "P$TDELPHIINLINEFUNCRETTEMP1_$$_SUMLENGTHS$TSTRSTORE$LONGINT$$QWORD:",
+    )
+    if "fpc_unicodestr_assign" in consume:
+        raise RuntimeError(
+            "read-only consumption of an inlined managed getter still copies "
+            "the result through a temp"
+        )
+    arrays = assembly_procedure(
+        text,
+        "P$TDELPHIINLINEFUNCRETTEMP1_$$_SUMARRAYLENGTHS$TARRSTORE$$QWORD:",
+    )
+    if "fpc_dynarray_assign" in arrays or "fpc_dynarray_incr_ref" in arrays:
+        raise RuntimeError(
+            "read-only consumption of an inlined dynamic-array getter still "
+            "copies the result through a temp"
+        )
+    for marker, requirement in (
+        (
+            "P$TDELPHIINLINEFUNCRETTEMP1_$$_COPYOUTLIVESSTORE$TSTRSTORE$$UNICODESTRING:",
+            "fpc_unicodestr_assign",
+        ),
+        (
+            "P$TDELPHIINLINEFUNCRETTEMP1_$$_DOUBLEDAT$TSTRSTORE$NATIVEINT$$UNICODESTRING:",
+            "fpc_unicodestr_assign",
+        ),
+    ):
+        if requirement not in assembly_procedure(text, marker):
+            raise RuntimeError(f"a required managed copy disappeared: {marker}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("compiler", type=Path)
@@ -215,6 +250,7 @@ def main() -> int:
                 "tforunrollfinally2",
                 "tloopinvariantaddr1",
                 "tdelphiinlineexceptreg1",
+                "tdelphiinlinefuncrettemp1",
             ) and option == "O3":
                 command.append("-al")
             command.append(str(source))
@@ -293,6 +329,12 @@ def main() -> int:
         )
     except (OSError, RuntimeError) as error:
         failures.append(f"inline-exception-registers-assembly ({error})")
+    try:
+        verify_inline_funcret_temp(
+            result_root / "tdelphiinlinefuncrettemp1-o3" / "tdelphiinlinefuncrettemp1.s"
+        )
+    except (OSError, RuntimeError) as error:
+        failures.append(f"inline-funcret-temp-assembly ({error})")
 
     (result_root / "results.json").write_text(
         json.dumps(rows, indent=2) + "\n", encoding="utf-8"
