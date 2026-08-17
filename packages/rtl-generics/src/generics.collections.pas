@@ -2025,7 +2025,11 @@ begin
   if AIndex <> PrepareAddingRange(LLength) then
   begin
     System.Move(FItems[AIndex], FItems[AIndex + LLength], ((Count - AIndex) - LLength) * SizeOf(T));
-    FillChar(FItems[AIndex], SizeOf(T) * LLength, 0);
+    { the assignments below would otherwise release the managed values the
+      gap still aliases with the tail moved above; unmanaged gaps are fully
+      overwritten and need no clearing }
+    if IsManagedType(T) then
+      FillChar(FItems[AIndex], SizeOf(T) * LLength, 0);
   end;
 
   if (ClassInfo = TypeInfo(TList<T>)) and not Assigned(OnNotify) and
@@ -2194,7 +2198,8 @@ begin
     if LMoveDelta <> 0 then
       System.Move(FItems[AIndex + ACount], FItems[AIndex],
         LMoveDelta * SizeOf(T));
-    FillChar(FItems[Count - ACount], ACount * SizeOf(T), 0);
+    { unmanaged elements past Count are dead bytes: Delphi 12.2 leaves them
+      untouched as well, and every write path overwrites before reading }
     Dec(FLength, ACount);
     Exit;
   end;
