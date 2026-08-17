@@ -611,6 +611,10 @@ unit optloop;
                 { removing the multiplication is only worth the
                   effort if it's not a simple shift ... }
                 and (not(ispowerof2(tcgvecnode(n).get_mul_size,dummy))
+                  { power-of-two elements wider than the maximum hardware
+                    scale factor pay an explicit shift+add on every element
+                    access, exactly like a multiplication }
+                  or (tcgvecnode(n).get_mul_size>8)
 {$ifdef cpu64bitaddr}
                   { ... unless the base is a global symbol: 64-bit targets
                     cannot encode a RIP/PC-relative base together with an
