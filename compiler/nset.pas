@@ -85,6 +85,8 @@ interface
           function pass_typecheck:tnode;override;
           function simplify(forinline : boolean):tnode;override;
           function pass_1 : tnode;override;
+        protected
+          function maybe_widechar_const_set_chain: tnode;
        end;
        tinnodeclass = class of tinnode;
 
@@ -215,6 +217,74 @@ implementation
       end;
 
 
+    function tinnode.maybe_widechar_const_set_chain: tnode;
+      const
+        max_ranges = 4;
+      type
+        trange = record
+          lo, hi: longint;
+        end;
+      var
+        ranges: array[0..max_ranges-1] of trange;
+        rangecount, i: longint;
+        inrange: boolean;
+        cmp, tree: tnode;
+      begin
+        result:=nil;
+        if not is_widechar(left.resultdef) or
+           (right.nodetype<>setconstn) or
+           not assigned(tsetdef(right.resultdef).elementdef) or
+           (tsetdef(right.resultdef).setbase<>0) or
+           { the comparison chain reads the operand several times }
+           might_have_sideeffects(left,[mhs_exceptions]) then
+          exit;
+        { collect the ranges of the constant set; big sets keep the set code }
+        rangecount:=0;
+        inrange:=false;
+        for i:=0 to 255 do
+          if i in tsetconstnode(right).value_set^ then
+            begin
+              if not inrange then
+                begin
+                  if rangecount=max_ranges then
+                    exit;
+                  ranges[rangecount].lo:=i;
+                  inrange:=true;
+                end;
+              ranges[rangecount].hi:=i;
+            end
+          else if inrange then
+            begin
+              inc(rangecount);
+              inrange:=false;
+            end;
+        if inrange then
+          inc(rangecount);
+        tree:=nil;
+        for i:=0 to rangecount-1 do
+          begin
+            if ranges[i].lo=ranges[i].hi then
+              cmp:=caddnode.create(equaln,left.getcopy,
+                cordconstnode.create(ranges[i].lo,cwidechartype,false))
+            else
+              cmp:=caddnode.create(andn,
+                caddnode.create(gten,left.getcopy,
+                  cordconstnode.create(ranges[i].lo,cwidechartype,false)),
+                caddnode.create(lten,left.getcopy,
+                  cordconstnode.create(ranges[i].hi,cwidechartype,false)));
+            if assigned(tree) then
+              tree:=caddnode.create(orn,tree,cmp)
+            else
+              tree:=cmp;
+          end;
+        if not assigned(tree) then
+          { empty set }
+          tree:=cordconstnode.create(0,pasbool1type,false);
+        typecheckpass(tree);
+        result:=tree;
+      end;
+
+
     function tinnode.pass_typecheck:tnode;
 
       var
@@ -288,6 +358,15 @@ implementation
            CGMessage(sym_e_set_expected);
 
          if codegenerror then
+           exit;
+
+         { A widechar tested against a constant char set would otherwise be
+           narrowed to a single byte char through the widestring manager: a
+           runtime call per test with a codepage-dependent result.  A small
+           constant set becomes a chain of plain widechar comparisons
+           instead, which is exact for the whole widechar range and cheap. }
+         result:=maybe_widechar_const_set_chain;
+         if assigned(result) then
            exit;
 
          if (m_tp7 in current_settings.modeswitches) then
