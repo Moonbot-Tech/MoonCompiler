@@ -15,13 +15,15 @@
  **********************************************************************}
 
 const
-{$ifndef FPC_USE_SMALL_DEFAULTSTACKSIZE}
-  { includes 16384 bytes margin for stackchecking }
-  DefaultStackSize = 4*1024*1024;
-{$else i.e. FPC_USE_SMALL_DEFAULTSTACKSIZE}
+{$ifdef FPC_USE_SMALL_DEFAULTSTACKSIZE}
   { Special value of Default stack size }
   DefaultStackSize = 16 * 1024;
-{$endif not FPC_USE_SMALL_DEFAULTSTACKSIZE}
+{$elseif defined(LINUX) and defined(CPUX86_64)}
+  DefaultStackSize = 1024*1024;
+{$else}
+  { includes 16384 bytes margin for stackchecking }
+  DefaultStackSize = 4*1024*1024;
+{$endif}
 
 { every platform can have it's own implementation of GetCPUCount; use the define
   HAS_GETCPUCOUNT to disable the default implementation which simply returns 1 }
