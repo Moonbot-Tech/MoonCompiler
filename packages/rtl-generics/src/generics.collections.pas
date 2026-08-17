@@ -1769,11 +1769,17 @@ begin
   Result := FItems[AIndex];
   Dec(FLength);
 
-  FItems[AIndex] := Default(T);
+  { the managed slot must release its reference (Result took its own), and
+    slots past Count must stay zeroed - the dynamic array finalizes its
+    full capacity.  Unmanaged slots are dead bytes: every write path
+    overwrites before reading, so clearing them is wasted traffic }
+  if IsManagedType(T) then
+    FItems[AIndex] := Default(T);
   if AIndex <> FLength then
   begin
     System.Move(FItems[AIndex + 1], FItems[AIndex], (FLength - AIndex) * SizeOf(T));
-    FillChar(FItems[FLength], SizeOf(T), 0);
+    if IsManagedType(T) then
+      FillChar(FItems[FLength], SizeOf(T), 0);
   end;
 
   Notify(Result, ACollectionNotification);
@@ -1956,6 +1962,17 @@ end;
 
 function TList<T>.Add(const AValue: T): SizeInt;
 begin
+  Result := FLength;
+  { the two virtual calls below (PrepareAddingItem, Notify) cost more than
+    the whole append for simple elements; exact TList<T> without a
+    subscriber and with spare capacity takes the direct path }
+  if (Result <= High(FItems)) and (ClassInfo = TypeInfo(TList<T>)) and
+      not Assigned(FOnNotify) then
+  begin
+    Inc(FLength);
+    FItems[Result] := AValue;
+    Exit;
+  end;
   Result := PrepareAddingItem;
   FItems[Result] := AValue;
   Notify(AValue, cnAdded);
