@@ -2699,7 +2699,7 @@ Procedure FloatToDecimal(Out Result: TFloatRec; const Value; ValueType: TFloatVa
 var
   Buffer: String[254];  //Though str func returns only 25 chars, this might change in the future
   InfNan: string[3];
-  Error, N, L, Start, C: Integer;
+  N, L, Start, C, ExpIdx, ExponentSign: Integer;
   GotNonZeroBeforeDot, BeforeDot : boolean;
 
 begin
@@ -2767,8 +2767,24 @@ begin
   Inc(N); // Pass through 'E'
   if N<=L then
     begin
-      Val(Copy(Buffer, N, L-N+1), C, Error); // Get exponent after 'E'
-      Inc(Result.Exponent, C);
+      // Scan with a dedicated index: N must stay just past 'E', the digit
+      // count below is computed from it.
+      ExpIdx := N;
+      ExponentSign := 1;
+      if Buffer[ExpIdx] = '-' then
+        begin
+          ExponentSign := -1;
+          Inc(ExpIdx);
+        end
+      else if Buffer[ExpIdx] = '+' then
+        Inc(ExpIdx);
+      C := 0;
+      while (ExpIdx <= L) and (Buffer[ExpIdx] in ['0'..'9']) do
+        begin
+          C := C * 10 + Ord(Buffer[ExpIdx]) - Ord('0');
+          Inc(ExpIdx);
+        end;
+      Inc(Result.Exponent, ExponentSign * C);
     end;
   // Calculate number of digits we have from str
   if BeforeDot then
