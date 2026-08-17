@@ -347,6 +347,60 @@ unit optloop;
 
 
     type
+      pcounterusecontext = ^tcounterusecontext;
+      tcounterusecontext = record
+        counter : tnode;
+        totalreads,
+        indexreads : longint;
+      end;
+
+    function countcounterreads(var n : tnode;arg : pointer) : foreachnoderesult;
+      var
+        usecontext : pcounterusecontext;
+        indexnode : tnode;
+      begin
+        result:=fen_false;
+        usecontext:=pcounterusecontext(arg);
+        case n.nodetype of
+          loadn:
+            if n.isequal(usecontext^.counter) and
+              (n.flags*[nf_write,nf_modify]=[]) then
+              inc(usecontext^.totalreads);
+          vecn:
+            begin
+              indexnode:=tvecnode(n).right;
+              if indexnode.nodetype=typeconvn then
+                indexnode:=ttypeconvnode(indexnode).left;
+              if (tvecnode(n).left.nodetype=loadn) and
+                not(is_special_array(tvecnode(n).left.resultdef)) and
+                not(is_packed_array(tvecnode(n).left.resultdef)) and
+                indexnode.isequal(usecontext^.counter) and
+                (indexnode.flags*[nf_write,nf_modify]=[]) then
+                inc(usecontext^.indexreads);
+            end;
+          else
+            ;
+        end;
+      end;
+
+
+    { true when every read of the loop counter inside the body is the index
+      of a direct array access: pointer bumping then retires the counter's
+      per-iteration use instead of adding a second live induction variable
+      whose load address depends on the previous iteration }
+    function counter_dies_with_indexing(loop : tfornode) : boolean;
+      var
+        usecontext : tcounterusecontext;
+      begin
+        usecontext.counter:=loop.left;
+        usecontext.totalreads:=0;
+        usecontext.indexreads:=0;
+        foreachnodestatic(pm_postprocess,loop.t2,@countcounterreads,@usecontext);
+        result:=usecontext.totalreads=usecontext.indexreads;
+      end;
+
+
+    type
       toptimizeinductionvariablescontext = object
         currforloop : tfornode;
         initcode,
@@ -561,10 +615,15 @@ unit optloop;
                   { ... unless the base is a global symbol: 64-bit targets
                     cannot encode a RIP/PC-relative base together with an
                     index register, so scaled access rematerializes the base
-                    address inside the loop on every element access }
+                    address inside the loop on every element access.  Only
+                    profitable when the counter's body reads all become the
+                    bumped pointer - a counter that stays live would make the
+                    pointer a second induction variable with a
+                    loop-carried load address }
                   or ((tvecnode(n).left.nodetype=loadn) and
                       (tloadnode(tvecnode(n).left).symtableentry.typ=staticvarsym) and
-                      not(vo_is_thread_var in tstaticvarsym(tloadnode(tvecnode(n).left).symtableentry).varoptions))
+                      not(vo_is_thread_var in tstaticvarsym(tloadnode(tvecnode(n).left).symtableentry).varoptions) and
+                      counter_dies_with_indexing(currforloop))
 {$endif cpu64bitaddr}
                   )
 {$endif}
