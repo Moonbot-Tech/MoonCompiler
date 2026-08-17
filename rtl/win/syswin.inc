@@ -761,13 +761,33 @@ var
 function GetACP:UINT; stdcall; external 'kernel32' name 'GetACP';
 function GetConsoleCP:UINT; stdcall; external 'kernel32' name 'GetConsoleCP';
 
+var
+  { Console code page queries round-trip to the console host and cost tens
+    of microseconds; every new thread re-opens its threadvar stdio and asked
+    five times. The RTL never changes the console code page itself, so one
+    process-wide snapshot matches what the main thread's stdio was set up
+    with. Zero means "no console seen yet": a process that allocates its
+    console later caches on the first query that returns a real value. }
+  CachedConsoleInputCP : TSystemCodePage = 0;
+  CachedConsoleOutputCP : TSystemCodePage = 0;
+
 function Win32GetStandardCodePage(const stdcp: TStandardCodePageEnum): TSystemCodePage;
   begin
     case stdcp of
       scpAnsi,
       scpFileSystemSingleByte: Result := GetACP;
-      scpConsoleInput: Result := GetConsoleCP;
-      scpConsoleOutput: Result := GetConsoleOutputCP;
+      scpConsoleInput:
+        begin
+          if CachedConsoleInputCP=0 then
+            CachedConsoleInputCP:=GetConsoleCP;
+          Result:=CachedConsoleInputCP;
+        end;
+      scpConsoleOutput:
+        begin
+          if CachedConsoleOutputCP=0 then
+            CachedConsoleOutputCP:=GetConsoleOutputCP;
+          Result:=CachedConsoleOutputCP;
+        end;
     end;
   end;
 
