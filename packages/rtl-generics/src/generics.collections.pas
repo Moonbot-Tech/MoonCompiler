@@ -2062,12 +2062,22 @@ begin
   end;
 
   LValue := @AValues[0];
-  for i := AIndex to Pred(AIndex + LLength) do
-  begin
-    FItems[i] := LValue^;
-    Notify(LValue^, cnAdded);
-    Inc(LValue);
-  end;
+  { exact TList<T> without a subscriber only needs the managed element
+    assignments; the virtual Notify call per element costs more than the
+    assignment itself }
+  if (ClassInfo = TypeInfo(TList<T>)) and not Assigned(FOnNotify) then
+    for i := AIndex to Pred(AIndex + LLength) do
+    begin
+      FItems[i] := LValue^;
+      Inc(LValue);
+    end
+  else
+    for i := AIndex to Pred(AIndex + LLength) do
+    begin
+      FItems[i] := LValue^;
+      Notify(LValue^, cnAdded);
+      Inc(LValue);
+    end;
 end;
 
 procedure TList<T>.InsertRange(AIndex: SizeInt; const AEnumerable: IEnumerable<T>);
