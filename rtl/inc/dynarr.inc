@@ -110,10 +110,23 @@ procedure fpc_dynarray_incr_ref(p : pointer); [external name 'FPC_DYNARRAY_INCR_
 
 
 procedure fpc_dynarray_assign(var dest: Pointer; src: Pointer; ti: pointer);[public,alias:'FPC_DYNARRAY_ASSIGN']; compilerproc;
+  var
+    pv : pdynarray;
   begin
-    fpc_dynarray_incr_ref(src);
-    fpc_dynarray_clear(dest,ti);
-    Dest:=Src;
+    { flattened incr_ref + clear: an assignment is one call deep instead of
+      relaying through two helper frames on every managed-array store }
+    if assigned(src) and (pdynarray(src)[-1].refcount>0) then
+      inclocked(pdynarray(src)[-1].refcount);
+    pv:=dest;
+    dest:=src;
+    if assigned(pv) then
+      if (pv[-1].refcount=1) or (pv[-1].refcount>0) and declocked(pv[-1].refcount) then
+        begin
+          ti:=pdynarraytypedata(aligntoqword(ti+2+PByte(ti)[1]))^.elType;
+          if assigned(ti) then
+            int_finalizearray(pv,PPointer(ti)^,pv[-1].high+1);
+          freemem(pv-1);
+        end;
   end;
 
 procedure fpc_dynarray_assign(var dest: Pointer; src: Pointer; ti: pointer);[external name 'FPC_DYNARRAY_ASSIGN'];

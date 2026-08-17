@@ -1385,7 +1385,14 @@ end;
          if _addref<>0 then
            begin
              if _addref>0 then
+               { the intrinsic emits the locked instruction in place; going
+                 through InterlockedIncrement adds two call levels to every
+                 interface assignment.  The 3.2 bootstrap predates it. }
+{$ifdef VER3_2}
                _addref:=interlockedincrement(frefcount);
+{$else}
+               _addref:=AtomicIncrement(frefcount);
+{$endif}
              exit;
            end;
          frefcount:=1; { Work non-atomically in the common case of refcount = 0 (typical state after the complete object construction). }
@@ -1400,7 +1407,11 @@ end;
            begin
              if _Release<=0 then { -1 means recursive call from destructor... 0 is impossible. }
                exit;
+{$ifdef VER3_2}
              _Release:=interlockeddecrement(frefcount);
+{$else}
+             _Release:=AtomicDecrement(frefcount);
+{$endif}
              if _Release>0 then
                exit;
            end
