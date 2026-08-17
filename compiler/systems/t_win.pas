@@ -1715,6 +1715,8 @@ implementation
         { change stack size (PM) }
         { I am not sure that the default value is adequate !! }
         peoptheader.SizeOfStackReserve:=stacksize;
+        if target_info.system in systems_delphi_windows_stack_defaults then
+          peoptheader.SizeOfStackCommit:=delphi_windows_default_stack_commit;
         if SetPEFlagsSetExplicity then
           peoptheader.LoaderFlags:=peflags;
         if ImageBaseSetExplicity then

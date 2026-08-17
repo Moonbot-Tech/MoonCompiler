@@ -284,6 +284,12 @@ interface
        { all real windows systems, no cripple ones like win16, wince, wdosx et. al. }
        systems_windows = [system_i386_win32,system_x86_64_win64,system_aarch64_win64];
 
+       { Win32/Win64 defaults used by Delphi 12.2. Keep this set separate from
+         systems_windows: WinCE and AArch64 retain their target defaults. }
+       systems_delphi_windows_stack_defaults = [system_i386_win32,system_x86_64_win64];
+       delphi_windows_default_stack_reserve = 1024*1024;
+       delphi_windows_default_stack_commit = 16*1024;
+
        { all windows systems }
        systems_all_windows = systems_windows+
                              [system_arm_wince,system_i386_wince,

@@ -3380,7 +3380,10 @@ const pemagic : array[0..3] of byte = (
               peoptheader.DllCharacteristics:=peoptheader.DllCharacteristics or peoptflags;
 
             peoptheader.SizeOfStackReserve:=stacksize;
-            peoptheader.SizeOfStackCommit:=$1000;
+            if target_info.system in systems_delphi_windows_stack_defaults then
+              peoptheader.SizeOfStackCommit:=delphi_windows_default_stack_commit
+            else
+              peoptheader.SizeOfStackCommit:=$1000;
             if MinStackSizeSetExplicity then
               peoptheader.SizeOfStackCommit:=minstacksize;
             if MaxStackSizeSetExplicity then
