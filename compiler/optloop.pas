@@ -555,8 +555,18 @@ unit optloop;
                 is_loop_invariant(currforloop,tvecnode(n).right))
 {$if not (defined(cpu16bitalu) or defined(cpu8bitalu))}
                 { removing the multiplication is only worth the
-                  effort if it's not a simple shift }
-                and not(ispowerof2(tcgvecnode(n).get_mul_size,dummy))
+                  effort if it's not a simple shift ... }
+                and (not(ispowerof2(tcgvecnode(n).get_mul_size,dummy))
+{$ifdef cpu64bitaddr}
+                  { ... unless the base is a global symbol: 64-bit targets
+                    cannot encode a RIP/PC-relative base together with an
+                    index register, so scaled access rematerializes the base
+                    address inside the loop on every element access }
+                  or ((tvecnode(n).left.nodetype=loadn) and
+                      (tloadnode(tvecnode(n).left).symtableentry.typ=staticvarsym) and
+                      not(vo_is_thread_var in tstaticvarsym(tloadnode(tvecnode(n).left).symtableentry).varoptions))
+{$endif cpu64bitaddr}
+                  )
 {$endif}
                 then
                 begin
@@ -588,7 +598,12 @@ unit optloop;
 
                       startvaltemp:=maybereplacewithtemp(currforloop.right,initcode,initcodestatements,currforloop.right.resultdef.size,true);
                       nn:=caddrnode.create(
-                          cvecnode.create(tvecnode(n).left.getcopy,ctypeconvnode.create_internal(currforloop.right.getcopy,tvecnode(n).right.resultdef))
+                          { An address delta is signed even if array indexing
+                            normalized the original index to an unsigned type.
+                            Zero-extending a negative loop bound would move a
+                            32-bit index 4 Gi elements above the array. }
+                          cvecnode.create(tvecnode(n).left.getcopy,
+                            ctypeconvnode.create_internal(currforloop.right.getcopy,ptrsinttype))
                         );
                       { If the calculation is not performed at the end
                         it is needed to adjust the starting value }

@@ -28,6 +28,33 @@ type
 var
   Counters: array[0..1] of TCounter;
 
+function SumGuardedStaticArray(FirstIndex, LastIndex: Integer): Integer;
+const
+  Values: array[0..15] of Integer =
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := FirstIndex to LastIndex do
+    If (I >= Low(Values)) and (I <= High(Values)) then
+      Inc(Result, Values[I]);
+end;
+
+function SumGuardedStaticArrayBackward(FirstIndex,
+  LastIndex: Integer): Integer;
+const
+  Values: array[0..15] of Integer =
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := LastIndex downto FirstIndex do
+    If (I >= Low(Values)) and (I <= High(Values)) then
+      Inc(Result, Values[I]);
+end;
+
 procedure TWorker.Bump(Count: Integer);
 var
   I: Integer;
@@ -90,6 +117,10 @@ var
   RangeRaised: Boolean;
 begin
   FillChar(Counters, SizeOf(Counters), 0);
+  If SumGuardedStaticArray(-1100, 1100) <> 136 then
+    Halt(7);
+  If SumGuardedStaticArrayBackward(-1100, 1100) <> 136 then
+    Halt(8);
   Worker := TWorker.Create;
   try
     Worker.FIndex := 1;
