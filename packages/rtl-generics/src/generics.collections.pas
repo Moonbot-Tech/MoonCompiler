@@ -1965,17 +1965,22 @@ begin
   Result := FLength;
   { the two virtual calls below (PrepareAddingItem, Notify) cost more than
     the whole append for simple elements; exact TList<T> without a
-    subscriber and with spare capacity takes the direct path }
+    subscriber and with spare capacity takes the direct path.  No Exit in
+    either branch: an early exit inlined into a caller's exception region
+    is compiled as a local unwind call, which would cost more than the
+    virtual calls this path removes }
   if (Result <= High(FItems)) and (ClassInfo = TypeInfo(TList<T>)) and
       not Assigned(FOnNotify) then
   begin
     Inc(FLength);
     FItems[Result] := AValue;
-    Exit;
+  end
+  else
+  begin
+    Result := PrepareAddingItem;
+    FItems[Result] := AValue;
+    Notify(AValue, cnAdded);
   end;
-  Result := PrepareAddingItem;
-  FItems[Result] := AValue;
-  Notify(AValue, cnAdded);
 end;
 
 procedure TList<T>.AddRange(const AValues: array of T);
@@ -2192,7 +2197,22 @@ end;
 
 procedure TList<T>.Delete(AIndex: SizeInt);
 begin
-  DoRemove(AIndex, cnRemoved);
+  { the virtual DoRemove materializes the removed element only to hand it
+    to Notify; exact TList<T> without a subscriber just closes the gap.
+    Unmanaged elements past Count stay as dead bytes (Delphi parity), the
+    managed tail slot must be zeroed - the array finalizes full capacity.
+    No Exit: this body is inlined, and an early exit inside a caller's
+    exception region compiles into a local unwind call }
+  if (ClassInfo = TypeInfo(TList<T>)) and not Assigned(FOnNotify) and
+      not IsManagedType(T) and (AIndex >= 0) and (AIndex < FLength) then
+  begin
+    Dec(FLength);
+    if AIndex <> FLength then
+      System.Move(FItems[AIndex + 1], FItems[AIndex],
+        (FLength - AIndex) * SizeOf(T));
+  end
+  else
+    DoRemove(AIndex, cnRemoved);
 end;
 
 procedure TList<T>.DeleteRange(AIndex, ACount: SizeInt);
