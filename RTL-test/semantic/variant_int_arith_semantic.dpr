@@ -1,0 +1,131 @@
+program variant_int_arith_semantic;
+
+{$ifdef FPC}
+  {$mode delphi}
+{$endif}
+
+{ Semantic pin for the unchecked 32-bit variant arithmetic fast path:
+  result variant types (varInteger when the value fits, varInt64 when the
+  32-bit intermediate overflows), exact values at the signed boundaries,
+  mixed small ordinal types, and the untouched slow paths (Int64 operands
+  with their float overflow fallback, power, division). }
+
+uses
+  {$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$endif}
+  SysUtils, Variants;
+
+procedure Fail(const Msg: string);
+begin
+  WriteLn('FAIL ', Msg);
+  Halt(1);
+end;
+
+procedure CheckType(const NameText: string; const V: Variant; Expected: TVarType);
+begin
+  If VarType(V) <> Expected then
+    Fail(Format('%s: vartype %d <> %d', [NameText, VarType(V), Expected]));
+end;
+
+var
+  A, B, R: Variant;
+  I64: Int64;
+begin
+  { plain integer arithmetic keeps varInteger }
+  A := 100;
+  B := 200;
+  R := A + B;
+  CheckType('add small', R, varInteger);
+  If R <> 300 then
+    Fail('add value');
+  R := A * B;
+  CheckType('mul small', R, varInteger);
+  If R <> 20000 then
+    Fail('mul value');
+  R := A - B;
+  CheckType('sub small', R, varInteger);
+  If R <> -100 then
+    Fail('sub value');
+
+  { 32-bit overflow promotes to varInt64 with the exact value }
+  A := High(LongInt);
+  B := High(LongInt);
+  R := A * B;
+  CheckType('mul overflow', R, varInt64);
+  I64 := R;
+  If I64 <> Int64(High(LongInt)) * High(LongInt) then
+    Fail('mul overflow value');
+  R := A + 1;
+  CheckType('add overflow', R, varInt64);
+  If R <> Int64(High(LongInt)) + 1 then
+    Fail('add overflow value');
+  A := Low(LongInt);
+  R := A - 1;
+  CheckType('sub underflow', R, varInt64);
+  If R <> Int64(Low(LongInt)) - 1 then
+    Fail('sub underflow value');
+  R := A * (-1);
+  CheckType('neg low', R, varInt64);
+  If R <> -Int64(Low(LongInt)) then
+    Fail('neg low value');
+
+  { boundary results that still fit stay varInteger }
+  A := High(LongInt) - 1;
+  R := A + 1;
+  CheckType('fit high', R, varInteger);
+  If R <> High(LongInt) then
+    Fail('fit high value');
+
+  { mixed small ordinal source types }
+  A := Byte(200);
+  B := SmallInt(-300);
+  R := A * B;
+  CheckType('byte*smallint', R, varInteger);
+  If R <> -60000 then
+    Fail('byte*smallint value');
+  A := Word(60000);
+  B := 100000;
+  R := A + B;
+  CheckType('word+int', R, varInteger);
+  If R <> 160000 then
+    Fail('word+int value');
+
+  { chains as in real expressions }
+  A := 47;
+  R := A * 3 + 7;
+  CheckType('mul-add chain', R, varInteger);
+  If R <> 148 then
+    Fail('chain value');
+
+  { Int64 operands keep the checked slow path with float fallback }
+  A := Int64($4000000000000000);
+  B := 4;
+  R := A * B;
+  If VarType(R) <> varDouble then
+    Fail('int64 overflow fallback type');
+  If Abs(Double(R) - 4.0 * $4000000000000000) > 1e4 then
+    Fail('int64 overflow fallback value');
+  A := Int64(100);
+  B := Int64(23);
+  R := A + B;
+  If R <> 123 then
+    Fail('int64 plain add');
+
+  { power and division stay on their own paths }
+  A := 2;
+  R := A ** 10;
+  If R <> 1024 then
+    Fail('power value');
+  A := 7;
+  B := 2;
+  R := A / B;
+  CheckType('divide', R, varDouble);
+  If Abs(Double(R) - 3.5) > 1e-12 then
+    Fail('divide value');
+  R := A div B;
+  If R <> 3 then
+    Fail('intdiv value');
+
+  WriteLn('VARIANT_INT_ARITH_OK');
+end.

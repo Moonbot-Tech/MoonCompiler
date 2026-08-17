@@ -1565,6 +1565,35 @@ begin
     end;
 end;
 
+procedure DoVarOpLongIntArith(var vl : TVarData; const vr : TVarData; const OpCode : TVarOp);
+var
+  res : Int64;
+begin
+  { both operands map to ctLongInt, so their magnitude is at most 2^31:
+    the Int64 sum, difference and product cannot overflow (2^31 * 2^31 =
+    2^62 < 2^63).  This keeps the hot integer variant arithmetic off the
+    checked try/except path and its float fallback, which exist only for
+    genuine 64-bit operands }
+  case OpCode of
+    opAdd      : res := Int64(VariantToLongint(vl)) + VariantToLongint(vr);
+    opSubtract : res := Int64(VariantToLongint(vl)) - VariantToLongint(vr);
+    opMultiply : res := Int64(VariantToLongint(vl)) * VariantToLongint(vr);
+  else
+    begin
+      DoVarOpInt64to32(vl, vr, OpCode);
+      exit;
+    end;
+  end;
+  DoVarClearIfComplex(vl);
+  if (res >= Low(LongInt)) and (res <= High(LongInt)) then begin
+    vl.vType := varInteger;
+    vl.vInteger := res;
+  end else begin
+    vl.vType := varInt64;
+    vl.vInt64 := res;
+  end;
+end;
+
 
 procedure DoVarOpBool(var vl : TVarData; const vr : TVarData; const OpCode : TVarOp);
 var
@@ -1788,7 +1817,9 @@ begin
       DoVarOpAny(TVarData(Left),TVarData(Right),OpCode);
     ctLongInt:
       case OpCode of
-        opAdd..opMultiply,opPower:
+        opAdd..opMultiply:
+          DoVarOpLongIntArith(TVarData(Left),TVarData(Right),OpCode);
+        opPower:
           DoVarOpInt64to32(TVarData(Left),TVarData(Right),OpCode);
         opDivide:
           DoVarOpFloat(TVarData(Left),TVarData(Right),OpCode);
