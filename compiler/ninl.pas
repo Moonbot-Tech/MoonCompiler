@@ -4446,6 +4446,11 @@ implementation
 
                   valid_for_var(tcallparanode(left).left,true);
                   set_varstate(tcallparanode(left).left,vs_readwritten,[vsf_must_be_valid]);
+                  { the target of an atomic operation must live in memory:
+                    when the intrinsic expands inline, nothing else creates
+                    the var-parameter addressability the helper call used to
+                    provide }
+                  make_not_regable(tcallparanode(left).left,[ra_addr_regable,ra_addr_taken]);
 
                   if is_integer(tcallparanode(left).resultdef) or is_pointer(tcallparanode(left).resultdef) then
                     begin
