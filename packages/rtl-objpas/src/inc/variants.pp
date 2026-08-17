@@ -620,6 +620,18 @@ function Sysvartoint (const v : Variant) : Longint;
 var Handler: TCustomVariantType;
     dest: TVarData;
 begin
+  { direct integer payloads skip the custom-type probe and the helper
+    call chain; the values are exactly what VariantToLongInt returns for
+    these vTypes.  Anything else - including varByRef forms - takes the
+    full path below }
+  case TVarData(v).vType of
+    varInteger  : exit(TVarData(v).vInteger);
+    varInt64    : exit(Longint(TVarData(v).vInt64));
+    varSmallInt : exit(TVarData(v).vSmallInt);
+    varShortInt : exit(TVarData(v).vShortInt);
+    varByte     : exit(TVarData(v).vByte);
+    varWord     : exit(TVarData(v).vWord);
+  end;
   if VarType(v) = varNull then
     if NullStrictConvert then
       VarCastError(varNull, varInt64)
@@ -639,6 +651,16 @@ function Sysvartoint64 (const v : Variant) : Int64;
 var Handler: TCustomVariantType;
     dest: TVarData;
 begin
+  case TVarData(v).vType of
+    varInteger  : exit(TVarData(v).vInteger);
+    varInt64    : exit(TVarData(v).vInt64);
+    varSmallInt : exit(TVarData(v).vSmallInt);
+    varShortInt : exit(TVarData(v).vShortInt);
+    varByte     : exit(TVarData(v).vByte);
+    varWord     : exit(TVarData(v).vWord);
+    varLongWord : exit(TVarData(v).vLongWord);
+    varQWord    : exit(Int64(TVarData(v).vQWord));
+  end;
   if VarType(v) = varNull then
     if NullStrictConvert then
       VarCastError(varNull, varInt64)

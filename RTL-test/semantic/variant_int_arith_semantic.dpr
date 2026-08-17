@@ -127,5 +127,30 @@ begin
   If R <> 3 then
     Fail('intdiv value');
 
+  { conversion fast paths: exact values for direct integer payloads,
+    truncation contract for Int64->LongInt, slow paths kept for floats,
+    strings and null }
+  A := 123;
+  I64 := A;
+  If I64 <> 123 then
+    Fail('toint64 varInteger');
+  A := Int64($123456789A);
+  I64 := A;
+  If I64 <> $123456789A then
+    Fail('toint64 varInt64');
+  If Integer(A) <> Integer($3456789A) then
+    Fail('toint truncation');
+  A := Byte(200);
+  If Integer(A) <> 200 then
+    Fail('toint varByte');
+  A := 3.75;
+  I64 := A;
+  If I64 <> 4 then
+    Fail('toint64 rounds double');
+  A := '4321';
+  I64 := A;
+  If I64 <> 4321 then
+    Fail('toint64 string');
+
   WriteLn('VARIANT_INT_ARITH_OK');
 end.
