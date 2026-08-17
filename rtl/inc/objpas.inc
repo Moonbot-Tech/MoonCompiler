@@ -835,7 +835,9 @@ end;
           safecallexception:=E_UNEXPECTED;
         end;
 
-      class function TObject.ClassInfo : pointer;
+      { inline: a single VMT slot read; the exact-class fast paths in the
+        generic containers test it on every hot call }
+      class function TObject.ClassInfo : pointer; inline;
 
         begin
           ClassInfo := PVmt(Self)^.vTypeInfo;

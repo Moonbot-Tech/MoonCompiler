@@ -286,7 +286,7 @@
           class function InitInstance(instance : pointer) : tobject;
           procedure CleanupInstance;
           class function ClassType : tclass;{$ifdef SYSTEMINLINE}inline;{$endif}
-          class function ClassInfo : pointer;
+          class function ClassInfo : pointer; inline;
           class function ClassName : shortstring;
           {$IF SIZEOF(CHAR)=2}
           class function ClassNameIs(const name : AnsiString) : boolean; overload; {$ifdef SYSTEMINLINE}inline;{$endif}
