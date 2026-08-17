@@ -11,7 +11,7 @@ var
   // Input in usable format
   E : Extended;              // Value as extended.
   FV: TFloatRec;             // Value as floatrec.
-  Section : FString;         // Format can contain 3 sections, semicolon separated: Pos;Neg;Zero. This is the one to use.
+  Section : FPChar;          // Format can contain 3 sections, semicolon separated: Pos;Neg;Zero. This points at the one to use, inside Format - no copy is made.
   SectionLength : Integer;   // Length of section.
   // Calculated based on section. Static during output
   ThousandSep: Boolean;      // Thousands separator detected in format ?
@@ -34,7 +34,7 @@ var
       E:=Currency(Value)
     else
       E:=Extended(Value);
-    Section:='';
+    Section:=nil;
     SectionLength:=0;
     ThousandSep:=false;
     IsScientific:=false;
@@ -191,13 +191,13 @@ var
     InQuote : Boolean;
 
   begin
-    Len:=Length(Section);
+    Len:=SectionLength;
     I:=1;
     InQuote:=False;
     Q:=#0;
     while (I<=Len) do
       begin
-      C:=Section[i];
+      C:=Section[i-1];
       if C in ['"',''''] then
         begin
         if InQuote then
@@ -220,10 +220,10 @@ var
             Inc(I);
             if (I<Len) then
               begin
-              C:=Section[i];
+              C:=Section[i-1];
               IsScientific:=C in ['-','+'];
               if IsScientific then
-                while (I<Len) and (Section[i+1]='0') do
+                while (I<Len) and (Section[i]='0') do
                   begin
                   Inc(ExpSize);
                   Inc(I);
@@ -296,17 +296,39 @@ var
   end;
 
 
-  Function FormatExponent(ASign: FChar; aExponent: Integer) : FString;
+  Procedure EmitExponent(ASign: FChar; aExponent: Integer);
 
+  // Writes sign, zero padding and digits straight into the output buffer;
+  // the exponent of a float never exceeds four digits.
+
+  var
+    Digits: array[0..7] of FChar;
+    N, V: Integer;
   begin
     if E = 0 then
       aExponent := 0;
-    Result:=IntToStr(Abs(aExponent));
-    Result:=StringOfChar('0',ExpSize-Length(Result))+Result;
     if (aExponent<0) then
-      Result:='-'+Result
-    else if (aExponent>=0) and (aSign='+') then
-      Result:=aSign+Result;
+      ToResult('-')
+    else if (aSign='+') then
+      ToResult(aSign);
+    V:=Abs(aExponent);
+    N:=0;
+    repeat
+      Digits[N]:=FChar(Ord('0')+(V mod 10));
+      V:=V div 10;
+      Inc(N);
+    until V=0;
+    V:=ExpSize-N;
+    while V>0 do
+      begin
+      ToResult('0');
+      Dec(V);
+      end;
+    while N>0 do
+      begin
+      Dec(N);
+      ToResult(Digits[N]);
+      end;
   end;
 
 var
@@ -334,10 +356,9 @@ begin
   I:=GetSections(PA);
   if (I<S) or (PA[S]-PA[S-1]=0) then
     S:=1;
-  // Extract correct section
+  // Point at the correct section inside Format, no copy is needed
   SectionLength:=PA[S]-PA[S-1]-1;
-  SetLength(Section,SectionLength);
-  Move(Format[PA[S-1]],Section[1],SizeOf(FChar)*SectionLength);
+  Section:=@Format[PA[S-1]];
   // Writeln('Section ',I,' : "',Section,'" ',SectionLength);
   AnalyzeFormat;
   // Writeln('RequestedDigits: ',RequestedDigits,', DecimalPos : ',DecimalPos,', LastDigit: ',LastDigit,', FirstDigit: ',FirstDigit);
@@ -354,7 +375,7 @@ begin
     ToResult('-');
   while (I<=SectionLength) do
     begin
-    C:=Section[i];
+    C:=Section[i-1];
     // Writeln('Analyzing pos ',I,': "',C,'"');
     If (C in ['"', '''']) then
       begin
@@ -380,14 +401,14 @@ begin
         if IsScientific then
           begin
           Inc(I);
-          if I<=Section.Length then
+          if I<=SectionLength then
             begin
-            C:=Section[I];
+            C:=Section[I-1];
             if (C in ['+','-']) then
               begin
-              AddToResult(FormatExponent(C,FV.Exponent-DecimalPos+1));
+              EmitExponent(C,FV.Exponent-DecimalPos+1);
               // Skip rest
-              while (I<SectionLength) and (Section[i+1]='0') do
+              while (I<SectionLength) and (Section[i]='0') do
                 Inc(I);
               end;
             end;
@@ -395,7 +416,7 @@ begin
         else if I< SectionLength Then
           begin
           inc(I);
-          ToResult(Section[i]);
+          ToResult(Section[i-1]);
           end;
         end;
       else
