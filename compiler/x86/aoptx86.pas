@@ -17417,6 +17417,29 @@ unit aoptx86;
         hp1: tai;
       begin
         Result:=false;
+{$ifdef x86_64}
+        { Widen byte/word register-to-register moves to 32 bit: a
+          partial-width mov merges into the destination's upper bits and so
+          carries a false dependency on the destination's previous value,
+          serializing tight loops.  After allocation a write to a
+          sub-register owns the whole physical register - nothing else lives
+          in the upper bits, and wider readers always go through an explicit
+          movzx/movsx.  Done post-RA so spill code and its peephole patterns
+          keep the true small size.  High-byte registers cannot be widened. }
+        if (taicpu(p).opsize in [S_B,S_W]) and
+          (taicpu(p).oper[0]^.typ=top_reg) and
+          (taicpu(p).oper[1]^.typ=top_reg) and
+          (getsubreg(taicpu(p).oper[0]^.reg)<>R_SUBH) and
+          (getsubreg(taicpu(p).oper[1]^.reg)<>R_SUBH) then
+          begin
+            DebugMsg(SPeepholeOptimization + 'MovSmall2Movl to break a partial-register dependency', p);
+            setsubreg(taicpu(p).oper[0]^.reg,R_SUBD);
+            setsubreg(taicpu(p).oper[1]^.reg,R_SUBD);
+            taicpu(p).changeopsize(S_L);
+            Result:=true;
+            exit;
+          end;
+{$endif x86_64}
         if (taicpu(p).oper[1]^.typ = top_reg) and (taicpu(p).oper[0]^.typ = top_const) then
           begin
 
