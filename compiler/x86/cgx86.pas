@@ -2774,6 +2774,15 @@ unit cgx86;
         if cs_opt_size in current_settings.optimizerswitches then
           helpsize:=2*sizeof(aword);
   {$ifndef i8086}
+        { word-multiple lengths up to four ALU words stay on plain register
+          moves: vector loads read 16 bytes at once and lose store-to-load
+          forwarding over the individual stores that typically just built
+          the source (record arguments, freshly assigned records), which
+          costs far more than the saved move instructions }
+        if (len>sizeof(aword)) and (len<=4*sizeof(aword)) and
+          ((len mod sizeof(aword))=0) then
+          result:=copy_mov
+        else
         { avx helps only to reduce size, using it in general does at least not help on
           an i7-4770
           but using the xmm registers reduces register pressure (FK) }
