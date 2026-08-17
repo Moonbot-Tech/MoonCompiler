@@ -5396,7 +5396,17 @@ implementation
                    ((po_inline in procdefinition.procoptions) or
                      (not(po_compilerproc in procdefinition.procoptions) and
                      (hp.parasym.varspez=vs_const))
-                   ) then
+                   ) and
+                   { an inlinable value parameter whose implemented body never
+                     takes the parameter's address cannot leak the argument's
+                     address: substituted directly it is only read, and a
+                     non-inlined call passes the address of the caller-side
+                     copy.  Marking it addr_taken here would force the inliner
+                     into exactly that needless private copy. }
+                   not((hp.parasym.varspez=vs_value) and
+                       (procdefinition.typ=procdef) and
+                       tprocdef(procdefinition).is_implemented and
+                       not(tabstractvarsym(hp.parasym).addr_taken)) then
                   make_not_regable(hp.left,[ra_addr_regable,ra_addr_taken])
                 else
                   make_not_regable(hp.left,[ra_addr_regable]);
