@@ -2701,8 +2701,42 @@ var
   InfNan: string[3];
   N, L, Start, C, ExpIdx, ExponentSign: Integer;
   GotNonZeroBeforeDot, BeforeDot : boolean;
+  FloatDigits: TSysFloatDigits;
+  DigitCount, Exponent10, FloatClass: Integer;
+  IsNegative: Boolean;
 
 begin
+  if ValueType in [fvExtended, fvDouble, fvReal] then
+    begin
+      { The digit sequence comes straight from the Grisu core: the same
+        digits Str would print, without rendering and re-parsing text.
+        fvSingle stays on the text path below: its historical contract is
+        the 10-digit Str form rounded once more by the tail here, which a
+        direct 9-digit conversion would change. }
+      SysFloatDigits(Extended(Value), 17, FloatDigits, DigitCount,
+        Exponent10, IsNegative, FloatClass);
+      Result.Negative := IsNegative;
+      If FloatClass <> 0 then
+        begin
+          Result.Digits[0] := #0;
+          If FloatClass = 1 then
+            Result.Exponent := 32767
+          else
+            begin
+              { Str renders NaN without a sign, keep that contract }
+              Result.Negative := False;
+              Result.Exponent := -32768;
+            end;
+          exit;
+        end;
+      Result.Exponent := Exponent10;
+      for N := 0 to DigitCount - 1 do
+        Result.Digits[N] := AnsiChar(FloatDigits[N] + Ord('0'));
+      N := DigitCount;
+      GotNonZeroBeforeDot := DigitCount > 0;
+    end
+  else
+    begin
   case ValueType of
     fvExtended:
       Str(Extended(Value):25, Buffer);
@@ -2791,6 +2825,7 @@ begin
     N := N - Start - 1
   else
     N := N - Start - 2;
+    end;
   L := SizeOf(Result.Digits);
   if N<L then
     FillChar(Result.Digits[N], L-N, '0');  //Zero remaining space

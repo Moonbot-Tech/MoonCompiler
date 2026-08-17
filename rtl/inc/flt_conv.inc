@@ -268,6 +268,195 @@ const
     C_STR_SNAN : string[4] = 'SNan';
 {$endif GRISU1_*_NO_SNAN}
 
+(****************************************************************************
+ *
+ * Shared digit-sequence helpers.
+ *
+ * These do not depend on the ValReal layout, so a single instance serves
+ * every flt_core.inc inclusion; the float->ASCII conversion and the direct
+ * float->decimal-digits core both build on them.
+ *
+ ****************************************************************************)
+
+type
+    TAsciiDigits = array [ 0 .. 39 ] of byte;
+
+(*-------------------------------------------------------
+ | gen_digits_32
+ | gen_digits_64 (used only for float64..float128 -> ASCII)
+ |
+ | These routines perform conversion of 32-bit/64-bit unsigned integer
+ | to the sequence of byte-sized decimal digits.
+ |
+ *-------------------------------------------------------*)
+function gen_digits_32( var buf: TAsciiDigits; pos: integer; x: dword; pad_9zero: boolean = false ): integer;
+const
+    digits: array [ 0 .. 9 ] of dword = (
+              0,
+             10,
+            100,
+           1000,
+          10000,
+         100000,
+        1000000,
+       10000000,
+      100000000,
+     1000000000
+    );
+var
+    n: integer;
+    m, z: dword;
+begin
+    // Calculate amount of digits
+    if ( x = 0 ) then
+        // emit nothing if padding is not required
+        n := 0
+    else
+    begin
+        n :=( ( BSRdword( x ) + 1 ) * 1233 ) shr 12;
+        if ( x >= digits[ n ] ) then
+            inc( n );
+    end;
+    if pad_9zero and ( n < 9 ) then
+        n := 9;
+    gen_digits_32 := n;
+    // Emit digits
+    m := x;
+    while ( n > 0 ) do
+    begin
+        dec( n );
+        if ( m <> 0 ) then
+        begin
+            z := m div 10;
+            buf[ pos + n ] := m - z * 10;
+            m := z;
+        end
+        else
+            buf[ pos + n ] := 0;
+    end;
+end;
+
+function gen_digits_64( var buf: TAsciiDigits; pos: integer; const x: qword; pad_19zero: boolean = false ): integer;
+var
+    n_digits: integer;
+    temp: qword;
+    splitl, splitm, splith: dword;
+begin
+    // Split X into 3 unsigned 32-bit integers; lower two should be less than 10 digits long
+    if ( x < 1000000000 ) then
+    begin
+        splith := 0;
+        splitm := 0;
+        splitl := x;
+    end
+    else
+    begin
+        temp := x div 1000000000;
+        splitl := x - temp * 1000000000;
+        if ( temp < 1000000000 ) then
+        begin
+            splith := 0;
+            splitm := temp;
+        end
+        else
+        begin
+            splith := temp div 1000000000;
+            splitm := lo( temp ) - splith * 1000000000;
+        end;
+    end;
+    // Generate digits
+    n_digits := gen_digits_32( buf, pos, splith, false );
+    if pad_19zero and ( n_digits = 0 ) then
+    begin
+        // at most 18 digits expected from splitm and splitl, so add one more
+        buf[ pos ] := 0;
+        n_digits := 1;
+    end;
+    inc( n_digits, gen_digits_32( buf, pos + n_digits, splitm, n_digits <> 0 ) );
+    inc( n_digits, gen_digits_32( buf, pos + n_digits, splitl, n_digits <> 0 ) );
+    gen_digits_64 := n_digits;
+end;
+
+(*-------------------------------------------------------
+ | round_digits
+ |
+ | Performs digit sequence rounding, returns decimal point correction.
+ |
+ *-------------------------------------------------------*)
+function round_digits( var buf: TAsciiDigits; var n_current: integer; n_max: integer; half_round_to_even: boolean = true ): integer;
+var
+    n: integer;
+    dig_round, dig_sticky: byte;
+  {$ifdef GRISU1_F2A_AGRESSIVE_ROUNDUP}
+    i: integer;
+  {$endif}
+begin
+    round_digits := 0;
+    n := n_current;
+{$ifdef grisu1_debug}
+    assert( n_max >= 0 );
+    assert( n_max < n );
+{$endif grisu1_debug}
+    n_current := n_max;
+    // Get round digit
+    dig_round := buf[n_max];
+
+{$ifdef GRISU1_F2A_AGRESSIVE_ROUNDUP}
+    // Detect if rounding-up the second last digit turns the "dig_round"
+    // into "5"; also make sure we have at least 1 digit between "dig_round"
+    // and the second last.
+    if not half_round_to_even then
+        if ( dig_round = 4 ) and ( n_max < n - 3 ) then
+            if ( buf[ n - 2 ] >= 8 ) then // somewhat arbitrary..
+            begin
+                // check for only "9" are in between
+                i := n - 2;
+                repeat
+                    dec( i );
+                until ( i = n_max ) or ( buf[i] <> 9 );
+                if ( i = n_max ) then
+                    // force round-up
+                    dig_round := 9; // any value ">=5"
+            end;
+{$endif}
+
+    if ( dig_round < 5 ) then
+        exit;
+
+    // Handle "round half to even" case
+    if ( dig_round = 5 ) and half_round_to_even and ( ( n_max = 0 ) or ( buf[ n_max - 1 ] and 1 = 0 ) ) then
+    begin
+        // even and a half: check if exactly the half
+        dig_sticky := 0;
+        while ( n > n_max + 1 ) and ( dig_sticky = 0 ) do
+        begin
+            dec( n );
+            dig_sticky := buf[n];
+        end;
+        if ( dig_sticky = 0 ) then
+            exit; // exactly a half -> no rounding is required
+    end;
+
+    // Round-up
+    while ( n_max > 0 ) do
+    begin
+        dec( n_max );
+        inc( buf[n_max] );
+        if ( buf[n_max] < 10 ) then
+        begin
+            // no more overflow: stop now
+            n_current := n_max + 1;
+            exit;
+        end;
+        // continue rounding
+    end;
+
+    // Overflow out of the 1st digit, all n_max digits became 0
+    buf[0] := 1;
+    n_current := 1;
+    round_digits := 1;
+end;
+
 {$ifdef fpc_softfpu_implementation}
 (****************************************************************************
  *
@@ -291,6 +480,7 @@ const
     {$define ValReal:=float32rec}
     {$define TDIY_FP:=TDIY_FP32}
     {$define TDIY_FP_Power_of_10:=TDIY_FP32_Power_of_10}
+    {$define grisu1_digits:=grisu1_digits_float32}
 
  // Implementation
     {$info === float32<->ASCII ===}
@@ -309,6 +499,7 @@ const
     {$define ValReal:=float64}
     {$define TDIY_FP:=TDIY_FP64}
     {$define TDIY_FP_Power_of_10:=TDIY_FP64_Power_of_10}
+    {$define grisu1_digits:=grisu1_digits_float64}
 
  // Implementation
     {$info === float64<->ASCII ===}
@@ -327,6 +518,7 @@ const
     {$define ValReal:=floatx80}
     {$define TDIY_FP:=TDIY_FP96}
     {$define TDIY_FP_Power_of_10:=TDIY_FP96_Power_of_10}
+    {$define grisu1_digits:=grisu1_digits_floatx80}
 
  // Implementation
     {$info === floatx80<->ASCII ===}
@@ -345,6 +537,7 @@ const
     {$define ValReal:=float128}
     {$define TDIY_FP:=TDIY_FP128}
     {$define TDIY_FP_Power_of_10:=TDIY_FP128_Power_of_10}
+    {$define grisu1_digits:=grisu1_digits_float128}
 
  // Implementation
     {$info === float128<->ASCII ===}
@@ -363,6 +556,7 @@ const
     {$undef ValSInt}
     {$undef TDIY_FP}
     {$undef TDIY_FP_Power_of_10}
+    {$undef grisu1_digits}
     {$undef grisu1_inline}
     {$info ========================}
 
@@ -408,6 +602,11 @@ const
 
  // Implementation
     {$i flt_core.inc}
+
+procedure SysFloatDigits(const value: ValReal; maxdigits: longint; out digits: TSysFloatDigits; out ndigits, exponent10: longint; out negative: boolean; out fclass: longint);
+begin
+    grisu1_digits( value, maxdigits, TAsciiDigits(digits), ndigits, exponent10, negative, fclass );
+end;
 
  // Clean-up
     { undef VALREAL_32}

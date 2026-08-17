@@ -929,6 +929,17 @@ function  CompareChar0(const buf1,buf2;len:SizeInt):SizeInt;
 function  MemPos(needle:PByte;nNeedle:SizeUint;haystack:PByte;nHaystack:SizeUint):SizeInt;
 procedure Prefetch(const mem);[internproc:fpc_in_prefetch_var];
 
+type
+  { Digit sequence of the direct float -> decimal conversion below. }
+  TSysFloatDigits = array[0..39] of byte;
+
+{ Direct float -> decimal digit sequence conversion: the Grisu core of Str
+  without the text rendering.  Produces up to maxdigits decimal digits
+  (roundTiesToEven, byte values 0..9) with value = 0.digits * 10^exponent10.
+  fclass: 0 = finite (zero gives ndigits = 0), 1 = Inf, 2 = QNaN, 3 = SNaN.
+  SysUtils.FloatToDecimal builds on this instead of parsing Str output. }
+procedure SysFloatDigits(const value: ValReal; maxdigits: longint; out digits: TSysFloatDigits; out ndigits, exponent10: longint; out negative: boolean; out fclass: longint);
+
 procedure ReadBarrier; {$ifdef SYSTEMINLINE}inline;{$endif}
 procedure ReadDependencyBarrier; {$ifdef SYSTEMINLINE}inline;{$endif}
 procedure ReadWriteBarrier; {$ifdef SYSTEMINLINE}inline;{$endif}

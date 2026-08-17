@@ -684,7 +684,18 @@ end;
  *                                                                          *
  *==========================================================================*)
 
-procedure str_real( min_width, frac_digits: integer; const v: ValReal; real_type: TReal_Type; out str: shortstring );
+(****************************************************************************
+ * grisu1_digits
+ *
+ * Direct float -> decimal digit sequence conversion: the Grisu core of
+ * str_real without the text rendering.  Produces up to max_digits decimal
+ * digits (roundTiesToEven, byte values 0..9), the decimal exponent
+ * "value = 0.digits * 10^dexp10" and the sign.
+ *
+ * fclass: 0 = finite (zero returns n_have = 0), 1 = Inf, 2 = QNaN, 3 = SNaN.
+ *
+ ****************************************************************************)
+procedure grisu1_digits( const v: ValReal; max_digits: longint; out buf: TAsciiDigits; out n_have, dexp10: longint; out minus: boolean; out fclass: longint );
 
 {$undef VALREAL_PACK}
 {$i flt_pack.inc}
@@ -744,186 +755,605 @@ const
     C_NO_MIN_WIDTH = -32767; // this value is the one used internally by FPC
 {$endif}
 
-type
-    TAsciiDigits = array [ 0 .. 39 ] of byte;
-
+{$if defined(VALREAL_80) or defined(VALREAL_128)}
+{$ifndef FPC_SYSTEM_HAS_U128_DIV_U64_TO_U64}
 (*-------------------------------------------------------
- | gen_digits_32 [local]
- | gen_digits_64 [local] (used only for float64..float128 -> ASCII)
+ | u128_div_u64_to_u64 [local]
  |
- | These routines perform conversion of 32-bit/64-bit unsigned integer
- | to the sequence of byte-sized decimal digits.
+ | Divides unsigned 128-bit integer by unsigned 64-bit integer.
+ | Returns 64-bit quotient and reminder.
+ |
+ | This routine is used here only for splitting specially prepared unsigned
+ | 128-bit integer into two 64-bit ones before converting it to ASCII.
  |
  *-------------------------------------------------------*)
-function gen_digits_32( var buf: TAsciiDigits; pos: integer; x: dword; pad_9zero: boolean = false ): integer;
-const
-    digits: array [ 0 .. 9 ] of dword = (
-              0,
-             10,
-            100,
-           1000,
-          10000,
-         100000,
-        1000000,
-       10000000,
-      100000000,
-     1000000000
-    );
+function u128_div_u64_to_u64( const xh, xl: qword; const y: qword; out quotient, remainder: qword ): boolean;
 var
-    n: integer;
-    m, z: dword;
+    b,                // Number base
+    v : qword;        // Norm. divisor
+    un1, un0,         // Norm. dividend LSD's
+    vn1, vn0 : dword; // Norm. divisor digits
+    q1, q0,           // Quotient digits
+    un64, un21, un10, // Dividend digit pairs
+    rhat: qword;      // A remainder
+    s: integer;       // Shift amount for norm
 begin
-    // Calculate amount of digits
-    if ( x = 0 ) then
-        // emit nothing if padding is not required
-        n := 0
-    else
+    // Overflow check
+    if ( xh >= y ) then
     begin
-        n :=( ( BSRdword( x ) + 1 ) * 1233 ) shr 12;
-        if ( x >= digits[ n ] ) then
-            inc( n );
+        u128_div_u64_to_u64 := false;
+        exit;
     end;
-    if pad_9zero and ( n < 9 ) then
-        n := 9;
-    gen_digits_32 := n;
-    // Emit digits
-    m := x;
-    while ( n > 0 ) do
+    // Count leading zeros
+    s := 63 - BSRqword( y ); // 0 <= s <= 63
+    // Normalize divisor
+    v := y shl s;
+    // Break divisor up into two 32-bit digits
+    vn1 := hi(v);
+    vn0 := lo(v);
+    // Shift dividend left
+    un64 := xh shl s;
+    if ( s > 0 ) then
+        un64 := un64 or ( xl shr ( 64 - s ) );
+    un10 := xl shl s;
+    // Break right half of dividend into two digits
+    un1 := hi(un10);
+    un0 := lo(un10);
+    // Compute the first quotient digit, q1
+    q1 := un64 div vn1;
+    rhat := un64 - q1 * vn1;
+    b := qword(1) shl 32; // Number base
+    while ( hi(q1) <> 0 ) or ( q1 * vn0 > b * rhat + un1 ) do
     begin
-        dec( n );
-        if ( m <> 0 ) then
-        begin
-            z := m div 10;
-            buf[ pos + n ] := m - z * 10;
-            m := z;
-        end
-        else
-            buf[ pos + n ] := 0;
+        dec( q1 );
+        inc( rhat, vn1 );
+        if rhat >= b then
+            break;
     end;
+    // Multiply and subtract
+    un21 := un64 * b + un1 - q1 * v;
+    // Compute the second quotient digit, q0
+    q0 := un21 div vn1;
+    rhat := un21 - q0 * vn1;
+    while ( hi(q0) <> 0 ) or ( q0 * vn0 > b * rhat + un0 ) do
+    begin
+        dec( q0 );
+        inc( rhat, vn1 );
+        if ( hi(rhat) <> 0 ) then
+            break;
+    end;
+    // Result
+    remainder := ( un21 * b + un0 - q0 * v ) shr s;
+    quotient := q1 * b + q0;
+    u128_div_u64_to_u64 := true;
 end;
+{$endif FPC_SYSTEM_HAS_U128_DIV_U64_TO_U64}
+{$endif VALREAL_80 | VALREAL_128}
 
-{$ifndef VALREAL_32}
-function gen_digits_64( var buf: TAsciiDigits; pos: integer; const x: qword; pad_19zero: boolean = false ): integer;
-var
-    n_digits: integer;
-    temp: qword;
-    splitl, splitm, splith: dword;
+(*-------------------------------------------------------
+ | count_leading_zero [local]
+ |
+ | Counts number of 0-bits at most significant bit position.
+ |
+ *-------------------------------------------------------*)
+{$ifdef VALREAL_32}
+function count_leading_zero( const X: dword ): integer; {$ifdef grisu1_inline}inline;{$endif}
 begin
-    // Split X into 3 unsigned 32-bit integers; lower two should be less than 10 digits long
-    if ( x < 1000000000 ) then
+    count_leading_zero := 31 - BSRdword( X );
+end;
+{$else not VALREAL_32}
+function count_leading_zero( const X: qword ): integer; {$ifdef grisu1_inline}inline;{$endif}
+begin
+    count_leading_zero := 63 - BSRqword( X );
+end;
+{$endif VALREAL_*}
+
+{$if defined(VALREAL_80) or defined(VALREAL_128)}
+(*-------------------------------------------------------
+ | make_frac_mask [local]
+ |
+ | Makes DIY_FP fractional part mask:
+ |     result := ( 1 shl one.e ) - 1
+ |
+ *-------------------------------------------------------*)
+{$ifdef VALREAL_80}
+procedure make_frac_mask( out h: dword; out l: qword; one_e: integer ); {$ifdef grisu1_inline}inline;{$endif}
+{$else VALREAL_128}
+procedure make_frac_mask( out h, l: qword; one_e: integer ); {$ifdef grisu1_inline}inline;{$endif}
+{$endif VALREAL_*}
+begin
+  {$ifdef grisu1_debug}
+    assert( one_e <= 0 );
+    assert( one_e > - ( sizeof( l ) + sizeof( h ) ) * 8 );
+  {$endif grisu1_debug}
+    if ( one_e <= - 64 ) then
     begin
-        splith := 0;
-        splitm := 0;
-        splitl := x;
+        l := qword( -1 );
+        h := ( {$ifdef VALREAL_128} qword {$else} dword {$endif} ( 1 ) shl ( - one_e - 64 ) ) - 1;
     end
     else
     begin
-        temp := x div 1000000000;
-        splitl := x - temp * 1000000000;
-        if ( temp < 1000000000 ) then
-        begin
-            splith := 0;
-            splitm := temp;
-        end
-        else
-        begin
-            splith := temp div 1000000000;
-            splitm := lo( temp ) - splith * 1000000000;
-        end;
+        l := ( qword( 1 ) shl ( - one_e ) ) - 1;
+        h := 0;
     end;
-    // Generate digits
-    n_digits := gen_digits_32( buf, pos, splith, false );
-    if pad_19zero and ( n_digits = 0 ) then
-    begin
-        // at most 18 digits expected from splitm and splitl, so add one more
-        buf[ pos ] := 0;
-        n_digits := 1;
-    end;
-    inc( n_digits, gen_digits_32( buf, pos + n_digits, splitm, n_digits <> 0 ) );
-    inc( n_digits, gen_digits_32( buf, pos + n_digits, splitl, n_digits <> 0 ) );
-    gen_digits_64 := n_digits;
 end;
-{$endif VALREAL_64..VALREAL_128}
+{$endif VALREAL_80 | VALREAL_128}
 
 (*-------------------------------------------------------
- | round_digits [local]
+ | k_comp [local]
  |
- | Performs digit sequence rounding, returns decimal point correction.
+ | Calculates the exp10 of a factor required to bring the binary exponent
+ | of the original number into selected [ alpha .. gamma ] range:
+ |     result := ceiling[ ( alpha - e ) * log10(2) ]
  |
  *-------------------------------------------------------*)
-function round_digits( var buf: TAsciiDigits; var n_current: integer; n_max: integer; half_round_to_even: boolean = true ): integer;
+function k_comp( e, alpha{, gamma}: integer ): integer;
+{$ifdef fpc_softfpu_implementation}
+///////////////
+//
+// Assuming no HardFloat available.
+// Note: using softfpu here significantly slows down overall
+// conversion performance, so we use integers.
+//
+const
+    D_LOG10_2: TDIY_FP = // log10(2) = 0.301029995663981195213738894724493027
+      {$ifdef VALREAL_32}
+        ( f: dword($9A209A85); e: -33 );
+      {$endif}
+      {$ifdef VALREAL_64}
+        ( f: qword($9A209A84FBCFF799); e: -65 );
+      {$endif}
+      {$ifdef VALREAL_80}
+        ( f: qword($FBCFF7988F8959AC); fh: dword($9A209A84); e: -97 );
+      {$endif}
+      {$ifdef VALREAL_128}
+        ( fh: qword($9A209A84FBCFF798); f: qword($8F8959AC0B7C9178); e: -129 );
+      {$endif}
 var
-    n: integer;
-    dig_round, dig_sticky: byte;
-  {$ifdef GRISU1_F2A_AGRESSIVE_ROUNDUP}
-    i: integer;
+    x, n: integer;
+    y, z: TDIY_FP;
+  {$ifdef VALREAL_32}
+    mask_one: dword;
+  {$else not VALREAL_32}
+    mask_one: qword;
   {$endif}
+  {$ifdef VALREAL_80}
+    mask_oneh: dword;
+  {$endif}
+  {$ifdef VALREAL_128}
+    mask_oneh: qword;
+  {$endif}
+    plus, round_up: boolean;
 begin
-    round_digits := 0;
-    n := n_current;
-{$ifdef grisu1_debug}
-    assert( n_max >= 0 );
-    assert( n_max < n );
-{$endif grisu1_debug}
-    n_current := n_max;
-    // Get round digit
-    dig_round := buf[n_max];
+    x := alpha - e;
+    if ( x = 0 ) then
+    begin
+        k_comp := 0;
+        exit;
+    end;
+    plus := ( x > 0 );
+    if plus then
+        y.f := x
+    else
+        y.f := - x;
+    round_up := plus;
+    n := C_DIY_FP_Q - 1 - BSRdword( y.f );
+  {$if defined(VALREAL_32) or defined(VALREAL_64)}
+    y.f := y.f shl n;
+  {$else VALREAL_80 | VALREAL_128}
+    y.fh := 0;
+    diy_util_shl( y.fh, y.f, n );
+  {$endif VALREAL_*}
+    y.e := - n;
+    z := diy_fp_multiply( y, D_LOG10_2, false );
+    if ( z.e <= - C_DIY_FP_Q ) then
+    begin
+        round_up := plus and ( 0 <>
+  {$if defined(VALREAL_32) or defined(VALREAL_64)}
+          z.f
+  {$else VALREAL_80 | VALREAL_128}
+          z.f or z.fh
+  {$endif}
+        );
+        n := 0;
+    end
+    else
+    begin
+        if plus then
+        begin
+          {$if defined(VALREAL_32) or defined(VALREAL_64)}
+            mask_one := ( {$ifdef VALREAL_64} qword {$else} dword {$endif} ( 1 ) shl ( - z.e ) ) - 1;
+            round_up := ( z.f and mask_one <> 0 );
+          {$else VALREAL_80 | VALREAL_128}
+            make_frac_mask( mask_oneh, mask_one, z.e );
+            round_up := ( z.f and mask_one <> 0 ) or ( z.fh and mask_oneh <> 0 );
+          {$endif VALREAL_*}
+        end;
+      {$if defined(VALREAL_32) or defined(VALREAL_64)}
+        n := z.f shr ( - z.e );
+      {$else VALREAL_80 | VALREAL_128}
+        diy_util_shr( z.fh, z.f, - z.e );
+        n := z.f;
+      {$endif VALREAL_*}
+    end;
+    if not plus then
+        n := - n;
+    if round_up then
+        k_comp := n + 1
+    else
+        k_comp := n;
+end;
+{$else not fpc_softfpu_implementation}
+///////////////
+//
+// HardFloat implementation
+//
+{$if defined(SUPPORT_SINGLE) and defined(VALREAL_32)}
+// If available, use single math for VALREAL_32
+var
+    dexp: single;
+const
+    D_LOG10_2: single =
+{$elseif defined(SUPPORT_DOUBLE) and not defined(VALREAL_32)}
+// If available, use double math for all types >VALREAL_32
+var
+    dexp: double;
+const
+    D_LOG10_2: double =
+{$else}
+// Use native math
+var
+    dexp: ValReal;
+const
+    D_LOG10_2: ValReal =
+{$endif}
+    0.301029995663981195213738894724493027; // log10(2)
+var
+    x, n: integer;
+begin
+    x := alpha - e;
+    dexp := x * D_LOG10_2;
+    // ceil( dexp )
+    n := trunc( dexp );
+    if ( x > 0 ) then
+        if ( dexp <> n ) then
+            inc( n ); // round-up
+    k_comp := n;
+end;
+{$endif fpc_softfpu_implementation}
 
-{$ifdef GRISU1_F2A_AGRESSIVE_ROUNDUP}
-    // Detect if rounding-up the second last digit turns the "dig_round"
-    // into "5"; also make sure we have at least 1 digit between "dig_round"
-    // and the second last.
-    if not half_round_to_even then
-        if ( dig_round = 4 ) and ( n_max < n - 3 ) then
-            if ( buf[ n - 2 ] >= 8 ) then // somewhat arbitrary..
-            begin
-                // check for only "9" are in between
-                i := n - 2;
-                repeat
-                    dec( i );
-                until ( i = n_max ) or ( buf[i] <> 9 );
-                if ( i = n_max ) then
-                    // force round-up
-                    dig_round := 9; // any value ">=5"
-            end;
+var
+    w, D: TDIY_FP;
+    c_mk: TDIY_FP_Power_of_10;
+    n, mk, dot_pos, n_digits_have: integer;
+  {$ifndef VALREAL_32}
+    fl, one_maskl: qword;
+  {$endif not VALREAL_32}
+  {$ifdef VALREAL_80}
+    templ: qword;
+    fh, one_maskh, temph: dword;
+  {$endif VALREAL_80}
+  {$ifdef VALREAL_128}
+    templ: qword;
+    fh, one_maskh, temph: qword;
+  {$endif VALREAL_128}
+    one_e: integer;
+    one_mask, f: dword;
+
+begin
+    // Float -> DIY_FP
+    w := unpack_float( v, minus );
+
+    // Handle Zero
+    if ( w.e = 0 ) and ( w.f {$ifdef VALREAL_128} or w.fh {$endif} = 0 ) then
+    begin
+        buf[0] := 0; // to avoid "warning: uninitialized"
+        n_have := 0;
+        dexp10 := 1;
+        fclass := 0;
+        exit;
+    end;
+
+  {$ifdef VALREAL_80}
+    // Handle non-normals
+    if ( w.e <> 0 ) and ( w.e <> C_EXP2_SPECIAL ) then
+        if ( w.f and C_MANT2_INTEGER = 0 ) then
+        begin
+            // -> QNaN
+            w.f := qword(-1);
+            w.e := C_EXP2_SPECIAL;
+        end;
+  {$endif VALREAL_80}
+
+    // Handle specials
+    if ( w.e = C_EXP2_SPECIAL ) then
+    begin
+        buf[0] := 0;
+        n_have := 0;
+        dexp10 := 0;
+      {$if defined(VALREAL_32) or defined(VALREAL_64)}
+        if ( w.f = 0 ) then
+      {$endif VALREAL_32 | VALREAL_64}
+      {$ifdef VALREAL_80}
+        if ( w.f = qword(C_MANT2_INTEGER) ) then
+      {$endif VALREAL_80}
+      {$ifdef VALREAL_128}
+        if ( w.fh or w.f = 0 ) then
+      {$endif VALREAL_128}
+            // Inf
+            fclass := 1
+        else
+        begin
+           // NaN [also pseudo-NaN, pseudo-Inf, non-normal for floatx80]
+         {$ifdef VALREAL_128}
+           if ( w.fh and ( C_MANT2_INTEGER_H shr 1 ) = 0 ) then
+         {$else}
+           if ( w.f and ( C_MANT2_INTEGER shr 1 ) = 0 ) then
+         {$endif}
+               // signaling
+               fclass := 3
+           else
+               fclass := 2;
+        end;
+        exit;
+    end;
+
+    // Handle denormals
+    if ( w.e <> 0 ) then
+    begin
+        // normal
+    {$ifdef VALREAL_128}
+        w.fh := w.fh or C_MANT2_INTEGER_H;
+    {$else not VALREAL_128}
+      {$ifndef VALREAL_80}
+        w.f := w.f or C_MANT2_INTEGER;
+      {$endif not VALREAL_80}
+    {$endif VALREAL_*}
+        n := C_DIY_FP_Q - C_FRAC2_BITS - 1;
+    end
+    else
+    begin
+        // denormal
+    {$ifdef VALREAL_128}
+        if ( w.fh = 0 ) then
+            n := count_leading_zero( w.f ) + 64
+        else
+            n := count_leading_zero( w.fh );
+    {$else not VALREAL_128}
+      {$ifdef VALREAL_80}
+        // also handle pseudo-denormals
+        n := count_leading_zero( w.f ) + 32;
+      {$else VALREAL_32 | VALREAL_64}
+        n := count_leading_zero( w.f );
+      {$endif VALREAL_*}
+    {$endif VALREAL_*}
+        inc( w.e );
+    end;
+
+    // Final normalization
+  {$if defined(VALREAL_32) or defined(VALREAL_64)}
+    w.f := w.f shl n;
+  {$else VALREAL_80 | VALREAL_128}
+    diy_util_shl( w.fh, w.f, n );
+  {$endif VALREAL_*}
+    dec( w.e, C_EXP2_BIAS + n + C_FRAC2_BITS );
+
+    //
+    // 1. Find the normalized "c_mk = f_c * 2^e_c" such that "alpha <= e_c + e_w + q <= gamma"
+    // 2. Define "V = D * 10^k": multiply the input number by "c_mk", do not normalize to land into [ alpha .. gamma ]
+    // 3. Generate digits ( max_digits + "round" )
+    //
+
+    if ( C_GRISU_ALPHA <= w.e ) and ( w.e <= C_GRISU_GAMMA ) then
+    begin
+        // no scaling required
+        D := w;
+        c_mk.e10 := 0;
+    end
+    else
+    begin
+        mk := k_comp( w.e, C_GRISU_ALPHA{, C_GRISU_GAMMA} );
+        diy_fp_cached_power10( mk, c_mk );
+        // Let "D = f_D * 2^e_D := w (*) c_mk"
+        if c_mk.e10 = 0 then
+            D := w
+        else
+            D := diy_fp_multiply( w, c_mk.c, FALSE );
+    end;
+
+{$ifdef grisu1_debug}
+    assert( ( C_GRISU_ALPHA <= D.e ) and ( D.e <= C_GRISU_GAMMA ) );
+{$endif grisu1_debug}
+
+    // Generate digits: integer part
+{$ifdef grisu1_debug}
+  {$ifdef VALREAL_80}
+    assert( D.e <= 32 );
+  {$else not VALREAL_80}
+    assert( D.e <= 0 );
+  {$endif VALREAL_*}
+{$endif grisu1_debug}
+
+  {$ifdef VALREAL_32}
+    n_digits_have := gen_digits_32( buf, 0, D.f shr ( - D.e ) );
+  {$endif VALREAL_32}
+
+  {$ifdef VALREAL_64}
+    n_digits_have := gen_digits_64( buf, 0, D.f shr ( - D.e ) );
+  {$endif VALREAL_64}
+
+  {$ifdef VALREAL_80}
+    fl := D.f;
+    fh := D.fh;
+    if ( D.e > 0 ) then
+    begin
+        templ := ( qword(fh) shl D.e ) and qword($FFFFFFFF00000000);
+        diy_util_shl( fh, fl, D.e );
+        inc( templ, fh );
+    end
+    else
+    begin
+        diy_util_shr( fh, fl, - D.e );
+        templ := fh;
+    end;
+  {$endif VALREAL_80}
+
+  {$ifdef VALREAL_128}
+    fl := D.f;
+    templ := D.fh;
+    diy_util_shr( templ, fl, - D.e );
+  {$endif VALREAL_128}
+
+  {$if defined(VALREAL_80) or defined(VALREAL_128)}
+    if ( templ = 0 ) then
+        n_digits_have := gen_digits_64( buf, 0, fl )
+    else
+    begin
+        if not u128_div_u64_to_u64( templ, fl, qword(10000000000000000000), templ, fl ) then
+{$ifdef grisu1_debug}
+            assert( FALSE ) // never overflows by design
+{$endif grisu1_debug};
+        n_digits_have := gen_digits_64( buf, 0, templ );
+        inc( n_digits_have, gen_digits_64( buf, n_digits_have, fl, n_digits_have > 0 ) );
+    end;
+  {$endif VALREAL_80 | VALREAL_128}
+
+    dot_pos := n_digits_have;
+
+    // Generate digits: fractional part
+    f := 0; // "sticky" digit
+    if ( D.e < 0 ) then
+    repeat
+        // MOD by ONE
+        one_e := D.e;
+      {$ifdef VALREAL_32}
+        one_mask := dword( 1 ) shl ( - D.e ) - 1;
+        f := D.f and one_mask;
+      {$endif VALREAL_32}
+      {$ifdef VALREAL_64}
+        one_maskl := qword( 1 ) shl ( - D.e ) - 1;
+        fl := D.f and one_maskl;
+      {$endif VALREAL_64}
+      {$if defined(VALREAL_80) or defined(VALREAL_128)}
+        make_frac_mask( one_maskh, one_maskl, D.e );
+        fl := D.f and one_maskl;
+        fh := D.fh and one_maskh;
+
+        // 128/96-bit loop
+        while ( one_e < -61 ) and ( n_digits_have < max_digits + 1 ) and ( fl or fh <> 0 ) do
+        begin
+            // f := f * 5;
+            templ := fl;
+            temph := fh;
+            diy_util_shl( fh, fl, 2 );
+            diy_util_add( fh, fl, temph, templ );
+            // one := one / 2
+            diy_util_shr( one_maskh, one_maskl, 1 );
+            inc( one_e );
+            // DIV by one
+            templ := fl;
+            temph := fh;
+            diy_util_shr( temph, templ, - one_e );
+            buf[ n_digits_have ] := lo(templ);
+            // MOD by one
+            fl := fl and one_maskl;
+            fh := fh and one_maskh;
+            // next
+            inc( n_digits_have );
+        end;
+        if ( n_digits_have >= max_digits + 1 ) then
+        begin
+            // only "sticky" digit remains
+            f := ord( fl or fh <> 0 );
+            break;
+        end;
+      {$endif VALREAL_80 | VALREAL_128}
+
+      {$ifndef VALREAL_32}
+        // 64-bit loop
+        while ( one_e < -29 ) and ( n_digits_have < max_digits + 1 ) and ( fl <> 0 ) do
+        begin
+            // f := f * 5;
+            inc( fl, fl shl 2 );
+            // one := one / 2
+            one_maskl := one_maskl shr 1;
+            inc( one_e );
+            // DIV by one
+            buf[ n_digits_have ] := fl shr ( - one_e );
+            // MOD by one
+            fl := fl and one_maskl;
+            // next
+            inc( n_digits_have );
+        end;
+        if ( n_digits_have >= max_digits + 1 ) then
+        begin
+            // only "sticky" digit remains
+            f := ord( fl <> 0 );
+            break;
+        end;
+        one_mask := lo(one_maskl);
+        f := lo(fl);
+      {$endif not VALREAL_32}
+
+        // 32-bit loop
+        while ( n_digits_have < max_digits + 1 ) and ( f <> 0 ) do
+        begin
+            // f := f * 5;
+            inc( f, f shl 2 );
+            // one := one / 2
+            one_mask := one_mask shr 1;
+            inc( one_e );
+            // DIV by one
+            buf[ n_digits_have ] := f shr ( - one_e );
+            // MOD by one
+            f := f and one_mask;
+            // next
+            inc( n_digits_have );
+        end;
+
+    until true;
+
+    // Append "sticky" digit if any
+    if ( f <> 0 ) and ( n_digits_have >= max_digits + 1 ) then
+    begin
+        // single "<>0" digit is enough
+        n_digits_have := max_digits + 2;
+        buf[ max_digits + 1 ] := 1;
+    end;
+
+    // Round to max_digits using "roundTiesToEven"
+    if ( n_digits_have > max_digits ) then
+        inc( dot_pos, round_digits( buf, n_digits_have, max_digits ) );
+
+    // Hand the digit sequence back
+    n_have := n_digits_have;
+    dexp10 := dot_pos - c_mk.e10;
+    fclass := 0;
+end;
+
+procedure str_real( min_width, frac_digits: integer; const v: ValReal; real_type: TReal_Type; out str: shortstring );
+
+const
+    C_MAX_WIDTH = 255; // shortstring
+
+{$ifdef fpc_softfpu_implementation}
+    C_NO_MIN_WIDTH = -1; // just for convenience
+{$else}
+    C_NO_MIN_WIDTH = -32767; // this value is the one used internally by FPC
 {$endif}
 
-    if ( dig_round < 5 ) then
-        exit;
-
-    // Handle "round half to even" case
-    if ( dig_round = 5 ) and half_round_to_even and ( ( n_max = 0 ) or ( buf[ n_max - 1 ] and 1 = 0 ) ) then
-    begin
-        // even and a half: check if exactly the half
-        dig_sticky := 0;
-        while ( n > n_max + 1 ) and ( dig_sticky = 0 ) do
-        begin
-            dec( n );
-            dig_sticky := buf[n];
-        end;
-        if ( dig_sticky = 0 ) then
-            exit; // exactly a half -> no rounding is required
-    end;
-
-    // Round-up
-    while ( n_max > 0 ) do
-    begin
-        dec( n_max );
-        inc( buf[n_max] );
-        if ( buf[n_max] < 10 ) then
-        begin
-            // no more overflow: stop now
-            n_current := n_max + 1;
-            exit;
-        end;
-        // continue rounding
-    end;
-
-    // Overflow out of the 1st digit, all n_max digits became 0
-    buf[0] := 1;
-    n_current := 1;
-    round_digits := 1;
-end;
+{$ifdef VALREAL_32}
+    RT_NATIVE = RT_S32REAL;
+{$endif VALREAL_32}
+{$ifdef VALREAL_64}
+    RT_NATIVE = RT_S64REAL;
+{$endif VALREAL_64}
+{$ifdef VALREAL_80}
+    RT_NATIVE = RT_S80REAL;
+{$endif VALREAL_80}
+{$ifdef VALREAL_128}
+    RT_NATIVE = RT_S128REAL;
+{$endif VALREAL_128}
 
 (*-------------------------------------------------------
  | do_fillchar [local]
@@ -1275,293 +1705,13 @@ begin
       end;
 end;
 
-{$if defined(VALREAL_80) or defined(VALREAL_128)}
-{$ifndef FPC_SYSTEM_HAS_U128_DIV_U64_TO_U64}
-(*-------------------------------------------------------
- | u128_div_u64_to_u64 [local]
- |
- | Divides unsigned 128-bit integer by unsigned 64-bit integer.
- | Returns 64-bit quotient and reminder.
- |
- | This routine is used here only for splitting specially prepared unsigned
- | 128-bit integer into two 64-bit ones before converting it to ASCII.
- |
- *-------------------------------------------------------*)
-function u128_div_u64_to_u64( const xh, xl: qword; const y: qword; out quotient, remainder: qword ): boolean;
-var
-    b,                // Number base
-    v : qword;        // Norm. divisor
-    un1, un0,         // Norm. dividend LSD's
-    vn1, vn0 : dword; // Norm. divisor digits
-    q1, q0,           // Quotient digits
-    un64, un21, un10, // Dividend digit pairs
-    rhat: qword;      // A remainder
-    s: integer;       // Shift amount for norm
-begin
-    // Overflow check
-    if ( xh >= y ) then
-    begin
-        u128_div_u64_to_u64 := false;
-        exit;
-    end;
-    // Count leading zeros
-    s := 63 - BSRqword( y ); // 0 <= s <= 63
-    // Normalize divisor
-    v := y shl s;
-    // Break divisor up into two 32-bit digits
-    vn1 := hi(v);
-    vn0 := lo(v);
-    // Shift dividend left
-    un64 := xh shl s;
-    if ( s > 0 ) then
-        un64 := un64 or ( xl shr ( 64 - s ) );
-    un10 := xl shl s;
-    // Break right half of dividend into two digits
-    un1 := hi(un10);
-    un0 := lo(un10);
-    // Compute the first quotient digit, q1
-    q1 := un64 div vn1;
-    rhat := un64 - q1 * vn1;
-    b := qword(1) shl 32; // Number base
-    while ( hi(q1) <> 0 ) or ( q1 * vn0 > b * rhat + un1 ) do
-    begin
-        dec( q1 );
-        inc( rhat, vn1 );
-        if rhat >= b then
-            break;
-    end;
-    // Multiply and subtract
-    un21 := un64 * b + un1 - q1 * v;
-    // Compute the second quotient digit, q0
-    q0 := un21 div vn1;
-    rhat := un21 - q0 * vn1;
-    while ( hi(q0) <> 0 ) or ( q0 * vn0 > b * rhat + un0 ) do
-    begin
-        dec( q0 );
-        inc( rhat, vn1 );
-        if ( hi(rhat) <> 0 ) then
-            break;
-    end;
-    // Result
-    remainder := ( un21 * b + un0 - q0 * v ) shr s;
-    quotient := q1 * b + q0;
-    u128_div_u64_to_u64 := true;
-end;
-{$endif FPC_SYSTEM_HAS_U128_DIV_U64_TO_U64}
-{$endif VALREAL_80 | VALREAL_128}
-
-(*-------------------------------------------------------
- | count_leading_zero [local]
- |
- | Counts number of 0-bits at most significant bit position.
- |
- *-------------------------------------------------------*)
-{$ifdef VALREAL_32}
-function count_leading_zero( const X: dword ): integer; {$ifdef grisu1_inline}inline;{$endif}
-begin
-    count_leading_zero := 31 - BSRdword( X );
-end;
-{$else not VALREAL_32}
-function count_leading_zero( const X: qword ): integer; {$ifdef grisu1_inline}inline;{$endif}
-begin
-    count_leading_zero := 63 - BSRqword( X );
-end;
-{$endif VALREAL_*}
-
-{$if defined(VALREAL_80) or defined(VALREAL_128)}
-(*-------------------------------------------------------
- | make_frac_mask [local]
- |
- | Makes DIY_FP fractional part mask:
- |     result := ( 1 shl one.e ) - 1
- |
- *-------------------------------------------------------*)
-{$ifdef VALREAL_80}
-procedure make_frac_mask( out h: dword; out l: qword; one_e: integer ); {$ifdef grisu1_inline}inline;{$endif}
-{$else VALREAL_128}
-procedure make_frac_mask( out h, l: qword; one_e: integer ); {$ifdef grisu1_inline}inline;{$endif}
-{$endif VALREAL_*}
-begin
-  {$ifdef grisu1_debug}
-    assert( one_e <= 0 );
-    assert( one_e > - ( sizeof( l ) + sizeof( h ) ) * 8 );
-  {$endif grisu1_debug}
-    if ( one_e <= - 64 ) then
-    begin
-        l := qword( -1 );
-        h := ( {$ifdef VALREAL_128} qword {$else} dword {$endif} ( 1 ) shl ( - one_e - 64 ) ) - 1;
-    end
-    else
-    begin
-        l := ( qword( 1 ) shl ( - one_e ) ) - 1;
-        h := 0;
-    end;
-end;
-{$endif VALREAL_80 | VALREAL_128}
-
-(*-------------------------------------------------------
- | k_comp [local]
- |
- | Calculates the exp10 of a factor required to bring the binary exponent
- | of the original number into selected [ alpha .. gamma ] range:
- |     result := ceiling[ ( alpha - e ) * log10(2) ]
- |
- *-------------------------------------------------------*)
-function k_comp( e, alpha{, gamma}: integer ): integer;
-{$ifdef fpc_softfpu_implementation}
-///////////////
-//
-// Assuming no HardFloat available.
-// Note: using softfpu here significantly slows down overall
-// conversion performance, so we use integers.
-//
-const
-    D_LOG10_2: TDIY_FP = // log10(2) = 0.301029995663981195213738894724493027
-      {$ifdef VALREAL_32}
-        ( f: dword($9A209A85); e: -33 );
-      {$endif}
-      {$ifdef VALREAL_64}
-        ( f: qword($9A209A84FBCFF799); e: -65 );
-      {$endif}
-      {$ifdef VALREAL_80}
-        ( f: qword($FBCFF7988F8959AC); fh: dword($9A209A84); e: -97 );
-      {$endif}
-      {$ifdef VALREAL_128}
-        ( fh: qword($9A209A84FBCFF798); f: qword($8F8959AC0B7C9178); e: -129 );
-      {$endif}
-var
-    x, n: integer;
-    y, z: TDIY_FP;
-  {$ifdef VALREAL_32}
-    mask_one: dword;
-  {$else not VALREAL_32}
-    mask_one: qword;
-  {$endif}
-  {$ifdef VALREAL_80}
-    mask_oneh: dword;
-  {$endif}
-  {$ifdef VALREAL_128}
-    mask_oneh: qword;
-  {$endif}
-    plus, round_up: boolean;
-begin
-    x := alpha - e;
-    if ( x = 0 ) then
-    begin
-        k_comp := 0;
-        exit;
-    end;
-    plus := ( x > 0 );
-    if plus then
-        y.f := x
-    else
-        y.f := - x;
-    round_up := plus;
-    n := C_DIY_FP_Q - 1 - BSRdword( y.f );
-  {$if defined(VALREAL_32) or defined(VALREAL_64)}
-    y.f := y.f shl n;
-  {$else VALREAL_80 | VALREAL_128}
-    y.fh := 0;
-    diy_util_shl( y.fh, y.f, n );
-  {$endif VALREAL_*}
-    y.e := - n;
-    z := diy_fp_multiply( y, D_LOG10_2, false );
-    if ( z.e <= - C_DIY_FP_Q ) then
-    begin
-        round_up := plus and ( 0 <>
-  {$if defined(VALREAL_32) or defined(VALREAL_64)}
-          z.f
-  {$else VALREAL_80 | VALREAL_128}
-          z.f or z.fh
-  {$endif}
-        );
-        n := 0;
-    end
-    else
-    begin
-        if plus then
-        begin
-          {$if defined(VALREAL_32) or defined(VALREAL_64)}
-            mask_one := ( {$ifdef VALREAL_64} qword {$else} dword {$endif} ( 1 ) shl ( - z.e ) ) - 1;
-            round_up := ( z.f and mask_one <> 0 );
-          {$else VALREAL_80 | VALREAL_128}
-            make_frac_mask( mask_oneh, mask_one, z.e );
-            round_up := ( z.f and mask_one <> 0 ) or ( z.fh and mask_oneh <> 0 );
-          {$endif VALREAL_*}
-        end;
-      {$if defined(VALREAL_32) or defined(VALREAL_64)}
-        n := z.f shr ( - z.e );
-      {$else VALREAL_80 | VALREAL_128}
-        diy_util_shr( z.fh, z.f, - z.e );
-        n := z.f;
-      {$endif VALREAL_*}
-    end;
-    if not plus then
-        n := - n;
-    if round_up then
-        k_comp := n + 1
-    else
-        k_comp := n;
-end;
-{$else not fpc_softfpu_implementation}
-///////////////
-//
-// HardFloat implementation
-//
-{$if defined(SUPPORT_SINGLE) and defined(VALREAL_32)}
-// If available, use single math for VALREAL_32
-var
-    dexp: single;
-const
-    D_LOG10_2: single =
-{$elseif defined(SUPPORT_DOUBLE) and not defined(VALREAL_32)}
-// If available, use double math for all types >VALREAL_32
-var
-    dexp: double;
-const
-    D_LOG10_2: double =
-{$else}
-// Use native math
-var
-    dexp: ValReal;
-const
-    D_LOG10_2: ValReal =
-{$endif}
-    0.301029995663981195213738894724493027; // log10(2)
-var
-    x, n: integer;
-begin
-    x := alpha - e;
-    dexp := x * D_LOG10_2;
-    // ceil( dexp )
-    n := trunc( dexp );
-    if ( x > 0 ) then
-        if ( dexp <> n ) then
-            inc( n ); // round-up
-    k_comp := n;
-end;
-{$endif fpc_softfpu_implementation}
-
 (****************************************************************************)
 var
-    w, D: TDIY_FP;
-    c_mk: TDIY_FP_Power_of_10;
-    n, mk, dot_pos, n_digits_exp, n_digits_need, n_digits_have: integer;
+    n, n_digits_exp, n_digits_need, n_digits_have: integer;
     n_digits_req, n_digits_sci: integer;
+    dexp10: integer;
+    ndig_l, dexp10_l, fclass_l: longint;
     minus: boolean;
-  {$ifndef VALREAL_32}
-    fl, one_maskl: qword;
-  {$endif not VALREAL_32}
-  {$ifdef VALREAL_80}
-    templ: qword;
-    fh, one_maskh, temph: dword;
-  {$endif VALREAL_80}
-  {$ifdef VALREAL_128}
-    templ: qword;
-    fh, one_maskh, temph: qword;
-  {$endif VALREAL_128}
-    one_e: integer;
-    one_mask, f: dword;
     buf: TAsciiDigits;
 
 begin
@@ -1597,51 +1747,18 @@ begin
             n_digits_sci := n_digits_req; // at most requested by real_type
     end;
 
-    // Float -> DIY_FP
-    w := unpack_float( v, minus );
-
-    // Handle Zero
-    if ( w.e = 0 ) and ( w.f {$ifdef VALREAL_128} or w.fh {$endif} = 0 ) then
-    begin
-        buf[0] := 0; // to avoid "warning: uninitialized"
-        if ( frac_digits >= 0 ) then
-            if try_return_fixed( str, minus, buf, 0, 1, min_width, frac_digits ) then
-                exit
-          {$ifdef grisu1_debug}
-            else
-                assert( FALSE ) // should never fail with these arguments
-          {$endif grisu1_debug};
-        return_exponential( str, minus, buf, 0, n_digits_sci, 0, n_digits_exp, min_width );
-        exit;
-    end;
-
-  {$ifdef VALREAL_80}
-    // Handle non-normals
-    if ( w.e <> 0 ) and ( w.e <> C_EXP2_SPECIAL ) then
-        if ( w.f and C_MANT2_INTEGER = 0 ) then
-        begin
-            // -> QNaN
-            w.f := qword(-1);
-            w.e := C_EXP2_SPECIAL;
-        end;
-  {$endif VALREAL_80}
+    grisu1_digits( v, n_digits_need, buf, ndig_l, dexp10_l, minus, fclass_l );
+    n_digits_have := ndig_l;
+    dexp10 := dexp10_l;
 
     // Handle specials
-    if ( w.e = C_EXP2_SPECIAL ) then
+    if ( fclass_l <> 0 ) then
     begin
         if ( min_width < 0 ) then
             // backward compat..
             min_width := float_format[real_type].nDig_mantissa + float_format[real_type].nDig_exp10 + 4;
         n := 1 - ord(minus) * 2; // default special sign [-1|+1]
-      {$if defined(VALREAL_32) or defined(VALREAL_64)}
-        if ( w.f = 0 ) then
-      {$endif VALREAL_32 | VALREAL_64}
-      {$ifdef VALREAL_80}
-        if ( w.f = qword(C_MANT2_INTEGER) ) then
-      {$endif VALREAL_80}
-      {$ifdef VALREAL_128}
-        if ( w.fh or w.f = 0 ) then
-      {$endif VALREAL_128}
+        if ( fclass_l = 1 ) then
         begin
            // Inf
            return_special( str, n, C_STR_INF, min_width );
@@ -1653,11 +1770,7 @@ begin
            n := 0;
        {$endif}
        {$ifndef GRISU1_F2A_NO_SNAN}
-         {$ifdef VALREAL_128}
-           if ( w.fh and ( C_MANT2_INTEGER_H shr 1 ) = 0 ) then
-         {$else}
-           if ( w.f and ( C_MANT2_INTEGER shr 1 ) = 0 ) then
-         {$endif}
+           if ( fclass_l = 3 ) then
                return_special( str, n, C_STR_SNAN, min_width )
            else
        {$endif GRISU1_F2A_NO_SNAN}
@@ -1666,240 +1779,13 @@ begin
         exit;
     end;
 
-    // Handle denormals
-    if ( w.e <> 0 ) then
-    begin
-        // normal
-    {$ifdef VALREAL_128}
-        w.fh := w.fh or C_MANT2_INTEGER_H;
-    {$else not VALREAL_128}
-      {$ifndef VALREAL_80}
-        w.f := w.f or C_MANT2_INTEGER;
-      {$endif not VALREAL_80}
-    {$endif VALREAL_*}
-        n := C_DIY_FP_Q - C_FRAC2_BITS - 1;
-    end
-    else
-    begin
-        // denormal
-    {$ifdef VALREAL_128}
-        if ( w.fh = 0 ) then
-            n := count_leading_zero( w.f ) + 64
-        else
-            n := count_leading_zero( w.fh );
-    {$else not VALREAL_128}
-      {$ifdef VALREAL_80}
-        // also handle pseudo-denormals
-        n := count_leading_zero( w.f ) + 32;
-      {$else VALREAL_32 | VALREAL_64}
-        n := count_leading_zero( w.f );
-      {$endif VALREAL_*}
-    {$endif VALREAL_*}
-        inc( w.e );
-    end;
-
-    // Final normalization
-  {$if defined(VALREAL_32) or defined(VALREAL_64)}
-    w.f := w.f shl n;
-  {$else VALREAL_80 | VALREAL_128}
-    diy_util_shl( w.fh, w.f, n );
-  {$endif VALREAL_*}
-    dec( w.e, C_EXP2_BIAS + n + C_FRAC2_BITS );
-
-    //
-    // 1. Find the normalized "c_mk = f_c * 2^e_c" such that "alpha <= e_c + e_w + q <= gamma"
-    // 2. Define "V = D * 10^k": multiply the input number by "c_mk", do not normalize to land into [ alpha .. gamma ]
-    // 3. Generate digits ( n_digits_need + "round" )
-    //
-
-    if ( C_GRISU_ALPHA <= w.e ) and ( w.e <= C_GRISU_GAMMA ) then
-    begin
-        // no scaling required
-        D := w;
-        c_mk.e10 := 0;
-    end
-    else
-    begin
-        mk := k_comp( w.e, C_GRISU_ALPHA{, C_GRISU_GAMMA} );
-        diy_fp_cached_power10( mk, c_mk );
-        // Let "D = f_D * 2^e_D := w (*) c_mk"
-        if c_mk.e10 = 0 then
-            D := w
-        else
-            D := diy_fp_multiply( w, c_mk.c, FALSE );
-    end;
-
-{$ifdef grisu1_debug}
-    assert( ( C_GRISU_ALPHA <= D.e ) and ( D.e <= C_GRISU_GAMMA ) );
-{$endif grisu1_debug}
-
-    // Generate digits: integer part
-{$ifdef grisu1_debug}
-  {$ifdef VALREAL_80}
-    assert( D.e <= 32 );
-  {$else not VALREAL_80}
-    assert( D.e <= 0 );
-  {$endif VALREAL_*}
-{$endif grisu1_debug}
-
-  {$ifdef VALREAL_32}
-    n_digits_have := gen_digits_32( buf, 0, D.f shr ( - D.e ) );
-  {$endif VALREAL_32}
-
-  {$ifdef VALREAL_64}
-    n_digits_have := gen_digits_64( buf, 0, D.f shr ( - D.e ) );
-  {$endif VALREAL_64}
-
-  {$ifdef VALREAL_80}
-    fl := D.f;
-    fh := D.fh;
-    if ( D.e > 0 ) then
-    begin
-        templ := ( qword(fh) shl D.e ) and qword($FFFFFFFF00000000);
-        diy_util_shl( fh, fl, D.e );
-        inc( templ, fh );
-    end
-    else
-    begin
-        diy_util_shr( fh, fl, - D.e );
-        templ := fh;
-    end;
-  {$endif VALREAL_80}
-
-  {$ifdef VALREAL_128}
-    fl := D.f;
-    templ := D.fh;
-    diy_util_shr( templ, fl, - D.e );
-  {$endif VALREAL_128}
-
-  {$if defined(VALREAL_80) or defined(VALREAL_128)}
-    if ( templ = 0 ) then
-        n_digits_have := gen_digits_64( buf, 0, fl )
-    else
-    begin
-        if not u128_div_u64_to_u64( templ, fl, qword(10000000000000000000), templ, fl ) then
-{$ifdef grisu1_debug}
-            assert( FALSE ) // never overflows by design
-{$endif grisu1_debug};
-        n_digits_have := gen_digits_64( buf, 0, templ );
-        inc( n_digits_have, gen_digits_64( buf, n_digits_have, fl, n_digits_have > 0 ) );
-    end;
-  {$endif VALREAL_80 | VALREAL_128}
-
-    dot_pos := n_digits_have;
-
-    // Generate digits: fractional part
-    f := 0; // "sticky" digit
-    if ( D.e < 0 ) then
-    repeat
-        // MOD by ONE
-        one_e := D.e;
-      {$ifdef VALREAL_32}
-        one_mask := dword( 1 ) shl ( - D.e ) - 1;
-        f := D.f and one_mask;
-      {$endif VALREAL_32}
-      {$ifdef VALREAL_64}
-        one_maskl := qword( 1 ) shl ( - D.e ) - 1;
-        fl := D.f and one_maskl;
-      {$endif VALREAL_64}
-      {$if defined(VALREAL_80) or defined(VALREAL_128)}
-        make_frac_mask( one_maskh, one_maskl, D.e );
-        fl := D.f and one_maskl;
-        fh := D.fh and one_maskh;
-
-        // 128/96-bit loop
-        while ( one_e < -61 ) and ( n_digits_have < n_digits_need + 1 ) and ( fl or fh <> 0 ) do
-        begin
-            // f := f * 5;
-            templ := fl;
-            temph := fh;
-            diy_util_shl( fh, fl, 2 );
-            diy_util_add( fh, fl, temph, templ );
-            // one := one / 2
-            diy_util_shr( one_maskh, one_maskl, 1 );
-            inc( one_e );
-            // DIV by one
-            templ := fl;
-            temph := fh;
-            diy_util_shr( temph, templ, - one_e );
-            buf[ n_digits_have ] := lo(templ);
-            // MOD by one
-            fl := fl and one_maskl;
-            fh := fh and one_maskh;
-            // next
-            inc( n_digits_have );
-        end;
-        if ( n_digits_have >= n_digits_need + 1 ) then
-        begin
-            // only "sticky" digit remains
-            f := ord( fl or fh <> 0 );
-            break;
-        end;
-      {$endif VALREAL_80 | VALREAL_128}
-
-      {$ifndef VALREAL_32}
-        // 64-bit loop
-        while ( one_e < -29 ) and ( n_digits_have < n_digits_need + 1 ) and ( fl <> 0 ) do
-        begin
-            // f := f * 5;
-            inc( fl, fl shl 2 );
-            // one := one / 2
-            one_maskl := one_maskl shr 1;
-            inc( one_e );
-            // DIV by one
-            buf[ n_digits_have ] := fl shr ( - one_e );
-            // MOD by one
-            fl := fl and one_maskl;
-            // next
-            inc( n_digits_have );
-        end;
-        if ( n_digits_have >= n_digits_need + 1 ) then
-        begin
-            // only "sticky" digit remains
-            f := ord( fl <> 0 );
-            break;
-        end;
-        one_mask := lo(one_maskl);
-        f := lo(fl);
-      {$endif not VALREAL_32}
-
-        // 32-bit loop
-        while ( n_digits_have < n_digits_need + 1 ) and ( f <> 0 ) do
-        begin
-            // f := f * 5;
-            inc( f, f shl 2 );
-            // one := one / 2
-            one_mask := one_mask shr 1;
-            inc( one_e );
-            // DIV by one
-            buf[ n_digits_have ] := f shr ( - one_e );
-            // MOD by one
-            f := f and one_mask;
-            // next
-            inc( n_digits_have );
-        end;
-
-    until true;
-
-    // Append "sticky" digit if any
-    if ( f <> 0 ) and ( n_digits_have >= n_digits_need + 1 ) then
-    begin
-        // single "<>0" digit is enough
-        n_digits_have := n_digits_need + 2;
-        buf[ n_digits_need + 1 ] := 1;
-    end;
-
-    // Round to n_digits_need using "roundTiesToEven"
-    if ( n_digits_have > n_digits_need ) then
-        inc( dot_pos, round_digits( buf, n_digits_have, n_digits_need ) );
-
     // Generate output
     if ( frac_digits >= 0 ) then
-        if try_return_fixed( str, minus, buf, n_digits_have, dot_pos - c_mk.e10, min_width, frac_digits ) then
+        if try_return_fixed( str, minus, buf, n_digits_have, dexp10, min_width, frac_digits ) then
             exit;
     if ( n_digits_have > n_digits_sci ) then
-        inc( dot_pos, round_digits( buf, n_digits_have, n_digits_sci {$ifdef GRISU1_F2A_HALF_ROUNDUP}, false {$endif} ) );
-    return_exponential( str, minus, buf, n_digits_have, n_digits_sci, dot_pos - c_mk.e10 - 1, n_digits_exp, min_width );
+        inc( dexp10, round_digits( buf, n_digits_have, n_digits_sci {$ifdef GRISU1_F2A_HALF_ROUNDUP}, false {$endif} ) );
+    return_exponential( str, minus, buf, n_digits_have, n_digits_sci, dexp10 - 1, n_digits_exp, min_width );
 
 end;
 
