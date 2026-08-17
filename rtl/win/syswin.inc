@@ -579,7 +579,24 @@ begin
 end;
 
 
+var
+  { Every new thread re-opens its five threadvar text records.  The records
+    are identical for each thread of the process, so they are built once
+    through the exact historical code paths and then copied; only the buffer
+    pointer must point back into each thread's own record afterwards.  This
+    keeps the two device-type queries per output record and the whole
+    Assign machinery out of the thread start path. }
+  StdioTemplates : array[0..4] of TextRec;
+  StdioTemplatesReady : boolean;
+
 procedure SysInitStdIO;
+
+  procedure ApplyStdioTemplate(var t : Text; index : longint);
+    begin
+      Move(StdioTemplates[index],TextRec(t),SizeOf(TextRec));
+      TextRec(t).BufPtr:=@TextRec(t).Buffer;
+    end;
+
 begin
   { Setup stdin, stdout and stderr, for GUI apps redirect stderr,stdout to be
     displayed in a messagebox }
@@ -592,22 +609,33 @@ begin
     StdOutputHandle:=THandle(GetStdHandle(cardinal(STD_OUTPUT_HANDLE)));
   if StdErrorHandle=0 then
     StdErrorHandle:=THandle(GetStdHandle(cardinal(STD_ERROR_HANDLE)));
-  if not IsConsole then
-   begin
-     AssignError(stderr);
-     AssignError(StdOut);
-     Assign(Output,'');
-     Assign(Input,'');
-     Assign(ErrOutput,'');
-   end
-  else
-   begin
-     OpenStdIO(Input,fmInput,StdInputHandle);
-     OpenStdIO(Output,fmOutput,StdOutputHandle);
-     OpenStdIO(ErrOutput,fmOutput,StdErrorHandle);
-     OpenStdIO(StdOut,fmOutput,StdOutputHandle);
-     OpenStdIO(StdErr,fmOutput,StdErrorHandle);
-   end;
+  if not StdioTemplatesReady then
+    begin
+      { Built once per process with the historical code paths; a race
+        between first threads is benign, they produce identical records. }
+      if not IsConsole then
+       begin
+         AssignError(Text(StdioTemplates[4]));
+         AssignError(Text(StdioTemplates[3]));
+         Assign(Text(StdioTemplates[1]),'');
+         Assign(Text(StdioTemplates[0]),'');
+         Assign(Text(StdioTemplates[2]),'');
+       end
+      else
+       begin
+         OpenStdIO(Text(StdioTemplates[0]),fmInput,StdInputHandle);
+         OpenStdIO(Text(StdioTemplates[1]),fmOutput,StdOutputHandle);
+         OpenStdIO(Text(StdioTemplates[2]),fmOutput,StdErrorHandle);
+         OpenStdIO(Text(StdioTemplates[3]),fmOutput,StdOutputHandle);
+         OpenStdIO(Text(StdioTemplates[4]),fmOutput,StdErrorHandle);
+       end;
+      StdioTemplatesReady:=true;
+    end;
+  ApplyStdioTemplate(Input,0);
+  ApplyStdioTemplate(Output,1);
+  ApplyStdioTemplate(ErrOutput,2);
+  ApplyStdioTemplate(StdOut,3);
+  ApplyStdioTemplate(StdErr,4);
 end;
 
 function GetProcessID: SizeUInt;
