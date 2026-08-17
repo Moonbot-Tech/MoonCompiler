@@ -1836,7 +1836,7 @@ const
 { Bare minimum needed to get RTL to compile
   without threading support }
 const
-{$ifdef FPC_USE_SMALL_DEFAULTSTACKSIZE}
+{$if defined(FPC_USE_SMALL_DEFAULTSTACKSIZE)}
   { Special value of Default stack size }
   DefaultStackSize = 16 * 1024;
 {$elseif defined(LINUX) and defined(CPUX86_64)}
