@@ -694,6 +694,12 @@ Function fpc_Char_To_UChar(const c : AnsiChar): UnicodeChar; compilerproc;
 var
   w: unicodestring;
 begin
+  { ASCII maps to itself in every ansi codepage (UTF-7 is the lone
+    exception with shift characters), so the common case skips the
+    widestring manager roundtrip that allocates and finalizes a
+    one-char unicodestring per call }
+  if (c<#128) and (DefaultSystemCodePage<>CP_UTF7) then
+    exit(UnicodeChar(ord(c)));
   widestringmanager.Ansi2UnicodeMoveProc(@c,DefaultSystemCodePage,w,1);
   fpc_Char_To_UChar:=w[1];
 end;
@@ -721,6 +727,9 @@ Function fpc_UChar_To_Char(const c : UnicodeChar): AnsiChar; compilerproc;
 var
   s: ansistring;
 begin
+  { mirror of fpc_Char_To_UChar: ASCII needs no conversion }
+  if (c<#128) and (DefaultSystemCodePage<>CP_UTF7) then
+    exit(AnsiChar(ord(c)));
   widestringmanager.Unicode2AnsiMoveProc(@c, s, DefaultSystemCodePage, 1);
   if length(s)=1 then
     fpc_UChar_To_Char:= s[1]
