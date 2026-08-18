@@ -661,10 +661,40 @@ function CharUpperBuff(lpsz:LPWSTR; cchLength:DWORD):DWORD;
 function CharLowerBuff(lpsz:LPWSTR; cchLength:DWORD):DWORD;
     stdcall; external 'user32' name 'CharLowerBuffW';
 
+{ Every code page Windows uses as an ANSI, OEM or DBCS default maps the
+  bytes 0..127 to the same characters as ASCII; only UTF-7 (shift
+  sequences) and the EBCDIC family do not, and neither can be a system
+  default.  A pure-ASCII payload on these pages needs no WinAPI round
+  trips (a length probe plus the conversion per call). }
+function IsAsciiCompatibleCP(cp : TSystemCodePage): Boolean; inline;
+  begin
+    case cp of
+      CP_ACP..3, 437, 850, 852, 857, 866, 874,
+      932, 936, 949, 950, 1250..1258, 20127, CP_UTF8:
+        IsAsciiCompatibleCP:=true;
+      else
+        IsAsciiCompatibleCP:=false;
+    end;
+  end;
+
 procedure Win32Unicode2AnsiMove(source:punicodechar;var dest:RawByteString;cp : TSystemCodePage;len:SizeInt);
   var
-    destlen: SizeInt;
+    destlen, i: SizeInt;
   begin
+    if (len>0) and IsAsciiCompatibleCP(cp) then
+      begin
+        i:=0;
+        while (i<len) and (ord(source[i])<128) do
+          inc(i);
+        if i=len then
+          begin
+            setlength(dest, len);
+            for i:=0 to len-1 do
+              PAnsiChar(pointer(dest))[i]:=AnsiChar(ord(source[i]));
+            PAnsiRec(pointer(dest)-AnsiFirstOff)^.CodePage:=cp;
+            exit;
+          end;
+      end;
     // retrieve length including trailing #0
     // not anymore, because this must also be usable for single characters
     destlen:=WideCharToMultiByte(cp, 0, source, len, nil, 0, nil, nil);
@@ -681,7 +711,22 @@ procedure Win32Ansi2UnicodeMove(source:PAnsiChar;cp : TSystemCodePage;var dest:U
   var
     destlen: SizeInt;
     dwflags: DWORD;
+    i: SizeInt;
   begin
+    if (len>0) and IsAsciiCompatibleCP(cp) then
+      begin
+        i:=0;
+        while (i<len) and (ord(source[i])<128) do
+          inc(i);
+        if i=len then
+          begin
+            setlength(dest, len);
+            for i:=0 to len-1 do
+              PUnicodeChar(pointer(dest))[i]:=UnicodeChar(ord(source[i]));
+            PUnicodeRec(pointer(dest)-UnicodeFirstOff)^.CodePage:=CP_UTF16;
+            exit;
+          end;
+      end;
     // retrieve length including trailing #0
     // not anymore, because this must also be usable for single characters
     case cp of
