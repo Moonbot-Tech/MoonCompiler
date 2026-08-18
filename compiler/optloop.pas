@@ -400,6 +400,26 @@ unit optloop;
       end;
 
 
+    function findearlyexit(var n : tnode;arg : pointer) : foreachnoderesult;
+      begin
+        if n.nodetype in [breakn,exitn,goton] then
+          result:=fen_norecurse_true
+        else
+          result:=fen_false;
+      end;
+
+
+    { a loop that always runs to completion amortizes a second induction
+      variable over every element - Delphi keeps the bumped pointer next to
+      a live counter in exactly this shape.  Loops with early exits keep
+      the stricter dead-counter rule: a break after a few iterations never
+      repays the extra per-iteration increment }
+    function loop_runs_to_completion(loop : tfornode) : boolean;
+      begin
+        result:=not foreachnodestatic(pm_postprocess,loop.t2,@findearlyexit,nil);
+      end;
+
+
     type
       toptimizeinductionvariablescontext = object
         currforloop : tfornode;
@@ -627,7 +647,8 @@ unit optloop;
                   or ((tvecnode(n).left.nodetype=loadn) and
                       (tloadnode(tvecnode(n).left).symtableentry.typ=staticvarsym) and
                       not(vo_is_thread_var in tstaticvarsym(tloadnode(tvecnode(n).left).symtableentry).varoptions) and
-                      counter_dies_with_indexing(currforloop))
+                      (counter_dies_with_indexing(currforloop) or
+                       loop_runs_to_completion(currforloop)))
 {$endif cpu64bitaddr}
                   )
 {$endif}
