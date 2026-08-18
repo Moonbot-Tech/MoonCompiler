@@ -456,13 +456,11 @@ procedure fpc_addref_array(data,typeinfo: pointer; count: SizeInt); [public,alia
     case PTypeKind(typeinfo)^ of
 {$ifdef FPC_HAS_FEATURE_ANSISTRINGS}
       tkAString:
-        for i:=0 to SkipTrailingNils(data,count)-1 do
-          fpc_AnsiStr_Incr_Ref(PPointer(data)[i]);
+        fpc_AnsiStr_Incr_Ref_Many(data,SkipTrailingNils(data,count));
 {$endif FPC_HAS_FEATURE_ANSISTRINGS}
 {$ifdef FPC_HAS_FEATURE_WIDESTRINGS}
       tkUString:
-        for i:=0 to SkipTrailingNils(data,count)-1 do
-          fpc_UnicodeStr_Incr_Ref(PPointer(data)[i]);
+        fpc_UnicodeStr_Incr_Ref_Many(data,SkipTrailingNils(data,count));
   {$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
       tkWString:
         for i:=0 to SkipTrailingNils(data,count)-1 do

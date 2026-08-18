@@ -321,6 +321,38 @@ end;
 Procedure fpc_UnicodeStr_Incr_Ref (S : Pointer);[external name 'FPC_UNICODESTR_INCR_REF'];
 {$endif FPC_HAS_UNICODESTR_INCR_REF}
 
+
+{ Bumps a whole run of unicodestring slots with one call: the array
+  addref otherwise pays a call per element, and the multithread gate is
+  hoisted out of the loop.  Semantics per element are exactly
+  fpc_UnicodeStr_Incr_Ref (nil slots skipped, negative refcounts are
+  constants and stay untouched). }
+procedure fpc_UnicodeStr_Incr_Ref_Many(data : PPointer;count : SizeInt);[Public,Alias:'FPC_UNICODESTR_INCR_REF_MANY'];
+var
+  i : SizeInt;
+  p : pointer;
+  threaded : boolean;
+begin
+  threaded:=IsMultithread;
+  for i:=0 to count-1 do
+    begin
+      p:=data[i];
+      if assigned(p) then
+        with PUnicodeRec(p-UnicodeFirstOff)^ do
+          if Ref>0 then
+            begin
+              if threaded then
+{$ifdef VER3_2}
+                inclocked(Ref)
+{$else}
+                AtomicIncrement(Ref)
+{$endif}
+              else
+                inc(Ref);
+            end;
+    end;
+end;
+
 {$ifndef FPC_HAS_UNICODESTR_TO_SHORTSTR}
 {$define FPC_HAS_UNICODESTR_TO_SHORTSTR}
 procedure fpc_UnicodeStr_To_ShortStr (out res: ShortString;const S2 : UnicodeString); [Public, alias: 'FPC_UNICODESTR_TO_SHORTSTR'];compilerproc;

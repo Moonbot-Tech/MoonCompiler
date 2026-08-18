@@ -190,6 +190,38 @@ end;
 Procedure fpc_AnsiStr_Incr_Ref (S : Pointer); [external name 'FPC_ANSISTR_INCR_REF'];
 
 
+{ Bumps a whole run of ansistring slots with one call: the array addref
+  otherwise pays a call per element, and the multithread gate is hoisted
+  out of the loop.  Semantics per element are exactly
+  fpc_AnsiStr_Incr_Ref (nil slots skipped, negative refcounts are
+  constants and stay untouched). }
+procedure fpc_AnsiStr_Incr_Ref_Many(data : PPointer;count : SizeInt);[Public,Alias:'FPC_ANSISTR_INCR_REF_MANY'];
+var
+  i : SizeInt;
+  p : pointer;
+  threaded : boolean;
+begin
+  threaded:=IsMultithread;
+  for i:=0 to count-1 do
+    begin
+      p:=data[i];
+      if assigned(p) then
+        with PAnsiRec(p-AnsiFirstOff)^ do
+          if Ref>0 then
+            begin
+              if threaded then
+{$ifdef VER3_2}
+                inclocked(Ref)
+{$else}
+                AtomicIncrement(Ref)
+{$endif}
+              else
+                inc(Ref);
+            end;
+    end;
+end;
+
+
 {$ifndef FPC_HAS_ANSISTR_ASSIGN}
 {$define FPC_HAS_ANSISTR_ASSIGN}
 Procedure fpc_AnsiStr_Assign (Var DestS : Pointer;S2 : Pointer);[Public,Alias:'FPC_ANSISTR_ASSIGN'];  compilerproc;

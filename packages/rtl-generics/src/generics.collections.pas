@@ -1028,6 +1028,12 @@ procedure ErrorArgumentOutOfRange(aIndex, aMaxIndex: SizeInt); overload;
 var
   EmptyRecord: TEmptyRecord;
 
+{ bulk refcount bump for a run of managed elements; strings take the
+  flattened loop with a hoisted multithread gate.  Declared in the
+  interface because generic method bodies are specialized in other
+  units and may only reference interface-visible symbols }
+procedure fpc_addref_array(data, typeinfo: Pointer; count: SizeInt); external name 'FPC_ADDREF_ARRAY';
+
 implementation
 
 
@@ -2036,6 +2042,7 @@ var
   i: SizeInt;
   LLength: SizeInt;
   LValue: ^T;
+  LDirect: Boolean;
 begin
   if (AIndex < 0) or (AIndex > Count) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
@@ -2044,40 +2051,37 @@ begin
   if LLength = 0 then
     Exit;
 
+  LDirect := (ClassInfo = TypeInfo(TList<T>)) and not Assigned(FOnNotify);
+
   if AIndex <> PrepareAddingRange(LLength) then
   begin
     System.Move(FItems[AIndex], FItems[AIndex + LLength], ((Count - AIndex) - LLength) * SizeOf(T));
-    { the assignments below would otherwise release the managed values the
-      gap still aliases with the tail moved above; unmanaged gaps are fully
-      overwritten and need no clearing }
-    if IsManagedType(T) then
+    { the per-element assignments below would otherwise release the managed
+      values the gap still aliases with the tail moved above; the direct
+      path overwrites the gap bitwise and never reads its old contents }
+    if IsManagedType(T) and not LDirect then
       FillChar(FItems[AIndex], SizeOf(T) * LLength, 0);
   end;
 
-  if (ClassInfo = TypeInfo(TList<T>)) and not Assigned(OnNotify) and
-      not IsManagedType(T) then
+  { exact TList<T> without a subscriber never needs the virtual Notify
+    call, so the elements go in as one block copy; the sources stay alive
+    in AValues, so managed references are bumped once for the whole run
+    (strings take the flattened loop with a hoisted multithread gate) }
+  if LDirect then
   begin
     System.Move(AValues[0], FItems[AIndex], LLength * SizeOf(T));
+    if IsManagedType(T) then
+      fpc_addref_array(@FItems[AIndex], TypeInfo(T), LLength);
     Exit;
   end;
 
   LValue := @AValues[0];
-  { exact TList<T> without a subscriber only needs the managed element
-    assignments; the virtual Notify call per element costs more than the
-    assignment itself }
-  if (ClassInfo = TypeInfo(TList<T>)) and not Assigned(FOnNotify) then
-    for i := AIndex to Pred(AIndex + LLength) do
-    begin
-      FItems[i] := LValue^;
-      Inc(LValue);
-    end
-  else
-    for i := AIndex to Pred(AIndex + LLength) do
-    begin
-      FItems[i] := LValue^;
-      Notify(LValue^, cnAdded);
-      Inc(LValue);
-    end;
+  for i := AIndex to Pred(AIndex + LLength) do
+  begin
+    FItems[i] := LValue^;
+    Notify(LValue^, cnAdded);
+    Inc(LValue);
+  end;
 end;
 
 procedure TList<T>.InsertRange(AIndex: SizeInt; const AEnumerable: IEnumerable<T>);
