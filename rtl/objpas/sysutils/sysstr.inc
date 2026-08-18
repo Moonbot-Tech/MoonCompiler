@@ -1149,43 +1149,58 @@ end;
 
 {   IntToHex returns a string representing the hexadecimal value of Value   }
 
-function IntToHex(Value: Longint; Digits: integer): string;
-var i: integer;
+{ Renders into a local buffer and builds the string once: an indexed
+  write into a managed string costs a uniqueness check per character,
+  which dominated the old per-digit loop (7x against the Delphi
+  buffer-based implementation). }
+function HexToStrBuf(Value: QWord; Digits: integer): string;
+const
+  { a Char table: the sysconst HexDigits table holds AnsiChar, and on a
+    unicode RTL every read through it paid a char-to-widechar conversion
+    call per digit }
+  HD: array[0..15] of Char =
+    ('0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F');
+var
+  Buf: array[0..63] of Char;
+  I, K, Pad, Cnt: integer;
 begin
- If Digits=0 then
-   Digits:=1;
- SetLength(result, digits);
- for i := 0 to digits - 1 do
-  begin
-   result[digits - i] := HexDigits[value and 15];
-   value := value shr 4;
-  end ;
- while value <> 0 do begin
-   result := HexDigits[value and 15] + result;
-   value := value shr 4;
- end;
-end ;
+  If Digits<=0 then
+    Digits:=1;
+  I:=High(Buf)+1;
+  repeat
+    Dec(I);
+    Buf[I]:=HD[Value and 15];
+    Value:=Value shr 4;
+  until Value=0;
+  Cnt:=High(Buf)+1-I;
+  Pad:=Digits-Cnt;
+  if Pad<=0 then
+    SetString(Result,PChar(@Buf[I]),Cnt)
+  else
+    begin
+      { rare: more requested digits than significant ones }
+      SetLength(Result,Digits);
+      for K:=1 to Pad do
+        Result[K]:='0';
+      Move(Buf[I],Result[Pad+1],Cnt*SizeOf(Char));
+    end;
+end;
+
+function IntToHex(Value: Longint; Digits: integer): string;
+begin
+  { the old code shifted the 32-bit value logically: negatives render
+    eight significant digits, not sixteen }
+  Result:=HexToStrBuf(Cardinal(Value),Digits);
+end;
 
 function IntToHex(Value: int64; Digits: integer): string;
-var i: integer;
 begin
- If Digits=0 then
-   Digits:=1;
- SetLength(result, digits);
- for i := 0 to digits - 1 do
-  begin
-   result[digits - i] := HexDigits[value and 15];
-   value := value shr 4;
-  end ;
- while value <> 0 do begin
-   result := HexDigits[value and 15] + result;
-   value := value shr 4;
- end;
-end ;
+  Result:=HexToStrBuf(QWord(Value),Digits);
+end;
 
 function IntToHex(Value: QWord; Digits: integer): string;
 begin
-  result:=IntToHex(Int64(Value),Digits);
+  Result:=HexToStrBuf(Value,Digits);
 end;
 
 function IntToHex(Value: Int8): string;
