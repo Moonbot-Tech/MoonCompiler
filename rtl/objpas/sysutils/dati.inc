@@ -1028,18 +1028,38 @@ var
 
   procedure StoreInt(Value, Digits: Integer);
   var
+    Buf: array[0..15] of Char;
     S: string;
-    Len: integer;
+    I: integer;
   begin
-    System.Str(Value:Digits, S);
-    for Len := 1 to Length(S) do
-    begin
-      if S[Len] = ' ' then
-        S[Len] := '0'
-      else
-        Break;
-    end;
-    StoreStr(PChar(S), Length(S));
+    { every date/time field allocated a managed string through Str and
+      patched its padding character by character; the digits go into a
+      stack buffer instead (zero-padded to Digits, wider values keep all
+      their digits - same shape the Str path produced) }
+    if (Value < 0) or (Digits > High(Buf)) then
+      begin
+        { not reachable from the format tokens; keep the general path }
+        System.Str(Value:Digits, S);
+        for I := 1 to Length(S) do
+          if S[I] = ' ' then
+            S[I] := '0'
+          else
+            Break;
+        StoreStr(PChar(S), Length(S));
+        exit;
+      end;
+    I := High(Buf) + 1;
+    repeat
+      Dec(I);
+      Buf[I] := Char(Ord('0') + Value mod 10);
+      Value := Value div 10;
+    until Value = 0;
+    while High(Buf) + 1 - I < Digits do
+      begin
+        Dec(I);
+        Buf[I] := '0';
+      end;
+    StoreStr(@Buf[I], High(Buf) + 1 - I);
   end ;
 
 var
