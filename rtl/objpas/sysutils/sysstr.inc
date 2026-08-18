@@ -1166,12 +1166,20 @@ var
 begin
   If Digits<=0 then
     Digits:=1;
+  { two nibbles per step halves the loop overhead }
   I:=High(Buf)+1;
-  repeat
-    Dec(I);
-    Buf[I]:=HD[Value and 15];
-    Value:=Value shr 4;
-  until Value=0;
+  while Value>$F do
+    begin
+      Dec(I,2);
+      Buf[I]:=HD[(Value shr 4) and 15];
+      Buf[I+1]:=HD[Value and 15];
+      Value:=Value shr 8;
+    end;
+  if (Value<>0) or (I=High(Buf)+1) then
+    begin
+      Dec(I);
+      Buf[I]:=HD[Value];
+    end;
   Cnt:=High(Buf)+1-I;
   Pad:=Digits-Cnt;
   if Pad<=0 then
