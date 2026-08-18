@@ -453,8 +453,14 @@ Function  fpc_unicodestr_Copy (Const S : UnicodeString; Index,Size : SizeInt) : 
 Procedure fpc_unicodestr_insert (Const Source : UnicodeString; Var S : UnicodeString; Index : SizeInt); compilerproc:fpc_in_insert_x_y_z;
 Procedure fpc_unicodestr_delete (Var S : UnicodeString; Index,Size: SizeInt); compilerproc:fpc_in_delete_x_y_z;
 function fpc_unicodestr_Unique(Var S : Pointer): Pointer; compilerproc;
-Function fpc_Char_To_UChar(const c : AnsiChar): UnicodeChar; compilerproc;
-Function fpc_UChar_To_Char(const c : UnicodeChar): AnsiChar; compilerproc;
+Function fpc_Char_To_UChar_Slow(const c : AnsiChar): UnicodeChar;
+Function fpc_UChar_To_Char_Slow(const c : UnicodeChar): AnsiChar;
+{ inline so the dominant ASCII branch expands to a compare and an
+  ordinal move at every conversion site; the widestring manager round
+  trip stays behind the Slow call.  The bootstrap compiler rejects
+  inline on compilerprocs, hence the version gate. }
+Function fpc_Char_To_UChar(const c : AnsiChar): UnicodeChar; compilerproc; {$if FPC_FULLVERSION>30202}inline;{$ifend}
+Function fpc_UChar_To_Char(const c : UnicodeChar): AnsiChar; compilerproc; {$if FPC_FULLVERSION>30202}inline;{$ifend}
 Function fpc_UChar_To_UnicodeStr(const c : UnicodeChar): UnicodeString; compilerproc;
 Function fpc_UChar_To_AnsiStr(const c : UnicodeChar;cp : TSystemCodePage): AnsiString; compilerproc;
 function fpc_UChar_To_ShortStr(const c : WideChar): shortstring; compilerproc;

@@ -690,18 +690,25 @@ end;
 
 {$ifndef FPC_HAS_CHAR_TO_UCHAR}
 {$define FPC_HAS_CHAR_TO_UCHAR}
-Function fpc_Char_To_UChar(const c : AnsiChar): UnicodeChar; compilerproc;
+Function fpc_Char_To_UChar_Slow(const c : AnsiChar): UnicodeChar;
 var
   w: unicodestring;
 begin
-  { ASCII maps to itself in every ansi codepage (UTF-7 is the lone
-    exception with shift characters), so the common case skips the
-    widestring manager roundtrip that allocates and finalizes a
-    one-char unicodestring per call }
-  if (c<#128) and (DefaultSystemCodePage<>CP_UTF7) then
-    exit(UnicodeChar(ord(c)));
   widestringmanager.Ansi2UnicodeMoveProc(@c,DefaultSystemCodePage,w,1);
-  fpc_Char_To_UChar:=w[1];
+  fpc_Char_To_UChar_Slow:=w[1];
+end;
+
+Function fpc_Char_To_UChar(const c : AnsiChar): UnicodeChar; compilerproc; {$if FPC_FULLVERSION>30202}inline;{$ifend}
+begin
+  { ASCII maps to itself in every ansi codepage (UTF-7 is the lone
+    exception with shift characters): a compare and an ordinal move,
+    expanded at the conversion site.  Everything else takes the
+    widestring manager roundtrip in the non-inlined Slow body, so the
+    hot path never carries its one-char string temporary. }
+  if (c<#128) and (DefaultSystemCodePage<>CP_UTF7) then
+    Result:=UnicodeChar(ord(c))
+  else
+    Result:=fpc_Char_To_UChar_Slow(c);
 end;
 {$endif FPC_HAS_CHAR_TO_UCHAR}
 
@@ -728,21 +735,24 @@ end;
 
 {$ifndef FPC_HAS_UCHAR_TO_CHAR}
 {$define FPC_HAS_UCHAR_TO_CHAR}
-Function fpc_UChar_To_Char(const c : UnicodeChar): AnsiChar; compilerproc;
-{
-  Converts a UnicodeChar to a AnsiChar;
-}
+Function fpc_UChar_To_Char_Slow(const c : UnicodeChar): AnsiChar;
 var
   s: ansistring;
 begin
-  { mirror of fpc_Char_To_UChar: ASCII needs no conversion }
-  if (c<#128) and (DefaultSystemCodePage<>CP_UTF7) then
-    exit(AnsiChar(ord(c)));
   widestringmanager.Unicode2AnsiMoveProc(@c, s, DefaultSystemCodePage, 1);
   if length(s)=1 then
-    fpc_UChar_To_Char:= s[1]
+    fpc_UChar_To_Char_Slow:= s[1]
   else
-    fpc_UChar_To_Char:='?';
+    fpc_UChar_To_Char_Slow:='?';
+end;
+
+Function fpc_UChar_To_Char(const c : UnicodeChar): AnsiChar; compilerproc; {$if FPC_FULLVERSION>30202}inline;{$ifend}
+begin
+  { mirror of fpc_Char_To_UChar: ASCII needs no conversion }
+  if (c<#128) and (DefaultSystemCodePage<>CP_UTF7) then
+    Result:=AnsiChar(ord(c))
+  else
+    Result:=fpc_UChar_To_Char_Slow(c);
 end;
 {$endif FPC_HAS_UCHAR_TO_CHAR}
 
