@@ -755,21 +755,55 @@ procedure Win32Ansi2UnicodeMove(source:PAnsiChar;cp : TSystemCodePage;var dest:U
   end;
 
 
+{ ASCII case mapping is locale-invariant: an all-ASCII string maps in a
+  plain loop, skipping the copy-then-CharXXXXBuff WinAPI call whose fixed
+  cost dominates short strings (field names, symbols, keys). }
 function Win32UnicodeUpper(const s : UnicodeString) : UnicodeString;
+  var
+    i, len: SizeInt;
+    c: Word;
   begin
-    result:=s;
-    UniqueString(result);
-    if length(result)>0 then
-      CharUpperBuff(LPWSTR(result),length(result));
+    len:=length(s);
+    SetLength(result,len);
+    for i:=1 to len do
+      begin
+        c:=Word(s[i]);
+        if c>=128 then
+          begin
+            { non-ASCII: take the WinAPI path for the whole string }
+            result:=s;
+            UniqueString(result);
+            CharUpperBuff(LPWSTR(result),len);
+            exit;
+          end;
+        if (c>=Word('a')) and (c<=Word('z')) then
+          dec(c,32);
+        PUnicodeChar(pointer(result))[i-1]:=UnicodeChar(c);
+      end;
   end;
 
 
 function Win32UnicodeLower(const s : UnicodeString) : UnicodeString;
+  var
+    i, len: SizeInt;
+    c: Word;
   begin
-    result:=s;
-    UniqueString(result);
-    if length(result)>0 then
-      CharLowerBuff(LPWSTR(result),length(result));
+    len:=length(s);
+    SetLength(result,len);
+    for i:=1 to len do
+      begin
+        c:=Word(s[i]);
+        if c>=128 then
+          begin
+            result:=s;
+            UniqueString(result);
+            CharLowerBuff(LPWSTR(result),len);
+            exit;
+          end;
+        if (c>=Word('A')) and (c<=Word('Z')) then
+          inc(c,32);
+        PUnicodeChar(pointer(result))[i-1]:=UnicodeChar(c);
+      end;
   end;
 
 {******************************************************************************
