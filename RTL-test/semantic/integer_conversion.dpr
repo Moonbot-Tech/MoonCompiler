@@ -95,6 +95,25 @@ begin
   Check(not TryStrToInt64('12x',Parsed),'trailing input');
 end;
 
+procedure CheckNullTerminator;
+var
+  Parsed32: LongInt;
+  Parsed64: Int64;
+begin
+  Check(not TryStrToInt(#0,Parsed32),'NUL alone Int32');
+  Check(not TryStrToInt64(#0,Parsed64),'NUL alone Int64');
+  Check(TryStrToInt('0'#0,Parsed32) and (Parsed32=0),'zero NUL Int32');
+  Check(TryStrToInt64('10'#0,Parsed64) and (Parsed64=10),'ten NUL Int64');
+  Check(TryStrToInt('3210'#0'ABFG',Parsed32) and (Parsed32=3210),
+    'decimal NUL tail');
+  Check(TryStrToInt('$ff'#0'junk',Parsed32) and (Parsed32=255),
+    'hex NUL tail');
+  Check(not TryStrToInt('+'#0'1',Parsed32),'sign before NUL');
+  Check(not TryStrToInt('$'#0'1',Parsed32),'prefix before NUL');
+  Check(StrToInt('42'#0'junk')=42,'StrToInt NUL tail');
+  Check(StrToInt64('-42'#0'junk')=-42,'StrToInt64 NUL tail');
+end;
+
 procedure CheckRandomized;
 var
   I: Integer;
@@ -121,6 +140,7 @@ end;
 begin
   try
     CheckBoundaries;
+    CheckNullTerminator;
     CheckRandomized;
     WriteLn('INTEGER_CONVERSION_PASS');
   except

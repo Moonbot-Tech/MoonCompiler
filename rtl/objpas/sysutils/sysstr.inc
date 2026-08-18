@@ -1243,12 +1243,122 @@ begin
   Result:=IntToHex(Value, 2*SizeOf(UInt64));
 end;
 
+{ Direct integer parser with Delphi semantics: leading spaces, a sign,
+  a hex prefix ($, x, X, 0x) and digits, nothing else.  The former Val
+  route copied the string into a stack ShortString and walked the
+  all-bases parser per call; it also accepted the FPC-only %/& prefixes
+  and tabs that Delphi rejects. }
+function TryStrToUInt64Core(const s: string; out U: QWord; out Neg, Hex: Boolean): boolean; inline;
+var
+  P, PEnd, PDigits: PChar;
+  D: Cardinal;
+begin
+  Result := false;
+  U := 0;
+  Neg := false;
+  Hex := false;
+  P := PChar(Pointer(s));
+  PEnd := P + Length(s);
+  while (P < PEnd) and (P^ = ' ') do
+    Inc(P);
+  if P < PEnd then
+    case P^ of
+      '-': begin
+             Neg := true;
+             Inc(P);
+           end;
+      '+': Inc(P);
+    end;
+  if P < PEnd then
+    case P^ of
+      '$', 'x', 'X':
+        begin
+          Hex := true;
+          Inc(P);
+        end;
+      '0':
+        if (P + 1 < PEnd) and ((P[1] = 'x') or (P[1] = 'X')) then
+          begin
+            Hex := true;
+            Inc(P, 2);
+          end;
+    end;
+  if P >= PEnd then
+    exit;
+  PDigits := P;
+  if Hex then
+    repeat
+      D := Cardinal(Ord(P^));
+      case P^ of
+        '0'..'9': Dec(D, Ord('0'));
+        'A'..'F': Dec(D, Ord('A') - 10);
+        'a'..'f': Dec(D, Ord('a') - 10);
+      else
+        begin
+          { Delphi treats an embedded NUL as the end of numeric input, but a
+            NUL before the first digit is still not a number. }
+          if (P^ = #0) and (P > PDigits) then
+            exit(true);
+          exit;
+        end;
+      end;
+      if U > (High(QWord) shr 4) then
+        exit;
+      U := (U shl 4) or D;
+      Inc(P);
+    until P >= PEnd
+  else
+    repeat
+      D := Cardinal(Ord(P^)) - Cardinal(Ord('0'));
+      if D > 9 then
+        begin
+          if (P^ = #0) and (P > PDigits) then
+            exit(true);
+          exit;
+        end;
+      { the cutoff test folds overflow detection into two compares }
+      if (U > High(QWord) div 10) or
+         ((U = High(QWord) div 10) and (D > Cardinal(High(QWord) mod 10))) then
+        exit;
+      U := U * 10 + D;
+      Inc(P);
+    until P >= PEnd;
+  Result := true;
+end;
+
 function TryStrToInt(const s: string; out i : Longint) : boolean;
 var
-  Error : word;
+  U: QWord;
+  Neg, Hex: Boolean;
 begin
-  Val(s, i, Error);
-  TryStrToInt:=(Error=0)
+  i := 0;
+  Result := TryStrToUInt64Core(s, U, Neg, Hex);
+  if not Result then
+    exit;
+  if Hex then
+    begin
+      { hex reinterprets the full unsigned range ($FFFFFFFF = -1) and a
+        negative hex wraps modulo 2^32: Delphi accepts -$80000001 as
+        2147483647 }
+      if U > QWord($FFFFFFFF) then
+        exit(false);
+      if Neg then
+        i := Longint(Cardinal(0) - Cardinal(U))
+      else
+        i := Longint(U);
+    end
+  else if Neg then
+    begin
+      if U > QWord($80000000) then
+        exit(false);
+      i := Longint(0 - U);
+    end
+  else
+    begin
+      if U > QWord($7FFFFFFF) then
+        exit(false);
+      i := Longint(U);
+    end;
 end;
 
 
@@ -1312,12 +1422,39 @@ begin
 end;
 
 function TryStrToInt64(const s: string; Out i : int64) : boolean;
-var Error : word;
+var
+  U: QWord;
+  Neg, Hex: Boolean;
 begin
-  if TryDecimalInt64(s,i) then
-    Exit(True);
-  Val(s, i, Error);
-  TryStrToInt64:=Error=0
+  { plain decimal is the dominant shape: the specialized scanner decides
+    it without the sign/prefix dispatch; everything it rejects (spaces,
+    +, hex prefixes, garbage) falls through to the general core }
+  if TryDecimalInt64(s, i) then
+    exit(true);
+  i := 0;
+  Result := TryStrToUInt64Core(s, U, Neg, Hex);
+  if not Result then
+    exit;
+  if Hex then
+    begin
+      { hex reinterprets the full unsigned range; negative hex wraps }
+      if Neg then
+        i := Int64(QWord(0) - U)
+      else
+        i := Int64(U);
+    end
+  else if Neg then
+    begin
+      if U > QWord($8000000000000000) then
+        exit(false);
+      i := Int64(0 - U);
+    end
+  else
+    begin
+      if U > QWord($7FFFFFFFFFFFFFFF) then
+        exit(false);
+      i := Int64(U);
+    end;
 end;
 
 function StrToQWord(const s: string): QWord;

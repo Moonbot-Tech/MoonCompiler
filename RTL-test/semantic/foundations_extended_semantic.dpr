@@ -607,6 +607,7 @@ procedure TestConversionsMathAndDates;
 var
   Settings: TFormatSettings;
   SignedValue: Int64;
+  IntValue: Longint;
   UnsignedValue: QWord;
   FloatValue: Extended;
   DateValue: TDateTime;
@@ -628,7 +629,10 @@ begin
     (SignedValue = Low(Int64)), 'signed parse low');
   Check(TryStrToQWord('18446744073709551615', UnsignedValue) and
     (UnsignedValue = High(QWord)), 'unsigned parse high');
-  Check((StrToInt('$7f') = 127) and (StrToInt('&17') = 15) and
+  { Delphi rejects the FPC-only &octal and %binary prefixes in
+    StrToInt/TryStrToInt (Val keeps accepting them) }
+  Check((StrToInt('$7f') = 127) and (StrToInt('0x10') = 16) and
+    not TryStrToInt('&17', IntValue) and not TryStrToInt('%101', IntValue) and
     not TryStrToInt64('12x', SignedValue), 'integer radix/invalid parse');
   Raised := False;
   try
