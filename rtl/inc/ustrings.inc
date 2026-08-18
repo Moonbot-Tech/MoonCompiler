@@ -713,7 +713,15 @@ Function fpc_Char_To_UnicodeStr(const c : AnsiChar): UnicodeString; compilerproc
   Converts a AnsiChar to a UnicodeString;
 }
 begin
-  widestringmanager.Ansi2UnicodeMoveProc(@c,DefaultSystemCodePage,result,1);
+  { same ASCII shortcut as fpc_Char_To_UChar: the string allocation
+    stays, the widestring manager conversion call goes }
+  if (c<#128) and (DefaultSystemCodePage<>CP_UTF7) then
+    begin
+      Setlength(result,1);
+      PUnicodeChar(Pointer(result))^:=UnicodeChar(ord(c));
+    end
+  else
+    widestringmanager.Ansi2UnicodeMoveProc(@c,DefaultSystemCodePage,result,1);
 end;
 {$endif FPC_HAS_CHAR_TO_UNICODESTR}
 
