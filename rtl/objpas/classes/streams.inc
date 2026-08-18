@@ -1746,7 +1746,15 @@ end;
 procedure TStringStream.WriteString(const AString: string);
 
 begin
+{$IF SIZEOF(CHAR)=1}
   WriteAnsiString(AString);
+{$ELSE}
+  { mirror of GetDataString: routing a wide string through
+    WriteAnsiString converts twice (unicode to the system codepage,
+    then to the stream encoding) - slower and lossy outside the
+    ansi page }
+  WriteUnicodeString(AString);
+{$ENDIF}
 end;
 
 procedure TStringStream.WriteUnicodeString(const AString: UnicodeString);
