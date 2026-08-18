@@ -1,13 +1,11 @@
 {%MainUnit sysutils.pp}
 var
   OldPat,Srch: SRstring; // Srch and Oldp can contain uppercase versions of S,OldPattern
-  PatLength,NewPatLength,P,Cnt,PrevP: Integer;
-  c,d: SRPChar ;
+  PatLength,NewPatLength,P,Cnt,PrevP,OutLen: Integer;
 
 begin
   aCount:=0;
   Result:='';
-  c:= NIL; d:=NIL;
   OldPat:='';
   Srch:='';
 
@@ -40,47 +38,52 @@ begin
       end;
     until p=0;
   end else begin
-    //Different pattern length -> Result length will change
-    //To avoid creating a lot of temporary strings, we count how many
-    //replacements we're going to make.
-    P:=1;
+    //Different pattern length -> Result length will change.
+    //A single scan copies as it goes: the former count-then-copy scheme
+    //walked the subject twice through Pos, which dominated short inputs.
+    NewPatLength:=Length(NewPattern);
+    if NewPatLength>PatLength then
+      SetLength(Result,Length(S)+(NewPatLength-PatLength)*4)
+    else
+      SetLength(Result,Length(S));
+    OutLen:=0;
+    PrevP:=1;
     repeat
-      P:=Pos(OldPat,Srch,P);
-      if P>0 then begin
-        inc(P,PatLength);
-        inc(aCount);
-        if not (rfReplaceAll in Flags) then break;
+      P:=Pos(OldPat,Srch,PrevP);
+      if P=0 then
+        Cnt:=Length(S)-PrevP+1
+      else
+        Cnt:=P-PrevP;
+      if OutLen+Cnt+NewPatLength>Length(Result) then
+        SetLength(Result,(OutLen+Cnt+NewPatLength)*2);
+      if Cnt>0 then begin
+        Move(SRPChar(S)[PrevP-1],SRPChar(Result)[OutLen],Cnt*SizeOf(SRChar));
+        inc(OutLen,Cnt);
       end;
-    until p=0;
+      if P=0 then
+        break;
+      inc(aCount);
+      if NewPatLength>0 then begin
+        Move(NewPattern[1],SRPChar(Result)[OutLen],NewPatLength*SizeOf(SRChar));
+        inc(OutLen,NewPatLength);
+      end;
+      PrevP:=P+PatLength;
+      if not (rfReplaceAll in Flags) then begin
+        Cnt:=Length(S)-PrevP+1;
+        if OutLen+Cnt>Length(Result) then
+          SetLength(Result,OutLen+Cnt);
+        if Cnt>0 then begin
+          Move(SRPChar(S)[PrevP-1],SRPChar(Result)[OutLen],Cnt*SizeOf(SRChar));
+          inc(OutLen,Cnt);
+        end;
+        break;
+      end;
+    until False;
     if aCount=0 then begin
       Result:=S;
       exit;
     end;
-    NewPatLength:=Length(NewPattern);
-    SetLength(Result,Length(S)+aCount*(NewPatLength-PatLength));
-    P:=1; PrevP:=0;
-    c:=SRPChar(Result); d:=SRPChar(S);
-    repeat
-      P:=Pos(OldPat,Srch,P);
-      if P>0 then begin
-        Cnt:=P-PrevP-1;
-        if Cnt>0 then begin
-          Move(d^,c^,Cnt*SizeOf(SRChar));
-          inc(c,Cnt);
-          inc(d,Cnt);
-        end;
-        if NewPatLength>0 then begin
-          Move(NewPattern[1],c^,NewPatLength*SizeOf(SRChar));
-          inc(c,NewPatLength);
-        end;
-        inc(P,PatLength);
-        inc(d,PatLength);
-        PrevP:=P-1;
-        if not (rfReplaceAll in Flags) then break;
-      end;
-    until p=0;
-    Cnt:=Length(S)-PrevP;
-    if Cnt>0 then Move(d^,c^,Cnt*SizeOf(SRChar));
+    SetLength(Result,OutLen);
   end;
 end;
 
