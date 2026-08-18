@@ -38,6 +38,7 @@
     Procedure DoInsert(Index: Integer; const AValue: TSBCharArray; StartIndex, SBCharCount: Integer); virtual;
     Procedure DoReplace(Index: Integer; const Old, New: SBString); virtual;
     Procedure Grow;
+    Procedure GrowTo(aMinCapacity: Integer);
     Procedure Shrink;
   public
     Constructor Create;
