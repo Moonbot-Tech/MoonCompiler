@@ -666,6 +666,10 @@ function CharLowerBuff(lpsz:LPWSTR; cchLength:DWORD):DWORD;
   sequences) and the EBCDIC family do not, and neither can be a system
   default.  A pure-ASCII payload on these pages needs no WinAPI round
   trips (a length probe plus the conversion per call). }
+const
+  SwarAsciiMaskW = QWord($FF80FF80FF80FF80);
+  SwarLaneBitW   = QWord($0080008000800080);
+
 function IsAsciiCompatibleCP(cp : TSystemCodePage): Boolean; inline;
   begin
     case cp of
@@ -680,17 +684,33 @@ function IsAsciiCompatibleCP(cp : TSystemCodePage): Boolean; inline;
 procedure Win32Unicode2AnsiMove(source:punicodechar;var dest:RawByteString;cp : TSystemCodePage;len:SizeInt);
   var
     destlen, i: SizeInt;
+    q: QWord;
   begin
     if (len>0) and IsAsciiCompatibleCP(cp) then
       begin
         i:=0;
+        while (i+4<=len) and (PQWord(@source[i])^ and SwarAsciiMaskW=0) do
+          inc(i,4);
         while (i<len) and (ord(source[i])<128) do
           inc(i);
         if i=len then
           begin
             setlength(dest, len);
-            for i:=0 to len-1 do
-              PAnsiChar(pointer(dest))[i]:=AnsiChar(ord(source[i]));
+            i:=0;
+            { narrow four ASCII words per step }
+            while i+4<=len do
+              begin
+                q:=PQWord(@source[i])^;
+                PCardinal(@PAnsiChar(pointer(dest))[i])^:=
+                  Cardinal(q and $FF) or (Cardinal((q shr 16) and $FF) shl 8) or
+                  (Cardinal((q shr 32) and $FF) shl 16) or (Cardinal(q shr 48) shl 24);
+                inc(i,4);
+              end;
+            while i<len do
+              begin
+                PAnsiChar(pointer(dest))[i]:=AnsiChar(ord(source[i]));
+                inc(i);
+              end;
             PAnsiRec(pointer(dest)-AnsiFirstOff)^.CodePage:=cp;
             exit;
           end;
@@ -712,17 +732,33 @@ procedure Win32Ansi2UnicodeMove(source:PAnsiChar;cp : TSystemCodePage;var dest:U
     destlen: SizeInt;
     dwflags: DWORD;
     i: SizeInt;
+    d: Cardinal;
   begin
     if (len>0) and IsAsciiCompatibleCP(cp) then
       begin
         i:=0;
+        while (i+4<=len) and (PCardinal(@source[i])^ and $80808080=0) do
+          inc(i,4);
         while (i<len) and (ord(source[i])<128) do
           inc(i);
         if i=len then
           begin
             setlength(dest, len);
-            for i:=0 to len-1 do
-              PUnicodeChar(pointer(dest))[i]:=UnicodeChar(ord(source[i]));
+            i:=0;
+            { widen four ASCII bytes per step }
+            while i+4<=len do
+              begin
+                d:=PCardinal(@source[i])^;
+                PQWord(@PUnicodeChar(pointer(dest))[i])^:=
+                  QWord(d and $FF) or (QWord((d shr 8) and $FF) shl 16) or
+                  (QWord((d shr 16) and $FF) shl 32) or (QWord(d shr 24) shl 48);
+                inc(i,4);
+              end;
+            while i<len do
+              begin
+                PUnicodeChar(pointer(dest))[i]:=UnicodeChar(ord(source[i]));
+                inc(i);
+              end;
             PUnicodeRec(pointer(dest)-UnicodeFirstOff)^.CodePage:=CP_UTF16;
             exit;
           end;
@@ -755,19 +791,39 @@ procedure Win32Ansi2UnicodeMove(source:PAnsiChar;cp : TSystemCodePage;var dest:U
   end;
 
 
-{ ASCII case mapping is locale-invariant: an all-ASCII string maps in a
-  plain loop, skipping the copy-then-CharXXXXBuff WinAPI call whose fixed
-  cost dominates short strings (field names, symbols, keys). }
+{ ASCII case mapping is locale-invariant: an all-ASCII string maps four
+  characters per step with SWAR masks (the 0x80 lane bit marks words
+  inside the letter range; ASCII lanes never carry into a neighbour),
+  skipping the copy-then-CharXXXXBuff WinAPI call whose fixed cost
+  dominates short strings.  The first non-ASCII character falls back to
+  the WinAPI path for the whole string. }
 function Win32UnicodeUpper(const s : UnicodeString) : UnicodeString;
   var
     i, len: SizeInt;
     c: Word;
+    q, t1, t2: QWord;
+    src, dst: PUnicodeChar;
   begin
     len:=length(s);
     SetLength(result,len);
-    for i:=1 to len do
+    src:=PUnicodeChar(pointer(s));
+    dst:=PUnicodeChar(pointer(result));
+    i:=0;
+    while len-i>=4 do
       begin
-        c:=Word(s[i]);
+        q:=PQWord(@src[i])^;
+        if q and SwarAsciiMaskW<>0 then
+          break;
+        { lane bit set for 'a'..'z': +0x1F crosses 0x80 from 'a' up,
+          +0x05 crosses it only past 'z' }
+        t2:=q+QWord($001F001F001F001F);
+        t1:=q+QWord($0005000500050005);
+        PQWord(@dst[i])^:=q-((t2 and not t1 and SwarLaneBitW) shr 2);
+        inc(i,4);
+      end;
+    while i<len do
+      begin
+        c:=Word(src[i]);
         if c>=128 then
           begin
             { non-ASCII: take the WinAPI path for the whole string }
@@ -778,7 +834,8 @@ function Win32UnicodeUpper(const s : UnicodeString) : UnicodeString;
           end;
         if (c>=Word('a')) and (c<=Word('z')) then
           dec(c,32);
-        PUnicodeChar(pointer(result))[i-1]:=UnicodeChar(c);
+        dst[i]:=UnicodeChar(c);
+        inc(i);
       end;
   end;
 
@@ -787,12 +844,28 @@ function Win32UnicodeLower(const s : UnicodeString) : UnicodeString;
   var
     i, len: SizeInt;
     c: Word;
+    q, t1, t2: QWord;
+    src, dst: PUnicodeChar;
   begin
     len:=length(s);
     SetLength(result,len);
-    for i:=1 to len do
+    src:=PUnicodeChar(pointer(s));
+    dst:=PUnicodeChar(pointer(result));
+    i:=0;
+    while len-i>=4 do
       begin
-        c:=Word(s[i]);
+        q:=PQWord(@src[i])^;
+        if q and SwarAsciiMaskW<>0 then
+          break;
+        { lane bit set for 'A'..'Z' }
+        t2:=q+QWord($003F003F003F003F);
+        t1:=q+QWord($0025002500250025);
+        PQWord(@dst[i])^:=q+((t2 and not t1 and SwarLaneBitW) shr 2);
+        inc(i,4);
+      end;
+    while i<len do
+      begin
+        c:=Word(src[i]);
         if c>=128 then
           begin
             result:=s;
@@ -802,7 +875,8 @@ function Win32UnicodeLower(const s : UnicodeString) : UnicodeString;
           end;
         if (c>=Word('A')) and (c<=Word('Z')) then
           inc(c,32);
-        PUnicodeChar(pointer(result))[i-1]:=UnicodeChar(c);
+        dst[i]:=UnicodeChar(c);
+        inc(i);
       end;
   end;
 
