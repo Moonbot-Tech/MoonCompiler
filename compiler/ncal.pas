@@ -1423,18 +1423,14 @@ implementation
 
                  if (parasym.varspez=vs_const) and (parasym.vardef.typ=formaldef) then
                    begin
-                     { compilerprocs never capture the address of their
-                       parameters }
-                     if (po_compilerproc in callnode.procdefinition.procoptions) or
-                     { if we handled already the proc. body and it is not inlined,
-                       we can propagate the information if the address of a parameter is taken or not }
-                     ((callnode.procdefinition.typ=procdef) and
-                      not(po_inline in tprocdef(callnode.procdefinition).procoptions) and
-                      (tprocdef(callnode.procdefinition).is_implemented) and
-                      not(parasym.addr_taken)) then
-                       make_not_regable(left,[ra_addr_regable])
-                     else
-                       make_not_regable(left,[ra_addr_regable,ra_addr_taken]);
+                     { an untyped const parameter reads the argument through
+                       its address by definition, so the argument must carry
+                       nf_address_taken even for compilerprocs: without it a
+                       constant substituted by inlining lets tvecnode.simplify
+                       fold an indexed char load like Move(S[1],...) into a
+                       single materialized character - the callee then reads
+                       count bytes from a one-element temp (wrong code) }
+                     make_not_regable(left,[ra_addr_regable,ra_addr_taken]);
                    end
                  else
                   case parasym.varspez of
