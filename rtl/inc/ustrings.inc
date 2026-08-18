@@ -1506,7 +1506,18 @@ end;
 {$define FPC_HAS_UPCASE_UNICODECHAR}
 Function  UpCase(c:UnicodeChar):UnicodeChar;
 begin
-  Result:= widestringmanager.UpperUnicodeStringProc(UnicodeString(c))[1]
+  { ASCII case mapping is locale-invariant: the general path allocates a
+    one-char string, converts it through the widestring manager (a WinAPI
+    call on Windows) and finalizes it - per character }
+  if c < #128 then
+    begin
+      if (c >= 'a') and (c <= 'z') then
+        Result := UnicodeChar(Ord(c) - 32)
+      else
+        Result := c;
+    end
+  else
+    Result := widestringmanager.UpperUnicodeStringProc(UnicodeString(c))[1];
 end;
 {$endif FPC_HAS_UPCASE_UNICODECHAR}
 
@@ -1524,7 +1535,16 @@ end;
 {$define FPC_HAS_LOWERCASE_UNICODECHAR}
 Function  LowerCase(c:UnicodeChar):UnicodeChar;
 begin
-  Result:= widestringmanager.LowerUnicodeStringProc(UnicodeString(c))[1]
+  { mirror of UpCase: ASCII needs no widestring manager round trip }
+  if c < #128 then
+    begin
+      if (c >= 'A') and (c <= 'Z') then
+        Result := UnicodeChar(Ord(c) + 32)
+      else
+        Result := c;
+    end
+  else
+    Result := widestringmanager.LowerUnicodeStringProc(UnicodeString(c))[1];
 end;
 {$endif FPC_HAS_LOWERCASE_UNICODECHAR}
 
