@@ -4440,6 +4440,19 @@ implementation
       var
         fname: string[18];
       begin
+        { a constant can reach this point when inlining substitutes a
+          parameter into the conversion after the typecheck pass: fold it
+          exactly like typecheck_char_to_char instead of emitting a
+          runtime codepage conversion call }
+        if left.nodetype=ordconstn then
+          begin
+            result:=typecheck_char_to_char;
+            if assigned(result) then
+              begin
+                firstpass(result);
+                exit;
+              end;
+          end;
         if (torddef(resultdef).ordtype=uchar) and
            (torddef(left.resultdef).ordtype=uwidechar) then
           fname := 'fpc_uchar_to_char'
