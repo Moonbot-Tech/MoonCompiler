@@ -133,6 +133,49 @@ end;
 { also define alias for internal use in the system unit }
 Procedure fpc_ansistr_decr_ref (Var S : Pointer); [external name 'FPC_ANSISTR_DECR_REF'];
 
+{ Finalizes a whole run of ansistring slots with one call: the array
+  finalizer otherwise pays a call and prologue per element, and the
+  multithread gate is hoisted out of the loop.  Semantics per element are
+  exactly fpc_AnsiStr_Decr_Ref (nil slots skipped, negative refcounts are
+  constants and stay untouched, the slot is cleared). }
+procedure fpc_AnsiStr_Finalize_Many(data : PPointer;count : SizeInt);[Public,Alias:'FPC_ANSISTR_FINALIZE_MANY'];
+var
+  i : SizeInt;
+  p : pointer;
+  threaded : boolean;
+begin
+  threaded:=IsMultithread;
+  for i:=0 to count-1 do
+    begin
+      p:=data[i];
+      if assigned(p) then
+        begin
+          data[i]:=nil;
+          with PAnsiRec(p-AnsiFirstOff)^ do
+            if Ref=1 then
+              FreeMem(p-AnsiFirstOff)
+            else if Ref>0 then
+              begin
+                if threaded then
+                  begin
+{$ifdef VER3_2}
+                    if declocked(Ref) then
+{$else}
+                    if AtomicDecrement(Ref)=0 then
+{$endif}
+                      FreeMem(p-AnsiFirstOff);
+                  end
+                else
+                  begin
+                    dec(Ref);
+                    if Ref=0 then
+                      FreeMem(p-AnsiFirstOff);
+                  end;
+              end;
+        end;
+    end;
+end;
+
 
 {$ifndef FPC_SYSTEM_HAS_ANSISTR_INCR_REF}
 {$define FPC_SYSTEM_HAS_ANSISTR_INCR_REF}

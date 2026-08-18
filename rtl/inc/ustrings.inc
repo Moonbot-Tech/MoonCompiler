@@ -238,6 +238,49 @@ end;
 
 { alias for internal use }
 Procedure fpc_UnicodeStr_Decr_Ref (Var S : Pointer);[external name 'FPC_UNICODESTR_DECR_REF'];
+
+{ Finalizes a whole run of unicodestring slots with one call: the array
+  finalizer otherwise pays a call and prologue per element, and the
+  multithread gate is hoisted out of the loop.  Semantics per element are
+  exactly fpc_UnicodeStr_Decr_Ref (nil slots skipped, negative refcounts
+  are constants and stay untouched, the slot is cleared). }
+procedure fpc_UnicodeStr_Finalize_Many(data : PPointer;count : SizeInt);[Public,Alias:'FPC_UNICODESTR_FINALIZE_MANY'];
+var
+  i : SizeInt;
+  p : pointer;
+  threaded : boolean;
+begin
+  threaded:=IsMultithread;
+  for i:=0 to count-1 do
+    begin
+      p:=data[i];
+      if assigned(p) then
+        begin
+          data[i]:=nil;
+          with PUnicodeRec(p-UnicodeFirstOff)^ do
+            if Ref=1 then
+              FreeMem(p-UnicodeFirstOff)
+            else if Ref>0 then
+              begin
+                if threaded then
+                  begin
+{$ifdef VER3_2}
+                    if declocked(Ref) then
+{$else}
+                    if AtomicDecrement(Ref)=0 then
+{$endif}
+                      FreeMem(p-UnicodeFirstOff);
+                  end
+                else
+                  begin
+                    dec(Ref);
+                    if Ref=0 then
+                      FreeMem(p-UnicodeFirstOff);
+                  end;
+              end;
+        end;
+    end;
+end;
 {$endif FPC_HAS_UNICODESTR_DECR_REF}
 
 

@@ -420,13 +420,11 @@ procedure fpc_finalize_array(data,typeinfo : pointer;count : SizeInt); [Public,A
     case PTypeKind(typeinfo)^ of
 {$ifdef FPC_HAS_FEATURE_ANSISTRINGS}
       tkAString:
-        for i:=0 to SkipTrailingNils(data,count)-1 do
-          fpc_AnsiStr_Decr_Ref(PPointer(data)[i]);
+        fpc_AnsiStr_Finalize_Many(data,SkipTrailingNils(data,count));
 {$endif FPC_HAS_FEATURE_ANSISTRINGS}
 {$ifdef FPC_HAS_FEATURE_WIDESTRINGS}
       tkUString:
-        for i:=0 to SkipTrailingNils(data,count)-1 do
-          fpc_UnicodeStr_Decr_Ref(PPointer(data)[i]);
+        fpc_UnicodeStr_Finalize_Many(data,SkipTrailingNils(data,count));
   {$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
       tkWString:
         for i:=0 to SkipTrailingNils(data,count)-1 do
