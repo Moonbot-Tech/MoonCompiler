@@ -945,6 +945,8 @@ end;
 {$define SRUpperCase:=UnicodeUppercase}
 {$define SRPCHAR:=PUnicodeChar}
 {$define SRCHAR:=UnicodeChar}
+{$define SRINDEXCHAR:=IndexWord}
+{$define SRCOMPARECHAR:=CompareWord}
 
 Function UnicodeStringReplace(const S, OldPattern, NewPattern: Unicodestring;  Flags: TReplaceFlags): Unicodestring;
 
@@ -972,6 +974,8 @@ function UnicodeStringReplace(const S, OldPattern, NewPattern: UnicodeString;  F
 {$undef SRUpperCase}
 {$undef SRPCHAR}
 {$undef SRCHAR}
+{$undef SRINDEXCHAR}
+{$undef SRCOMPARECHAR}
 
 function StringReplace(const S, OldPattern, NewPattern: UnicodeString;  Flags: TReplaceFlags): UnicodeString;
 

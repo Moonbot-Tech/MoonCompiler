@@ -3139,6 +3139,8 @@ end;
 {$define SRUpperCase:=AnsiUppercase}
 {$define SRPCHAR:=PAnsiChar}
 {$define SRCHAR:=AnsiChar}
+{$define SRINDEXCHAR:=IndexByte}
+{$define SRCOMPARECHAR:=CompareByte}
 
 Function StringReplace(const S, OldPattern, NewPattern: Ansistring;  Flags: TReplaceFlags): Ansistring;
 
@@ -3158,6 +3160,8 @@ function StringReplace(const S, OldPattern, NewPattern: Ansistring;  Flags: TRep
 {$undef SRUpperCase}
 {$undef SRPCHAR}
 {$undef SRCHAR}
+{$undef SRINDEXCHAR}
+{$undef SRCOMPARECHAR}
 
 Function IsDelimiter(const Delimiters, S: string; Index: SizeInt): Boolean;
 

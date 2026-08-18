@@ -193,6 +193,8 @@ end;
 {$define SRUpperCase:=WideUppercase}
 {$define SRPChar:=PWideChar}
 {$define SRChar:=WideChar}
+{$define SRINDEXCHAR:=IndexWord}
+{$define SRCOMPARECHAR:=CompareWord}
 
 
 Function WideStringReplace(const S, OldPattern, NewPattern: Widestring;  Flags: TReplaceFlags): Widestring;
@@ -212,3 +214,5 @@ function WideStringReplace(const S, OldPattern, NewPattern: WideString;  Flags: 
 {$undef SRUpperCase}
 {$undef SRPChar}
 {$undef SRChar}
+{$undef SRINDEXCHAR}
+{$undef SRCOMPARECHAR}
