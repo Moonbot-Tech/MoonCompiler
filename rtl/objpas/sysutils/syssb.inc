@@ -721,12 +721,29 @@ begin
 end;
 
 procedure TGenericStringBuilder.SetCapacity(AValue: Integer);
+var
+  NewData: TSBCharArray;
 begin
   if (AValue>FMaxCapacity) then
     Raise ERangeError.CreateFmt(SListCapacityError,[AValue]);
   if (AValue<Length) then
     Raise ERangeError.CreateFmt(SListCapacityError,[AValue]);
-  System.SetLength(FData,AValue);
+  if AValue=System.Length(FData) then
+    exit;
+  { only FLength characters are live: resizing the array copies the whole
+    old capacity, so a sparsely filled buffer moves just the live run to
+    a fresh block instead.  A mostly full buffer keeps the array resize -
+    the reallocation can often extend the block in place }
+  if FLength*2<=System.Length(FData) then
+    begin
+    NewData:=nil;
+    System.SetLength(NewData,AValue);
+    if FLength>0 then
+      Move(FData[0],NewData[0],FLength*SizeOf(SBChar));
+    FData:=NewData;
+    end
+  else
+    System.SetLength(FData,AValue);
 end;
 
 
