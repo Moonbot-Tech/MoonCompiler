@@ -372,7 +372,8 @@ unit optloop;
               if indexnode.nodetype=typeconvn then
                 indexnode:=ttypeconvnode(indexnode).left;
               if (tvecnode(n).left.nodetype=loadn) and
-                not(is_special_array(tvecnode(n).left.resultdef)) and
+                (not(is_special_array(tvecnode(n).left.resultdef)) or
+                 is_dynamic_array(tvecnode(n).left.resultdef)) and
                 not(is_packed_array(tvecnode(n).left.resultdef)) and
                 indexnode.isequal(usecontext^.counter) and
                 (indexnode.flags*[nf_write,nf_modify]=[]) then
@@ -417,6 +418,50 @@ unit optloop;
     function loop_runs_to_completion(loop : tfornode) : boolean;
       begin
         result:=not foreachnodestatic(pm_postprocess,loop.t2,@findearlyexit,nil);
+      end;
+
+
+    function invalidatesdynarraybase(var n : tnode;arg : pointer) : foreachnoderesult;
+      begin
+        result:=fen_false;
+        case n.nodetype of
+          calln,
+          asmn:
+            { a call can reach any global and any captured local }
+            result:=fen_norecurse_true;
+          derefn:
+            { a pointer store can hit a variable whose address escaped in the
+              caller (var parameters) }
+            if n.flags*[nf_write,nf_modify,nf_address_taken]<>[] then
+              result:=fen_norecurse_true;
+          loadn:
+            if (tloadnode(n).symtableentry=tsym(arg)) and
+              (n.flags*[nf_write,nf_modify]<>[]) then
+              result:=fen_norecurse_true;
+          else
+            ;
+        end;
+      end;
+
+
+    { a dynamic array's base is a pointer VALUE loaded from the variable:
+      bumping a cached copy across iterations is only legal while nothing in
+      the body can move that pointer - no reassignment or SetLength of the
+      array variable itself.  Element writes are fine, they never move the
+      base (dynamic arrays are not copy-on-write) }
+    function dynarray_base_is_loop_invariant(loop : tfornode;base : tnode) : boolean;
+      begin
+        result:=false;
+        if (base.nodetype<>loadn) or
+          not(tloadnode(base).symtableentry.typ in [localvarsym,paravarsym,staticvarsym]) then
+          exit;
+        if tabstractvarsym(tloadnode(base).symtableentry).addr_taken then
+          exit;
+        if (tloadnode(base).symtableentry.typ=staticvarsym) and
+          (vo_is_thread_var in tstaticvarsym(tloadnode(base).symtableentry).varoptions) then
+          exit;
+        result:=not foreachnodestatic(pm_preprocess,loop.t2,@invalidatesdynarraybase,
+          tloadnode(base).symtableentry);
       end;
 
 
@@ -612,7 +657,8 @@ unit optloop;
                   result:=fen_norecurse_false;
                 end
               { is the index the counter variable? }
-              else if not(is_special_array(tvecnode(n).left.resultdef)) and
+              else if (not(is_special_array(tvecnode(n).left.resultdef)) or
+                 is_dynamic_array(tvecnode(n).left.resultdef)) and
                 not(is_packed_array(tvecnode(n).left.resultdef)) and
                 (tvecnode(n).right.isequal(currforloop.left) or
                  { fpc usually creates a type cast to access an array }
@@ -626,7 +672,12 @@ unit optloop;
                 { direct array access? }
                 ((tvecnode(n).left.nodetype=loadn) or
                 { ... or loop invariant expression? }
-                is_loop_invariant(currforloop,tvecnode(n).right))
+                is_loop_invariant(currforloop,tvecnode(n).right)) and
+                { a dynamic array needs its base pointer pinned for the whole
+                  loop, and the raw deref drops the per-element range check }
+                (not(is_dynamic_array(tvecnode(n).left.resultdef)) or
+                 ((([cs_check_overflow,cs_check_range]*n.localswitches)=[]) and
+                  dynarray_base_is_loop_invariant(currforloop,tvecnode(n).left)))
 {$if not (defined(cpu16bitalu) or defined(cpu8bitalu))}
                 { removing the multiplication is only worth the
                   effort if it's not a simple shift ... }
@@ -639,14 +690,18 @@ unit optloop;
                   { ... unless the base is a global symbol: 64-bit targets
                     cannot encode a RIP/PC-relative base together with an
                     index register, so scaled access rematerializes the base
-                    address inside the loop on every element access.  Only
-                    profitable when the counter's body reads all become the
-                    bumped pointer - a counter that stays live would make the
-                    pointer a second induction variable with a
-                    loop-carried load address }
+                    address inside the loop on every element access.  A
+                    dynamic array is even costlier - its base is a pointer
+                    value that scaled access RELOADS from the variable on
+                    every element, and the 64-bit address needs the 32-bit
+                    index sign-extended each time.  Only profitable when the
+                    counter's body reads all become the bumped pointer - a
+                    counter that stays live would make the pointer a second
+                    induction variable with a loop-carried load address }
                   or ((tvecnode(n).left.nodetype=loadn) and
-                      (tloadnode(tvecnode(n).left).symtableentry.typ=staticvarsym) and
-                      not(vo_is_thread_var in tstaticvarsym(tloadnode(tvecnode(n).left).symtableentry).varoptions) and
+                      (is_dynamic_array(tvecnode(n).left.resultdef) or
+                       ((tloadnode(tvecnode(n).left).symtableentry.typ=staticvarsym) and
+                        not(vo_is_thread_var in tstaticvarsym(tloadnode(tvecnode(n).left).symtableentry).varoptions))) and
                       (counter_dies_with_indexing(currforloop) or
                        loop_runs_to_completion(currforloop)))
 {$endif cpu64bitaddr}
