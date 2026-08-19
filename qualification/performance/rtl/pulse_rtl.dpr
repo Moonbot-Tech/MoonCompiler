@@ -43,6 +43,7 @@ var
   FloatText: array[0..1023] of UnicodeString;
   StringKeys: array[0..127] of UnicodeString;
   PaddedKeys: array[0..127] of UnicodeString;
+  CsvLine: UnicodeString;
   PulseFormatSettings: TFormatSettings;
 
 constructor TPulseObject.Create(AValue: UInt64);
@@ -935,12 +936,21 @@ begin
       UnicodeString(':needle-') + UnicodeString(IntToStr(I)) + UnicodeString(';');
   SearchUtf8 := UTF8Encode(SearchText);
   for I := 0 to High(StringKeys) do
+  begin
     StringKeys[I] := UnicodeString('key-') + UnicodeString(IntToStr(10000 + I));
     PaddedKeys[I] := UnicodeString('  ') + StringKeys[I] + UnicodeString('   ');
+  end;
   for I := 0 to High(IntegerText) do
   begin
     IntegerText[I] := IntToStr(Int64(I) * 1000003 - 500000000);
     FloatText[I] := IntToStr(I - 512) + '.125';
+  end;
+  CsvLine := '';
+  for I := 0 to 15 do
+  begin
+    If I > 0 then
+      CsvLine := CsvLine + UnicodeString(',');
+    CsvLine := CsvLine + UnicodeString('field-') + UnicodeString(IntToStr(I * 31));
   end;
   SetLength(ByteData, 65536);
   for I := 0 to High(ByteData) do
@@ -1191,6 +1201,90 @@ begin
   end;
 end;
 
+{ === RTL remainder audit: TStringHelper facades === }
+
+function CaseHelperStartsWith(Iterations: Integer): UInt64;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Result := Result + UInt64(Ord(StringKeys[I and 127].StartsWith(UnicodeString('key-101'))));
+    Result := Result + UInt64(Ord(StringKeys[I and 127].StartsWith(UnicodeString('nope'))));
+  end;
+end;
+
+function CaseHelperStartsWithNoCase(Iterations: Integer): UInt64;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Result := Result + UInt64(Ord(StringKeys[I and 127].StartsWith(UnicodeString('KEY-101'), True)));
+    Result := Result + UInt64(Ord(StringKeys[I and 127].StartsWith(UnicodeString('NOPE'), True)));
+  end;
+end;
+
+function CaseHelperEndsWithNoCase(Iterations: Integer): UInt64;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Result := Result + UInt64(Ord(StringKeys[I and 127].EndsWith(UnicodeString('27'), True)));
+    Result := Result + UInt64(Ord(StringKeys[I and 127].EndsWith(UnicodeString('ZZ'), True)));
+  end;
+end;
+
+function CaseHelperIndexOfString(Iterations: Integer): UInt64;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+    Result := Result + UInt64(SearchText.IndexOf(UnicodeString('needle-') +
+      UnicodeString(IntToStr(I and 255))) + 2);
+end;
+
+function CaseHelperCompareTo(Iterations: Integer): UInt64;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+    Result := Result + UInt64(StringKeys[I and 127].CompareTo(StringKeys[(I * 37) and 127]) + 1000);
+end;
+
+function CaseHelperSplit(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  Parts: TArray<UnicodeString>;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Parts := CsvLine.Split([WideChar(',')]);
+    Result := Result + UInt64(Length(Parts));
+    for J := 0 to High(Parts) do
+      Result := Result + UInt64(Length(Parts[J]));
+  end;
+end;
+
+function CaseSameTextShort(Iterations: Integer): UInt64;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Result := Result + UInt64(Ord(SameText(StringKeys[I and 127], StringKeys[I and 127])));
+    Result := Result + UInt64(Ord(SameText(StringKeys[I and 127], StringKeys[(I + 1) and 127])));
+  end;
+end;
+
 function CaseStringReplaceAll(Iterations: Integer): UInt64;
 var
   I: Integer;
@@ -1271,6 +1365,20 @@ begin
     SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'inttohex-int64', 'rtl+mm', 'IntToHex',
     @CaseIntToHex64, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'helper-startswith', 'rtl', 'TStringHelper.StartsWith',
+    @CaseHelperStartsWith, 2, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'helper-startswith-nocase', 'rtl+mm', 'TStringHelper.StartsWith(IgnoreCase)',
+    @CaseHelperStartsWithNoCase, 2, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'helper-endswith-nocase', 'rtl+mm', 'TStringHelper.EndsWith(IgnoreCase)',
+    @CaseHelperEndsWithNoCase, 2, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'helper-indexof-string', 'rtl+mm', 'TStringHelper.IndexOf',
+    @CaseHelperIndexOfString, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'helper-compareto', 'rtl', 'TStringHelper.CompareTo',
+    @CaseHelperCompareTo, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'helper-split-16', 'rtl+mm', 'TStringHelper.Split',
+    @CaseHelperSplit, 16, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'sametext-short', 'rtl', 'SameText',
+    @CaseSameTextShort, 2, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'trim-string', 'rtl+mm', 'Trim',
     @CaseTrimString, 1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'string-replace-all', 'rtl+mm', 'StringReplace',
