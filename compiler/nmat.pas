@@ -743,8 +743,10 @@ implementation
           not is_128bit(resultdef) and
           isabspowerof2(tordconstnode(right).value,power) and
 {$if defined(cpu64bitalu) or defined(cpuhighleveltarget)}
-          { for 64 bit, we leave the optimization to the cg }
-            (not is_signed(resultdef)) then
+          { for 64 bit, we leave the optimization to the cg - except the
+            signed modulus: no cg handles it, it would fall back to idiv }
+            (((nodetype=modn) and not(mdnf_isomod in moddivnodeflags)) or
+             not is_signed(resultdef)) then
 {$else cpu64bitalu or cpuhighleveltarget}
            (((nodetype=divn) and is_oversizedord(resultdef)) or
             (nodetype=modn) or
@@ -877,6 +879,54 @@ implementation
                 result := caddnode.create(andn,left,right);
               end;
             { left and right are reused }
+            left := nil;
+            right := nil;
+            firstpass(result);
+            exit;
+          end;
+
+        { signed modulus by any other constant: no direct reduction exists,
+          so rewrite x mod C into x - (x div C) * C - the division then
+          takes the reciprocal (magic multiply) path instead of idiv.
+          q*C = x - r never overflows, |r| < |C|.  Values 0, 1 and -1 are
+          already folded by simplify. }
+        if (right.nodetype = ordconstn) and
+          (nodetype=modn) and
+          is_signed(resultdef) and
+          not(mdnf_isomod in moddivnodeflags) and
+          not is_128bit(resultdef) and
+          not use_moddiv64bitint_helper and
+          not(cs_opt_size in current_settings.optimizerswitches) then
+          begin
+            if not might_have_sideeffects(left) then
+              begin
+                { build the division from a plain copy of the dividend: the
+                  subtree then matches a neighbouring 'x div C' textually and
+                  CSE folds the two divisions into one }
+                result:=caddnode.create_internal(subn,
+                  left,
+                  caddnode.create_internal(muln,
+                    cmoddivnode.create(divn,left.getcopy,right),
+                    right.getcopy));
+              end
+            else
+              begin
+                result:=internalstatements(statements);
+                temp:=ctempcreatenode.create(left.resultdef,left.resultdef.size,tt_persistent,true);
+                resulttemp:=ctempcreatenode.create(resultdef,resultdef.size,tt_persistent,true);
+                addstatement(statements,resulttemp);
+                addstatement(statements,temp);
+                addstatement(statements,cassignmentnode.create(ctemprefnode.create(temp),left));
+                addstatement(statements,cassignmentnode.create(ctemprefnode.create(resulttemp),
+                  caddnode.create_internal(subn,
+                    ctemprefnode.create(temp),
+                    caddnode.create_internal(muln,
+                      cmoddivnode.create(divn,ctemprefnode.create(temp),right),
+                      right.getcopy))));
+                addstatement(statements,ctempdeletenode.create(temp));
+                addstatement(statements,ctempdeletenode.create_normal_temp(resulttemp));
+                addstatement(statements,ctemprefnode.create(resulttemp));
+              end;
             left := nil;
             right := nil;
             firstpass(result);
