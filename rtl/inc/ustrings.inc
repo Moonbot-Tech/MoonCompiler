@@ -205,15 +205,7 @@ asm
   cmpl   $1,{$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
   je     .Lustrdecr_free
   jle    .Lustrdecr_done
-{$ifdef FPC_PIC}
-  movq   IsMultithread@GOTPCREL(%rip),%rax
-  cmpl   $0,(%rax)
-{$else FPC_PIC}
-  cmpl   $0,IsMultithread(%rip)
-{$endif FPC_PIC}
-  jz     .Lustrdecr_unlocked
-  .byte  0xf0
-.Lustrdecr_unlocked:
+     .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
   decl   {$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
   jnz    .Lustrdecr_done
 .Lustrdecr_free:
@@ -248,9 +240,7 @@ procedure fpc_UnicodeStr_Finalize_Many(data : PPointer;count : SizeInt);[Public,
 var
   i : SizeInt;
   p : pointer;
-  threaded : boolean;
 begin
-  threaded:=IsMultithread;
   for i:=0 to count-1 do
     begin
       p:=data[i];
@@ -262,21 +252,12 @@ begin
               FreeMem(p-UnicodeFirstOff)
             else if Ref>0 then
               begin
-                if threaded then
-                  begin
 {$ifdef VER3_2}
-                    if declocked(Ref) then
+                if declocked(Ref) then
 {$else}
-                    if AtomicDecrement(Ref)=0 then
+                if AtomicDecrement(Ref)=0 then
 {$endif}
-                      FreeMem(p-UnicodeFirstOff);
-                  end
-                else
-                  begin
-                    dec(Ref);
-                    if Ref=0 then
-                      FreeMem(p-UnicodeFirstOff);
-                  end;
+                  FreeMem(p-UnicodeFirstOff);
               end;
         end;
     end;
@@ -294,15 +275,7 @@ asm
   jz     .Lustrincr_done
   cmpl   $0,{$ifdef FPC_ABI_WIN64} -12(%rcx) {$else} -12(%rdi) {$endif}
   jl     .Lustrincr_done
-{$ifdef FPC_PIC}
-  movq   IsMultithread@GOTPCREL(%rip),%rax
-  cmpl   $0,(%rax)
-{$else FPC_PIC}
-  cmpl   $0,IsMultithread(%rip)
-{$endif FPC_PIC}
-  jz     .Lustrincr_unlocked
-  .byte  0xf0
-.Lustrincr_unlocked:
+     .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
   incl   {$ifdef FPC_ABI_WIN64} -12(%rcx) {$else} -12(%rdi) {$endif}
 .Lustrincr_done:
 end;
@@ -331,25 +304,18 @@ procedure fpc_UnicodeStr_Incr_Ref_Many(data : PPointer;count : SizeInt);[Public,
 var
   i : SizeInt;
   p : pointer;
-  threaded : boolean;
 begin
-  threaded:=IsMultithread;
   for i:=0 to count-1 do
     begin
       p:=data[i];
       if assigned(p) then
         with PUnicodeRec(p-UnicodeFirstOff)^ do
           if Ref>0 then
-            begin
-              if threaded then
 {$ifdef VER3_2}
-                inclocked(Ref)
+            inclocked(Ref);
 {$else}
-                AtomicIncrement(Ref)
+            AtomicIncrement(Ref);
 {$endif}
-              else
-                inc(Ref);
-            end;
     end;
 end;
 
@@ -517,15 +483,7 @@ asm
   jz     .Lustrassign_source_done
   cmpl   $0,{$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
   jle    .Lustrassign_source_done
-{$ifdef FPC_PIC}
-  movq   IsMultithread@GOTPCREL(%rip),%rax
-  cmpl   $0,(%rax)
-{$else FPC_PIC}
-  cmpl   $0,IsMultithread(%rip)
-{$endif FPC_PIC}
-  jz     .Lustrassign_source_unlocked
-  .byte  0xf0
-.Lustrassign_source_unlocked:
+     .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
   incl   {$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
 .Lustrassign_source_done:
   movq   {$ifdef FPC_ABI_WIN64} (%rcx),%r8 {$else} (%rdi),%rdx {$endif}
@@ -535,15 +493,7 @@ asm
   cmpl   $1,{$ifdef FPC_ABI_WIN64} -12(%r8) {$else} -12(%rdx) {$endif}
   je     .Lustrassign_free
   jle    .Lustrassign_done
-{$ifdef FPC_PIC}
-  movq   IsMultithread@GOTPCREL(%rip),%rax
-  cmpl   $0,(%rax)
-{$else FPC_PIC}
-  cmpl   $0,IsMultithread(%rip)
-{$endif FPC_PIC}
-  jz     .Lustrassign_dest_unlocked
-  .byte  0xf0
-.Lustrassign_dest_unlocked:
+     .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
   decl   {$ifdef FPC_ABI_WIN64} -12(%r8) {$else} -12(%rdx) {$endif}
   jnz    .Lustrassign_done
 .Lustrassign_free:

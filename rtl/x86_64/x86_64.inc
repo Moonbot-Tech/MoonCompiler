@@ -1491,15 +1491,7 @@ function declocked(var l : longint) : boolean;assembler; nostackframe;
   asm
      { this check should be done because a lock takes a lot }
      { of time!                                             }
-{$ifdef FPC_PIC}
-     movq       IsMultithread@GOTPCREL(%rip),%rax
-     cmpl       $0,(%rax)
-{$else FPC_PIC}
-     cmpl       $0,IsMultithread(%rip)
-{$endif FPC_PIC}
-     jz         .Ldeclockedskiplock
-     .byte      0xF0 // LOCK prefix.
-.Ldeclockedskiplock:
+     .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
      decl       {$ifdef FPC_ABI_WIN64} (%rcx) {$else} (%rdi) {$endif}
      setzb      %al
   end;
@@ -1510,15 +1502,7 @@ function declocked(var l : int64) : boolean;assembler; nostackframe;
   asm
      { this check should be done because a lock takes a lot }
      { of time!                                             }
-{$ifdef FPC_PIC}
-     movq       IsMultithread@GOTPCREL(%rip),%rax
-     cmpl       $0,(%rax)
-{$else FPC_PIC}
-     cmpl       $0,IsMultithread(%rip)
-{$endif FPC_PIC}
-     jz         .Ldeclockedskiplock
-     .byte      0xF0 // LOCK prefix.
-.Ldeclockedskiplock:
+     .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
      decq       {$ifdef FPC_ABI_WIN64} (%rcx) {$else} (%rdi) {$endif}
      setzb      %al
   end;
@@ -1530,15 +1514,7 @@ procedure inclocked(var l : longint);assembler; nostackframe;
   asm
      { this check should be done because a lock takes a lot }
      { of time!                                             }
-{$ifdef FPC_PIC}
-     movq       IsMultithread@GOTPCREL(%rip),%rax
-     cmpl       $0,(%rax)
-{$else FPC_PIC}
-     cmpl       $0,IsMultithread(%rip)
-{$endif FPC_PIC}
-     jz         .Linclockedskiplock
-     .byte      0xF0 // LOCK prefix.
-.Linclockedskiplock:
+     .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
      incl       {$ifdef FPC_ABI_WIN64} (%rcx) {$else} (%rdi) {$endif}
   end;
 
@@ -1549,15 +1525,7 @@ procedure inclocked(var l : int64);assembler; nostackframe;
   asm
      { this check should be done because a lock takes a lot }
      { of time!                                             }
-{$ifdef FPC_PIC}
-     movq       IsMultithread@GOTPCREL(%rip),%rax
-     cmpl       $0,(%rax)
-{$else FPC_PIC}
-     cmpl       $0,IsMultithread(%rip)
-{$endif FPC_PIC}
-     jz         .Linclockedskiplock
-     .byte      0xF0 // LOCK prefix.
-.Linclockedskiplock:
+     .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
      incq       {$ifdef FPC_ABI_WIN64} (%rcx) {$else} (%rdi) {$endif}
   end;
 

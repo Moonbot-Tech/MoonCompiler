@@ -111,6 +111,35 @@ end;
 
 {$ifndef FPC_SYSTEM_HAS_ANSISTR_DECR_REF}
 {$define FPC_SYSTEM_HAS_ANSISTR_DECR_REF}
+{$if defined(CPUX86_64) and not defined(VER3_2)}
+{ mirrors the hand-written unicodestring routine: the TAnsiRec layout
+  outside the bootstrap places Ref at the same -12 offset, so the raw
+  string triple (assign/incr/decr) runs the same lock-elided code
+  instead of the Pascal declocked path.  The bootstrap compiler keeps
+  the Pascal bodies (its header layout differs). }
+procedure fpc_AnsiStr_FreeHeader(Header: Pointer); noinline;
+begin
+  FreeMem(Header);
+end;
+
+Procedure fpc_ansistr_decr_ref (Var S : Pointer); [Public,Alias:'FPC_ANSISTR_DECR_REF']; compilerproc; assembler; nostackframe;
+asm
+  movq   {$ifdef FPC_ABI_WIN64} (%rcx),%rdx {$else} (%rdi),%rsi {$endif}
+  testq  {$ifdef FPC_ABI_WIN64} %rdx,%rdx {$else} %rsi,%rsi {$endif}
+  jz     .Lastrdecr_done
+  movq   $0,{$ifdef FPC_ABI_WIN64} (%rcx) {$else} (%rdi) {$endif}
+  cmpl   $1,{$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
+  je     .Lastrdecr_free
+  jle    .Lastrdecr_done
+     .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
+  decl   {$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
+  jnz    .Lastrdecr_done
+.Lastrdecr_free:
+  leaq   {$ifdef FPC_ABI_WIN64} -16(%rdx),%rcx {$else} -16(%rsi),%rdi {$endif}
+  jmp    fpc_AnsiStr_FreeHeader
+.Lastrdecr_done:
+end;
+{$else}
 Procedure fpc_ansistr_decr_ref (Var S : Pointer); [Public,Alias:'FPC_ANSISTR_DECR_REF'];  compilerproc;
 {
   Decreases the ReferenceCount of a non constant ansistring;
@@ -128,6 +157,7 @@ Begin
      and declocked(PAnsiRec(p-AnsiFirstOff)^.ref) then
     FreeMem(p-AnsiFirstOff);
 end;
+{$ifend}
 {$endif FPC_SYSTEM_HAS_ANSISTR_DECR_REF}
 
 { also define alias for internal use in the system unit }
@@ -142,9 +172,7 @@ procedure fpc_AnsiStr_Finalize_Many(data : PPointer;count : SizeInt);[Public,Ali
 var
   i : SizeInt;
   p : pointer;
-  threaded : boolean;
 begin
-  threaded:=IsMultithread;
   for i:=0 to count-1 do
     begin
       p:=data[i];
@@ -156,21 +184,12 @@ begin
               FreeMem(p-AnsiFirstOff)
             else if Ref>0 then
               begin
-                if threaded then
-                  begin
 {$ifdef VER3_2}
-                    if declocked(Ref) then
+                if declocked(Ref) then
 {$else}
-                    if AtomicDecrement(Ref)=0 then
+                if AtomicDecrement(Ref)=0 then
 {$endif}
-                      FreeMem(p-AnsiFirstOff);
-                  end
-                else
-                  begin
-                    dec(Ref);
-                    if Ref=0 then
-                      FreeMem(p-AnsiFirstOff);
-                  end;
+                  FreeMem(p-AnsiFirstOff);
               end;
         end;
     end;
@@ -179,11 +198,24 @@ end;
 
 {$ifndef FPC_SYSTEM_HAS_ANSISTR_INCR_REF}
 {$define FPC_SYSTEM_HAS_ANSISTR_INCR_REF}
-Procedure fpc_AnsiStr_Incr_Ref (S : Pointer); [Public,Alias:'FPC_ANSISTR_INCR_REF'];  compilerproc; inline;
+{$if defined(CPUX86_64) and not defined(VER3_2)}
+Procedure fpc_AnsiStr_Incr_Ref (S : Pointer); [Public,Alias:'FPC_ANSISTR_INCR_REF']; compilerproc; assembler; nostackframe;
+asm
+  testq  {$ifdef FPC_ABI_WIN64} %rcx,%rcx {$else} %rdi,%rdi {$endif}
+  jz     .Lastrincr_done
+  cmpl   $0,{$ifdef FPC_ABI_WIN64} -12(%rcx) {$else} -12(%rdi) {$endif}
+  jl     .Lastrincr_done
+     .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
+  incl   {$ifdef FPC_ABI_WIN64} -12(%rcx) {$else} -12(%rdi) {$endif}
+.Lastrincr_done:
+end;
+{$else}
+Procedure fpc_AnsiStr_Incr_Ref (S : Pointer); [Public,Alias:'FPC_ANSISTR_INCR_REF'];  compilerproc; {$if FPC_FULLVERSION>30202}inline;{$ifend}
 Begin
   If (S<>Nil) and (PAnsiRec(S-AnsiFirstOff)^.Ref>0) then
     inclocked(PAnsiRec(S-AnsiFirstOff)^.Ref);
 end;
+{$ifend}
 {$endif FPC_SYSTEM_HAS_ANSISTR_DECR_REF}
 
 { also define alias which can be used inside the system unit }
@@ -199,31 +231,52 @@ procedure fpc_AnsiStr_Incr_Ref_Many(data : PPointer;count : SizeInt);[Public,Ali
 var
   i : SizeInt;
   p : pointer;
-  threaded : boolean;
 begin
-  threaded:=IsMultithread;
   for i:=0 to count-1 do
     begin
       p:=data[i];
       if assigned(p) then
         with PAnsiRec(p-AnsiFirstOff)^ do
           if Ref>0 then
-            begin
-              if threaded then
 {$ifdef VER3_2}
-                inclocked(Ref)
+            inclocked(Ref);
 {$else}
-                AtomicIncrement(Ref)
+            AtomicIncrement(Ref);
 {$endif}
-              else
-                inc(Ref);
-            end;
     end;
 end;
 
 
 {$ifndef FPC_HAS_ANSISTR_ASSIGN}
 {$define FPC_HAS_ANSISTR_ASSIGN}
+{$if defined(CPUX86_64) and not defined(VER3_2)}
+{ mirror of the unicodestring assign: same header layout, same
+  lock-elided code }
+Procedure fpc_AnsiStr_Assign (Var DestS : Pointer;S2 : Pointer);[Public,Alias:'FPC_ANSISTR_ASSIGN']; compilerproc; assembler; nostackframe;
+asm
+  testq  {$ifdef FPC_ABI_WIN64} %rdx,%rdx {$else} %rsi,%rsi {$endif}
+  jz     .Lastrassign_source_done
+  cmpl   $0,{$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
+  jle    .Lastrassign_source_done
+     .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
+  incl   {$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
+.Lastrassign_source_done:
+  movq   {$ifdef FPC_ABI_WIN64} (%rcx),%r8 {$else} (%rdi),%rdx {$endif}
+  movq   {$ifdef FPC_ABI_WIN64} %rdx,(%rcx) {$else} %rsi,(%rdi) {$endif}
+  testq  {$ifdef FPC_ABI_WIN64} %r8,%r8 {$else} %rdx,%rdx {$endif}
+  jz     .Lastrassign_done
+  cmpl   $1,{$ifdef FPC_ABI_WIN64} -12(%r8) {$else} -12(%rdx) {$endif}
+  je     .Lastrassign_free
+  jle    .Lastrassign_done
+     .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
+  decl   {$ifdef FPC_ABI_WIN64} -12(%r8) {$else} -12(%rdx) {$endif}
+  jnz    .Lastrassign_done
+.Lastrassign_free:
+  leaq   {$ifdef FPC_ABI_WIN64} -16(%r8),%rcx {$else} -16(%rdx),%rdi {$endif}
+  jmp    fpc_AnsiStr_FreeHeader
+.Lastrassign_done:
+end;
+{$else}
 Procedure fpc_AnsiStr_Assign (Var DestS : Pointer;S2 : Pointer);[Public,Alias:'FPC_ANSISTR_ASSIGN'];  compilerproc;
 {
   Assigns S2 to S1 (S1:=S2), taking in account reference counts.
@@ -245,6 +298,7 @@ begin
       and declocked(PAnsiRec(old-AnsiFirstOff)^.ref)) then
     FreeMem(old-AnsiFirstOff);
 end;
+{$ifend}
 {$endif FPC_HAS_ANSISTR_ASSIGN}
 
 

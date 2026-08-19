@@ -341,7 +341,9 @@ Function fpc_Val_smallint_UnicodeStr (Const S : UnicodeString; out Code : ValSIn
 { A glitch in FPC 3.2.2 prevents inline from working properly here on
   ARM (causes a dangling pointer and hence heap corruption). }
 Procedure fpc_ansistr_decr_ref (Var S : Pointer); compilerproc; {$if FPC_FULLVERSION>30202}inline;{$ifend}
-Procedure fpc_ansistr_incr_ref (S : Pointer); compilerproc; {$if FPC_FULLVERSION>30202}inline;{$ifend}
+{ on x86-64 the incr_ref body is a hand-written assembler routine (see
+  astrings.inc) and cannot be inline }
+Procedure fpc_ansistr_incr_ref (S : Pointer); compilerproc; {$if (FPC_FULLVERSION>30202) and not defined(CPUX86_64)}inline;{$ifend}
 Procedure fpc_AnsiStr_Assign (Var DestS : Pointer;S2 : Pointer); compilerproc;
 Procedure fpc_AnsiStr_Concat (Var DestS : RawByteString;const S1,S2 : RawByteString;cp : TSystemCodePage); compilerproc;
 Procedure fpc_AnsiStr_Concat_multi (Var DestS : RawByteString;const sarr:array of RawByteString;cp : TSystemCodePage); compilerproc;
