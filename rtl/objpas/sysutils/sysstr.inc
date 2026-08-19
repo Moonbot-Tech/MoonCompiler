@@ -339,7 +339,9 @@ end;
 function SameText(const s1,s2:String):Boolean; overload;{$ifdef SYSUTILSINLINE}inline;{$endif}
 
 begin
- Result:=(Length(s1)=Length(s2)) and (CompareText(S1,S2)=0);
+ { the pointer-equal shortcut sits in the inline part: the common
+   same-instance comparison never pays the CompareText call }
+ Result:=(Length(s1)=Length(s2)) and ((Pointer(s1)=Pointer(s2)) or (CompareText(S1,S2)=0));
 end;
 
 function SameText(const s1,s2:String; LocaleOptions: TLocaleOptions):Boolean; overload;{$ifdef SYSUTILSINLINE}inline;{$endif}

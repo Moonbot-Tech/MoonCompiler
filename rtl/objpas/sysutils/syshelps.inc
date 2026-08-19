@@ -10,7 +10,7 @@ type
 
 {$IF not defined(IS_SHORTSTRINGHELPER) and not defined(IS_UNICODESTRINGHELPER)}
 // Doubles with (wide/ansi)string...
-Function HaveChar(AChar : TStringChar; const AList: array of TStringChar) : Boolean;
+Function HaveChar(AChar : TStringChar; const AList: array of TStringChar) : Boolean; inline;
 
 Var
   I : SizeInt;
@@ -20,6 +20,36 @@ begin
   while (I<=High(AList)) and (AList[I]<>AChar) do
     Inc(I);
   Result:=I<=High(AList);
+end;
+
+{ case-insensitive range equality with the CompareText ASCII fold - lets the
+  IgnoreCase facades compare in place instead of building Copy/LowerCase
+  temporaries per call }
+Function SameTextRange(P1,P2 : PTStringChar; L : SizeInt) : Boolean;
+
+Var
+  C1,C2 : Cardinal;
+
+begin
+  Result:=False;
+  While L>0 do
+    begin
+    C1:=Ord(P1^);
+    C2:=Ord(P2^);
+    if C1<>C2 then
+      begin
+      if (C1>=Ord('a')) and (C1<=Ord('z')) then
+        Dec(C1,32);
+      if (C2>=Ord('a')) and (C2<=Ord('z')) then
+        Dec(C2,32);
+      if C1<>C2 then
+        exit;
+      end;
+    Inc(P1);
+    Inc(P2);
+    Dec(L);
+    end;
+  Result:=True;
 end;
 {$ENDIF}
 
@@ -420,11 +450,29 @@ begin
 end;
 
 function TStringHelper.Contains(const AValue: TStringType; IgnoreCase: Boolean = False): Boolean;
+Var
+  L,NS,I : SizeInt;
+  PS,PV : PTStringChar;
 begin
-  if IgnoreCase then
-    Result:=Pos(LowerCase(AValue),LowerCase(Self))>0
-  else
-    Result:=Pos(AValue,Self)>0;
+  if not IgnoreCase then
+    Exit(Pos(AValue,Self)>0);
+  { scan in place with the ASCII fold instead of building two LowerCase
+    copies per call; the fold class matches Pos(LowerCase,LowerCase) }
+  L:=System.Length(AValue);
+  NS:=System.Length(Self);
+  if (L=0) or (L>NS) then
+    Exit(False);
+{$IFDEF IS_SHORTSTRINGHELPER}
+  PS:=PTStringChar(@Self[1]);
+  PV:=PTStringChar(@AValue[1]);
+{$ELSE}
+  PS:=PTStringChar(Pointer(Self));
+  PV:=PTStringChar(Pointer(AValue));
+{$ENDIF}
+  for I:=0 to NS-L do
+    if SameTextRange(PS+I,PV,L) then
+      Exit(True);
+  Result:=False;
 end;
 
 function TStringHelper.CountChar(const C: TStringChar): SizeInt;
@@ -502,7 +550,11 @@ begin
   Result:=L<=NS;
   if Result then
     if IgnoreCase then
-      Result:=SameText(System.Copy(Self,NS-L+1,L),AValue)
+{$IFDEF IS_SHORTSTRINGHELPER}
+      Result:=SameTextRange(PTStringChar(@Self[1])+(NS-L),PTStringChar(@AValue[1]),L)
+{$ELSE}
+      Result:=SameTextRange(PTStringChar(Pointer(Self))+(NS-L),PTStringChar(Pointer(AValue)),L)
+{$ENDIF}
     else
 {$IFDEF IS_SHORTSTRINGHELPER}
       Result:=CompareByte(PTStringChar(@Self[1])[NS-L],PTStringChar(@AValue[1])^,L*sizeof(TStringChar))=0;
@@ -616,6 +668,12 @@ begin
   CountLim:=System.Length(Self)-StartIndex;
   if ACount>CountLim then
     ACount:=CountLim;
+{$IFNDEF IS_SHORTSTRINGHELPER}
+  { a search that runs to the end of the string is exactly Pos, whose
+    vectorized scan beats the generic loop below }
+  if ACount=CountLim then
+    Exit(System.Pos(AValue,Self,StartIndex+1)-1);
+{$ENDIF}
   NV:=System.Length(AValue);
   if (NV>0) and (ACount>=NV) then
     begin
@@ -1222,8 +1280,75 @@ function TStringHelper.Split(const Separators: array of TStringChar; AQuoteStart
 
 Var
   Sep,LastSep,Len : SizeInt;
+{$IFNDEF IS_SHORTSTRINGHELPER}
+  SrcLen,J : SizeInt;
+  PS,PC,PE : PTStringChar;
+  Hit : Boolean;
+{$ENDIF}
 
 begin
+{$IFNDEF IS_SHORTSTRINGHELPER}
+  { Unquoted splitting: one pass over the text, the next separator found
+    with the vectorized IndexChar for the common single-separator call,
+    fields cut with SetString, the array grown by doubling (a dynarray
+    realloc moves the string pointers without refcount traffic).  The
+    general path below pays a nested call plus a HaveChar call for every
+    scanned character and regrows in small steps. }
+  if AQuoteStart=#0 then
+    begin
+      SrcLen:=System.Length(Self);
+      PS:=PTStringChar(Pointer(Self));
+      PE:=PS+SrcLen;
+      SetLength(Result,8);
+      Len:=0;
+      LastSep:=0;
+      While ((ACount=0) or (Len<ACount)) and (LastSep<=SrcLen) do
+        begin
+        if High(Separators)=0 then
+          begin
+          Sep:=IndexChar((PS+LastSep)^,SrcLen-LastSep,Separators[0]);
+          if Sep>=0 then
+            Sep:=Sep+LastSep
+          else
+            Sep:=SrcLen;
+          end
+        else
+          begin
+          Sep:=SrcLen;
+          PC:=PS+LastSep;
+          while PC<PE do
+            begin
+            Hit:=False;
+            for J:=0 to High(Separators) do
+              if PC^=Separators[J] then
+                begin
+                Hit:=True;
+                Break;
+                end;
+            if Hit then
+              begin
+              Sep:=PC-PS;
+              Break;
+              end;
+            Inc(PC);
+            end;
+          end;
+        If (Sep>LastSep) or (not (TStringSplitOptions.ExcludeEmpty=Options)) then
+          begin
+          if System.Length(Result)<=Len then
+            SetLength(Result,System.Length(Result)*2);
+          SetString(Result[Len],PS+LastSep,Sep-LastSep);
+          Inc(Len);
+          end;
+        LastSep:=Sep+1;
+        end;
+      If (TStringSplitOptions.ExcludeLastEmpty=Options) then
+        if (Len > 0) and (Result[Len-1] = '') then
+          dec(Len);
+      SetLength(Result,Len);
+      exit;
+    end;
+{$ENDIF}
   Result:=nil;
   Len:=0;
   LastSep:=0;
@@ -1357,7 +1482,11 @@ begin
   Result:=L<=System.Length(Self);
   if Result then
     if IgnoreCase then
-      Result:=SameText(System.Copy(Self,1,L),AValue)
+{$IFDEF IS_SHORTSTRINGHELPER}
+      Result:=SameTextRange(PTStringChar(@Self[1]),PTStringChar(@AValue[1]),L)
+{$ELSE}
+      Result:=SameTextRange(PTStringChar(Pointer(Self)),PTStringChar(Pointer(AValue)),L)
+{$ENDIF}
     else
 {$IFDEF IS_SHORTSTRINGHELPER}
       Result:=CompareByte(PTStringChar(@Self[1])^,PTStringChar(@AValue[1])^,L*sizeof(TStringChar))=0;
