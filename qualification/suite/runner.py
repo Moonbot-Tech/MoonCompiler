@@ -1805,6 +1805,7 @@ def run_upstream_case(
         "make", "-C", str(source_root / "tests"), f"-j{jobs}", "full",
         f"FPC={driver}", f"TEST_FPC={driver}",
         f"NATIVE_FPC={driver}", "TEST_OPT=" + " ".join(test_options),
+        "OPT=" + " ".join(upstream.get("host_support_options", [])),
         "TEST_DELTEMP=1",
     ]
     env = os.environ.copy()
@@ -1893,6 +1894,9 @@ def run_upstream_case(
         source = source_link.resolve()
         if not source.is_file():
             raise RuntimeError(f"upstream log references missing source: {source}")
+        core_profile_exclusion = upstream.get("core_profile_exclusions", {}).get(
+            test_id
+        )
         contract_exclusion = upstream.get("delphi_contract_exclusions", {}).get(
             test_id
         )
@@ -1905,7 +1909,9 @@ def run_upstream_case(
             detail, observed, expected_failure,
         )
         excluded_reason: str | None = None
-        if contract_exclusion:
+        if core_profile_exclusion:
+            excluded_reason = core_profile_exclusion
+        elif contract_exclusion:
             excluded_reason = contract_exclusion
         elif target_exclusion:
             excluded_reason = target_exclusion
@@ -2503,6 +2509,11 @@ def run_mormot(
     writer: ResultWriter, manifest: dict[str, Any], compiler_filter: set[str] | None,
     option_filter: set[str] | None, test_filter: set[str] | None,
 ) -> None:
+    if sys.platform != "linux" or os.uname().machine != "x86_64":
+        raise RuntimeError(
+            "mORMot qualification requires native Linux x86-64: its exact "
+            "corpus includes Linux static inputs and POSIX boundary probes"
+        )
     sources = manifest["mormot"]["sources"]
     for probe_id, probe in manifest["mormot"].get("probes", {}).items():
         test_id = f"mormot-probe-{probe_id}"

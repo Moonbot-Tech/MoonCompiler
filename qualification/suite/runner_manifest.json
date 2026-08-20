@@ -1831,8 +1831,19 @@
     "compiler_allow": [
       "moonbot-compiler-beta"
     ],
+    "core_profile_exclusions": {
+      "test/cg/tdelphivariantrawbytestring1.pp": "product-profile regression requires the separately installed Variants package; the upstream core harness deliberately compiles with -n and only its base RTL",
+      "test/cg/tdelphivariantstring1.pp": "product-profile regression requires the separately installed Variants package; the upstream core harness deliberately compiles with -n and only its base RTL",
+      "test/cg/tmoonattributemarker1.pp": "product-profile regression requires the separately installed Rtti package; the upstream core harness deliberately compiles with -n and only its base RTL",
+      "test/cg/tmoondelphicallbacktypes1.pp": "product-profile regression requires the Moon Compiler SysUtils callback aliases, which are intentionally absent from the separately built upstream core RTL",
+      "test/units/classes/tmoonunicodestringlist1.pp": "product-profile Unicode TStringList regression; the upstream core harness deliberately builds the base ANSI RTL without MOONCOMPILER_UNICODE_DEFAULT",
+      "test/units/sysutils/tmoonunicodeansisysutils1.pp": "product-profile Unicode SysUtils regression; the upstream core harness deliberately builds the base ANSI RTL without MOONCOMPILER_UNICODE_DEFAULT",
+      "test/units/sysutils/tmoonunicodeformat1.pp": "product-profile Unicode Format regression; the upstream core harness deliberately builds the base ANSI RTL without MOONCOMPILER_UNICODE_DEFAULT"
+    },
     "expected_outcomes": "research/upstream_expected_outcomes.audited-001.json",
     "delphi_contract_exclusions": {
+      "test/units/math/tmask.pp": "the test assumes the legacy FPC x86 floating-exception defaults; the Moon product profile deliberately uses Delphi 12.2 masked defaults and explicit SetExceptionMask remains the opt-in trap control",
+      "test/units/math/tmask2.pp": "the test assumes the legacy FPC x86 floating-exception defaults; the Moon product profile deliberately uses Delphi 12.2 masked defaults and explicit SetExceptionMask remains the opt-in trap control",
       "test/tcpstrconcat4.pp": "the FPC-specific RawByteString destination oracle conflicts with Delphi 12.2, which converts both same- and mixed-codepage typed AnsiString expressions through DefaultSystemCodePage",
       "test/cg/tint128constfold1.pp": "FPC UInt128 and Int128 extensions are outside the Delphi application contract",
       "test/tsetsize.pp": "legacy FPC set-size oracle conflicts with the measured Delphi record ABI",
@@ -1867,6 +1878,9 @@
     "jobs": 27,
     "note": "Run the upstream compiler test suite from the current editable worktree.",
     "path": "../..",
+    "host_support_options": [
+      "-Facwstring"
+    ],
     "test_support_options": [
       "-Fl/usr/lib/gcc/x86_64-linux-gnu/13"
     ],

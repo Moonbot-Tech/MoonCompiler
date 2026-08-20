@@ -3,15 +3,19 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 FIXTURES=$ROOT/qualification/pinned-unit
-COMPILER=${1:-$ROOT/.moonbot/toolchain/bin/ppcx64}
+COMPILER=${1:-$ROOT/.moonbot/toolchain/bin/fpc}
+CONFIG=${2:-$ROOT/.moonbot/toolchain/etc/fpc.cfg}
 RTL=$ROOT/rtl/units/x86_64-linux
 OUTPUT=$ROOT/.qualification/pinned-unit
 PINNED=$FIXTURES/pinned/PinFixture.pas
 FOREIGN=$FIXTURES/foreign
 
+[[ -x "$COMPILER" ]] || { echo "compiler not found: $COMPILER" >&2; exit 2; }
+[[ -f "$CONFIG" ]] || { echo "compiler config not found: $CONFIG" >&2; exit 2; }
+
 rm -rf "$OUTPUT"
 mkdir -p "$OUTPUT/stale-ppu"
-"$COMPILER" -n -Mdelphi -O2 -B -Fu"$RTL" -FU"$OUTPUT/stale-ppu" \
+"$COMPILER" -n "@$CONFIG" -Mdelphi -O2 -B -Fu"$RTL" -FU"$OUTPUT/stale-ppu" \
   "$FOREIGN/PinFixture.pas" >"$OUTPUT/stale-ppu/build.log" 2>&1
 
 compile() {
@@ -20,7 +24,7 @@ compile() {
   local target=$OUTPUT/$name
   mkdir -p "$target"
   set +e
-  "$COMPILER" -n -Mdelphi -O2 -B -Fu"$RTL" \
+  "$COMPILER" -n "@$CONFIG" -Mdelphi -O2 -B -Fu"$RTL" \
     -Fu"$OUTPUT/stale-ppu" -Fu"$FOREIGN" -FU"$target" -FE"$target" \
     -o"$target/$name" "$@" "$FIXTURES/$program" >"$target/build.log" 2>&1
   local status=$?
