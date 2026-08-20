@@ -129,6 +129,8 @@ begin
   SL:=System.Length(S);
   if SL>0 then
     begin
+    if SL>FMaxCapacity-FLength then
+      Raise ERangeError.CreateFmt(SListIndexError,[Int64(FLength)+SL]);
     NewLen:=FLength+SL;
     if NewLen>System.Length(FData) then
       GrowTo(NewLen);
@@ -147,6 +149,8 @@ begin
   CheckRange(Idx,aCount,System.Length(AValue));
   if aCount>0 then
     begin
+    if aCount>FMaxCapacity-FLength then
+      Raise ERangeError.CreateFmt(SListIndexError,[Int64(FLength)+aCount]);
     NewLen:=FLength+aCount;
     if NewLen>System.Length(FData) then
       GrowTo(NewLen);
@@ -253,6 +257,8 @@ begin
   { going through DoAppend would build a one-char heap string per call;
     a single character goes into the buffer directly (Delphi does the
     same - its char append never touches the string overload) }
+  if FLength=FMaxCapacity then
+    Raise ERangeError.CreateFmt(SListIndexError,[Int64(FLength)+1]);
   NewLen:=FLength+1;
   if NewLen>System.Length(FData) then
     GrowTo(NewLen);
@@ -365,6 +371,8 @@ begin
   SL:=System.Length(AValue);
   if SL>0 then
     begin
+    if SL>FMaxCapacity-FLength then
+      Raise ERangeError.CreateFmt(SListIndexError,[Int64(FLength)+SL]);
     NewLen:=FLength+SL;
     if NewLen>System.Length(FData) then
       GrowTo(NewLen);
@@ -456,9 +464,10 @@ var
   NewCapacity: SizeInt;
 
 begin
-  NewCapacity:=Capacity*2;
-  if NewCapacity>MaxCapacity then
-    NewCapacity:=MaxCapacity;
+  if Capacity>MaxCapacity div 2 then
+    NewCapacity:=MaxCapacity
+  else
+    NewCapacity:=Capacity*2;
   Capacity:=NewCapacity;
 end;
 
@@ -476,9 +485,13 @@ begin
   if NewCapacity=0 then
     NewCapacity:=DefaultCapacity;
   while NewCapacity<aMinCapacity do
-    NewCapacity:=NewCapacity*2;
-  if NewCapacity>FMaxCapacity then
-    NewCapacity:=FMaxCapacity;
+    if NewCapacity>FMaxCapacity div 2 then
+      begin
+        NewCapacity:=FMaxCapacity;
+        break;
+      end
+    else
+      NewCapacity:=NewCapacity*2;
   Capacity:=NewCapacity;
 end;
 
@@ -734,7 +747,7 @@ begin
     old capacity, so a sparsely filled buffer moves just the live run to
     a fresh block instead.  A mostly full buffer keeps the array resize -
     the reallocation can often extend the block in place }
-  if FLength*2<=System.Length(FData) then
+  if FLength<=System.Length(FData) div 2 then
     begin
     NewData:=nil;
     System.SetLength(NewData,AValue);
