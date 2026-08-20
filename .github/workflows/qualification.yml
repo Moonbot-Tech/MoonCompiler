@@ -64,6 +64,9 @@ jobs:
           scripts/run_exception_capture_gate.sh \
             ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
             ci-linux-exception
+          scripts/run_linux_psabieh_gate.sh \
+            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ci-linux-psabieh
           scripts/run_rtti_gettypes_gate.sh \
             ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
             ci-linux-rtti
