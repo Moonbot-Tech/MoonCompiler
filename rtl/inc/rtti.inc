@@ -380,6 +380,89 @@ end;
 {$endif FPC_MANAGED_MOVE}
 
 
+procedure InitializeArrayElements(data,typeinfo : pointer;count : SizeInt); forward;
+
+procedure InitializeArrayRecordElement(Data : pointer;Ri : PRecordInfoInit);
+  var
+    initialized : SizeInt;
+    first,re : PRecordElement;
+  begin
+    first:=AlignTypeData(Pointer(@Ri^.Count)+SizeOf(Ri^.Count));
+    re:=first;
+    initialized:=0;
+    try
+      while initialized<Ri^.Count do
+        begin
+          case PTypeKind(re^.TypeInfo^)^ of
+            tkArray:
+              with PArrayInfo(aligntoqword(re^.TypeInfo^+2+PByte(re^.TypeInfo^)[1]))^ do
+                InitializeArrayElements(data+re^.Offset,ElInfo^,ElCount);
+{$ifdef FPC_HAS_FEATURE_OBJECTS}
+            tkObject,
+{$endif FPC_HAS_FEATURE_OBJECTS}
+            tkRecord:
+              InitializeArrayRecordElement(data+re^.Offset,
+                RTTIRecordInfoInit(re^.TypeInfo^));
+          else
+            InlinedInitialize(data+re^.Offset,re^.TypeInfo^);
+          end;
+          inc(initialized);
+          inc(re);
+        end;
+    except
+      { Delphi's array initializer owns every fully initialized field of
+        the current record element.  Unwind that prefix in reverse, but do
+        not finalize the field whose Initialize raised. }
+      while initialized>0 do
+        begin
+          dec(initialized);
+          int_finalize(data+first[initialized].Offset,
+            first[initialized].TypeInfo^);
+        end;
+      raise;
+    end;
+    { A custom record Initialize owns its own failure contract.  Delphi
+      does not finalize the already initialized fields when this call
+      raises, so keep it outside the prefix-unwind frame. }
+    if Assigned(Ri^.RecordOp) and Assigned(Ri^.RecordOp^.Initialize) then
+      Ri^.RecordOp^.Initialize(Data);
+  end;
+
+
+procedure InitializeArrayElements(data,typeinfo : pointer;count : SizeInt);
+  var
+    sample,size,initialized : SizeInt;
+    ri : PRecordInfoInit;
+  begin
+    sample:=RTTIManagedSizes[PTypeKind(typeinfo)^];
+    if sample<>RTTISpecialSize then
+      FillChar(data^,sample*count,0)
+    else if PTypeKind(typeinfo)^=tkArray then
+      with PArrayInfo(aligntoqword(typeInfo+2+PByte(typeInfo)[1]))^ do
+        InitializeArrayElements(data,ElInfo^,count*ElCount)
+    else
+      begin
+        ri:=RTTIRecordInfoInit(typeinfo);
+        size:=ri^.size;
+        initialized:=0;
+        try
+          while initialized<count do
+            begin
+              InitializeArrayRecordElement(data+size*initialized,ri);
+              inc(initialized);
+            end;
+        except
+          while initialized>0 do
+            begin
+              dec(initialized);
+              int_finalize(data+size*initialized,typeinfo);
+            end;
+          raise;
+        end;
+      end;
+  end;
+
+
 procedure fpc_initialize_array(data,typeinfo : pointer;count : SizeInt); [public,alias:'FPC_INITIALIZE_ARRAY']; compilerproc;
   var
     sample,size,i : SizeInt;
@@ -396,8 +479,11 @@ procedure fpc_initialize_array(data,typeinfo : pointer;count : SizeInt); [public
         ri:=RTTIRecordInfoInit(typeinfo);
         size:=ri^.size;
         if (ri^.Count>0) or Assigned(Ri^.RecordOp) then { Heuristically replaces the more expensive RTTIManagementAndSize. Can have false positives but they are harmless and won’t occur in practice. }
-          for i:=0 to count-1 do
-            InitializeRecord(data+size*i,ri);
+          if RTTIManagementAndSize(typeinfo,rotInitialize,sample,true) then
+            InitializeArrayElements(data,typeinfo,count)
+          else
+            for i:=0 to count-1 do
+              InitializeRecord(data+size*i,ri);
       end;
   end;
 
