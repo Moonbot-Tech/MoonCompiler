@@ -13,6 +13,9 @@ program managed_out_forwarding_semantic;
 uses
   {$ifdef FPC}
   mormot.core.fpcx64mm,
+  {$ifdef linux}
+  cthreads,
+  {$endif}
   {$endif}
   SysUtils;
 

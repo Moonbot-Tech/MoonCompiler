@@ -12,6 +12,9 @@ program try_finally_paths_semantic;
 uses
   {$ifdef FPC}
   mormot.core.fpcx64mm,
+  {$ifdef linux}
+  cthreads,
+  {$endif}
   {$endif}
   SysUtils;
 
