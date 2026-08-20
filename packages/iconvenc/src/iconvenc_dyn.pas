@@ -55,15 +55,15 @@ var
   iconv_close: Ticonv_close;
   IconvLibFound: boolean = False;
 
-function TryLoadLib(LibName: string; var error: String): boolean; // can be used to load non standard libname
+function TryLoadLib(LibName: AnsiString; var error: AnsiString): boolean; // can be used to load non standard libname
 function Iconvert(s: AnsiString; var res: AnsiString; const FromEncoding, ToEncoding: AnsiString): cint;
 function InitIconv(var error: AnsiString): boolean;
 
 implementation
 
-function TryLoadLib(LibName: string; var error: String): boolean;
+function TryLoadLib(LibName: AnsiString; var error: AnsiString): boolean;
 
-    function resolvesymbol (var funcptr; symbol: string): Boolean;
+    function resolvesymbol (var funcptr; symbol: AnsiString): Boolean;
     begin
       pointer(funcptr) := pointer(dlsym(iconv_lib, PAnsiChar(symbol)));
       result := assigned(pointer(funcptr));
@@ -71,8 +71,6 @@ function TryLoadLib(LibName: string; var error: String): boolean;
         error := error+#13#10+dlerror();
     end;
 
-var
-  res: boolean;
 begin
   result := false;
   Error := Error+#13#10'Trying '+LibName;
@@ -97,7 +95,7 @@ begin
 end;
 
 
-function InitIconv(var error: string): boolean;
+function InitIconv(var error: AnsiString): boolean;
 begin
   result := true;
   error := '';
