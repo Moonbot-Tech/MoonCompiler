@@ -29,9 +29,15 @@ const
 function DelphiModeDefinesMatchTypes: Boolean;
 begin
 {$ifdef FPC}
+{$ifdef MOONCOMPILER_UNICODE_DEFAULT}
+  Result := (SizeOf(Char) = 2) and (SizeOf(PChar^) = 2) and
+    (SizeOf(String('x')[1]) = 2) and
+    HasFpcUnicodeStrings and HasUnicode;
+{$else}
   Result := (SizeOf(Char) = 1) and (SizeOf(PChar^) = 1) and
     (SizeOf(String('x')[1]) = 1) and
     not HasFpcUnicodeStrings and not HasUnicode;
+{$endif}
 {$else}
   Result := True;
 {$endif}

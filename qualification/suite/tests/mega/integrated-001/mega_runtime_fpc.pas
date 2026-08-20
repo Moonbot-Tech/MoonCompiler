@@ -267,7 +267,7 @@ begin
     Result := -1;
 end;
 
-function KnownInlineShortString(S: ShortString): PChar; inline;
+function KnownInlineShortString(S: ShortString): PAnsiChar; inline;
 begin
   GetMem(Result, Length(S) + 1);
   if Length(S) > 0 then
@@ -929,7 +929,7 @@ var
   Milliseconds: Int64;
   ActualFloat, OracleFloat: Double;
   ActualBits, OracleBits: QWord;
-  TextPointer: PChar;
+  TextPointer: PAnsiChar;
   PointerValue, NormalPointer, InlinePointer: Pointer;
 
   procedure KnownCheck(Condition: Boolean; const Name: RawByteString);
@@ -1168,7 +1168,7 @@ var
   ActualFloat: Double;
   ActualBits: QWord;
   PointerValue: Pointer;
-  TextPointer: PChar;
+  TextPointer: PAnsiChar;
 begin
   KnownLongIndex := 0;
   ActualFloat := KnownAbsoluteDouble;
