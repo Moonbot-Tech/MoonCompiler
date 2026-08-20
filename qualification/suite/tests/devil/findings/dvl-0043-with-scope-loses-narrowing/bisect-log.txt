@@ -1,0 +1,14 @@
+checking the split is alive on the full set
+  live expr,unary,fold,cmp,life,abi,float,str,disp,gen,arr,unit,chk,thr,set,rtti,flow,i128,lang,uni,exc,init,opt,call,inl,intf,dyn,asm,io,decl,chain,meta,weave,matrix,composite,genpath,narrowpath,pick,scope,lit,capture,attr,deliver,load
+cutting the environment
+    ours did not compile
+  gone gen,opt,call,inl,intf,dyn,asm,io,decl,chain,meta,weave,matrix,composite,genpath,narrowpath,pick,scope,lit,capture,attr,deliver,load
+  live expr,unary,fold,cmp,life,abi,float,str,disp,gen,arr,unit,chk,thr,set,rtti,flow,i128,lang,uni,exc,init,load
+  live gen,chk,thr,set,rtti,flow,i128,lang,uni,exc,init,load
+  live gen,i128,lang,uni,exc,init,load
+  live gen,exc,init,load
+  live gen,init,load
+  live gen,load
+cutting the slice size
+  gone cases=60
+DEVIL_BISECT {"cases": 120, "environment": ["gen", "load"], "kills_when_removed": [], "seed": 24, "target": "dvl-gen-00109-nested"}

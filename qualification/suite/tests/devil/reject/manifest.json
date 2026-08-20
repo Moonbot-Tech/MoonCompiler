@@ -1,53 +1,13 @@
 {
   "cases": [
     {
-      "case": "assign-const",
-      "program": "dvl_reject_assign_const",
-      "verdict": "reject"
-    },
-    {
-      "case": "overload-ambiguous",
-      "program": "dvl_reject_overload_ambiguous",
-      "verdict": "accept"
-    },
-    {
-      "case": "out-param-const",
-      "program": "dvl_reject_out_param_const",
-      "verdict": "reject"
-    },
-    {
-      "case": "inherited-without-parent",
-      "program": "dvl_reject_inherited_without_parent",
-      "verdict": "accept"
-    },
-    {
-      "case": "nested-function-capture-in-closure",
-      "program": "dvl_reject_nested_function_capture_in_closure",
-      "verdict": "reject"
-    },
-    {
-      "case": "interface-no-guid-supports",
-      "program": "dvl_reject_interface_no_guid_supports",
-      "verdict": "reject"
-    },
-    {
       "case": "class-var-access",
       "program": "dvl_reject_class_var_access",
       "verdict": "accept"
     },
     {
-      "case": "inline-const-runtime",
-      "program": "dvl_reject_inline_const_runtime",
-      "verdict": "accept"
-    },
-    {
-      "case": "wrong-argument-count",
-      "program": "dvl_reject_wrong_argument_count",
-      "verdict": "reject"
-    },
-    {
-      "case": "string-to-pchar-implicit",
-      "program": "dvl_reject_string_to_pchar_implicit",
+      "case": "array-const-wrong-count",
+      "program": "dvl_reject_array_const_wrong_count",
       "verdict": "reject"
     },
     {
@@ -56,18 +16,8 @@
       "verdict": "reject"
     },
     {
-      "case": "with-ambiguous-ok",
-      "program": "dvl_reject_with_ambiguous_ok",
-      "verdict": "accept"
-    },
-    {
-      "case": "inline-var-scope",
-      "program": "dvl_reject_inline_var_scope",
-      "verdict": "accept"
-    },
-    {
-      "case": "const-param-write",
-      "program": "dvl_reject_const_param_write",
+      "case": "missing-result-type",
+      "program": "dvl_reject_missing_result_type",
       "verdict": "reject"
     },
     {
@@ -76,23 +26,28 @@
       "verdict": "accept"
     },
     {
-      "case": "set-element-out-of-range",
-      "program": "dvl_reject_set_element_out_of_range",
+      "case": "class-var-in-record",
+      "program": "dvl_reject_class_var_in_record",
+      "verdict": "accept"
+    },
+    {
+      "case": "inherited-in-class-method",
+      "program": "dvl_reject_inherited_in_class_method",
+      "verdict": "accept"
+    },
+    {
+      "case": "supports-interface-without-guid",
+      "program": "dvl_reject_supports_interface_without_guid",
       "verdict": "reject"
     },
     {
-      "case": "type-mismatch-string-int",
-      "program": "dvl_reject_type_mismatch_string_int",
-      "verdict": "reject"
+      "case": "asm-routine-ok",
+      "program": "dvl_reject_asm_routine_ok",
+      "verdict": "accept"
     },
     {
-      "case": "assign-to-inline-const",
-      "program": "dvl_reject_assign_to_inline_const",
-      "verdict": "reject"
-    },
-    {
-      "case": "interface-missing-method",
-      "program": "dvl_reject_interface_missing_method",
+      "case": "helper-name-as-type",
+      "program": "dvl_reject_helper_name_as_type",
       "verdict": "reject"
     },
     {
@@ -101,48 +56,23 @@
       "verdict": "accept"
     },
     {
-      "case": "duplicate-identifier",
-      "program": "dvl_reject_duplicate_identifier",
+      "case": "exit-with-value-in-procedure",
+      "program": "dvl_reject_exit_with_value_in_procedure",
       "verdict": "reject"
     },
     {
-      "case": "generic-wrong-arity",
-      "program": "dvl_reject_generic_wrong_arity",
-      "verdict": "reject"
-    },
-    {
-      "case": "case-duplicate-label",
-      "program": "dvl_reject_case_duplicate_label",
-      "verdict": "reject"
-    },
-    {
-      "case": "goto-into-block",
-      "program": "dvl_reject_goto_into_block",
+      "case": "absolute-over-local",
+      "program": "dvl_reject_absolute_over_local",
       "verdict": "accept"
     },
     {
-      "case": "record-method-static-self",
-      "program": "dvl_reject_record_method_static_self",
-      "verdict": "reject"
+      "case": "attribute-marker-inline-var",
+      "program": "dvl_reject_attribute_marker_inline_var",
+      "verdict": "accept"
     },
     {
-      "case": "for-counter-not-ordinal",
-      "program": "dvl_reject_for_counter_not_ordinal",
-      "verdict": "reject"
-    },
-    {
-      "case": "generic-constraint-violation",
-      "program": "dvl_reject_generic_constraint_violation",
-      "verdict": "reject"
-    },
-    {
-      "case": "set-of-too-large",
-      "program": "dvl_reject_set_of_too_large",
-      "verdict": "reject"
-    },
-    {
-      "case": "array-const-index-out-of-range",
-      "program": "dvl_reject_array_const_index_out_of_range",
+      "case": "nested-function-capture-in-closure",
+      "program": "dvl_reject_nested_function_capture_in_closure",
       "verdict": "reject"
     },
     {
@@ -151,8 +81,153 @@
       "verdict": "accept"
     },
     {
-      "case": "missing-result-type",
-      "program": "dvl_reject_missing_result_type",
+      "case": "set-element-out-of-range",
+      "program": "dvl_reject_set_element_out_of_range",
+      "verdict": "accept"
+    },
+    {
+      "case": "attribute-marker-parameter",
+      "program": "dvl_reject_attribute_marker_parameter",
+      "verdict": "accept"
+    },
+    {
+      "case": "attribute-marker-method",
+      "program": "dvl_reject_attribute_marker_method",
+      "verdict": "accept"
+    },
+    {
+      "case": "stdtype-tproc",
+      "program": "dvl_reject_stdtype_tproc",
+      "verdict": "accept"
+    },
+    {
+      "case": "int64-arg-vs-integer-cardinal",
+      "program": "dvl_reject_int64_arg_vs_integer_cardinal",
+      "verdict": "accept"
+    },
+    {
+      "case": "abstract-class-instantiated",
+      "program": "dvl_reject_abstract_class_instantiated",
+      "verdict": "accept"
+    },
+    {
+      "case": "attribute-ctor-type",
+      "program": "dvl_reject_attribute_ctor_type",
+      "verdict": "accept"
+    },
+    {
+      "case": "duplicate-case-label",
+      "program": "dvl_reject_duplicate_case_label",
+      "verdict": "reject"
+    },
+    {
+      "case": "inline-const-runtime",
+      "program": "dvl_reject_inline_const_runtime",
+      "verdict": "accept"
+    },
+    {
+      "case": "generic-constraint-violation",
+      "program": "dvl_reject_generic_constraint_violation",
+      "verdict": "reject"
+    },
+    {
+      "case": "record-operator-assign-plain-const",
+      "program": "dvl_reject_record_operator_assign_plain_const",
+      "verdict": "reject"
+    },
+    {
+      "case": "duplicate-identifier",
+      "program": "dvl_reject_duplicate_identifier",
+      "verdict": "reject"
+    },
+    {
+      "case": "threadvar-inside-routine",
+      "program": "dvl_reject_threadvar_inside_routine",
+      "verdict": "reject"
+    },
+    {
+      "case": "bare-method-into-reference",
+      "program": "dvl_reject_bare_method_into_reference",
+      "verdict": "reject"
+    },
+    {
+      "case": "inline-var-in-except",
+      "program": "dvl_reject_inline_var_in_except",
+      "verdict": "accept"
+    },
+    {
+      "case": "double-currency-float-literal",
+      "program": "dvl_reject_double_currency_float_literal",
+      "verdict": "reject"
+    },
+    {
+      "case": "record-operator-initialize",
+      "program": "dvl_reject_record_operator_initialize",
+      "verdict": "accept"
+    },
+    {
+      "case": "shift-count-past-width",
+      "program": "dvl_reject_shift_count_past_width",
+      "verdict": "reject"
+    },
+    {
+      "case": "inline-var-scope",
+      "program": "dvl_reject_inline_var_scope",
+      "verdict": "accept"
+    },
+    {
+      "case": "attribute-ctor-field",
+      "program": "dvl_reject_attribute_ctor_field",
+      "verdict": "accept"
+    },
+    {
+      "case": "stdtype-tfunc",
+      "program": "dvl_reject_stdtype_tfunc",
+      "verdict": "accept"
+    },
+    {
+      "case": "for-counter-not-ordinal",
+      "program": "dvl_reject_for_counter_not_ordinal",
+      "verdict": "reject"
+    },
+    {
+      "case": "inherited-without-parent",
+      "program": "dvl_reject_inherited_without_parent",
+      "verdict": "accept"
+    },
+    {
+      "case": "case-string-selector",
+      "program": "dvl_reject_case_string_selector",
+      "verdict": "reject"
+    },
+    {
+      "case": "attribute-marker-type",
+      "program": "dvl_reject_attribute_marker_type",
+      "verdict": "accept"
+    },
+    {
+      "case": "record-operator-assign",
+      "program": "dvl_reject_record_operator_assign",
+      "verdict": "accept"
+    },
+    {
+      "case": "attribute-marker-property",
+      "program": "dvl_reject_attribute_marker_property",
+      "verdict": "accept"
+    },
+    {
+      "case": "attribute-marker-field",
+      "program": "dvl_reject_attribute_marker_field",
+      "verdict": "accept"
+    },
+    {
+      "case": "anonymous-reference-var",
+      "program": "dvl_reject_anonymous_reference_var",
+      "verdict": "reject"
+    },
+    {
+      "case": "case-duplicate-label",
+      "program": "dvl_reject_case_duplicate_label",
       "verdict": "reject"
     },
     {
@@ -161,9 +236,179 @@
       "verdict": "accept"
     },
     {
+      "case": "attribute-ctor-inline-var",
+      "program": "dvl_reject_attribute_ctor_inline_var",
+      "verdict": "accept"
+    },
+    {
+      "case": "constref-record-parameter",
+      "program": "dvl_reject_constref_record_parameter",
+      "verdict": "accept"
+    },
+    {
+      "case": "stdtype-tpredicate",
+      "program": "dvl_reject_stdtype_tpredicate",
+      "verdict": "accept"
+    },
+    {
       "case": "undeclared-identifier",
       "program": "dvl_reject_undeclared_identifier",
       "verdict": "reject"
+    },
+    {
+      "case": "generic-wrong-arity",
+      "program": "dvl_reject_generic_wrong_arity",
+      "verdict": "reject"
+    },
+    {
+      "case": "overload-by-param-mode",
+      "program": "dvl_reject_overload_by_param_mode",
+      "verdict": "reject"
+    },
+    {
+      "case": "interface-no-guid-supports",
+      "program": "dvl_reject_interface_no_guid_supports",
+      "verdict": "reject"
+    },
+    {
+      "case": "inline-open-array",
+      "program": "dvl_reject_inline_open_array",
+      "verdict": "reject"
+    },
+    {
+      "case": "record-operator-finalize",
+      "program": "dvl_reject_record_operator_finalize",
+      "verdict": "accept"
+    },
+    {
+      "case": "constref-parameter",
+      "program": "dvl_reject_constref_parameter",
+      "verdict": "accept"
+    },
+    {
+      "case": "string-to-pchar-implicit",
+      "program": "dvl_reject_string_to_pchar_implicit",
+      "verdict": "reject"
+    },
+    {
+      "case": "const-param-write",
+      "program": "dvl_reject_const_param_write",
+      "verdict": "reject"
+    },
+    {
+      "case": "assign-const",
+      "program": "dvl_reject_assign_const",
+      "verdict": "reject"
+    },
+    {
+      "case": "with-ambiguous-ok",
+      "program": "dvl_reject_with_ambiguous_ok",
+      "verdict": "accept"
+    },
+    {
+      "case": "wrong-argument-count",
+      "program": "dvl_reject_wrong_argument_count",
+      "verdict": "reject"
+    },
+    {
+      "case": "interface-missing-method",
+      "program": "dvl_reject_interface_missing_method",
+      "verdict": "reject"
+    },
+    {
+      "case": "goto-into-block",
+      "program": "dvl_reject_goto_into_block",
+      "verdict": "accept"
+    },
+    {
+      "case": "generic-param-named-integer",
+      "program": "dvl_reject_generic_param_named_integer",
+      "verdict": "accept"
+    },
+    {
+      "case": "attribute-ctor-method",
+      "program": "dvl_reject_attribute_ctor_method",
+      "verdict": "accept"
+    },
+    {
+      "case": "attribute-ctor-property",
+      "program": "dvl_reject_attribute_ctor_property",
+      "verdict": "accept"
+    },
+    {
+      "case": "attribute-on-class-var",
+      "program": "dvl_reject_attribute_on_class_var",
+      "verdict": "accept"
+    },
+    {
+      "case": "set-of-too-large",
+      "program": "dvl_reject_set_of_too_large",
+      "verdict": "reject"
+    },
+    {
+      "case": "assign-to-const-param",
+      "program": "dvl_reject_assign_to_const_param",
+      "verdict": "reject"
+    },
+    {
+      "case": "nested-routine-address-to-global-var",
+      "program": "dvl_reject_nested_routine_address_to_global_var",
+      "verdict": "reject"
+    },
+    {
+      "case": "out-param-const",
+      "program": "dvl_reject_out_param_const",
+      "verdict": "reject"
+    },
+    {
+      "case": "overload-ambiguous",
+      "program": "dvl_reject_overload_ambiguous",
+      "verdict": "accept"
+    },
+    {
+      "case": "pchar-from-literal",
+      "program": "dvl_reject_pchar_from_literal",
+      "verdict": "accept"
+    },
+    {
+      "case": "record-method-static-self",
+      "program": "dvl_reject_record_method_static_self",
+      "verdict": "reject"
+    },
+    {
+      "case": "attribute-ctor-parameter",
+      "program": "dvl_reject_attribute_ctor_parameter",
+      "verdict": "accept"
+    },
+    {
+      "case": "array-const-index-out-of-range",
+      "program": "dvl_reject_array_const_index_out_of_range",
+      "verdict": "reject"
+    },
+    {
+      "case": "type-mismatch-string-int",
+      "program": "dvl_reject_type_mismatch_string_int",
+      "verdict": "reject"
+    },
+    {
+      "case": "helper-for-helper",
+      "program": "dvl_reject_helper_for_helper",
+      "verdict": "reject"
+    },
+    {
+      "case": "assign-to-inline-const",
+      "program": "dvl_reject_assign_to_inline_const",
+      "verdict": "reject"
+    },
+    {
+      "case": "goto-into-loop",
+      "program": "dvl_reject_goto_into_loop",
+      "verdict": "accept"
+    },
+    {
+      "case": "varargs-without-external",
+      "program": "dvl_reject_varargs_without_external",
+      "verdict": "accept"
     }
   ],
   "schema": 1,

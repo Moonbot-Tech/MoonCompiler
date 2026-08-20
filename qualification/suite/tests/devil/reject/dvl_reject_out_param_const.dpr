@@ -8,7 +8,12 @@ program dvl_reject_out_param_const;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 procedure P(out X: Integer);
 begin
   X := 1;

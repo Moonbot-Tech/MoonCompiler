@@ -8,7 +8,12 @@ program dvl_reject_interface_missing_method;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 type
   IThing = interface
     function Val: Integer;

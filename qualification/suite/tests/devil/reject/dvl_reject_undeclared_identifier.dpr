@@ -8,7 +8,12 @@ program dvl_reject_undeclared_identifier;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 begin
   WriteLn(NoSuchIdentifier);
 end.

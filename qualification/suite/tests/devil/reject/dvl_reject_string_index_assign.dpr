@@ -8,7 +8,12 @@ program dvl_reject_string_index_assign;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 var
   S: AnsiString;
 begin

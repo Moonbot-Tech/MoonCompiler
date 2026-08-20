@@ -23,8 +23,11 @@ import time
 import zlib
 from pathlib import Path
 
+import devil_toolchain as tc
+
 ROOT = Path(__file__).resolve().parents[1]
-WORK = ROOT / "tests" / "devil" / "stress"
+DEVIL = ROOT / "tests" / "devil"
+WORK = DEVIL / "stress"
 
 HEADER = """program {name};
 {{$ifdef FPC}}
@@ -36,7 +39,12 @@ HEADER = """program {name};
 {{$endif}}
 {{$APPTYPE CONSOLE}}
 {{$Q-}}{{$R-}}
-uses SysUtils;
+uses
+{{$ifdef FPC}}
+  mormot.core.fpcx64mm,
+  {{$ifdef UNIX}}cthreads,{{$endif}}
+{{$endif}}
+  SysUtils;
 """
 
 
@@ -156,7 +164,8 @@ def shape_case_width(rng: random.Random) -> str:
 
 def shape_closure_depth(rng: random.Random) -> str:
     depth = rng.randrange(5, 15)
-    lines = ["var", "  R: Integer;", "  P: TProc;", "begin", "  R := 0;"]
+    lines = ["type", "  TDvlProc = reference to procedure;", "",
+             "var", "  R: Integer;", "  P: TDvlProc;", "begin", "  R := 0;"]
     for k in range(depth):
         lines.append("  " + "  " * k + "P := procedure")
         lines.append("  " + "  " * k + "begin")
@@ -179,6 +188,21 @@ begin
 end."""
 
 
+def shape_inline_managed_finally(rng: random.Random) -> str:
+    """dvl-0017: a small managed routine inlined into a finally block."""
+    helpers = rng.randrange(1, 4)
+    parts = ["var", "  Trail: AnsiString;", ""]
+    for k in range(helpers):
+        parts += [f"procedure Add{k}(C: AnsiChar);", "begin",
+                  "  Trail := Trail + C;", "end;", ""]
+    parts += ["procedure Frame;", "begin", "  try",
+              "    WriteLn('body');", "  finally"]
+    parts += [f"    Add{k}('{chr(97 + k)}');" for k in range(helpers)]
+    parts += ["  end;", "end;", "", "begin", "  Frame;",
+              "  WriteLn(Length(Trail));", "end."]
+    return "\n" + "\n".join(parts)
+
+
 SHAPES = {
     "deep-expression": shape_deep_expression,
     "deep-nesting": shape_deep_nesting,
@@ -190,6 +214,7 @@ SHAPES = {
     "case-width": shape_case_width,
     "closure-depth": shape_closure_depth,
     "string-literal": shape_string_literal,
+    "inline-managed-finally": shape_inline_managed_finally,
 }
 
 
@@ -203,20 +228,26 @@ def run(cmd: list[str], cwd: Path, timeout: int) -> tuple[int, str, float]:
     return p.returncode, (p.stdout or "") + (p.stderr or ""), time.time() - started
 
 
+def load_known() -> list[dict]:
+    """Internal errors already analysed in findings/, by error number."""
+    path = DEVIL / "known_findings.json"
+    if not path.exists():
+        return []
+    rules = json.loads(path.read_text(encoding="utf-8")).get("known", [])
+    return [r for r in rules if r.get("kind") == "internal-error" and "detail" in r]
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--fpc", type=Path, required=True)
-    p.add_argument("--fpc-config", type=Path, required=True)
     p.add_argument("--seed", type=int, default=1)
     p.add_argument("--cases", type=int, default=30)
-    p.add_argument("--options", default="O2")
+    p.add_argument("--options", default="o2,release")
     p.add_argument("--timeout", type=int, default=120)
     p.add_argument("--work", type=Path, default=WORK)
     p.add_argument("--report", type=Path)
     args = p.parse_args()
 
-    fpc = args.fpc.resolve()
-    cfg = args.fpc_config.resolve()
+    tc.preflight()
     work = args.work.resolve()
     if work.exists():
         shutil.rmtree(work)
@@ -235,8 +266,7 @@ def main() -> None:
             out = work / f"out-{name}-{option}"
             out.mkdir()
             code, log, seconds = run(
-                [str(fpc), "-n", f"@{cfg}", "-Mdelphi", f"-{option}",
-                 f"-FU{out}", f"-FE{out}", source.name], work, args.timeout)
+                tc.compile_command(source, out, option), work, args.timeout)
             row = {"case": name, "shape": shape, "option": option,
                    "seconds": round(seconds, 1), "ok": code == 0}
             rows.append(row)
@@ -254,8 +284,20 @@ def main() -> None:
                 findings.append({"kind": "rejected", "case": name,
                                  "shape": shape, "option": option, "detail": line})
 
+    known = load_known()
+    fresh = []
+    hits: set[str] = set()
     for f in findings:
-        print(json.dumps(f, sort_keys=True))
+        rule = next((r for r in known if r["detail"] in f.get("detail", "")), None)
+        if rule:
+            hits.add(rule["id"])
+            continue
+        fresh.append(f)
+        print("NEW " + json.dumps(f, sort_keys=True))
+    if hits:
+        print("known: %d hits (%s)"
+              % (len(findings) - len(fresh), ", ".join(sorted(hits))))
+    findings = fresh
     slowest = sorted(rows, key=lambda r: -r["seconds"])[:3]
     print("slowest: " + ", ".join(f"{r['shape']} {r['seconds']}s" for r in slowest))
     if args.report:

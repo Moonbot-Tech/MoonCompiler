@@ -8,7 +8,12 @@ program dvl_reject_inline_const_runtime;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 var
   Base: Integer;
 begin

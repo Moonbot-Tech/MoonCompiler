@@ -8,7 +8,12 @@ program dvl_reject_overload_ambiguous;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 procedure P(X: Integer); overload;
 begin
   WriteLn('i', X);

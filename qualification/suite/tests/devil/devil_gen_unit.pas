@@ -27,44 +27,33 @@ type
 
   TDvlUnitAlias = TDvlUnitRec;
 
+function DvlUnitFn00000(X: ShortInt): ShortInt; inline;
 const
-  DvlUnitConst00000 = Int64($235A87B6444A8822);
+  DvlUnitConst00001 = ShortInt(17);
 const
-  DvlUnitConst00002 = Int64(-1);
-function DvlUnitFn00003(X: SmallInt): SmallInt;
-const
-  DvlUnitConst00004 = SmallInt(32244);
-const
-  DvlUnitConst00005 = Word(257);
-function DvlUnitFn00006(X: Integer): Integer;
-function DvlUnitFn00007(const R: TDvlUnitRec): Int64;
+  DvlUnitConst00002 = Word(1);
+function DvlUnitFn00003(X: Byte): Byte;
+function DvlUnitFn00004(X: Cardinal): Cardinal;
+function DvlUnitFn00005(X: Cardinal): Cardinal; inline;
 function DvlUnitFn00008(const R: TDvlUnitRec): Int64;
-function DvlUnitFn00009(X: UInt64): UInt64;
-function DvlUnitFn00011(const R: TDvlUnitRec): Int64;
-function DvlUnitFn00013(X: ShortInt): ShortInt;
-function DvlUnitFn00014(X: SmallInt): SmallInt;
-function DvlUnitFn00015(const R: TDvlUnitRec): Int64;
-function DvlUnitFn00016(X: ShortInt): ShortInt; inline;
-function DvlUnitFn00017(X: Byte): Byte;
 const
-  DvlUnitConst00019 = SmallInt(32766);
-function DvlUnitFn00020(const R: TDvlUnitRec): Int64;
-function DvlUnitFn00023(X: UInt64): UInt64;
-function DvlUnitFn00024(X: SmallInt): SmallInt; inline;
-function DvlUnitFn00025(const R: TDvlUnitRec): Int64;
+  DvlUnitConst00009 = Int64($7FFFFFFFFFFFFFFF);
 const
-  DvlUnitConst00026 = Integer(1);
-function DvlUnitFn00027(const R: TDvlUnitRec): Int64;
-function DvlUnitFn00029(X: Integer): Integer;
+  DvlUnitConst00010 = UInt64($A2A0DF0F5566107B);
+function DvlUnitFn00012(X: ShortInt): ShortInt; inline;
 const
-  DvlUnitConst00031 = ShortInt(15);
-function DvlUnitFn00032(X: Word): Word; inline;
-function DvlUnitFn00034(const R: TDvlUnitRec): Int64;
-function DvlUnitFn00036(X: SmallInt): SmallInt; inline;
+  DvlUnitConst00014 = UInt64($7FA0172D7B56F129);
+function DvlUnitFn00015(X: Byte): Byte;
+function DvlUnitFn00018(X: Word): Word;
 const
-  DvlUnitConst00037 = Integer(-1385784022);
-function DvlUnitFn00038(X: Int64): Int64;
-function DvlUnitFn00039(const R: TDvlUnitRec): Int64;
+  DvlUnitConst00019 = Cardinal(2);
+function DvlUnitFn00021(const R: TDvlUnitRec): Int64;
+function DvlUnitFn00022(const R: TDvlUnitRec): Int64;
+function DvlUnitFn00023(X: Integer): Integer;
+function DvlUnitFn00024(const R: TDvlUnitRec): Int64;
+function DvlUnitFn00025(X: ShortInt): ShortInt;
+function DvlUnitFn00026(const R: TDvlUnitRec): Int64;
+function DvlUnitFn00028(const R: TDvlUnitRec): Int64;
 
 implementation
 
@@ -73,19 +62,30 @@ begin
   Result := Value;
 end;
 
-function DvlUnitFn00003(X: SmallInt): SmallInt;
+function DvlUnitFn00000(X: ShortInt): ShortInt;
 begin
-  Result := DvlSecondEchoi16(X);
+  Result := X;
 end;
 
-function DvlUnitFn00006(X: Integer): Integer;
+function DvlUnitFn00003(X: Byte): Byte;
+var
+  B: TDvlSecondBox<Byte>;
 begin
-  Result := DvlSecondEchoi32(X);
+  B.Value := X;
+  Result := B.Read;
 end;
 
-function DvlUnitFn00007(const R: TDvlUnitRec): Int64;
+function DvlUnitFn00004(X: Cardinal): Cardinal;
+var
+  B: TDvlSecondBox<Cardinal>;
 begin
-  Result := R.A + R.B + Length(R.S);
+  B.Value := X;
+  Result := B.Read;
+end;
+
+function DvlUnitFn00005(X: Cardinal): Cardinal;
+begin
+  Result := X;
 end;
 
 function DvlUnitFn00008(const R: TDvlUnitRec): Int64;
@@ -93,104 +93,58 @@ begin
   Result := R.A + R.B + Length(R.S);
 end;
 
-function DvlUnitFn00009(X: UInt64): UInt64;
+function DvlUnitFn00012(X: ShortInt): ShortInt;
 begin
-  Result := DvlSecondEchou64(X);
+  Result := X;
 end;
 
-function DvlUnitFn00011(const R: TDvlUnitRec): Int64;
+function DvlUnitFn00015(X: Byte): Byte;
+var
+  B: TDvlSecondBox<Byte>;
+begin
+  B.Value := X;
+  Result := B.Read;
+end;
+
+function DvlUnitFn00018(X: Word): Word;
+var
+  B: TDvlSecondBox<Word>;
+begin
+  B.Value := X;
+  Result := B.Read;
+end;
+
+function DvlUnitFn00021(const R: TDvlUnitRec): Int64;
 begin
   Result := R.A + R.B + Length(R.S);
 end;
 
-function DvlUnitFn00013(X: ShortInt): ShortInt;
+function DvlUnitFn00022(const R: TDvlUnitRec): Int64;
+begin
+  Result := R.A + R.B + Length(R.S);
+end;
+
+function DvlUnitFn00023(X: Integer): Integer;
+begin
+  Result := DvlSecondEchoi32(X);
+end;
+
+function DvlUnitFn00024(const R: TDvlUnitRec): Int64;
+begin
+  Result := R.A + R.B + Length(R.S);
+end;
+
+function DvlUnitFn00025(X: ShortInt): ShortInt;
 begin
   Result := DvlSecondEchoi8(X);
 end;
 
-function DvlUnitFn00014(X: SmallInt): SmallInt;
-var
-  B: TDvlSecondBox<SmallInt>;
-begin
-  B.Value := X;
-  Result := B.Read;
-end;
-
-function DvlUnitFn00015(const R: TDvlUnitRec): Int64;
+function DvlUnitFn00026(const R: TDvlUnitRec): Int64;
 begin
   Result := R.A + R.B + Length(R.S);
 end;
 
-function DvlUnitFn00016(X: ShortInt): ShortInt;
-begin
-  Result := X;
-end;
-
-function DvlUnitFn00017(X: Byte): Byte;
-begin
-  Result := DvlSecondEchou8(X);
-end;
-
-function DvlUnitFn00020(const R: TDvlUnitRec): Int64;
-begin
-  Result := R.A + R.B + Length(R.S);
-end;
-
-function DvlUnitFn00023(X: UInt64): UInt64;
-var
-  B: TDvlSecondBox<UInt64>;
-begin
-  B.Value := X;
-  Result := B.Read;
-end;
-
-function DvlUnitFn00024(X: SmallInt): SmallInt;
-begin
-  Result := X;
-end;
-
-function DvlUnitFn00025(const R: TDvlUnitRec): Int64;
-begin
-  Result := R.A + R.B + Length(R.S);
-end;
-
-function DvlUnitFn00027(const R: TDvlUnitRec): Int64;
-begin
-  Result := R.A + R.B + Length(R.S);
-end;
-
-function DvlUnitFn00029(X: Integer): Integer;
-var
-  B: TDvlSecondBox<Integer>;
-begin
-  B.Value := X;
-  Result := B.Read;
-end;
-
-function DvlUnitFn00032(X: Word): Word;
-begin
-  Result := X;
-end;
-
-function DvlUnitFn00034(const R: TDvlUnitRec): Int64;
-begin
-  Result := R.A + R.B + Length(R.S);
-end;
-
-function DvlUnitFn00036(X: SmallInt): SmallInt;
-begin
-  Result := X;
-end;
-
-function DvlUnitFn00038(X: Int64): Int64;
-var
-  B: TDvlSecondBox<Int64>;
-begin
-  B.Value := X;
-  Result := B.Read;
-end;
-
-function DvlUnitFn00039(const R: TDvlUnitRec): Int64;
+function DvlUnitFn00028(const R: TDvlUnitRec): Int64;
 begin
   Result := R.A + R.B + Length(R.S);
 end;

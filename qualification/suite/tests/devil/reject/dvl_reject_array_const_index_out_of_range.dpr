@@ -8,7 +8,12 @@ program dvl_reject_array_const_index_out_of_range;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 var
   A: array[0..3] of Integer;
 begin

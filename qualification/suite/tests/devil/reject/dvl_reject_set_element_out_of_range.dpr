@@ -8,7 +8,12 @@ program dvl_reject_set_element_out_of_range;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 type
   TSmall = set of 0..7;
 var

@@ -8,7 +8,12 @@ program dvl_reject_wrong_argument_count;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 procedure P(A, B: Integer);
 begin
   WriteLn(A + B);

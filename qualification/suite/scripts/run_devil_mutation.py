@@ -18,13 +18,15 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import os
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]          # repository root
-SUITE = ROOT / "qualification" / "suite"
+SCRIPT_ROOT = Path(__file__).resolve().parents[3]   # tree these scripts live in
+ROOT = SCRIPT_ROOT                                  # tree that gets mutated
+SUITE = SCRIPT_ROOT / "qualification" / "suite"
 GATE = SUITE / "scripts" / "run_devil_gate.py"
 REJECT_GATE = SUITE / "scripts" / "run_devil_reject_gate.py"
 
@@ -55,9 +57,10 @@ MUTANTS = [
 
 
 def run(cmd: list[str], cwd: Path, timeout: int) -> tuple[int, str]:
+    env = dict(os.environ, DEVIL_TOOLCHAIN_ROOT=str(ROOT))
     try:
         proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
-                              timeout=timeout)
+                              timeout=timeout, env=env)
     except subprocess.TimeoutExpired:
         return 124, "<timeout>"
     return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
@@ -77,11 +80,9 @@ def rebuild(build_timeout: int) -> tuple[bool, str]:
 FINDING_RE = re.compile(r'"check": "([a-z0-9-]+)"|"note": "([a-z0-9-]+)"')
 
 
-def devil_findings(fpc: Path, cfg: Path, seeds: str, cases: int,
-                   timeout: int) -> set[str]:
-    """Names of everything the gate reports as NEW for this compiler."""
+def devil_findings(seeds: str, cases: int, timeout: int) -> set[str]:
+    """Names of everything the gate reports as NEW for the installed compiler."""
     code, log = run([sys.executable, str(GATE),
-                     "--fpc", str(fpc), "--fpc-config", str(cfg),
                      "--seeds", seeds, "--cases", str(cases)],
                     ROOT, timeout)
     names: set[str] = set()
@@ -98,10 +99,9 @@ def devil_findings(fpc: Path, cfg: Path, seeds: str, cases: int,
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--fpc", type=Path,
-                   default=ROOT / ".moonbot/toolchain/bin/x86_64-win64/ppcx64.exe")
-    p.add_argument("--fpc-config", type=Path,
-                   default=ROOT / ".moonbot/toolchain/bin/x86_64-win64/fpc.cfg")
+    p.add_argument("--repo", type=Path,
+                   help="tree to mutate; defaults to the tree of these scripts."
+                        " Point it at a worktree to leave the working copy alone")
     p.add_argument("--seeds", default="1,2,3")
     p.add_argument("--cases", type=int, default=150)
     p.add_argument("--mutants", type=int, default=len(MUTANTS))
@@ -113,6 +113,12 @@ def main() -> None:
     p.add_argument("--only", default="", help="comma separated commit shas")
     args = p.parse_args()
 
+    if args.repo:
+        global ROOT
+        ROOT = args.repo.resolve()
+        if not (ROOT / "build.ps1").is_file():
+            raise SystemExit(f"not a compiler tree: {ROOT}")
+
     if args.list:
         for i, (sha, subject) in enumerate(MUTANTS):
             print(f"{i:3d}  {sha}  {subject}")
@@ -122,9 +128,16 @@ def main() -> None:
     # swallowed by the revert/restore cycle
     code, status = git(["status", "--porcelain", "--untracked-files=no"])
     if status.strip():
-        print("working tree is dirty; mutation needs a clean tree")
+        print("working tree is dirty; mutation reverts and hard-resets the tree,"
+              " which would destroy uncommitted work")
         print(status)
         sys.exit(2)
+
+    # findings the clean compiler already produces are noise for every mutant:
+    # only what a mutant adds on top of them says Devil saw the defect
+    print("measuring the clean baseline")
+    baseline = devil_findings(args.seeds, args.cases, args.gate_timeout)
+    print(f"baseline: {len(baseline)} findings")
 
     results = []
     if args.only:
@@ -152,8 +165,7 @@ def main() -> None:
             # defect is detectable, just at build time
             row.update({"outcome": "killed-by-build", "detail": build_log[-300:]})
         else:
-            found = devil_findings(args.fpc, args.fpc_config, args.seeds,
-                                   args.cases, args.gate_timeout)
+            found = devil_findings(args.seeds, args.cases, args.gate_timeout)
             fresh = sorted(found - baseline)
             row.update({"outcome": "killed" if fresh else "survived",
                         "new_findings": fresh[:8],

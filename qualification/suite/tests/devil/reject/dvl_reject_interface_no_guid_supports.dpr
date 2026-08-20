@@ -8,7 +8,12 @@ program dvl_reject_interface_no_guid_supports;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 type
   INoGuid = interface
     function V: Integer;

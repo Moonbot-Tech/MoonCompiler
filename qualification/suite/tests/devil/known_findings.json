@@ -84,6 +84,280 @@
       "kind": "model-mismatch",
       "check": "^dvl-i128-[0-9]+-(high|low)$",
       "note": "O3 знаково расширяет старшую половину 128-битного результата"
+    },
+    {
+      "id": "dvl-0026",
+      "kind": "model-mismatch",
+      "check": "^dvl-gen-[0-9]+-echo$",
+      "note": "release теряет сужение при возврате из generic-метода"
+    },
+    {
+      "id": "dvl-0027",
+      "case": "double-currency-float-literal",
+      "note": "вещественный литерал против Double/Currency: Delphi отвергает как неоднозначный, мы выбираем Double"
+    },
+    {
+      "id": "dvl-0028",
+      "kind": "observation-split",
+      "note_name": "^dvl-pick-int-sign-var-(byte|word)-picked$",
+      "note": "узкий беззнаковый аргумент уходит в Cardinal, у Delphi в Integer"
+    },
+    {
+      "id": "dvl-0028",
+      "kind": "observation-split",
+      "note_name": "^dvl-deliver-int-sign(64)?-lit-1-cast$",
+      "note": "та же пара кандидатов после каста литерала в узкий тип"
+    },
+    {
+      "id": "dvl-0028",
+      "kind": "observation-split",
+      "note_name": "^dvl-deliver-int-sign-var-byte-(cast|inline-result|noinline-result|generic-arg|closure|with-scope|const-param|typed-const|case-arm|ternary-like)$",
+      "note": "dvl-0028 доезжает по всем доставкам, где значение получает тип"
+    },
+    {
+      "id": "dvl-0029",
+      "kind": "observation-split",
+      "note_name": "^dvl-pick-(char|char-form)-lit-char(-chr)?-picked$",
+      "note": "свёрнутое символьное выражение из ASCII выбирает AnsiChar вместо Char"
+    },
+    {
+      "id": "dvl-0029",
+      "kind": "observation-split",
+      "note_name": "^dvl-deliver-char-form-lit-char-(direct|paren|paren-twice|ppu-const)$",
+      "note": "dvl-0029 живёт, пока значение остаётся литералом; провенанс переживает PPU"
+    },
+    {
+      "id": "dvl-0030",
+      "kind": "observation-split",
+      "note_name": "^dvl-pick-string-form-lit-str-concat-picked$",
+      "note": "сложение двух кавычечных литералов даёт Ansi-типизированную константу"
+    },
+    {
+      "id": "dvl-0031",
+      "kind": "observation-split",
+      "note_name": "^dvl-lit-(array-element|captured|form-ansi-cast|form-concat|form-implicit|form-rawbyte-cast|form-typed-const|form-unicode-plain|form-utf8-cast|global|global-record-field|interface-field|nested-array|object-field|out-param|result|static-array|threadvar)-(refcount|writable)$",
+      "note": "литерал не материализуется: счётчик -1 и запись в буфер падает везде, кроме локальной"
+    },
+    {
+      "id": "dvl-0031",
+      "kind": "observation-split",
+      "note_name": "^dvl-lit-(array-element|captured|global|global-record-field|interface-field|local|nested-array|object-field|out-param|result|static-array|threadvar)-identity$",
+      "note": "два вхождения одного литерала делят буфер, у Delphi буферы разные"
+    },
+    {
+      "id": "dvl-0032",
+      "case": "attribute-ctor-parameter",
+      "note": "атрибут перед параметром не разбирается"
+    },
+    {
+      "id": "dvl-0032",
+      "case": "attribute-ctor-inline-var",
+      "note": "атрибут перед inline-переменной не разбирается"
+    },
+    {
+      "id": "dvl-0032",
+      "case": "attribute-marker-parameter",
+      "note": "то же в позиции параметра, атрибут-маркер"
+    },
+    {
+      "id": "dvl-0032",
+      "case": "attribute-marker-inline-var",
+      "note": "то же в позиции inline-переменной, атрибут-маркер"
+    },
+    {
+      "id": "dvl-0032",
+      "case": "attribute-on-class-var",
+      "note": "атрибут перед class var не привязывается"
+    },
+    {
+      "id": "dvl-0033",
+      "case": "attribute-marker-type",
+      "note": "атрибут без своего конструктора: унаследованный Create не рассматривается"
+    },
+    {
+      "id": "dvl-0033",
+      "case": "attribute-marker-field",
+      "note": "то же в позиции поля"
+    },
+    {
+      "id": "dvl-0033",
+      "case": "attribute-marker-property",
+      "note": "то же в позиции свойства"
+    },
+    {
+      "id": "dvl-0033",
+      "case": "attribute-marker-method",
+      "note": "то же в позиции метода"
+    },
+    {
+      "id": "dvl-0034",
+      "case": "bare-method-into-reference",
+      "note": "имя метода без скобок перед reference to: мы вызываем, Delphi берёт адрес"
+    },
+    {
+      "id": "dvl-0035",
+      "case": "record-operator-initialize",
+      "note": "class operator Initialize не поддержан"
+    },
+    {
+      "id": "dvl-0035",
+      "case": "record-operator-assign",
+      "note": "class operator Assign не поддержан"
+    },
+    {
+      "id": "dvl-0036",
+      "case": "constref-parameter",
+      "note": "модификатор const [ref] не разбирается"
+    },
+    {
+      "id": "dvl-0036",
+      "case": "constref-record-parameter",
+      "note": "то же для параметра-записи"
+    },
+    {
+      "id": "dvl-0037",
+      "kind": "observation-split",
+      "note_name": "^dvl-attr-(class-field|record-field|method|public-property)-readback$",
+      "note": "атрибут принят, но не попал в таблицы RTTI"
+    },
+    {
+      "id": "dvl-0038",
+      "case": "helper-name-as-type",
+      "note": "имя хелпера в позиции типа: мы принимаем, Delphi отвергает"
+    },
+    {
+      "id": "dvl-0039",
+      "case": "int64-arg-vs-integer-cardinal",
+      "note": "Int64 против Integer/Cardinal: Delphi выбирает, мы объявляем ничью"
+    },
+    {
+      "id": "dvl-0005",
+      "case": "array-const-index-out-of-range",
+      "note": "константный индекс за границей массива принимается молча (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0019",
+      "case": "stdtype-tproc",
+      "note": "TProc отсутствует в RTL (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0019",
+      "case": "stdtype-tfunc",
+      "note": "TFunc<T> отсутствует в RTL (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0019",
+      "case": "stdtype-tpredicate",
+      "note": "TPredicate<T> отсутствует в RTL (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0020",
+      "case": "inline-open-array",
+      "note": "inline с открытым массивом: Delphi отвергает, мы принимаем (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0021",
+      "case": "varargs-without-external",
+      "note": "varargs без external: Delphi принимает, мы отвергаем (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0022",
+      "case": "set-element-out-of-range",
+      "note": "элемент вне диапазона множества: Delphi принимает, мы падаем (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0024",
+      "case": "anonymous-reference-var",
+      "note": "анонимный reference to в объявлении переменной (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0025",
+      "case": "shift-count-past-width",
+      "note": "константный сдвиг шире типа (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0013",
+      "kind": "observation-split",
+      "note_name": "^dvl-(uni|chain)-[0-9]+-cast-(byte|length|first-byte)$",
+      "note": "приведение между байтовыми строками перекодирует вместо переинтерпретации (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0015",
+      "kind": "observation-split",
+      "note_name": "^dvl-chain-[0-9]+-variant-small$",
+      "note": "целый литерал в Variant сужается по знаковому типу (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0016",
+      "kind": "observation-split",
+      "note_name": "^dvl-chain-[0-9]+-variant-real$",
+      "note": "вещественный литерал в Variant кладётся Double вместо Currency (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0012",
+      "kind": "observation-split",
+      "note_name": "^dvl-chain-[0-9]+-varrec-ascii$",
+      "note": "ASCII-литерал едет в array of const как vtChar вместо vtWideChar (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0018",
+      "kind": "observation-split",
+      "note_name": "^dvl-inl-[0-9]+-(calls|total)$",
+      "note": "release схлопывает два вызова функции с побочным эффектом (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0014",
+      "kind": "observation-split",
+      "note_name": "^dvl-uni-[0-9]+-(typename|char-kind|wide-kind)$",
+      "note": "имена и виды строковых типов в RTTI отличаются от Delphi (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0014",
+      "kind": "observation-split",
+      "note_name": "^dvl-lang-[0-9]+-(type|real-type|real-element-type)$",
+      "note": "то же для имён типов, видимых через RTTI (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0013",
+      "kind": "model-mismatch",
+      "check": "^dvl-uni-[0-9]+-cast-(byte|length)$",
+      "note": "приведение между байтовыми строками перекодирует вместо переинтерпретации (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0014",
+      "kind": "model-mismatch",
+      "check": "^dvl-lang-[0-9]+-(type|real-type|real-element-type)$",
+      "note": "имя типа, видимое через RTTI, отличается от Delphi (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0014",
+      "kind": "model-mismatch",
+      "check": "^dvl-uni-[0-9]+-(typename|char-kind|wide-kind)$",
+      "note": "то же для строковых типов (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0018",
+      "kind": "model-mismatch",
+      "check": "^dvl-inl-[0-9]+-(calls|total)$",
+      "note": "release схлопывает два вызова функции с побочным эффектом (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0040",
+      "kind": "observation-split",
+      "note_name": "^dvl-attr-rtti-explicit-public-readback$",
+      "note": "{$RTTI EXPLICIT} не управляет составом таблиц: мы пишем то, что Delphi выбрасывает"
+    },
+    {
+      "id": "dvl-0017",
+      "kind": "internal-error",
+      "detail": "Internal error 200405231",
+      "note": "инлайн managed-процедуры в finally роняет фронт (запись реестра пересобрана после потери каталога)"
+    },
+    {
+      "id": "dvl-0043",
+      "kind": "model-mismatch",
+      "check": "^dvl-gen-[0-9]+-nested$",
+      "note": "release теряет беззнаковое сужение на значении из with-блока (родня dvl-0001/0026)"
     }
   ]
 }

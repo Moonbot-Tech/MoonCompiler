@@ -8,7 +8,12 @@ program dvl_reject_generic_wrong_arity;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 type
   TBox<T> = record
     Value: T;

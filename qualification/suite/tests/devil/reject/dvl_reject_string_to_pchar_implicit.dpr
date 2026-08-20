@@ -8,7 +8,12 @@ program dvl_reject_string_to_pchar_implicit;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 var
   P: PAnsiChar;
   I: Integer;

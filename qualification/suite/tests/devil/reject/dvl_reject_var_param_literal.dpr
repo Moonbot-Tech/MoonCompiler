@@ -8,7 +8,12 @@ program dvl_reject_var_param_literal;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 procedure P(var X: Integer);
 begin
   X := 1;

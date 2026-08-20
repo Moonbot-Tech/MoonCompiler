@@ -8,7 +8,12 @@ program dvl_reject_record_method_static_self;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 type
   TRec = record
     class function F: Integer; static;

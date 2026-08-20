@@ -32,7 +32,7 @@ unit devil_runtime;
 interface
 
 uses
-  SysUtils;
+  SysUtils, SyncObjs;
 
 const
   DevilMaxFailures = 4096;
@@ -66,6 +66,33 @@ procedure DevilMix(V: UInt64);
 procedure DevilCheckU(const Name: AnsiString; Actual, Expected: UInt64);
 procedure DevilCheckBool(const Name: AnsiString; Condition: Boolean);
 procedure DevilNote(const Name: AnsiString; Value: UInt64);
+{ How many times anything reached the bloodstream: a guard against the suite
+  going blind while every digest still matches. }
+function DevilFeedCount: Int64;
+{ Bloodstream: everything a form observed on its way flows in here, whether or
+  not anyone asserted about it.  The step is a bijection of the accumulator
+  (xor, then multiply by an odd constant), so a single wrong bit anywhere can
+  never cancel out - it avalanches into the final digest instead of dying at
+  the edge of the case that produced it. }
+procedure DevilFeed(Value: UInt64);
+procedure DevilFeedText(const Value: AnsiString);
+{ Порядковый канал.  Событие, чей порядок фиксирован языком, вливается сюда, и
+  поскольку шаг накопителя некоммутативен, съеденный, задвоенный или
+  переставленный шаг рвёт корневой дайджест — везде, а не только там, где
+  кто-то догадался поставить сторож или вести трейл.  Ставить только там, где
+  порядок действительно фиксирован: под потоковым ветвлением две ветви кормят
+  поток вперемешку, и дайджест перестаёт быть свойством программы. }
+procedure DevilStep(const Tag: AnsiString);
+{ Сколько шагов прошло: как и число вливаний, это защита от ослепшего прибора —
+  сборка, прошедшая меньше шагов, где-то потеряла событие. }
+function DevilStepCount: Int64;
+{ An observation that deliberately stays out of the bloodstream: used where the
+  disagreement is already analysed, so a known defect cannot mask a new one by
+  permanently colouring the root digest. }
+procedure DevilNoteLoose(const Name: AnsiString; Value: UInt64);
+{ Per-layer subtotal: the root digest says something broke, this says where. }
+procedure DevilLayerBegin(const Layer: AnsiString);
+procedure DevilLayerEnd;
 function DevilReport(const Prefix: AnsiString; Seed: UInt64): Integer;
 
 { Lifetime tracing: a tagged object appends its tag when it is destroyed, so
@@ -79,6 +106,11 @@ type
   public
     class var Alive: Integer;
     class var Born: Integer;
+    { Alive and Born are working counters: layers reset them around the piece
+      they are measuring. These two are never reset by anyone, so the balance
+      over the whole program stays meaningful. }
+    class var EverBorn: Integer;
+    class var EverGone: Integer;
     constructor Create(ATag: AnsiChar);
     destructor Destroy; override;
     property Tag: AnsiChar read FTag;
@@ -92,14 +124,36 @@ type
 
 var
   DevilTrail: AnsiString;
+  { unit startup writes its own trail: the shared one belongs to whichever
+    layer is running, and would be overwritten long before shutdown }
+  DevilUnitTrail: AnsiString;
+  DevilTrailLock: TCriticalSection;
+  DevilLayerDigest: UInt64 = FnvOffset;
+  { how many times anything reached the bloodstream: if the optimizer ever
+    decides a feed is dead, or a layer stops feeding, the suite goes blind
+    while every digest still matches. This is the guard against that. }
+  DevilFeeds: Int64 = 0;
+  { сколько событий прошло порядковым каналом: сборка, прошедшая меньше шагов,
+    где-то потеряла событие, даже если дайджесты сошлись }
+  DevilSteps: Int64 = 0;
+  DevilLayerName: AnsiString;
 
 procedure DevilTrailReset;
 function DevilTrailHash: UInt64;
 function DevilTrailText: AnsiString;
 procedure DevilTrailAdd(C: AnsiChar);
+procedure DevilUnitTrailAdd(C: AnsiChar);
+procedure DevilCheckTrail(const Name, Actual, Expected: AnsiString);
+function DevilTextHash(const Text: AnsiString): UInt64;
 procedure DevilNoteText(const Name, Value: AnsiString);
 
 implementation
+
+{ The runtime is the measuring instrument, not the thing measured: it must not
+  dissolve into the forms under test.  Keeping it out of the inliner also keeps
+  dvl-0017 (an internal error when a small managed routine is inlined into a
+  finally block) from taking down every layer that writes a trail. }
+{$ifdef FPC}{$push}{$optimization noautoinline}{$endif}
 
 function OpaqueU(V: UInt64): UInt64;
 begin
@@ -158,17 +212,27 @@ end;
 procedure DevilMix(V: UInt64);
 begin
   DevilDigest := (DevilDigest xor V) * FnvPrime;
+  DevilLayerDigest := (DevilLayerDigest xor V) * FnvPrime;
 end;
 
 procedure DevilCheckU(const Name: AnsiString; Actual, Expected: UInt64);
 begin
   Inc(DevilChecks);
+  { a check is a feed as well: otherwise a layer that only asserts and never
+    observes would look like a dead bloodstream }
+  Inc(DevilFeeds);
   DevilDigest := (DevilDigest xor Actual) * FnvPrime;
+  DevilLayerDigest := (DevilLayerDigest xor Actual) * FnvPrime;
   if Actual = Expected then
     Exit;
   if DevilFailures < DevilMaxFailures then
-    WriteLn('DEVIL_FAILURE ', string(Name), ' actual=', IntToHex(Actual, 16),
+    DevilTrailLock.Enter;
+    try
+      WriteLn('DEVIL_FAILURE ', string(Name), ' actual=', IntToHex(Actual, 16),
       ' expected=', IntToHex(Expected, 16));
+    finally
+      DevilTrailLock.Leave;
+    end;
   Inc(DevilFailures);
 end;
 
@@ -183,9 +247,77 @@ begin
   Inc(DevilFailures);
 end;
 
+procedure DevilFeed(Value: UInt64);
+begin
+  Inc(DevilFeeds);
+  DevilDigest := (DevilDigest xor Value) * FnvPrime;
+  DevilLayerDigest := (DevilLayerDigest xor Value) * FnvPrime;
+end;
+
+procedure DevilFeedText(const Value: AnsiString);
+var
+  I: Integer;
+begin
+  DevilFeed(UInt64(Length(Value)));
+  for I := 1 to Length(Value) do
+    DevilFeed(UInt64(Ord(Value[I])));
+end;
+
+procedure DevilStep(const Tag: AnsiString);
+var
+  I: Integer;
+  Mixed: UInt64;
+begin
+  Inc(DevilSteps);
+  { метка сворачивается тем же биективным шагом, что и всё остальное: место
+    события в последовательности становится частью корня }
+  Mixed := UInt64(DevilSteps);
+  for I := 1 to Length(Tag) do
+    Mixed := (Mixed xor UInt64(Ord(Tag[I]))) * FnvPrime;
+  DevilFeed(Mixed);
+end;
+
+function DevilStepCount: Int64;
+begin
+  Result := DevilSteps;
+end;
+
+procedure DevilLayerBegin(const Layer: AnsiString);
+begin
+  DevilLayerName := Layer;
+  DevilLayerDigest := FnvOffset;
+end;
+
+procedure DevilLayerEnd;
+begin
+  DevilTrailLock.Enter;
+  try
+    WriteLn('DEVIL_LAYER ', string(DevilLayerName), '=',
+      IntToHex(DevilLayerDigest, 16));
+  finally
+    DevilTrailLock.Leave;
+  end;
+end;
+
+procedure DevilNoteLoose(const Name: AnsiString; Value: UInt64);
+begin
+  DevilTrailLock.Enter;
+  try
+    WriteLn('DEVIL_NOTE ', string(Name), '=', IntToHex(Value, 16));
+  finally
+    DevilTrailLock.Leave;
+  end;
+end;
+
 procedure DevilNote(const Name: AnsiString; Value: UInt64);
 begin
-  WriteLn('DEVIL_NOTE ', string(Name), '=', IntToHex(Value, 16));
+  DevilFeed(Value);
+  DevilTrailLock.Enter;
+  try
+    WriteLn('DEVIL_NOTE ', string(Name), '=', IntToHex(Value, 16));
+  finally
+    DevilTrailLock.Leave;
+  end;
 end;
 
 constructor TDvlTagged.Create(ATag: AnsiChar);
@@ -194,11 +326,13 @@ begin
   FTag := ATag;
   Inc(Alive);
   Inc(Born);
+  Inc(EverBorn);
 end;
 
 destructor TDvlTagged.Destroy;
 begin
   Dec(Alive);
+  Inc(EverGone);
   DevilTrail := DevilTrail + FTag;
   inherited Destroy;
 end;
@@ -210,12 +344,30 @@ end;
 
 procedure DevilNoteText(const Name, Value: AnsiString);
 begin
-  WriteLn('DEVIL_TRAIL ', string(Name), '=', string(Value));
+  DevilTrailLock.Enter;
+  try
+    WriteLn('DEVIL_TRAIL ', string(Name), '=', string(Value));
+  finally
+    DevilTrailLock.Leave;
+  end;
 end;
 
 procedure DevilTrailAdd(C: AnsiChar);
 begin
-  DevilTrail := DevilTrail + C;
+  { a branching chain stage runs its continuation on two threads at once, and
+    both of them mark the trail: without the lock the marks race and the trail
+    comes out short, differently on every build }
+  DevilTrailLock.Enter;
+  try
+    DevilTrail := DevilTrail + C;
+  finally
+    DevilTrailLock.Leave;
+  end;
+end;
+
+procedure DevilUnitTrailAdd(C: AnsiChar);
+begin
+  DevilUnitTrail := DevilUnitTrail + C;
 end;
 
 function DevilTrailText: AnsiString;
@@ -223,13 +375,32 @@ begin
   Result := DevilTrail;
 end;
 
-function DevilTrailHash: UInt64;
+function DevilTextHash(const Text: AnsiString): UInt64;
 var
   I: Integer;
 begin
   Result := FnvOffset;
-  for I := 1 to Length(DevilTrail) do
-    Result := (Result xor UInt64(Ord(DevilTrail[I]))) * FnvPrime;
+  for I := 1 to Length(Text) do
+    Result := (Result xor UInt64(Ord(Text[I]))) * FnvPrime;
+end;
+
+function DevilTrailHash: UInt64;
+begin
+  Result := DevilTextHash(DevilTrail);
+end;
+
+{ The order of steps is fixed by the language, so a trail is asserted, not
+  observed.  The text goes out beside the verdict: a hash tells you that the
+  order broke, the text tells you how. }
+procedure DevilCheckTrail(const Name, Actual, Expected: AnsiString);
+begin
+  DevilNoteText(Name, Actual);
+  DevilCheckU(Name, DevilTextHash(Actual), DevilTextHash(Expected));
+end;
+
+function DevilFeedCount: Int64;
+begin
+  Result := DevilFeeds;
 end;
 
 function DevilReport(const Prefix: AnsiString; Seed: UInt64): Integer;
@@ -248,5 +419,19 @@ begin
     Result := 0;
   end;
 end;
+
+{$ifdef FPC}{$pop}{$endif}
+
+initialization
+  DevilTrailLock := TCriticalSection.Create;
+
+finalization
+  { one invariant over the whole program: every tagged object any layer ever
+    created has to be gone by the time the program shuts down. A leak anywhere
+    - a chain that dropped a frame, a record that was finalized twice, an
+    interface the optimizer released early - lands here. }
+  DevilCheckU('devil-tagged-balance',
+    UInt64(Cardinal(TDvlTagged.EverBorn - TDvlTagged.EverGone)), 0);
+  FreeAndNil(DevilTrailLock);
 
 end.

@@ -8,7 +8,12 @@ program dvl_reject_generic_constraint_violation;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 type
   TNeedsClass<T: class> = record
     Value: T;

@@ -4,8 +4,8 @@
 Order matters: the cheap gates run first so an obvious break is reported in
 seconds, and the expensive sweep runs last.
 
-    run_devil_all.py --fpc ... --fpc-config ... [--dcc ... --dcc-lib ...]
-                     [--seeds 1,2,3] [--cases 200] [--with-mutation]
+    run_devil_all.py [--dcc ... --dcc-lib ...] [--seeds 1,2,3] [--cases 200]
+                     [--with-mutation]
 """
 
 from __future__ import annotations
@@ -33,8 +33,6 @@ def run(cmd: list[str], timeout: int) -> tuple[int, str, float]:
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--fpc", type=Path, required=True)
-    p.add_argument("--fpc-config", type=Path, required=True)
     p.add_argument("--dcc", type=Path)
     p.add_argument("--dcc-lib", type=Path)
     p.add_argument("--seeds", default="1,2,3")
@@ -45,7 +43,7 @@ def main() -> None:
     p.add_argument("--report", type=Path)
     args = p.parse_args()
 
-    common = ["--fpc", str(args.fpc), "--fpc-config", str(args.fpc_config)]
+    common: list[str] = []
     delphi = []
     if args.dcc and args.dcc_lib:
         delphi = ["--dcc", str(args.dcc), "--dcc-lib", str(args.dcc_lib)]
@@ -55,6 +53,10 @@ def main() -> None:
          + common),
         ("reject", [sys.executable, str(SCRIPTS / "run_devil_reject_gate.py")]
          + common + delphi),
+        # ловушка на весь класс dvl-0041: код не должен зависеть ни от чего,
+        # кроме исходника
+        ("env", [sys.executable, str(SCRIPTS / "run_devil_env_gate.py")]
+         + common),
         ("stress", [sys.executable, str(SCRIPTS / "run_devil_stress_gate.py")]
          + common + ["--cases", str(args.stress_cases)]),
         ("main", [sys.executable, str(SCRIPTS / "run_devil_gate.py")]

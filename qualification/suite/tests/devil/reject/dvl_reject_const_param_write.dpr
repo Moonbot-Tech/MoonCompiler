@@ -8,7 +8,12 @@ program dvl_reject_const_param_write;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 procedure P(const X: Integer);
 begin
   X := 5;

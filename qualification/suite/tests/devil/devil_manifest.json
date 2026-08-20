@@ -1,4232 +1,2404 @@
 {
-  "case_count": 568,
+  "case_count": 120,
   "cases": [
-    {
-      "a": 1,
-      "b": 2147483646,
-      "consumer": "case-selector",
-      "contexts": [
-        "nested-proc",
-        "repeat-until",
-        "raise-catch"
-      ],
-      "expected": 97,
-      "layer": "expr",
-      "name": "dvl-expr-00000",
-      "op": "or",
-      "source_a": "field",
-      "source_b": "field",
-      "type": "i32"
-    },
-    {
-      "a": 65537,
-      "b": 4294967295,
-      "consumer": "field",
-      "contexts": [
-        "runtime-if",
-        "raise-catch"
-      ],
-      "expected": 0,
-      "layer": "expr",
-      "name": "dvl-expr-00001",
-      "op": "div",
-      "source_a": "var-param",
-      "source_b": "literal",
-      "type": "u32"
-    },
-    {
-      "a": 128,
-      "b": 254,
-      "consumer": "case-selector",
-      "contexts": [
-        "try-finally"
-      ],
-      "expected": 69,
-      "layer": "expr",
-      "name": "dvl-expr-00002",
-      "op": "xor",
-      "source_a": "array-element",
-      "source_b": "property",
-      "type": "u8"
-    },
-    {
-      "a": 4294967295,
-      "b": 7,
-      "consumer": "assign",
-      "contexts": [
-        "managed-scope",
-        "try-finally",
-        "managed-scope"
-      ],
-      "expected": 549755813760,
-      "layer": "expr",
-      "name": "dvl-expr-00003",
-      "op": "shl",
-      "source_a": "property",
-      "source_b": "const-param",
-      "type": "i64"
-    },
-    {
-      "a": 126,
-      "b": 23,
-      "consumer": "assign",
-      "contexts": [
-        "repeat-until"
-      ],
-      "expected": 5,
-      "layer": "expr",
-      "name": "dvl-expr-00004",
-      "op": "div",
-      "source_a": "literal",
-      "source_b": "property",
-      "type": "i8"
-    },
-    {
-      "a": -2147483647,
-      "b": 65536,
-      "consumer": "func-result",
-      "contexts": [],
-      "expected": 2147549185,
-      "layer": "expr",
-      "name": "dvl-expr-00005",
-      "op": "xor",
-      "source_a": "local",
-      "source_b": "opaque",
-      "type": "i32"
-    },
-    {
-      "a": -1495025023,
-      "b": 2147483646,
-      "consumer": "func-result",
-      "contexts": [
-        "try-finally",
-        "while-loop"
-      ],
-      "expected": 3642508671,
-      "layer": "expr",
-      "name": "dvl-expr-00006",
-      "op": "xor",
-      "source_a": "func-result",
-      "source_b": "field",
-      "type": "i32"
-    },
-    {
-      "a": 32768,
-      "b": 95,
-      "consumer": "var-param",
-      "contexts": [
-        "with-record",
-        "try-finally"
-      ],
-      "expected": 0,
-      "layer": "expr",
-      "name": "dvl-expr-00007",
-      "op": "shr",
-      "source_a": "field",
-      "source_b": "property",
-      "type": "u16"
-    },
-    {
-      "a": 1,
-      "consumer": "func-result",
-      "contexts": [
-        "raise-catch"
-      ],
-      "expected": 2,
-      "layer": "unary",
-      "name": "dvl-unary-00000",
-      "op": "succ",
-      "source": "const-param",
-      "type": "u8"
-    },
-    {
-      "a": 29608,
-      "consumer": "func-result",
-      "contexts": [
-        "none"
-      ],
-      "expected": 35927,
-      "layer": "unary",
-      "name": "dvl-unary-00001",
-      "op": "not",
-      "source": "literal",
-      "type": "u16"
-    },
-    {
-      "a": 1,
-      "consumer": "array-element",
-      "contexts": [],
-      "expected": 1,
-      "layer": "unary",
-      "name": "dvl-unary-00002",
-      "op": "abs",
-      "source": "literal",
-      "type": "i32"
-    },
-    {
-      "a": 2,
-      "consumer": "field",
-      "contexts": [],
-      "expected": 2,
-      "layer": "unary",
-      "name": "dvl-unary-00003",
-      "op": "abs",
-      "source": "array-element",
-      "type": "i32"
-    },
-    {
-      "a": 1,
-      "consumer": "field",
-      "contexts": [
-        "managed-scope",
-        "raise-catch"
-      ],
-      "expected": 18446744073709551614,
-      "layer": "unary",
-      "name": "dvl-unary-00004",
-      "op": "not",
-      "source": "property",
-      "type": "i64"
-    },
-    {
-      "a": -2415525836531618954,
-      "consumer": "var-param",
-      "contexts": [
-        "with-record",
-        "try-finally",
-        "with-record"
-      ],
-      "expected": 2415525836531618954,
-      "layer": "unary",
-      "name": "dvl-unary-00005",
-      "op": "abs",
-      "source": "field",
-      "type": "i64"
-    },
-    {
-      "a": 15,
-      "consumer": "assign",
-      "contexts": [
-        "closure",
-        "while-loop",
-        "try-except"
-      ],
-      "expected": 225,
-      "layer": "unary",
-      "name": "dvl-unary-00006",
-      "op": "sqr",
-      "source": "opaque",
-      "type": "u8"
-    },
-    {
-      "a": 2,
-      "consumer": "array-index",
-      "contexts": [
-        "case-branch"
-      ],
-      "expected": 166,
-      "layer": "unary",
-      "name": "dvl-unary-00007",
-      "op": "succ",
-      "source": "field",
-      "type": "u64"
-    },
-    {
-      "a": 4294967296,
-      "b": 382104985,
-      "contexts": [
-        "try-finally"
-      ],
-      "dest": "i64",
-      "exact": 0,
-      "layer": "fold",
-      "name": "dvl-fold-00000",
-      "op": "and",
-      "oracle": "differential+exact",
-      "type_a": "i64",
-      "type_b": "i32"
-    },
-    {
-      "a": 24378,
-      "b": 57484631,
-      "contexts": [
-        "for-loop",
-        "none"
-      ],
-      "dest": "i64",
-      "exact": -57460253,
-      "layer": "fold",
-      "name": "dvl-fold-00001",
-      "op": "sub",
-      "oracle": "differential+exact",
-      "type_a": "u16",
-      "type_b": "i32"
-    },
-    {
-      "a": 2,
-      "b": 17,
-      "contexts": [
-        "while-loop"
-      ],
-      "dest": "u64",
-      "exact": 34,
-      "layer": "fold",
-      "name": "dvl-fold-00002",
-      "op": "mul",
-      "oracle": "differential+exact",
-      "type_a": "u16",
-      "type_b": "i8"
-    },
-    {
-      "a": -2147483648,
-      "b": 25,
-      "contexts": [
-        "with-record"
-      ],
-      "dest": "i64",
-      "exact": -2147483623,
-      "layer": "fold",
-      "name": "dvl-fold-00003",
-      "op": "add",
-      "oracle": "differential+exact",
-      "type_a": "i32",
-      "type_b": "u8"
-    },
-    {
-      "a": 2584718117,
-      "b": 15,
-      "contexts": [],
-      "dest": "i64",
-      "exact": 5,
-      "layer": "fold",
-      "name": "dvl-fold-00004",
-      "op": "and",
-      "oracle": "differential+exact",
-      "type_a": "u32",
-      "type_b": "u8"
-    },
-    {
-      "a": 560349637,
-      "b": 12066,
-      "contexts": [
-        "raise-catch"
-      ],
-      "dest": "i64",
-      "exact": 6761178720042,
-      "layer": "fold",
-      "name": "dvl-fold-00005",
-      "op": "mul",
-      "oracle": "differential+exact",
-      "type_a": "u32",
-      "type_b": "i16"
-    },
-    {
-      "a": 4294967296,
-      "b": 4902855516886473617,
-      "contexts": [
-        "with-record"
-      ],
-      "dest": "i64",
-      "exact": 4294967296,
-      "layer": "fold",
-      "name": "dvl-fold-00006",
-      "op": "and",
-      "oracle": "differential+exact",
-      "type_a": "u64",
-      "type_b": "u64"
-    },
-    {
-      "a": 126,
-      "b": 4,
-      "contexts": [],
-      "dest": "u64",
-      "exact": 2016,
-      "layer": "fold",
-      "name": "dvl-fold-00007",
-      "op": "shl",
-      "oracle": "differential+exact",
-      "type_a": "i8",
-      "type_b": "u8"
-    },
-    {
-      "a": 0,
-      "b": 1,
-      "contexts": [
-        "none"
-      ],
-      "layer": "cmp",
-      "mixed": false,
-      "name": "dvl-cmp-00000",
-      "op": "gt",
-      "type_a": "i16",
-      "type_b": "i16"
-    },
-    {
-      "a": 256,
-      "b": -17528,
-      "contexts": [],
-      "layer": "cmp",
-      "mixed": false,
-      "name": "dvl-cmp-00001",
-      "op": "le",
-      "type_a": "i16",
-      "type_b": "i16"
-    },
-    {
-      "a": 127,
-      "b": 17,
-      "contexts": [
-        "closure",
-        "repeat-until"
-      ],
-      "layer": "cmp",
-      "mixed": false,
-      "name": "dvl-cmp-00002",
-      "op": "eq",
-      "type_a": "i8",
-      "type_b": "i8"
-    },
-    {
-      "a": 257,
-      "b": 32767,
-      "contexts": [
-        "try-finally",
-        "closure"
-      ],
-      "layer": "cmp",
-      "mixed": true,
-      "name": "dvl-cmp-00003",
-      "op": "eq",
-      "type_a": "u16",
-      "type_b": "i16"
-    },
-    {
-      "a": 127,
-      "b": 0,
-      "contexts": [],
-      "layer": "cmp",
-      "mixed": true,
-      "name": "dvl-cmp-00004",
-      "op": "gt",
-      "type_a": "i8",
-      "type_b": "u32"
-    },
-    {
-      "a": 148,
-      "b": -2147483648,
-      "contexts": [],
-      "layer": "cmp",
-      "mixed": true,
-      "name": "dvl-cmp-00005",
-      "op": "ne",
-      "type_a": "u8",
-      "type_b": "i32"
-    },
-    {
-      "a": 4294967296,
-      "b": 1,
-      "contexts": [
-        "closure"
-      ],
-      "layer": "cmp",
-      "mixed": false,
-      "name": "dvl-cmp-00006",
-      "op": "gt",
-      "type_a": "i64",
-      "type_b": "i64"
-    },
-    {
-      "a": 32768,
-      "b": -32,
-      "contexts": [
-        "managed-scope",
-        "with-record"
-      ],
-      "layer": "cmp",
-      "mixed": true,
-      "name": "dvl-cmp-00007",
-      "op": "eq",
-      "type_a": "u16",
-      "type_b": "i8"
-    },
-    {
-      "contexts": [
-        "try-except"
-      ],
-      "count": 0,
-      "layer": "life",
-      "name": "dvl-life-00000",
-      "shape": "managed-record-array"
-    },
-    {
-      "contexts": [
-        "managed-scope"
-      ],
-      "count": 0,
-      "layer": "life",
-      "name": "dvl-life-00001",
-      "shape": "string-cow"
-    },
-    {
-      "contexts": [],
-      "count": 0,
-      "layer": "life",
-      "name": "dvl-life-00002",
-      "shape": "string-cow"
-    },
-    {
-      "contexts": [
-        "repeat-until"
-      ],
-      "count": 1,
-      "layer": "life",
-      "name": "dvl-life-00003",
-      "shape": "self-assign"
-    },
-    {
-      "contexts": [
-        "raise-catch"
-      ],
-      "count": 2,
-      "layer": "life",
-      "name": "dvl-life-00004",
-      "shape": "byval-record"
-    },
-    {
-      "contexts": [
-        "with-record"
-      ],
-      "count": 1,
-      "layer": "life",
-      "name": "dvl-life-00005",
-      "shape": "func-result"
-    },
-    {
-      "contexts": [
-        "case-branch",
-        "managed-scope"
-      ],
-      "count": 0,
-      "layer": "life",
-      "name": "dvl-life-00006",
-      "shape": "managed-record-scope"
-    },
-    {
-      "contexts": [],
-      "count": 3,
-      "layer": "life",
-      "name": "dvl-life-00007",
-      "shape": "record-fields"
-    },
-    {
-      "contexts": [
-        "case-branch"
-      ],
-      "count": 1,
-      "layer": "life",
-      "name": "dvl-life-00008",
-      "shape": "nested-record"
-    },
-    {
-      "contexts": [],
-      "count": 0,
-      "layer": "life",
-      "name": "dvl-life-00009",
-      "shape": "loop-churn"
-    },
-    {
-      "contexts": [],
-      "count": 1,
-      "layer": "life",
-      "name": "dvl-life-00010",
-      "shape": "self-assign"
-    },
-    {
-      "contexts": [],
-      "count": 3,
-      "layer": "life",
-      "name": "dvl-life-00011",
-      "shape": "locals-exit"
-    },
-    {
-      "contexts": [],
-      "count": 1,
-      "layer": "life",
-      "name": "dvl-life-00012",
-      "shape": "nested-record"
-    },
-    {
-      "contexts": [
-        "none",
-        "none"
-      ],
-      "count": 4,
-      "layer": "life",
-      "name": "dvl-life-00013",
-      "shape": "locals-exit"
-    },
-    {
-      "contexts": [
-        "runtime-if",
-        "managed-scope"
-      ],
-      "count": 0,
-      "layer": "life",
-      "name": "dvl-life-00014",
-      "shape": "managed-record-array"
-    },
-    {
-      "contexts": [
-        "raise-catch",
-        "while-loop"
-      ],
-      "count": 4,
-      "layer": "life",
-      "name": "dvl-life-00015",
-      "shape": "array-shrink"
-    },
-    {
-      "contexts": [],
-      "count": 2,
-      "layer": "life",
-      "name": "dvl-life-00016",
-      "shape": "locals-exception"
-    },
-    {
-      "contexts": [
-        "none"
-      ],
-      "count": 0,
-      "layer": "life",
-      "name": "dvl-life-00017",
-      "shape": "managed-record-array"
-    },
-    {
-      "contexts": [],
-      "count": 0,
-      "layer": "life",
-      "name": "dvl-life-00018",
-      "shape": "managed-record-scope"
-    },
-    {
-      "contexts": [
-        "try-except",
-        "try-finally"
-      ],
-      "count": 2,
-      "layer": "life",
-      "name": "dvl-life-00019",
-      "shape": "array-shrink"
-    },
-    {
-      "contexts": [
-        "case-branch"
-      ],
-      "count": 2,
-      "layer": "life",
-      "name": "dvl-life-00020",
-      "shape": "interface-swap"
-    },
-    {
-      "contexts": [
-        "for-loop"
-      ],
-      "count": 1,
-      "layer": "life",
-      "name": "dvl-life-00021",
-      "shape": "self-assign"
-    },
-    {
-      "contexts": [
-        "repeat-until"
-      ],
-      "count": 1,
-      "layer": "life",
-      "name": "dvl-life-00022",
-      "shape": "closure-capture"
-    },
-    {
-      "contexts": [
-        "managed-scope"
-      ],
-      "count": 1,
-      "layer": "life",
-      "name": "dvl-life-00023",
-      "shape": "nested-record"
-    },
-    {
-      "contexts": [],
-      "count": 2,
-      "layer": "life",
-      "name": "dvl-life-00024",
-      "shape": "out-param"
-    },
-    {
-      "contexts": [
-        "while-loop",
-        "while-loop"
-      ],
-      "count": 1,
-      "layer": "life",
-      "name": "dvl-life-00025",
-      "shape": "closure-capture"
-    },
-    {
-      "contexts": [
-        "for-loop"
-      ],
-      "count": 0,
-      "layer": "life",
-      "name": "dvl-life-00026",
-      "shape": "string-cow"
-    },
-    {
-      "contexts": [
-        "repeat-until",
-        "try-except"
-      ],
-      "count": 4,
-      "layer": "life",
-      "name": "dvl-life-00027",
-      "shape": "locals-normal"
-    },
-    {
-      "contexts": [],
-      "count": 0,
-      "layer": "life",
-      "name": "dvl-life-00028",
-      "shape": "managed-record-array"
-    },
-    {
-      "contexts": [
-        "case-branch"
-      ],
-      "count": 2,
-      "layer": "life",
-      "name": "dvl-life-00029",
-      "shape": "exception-unwind-deep"
-    },
-    {
-      "contexts": [],
-      "count": 2,
-      "layer": "life",
-      "name": "dvl-life-00030",
-      "shape": "locals-exception"
-    },
-    {
-      "contexts": [
-        "raise-catch"
-      ],
-      "count": 1,
-      "layer": "life",
-      "name": "dvl-life-00031",
-      "shape": "self-assign"
-    },
-    {
-      "contexts": [
-        "repeat-until"
-      ],
-      "count": 2,
-      "layer": "life",
-      "name": "dvl-life-00032",
-      "shape": "byval-record"
-    },
-    {
-      "contexts": [
-        "with-record"
-      ],
-      "count": 4,
-      "layer": "life",
-      "name": "dvl-life-00033",
-      "shape": "array-element-nil"
-    },
-    {
-      "contexts": [
-        "none"
-      ],
-      "count": 1,
-      "layer": "life",
-      "name": "dvl-life-00034",
-      "shape": "func-result"
-    },
-    {
-      "contexts": [],
-      "count": 2,
-      "layer": "life",
-      "name": "dvl-life-00035",
-      "shape": "array-shrink"
-    },
-    {
-      "contexts": [
-        "with-record"
-      ],
-      "count": 0,
-      "layer": "life",
-      "name": "dvl-life-00036",
-      "shape": "managed-record-param"
-    },
-    {
-      "contexts": [
-        "raise-catch"
-      ],
-      "count": 2,
-      "layer": "life",
-      "name": "dvl-life-00037",
-      "shape": "locals-normal"
-    },
-    {
-      "contexts": [],
-      "count": 0,
-      "layer": "life",
-      "name": "dvl-life-00038",
-      "shape": "string-cow"
-    },
-    {
-      "contexts": [
-        "try-except"
-      ],
-      "count": 2,
-      "layer": "life",
-      "name": "dvl-life-00039",
-      "shape": "interface-swap"
-    },
-    {
-      "fields": [
-        "ustr",
-        "ustr"
-      ],
-      "layer": "abi",
-      "layout": "align16",
-      "name": "dvl-abi-00000"
-    },
-    {
-      "fields": [
-        "i16",
-        "intf",
-        "u8",
-        "ustr",
-        "u32"
-      ],
-      "layer": "abi",
-      "layout": "align1",
-      "name": "dvl-abi-00001"
-    },
-    {
-      "fields": [
-        "bool",
-        "set32",
-        "i64"
-      ],
-      "layer": "abi",
-      "layout": "align1",
-      "name": "dvl-abi-00002"
-    },
-    {
-      "fields": [
-        "pt",
-        "i8",
-        "i32",
-        "i8",
-        "arr3"
-      ],
-      "layer": "abi",
-      "layout": "align8",
-      "name": "dvl-abi-00003"
-    },
-    {
-      "fields": [
-        "wch",
-        "i16",
-        "pt",
-        "f32",
-        "arri2",
-        "intf"
-      ],
-      "layer": "abi",
-      "layout": "align16",
-      "name": "dvl-abi-00004"
-    },
-    {
-      "fields": [
-        "set32",
-        "ustr",
-        "u16"
-      ],
-      "layer": "abi",
-      "layout": "align2",
-      "name": "dvl-abi-00005"
-    },
-    {
-      "fields": [
-        "cur",
-        "set8"
-      ],
-      "layer": "abi",
-      "layout": "align1",
-      "name": "dvl-abi-00006"
-    },
-    {
-      "fields": [
-        "arri2",
-        "i32",
-        "u32",
-        "i16",
-        "i32",
-        "i8"
-      ],
-      "layer": "abi",
-      "layout": "align16",
-      "name": "dvl-abi-00007"
-    },
-    {
-      "fields": [
-        "arr3",
-        "pt",
-        "f64",
-        "f64",
-        "set32",
-        "intf"
-      ],
-      "layer": "abi",
-      "layout": "align4",
-      "name": "dvl-abi-00008"
-    },
-    {
-      "fields": [
-        "arr3",
-        "u8"
-      ],
-      "layer": "abi",
-      "layout": "align2",
-      "name": "dvl-abi-00009"
-    },
-    {
-      "fields": [
-        "f32",
-        "u8",
-        "pt"
-      ],
-      "layer": "abi",
-      "layout": "align4",
-      "name": "dvl-abi-00010"
-    },
-    {
-      "fields": [
-        "pt",
-        "u64"
-      ],
-      "layer": "abi",
-      "layout": "align8",
-      "name": "dvl-abi-00011"
-    },
-    {
-      "fields": [
-        "astr",
-        "i16",
-        "ach",
-        "arri2"
-      ],
-      "layer": "abi",
-      "layout": "plain",
-      "name": "dvl-abi-00012"
-    },
-    {
-      "fields": [
-        "intf",
-        "f32",
-        "u64"
-      ],
-      "layer": "abi",
-      "layout": "align16",
-      "name": "dvl-abi-00013"
-    },
-    {
-      "fields": [
-        "wch",
-        "i32",
-        "u32",
-        "i32"
-      ],
-      "layer": "abi",
-      "layout": "align8",
-      "name": "dvl-abi-00014"
-    },
-    {
-      "fields": [
-        "f64",
-        "astr",
-        "cur",
-        "i8",
-        "pt",
-        "ach"
-      ],
-      "layer": "abi",
-      "layout": "align16",
-      "name": "dvl-abi-00015"
-    },
-    {
-      "fields": [
-        "u8",
-        "u8",
-        "ach",
-        "i16"
-      ],
-      "layer": "abi",
-      "layout": "align2",
-      "name": "dvl-abi-00016"
-    },
-    {
-      "fields": [
-        "i64",
-        "i32",
-        "i16",
-        "set8",
-        "intf"
-      ],
-      "layer": "abi",
-      "layout": "align16",
-      "name": "dvl-abi-00017"
-    },
-    {
-      "fields": [
-        "set8",
-        "astr",
-        "i16"
-      ],
-      "layer": "abi",
-      "layout": "align4",
-      "name": "dvl-abi-00018"
-    },
-    {
-      "fields": [
-        "set32",
-        "f32",
-        "u16"
-      ],
-      "layer": "abi",
-      "layout": "align2",
-      "name": "dvl-abi-00019"
-    },
-    {
-      "fields": [
-        "wch",
-        "i16",
-        "set32",
-        "i32",
-        "set32",
-        "pt"
-      ],
-      "layer": "abi",
-      "layout": "align1",
-      "name": "dvl-abi-00020"
-    },
-    {
-      "fields": [
-        "cur",
-        "u8",
-        "intf",
-        "cur",
-        "astr",
-        "arr3"
-      ],
-      "layer": "abi",
-      "layout": "align2",
-      "name": "dvl-abi-00021"
-    },
-    {
-      "fields": [
-        "arr3",
-        "u16",
-        "astr",
-        "set32"
-      ],
-      "layer": "abi",
-      "layout": "align8",
-      "name": "dvl-abi-00022"
-    },
-    {
-      "fields": [
-        "pt",
-        "u32",
-        "cur",
-        "set8"
-      ],
-      "layer": "abi",
-      "layout": "align4",
-      "name": "dvl-abi-00023"
-    },
-    {
-      "fields": [
-        "astr",
-        "set32",
-        "bool"
-      ],
-      "layer": "abi",
-      "layout": "align8",
-      "name": "dvl-abi-00024"
-    },
-    {
-      "fields": [
-        "i8",
-        "i8"
-      ],
-      "layer": "abi",
-      "layout": "align4",
-      "name": "dvl-abi-00025"
-    },
-    {
-      "fields": [
-        "ach",
-        "ach"
-      ],
-      "layer": "abi",
-      "layout": "align16",
-      "name": "dvl-abi-00026"
-    },
-    {
-      "fields": [
-        "f64",
-        "u16",
-        "set32",
-        "i8",
-        "f64"
-      ],
-      "layer": "abi",
-      "layout": "plain",
-      "name": "dvl-abi-00027"
-    },
-    {
-      "fields": [
-        "wch",
-        "i16",
-        "set32",
-        "i8",
-        "arr3"
-      ],
-      "layer": "abi",
-      "layout": "align16",
-      "name": "dvl-abi-00028"
-    },
-    {
-      "fields": [
-        "u8",
-        "pt",
-        "u8"
-      ],
-      "layer": "abi",
-      "layout": "align1",
-      "name": "dvl-abi-00029"
-    },
-    {
-      "fields": [
-        "intf",
-        "i8",
-        "f32",
-        "u16"
-      ],
-      "layer": "abi",
-      "layout": "plain",
-      "name": "dvl-abi-00030"
-    },
-    {
-      "fields": [
-        "f64",
-        "f32"
-      ],
-      "layer": "abi",
-      "layout": "packed",
-      "name": "dvl-abi-00031"
-    },
-    {
-      "fields": [
-        "astr",
-        "i64"
-      ],
-      "layer": "abi",
-      "layout": "align16",
-      "name": "dvl-abi-00032"
-    },
-    {
-      "fields": [
-        "astr",
-        "u8"
-      ],
-      "layer": "abi",
-      "layout": "align8",
-      "name": "dvl-abi-00033"
-    },
-    {
-      "fields": [
-        "arri2",
-        "i8",
-        "i8"
-      ],
-      "layer": "abi",
-      "layout": "align16",
-      "name": "dvl-abi-00034"
-    },
-    {
-      "fields": [
-        "f32",
-        "set8",
-        "cur",
-        "wbool",
-        "cur"
-      ],
-      "layer": "abi",
-      "layout": "plain",
-      "name": "dvl-abi-00035"
-    },
-    {
-      "fields": [
-        "bool",
-        "i8",
-        "i16",
-        "ach",
-        "i8"
-      ],
-      "layer": "abi",
-      "layout": "align2",
-      "name": "dvl-abi-00036"
-    },
-    {
-      "fields": [
-        "bool",
-        "f64",
-        "wch"
-      ],
-      "layer": "abi",
-      "layout": "align16",
-      "name": "dvl-abi-00037"
-    },
-    {
-      "fields": [
-        "ach",
-        "u16",
-        "u32",
-        "intf",
-        "i32"
-      ],
-      "layer": "abi",
-      "layout": "align2",
-      "name": "dvl-abi-00038"
-    },
-    {
-      "fields": [
-        "f32",
-        "i16",
-        "i8"
-      ],
-      "layer": "abi",
-      "layout": "align2",
-      "name": "dvl-abi-00039"
-    },
-    {
-      "fn": "sqr",
-      "kind": "intrinsic",
-      "layer": "float",
-      "name": "dvl-float-00000",
-      "value": -0.25
-    },
-    {
-      "kind": "special",
-      "layer": "float",
-      "name": "dvl-float-00001",
-      "special": "neg-zero"
-    },
-    {
-      "fn": "sqr",
-      "kind": "intrinsic",
-      "layer": "float",
-      "name": "dvl-float-00002",
-      "value": -2147483648.0
-    },
-    {
-      "fn": "round",
-      "kind": "intrinsic",
-      "layer": "float",
-      "name": "dvl-float-00003",
-      "value": 0.0
-    },
-    {
-      "float": -4.0,
-      "int": 65537,
-      "kind": "mixed-int",
-      "layer": "float",
-      "name": "dvl-float-00004",
-      "type": "i32"
-    },
-    {
-      "a": 40246609,
-      "b": 640677,
-      "k": 15,
-      "kind": "currency",
-      "layer": "float",
-      "name": "dvl-float-00005",
-      "op": "sub"
-    },
-    {
-      "from": "double",
-      "kind": "convert",
-      "layer": "float",
-      "name": "dvl-float-00006",
-      "value": -1.0
-    },
-    {
-      "a": -207301254,
-      "b": -954784,
-      "k": 19,
-      "kind": "currency",
-      "layer": "float",
-      "name": "dvl-float-00007",
-      "op": "sub"
-    },
-    {
-      "a": "",
-      "b": "ab",
-      "layer": "str",
-      "name": "dvl-str-00000",
-      "op": "self-concat",
-      "type": "sstr"
-    },
-    {
-      "a": "0123456789",
-      "b": "MiXeD",
-      "layer": "str",
-      "name": "dvl-str-00001",
-      "op": "concat",
-      "type": "u8str"
-    },
-    {
-      "a": "zz",
-      "b": "",
-      "layer": "str",
-      "name": "dvl-str-00002",
-      "op": "insert",
-      "type": "astr"
-    },
-    {
-      "a": "a",
-      "b": "zz",
-      "layer": "str",
-      "name": "dvl-str-00003",
-      "op": "self-concat",
-      "type": "u8str"
-    },
-    {
-      "a": "abc",
-      "b": "The quick brown",
-      "layer": "str",
-      "name": "dvl-str-00004",
-      "op": "char-append",
-      "type": "ustr"
-    },
-    {
-      "a": "  spaced  ",
-      "b": "ab",
-      "layer": "str",
-      "name": "dvl-str-00005",
-      "op": "setlength",
-      "type": "sstr"
-    },
-    {
-      "a": "zz",
-      "b": "The quick brown",
-      "layer": "str",
-      "name": "dvl-str-00006",
-      "op": "index-write",
-      "type": "astr"
-    },
-    {
-      "a": "zz",
-      "b": "abcdef",
-      "layer": "str",
-      "name": "dvl-str-00007",
-      "op": "upper",
-      "type": "astr"
-    },
-    {
-      "a": "byabvpxrfia",
-      "b": "byabvpxrfia",
-      "layer": "str",
-      "name": "dvl-str-00008",
-      "op": "delete",
-      "type": "astr"
-    },
-    {
-      "a": "ab",
-      "b": "The quick brown",
-      "layer": "str",
-      "name": "dvl-str-00009",
-      "op": "delete",
-      "type": "ustr"
-    },
-    {
-      "a": "MiXeD",
-      "b": "tickj",
-      "layer": "str",
-      "name": "dvl-str-00010",
-      "op": "copy",
-      "type": "ustr"
-    },
-    {
-      "a": "",
-      "b": "0123456789",
-      "layer": "str",
-      "name": "dvl-str-00011",
-      "op": "empty-concat",
-      "type": "u8str"
-    },
-    {
-      "a": "abcdef",
-      "b": "  spaced  ",
-      "layer": "str",
-      "name": "dvl-str-00012",
-      "op": "self-concat",
-      "type": "u8str"
-    },
-    {
-      "a": "",
-      "b": "MiXeD",
-      "layer": "str",
-      "name": "dvl-str-00013",
-      "op": "self-concat",
-      "type": "u8str"
-    },
-    {
-      "a": "zz",
-      "b": "  spaced  ",
-      "layer": "str",
-      "name": "dvl-str-00014",
-      "op": "char-append",
-      "type": "sstr"
-    },
-    {
-      "a": "abc",
-      "b": "The quick brown",
-      "layer": "str",
-      "name": "dvl-str-00015",
-      "op": "index-write",
-      "type": "ustr"
-    },
-    {
-      "a": "abc",
-      "b": "abc",
-      "layer": "str",
-      "name": "dvl-str-00016",
-      "op": "index-write",
-      "type": "astr"
-    },
-    {
-      "a": "  spaced  ",
-      "b": "zz",
-      "layer": "str",
-      "name": "dvl-str-00017",
-      "op": "compare",
-      "type": "u8str"
-    },
-    {
-      "a": "The quick brown",
-      "b": "0123456789",
-      "layer": "str",
-      "name": "dvl-str-00018",
-      "op": "char-append",
-      "type": "u8str"
-    },
-    {
-      "a": "abcdef",
-      "b": "ab",
-      "layer": "str",
-      "name": "dvl-str-00019",
-      "op": "copy",
-      "type": "ustr"
-    },
-    {
-      "a": "MiXeD",
-      "b": "0123456789",
-      "layer": "str",
-      "name": "dvl-str-00020",
-      "op": "insert",
-      "type": "astr"
-    },
-    {
-      "a": "MiXeD",
-      "b": "a",
-      "layer": "str",
-      "name": "dvl-str-00021",
-      "op": "char-append",
-      "type": "ustr"
-    },
-    {
-      "a": "ihtluopt",
-      "b": "0123456789",
-      "layer": "str",
-      "name": "dvl-str-00022",
-      "op": "empty-concat",
-      "type": "sstr"
-    },
-    {
-      "a": "abcdef",
-      "b": "0123456789",
-      "layer": "str",
-      "name": "dvl-str-00023",
-      "op": "upper",
-      "type": "astr"
-    },
-    {
-      "a": "abcdef",
-      "b": "  spaced  ",
-      "layer": "str",
-      "name": "dvl-str-00024",
-      "op": "index-write",
-      "type": "astr"
-    },
-    {
-      "a": "abc",
-      "b": "ab",
-      "layer": "str",
-      "name": "dvl-str-00025",
-      "op": "trim",
-      "type": "ustr"
-    },
-    {
-      "a": "MiXeD",
-      "b": "MiXeD",
-      "layer": "str",
-      "name": "dvl-str-00026",
-      "op": "index-write",
-      "type": "astr"
-    },
-    {
-      "a": "mcvejw",
-      "b": "abc",
-      "layer": "str",
-      "name": "dvl-str-00027",
-      "op": "trim",
-      "type": "sstr"
-    },
-    {
-      "a": "ab",
-      "b": "wjlun",
-      "layer": "str",
-      "name": "dvl-str-00028",
-      "op": "pos",
-      "type": "ustr"
-    },
-    {
-      "a": "MiXeD",
-      "b": "zz",
-      "layer": "str",
-      "name": "dvl-str-00029",
-      "op": "upper",
-      "type": "astr"
-    },
-    {
-      "a": "zz",
-      "b": "a",
-      "layer": "str",
-      "name": "dvl-str-00030",
-      "op": "trim",
-      "type": "ustr"
-    },
-    {
-      "a": "a",
-      "b": "udj",
-      "layer": "str",
-      "name": "dvl-str-00031",
-      "op": "concat",
-      "type": "astr"
-    },
-    {
-      "a": "nqwjjrt",
-      "b": "a",
-      "layer": "str",
-      "name": "dvl-str-00032",
-      "op": "empty-concat",
-      "type": "u8str"
-    },
-    {
-      "a": "vcuhhsw",
-      "b": "zz",
-      "layer": "str",
-      "name": "dvl-str-00033",
-      "op": "char-append",
-      "type": "sstr"
-    },
-    {
-      "a": "The quick brown",
-      "b": "  spaced  ",
-      "layer": "str",
-      "name": "dvl-str-00034",
-      "op": "compare",
-      "type": "sstr"
-    },
-    {
-      "a": "0123456789",
-      "b": "zz",
-      "layer": "str",
-      "name": "dvl-str-00035",
-      "op": "compare",
-      "type": "sstr"
-    },
-    {
-      "a": "mxjwsfm",
-      "b": "abcdef",
-      "layer": "str",
-      "name": "dvl-str-00036",
-      "op": "trim",
-      "type": "astr"
-    },
-    {
-      "a": "  spaced  ",
-      "b": "zz",
-      "layer": "str",
-      "name": "dvl-str-00037",
-      "op": "concat",
-      "type": "sstr"
-    },
-    {
-      "a": "cuattvh",
-      "b": "zz",
-      "layer": "str",
-      "name": "dvl-str-00038",
-      "op": "empty-concat",
-      "type": "astr"
-    },
-    {
-      "a": "sdqlifxhtw",
-      "b": "abc",
-      "layer": "str",
-      "name": "dvl-str-00039",
-      "op": "self-concat",
-      "type": "ustr"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00000",
-      "shape": "procvar-swap"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00001",
-      "shape": "interface-call"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00002",
-      "shape": "inherited-chain"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00003",
-      "shape": "abstract-override"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00004",
-      "shape": "anon-invoke"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00005",
-      "shape": "inherited-chain"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00006",
-      "shape": "abstract-override"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00007",
-      "shape": "anon-invoke"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00008",
-      "shape": "interface-cross"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00009",
-      "shape": "metaclass-ctor"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00010",
-      "shape": "interface-cross"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00011",
-      "shape": "class-function"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00012",
-      "shape": "class-function"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00013",
-      "shape": "dynamic-method"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00014",
-      "shape": "class-function"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00015",
-      "shape": "class-function"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00016",
-      "shape": "virtual-chain"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00017",
-      "shape": "interface-call"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00018",
-      "shape": "procvar-swap"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00019",
-      "shape": "abstract-override"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00020",
-      "shape": "procvar-swap"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00021",
-      "shape": "abstract-override"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00022",
-      "shape": "anon-invoke"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00023",
-      "shape": "interface-call"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00024",
-      "shape": "inherited-chain"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00025",
-      "shape": "inherited-chain"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00026",
-      "shape": "interface-cross"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00027",
-      "shape": "anon-invoke"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00028",
-      "shape": "class-helper"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00029",
-      "shape": "interface-call"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00030",
-      "shape": "anon-invoke"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00031",
-      "shape": "class-function"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00032",
-      "shape": "procvar-swap"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00033",
-      "shape": "interface-cross"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00034",
-      "shape": "method-pointer"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00035",
-      "shape": "inherited-chain"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00036",
-      "shape": "interface-cross"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00037",
-      "shape": "procvar-swap"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00038",
-      "shape": "interface-cross"
-    },
-    {
-      "layer": "disp",
-      "name": "dvl-disp-00039",
-      "shape": "class-function"
-    },
     {
       "layer": "gen",
       "name": "dvl-gen-00000",
-      "shape": "generic-record-op",
-      "type": "i32"
+      "shape": "array-of-t",
+      "type": "i64"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00001",
-      "shape": "class-var-per-spec",
-      "type": "u32"
+      "shape": "box-managed",
+      "type": "u16"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00002",
-      "shape": "two-params",
-      "type": "i8"
+      "shape": "class-var-per-spec",
+      "type": "u32"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00003",
       "shape": "swap-generic",
-      "type": "i16"
+      "type": "u8"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00004",
-      "shape": "box-managed",
-      "type": "i16"
+      "shape": "nested-spec",
+      "type": "u32"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00005",
-      "shape": "array-of-t",
-      "type": "i64"
+      "shape": "generic-method",
+      "type": "u64"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00006",
       "shape": "array-of-t",
-      "type": "i16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00007",
-      "shape": "class-var-per-spec",
       "type": "u64"
     },
     {
       "layer": "gen",
-      "name": "dvl-gen-00008",
+      "name": "dvl-gen-00007",
       "shape": "generic-record-op",
       "type": "u32"
     },
     {
       "layer": "gen",
-      "name": "dvl-gen-00009",
-      "shape": "box-managed",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00010",
-      "shape": "class-var-per-spec",
+      "name": "dvl-gen-00008",
+      "shape": "nested-spec",
       "type": "i32"
     },
     {
       "layer": "gen",
+      "name": "dvl-gen-00009",
+      "shape": "generic-method",
+      "type": "i16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00010",
+      "shape": "box-managed",
+      "type": "i64"
+    },
+    {
+      "layer": "gen",
       "name": "dvl-gen-00011",
-      "shape": "box-scalar",
-      "type": "i8"
+      "shape": "generic-method",
+      "type": "i32"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00012",
-      "shape": "generic-record-op",
+      "shape": "generic-method",
       "type": "u16"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00013",
-      "shape": "class-var-per-spec",
-      "type": "u16"
+      "shape": "generic-record-op",
+      "type": "u64"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00014",
-      "shape": "nested-spec",
-      "type": "u32"
+      "shape": "class-var-per-spec",
+      "type": "u8"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00015",
-      "shape": "nested-spec",
-      "type": "i64"
+      "shape": "generic-record-op",
+      "type": "i8"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00016",
-      "shape": "constraint-class",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00017",
-      "shape": "swap-generic",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00018",
-      "shape": "array-of-t",
+      "shape": "box-scalar",
       "type": "u16"
     },
     {
       "layer": "gen",
+      "name": "dvl-gen-00017",
+      "shape": "box-managed",
+      "type": "u64"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00018",
+      "shape": "swap-generic",
+      "type": "i32"
+    },
+    {
+      "layer": "gen",
       "name": "dvl-gen-00019",
-      "shape": "generic-record-op",
+      "shape": "box-scalar",
       "type": "u32"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00020",
-      "shape": "two-params",
-      "type": "i32"
+      "shape": "box-scalar",
+      "type": "u8"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00021",
-      "shape": "box-managed",
-      "type": "i8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00022",
-      "shape": "generic-record-op",
+      "shape": "swap-generic",
       "type": "i32"
     },
     {
       "layer": "gen",
+      "name": "dvl-gen-00022",
+      "shape": "generic-method",
+      "type": "i64"
+    },
+    {
+      "layer": "gen",
       "name": "dvl-gen-00023",
-      "shape": "class-var-per-spec",
-      "type": "u32"
+      "shape": "box-scalar",
+      "type": "u64"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00024",
       "shape": "two-params",
-      "type": "i64"
+      "type": "i32"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00025",
-      "shape": "two-params",
-      "type": "i8"
+      "shape": "box-scalar",
+      "type": "i64"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00026",
-      "shape": "array-of-t",
-      "type": "u32"
+      "shape": "swap-generic",
+      "type": "i32"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00027",
+      "shape": "constraint-class",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00028",
       "shape": "generic-method",
       "type": "u8"
     },
     {
       "layer": "gen",
-      "name": "dvl-gen-00028",
-      "shape": "box-managed",
-      "type": "u64"
-    },
-    {
-      "layer": "gen",
       "name": "dvl-gen-00029",
-      "shape": "generic-record-op",
+      "shape": "nested-spec",
       "type": "u32"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00030",
-      "shape": "box-managed",
-      "type": "i8"
+      "shape": "swap-generic",
+      "type": "u64"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00031",
-      "shape": "class-var-per-spec",
-      "type": "i64"
+      "shape": "swap-generic",
+      "type": "u16"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00032",
-      "shape": "box-managed",
-      "type": "u32"
+      "shape": "generic-record-op",
+      "type": "u64"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00033",
+      "shape": "swap-generic",
+      "type": "u8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00034",
+      "shape": "swap-generic",
+      "type": "u16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00035",
+      "shape": "nested-spec",
+      "type": "i32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00036",
+      "shape": "nested-spec",
+      "type": "u64"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00037",
+      "shape": "generic-record-op",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00038",
+      "shape": "nested-spec",
+      "type": "u16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00039",
+      "shape": "constraint-class",
+      "type": "u16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00040",
       "shape": "constraint-class",
       "type": "i16"
     },
     {
       "layer": "gen",
-      "name": "dvl-gen-00034",
-      "shape": "generic-method",
+      "name": "dvl-gen-00041",
+      "shape": "constraint-class",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00042",
+      "shape": "box-scalar",
+      "type": "i32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00043",
+      "shape": "two-params",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00044",
+      "shape": "constraint-class",
       "type": "u8"
     },
     {
       "layer": "gen",
-      "name": "dvl-gen-00035",
+      "name": "dvl-gen-00045",
+      "shape": "nested-spec",
+      "type": "i32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00046",
+      "shape": "swap-generic",
+      "type": "i64"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00047",
+      "shape": "box-managed",
+      "type": "i32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00048",
+      "shape": "generic-record-op",
+      "type": "u64"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00049",
+      "shape": "box-scalar",
+      "type": "u16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00050",
+      "shape": "two-params",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00051",
+      "shape": "array-of-t",
+      "type": "i8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00052",
       "shape": "class-var-per-spec",
+      "type": "i64"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00053",
+      "shape": "class-var-per-spec",
+      "type": "i8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00054",
+      "shape": "constraint-class",
+      "type": "i8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00055",
+      "shape": "generic-method",
       "type": "i16"
     },
     {
       "layer": "gen",
-      "name": "dvl-gen-00036",
+      "name": "dvl-gen-00056",
+      "shape": "box-managed",
+      "type": "i8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00057",
+      "shape": "constraint-class",
+      "type": "u8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00058",
+      "shape": "class-var-per-spec",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00059",
+      "shape": "box-scalar",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00060",
+      "shape": "generic-record-op",
+      "type": "i8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00061",
+      "shape": "generic-method",
+      "type": "u16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00062",
+      "shape": "constraint-class",
+      "type": "i32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00063",
+      "shape": "two-params",
+      "type": "i8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00064",
+      "shape": "box-managed",
+      "type": "u16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00065",
+      "shape": "two-params",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00066",
+      "shape": "class-var-per-spec",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00067",
+      "shape": "constraint-class",
+      "type": "i32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00068",
+      "shape": "array-of-t",
+      "type": "u8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00069",
       "shape": "box-managed",
       "type": "i64"
     },
     {
       "layer": "gen",
-      "name": "dvl-gen-00037",
-      "shape": "class-var-per-spec",
-      "type": "u64"
+      "name": "dvl-gen-00070",
+      "shape": "array-of-t",
+      "type": "u8"
     },
     {
       "layer": "gen",
-      "name": "dvl-gen-00038",
+      "name": "dvl-gen-00071",
+      "shape": "array-of-t",
+      "type": "i64"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00072",
+      "shape": "box-scalar",
+      "type": "i16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00073",
+      "shape": "generic-record-op",
+      "type": "i16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00074",
+      "shape": "array-of-t",
+      "type": "u8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00075",
+      "shape": "constraint-class",
+      "type": "i32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00076",
+      "shape": "generic-method",
+      "type": "i64"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00077",
+      "shape": "generic-record-op",
+      "type": "u16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00078",
+      "shape": "swap-generic",
+      "type": "i16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00079",
+      "shape": "two-params",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00080",
+      "shape": "array-of-t",
+      "type": "i32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00081",
+      "shape": "swap-generic",
+      "type": "i32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00082",
+      "shape": "two-params",
+      "type": "u8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00083",
+      "shape": "box-scalar",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00084",
+      "shape": "swap-generic",
+      "type": "i64"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00085",
+      "shape": "constraint-class",
+      "type": "u8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00086",
+      "shape": "box-scalar",
+      "type": "i64"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00087",
+      "shape": "constraint-class",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00088",
+      "shape": "class-var-per-spec",
+      "type": "i32"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00089",
+      "shape": "array-of-t",
+      "type": "u8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00090",
+      "shape": "two-params",
+      "type": "i16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00091",
+      "shape": "box-managed",
+      "type": "i8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00092",
+      "shape": "class-var-per-spec",
+      "type": "i64"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00093",
+      "shape": "generic-record-op",
+      "type": "i64"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00094",
+      "shape": "nested-spec",
+      "type": "i64"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00095",
       "shape": "generic-method",
       "type": "u8"
     },
     {
       "layer": "gen",
-      "name": "dvl-gen-00039",
+      "name": "dvl-gen-00096",
       "shape": "two-params",
-      "type": "u64"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00000",
-      "shape": "two-dim"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00001",
-      "shape": "ragged"
-    },
-    {
-      "layer": "arr",
-      "n": 4,
-      "name": "dvl-arr-00002",
-      "shape": "dynamic-share"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00003",
-      "shape": "pointer-walk"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00004",
-      "shape": "dynamic-share"
-    },
-    {
-      "layer": "arr",
-      "n": 4,
-      "name": "dvl-arr-00005",
-      "shape": "open-array-sum"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00006",
-      "shape": "dynamic-grow"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00007",
-      "shape": "slice-open"
-    },
-    {
-      "layer": "arr",
-      "n": 4,
-      "name": "dvl-arr-00008",
-      "shape": "ragged"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00009",
-      "shape": "two-dim"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00010",
-      "shape": "negative-based"
-    },
-    {
-      "layer": "arr",
-      "n": 4,
-      "name": "dvl-arr-00011",
-      "shape": "open-array-sum"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00012",
-      "shape": "ragged"
-    },
-    {
-      "layer": "arr",
-      "n": 4,
-      "name": "dvl-arr-00013",
-      "shape": "static-index"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00014",
-      "shape": "insert-delete"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00015",
-      "shape": "open-array-sum"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00016",
-      "shape": "static-index"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00017",
-      "shape": "dynamic-share"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00018",
-      "shape": "copy-detach"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00019",
-      "shape": "concat"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00020",
-      "shape": "pointer-walk"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00021",
-      "shape": "two-dim"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00022",
-      "shape": "concat"
-    },
-    {
-      "layer": "arr",
-      "n": 4,
-      "name": "dvl-arr-00023",
-      "shape": "ragged"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00024",
-      "shape": "insert-delete"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00025",
-      "shape": "open-array-sum"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00026",
-      "shape": "copy-detach"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00027",
-      "shape": "open-array-sum"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00028",
-      "shape": "static-index"
-    },
-    {
-      "layer": "arr",
-      "n": 4,
-      "name": "dvl-arr-00029",
-      "shape": "open-array-sum"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00030",
-      "shape": "dynamic-grow"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00031",
-      "shape": "ragged"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00032",
-      "shape": "copy-detach"
-    },
-    {
-      "layer": "arr",
-      "n": 4,
-      "name": "dvl-arr-00033",
-      "shape": "ragged"
-    },
-    {
-      "layer": "arr",
-      "n": 4,
-      "name": "dvl-arr-00034",
-      "shape": "ragged"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00035",
-      "shape": "static-index"
-    },
-    {
-      "layer": "arr",
-      "n": 6,
-      "name": "dvl-arr-00036",
-      "shape": "dynamic-grow"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00037",
-      "shape": "concat"
-    },
-    {
-      "layer": "arr",
-      "n": 4,
-      "name": "dvl-arr-00038",
-      "shape": "concat"
-    },
-    {
-      "layer": "arr",
-      "n": 8,
-      "name": "dvl-arr-00039",
-      "shape": "dynamic-grow"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00000",
-      "shape": "const-through-unit",
       "type": "i64"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00001",
-      "shape": "generic-box",
-      "type": "i8"
+      "layer": "gen",
+      "name": "dvl-gen-00097",
+      "shape": "class-var-per-spec",
+      "type": "u16"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00002",
-      "shape": "const-through-unit",
+      "layer": "gen",
+      "name": "dvl-gen-00098",
+      "shape": "nested-spec",
+      "type": "u16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00099",
+      "shape": "two-params",
+      "type": "u8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00100",
+      "shape": "array-of-t",
+      "type": "u8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00101",
+      "shape": "generic-method",
+      "type": "u8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00102",
+      "shape": "generic-record-op",
       "type": "i64"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00003",
-      "shape": "second-unit-chain",
-      "type": "i16"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00004",
-      "shape": "const-through-unit",
-      "type": "i16"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00005",
-      "shape": "const-through-unit",
+      "layer": "gen",
+      "name": "dvl-gen-00103",
+      "shape": "two-params",
       "type": "u16"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00006",
-      "shape": "second-unit-chain",
-      "type": "i32"
+      "layer": "gen",
+      "name": "dvl-gen-00104",
+      "shape": "nested-spec",
+      "type": "i16"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00007",
-      "shape": "record-through-unit",
-      "type": "u16"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00008",
-      "shape": "record-through-unit",
+      "layer": "gen",
+      "name": "dvl-gen-00105",
+      "shape": "generic-record-op",
       "type": "u64"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00009",
-      "shape": "second-unit-chain",
-      "type": "u64"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00010",
-      "shape": "alias-identity",
-      "type": "u16"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00011",
-      "shape": "record-through-unit",
-      "type": "i16"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00012",
-      "shape": "alias-identity",
-      "type": "u32"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00013",
-      "shape": "second-unit-chain",
-      "type": "i8"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00014",
-      "shape": "generic-across-units",
-      "type": "i16"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00015",
-      "shape": "record-through-unit",
+      "layer": "gen",
+      "name": "dvl-gen-00106",
+      "shape": "two-params",
       "type": "i32"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00016",
-      "shape": "inline-func",
+      "layer": "gen",
+      "name": "dvl-gen-00107",
+      "shape": "generic-method",
       "type": "i8"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00017",
-      "shape": "second-unit-chain",
-      "type": "u8"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00018",
-      "shape": "generic-box",
+      "layer": "gen",
+      "name": "dvl-gen-00108",
+      "shape": "generic-record-op",
       "type": "i64"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00019",
-      "shape": "const-through-unit",
+      "layer": "gen",
+      "name": "dvl-gen-00109",
+      "shape": "nested-spec",
       "type": "i16"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00020",
-      "shape": "record-through-unit",
-      "type": "u16"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00021",
-      "shape": "alias-identity",
-      "type": "u8"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00022",
-      "shape": "alias-identity",
-      "type": "i8"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00023",
-      "shape": "generic-across-units",
-      "type": "u64"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00024",
-      "shape": "inline-func",
-      "type": "i16"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00025",
-      "shape": "record-through-unit",
-      "type": "i16"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00026",
-      "shape": "const-through-unit",
-      "type": "i32"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00027",
-      "shape": "record-through-unit",
+      "layer": "gen",
+      "name": "dvl-gen-00110",
+      "shape": "box-scalar",
       "type": "u32"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00028",
-      "shape": "alias-identity",
-      "type": "i16"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00029",
-      "shape": "generic-across-units",
+      "layer": "gen",
+      "name": "dvl-gen-00111",
+      "shape": "nested-spec",
       "type": "i32"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00030",
-      "shape": "generic-box",
-      "type": "i16"
+      "layer": "gen",
+      "name": "dvl-gen-00112",
+      "shape": "generic-record-op",
+      "type": "i32"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00031",
-      "shape": "const-through-unit",
-      "type": "i8"
+      "layer": "gen",
+      "name": "dvl-gen-00113",
+      "shape": "box-scalar",
+      "type": "i32"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00032",
-      "shape": "inline-func",
-      "type": "u16"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00033",
-      "shape": "generic-box",
+      "layer": "gen",
+      "name": "dvl-gen-00114",
+      "shape": "box-managed",
       "type": "u32"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00034",
-      "shape": "record-through-unit",
+      "layer": "gen",
+      "name": "dvl-gen-00115",
+      "shape": "box-managed",
+      "type": "u16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00116",
+      "shape": "nested-spec",
       "type": "u64"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00035",
-      "shape": "generic-box",
+      "layer": "gen",
+      "name": "dvl-gen-00117",
+      "shape": "box-managed",
       "type": "u8"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00036",
-      "shape": "inline-func",
-      "type": "i16"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00037",
-      "shape": "const-through-unit",
-      "type": "i32"
-    },
-    {
-      "layer": "unit",
-      "name": "dvl-unit-00038",
-      "shape": "generic-across-units",
+      "layer": "gen",
+      "name": "dvl-gen-00118",
+      "shape": "array-of-t",
       "type": "i64"
     },
     {
-      "layer": "unit",
-      "name": "dvl-unit-00039",
-      "shape": "record-through-unit",
-      "type": "u32"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-div",
-      "name": "dvl-chk-00000",
-      "raises": false,
-      "type": "i8"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-dynarray",
-      "name": "dvl-chk-00001",
-      "raises": true,
-      "type": "i16"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-neg",
-      "name": "dvl-chk-00002",
-      "raises": true,
-      "type": "u8"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-div",
-      "name": "dvl-chk-00003",
-      "raises": false,
-      "type": "i8"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-div",
-      "name": "dvl-chk-00004",
-      "raises": false,
-      "type": "i32"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-neg",
-      "name": "dvl-chk-00005",
-      "raises": false,
-      "type": "i8"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-subrange",
-      "name": "dvl-chk-00006",
-      "raises": false,
-      "type": "i16"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-array",
-      "name": "dvl-chk-00007",
-      "raises": false,
+      "layer": "gen",
+      "name": "dvl-gen-00119",
+      "shape": "two-params",
       "type": "u16"
-    },
-    {
-      "layer": "chk",
-      "mode": "div-min-by-minus-one",
-      "name": "dvl-chk-00008",
-      "raises": true,
-      "type": "u64"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-shl",
-      "name": "dvl-chk-00009",
-      "raises": false,
-      "type": "u8"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-add",
-      "name": "dvl-chk-00010",
-      "raises": false,
-      "type": "i8"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-mul",
-      "name": "dvl-chk-00011",
-      "raises": true,
-      "type": "u64"
-    },
-    {
-      "layer": "chk",
-      "mode": "div-min-by-minus-one",
-      "name": "dvl-chk-00012",
-      "raises": true,
-      "type": "i8"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-shl",
-      "name": "dvl-chk-00013",
-      "raises": true,
-      "type": "i8"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-array",
-      "name": "dvl-chk-00014",
-      "raises": true,
-      "type": "i64"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-inc",
-      "name": "dvl-chk-00015",
-      "raises": false,
-      "type": "u16"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-add",
-      "name": "dvl-chk-00016",
-      "raises": false,
-      "type": "i32"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-string",
-      "name": "dvl-chk-00017",
-      "raises": true,
-      "type": "u16"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-string",
-      "name": "dvl-chk-00018",
-      "raises": true,
-      "type": "i32"
-    },
-    {
-      "layer": "chk",
-      "mode": "div-min-by-minus-one",
-      "name": "dvl-chk-00019",
-      "raises": false,
-      "type": "u8"
-    },
-    {
-      "layer": "chk",
-      "mode": "div-min-by-minus-one",
-      "name": "dvl-chk-00020",
-      "raises": false,
-      "type": "i16"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-for-bound",
-      "name": "dvl-chk-00021",
-      "raises": false,
-      "type": "u64"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-array",
-      "name": "dvl-chk-00022",
-      "raises": true,
-      "type": "u64"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-mul",
-      "name": "dvl-chk-00023",
-      "raises": true,
-      "type": "i16"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-array",
-      "name": "dvl-chk-00024",
-      "raises": true,
-      "type": "u32"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-for-bound",
-      "name": "dvl-chk-00025",
-      "raises": false,
-      "type": "u32"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-dynarray",
-      "name": "dvl-chk-00026",
-      "raises": true,
-      "type": "u16"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-subrange",
-      "name": "dvl-chk-00027",
-      "raises": true,
-      "type": "u8"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-inc",
-      "name": "dvl-chk-00028",
-      "raises": false,
-      "type": "u32"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-array",
-      "name": "dvl-chk-00029",
-      "raises": false,
-      "type": "u64"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-add",
-      "name": "dvl-chk-00030",
-      "raises": false,
-      "type": "u32"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-add",
-      "name": "dvl-chk-00031",
-      "raises": false,
-      "type": "u64"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-shl",
-      "name": "dvl-chk-00032",
-      "raises": true,
-      "type": "u8"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-mul",
-      "name": "dvl-chk-00033",
-      "raises": true,
-      "type": "u16"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-mul",
-      "name": "dvl-chk-00034",
-      "raises": true,
-      "type": "i8"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-inc",
-      "name": "dvl-chk-00035",
-      "raises": false,
-      "type": "u8"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-shl",
-      "name": "dvl-chk-00036",
-      "raises": false,
-      "type": "i64"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-div",
-      "name": "dvl-chk-00037",
-      "raises": false,
-      "type": "i64"
-    },
-    {
-      "layer": "chk",
-      "mode": "overflow-add",
-      "name": "dvl-chk-00038",
-      "raises": false,
-      "type": "i16"
-    },
-    {
-      "layer": "chk",
-      "mode": "range-string",
-      "name": "dvl-chk-00039",
-      "raises": false,
-      "type": "u16"
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00000",
-      "rounds": 25,
-      "shape": "interface-handoff",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00001",
-      "rounds": 50,
-      "shape": "interface-handoff",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00002",
-      "rounds": 100,
-      "shape": "interface-handoff",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00003",
-      "rounds": 100,
-      "shape": "pure-kernel",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00004",
-      "rounds": 50,
-      "shape": "queue-drain",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00005",
-      "rounds": 100,
-      "shape": "fatal-exception",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00006",
-      "rounds": 25,
-      "shape": "managed-handoff",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00007",
-      "rounds": 25,
-      "shape": "threadvar-isolation",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00008",
-      "rounds": 100,
-      "shape": "threadvar-isolation",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00009",
-      "rounds": 25,
-      "shape": "atomic-counter",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00010",
-      "rounds": 50,
-      "shape": "interface-handoff",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00011",
-      "rounds": 25,
-      "shape": "fatal-exception",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00012",
-      "rounds": 25,
-      "shape": "fatal-exception",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00013",
-      "rounds": 25,
-      "shape": "atomic-counter",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00014",
-      "rounds": 50,
-      "shape": "fatal-exception",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00015",
-      "rounds": 50,
-      "shape": "pure-kernel",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00016",
-      "rounds": 50,
-      "shape": "fatal-exception",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00017",
-      "rounds": 25,
-      "shape": "threadvar-isolation",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00018",
-      "rounds": 50,
-      "shape": "pure-kernel",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00019",
-      "rounds": 50,
-      "shape": "threadvar-isolation",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00020",
-      "rounds": 100,
-      "shape": "queue-drain",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00021",
-      "rounds": 100,
-      "shape": "atomic-counter",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00022",
-      "rounds": 100,
-      "shape": "pure-kernel",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00023",
-      "rounds": 50,
-      "shape": "pure-kernel",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00024",
-      "rounds": 100,
-      "shape": "interface-handoff",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00025",
-      "rounds": 25,
-      "shape": "managed-handoff",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00026",
-      "rounds": 25,
-      "shape": "interface-handoff",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00027",
-      "rounds": 50,
-      "shape": "atomic-counter",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00028",
-      "rounds": 25,
-      "shape": "queue-drain",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00029",
-      "rounds": 100,
-      "shape": "managed-handoff",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00030",
-      "rounds": 100,
-      "shape": "queue-drain",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00031",
-      "rounds": 50,
-      "shape": "threadvar-isolation",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00032",
-      "rounds": 25,
-      "shape": "queue-drain",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00033",
-      "rounds": 100,
-      "shape": "queue-drain",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00034",
-      "rounds": 100,
-      "shape": "atomic-counter",
-      "workers": 2
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00035",
-      "rounds": 50,
-      "shape": "atomic-counter",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00036",
-      "rounds": 100,
-      "shape": "pure-kernel",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00037",
-      "rounds": 50,
-      "shape": "atomic-counter",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00038",
-      "rounds": 50,
-      "shape": "pure-kernel",
-      "workers": 4
-    },
-    {
-      "layer": "thr",
-      "name": "dvl-thr-00039",
-      "rounds": 100,
-      "shape": "fatal-exception",
-      "workers": 4
-    },
-    {
-      "hi": 255,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00000",
-      "op": "equal"
-    },
-    {
-      "hi": 255,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00001",
-      "op": "symdiff"
-    },
-    {
-      "hi": 255,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00002",
-      "op": "diff"
-    },
-    {
-      "holey": true,
-      "layer": "set",
-      "name": "dvl-set-00003",
-      "packing": 4,
-      "values": [
-        16,
-        41,
-        68,
-        175
-      ]
-    },
-    {
-      "hi": 16,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00004",
-      "op": "include"
-    },
-    {
-      "hi": 200,
-      "layer": "set",
-      "lo": 100,
-      "name": "dvl-set-00005",
-      "op": "union"
-    },
-    {
-      "hi": 9,
-      "layer": "set",
-      "lo": 3,
-      "name": "dvl-set-00006",
-      "op": "include"
-    },
-    {
-      "holey": true,
-      "layer": "set",
-      "name": "dvl-set-00007",
-      "packing": 1,
-      "values": [
-        19,
-        76,
-        97,
-        215
-      ]
-    },
-    {
-      "hi": 255,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00008",
-      "op": "in-probe"
-    },
-    {
-      "hi": 9,
-      "layer": "set",
-      "lo": 3,
-      "name": "dvl-set-00009",
-      "op": "equal"
-    },
-    {
-      "hi": 63,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00010",
-      "op": "intersect"
-    },
-    {
-      "holey": true,
-      "layer": "set",
-      "name": "dvl-set-00011",
-      "packing": 1,
-      "values": [
-        84,
-        148,
-        242,
-        248
-      ]
-    },
-    {
-      "hi": 200,
-      "layer": "set",
-      "lo": 100,
-      "name": "dvl-set-00012",
-      "op": "exclude"
-    },
-    {
-      "hi": 255,
-      "layer": "set",
-      "lo": 200,
-      "name": "dvl-set-00013",
-      "op": "exclude"
-    },
-    {
-      "hi": 15,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00014",
-      "op": "diff"
-    },
-    {
-      "holey": true,
-      "layer": "set",
-      "name": "dvl-set-00015",
-      "packing": 1,
-      "values": [
-        42,
-        52,
-        60,
-        233
-      ]
-    },
-    {
-      "hi": 16,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00016",
-      "op": "in-probe"
-    },
-    {
-      "hi": 63,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00017",
-      "op": "exclude"
-    },
-    {
-      "hi": 31,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00018",
-      "op": "subset"
-    },
-    {
-      "holey": true,
-      "layer": "set",
-      "name": "dvl-set-00019",
-      "packing": 1,
-      "values": [
-        9,
-        137,
-        138,
-        166
-      ]
-    },
-    {
-      "hi": 7,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00020",
-      "op": "diff"
-    },
-    {
-      "hi": 7,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00021",
-      "op": "iterate"
-    },
-    {
-      "hi": 15,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00022",
-      "op": "diff"
-    },
-    {
-      "holey": true,
-      "layer": "set",
-      "name": "dvl-set-00023",
-      "packing": 4,
-      "values": [
-        32,
-        57,
-        128,
-        133
-      ]
-    },
-    {
-      "hi": 255,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00024",
-      "op": "subset"
-    },
-    {
-      "hi": 16,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00025",
-      "op": "symdiff"
-    },
-    {
-      "hi": 16,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00026",
-      "op": "equal"
-    },
-    {
-      "holey": true,
-      "layer": "set",
-      "name": "dvl-set-00027",
-      "packing": 4,
-      "values": [
-        28,
-        64,
-        118,
-        120
-      ]
-    },
-    {
-      "hi": 15,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00028",
-      "op": "diff"
-    },
-    {
-      "hi": 16,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00029",
-      "op": "subset"
-    },
-    {
-      "hi": 7,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00030",
-      "op": "include"
-    },
-    {
-      "holey": true,
-      "layer": "set",
-      "name": "dvl-set-00031",
-      "packing": 4,
-      "values": [
-        131,
-        132,
-        225,
-        227
-      ]
-    },
-    {
-      "hi": 200,
-      "layer": "set",
-      "lo": 100,
-      "name": "dvl-set-00032",
-      "op": "in-probe"
-    },
-    {
-      "hi": 8,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00033",
-      "op": "diff"
-    },
-    {
-      "hi": 7,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00034",
-      "op": "include"
-    },
-    {
-      "holey": true,
-      "layer": "set",
-      "name": "dvl-set-00035",
-      "packing": 1,
-      "values": [
-        53,
-        77,
-        115,
-        184
-      ]
-    },
-    {
-      "hi": 15,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00036",
-      "op": "intersect"
-    },
-    {
-      "hi": 8,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00037",
-      "op": "include"
-    },
-    {
-      "hi": 63,
-      "layer": "set",
-      "lo": 0,
-      "name": "dvl-set-00038",
-      "op": "iterate"
-    },
-    {
-      "holey": true,
-      "layer": "set",
-      "name": "dvl-set-00039",
-      "packing": 4,
-      "values": [
-        13,
-        99,
-        123,
-        143
-      ]
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00000",
-      "shape": "enum-names"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00001",
-      "shape": "rtti-field-value"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00002",
-      "shape": "published-prop"
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00003",
-      "shape": "typeinfo-distinct"
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00004",
-      "shape": "rtti-field-value"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00005",
-      "shape": "rtti-field-set"
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00006",
-      "shape": "published-prop"
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00007",
-      "shape": "typeinfo-kind"
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00008",
-      "shape": "rtti-field-value"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00009",
-      "shape": "gettypes-contains"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00010",
-      "shape": "rtti-field-set"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00011",
-      "shape": "rtti-field-value"
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00012",
-      "shape": "enum-names"
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00013",
-      "shape": "tvalue-roundtrip"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00014",
-      "shape": "published-prop"
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00015",
-      "shape": "class-name"
-    },
-    {
-      "enum_count": 4,
-      "layer": "rtti",
-      "name": "dvl-rtti-00016",
-      "shape": "rtti-field-value"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00017",
-      "shape": "attribute-read"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00018",
-      "shape": "rtti-method-call"
-    },
-    {
-      "enum_count": 4,
-      "layer": "rtti",
-      "name": "dvl-rtti-00019",
-      "shape": "rtti-field-value"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00020",
-      "shape": "typeinfo-distinct"
-    },
-    {
-      "enum_count": 4,
-      "layer": "rtti",
-      "name": "dvl-rtti-00021",
-      "shape": "tvalue-roundtrip"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00022",
-      "shape": "ordprop-roundtrip"
-    },
-    {
-      "enum_count": 4,
-      "layer": "rtti",
-      "name": "dvl-rtti-00023",
-      "shape": "ordprop-roundtrip"
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00024",
-      "shape": "rtti-field-value"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00025",
-      "shape": "rtti-field-set"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00026",
-      "shape": "gettypes-contains"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00027",
-      "shape": "rtti-instance-type"
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00028",
-      "shape": "gettypes-contains"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00029",
-      "shape": "ordprop-roundtrip"
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00030",
-      "shape": "gettypes-contains"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00031",
-      "shape": "attribute-read"
-    },
-    {
-      "enum_count": 4,
-      "layer": "rtti",
-      "name": "dvl-rtti-00032",
-      "shape": "rtti-instance-type"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00033",
-      "shape": "attribute-read"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00034",
-      "shape": "typeinfo-kind"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00035",
-      "shape": "attribute-read"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00036",
-      "shape": "ordprop-roundtrip"
-    },
-    {
-      "enum_count": 3,
-      "layer": "rtti",
-      "name": "dvl-rtti-00037",
-      "shape": "tvalue-roundtrip"
-    },
-    {
-      "enum_count": 6,
-      "layer": "rtti",
-      "name": "dvl-rtti-00038",
-      "shape": "rtti-field-value"
-    },
-    {
-      "enum_count": 4,
-      "layer": "rtti",
-      "name": "dvl-rtti-00039",
-      "shape": "published-prop"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00000",
-      "shape": "goto-out-of-loop"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00001",
-      "shape": "exit-through-finally"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00002",
-      "shape": "nested-exit"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00003",
-      "shape": "goto-forward"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00004",
-      "shape": "repeat-continue"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00005",
-      "probe": 2147483647,
-      "shape": "case-int64"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00006",
-      "probe": 278,
-      "shape": "case-negative"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00007",
-      "shape": "repeat-continue"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00008",
-      "shape": "short-circuit"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00009",
-      "shape": "goto-forward"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00010",
-      "shape": "nested-exit"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00011",
-      "shape": "repeat-continue"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00012",
-      "shape": "repeat-continue"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00013",
-      "shape": "nested-exit"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00014",
-      "shape": "nested-exit"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00015",
-      "shape": "goto-forward"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00016",
-      "shape": "loop-edge-int64"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00017",
-      "probe": -1260,
-      "shape": "case-negative"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00018",
-      "shape": "nested-exit"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00019",
-      "shape": "loop-edge-byte"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00020",
-      "shape": "goto-out-of-loop"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00021",
-      "probe": -1987,
-      "shape": "case-negative"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00022",
-      "probe": 2015,
-      "shape": "case-ranges"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00023",
-      "probe": -1440,
-      "shape": "case-negative"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00024",
-      "shape": "exit-through-finally"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00025",
-      "shape": "full-boolean"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00026",
-      "probe": -566,
-      "shape": "case-negative"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00027",
-      "shape": "loop-edge-byte"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00028",
-      "shape": "loop-edge-int64"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00029",
-      "shape": "loop-edge-byte"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00030",
-      "shape": "loop-edge-int64"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00031",
-      "shape": "break-continue-finally"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00032",
-      "shape": "break-continue-finally"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00033",
-      "shape": "loop-edge-byte"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00034",
-      "shape": "loop-edge-byte"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00035",
-      "probe": 2147483647,
-      "shape": "case-int64"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00036",
-      "shape": "break-continue-finally"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00037",
-      "shape": "full-boolean"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00038",
-      "shape": "break-continue-finally"
-    },
-    {
-      "layer": "flow",
-      "name": "dvl-flow-00039",
-      "shape": "break-continue-finally"
-    },
-    {
-      "a": "1",
-      "b": "18446744073709551616",
-      "layer": "i128",
-      "name": "dvl-i128-00000",
-      "op": "add",
-      "type": "Int128"
-    },
-    {
-      "a": "2",
-      "b": "340282366920938463463374607431768211455",
-      "layer": "i128",
-      "name": "dvl-i128-00001",
-      "op": "mul",
-      "type": "UInt128"
-    },
-    {
-      "a": "18446744073709551616",
-      "b": "9223372036854775808",
-      "layer": "i128",
-      "name": "dvl-i128-00002",
-      "op": "mul",
-      "type": "UInt128"
-    },
-    {
-      "a": "9223372036854775808",
-      "b": "340282366920938463463374607431768211454",
-      "layer": "i128",
-      "name": "dvl-i128-00003",
-      "op": "mul",
-      "type": "UInt128"
-    },
-    {
-      "a": "-1267650600228229401496703205376",
-      "b": "50",
-      "layer": "i128",
-      "name": "dvl-i128-00004",
-      "op": "shr",
-      "type": "Int128"
-    },
-    {
-      "a": "340282366920938463463374607431768211454",
-      "b": "340282366920938463463374607431768211455",
-      "layer": "i128",
-      "name": "dvl-i128-00005",
-      "op": "mul",
-      "type": "UInt128"
-    },
-    {
-      "a": "18446744073709551616",
-      "b": "0",
-      "layer": "i128",
-      "name": "dvl-i128-00006",
-      "op": "add",
-      "type": "UInt128"
-    },
-    {
-      "a": "170141183460469231731687303715884105726",
-      "b": "0",
-      "layer": "i128",
-      "name": "dvl-i128-00007",
-      "op": "add",
-      "type": "Int128"
-    },
-    {
-      "a": 12,
-      "b": 867,
-      "layer": "lang",
-      "name": "dvl-lang-00000",
-      "shape": "nested-type"
-    },
-    {
-      "a": 666,
-      "b": 195,
-      "layer": "lang",
-      "name": "dvl-lang-00001",
-      "shape": "class-helper"
-    },
-    {
-      "a": 754,
-      "b": 232,
-      "layer": "lang",
-      "name": "dvl-lang-00002",
-      "shape": "interface-delegation"
-    },
-    {
-      "a": 767,
-      "b": 552,
-      "layer": "lang",
-      "name": "dvl-lang-00003",
-      "shape": "tp-object"
-    },
-    {
-      "a": 875,
-      "b": 341,
-      "layer": "lang",
-      "name": "dvl-lang-00004",
-      "shape": "for-in-enumerator"
-    },
-    {
-      "a": 688,
-      "b": 272,
-      "layer": "lang",
-      "name": "dvl-lang-00005",
-      "shape": "writable-const"
-    },
-    {
-      "a": 174,
-      "b": 490,
-      "layer": "lang",
-      "name": "dvl-lang-00006",
-      "shape": "record-helper"
-    },
-    {
-      "a": 551,
-      "b": 914,
-      "layer": "lang",
-      "name": "dvl-lang-00007",
-      "shape": "digit-separators"
-    },
-    {
-      "a": 990,
-      "b": 444,
-      "layer": "lang",
-      "name": "dvl-lang-00008",
-      "shape": "binary-literal"
-    },
-    {
-      "a": 89,
-      "b": 916,
-      "layer": "lang",
-      "name": "dvl-lang-00009",
-      "shape": "default-property"
-    },
-    {
-      "a": 564,
-      "b": 289,
-      "layer": "lang",
-      "name": "dvl-lang-00010",
-      "shape": "array-of-const"
-    },
-    {
-      "a": 496,
-      "b": 156,
-      "layer": "lang",
-      "name": "dvl-lang-00011",
-      "shape": "digit-separators"
-    },
-    {
-      "a": 972,
-      "b": 542,
-      "layer": "lang",
-      "name": "dvl-lang-00012",
-      "shape": "writable-const"
-    },
-    {
-      "a": 184,
-      "b": 753,
-      "layer": "lang",
-      "name": "dvl-lang-00013",
-      "shape": "class-helper"
-    },
-    {
-      "a": 838,
-      "b": 475,
-      "layer": "lang",
-      "name": "dvl-lang-00014",
-      "shape": "operator-in"
-    },
-    {
-      "a": 297,
-      "b": 926,
-      "layer": "lang",
-      "name": "dvl-lang-00015",
-      "shape": "class-operator-compare"
-    },
-    {
-      "a": 803,
-      "b": 844,
-      "layer": "lang",
-      "name": "dvl-lang-00016",
-      "shape": "resourcestring"
-    },
-    {
-      "a": 541,
-      "b": 978,
-      "layer": "lang",
-      "name": "dvl-lang-00017",
-      "shape": "absolute-view"
-    },
-    {
-      "a": 728,
-      "b": 587,
-      "layer": "lang",
-      "name": "dvl-lang-00018",
-      "shape": "class-operator-implicit"
-    },
-    {
-      "a": 822,
-      "b": 677,
-      "layer": "lang",
-      "name": "dvl-lang-00019",
-      "shape": "message-method"
-    },
-    {
-      "a": 169,
-      "b": 585,
-      "layer": "lang",
-      "name": "dvl-lang-00020",
-      "shape": "interface-delegation"
-    },
-    {
-      "a": 378,
-      "b": 708,
-      "layer": "lang",
-      "name": "dvl-lang-00021",
-      "shape": "type-helper"
-    },
-    {
-      "a": 532,
-      "b": 457,
-      "layer": "lang",
-      "name": "dvl-lang-00022",
-      "shape": "resourcestring"
-    },
-    {
-      "a": 250,
-      "b": 204,
-      "layer": "lang",
-      "name": "dvl-lang-00023",
-      "shape": "for-in-enumerator"
-    },
-    {
-      "a": 263,
-      "b": 642,
-      "layer": "lang",
-      "name": "dvl-lang-00024",
-      "shape": "tp-object"
-    },
-    {
-      "a": 942,
-      "b": 635,
-      "layer": "lang",
-      "name": "dvl-lang-00025",
-      "shape": "class-operator-arith"
-    },
-    {
-      "a": 182,
-      "b": 319,
-      "layer": "lang",
-      "name": "dvl-lang-00026",
-      "shape": "resourcestring"
-    },
-    {
-      "a": 980,
-      "b": 962,
-      "layer": "lang",
-      "name": "dvl-lang-00027",
-      "shape": "caret-literal"
-    },
-    {
-      "a": 897,
-      "b": 891,
-      "layer": "lang",
-      "name": "dvl-lang-00028",
-      "shape": "variant-null"
-    },
-    {
-      "a": 735,
-      "b": 235,
-      "layer": "lang",
-      "name": "dvl-lang-00029",
-      "shape": "class-operator-implicit"
-    },
-    {
-      "a": 198,
-      "b": 971,
-      "layer": "lang",
-      "name": "dvl-lang-00030",
-      "shape": "digit-separators"
-    },
-    {
-      "a": 136,
-      "b": 319,
-      "layer": "lang",
-      "name": "dvl-lang-00031",
-      "shape": "operator-in"
-    },
-    {
-      "a": 522,
-      "b": 309,
-      "layer": "lang",
-      "name": "dvl-lang-00032",
-      "shape": "message-method"
-    },
-    {
-      "a": 932,
-      "b": 772,
-      "layer": "lang",
-      "name": "dvl-lang-00033",
-      "shape": "nested-type"
-    },
-    {
-      "a": 421,
-      "b": 37,
-      "layer": "lang",
-      "name": "dvl-lang-00034",
-      "shape": "index-property"
-    },
-    {
-      "a": 478,
-      "b": 27,
-      "layer": "lang",
-      "name": "dvl-lang-00035",
-      "shape": "record-align"
-    },
-    {
-      "a": 330,
-      "b": 87,
-      "layer": "lang",
-      "name": "dvl-lang-00036",
-      "shape": "class-operator-compare"
-    },
-    {
-      "a": 299,
-      "b": 698,
-      "layer": "lang",
-      "name": "dvl-lang-00037",
-      "shape": "resourcestring"
-    },
-    {
-      "a": 991,
-      "b": 791,
-      "layer": "lang",
-      "name": "dvl-lang-00038",
-      "shape": "absolute-view"
-    },
-    {
-      "a": 226,
-      "b": 712,
-      "layer": "lang",
-      "name": "dvl-lang-00039",
-      "shape": "digit-separators"
     }
   ],
-  "cases_per_layer": 40,
+  "cases_per_layer": 120,
+  "composite": {
+    "triples_possible": 1954,
+    "triples_this_seed": 0
+  },
   "generator": "scripts/generate_devil.py",
   "layers": [
-    "expr",
-    "unary",
-    "fold",
-    "cmp",
-    "life",
-    "abi",
-    "float",
-    "str",
-    "disp",
-    "gen",
-    "arr",
-    "unit",
-    "chk",
-    "thr",
-    "set",
-    "rtti",
-    "flow",
-    "i128",
-    "lang"
+    "gen"
   ],
+  "matrix": {
+    "pairs_covered": 0,
+    "pairs_missing": [
+      {
+        "passenger": "width",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "width",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "width",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "width",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "width",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "width",
+        "transfer": "variant"
+      },
+      {
+        "passenger": "width",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "width",
+        "transfer": "narrow-widen"
+      },
+      {
+        "passenger": "width",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "width",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "width",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "width",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "width",
+        "transfer": "typed-file"
+      },
+      {
+        "passenger": "width",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "width",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "width",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "width",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "width",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "width",
+        "transfer": "array-of-const"
+      },
+      {
+        "passenger": "width",
+        "transfer": "assembler-hop"
+      },
+      {
+        "passenger": "width",
+        "transfer": "rtti-read"
+      },
+      {
+        "passenger": "width",
+        "transfer": "untyped-file"
+      },
+      {
+        "passenger": "width",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "width",
+        "transfer": "raw-move"
+      },
+      {
+        "passenger": "width",
+        "transfer": "tvalue"
+      },
+      {
+        "passenger": "width",
+        "transfer": "message-method"
+      },
+      {
+        "passenger": "width",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "variant"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "narrow-widen"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "typed-file"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "array-of-const"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "assembler-hop"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "rtti-read"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "untyped-file"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "raw-move"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "tvalue"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "message-method"
+      },
+      {
+        "passenger": "signedness",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "variant"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "narrow-widen"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "typed-file"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "array-of-const"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "assembler-hop"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "rtti-read"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "untyped-file"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "raw-move"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "tvalue"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "message-method"
+      },
+      {
+        "passenger": "exact-type",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "typed-file"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "codepage",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "typed-file"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "raw-move"
+      },
+      {
+        "passenger": "element-size",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "typed-file"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "buffer",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "directive-state",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "directive-state",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "directive-state",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "directive-state",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "directive-state",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "directive-state",
+        "transfer": "narrow-widen"
+      },
+      {
+        "passenger": "directive-state",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "directive-state",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "directive-state",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "directive-state",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "directive-state",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "narrow-widen"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "assembler-hop"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "tvalue"
+      },
+      {
+        "passenger": "alias-visibility",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "lifetime",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "lifetime",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "lifetime",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "lifetime",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "lifetime",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "lifetime",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "lifetime",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "lifetime",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "lifetime",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "lifetime",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "lifetime",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "typed-file"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "refcount",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "variant"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "narrow-widen"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "array-of-const"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "assembler-hop"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "rtti-read"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "untyped-file"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "raw-move"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "tvalue"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "message-method"
+      },
+      {
+        "passenger": "rtti-identity",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "typed-file"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "provenance",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "untyped-file"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "raw-move"
+      },
+      {
+        "passenger": "alignment",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "raw-move"
+      },
+      {
+        "passenger": "enum-base",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "narrow-widen"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "array-of-const"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "assembler-hop"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "rtti-read"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "untyped-file"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "raw-move"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "tvalue"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "message-method"
+      },
+      {
+        "passenger": "method-data",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "narrow-widen"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "array-of-const"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "assembler-hop"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "rtti-read"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "untyped-file"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "raw-move"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "tvalue"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "message-method"
+      },
+      {
+        "passenger": "exception-identity",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "narrow-widen"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "untyped-file"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "raw-move"
+      },
+      {
+        "passenger": "char-width",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "untyped-file"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "raw-move"
+      },
+      {
+        "passenger": "packing",
+        "transfer": "class-helper"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "fold"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "inline"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "cross-unit"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "specialization"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "closure"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "variant"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "thread"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "narrow-widen"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "unwind"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "record-copy"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "interface-cast"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "virtual-call"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "typed-file"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "property-accessor"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "open-array"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "const-param"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "array-detach"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "runtime-declaration"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "array-of-const"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "assembler-hop"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "rtti-read"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "untyped-file"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "inherited-call"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "raw-move"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "tvalue"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "message-method"
+      },
+      {
+        "passenger": "generic-arg",
+        "transfer": "class-helper"
+      }
+    ],
+    "pairs_possible": 382,
+    "skipped_by_design": [
+      "alias-visibility/array-detach",
+      "alias-visibility/array-of-const",
+      "alias-visibility/fold",
+      "alias-visibility/message-method",
+      "alias-visibility/raw-move",
+      "alias-visibility/rtti-read",
+      "alias-visibility/typed-file",
+      "alias-visibility/untyped-file",
+      "alias-visibility/variant",
+      "alignment/array-of-const",
+      "alignment/assembler-hop",
+      "alignment/cross-unit",
+      "alignment/fold",
+      "alignment/message-method",
+      "alignment/narrow-widen",
+      "alignment/open-array",
+      "alignment/rtti-read",
+      "alignment/tvalue",
+      "alignment/typed-file",
+      "alignment/variant",
+      "buffer/array-of-const",
+      "buffer/assembler-hop",
+      "buffer/message-method",
+      "buffer/narrow-widen",
+      "buffer/raw-move",
+      "buffer/rtti-read",
+      "buffer/tvalue",
+      "buffer/untyped-file",
+      "buffer/variant",
+      "char-width/array-of-const",
+      "char-width/assembler-hop",
+      "char-width/cross-unit",
+      "char-width/message-method",
+      "char-width/rtti-read",
+      "char-width/tvalue",
+      "char-width/typed-file",
+      "char-width/variant",
+      "codepage/array-of-const",
+      "codepage/assembler-hop",
+      "codepage/message-method",
+      "codepage/narrow-widen",
+      "codepage/raw-move",
+      "codepage/rtti-read",
+      "codepage/tvalue",
+      "codepage/untyped-file",
+      "codepage/variant",
+      "directive-state/array-detach",
+      "directive-state/array-of-const",
+      "directive-state/assembler-hop",
+      "directive-state/class-helper",
+      "directive-state/interface-cast",
+      "directive-state/message-method",
+      "directive-state/open-array",
+      "directive-state/property-accessor",
+      "directive-state/raw-move",
+      "directive-state/rtti-read",
+      "directive-state/thread",
+      "directive-state/tvalue",
+      "directive-state/typed-file",
+      "directive-state/untyped-file",
+      "directive-state/variant",
+      "directive-state/virtual-call",
+      "element-size/array-of-const",
+      "element-size/assembler-hop",
+      "element-size/message-method",
+      "element-size/narrow-widen",
+      "element-size/rtti-read",
+      "element-size/tvalue",
+      "element-size/untyped-file",
+      "element-size/variant",
+      "enum-base/array-of-const",
+      "enum-base/assembler-hop",
+      "enum-base/cross-unit",
+      "enum-base/fold",
+      "enum-base/message-method",
+      "enum-base/narrow-widen",
+      "enum-base/rtti-read",
+      "enum-base/tvalue",
+      "enum-base/typed-file",
+      "enum-base/untyped-file",
+      "enum-base/variant",
+      "exception-identity/typed-file",
+      "exception-identity/variant",
+      "lifetime/array-detach",
+      "lifetime/array-of-const",
+      "lifetime/assembler-hop",
+      "lifetime/class-helper",
+      "lifetime/fold",
+      "lifetime/inherited-call",
+      "lifetime/message-method",
+      "lifetime/narrow-widen",
+      "lifetime/open-array",
+      "lifetime/raw-move",
+      "lifetime/rtti-read",
+      "lifetime/runtime-declaration",
+      "lifetime/tvalue",
+      "lifetime/typed-file",
+      "lifetime/untyped-file",
+      "lifetime/variant",
+      "method-data/typed-file",
+      "method-data/variant",
+      "packing/array-of-const",
+      "packing/assembler-hop",
+      "packing/cross-unit",
+      "packing/fold",
+      "packing/message-method",
+      "packing/narrow-widen",
+      "packing/open-array",
+      "packing/rtti-read",
+      "packing/tvalue",
+      "packing/typed-file",
+      "packing/variant",
+      "provenance/array-of-const",
+      "provenance/assembler-hop",
+      "provenance/message-method",
+      "provenance/narrow-widen",
+      "provenance/raw-move",
+      "provenance/rtti-read",
+      "provenance/tvalue",
+      "provenance/untyped-file",
+      "provenance/variant",
+      "refcount/array-of-const",
+      "refcount/assembler-hop",
+      "refcount/message-method",
+      "refcount/narrow-widen",
+      "refcount/raw-move",
+      "refcount/rtti-read",
+      "refcount/tvalue",
+      "refcount/untyped-file",
+      "refcount/variant",
+      "rtti-identity/typed-file",
+      "signedness/codepage"
+    ]
+  },
   "schema": 2,
-  "seed": 2
+  "seed": 24
 }

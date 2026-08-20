@@ -7,7 +7,7 @@ reproduces the disagreement.  Then it verifies the cut: the program is built at
 the two optimization levels that disagreed and the outputs are compared.
 
     devil_minimize.py dvl-expr-00203-form --seed 1 --cases 200 \
-        --fpc .../ppcx64.exe --fpc-config .../fpc.cfg --options O-,O3
+        --profiles debug,release
 """
 
 from __future__ import annotations
@@ -19,6 +19,8 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+import devil_toolchain as tc
 
 ROOT = Path(__file__).resolve().parents[1]
 DEVIL = ROOT / "tests" / "devil"
@@ -96,9 +98,7 @@ def main() -> None:
     p.add_argument("name")
     p.add_argument("--seed", type=int, required=True)
     p.add_argument("--cases", type=int, default=200)
-    p.add_argument("--fpc", type=Path)
-    p.add_argument("--fpc-config", type=Path)
-    p.add_argument("--options", default="O-,O3")
+    p.add_argument("--profiles", default="debug,release")
     p.add_argument("--out", type=Path,
                    default=DEVIL / "minimized")
     args = p.parse_args()
@@ -154,26 +154,22 @@ def main() -> None:
     (out / "devil_min.dpr").write_text(program, encoding="utf-8")
     print(f"cut {len(keep)} lines into {out / 'devil_min.dpr'}")
 
-    if not (args.fpc and args.fpc_config):
-        return
     results = {}
-    for option in args.options.split(","):
-        build = out / f"out-{option}"
+    for profile in args.profiles.split(","):
+        build = out / f"out-{profile}"
         if build.exists():
             shutil.rmtree(build)
         build.mkdir()
-        code, log = run([str(args.fpc.resolve()), "-n",
-                         f"@{args.fpc_config.resolve()}", "-Mdelphi",
-                         f"-{option}", f"-FU{build}", f"-FE{build}",
-                         "devil_min.dpr"], out)
+        code, log = run(tc.compile_command(out / "devil_min.dpr", build,
+                                           profile), out)
         exe = build / "devil_min.exe"
         if not exe.exists():
-            results[option] = "COMPILE FAILED: " + log.strip().splitlines()[-1]
+            results[profile] = "COMPILE FAILED: " + log.strip().splitlines()[-1]
             continue
         code, output = run([str(exe)], out)
-        results[option] = output.strip().splitlines()[-1] if output.strip() else "(no output)"
-    for option, line in results.items():
-        print(f"{option:4}: {line}")
+        results[profile] = output.strip().splitlines()[-1] if output.strip() else "(no output)"
+    for profile, line in results.items():
+        print(f"{profile:8}: {line}")
     if len(set(results.values())) > 1:
         print("MINIMIZED: the cut still reproduces the disagreement")
     else:

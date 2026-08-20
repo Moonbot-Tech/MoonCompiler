@@ -10,34 +10,26 @@ program devil;
   {$modeswitch INLINEVARS}
 {$endif}
 {$APPTYPE CONSOLE}
+{ chains nest dozens of frames deep and each frame carries managed locals:
+   the default stack is not the property under test, so it is raised }
+{$ifdef FPC}
+  {$M 268435456}
+{$else}
+  {$MAXSTACKSIZE 268435456}
+{$endif}
 {$Q-}{$R-}
 
 uses
 {$ifdef FPC}
+  { the build driver pins this unit and requires it first; Delphi has no
+     equivalent and manages its own heap }
+  mormot.core.fpcx64mm,
   {$ifdef UNIX}cthreads,{$endif}
 {$endif}
-  SysUtils, Classes, Math, TypInfo, Rtti, devil_runtime, devil_gen_unit;
+  SysUtils, Classes, Math, Variants, TypInfo, Rtti, devil_runtime;
 
 {$I devil_support.inc}
-{$I devil_expr.inc}
-{$I devil_unary.inc}
-{$I devil_fold.inc}
-{$I devil_cmp.inc}
-{$I devil_life.inc}
-{$I devil_abi.inc}
-{$I devil_float.inc}
-{$I devil_str.inc}
-{$I devil_disp.inc}
 {$I devil_gen.inc}
-{$I devil_arr.inc}
-{$I devil_unit.inc}
-{$I devil_chk.inc}
-{$I devil_thr.inc}
-{$I devil_set.inc}
-{$I devil_rtti.inc}
-{$I devil_flow.inc}
-{$I devil_i128.inc}
-{$I devil_lang.inc}
 
 begin
   { Delphi Win64 masks every floating point exception by default while FPC
@@ -45,24 +37,19 @@ begin
      same environment on both. }
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow,
     exUnderflow, exPrecision]);
-  RunDevilExprLayer;
-  RunDevilUnaryLayer;
-  RunDevilFoldLayer;
-  RunDevilCmpLayer;
-  RunDevilLifeLayer;
-  RunDevilAbiLayer;
-  RunDevilFloatLayer;
-  RunDevilStrLayer;
-  RunDevilDispLayer;
+  WriteLn('DEVIL_LAYERS gen');
+
+  DevilLayerBegin('gen');
   RunDevilGenLayer;
-  RunDevilArrLayer;
-  RunDevilUnitLayer;
-  RunDevilChkLayer;
-  RunDevilThrLayer;
-  RunDevilSetLayer;
-  RunDevilRttiLayer;
-  RunDevilFlowLayer;
-  RunDevilI128Layer;
-  RunDevilLangLayer;
-  Halt(DevilReport('DEVIL', 2));
+  DevilLayerEnd;
+  { the instrument checks itself: the accumulator must have moved, and the
+     number of feeds must be in the range the generator wrote }
+  WriteLn('DEVIL_FEEDS ', DevilFeedCount);
+  WriteLn('DEVIL_STEPS ', DevilStepCount);
+  If DevilFeedCount = 0 then
+    DevilCheckU('devil-bloodstream-alive', 0, 1);
+  { порядковый канал есть не в каждом наборе слоёв: требовать шагов
+     безусловно значит краснеть там, где их нет по построению.  Сравнение
+     числа шагов между сборками делает гейт, и оно работает всегда. }
+  Halt(DevilReport('DEVIL', 24));
 end.

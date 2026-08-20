@@ -8,7 +8,12 @@ program dvl_reject_nested_function_capture_in_closure;
 {$endif}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
-uses SysUtils;
+uses
+{$ifdef FPC}
+  mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,{$endif}
+{$endif}
+  SysUtils;
 procedure Outer;
   procedure Inner;
   begin

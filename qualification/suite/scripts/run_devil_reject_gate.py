@@ -19,6 +19,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import devil_toolchain as tc
+
+DEVIL = Path(__file__).resolve().parents[1] / "tests" / "devil"
+
 ROOT = Path(__file__).resolve().parents[1]
 REJECT = ROOT / "tests" / "devil" / "reject"
 GENERATOR = ROOT / "scripts" / "generate_devil_reject.py"
@@ -43,14 +47,11 @@ def first_diagnostic(log: str) -> str:
     return ""
 
 
-def compile_fpc(work: Path, fpc: Path, cfg: Path, option: str, source: Path,
+def compile_fpc(work: Path, profile: str, source: Path,
                 timeout: int) -> tuple[bool, str, bool]:
-    out = work / ("out-" + source.stem + "-" + option)
-    if out.exists():
-        shutil.rmtree(out)
-    out.mkdir(parents=True)
-    code, log = run([str(fpc), "-n", f"@{cfg}", "-Mdelphi", f"-{option}",
-                     f"-FU{out}", f"-FE{out}", source.name], work, timeout)
+    out = work / f"out-{source.stem}-{profile}"
+    out.mkdir(parents=True, exist_ok=True)
+    code, log = run(tc.compile_command(source, out, profile), work, timeout)
     ice = "nternal error" in log
     return code == 0, first_diagnostic(log), ice
 
@@ -66,21 +67,27 @@ def compile_delphi(work: Path, dcc: Path, lib: Path, source: Path,
     return code == 0, first_diagnostic(log), False
 
 
+def load_known() -> dict[str, str]:
+    """Verdict defects already analysed in findings/, by case id."""
+    path = DEVIL / "known_findings.json"
+    if not path.exists():
+        return {}
+    rules = json.loads(path.read_text(encoding="utf-8")).get("known", [])
+    return {rule["case"]: rule["id"] for rule in rules if "case" in rule}
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--fpc", type=Path, required=True)
-    p.add_argument("--fpc-config", type=Path, required=True)
     p.add_argument("--dcc", type=Path)
     p.add_argument("--dcc-lib", type=Path)
     p.add_argument("--seed", type=int, default=1)
-    p.add_argument("--options", default="O2")
+    p.add_argument("--options", default="o2")
     p.add_argument("--timeout", type=int, default=120)
     p.add_argument("--work", type=Path, default=REJECT)
     p.add_argument("--report", type=Path)
     args = p.parse_args()
 
-    args.fpc = args.fpc.resolve()
-    args.fpc_config = args.fpc_config.resolve()
+    tc.preflight()
     if args.dcc:
         args.dcc = args.dcc.resolve()
     if args.dcc_lib:
@@ -102,7 +109,7 @@ def main() -> None:
         want = case["verdict"]
         row = {"case": case["case"], "verdict": want, "builds": {}}
         for option in args.options.split(","):
-            ok, diag, ice = compile_fpc(args.work, args.fpc, args.fpc_config,
+            ok, diag, ice = compile_fpc(args.work,
                                         option, source, args.timeout)
             row["builds"][f"fpc{option}"] = {"compiled": ok, "diag": diag}
             if ice:
@@ -129,8 +136,16 @@ def main() -> None:
                 })
         rows.append(row)
 
+    known = load_known()
+    fresh = [f for f in findings if f.get("case") not in known]
     for f in findings:
-        print(json.dumps(f, sort_keys=True))
+        if f.get("case") in known:
+            continue
+        print("NEW " + json.dumps(f, sort_keys=True))
+    hits = sorted({known[f["case"]] for f in findings if f.get("case") in known})
+    if hits:
+        print("known: %d hits (%s)" % (len(findings) - len(fresh), ", ".join(hits)))
+    findings = fresh
     if args.report:
         args.report.write_text(json.dumps({"rows": rows, "findings": findings},
                                           indent=2, sort_keys=True) + "\n",
