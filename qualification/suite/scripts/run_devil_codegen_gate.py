@@ -23,7 +23,7 @@ from pathlib import Path
 import devil_toolchain as tc
 
 ROOT = Path(__file__).resolve().parents[1]
-WORK = ROOT / "tests" / "devil" / "codegen"
+WORK = ROOT / "results" / "runs" / "devil-codegen"
 
 HEADER = """program {name};
 {{$ifdef FPC}}
@@ -338,6 +338,7 @@ def main() -> None:
     for f in findings:
         print(json.dumps(f, sort_keys=True))
     if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(findings, indent=2, sort_keys=True)
                                + "\n", encoding="utf-8")
     print(f"DEVIL_CODEGEN {'OK' if not findings else 'FINDINGS'} "

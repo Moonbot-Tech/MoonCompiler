@@ -10,7 +10,9 @@ dvl-0041 показала, что результат сборки меняетс
 один путь, которым посторонний контекст доезжает до кода. Поэтому здесь стоит
 не проверка того случая, а **ловушка на весь класс**: один и тот же исходник
 собирается много раз, и между сборками намеренно трясётся всё, что к исходнику
-не относится. Артефакты обязаны совпадать байт в байт.
+не относится. Артефакты обязаны совпадать байт в байт. Единственное ожидаемое
+исключение — debug metadata хранит cwd; для смены cwd отдельно сравниваются
+code/data после удаления debug sections, а PPU остаётся exact.
 
 Возмущения подобраны так, чтобы ни одно из них не меняло смысл программы:
 
@@ -55,6 +57,47 @@ def artefacts(out: Path) -> dict[str, str]:
             if p.suffix.lower() in (".o", ".ppu", ".exe")}
 
 
+def changed_artefacts(expected: dict[str, str], actual: dict[str, str]) -> list[str]:
+    return sorted(name for name in set(expected) | set(actual)
+                  if expected.get(name) != actual.get(name))
+
+
+def code_artefacts(out: Path) -> dict[str, str]:
+    """Hash code/data while ignoring the compiler's documented debug cwd."""
+    compiler, _, _, _ = tc.toolchain()
+    strip = compiler.parent / ("strip.exe" if os.name == "nt" else "strip")
+    if not strip.is_file():
+        found = shutil.which("strip")
+        if not found:
+            raise RuntimeError("strip is required for the cwd-independence check")
+        strip = Path(found)
+    normalized = out / ".devil-stripped"
+    normalized.mkdir()
+    result: dict[str, str] = {}
+    try:
+        for source in sorted(out.iterdir()):
+            suffix = source.suffix.lower()
+            if suffix == ".ppu":
+                result[source.name] = hashlib.sha256(source.read_bytes()).hexdigest()
+            elif suffix in (".o", ".exe"):
+                target = normalized / source.name
+                proc = subprocess.run(
+                    [str(strip), "--strip-debug", "-o", str(target), str(source)],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+                if proc.returncode != 0:
+                    raise RuntimeError(
+                        f"strip failed for {source.name}: "
+                        f"{(proc.stdout or '') + (proc.stderr or '')}"
+                    )
+                result[source.name] = hashlib.sha256(target.read_bytes()).hexdigest()
+    finally:
+        shutil.rmtree(normalized, ignore_errors=True)
+    return result
+
+
 def clean_noise(work: Path) -> None:
     for path in work.glob("zz*"):
         if path.is_dir():
@@ -92,7 +135,7 @@ def disturb(work: Path, names: tuple[str, ...]) -> None:
 def build(work: Path, profile: str, timeout: int, *,
           out_name: str = "out-env", cwd: Path | None = None,
           env_extra: dict[str, str] | None = None,
-          tail: list[str] = ()) -> tuple[dict[str, str], str]:
+          tail: list[str] = ()) -> tuple[dict[str, str], dict[str, str], str]:
     out = work / out_name
     if out.exists():
         shutil.rmtree(out)
@@ -108,13 +151,13 @@ def build(work: Path, profile: str, timeout: int, *,
         proc = subprocess.run(cmd, cwd=str(cwd or work), capture_output=True,
                               text=True, timeout=timeout, env=env)
     except subprocess.TimeoutExpired:
-        return {}, "REJECTED: timeout"
+        return {}, {}, "REJECTED: timeout"
     if proc.returncode != 0:
         log = (proc.stdout or "") + (proc.stderr or "")
         bad = [l.strip() for l in log.splitlines()
                if "Error" in l or "Fatal" in l][:1]
-        return {}, "REJECTED: " + (bad[0][:70] if bad else "?")
-    return artefacts(out), ""
+        return {}, {}, "REJECTED: " + (bad[0][:70] if bad else "?")
+    return artefacts(out), code_artefacts(out), ""
 
 
 def main() -> None:
@@ -124,7 +167,8 @@ def main() -> None:
     p.add_argument("--layers", default="set,meta,weave,composite")
     p.add_argument("--profile", default="release")
     p.add_argument("--timeout", type=int, default=600)
-    p.add_argument("--work", type=Path, default=ROOT / "work-env")
+    p.add_argument("--work", type=Path,
+                   default=ROOT / "results" / "runs" / "devil-env")
     p.add_argument("--report", type=Path)
     args = p.parse_args()
 
@@ -133,8 +177,6 @@ def main() -> None:
     if work.exists():
         shutil.rmtree(work)
     work.mkdir(parents=True)
-    shutil.copy(DEVIL / "devil_runtime.pas", work / "devil_runtime.pas")
-
     code, log = run([sys.executable, str(GENERATOR), "--seed", str(args.seed),
                      "--cases", str(args.cases), "--layers", args.layers,
                      "--out", str(work)], ROOT, args.timeout)
@@ -145,11 +187,12 @@ def main() -> None:
 
     findings: list[dict] = []
     reference: dict[str, str] = {}
+    reference_code: dict[str, str] = {}
     evidence = work / "evidence"
 
     for label, names in DISTURBANCES:
         disturb(work, names)
-        got, failure = build(work, args.profile, args.timeout)
+        got, got_code, failure = build(work, args.profile, args.timeout)
         if failure:
             say("%-18s %s" % (label, failure))
             findings.append({"kind": "build-failed-under-disturbance",
@@ -157,12 +200,12 @@ def main() -> None:
             continue
         if not reference:
             reference = got
+            reference_code = got_code
             shutil.copytree(work / "out-env", evidence / "reference",
                             dirs_exist_ok=True)
             say("%-18s reference taken (%d artefacts)" % (label, len(got)))
             continue
-        moved = sorted(name for name in set(reference) & set(got)
-                       if reference[name] != got[name])
+        moved = changed_artefacts(reference, got)
         if moved:
             room = evidence / ("differs-" + label.replace(" ", "-"))
             shutil.copytree(work / "out-env", room, dirs_exist_ok=True)
@@ -184,15 +227,19 @@ def main() -> None:
         ("extra-search-path", dict(tail=["-Fu" + str(work)])),
     )
     for label, kwargs in others:
-        got, failure = build(work, args.profile, args.timeout, **kwargs)
+        got, got_code, failure = build(work, args.profile, args.timeout, **kwargs)
         if failure:
             say("%-18s %s" % (label, failure))
             findings.append({"kind": "build-failed-under-disturbance",
                              "disturbance": label, "detail": failure})
             continue
-        moved = sorted(name for name in set(reference) & set(got)
-                       if reference[name] != got[name])
+        expected = reference_code if label == "cwd-elsewhere" else reference
+        actual = got_code if label == "cwd-elsewhere" else got
+        moved = changed_artefacts(expected, actual)
         if moved:
+            room = evidence / ("differs-" + label.replace(" ", "-"))
+            shutil.copytree(work / kwargs.get("out_name", "out-env"), room,
+                            dirs_exist_ok=True)
             say("%-18s DIFFERS: %s" % (label, ", ".join(moved)))
             findings.append({"kind": "codegen-depends-on-environment",
                              "disturbance": label, "artefacts": moved})
@@ -200,6 +247,7 @@ def main() -> None:
             say("%-18s same" % label)
 
     if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(findings, ensure_ascii=False,
                                           indent=2), encoding="utf-8")
     if findings:

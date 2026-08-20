@@ -27,7 +27,7 @@ import devil_toolchain as tc
 
 ROOT = Path(__file__).resolve().parents[1]
 DEVIL = ROOT / "tests" / "devil"
-WORK = DEVIL / "stress"
+WORK = ROOT / "results" / "runs" / "devil-stress"
 
 HEADER = """program {name};
 {{$ifdef FPC}}
@@ -301,6 +301,7 @@ def main() -> None:
     slowest = sorted(rows, key=lambda r: -r["seconds"])[:3]
     print("slowest: " + ", ".join(f"{r['shape']} {r['seconds']}s" for r in slowest))
     if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps({"rows": rows, "findings": findings},
                                           indent=2, sort_keys=True) + "\n",
                                encoding="utf-8")

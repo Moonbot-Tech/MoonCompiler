@@ -24,7 +24,7 @@ import devil_toolchain as tc
 DEVIL = Path(__file__).resolve().parents[1] / "tests" / "devil"
 
 ROOT = Path(__file__).resolve().parents[1]
-REJECT = ROOT / "tests" / "devil" / "reject"
+REJECT = ROOT / "results" / "runs" / "devil-reject"
 GENERATOR = ROOT / "scripts" / "generate_devil_reject.py"
 
 DIAG_RE = re.compile(r"(?:Error|Fatal):\s*(?:\((?P<code>\w+)\)\s*)?(?P<text>.+)")
@@ -147,6 +147,7 @@ def main() -> None:
         print("known: %d hits (%s)" % (len(findings) - len(fresh), ", ".join(hits)))
     findings = fresh
     if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps({"rows": rows, "findings": findings},
                                           indent=2, sort_keys=True) + "\n",
                                encoding="utf-8")

@@ -58,13 +58,6 @@ def generate(work: Path, seed: int, cases: int, layers: list[str]) -> None:
     if work.exists():
         shutil.rmtree(work)
     work.mkdir(parents=True)
-    # рукописный юнит ровно один - измерительный рантайм; всё остальное
-    # генератор создаёт сам, и копировать его версию из каталога комплекта
-    # значит тащить сюда чужой сид
-    shutil.copy(DEVIL / "devil_runtime.pas", work / "devil_runtime.pas")
-    support = DEVIL / "devil_support.inc"
-    if support.is_file():
-        shutil.copy(support, work / support.name)
     code, log = run([sys.executable, str(GENERATOR), "--seed", str(seed),
                      "--cases", str(cases), "--layers", ",".join(layers),
                      "--out", str(work)], work, 600)
@@ -149,7 +142,8 @@ def main() -> None:
     p.add_argument("--dcc-lib", type=Path, required=True)
     p.add_argument("--timeout", type=int, default=600)
     p.add_argument("--work", type=Path,
-                   default=Path(__file__).resolve().parents[1] / "work-bisect")
+                   default=Path(__file__).resolve().parents[1] /
+                   "results" / "runs" / "devil-bisect")
     args = p.parse_args()
 
     # сборка идёт с рабочим каталогом внутри work, поэтому все пути к нему

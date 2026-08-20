@@ -124,6 +124,12 @@ def main() -> None:
             print(f"{i:3d}  {sha}  {subject}")
         return
 
+    if not args.repo:
+        raise SystemExit(
+            "--repo is required: mutation uses git revert/reset and must run "
+            "in an explicitly disposable worktree"
+        )
+
     # untracked Devil files are fine; only modified tracked files would be
     # swallowed by the revert/restore cycle
     code, status = git(["status", "--porcelain", "--untracked-files=no"])
@@ -187,6 +193,7 @@ def main() -> None:
     print(f"DEVIL_MUTATION killed={killed}/{len(usable)} "
           f"skipped={len(results) - len(usable)}")
     if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(results, indent=2, ensure_ascii=False)
                                + "\n", encoding="utf-8")
     # a surviving mutant is a coverage hole, and that is a failure of Devil

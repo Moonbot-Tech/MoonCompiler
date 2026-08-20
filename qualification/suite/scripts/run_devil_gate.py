@@ -433,7 +433,8 @@ def main() -> None:
     p.add_argument("--profiles", default=tc.DEFAULT_PROFILES)
     p.add_argument("--defines", default="")
     p.add_argument("--timeout", type=int, default=600)
-    p.add_argument("--work", type=Path, default=DEVIL)
+    p.add_argument("--work", type=Path,
+                   default=ROOT / "results" / "runs" / "devil-main")
     p.add_argument("--report", type=Path)
     p.add_argument("--shuffle-order", action="store_true",
                    help="also build the same forms emitted in another order")
@@ -458,6 +459,7 @@ def main() -> None:
     if args.dcc_lib:
         args.dcc_lib = args.dcc_lib.resolve()
     args.work = args.work.resolve()
+    args.work.mkdir(parents=True, exist_ok=True)
 
     seeds = [int(s) for s in args.seeds.split(",") if s]
     profiles = [p for p in args.profiles.split(",") if p]
@@ -566,7 +568,8 @@ def main() -> None:
                 for name in sorted(set(reference.failures) ^ set(shuffled.failures)):
                     findings.append({"kind": "order-dependent-check",
                                      "check": name})
-        findings, known_hits = classify(findings, load_known(args.work / "known_findings.json"))
+        findings, known_hits = classify(
+            findings, load_known(DEVIL / "known_findings.json"))
         # a digest split is a consequence, not a cause: when every underlying
         # disagreement is already analysed, the split carries no new
         # information.  But it is only a consequence of *those* findings if the
@@ -596,6 +599,7 @@ def main() -> None:
         report.append({"seed": seed, "summary": summary, "findings": findings})
 
     if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n",
                                encoding="utf-8")
     print(f"DEVIL_GATE {'OK' if total_findings == 0 else 'FINDINGS'} "

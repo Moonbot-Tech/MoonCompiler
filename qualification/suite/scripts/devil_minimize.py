@@ -100,25 +100,37 @@ def main() -> None:
     p.add_argument("--cases", type=int, default=200)
     p.add_argument("--profiles", default="debug,release")
     p.add_argument("--out", type=Path,
-                   default=DEVIL / "minimized")
+                   default=ROOT / "results" / "runs" / "devil-minimized")
     args = p.parse_args()
 
-    run([sys.executable, str(GENERATOR), "--seed", str(args.seed),
-         "--cases", str(args.cases)], ROOT.parent.parent)
+    generated = args.out.resolve().parent / (args.out.name + "-source")
+    if generated.exists():
+        shutil.rmtree(generated)
+    code, log = run([sys.executable, str(GENERATOR), "--seed", str(args.seed),
+                     "--cases", str(args.cases), "--out", str(generated)],
+                    ROOT.parent.parent)
+    if code != 0:
+        shutil.rmtree(generated, ignore_errors=True)
+        print("generator failed: " + (log.strip().splitlines()[-1]
+                                      if log.strip() else "no diagnostic"))
+        sys.exit(2)
 
-    manifest = json.loads((DEVIL / "devil_manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (generated / "devil_manifest.json").read_text(encoding="utf-8"))
     case = None
     for c in manifest["cases"]:
         if args.name.startswith(c["name"]):
             case = c
             break
     if case is None:
+        shutil.rmtree(generated, ignore_errors=True)
         print(f"no case for {args.name}")
         sys.exit(1)
 
     layer = case["layer"]
-    inc = DEVIL / f"devil_{layer}.inc"
+    inc = generated / f"devil_{layer}.inc"
     text = inc.read_text(encoding="utf-8")
+    shutil.rmtree(generated)
     spans = collect_routines(text)
     index = case["name"].rsplit("-", 1)[-1]
     proc = "Dvl" + layer.capitalize() + index
@@ -155,6 +167,7 @@ def main() -> None:
     print(f"cut {len(keep)} lines into {out / 'devil_min.dpr'}")
 
     results = {}
+    compile_failed = False
     for profile in args.profiles.split(","):
         build = out / f"out-{profile}"
         if build.exists():
@@ -164,12 +177,17 @@ def main() -> None:
                                            profile), out)
         exe = build / "devil_min.exe"
         if not exe.exists():
-            results[profile] = "COMPILE FAILED: " + log.strip().splitlines()[-1]
+            lines = log.strip().splitlines()
+            results[profile] = "COMPILE FAILED: " + (lines[-1] if lines else "no diagnostic")
+            compile_failed = True
             continue
         code, output = run([str(exe)], out)
         results[profile] = output.strip().splitlines()[-1] if output.strip() else "(no output)"
     for profile, line in results.items():
         print(f"{profile:8}: {line}")
+    if compile_failed:
+        print("MINIMIZATION FAILED: the cut does not compile")
+        sys.exit(2)
     if len(set(results.values())) > 1:
         print("MINIMIZED: the cut still reproduces the disagreement")
     else:

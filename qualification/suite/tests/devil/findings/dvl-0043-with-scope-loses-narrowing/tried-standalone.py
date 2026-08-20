@@ -14,10 +14,11 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, r"R:\test\MoonCompilerTmp\qualification\suite\scripts")
+SUITE = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(SUITE / "scripts"))
 import devil_toolchain as tc  # noqa: E402
 
-HERE = Path(__file__).resolve().parent / "min109"
+HERE = SUITE / "results" / "runs" / "devil-dvl-0043-min109"
 HEAD = """program {name};
 {{$ifdef FPC}}{{$mode delphiunicode}}{{$H+}}{{$modeswitch advancedrecords}}{{$endif}}
 {{$APPTYPE CONSOLE}}

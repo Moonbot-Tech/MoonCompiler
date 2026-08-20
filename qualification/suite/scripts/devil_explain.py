@@ -16,6 +16,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,13 +52,17 @@ def main() -> None:
     p.add_argument("--layers", default="all")
     args = p.parse_args()
 
+    input_dir = DEVIL
+    temporary: tempfile.TemporaryDirectory[str] | None = None
     if args.seed is not None:
+        temporary = tempfile.TemporaryDirectory(prefix="devil-explain-")
+        input_dir = Path(temporary.name)
         subprocess.run([sys.executable, str(GENERATOR), "--seed", str(args.seed),
-                        "--cases", str(args.cases), "--layers", args.layers],
-                       cwd=ROOT.parent.parent, check=True,
-                       capture_output=True, text=True)
+                        "--cases", str(args.cases), "--layers", args.layers,
+                        "--out", str(input_dir)], cwd=ROOT.parent.parent,
+                       check=True, capture_output=True, text=True)
 
-    manifest_path = DEVIL / "devil_manifest.json"
+    manifest_path = input_dir / "devil_manifest.json"
     if not manifest_path.exists():
         print("no manifest; generate first")
         sys.exit(2)
@@ -87,15 +92,17 @@ def main() -> None:
             print(f"{key:10}: {value}")
 
     layer = case["layer"]
-    inc = DEVIL / f"devil_{layer}.inc"
+    inc = input_dir / f"devil_{layer}.inc"
     if not inc.exists():
         print(f"\n(no generated source for layer {layer})")
         return
     proc = "Dvl" + layer.capitalize() + case["name"].rsplit("-", 1)[-1]
     text = inc.read_text(encoding="utf-8")
-    source = procedure_source(text, proc)
+    procedure = procedure_source(text, proc)
     print("\n--- generated source ---")
-    print(source or f"(procedure {proc} not found)")
+    print(procedure or f"(procedure {proc} not found)")
+    if temporary is not None:
+        temporary.cleanup()
 
 
 if __name__ == "__main__":

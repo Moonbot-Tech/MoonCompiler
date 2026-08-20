@@ -16,12 +16,12 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, r"R:\test\MoonCompilerTmp\qualification\suite\scripts")
+SUITE = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(SUITE / "scripts"))
 import devil_toolchain as tc  # noqa: E402
 from generate_devil import LAYERS  # noqa: E402
 
-SUITE = Path(r"R:\test\MoonCompilerTmp\qualification\suite")
-WORK = (SUITE / "work-unwind").resolve()
+WORK = (SUITE / "results" / "runs" / "devil-dvl-0042").resolve()
 SEED, CASES = 24, 120
 
 
@@ -33,8 +33,6 @@ def prepare(layers: list[str]) -> bool:
     if WORK.exists():
         shutil.rmtree(WORK)
     WORK.mkdir(parents=True)
-    shutil.copy(SUITE / "tests" / "devil" / "devil_runtime.pas",
-                WORK / "devil_runtime.pas")
     gen = subprocess.run([sys.executable,
                           str(SUITE / "scripts" / "generate_devil.py"),
                           "--seed", str(SEED), "--cases", str(CASES),

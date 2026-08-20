@@ -26,6 +26,7 @@ import json
 import os
 import random
 import re
+import shutil
 import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -16357,7 +16358,8 @@ def main() -> None:
     parser.add_argument("--shuffle-order", action="store_true",
                         help="emit the same forms in a different order: the "
                              "values must not depend on it")
-    parser.add_argument("--out", type=Path, default=DEVIL)
+    parser.add_argument("--out", type=Path,
+                        default=ROOT / "results" / "runs" / "devil-generated")
     args = parser.parse_args()
 
     global OUTPUT_DIR
@@ -16367,6 +16369,8 @@ def main() -> None:
         random.Random(args.seed ^ 0x5A5A).shuffle(selected)
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
+    if out.resolve() != DEVIL.resolve():
+        shutil.copy(DEVIL / "devil_runtime.pas", out / "devil_runtime.pas")
     (out / "devil_support.inc").write_text(SUPPORT, encoding="utf-8")
 
     records: list[CaseRecord] = []

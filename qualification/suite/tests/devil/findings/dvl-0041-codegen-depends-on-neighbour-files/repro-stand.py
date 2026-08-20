@@ -19,11 +19,11 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, r"R:\test\MoonCompilerTmp\qualification\suite\scripts")
+SUITE = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(SUITE / "scripts"))
 import devil_toolchain as tc  # noqa: E402
 
-SUITE = Path(r"R:\test\MoonCompilerTmp\qualification\suite")
-WORK = (SUITE / "work-dirdep").resolve()
+WORK = (SUITE / "results" / "runs" / "devil-dvl-0041").resolve()
 
 
 def say(*parts: object) -> None:
@@ -49,8 +49,6 @@ def main() -> None:
     if WORK.exists():
         shutil.rmtree(WORK)
     WORK.mkdir(parents=True)
-    shutil.copy(SUITE / "tests" / "devil" / "devil_runtime.pas",
-                WORK / "devil_runtime.pas")
     gen = subprocess.run([sys.executable,
                           str(SUITE / "scripts" / "generate_devil.py"),
                           "--seed", "23", "--cases", "120",
