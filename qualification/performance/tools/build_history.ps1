@@ -1,10 +1,27 @@
 param(
-  [string]$Output = (Join-Path $PSScriptRoot '..\PULSE_HISTORY.html')
+  [string]$Output = (Join-Path $PSScriptRoot '..\PULSE_HISTORY.html'),
+  [string]$ResultsRoot = ''
 )
 
 $ErrorActionPreference = 'Stop'
 $PerformanceRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$ResultsRoot = Join-Path $PerformanceRoot 'results\pulse'
+if ($ResultsRoot) {
+  $ResultsRoot = [IO.Path]::GetFullPath($ResultsRoot)
+} else {
+  $ResultsRoot = Join-Path $PerformanceRoot 'results\pulse'
+}
+$HistorySnapshotPath = Join-Path $PerformanceRoot 'evidence\history-ratios.json'
+$HistorySnapshot = @{}
+if (Test-Path -LiteralPath $HistorySnapshotPath) {
+  $SnapshotObject = Get-Content -LiteralPath $HistorySnapshotPath -Raw | ConvertFrom-Json
+  foreach ($StageProperty in $SnapshotObject.stages.PSObject.Properties) {
+    $Cases = @{}
+    foreach ($CaseProperty in $StageProperty.Value.PSObject.Properties) {
+      $Cases[$CaseProperty.Name] = [double]$CaseProperty.Value
+    }
+    $HistorySnapshot[$StageProperty.Name] = $Cases
+  }
+}
 
 $Stages = @(
   [ordered]@{
@@ -371,6 +388,19 @@ $Stages = @(
       'mm/fragmented-mixed',
       'rtl/memorystream-write-small'
     )
+  },
+  [ordered]@{
+    id = 'integration_safe'
+    label = 'Текущий продукт: безопасная интеграция'
+    short = 'Product HEAD'
+    note = 'Точный Win64 O3 medium на c0139f0e: 390 cases, все semantic oracles MATCH. Небезопасный Ref=1 fast path отсутствует. Три cases помечены process-drift и не используются для точечных выводов; без них geomean Moon/Delphi = 0.723, 203 выигрыша, 120 паритетов, 64 проигрыша.'
+    tracked = $true
+    files = @('evidence\integration-current-20260820\summary.json')
+    unstable = @(
+      'loops/histogram-random',
+      'managed/closure-create-invoke',
+      'mm/alloc-free-1m'
+    )
   }
 )
 
@@ -489,17 +519,26 @@ foreach ($Stage in $Stages) {
     }
   }
   $LoadedCases = @{}
-  foreach ($RelativeFile in $Stage.files) {
-    $SummaryPath = Join-Path $ResultsRoot $RelativeFile
-    if (-not (Test-Path -LiteralPath $SummaryPath)) {
-      throw "Missing Pulse summary: $SummaryPath"
+  $SourceRoot = if ($Stage.Contains('tracked')) { $PerformanceRoot } else { $ResultsRoot }
+  $SummaryPaths = @($Stage.files | ForEach-Object { Join-Path $SourceRoot $_ })
+  $UseSnapshot = @($SummaryPaths | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -ne 0
+  if ($UseSnapshot) {
+    if (-not $HistorySnapshot.ContainsKey($Stage.id)) {
+      throw "Missing Pulse summaries and compact snapshot for stage '$($Stage.id)'"
     }
-    # Windows PowerShell 5.1 has no ConvertFrom-Json -AsHashtable
-    $SummaryObject = Get-Content -LiteralPath $SummaryPath -Raw | ConvertFrom-Json
-    $Summary = @{}
-    foreach ($Property in $SummaryObject.PSObject.Properties) {
-      $Summary[$Property.Name] = $Property.Value
-    }
+    $Summaries = @($HistorySnapshot[$Stage.id])
+  } else {
+    $Summaries = @($SummaryPaths | ForEach-Object {
+      # Windows PowerShell 5.1 has no ConvertFrom-Json -AsHashtable
+      $SummaryObject = Get-Content -LiteralPath $_ -Raw | ConvertFrom-Json
+      $Summary = @{}
+      foreach ($Property in $SummaryObject.PSObject.Properties) {
+        $Summary[$Property.Name] = [double]$Property.Value.candidate_over_baseline
+      }
+      $Summary
+    })
+  }
+  foreach ($Summary in $Summaries) {
     foreach ($Case in $Summary.Keys) {
       if (-not $Rows.ContainsKey($Case)) {
         $Rows[$Case] = [ordered]@{
@@ -514,7 +553,7 @@ foreach ($Stage in $Stages) {
         throw "Duplicate case '$Case' in stage '$($Stage.id)'"
       }
       $LoadedCases[$Case] = $true
-      $Rows[$Case].values[$Stage.id] = [double]$Summary[$Case].candidate_over_baseline
+      $Rows[$Case].values[$Stage.id] = [double]$Summary[$Case]
       $Rows[$Case].unstable = @($Rows[$Case].unstable | Where-Object { $_ -ne $Stage.id })
       if ($Case -in $Stage.unstable) {
         $Rows[$Case].unstable += $Stage.id
