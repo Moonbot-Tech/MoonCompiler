@@ -3293,15 +3293,18 @@ unit aoptx86;
       NewConst: TCGInt;
 {$endif x86_64}
 
-      procedure convert_mov_value(signed_movop: tasmop; max_value: tcgint); inline;
+      procedure convert_mov_value(const movx: taicpu;
+        signed_movop: tasmop; max_value: tcgint); inline;
         begin
-          if taicpu(hp1).opcode = signed_movop then
+          { The original narrow MOV discards all bits outside its operand.
+            Normalize that width before applying signed extension: an
+            immediate may already contain arbitrary high bits. }
+          taicpu(p).oper[0]^.val:=taicpu(p).oper[0]^.val and max_value;
+          if movx.opcode = signed_movop then
             begin
               if taicpu(p).oper[0]^.val > max_value shr 1 then
                 taicpu(p).oper[0]^.val:=taicpu(p).oper[0]^.val - max_value - 1 { Convert to signed }
-            end
-          else
-            taicpu(p).oper[0]^.val:=taicpu(p).oper[0]^.val and max_value; { Trim to unsigned }
+            end;
         end;
 
       function GetNextHp1(const in_p: tai): Boolean;
@@ -4254,38 +4257,38 @@ unit aoptx86;
                                   case taicpu(hp1).opsize of
                                     S_BW:
                                       begin
-                                        convert_mov_value(A_MOVSX, $FF);
+                                        convert_mov_value(taicpu(hp1), A_MOVSX, $FF);
                                         setsubreg(taicpu(p).oper[1]^.reg, R_SUBW);
                                         taicpu(p).opsize := S_W;
                                       end;
                                     S_BL:
                                       begin
-                                        convert_mov_value(A_MOVSX, $FF);
+                                        convert_mov_value(taicpu(hp1), A_MOVSX, $FF);
                                         setsubreg(taicpu(p).oper[1]^.reg, R_SUBD);
                                         taicpu(p).opsize := S_L;
                                       end;
                                     S_WL:
                                       begin
-                                        convert_mov_value(A_MOVSX, $FFFF);
+                                        convert_mov_value(taicpu(hp1), A_MOVSX, $FFFF);
                                         setsubreg(taicpu(p).oper[1]^.reg, R_SUBD);
                                         taicpu(p).opsize := S_L;
                                       end;
 {$ifdef x86_64}
                                     S_BQ:
                                       begin
-                                        convert_mov_value(A_MOVSX, $FF);
+                                        convert_mov_value(taicpu(hp1), A_MOVSX, $FF);
                                         setsubreg(taicpu(p).oper[1]^.reg, R_SUBQ);
                                         taicpu(p).opsize := S_Q;
                                       end;
                                     S_WQ:
                                       begin
-                                        convert_mov_value(A_MOVSX, $FFFF);
+                                        convert_mov_value(taicpu(hp1), A_MOVSX, $FFFF);
                                         setsubreg(taicpu(p).oper[1]^.reg, R_SUBQ);
                                         taicpu(p).opsize := S_Q;
                                       end;
                                     S_LQ:
                                       begin
-                                        convert_mov_value(A_MOVSXD, $FFFFFFFF);  { Note it's MOVSXD, not MOVSX }
+                                        convert_mov_value(taicpu(hp1), A_MOVSXD, $FFFFFFFF);  { Note it's MOVSXD, not MOVSX }
                                         setsubreg(taicpu(p).oper[1]^.reg, R_SUBQ);
                                         taicpu(p).opsize := S_Q;
                                       end;
@@ -5380,7 +5383,25 @@ unit aoptx86;
 
                         { Keep the first instruction as mov if ### is a constant }
                         if taicpu(p).oper[0]^.typ = top_const then
-                          taicpu(p).opsize := reg2opsize(taicpu(hp2).oper[1]^.reg)
+                          begin
+                            { The removed MOVS/Z first narrows the old register
+                              value to its source size.  Merely widening the
+                              constant MOV loses that operation for constants
+                              whose discarded high bits are non-zero. }
+                            case taicpu(hp2).opsize of
+                              S_BW, S_BL{$ifdef x86_64}, S_BQ{$endif x86_64}:
+                                convert_mov_value(taicpu(hp2), A_MOVSX, $FF);
+                              S_WL{$ifdef x86_64}, S_WQ{$endif x86_64}:
+                                convert_mov_value(taicpu(hp2), A_MOVSX, $FFFF);
+{$ifdef x86_64}
+                              S_LQ:
+                                convert_mov_value(taicpu(hp2), A_MOVSXD, $FFFFFFFF);
+{$endif x86_64}
+                              else
+                                InternalError(2026082101);
+                            end;
+                            taicpu(p).opsize := reg2opsize(taicpu(hp2).oper[1]^.reg);
+                          end
                         else
                           begin
                             taicpu(p).opcode := taicpu(hp2).opcode;

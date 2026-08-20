@@ -3,18 +3,6 @@
   "note": "Каждая запись привязана к разобранной находке в findings/. Гейт не прячет их, а считает отдельно, чтобы новое не тонуло в уже известном.",
   "known": [
     {
-      "id": "dvl-0001",
-      "kind": "model-mismatch",
-      "check": "^dvl-(expr|unary|unit)-[0-9]+(-form|-generic)?$",
-      "note": "O3 теряет беззнаковое сужение узкого типа перед расширением до 64 бит"
-    },
-    {
-      "id": "dvl-0001",
-      "kind": "model-mismatch",
-      "check": "^dvl-fold-[0-9]+-half-vs-runtime$",
-      "note": "то же сужение на пути литерал op runtime, видно уже на O2"
-    },
-    {
       "id": "dvl-0003",
       "kind": "observation-split",
       "note_name": "^dvl-life-[0-9]+-(order|trail)$",
@@ -69,12 +57,6 @@
       "note": "Delphi усекает Int64-селектор case до 32 бит; наш компилятор корректен"
     },
     {
-      "id": "dvl-0001",
-      "kind": "model-mismatch",
-      "check": "^dvl-unit-[0-9]+-(generic-two-units|two-units|inline|const)$",
-      "note": "то же сужение узкого типа на O3, через второй модуль"
-    },
-    {
       "id": "dvl-0002",
       "kind": "internal-error",
       "note": "ICE 200706094 на Odd(UInt64-константа); ловится слоем unary"
@@ -84,12 +66,6 @@
       "kind": "model-mismatch",
       "check": "^dvl-i128-[0-9]+-(high|low)$",
       "note": "O3 знаково расширяет старшую половину 128-битного результата"
-    },
-    {
-      "id": "dvl-0026",
-      "kind": "model-mismatch",
-      "check": "^dvl-gen-[0-9]+-echo$",
-      "note": "release теряет сужение при возврате из generic-метода"
     },
     {
       "id": "dvl-0027",
@@ -352,12 +328,6 @@
       "kind": "internal-error",
       "detail": "Internal error 200405231",
       "note": "инлайн managed-процедуры в finally роняет фронт (запись реестра пересобрана после потери каталога)"
-    },
-    {
-      "id": "dvl-0043",
-      "kind": "model-mismatch",
-      "check": "^dvl-gen-[0-9]+-nested$",
-      "note": "release теряет беззнаковое сужение на значении из with-блока (родня dvl-0001/0026)"
     }
   ]
 }
