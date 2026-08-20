@@ -1848,15 +1848,15 @@ parser_e_composition_in_class_var=03443_E_"$1" is not allowed in a "class var" o
 % Unions are supported there: their variants share one static storage
 % blob.
 parser_e_composition_only_in_records=03444_E_"$1" is only allowed in records
+% Unions and embeds compose plain record layouts. Classes and objects
+% manage their own layout (VMT, RTTI), so composition constructs are not
+% available there. Use a field of a record type holding the union
+% instead.
 parser_e_generic_constraint_needs_constructor=03445_E_Type parameter "$1" must have one public parameterless constructor named Create
 % A generic parameter forwarded into a specialization whose formal parameter
 % carries the \var{constructor} constraint must carry that constraint itself:
 % nothing else guarantees a public parameterless constructor at specialization
 % time.
-% Unions and embeds compose plain record layouts. Classes and objects
-% manage their own layout (VMT, RTTI), so composition constructs are not
-% available there. Use a field of a record type holding the union
-% instead.
 parser_e_enum_storage_not_ordinal=03407_E_Anonymous enum storage type must be ordinal, got "$1"
 % The `(...) of T` shorthand on an anonymous enum needs an ordinal type
 % (Byte, Word, Integer, Int64, etc.) for the storage. Non-ordinal types
