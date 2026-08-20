@@ -1300,6 +1300,34 @@ begin
   end;
 end;
 
+function CaseTryStrToIntEdges(Iterations: Integer): UInt64;
+const
+  Edges: array[0..23] of string = (
+    '', ' ', '0', '0000', ' 123', '123 ', '+42', '-42', '-0',
+    '2147483647', '2147483648', '-2147483648', '-2147483649',
+    '$FF', '$FFFFFFFF', '-$80000000', '-$80000001', '-$FFFFFFFF',
+    '0x1F', 'x10', '1e3', '%101', '&777', '+$10');
+var
+  I, K, V: Integer;
+  Digest: UInt64;
+begin
+  { oracle pin: the digest folds the accept/reject verdict and value of
+    every edge, so the Delphi run cross-checks the exact semantics }
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Digest := 0;
+    for K := 0 to High(Edges) do
+    begin
+      if TryStrToInt(Edges[K], V) then
+        Digest := Digest * 31 + UInt64(Cardinal(V)) + 1
+      else
+        Digest := Digest * 31 + 7;
+    end;
+    Result := Result + Digest;
+  end;
+end;
+
 function CaseTryStrToIntLoop(Iterations: Integer): UInt64;
 var
   I, V: Integer;
@@ -1385,6 +1413,8 @@ begin
     @CaseStringReplaceAll, 1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'trystrtoint', 'rtl', 'TryStrToInt',
     @CaseTryStrToIntLoop, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'trystrtoint-edges', 'rtl', 'TryStrToInt edges',
+    @CaseTryStrToIntEdges, 24, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'inttostr-int32', 'rtl+mm', 'IntToStr(Integer)',
     @CaseIntToStr32, 1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'inttostr-int64', 'rtl+mm', 'IntToStr(Int64)', @CaseIntToStr64,
