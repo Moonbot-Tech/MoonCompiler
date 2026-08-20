@@ -182,7 +182,8 @@ end;
 ****************************************************************************}
 
 {$ifdef CPUX86_64}
-procedure fpc_UnicodeStr_FreeHeader(Header: Pointer); noinline;
+procedure fpc_UnicodeStr_FreeHeader(Header: Pointer);
+{$if FPC_FULLVERSION>=30301}noinline;{$endif}
 begin
   FreeMem(Header);
 end;

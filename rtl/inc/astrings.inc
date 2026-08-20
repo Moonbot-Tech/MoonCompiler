@@ -117,7 +117,8 @@ end;
   string triple (assign/incr/decr) runs the same lock-elided code
   instead of the Pascal declocked path.  The bootstrap compiler keeps
   the Pascal bodies (its header layout differs). }
-procedure fpc_AnsiStr_FreeHeader(Header: Pointer); noinline;
+procedure fpc_AnsiStr_FreeHeader(Header: Pointer);
+{$if FPC_FULLVERSION>=30301}noinline;{$endif}
 begin
   FreeMem(Header);
 end;
