@@ -1095,20 +1095,34 @@ const
                    else
                      t := create_simplified_ord_const(v,hdef,forinline or wrapped,cs_check_overflow in localswitches)
                  end;
+               { 128 bit types combine over the full payload, the operators
+                 keep the historical 64 bit window (same split as shl/shr) }
                xorn :
                  if is_integer(ld) then
-                   t := create_simplified_ord_const(lv xor rv,resultdef,forinline,false)
-                 else
+                   begin
+                     if is_128bitint(resultdef) then
+                       t:=create_simplified_ord_const(xor128(lv,rv),resultdef,forinline,false)
+                     else
+                       t:=create_simplified_ord_const(lv xor rv,resultdef,forinline,false)
+                   end else
                    t:=cordconstnode.create(lv xor rv,resultdef,true);
                orn :
                  if is_integer(ld) then
-                   t:=create_simplified_ord_const(lv or rv,resultdef,forinline,false)
-                 else
+                   begin
+                     if is_128bitint(resultdef) then
+                       t:=create_simplified_ord_const(or128(lv,rv),resultdef,forinline,false)
+                     else
+                       t:=create_simplified_ord_const(lv or rv,resultdef,forinline,false)
+                   end else
                    t:=cordconstnode.create(lv or rv,resultdef,true);
                andn :
                  if is_integer(ld) then
-                   t:=create_simplified_ord_const(lv and rv,resultdef,forinline,false)
-                 else
+                   begin
+                     if is_128bitint(resultdef) then
+                       t:=create_simplified_ord_const(and128(lv,rv),resultdef,forinline,false)
+                     else
+                       t:=create_simplified_ord_const(lv and rv,resultdef,forinline,false)
+                   end else
                    t:=cordconstnode.create(lv and rv,resultdef,true);
                ltn :
                  t:=cordconstnode.create(ord(lv<rv),pasbool1type,true);

@@ -78,6 +78,9 @@ function uint128_high:Tconstexprint;
   window when both operands lie in it }
 function shl128(const a,b:Tconstexprint):Tconstexprint;
 function shr128(const a,b:Tconstexprint):Tconstexprint;
+function and128(const a,b:Tconstexprint):Tconstexprint;
+function or128(const a,b:Tconstexprint):Tconstexprint;
+function xor128(const a,b:Tconstexprint):Tconstexprint;
 
 { parses an integer literal in val syntax (optional sign, $/&/% prefixes)
   into a 128 bit value; error is set when malformed or out of range }
@@ -718,6 +721,37 @@ begin
       result.vlo:=(a.vlo shr b.vlo) or (a.vhi shl (64-b.vlo));
       result.vhi:=a.vhi shr b.vlo;
     end;
+end;
+
+{ 128 bit types combine over the full payload: the stored halves are already
+  two's-complement extended, so the lanes pair up directly.  The plain
+  operators keep the historical 64 bit window with its sign reinterpretation
+  and must stay untouched for the 64 bit folds. }
+function and128(const a,b:Tconstexprint):Tconstexprint;
+
+begin
+  result.overflow:=false;
+  result.signed:=a.signed or b.signed;
+  result.vlo:=a.vlo and b.vlo;
+  result.vhi:=a.vhi and b.vhi;
+end;
+
+function or128(const a,b:Tconstexprint):Tconstexprint;
+
+begin
+  result.overflow:=false;
+  result.signed:=a.signed or b.signed;
+  result.vlo:=a.vlo or b.vlo;
+  result.vhi:=a.vhi or b.vhi;
+end;
+
+function xor128(const a,b:Tconstexprint):Tconstexprint;
+
+begin
+  result.overflow:=false;
+  result.signed:=a.signed or b.signed;
+  result.vlo:=a.vlo xor b.vlo;
+  result.vhi:=a.vhi xor b.vhi;
 end;
 {$pop}
 
