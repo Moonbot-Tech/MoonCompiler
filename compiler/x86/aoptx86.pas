@@ -3923,7 +3923,24 @@ unit aoptx86;
                       if (taicpu(hp1).opcode = A_OR) and
                         (taicpu(p).oper[1]^.typ = top_reg) and
                         MatchOperand(taicpu(p).oper[0]^, 0) and
-                        MatchOperand(taicpu(hp1).oper[1]^, taicpu(p).oper[1]^.reg) then
+                        MatchOperand(taicpu(hp1).oper[1]^, taicpu(p).oper[1]^.reg) and
+                        (
+                          MatchOperand(taicpu(hp1).oper[0]^, 0) or
+                          MatchOperand(taicpu(hp1).oper[0]^, taicpu(hp1).oper[1]^.reg) or
+                          (
+                            { Replacing both instructions with the OR source must
+                              preserve every bit initialized by the zeroing MOV
+                              and every bit read/written by OR.  Byte/word
+                              subregisters may share a physical register without
+                              sharing a value domain; 32- and 64-bit writes are
+                              equivalent here on x86-64 because a 32-bit write
+                              clears the upper half. }
+                            Reg1WriteOverwritesReg2Entirely(
+                              taicpu(hp1).oper[1]^.reg, taicpu(p).oper[1]^.reg) and
+                            Reg1WriteOverwritesReg2Entirely(
+                              taicpu(p).oper[1]^.reg, taicpu(hp1).oper[1]^.reg)
+                          )
+                        ) then
                         begin
                           {   mov 0,  %reg
                               or  ###,%reg
@@ -4064,9 +4081,25 @@ unit aoptx86;
                                 (taicpu(hp1).oper[0]^.val >= $80000000) then
                                 taicpu(hp1).oper[0]^.val := taicpu(hp1).oper[0]^.val or $FFFFFFFF00000000;
 {$endif x86_64}
-                              DebugMsg(SPeepholeOptimization + 'MOV 0 / OR -> MOV', p);
-                              taicpu(hp1).opcode := A_MOV;
-                              RemoveCurrentP(p);
+                              if MatchOperand(taicpu(hp1).oper[0]^, 0) or
+                                (
+                                  MatchOperand(taicpu(hp1).oper[0]^, taicpu(hp1).oper[1]^.reg) and
+                                  Reg1WriteOverwritesReg2Entirely(
+                                    taicpu(p).oper[1]^.reg, taicpu(hp1).oper[1]^.reg)
+                                ) then
+                                begin
+                                  { OR cannot change a zero register in either
+                                    case.  Keep the original MOV because it may
+                                    initialize a wider subregister than OR. }
+                                  DebugMsg(SPeepholeOptimization + 'MOV 0 / OR 0 -> MOV 0', p);
+                                  RemoveInstruction(hp1);
+                                end
+                              else
+                                begin
+                                  DebugMsg(SPeepholeOptimization + 'MOV 0 / OR -> MOV', p);
+                                  taicpu(hp1).opcode := A_MOV;
+                                  RemoveCurrentP(p);
+                                end;
                               Result := True;
                               Exit;
                             end;

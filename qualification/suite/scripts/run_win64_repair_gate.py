@@ -30,6 +30,7 @@ CORE_TESTS = (
     "tdelphisparseenumtypeinfo1",
     "tdelphiinlineconstruntime1",
     "tdelphianonymousnew1",
+    "tx86boolconstmovwidth1",
     "tloopinvariantaddr1",
     "tdelphiinlineexceptreg1",
     "tdelphiinlinefuncrettemp1",
