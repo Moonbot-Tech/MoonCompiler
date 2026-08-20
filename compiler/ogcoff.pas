@@ -2026,7 +2026,7 @@ const pemagic : array[0..3] of byte = (
       var
         filename   : string[20];
         filenamelen : longint;
-        sectionval : word;
+        sectionval : longint;
         globalval  : byte;
         i          : longint;
         value      : aword;
