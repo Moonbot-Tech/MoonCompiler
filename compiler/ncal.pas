@@ -108,6 +108,12 @@ interface
           inlinelocals            : TFPObjectList;
           inlineinitstatement,
           inlinecleanupstatement  : tstatementnode;
+          { finalizations of the callee's managed locals, in reverse
+            declaration order; the inliner wraps the inlined body in an
+            implicit try..finally around this block so the values die at the
+            callee's return point on the normal path and during unwind on
+            the exception path (transient, consumed by optcall.doinline) }
+          inlinemanagedcleanupblock : tblocknode;
           { checks whether we have to create a temp to store the value of a
             parameter passed to an inline routine to preserve correctness.
             On exit, complexpara contains true if the parameter is a complex
@@ -5739,6 +5745,22 @@ implementation
       end;
 
 
+    type
+      tinlinelocaltempsctx = record
+        temps : tfplist;
+        usedsyms : tfplist;
+      end;
+      pinlinelocaltempsctx = ^tinlinelocaltempsctx;
+
+    function collectinlineusedsyms(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_false;
+        if (n.nodetype=loadn) and
+           (tloadnode(n).symtableentry.typ=localvarsym) and
+           (tfplist(arg).IndexOf(tloadnode(n).symtableentry)<0) then
+          tfplist(arg).add(tloadnode(n).symtableentry);
+      end;
+
     procedure tcallnode.createlocaltemps(p:TObject;arg:pointer);
       var
         tempnode: ttempcreatenode;
@@ -5757,6 +5779,11 @@ implementation
           end
         else
           begin
+            { a local without loads in the inlined body needs no temp -
+              creating one would only buy init/finalize work in the caller.
+              The body scan is the oracle; the refs counter can be stale. }
+            if pinlinelocaltempsctx(arg)^.usedsyms.IndexOf(p)<0 then
+              exit;
             tempnode :=ctempcreatenode.create(tabstractvarsym(p).vardef,
               tabstractvarsym(p).vardef.size,tt_persistent,tabstractvarsym(p).is_regvar(false));
             addstatement(inlineinitstatement,tempnode);
@@ -5764,7 +5791,10 @@ implementation
             if localvartrashing <> -1 then
               cnodeutils.maybe_trash_variable(inlineinitstatement,tabstractnormalvarsym(p),ctemprefnode.create(tempnode));
 
-            addstatement(inlinecleanupstatement,ctempdeletenode.create(tempnode));
+            { the caller adds the finalizations and tempdeletes for the whole
+              list at once - a managed local must be finalized before any
+              slot is released, in reverse declaration order }
+            pinlinelocaltempsctx(arg)^.temps.add(tempnode);
             { inherit addr_taken flag }
             if (tabstractvarsym(p).addr_taken) then
               tempnode.includetempflag(ti_addr_taken);
@@ -6030,6 +6060,8 @@ implementation
         n: tnode;
         complexpara: boolean;
         blocksts: tfpobjectlist;
+        localtempsctx: tinlinelocaltempsctx;
+        managedcleanupstatement: tstatementnode;
         localcount, blk_i: integer;
       begin
         { parameters }
@@ -6068,14 +6100,49 @@ implementation
         if localcount=0 then
           exit;
         inlinelocals.count:=localcount;
+        localtempsctx.temps:=tfplist.create;
+        localtempsctx.usedsyms:=tfplist.create;
+        foreachnodestatic(tprocdef(procdefinition).inlininginfo^.code,
+          @collectinlineusedsyms,localtempsctx.usedsyms);
         if assigned(tprocdef(procdefinition).localst) then
-          tprocdef(procdefinition).localst.SymList.ForEachCall(@createlocaltemps,nil);
+          tprocdef(procdefinition).localst.SymList.ForEachCall(@createlocaltemps,@localtempsctx);
         { block-scoped locals of the inlined routine get caller temps too,
           otherwise their loads would keep the stack offsets assigned when
           the routine itself was compiled }
         if assigned(blocksts) then
           for blk_i:=0 to blocksts.count-1 do
-            TSymtable(blocksts[blk_i]).SymList.ForEachCall(@createlocaltemps,nil);
+            TSymtable(blocksts[blk_i]).SymList.ForEachCall(@createlocaltemps,@localtempsctx);
+        { Delphi finalizes the callee's managed locals at the point of return
+          in reverse declaration order, and during unwind when an exception
+          leaves the callee (measured: the destructor fires before the
+          statement after the inlined call, and before the caller's handler).
+          A plain managed temp would instead live to the caller's epilogue.
+          Collect the finalizations; doinline wraps the inlined body in an
+          implicit try..finally around them, and the slots are deleted after
+          that frame.  The early finalize nils the values, so the epilogue
+          funclet's second pass is a no-op. }
+        managedcleanupstatement:=nil;
+        for blk_i:=localtempsctx.temps.count-1 downto 0 do
+          if is_managed_type(ttempcreatenode(localtempsctx.temps[blk_i]).tempinfo^.typedef) then
+            begin
+              if not assigned(inlinemanagedcleanupblock) then
+                inlinemanagedcleanupblock:=internalstatements(managedcleanupstatement);
+              addstatement(managedcleanupstatement,
+                cnodeutils.finalize_data_node(ctemprefnode.create(ttempcreatenode(localtempsctx.temps[blk_i]))));
+            end;
+        for blk_i:=0 to localtempsctx.temps.count-1 do
+          { a managed temp is referenced from the finally funclet, which is
+            generated after the main pass - a full tempdelete would have
+            invalidated it by then, so only release it to normal (the
+            funcret precedent) }
+          if is_managed_type(ttempcreatenode(localtempsctx.temps[blk_i]).tempinfo^.typedef) then
+            addstatement(inlinecleanupstatement,
+              ctempdeletenode.create_normal_temp(ttempcreatenode(localtempsctx.temps[blk_i])))
+          else
+            addstatement(inlinecleanupstatement,
+              ctempdeletenode.create(ttempcreatenode(localtempsctx.temps[blk_i])));
+        localtempsctx.temps.free;
+        localtempsctx.usedsyms.free;
       end;
 
 

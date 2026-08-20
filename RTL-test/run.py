@@ -20,6 +20,18 @@ MARKER = re.compile(r"WriteLn\(\s*'([A-Z0-9_]*(?:PASS|OK))'")
 FORBIDDEN_O3_ASM = {
     "collections_codegen": ("MOVENEXT", "GETCURRENT"),
 }
+FORBIDDEN_O3_CALL_PATTERNS = {
+    "inline_managed_locals_semantic": (
+        r"^\s*call[^\r\n]*_\$\$_USETAG\$ANSICHAR\s*$",
+    ),
+}
+REQUIRED_O3_CALL_PATTERNS = {
+    "inline_managed_locals_semantic": (
+        r"^\s*call[^\r\n]*_\$\$_APPENDGLOBAL\$ANSICHAR\s*$",
+        r"^\s*call[^\r\n]*_\$\$_USETRACKEDRECORD\s*$",
+        r"^\s*call[^\r\n]*_\$\$_USETRACKEDAGGREGATE\s*$",
+    ),
+}
 MODES = {
     "debug": ["-O-", "-gl", "-gw3", "-Criot", "-Sa"],
     "o2": ["-O2", "-gl", "-gw3"],
@@ -148,7 +160,17 @@ def main() -> int:
                     f"-FU{output}",
                     f"-FE{output}",
                     *MODES[mode],
-                    *(["-al"] if mode == "o3" and source.stem in FORBIDDEN_O3_ASM else []),
+                    *(
+                        ["-al"]
+                        if mode == "o3"
+                        and source.stem
+                        in (
+                            FORBIDDEN_O3_ASM.keys()
+                            | FORBIDDEN_O3_CALL_PATTERNS.keys()
+                            | REQUIRED_O3_CALL_PATTERNS.keys()
+                        )
+                        else []
+                    ),
                     str(source),
                 ]
                 compiled = execute(command)
@@ -160,13 +182,17 @@ def main() -> int:
                 if run.returncode != 0 or marker not in run.stdout:
                     print(run.stdout, file=sys.stderr)
                     raise RuntimeError(f"runtime oracle failed: {source.name} {mode}")
-                if mode == "o3" and source.stem in FORBIDDEN_O3_ASM:
+                if mode == "o3" and source.stem in (
+                    FORBIDDEN_O3_ASM.keys()
+                    | FORBIDDEN_O3_CALL_PATTERNS.keys()
+                    | REQUIRED_O3_CALL_PATTERNS.keys()
+                ):
                     assembly = output / f"{source.stem}.s"
                     if not assembly.is_file():
                         raise RuntimeError(f"assembly output is missing: {assembly}")
                     asm_text = assembly.read_text(encoding="utf-8", errors="replace")
                     leftovers = [
-                        name for name in FORBIDDEN_O3_ASM[source.stem]
+                        name for name in FORBIDDEN_O3_ASM.get(source.stem, ())
                         if re.search(
                             rf"^\s*call[^\r\n]*{name}",
                             asm_text,
@@ -176,6 +202,24 @@ def main() -> int:
                     if leftovers:
                         raise RuntimeError(
                             f"O3 hot loop retains enumerator calls: {source.name} {leftovers}"
+                        )
+                    forbidden_calls = [
+                        pattern
+                        for pattern in FORBIDDEN_O3_CALL_PATTERNS.get(source.stem, ())
+                        if re.search(pattern, asm_text, re.IGNORECASE | re.MULTILINE)
+                    ]
+                    if forbidden_calls:
+                        raise RuntimeError(
+                            f"O3 retains calls that must inline: {source.name} {forbidden_calls}"
+                        )
+                    missing_calls = [
+                        pattern
+                        for pattern in REQUIRED_O3_CALL_PATTERNS.get(source.stem, ())
+                        if not re.search(pattern, asm_text, re.IGNORECASE | re.MULTILINE)
+                    ]
+                    if missing_calls:
+                        raise RuntimeError(
+                            f"O3 lost required call boundaries: {source.name} {missing_calls}"
                         )
                 passed += 1
                 print(f"PASS {source.name} {mode} {marker}", flush=True)

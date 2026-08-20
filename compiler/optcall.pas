@@ -37,6 +37,7 @@ unit optcall;
 
     uses
       cclasses,
+      globtype,
       verbose,globals,
       defutil,defcmp,
       symconst,symtype,symdef,symsym,
@@ -45,7 +46,7 @@ unit optcall;
       nutils,
       fmodule,
       pass_1,
-      nbas,ncal,nld;
+      nbas,ncal,nflw,nld;
 
     { this procedure removes the user code flag because it prevents optimizations }
     function removeusercodeflag(var n : tnode; arg : pointer) : foreachnoderesult;
@@ -110,6 +111,39 @@ unit optcall;
       end;
 
 
+    function inline_expression_may_need_managed_temp(var n: tnode;
+      arg: pointer): foreachnoderesult;
+      begin
+        { A value-producing managed expression in a procedure body may acquire
+          a temporary only after the body has been copied into its caller.
+          Detect that possibility before inlining: otherwise the late
+          temporary asks for cleanup after the caller's frame layout has
+          already been fixed. }
+        if assigned(n.resultdef) and is_managed_type(n.resultdef) and
+           not(n.nodetype in [loadn,stringconstn,temprefn]) then
+          result:=fen_norecurse_true
+        else
+          result:=fen_false;
+      end;
+
+
+    function inline_body_has_used_managed_local(var n: tnode;
+      arg: pointer): foreachnoderesult;
+      begin
+        { createinlineparas turns every referenced ordinary managed local into
+          a caller temp before the copied body is optimized.  That temp already
+          provides the cleanup frame required by any later managed expression
+          exposed inside the same body. }
+        if (n.nodetype=loadn) and
+           (tloadnode(n).symtableentry.typ=localvarsym) and
+           is_managed_type(tabstractnormalvarsym(
+             tloadnode(n).symtableentry).vardef) then
+          result:=fen_norecurse_true
+        else
+          result:=fen_false;
+      end;
+
+
     function doinline(var _n: tnode; arg: pointer): foreachnoderesult;
       var
         n,
@@ -134,6 +168,24 @@ unit optcall;
         if not(assigned(tprocdef(callnode.procdefinition).inlininginfo) and
           assigned(tprocdef(callnode.procdefinition).inlininginfo^.code)) then
           internalerror(200412021);
+
+        { Managed function results already have an explicit caller-owned result
+          slot.  A procedure has no such slot, so a managed expression copied
+          from it may introduce the caller's first managed temporary only
+          during code generation, after entry/exit cleanup has been fixed.
+          Keep that procedure as a call unless the caller already has an
+          implicit cleanup frame.  This preserves the safe managed-result
+          inlining path and avoids manufacturing a late, unowned temp. }
+        if (cs_implicit_exceptions in current_settings.moduleswitches) and
+           is_void(callnode.procdefinition.returndef) and
+           not(pi_needs_implicit_finally in current_procinfo.flags) and
+           not(foreachnodestatic(
+             tprocdef(callnode.procdefinition).inlininginfo^.code,
+             @inline_body_has_used_managed_local,nil)) and
+           foreachnodestatic(
+             tprocdef(callnode.procdefinition).inlininginfo^.code,
+             @inline_expression_may_need_managed_temp,nil) then
+          exit;
 
         callnode.inlinelocals:=TFPObjectList.create(true);
 
@@ -161,6 +213,21 @@ unit optcall;
         foreachnodestatic(pm_postprocess,body,@importglobalsyms,nil);
         foreachnodestatic(pm_postprocess,body,@setinlinelevel,pointer(callnode.inlinelevel+1));
         foreachnode(pm_preprocess,body,@callnode.replaceparaload,@callnode.fileinfo);
+
+        { The callee's managed locals die at its return point and during
+          unwind - wrap the body in an implicit finally over their collected
+          finalizations (reverse declaration order); the temp slots are
+          released after the frame, in the cleanup block. }
+        if assigned(callnode.inlinemanagedcleanupblock) then
+          begin
+            body:=ctryfinallynode.create_implicit(body,callnode.inlinemanagedcleanupblock);
+            callnode.inlinemanagedcleanupblock:=nil;
+            { the frame costs the caller its DFA passes - the same price a
+              hand-written try..finally pays; when the post-inline
+              simplifier proves the body non-throwing and strips the frame,
+              TransformNodeTree clears the flag again and DFA returns }
+            include(current_procinfo.flags,pi_uses_exceptions);
+          end;
 
         { Concat the body and finalization parts }
         addstatement(callnode.inlineinitstatement,body);
