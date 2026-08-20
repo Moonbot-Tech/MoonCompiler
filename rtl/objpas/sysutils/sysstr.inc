@@ -2863,15 +2863,22 @@ var
   InfNan: string[3];
   N, L, Start, C, ExpIdx, ExponentSign: Integer;
   GotNonZeroBeforeDot, BeforeDot : boolean;
+{$ifndef FPC_HAS_TYPE_EXTENDED}
   FloatDigits: TSysFloatDigits;
   DigitCount, Exponent10, FloatClass: Integer;
   IsNegative: Boolean;
+{$endif FPC_HAS_TYPE_EXTENDED}
 
 begin
+{$ifndef FPC_HAS_TYPE_EXTENDED}
   if ValueType in [fvExtended, fvDouble, fvReal] then
     begin
       { The digit sequence comes straight from the Grisu core: the same
         digits Str would print, without rendering and re-parsing text.
+        This direct path is used where Extended aliases Double.  A target
+        with a distinct 80-bit Extended keeps the correctly typed text path
+        below: its native core has a different rounding boundary, and it
+        cannot accept Double storage without reinterpreting adjacent bytes.
         fvSingle stays on the text path below: its historical contract is
         the 10-digit Str form rounded once more by the tail here, which a
         direct 9-digit conversion would change. }
@@ -2898,13 +2905,14 @@ begin
       GotNonZeroBeforeDot := DigitCount > 0;
     end
   else
+{$endif FPC_HAS_TYPE_EXTENDED}
     begin
   case ValueType of
     fvExtended:
       Str(Extended(Value):25, Buffer);
     fvDouble,
     fvReal:
-      Str(Double(Value):23, Buffer);
+      Str(Double(Value):25, Buffer);
     fvSingle:
       Str(Single(Value):16, Buffer);
     fvCurrency:

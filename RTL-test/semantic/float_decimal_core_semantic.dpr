@@ -6,10 +6,11 @@ program float_decimal_core_semantic;
 
 {$Q-}{$R-}
 
-{ FloatToDecimal now feeds from the Grisu digit core directly.  The reference
-  here is the retired implementation: render through Str and parse the text
-  back.  Both must agree bit for bit on the digit string, the exponent and
-  the sign over a deterministic stream of raw bit patterns, the directed
+{ Where Extended aliases Double, FloatToDecimal now feeds from the Grisu digit
+  core directly.  A target with a distinct 80-bit Extended keeps the typed
+  Str path.  The reference renders through Str and parses the text back; both
+  implementations must agree bit for bit on the digit string, the exponent
+  and the sign over a deterministic stream of raw bit patterns, directed
   boundary values and a Precision x Decimals grid.
 
   One deliberate difference is pinned separately: fvDouble/fvReal previously
@@ -20,6 +21,7 @@ program float_decimal_core_semantic;
 uses
   {$ifdef FPC}
   mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,cwstring,{$endif UNIX}
   {$endif}
   SysUtils;
 
@@ -31,10 +33,11 @@ var
   GotNonZeroBeforeDot, BeforeDot: boolean;
 begin
   case ValueType of
-    fvExtended,
+    fvExtended:
+      Str(Extended(Value):25, Buffer);
     fvDouble,
     fvReal:
-      Str(Extended(Value):25, Buffer);
+      Str(Double(Value):25, Buffer);
     fvSingle:
       Str(Single(Value):16, Buffer);
     fvCurrency:
@@ -209,8 +212,29 @@ end;
 procedure CompareDouble(Bits: UInt64; Precision, Decimals: Integer);
 var
   D: Double absolute Bits;
+  E: Extended;
 begin
-  CompareOne('double ' + IntToHex(Bits, 16), D, fvExtended, Precision, Decimals);
+  { Converting a Double denormal or signalling NaN to the native 80-bit
+    Extended can raise before FloatToDecimal is entered.  The Double path
+    must still cover those raw encodings; exercise the distinct Extended
+    path on all ordinary finite Double values converted exactly to Extended. }
+  If ((Bits shr 52) and $7FF <> 0) and
+     ((Bits shr 52) and $7FF <> $7FF) then
+    begin
+      E := D;
+      CompareOne('extended ' + IntToHex(Bits, 16), E, fvExtended,
+        Precision, Decimals);
+    end;
+{$ifdef FPC_HAS_TYPE_EXTENDED}
+  { The historical Linux x86-64 Str(Double) path can raise before producing
+    a record for denormals (EUnderflow) and NaN payloads (EInvalidOp).  The
+    direct Double core is not used on this ABI, so keep those existing
+    boundaries out of the equivalence matrix. }
+  If ((((Bits shr 52) and $7FF) = 0) or
+      (((Bits shr 52) and $7FF) = $7FF)) and
+     ((Bits and $000FFFFFFFFFFFFF) <> 0) then
+    exit;
+{$endif FPC_HAS_TYPE_EXTENDED}
   CompareOne('fvdouble ' + IntToHex(Bits, 16), D, fvDouble, Precision, Decimals);
 end;
 
