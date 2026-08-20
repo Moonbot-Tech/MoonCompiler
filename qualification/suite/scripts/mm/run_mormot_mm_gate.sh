@@ -45,6 +45,7 @@ cd "$mormot/src/lib"
   -dFPCMM_BOOSTER -dFPCMM_MOONSHARD \
   -dFPCMM_REPORTMEMORYLEAKS \
   "--pinned-unit=mormot.core.fpcx64mm=$mm" \
+  --required-first-unit=mormot.core.fpcx64mm,cthreads \
   -Fi"$mormot/src" -Fi"$mormot/src/core" \
   "${unitargs[@]}" -Fl"$mormot/static/x86_64-linux" \
   -FU"$out/lib" -FE"$out" -omormot2tests \

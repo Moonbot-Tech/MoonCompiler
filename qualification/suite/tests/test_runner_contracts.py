@@ -132,6 +132,22 @@ class RunnerContractsTest(unittest.TestCase):
         self.assertEqual(runner.mormot_suite_result(0, 1, 0, 1), "run_fail")
         self.assertEqual(runner.mormot_suite_result(1, 2, 1, 1), "run_fail")
 
+    def test_mormot_product_prefix_requires_mm_then_cthreads(self) -> None:
+        compiler = {"driver": "fpc", "config": "fpc.cfg"}
+        with mock.patch.object(runner, "compiler_provenance", return_value="hash"):
+            command = runner.mormot_compile_command(
+                compiler,
+                [],
+                Path("source"),
+                Path("static"),
+                Path("work"),
+                pinned_memory_manager=Path("mm.pas"),
+            )
+        self.assertIn(
+            "--required-first-unit=mormot.core.fpcx64mm,cthreads",
+            command,
+        )
+
     def test_mormot_environment_methods_are_explicit(self) -> None:
         expected_methods = {
             "ip dns ldap",

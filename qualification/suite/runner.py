@@ -2186,7 +2186,7 @@ def mormot_compile_command(
             "--pinned-unit=mormot.core.fpcx64mm="
             + str(pinned_memory_manager.resolve())
         )
-        command.append("--required-first-unit=mormot.core.fpcx64mm")
+        command.append("--required-first-unit=mormot.core.fpcx64mm,cthreads")
     command.extend([
         "-MDelphi", "-Sci", "-Ci", "-g", "-gl", "-gw2", "-Xg",
         "-k-rpath=$ORIGIN", f"-k-L{work}", "-Tlinux", "-Px86_64",
