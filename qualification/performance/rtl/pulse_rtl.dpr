@@ -16,6 +16,7 @@ uses
   {$ifend}
   SysUtils,
   Classes,
+  DateUtils,
   Generics.Collections,
   pulse_harness in '..\common\pulse_harness.pas';
 
@@ -41,6 +42,7 @@ var
   IntegerText: array[0..1023] of UnicodeString;
   FloatText: array[0..1023] of UnicodeString;
   StringKeys: array[0..127] of UnicodeString;
+  PaddedKeys: array[0..127] of UnicodeString;
   PulseFormatSettings: TFormatSettings;
 
 constructor TPulseObject.Create(AValue: UInt64);
@@ -934,6 +936,7 @@ begin
   SearchUtf8 := UTF8Encode(SearchText);
   for I := 0 to High(StringKeys) do
     StringKeys[I] := UnicodeString('key-') + UnicodeString(IntToStr(10000 + I));
+    PaddedKeys[I] := UnicodeString('  ') + StringKeys[I] + UnicodeString('   ');
   for I := 0 to High(IntegerText) do
   begin
     IntegerText[I] := IntToStr(Int64(I) * 1000003 - 500000000);
@@ -1004,6 +1007,217 @@ begin
   end;
 end;
 
+{ === RTL audit block 3: streams, stringlist depth, short strings === }
+
+function CaseMemoryStreamWriteSmall(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  MS: TMemoryStream;
+  Packet: array[0..15] of Byte;
+begin
+  Result := 0;
+  for J := 0 to High(Packet) do
+    Packet[J] := Byte(J * 31 + 7);
+  MS := TMemoryStream.Create;
+  try
+    for I := 1 to Iterations do
+    begin
+      MS.Position := 0;
+      for J := 1 to 64 do
+        MS.Write(Packet, SizeOf(Packet));
+      Result := Result + UInt64(MS.Position);
+    end;
+  finally
+    MS.Free;
+  end;
+end;
+
+function CaseStringStreamBuild(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  SS: TStringStream;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    SS := TStringStream.Create('');
+    try
+      for J := 0 to 31 do
+        SS.WriteString(StringKeys[J]);
+      Result := Result + UInt64(Length(SS.DataString));
+    finally
+      SS.Free;
+    end;
+  end;
+end;
+
+function CaseStringListDelimited(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  SL: TStringList;
+begin
+  Result := 0;
+  SL := TStringList.Create;
+  try
+    SL.Delimiter := ',';
+    SL.StrictDelimiter := True;
+    for I := 1 to Iterations do
+    begin
+      SL.DelimitedText := 'BTCUSDT,3.14159,buy,1024,0x1F,true,ETHUSDT,2.71828';
+      Result := Result + UInt64(SL.Count) + UInt64(Length(SL[3]));
+    end;
+  finally
+    SL.Free;
+  end;
+end;
+
+function CaseStringListValues(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  SL: TStringList;
+  V: string;
+begin
+  Result := 0;
+  SL := TStringList.Create;
+  try
+    for I := 0 to 31 do
+      SL.Add(StringKeys[I] + '=' + IntegerText[I]);
+    for I := 1 to Iterations do
+    begin
+      V := SL.Values[StringKeys[I and 31]];
+      Result := Result + UInt64(Length(V));
+    end;
+  finally
+    SL.Free;
+  end;
+end;
+
+function CaseLowerCaseShort(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Text: string;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Text := LowerCase(StringKeys[I and 127]);
+    Result := Result + UInt64(Length(Text)) + UInt64(Ord(Text[1]));
+  end;
+end;
+
+{ === RTL audit block: DateTime, hex, trim, replace, try-parse === }
+
+function CaseDateTimeNow(Iterations: Integer): UInt64;
+var
+  I: Integer;
+begin
+  { the wall clock is nondeterministic: the oracle counts calls that
+    returned a plausible value, the timing measures the call itself }
+  Result := 0;
+  for I := 1 to Iterations do
+    Result := Result + UInt64(Ord(Now > 45000.0));
+end;
+
+function CaseDateTimeEncodeDecode(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  DT: TDateTime;
+  Y, Mo, D, H, Mi, S, MS: Word;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    DT := EncodeDate(2026, 1 + (I mod 12), 1 + (I mod 28)) +
+      EncodeTime(I mod 24, I mod 60, (I * 7) mod 60, (I * 13) mod 1000);
+    DecodeDate(DT, Y, Mo, D);
+    DecodeTime(DT, H, Mi, S, MS);
+    Result := Result + UInt64(Y) + UInt64(Mo) + UInt64(D) +
+      UInt64(H) + UInt64(Mi) + UInt64(S) + UInt64(MS);
+  end;
+end;
+
+function CaseDateTimeFormat(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  DT: TDateTime;
+  Text: string;
+begin
+  Result := 0;
+  DT := EncodeDate(2026, 8, 18) + EncodeTime(13, 45, 59, 250);
+  for I := 1 to Iterations do
+  begin
+    Text := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', DT + (I and 255) * (1.0 / 86400.0));
+    Result := Result + UInt64(Length(Text)) + UInt64(Ord(Text[18]));
+  end;
+end;
+
+function CaseDateTimeMsArith(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  A, B: TDateTime;
+begin
+  Result := 0;
+  A := EncodeDate(2026, 8, 18) + EncodeTime(13, 45, 59, 250);
+  for I := 1 to Iterations do
+  begin
+    B := IncMilliSecond(A, I and 1023);
+    Result := Result + UInt64(MilliSecondsBetween(A, B));
+  end;
+end;
+
+function CaseIntToHex64(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Text: string;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Text := IntToHex(UInt64(I) * $9E3779B185EBCA87, 16);
+    Result := Result + UInt64(Length(Text)) + UInt64(Ord(Text[1]));
+  end;
+end;
+
+function CaseTrimString(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Text: string;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Text := Trim(PaddedKeys[I and 127]);
+    Result := Result + UInt64(Length(Text));
+  end;
+end;
+
+function CaseStringReplaceAll(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  Text: string;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Text := StringReplace(
+      '{"px":"0.00","qty":"0.00","side":"buy","px2":"0.00"}',
+      '0.00', IntegerText[I and 1023], [rfReplaceAll]);
+    Result := Result + UInt64(Length(Text));
+  end;
+end;
+
+function CaseTryStrToIntLoop(Iterations: Integer): UInt64;
+var
+  I, V: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    if TryStrToInt(IntegerText[I and 1023], V) then
+      Result := Result + UInt64(Cardinal(V));
+  end;
+end;
+
 procedure Run;
 var
   Profile: TPulseProfile;
@@ -1031,6 +1245,38 @@ begin
     @CaseUtf8Encode, Length(SearchText), Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'utf8-decode-4k', 'rtl+mm', 'UTF8ToString',
     @CaseUtf8Decode, Length(SearchText), Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'memorystream-write-small', 'rtl+mm',
+    'TMemoryStream.Write(16b)', @CaseMemoryStreamWriteSmall, 64, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'stringstream-build', 'rtl+mm',
+    'TStringStream.WriteString', @CaseStringStreamBuild, 32, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'stringlist-delimited', 'rtl+mm',
+    'TStringList.DelimitedText', @CaseStringListDelimited, 8, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'stringlist-values', 'rtl+mm',
+    'TStringList.Values', @CaseStringListValues, 1, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'lowercase-short', 'rtl+mm', 'LowerCase(short)',
+    @CaseLowerCaseShort, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'datetime-now', 'rtl', 'Now',
+    @CaseDateTimeNow, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'datetime-encode-decode', 'rtl',
+    'EncodeDate/DecodeTime', @CaseDateTimeEncodeDecode, 1, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'datetime-format', 'rtl+mm', 'FormatDateTime',
+    @CaseDateTimeFormat, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'datetime-ms-arith', 'rtl',
+    'IncMilliSecond/MilliSecondsBetween', @CaseDateTimeMsArith, 1, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'inttohex-int64', 'rtl+mm', 'IntToHex',
+    @CaseIntToHex64, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'trim-string', 'rtl+mm', 'Trim',
+    @CaseTrimString, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'string-replace-all', 'rtl+mm', 'StringReplace',
+    @CaseStringReplaceAll, 1, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_rtl', 'trystrtoint', 'rtl', 'TryStrToInt',
+    @CaseTryStrToIntLoop, 1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'inttostr-int32', 'rtl+mm', 'IntToStr(Integer)',
     @CaseIntToStr32, 1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'inttostr-int64', 'rtl+mm', 'IntToStr(Int64)', @CaseIntToStr64,

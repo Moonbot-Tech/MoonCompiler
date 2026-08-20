@@ -16,6 +16,7 @@ uses
   mormot.core.fpcx64mm,
   {$ifend}
   SysUtils,
+  Classes,
   Variants,
   perf_clock in '..\common\perf_clock.pas',
   pulse_process_metrics in '..\common\pulse_process_metrics.pas',
@@ -59,6 +60,87 @@ begin
   Result := FValue;
 end;
 
+{ === audit pack A: ignored managed results and managed out forwarding === }
+
+var
+  IgnoredSideEffect: UInt64;
+  IgnoredIndex: Integer;
+
+function FetchStatusText: UnicodeString;
+begin
+  Result := SourceUnicode[IgnoredIndex and 63];
+  Inc(IgnoredSideEffect, Length(Result));
+end;
+
+function FetchStatusIntf: IPulseValue;
+begin
+  Result := SourceInterfaces[IgnoredIndex and 63];
+  Inc(IgnoredSideEffect);
+end;
+
+procedure GetNameInner(out R: UnicodeString);
+begin
+  R := SourceUnicode[IgnoredIndex and 63];
+end;
+
+procedure GetNameForward(out R: UnicodeString);
+begin
+  GetNameInner(R);
+end;
+
+var
+  FetchTextProc: function: UnicodeString;
+  FetchIntfProc: function: IPulseValue;
+  GetForwardProc: procedure(out R: UnicodeString);
+
+function CaseIgnoredStringResult(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+begin
+  { the call result is deliberately dropped: the oracle lives in the
+    side-effect counter, the cost lives in the hidden result temp }
+  IgnoredSideEffect := 0;
+  for I := 1 to Iterations do
+    for J := 0 to InnerCount - 1 do
+    begin
+      IgnoredIndex := I + J;
+      FetchTextProc();
+    end;
+  Result := IgnoredSideEffect;
+end;
+
+function CaseIgnoredInterfaceResult(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+begin
+  IgnoredSideEffect := 0;
+  for I := 1 to Iterations do
+    for J := 0 to InnerCount - 1 do
+    begin
+      IgnoredIndex := I + J;
+      FetchIntfProc();
+    end;
+  Result := IgnoredSideEffect;
+end;
+
+function CaseOutStringForwarding(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  R: UnicodeString;
+  Digest: UInt64;
+begin
+  Digest := 0;
+  R := SourceUnicode[0];
+  for I := 1 to Iterations do
+    for J := 0 to InnerCount - 1 do
+    begin
+      IgnoredIndex := I + J;
+      GetForwardProc(R);
+      Digest := Digest + UInt64(Length(R));
+    end;
+  Result := Digest;
+end;
+
 function CaseUnicodeAssign(Iterations: Integer): UInt64;
 var
   I, J: Integer;
@@ -73,6 +155,42 @@ begin
       Digest := Digest + UInt64(Length(S));
     end;
   Result := Digest;
+end;
+
+{ multithreaded variants: a sleeper thread flips the runtime into the
+  locked refcount mode, matching the product (always threaded) and
+  Delphi (unconditional lock).  Pulse isolates cases per process, so
+  the flag does not leak into the other cases. }
+
+var
+  SleeperHandle: TThread = nil;
+
+type
+  TSleeper = class(TThread)
+  protected
+    procedure Execute; override;
+  end;
+
+procedure TSleeper.Execute;
+begin
+  { sleep forever: the thread exists only to raise IsMultithread and
+    must never wake up during runtime finalization }
+  Sleep(High(Cardinal));
+end;
+
+procedure EnsureThreaded;
+begin
+  if SleeperHandle = nil then
+  begin
+    SleeperHandle := TSleeper.Create(False);
+    Sleep(50);
+  end;
+end;
+
+function CaseUnicodeAssignMT(Iterations: Integer): UInt64;
+begin
+  EnsureThreaded;
+  Result := CaseUnicodeAssign(Iterations);
 end;
 
 function CaseUnicodeCopyPpu(Iterations: Integer): UInt64;
@@ -121,6 +239,12 @@ begin
       Digest := Digest + UInt64(Length(S));
     end;
   Result := Digest;
+end;
+
+function CaseRawAssignMT(Iterations: Integer): UInt64;
+begin
+  EnsureThreaded;
+  Result := CaseRawAssign(Iterations);
 end;
 
 function CaseDynamicArrayAssign(Iterations: Integer): UInt64;
@@ -301,9 +425,26 @@ var
 begin
   PulseInitialize('pulse_managed', Profile, SelectedCase);
   InitializeSources;
+  FetchTextProc := @FetchStatusText;
+  FetchIntfProc := @FetchStatusIntf;
+  GetForwardProc := @GetNameForward;
   Found := False;
+  PulseRunCase('pulse_managed', 'ignored-string-result', 'compiler+rtl',
+    'dropped managed result', @CaseIgnoredStringResult, InnerCount, Profile,
+    SelectedCase, Found);
+  PulseRunCase('pulse_managed', 'ignored-interface-result', 'compiler+rtl',
+    'dropped interface result', @CaseIgnoredInterfaceResult, InnerCount,
+    Profile, SelectedCase, Found);
+  PulseRunCase('pulse_managed', 'out-string-forwarding', 'compiler+rtl',
+    'managed out forwarding', @CaseOutStringForwarding, InnerCount, Profile,
+    SelectedCase, Found);
   PulseRunCase('pulse_managed', 'unicode-assign', 'rtl', 'UnicodeString',
     @CaseUnicodeAssign, InnerCount, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_managed', 'unicode-assign-mt', 'rtl', 'UnicodeString MT',
+    @CaseUnicodeAssignMT, InnerCount, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_managed', 'rawbytestring-assign-mt', 'rtl',
+    'RawByteString MT', @CaseRawAssignMT, InnerCount, Profile, SelectedCase,
+    Found);
   PulseRunCase('pulse_managed', 'unicode-return-ppu', 'compiler+rtl',
     'UnicodeString', @CaseUnicodeCopyPpu, InnerCount, Profile, SelectedCase,
     Found);

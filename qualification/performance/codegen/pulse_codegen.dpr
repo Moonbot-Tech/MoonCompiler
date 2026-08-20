@@ -36,6 +36,27 @@ type
     peSeven);
   TPulseSet = set of Byte;
 
+  { audit pack C: odd packed sizes, generic-vs-concrete pairs }
+  TPacked3 = packed record
+    B: Byte;
+    W: Word;
+  end;
+  TPacked5 = packed record
+    B: Byte;
+    D: UInt32;
+  end;
+  TPacked7 = packed record
+    B: Byte;
+    W: Word;
+    D: UInt32;
+  end;
+  TRec16 = record
+    Lo, Hi: UInt64;
+  end;
+  TArrOps<T> = record
+    class procedure Reverse(var A: TArray<T>); static;
+  end;
+
 const
   InnerCount = 64;
   L1Count = 4096;
@@ -322,6 +343,355 @@ begin
         X := X / 1000.0000;
     end;
   Result := PUInt64(@X)^;
+end;
+
+{ === audit pack C: div/mod constant matrix, odd packed sizes, generics === }
+
+var
+  Packed3Data: array[0..63] of TPacked3;
+  Packed5Data: array[0..63] of TPacked5;
+  Packed7Data: array[0..63] of TPacked7;
+  RevInts, RevIntsConcrete: TArray<Int64>;
+  RevRecs, RevRecsConcrete: TArray<TRec16>;
+
+class procedure TArrOps<T>.Reverse(var A: TArray<T>);
+var
+  L, R: Integer;
+  Tmp: T;
+begin
+  L := 0;
+  R := Length(A) - 1;
+  while L < R do
+  begin
+    Tmp := A[L];
+    A[L] := A[R];
+    A[R] := Tmp;
+    Inc(L);
+    Dec(R);
+  end;
+end;
+
+procedure ReverseInt64Concrete(var A: TArray<Int64>);
+var
+  L, R: Integer;
+  Tmp: Int64;
+begin
+  L := 0;
+  R := Length(A) - 1;
+  while L < R do
+  begin
+    Tmp := A[L];
+    A[L] := A[R];
+    A[R] := Tmp;
+    Inc(L);
+    Dec(R);
+  end;
+end;
+
+procedure ReverseRec16Concrete(var A: TArray<TRec16>);
+var
+  L, R: Integer;
+  Tmp: TRec16;
+begin
+  L := 0;
+  R := Length(A) - 1;
+  while L < R do
+  begin
+    Tmp := A[L];
+    A[L] := A[R];
+    A[R] := Tmp;
+    Inc(L);
+    Dec(R);
+  end;
+end;
+
+function CaseInt32DivConst(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  X: Integer;
+  S: Int64;
+begin
+  { signed constant division: power of two needs a sign fixup, the rest a
+    magic multiply - none of it may fall back to idiv }
+  S := 0;
+  for I := 1 to Iterations do
+    for J := 0 to InnerCount - 1 do
+    begin
+      X := Integer(Input32[(I + J) and 255]);
+      S := S + X div 2 + X div 10 + X mod 10 + X div 7;
+    end;
+  Result := UInt64(S);
+end;
+
+function CaseInt64DivConst(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  X, S: Int64;
+begin
+  S := 0;
+  for I := 1 to Iterations do
+    for J := 0 to InnerCount - 1 do
+    begin
+      X := Int64(Input64[(I + J) and 255]);
+      S := S + X div 4 + X div 10 + X mod 1000;
+    end;
+  Result := UInt64(S);
+end;
+
+function CaseInt64ModLatency(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  X: Int64;
+begin
+  { dependent chain through mod: latency-bound, the way hash bucketing
+    and modular arithmetic actually use it }
+  X := 5772156649015328655;
+  for I := 1 to Iterations do
+    for J := 0 to InnerCount - 1 do
+      X := (X mod 1000000007) * 31 + J;
+  Result := UInt64(X);
+end;
+
+function CaseUInt32DivConst(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  X: UInt32;
+  S: UInt64;
+begin
+  S := 0;
+  for I := 1 to Iterations do
+    for J := 0 to InnerCount - 1 do
+    begin
+      X := Input32[(I + J) and 255];
+      S := S + X div 10 + X mod 10 + X div 641 + X div 16;
+    end;
+  Result := S;
+end;
+
+function CasePackedOddSizes(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  S: UInt64;
+begin
+  { element sizes 3/5/7: the scaled index has no lea form, and field offsets
+    are odd - walk, rewrite and re-read all three shapes }
+  S := 0;
+  for I := 1 to Iterations do
+    for J := 0 to 63 do
+    begin
+      Packed3Data[J].W := Word(I + J);
+      Packed5Data[J].D := UInt32(I * 3 + J);
+      Packed7Data[J].D := UInt32(I * 5 + J);
+      S := S + Packed3Data[J].B + Packed3Data[J].W
+        + Packed5Data[J].B + Packed5Data[J].D
+        + Packed7Data[J].W + Packed7Data[J].D;
+    end;
+  Result := S;
+end;
+
+function CaseGenericReverseInt(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  S: UInt64;
+begin
+  S := 0;
+  for I := 1 to Iterations do
+  begin
+    TArrOps<Int64>.Reverse(RevInts);
+    S := S + UInt64(RevInts[0]) xor UInt64(RevInts[63]);
+    TArrOps<Int64>.Reverse(RevInts);
+  end;
+  Result := S;
+end;
+
+function CaseConcreteReverseInt(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  S: UInt64;
+begin
+  S := 0;
+  for I := 1 to Iterations do
+  begin
+    ReverseInt64Concrete(RevIntsConcrete);
+    S := S + UInt64(RevIntsConcrete[0]) xor UInt64(RevIntsConcrete[63]);
+    ReverseInt64Concrete(RevIntsConcrete);
+  end;
+  Result := S;
+end;
+
+function CaseGenericReverseRec(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  S: UInt64;
+begin
+  S := 0;
+  for I := 1 to Iterations do
+  begin
+    TArrOps<TRec16>.Reverse(RevRecs);
+    S := S + RevRecs[0].Lo xor RevRecs[63].Hi;
+    TArrOps<TRec16>.Reverse(RevRecs);
+  end;
+  Result := S;
+end;
+
+function CaseConcreteReverseRec(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  S: UInt64;
+begin
+  S := 0;
+  for I := 1 to Iterations do
+  begin
+    ReverseRec16Concrete(RevRecsConcrete);
+    S := S + RevRecsConcrete[0].Lo xor RevRecsConcrete[63].Hi;
+    ReverseRec16Concrete(RevRecsConcrete);
+  end;
+  Result := S;
+end;
+
+{ === audit pack B: loop latch forms, abs/minmax, lea multiplies === }
+
+var
+  LatchText: UnicodeString;
+  LatchBytes: array of Byte;
+
+function CaseForLengthString(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  S: UInt64;
+begin
+  { the bound reads Length(S) of a unicode string parameter-like local }
+  S := 0;
+  for I := 1 to Iterations do
+    for J := 1 to Length(LatchText) do
+      S := S + UInt64(Ord(LatchText[J]));
+  Result := S;
+end;
+
+function CaseForLengthArray(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  S: UInt64;
+begin
+  S := 0;
+  for I := 1 to Iterations do
+    for J := 0 to Length(LatchBytes) - 1 do
+      S := S + LatchBytes[J];
+  Result := S;
+end;
+
+function CaseForDownto(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  S: UInt64;
+begin
+  S := 0;
+  for I := 1 to Iterations do
+    for J := Length(LatchBytes) - 1 downto 0 do
+      S := S + LatchBytes[J];
+  Result := S;
+end;
+
+function CaseAbsInt(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  S: Int64;
+  V: Integer;
+begin
+  S := 0;
+  for I := 1 to Iterations do
+    for J := 0 to InnerCount - 1 do
+    begin
+      V := Integer(Input32[(I + J) and 255]);
+      S := S + Abs(V) + Abs(Int64(Input64[(I + J) and 255]));
+    end;
+  Result := UInt64(S);
+end;
+
+function CaseMinMaxInt(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  S: UInt64;
+  A, B: Integer;
+begin
+  S := 0;
+  for I := 1 to Iterations do
+    for J := 0 to InnerCount - 1 do
+    begin
+      A := Integer(Input32[(I + J) and 255]);
+      B := Integer(Input32[(I + J + 7) and 255]);
+      S := S + UInt64(Cardinal(Min(A, B))) + UInt64(Cardinal(Max(A, B)));
+    end;
+  Result := S;
+end;
+
+function CaseMinMaxDouble(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  S: UInt64;
+  A, B: Double;
+begin
+  S := 0;
+  for I := 1 to Iterations do
+    for J := 0 to InnerCount - 1 do
+    begin
+      A := Input32[(I + J) and 255] * 0.5;
+      B := Input32[(I + J + 7) and 255] * 0.25;
+      S := S + UInt64(Trunc(Min(A, B))) + UInt64(Trunc(Max(A, B) * 0.125));
+    end;
+  Result := S;
+end;
+
+function CaseMinMaxDoubleSpecial(Iterations: Integer): UInt64;
+const
+  SpecialCount = 7;
+var
+  Specials: array[0..SpecialCount - 1] of Double;
+  I, A, B: Integer;
+  S: UInt64;
+  M: Double;
+  OldMask: {$ifdef FPC} TFPUExceptionMask {$else} TArithmeticExceptionMask {$endif};
+begin
+  { semantic digest: NaN / +0 / -0 / inf propagation through Min/Max, bit-exact.
+    NaN compares signal Invalid Op under the default FPC mask; mask arithmetic
+    exceptions in both systems so the digest reflects value semantics only. }
+  OldMask := SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide,
+    exOverflow, exUnderflow, exPrecision]);
+  Specials[0] := 0.0;
+  Specials[1] := -0.0 * 1.0;
+  Specials[2] := 1.5;
+  Specials[3] := -2.25;
+  Specials[4] := Infinity;
+  Specials[5] := NegInfinity;
+  PUInt64(@Specials[6])^ := UInt64($7FF8000000000000); { quiet NaN, fixed bits }
+  S := 0;
+  for I := 1 to Iterations do
+    for A := 0 to SpecialCount - 1 do
+      for B := 0 to SpecialCount - 1 do
+      begin
+        M := Min(Specials[A], Specials[B]);
+        S := S xor RotateLeft64(PUInt64(@M)^, (A * 7 + B) and 63);
+        M := Max(Specials[A], Specials[B]);
+        S := S xor RotateLeft64(PUInt64(@M)^, (A * 11 + B * 3) and 63);
+      end;
+  SetExceptionMask(OldMask);
+  Result := S;
+end;
+
+function CaseMulLea(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  S, X: UInt64;
+begin
+  { x*3/5/9 belong in single lea forms }
+  S := 0;
+  for I := 1 to Iterations do
+    for J := 0 to InnerCount - 1 do
+    begin
+      X := Input64[(I + J) and 255];
+      S := S + X * 3 + X * 5 + X * 9;
+    end;
+  Result := S;
 end;
 
 function CaseForRuntime(Iterations: Integer): UInt64;
@@ -732,6 +1102,34 @@ var
   I: Integer;
   X: UInt64;
 begin
+  SetLength(LatchText, 512);
+  for I := 1 to 512 do
+    LatchText[I] := WideChar(Ord('a') + ((I * 7) mod 26));
+  SetLength(LatchBytes, 512);
+  for I := 0 to 511 do
+    LatchBytes[I] := Byte(I * 13 + 5);
+  for I := 0 to 63 do
+  begin
+    Packed3Data[I].B := Byte(I * 11 + 1);
+    Packed3Data[I].W := Word(I * 257 + 3);
+    Packed5Data[I].B := Byte(I * 7 + 2);
+    Packed5Data[I].D := UInt32(I) * 65599 + 17;
+    Packed7Data[I].B := Byte(I * 5 + 4);
+    Packed7Data[I].W := Word(I * 331 + 9);
+    Packed7Data[I].D := UInt32(I) * 40503 + 29;
+  end;
+  SetLength(RevInts, 64);
+  SetLength(RevIntsConcrete, 64);
+  SetLength(RevRecs, 64);
+  SetLength(RevRecsConcrete, 64);
+  for I := 0 to 63 do
+  begin
+    RevInts[I] := Int64(I) * 6364136223846793005 + 1442695040888963407;
+    RevIntsConcrete[I] := RevInts[I];
+    RevRecs[I].Lo := UInt64(I) * 2685821657736338717;
+    RevRecs[I].Hi := UInt64(I) xor $A5A5A5A5A5A5A5A5;
+    RevRecsConcrete[I] := RevRecs[I];
+  end;
   X := UInt64($D1B54A32D192ED03);
   for I := 0 to High(Input64) do
   begin
@@ -816,6 +1214,40 @@ begin
       @CaseMathFunctions, 16 * 7, Profile, SelectedCase, Found);
     PulseRunCase('pulse_codegen', 'currency-mul-div', 'codegen+rtl', 'compiler',
       @CaseCurrency, InnerCount * 3, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'for-length-string', 'codegen', 'compiler',
+      @CaseForLengthString, 512, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'for-length-array', 'codegen', 'compiler',
+      @CaseForLengthArray, 512, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'for-downto', 'codegen', 'compiler',
+      @CaseForDownto, 512, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'abs-int', 'codegen', 'compiler',
+      @CaseAbsInt, InnerCount * 2, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'minmax-int', 'codegen+rtl', 'Math.Min/Max',
+      @CaseMinMaxInt, InnerCount * 2, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'minmax-double', 'codegen+rtl', 'Math.Min/Max',
+      @CaseMinMaxDouble, InnerCount * 2, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'minmax-double-special', 'codegen+rtl', 'Math.Min/Max',
+      @CaseMinMaxDoubleSpecial, 49 * 2, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'mul-lea', 'codegen', 'compiler',
+      @CaseMulLea, InnerCount * 3, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'int32-div-const', 'codegen', 'compiler',
+      @CaseInt32DivConst, InnerCount * 4, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'int64-div-const', 'codegen', 'compiler',
+      @CaseInt64DivConst, InnerCount * 3, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'uint32-div-const', 'codegen', 'compiler',
+      @CaseUInt32DivConst, InnerCount * 4, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'int64-mod-latency', 'codegen', 'compiler',
+      @CaseInt64ModLatency, InnerCount, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'packed-odd-sizes', 'codegen', 'compiler',
+      @CasePackedOddSizes, 64 * 6, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'generic-reverse-int', 'codegen', 'compiler',
+      @CaseGenericReverseInt, 64, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'concrete-reverse-int', 'codegen', 'compiler',
+      @CaseConcreteReverseInt, 64, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'generic-reverse-rec', 'codegen', 'compiler',
+      @CaseGenericReverseRec, 64, Profile, SelectedCase, Found);
+    PulseRunCase('pulse_codegen', 'concrete-reverse-rec', 'codegen', 'compiler',
+      @CaseConcreteReverseRec, 64, Profile, SelectedCase, Found);
     PulseRunCase('pulse_codegen', 'for-runtime-0-255', 'codegen', 'compiler',
       @CaseForRuntime, 256, Profile, SelectedCase, Found);
     PulseRunCase('pulse_codegen', 'for-runtime-0-0', 'codegen', 'compiler',
