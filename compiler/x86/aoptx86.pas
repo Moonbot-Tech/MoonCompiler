@@ -4359,10 +4359,30 @@ unit aoptx86;
                                     mov const, y
                                 }
 {$ifdef x86_64}
-                                if (taicpu(hp1).oper[1]^.typ=top_reg) or
+                                { The 32-to-64-bit pair zero-extends: movl fills the
+                                  upper half of %treg with zeroes and movq copies them.
+                                  The merged movq would sign-extend the immediate
+                                  instead, so a register destination is rewritten as a
+                                  movl to its 32-bit subregister - same zero-extension
+                                  in one shorter instruction, valid for any immediate. }
+                                if (taicpu(p).opsize=S_L) and (taicpu(hp1).opsize=S_Q) and
+                                  (taicpu(hp1).oper[1]^.typ=top_reg) then
+                                  begin
+                                    taicpu(hp1).loadconst(0, taicpu(p).oper[0]^.val);
+                                    taicpu(hp1).changeopsize(S_L);
+                                    setsubreg(taicpu(hp1).oper[1]^.reg,R_SUBD);
+                                    DebugMsg(SPeepholeOptimization + 'MovMov2Mov 5a done', hp1);
+                                    RemoveCurrentP(p);
+                                    Result := True;
+                                    Exit;
+                                  end;
+                                if (
+                                    not ((taicpu(p).opsize=S_L) and (taicpu(hp1).opsize=S_Q)) and
+                                    (taicpu(hp1).oper[1]^.typ=top_reg)
+                                  ) or
                                   (
-                                    { For 32-to-64-bit zero-extension, the immediate
-                                      must be between 0 and 2^31 - 1}
+                                    { For 32-to-64-bit zero-extension into memory, the
+                                      immediate must be between 0 and 2^31 - 1}
                                     (taicpu(p).opsize=S_L) and (taicpu(hp1).opsize=S_Q) and
                                     ((taicpu(p).oper[0]^.val>=0) and (taicpu(p).oper[0]^.val<=high(longint)))
                                   ) or
@@ -4599,26 +4619,42 @@ unit aoptx86;
                           { For MOV operations, a size saving is only made if the register/const is byte-sized }
                           not (cs_opt_size in current_settings.optimizerswitches) or
                           (taicpu(hp1).opsize = S_B)
-                        ) and
-                        (
-                          (taicpu(hp1).oper[1]^.typ=top_reg) or
-                          (
-                            { For 32-to-64-bit zero-extension, the immediate
-                              must be between 0 and 2^31 - 1}
-                            (taicpu(p).opsize=S_L) and (taicpu(hp1).opsize=S_Q) and
-                            ((taicpu(p).oper[0]^.val>=0) and (taicpu(p).oper[0]^.val<=high(longint)))
-                          ) or
-                          (
-                            not ((taicpu(p).opsize=S_L) and (taicpu(hp1).opsize=S_Q)) and
-                            (
-                              (taicpu(p).oper[0]^.val>=low(longint)) and (taicpu(p).oper[0]^.val<=high(longint))
-                            )
-                          )
                         ) then
                         begin
-                          DebugMsg(SPeepholeOptimization + debug_operstr(taicpu(hp1).oper[0]^) + ' = $' + debug_tostr(taicpu(p).oper[0]^.val) + '; changed to minimise pipeline stall (MovMov2Mov 6b)',hp1);
-                          taicpu(hp1).loadconst(0, taicpu(p).oper[0]^.val);
-                          Include(OptsToCheck, aoc_ForceNewIteration);
+                          { The 32-to-64-bit pair zero-extends; the merged movq
+                            would sign-extend the immediate.  A register
+                            destination becomes a movl to its 32-bit
+                            subregister instead (see MovMov2Mov 5a). }
+                          if (taicpu(p).opsize=S_L) and (taicpu(hp1).opsize=S_Q) and
+                            (taicpu(hp1).oper[1]^.typ=top_reg) then
+                            begin
+                              DebugMsg(SPeepholeOptimization + debug_operstr(taicpu(hp1).oper[0]^) + ' = $' + debug_tostr(taicpu(p).oper[0]^.val) + '; changed to minimise pipeline stall (MovMov2Mov 6c)',hp1);
+                              taicpu(hp1).loadconst(0, taicpu(p).oper[0]^.val);
+                              taicpu(hp1).changeopsize(S_L);
+                              setsubreg(taicpu(hp1).oper[1]^.reg,R_SUBD);
+                              Include(OptsToCheck, aoc_ForceNewIteration);
+                            end
+                          else if (
+                              not ((taicpu(p).opsize=S_L) and (taicpu(hp1).opsize=S_Q)) and
+                              (taicpu(hp1).oper[1]^.typ=top_reg)
+                            ) or
+                            (
+                              { For 32-to-64-bit zero-extension into memory, the
+                                immediate must be between 0 and 2^31 - 1}
+                              (taicpu(p).opsize=S_L) and (taicpu(hp1).opsize=S_Q) and
+                              ((taicpu(p).oper[0]^.val>=0) and (taicpu(p).oper[0]^.val<=high(longint)))
+                            ) or
+                            (
+                              not ((taicpu(p).opsize=S_L) and (taicpu(hp1).opsize=S_Q)) and
+                              (
+                                (taicpu(p).oper[0]^.val>=low(longint)) and (taicpu(p).oper[0]^.val<=high(longint))
+                              )
+                            ) then
+                            begin
+                              DebugMsg(SPeepholeOptimization + debug_operstr(taicpu(hp1).oper[0]^) + ' = $' + debug_tostr(taicpu(p).oper[0]^.val) + '; changed to minimise pipeline stall (MovMov2Mov 6b)',hp1);
+                              taicpu(hp1).loadconst(0, taicpu(p).oper[0]^.val);
+                              Include(OptsToCheck, aoc_ForceNewIteration);
+                            end;
                         end;
                     end;
                   Break;
