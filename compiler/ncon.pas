@@ -1439,7 +1439,7 @@ implementation
 
     procedure tsetconstnode.adjustforsetbase;
       var
-        i, diff: longint;
+        i, diff, databytes: longint;
       begin
         { Internally, the compiler stores all sets with setbase 0, so we have }
         { to convert the set to its actual format in case setbase<>0 when     }
@@ -1449,17 +1449,24 @@ implementation
             if (tsetdef(resultdef).setbase and 7)<>0 then
               internalerror(2007091501);
             diff:=tsetdef(resultdef).setbase div 8;
+            databytes:=(tsetdef(resultdef).setmax-
+              tsetdef(resultdef).setbase) div 8+1;
             { This is endian-neutral in the new set format: in both cases, }
             { the first byte contains the first elements of the set.       }
             { Since the compiler/base rtl cannot contain packed sets before }
             { they work for big endian, it's no problem that the code below }
             { is wrong for the old big endian set format (setbase cannot be }
             { <>0 with non-packed sets).                                    }
-            for i:=0 to tsetdef(resultdef).size-1 do
+            for i:=0 to databytes-1 do
               begin
                 Psetbytes(value_set)^[i]:=Psetbytes(value_set)^[i+diff];
                 Psetbytes(value_set)^[i+diff]:=0;
               end;
+            { Delphi-compatible set storage rounds sizes 5..7 up to 8 bytes.
+              Those ABI padding bytes have no source bits and must not read
+              beyond the compiler's internal 0..255 set. }
+            for i:=databytes to tsetdef(resultdef).size-1 do
+              Psetbytes(value_set)^[i]:=0;
           end;
       end;
 
