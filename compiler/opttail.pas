@@ -34,10 +34,11 @@ unit opttail;
 
     uses
       globtype,
-      symconst,symsym,
+      symconst,symtype,symbase,symsym,
       defcmp,defutil,
       nutils,nbas,nflw,ncal,nld,ncnv,nmem,
       pass_1,
+      procinfo,
       paramgr;
 
     procedure do_opttail(var n : tnode;p : tprocdef);
@@ -233,7 +234,7 @@ unit opttail;
       var
         s : tstatementnode;
         oldnodes : tnode;
-        i : longint;
+        i,j : longint;
         labelsym : tlabelsym;
       begin
         { check if the parameters actually would support tail recursion elimination }
@@ -259,20 +260,33 @@ unit opttail;
                 exit;
               end;
 
-{$ifdef fix_opttail}
-        { check if the local parameters should prevent tail recursion elimination }
-        for i:=0 to p.localst.count-1 do
-          with tabstractvarsym(p.localst[i]) do
-            if is_managed_type(vardef) then
-              begin
-{$ifdef debug_opttail}
-        writeln('====================================================================================');
-        writeln('callnode: ',p.gettypename,' tail call opt disabled because local ',i,' ',realname,' is managed');
-        writeln('====================================================================================');
-{$endif debug_opttail}
-                exit;
-              end;
-{$endif fix_opttail}
+        { A used managed local (the function result included) is released
+          after the recursive call returns, so that call is never in tail
+          position: reusing the frame makes the assignment of the next
+          iteration release the previous frame's reference instead of the
+          unwind - the observable destruction order inverts (bax instead of
+          abx in the audit repro).  Managed temporaries are announced by
+          pass_1 through pi_needs_implicit_finally.  This mirrors the
+          predicate of check_finalize_locals; the upstream had the local
+          check parked under an inactive define. }
+        if pi_needs_implicit_finally in current_procinfo.flags then
+          exit;
+        for i:=0 to p.localst.SymList.Count-1 do
+          with tsym(p.localst.SymList[i]) do
+            if (typ=localvarsym) and
+               not(tlocalvarsym(p.localst.SymList[i]).inline_scope_managed) and
+               (tlocalvarsym(p.localst.SymList[i]).refs>0) and
+               is_managed_type(tlocalvarsym(p.localst.SymList[i]).vardef) then
+              exit;
+        if assigned(p.blocklocalsymtables) then
+          for j:=0 to p.blocklocalsymtables.count-1 do
+            with TSymtable(p.blocklocalsymtables[j]) do
+              for i:=0 to SymList.Count-1 do
+                if (tsym(SymList[i]).typ in [localvarsym,staticvarsym]) and
+                   not(tabstractnormalvarsym(SymList[i]).inline_scope_managed) and
+                   (tabstractnormalvarsym(SymList[i]).refs>0) and
+                   is_managed_type(tabstractnormalvarsym(SymList[i]).vardef) then
+                  exit;
 
         labelsym:=clabelsym.create('$opttail');
         labelnode:=clabelnode.create(cnothingnode.create,labelsym);
