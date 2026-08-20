@@ -727,6 +727,13 @@ var
   KernelHandle : THandle;
 {$endif}
 begin
+{$ifdef FPC_HAS_FEATURE_MONITOR}
+  { Install the inert System monitor manager before a support unit replaces
+    it - same contract as the generic InitSystemThreads.  Without this the
+    manager record stays zeroed and the first TMonitor.Enter jumps through
+    a nil callback. }
+  InitMonitor;
+{$endif FPC_HAS_FEATURE_MONITOR}
   With WinThreadManager do
     begin
     InitManager            :=Nil;
