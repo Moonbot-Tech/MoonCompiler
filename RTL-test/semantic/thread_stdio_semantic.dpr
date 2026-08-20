@@ -1,5 +1,7 @@
 program thread_stdio_semantic;
 
+{ %TARGET=win64 }
+
 {$ifdef FPC}
   {$mode delphi}
 {$endif}

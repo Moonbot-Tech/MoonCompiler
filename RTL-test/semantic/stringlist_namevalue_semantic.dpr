@@ -9,6 +9,7 @@ program stringlist_namevalue_semantic;
 uses
   {$ifdef FPC}
   mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,cwstring,{$endif UNIX}
   SysUtils,
   Classes
   {$else FPC}

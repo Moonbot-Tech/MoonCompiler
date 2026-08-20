@@ -8,7 +8,8 @@ program system_move_semantic;
 
 uses
   {$ifdef FPC}
-  mormot.core.fpcx64mm;
+  mormot.core.fpcx64mm
+  {$ifdef UNIX},cthreads{$endif UNIX};
   {$else FPC}
   System.SysUtils;
   {$endif FPC}

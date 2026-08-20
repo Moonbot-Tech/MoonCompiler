@@ -10,6 +10,7 @@ uses
   {$endif FPC}
   {$ifdef UNIX}
   cthreads,
+  cwstring,
   {$endif UNIX}
   {$ifdef FPC}
   Classes,

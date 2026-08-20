@@ -4,6 +4,7 @@ program numeric_text_semantic;
 
 uses
   mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,cwstring,{$endif UNIX}
   SysUtils;
 
 procedure Check(Condition: Boolean; const MessageText: string);

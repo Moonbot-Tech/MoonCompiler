@@ -7,6 +7,7 @@ program dynarray_copy_semantic;
 uses
   {$ifdef FPC}
   mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,cwstring,{$endif UNIX}
   {$endif FPC}
   SysUtils;
 

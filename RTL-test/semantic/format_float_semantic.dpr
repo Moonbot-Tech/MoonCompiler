@@ -9,6 +9,7 @@ program format_float_semantic;
 uses
   {$ifdef FPC}
   mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,cwstring,{$endif UNIX}
   {$endif}
   SysUtils;
 

@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SEMANTIC = ROOT / "RTL-test" / "semantic"
 MM = ROOT / "runtime" / "mm" / "mormot.core.fpcx64mm.pas"
 MARKER = re.compile(r"WriteLn\(\s*'([A-Z0-9_]*(?:PASS|OK))'")
+TARGET = re.compile(r"\{\s*%TARGET=(win64|linux)\s*\}", re.IGNORECASE)
 FORBIDDEN_O3_ASM = {
     "collections_codegen": ("MOVENEXT", "GETCURRENT"),
 }
@@ -119,6 +120,15 @@ def main() -> int:
     if args.only:
         selected = re.compile(args.only)
         sources = [source for source in sources if selected.search(source.stem)]
+    host_target = "win64" if os.name == "nt" else "linux"
+    sources = [
+        source
+        for source in sources
+        if (
+            (match := TARGET.search(source.read_text(encoding="utf-8"))) is None
+            or match.group(1).lower() == host_target
+        )
+    ]
     if not sources:
         raise RuntimeError("no RTL semantic sources selected")
 

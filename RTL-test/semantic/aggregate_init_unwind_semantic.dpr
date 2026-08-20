@@ -4,6 +4,7 @@ program aggregate_init_unwind_semantic;
 
 uses
   mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,cwstring,{$endif UNIX}
   SysUtils;
 
 var

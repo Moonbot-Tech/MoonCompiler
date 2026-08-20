@@ -6,6 +6,7 @@ uses
   mormot.core.fpcx64mm,
   {$ifdef UNIX}
   cthreads,
+  cwstring,
   {$endif UNIX}
   SysUtils,
   Classes,
@@ -19,23 +20,23 @@ uses
 type
   TMutexHolder = class(TThread)
   private
-    FMutex: TMutex;
+    FMutex: SyncObjs.TMutex;
     FReady, FRelease: TEvent;
   protected
     procedure Execute; override;
   public
-    constructor Create(AMutex: TMutex; AReady, ARelease: TEvent);
+    constructor Create(AMutex: SyncObjs.TMutex; AReady, ARelease: TEvent);
   end;
 
   TSemaphoreWaiter = class(TThread)
   private
-    FSemaphore: TSemaphore;
+    FSemaphore: SyncObjs.TSemaphore;
     FTimeout: Cardinal;
   protected
     procedure Execute; override;
   public
     ResultValue: TWaitResult;
-    constructor Create(ASemaphore: TSemaphore; ATimeout: Cardinal);
+    constructor Create(ASemaphore: SyncObjs.TSemaphore; ATimeout: Cardinal);
   end;
 
 procedure Check(ACondition: Boolean; const AMessage: string);
@@ -44,7 +45,8 @@ begin
     raise Exception.Create('SYNCHRONIZATION_EDGECASES_FAIL: '+AMessage);
 end;
 
-constructor TMutexHolder.Create(AMutex: TMutex; AReady, ARelease: TEvent);
+constructor TMutexHolder.Create(AMutex: SyncObjs.TMutex;
+  AReady, ARelease: TEvent);
 begin
   inherited Create(True);
   FreeOnTerminate:=False;
@@ -64,7 +66,7 @@ begin
   end;
 end;
 
-constructor TSemaphoreWaiter.Create(ASemaphore: TSemaphore;
+constructor TSemaphoreWaiter.Create(ASemaphore: SyncObjs.TSemaphore;
   ATimeout: Cardinal);
 begin
   inherited Create(True);
@@ -81,12 +83,12 @@ end;
 
 procedure CheckBasicWaits;
 var
-  EmptySemaphore: TSemaphore;
+  EmptySemaphore: SyncObjs.TSemaphore;
   Holder: TMutexHolder;
-  Mutex: TMutex;
+  Mutex: SyncObjs.TMutex;
   ReadyEvent, ReleaseEvent: TEvent;
 begin
-  EmptySemaphore:=TSemaphore.Create(nil,0,1,'');
+  EmptySemaphore:=SyncObjs.TSemaphore.Create(nil,0,1,'');
   try
     Check(EmptySemaphore.WaitFor(0)=wrTimeout,'semaphore poll timeout');
     Check(EmptySemaphore.WaitFor(2)=wrTimeout,'semaphore finite timeout');
@@ -96,7 +98,7 @@ begin
     EmptySemaphore.Free;
   end;
 
-  Mutex:=TMutex.Create;
+  Mutex:=SyncObjs.TMutex.Create;
   ReadyEvent:=TEvent.Create(nil,True,False,'');
   ReleaseEvent:=TEvent.Create(nil,True,False,'');
   Holder:=TMutexHolder.Create(Mutex,ReadyEvent,ReleaseEvent);
@@ -127,7 +129,7 @@ end;
 
 procedure CheckTimespecCarry;
 var
-  EmptySemaphore: TSemaphore;
+  EmptySemaphore: SyncObjs.TSemaphore;
   NowValue: TTimeVal;
 begin
   repeat
@@ -135,7 +137,7 @@ begin
     if NowValue.tv_usec<900000 then
       Sleep(1);
   until NowValue.tv_usec>=900000;
-  EmptySemaphore:=TSemaphore.Create(nil,0,1,'');
+  EmptySemaphore:=SyncObjs.TSemaphore.Create(nil,0,1,'');
   try
     Check(EmptySemaphore.WaitFor(200)=wrTimeout,
       'absolute timeout crossing second boundary');
@@ -146,13 +148,13 @@ end;
 
 procedure CheckInterruptedWaits;
 var
-  EmptySemaphore: TSemaphore;
+  EmptySemaphore: SyncObjs.TSemaphore;
   OldHandler: SignalHandler;
   Waiter: TSemaphoreWaiter;
 begin
   OldHandler:=fpSignal(SIGUSR1,@EmptySignalHandler);
   Check(Assigned(OldHandler) or (fpGetErrNo=0),'install signal handler');
-  EmptySemaphore:=TSemaphore.Create(nil,0,1,'');
+  EmptySemaphore:=SyncObjs.TSemaphore.Create(nil,0,1,'');
   try
     Waiter:=TSemaphoreWaiter.Create(EmptySemaphore,INFINITE);
     try

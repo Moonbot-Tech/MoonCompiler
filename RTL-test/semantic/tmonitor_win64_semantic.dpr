@@ -1,5 +1,7 @@
 program tmonitor_win64_semantic;
 
+{ %TARGET=win64 }
+
 { Delphi TMonitor works out of the box on Win64.
 
   The red form (audit c74fb2eb, Devil dvl-0007): the Win64

@@ -14,6 +14,7 @@ program formal_const_address_semantic;
 uses
   {$ifdef FPC}
   mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,cwstring,{$endif UNIX}
   {$endif}
   SysUtils;
 

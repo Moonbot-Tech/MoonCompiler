@@ -11,6 +11,7 @@ program asm_byref_width_semantic;
 {$mode delphiunicode}{$H+}{$asmmode intel}
 uses
   mormot.core.fpcx64mm,
+  {$ifdef UNIX}cthreads,cwstring,{$endif UNIX}
   SysUtils;
 var
   Fails: Integer = 0;
