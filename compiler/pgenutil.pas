@@ -436,6 +436,20 @@ uses
                 { undefineddef is compatible with anything }
                 if formaldef.typ=undefineddef then
                   continue;
+                { a generic parameter forwarded as the actual satisfies a
+                  `constructor` constraint only if its own declaration carries
+                  that constraint (DCC64 rejects the forward with E2513); a
+                  concrete class always has the inherited public
+                  parameterless Create }
+                if (gcf_constructor in formaldef.genconstraintdata.flags) and
+                    (df_genconstraint in paradef.defoptions) and
+                    (not assigned(paradef.genconstraintdata) or
+                     not (gcf_constructor in paradef.genconstraintdata.flags)) then
+                  begin
+                    MessagePos1(filepos,parser_e_generic_constraint_needs_constructor,
+                      tsym(genericdef.genericparas[i]).realname);
+                    result:=false;
+                  end;
                 if paradef.typ<>formaldef.typ then
                   begin
                     case formaldef.typ of
