@@ -835,8 +835,9 @@ end;
 const
   AltKeyStr  : string[38]='qwertyuiopasdfghjklzxcvbnm1234567890-=';
   AltKeyStr2 : string[38]='QWERTYUIOPASDFGHJKLZXCVBNM1234567890-=';
-  AltCodeStr : string[38]=#016#017#018#019#020#021#022#023#024#025#030#031#032#033#034#035#036#037#038+
-                          #044#045#046#047#048#049#050#120#121#122#123#124#125#126#127#128#129#130#131;
+  AltCodes   : array[1..38] of Byte=(16,17,18,19,20,21,22,23,24,25,
+                 30,31,32,33,34,35,36,37,38,44,45,46,47,48,49,50,
+                 120,121,122,123,124,125,126,127,128,129,130,131);
 Function FAltKey(ch:AnsiChar):byte;
 var
   Idx : longint;
@@ -845,7 +846,7 @@ Begin
   if Idx=0 then
     Idx:=Pos(ch,AltKeyStr2);
   if Idx>0 then
-   FAltKey:=byte(AltCodeStr[Idx])
+   FAltKey:=AltCodes[Idx]
   else
    FAltKey:=0;
 End;
