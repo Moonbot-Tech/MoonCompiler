@@ -30,6 +30,7 @@ cleanup_compiler_build() {
 
 build_compiler() {
   local bootstrap target_compiler version_dir
+  local compiler_options='-O2'
   bootstrap=${MOONBOT_BOOTSTRAP_FPC:-$(command -v fpc || true)}
   [[ -n "$bootstrap" && -x "$bootstrap" ]] || {
     echo "FPC 3.2.2 is required once; set MOONBOT_BOOTSTRAP_FPC" >&2
@@ -47,8 +48,8 @@ build_compiler() {
   rm -rf "$new_toolchain" "$old_toolchain"
 
   make -C "$ROOT" clean
-  make -C "$ROOT" -j1 all FPC="$bootstrap" OPT=-O2
-  make -C "$ROOT" install FPC="$bootstrap" OPT=-O2 \
+  make -C "$ROOT" -j1 all FPC="$bootstrap" OPT="$compiler_options"
+  make -C "$ROOT" install FPC="$bootstrap" OPT="$compiler_options" \
     INSTALL_PREFIX="$new_toolchain"
 
   version_dir=$(find "$new_toolchain/lib/fpc" -mindepth 1 -maxdepth 1 \

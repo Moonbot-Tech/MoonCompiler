@@ -158,6 +158,7 @@ unit cgcpu;
         seh_proc: tai_seh_directive;
         regsize: longint;
         r: integer;
+        hreg: tregister;
         href: treference;
         templist: TAsmList;
         frame_offset: longint;
@@ -195,8 +196,11 @@ unit cgcpu;
                   current_asmdata.asmcfi.cfa_offset(list,hreg,-(regsize+sizeof(pint)*2+localsize))
                 else
                   begin
-                    current_asmdata.asmcfi.cfa_offset(list,hreg,-(regsize+sizeof(pint)+localsize));
-                    current_asmdata.asmcfi.cfa_def_cfa_offset(list,regsize+sizeof(pint)+localsize);
+                    { CFA always denotes the caller's stack pointer.  Local
+                      storage is allocated only after these pushes and must
+                      not be part of a saved register's CFA-relative slot. }
+                    current_asmdata.asmcfi.cfa_offset(list,hreg,-(regsize+sizeof(pint)));
+                    current_asmdata.asmcfi.cfa_def_cfa_offset(list,regsize+sizeof(pint));
                   end;
               end;
         end;
@@ -292,6 +296,26 @@ unit cgcpu;
                       end;
                   end;
                end;
+
+            if (not use_push) and
+               (tf_use_psabieh in target_info.flags) and
+               (pi_has_saved_regs in current_procinfo.flags) then
+              begin
+                { With an RBP frame, the generic register saver stores
+                  nonvolatile registers in the local area instead of pushing
+                  them.  PSABI unwinding must know those slots: otherwise a
+                  landing pad restores the register value used inside the
+                  unwound callee into its caller. }
+                href:=current_procinfo.save_regs_ref;
+                for r:=low(regs_to_save_int) to high(regs_to_save_int) do
+                  if regs_to_save_int[r] in rg[R_INTREGISTER].used_in_proc then
+                    begin
+                      hreg:=newreg(R_INTREGISTER,regs_to_save_int[r],R_SUBWHOLE);
+                      current_asmdata.asmcfi.cfa_offset(list,hreg,
+                        href.offset-2*sizeof(pint));
+                      inc(href.offset,sizeof(aint));
+                    end;
+              end;
           end;
 
         if not (pi_has_unwind_info in current_procinfo.flags) then

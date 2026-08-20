@@ -1400,11 +1400,13 @@ implementation
         repeat
           b := a and $7f;
           a := a shr 7;
-          if a<>0 then
+          inc(result);
+          { A fixed-width ULEB128 remains one value: every byte before the
+            requested final byte must carry the continuation bit. }
+          if (a<>0) or (result<len) then
             b := b or $80;
           pbuf^:=b;
           inc(pbuf);
-          inc(result);
         until (a=0) and (result>=len);
       end;
 

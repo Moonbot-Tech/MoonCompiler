@@ -401,12 +401,8 @@ unit i_linux;
                             tf_section_threadvars,
 {$endif tls_threadvars}
                             tf_library_needs_pic,tf_needs_symbol_type,tf_files_case_sensitive,
-                            tf_has_winlike_resources,tf_safecall_exceptions,tf_safecall_clearstack
-                            {$ifdef llvm},tf_use_psabieh{$endif}
-{$ifdef psabieh}
-                            ,tf_use_psabieh
-{$endif psabieh}
-                            ,tf_supports_hidden_symbols
+                            tf_has_winlike_resources,tf_safecall_exceptions,tf_safecall_clearstack,
+                            tf_use_psabieh,tf_supports_hidden_symbols
                             ];
             cpu          : cpu_x86_64;
             unit_env     : 'LINUXUNITS';
