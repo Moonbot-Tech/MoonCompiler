@@ -69,6 +69,308 @@ $Stages = @(
     inherit = 'exception_threads'
     files = @('mm-44-padding-medium-20260816\summary.json')
     unstable = @('mm/alloc-free-256')
+  },
+  [ordered]@{
+    id = 'gaps_block'
+    label = 'Сейчас: + очередь perf-gap'
+    short = 'Perf-gaps'
+    note = 'Полный Win64 O3 medium на ветке perf/remaining-gaps-20260817 (PERF-005..010): Grisu digit core в FloatToDecimal, movless-инлайн managed funcret в компиляторе, snapshot console codepage на поток, format-движок без heap и widechar-in-set цепь сравнений. Устойчивый geomean 343 cases = 0.768; json/generate-64 и list-string-read инвертированы в пользу Moon. Шесть drift-пар этого прогона исключены из выводов.'
+    files = @('full-medium-after-gaps-20260817\summary.json')
+    unstable = @(
+      'json/scan-large-4096',
+      'mm/alloc-free-1m',
+      'mm/alloc-free-2m',
+      'workloads/stream-add'
+    )
+  },
+  [ordered]@{
+    id = 'tail_block'
+    label = 'Сейчас: + хвост таблицы и стек'
+    short = 'Tail block'
+    note = 'Delphi-парити дефолт стека (PERF-011) плюс шесть самых тяжёлых остатков хвоста одним заходом (PERF-012..016): pointer-bump для глобальных массивов с liveness-гейтом счётчика, post-RA расширение byte/word копий, инлайн record-параметров без самопорождённой копии, удаление мёртвых range-очисток TList. Win64 O3 medium; list-index и call-interface — доказанный code-placement, не дефект кода (PERF-016).'
+    files = @('full-medium-gapblock3-20260817\summary.json')
+    unstable = @(
+      'codegen/fillchar-4k',
+      'loops/histogram-random',
+      'mm/alloc-free-1m',
+      'dispatch/list-index',
+      'codegen/call-interface'
+    )
+  },
+  [ordered]@{
+    id = 'wave3'
+    label = 'Сейчас: + generic-list, record/ABI, managed'
+    short = 'Wave 3'
+    note = 'Третья волна (PERF-017..020): pointer-bump для элементов шире hardware scale, fast-path TList.Add/DoRemove без виртуальных вызовов, инлайновый кодген атомик-интринзиков x86-64 (lock xadd/xchg/cmpxchg на месте вызова), сплющенные managed-присваивания (_AddRef/_Release, fpc_dynarray_assign). Win64 O3 medium; регрессий между срезами нет.'
+    files = @('full-medium-wave3-20260818\summary.json')
+    unstable = @(
+      'abi/record16-value',
+      'calibration/asm-memory-write-64m',
+      'codegen/fillchar-4k',
+      'codegen/scan-strided',
+      'mm/alloc-free-1m',
+      'mm/fragmented-mixed'
+    )
+  },
+  [ordered]@{
+    id = 'wave3_followup'
+    label = 'Сейчас: + добивка третьей волны'
+    short = 'Wave 3+'
+    note = 'Добивка (PERF-021): exit-free fast-path TList.Delete (ранний Exit в inline-методе внутри чужого exception-региона компилировался в local unwind), inline TObject.ClassInfo, GPR-копии малых блоков вместо SSE (store-to-load forwarding на прологовых копиях record-параметров), unchecked fast-path 32-битной variant-арифметики. open-array-const прошёл двухшаговый placement-тест — код бит-в-бит идентичен baseline.'
+    files = @('full-medium-wave4-20260818\summary.json')
+    unstable = @(
+      'abi/record16-value',
+      'abi/open-array-const',
+      'calibration/asm-memory-write-64m',
+      'codegen/fillchar-4k',
+      'dispatch/try-except-no-raise',
+      'managed/interface-copy-call',
+      'mm/alloc-free-16',
+      'mm/alloc-free-17408',
+      'mm/alloc-free-1m',
+      'mm/fragmented-mixed'
+    )
+  },
+  [ordered]@{
+    id = 'wave5'
+    label = 'Сейчас: + variant и bulk-insert слой'
+    short = 'Variant layer'
+    note = 'PERF-022: прямые конверсии variant->целое (четыре уровня вызова свёрнуты в чтение поля, фаза конверсии в паритете с Delphi) и notify-free managed InsertRange (виртуальный Notify на каждый из 2048 элементов без подписчика). dispatch/list-index — задокументированный placement-маятник PULSE-DECISION-007, код бит-в-бит неизменен.'
+    files = @('full-medium-wave5-20260818\summary.json')
+    unstable = @(
+      'abi/record16-value',
+      'calibration/asm-memory-read-64m',
+      'calibration/asm-memory-write-64m',
+      'calibration/asm-mixed-integer',
+      'codegen/fillchar-4k',
+      'dispatch/list-index',
+      'managed/interface-copy-call',
+      'mm/alloc-free-1m',
+      'rtl/object-create-free'
+    )
+  },
+  [ordered]@{
+    id = 'wave6'
+    label = 'Сейчас: + bulk-финализация строк'
+    short = 'Bulk finalize'
+    note = 'PERF-023: fpc_UnicodeStr/AnsiStr_Finalize_Many — снос строкового массива одним вызовом с вынесенным multithread-гейтом вместо call на каждый элемент (делфийская UStrArrayClr-симметрия, замыкает линию PERF-001). scan-small-16 и object-create-virtual-free — межсрезовый шум, снят честным A/B (Moon/baseline 1.000/0.984).'
+    files = @('full-medium-wave6-20260818\summary.json')
+    unstable = @(
+      'calibration/asm-memory-write-64m',
+      'codegen/fillchar-4k',
+      'json/scan-small-16',
+      'loops/histogram-random',
+      'mm/alloc-free-1m',
+      'rtl/object-create-virtual-free',
+      'workloads/stream-add',
+      'workloads/stream-copy',
+      'workloads/stream-scale',
+      'workloads/stream-triad'
+    )
+  },
+  [ordered]@{
+    id = 'wave9'
+    label = 'Сейчас: + bump при живом счётчике'
+    short = 'Live-counter bump'
+    note = 'PERF-025: pointer-bump глобальных массивов разрешён при живом счётчике, если цикл всегда добегает до конца (нет break/exit/goto) — делфийская форма обхода. Смена case-стратегии (дерево/таблица вместо цепочки) опровергнута A/B и откачена: на непредсказуемом селекторе линейная цепочка строго лучше (таблица дала 2.73x). Нестабильные пары — по drift-списку самого прогона.'
+    files = @('wave9-full\summary.json')
+    unstable = @(
+      'abi/record16-value',
+      'calibration/asm-memory-write-64m',
+      'codegen/fillchar-4k',
+      'codegen/scan-dram',
+      'loops/histogram-random',
+      'managed/interface-copy-call',
+      'mm/alloc-free-1m',
+      'mm/fragmented-mixed',
+      'rtl-collections/list-string-add-reserved',
+      'workloads/stream-add',
+      'workloads/stream-scale'
+    )
+  },
+  [ordered]@{
+    id = 'wave11'
+    label = 'Сейчас: + bulk-incref строк'
+    short = 'Bulk incref'
+    note = 'PERF-026: fpc_AnsiStr/UnicodeStr_Incr_Ref_Many — подъём refcount строкового ряда одним вызовом с вынесенным multithread-гейтом (зеркало PERF-023); fpc_addref_array маршрутизирует строки через них (выигрывают и COW-копии динмассивов), TList.InsertRange без подписчика — Move блока + один addref вместо по-элементных присваиваний. Нестабильные пары — по drift-списку прогона.'
+    files = @('wave11-full\summary.json')
+    unstable = @(
+      'codegen/scan-llc',
+      'codegen/fillchar-4k',
+      'managed/interface-copy-call',
+      'mm/alloc-free-1m',
+      'mm/fragmented-mixed',
+      'rtl/object-create-virtual-free',
+      'workloads/stream-add',
+      'workloads/stream-triad'
+    )
+  },
+  [ordered]@{
+    id = 'wave13'
+    label = 'Сейчас: + TStringBuilder и char-конверсии'
+    short = 'StringBuilder'
+    note = 'PERF-027: три слоя разрыва 5.85x у TStringBuilder.Append — прямые пути по полям вместо property-обвязки, свёртка char-констант после инлайна в компиляторе, ASCII-путь fpc_Char_To_UChar без widestringmanager (аллокация+WinAPI на каждый символ). append-literals 5.85 -> 1.14 (baseline 0.191), json/generate-64 0.85 -> 0.49. call-virtual/open-array-const — placement, доказано бит-в-бит идентичным дизасмом на тех же адресах; нестабильные пары — по drift-списку прогона.'
+    files = @('wave13-full\summary.json')
+    unstable = @(
+      'abi/record16-value',
+      'codegen/fillchar-4k',
+      'codegen/scan-dram',
+      'mm/alloc-free-1m',
+      'rtl/generic-list-add-reserved',
+      'rtl-collections/objectlist-owned-clear',
+      'rtl-collections/queue-string-steady',
+      'workloads/stream-add',
+      'workloads/stream-copy',
+      'workloads/stream-triad'
+    )
+  },
+  [ordered]@{
+    id = 'wave15'
+    label = 'Сейчас: + добивка билдера и untyped-const wrong-code'
+    short = 'Builder tail'
+    note = 'PERF-028: смена ёмкости билдера копирует только живой ряд (growth 1.65 -> 1.41); wrong-code фикс — untyped const аргументы всегда несут ra_addr_taken, иначе инлайн-подстановка литерала давала свёртку Move(S[1],...) в один символ (пин formal_const_address_semantic, матрица 144/144). Нестабильные пары — по drift-списку прогона.'
+    files = @('wave15-full\summary.json')
+    unstable = @(
+      'codegen/fillchar-4k',
+      'loops/histogram-random',
+      'mm/alloc-free-17408',
+      'mm/alloc-free-1m',
+      'mm/alloc-free-2m',
+      'mm/fragmented-mixed',
+      'rtl-collections/objectlist-owned-clear',
+      'workloads/stream-triad'
+    )
+  },
+  [ordered]@{
+    id = 'wave18'
+    label = 'Сейчас: + RTL-аудит (datetime/hex/конверсии)'
+    short = 'RTL audit'
+    note = 'PERF-029: восемь новых аудит-кейсов (datetime, hex, trim, replace, try-parse) + ремонты системного класса мин «посимвольные операции через widestringmanager»: Char-таблица IntToHex (7.04 -> 1.85), ASCII UpCase/LowerCase (datetime-format 2.99 -> 0.57, Moon вдвое впереди), ASCII-конверсии строк без WinAPI, поля даты без heap-строк. Нестабильные пары — по drift-списку прогона.'
+    files = @('wave18-full\summary.json')
+    unstable = @(
+      'codegen/fillchar-4k',
+      'codegen/scan-strided',
+      'managed/interface-copy-call',
+      'mm/alloc-free-1m',
+      'mm/fragmented-mixed'
+    )
+  },
+  [ordered]@{
+    id = 'wave21'
+    label = 'Сейчас: + RTL-аудит волна 3 (streams/replace/регистры)'
+    short = 'RTL audit 3'
+    note = 'PERF-030 + добивка класса конверсий: инлайн ASCII-ветки fpc_Char_To_UChar (append-literals 5.85 -> 0.97, StringBuilder впереди Delphi), StringReplace одним сканом (1.77 -> 1.40), TStringStream без двойной конверсии (1.39 -> 1.03), ASCII-регистры строк одним циклом (uppercase-4k 0.75). Пять новых кейсов волны 3. Нестабильные пары — по drift-списку прогона.'
+    files = @('wave21-full\summary.json')
+    unstable = @(
+      'abi/open-array-const',
+      'codegen/fillchar-4k',
+      'loops/histogram-random',
+      'mm/alloc-free-1m',
+      'mm/realloc-shrink',
+      'rtl/inttohex-int64',
+      'rtl/object-create-virtual-free'
+    )
+  },
+  [ordered]@{
+    id = 'wave31'
+    label = 'Сейчас: + оптимум-проход (SWAR, парсер, replace)'
+    short = 'Optimum pass'
+    note = 'Оптимум-аудит всей ветки: мерило — потолок алгоритма, не Delphi. SWAR-ядра строковых операций (4 символа за шаг, 1.4 такта/символ = bandwidth-потолок), прямой целочисленный парсер с cutoff-циклом (trystrtoint 1.81 -> 1.14, edges 0.88 впереди Delphi), StringReplace инлайн-сканом без кучи до первого совпадения (0.999 паритет), два ниббла за шаг в IntToHex. Вердикты по слоям — BRANCH_AUDIT.md, секция «Оптимум-проход». Нестабильные пары — по drift-списку прогона.'
+    files = @('wave31-full\summary.json')
+    unstable = @(
+      'abi/record16-value',
+      'calibration/asm-memory-read-64m',
+      'codegen/scan-dram',
+      'codegen/scan-strided',
+      'codegen/call-interface',
+      'codegen/call-virtual',
+      'managed/interface-copy-call',
+      'mm/alloc-free-1m'
+    )
+  },
+  [ordered]@{
+    id = 'wave33'
+    label = 'Сейчас: + безусловные lock-refcount (нож IsMultithread)'
+    short = 'No gate'
+    note = 'PERF-031: решение владельца — продукт всегда многопоточен, гейт IsMultithread вырезан из 12 asm-мест и bulk-хелперов; ansi refcount-тройка стала asm-зеркалом юникодной (rawbytestring-assign 1.25 -> 1.01). ВНИМАНИЕ: физика managed-замеров сменилась — однопоточные цифры до этой колонки сравнивать с новыми нельзя (был no-lock путь, стал честный lock как в проде и как у Delphi). mt-кейсы совпадают с однопоточными. Открытый хвост: insertrange 1.75 (lock-ряд массовых вставок, вскрытие следующим шагом).'
+    files = @('wave33-full\summary.json')
+    unstable = @(
+      'abi/record16-value',
+      'calibration/asm-memory-read-64m',
+      'codegen/scan-strided',
+      'json/parse-medium-custom-double',
+      'managed/interface-copy-call',
+      'mm/alloc-free-16',
+      'mm/alloc-free-16k',
+      'mm/alloc-free-1m',
+      'mm/alloc-free-2m',
+      'rtl/object-create-virtual-free',
+      'rtl-collections/list-string-add-reserved'
+    )
+  },
+  [ordered]@{
+    id = 'wave35'
+    label = 'История: отклонённый ref=1 fast path'
+    short = 'Отклонено'
+    note = 'ИСТОРИЧЕСКИЙ НЕБЕЗОПАСНЫЙ СРЕЗ. PERF-032 заменял atomic increment при Ref=1 простым store. Интеграционный аудит отклонил кандидат: два конкурентных читателя единственной общей ссылки могут оба записать Ref=2 и потерять один increment. Цифры сохранены только как история эксперимента и не описывают продуктовый HEAD.'
+    files = @('wave35-full\summary.json')
+    unstable = @(
+      'abi/record16-value',
+      'calibration/asm-memory-read-64m',
+      'codegen/fillchar-4k',
+      'codegen/scan-dram',
+      'json/generate-64',
+      'loops/histogram-random',
+      'mm/alloc-free-16',
+      'mm/alloc-free-16k',
+      'mm/alloc-free-1m',
+      'rtl/object-create-free',
+      'rtl/object-create-virtual-free',
+      'workloads/stream-triad'
+    )
+  },
+  [ordered]@{
+    id = 'wave36'
+    label = 'История: dynarray-циклы поверх отклонённого ref=1'
+    short = 'История B'
+    note = 'ИСТОРИЧЕСКИЙ СРЕЗ С НЕБЕЗОПАСНЫМ PERF-032 В ОСНОВЕ. PERF-033 отдельно добавлял pointer induction для динамических массивов и codegen cases, но итоговые ratios нельзя считать цифрами продуктового HEAD. Безопасные изменения перенесены; их результат снимается заново после интеграции.'
+    files = @('wave36-full\summary.json')
+    unstable = @(
+      'codegen/fillchar-4k',
+      'loops/histogram-random',
+      'mm/alloc-free-1m',
+      'mm/alloc-free-2m',
+      'mm/fragmented-mixed',
+      'workloads/linked-list-insert-sort-512'
+    )
+  },
+  [ordered]@{
+    id = 'wave37'
+    label = 'История: signed mod поверх отклонённого ref=1'
+    short = 'История C'
+    note = 'ИСТОРИЧЕСКИЙ СРЕЗ С НЕБЕЗОПАСНЫМ PERF-032 В ОСНОВЕ. PERF-034 отдельно редуцировал signed mod константой и добавлял semantic/codegen cases. Безопасный ремонт перенесён, но ratios этой колонки не являются квалификацией продуктового HEAD.'
+    files = @('wave37-full\summary.json')
+    unstable = @(
+      'abi/record16-value',
+      'calibration/asm-memory-read-64m',
+      'codegen/fillchar-4k',
+      'mm/alloc-free-1m'
+    )
+  },
+  [ordered]@{
+    id = 'wave38'
+    label = 'История: TStringHelper поверх отклонённого ref=1'
+    short = 'История helper'
+    note = 'ИСТОРИЧЕСКИЙ СРЕЗ С НЕБЕЗОПАСНЫМ PERF-032 В ОСНОВЕ. PERF-035 отдельно проверял фасады TStringHelper и исправлял данные trim-string. Безопасные тесты и реализации перенесены, но точные ratios снимаются заново на интеграционном HEAD.'
+    files = @('wave38-full\summary.json')
+    unstable = @(
+      'abi/record16-value',
+      'loops/histogram-random',
+      'mm/alloc-free-1m',
+      'mm/alloc-free-2m',
+      'mm/fragmented-mixed',
+      'rtl/memorystream-write-small'
+    )
   }
 )
 
@@ -102,6 +404,30 @@ function Get-CaseDescription([string]$Case) {
     'loops/manual-copy-8192' = 'Ручное копирование 8192 элементов циклом.'
     'codegen/for-byte-0-255' = 'Полный for-loop со счётчиком Byte от 0 до 255.'
     'codegen/for-runtime-0-255' = 'For-loop до runtime-границы 255.'
+    'codegen/for-length-string' = 'For 1 to Length(S) по UnicodeString, сумма кодов символов.'
+    'codegen/for-length-array' = 'For 0 to Length(A)-1 по динамическому массиву байт.'
+    'codegen/for-downto' = 'For Length(A)-1 downto 0 по динамическому массиву байт.'
+    'codegen/abs-int' = 'Abs(Int32) + Abs(Int64) на знакопеременных данных.'
+    'codegen/minmax-int' = 'Math.Min/Max для Int32.'
+    'codegen/minmax-double' = 'Math.Min/Max для Double на случайных данных.'
+    'codegen/minmax-double-special' = 'Min/Max семантика NaN/+0/-0/inf, битовый дайджест.'
+    'codegen/mul-lea' = 'X*3 + X*5 + X*9 — lea-формы умножения.'
+    'codegen/int32-div-const' = 'Signed Int32 div/mod константами 2/10/7.'
+    'codegen/int64-div-const' = 'Signed Int64 div/mod константами 4/10/1000.'
+    'codegen/uint32-div-const' = 'UInt32 div/mod константами 10/641/16.'
+    'codegen/packed-odd-sizes' = 'Массивы packed record размеров 3/5/7 байт: запись и чтение полей.'
+    'codegen/generic-reverse-int' = 'Реверс массива Int64 через generic TArrOps<T>.'
+    'codegen/concrete-reverse-int' = 'Реверс массива Int64 рукописной конкретной процедурой.'
+    'codegen/generic-reverse-rec' = 'Реверс массива 16-байтовых записей через generic TArrOps<T>.'
+    'codegen/concrete-reverse-rec' = 'Реверс массива 16-байтовых записей рукописной процедурой.'
+    'codegen/int64-mod-latency' = 'Зависимая цепочка x := (x mod 1000000007)*31 — латентность mod, как в хэшах.'
+    'rtl/helper-startswith' = 'TStringHelper.StartsWith, попадание и промах на коротких ключах.'
+    'rtl/helper-startswith-nocase' = 'StartsWith с IgnoreCase — регистронезависимый префикс.'
+    'rtl/helper-endswith-nocase' = 'EndsWith с IgnoreCase — регистронезависимый суффикс.'
+    'rtl/helper-indexof-string' = 'TStringHelper.IndexOf подстроки в 4К-тексте.'
+    'rtl/helper-compareto' = 'TStringHelper.CompareTo — ordinal-сравнение коротких ключей.'
+    'rtl/helper-split-16' = 'Split CSV-строки из 16 полей одним символом-сепаратором.'
+    'rtl/sametext-short' = 'SameText на коротких строках: та же инстанция и разные.'
     'codegen/branch-predictable' = 'Полностью предсказуемое условное ветвление.'
     'managed/managed-exception-cleanup' = 'Финализация managed-значений при выходе через исключение.'
     'managed/interface-copy-call' = 'Копирование interface, refcount и вызов метода.'
@@ -168,7 +494,12 @@ foreach ($Stage in $Stages) {
     if (-not (Test-Path -LiteralPath $SummaryPath)) {
       throw "Missing Pulse summary: $SummaryPath"
     }
-    $Summary = Get-Content -LiteralPath $SummaryPath -Raw | ConvertFrom-Json -AsHashtable
+    # Windows PowerShell 5.1 has no ConvertFrom-Json -AsHashtable
+    $SummaryObject = Get-Content -LiteralPath $SummaryPath -Raw | ConvertFrom-Json
+    $Summary = @{}
+    foreach ($Property in $SummaryObject.PSObject.Properties) {
+      $Summary[$Property.Name] = $Property.Value
+    }
     foreach ($Case in $Summary.Keys) {
       if (-not $Rows.ContainsKey($Case)) {
         $Rows[$Case] = [ordered]@{
