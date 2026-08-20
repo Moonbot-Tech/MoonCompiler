@@ -2599,6 +2599,42 @@ implementation
                 end;
               in_ord_x:
                 begin
+                  { Delphi constant contract (measured against DCC64 36.0):
+                    Ord of a Pascal boolean constant keeps the stored signed
+                    value in the source width (Ord(Pred(False)) = -1, one
+                    byte); Ord of a ByteBool/WordBool constant reads the
+                    unsigned storage domain ($FF/$FFFF); LongBool and the
+                    64-bit forms stay signed.  The generic conversions below
+                    would lose the sign of the first group and invent one for
+                    the second. }
+                  if (m_delphi in current_settings.modeswitches) and
+                     (left.nodetype=ordconstn) and
+                     (left.resultdef.typ=orddef) then
+                    begin
+                      case torddef(left.resultdef).ordtype of
+                        pasbool1,
+                        pasbool8:
+                          result:=cordconstnode.create(tordconstnode(left).value,s8inttype,false);
+                        pasbool16:
+                          result:=cordconstnode.create(tordconstnode(left).value,s16inttype,false);
+                        pasbool32:
+                          result:=cordconstnode.create(tordconstnode(left).value,s32inttype,false);
+                        pasbool64:
+                          result:=cordconstnode.create(tordconstnode(left).value,s64inttype,false);
+                        bool8bit:
+                          result:=cordconstnode.create(tordconstnode(left).value and $ff,u8inttype,false);
+                        bool16bit:
+                          result:=cordconstnode.create(tordconstnode(left).value and $ffff,u16inttype,false);
+                        bool32bit:
+                          result:=cordconstnode.create(tordconstnode(left).value,s32inttype,false);
+                        bool64bit:
+                          result:=cordconstnode.create(tordconstnode(left).value,s64inttype,false);
+                        else
+                          ;
+                      end;
+                      if assigned(result) then
+                        exit;
+                    end;
                   case left.resultdef.typ of
                     orddef :
                       begin

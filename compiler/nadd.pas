@@ -1698,7 +1698,11 @@ const
           end;
 
         { in case of expressions having no side effect, we can simplify boolean expressions
-          containing constants }
+          containing constants.  The kept operand must still arrive in the
+          node's own result type: pruning a comparison lowered to xorn can
+          otherwise hand a raw C-style boolean (payload -1) to a consumer
+          that was promised a canonical Pascal boolean - Ord(W <> False)
+          returned -1 instead of 1.  The conversion is the normalization. }
         if is_boolean(ld) and is_boolean(rd) then
           begin
             if is_constboolnode(left) then
@@ -1708,6 +1712,8 @@ const
                   ((nodetype=xorn) and (tordconstnode(left).value=0)) then
                   begin
                     Result := PruneKeepRight();
+                    if Result.resultdef<>resultdef then
+                      Result := ctypeconvnode.create_internal(Result,resultdef);
                     exit;
                   end
                 else if not(might_have_sideeffects(right)) and
@@ -1715,11 +1721,16 @@ const
                   ((nodetype=andn) and (tordconstnode(left).value=0))) then
                   begin
                     Result := PruneKeepLeft();
+                    if Result.resultdef<>resultdef then
+                      Result := ctypeconvnode.create_internal(Result,resultdef);
                     exit;
                   end
                 else if ((nodetype=xorn) and (tordconstnode(left).value<>0)) then
                   begin
-                    Result := cnotnode.create(PruneKeepRight());
+                    Result := PruneKeepRight();
+                    if Result.resultdef<>resultdef then
+                      Result := ctypeconvnode.create_internal(Result,resultdef);
+                    Result := cnotnode.create(Result);
                     exit;
                   end
               end
@@ -1730,6 +1741,8 @@ const
                   ((nodetype=xorn) and (tordconstnode(right).value=0)) then
                   begin
                     result := PruneKeepLeft();
+                    if result.resultdef<>resultdef then
+                      result := ctypeconvnode.create_internal(result,resultdef);
                     exit;
                   end
                 else if not(might_have_sideeffects(left)) and
@@ -1737,11 +1750,16 @@ const
                    ((nodetype=andn) and (tordconstnode(right).value=0))) then
                   begin
                     result := PruneKeepRight();
+                    if result.resultdef<>resultdef then
+                      result := ctypeconvnode.create_internal(result,resultdef);
                     exit;
                   end
                 else if ((nodetype=xorn) and (tordconstnode(right).value<>0)) then
                   begin
-                    result := cnotnode.create(PruneKeepLeft());
+                    result := PruneKeepLeft();
+                    if result.resultdef<>resultdef then
+                      result := ctypeconvnode.create_internal(result,resultdef);
+                    result := cnotnode.create(result);
                     exit;
                   end
               end;
@@ -2978,26 +2996,35 @@ const
                   equaln:
                     begin
                       { Remove any compares with constants }
-                      if (left.nodetype=ordconstn) then
+                      if (left.nodetype=ordconstn) or (right.nodetype=ordconstn) then
                         begin
-                          hp:=right;
-                          b:=(tordconstnode(left).value<>0);
+                          if left.nodetype=ordconstn then
+                            begin
+                              hp:=right;
+                              b:=(tordconstnode(left).value<>0);
+                              right:=nil;
+                            end else begin
+                              hp:=left;
+                              b:=(tordconstnode(right).value<>0);
+                              left:=nil;
+                            end;
                           ot:=nodetype;
-                          right:=nil;
-                          if (not(b) and (ot=equaln)) or
-                             (b and (ot=unequaln)) then
-                           begin
-                             hp:=cnotnode.create(hp);
-                           end;
-                          result:=hp;
-                          exit;
-                        end;
-                      if (right.nodetype=ordconstn) then
-                        begin
-                          hp:=left;
-                          b:=(tordconstnode(right).value<>0);
-                          ot:=nodetype;
-                          left:=nil;
+                          { a C-style boolean operand carries a raw payload,
+                            but the comparison promised a normalized boolean
+                            of the operand's width: DCC64 yields
+                            Ord(W <> False) = 1 with SizeOf 2.  The bool-to-
+                            bool conversion is exactly that normalization. }
+                          if is_cbool(hp.resultdef) then
+                            begin
+                              case hp.resultdef.size of
+                                1: hp:=ctypeconvnode.create(hp,pasbool8type);
+                                2: hp:=ctypeconvnode.create(hp,pasbool16type);
+                                4: hp:=ctypeconvnode.create(hp,pasbool32type);
+                                else
+                                  hp:=ctypeconvnode.create(hp,pasbool64type);
+                              end;
+                              ttypeconvnode(hp).convtype:=tc_bool_2_bool;
+                            end;
                           if (not(b) and (ot=equaln)) or
                              (b and (ot=unequaln)) then
                            begin
