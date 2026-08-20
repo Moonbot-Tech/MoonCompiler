@@ -118,7 +118,7 @@ def main() -> None:
     for name, cmd in stages:
         code, log, seconds = run(cmd, args.timeout)
         verdict = [l for l in log.splitlines()
-                   if l.startswith(("DEVIL_", "  NEW"))][-8:]
+                   if l.startswith(("DEVIL_", "  NEW", "  known"))][-8:]
         results.append({"stage": name, "code": code,
                         "seconds": round(seconds, 1), "tail": verdict})
         print(f"=== {name}: exit {code} in {seconds:.0f}s")

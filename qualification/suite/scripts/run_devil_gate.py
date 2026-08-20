@@ -466,6 +466,7 @@ def main() -> None:
     defines = [d for d in args.defines.split(",") if d]
     report: list[dict] = []
     total_findings = 0
+    total_known = 0
 
     for seed in seeds:
         gen = [sys.executable, str(GENERATOR), "--seed", str(seed),
@@ -596,14 +597,16 @@ def main() -> None:
         if known_hits:
             seen = sorted({h["known"] for h in known_hits})
             print("  known: %d hits (%s)" % (len(known_hits), ", ".join(seen)))
-        report.append({"seed": seed, "summary": summary, "findings": findings})
+        total_known += len(known_hits)
+        report.append({"seed": seed, "summary": summary,
+                       "findings": findings, "known_hits": known_hits})
 
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n",
                                encoding="utf-8")
     print(f"DEVIL_GATE {'OK' if total_findings == 0 else 'FINDINGS'} "
-          f"seeds={len(seeds)} findings={total_findings}")
+          f"seeds={len(seeds)} findings={total_findings} known={total_known}")
     sys.exit(1 if total_findings else 0)
 
 
