@@ -54,6 +54,19 @@ class DevilRunnerContractsTest(unittest.TestCase):
             ["program.exe", "program.ppu"],
         )
 
+    def test_allocator_contention_uses_a_boolean_oracle(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            argv = ["generate_devil.py", "--seed", "5", "--cases", "101",
+                    "--layers", "load", "--out", str(output)]
+            with mock.patch.object(sys, "argv", argv):
+                with redirect_stdout(io.StringIO()):
+                    generate_devil.main()
+            source = (output / "devil_load.inc").read_text(encoding="utf-8")
+        self.assertIn("DevilCheckBool('dvl-load-contended-240-waited'", source)
+        self.assertIn("SmallGetmemSleepCount > Waited", source)
+        self.assertNotIn("DevilNoteLoose('dvl-load-contended-240-waited'", source)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16105,11 +16105,11 @@ def layer_load(e: Emitter, rng: random.Random, count: int,
         e.line("    Crew[I].Free;")
         e.line("  end;")
         if heavy:
-            e.line("  { сколько раз аллокатор реально ждал: ноль здесь значит, "
-                   "что нагрузка выродилась и спорную ветку не трогает }")
-            e.line("  DevilNoteLoose('%s-waited', "
-                   "UInt64(CurrentHeapStatus.SmallGetmemSleepCount - Waited));"
-                   % name)
+            e.line("  { точное число ожиданий зависит от планировщика; "
+                   "семантический инвариант только один: спорная ветка "
+                   "действительно исполнилась }")
+            e.line("  DevilCheckBool('%s-waited', "
+                   "CurrentHeapStatus.SmallGetmemSleepCount > Waited);" % name)
         if handoff:
             e.line("  { всё, что осталось на столе, освобождает главный поток }")
             e.line("  for I := 0 to %d do" % (LOAD_HANDOFF_SLOTS - 1))
