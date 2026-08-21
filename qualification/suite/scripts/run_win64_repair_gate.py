@@ -34,6 +34,7 @@ CORE_TESTS = (
     "tx86boolconstmovwidth1",
     "tunicodeguidparse1",
     "tdelphiqualifiedinteger1",
+    "tdelphisplitempty1",
     "tloopinvariantaddr1",
     "tloopinvariantarraywrite1",
     "tdelphiinlineexceptreg1",

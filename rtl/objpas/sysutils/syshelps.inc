@@ -1287,6 +1287,8 @@ Var
 {$ENDIF}
 
 begin
+  if System.Length(Self)=0 then
+    exit(nil);
 {$IFNDEF IS_SHORTSTRINGHELPER}
   { Unquoted splitting: one pass over the text, the next separator found
     with the vectorized IndexChar for the common single-separator call,
@@ -1430,6 +1432,8 @@ Var
   T : TStringType;
 
 begin
+  if System.Length(Self)=0 then
+    exit(nil);
   SetLength(Result,BlockSize);
   Len:=0;
   LastSep:=0;
