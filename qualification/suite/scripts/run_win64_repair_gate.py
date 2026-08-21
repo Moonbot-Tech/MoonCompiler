@@ -43,6 +43,7 @@ CORE_TESTS = (
     "tdelphisplitempty1",
     "tdelphistringlistbom1",
     "tdelphivariantstring1",
+    "tdelphivariantrawbytestring1",
     "tdelphinegativezero1",
     "tmoonoddconstu641",
     "tmoonconstpropglobalcalls1",

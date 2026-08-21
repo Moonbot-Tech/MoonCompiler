@@ -480,6 +480,12 @@ begin
 end;
 
 
+operator :=(const source : variant) dest : RawByteString;{$ifdef SYSTEMINLINE}inline;{$endif}
+begin
+  VariantManager.vartolstr(dest,source);
+end;
+
+
 operator :=(const source : variant) dest : widestring;{$ifdef SYSTEMINLINE}inline;{$endif}
 begin
   variantmanager.vartowstr(dest,source);
@@ -830,6 +836,12 @@ operator :=(const source : olevariant) dest : shortstring;{$ifdef SYSTEMINLINE}i
 
 
 operator :=(const source : olevariant) dest : ansistring;{$ifdef SYSTEMINLINE}inline;{$endif}
+  begin
+    variantmanager.vartolstr(dest,variant(tvardata(source)));
+  end;
+
+
+operator :=(const source : olevariant) dest : RawByteString;{$ifdef SYSTEMINLINE}inline;{$endif}
   begin
     variantmanager.vartolstr(dest,variant(tvardata(source)));
   end;

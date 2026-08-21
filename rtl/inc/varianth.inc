@@ -319,6 +319,7 @@ operator :=(const source : variant) dest : widechar;{$ifdef SYSTEMINLINE}inline;
 { Strings }
 operator :=(const source : variant) dest : shortstring;{$ifdef SYSTEMINLINE}inline;{$endif}
 operator :=(const source : variant) dest : ansistring;{$ifdef SYSTEMINLINE}inline;{$endif}
+operator :=(const source : variant) dest : RawByteString;{$ifdef SYSTEMINLINE}inline;{$endif}
 operator :=(const source : variant) dest : widestring;{$ifdef SYSTEMINLINE}inline;{$endif}
 operator :=(const source : variant) dest : UTF8String;{$ifdef SYSTEMINLINE}inline;{$endif}
 // operator :=(const source : variant) dest : UCS4String;{$ifdef SYSTEMINLINE}inline;{$endif}
@@ -408,6 +409,7 @@ operator :=(const source : olevariant) dest : widechar;{$ifdef SYSTEMINLINE}inli
 { Strings }
 operator :=(const source : olevariant) dest : shortstring;{$ifdef SYSTEMINLINE}inline;{$endif}
 operator :=(const source : olevariant) dest : ansistring;{$ifdef SYSTEMINLINE}inline;{$endif}
+operator :=(const source : olevariant) dest : RawByteString;{$ifdef SYSTEMINLINE}inline;{$endif}
 operator :=(const source : olevariant) dest : widestring;{$ifdef SYSTEMINLINE}inline;{$endif}
 operator :=(const source : olevariant) dest : UTF8String;{$ifdef SYSTEMINLINE}inline;{$endif}
 {$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
