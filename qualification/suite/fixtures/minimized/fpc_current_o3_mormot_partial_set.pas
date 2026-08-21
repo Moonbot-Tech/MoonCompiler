@@ -4,6 +4,9 @@ program fpc_current_o3_mormot_partial_set;
 
 uses
   mormot.core.fpcx64mm,
+{$ifdef unix}
+  cthreads,
+{$endif}
   mormot.core.base,
   mormot.core.rtti,
   mormot.core.json;

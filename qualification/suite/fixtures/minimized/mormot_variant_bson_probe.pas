@@ -4,6 +4,9 @@ program mormot_variant_bson_probe;
 
 uses
   mormot.core.fpcx64mm,
+{$ifdef unix}
+  cthreads,
+{$endif}
   SysUtils,
   Variants,
   mormot.core.base,
