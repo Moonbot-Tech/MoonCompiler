@@ -29,6 +29,8 @@ interface
        sysutils,cutils,compinnr,
        { target }
        globtype,globals,widestr,constexp,
+       { tree }
+       node,
        { symtable }
        symconst,symbase,symtype,symdef,defcmp,
        cclasses,
@@ -170,7 +172,9 @@ interface
           function find_procdef_byoptions(ops:tprocoptions): Tprocdef;
           function find_procdef_byprocvardef(d:Tprocvardef):Tprocdef;
           function find_procdef_byfuncrefdef(d:tobjectdef):tprocdef;
-          function find_procdef_assignment_operator(fromdef,todef:tdef;var besteq:tequaltype;isexplicit:boolean):Tprocdef;
+          function find_procdef_assignment_operator(fromdef,todef:tdef;
+            fromtreetype:tnodetype;var besteq:tequaltype;
+            isexplicit:boolean):Tprocdef;
           function find_procdef_enumerator_operator(fromdef,todef:tdef;var besteq:tequaltype):Tprocdef;
           procedure add_generic_overload(sym:tprocsym);
           function could_be_implicitly_specialized:boolean;inline;
@@ -573,8 +577,6 @@ implementation
        { symtable }
        defutil,symtable,
        fmodule,
-       { tree }
-       node,
        { aasm }
        aasmdata,
        { codegen }
@@ -1429,7 +1431,9 @@ implementation
       end;
 
 
-    function Tprocsym.Find_procdef_assignment_operator(fromdef,todef:tdef;var besteq:tequaltype;isexplicit:boolean):Tprocdef;
+    function Tprocsym.Find_procdef_assignment_operator(fromdef,todef:tdef;
+      fromtreetype:tnodetype;var besteq:tequaltype;
+      isexplicit:boolean):Tprocdef;
       var
         paraidx, realparamcount,
         i, j : longint;
@@ -1485,7 +1489,9 @@ implementation
                    assigned(pd.paras[paraidx]) and
                    (realparamcount = 1) then
                   begin
-                    eq:=compare_defs_ext(fromdef,tparavarsym(pd.paras[paraidx]).vardef,nothingn,convtyp,hpd,[]);
+                    eq:=compare_defs_ext(fromdef,
+                      tparavarsym(pd.paras[paraidx]).vardef,fromtreetype,
+                      convtyp,hpd,[]);
 
                     { alias? if yes, only l1 choice,
                       if you mess with this code, check tw4093 }

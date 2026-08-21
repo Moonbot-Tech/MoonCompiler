@@ -2252,7 +2252,8 @@ implementation
             )
            ) then
           begin
-            operatorpd:=search_assignment_operator(def_from,def_to,cdo_explicit in cdoptions);
+            operatorpd:=search_assignment_operator(def_from,def_to,
+              fromtreetype,cdo_explicit in cdoptions);
             { Delphi applies the base ordinal Variant conversion to distinct
               ordinal types as well (e.g. TUnixTime = type Int64). }
             if not assigned(operatorpd) and
@@ -2264,7 +2265,7 @@ implementation
                 baseorddef:=get_unique_base_def(def_to);
                 if baseorddef.typ=orddef then
                   operatorpd:=search_assignment_operator(def_from,
-                    baseorddef,cdo_explicit in cdoptions);
+                    baseorddef,fromtreetype,cdo_explicit in cdoptions);
               end;
             if assigned(operatorpd) then
              eq:=te_convert_operator;

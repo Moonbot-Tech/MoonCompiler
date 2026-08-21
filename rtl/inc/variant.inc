@@ -287,7 +287,10 @@ end;
 {$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
 operator :=(const source : UnicodeString) dest : variant;{$ifdef SYSTEMINLINE}inline;{$endif}
 begin
-  VariantManager.VarFromWStr(Dest,Source);
+  VariantManager.VarClear(Dest);
+  TVarData(Dest).vType:=varUString;
+  TVarData(Dest).vUString:=nil;
+  UnicodeString(TVarData(Dest).vUString):=Source;
 end;
 {$endif FPC_WIDESTRING_EQUAL_UNICODESTRING}
 

@@ -29,6 +29,8 @@ interface
        cutils,cclasses,globtype,tokens,
        { aasm }
        aasmbase,
+       { tree }
+       node,
        { symtable }
        symconst,symbase,symtype,symdef,symsym;
 
@@ -404,7 +406,8 @@ interface
     function  search_named_unit_globaltype(const unitname, typename: TIDString; throwerror: boolean): ttypesym;
     function  search_struct_member(pd : tabstractrecorddef;const s : string):tsym;
     function  search_struct_member_no_helper(pd : tabstractrecorddef;const s : string):tsym;
-    function  search_assignment_operator(from_def,to_def:Tdef;explicit:boolean):Tprocdef;
+    function  search_assignment_operator(from_def,to_def:Tdef;
+      fromtreetype:tnodetype;explicit:boolean):Tprocdef;
     function  search_enumerator_operator(from_def,to_def:Tdef):Tprocdef;
     function  search_management_operator(mop:tmanagementoperator;pd:Tdef):Tprocdef;
     { searches for the helper definition that's currently active for pd }
@@ -4588,7 +4591,8 @@ implementation
           end;
       end;
 
-    function search_specific_assignment_operator(assignment_type:ttoken;from_def,to_def:Tdef):Tprocdef;
+    function search_specific_assignment_operator(assignment_type:ttoken;
+      from_def,to_def:Tdef;fromtreetype:tnodetype):Tprocdef;
       var
         sym : Tprocsym;
         hashedid : THashedIDString;
@@ -4621,7 +4625,8 @@ implementation
                   internalerror(200402031);
                 { if the source type is an alias then this is only the second choice,
                   if you mess with this code, check tw4093 }
-                currpd:=sym.find_procdef_assignment_operator(from_def,to_def,curreq,isexplicit);
+                currpd:=sym.find_procdef_assignment_operator(from_def,to_def,
+                  fromtreetype,curreq,isexplicit);
                 { we found a ShortString overload, use that and be done }
                 if checkshortstring and
                     assigned(currpd) and
@@ -4655,7 +4660,8 @@ implementation
       end;
 
 
-    function search_assignment_operator(from_def,to_def:Tdef;explicit:boolean):Tprocdef;
+    function search_assignment_operator(from_def,to_def:Tdef;
+      fromtreetype:tnodetype;explicit:boolean):Tprocdef;
       begin
         { search record/object symtable first for a suitable operator }
         if from_def.typ in [recorddef,objectdef] then
@@ -4666,20 +4672,24 @@ implementation
         { if type conversion is explicit then search first for explicit
           operator overload and if not found then use implicit operator }
         if explicit then
-          result:=search_specific_assignment_operator(_OP_EXPLICIT,from_def,to_def)
+          result:=search_specific_assignment_operator(_OP_EXPLICIT,from_def,
+            to_def,fromtreetype)
         else
           result:=nil;
         if result=nil then
-          result:=search_specific_assignment_operator(_ASSIGNMENT,from_def,to_def);
+          result:=search_specific_assignment_operator(_ASSIGNMENT,from_def,
+            to_def,fromtreetype);
 
         { if we're assigning to a typed pointer, but we did not find a suitable assignment
           operator then we also check for a untyped pointer assignment operator }
         if not assigned(result) and is_pointer(to_def) and not is_voidpointer(to_def) then
           begin
             if explicit then
-              result:=search_specific_assignment_operator(_OP_EXPLICIT,from_def,voidpointertype);
+              result:=search_specific_assignment_operator(_OP_EXPLICIT,
+                from_def,voidpointertype,fromtreetype);
             if not assigned(result) then
-              result:=search_specific_assignment_operator(_ASSIGNMENT,from_def,voidpointertype);
+              result:=search_specific_assignment_operator(_ASSIGNMENT,
+                from_def,voidpointertype,fromtreetype);
           end;
 
         { restore symtable stack }

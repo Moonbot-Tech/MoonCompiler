@@ -1174,6 +1174,8 @@ begin
       Result := VarTypeToCommonType[vType];
     varString:
       Result:=ctString;
+    varUString:
+      Result:=ctWideStr;
     varAny:
       Result:=ctAny;
   else
@@ -1299,6 +1301,27 @@ begin
 end;
 
 
+function DoVarCmpUStrDirect(const Left, Right: Pointer;
+  const OpCode: TVarOp): ShortInt; inline;
+begin
+  if OpCode in [opCmpEq, opCmpNe] then
+    if Length(UnicodeString(Left)) <> Length(UnicodeString(Right)) then
+      Exit(-1);
+  Result := sign(UnicodeCompareStr(
+    UnicodeString(Left),
+    UnicodeString(Right)
+  ));
+end;
+
+
+function DoVarCmpUStr(const Left, Right: TVarData;
+  const OpCode: TVarOp): ShortInt;
+begin
+  Result := DoVarCmpUStrDirect(Pointer(VariantToUnicodeString(Left)),
+    Pointer(VariantToUnicodeString(Right)), OpCode);
+end;
+
+
 function DoVarCmpLStrDirect(const Left, Right: Pointer; const OpCode: TVarOp): ShortInt; inline;
 begin
   { we can do this without ever copying the AnsiString }
@@ -1415,7 +1438,13 @@ begin
     ctInt64:    Result := DoVarCmpInt64(VariantToInt64(vl), VariantToInt64(vr));
     ctNull:     Result := DoVarCmpNull(lct, rct, OpCode);
     ctWideStr:
-      if (vl.vType = varOleStr) and (vr.vType = varOleStr) then
+      if (vl.vType = varUString) and (vr.vType = varUString) then
+        Result := DoVarCmpUStrDirect(Pointer(vl.vUString),
+          Pointer(vr.vUString), OpCode)
+      else if (VarTypeDeRef(vl) = varUString) or
+          (VarTypeDeRef(vr) = varUString) then
+        Result := DoVarCmpUStr(vl, vr, OpCode)
+      else if (vl.vType = varOleStr) and (vr.vType = varOleStr) then
         Result := DoVarCmpWStrDirect(Pointer(vl.vOleStr), Pointer(vr.vOleStr), OpCode)
       else
         Result := DoVarCmpWStr(vl, vr, OpCode);
@@ -1691,6 +1720,17 @@ begin
   Pointer(ws) := nil;
 end;
 
+procedure DoVarOpUStrCat(var vl: TVarData; const vr: TVarData);
+var
+  s: UnicodeString;
+begin
+  s := VariantToUnicodeString(vl) + VariantToUnicodeString(vr);
+  DoVarClearIfComplex(vl);
+  vl.vType := varUString;
+  Pointer(vl.vUString) := Pointer(s);
+  Pointer(s) := nil;
+end;
+
 procedure DoVarOpLStrCat(var vl: TVarData; const vr : TVarData);
 var
   s: AnsiString;
@@ -1876,7 +1916,14 @@ begin
     ctWideStr:
       case OpCode of
         opAdd:
-          DoVarOpWStrCat(TVarData(Left),TVarData(Right));
+          case VarTypeDeRef(TVarData(Left)) of
+            varString:
+              DoVarOpLStrCat(TVarData(Left),TVarData(Right));
+            varUString:
+              DoVarOpUStrCat(TVarData(Left),TVarData(Right));
+            else
+              DoVarOpWStrCat(TVarData(Left),TVarData(Right));
+          end;
         opSubtract..opDivide,opPower:
           DoVarOpFloat(TVarData(Left),TVarData(Right),OpCode);
         opIntDivide..opXor:
@@ -2824,9 +2871,10 @@ begin
   valuevtype:=getfinalvartype(TVarData(value));
 
   if not(VarTypeIsValidElementType(valuevtype)) and
-    { varString isn't a valid varArray type but it is converted
-      later }
-    (valuevtype<>varString) then
+    { Pascal-managed strings are not valid SafeArray element types, but
+      a Variant array stores both of them as an OLE string below. }
+    (valuevtype<>varString) and
+    (valuevtype<>varUString) then
     VarCastError(valuevtype,Dest.vType);
 
   if (Dest.vType and varArray)<>0 then
@@ -2845,9 +2893,9 @@ begin
       if arrayelementtype=varVariant then
         begin
           VarResultCheck(SafeArrayPtrOfIndex(p,PVarArrayCoorArray(indices),arraydest));
-          { we can't store ansistrings in Variant arrays so we convert the AnsiString to
-            an olestring }
-          if valuevtype=varString then
+          { SafeArray Variant elements cannot own Pascal-managed strings.
+            Delphi stores both AnsiString and UnicodeString values as BSTR. }
+          if (valuevtype=varString) or (valuevtype=varUString) then
             begin
               tempvar:=VarToWideStr(value);
               arraydest^:=tempvar;
