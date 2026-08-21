@@ -33,6 +33,7 @@ CORE_TESTS = (
     "tsetconstbase1",
     "tx86boolconstmovwidth1",
     "tloopinvariantaddr1",
+    "tloopinvariantarraywrite1",
     "tdelphiinlineexceptreg1",
     "tdelphiinlinefuncrettemp1",
 )

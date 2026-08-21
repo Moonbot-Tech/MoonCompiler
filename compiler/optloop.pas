@@ -287,6 +287,11 @@ unit optloop;
         fieldnode : tsubscriptnode;
       end;
 
+      pinvariantvectorcontext = ^tinvariantvectorcontext;
+      tinvariantvectorcontext = record
+        vectornode : tvecnode;
+      end;
+
     function invalidatesinvariantfield(var n : tnode;arg : pointer) : foreachnoderesult;
       var
         fieldcontext : pinvariantfieldcontext;
@@ -313,9 +318,47 @@ unit optloop;
       end;
 
 
+    function invalidatesinvariantvector(var n : tnode;arg : pointer) : foreachnoderesult;
+      var
+        vectorcontext : pinvariantvectorcontext;
+        addressednode : tnode;
+      begin
+        vectorcontext:=pinvariantvectorcontext(arg);
+        result:=fen_false;
+        case n.nodetype of
+          calln,
+          asmn:
+            result:=fen_norecurse_true;
+          derefn:
+            if n.flags*[nf_write,nf_modify,nf_address_taken]<>[] then
+              result:=fen_norecurse_true;
+          addrn:
+            begin
+              addressednode:=tunarynode(n).left;
+              if addressednode.isequal(vectorcontext^.vectornode.left) or
+                ((addressednode.nodetype=vecn) and
+                 tvecnode(addressednode).left.isequal(vectorcontext^.vectornode.left)) then
+                result:=fen_norecurse_true;
+            end;
+          loadn:
+            if (vectorcontext^.vectornode.left.nodetype=loadn) and
+              (tloadnode(n).symtableentry=tloadnode(vectorcontext^.vectornode.left).symtableentry) and
+              (n.flags*[nf_write,nf_modify,nf_address_taken]<>[]) then
+              result:=fen_norecurse_true;
+          vecn:
+            if tvecnode(n).left.isequal(vectorcontext^.vectornode.left) and
+              (n.flags*[nf_write,nf_modify,nf_address_taken]<>[]) then
+              result:=fen_norecurse_true;
+          else
+            ;
+        end;
+      end;
+
+
     function is_loop_invariant(loop : tnode;expr : tnode) : boolean;
       var
         fieldcontext : tinvariantfieldcontext;
+        vectorcontext : tinvariantvectorcontext;
       begin
         result:=is_constnode(expr);
         case expr.nodetype of
@@ -332,8 +375,12 @@ unit optloop;
             end;
           vecn:
             begin
+              vectorcontext.vectornode:=tvecnode(expr);
               result:=((tvecnode(expr).left.nodetype=loadn) or is_loop_invariant(loop,tvecnode(expr).left)) and
-                is_loop_invariant(loop,tvecnode(expr).right);
+                (expr.flags*[nf_write,nf_modify,nf_address_taken]=[]) and
+                is_loop_invariant(loop,tvecnode(expr).right) and
+                not(foreachnodestatic(pm_preprocess,tfornode(loop).t2,
+                  @invalidatesinvariantvector,@vectorcontext));
             end;
           typeconvn:
             result:=is_loop_invariant(loop,ttypeconvnode(expr).left);
