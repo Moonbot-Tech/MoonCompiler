@@ -33,6 +33,7 @@ CORE_TESTS = (
     "tsetconstbase1",
     "tx86boolconstmovwidth1",
     "tunicodeguidparse1",
+    "tdelphiqualifiedinteger1",
     "tloopinvariantaddr1",
     "tloopinvariantarraywrite1",
     "tdelphiinlineexceptreg1",
@@ -41,6 +42,7 @@ CORE_TESTS = (
 GENERIC_TESTS = (
     "tinlinegenericcomparer1",
     "tnestedgenericarray1",
+    "tqualifiedintegercomparer1",
 )
 OPTIONS = ("O2", "O3")
 NEGATIVE_TESTS = (

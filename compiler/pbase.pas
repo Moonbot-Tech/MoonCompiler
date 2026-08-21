@@ -550,9 +550,24 @@ implementation
                           if searchsym_in_module(tunitsym(srsym).module,current_scanner.pattern+custom_attribute_suffix,srsym,srsymtable) then
                             exit(true);
                         end;
+                      { In object Pascal modes the implicit ObjPas unit
+                        redefines Integer as LongInt on targets wider than
+                        16 bit.  Keep an explicit System.Integer lookup
+                        consistent with that language-level type instead of
+                        exposing System's bootstrap SmallInt alias. }
+                      if (current_scanner.pattern='INTEGER') and
+                         (m_objpas in current_settings.modeswitches) and
+                         (tmodule(tunitsym(srsym).module).globalsymtable=systemunit) then
+                        begin
+                          if voidpointertype.size>2 then
+                            srsym:=s32inttype.typesym
+                          else
+                            srsym:=s16inttype.typesym;
+                          srsymtable:=srsym.owner;
+                        end
                       { system.char? (char=widechar comes from the implicit
                         uachar/uuchar unit -> override) }
-                      if (current_scanner.pattern='CHAR') and
+                      else if (current_scanner.pattern='CHAR') and
                          (tmodule(tunitsym(srsym).module).globalsymtable=systemunit) then
                         begin
                           if m_default_unicodestring in current_settings.modeswitches then
