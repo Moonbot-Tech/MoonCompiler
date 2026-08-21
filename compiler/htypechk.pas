@@ -86,6 +86,7 @@ interface
         procedure calc_distance(st_root:tsymtable;flags:tcallcandidatesflags);
         function  proc_add(st:tsymtable;pd:tprocdef):pcandidate;
         function  compare_delphi_contextual_uint64(currpd,bestpd:pcandidate):integer;
+        function  compare_delphi_same_width_integer_pair(currpd,bestpd:pcandidate):integer;
       public
         constructor init(sym:tprocsym;st:TSymtable;ppn:tnode;flags:tcallcandidatesflags;spezcontext:tspecializationcontext);
         constructor init_operator(op:ttoken;ppn:tnode);
@@ -3594,9 +3595,6 @@ implementation
         end
       end;
 
-
-
-
     function tcallcandidates.compare_delphi_contextual_uint64(currpd,bestpd:pcandidate):integer;
       function contextual_uint64_expression(p:tnode):boolean;
         function originaldef(n:tnode):tdef;
@@ -3668,7 +3666,93 @@ implementation
       end;
 
 
-    function is_better_candidate(currpd,bestpd:pcandidate):integer;
+    function tcallcandidates.compare_delphi_same_width_integer_pair(currpd,bestpd:pcandidate):integer;
+      function next_visible_para(const candidate:pcandidate;var paraidx:integer):tparavarsym;
+        begin
+          while (paraidx>=0) and
+                (vo_is_hidden_para in tparavarsym(candidate^.data.paras[paraidx]).varoptions) do
+            dec(paraidx);
+          if paraidx<0 then
+            result:=nil
+          else
+            begin
+              result:=tparavarsym(candidate^.data.paras[paraidx]);
+              dec(paraidx);
+            end;
+        end;
+
+      function pair_preference(const source,currtarget,besttarget:tdef):integer;
+        var
+          signedtarget : tdef;
+          currsigned,
+          prefer_signed : boolean;
+        begin
+          result:=0;
+          if not (is_integer(source) and is_integer(currtarget) and
+                  is_integer(besttarget)) then
+            exit;
+          if ((torddef(currtarget).ordtype=s32bit) and
+              (torddef(besttarget).ordtype=u32bit)) or
+             ((torddef(currtarget).ordtype=u32bit) and
+              (torddef(besttarget).ordtype=s32bit)) then
+            signedtarget:=s32inttype
+          else if ((torddef(currtarget).ordtype=s64bit) and
+                   (torddef(besttarget).ordtype=u64bit)) or
+                  ((torddef(currtarget).ordtype=u64bit) and
+                   (torddef(besttarget).ordtype=s64bit)) then
+            signedtarget:=s64inttype
+          else
+            exit;
+          currsigned:=is_signed(currtarget);
+          prefer_signed:=is_in_limit(source,signedtarget);
+          if currsigned=prefer_signed then
+            result:=1
+          else
+            result:=-1;
+        end;
+
+      var
+        curridx,
+        bestidx,
+        preference,
+        current : integer;
+        currpara,
+        bestpara : tparavarsym;
+        pt : tcallparanode;
+      begin
+        result:=0;
+        if not (m_delphi in current_settings.modeswitches) then
+          exit;
+        curridx:=currpd^.firstparaidx;
+        bestidx:=bestpd^.firstparaidx;
+        pt:=tcallparanode(FParaNode);
+        preference:=0;
+        while assigned(pt) do
+          begin
+            currpara:=next_visible_para(currpd,curridx);
+            bestpara:=next_visible_para(bestpd,bestidx);
+            if not assigned(currpara) or not assigned(bestpara) then
+              exit(0);
+            if not (currpara.varspez in [vs_var,vs_out]) and
+               not (bestpara.varspez in [vs_var,vs_out]) then
+              begin
+                current:=pair_preference(pt.resultdef,currpara.vardef,bestpara.vardef);
+                if current<>0 then
+                  begin
+                    if preference=0 then
+                      preference:=current
+                    else if preference<>current then
+                      exit(0);
+                  end;
+              end;
+            pt:=tcallparanode(pt.right);
+          end;
+        result:=preference;
+      end;
+
+
+    function is_better_candidate(currpd,bestpd:pcandidate;
+      delphi_integer_pair_preference:integer):integer;
       begin
         {
           Return values:
@@ -3738,6 +3822,9 @@ implementation
           exit;
         if currpd^.ordinal_distance_lo<>bestpd^.ordinal_distance_lo then
           exit(2*ord(currpd^.ordinal_distance_lo<bestpd^.ordinal_distance_lo)-1); { 1 if currpd^.ordinal_distance_lo < bestpd^.ordinal_distance_lo, -1 if the reverse. }
+        is_better_candidate:=delphi_integer_pair_preference;
+        if is_better_candidate<>0 then
+          exit;
         is_better_candidate:=int32(bestpd^.ordinal_distance_secondary)-int32(currpd^.ordinal_distance_secondary); { >0 if currpd^.ordinal_distance_secondary < bestpd^.ordinal_distance_secondary. }
       end;
 
@@ -3807,7 +3894,7 @@ implementation
         if (currpara.vardef.typ = variantdef) or
            (bestpara.vardef.typ = variantdef) then
           begin
-            result:=is_better_candidate(currpd,bestpd);
+            result:=is_better_candidate(currpd,bestpd,0);
             exit;
           end;
 
@@ -3931,7 +4018,8 @@ implementation
            while assigned(hp) do
             begin
               if not singlevariant then
-                res:=is_better_candidate(hp,besthpstart)
+                res:=is_better_candidate(hp,besthpstart,
+                  compare_delphi_same_width_integer_pair(hp,besthpstart))
               else
                 res:=is_better_candidate_single_variant(hp,besthpstart);
               if (res=0) and not hp^.invalid and not besthpstart^.invalid then
@@ -4104,7 +4192,8 @@ implementation
                    if besthpstart^.invalid then res := 1
                    else if hp^.invalid then res := -1
                    else if not singlevariant then
-                     res:=is_better_candidate(hp,besthpstart)
+                     res:=is_better_candidate(hp,besthpstart,
+                       compare_delphi_same_width_integer_pair(hp,besthpstart))
                    else
                      res:=is_better_candidate_single_variant(hp,besthpstart);
                    if (res=0) and not hp^.invalid and not besthpstart^.invalid then
