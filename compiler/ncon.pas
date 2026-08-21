@@ -612,11 +612,15 @@ implementation
            )
            or
            (
-            (tfloatdef(typedef).floattype<>s64currency) and
-            (value_real = trealconstnode(p).value_real) and
-            { floating point compares for non-numbers give strange results usually }
-            is_number_float(value_real) and
-            is_number_float(trealconstnode(p).value_real)
+             (tfloatdef(typedef).floattype<>s64currency) and
+             (value_real = trealconstnode(p).value_real) and
+             { IEEE +0.0 and -0.0 compare numerically equal but are not
+               interchangeable constants unless fast math is requested. }
+             ((cs_opt_fastmath in current_settings.optimizerswitches) or
+              (get_real_sign(value_real)=get_real_sign(trealconstnode(p).value_real))) and
+             { floating point compares for non-numbers give strange results usually }
+             is_number_float(value_real) and
+             is_number_float(trealconstnode(p).value_real)
            )
           );
       end;

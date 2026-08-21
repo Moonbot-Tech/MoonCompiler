@@ -45,12 +45,13 @@ begin
 
   WriteLn('  -0.0 = 0.0              = ', -0.0 = 0.0);
 
-  { Последствие: у деления на ноль знак берётся от знака нуля. }
-  Prod := 0.0 * -1.0;
-  WriteLn('  1/(const -0.0) bits     = ', IntToHex(BitsOf(1.0 / Prod), 16));
-  Zero := 0.0;
-  Prod := Zero * -1.0;
-  WriteLn('  1/(runtime -0.0) bits   = ', IntToHex(BitsOf(1.0 / Prod), 16));
-  WriteLn('  (+inf bits = 7FF0000000000000, -inf = FFF0000000000000)');
+  If BitsOf(-0.0) <> $8000000000000000 then
+    Halt(1);
+  If BitsOf(0.0 * -1.0) <> $8000000000000000 then
+    Halt(2);
+  If BitsOf(Neg) <> $8000000000000000 then
+    Halt(3);
+  If BitsOf(Prod) <> $8000000000000000 then
+    Halt(4);
   WriteLn('done');
 end.
