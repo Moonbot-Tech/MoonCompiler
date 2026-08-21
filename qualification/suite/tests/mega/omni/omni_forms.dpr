@@ -49,7 +49,7 @@ program omni_forms;
 
 uses
 {$ifdef FPC}
-  {$ifdef UNIX}cthreads,{$endif}
+  {$ifdef UNIX}cthreads, cwstring,{$endif}
   fpmonitor,
 {$endif}
   omni_generated_forms_unit,
@@ -111,7 +111,7 @@ begin
   begin
     FailureNames[FailureCount] := Name;
     Inc(FailureCount);
-    WriteLn('FORMS_FAILURE ', string(Name));
+    WriteLn(AnsiString('FORMS_FAILURE '), Name);
   end;
 end;
 

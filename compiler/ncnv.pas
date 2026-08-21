@@ -563,7 +563,16 @@ implementation
                     { widechars are not yet supported }
                     if is_widechar(p2.resultdef) then
                       begin
-                        if block_type<>bt_const then
+                        { A Delphi Unicode character literal still has to be
+                          contextually usable in an 8-bit Pascal set. Sets are
+                          limited to 256 ordinal values, so normalize a fitting
+                          constant before inferring the constructor's set type. }
+                        if (m_delphi in current_settings.modeswitches) and
+                           (m_default_unicodestring in current_settings.modeswitches) and
+                           (p2.nodetype=ordconstn) and
+                           (tordconstnode(p2).value.uvalue<=255) then
+                          tordconstnode(p2).changecharactertype(cansichartype)
+                        else if block_type<>bt_const then
                           inserttypeconv(p2,cansichartype);
                         if (p2.nodetype<>ordconstn) and not (m_default_unicodestring in current_settings.modeswitches) then
                           incompatibletypes(cwidechartype,cansichartype);
@@ -574,8 +583,13 @@ implementation
                      begin
                        if is_widechar(p3.resultdef) then
                          begin
-                           if block_type<>bt_const then
-                             inserttypeconv(p3,cansichartype);
+                            if (m_delphi in current_settings.modeswitches) and
+                               (m_default_unicodestring in current_settings.modeswitches) and
+                               (p3.nodetype=ordconstn) and
+                               (tordconstnode(p3).value.uvalue<=255) then
+                              tordconstnode(p3).changecharactertype(cansichartype)
+                            else if block_type<>bt_const then
+                              inserttypeconv(p3,cansichartype);
                            if (p3.nodetype<>ordconstn) and not (m_default_unicodestring in current_settings.modeswitches) then
                              begin
                                current_filepos:=p3.fileinfo;

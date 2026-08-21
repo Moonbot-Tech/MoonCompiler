@@ -74,6 +74,7 @@ interface
             against the ranges of the type definition.
           }
           constructor create(const v : tconstexprint;def:tdef; _rangecheck : boolean);virtual;
+          procedure changecharactertype(def:tdef);
           constructor ppuload(t:tnodetype;ppufile:tcompilerppufile);override;
           procedure ppuwrite(ppufile:tcompilerppufile);override;
           procedure buildderefimpl;override;
@@ -679,6 +680,15 @@ implementation
          typedef:=def;
          rangecheck := _rangecheck;
          delphisign:=ds_none;
+      end;
+
+
+    procedure tordconstnode.changecharactertype(def:tdef);
+      begin
+        resultdef:=def;
+        typedef:=def;
+        value.signed:=false;
+        delphisign:=ds_none;
       end;
 
 

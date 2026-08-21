@@ -677,11 +677,20 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
            uchar :
              begin
                 if is_constwidecharnode(node) then
-                  inserttypeconv(node,cansichartype);
-                if is_constcharnode(node) or
-                  ((m_delphi in current_settings.modeswitches) and
-                   is_constwidecharnode(node) and
-                   (tordconstnode(node).value <= 255)) then
+                  begin
+                    { A fitting Delphi-Unicode literal remains contextually
+                      usable in a typed AnsiChar aggregate.  Change only the
+                      constant's character type: the generic Unicode-to-ANSI
+                      conversion depends on the target source code page and
+                      rejects this valid form on UTF-8 hosts. }
+                    if (m_delphi in current_settings.modeswitches) and
+                       (m_default_unicodestring in current_settings.modeswitches) and
+                       (tordconstnode(node).value.uvalue<=255) then
+                      tordconstnode(node).changecharactertype(cansichartype)
+                    else
+                      inserttypeconv(node,cansichartype);
+                  end;
+                if is_constcharnode(node) then
                   ftcb.emit_ord_const(byte(tordconstnode(node).value.svalue),def)
                 else
                   do_error;

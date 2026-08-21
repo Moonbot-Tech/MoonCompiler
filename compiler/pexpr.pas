@@ -6378,7 +6378,12 @@ implementation
 
              _CCHAR :
                begin
-                 p1:=cordconstnode.create(ord(current_scanner.pattern[1]),cansichartype,true);
+                 if (m_delphi in current_settings.modeswitches) and
+                    (m_default_unicodestring in current_settings.modeswitches) and
+                    (ord(current_scanner.pattern[1])<128) then
+                   p1:=cordconstnode.create(ord(current_scanner.pattern[1]),cwidechartype,true)
+                 else
+                   p1:=cordconstnode.create(ord(current_scanner.pattern[1]),cansichartype,true);
                  consume(_CCHAR);
                  if current_scanner.token=_POINT then
                    begin

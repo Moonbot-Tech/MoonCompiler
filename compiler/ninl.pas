@@ -2739,7 +2739,11 @@ implementation
               in_chr_byte:
                 begin
                    { convert to explicit char() }
-                   result:=ctypeconvnode.create_internal(left,cansichartype);
+                   if (m_delphi in current_settings.modeswitches) and
+                      (m_default_unicodestring in current_settings.modeswitches) then
+                     result:=ctypeconvnode.create_internal(left,cwidechartype)
+                   else
+                     result:=ctypeconvnode.create_internal(left,cansichartype);
                    left:=nil;
                 end;
               in_length_x:

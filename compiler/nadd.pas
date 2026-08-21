@@ -2847,6 +2847,30 @@ const
         rt:=right.nodetype;
         lt:=left.nodetype;
 
+        { Delphi lets ordinal character constants adopt the byte-string
+          context of RawByteString concatenation.  Keep genuinely wide
+          operands (variables, expressions and values above AnsiChar) wide. }
+        if (m_delphi in current_settings.modeswitches) and
+           (m_default_unicodestring in current_settings.modeswitches) and
+           (nodetype=addn) and
+           (anf_rawbytestring_concat in addnodeflags) then
+          begin
+            if (lt=ordconstn) and is_widechar(ld) and
+               (tordconstnode(left).value.uvalue<=255) then
+              begin
+                inserttypeconv_internal(left,cansichartype);
+                lt:=left.nodetype;
+                ld:=left.resultdef;
+              end;
+            if (rt=ordconstn) and is_widechar(rd) and
+               (tordconstnode(right).value.uvalue<=255) then
+              begin
+                inserttypeconv_internal(right,cansichartype);
+                rt:=right.nodetype;
+                rd:=right.resultdef;
+              end;
+          end;
+
          { 4 character constant strings are compatible with orddef }
          { in macpas mode (become cardinals)                       }
          if (m_mac in current_settings.modeswitches) and

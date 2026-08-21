@@ -432,19 +432,22 @@ implementation
                end
              else
                begin
-                 if is_char(casedef) and is_widechar(p.resultdef) then
+                 if is_char(casedef) then
                    begin
-                      if (p.nodetype=ordconstn) then
-                        begin
-                           p:=ctypeconvnode.create(p,cansichartype);
-                           do_typecheckpass(p);
-                        end
+                      if (p.nodetype=ordconstn) and
+                         is_widechar(p.resultdef) and
+                         (tordconstnode(p).value.uvalue<=255) then
+                        tordconstnode(p).changecharactertype(cansichartype)
                       else if (p.nodetype=rangen) then
                         begin
-                           trangenode(p).left:=ctypeconvnode.create(trangenode(p).left,cansichartype);
-                           trangenode(p).right:=ctypeconvnode.create(trangenode(p).right,cansichartype);
-                           do_typecheckpass(trangenode(p).left);
-                           do_typecheckpass(trangenode(p).right);
+                           if (trangenode(p).left.nodetype=ordconstn) and
+                              is_widechar(trangenode(p).left.resultdef) and
+                              (tordconstnode(trangenode(p).left).value.uvalue<=255) then
+                             tordconstnode(trangenode(p).left).changecharactertype(cansichartype);
+                           if (trangenode(p).right.nodetype=ordconstn) and
+                              is_widechar(trangenode(p).right.resultdef) and
+                              (tordconstnode(trangenode(p).right).value.uvalue<=255) then
+                             tordconstnode(trangenode(p).right).changecharactertype(cansichartype);
                         end;
                    end;
                end;
