@@ -66,6 +66,7 @@ class Build:
         self.digest = ""
         self.checks = 0
         self.timed_out = False
+        self.run_exit: int | None = None
         self.layers: set[str] = set()
         # a subtotal per layer: what turns "something diverged" into "this
         # layer diverged" when the value that moved carries no check name
@@ -126,6 +127,7 @@ def build_fpc(work: Path, profile: str, defines: list[str], timeout: int,
     build.compiled = True
     # a generated program must never run long; anything slower is a hang
     code, output = run([str(exe)], work, min(timeout, 120))
+    build.run_exit = code
     build.timed_out = code == 124
     build.parse(output)
     return build
@@ -260,6 +262,7 @@ def build_separate(work: Path, profile: str, defines: list[str],
         return build
     build.compiled = True
     code, output = run([str(exe)], work, min(timeout, 120))
+    build.run_exit = code
     build.timed_out = code == 124
     build.parse(output)
     return build
@@ -280,6 +283,7 @@ def build_delphi(work: Path, dcc: Path, lib: Path, timeout: int) -> Build:
         return build
     build.compiled = True
     code, output = run([str(exe)], work, timeout)
+    build.run_exit = code
     build.timed_out = code == 124
     build.parse(output)
     return build
@@ -339,6 +343,13 @@ def compare(builds: list[Build]) -> list[dict]:
                 "detail": lines[:4] or b.compile_log.strip().splitlines()[-3:]})
         elif b.timed_out:
             findings.append({"kind": "timeout", "build": b.label})
+        elif (b.run_exit not in (None, 0)) or not b.digest:
+            findings.append({
+                "kind": "runtime-failed",
+                "build": b.label,
+                "exit": b.run_exit,
+                "detail": b.output.strip().splitlines()[-6:],
+            })
     # a check whose prefix is not a layer would be silently excluded from
     # every comparison by the rule below, and the divergence would survive only
     # as a digest with no name attached: refuse to pretend that is a pass

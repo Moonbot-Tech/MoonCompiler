@@ -69,6 +69,21 @@ class DevilRunnerContractsTest(unittest.TestCase):
         self.assertIn("SmallGetmemSleepCount > Waited", source)
         self.assertNotIn("DevilNoteLoose('dvl-load-contended-240-waited'", source)
 
+    def test_main_comparison_rejects_runtime_without_terminal_summary(self) -> None:
+        build = run_devil_gate.Build("release")
+        build.compiled = True
+        build.run_exit = 217
+        build.output = "EVariantTypeCastError: broken generated form"
+        self.assertEqual(
+            run_devil_gate.compare([build]),
+            [{
+                "kind": "runtime-failed",
+                "build": "release",
+                "exit": 217,
+                "detail": ["EVariantTypeCastError: broken generated form"],
+            }],
+        )
+
     def test_main_report_keeps_known_hits(self) -> None:
         def build(_work: Path, profile: str, _defines: list[str],
                   _timeout: int, reuse: bool = False) -> run_devil_gate.Build:
