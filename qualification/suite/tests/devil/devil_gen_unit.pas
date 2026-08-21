@@ -47,13 +47,6 @@ function DvlUnitFn00015(X: Byte): Byte;
 function DvlUnitFn00018(X: Word): Word;
 const
   DvlUnitConst00019 = Cardinal(2);
-function DvlUnitFn00021(const R: TDvlUnitRec): Int64;
-function DvlUnitFn00022(const R: TDvlUnitRec): Int64;
-function DvlUnitFn00023(X: Integer): Integer;
-function DvlUnitFn00024(const R: TDvlUnitRec): Int64;
-function DvlUnitFn00025(X: ShortInt): ShortInt;
-function DvlUnitFn00026(const R: TDvlUnitRec): Int64;
-function DvlUnitFn00028(const R: TDvlUnitRec): Int64;
 
 implementation
 
@@ -112,41 +105,6 @@ var
 begin
   B.Value := X;
   Result := B.Read;
-end;
-
-function DvlUnitFn00021(const R: TDvlUnitRec): Int64;
-begin
-  Result := R.A + R.B + Length(R.S);
-end;
-
-function DvlUnitFn00022(const R: TDvlUnitRec): Int64;
-begin
-  Result := R.A + R.B + Length(R.S);
-end;
-
-function DvlUnitFn00023(X: Integer): Integer;
-begin
-  Result := DvlSecondEchoi32(X);
-end;
-
-function DvlUnitFn00024(const R: TDvlUnitRec): Int64;
-begin
-  Result := R.A + R.B + Length(R.S);
-end;
-
-function DvlUnitFn00025(X: ShortInt): ShortInt;
-begin
-  Result := DvlSecondEchoi8(X);
-end;
-
-function DvlUnitFn00026(const R: TDvlUnitRec): Int64;
-begin
-  Result := R.A + R.B + Length(R.S);
-end;
-
-function DvlUnitFn00028(const R: TDvlUnitRec): Int64;
-begin
-  Result := R.A + R.B + Length(R.S);
 end;
 
 end.

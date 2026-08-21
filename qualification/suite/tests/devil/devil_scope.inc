@@ -510,7 +510,7 @@ var
 
 function DvlScAsk00017: Integer;
 var
-  Items: TArray<Integer>;
+  Items: System.TArray<Integer>;
 begin
   DvlScItem00017 := 1;
   SetLength(Items, 1);

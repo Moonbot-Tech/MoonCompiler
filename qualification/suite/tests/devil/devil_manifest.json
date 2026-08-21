@@ -1,113 +1,1256 @@
 {
-  "case_count": 120,
+  "case_count": 1115,
   "cases": [
+    {
+      "a": 24,
+      "b": 17,
+      "consumer": "array-index",
+      "contexts": [
+        "closure"
+      ],
+      "expected": 162,
+      "layer": "expr",
+      "name": "dvl-expr-00000",
+      "op": "mod",
+      "source_a": "opaque",
+      "source_b": "literal",
+      "type": "u8"
+    },
+    {
+      "a": 17,
+      "b": 0,
+      "consumer": "array-index",
+      "contexts": [
+        "none",
+        "try-except",
+        "for-loop",
+        "case-branch"
+      ],
+      "expected": 180,
+      "layer": "expr",
+      "name": "dvl-expr-00001",
+      "op": "sub",
+      "source_a": "property",
+      "source_b": "typed-const",
+      "type": "u8"
+    },
+    {
+      "a": -2147483647,
+      "b": -1774469815,
+      "consumer": "array-index",
+      "contexts": [
+        "none"
+      ],
+      "expected": 236,
+      "layer": "expr",
+      "name": "dvl-expr-00002",
+      "op": "mul",
+      "source_a": "literal",
+      "source_b": "array-element",
+      "type": "i32"
+    },
+    {
+      "a": 4294967296,
+      "b": 2,
+      "consumer": "case-selector",
+      "contexts": [
+        "while-loop",
+        "for-loop"
+      ],
+      "expected": 3,
+      "layer": "expr",
+      "name": "dvl-expr-00003",
+      "op": "mod",
+      "source_a": "typed-const",
+      "source_b": "property",
+      "type": "i64"
+    },
+    {
+      "a": 4294967294,
+      "b": 7,
+      "consumer": "func-result",
+      "contexts": [
+        "repeat-until",
+        "try-except",
+        "nested-proc"
+      ],
+      "expected": 4294967040,
+      "layer": "expr",
+      "name": "dvl-expr-00004",
+      "op": "shl",
+      "source_a": "const-param",
+      "source_b": "property",
+      "type": "u32"
+    },
+    {
+      "a": -2147483648,
+      "b": 1,
+      "consumer": "array-element",
+      "contexts": [
+        "try-finally",
+        "with-record",
+        "try-finally"
+      ],
+      "expected": 2147483649,
+      "layer": "expr",
+      "name": "dvl-expr-00005",
+      "op": "xor",
+      "source_a": "literal",
+      "source_b": "local",
+      "type": "i32"
+    },
+    {
+      "a": 17,
+      "b": 17,
+      "consumer": "case-selector",
+      "contexts": [
+        "nested-proc"
+      ],
+      "expected": 14,
+      "layer": "expr",
+      "name": "dvl-expr-00006",
+      "op": "or",
+      "source_a": "field",
+      "source_b": "func-result",
+      "type": "u8"
+    },
+    {
+      "a": 2,
+      "b": 2,
+      "consumer": "assign",
+      "contexts": [
+        "nested-proc",
+        "nested-proc"
+      ],
+      "expected": 2,
+      "layer": "expr",
+      "name": "dvl-expr-00007",
+      "op": "and",
+      "source_a": "typed-const",
+      "source_b": "array-element",
+      "type": "u32"
+    },
+    {
+      "a": 4687595906851508212,
+      "consumer": "assign",
+      "contexts": [],
+      "expected": 4687595906851508211,
+      "layer": "unary",
+      "name": "dvl-unary-00000",
+      "op": "pred",
+      "source": "opaque",
+      "type": "u64"
+    },
+    {
+      "a": 18446744073709551614,
+      "consumer": "func-result",
+      "contexts": [
+        "case-branch",
+        "repeat-until"
+      ],
+      "expected": 18446744073709551615,
+      "layer": "unary",
+      "name": "dvl-unary-00001",
+      "op": "succ",
+      "source": "array-element",
+      "type": "u64"
+    },
+    {
+      "a": 2,
+      "consumer": "array-index",
+      "contexts": [
+        "case-branch"
+      ],
+      "expected": 167,
+      "layer": "unary",
+      "name": "dvl-unary-00002",
+      "op": "abs",
+      "source": "typed-const",
+      "type": "i8"
+    },
+    {
+      "a": -1,
+      "consumer": "loop-bound",
+      "contexts": [
+        "with-record",
+        "try-except"
+      ],
+      "expected": 3,
+      "layer": "unary",
+      "name": "dvl-unary-00003",
+      "op": "neg",
+      "source": "const-param",
+      "type": "i64"
+    },
+    {
+      "a": 83,
+      "consumer": "array-index",
+      "contexts": [
+        "managed-scope",
+        "while-loop"
+      ],
+      "expected": 76,
+      "layer": "unary",
+      "name": "dvl-unary-00004",
+      "op": "sqr",
+      "source": "typed-const",
+      "type": "u8"
+    },
+    {
+      "a": 15,
+      "consumer": "case-selector",
+      "contexts": [],
+      "expected": 14,
+      "layer": "unary",
+      "name": "dvl-unary-00005",
+      "op": "sqr",
+      "source": "const-param",
+      "type": "u8"
+    },
+    {
+      "a": 32768,
+      "consumer": "loop-bound",
+      "contexts": [
+        "runtime-if",
+        "raise-catch"
+      ],
+      "expected": 1,
+      "layer": "unary",
+      "name": "dvl-unary-00006",
+      "op": "sqr",
+      "source": "const-param",
+      "type": "u16"
+    },
+    {
+      "a": 4336978367191435351,
+      "consumer": "func-result",
+      "contexts": [
+        "nested-proc"
+      ],
+      "expected": 14008881780683836817,
+      "layer": "unary",
+      "name": "dvl-unary-00007",
+      "op": "sqr",
+      "source": "local",
+      "type": "i64"
+    },
+    {
+      "a": 4984,
+      "b": 29,
+      "contexts": [
+        "case-branch"
+      ],
+      "dest": "i64",
+      "exact": 0,
+      "layer": "fold",
+      "name": "dvl-fold-00000",
+      "op": "shr",
+      "oracle": "differential+exact",
+      "type_a": "i16",
+      "type_b": "u8"
+    },
+    {
+      "a": 16,
+      "b": 10192,
+      "contexts": [
+        "closure",
+        "runtime-if",
+        "none"
+      ],
+      "dest": "u64",
+      "exact": 10208,
+      "layer": "fold",
+      "name": "dvl-fold-00001",
+      "op": "add",
+      "oracle": "differential+exact",
+      "type_a": "u8",
+      "type_b": "u16"
+    },
+    {
+      "a": -1,
+      "b": 3846350269,
+      "contexts": [],
+      "dest": "i64",
+      "exact": 3846350268,
+      "layer": "fold",
+      "name": "dvl-fold-00002",
+      "op": "add",
+      "oracle": "differential+exact",
+      "type_a": "i16",
+      "type_b": "u32"
+    },
+    {
+      "a": 1,
+      "b": 1,
+      "contexts": [
+        "try-finally",
+        "case-branch"
+      ],
+      "dest": "u64",
+      "exact": 0,
+      "layer": "fold",
+      "name": "dvl-fold-00003",
+      "op": "mod",
+      "oracle": "differential+exact",
+      "type_a": "i64",
+      "type_b": "u64"
+    },
+    {
+      "a": 256,
+      "b": 24,
+      "contexts": [
+        "with-record",
+        "raise-catch"
+      ],
+      "dest": "u64",
+      "exact": 4294967296,
+      "layer": "fold",
+      "name": "dvl-fold-00004",
+      "op": "shl",
+      "oracle": "differential+exact",
+      "type_a": "i16",
+      "type_b": "u8"
+    },
+    {
+      "a": 127,
+      "b": 4580,
+      "contexts": [
+        "while-loop"
+      ],
+      "dest": "i64",
+      "exact": 4507,
+      "layer": "fold",
+      "name": "dvl-fold-00005",
+      "op": "xor",
+      "oracle": "differential+exact",
+      "type_a": "i8",
+      "type_b": "i16"
+    },
+    {
+      "a": 2147483647,
+      "b": 65535,
+      "contexts": [
+        "with-record"
+      ],
+      "dest": "i64",
+      "exact": 2147549182,
+      "layer": "fold",
+      "name": "dvl-fold-00006",
+      "op": "add",
+      "oracle": "differential+exact",
+      "type_a": "i32",
+      "type_b": "u32"
+    },
+    {
+      "a": 3042340808395412894,
+      "b": 17,
+      "contexts": [],
+      "dest": "u64",
+      "exact": 3042340808395412877,
+      "layer": "fold",
+      "name": "dvl-fold-00007",
+      "op": "sub",
+      "oracle": "differential+exact",
+      "type_a": "i64",
+      "type_b": "u8"
+    },
+    {
+      "a": -1,
+      "b": 1,
+      "contexts": [],
+      "layer": "cmp",
+      "mixed": false,
+      "name": "dvl-cmp-00000",
+      "op": "ne",
+      "type_a": "i16",
+      "type_b": "i16"
+    },
+    {
+      "a": 1,
+      "b": 257,
+      "contexts": [],
+      "layer": "cmp",
+      "mixed": false,
+      "name": "dvl-cmp-00001",
+      "op": "eq",
+      "type_a": "i16",
+      "type_b": "i16"
+    },
+    {
+      "a": 16,
+      "b": 2,
+      "contexts": [],
+      "layer": "cmp",
+      "mixed": false,
+      "name": "dvl-cmp-00002",
+      "op": "eq",
+      "type_a": "u8",
+      "type_b": "u8"
+    },
+    {
+      "a": 17,
+      "b": 254,
+      "contexts": [],
+      "layer": "cmp",
+      "mixed": false,
+      "name": "dvl-cmp-00003",
+      "op": "gt",
+      "type_a": "u8",
+      "type_b": "u8"
+    },
+    {
+      "a": 1,
+      "b": 2,
+      "contexts": [
+        "try-except"
+      ],
+      "layer": "cmp",
+      "mixed": false,
+      "name": "dvl-cmp-00004",
+      "op": "ne",
+      "type_a": "u32",
+      "type_b": "u32"
+    },
+    {
+      "a": 126,
+      "b": 2,
+      "contexts": [
+        "runtime-if",
+        "none"
+      ],
+      "layer": "cmp",
+      "mixed": false,
+      "name": "dvl-cmp-00005",
+      "op": "eq",
+      "type_a": "i8",
+      "type_b": "i8"
+    },
+    {
+      "a": -32767,
+      "b": 256,
+      "contexts": [],
+      "layer": "cmp",
+      "mixed": true,
+      "name": "dvl-cmp-00006",
+      "op": "le",
+      "type_a": "i16",
+      "type_b": "u16"
+    },
+    {
+      "a": 126,
+      "b": 2,
+      "contexts": [
+        "closure"
+      ],
+      "layer": "cmp",
+      "mixed": true,
+      "name": "dvl-cmp-00007",
+      "op": "ne",
+      "type_a": "i8",
+      "type_b": "i16"
+    },
+    {
+      "contexts": [
+        "repeat-until"
+      ],
+      "count": 2,
+      "layer": "life",
+      "name": "dvl-life-00000",
+      "shape": "array-shrink"
+    },
+    {
+      "contexts": [
+        "repeat-until"
+      ],
+      "count": 3,
+      "layer": "life",
+      "name": "dvl-life-00001",
+      "shape": "locals-exit"
+    },
+    {
+      "contexts": [
+        "try-except"
+      ],
+      "count": 3,
+      "layer": "life",
+      "name": "dvl-life-00002",
+      "shape": "record-fields"
+    },
+    {
+      "contexts": [],
+      "count": 0,
+      "layer": "life",
+      "name": "dvl-life-00003",
+      "shape": "managed-record-scope"
+    },
+    {
+      "contexts": [
+        "try-except"
+      ],
+      "count": 3,
+      "layer": "life",
+      "name": "dvl-life-00004",
+      "shape": "array-element-nil"
+    },
+    {
+      "contexts": [],
+      "count": 0,
+      "layer": "life",
+      "name": "dvl-life-00005",
+      "shape": "managed-record-array"
+    },
+    {
+      "contexts": [],
+      "count": 1,
+      "layer": "life",
+      "name": "dvl-life-00006",
+      "shape": "nested-record"
+    },
+    {
+      "contexts": [
+        "for-loop"
+      ],
+      "count": 0,
+      "layer": "life",
+      "name": "dvl-life-00007",
+      "shape": "managed-record-scope"
+    },
+    {
+      "contexts": [],
+      "count": 2,
+      "layer": "life",
+      "name": "dvl-life-00008",
+      "shape": "byval-record"
+    },
+    {
+      "contexts": [
+        "managed-scope"
+      ],
+      "count": 0,
+      "layer": "life",
+      "name": "dvl-life-00009",
+      "shape": "string-cow"
+    },
+    {
+      "contexts": [],
+      "count": 1,
+      "layer": "life",
+      "name": "dvl-life-00010",
+      "shape": "closure-capture"
+    },
+    {
+      "contexts": [],
+      "count": 2,
+      "layer": "life",
+      "name": "dvl-life-00011",
+      "shape": "out-param"
+    },
+    {
+      "contexts": [],
+      "count": 4,
+      "layer": "life",
+      "name": "dvl-life-00012",
+      "shape": "locals-exit"
+    },
+    {
+      "contexts": [],
+      "count": 0,
+      "layer": "life",
+      "name": "dvl-life-00013",
+      "shape": "loop-churn"
+    },
+    {
+      "contexts": [],
+      "count": 0,
+      "layer": "life",
+      "name": "dvl-life-00014",
+      "shape": "managed-record-array"
+    },
+    {
+      "contexts": [
+        "case-branch"
+      ],
+      "count": 2,
+      "layer": "life",
+      "name": "dvl-life-00015",
+      "shape": "byval-record"
+    },
+    {
+      "contexts": [],
+      "count": 1,
+      "layer": "life",
+      "name": "dvl-life-00016",
+      "shape": "nested-record"
+    },
+    {
+      "contexts": [],
+      "count": 2,
+      "layer": "life",
+      "name": "dvl-life-00017",
+      "shape": "locals-normal"
+    },
+    {
+      "contexts": [
+        "raise-catch"
+      ],
+      "count": 1,
+      "layer": "life",
+      "name": "dvl-life-00018",
+      "shape": "func-result"
+    },
+    {
+      "contexts": [],
+      "count": 3,
+      "layer": "life",
+      "name": "dvl-life-00019",
+      "shape": "locals-exit"
+    },
+    {
+      "fields": [
+        "u16",
+        "u64",
+        "i32",
+        "set8",
+        "wch",
+        "u64"
+      ],
+      "layer": "abi",
+      "layout": "plain",
+      "name": "dvl-abi-00000"
+    },
+    {
+      "fields": [
+        "arr3",
+        "arr3"
+      ],
+      "layer": "abi",
+      "layout": "align16",
+      "name": "dvl-abi-00001"
+    },
+    {
+      "fields": [
+        "i16",
+        "f32"
+      ],
+      "layer": "abi",
+      "layout": "align8",
+      "name": "dvl-abi-00002"
+    },
+    {
+      "fields": [
+        "astr",
+        "set8",
+        "f64",
+        "ach"
+      ],
+      "layer": "abi",
+      "layout": "align4",
+      "name": "dvl-abi-00003"
+    },
+    {
+      "fields": [
+        "cur",
+        "f32"
+      ],
+      "layer": "abi",
+      "layout": "align1",
+      "name": "dvl-abi-00004"
+    },
+    {
+      "fields": [
+        "set8",
+        "wbool",
+        "i64"
+      ],
+      "layer": "abi",
+      "layout": "plain",
+      "name": "dvl-abi-00005"
+    },
+    {
+      "fields": [
+        "set8",
+        "u32",
+        "i16",
+        "u8",
+        "pt"
+      ],
+      "layer": "abi",
+      "layout": "align8",
+      "name": "dvl-abi-00006"
+    },
+    {
+      "fields": [
+        "cur",
+        "bool",
+        "u64",
+        "i64",
+        "pt"
+      ],
+      "layer": "abi",
+      "layout": "align1",
+      "name": "dvl-abi-00007"
+    },
+    {
+      "fields": [
+        "set8",
+        "ach",
+        "arr3",
+        "u16"
+      ],
+      "layer": "abi",
+      "layout": "align8",
+      "name": "dvl-abi-00008"
+    },
+    {
+      "fields": [
+        "u64",
+        "u8",
+        "pt"
+      ],
+      "layer": "abi",
+      "layout": "plain",
+      "name": "dvl-abi-00009"
+    },
+    {
+      "fields": [
+        "arri2",
+        "wch",
+        "set32",
+        "pt",
+        "i32",
+        "intf"
+      ],
+      "layer": "abi",
+      "layout": "packed",
+      "name": "dvl-abi-00010"
+    },
+    {
+      "fields": [
+        "pt",
+        "ustr"
+      ],
+      "layer": "abi",
+      "layout": "align4",
+      "name": "dvl-abi-00011"
+    },
+    {
+      "fields": [
+        "astr",
+        "wbool",
+        "u8",
+        "ach",
+        "cur"
+      ],
+      "layer": "abi",
+      "layout": "packed",
+      "name": "dvl-abi-00012"
+    },
+    {
+      "fields": [
+        "set32",
+        "arri2",
+        "set8",
+        "u64",
+        "set8",
+        "u32"
+      ],
+      "layer": "abi",
+      "layout": "align2",
+      "name": "dvl-abi-00013"
+    },
+    {
+      "fields": [
+        "i32",
+        "i16",
+        "u64"
+      ],
+      "layer": "abi",
+      "layout": "align8",
+      "name": "dvl-abi-00014"
+    },
+    {
+      "fields": [
+        "i8",
+        "f32",
+        "set32"
+      ],
+      "layer": "abi",
+      "layout": "align1",
+      "name": "dvl-abi-00015"
+    },
+    {
+      "fields": [
+        "intf",
+        "u64",
+        "u32",
+        "i16",
+        "arri2"
+      ],
+      "layer": "abi",
+      "layout": "align1",
+      "name": "dvl-abi-00016"
+    },
+    {
+      "fields": [
+        "bool",
+        "u64",
+        "i32"
+      ],
+      "layer": "abi",
+      "layout": "align2",
+      "name": "dvl-abi-00017"
+    },
+    {
+      "fields": [
+        "intf",
+        "arri2",
+        "arr3",
+        "u16",
+        "set8",
+        "arr3"
+      ],
+      "layer": "abi",
+      "layout": "align16",
+      "name": "dvl-abi-00018"
+    },
+    {
+      "fields": [
+        "f32",
+        "set8"
+      ],
+      "layer": "abi",
+      "layout": "align8",
+      "name": "dvl-abi-00019"
+    },
+    {
+      "from": "u64",
+      "kind": "convert",
+      "layer": "float",
+      "name": "dvl-float-00000",
+      "value": 6622657242666429787
+    },
+    {
+      "from": "double",
+      "kind": "convert",
+      "layer": "float",
+      "name": "dvl-float-00001",
+      "value": 1048576.0
+    },
+    {
+      "a": -7.75,
+      "b": -1039031.0,
+      "kind": "compare",
+      "layer": "float",
+      "name": "dvl-float-00002",
+      "op": "gt"
+    },
+    {
+      "float": -4.0,
+      "int": 1288577536,
+      "kind": "mixed-int",
+      "layer": "float",
+      "name": "dvl-float-00003",
+      "type": "u32"
+    },
+    {
+      "a": 152669771,
+      "b": -583290,
+      "k": 8,
+      "kind": "currency",
+      "layer": "float",
+      "name": "dvl-float-00004",
+      "op": "sub"
+    },
+    {
+      "a": -2147483648.0,
+      "b": -2147483648.0,
+      "kind": "single",
+      "layer": "float",
+      "name": "dvl-float-00005",
+      "op": "div",
+      "type": "Single"
+    },
+    {
+      "kind": "extended-width",
+      "layer": "float",
+      "name": "dvl-float-00006",
+      "value": 1.0
+    },
+    {
+      "a": 3.5,
+      "b": -15045.90625,
+      "kind": "compare",
+      "layer": "float",
+      "name": "dvl-float-00007",
+      "op": "lt"
+    },
+    {
+      "a": "",
+      "b": "MiXeD",
+      "layer": "str",
+      "name": "dvl-str-00000",
+      "op": "pos",
+      "type": "u8str"
+    },
+    {
+      "a": "ab",
+      "b": "ab",
+      "layer": "str",
+      "name": "dvl-str-00001",
+      "op": "concat",
+      "type": "ustr"
+    },
+    {
+      "a": "  spaced  ",
+      "b": "0123456789",
+      "layer": "str",
+      "name": "dvl-str-00002",
+      "op": "empty-concat",
+      "type": "u8str"
+    },
+    {
+      "a": "a",
+      "b": "zz",
+      "layer": "str",
+      "name": "dvl-str-00003",
+      "op": "insert",
+      "type": "sstr"
+    },
+    {
+      "a": "wotveyjkaqu",
+      "b": "zz",
+      "layer": "str",
+      "name": "dvl-str-00004",
+      "op": "index-write",
+      "type": "ustr"
+    },
+    {
+      "a": "  spaced  ",
+      "b": "ocwovezj",
+      "layer": "str",
+      "name": "dvl-str-00005",
+      "op": "copy",
+      "type": "astr"
+    },
+    {
+      "a": "0123456789",
+      "b": "0123456789",
+      "layer": "str",
+      "name": "dvl-str-00006",
+      "op": "upper",
+      "type": "astr"
+    },
+    {
+      "a": "The quick brown",
+      "b": "ab",
+      "layer": "str",
+      "name": "dvl-str-00007",
+      "op": "self-concat",
+      "type": "sstr"
+    },
+    {
+      "a": "The quick brown",
+      "b": "  spaced  ",
+      "layer": "str",
+      "name": "dvl-str-00008",
+      "op": "copy",
+      "type": "u8str"
+    },
+    {
+      "a": "ab",
+      "b": "The quick brown",
+      "layer": "str",
+      "name": "dvl-str-00009",
+      "op": "pos",
+      "type": "ustr"
+    },
+    {
+      "a": "0123456789",
+      "b": "  spaced  ",
+      "layer": "str",
+      "name": "dvl-str-00010",
+      "op": "upper",
+      "type": "astr"
+    },
+    {
+      "a": "abc",
+      "b": "zz",
+      "layer": "str",
+      "name": "dvl-str-00011",
+      "op": "compare",
+      "type": "sstr"
+    },
+    {
+      "a": "a",
+      "b": "The quick brown",
+      "layer": "str",
+      "name": "dvl-str-00012",
+      "op": "empty-concat",
+      "type": "ustr"
+    },
+    {
+      "a": "MiXeD",
+      "b": "zz",
+      "layer": "str",
+      "name": "dvl-str-00013",
+      "op": "upper",
+      "type": "astr"
+    },
+    {
+      "a": "The quick brown",
+      "b": "MiXeD",
+      "layer": "str",
+      "name": "dvl-str-00014",
+      "op": "concat",
+      "type": "astr"
+    },
+    {
+      "a": "MiXeD",
+      "b": "abc",
+      "layer": "str",
+      "name": "dvl-str-00015",
+      "op": "delete",
+      "type": "ustr"
+    },
+    {
+      "a": "abcdef",
+      "b": "The quick brown",
+      "layer": "str",
+      "name": "dvl-str-00016",
+      "op": "insert",
+      "type": "ustr"
+    },
+    {
+      "a": "ab",
+      "b": "ab",
+      "layer": "str",
+      "name": "dvl-str-00017",
+      "op": "trim",
+      "type": "astr"
+    },
+    {
+      "a": "",
+      "b": "dxfw",
+      "layer": "str",
+      "name": "dvl-str-00018",
+      "op": "empty-concat",
+      "type": "astr"
+    },
+    {
+      "a": "gtxcrus",
+      "b": "a",
+      "layer": "str",
+      "name": "dvl-str-00019",
+      "op": "setlength",
+      "type": "u8str"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00000",
+      "shape": "procvar-swap"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00001",
+      "shape": "procvar-swap"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00002",
+      "shape": "dynamic-method"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00003",
+      "shape": "interface-call"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00004",
+      "shape": "procvar-swap"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00005",
+      "shape": "anon-invoke"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00006",
+      "shape": "method-pointer"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00007",
+      "shape": "virtual-chain"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00008",
+      "shape": "class-helper"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00009",
+      "shape": "virtual-chain"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00010",
+      "shape": "interface-call"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00011",
+      "shape": "class-helper"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00012",
+      "shape": "anon-invoke"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00013",
+      "shape": "class-helper"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00014",
+      "shape": "abstract-override"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00015",
+      "shape": "dynamic-method"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00016",
+      "shape": "interface-call"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00017",
+      "shape": "dynamic-method"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00018",
+      "shape": "method-pointer"
+    },
+    {
+      "layer": "disp",
+      "name": "dvl-disp-00019",
+      "shape": "abstract-override"
+    },
     {
       "layer": "gen",
       "name": "dvl-gen-00000",
-      "shape": "array-of-t",
-      "type": "i64"
+      "shape": "nested-spec",
+      "type": "i8"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00001",
-      "shape": "box-managed",
-      "type": "u16"
+      "shape": "array-of-t",
+      "type": "u32"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00002",
       "shape": "class-var-per-spec",
-      "type": "u32"
+      "type": "u16"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00003",
-      "shape": "swap-generic",
-      "type": "u8"
+      "shape": "generic-method",
+      "type": "u16"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00004",
       "shape": "nested-spec",
-      "type": "u32"
+      "type": "u64"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00005",
-      "shape": "generic-method",
-      "type": "u64"
+      "shape": "constraint-class",
+      "type": "u16"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00006",
-      "shape": "array-of-t",
-      "type": "u64"
+      "shape": "generic-record-op",
+      "type": "i64"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00007",
-      "shape": "generic-record-op",
-      "type": "u32"
+      "shape": "constraint-class",
+      "type": "i32"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00008",
-      "shape": "nested-spec",
+      "shape": "generic-method",
       "type": "i32"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00009",
       "shape": "generic-method",
-      "type": "i16"
+      "type": "u16"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00010",
-      "shape": "box-managed",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00011",
-      "shape": "generic-method",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00012",
-      "shape": "generic-method",
-      "type": "u16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00013",
       "shape": "generic-record-op",
-      "type": "u64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00014",
-      "shape": "class-var-per-spec",
       "type": "u8"
     },
     {
       "layer": "gen",
-      "name": "dvl-gen-00015",
-      "shape": "generic-record-op",
+      "name": "dvl-gen-00011",
+      "shape": "constraint-class",
       "type": "i8"
     },
     {
       "layer": "gen",
+      "name": "dvl-gen-00012",
+      "shape": "nested-spec",
+      "type": "u8"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00013",
+      "shape": "array-of-t",
+      "type": "i16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00014",
+      "shape": "generic-method",
+      "type": "i16"
+    },
+    {
+      "layer": "gen",
+      "name": "dvl-gen-00015",
+      "shape": "swap-generic",
+      "type": "u32"
+    },
+    {
+      "layer": "gen",
       "name": "dvl-gen-00016",
-      "shape": "box-scalar",
-      "type": "u16"
+      "shape": "nested-spec",
+      "type": "i64"
     },
     {
       "layer": "gen",
       "name": "dvl-gen-00017",
-      "shape": "box-managed",
-      "type": "u64"
+      "shape": "box-scalar",
+      "type": "i32"
     },
     {
       "layer": "gen",
@@ -118,621 +1261,6777 @@
     {
       "layer": "gen",
       "name": "dvl-gen-00019",
-      "shape": "box-scalar",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00020",
-      "shape": "box-scalar",
+      "shape": "class-var-per-spec",
       "type": "u8"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00021",
-      "shape": "swap-generic",
-      "type": "i32"
+      "layer": "arr",
+      "n": 6,
+      "name": "dvl-arr-00000",
+      "shape": "slice-open"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00022",
-      "shape": "generic-method",
-      "type": "i64"
+      "layer": "arr",
+      "n": 4,
+      "name": "dvl-arr-00001",
+      "shape": "slice-open"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00023",
-      "shape": "box-scalar",
+      "layer": "arr",
+      "n": 8,
+      "name": "dvl-arr-00002",
+      "shape": "static-index"
+    },
+    {
+      "layer": "arr",
+      "n": 4,
+      "name": "dvl-arr-00003",
+      "shape": "open-array-sum"
+    },
+    {
+      "layer": "arr",
+      "n": 6,
+      "name": "dvl-arr-00004",
+      "shape": "dynamic-share"
+    },
+    {
+      "layer": "arr",
+      "n": 4,
+      "name": "dvl-arr-00005",
+      "shape": "negative-based"
+    },
+    {
+      "layer": "arr",
+      "n": 8,
+      "name": "dvl-arr-00006",
+      "shape": "slice-open"
+    },
+    {
+      "layer": "arr",
+      "n": 4,
+      "name": "dvl-arr-00007",
+      "shape": "two-dim"
+    },
+    {
+      "layer": "arr",
+      "n": 8,
+      "name": "dvl-arr-00008",
+      "shape": "ragged"
+    },
+    {
+      "layer": "arr",
+      "n": 6,
+      "name": "dvl-arr-00009",
+      "shape": "slice-open"
+    },
+    {
+      "layer": "arr",
+      "n": 6,
+      "name": "dvl-arr-00010",
+      "shape": "negative-based"
+    },
+    {
+      "layer": "arr",
+      "n": 6,
+      "name": "dvl-arr-00011",
+      "shape": "insert-delete"
+    },
+    {
+      "layer": "arr",
+      "n": 4,
+      "name": "dvl-arr-00012",
+      "shape": "copy-detach"
+    },
+    {
+      "layer": "arr",
+      "n": 6,
+      "name": "dvl-arr-00013",
+      "shape": "slice-open"
+    },
+    {
+      "layer": "arr",
+      "n": 4,
+      "name": "dvl-arr-00014",
+      "shape": "concat"
+    },
+    {
+      "layer": "arr",
+      "n": 4,
+      "name": "dvl-arr-00015",
+      "shape": "slice-open"
+    },
+    {
+      "layer": "arr",
+      "n": 4,
+      "name": "dvl-arr-00016",
+      "shape": "slice-open"
+    },
+    {
+      "layer": "arr",
+      "n": 8,
+      "name": "dvl-arr-00017",
+      "shape": "open-array-sum"
+    },
+    {
+      "layer": "arr",
+      "n": 4,
+      "name": "dvl-arr-00018",
+      "shape": "copy-detach"
+    },
+    {
+      "layer": "arr",
+      "n": 4,
+      "name": "dvl-arr-00019",
+      "shape": "negative-based"
+    },
+    {
+      "layer": "unit",
+      "name": "dvl-unit-00000",
+      "shape": "inline-func",
+      "type": "i8"
+    },
+    {
+      "layer": "unit",
+      "name": "dvl-unit-00001",
+      "shape": "const-through-unit",
+      "type": "i8"
+    },
+    {
+      "layer": "unit",
+      "name": "dvl-unit-00002",
+      "shape": "const-through-unit",
+      "type": "u16"
+    },
+    {
+      "layer": "unit",
+      "name": "dvl-unit-00003",
+      "shape": "generic-across-units",
+      "type": "u8"
+    },
+    {
+      "layer": "unit",
+      "name": "dvl-unit-00004",
+      "shape": "generic-across-units",
+      "type": "u32"
+    },
+    {
+      "layer": "unit",
+      "name": "dvl-unit-00005",
+      "shape": "inline-func",
+      "type": "u32"
+    },
+    {
+      "layer": "unit",
+      "name": "dvl-unit-00006",
+      "shape": "generic-box",
       "type": "u64"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00024",
-      "shape": "two-params",
-      "type": "i32"
+      "layer": "unit",
+      "name": "dvl-unit-00007",
+      "shape": "alias-identity",
+      "type": "u32"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00025",
-      "shape": "box-scalar",
+      "layer": "unit",
+      "name": "dvl-unit-00008",
+      "shape": "record-through-unit",
+      "type": "u16"
+    },
+    {
+      "layer": "unit",
+      "name": "dvl-unit-00009",
+      "shape": "const-through-unit",
       "type": "i64"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00026",
-      "shape": "swap-generic",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00027",
-      "shape": "constraint-class",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00028",
-      "shape": "generic-method",
-      "type": "u8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00029",
-      "shape": "nested-spec",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00030",
-      "shape": "swap-generic",
+      "layer": "unit",
+      "name": "dvl-unit-00010",
+      "shape": "const-through-unit",
       "type": "u64"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00031",
-      "shape": "swap-generic",
+      "layer": "unit",
+      "name": "dvl-unit-00011",
+      "shape": "alias-identity",
       "type": "u16"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00032",
-      "shape": "generic-record-op",
+      "layer": "unit",
+      "name": "dvl-unit-00012",
+      "shape": "inline-func",
+      "type": "i8"
+    },
+    {
+      "layer": "unit",
+      "name": "dvl-unit-00013",
+      "shape": "alias-identity",
+      "type": "i16"
+    },
+    {
+      "layer": "unit",
+      "name": "dvl-unit-00014",
+      "shape": "const-through-unit",
       "type": "u64"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00033",
-      "shape": "swap-generic",
+      "layer": "unit",
+      "name": "dvl-unit-00015",
+      "shape": "generic-across-units",
       "type": "u8"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00034",
-      "shape": "swap-generic",
-      "type": "u16"
+      "layer": "unit",
+      "name": "dvl-unit-00016",
+      "shape": "alias-identity",
+      "type": "i64"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00035",
-      "shape": "nested-spec",
+      "layer": "unit",
+      "name": "dvl-unit-00017",
+      "shape": "alias-identity",
       "type": "i32"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00036",
-      "shape": "nested-spec",
+      "layer": "unit",
+      "name": "dvl-unit-00018",
+      "shape": "generic-across-units",
+      "type": "u16"
+    },
+    {
+      "layer": "unit",
+      "name": "dvl-unit-00019",
+      "shape": "const-through-unit",
+      "type": "u32"
+    },
+    {
+      "layer": "chk",
+      "mode": "div-min-by-minus-one",
+      "name": "dvl-chk-00000",
+      "raises": true,
+      "type": "i64"
+    },
+    {
+      "layer": "chk",
+      "mode": "range-dynarray",
+      "name": "dvl-chk-00001",
+      "raises": false,
+      "type": "u8"
+    },
+    {
+      "layer": "chk",
+      "mode": "overflow-mul",
+      "name": "dvl-chk-00002",
+      "raises": true,
+      "type": "i64"
+    },
+    {
+      "layer": "chk",
+      "mode": "overflow-neg",
+      "name": "dvl-chk-00003",
+      "raises": false,
+      "type": "i8"
+    },
+    {
+      "layer": "chk",
+      "mode": "range-array",
+      "name": "dvl-chk-00004",
+      "raises": false,
+      "type": "u8"
+    },
+    {
+      "layer": "chk",
+      "mode": "div-min-by-minus-one",
+      "name": "dvl-chk-00005",
+      "raises": true,
+      "type": "u16"
+    },
+    {
+      "layer": "chk",
+      "mode": "overflow-inc",
+      "name": "dvl-chk-00006",
+      "raises": false,
+      "type": "u8"
+    },
+    {
+      "layer": "chk",
+      "mode": "overflow-mul",
+      "name": "dvl-chk-00007",
+      "raises": true,
+      "type": "u16"
+    },
+    {
+      "layer": "chk",
+      "mode": "overflow-add",
+      "name": "dvl-chk-00008",
+      "raises": true,
+      "type": "i64"
+    },
+    {
+      "layer": "chk",
+      "mode": "overflow-neg",
+      "name": "dvl-chk-00009",
+      "raises": true,
       "type": "u64"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00037",
-      "shape": "generic-record-op",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00038",
-      "shape": "nested-spec",
-      "type": "u16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00039",
-      "shape": "constraint-class",
-      "type": "u16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00040",
-      "shape": "constraint-class",
-      "type": "i16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00041",
-      "shape": "constraint-class",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00042",
-      "shape": "box-scalar",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00043",
-      "shape": "two-params",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00044",
-      "shape": "constraint-class",
-      "type": "u8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00045",
-      "shape": "nested-spec",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00046",
-      "shape": "swap-generic",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00047",
-      "shape": "box-managed",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00048",
-      "shape": "generic-record-op",
+      "layer": "chk",
+      "mode": "overflow-div",
+      "name": "dvl-chk-00010",
+      "raises": false,
       "type": "u64"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00049",
-      "shape": "box-scalar",
-      "type": "u16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00050",
-      "shape": "two-params",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00051",
-      "shape": "array-of-t",
-      "type": "i8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00052",
-      "shape": "class-var-per-spec",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00053",
-      "shape": "class-var-per-spec",
-      "type": "i8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00054",
-      "shape": "constraint-class",
-      "type": "i8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00055",
-      "shape": "generic-method",
-      "type": "i16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00056",
-      "shape": "box-managed",
-      "type": "i8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00057",
-      "shape": "constraint-class",
+      "layer": "chk",
+      "mode": "overflow-shl",
+      "name": "dvl-chk-00011",
+      "raises": false,
       "type": "u8"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00058",
-      "shape": "class-var-per-spec",
+      "layer": "chk",
+      "mode": "range-for-bound",
+      "name": "dvl-chk-00012",
+      "raises": false,
       "type": "u32"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00059",
-      "shape": "box-scalar",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00060",
-      "shape": "generic-record-op",
-      "type": "i8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00061",
-      "shape": "generic-method",
-      "type": "u16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00062",
-      "shape": "constraint-class",
+      "layer": "chk",
+      "mode": "range-array",
+      "name": "dvl-chk-00013",
+      "raises": true,
       "type": "i32"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00063",
-      "shape": "two-params",
-      "type": "i8"
+      "layer": "chk",
+      "mode": "overflow-shl",
+      "name": "dvl-chk-00014",
+      "raises": false,
+      "type": "i64"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00064",
-      "shape": "box-managed",
-      "type": "u16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00065",
-      "shape": "two-params",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00066",
-      "shape": "class-var-per-spec",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00067",
-      "shape": "constraint-class",
+      "layer": "chk",
+      "mode": "overflow-inc",
+      "name": "dvl-chk-00015",
+      "raises": false,
       "type": "i32"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00068",
-      "shape": "array-of-t",
-      "type": "u8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00069",
-      "shape": "box-managed",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00070",
-      "shape": "array-of-t",
-      "type": "u8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00071",
-      "shape": "array-of-t",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00072",
-      "shape": "box-scalar",
+      "layer": "chk",
+      "mode": "overflow-mul",
+      "name": "dvl-chk-00016",
+      "raises": true,
       "type": "i16"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00073",
-      "shape": "generic-record-op",
+      "layer": "chk",
+      "mode": "div-min-by-minus-one",
+      "name": "dvl-chk-00017",
+      "raises": true,
       "type": "i16"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00074",
-      "shape": "array-of-t",
-      "type": "u8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00075",
-      "shape": "constraint-class",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00076",
-      "shape": "generic-method",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00077",
-      "shape": "generic-record-op",
-      "type": "u16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00078",
-      "shape": "swap-generic",
-      "type": "i16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00079",
-      "shape": "two-params",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00080",
-      "shape": "array-of-t",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00081",
-      "shape": "swap-generic",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00082",
-      "shape": "two-params",
-      "type": "u8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00083",
-      "shape": "box-scalar",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00084",
-      "shape": "swap-generic",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00085",
-      "shape": "constraint-class",
-      "type": "u8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00086",
-      "shape": "box-scalar",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00087",
-      "shape": "constraint-class",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00088",
-      "shape": "class-var-per-spec",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00089",
-      "shape": "array-of-t",
-      "type": "u8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00090",
-      "shape": "two-params",
-      "type": "i16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00091",
-      "shape": "box-managed",
-      "type": "i8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00092",
-      "shape": "class-var-per-spec",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00093",
-      "shape": "generic-record-op",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00094",
-      "shape": "nested-spec",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00095",
-      "shape": "generic-method",
-      "type": "u8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00096",
-      "shape": "two-params",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00097",
-      "shape": "class-var-per-spec",
-      "type": "u16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00098",
-      "shape": "nested-spec",
-      "type": "u16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00099",
-      "shape": "two-params",
-      "type": "u8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00100",
-      "shape": "array-of-t",
-      "type": "u8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00101",
-      "shape": "generic-method",
-      "type": "u8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00102",
-      "shape": "generic-record-op",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00103",
-      "shape": "two-params",
-      "type": "u16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00104",
-      "shape": "nested-spec",
-      "type": "i16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00105",
-      "shape": "generic-record-op",
+      "layer": "chk",
+      "mode": "div-min-by-minus-one",
+      "name": "dvl-chk-00018",
+      "raises": true,
       "type": "u64"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00106",
-      "shape": "two-params",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00107",
-      "shape": "generic-method",
-      "type": "i8"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00108",
-      "shape": "generic-record-op",
-      "type": "i64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00109",
-      "shape": "nested-spec",
-      "type": "i16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00110",
-      "shape": "box-scalar",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00111",
-      "shape": "nested-spec",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00112",
-      "shape": "generic-record-op",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00113",
-      "shape": "box-scalar",
-      "type": "i32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00114",
-      "shape": "box-managed",
-      "type": "u32"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00115",
-      "shape": "box-managed",
-      "type": "u16"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00116",
-      "shape": "nested-spec",
-      "type": "u64"
-    },
-    {
-      "layer": "gen",
-      "name": "dvl-gen-00117",
-      "shape": "box-managed",
+      "layer": "chk",
+      "mode": "range-array",
+      "name": "dvl-chk-00019",
+      "raises": true,
       "type": "u8"
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00118",
-      "shape": "array-of-t",
-      "type": "i64"
+      "layer": "thr",
+      "name": "dvl-thr-00000",
+      "rounds": 100,
+      "shape": "interface-handoff",
+      "workers": 2
     },
     {
-      "layer": "gen",
-      "name": "dvl-gen-00119",
-      "shape": "two-params",
-      "type": "u16"
+      "layer": "thr",
+      "name": "dvl-thr-00001",
+      "rounds": 50,
+      "shape": "pure-kernel",
+      "workers": 2
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00002",
+      "rounds": 50,
+      "shape": "interface-handoff",
+      "workers": 4
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00003",
+      "rounds": 100,
+      "shape": "interface-handoff",
+      "workers": 4
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00004",
+      "rounds": 50,
+      "shape": "fatal-exception",
+      "workers": 2
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00005",
+      "rounds": 25,
+      "shape": "pure-kernel",
+      "workers": 4
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00006",
+      "rounds": 100,
+      "shape": "pure-kernel",
+      "workers": 4
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00007",
+      "rounds": 50,
+      "shape": "managed-handoff",
+      "workers": 2
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00008",
+      "rounds": 50,
+      "shape": "interface-handoff",
+      "workers": 2
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00009",
+      "rounds": 25,
+      "shape": "queue-drain",
+      "workers": 2
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00010",
+      "rounds": 50,
+      "shape": "fatal-exception",
+      "workers": 2
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00011",
+      "rounds": 100,
+      "shape": "queue-drain",
+      "workers": 4
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00012",
+      "rounds": 25,
+      "shape": "queue-drain",
+      "workers": 4
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00013",
+      "rounds": 50,
+      "shape": "atomic-counter",
+      "workers": 4
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00014",
+      "rounds": 100,
+      "shape": "threadvar-isolation",
+      "workers": 2
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00015",
+      "rounds": 50,
+      "shape": "pure-kernel",
+      "workers": 4
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00016",
+      "rounds": 50,
+      "shape": "managed-handoff",
+      "workers": 4
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00017",
+      "rounds": 50,
+      "shape": "queue-drain",
+      "workers": 4
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00018",
+      "rounds": 100,
+      "shape": "interface-handoff",
+      "workers": 2
+    },
+    {
+      "layer": "thr",
+      "name": "dvl-thr-00019",
+      "rounds": 25,
+      "shape": "pure-kernel",
+      "workers": 4
+    },
+    {
+      "hi": 8,
+      "layer": "set",
+      "lo": 0,
+      "name": "dvl-set-00000",
+      "op": "union"
+    },
+    {
+      "hi": 7,
+      "layer": "set",
+      "lo": 0,
+      "name": "dvl-set-00001",
+      "op": "subset"
+    },
+    {
+      "hi": 255,
+      "layer": "set",
+      "lo": 0,
+      "name": "dvl-set-00002",
+      "op": "union"
+    },
+    {
+      "holey": true,
+      "layer": "set",
+      "name": "dvl-set-00003",
+      "packing": 1,
+      "values": [
+        38,
+        152,
+        161,
+        172
+      ]
+    },
+    {
+      "hi": 8,
+      "layer": "set",
+      "lo": 0,
+      "name": "dvl-set-00004",
+      "op": "symdiff"
+    },
+    {
+      "hi": 8,
+      "layer": "set",
+      "lo": 0,
+      "name": "dvl-set-00005",
+      "op": "in-probe"
+    },
+    {
+      "hi": 8,
+      "layer": "set",
+      "lo": 0,
+      "name": "dvl-set-00006",
+      "op": "symdiff"
+    },
+    {
+      "holey": true,
+      "layer": "set",
+      "name": "dvl-set-00007",
+      "packing": 1,
+      "values": [
+        46,
+        82,
+        97,
+        164
+      ]
+    },
+    {
+      "hi": 255,
+      "layer": "set",
+      "lo": 200,
+      "name": "dvl-set-00008",
+      "op": "in-probe"
+    },
+    {
+      "hi": 16,
+      "layer": "set",
+      "lo": 0,
+      "name": "dvl-set-00009",
+      "op": "equal"
+    },
+    {
+      "hi": 200,
+      "layer": "set",
+      "lo": 100,
+      "name": "dvl-set-00010",
+      "op": "iterate"
+    },
+    {
+      "holey": true,
+      "layer": "set",
+      "name": "dvl-set-00011",
+      "packing": 1,
+      "values": [
+        28,
+        77,
+        118,
+        167
+      ]
+    },
+    {
+      "hi": 9,
+      "layer": "set",
+      "lo": 3,
+      "name": "dvl-set-00012",
+      "op": "union"
+    },
+    {
+      "hi": 9,
+      "layer": "set",
+      "lo": 3,
+      "name": "dvl-set-00013",
+      "op": "iterate"
+    },
+    {
+      "hi": 255,
+      "layer": "set",
+      "lo": 200,
+      "name": "dvl-set-00014",
+      "op": "equal"
+    },
+    {
+      "holey": true,
+      "layer": "set",
+      "name": "dvl-set-00015",
+      "packing": 4,
+      "values": [
+        12,
+        23,
+        55,
+        75
+      ]
+    },
+    {
+      "hi": 31,
+      "layer": "set",
+      "lo": 0,
+      "name": "dvl-set-00016",
+      "op": "subset"
+    },
+    {
+      "hi": 63,
+      "layer": "set",
+      "lo": 0,
+      "name": "dvl-set-00017",
+      "op": "exclude"
+    },
+    {
+      "hi": 16,
+      "layer": "set",
+      "lo": 0,
+      "name": "dvl-set-00018",
+      "op": "symdiff"
+    },
+    {
+      "holey": true,
+      "layer": "set",
+      "name": "dvl-set-00019",
+      "packing": 4,
+      "values": [
+        57,
+        88,
+        117,
+        218
+      ]
+    },
+    {
+      "enum_count": 3,
+      "layer": "rtti",
+      "name": "dvl-rtti-00000",
+      "shape": "enum-names"
+    },
+    {
+      "enum_count": 6,
+      "layer": "rtti",
+      "name": "dvl-rtti-00001",
+      "shape": "rtti-field-set"
+    },
+    {
+      "enum_count": 3,
+      "layer": "rtti",
+      "name": "dvl-rtti-00002",
+      "shape": "published-prop"
+    },
+    {
+      "enum_count": 3,
+      "layer": "rtti",
+      "name": "dvl-rtti-00003",
+      "shape": "gettypes-contains"
+    },
+    {
+      "enum_count": 4,
+      "layer": "rtti",
+      "name": "dvl-rtti-00004",
+      "shape": "class-name"
+    },
+    {
+      "enum_count": 3,
+      "layer": "rtti",
+      "name": "dvl-rtti-00005",
+      "shape": "method-name-roundtrip"
+    },
+    {
+      "enum_count": 6,
+      "layer": "rtti",
+      "name": "dvl-rtti-00006",
+      "shape": "typeinfo-kind"
+    },
+    {
+      "enum_count": 3,
+      "layer": "rtti",
+      "name": "dvl-rtti-00007",
+      "shape": "rtti-field-set"
+    },
+    {
+      "enum_count": 3,
+      "layer": "rtti",
+      "name": "dvl-rtti-00008",
+      "shape": "published-method"
+    },
+    {
+      "enum_count": 3,
+      "layer": "rtti",
+      "name": "dvl-rtti-00009",
+      "shape": "published-prop"
+    },
+    {
+      "enum_count": 4,
+      "layer": "rtti",
+      "name": "dvl-rtti-00010",
+      "shape": "published-method"
+    },
+    {
+      "enum_count": 6,
+      "layer": "rtti",
+      "name": "dvl-rtti-00011",
+      "shape": "rtti-instance-type"
+    },
+    {
+      "enum_count": 6,
+      "layer": "rtti",
+      "name": "dvl-rtti-00012",
+      "shape": "published-method"
+    },
+    {
+      "enum_count": 6,
+      "layer": "rtti",
+      "name": "dvl-rtti-00013",
+      "shape": "published-method"
+    },
+    {
+      "enum_count": 6,
+      "layer": "rtti",
+      "name": "dvl-rtti-00014",
+      "shape": "rtti-instance-type"
+    },
+    {
+      "enum_count": 3,
+      "layer": "rtti",
+      "name": "dvl-rtti-00015",
+      "shape": "enum-names"
+    },
+    {
+      "enum_count": 3,
+      "layer": "rtti",
+      "name": "dvl-rtti-00016",
+      "shape": "method-name-roundtrip"
+    },
+    {
+      "enum_count": 6,
+      "layer": "rtti",
+      "name": "dvl-rtti-00017",
+      "shape": "gettypes-contains"
+    },
+    {
+      "enum_count": 3,
+      "layer": "rtti",
+      "name": "dvl-rtti-00018",
+      "shape": "enum-names"
+    },
+    {
+      "enum_count": 4,
+      "layer": "rtti",
+      "name": "dvl-rtti-00019",
+      "shape": "method-name-roundtrip"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00000",
+      "shape": "short-circuit"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00001",
+      "shape": "goto-backward"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00002",
+      "shape": "goto-out-of-loop"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00003",
+      "probe": 0,
+      "shape": "case-int64"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00004",
+      "shape": "goto-backward"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00005",
+      "shape": "full-boolean"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00006",
+      "probe": 1610,
+      "shape": "case-negative"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00007",
+      "shape": "goto-backward"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00008",
+      "shape": "short-circuit"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00009",
+      "shape": "goto-out-of-loop"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00010",
+      "shape": "loop-edge-byte"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00011",
+      "probe": 454,
+      "shape": "case-ranges"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00012",
+      "shape": "goto-forward"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00013",
+      "shape": "short-circuit"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00014",
+      "shape": "nested-exit"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00015",
+      "probe": -806,
+      "shape": "case-negative"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00016",
+      "shape": "repeat-continue"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00017",
+      "shape": "exit-through-finally"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00018",
+      "shape": "goto-forward"
+    },
+    {
+      "layer": "flow",
+      "name": "dvl-flow-00019",
+      "shape": "goto-backward"
+    },
+    {
+      "a": "18446744073709551616",
+      "b": "-1267650600228229401496703205376",
+      "layer": "i128",
+      "name": "dvl-i128-00000",
+      "op": "mul",
+      "type": "Int128"
+    },
+    {
+      "a": "340282366920938463463374607431768211455",
+      "b": "18446744073709551616",
+      "layer": "i128",
+      "name": "dvl-i128-00001",
+      "op": "or",
+      "type": "UInt128"
+    },
+    {
+      "a": "18446744073709551615",
+      "b": "6",
+      "layer": "i128",
+      "name": "dvl-i128-00002",
+      "op": "shl",
+      "type": "UInt128"
+    },
+    {
+      "a": "1",
+      "b": "0",
+      "layer": "i128",
+      "name": "dvl-i128-00003",
+      "op": "add",
+      "type": "UInt128"
+    },
+    {
+      "a": "-1267650600228229401496703205376",
+      "b": "37",
+      "layer": "i128",
+      "name": "dvl-i128-00004",
+      "op": "shl",
+      "type": "Int128"
+    },
+    {
+      "a": "0",
+      "b": "60",
+      "layer": "i128",
+      "name": "dvl-i128-00005",
+      "op": "shl",
+      "type": "UInt128"
+    },
+    {
+      "a": "18446744073709551615",
+      "b": "18446744073709551616",
+      "layer": "i128",
+      "name": "dvl-i128-00006",
+      "op": "or",
+      "type": "UInt128"
+    },
+    {
+      "a": "-170141183460469231731687303715884105728",
+      "b": "170141183460469231731687303715884105727",
+      "layer": "i128",
+      "name": "dvl-i128-00007",
+      "op": "and",
+      "type": "Int128"
+    },
+    {
+      "a": 663,
+      "b": 911,
+      "layer": "lang",
+      "name": "dvl-lang-00000",
+      "shape": "index-property"
+    },
+    {
+      "a": 127,
+      "b": 684,
+      "layer": "lang",
+      "name": "dvl-lang-00001",
+      "shape": "nested-type"
+    },
+    {
+      "a": 527,
+      "b": 197,
+      "layer": "lang",
+      "name": "dvl-lang-00002",
+      "shape": "array-of-const"
+    },
+    {
+      "a": 921,
+      "b": 630,
+      "layer": "lang",
+      "name": "dvl-lang-00003",
+      "shape": "variant-compare"
+    },
+    {
+      "a": 921,
+      "b": 486,
+      "layer": "lang",
+      "name": "dvl-lang-00004",
+      "shape": "class-operator-implicit"
+    },
+    {
+      "a": 899,
+      "b": 120,
+      "layer": "lang",
+      "name": "dvl-lang-00005",
+      "shape": "binary-literal"
+    },
+    {
+      "a": 161,
+      "b": 882,
+      "layer": "lang",
+      "name": "dvl-lang-00006",
+      "shape": "writable-const"
+    },
+    {
+      "a": 21,
+      "b": 215,
+      "layer": "lang",
+      "name": "dvl-lang-00007",
+      "shape": "record-align"
+    },
+    {
+      "a": 762,
+      "b": 714,
+      "layer": "lang",
+      "name": "dvl-lang-00008",
+      "shape": "writable-const"
+    },
+    {
+      "a": 773,
+      "b": 708,
+      "layer": "lang",
+      "name": "dvl-lang-00009",
+      "shape": "digit-separators"
+    },
+    {
+      "a": 976,
+      "b": 569,
+      "layer": "lang",
+      "name": "dvl-lang-00010",
+      "shape": "interface-delegation"
+    },
+    {
+      "a": 385,
+      "b": 660,
+      "layer": "lang",
+      "name": "dvl-lang-00011",
+      "shape": "operator-in"
+    },
+    {
+      "a": 546,
+      "b": 934,
+      "layer": "lang",
+      "name": "dvl-lang-00012",
+      "shape": "resourcestring"
+    },
+    {
+      "a": 291,
+      "b": 22,
+      "layer": "lang",
+      "name": "dvl-lang-00013",
+      "shape": "operator-in"
+    },
+    {
+      "a": 33,
+      "b": 757,
+      "layer": "lang",
+      "name": "dvl-lang-00014",
+      "shape": "tp-object"
+    },
+    {
+      "a": 491,
+      "b": 326,
+      "layer": "lang",
+      "name": "dvl-lang-00015",
+      "shape": "array-of-const"
+    },
+    {
+      "a": 246,
+      "b": 665,
+      "layer": "lang",
+      "name": "dvl-lang-00016",
+      "shape": "absolute-view"
+    },
+    {
+      "a": 439,
+      "b": 251,
+      "layer": "lang",
+      "name": "dvl-lang-00017",
+      "shape": "nested-type"
+    },
+    {
+      "a": 92,
+      "b": 143,
+      "layer": "lang",
+      "name": "dvl-lang-00018",
+      "shape": "interface-delegation"
+    },
+    {
+      "a": 526,
+      "b": 239,
+      "layer": "lang",
+      "name": "dvl-lang-00019",
+      "shape": "interface-delegation"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00000",
+      "shape": "inline-string",
+      "text": "\u0401\u0436\u0438\u043a"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00001",
+      "shape": "convert-utf8",
+      "text": "\u0401\u0436\u0438\u043a"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00002",
+      "shape": "pchar-step",
+      "text": "ab\u0416"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00003",
+      "shape": "interface-string",
+      "text": "\u044f"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00004",
+      "shape": "alias-identity",
+      "text": "\u0416"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00005",
+      "shape": "convert-back",
+      "text": "\u0401\u0436\u0438\u043a"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00006",
+      "shape": "for-in-string",
+      "text": "\u044f"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00007",
+      "shape": "case-of-char",
+      "text": "ab\u0416"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00008",
+      "shape": "array-of-char",
+      "text": "\u0401\u0436\u0438\u043a"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00009",
+      "shape": "interface-string",
+      "text": "\u0401\u0436\u0438\u043a"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00010",
+      "shape": "char-domain",
+      "text": "\u041f\u0440\u0438\u0432\u0435\u0442"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00011",
+      "shape": "char-domain",
+      "text": "\u043c\u0438\u0440"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00012",
+      "shape": "shortstring-bytes",
+      "text": "\u041f\u0440\u0438\u0432\u0435\u0442"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00013",
+      "shape": "setstring-bytes",
+      "text": "\u041f\u0440\u0438\u0432\u0435\u0442"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00014",
+      "shape": "result-abi",
+      "text": "\u0401\u0436\u0438\u043a"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00015",
+      "shape": "pchar-step",
+      "text": "ab\u0416"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00016",
+      "shape": "inline-string",
+      "text": "ab\u0416"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00017",
+      "shape": "codepage-typed",
+      "text": "ab\u0416"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00018",
+      "shape": "stringcodepage",
+      "text": "\u044f"
+    },
+    {
+      "layer": "uni",
+      "name": "dvl-uni-00019",
+      "shape": "compare-codepage",
+      "text": "\u041f\u0440\u0438\u0432\u0435\u0442"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00000",
+      "shape": "except-else"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00001",
+      "shape": "finally-returns-value"
+    },
+    {
+      "depth": 3,
+      "layer": "exc",
+      "name": "dvl-exc-00002",
+      "shape": "managed-unwind"
+    },
+    {
+      "depth": 2,
+      "layer": "exc",
+      "name": "dvl-exc-00003",
+      "shape": "exception-in-constructor"
+    },
+    {
+      "depth": 2,
+      "layer": "exc",
+      "name": "dvl-exc-00004",
+      "shape": "exception-in-constructor"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00005",
+      "shape": "nested-finally-order"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00006",
+      "shape": "reraise"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00007",
+      "shape": "raise-in-finally"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00008",
+      "shape": "raise-after-except"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00009",
+      "shape": "deep-unwind"
+    },
+    {
+      "depth": 3,
+      "layer": "exc",
+      "name": "dvl-exc-00010",
+      "shape": "nested-finally-order"
+    },
+    {
+      "depth": 3,
+      "layer": "exc",
+      "name": "dvl-exc-00011",
+      "shape": "raise-in-finally"
+    },
+    {
+      "depth": 2,
+      "layer": "exc",
+      "name": "dvl-exc-00012",
+      "shape": "nested-except"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00013",
+      "shape": "finally-in-loop"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00014",
+      "shape": "exception-in-constructor"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00015",
+      "shape": "exception-in-loop"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00016",
+      "shape": "nested-finally-order"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00017",
+      "shape": "deep-unwind"
+    },
+    {
+      "depth": 2,
+      "layer": "exc",
+      "name": "dvl-exc-00018",
+      "shape": "class-hierarchy-catch"
+    },
+    {
+      "depth": 4,
+      "layer": "exc",
+      "name": "dvl-exc-00019",
+      "shape": "managed-unwind"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00000",
+      "shape": "init-order"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00001",
+      "shape": "global-from-unit"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00002",
+      "shape": "class-constructor"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00003",
+      "shape": "managed-global"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00004",
+      "shape": "nested-dependency"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00005",
+      "shape": "const-record-init"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00006",
+      "shape": "circular-implementation"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00007",
+      "shape": "init-order"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00008",
+      "shape": "global-from-unit"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00009",
+      "shape": "class-constructor"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00010",
+      "shape": "managed-global"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00011",
+      "shape": "nested-dependency"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00012",
+      "shape": "const-record-init"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00013",
+      "shape": "circular-implementation"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00014",
+      "shape": "init-order"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00015",
+      "shape": "global-from-unit"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00016",
+      "shape": "class-constructor"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00017",
+      "shape": "managed-global"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00018",
+      "shape": "nested-dependency"
+    },
+    {
+      "layer": "init",
+      "name": "dvl-init-00019",
+      "shape": "const-record-init"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00000",
+      "seed": 1,
+      "shape": "aliased-array-element"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00001",
+      "seed": 2,
+      "shape": "loop-exit-value"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00002",
+      "seed": 3,
+      "shape": "cse-with-side-effect"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00003",
+      "seed": 4,
+      "shape": "aliased-array-element"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00004",
+      "seed": 5,
+      "shape": "var-param-alias"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00005",
+      "seed": 6,
+      "shape": "global-touched-by-call"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00006",
+      "seed": 7,
+      "shape": "dead-store-through-pointer"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00007",
+      "seed": 8,
+      "shape": "dead-store-through-pointer"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00008",
+      "seed": 9,
+      "shape": "call-not-hoisted"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00009",
+      "seed": 10,
+      "shape": "aliased-array-element"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00010",
+      "seed": 11,
+      "shape": "reload-after-call"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00011",
+      "seed": 12,
+      "shape": "side-effect-in-condition"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00012",
+      "seed": 13,
+      "shape": "loop-exit-value"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00013",
+      "seed": 14,
+      "shape": "loop-exit-value"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00014",
+      "seed": 15,
+      "shape": "call-not-hoisted"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00015",
+      "seed": 16,
+      "shape": "cse-with-side-effect"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00016",
+      "seed": 17,
+      "shape": "pointer-alias"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00017",
+      "seed": 18,
+      "shape": "field-alias"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00018",
+      "seed": 19,
+      "shape": "pointer-alias"
+    },
+    {
+      "layer": "opt",
+      "name": "dvl-opt-00019",
+      "seed": 20,
+      "shape": "cse-with-side-effect"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00000",
+      "shape": "var-out-const"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00001",
+      "shape": "record-by-value"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00002",
+      "shape": "record-by-value"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00003",
+      "shape": "result-by-position"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00004",
+      "shape": "int64-and-pointer"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00005",
+      "shape": "method-pointer"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00006",
+      "shape": "mixed-int-float"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00007",
+      "shape": "result-by-position"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00008",
+      "shape": "small-types-widened"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00009",
+      "shape": "float-heavy"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00010",
+      "shape": "open-array"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00011",
+      "shape": "nested-callback"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00012",
+      "shape": "record-by-value"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00013",
+      "shape": "stdcall-convention"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00014",
+      "shape": "int64-and-pointer"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00015",
+      "shape": "small-types-widened"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00016",
+      "shape": "record-result"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00017",
+      "shape": "int64-and-pointer"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00018",
+      "shape": "nested-callback"
+    },
+    {
+      "layer": "call",
+      "name": "dvl-call-00019",
+      "shape": "int64-and-pointer"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00000",
+      "seed": 1,
+      "shape": "inline-recursive-candidate"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00001",
+      "seed": 2,
+      "shape": "inline-with-exit"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00002",
+      "seed": 3,
+      "shape": "inline-result-used-twice"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00003",
+      "seed": 4,
+      "shape": "inline-aliased-args"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00004",
+      "seed": 5,
+      "shape": "inline-in-loop"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00005",
+      "seed": 6,
+      "shape": "nested-inline"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00006",
+      "seed": 7,
+      "shape": "inline-result-used-twice"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00007",
+      "seed": 8,
+      "shape": "inline-in-finally"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00008",
+      "seed": 9,
+      "shape": "inline-result-used-twice"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00009",
+      "seed": 10,
+      "shape": "inline-side-effect"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00010",
+      "seed": 11,
+      "shape": "inline-aliased-args"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00011",
+      "seed": 12,
+      "shape": "inline-side-effect"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00012",
+      "seed": 13,
+      "shape": "inline-result-used-twice"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00013",
+      "seed": 14,
+      "shape": "inline-var-decl"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00014",
+      "seed": 15,
+      "shape": "inline-aliased-args"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00015",
+      "seed": 16,
+      "shape": "nested-inline"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00016",
+      "seed": 17,
+      "shape": "inline-in-finally"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00017",
+      "seed": 18,
+      "shape": "out-parameter"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00018",
+      "seed": 19,
+      "shape": "var-parameter"
+    },
+    {
+      "layer": "inl",
+      "name": "dvl-inl-00019",
+      "seed": 20,
+      "shape": "inline-with-exit"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00000",
+      "shape": "cast-between-interfaces"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00001",
+      "shape": "interface-array"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00002",
+      "shape": "aggregation-lifetime"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00003",
+      "shape": "interface-in-closure"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00004",
+      "shape": "implements-delegation"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00005",
+      "shape": "interface-parameter"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00006",
+      "shape": "interface-in-closure"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00007",
+      "shape": "interface-parameter"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00008",
+      "shape": "interface-array"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00009",
+      "shape": "implements-delegation"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00010",
+      "shape": "as-operator"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00011",
+      "shape": "interface-array"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00012",
+      "shape": "queryinterface"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00013",
+      "shape": "aggregation-lifetime"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00014",
+      "shape": "refcount-scope"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00015",
+      "shape": "implements-delegation"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00016",
+      "shape": "interface-array"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00017",
+      "shape": "cast-between-interfaces"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00018",
+      "shape": "cast-between-interfaces"
+    },
+    {
+      "layer": "intf",
+      "name": "dvl-intf-00019",
+      "shape": "implements-delegation"
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00000",
+      "shape": "dynarray-as-parameter",
+      "width": 4
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00001",
+      "shape": "shrink-releases",
+      "width": 3
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00002",
+      "shape": "nested-copy",
+      "width": 6
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00003",
+      "shape": "array-of-array-of-managed",
+      "width": 4
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00004",
+      "shape": "vararray-basics",
+      "width": 4
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00005",
+      "shape": "nested-copy",
+      "width": 5
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00006",
+      "shape": "nested-share",
+      "width": 6
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00007",
+      "shape": "high-low-empty",
+      "width": 4
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00008",
+      "shape": "assign-then-write",
+      "width": 3
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00009",
+      "shape": "vararray-bounds",
+      "width": 3
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00010",
+      "shape": "dynarray-as-parameter",
+      "width": 5
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00011",
+      "shape": "shrink-releases",
+      "width": 6
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00012",
+      "shape": "copy-detaches",
+      "width": 6
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00013",
+      "shape": "nested-copy",
+      "width": 4
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00014",
+      "shape": "concat-operator",
+      "width": 4
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00015",
+      "shape": "vararray-basics",
+      "width": 4
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00016",
+      "shape": "high-low-empty",
+      "width": 3
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00017",
+      "shape": "vararray-bounds",
+      "width": 4
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00018",
+      "shape": "high-low-empty",
+      "width": 5
+    },
+    {
+      "layer": "dyn",
+      "name": "dvl-dyn-00019",
+      "shape": "dynarray-result",
+      "width": 5
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00000",
+      "seed": 1,
+      "shape": "identity"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00001",
+      "seed": 2,
+      "shape": "callee-saved"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00002",
+      "seed": 3,
+      "shape": "call-in-loop"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00003",
+      "seed": 4,
+      "shape": "asm-between-pascal"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00004",
+      "seed": 5,
+      "shape": "sign-extension"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00005",
+      "seed": 6,
+      "shape": "call-in-loop"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00006",
+      "seed": 7,
+      "shape": "result-in-rax"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00007",
+      "seed": 8,
+      "shape": "call-in-loop"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00008",
+      "seed": 9,
+      "shape": "asm-between-pascal"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00009",
+      "seed": 10,
+      "shape": "call-in-loop"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00010",
+      "seed": 11,
+      "shape": "result-in-rax"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00011",
+      "seed": 12,
+      "shape": "sign-extension"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00012",
+      "seed": 13,
+      "shape": "pointer-argument"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00013",
+      "seed": 14,
+      "shape": "callee-saved"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00014",
+      "seed": 15,
+      "shape": "pointer-argument"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00015",
+      "seed": 16,
+      "shape": "asm-between-pascal"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00016",
+      "seed": 17,
+      "shape": "sum-four"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00017",
+      "seed": 18,
+      "shape": "sum-four"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00018",
+      "seed": 19,
+      "shape": "result-in-rax"
+    },
+    {
+      "layer": "asm",
+      "name": "dvl-asm-00019",
+      "seed": 20,
+      "shape": "result-in-rax"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00000",
+      "rows": 3,
+      "shape": "typed-seek"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00001",
+      "rows": 6,
+      "shape": "typed-record"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00002",
+      "rows": 7,
+      "shape": "eof-behaviour"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00003",
+      "rows": 7,
+      "shape": "element-size"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00004",
+      "rows": 3,
+      "shape": "element-size"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00005",
+      "rows": 5,
+      "shape": "typed-record"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00006",
+      "rows": 4,
+      "shape": "typed-seek"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00007",
+      "rows": 4,
+      "shape": "typed-record"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00008",
+      "rows": 5,
+      "shape": "untyped-blocks"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00009",
+      "rows": 7,
+      "shape": "text-lines"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00010",
+      "rows": 7,
+      "shape": "typed-seek"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00011",
+      "rows": 6,
+      "shape": "eof-behaviour"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00012",
+      "rows": 6,
+      "shape": "eof-behaviour"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00013",
+      "rows": 7,
+      "shape": "text-lines"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00014",
+      "rows": 6,
+      "shape": "eof-behaviour"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00015",
+      "rows": 7,
+      "shape": "text-append"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00016",
+      "rows": 6,
+      "shape": "untyped-blocks"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00017",
+      "rows": 6,
+      "shape": "untyped-blocks"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00018",
+      "rows": 3,
+      "shape": "typed-truncate"
+    },
+    {
+      "layer": "io",
+      "name": "dvl-io-00019",
+      "rows": 3,
+      "shape": "typed-seek"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00000",
+      "seed": 1,
+      "shape": "forward-type"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00001",
+      "seed": 2,
+      "shape": "attribute-arguments"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00002",
+      "seed": 3,
+      "shape": "sealed-final"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00003",
+      "seed": 4,
+      "shape": "deprecated-hint"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00004",
+      "seed": 5,
+      "shape": "local-const-scope"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00005",
+      "seed": 6,
+      "shape": "pointermath"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00006",
+      "seed": 7,
+      "shape": "local-const-scope"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00007",
+      "seed": 8,
+      "shape": "local-const-scope"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00008",
+      "seed": 9,
+      "shape": "sealed-final"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00009",
+      "seed": 10,
+      "shape": "local-const-scope"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00010",
+      "seed": 11,
+      "shape": "reintroduce"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00011",
+      "seed": 12,
+      "shape": "pointermath"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00012",
+      "seed": 13,
+      "shape": "deprecated-hint"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00013",
+      "seed": 14,
+      "shape": "scopedenums"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00014",
+      "seed": 15,
+      "shape": "pointermath"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00015",
+      "seed": 16,
+      "shape": "external-import"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00016",
+      "seed": 17,
+      "shape": "reintroduce"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00017",
+      "seed": 18,
+      "shape": "sealed-final"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00018",
+      "seed": 19,
+      "shape": "const-typed-vs-true"
+    },
+    {
+      "layer": "decl",
+      "name": "dvl-decl-00019",
+      "seed": 20,
+      "shape": "deprecated-hint"
+    },
+    {
+      "depth": 39,
+      "layer": "chain",
+      "name": "dvl-chain-00000",
+      "stages": [
+        "generic-box",
+        "string-roundtrip",
+        "class-var-hop",
+        "closure-capture",
+        "woven-carrier",
+        "string-passport",
+        "nested-var-param",
+        "managed-record",
+        "class-var-hop",
+        "generic-method",
+        "case-dispatch",
+        "directive-passport",
+        "dead-store-leak",
+        "ppu-descendant",
+        "unicode-cast-bait",
+        "open-array",
+        "fold-mirror",
+        "finally-transfer",
+        "constrained-generic",
+        "case-dispatch",
+        "ppu-descendant",
+        "ppu-generic",
+        "generic-method",
+        "interface-method",
+        "ppu-descendant",
+        "open-array",
+        "variant-carrier",
+        "interface-method",
+        "metamorphic-fork",
+        "constrained-generic",
+        "variant-carrier",
+        "narrow-widen-bait",
+        "passport-check",
+        "open-array",
+        "rtti-value",
+        "typed-file",
+        "dynamic-array",
+        "set-of-bits",
+        "metamorphic-fork"
+      ]
+    },
+    {
+      "depth": 19,
+      "layer": "chain",
+      "name": "dvl-chain-00001",
+      "stages": [
+        "case-dispatch",
+        "specialization-mirror",
+        "variant-literal-bait",
+        "case-dispatch",
+        "ppu-generic",
+        "variant-literal-bait",
+        "rtti-value",
+        "generic-thread",
+        "generic-box",
+        "closure-capture",
+        "assembler-hop",
+        "wide-record",
+        "aliased-relay",
+        "branch-thread-merge",
+        "open-array",
+        "variant-carrier",
+        "open-array",
+        "case-dispatch",
+        "finally-transfer"
+      ]
+    },
+    {
+      "depth": 26,
+      "layer": "chain",
+      "name": "dvl-chain-00002",
+      "stages": [
+        "closure-capture",
+        "string-passport",
+        "finally-transfer",
+        "assembler-hop",
+        "tree-walk",
+        "managed-record",
+        "hoist-leak",
+        "generic-thread",
+        "ppu-descendant",
+        "aliased-relay",
+        "rtti-value",
+        "aliased-relay",
+        "method-pointer",
+        "woven-carrier",
+        "aliased-relay",
+        "recursive-descent",
+        "branch-merge",
+        "metamorphic-fork",
+        "inline-hop",
+        "variant-carrier",
+        "tree-walk",
+        "set-of-bits",
+        "woven-carrier",
+        "constrained-generic",
+        "aliased-relay",
+        "generic-thread"
+      ]
+    },
+    {
+      "depth": 34,
+      "layer": "chain",
+      "name": "dvl-chain-00003",
+      "stages": [
+        "string-roundtrip",
+        "set-of-bits",
+        "string-passport",
+        "dynamic-array",
+        "nested-specialization",
+        "field-leak",
+        "nested-specialization",
+        "closure-leak",
+        "utf8-detour",
+        "rtti-value",
+        "ppu-generic",
+        "generic-box",
+        "open-array",
+        "recursive-descent",
+        "woven-carrier",
+        "branch-merge",
+        "woven-carrier",
+        "assembler-hop",
+        "set-of-bits",
+        "mutual-chain",
+        "constrained-generic",
+        "sorted-pair",
+        "assembler-hop",
+        "set-of-bits",
+        "sibling-chain",
+        "dead-store-leak",
+        "variant-carrier",
+        "narrow-widen-bait",
+        "closure-capture",
+        "inline-mirror",
+        "tree-walk",
+        "directive-passport",
+        "worker-thread",
+        "raised-exception"
+      ]
+    },
+    {
+      "depth": 35,
+      "layer": "chain",
+      "name": "dvl-chain-00004",
+      "stages": [
+        "string-passport",
+        "directive-passport",
+        "unicode-cast-bait",
+        "cast-reinterpret-bait",
+        "varrec-bait",
+        "unicode-cast-bait",
+        "closure-leak",
+        "constrained-generic",
+        "variant-carrier",
+        "branch-merge",
+        "generic-thread",
+        "set-of-bits",
+        "generic-method",
+        "utf8-detour",
+        "method-pointer",
+        "generic-thread",
+        "guarded-retry",
+        "nested-specialization",
+        "wide-record",
+        "nested-var-param",
+        "rtti-value",
+        "set-of-bits",
+        "open-array",
+        "ppu-generic",
+        "pointer-view",
+        "variant-carrier",
+        "set-of-bits",
+        "pointer-view",
+        "assembler-hop",
+        "guarded-retry",
+        "finally-transfer",
+        "string-roundtrip",
+        "ppu-descendant",
+        "open-array",
+        "nested-specialization"
+      ]
+    },
+    {
+      "depth": 40,
+      "layer": "chain",
+      "name": "dvl-chain-00005",
+      "stages": [
+        "cast-reinterpret-bait",
+        "directive-passport",
+        "utf8-detour",
+        "unicode-cast-bait",
+        "wide-record",
+        "generic-method",
+        "rtti-value",
+        "metamorphic-fork",
+        "specialization-mirror",
+        "typed-file",
+        "field-leak",
+        "woven-carrier",
+        "guarded-retry",
+        "recursive-descent",
+        "rtti-value",
+        "volatile-slot",
+        "rtti-value",
+        "closure-capture",
+        "method-pointer",
+        "field-leak",
+        "directive-passport",
+        "aliased-relay",
+        "rtti-value",
+        "ppu-descendant",
+        "finalization-order-bait",
+        "string-roundtrip",
+        "cast-reinterpret-bait",
+        "field-leak",
+        "volatile-slot",
+        "finalization-order-bait",
+        "ppu-generic",
+        "open-array",
+        "field-leak",
+        "nested-specialization",
+        "closure-leak",
+        "string-roundtrip",
+        "assembler-hop",
+        "directive-passport",
+        "typed-file",
+        "string-passport"
+      ]
+    },
+    {
+      "depth": 38,
+      "layer": "chain",
+      "name": "dvl-chain-00006",
+      "stages": [
+        "generic-thread",
+        "guarded-retry",
+        "recursive-descent",
+        "inline-hop",
+        "wide-record",
+        "finally-transfer",
+        "nested-specialization",
+        "recursive-descent",
+        "tree-walk",
+        "metamorphic-fork",
+        "aliased-relay",
+        "wide-record",
+        "rtti-value",
+        "raised-exception",
+        "set-of-bits",
+        "managed-record",
+        "branch-thread-merge",
+        "set-of-bits",
+        "managed-record",
+        "open-array",
+        "assembler-hop",
+        "generic-box",
+        "generic-method",
+        "wide-record",
+        "nested-specialization",
+        "utf8-detour",
+        "wide-record",
+        "generic-method",
+        "open-array",
+        "branch-thread-merge",
+        "variant-carrier",
+        "nested-specialization",
+        "inline-hop",
+        "generic-box",
+        "closure-capture",
+        "wide-record",
+        "woven-carrier",
+        "rtti-value"
+      ]
+    },
+    {
+      "depth": 36,
+      "layer": "chain",
+      "name": "dvl-chain-00007",
+      "stages": [
+        "cast-reinterpret-bait",
+        "guarded-retry",
+        "inline-hop",
+        "generic-thread",
+        "guarded-retry",
+        "generic-box",
+        "generic-method",
+        "woven-carrier",
+        "method-pointer",
+        "generic-box",
+        "assembler-hop",
+        "guarded-retry",
+        "variant-carrier",
+        "nested-var-param",
+        "metamorphic-fork",
+        "nested-var-param",
+        "utf8-detour",
+        "ppu-generic",
+        "nested-specialization",
+        "inline-hop",
+        "generic-box",
+        "managed-record",
+        "variant-carrier",
+        "case-dispatch",
+        "finally-transfer",
+        "dynamic-array",
+        "generic-thread",
+        "variant-carrier",
+        "branch-merge",
+        "sorted-pair",
+        "dynamic-array",
+        "constrained-generic",
+        "ppu-generic",
+        "nested-specialization",
+        "method-pointer",
+        "generic-thread"
+      ]
+    },
+    {
+      "depth": 18,
+      "layer": "chain",
+      "name": "dvl-chain-00008",
+      "stages": [
+        "directive-passport",
+        "generic-relay",
+        "generic-relay",
+        "typed-file",
+        "open-array",
+        "ppu-generic",
+        "dynamic-array",
+        "dynamic-array",
+        "class-var-hop",
+        "aliased-relay",
+        "finally-transfer",
+        "hoist-leak",
+        "variant-carrier",
+        "class-var-hop",
+        "passport-check",
+        "open-array",
+        "generic-relay",
+        "guarded-retry"
+      ]
+    },
+    {
+      "depth": 35,
+      "layer": "chain",
+      "name": "dvl-chain-00009",
+      "stages": [
+        "utf8-detour",
+        "open-array",
+        "field-leak",
+        "ppu-descendant",
+        "unicode-cast-bait",
+        "sibling-chain",
+        "class-var-hop",
+        "inline-hop",
+        "generic-thread",
+        "nested-var-param",
+        "ppu-generic",
+        "inline-hop",
+        "open-array",
+        "case-dispatch",
+        "ppu-generic",
+        "inline-hop",
+        "case-dispatch",
+        "generic-thread",
+        "aliased-relay",
+        "branch-thread-merge",
+        "recursive-descent",
+        "inline-hop",
+        "guarded-retry",
+        "string-roundtrip",
+        "tree-walk",
+        "dynamic-array",
+        "sorted-pair",
+        "constrained-generic",
+        "method-pointer",
+        "sorted-pair",
+        "open-array",
+        "inline-hop",
+        "wide-record",
+        "wide-record",
+        "woven-carrier"
+      ]
+    },
+    {
+      "depth": 32,
+      "layer": "chain",
+      "name": "dvl-chain-00010",
+      "stages": [
+        "finally-transfer",
+        "utf8-detour",
+        "method-pointer",
+        "closure-leak",
+        "nested-specialization",
+        "pointer-view",
+        "unicode-cast-bait",
+        "assembler-hop",
+        "method-pointer",
+        "field-leak",
+        "inline-mirror",
+        "sorted-pair",
+        "typed-file",
+        "fold-mirror",
+        "closure-leak",
+        "raised-exception",
+        "assembler-hop",
+        "tree-walk",
+        "cast-reinterpret-bait",
+        "nested-specialization",
+        "cast-reinterpret-bait",
+        "branch-thread-merge",
+        "managed-record",
+        "branch-merge",
+        "variant-carrier",
+        "recursive-descent",
+        "case-dispatch",
+        "constrained-generic",
+        "generic-thread",
+        "nested-var-param",
+        "metamorphic-fork",
+        "pointer-view"
+      ]
+    },
+    {
+      "depth": 19,
+      "layer": "chain",
+      "name": "dvl-chain-00011",
+      "stages": [
+        "closure-leak",
+        "rtti-value",
+        "sorted-pair",
+        "utf8-detour",
+        "managed-record",
+        "aliased-relay",
+        "case-dispatch",
+        "finalization-order-bait",
+        "directive-passport",
+        "fold-mirror",
+        "inline-hop",
+        "branch-thread-merge",
+        "ppu-descendant",
+        "recursive-descent",
+        "dynamic-array",
+        "aliased-relay",
+        "generic-box",
+        "generic-relay",
+        "raised-exception"
+      ]
+    },
+    {
+      "depth": 16,
+      "layer": "chain",
+      "name": "dvl-chain-00012",
+      "stages": [
+        "worker-thread",
+        "aliased-relay",
+        "metamorphic-fork",
+        "finally-transfer",
+        "variant-carrier",
+        "tree-walk",
+        "sorted-pair",
+        "branch-merge",
+        "rtti-value",
+        "generic-box",
+        "dynamic-array",
+        "nested-var-param",
+        "pointer-view",
+        "constrained-generic",
+        "metamorphic-fork",
+        "ppu-generic"
+      ]
+    },
+    {
+      "depth": 31,
+      "layer": "chain",
+      "name": "dvl-chain-00013",
+      "stages": [
+        "closure-capture",
+        "hoist-leak",
+        "closure-leak",
+        "generic-relay",
+        "wide-record",
+        "utf8-detour",
+        "metamorphic-fork",
+        "directive-passport",
+        "metamorphic-fork",
+        "ppu-descendant",
+        "rtti-value",
+        "utf8-detour",
+        "narrow-widen-bait",
+        "generic-relay",
+        "passport-check",
+        "nested-var-param",
+        "fold-mirror",
+        "guarded-retry",
+        "narrow-widen-bait",
+        "volatile-slot",
+        "rtti-value",
+        "finally-transfer",
+        "worker-thread",
+        "nested-specialization",
+        "branch-merge",
+        "case-dispatch",
+        "method-pointer",
+        "finally-transfer",
+        "woven-carrier",
+        "case-dispatch",
+        "dynamic-array"
+      ]
+    },
+    {
+      "depth": 24,
+      "layer": "chain",
+      "name": "dvl-chain-00014",
+      "stages": [
+        "varrec-bait",
+        "branch-thread-merge",
+        "open-array",
+        "recursive-descent",
+        "ppu-generic",
+        "raised-exception",
+        "ppu-generic",
+        "pointer-view",
+        "wide-record",
+        "case-dispatch",
+        "assembler-hop",
+        "dynamic-array",
+        "string-roundtrip",
+        "inline-hop",
+        "set-of-bits",
+        "branch-merge",
+        "nested-var-param",
+        "rtti-value",
+        "sorted-pair",
+        "utf8-detour",
+        "raised-exception",
+        "wide-record",
+        "wide-record",
+        "guarded-retry"
+      ]
+    },
+    {
+      "depth": 13,
+      "layer": "chain",
+      "name": "dvl-chain-00015",
+      "stages": [
+        "string-roundtrip",
+        "dynamic-array",
+        "closure-capture",
+        "raised-exception",
+        "nested-specialization",
+        "passport-check",
+        "directive-passport",
+        "narrow-widen-bait",
+        "variant-literal-bait",
+        "generic-relay",
+        "cast-reinterpret-bait",
+        "variant-literal-bait",
+        "specialization-mirror"
+      ]
+    },
+    {
+      "depth": 27,
+      "layer": "chain",
+      "name": "dvl-chain-00016",
+      "stages": [
+        "variant-carrier",
+        "unicode-cast-bait",
+        "aliased-relay",
+        "ppu-generic",
+        "ppu-descendant",
+        "sibling-chain",
+        "rtti-value",
+        "passport-check",
+        "finally-transfer",
+        "nested-specialization",
+        "method-pointer",
+        "hoist-leak",
+        "worker-thread",
+        "nested-specialization",
+        "managed-record",
+        "assembler-hop",
+        "closure-capture",
+        "nested-var-param",
+        "closure-capture",
+        "wide-record",
+        "closure-capture",
+        "branch-thread-merge",
+        "wide-record",
+        "interface-method",
+        "wide-record",
+        "branch-merge",
+        "assembler-hop"
+      ]
+    },
+    {
+      "depth": 29,
+      "layer": "chain",
+      "name": "dvl-chain-00017",
+      "stages": [
+        "closure-capture",
+        "aliased-relay",
+        "string-roundtrip",
+        "generic-box",
+        "finally-transfer",
+        "aliased-relay",
+        "typed-file",
+        "branch-merge",
+        "mutual-chain",
+        "class-var-hop",
+        "sibling-chain",
+        "nested-specialization",
+        "fold-mirror",
+        "finally-transfer",
+        "cast-reinterpret-bait",
+        "assembler-hop",
+        "open-array",
+        "ppu-descendant",
+        "inline-hop",
+        "unicode-cast-bait",
+        "pointer-view",
+        "aliased-relay",
+        "sorted-pair",
+        "tree-walk",
+        "ppu-descendant",
+        "worker-thread",
+        "woven-carrier",
+        "pointer-view",
+        "rtti-value"
+      ]
+    },
+    {
+      "depth": 30,
+      "layer": "chain",
+      "name": "dvl-chain-00018",
+      "stages": [
+        "nested-var-param",
+        "passport-check",
+        "worker-thread",
+        "raised-exception",
+        "set-of-bits",
+        "wide-record",
+        "open-array",
+        "generic-method",
+        "closure-capture",
+        "string-roundtrip",
+        "generic-relay",
+        "open-array",
+        "generic-method",
+        "ppu-generic",
+        "closure-capture",
+        "closure-capture",
+        "guarded-retry",
+        "method-pointer",
+        "case-dispatch",
+        "generic-method",
+        "dynamic-array",
+        "closure-capture",
+        "woven-carrier",
+        "raised-exception",
+        "string-roundtrip",
+        "variant-carrier",
+        "variant-carrier",
+        "method-pointer",
+        "case-dispatch",
+        "ppu-generic"
+      ]
+    },
+    {
+      "depth": 31,
+      "layer": "chain",
+      "name": "dvl-chain-00019",
+      "stages": [
+        "generic-relay",
+        "rtti-value",
+        "utf8-detour",
+        "utf8-detour",
+        "narrow-widen-bait",
+        "directive-passport",
+        "finally-transfer",
+        "metamorphic-fork",
+        "worker-thread",
+        "closure-capture",
+        "guarded-retry",
+        "generic-relay",
+        "open-array",
+        "set-of-bits",
+        "open-array",
+        "branch-merge",
+        "generic-relay",
+        "generic-thread",
+        "finally-transfer",
+        "guarded-retry",
+        "assembler-hop",
+        "pointer-view",
+        "dynamic-array",
+        "generic-method",
+        "nested-var-param",
+        "ppu-descendant",
+        "utf8-detour",
+        "guarded-retry",
+        "nested-var-param",
+        "interface-method",
+        "assembler-hop"
+      ]
+    },
+    {
+      "family": "guarded-total",
+      "layer": "meta",
+      "name": "dvl-meta-00000",
+      "spellings": 4
+    },
+    {
+      "family": "nested-total",
+      "layer": "meta",
+      "name": "dvl-meta-00001",
+      "spellings": 4
+    },
+    {
+      "family": "array-copy",
+      "layer": "meta",
+      "name": "dvl-meta-00002",
+      "spellings": 4
+    },
+    {
+      "family": "reverse",
+      "layer": "meta",
+      "name": "dvl-meta-00003",
+      "spellings": 3
+    },
+    {
+      "family": "array-copy",
+      "layer": "meta",
+      "name": "dvl-meta-00004",
+      "spellings": 4
+    },
+    {
+      "family": "find-first",
+      "layer": "meta",
+      "name": "dvl-meta-00005",
+      "spellings": 4
+    },
+    {
+      "family": "string-scan",
+      "layer": "meta",
+      "name": "dvl-meta-00006",
+      "spellings": 4
+    },
+    {
+      "family": "string-build",
+      "layer": "meta",
+      "name": "dvl-meta-00007",
+      "spellings": 5
+    },
+    {
+      "family": "guarded-total",
+      "layer": "meta",
+      "name": "dvl-meta-00008",
+      "spellings": 4
+    },
+    {
+      "family": "find-first",
+      "layer": "meta",
+      "name": "dvl-meta-00009",
+      "spellings": 4
+    },
+    {
+      "family": "nested-total",
+      "layer": "meta",
+      "name": "dvl-meta-00010",
+      "spellings": 4
+    },
+    {
+      "family": "find-first",
+      "layer": "meta",
+      "name": "dvl-meta-00011",
+      "spellings": 4
+    },
+    {
+      "family": "string-scan",
+      "layer": "meta",
+      "name": "dvl-meta-00012",
+      "spellings": 4
+    },
+    {
+      "family": "nested-total",
+      "layer": "meta",
+      "name": "dvl-meta-00013",
+      "spellings": 4
+    },
+    {
+      "family": "nested-total",
+      "layer": "meta",
+      "name": "dvl-meta-00014",
+      "spellings": 4
+    },
+    {
+      "family": "nested-total",
+      "layer": "meta",
+      "name": "dvl-meta-00015",
+      "spellings": 4
+    },
+    {
+      "family": "object-walk",
+      "layer": "meta",
+      "name": "dvl-meta-00016",
+      "spellings": 3
+    },
+    {
+      "family": "count-matching",
+      "layer": "meta",
+      "name": "dvl-meta-00017",
+      "spellings": 4
+    },
+    {
+      "family": "set-membership",
+      "layer": "meta",
+      "name": "dvl-meta-00018",
+      "spellings": 3
+    },
+    {
+      "family": "array-sum",
+      "layer": "meta",
+      "name": "dvl-meta-00019",
+      "spellings": 7
+    },
+    {
+      "depth": 8,
+      "layer": "weave",
+      "name": "dvl-weave-00000",
+      "root": "array-of",
+      "type": "TDvlA00000_8"
+    },
+    {
+      "depth": 9,
+      "layer": "weave",
+      "name": "dvl-weave-00001",
+      "root": "record",
+      "type": "TDvlW00001_9"
+    },
+    {
+      "depth": 6,
+      "layer": "weave",
+      "name": "dvl-weave-00002",
+      "root": "array-of",
+      "type": "TDvlA00002_6"
+    },
+    {
+      "depth": 6,
+      "layer": "weave",
+      "name": "dvl-weave-00003",
+      "root": "nested-generic",
+      "type": "TDvlPair00003_6<TDvlG00003_5<TDvlPair00003_4<TDvlW00003_3>>>"
+    },
+    {
+      "depth": 5,
+      "layer": "weave",
+      "name": "dvl-weave-00004",
+      "root": "nested-generic",
+      "type": "TDvlPair00004_5<IDvlH00004_4>"
+    },
+    {
+      "depth": 9,
+      "layer": "weave",
+      "name": "dvl-weave-00005",
+      "root": "class-field",
+      "type": "TDvlC00005_9"
+    },
+    {
+      "depth": 5,
+      "layer": "weave",
+      "name": "dvl-weave-00006",
+      "root": "array-of",
+      "type": "TDvlA00006_5"
+    },
+    {
+      "depth": 4,
+      "layer": "weave",
+      "name": "dvl-weave-00007",
+      "root": "record",
+      "type": "TDvlW00007_4"
+    },
+    {
+      "depth": 7,
+      "layer": "weave",
+      "name": "dvl-weave-00008",
+      "root": "nested-generic",
+      "type": "TDvlPair00008_7<TDvlA00008_6>"
+    },
+    {
+      "depth": 5,
+      "layer": "weave",
+      "name": "dvl-weave-00009",
+      "root": "class-field",
+      "type": "TDvlC00009_5"
+    },
+    {
+      "depth": 6,
+      "layer": "weave",
+      "name": "dvl-weave-00010",
+      "root": "managed-record",
+      "type": "TDvlM00010_6"
+    },
+    {
+      "depth": 8,
+      "layer": "weave",
+      "name": "dvl-weave-00011",
+      "root": "generic-record",
+      "type": "TDvlG00011_8<TDvlG00011_7<TDvlG00011_6<TDvlW00011_5>>>"
+    },
+    {
+      "depth": 4,
+      "layer": "weave",
+      "name": "dvl-weave-00012",
+      "root": "record",
+      "type": "TDvlW00012_4"
+    },
+    {
+      "depth": 4,
+      "layer": "weave",
+      "name": "dvl-weave-00013",
+      "root": "array-of",
+      "type": "TDvlA00013_4"
+    },
+    {
+      "depth": 5,
+      "layer": "weave",
+      "name": "dvl-weave-00014",
+      "root": "nested-generic",
+      "type": "TDvlPair00014_5<TDvlW00014_4>"
+    },
+    {
+      "depth": 7,
+      "layer": "weave",
+      "name": "dvl-weave-00015",
+      "root": "managed-record",
+      "type": "TDvlM00015_7"
+    },
+    {
+      "depth": 5,
+      "layer": "weave",
+      "name": "dvl-weave-00016",
+      "root": "record",
+      "type": "TDvlW00016_5"
+    },
+    {
+      "depth": 6,
+      "layer": "weave",
+      "name": "dvl-weave-00017",
+      "root": "interface-holder",
+      "type": "IDvlH00017_6"
+    },
+    {
+      "depth": 4,
+      "layer": "weave",
+      "name": "dvl-weave-00018",
+      "root": "class-field",
+      "type": "TDvlC00018_4"
+    },
+    {
+      "depth": 9,
+      "layer": "weave",
+      "name": "dvl-weave-00019",
+      "root": "generic-record",
+      "type": "TDvlG00019_9<TDvlC00019_8>"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-signedness-inherited-call-e0",
+      "passenger": "signedness",
+      "pressure": false,
+      "transfer": "inherited-call"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-signedness-raw-move-e0-p",
+      "passenger": "signedness",
+      "pressure": true,
+      "transfer": "raw-move"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-signedness-tvalue-e0",
+      "passenger": "signedness",
+      "pressure": false,
+      "transfer": "tvalue"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-signedness-message-method-e0",
+      "passenger": "signedness",
+      "pressure": false,
+      "transfer": "message-method"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-signedness-class-helper-e0-p",
+      "passenger": "signedness",
+      "pressure": true,
+      "transfer": "class-helper"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-fold-e0",
+      "passenger": "exact-type",
+      "pressure": false,
+      "transfer": "fold"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-inline-e0",
+      "passenger": "exact-type",
+      "pressure": false,
+      "transfer": "inline"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-cross-unit-e0-p",
+      "passenger": "exact-type",
+      "pressure": true,
+      "transfer": "cross-unit"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-specialization-e0",
+      "passenger": "exact-type",
+      "pressure": false,
+      "transfer": "specialization"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-closure-e0",
+      "passenger": "exact-type",
+      "pressure": false,
+      "transfer": "closure"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-variant-e0-p",
+      "passenger": "exact-type",
+      "pressure": true,
+      "transfer": "variant"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-thread-e0",
+      "passenger": "exact-type",
+      "pressure": false,
+      "transfer": "thread"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-narrow-widen-e0",
+      "passenger": "exact-type",
+      "pressure": false,
+      "transfer": "narrow-widen"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-unwind-e0-p",
+      "passenger": "exact-type",
+      "pressure": true,
+      "transfer": "unwind"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-record-copy-e0",
+      "passenger": "exact-type",
+      "pressure": false,
+      "transfer": "record-copy"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-interface-cast-e0",
+      "passenger": "exact-type",
+      "pressure": false,
+      "transfer": "interface-cast"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-virtual-call-e0-p",
+      "passenger": "exact-type",
+      "pressure": true,
+      "transfer": "virtual-call"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-typed-file-e0",
+      "passenger": "exact-type",
+      "pressure": false,
+      "transfer": "typed-file"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-property-accessor-e0",
+      "passenger": "exact-type",
+      "pressure": false,
+      "transfer": "property-accessor"
+    },
+    {
+      "edge": 0,
+      "layer": "matrix",
+      "name": "dvl-matrix-exact-type-open-array-e0-p",
+      "passenger": "exact-type",
+      "pressure": true,
+      "transfer": "open-array"
+    },
+    {
+      "first": "fold",
+      "layer": "composite",
+      "name": "dvl-composite-exact-type-fold-interface-cast",
+      "passenger": "exact-type",
+      "second": "interface-cast",
+      "third": null
+    },
+    {
+      "first": "virtual-call",
+      "layer": "composite",
+      "name": "dvl-composite-width-virtual-call-narrow-widen",
+      "passenger": "width",
+      "second": "narrow-widen",
+      "third": null
+    },
+    {
+      "first": "open-array",
+      "layer": "composite",
+      "name": "dvl-composite-signedness-open-array-interface-cast",
+      "passenger": "signedness",
+      "second": "interface-cast",
+      "third": "record-copy"
+    },
+    {
+      "first": "const-param",
+      "layer": "composite",
+      "name": "dvl-composite-method-data-const-param-thread",
+      "passenger": "method-data",
+      "second": "thread",
+      "third": null
+    },
+    {
+      "first": "open-array",
+      "layer": "composite",
+      "name": "dvl-composite-refcount-open-array-runtime-declaration",
+      "passenger": "refcount",
+      "second": "runtime-declaration",
+      "third": null
+    },
+    {
+      "first": "virtual-call",
+      "layer": "composite",
+      "name": "dvl-composite-enum-base-virtual-call-const-param",
+      "passenger": "enum-base",
+      "second": "const-param",
+      "third": "inline"
+    },
+    {
+      "first": "closure-value",
+      "layer": "composite",
+      "name": "dvl-composite-generic-arg-closure-value-fold",
+      "passenger": "generic-arg",
+      "second": "fold",
+      "third": null
+    },
+    {
+      "first": "property-accessor",
+      "layer": "composite",
+      "name": "dvl-composite-enum-base-property-accessor-thread",
+      "passenger": "enum-base",
+      "second": "thread",
+      "third": null
+    },
+    {
+      "first": "runtime-declaration",
+      "layer": "composite",
+      "name": "dvl-composite-method-data-runtime-declaration-interface-cast",
+      "passenger": "method-data",
+      "second": "interface-cast",
+      "third": "record-copy"
+    },
+    {
+      "first": "variant",
+      "layer": "composite",
+      "name": "dvl-composite-generic-arg-variant-record-copy",
+      "passenger": "generic-arg",
+      "second": "record-copy",
+      "third": null
+    },
+    {
+      "first": "interface-cast",
+      "layer": "composite",
+      "name": "dvl-composite-generic-arg-interface-cast-thread",
+      "passenger": "generic-arg",
+      "second": "thread",
+      "third": null
+    },
+    {
+      "first": "property-accessor",
+      "layer": "composite",
+      "name": "dvl-composite-buffer-property-accessor-runtime-declaration",
+      "passenger": "buffer",
+      "second": "runtime-declaration",
+      "third": "variant"
+    },
+    {
+      "first": "property-accessor",
+      "layer": "composite",
+      "name": "dvl-composite-width-property-accessor-record-copy",
+      "passenger": "width",
+      "second": "record-copy",
+      "third": null
+    },
+    {
+      "first": "fold",
+      "layer": "composite",
+      "name": "dvl-composite-method-data-fold-const-param",
+      "passenger": "method-data",
+      "second": "const-param",
+      "third": null
+    },
+    {
+      "first": "open-array",
+      "layer": "composite",
+      "name": "dvl-composite-enum-base-open-array-specialization",
+      "passenger": "enum-base",
+      "second": "specialization",
+      "third": "closure-value"
+    },
+    {
+      "first": "fold",
+      "layer": "composite",
+      "name": "dvl-composite-exact-type-fold-closure-value",
+      "passenger": "exact-type",
+      "second": "closure-value",
+      "third": null
+    },
+    {
+      "first": "property-accessor",
+      "layer": "composite",
+      "name": "dvl-composite-exact-type-property-accessor-fold",
+      "passenger": "exact-type",
+      "second": "fold",
+      "third": null
+    },
+    {
+      "first": "virtual-call",
+      "layer": "composite",
+      "name": "dvl-composite-buffer-virtual-call-variant",
+      "passenger": "buffer",
+      "second": "variant",
+      "third": "specialization"
+    },
+    {
+      "first": "interface-cast",
+      "layer": "composite",
+      "name": "dvl-composite-generic-arg-interface-cast-cross-unit",
+      "passenger": "generic-arg",
+      "second": "cross-unit",
+      "third": null
+    },
+    {
+      "first": "variant",
+      "layer": "composite",
+      "name": "dvl-composite-exact-type-variant-runtime-declaration",
+      "passenger": "exact-type",
+      "second": "runtime-declaration",
+      "third": null
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-array-smallint-32767",
+      "narrowing": "smallint",
+      "shape": "generic-array",
+      "value": "32767"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-array-smallint-m1",
+      "narrowing": "smallint",
+      "shape": "generic-array",
+      "value": "-1"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-array-smallint-m2147483647",
+      "narrowing": "smallint",
+      "shape": "generic-array",
+      "value": "-2147483647"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-array-smallint-65535",
+      "narrowing": "smallint",
+      "shape": "generic-array",
+      "value": "65535"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-array-smallint-m129",
+      "narrowing": "smallint",
+      "shape": "generic-array",
+      "value": "-129"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-array-integer-m32767",
+      "narrowing": "integer",
+      "shape": "generic-array",
+      "value": "-32767"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-array-integer-32767",
+      "narrowing": "integer",
+      "shape": "generic-array",
+      "value": "32767"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-array-integer-m1",
+      "narrowing": "integer",
+      "shape": "generic-array",
+      "value": "-1"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-array-integer-m2147483647",
+      "narrowing": "integer",
+      "shape": "generic-array",
+      "value": "-2147483647"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-array-integer-65535",
+      "narrowing": "integer",
+      "shape": "generic-array",
+      "value": "65535"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-array-integer-m129",
+      "narrowing": "integer",
+      "shape": "generic-array",
+      "value": "-129"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-interface-word-m32767",
+      "narrowing": "word",
+      "shape": "generic-interface",
+      "value": "-32767"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-interface-word-32767",
+      "narrowing": "word",
+      "shape": "generic-interface",
+      "value": "32767"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-interface-word-m1",
+      "narrowing": "word",
+      "shape": "generic-interface",
+      "value": "-1"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-interface-word-m2147483647",
+      "narrowing": "word",
+      "shape": "generic-interface",
+      "value": "-2147483647"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-interface-word-65535",
+      "narrowing": "word",
+      "shape": "generic-interface",
+      "value": "65535"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-interface-word-m129",
+      "narrowing": "word",
+      "shape": "generic-interface",
+      "value": "-129"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-interface-byte-m32767",
+      "narrowing": "byte",
+      "shape": "generic-interface",
+      "value": "-32767"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-interface-byte-32767",
+      "narrowing": "byte",
+      "shape": "generic-interface",
+      "value": "32767"
+    },
+    {
+      "layer": "genpath",
+      "name": "dvl-genpath-generic-interface-byte-m1",
+      "narrowing": "byte",
+      "shape": "generic-interface",
+      "value": "-1"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-word-255",
+      "narrowing": "word",
+      "shape": "field",
+      "value": "255"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-word-m32768",
+      "narrowing": "word",
+      "shape": "field",
+      "value": "-32768"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-byte-m32767",
+      "narrowing": "byte",
+      "shape": "field",
+      "value": "-32767"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-byte-32767",
+      "narrowing": "byte",
+      "shape": "field",
+      "value": "32767"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-byte-m1",
+      "narrowing": "byte",
+      "shape": "field",
+      "value": "-1"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-byte-m2147483647",
+      "narrowing": "byte",
+      "shape": "field",
+      "value": "-2147483647"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-byte-65535",
+      "narrowing": "byte",
+      "shape": "field",
+      "value": "65535"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-byte-m129",
+      "narrowing": "byte",
+      "shape": "field",
+      "value": "-129"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-byte-255",
+      "narrowing": "byte",
+      "shape": "field",
+      "value": "255"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-byte-m32768",
+      "narrowing": "byte",
+      "shape": "field",
+      "value": "-32768"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-cardinal-m32767",
+      "narrowing": "cardinal",
+      "shape": "field",
+      "value": "-32767"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-cardinal-32767",
+      "narrowing": "cardinal",
+      "shape": "field",
+      "value": "32767"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-cardinal-m1",
+      "narrowing": "cardinal",
+      "shape": "field",
+      "value": "-1"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-cardinal-m2147483647",
+      "narrowing": "cardinal",
+      "shape": "field",
+      "value": "-2147483647"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-cardinal-65535",
+      "narrowing": "cardinal",
+      "shape": "field",
+      "value": "65535"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-cardinal-m129",
+      "narrowing": "cardinal",
+      "shape": "field",
+      "value": "-129"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-cardinal-255",
+      "narrowing": "cardinal",
+      "shape": "field",
+      "value": "255"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-cardinal-m32768",
+      "narrowing": "cardinal",
+      "shape": "field",
+      "value": "-32768"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-smallint-m32767",
+      "narrowing": "smallint",
+      "shape": "field",
+      "value": "-32767"
+    },
+    {
+      "layer": "narrowpath",
+      "name": "dvl-narrowpath-field-smallint-32767",
+      "narrowing": "smallint",
+      "shape": "field",
+      "value": "32767"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-width",
+      "layer": "pick",
+      "name": "dvl-pick-int-width-lit-1"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "pick",
+      "name": "dvl-pick-int-width-lit-300"
+    },
+    {
+      "arg": "lit-neg",
+      "family": "int-width",
+      "layer": "pick",
+      "name": "dvl-pick-int-width-lit-neg"
+    },
+    {
+      "arg": "lit-big32",
+      "family": "int-width",
+      "layer": "pick",
+      "name": "dvl-pick-int-width-lit-big32"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-width",
+      "layer": "pick",
+      "name": "dvl-pick-int-width-lit-big64"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-width",
+      "layer": "pick",
+      "name": "dvl-pick-int-width-var-byte"
+    },
+    {
+      "arg": "var-smallint",
+      "family": "int-width",
+      "layer": "pick",
+      "name": "dvl-pick-int-width-var-smallint"
+    },
+    {
+      "arg": "var-integer",
+      "family": "int-width",
+      "layer": "pick",
+      "name": "dvl-pick-int-width-var-integer"
+    },
+    {
+      "arg": "var-int64",
+      "family": "int-width",
+      "layer": "pick",
+      "name": "dvl-pick-int-width-var-int64"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-narrow",
+      "layer": "pick",
+      "name": "dvl-pick-int-narrow-lit-1"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "pick",
+      "name": "dvl-pick-int-narrow-lit-big64"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-narrow",
+      "layer": "pick",
+      "name": "dvl-pick-int-narrow-var-byte"
+    },
+    {
+      "arg": "var-integer",
+      "family": "int-narrow",
+      "layer": "pick",
+      "name": "dvl-pick-int-narrow-var-integer"
+    },
+    {
+      "arg": "var-int64",
+      "family": "int-narrow",
+      "layer": "pick",
+      "name": "dvl-pick-int-narrow-var-int64"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "pick",
+      "name": "dvl-pick-int-sign-lit-1"
+    },
+    {
+      "arg": "lit-neg",
+      "family": "int-sign",
+      "layer": "pick",
+      "name": "dvl-pick-int-sign-lit-neg"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "pick",
+      "name": "dvl-pick-int-sign-var-byte"
+    },
+    {
+      "arg": "var-integer",
+      "family": "int-sign",
+      "layer": "pick",
+      "name": "dvl-pick-int-sign-var-integer"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "pick",
+      "name": "dvl-pick-int-sign64-lit-1"
+    },
+    {
+      "arg": "var-integer",
+      "family": "int-sign64",
+      "layer": "pick",
+      "name": "dvl-pick-int-sign64-var-integer"
+    },
+    {
+      "arg": "var-int64",
+      "family": "int-sign64",
+      "layer": "pick",
+      "name": "dvl-pick-int-sign64-var-int64"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "pick",
+      "name": "dvl-pick-string-four-lit-str"
+    },
+    {
+      "arg": "var-ansistring",
+      "family": "string-four",
+      "layer": "pick",
+      "name": "dvl-pick-string-four-var-ansistring"
+    },
+    {
+      "arg": "var-unicodestring",
+      "family": "string-four",
+      "layer": "pick",
+      "name": "dvl-pick-string-four-var-unicodestring"
+    },
+    {
+      "arg": "var-widestring",
+      "family": "string-four",
+      "layer": "pick",
+      "name": "dvl-pick-string-four-var-widestring"
+    },
+    {
+      "arg": "var-utf8",
+      "family": "string-four",
+      "layer": "pick",
+      "name": "dvl-pick-string-four-var-utf8"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-ptr",
+      "layer": "pick",
+      "name": "dvl-pick-string-ptr-lit-str"
+    },
+    {
+      "arg": "var-unicodestring",
+      "family": "string-ptr",
+      "layer": "pick",
+      "name": "dvl-pick-string-ptr-var-unicodestring"
+    },
+    {
+      "arg": "var-pchar",
+      "family": "string-ptr",
+      "layer": "pick",
+      "name": "dvl-pick-string-ptr-var-pchar"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-ansi",
+      "layer": "pick",
+      "name": "dvl-pick-string-ansi-lit-str"
+    },
+    {
+      "arg": "var-ansistring",
+      "family": "string-ansi",
+      "layer": "pick",
+      "name": "dvl-pick-string-ansi-var-ansistring"
+    },
+    {
+      "arg": "var-pansichar",
+      "family": "string-ansi",
+      "layer": "pick",
+      "name": "dvl-pick-string-ansi-var-pansichar"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char",
+      "layer": "pick",
+      "name": "dvl-pick-char-lit-char"
+    },
+    {
+      "arg": "var-char",
+      "family": "char",
+      "layer": "pick",
+      "name": "dvl-pick-char-var-char"
+    },
+    {
+      "arg": "var-ansichar",
+      "family": "char",
+      "layer": "pick",
+      "name": "dvl-pick-char-var-ansichar"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "pick",
+      "name": "dvl-pick-num-float-lit-1"
+    },
+    {
+      "arg": "lit-float",
+      "family": "num-float",
+      "layer": "pick",
+      "name": "dvl-pick-num-float-lit-float"
+    },
+    {
+      "arg": "var-integer",
+      "family": "num-float",
+      "layer": "pick",
+      "name": "dvl-pick-num-float-var-integer"
+    },
+    {
+      "arg": "var-double",
+      "family": "num-float",
+      "layer": "pick",
+      "name": "dvl-pick-num-float-var-double"
+    },
+    {
+      "arg": "lit-float",
+      "family": "float-width",
+      "layer": "pick",
+      "name": "dvl-pick-float-width-lit-float"
+    },
+    {
+      "arg": "var-single",
+      "family": "float-width",
+      "layer": "pick",
+      "name": "dvl-pick-float-width-var-single"
+    },
+    {
+      "arg": "var-double",
+      "family": "float-width",
+      "layer": "pick",
+      "name": "dvl-pick-float-width-var-double"
+    },
+    {
+      "arg": "var-double",
+      "family": "money",
+      "layer": "pick",
+      "name": "dvl-pick-money-var-double"
+    },
+    {
+      "arg": "var-currency",
+      "family": "money",
+      "layer": "pick",
+      "name": "dvl-pick-money-var-currency"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "pick",
+      "name": "dvl-pick-variant-lit-1"
+    },
+    {
+      "arg": "var-integer",
+      "family": "variant",
+      "layer": "pick",
+      "name": "dvl-pick-variant-var-integer"
+    },
+    {
+      "arg": "var-variant",
+      "family": "variant",
+      "layer": "pick",
+      "name": "dvl-pick-variant-var-variant"
+    },
+    {
+      "arg": "lit-str",
+      "family": "variant-str",
+      "layer": "pick",
+      "name": "dvl-pick-variant-str-lit-str"
+    },
+    {
+      "arg": "var-unicodestring",
+      "family": "variant-str",
+      "layer": "pick",
+      "name": "dvl-pick-variant-str-var-unicodestring"
+    },
+    {
+      "arg": "var-variant",
+      "family": "variant-str",
+      "layer": "pick",
+      "name": "dvl-pick-variant-str-var-variant"
+    },
+    {
+      "arg": "derived",
+      "family": "class-depth",
+      "layer": "pick",
+      "name": "dvl-pick-class-depth-derived"
+    },
+    {
+      "arg": "base",
+      "family": "class-depth",
+      "layer": "pick",
+      "name": "dvl-pick-class-depth-base"
+    },
+    {
+      "arg": "object",
+      "family": "class-depth",
+      "layer": "pick",
+      "name": "dvl-pick-class-depth-object"
+    },
+    {
+      "arg": "impl",
+      "family": "class-intf",
+      "layer": "pick",
+      "name": "dvl-pick-class-intf-impl"
+    },
+    {
+      "arg": "intf",
+      "family": "class-intf",
+      "layer": "pick",
+      "name": "dvl-pick-class-intf-intf"
+    },
+    {
+      "arg": "pointer",
+      "family": "pointer",
+      "layer": "pick",
+      "name": "dvl-pick-pointer-pointer"
+    },
+    {
+      "arg": "pbyte",
+      "family": "pointer",
+      "layer": "pick",
+      "name": "dvl-pick-pointer-pbyte"
+    },
+    {
+      "arg": "address",
+      "family": "pointer",
+      "layer": "pick",
+      "name": "dvl-pick-pointer-address"
+    },
+    {
+      "arg": "enum",
+      "family": "enum-ordinal",
+      "layer": "pick",
+      "name": "dvl-pick-enum-ordinal-enum"
+    },
+    {
+      "arg": "lit",
+      "family": "enum-ordinal",
+      "layer": "pick",
+      "name": "dvl-pick-enum-ordinal-lit"
+    },
+    {
+      "arg": "integer",
+      "family": "generic-concrete",
+      "layer": "pick",
+      "name": "dvl-pick-generic-concrete-integer"
+    },
+    {
+      "arg": "int64",
+      "family": "generic-concrete",
+      "layer": "pick",
+      "name": "dvl-pick-generic-concrete-int64"
+    },
+    {
+      "arg": "string",
+      "family": "generic-concrete",
+      "layer": "pick",
+      "name": "dvl-pick-generic-concrete-string"
+    },
+    {
+      "arg": "plain",
+      "family": "helper-owner",
+      "layer": "pick",
+      "name": "dvl-pick-helper-owner-plain"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "pick",
+      "name": "dvl-pick-char-form-lit-char"
+    },
+    {
+      "arg": "lit-char-escaped",
+      "family": "char-form",
+      "layer": "pick",
+      "name": "dvl-pick-char-form-lit-char-escaped"
+    },
+    {
+      "arg": "lit-char-chr",
+      "family": "char-form",
+      "layer": "pick",
+      "name": "dvl-pick-char-form-lit-char-chr"
+    },
+    {
+      "arg": "var-char",
+      "family": "char-form",
+      "layer": "pick",
+      "name": "dvl-pick-char-form-var-char"
+    },
+    {
+      "arg": "var-ansichar",
+      "family": "char-form",
+      "layer": "pick",
+      "name": "dvl-pick-char-form-var-ansichar"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "pick",
+      "name": "dvl-pick-string-form-lit-str"
+    },
+    {
+      "arg": "lit-str-escaped",
+      "family": "string-form",
+      "layer": "pick",
+      "name": "dvl-pick-string-form-lit-str-escaped"
+    },
+    {
+      "arg": "lit-str-concat",
+      "family": "string-form",
+      "layer": "pick",
+      "name": "dvl-pick-string-form-lit-str-concat"
+    },
+    {
+      "arg": "var-ansistring",
+      "family": "string-form",
+      "layer": "pick",
+      "name": "dvl-pick-string-form-var-ansistring"
+    },
+    {
+      "arg": "var-unicodestring",
+      "family": "string-form",
+      "layer": "pick",
+      "name": "dvl-pick-string-form-var-unicodestring"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-with-vs-local",
+      "shape": "with-vs-local"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-with-two-records",
+      "shape": "with-two-records"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-with-vs-param",
+      "shape": "with-vs-param"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-field-vs-local",
+      "shape": "field-vs-local"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-field-vs-global",
+      "shape": "field-vs-global"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-derived-shadows-base",
+      "shape": "derived-shadows-base"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-param-vs-field",
+      "shape": "param-vs-field"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-nested-vs-outer",
+      "shape": "nested-vs-outer"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-loopvar-vs-outer",
+      "shape": "loopvar-vs-outer"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-enum-member-vs-local",
+      "shape": "enum-member-vs-local"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-uses-order",
+      "shape": "uses-order"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-qualified-vs-plain",
+      "shape": "qualified-vs-plain"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-helper-vs-record-method",
+      "shape": "helper-vs-record-method"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-later-helper-wins",
+      "shape": "later-helper-wins"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-nested-type-vs-outer-type",
+      "shape": "nested-type-vs-outer-type"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-with-vs-unit-function",
+      "shape": "with-vs-unit-function"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-inherited-overload",
+      "shape": "inherited-overload"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-for-in-var-vs-outer",
+      "shape": "for-in-var-vs-outer"
+    },
+    {
+      "layer": "scope",
+      "name": "dvl-scope-with-vs-field",
+      "shape": "with-vs-field"
+    },
+    {
+      "destination": "local",
+      "layer": "lit",
+      "name": "dvl-lit-local-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "local",
+      "layer": "lit",
+      "name": "dvl-lit-local-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "local",
+      "layer": "lit",
+      "name": "dvl-lit-local-identity",
+      "observation": "identity"
+    },
+    {
+      "destination": "global",
+      "layer": "lit",
+      "name": "dvl-lit-global-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "global",
+      "layer": "lit",
+      "name": "dvl-lit-global-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "global",
+      "layer": "lit",
+      "name": "dvl-lit-global-identity",
+      "observation": "identity"
+    },
+    {
+      "destination": "object-field",
+      "layer": "lit",
+      "name": "dvl-lit-object-field-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "object-field",
+      "layer": "lit",
+      "name": "dvl-lit-object-field-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "object-field",
+      "layer": "lit",
+      "name": "dvl-lit-object-field-identity",
+      "observation": "identity"
+    },
+    {
+      "destination": "global-record-field",
+      "layer": "lit",
+      "name": "dvl-lit-global-record-field-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "global-record-field",
+      "layer": "lit",
+      "name": "dvl-lit-global-record-field-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "global-record-field",
+      "layer": "lit",
+      "name": "dvl-lit-global-record-field-identity",
+      "observation": "identity"
+    },
+    {
+      "destination": "array-element",
+      "layer": "lit",
+      "name": "dvl-lit-array-element-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "array-element",
+      "layer": "lit",
+      "name": "dvl-lit-array-element-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "array-element",
+      "layer": "lit",
+      "name": "dvl-lit-array-element-identity",
+      "observation": "identity"
+    },
+    {
+      "destination": "nested-array",
+      "layer": "lit",
+      "name": "dvl-lit-nested-array-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "nested-array",
+      "layer": "lit",
+      "name": "dvl-lit-nested-array-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "nested-array",
+      "layer": "lit",
+      "name": "dvl-lit-nested-array-identity",
+      "observation": "identity"
+    },
+    {
+      "destination": "out-param",
+      "layer": "lit",
+      "name": "dvl-lit-out-param-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "out-param",
+      "layer": "lit",
+      "name": "dvl-lit-out-param-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "out-param",
+      "layer": "lit",
+      "name": "dvl-lit-out-param-identity",
+      "observation": "identity"
+    },
+    {
+      "destination": "result",
+      "layer": "lit",
+      "name": "dvl-lit-result-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "result",
+      "layer": "lit",
+      "name": "dvl-lit-result-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "result",
+      "layer": "lit",
+      "name": "dvl-lit-result-identity",
+      "observation": "identity"
+    },
+    {
+      "destination": "captured",
+      "layer": "lit",
+      "name": "dvl-lit-captured-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "captured",
+      "layer": "lit",
+      "name": "dvl-lit-captured-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "captured",
+      "layer": "lit",
+      "name": "dvl-lit-captured-identity",
+      "observation": "identity"
+    },
+    {
+      "destination": "threadvar",
+      "layer": "lit",
+      "name": "dvl-lit-threadvar-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "threadvar",
+      "layer": "lit",
+      "name": "dvl-lit-threadvar-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "threadvar",
+      "layer": "lit",
+      "name": "dvl-lit-threadvar-identity",
+      "observation": "identity"
+    },
+    {
+      "destination": "static-array",
+      "layer": "lit",
+      "name": "dvl-lit-static-array-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "static-array",
+      "layer": "lit",
+      "name": "dvl-lit-static-array-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "static-array",
+      "layer": "lit",
+      "name": "dvl-lit-static-array-identity",
+      "observation": "identity"
+    },
+    {
+      "destination": "interface-field",
+      "layer": "lit",
+      "name": "dvl-lit-interface-field-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "interface-field",
+      "layer": "lit",
+      "name": "dvl-lit-interface-field-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "interface-field",
+      "layer": "lit",
+      "name": "dvl-lit-interface-field-identity",
+      "observation": "identity"
+    },
+    {
+      "destination": "form-ansi-cast",
+      "layer": "lit",
+      "name": "dvl-lit-form-ansi-cast-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "form-rawbyte-cast",
+      "layer": "lit",
+      "name": "dvl-lit-form-rawbyte-cast-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "form-utf8-cast",
+      "layer": "lit",
+      "name": "dvl-lit-form-utf8-cast-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "form-unicode-plain",
+      "layer": "lit",
+      "name": "dvl-lit-form-unicode-plain-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "form-implicit",
+      "layer": "lit",
+      "name": "dvl-lit-form-implicit-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "form-typed-const",
+      "layer": "lit",
+      "name": "dvl-lit-form-typed-const-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "form-concat",
+      "layer": "lit",
+      "name": "dvl-lit-form-concat-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "form-copy-built",
+      "layer": "lit",
+      "name": "dvl-lit-form-copy-built-refcount",
+      "observation": "refcount"
+    },
+    {
+      "destination": "form-ansi-cast",
+      "layer": "lit",
+      "name": "dvl-lit-form-ansi-cast-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "form-rawbyte-cast",
+      "layer": "lit",
+      "name": "dvl-lit-form-rawbyte-cast-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "form-utf8-cast",
+      "layer": "lit",
+      "name": "dvl-lit-form-utf8-cast-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "form-unicode-plain",
+      "layer": "lit",
+      "name": "dvl-lit-form-unicode-plain-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "form-implicit",
+      "layer": "lit",
+      "name": "dvl-lit-form-implicit-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "form-typed-const",
+      "layer": "lit",
+      "name": "dvl-lit-form-typed-const-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "form-concat",
+      "layer": "lit",
+      "name": "dvl-lit-form-concat-writable",
+      "observation": "writable"
+    },
+    {
+      "destination": "form-copy-built",
+      "layer": "lit",
+      "name": "dvl-lit-form-copy-built-writable",
+      "observation": "writable"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-classic-loop-var",
+      "shape": "classic-loop-var"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-inline-loop-var",
+      "shape": "inline-loop-var"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-for-in-var",
+      "shape": "for-in-var"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-local-changed-after",
+      "shape": "local-changed-after"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-local-per-iteration",
+      "shape": "local-per-iteration"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-nested-closure",
+      "shape": "nested-closure"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-closure-in-closure",
+      "shape": "closure-in-closure"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-field-of-object",
+      "shape": "field-of-object"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-with-scoped",
+      "shape": "with-scoped"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-captured-managed",
+      "shape": "captured-managed"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-captured-record",
+      "shape": "captured-record"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-captured-array-slot",
+      "shape": "captured-array-slot"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-self-in-method",
+      "shape": "self-in-method"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-const-param",
+      "shape": "const-param"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-captured-in-thread",
+      "shape": "captured-in-thread"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-exception-var",
+      "shape": "exception-var"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-try-finally-var",
+      "shape": "try-finally-var"
+    },
+    {
+      "layer": "capture",
+      "name": "dvl-capture-recursive-capture",
+      "shape": "recursive-capture"
+    },
+    {
+      "layer": "attr",
+      "mark": 7,
+      "name": "dvl-attr-class-type-readback",
+      "target": "class-type"
+    },
+    {
+      "layer": "attr",
+      "mark": 8,
+      "name": "dvl-attr-record-type-readback",
+      "target": "record-type"
+    },
+    {
+      "layer": "attr",
+      "mark": 9,
+      "name": "dvl-attr-class-field-readback",
+      "target": "class-field"
+    },
+    {
+      "layer": "attr",
+      "mark": 10,
+      "name": "dvl-attr-record-field-readback",
+      "target": "record-field"
+    },
+    {
+      "layer": "attr",
+      "mark": 11,
+      "name": "dvl-attr-method-readback",
+      "target": "method"
+    },
+    {
+      "layer": "attr",
+      "mark": 12,
+      "name": "dvl-attr-published-property-readback",
+      "target": "published-property"
+    },
+    {
+      "layer": "attr",
+      "mark": 13,
+      "name": "dvl-attr-public-property-readback",
+      "target": "public-property"
+    },
+    {
+      "layer": "attr",
+      "mark": 14,
+      "name": "dvl-attr-interface-type-readback",
+      "target": "interface-type"
+    },
+    {
+      "layer": "attr",
+      "mark": 15,
+      "name": "dvl-attr-enum-type-readback",
+      "target": "enum-type"
+    },
+    {
+      "layer": "attr",
+      "mark": 16,
+      "name": "dvl-attr-rtti-explicit-public-readback",
+      "target": "rtti-explicit-public"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-direct",
+      "way": "direct"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-paren",
+      "way": "paren"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-paren-twice",
+      "way": "paren-twice"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-cast",
+      "way": "cast"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-identity-add",
+      "way": "identity-add"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-identity-sub",
+      "way": "identity-sub"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-identity-mul",
+      "way": "identity-mul"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-identity-or",
+      "way": "identity-or"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-inline-result",
+      "way": "inline-result"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-noinline-result",
+      "way": "noinline-result"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-ppu-const",
+      "way": "ppu-const"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-generic-arg",
+      "way": "generic-arg"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-closure",
+      "way": "closure"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-with-scope",
+      "way": "with-scope"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-thread",
+      "way": "thread"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-const-param",
+      "way": "const-param"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-typed-const",
+      "way": "typed-const"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-case-arm",
+      "way": "case-arm"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-lit-1-ternary-like",
+      "way": "ternary-like"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-direct",
+      "way": "direct"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-paren",
+      "way": "paren"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-paren-twice",
+      "way": "paren-twice"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-cast",
+      "way": "cast"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-identity-add",
+      "way": "identity-add"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-identity-sub",
+      "way": "identity-sub"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-identity-mul",
+      "way": "identity-mul"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-identity-or",
+      "way": "identity-or"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-inline-result",
+      "way": "inline-result"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-noinline-result",
+      "way": "noinline-result"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-ppu-const",
+      "way": "ppu-const"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-generic-arg",
+      "way": "generic-arg"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-closure",
+      "way": "closure"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-with-scope",
+      "way": "with-scope"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-thread",
+      "way": "thread"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-const-param",
+      "way": "const-param"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-typed-const",
+      "way": "typed-const"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-case-arm",
+      "way": "case-arm"
+    },
+    {
+      "arg": "var-byte",
+      "family": "int-sign",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign-var-byte-ternary-like",
+      "way": "ternary-like"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-direct",
+      "way": "direct"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-paren",
+      "way": "paren"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-paren-twice",
+      "way": "paren-twice"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-cast",
+      "way": "cast"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-identity-add",
+      "way": "identity-add"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-identity-sub",
+      "way": "identity-sub"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-identity-mul",
+      "way": "identity-mul"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-identity-or",
+      "way": "identity-or"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-inline-result",
+      "way": "inline-result"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-noinline-result",
+      "way": "noinline-result"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-ppu-const",
+      "way": "ppu-const"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-generic-arg",
+      "way": "generic-arg"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-closure",
+      "way": "closure"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-with-scope",
+      "way": "with-scope"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-thread",
+      "way": "thread"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-const-param",
+      "way": "const-param"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-typed-const",
+      "way": "typed-const"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-case-arm",
+      "way": "case-arm"
+    },
+    {
+      "arg": "lit-1",
+      "family": "int-sign64",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-sign64-lit-1-ternary-like",
+      "way": "ternary-like"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-direct",
+      "way": "direct"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-paren",
+      "way": "paren"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-paren-twice",
+      "way": "paren-twice"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-cast",
+      "way": "cast"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-identity-add",
+      "way": "identity-add"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-identity-sub",
+      "way": "identity-sub"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-identity-mul",
+      "way": "identity-mul"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-identity-or",
+      "way": "identity-or"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-inline-result",
+      "way": "inline-result"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-noinline-result",
+      "way": "noinline-result"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-ppu-const",
+      "way": "ppu-const"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-generic-arg",
+      "way": "generic-arg"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-closure",
+      "way": "closure"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-with-scope",
+      "way": "with-scope"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-thread",
+      "way": "thread"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-const-param",
+      "way": "const-param"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-typed-const",
+      "way": "typed-const"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-case-arm",
+      "way": "case-arm"
+    },
+    {
+      "arg": "lit-300",
+      "family": "int-width",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-width-lit-300-ternary-like",
+      "way": "ternary-like"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-direct",
+      "way": "direct"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-paren",
+      "way": "paren"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-paren-twice",
+      "way": "paren-twice"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-cast",
+      "way": "cast"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-identity-add",
+      "way": "identity-add"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-identity-sub",
+      "way": "identity-sub"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-identity-mul",
+      "way": "identity-mul"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-identity-or",
+      "way": "identity-or"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-inline-result",
+      "way": "inline-result"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-noinline-result",
+      "way": "noinline-result"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-ppu-const",
+      "way": "ppu-const"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-generic-arg",
+      "way": "generic-arg"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-closure",
+      "way": "closure"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-with-scope",
+      "way": "with-scope"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-thread",
+      "way": "thread"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-const-param",
+      "way": "const-param"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-typed-const",
+      "way": "typed-const"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-case-arm",
+      "way": "case-arm"
+    },
+    {
+      "arg": "lit-big64",
+      "family": "int-narrow",
+      "layer": "deliver",
+      "name": "dvl-deliver-int-narrow-lit-big64-ternary-like",
+      "way": "ternary-like"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-direct",
+      "way": "direct"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-paren",
+      "way": "paren"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-paren-twice",
+      "way": "paren-twice"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-cast",
+      "way": "cast"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-identity-add",
+      "way": "identity-add"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-identity-sub",
+      "way": "identity-sub"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-identity-mul",
+      "way": "identity-mul"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-identity-or",
+      "way": "identity-or"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-inline-result",
+      "way": "inline-result"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-noinline-result",
+      "way": "noinline-result"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-ppu-const",
+      "way": "ppu-const"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-generic-arg",
+      "way": "generic-arg"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-closure",
+      "way": "closure"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-with-scope",
+      "way": "with-scope"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-thread",
+      "way": "thread"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-const-param",
+      "way": "const-param"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-typed-const",
+      "way": "typed-const"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-case-arm",
+      "way": "case-arm"
+    },
+    {
+      "arg": "lit-1",
+      "family": "num-float",
+      "layer": "deliver",
+      "name": "dvl-deliver-num-float-lit-1-ternary-like",
+      "way": "ternary-like"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-direct",
+      "way": "direct"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-paren",
+      "way": "paren"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-paren-twice",
+      "way": "paren-twice"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-cast",
+      "way": "cast"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-identity-add",
+      "way": "identity-add"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-identity-sub",
+      "way": "identity-sub"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-identity-mul",
+      "way": "identity-mul"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-identity-or",
+      "way": "identity-or"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-inline-result",
+      "way": "inline-result"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-noinline-result",
+      "way": "noinline-result"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-ppu-const",
+      "way": "ppu-const"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-generic-arg",
+      "way": "generic-arg"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-closure",
+      "way": "closure"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-with-scope",
+      "way": "with-scope"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-thread",
+      "way": "thread"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-const-param",
+      "way": "const-param"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-typed-const",
+      "way": "typed-const"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-case-arm",
+      "way": "case-arm"
+    },
+    {
+      "arg": "lit-1",
+      "family": "variant",
+      "layer": "deliver",
+      "name": "dvl-deliver-variant-lit-1-ternary-like",
+      "way": "ternary-like"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-direct",
+      "way": "direct"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-paren",
+      "way": "paren"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-paren-twice",
+      "way": "paren-twice"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-cast",
+      "way": "cast"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-inline-result",
+      "way": "inline-result"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-noinline-result",
+      "way": "noinline-result"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-ppu-const",
+      "way": "ppu-const"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-generic-arg",
+      "way": "generic-arg"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-closure",
+      "way": "closure"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-with-scope",
+      "way": "with-scope"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-thread",
+      "way": "thread"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-const-param",
+      "way": "const-param"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-typed-const",
+      "way": "typed-const"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-case-arm",
+      "way": "case-arm"
+    },
+    {
+      "arg": "lit-char",
+      "family": "char-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-char-form-lit-char-ternary-like",
+      "way": "ternary-like"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-direct",
+      "way": "direct"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-paren",
+      "way": "paren"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-paren-twice",
+      "way": "paren-twice"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-cast",
+      "way": "cast"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-inline-result",
+      "way": "inline-result"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-noinline-result",
+      "way": "noinline-result"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-ppu-const",
+      "way": "ppu-const"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-generic-arg",
+      "way": "generic-arg"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-closure",
+      "way": "closure"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-with-scope",
+      "way": "with-scope"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-thread",
+      "way": "thread"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-const-param",
+      "way": "const-param"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-typed-const",
+      "way": "typed-const"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-case-arm",
+      "way": "case-arm"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-form",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-form-lit-str-ternary-like",
+      "way": "ternary-like"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-direct",
+      "way": "direct"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-paren",
+      "way": "paren"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-paren-twice",
+      "way": "paren-twice"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-cast",
+      "way": "cast"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-inline-result",
+      "way": "inline-result"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-noinline-result",
+      "way": "noinline-result"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-ppu-const",
+      "way": "ppu-const"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-generic-arg",
+      "way": "generic-arg"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-closure",
+      "way": "closure"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-with-scope",
+      "way": "with-scope"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-thread",
+      "way": "thread"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-const-param",
+      "way": "const-param"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-typed-const",
+      "way": "typed-const"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-case-arm",
+      "way": "case-arm"
+    },
+    {
+      "arg": "lit-str",
+      "family": "string-four",
+      "layer": "deliver",
+      "name": "dvl-deliver-string-four-lit-str-ternary-like",
+      "way": "ternary-like"
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-16",
+      "shape": "same-size",
+      "size": 16
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-48",
+      "shape": "same-size",
+      "size": 48
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-112",
+      "shape": "same-size",
+      "size": 112
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-240",
+      "shape": "same-size",
+      "size": 240
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-480",
+      "shape": "same-size",
+      "size": 480
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-704",
+      "shape": "same-size",
+      "size": 704
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-720",
+      "shape": "same-size",
+      "size": 720
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-1056",
+      "shape": "same-size",
+      "size": 1056
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-1504",
+      "shape": "same-size",
+      "size": 1504
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-2176",
+      "shape": "same-size",
+      "size": 2176
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-2608",
+      "shape": "same-size",
+      "size": 2608
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-4096",
+      "shape": "same-size",
+      "size": 4096
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-same-size-65536",
+      "shape": "same-size",
+      "size": 65536
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-walk-sizes-16",
+      "shape": "walk-sizes",
+      "size": 16
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-walk-sizes-48",
+      "shape": "walk-sizes",
+      "size": 48
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-walk-sizes-112",
+      "shape": "walk-sizes",
+      "size": 112
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-walk-sizes-240",
+      "shape": "walk-sizes",
+      "size": 240
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-walk-sizes-480",
+      "shape": "walk-sizes",
+      "size": 480
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-walk-sizes-704",
+      "shape": "walk-sizes",
+      "size": 704
+    },
+    {
+      "layer": "load",
+      "name": "dvl-load-walk-sizes-720",
+      "shape": "walk-sizes",
+      "size": 720
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stringlist-indexof",
+      "shape": "stringlist-indexof"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stringlist-indexof-case",
+      "shape": "stringlist-indexof-case"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stringlist-sorted-find",
+      "shape": "stringlist-sorted-find"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stringlist-duplicates",
+      "shape": "stringlist-duplicates"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stringlist-delete-shift",
+      "shape": "stringlist-delete-shift"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stringlist-names",
+      "shape": "stringlist-names"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stringlist-text-roundtrip",
+      "shape": "stringlist-text-roundtrip"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stream-seek-end",
+      "shape": "stream-seek-end"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stream-seek-beyond",
+      "shape": "stream-seek-beyond"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stream-copyfrom",
+      "shape": "stream-copyfrom"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stringstream-read-chunks",
+      "shape": "stringstream-read-chunks"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stringstream-unicode",
+      "shape": "stringstream-unicode"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-dynarray-copy-unmanaged",
+      "shape": "dynarray-copy-unmanaged"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-dynarray-copy-managed",
+      "shape": "dynarray-copy-managed"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-dynarray-shrink",
+      "shape": "dynarray-shrink"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-dynarray-insert-delete",
+      "shape": "dynarray-insert-delete"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-dynarray-of-record-copy",
+      "shape": "dynarray-of-record-copy"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-list-remove-order",
+      "shape": "list-remove-order"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-list-sort-order",
+      "shape": "list-sort-order"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-list-extract",
+      "shape": "list-extract"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-dict-add-lookup",
+      "shape": "dict-add-lookup"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-dict-remove-rehash",
+      "shape": "dict-remove-rehash"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-dict-pairs",
+      "shape": "dict-pairs"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-pos-and-copy",
+      "shape": "pos-and-copy"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-stringreplace-all",
+      "shape": "stringreplace-all"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-trim-forms",
+      "shape": "trim-forms"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-sametext-ascii",
+      "shape": "sametext-ascii"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-uppercase-ascii",
+      "shape": "uppercase-ascii"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-int-to-str-bounds",
+      "shape": "int-to-str-bounds"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-utf8-roundtrip",
+      "shape": "utf8-roundtrip"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-utf8-length",
+      "shape": "utf8-length"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-ansi-to-unicode-roundtrip",
+      "shape": "ansi-to-unicode-roundtrip"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-path-extract",
+      "shape": "path-extract"
+    },
+    {
+      "layer": "rtllib",
+      "name": "dvl-rtllib-path-change-ext",
+      "shape": "path-change-ext"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-alias-width",
+      "shape": "alias-width"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-alias-signedness",
+      "shape": "alias-signedness"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-subrange-bounds",
+      "shape": "subrange-bounds"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-enum-base-size",
+      "shape": "enum-base-size"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-set-size",
+      "shape": "set-size"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-typed-const-precision",
+      "shape": "typed-const-precision"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-typed-const-string",
+      "shape": "typed-const-string"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-record-layout",
+      "shape": "record-layout"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-packed-record-layout",
+      "shape": "packed-record-layout"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-record-alignment",
+      "shape": "record-alignment"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-class-field-offset",
+      "shape": "class-field-offset"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-class-virtual-index",
+      "shape": "class-virtual-index"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-interface-guid",
+      "shape": "interface-guid"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-overload-set",
+      "shape": "overload-set"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-default-parameter",
+      "shape": "default-parameter"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-calling-convention",
+      "shape": "calling-convention"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-generic-specialized-there",
+      "shape": "generic-specialized-there"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-generic-specialized-here",
+      "shape": "generic-specialized-here"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-inline-body-across",
+      "shape": "inline-body-across"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-const-expression-across",
+      "shape": "const-expression-across"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-helper-visible-across",
+      "shape": "helper-visible-across"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-class-const-across",
+      "shape": "class-const-across"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-published-property-across",
+      "shape": "published-property-across"
+    },
+    {
+      "layer": "ppu",
+      "name": "dvl-ppu-attribute-across",
+      "shape": "attribute-across"
+    },
+    {
+      "expected": 5,
+      "layer": "region",
+      "name": "dvl-region-finally-in-loop",
+      "shape": "finally-in-loop"
+    },
+    {
+      "expected": 3,
+      "layer": "region",
+      "name": "dvl-region-finally-with-break",
+      "shape": "finally-with-break"
+    },
+    {
+      "expected": 4,
+      "layer": "region",
+      "name": "dvl-region-finally-with-continue",
+      "shape": "finally-with-continue"
+    },
+    {
+      "expected": 2,
+      "layer": "region",
+      "name": "dvl-region-finally-with-exit",
+      "shape": "finally-with-exit"
+    },
+    {
+      "expected": 5,
+      "layer": "region",
+      "name": "dvl-region-nested-five-deep",
+      "shape": "nested-five-deep"
+    },
+    {
+      "expected": 3,
+      "layer": "region",
+      "name": "dvl-region-finally-around-inlined",
+      "shape": "finally-around-inlined"
+    },
+    {
+      "expected": 3,
+      "layer": "region",
+      "name": "dvl-region-finally-around-inlined-managed",
+      "shape": "finally-around-inlined-managed"
+    },
+    {
+      "expected": 3,
+      "layer": "region",
+      "name": "dvl-region-except-then-finally",
+      "shape": "except-then-finally"
+    },
+    {
+      "expected": 2,
+      "layer": "region",
+      "name": "dvl-region-reraise-through-finally",
+      "shape": "reraise-through-finally"
+    },
+    {
+      "expected": 1,
+      "layer": "region",
+      "name": "dvl-region-exit-from-except",
+      "shape": "exit-from-except"
+    },
+    {
+      "expected": 1,
+      "layer": "region",
+      "name": "dvl-region-finally-in-except",
+      "shape": "finally-in-except"
+    },
+    {
+      "expected": 1,
+      "layer": "region",
+      "name": "dvl-region-loop-inside-try",
+      "shape": "loop-inside-try"
+    },
+    {
+      "expected": 5,
+      "layer": "region",
+      "name": "dvl-region-try-inside-loop-inside-try",
+      "shape": "try-inside-loop-inside-try"
+    },
+    {
+      "expected": 1,
+      "layer": "region",
+      "name": "dvl-region-finally-after-raise",
+      "shape": "finally-after-raise"
+    },
+    {
+      "expected": 3,
+      "layer": "region",
+      "name": "dvl-region-dead-looking-region",
+      "shape": "dead-looking-region"
+    },
+    {
+      "expected": 3,
+      "layer": "region",
+      "name": "dvl-region-region-around-closure",
+      "shape": "region-around-closure"
+    },
+    {
+      "expected": 1,
+      "layer": "region",
+      "name": "dvl-region-region-around-thread-join",
+      "shape": "region-around-thread-join"
+    },
+    {
+      "expected": 6,
+      "layer": "region",
+      "name": "dvl-region-nested-loops-with-finally",
+      "shape": "nested-loops-with-finally"
     }
   ],
-  "cases_per_layer": 120,
+  "cases_per_layer": 20,
   "composite": {
     "triples_possible": 1954,
-    "triples_this_seed": 0
+    "triples_this_seed": 20
   },
   "generator": "scripts/generate_devil.py",
   "layers": [
-    "gen"
+    "expr",
+    "unary",
+    "fold",
+    "cmp",
+    "life",
+    "abi",
+    "float",
+    "str",
+    "disp",
+    "gen",
+    "arr",
+    "unit",
+    "chk",
+    "thr",
+    "set",
+    "rtti",
+    "flow",
+    "i128",
+    "lang",
+    "uni",
+    "exc",
+    "init",
+    "opt",
+    "call",
+    "inl",
+    "intf",
+    "dyn",
+    "asm",
+    "io",
+    "decl",
+    "chain",
+    "meta",
+    "weave",
+    "matrix",
+    "composite",
+    "genpath",
+    "narrowpath",
+    "pick",
+    "scope",
+    "lit",
+    "capture",
+    "attr",
+    "deliver",
+    "load",
+    "rtllib",
+    "ppu",
+    "region"
   ],
   "matrix": {
-    "pairs_covered": 0,
+    "pairs_covered": 20,
     "pairs_missing": [
       {
         "passenger": "width",
@@ -929,86 +8228,6 @@
       {
         "passenger": "signedness",
         "transfer": "untyped-file"
-      },
-      {
-        "passenger": "signedness",
-        "transfer": "inherited-call"
-      },
-      {
-        "passenger": "signedness",
-        "transfer": "raw-move"
-      },
-      {
-        "passenger": "signedness",
-        "transfer": "tvalue"
-      },
-      {
-        "passenger": "signedness",
-        "transfer": "message-method"
-      },
-      {
-        "passenger": "signedness",
-        "transfer": "class-helper"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "fold"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "inline"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "cross-unit"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "specialization"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "closure"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "variant"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "thread"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "narrow-widen"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "unwind"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "record-copy"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "interface-cast"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "virtual-call"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "typed-file"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "property-accessor"
-      },
-      {
-        "passenger": "exact-type",
-        "transfer": "open-array"
       },
       {
         "passenger": "exact-type",
@@ -2400,5 +9619,5 @@
     ]
   },
   "schema": 2,
-  "seed": 24
+  "seed": 5
 }

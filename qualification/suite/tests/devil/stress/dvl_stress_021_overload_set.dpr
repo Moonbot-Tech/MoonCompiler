@@ -1,4 +1,4 @@
-program dvl_stress_015_overload_set;
+program dvl_stress_021_overload_set;
 {$ifdef FPC}
   {$mode delphiunicode}{$H+}
   {$modeswitch advancedrecords}

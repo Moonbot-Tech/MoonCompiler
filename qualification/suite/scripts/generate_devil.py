@@ -2260,7 +2260,7 @@ def layer_generic(e: Emitter, rng: random.Random, count: int,
                           "UInt64($%016X));"
                           % (name, t.slug, box, t.raw(value))]
             elif shape == "array-of-t":
-                arr = fb.var("Arr", "TArray<%s>" % t.pascal)
+                arr = fb.var("Arr", "System.TArray<%s>" % t.pascal)
                 body = ["  SetLength(%s, 3);" % arr,
                         "  %s[1] := %s;" % (arr, t.literal(value))]
                 checks = ["  DevilCheckU('%s-array-len', UInt64(Length(%s)), 3);"
@@ -2383,7 +2383,7 @@ def layer_array(e: Emitter, rng: random.Random, count: int,
                       % (name, arr, n - 4, ((n - 4) * 3) & 0xFFFFFFFF)]
 
         elif shape == "dynamic-grow":
-            arr = fb.var("Arr", "TArray<Integer>")
+            arr = fb.var("Arr", "System.TArray<Integer>")
             k = fb.var("K", "Integer")
             body = ["  SetLength(%s, %d);" % (arr, n),
                     "  for %s := 0 to %d do" % (k, n - 1),
@@ -2397,8 +2397,8 @@ def layer_array(e: Emitter, rng: random.Random, count: int,
                       % (name, arr, n + 1)]
 
         elif shape == "dynamic-share":
-            a = fb.var("A", "TArray<Integer>")
-            b = fb.var("B", "TArray<Integer>")
+            a = fb.var("A", "System.TArray<Integer>")
+            b = fb.var("B", "System.TArray<Integer>")
             body = ["  SetLength(%s, %d);" % (a, n),
                     "  %s[0] := 11;" % a,
                     "  %s := %s;" % (b, a),
@@ -2407,8 +2407,8 @@ def layer_array(e: Emitter, rng: random.Random, count: int,
                       % (name, a)]
 
         elif shape == "copy-detach":
-            a = fb.var("A", "TArray<Integer>")
-            b = fb.var("B", "TArray<Integer>")
+            a = fb.var("A", "System.TArray<Integer>")
+            b = fb.var("B", "System.TArray<Integer>")
             body = ["  SetLength(%s, %d);" % (a, n),
                     "  %s[0] := 11;" % a,
                     "  %s := Copy(%s);" % (b, a),
@@ -2419,7 +2419,7 @@ def layer_array(e: Emitter, rng: random.Random, count: int,
                       % (name, b)]
 
         elif shape == "insert-delete":
-            a = fb.var("A", "TArray<Integer>")
+            a = fb.var("A", "System.TArray<Integer>")
             body = ["  SetLength(%s, 3);" % a,
                     "  %s[0] := 1;" % a, "  %s[1] := 2;" % a, "  %s[2] := 3;" % a,
                     "  Insert(9, %s, 1);" % a,
@@ -2476,9 +2476,9 @@ def layer_array(e: Emitter, rng: random.Random, count: int,
                           % (name, arr, total)]
 
         elif shape == "concat":
-            a = fb.var("A", "TArray<Integer>")
-            b = fb.var("B", "TArray<Integer>")
-            c = fb.var("C", "TArray<Integer>")
+            a = fb.var("A", "System.TArray<Integer>")
+            b = fb.var("B", "System.TArray<Integer>")
+            c = fb.var("C", "System.TArray<Integer>")
             body = ["  SetLength(%s, 2);" % a, "  %s[0] := 1;" % a,
                     "  %s[1] := 2;" % a,
                     "  SetLength(%s, 2);" % b, "  %s[0] := 3;" % b,
@@ -2489,7 +2489,7 @@ def layer_array(e: Emitter, rng: random.Random, count: int,
                       % (name, c)]
 
         else:   # ragged
-            a = fb.var("A", "TArray<TArray<Integer>>")
+            a = fb.var("A", "System.TArray<System.TArray<Integer>>")
             body = ["  SetLength(%s, 2);" % a,
                     "  SetLength(%s[0], 3);" % a,
                     "  SetLength(%s[1], 1);" % a,
@@ -2832,7 +2832,7 @@ def layer_checked(e: Emitter, rng: random.Random, count: int,
                 length = rng.choice((1, 3, 5))
                 raises = not (0 <= idx < length)
                 e.line("var")
-                e.line("  A: TArray<Integer>;")
+                e.line("  A: System.TArray<Integer>;")
                 e.line("  I: Integer;")
                 e.line("begin")
                 e.line("  Result := 0;")
@@ -5746,7 +5746,7 @@ def layer_unicode(e: Emitter, rng: random.Random, count: int,
             width = rng.randrange(2, 6)
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A: TArray<string>;")
+            e.line("  A: System.TArray<string>;")
             e.line("  B: array of UTF8String;")
             e.line("  Total: Integer;")
             e.line("begin")
@@ -7988,7 +7988,7 @@ def layer_interfaces(e: Emitter, rng: random.Random, count: int,
             width = rng.randrange(2, 5)
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  Items: TArray<IDvlAlpha%s>;" % tag)
+            e.line("  Items: System.TArray<IDvlAlpha%s>;" % tag)
             e.line("begin")
             e.line("  TDvlBoth%s.Live := 0;" % tag)
             e.line("  SetLength(Items, %d);" % width)
@@ -8193,7 +8193,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
         if shape == "nested-share":
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A, B: TArray<TArray<Integer>>;")
+            e.line("  A, B: System.TArray<System.TArray<Integer>>;")
             e.line("begin")
             e.line("  SetLength(A, 2, 3);")
             e.line("  A[0][0] := %d;" % seed)
@@ -8210,7 +8210,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
         elif shape == "nested-copy":
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A, B: TArray<TArray<Integer>>;")
+            e.line("  A, B: System.TArray<System.TArray<Integer>>;")
             e.line("begin")
             e.line("  SetLength(A, 2, 2);")
             e.line("  A[0][0] := %d;" % seed)
@@ -8229,7 +8229,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
         elif shape == "copy-detaches":
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A, B: TArray<Integer>;")
+            e.line("  A, B: System.TArray<Integer>;")
             e.line("begin")
             e.line("  SetLength(A, %d);" % width)
             e.line("  for var I := 0 to %d do" % (width - 1))
@@ -8249,7 +8249,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
         elif shape == "insert-delete":
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A: TArray<Integer>;")
+            e.line("  A: System.TArray<Integer>;")
             e.line("begin")
             e.line("  SetLength(A, %d);" % width)
             e.line("  for var I := 0 to %d do" % (width - 1))
@@ -8273,7 +8273,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
         elif shape == "setlength-preserves":
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A: TArray<AnsiString>;")
+            e.line("  A: System.TArray<AnsiString>;")
             e.line("begin")
             e.line("  SetLength(A, 2);")
             e.line("  A[0] := AnsiString('first');")
@@ -8289,7 +8289,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
         elif shape == "shrink-releases":
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A: TArray<IInterface>;")
+            e.line("  A: System.TArray<IInterface>;")
             e.line("  Before: Integer;")
             e.line("begin")
             e.line("  Before := TDvlTagged.Alive;")
@@ -8311,7 +8311,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
         elif shape == "concat-operator":
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A, B, C: TArray<Integer>;")
+            e.line("  A, B, C: System.TArray<Integer>;")
             e.line("begin")
             e.line("  A := [1, 2];")
             e.line("  B := [3, 4, 5];")
@@ -8329,7 +8329,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
         elif shape == "array-of-array-of-managed":
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  Grid: TArray<TArray<AnsiString>>;")
+            e.line("  Grid: System.TArray<System.TArray<AnsiString>>;")
             e.line("  Total: Integer;")
             e.line("begin")
             e.line("  SetLength(Grid, 2, 2);")
@@ -8349,7 +8349,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
         elif shape == "assign-then-write":
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A, B: TArray<Integer>;")
+            e.line("  A, B: System.TArray<Integer>;")
             e.line("begin")
             e.line("  A := [%d, %d];" % (seed, seed + 1))
             e.line("  B := A;")
@@ -8366,7 +8366,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
         elif shape == "high-low-empty":
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A: TArray<Integer>;")
+            e.line("  A: System.TArray<Integer>;")
             e.line("  Steps: Integer;")
             e.line("begin")
             e.line("  A := nil;")
@@ -8427,20 +8427,20 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
             e.line("end;")
 
         elif shape == "dynarray-as-parameter":
-            e.line("procedure DvlDynFill%s(A: TArray<Integer>; Value: Integer);" % tag)
+            e.line("procedure DvlDynFill%s(A: System.TArray<Integer>; Value: Integer);" % tag)
             e.line("begin")
             e.line("  If Length(A) > 0 then")
             e.line("    A[0] := Value;")
             e.line("end;")
             e.line()
-            e.line("procedure DvlDynReplace%s(var A: TArray<Integer>);" % tag)
+            e.line("procedure DvlDynReplace%s(var A: System.TArray<Integer>);" % tag)
             e.line("begin")
             e.line("  A := [7, 8];")
             e.line("end;")
             e.line()
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A: TArray<Integer>;")
+            e.line("  A: System.TArray<Integer>;")
             e.line("begin")
             e.line("  A := [%d, %d];" % (seed, seed + 1))
             e.line("  { by value the reference is copied, so writing an element "
@@ -8455,7 +8455,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
             e.line("end;")
 
         elif shape == "dynarray-result":
-            e.line("function DvlDynBuild%s(N: Integer): TArray<Integer>;" % tag)
+            e.line("function DvlDynBuild%s(N: Integer): System.TArray<Integer>;" % tag)
             e.line("begin")
             e.line("  SetLength(Result, N);")
             e.line("  for var I := 0 to N - 1 do")
@@ -8464,7 +8464,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
             e.line()
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A: TArray<Integer>;")
+            e.line("  A: System.TArray<Integer>;")
             e.line("begin")
             e.line("  A := DvlDynBuild%s(%d);" % (tag, width))
             e.line("  DevilCheckU('%s-length', UInt64(Cardinal(Length(A))), %d);"
@@ -8481,7 +8481,7 @@ def layer_dynamic(e: Emitter, rng: random.Random, count: int,
         else:   # unique-on-write
             e.line("procedure %s;" % proc)
             e.line("var")
-            e.line("  A, B: TArray<Integer>;")
+            e.line("  A, B: System.TArray<Integer>;")
             e.line("begin")
             e.line("  A := [%d, %d, %d];" % (seed, seed + 1, seed + 2))
             e.line("  B := A;")
@@ -9829,7 +9829,7 @@ def layer_chain(e: Emitter, rng: random.Random, count: int,
             elif stage == "dynamic-array":
                 e.line("function %s(X: Int64): Int64;" % fn)
                 e.line("var")
-                e.line("  Data, Slice: TArray<Int64>;")
+                e.line("  Data, Slice: System.TArray<Int64>;")
                 e.line("begin")
                 e.line("  DevilTrailAdd('%s');" % mark)
                 e.line("  SetLength(Data, 4);")
@@ -10227,7 +10227,7 @@ def layer_chain(e: Emitter, rng: random.Random, count: int,
                 e.line()
                 e.line("function DvlForkB%s_%d(X: Int64): Int64;" % (tag, level))
                 e.line("var")
-                e.line("  Data: TArray<Int64>;")
+                e.line("  Data: System.TArray<Int64>;")
                 e.line("  I: Integer;")
                 e.line("begin")
                 e.line("  SetLength(Data, 4);")
@@ -11505,7 +11505,7 @@ def layer_metamorphic(e: Emitter, rng: random.Random, count: int,
                           "  Result := 0;",
                           "  for var V in Target do",
                           "    Result := Result + V;", "end;"]),
-                ("dynamic", ["var", "  Target: TArray<Int64>;", "begin",
+                ("dynamic", ["var", "  Target: System.TArray<Int64>;", "begin",
                              "  SetLength(Target, Length(Data));",
                              "  for var I := Low(Data) to High(Data) do",
                              "    Target[I] := Data[I];", "  Result := 0;",
@@ -13027,7 +13027,7 @@ def layer_matrix(e: Emitter, rng: random.Random, count: int,
             e.line()
         elif transfer == "array-detach":
             e.line("var")
-            e.line("  DvlMxArr%s, DvlMxArrCopy%s: TArray<%s>;"
+            e.line("  DvlMxArr%s, DvlMxArrCopy%s: System.TArray<%s>;"
                    % (tag, tag, carrier))
             e.line()
         elif transfer == "virtual-call":
@@ -13750,7 +13750,7 @@ def layer_genpath(e: Emitter, rng: random.Random, count: int,
             e.line("function DvlGpPass%s(const V: %s): %s;"
                    % (tag, source_type, source_type))
             e.line("var")
-            e.line("  Items: TArray<%s>;" % source_type)
+            e.line("  Items: System.TArray<%s>;" % source_type)
             e.line("begin")
             e.line("  SetLength(Items, 2);")
             e.line("  Items[1] := V;")
@@ -13993,7 +13993,7 @@ def layer_narrowpath(e: Emitter, rng: random.Random, count: int,
             e.line()
             deliver = ["  Narrow := %s(DvlNpEcho%s(Source));" % (narrow, tag)]
         elif shape == "array-slot":
-            deliver = ["  var Items: TArray<Int64>;",
+            deliver = ["  var Items: System.TArray<Int64>;",
                        "  SetLength(Items, 3);",
                        "  Items[2] := Source;",
                        "  Narrow := %s(Items[2]);" % narrow]
@@ -14659,7 +14659,7 @@ def emit_scope_case(e: Emitter, shape: str, tag: str) -> list[str]:
         e.line()
         e.line("function DvlScAsk%s: Integer;" % tag)
         e.line("var")
-        e.line("  Items: TArray<Integer>;")
+        e.line("  Items: System.TArray<Integer>;")
         e.line("begin")
         e.line("  DvlScItem%s := 1;" % tag)
         e.line("  SetLength(Items, 1);")
@@ -14807,11 +14807,11 @@ def emit_lit_destination(e: Emitter, dest: str, tag: str) -> tuple[list[str], st
         return ["  DvlLitRec%s.Text := %s;" % (tag, lit)], \
                "DvlLitRec%s.Text" % tag
     if dest == "array-element":
-        return ["  var Items: TArray<AnsiString>;",
+        return ["  var Items: System.TArray<AnsiString>;",
                 "  SetLength(Items, 2);",
                 "  Items[1] := %s;" % lit], "Items[1]"
     if dest == "nested-array":
-        return ["  var Rows: TArray<TArray<AnsiString>>;",
+        return ["  var Rows: System.TArray<System.TArray<AnsiString>>;",
                 "  SetLength(Rows, 2);",
                 "  SetLength(Rows[1], 2);",
                 "  Rows[1][1] := %s;" % lit], "Rows[1][1]"
@@ -15036,7 +15036,7 @@ def emit_capture_case(e: Emitter, shape: str, tag: str) -> list[str]:
         e.line("function DvlCapAsk%s: Integer;" % tag)
         e.line("var")
         e.line("  Steps: array[1..3] of TDvlCapStep%s;" % tag)
-        e.line("  Items: TArray<Integer>;")
+        e.line("  Items: System.TArray<Integer>;")
         e.line("  Slot: Integer;")
         e.line("begin")
         e.line("  Items := [1, 2, 3];")
@@ -15231,7 +15231,7 @@ def emit_capture_case(e: Emitter, shape: str, tag: str) -> list[str]:
     elif shape == "captured-array-slot":
         e.line("function DvlCapAsk%s: Integer;" % tag)
         e.line("var")
-        e.line("  Items: TArray<Integer>;")
+        e.line("  Items: System.TArray<Integer>;")
         e.line("  Step: TDvlCapStep%s;" % tag)
         e.line("begin")
         e.line("  Items := [1, 1];")
@@ -15466,7 +15466,7 @@ def layer_attr(e: Emitter, rng: random.Random, count: int,
     e.line("  Tag := ATag;")
     e.line("end;")
     e.line()
-    e.line("function DvlAttrSum(const Items: TArray<TCustomAttribute>): Integer;")
+    e.line("function DvlAttrSum(const Items: System.TArray<TCustomAttribute>): Integer;")
     e.line("var")
     e.line("  A: TCustomAttribute;")
     e.line("begin")
@@ -16141,6 +16141,1014 @@ def layer_load(e: Emitter, rng: random.Random, count: int,
     return records
 
 
+# формы контракта библиотеки: имя кейса называет, что именно спрашивается
+RTL_SHAPES = (
+    "stringlist-indexof", "stringlist-indexof-case", "stringlist-sorted-find",
+    "stringlist-duplicates", "stringlist-delete-shift", "stringlist-names",
+    "stringlist-text-roundtrip",
+    "stream-seek-end", "stream-seek-beyond", "stream-copyfrom",
+    "stringstream-read-chunks", "stringstream-unicode",
+    "dynarray-copy-unmanaged", "dynarray-copy-managed", "dynarray-shrink",
+    "dynarray-insert-delete", "dynarray-of-record-copy",
+    "list-remove-order", "list-sort-order", "list-extract",
+    "dict-add-lookup", "dict-remove-rehash", "dict-pairs",
+    "pos-and-copy", "stringreplace-all", "trim-forms", "sametext-ascii",
+    "uppercase-ascii", "int-to-str-bounds",
+    "utf8-roundtrip", "utf8-length", "ansi-to-unicode-roundtrip",
+    "path-extract", "path-change-ext",
+)
+
+
+def emit_rtl_case(e: Emitter, shape: str, tag: str) -> list[str]:
+    """Тело кейса: считает Answer, который обязан совпасть у обеих сторон."""
+    q = chr(39)      # апостроф: Pascal-литералы собираются без путаницы кавычек
+
+    def s(text: str) -> str:
+        return q + text + q
+
+    if shape == "stringlist-indexof":
+        return ["  var L := TStringList.Create;",
+                "  try",
+                "    L.Add(%s); L.Add(%s); L.Add(%s);"
+                % (s("alpha"), s("beta"), s("gamma")),
+                "    Answer := UInt64(Cardinal(L.IndexOf(%s) + 1)) shl 8;"
+                % s("beta"),
+                "    Answer := Answer or UInt64(Cardinal(L.IndexOf(%s) + 2));"
+                % s("nope"),
+                "  finally",
+                "    L.Free;",
+                "  end;"]
+    if shape == "stringlist-indexof-case":
+        return ["  var L := TStringList.Create;",
+                "  try",
+                "    L.Add(%s); L.Add(%s);" % (s("Alpha"), s("BETA")),
+                "    { по умолчанию поиск без учёта регистра }",
+                "    Answer := UInt64(Cardinal(L.IndexOf(%s) + 1)) shl 8;"
+                % s("alpha"),
+                "    L.CaseSensitive := True;",
+                "    Answer := Answer or UInt64(Cardinal(L.IndexOf(%s) + 2));"
+                % s("alpha"),
+                "  finally",
+                "    L.Free;",
+                "  end;"]
+    if shape == "stringlist-sorted-find":
+        return ["  var L := TStringList.Create;",
+                "  var Where: Integer;",
+                "  try",
+                "    L.Add(%s); L.Add(%s); L.Add(%s);"
+                % (s("delta"), s("alpha"), s("charlie")),
+                "    L.Sorted := True;",
+                "    Answer := UInt64(Cardinal(Ord(L.Find(%s, Where)))) shl 8;"
+                % s("charlie"),
+                "    Answer := Answer or UInt64(Cardinal(Where + 1));",
+                "  finally",
+                "    L.Free;",
+                "  end;"]
+    if shape == "stringlist-duplicates":
+        return ["  var L := TStringList.Create;",
+                "  try",
+                "    L.Sorted := True;",
+                "    L.Duplicates := dupIgnore;",
+                "    L.Add(%s); L.Add(%s); L.Add(%s);"
+                % (s("one"), s("one"), s("two")),
+                "    Answer := UInt64(Cardinal(L.Count));",
+                "  finally",
+                "    L.Free;",
+                "  end;"]
+    if shape == "stringlist-delete-shift":
+        return ["  var L := TStringList.Create;",
+                "  try",
+                "    L.Add(%s); L.Add(%s); L.Add(%s);"
+                % (s("a"), s("b"), s("c")),
+                "    L.Delete(1);",
+                "    Answer := UInt64(Cardinal(L.Count)) shl 8;",
+                "    Answer := Answer or UInt64(Ord(L[1] = %s));" % s("c"),
+                "  finally",
+                "    L.Free;",
+                "  end;"]
+    if shape == "stringlist-names":
+        return ["  var L := TStringList.Create;",
+                "  try",
+                "    L.Add(%s); L.Add(%s);"
+                % (s("key=value"), s("other=thing")),
+                "    Answer := UInt64(Cardinal(Length(L.Names[0]))) shl 8;",
+                "    Answer := Answer or "
+                "UInt64(Cardinal(Length(L.ValueFromIndex[1])));",
+                "  finally",
+                "    L.Free;",
+                "  end;"]
+    if shape == "stringlist-text-roundtrip":
+        return ["  var L := TStringList.Create;",
+                "  try",
+                "    L.Add(%s); L.Add(%s);" % (s("first"), s("second")),
+                "    var Whole := L.Text;",
+                "    L.Clear;",
+                "    L.Text := Whole;",
+                "    Answer := UInt64(Cardinal(L.Count)) shl 8;",
+                "    Answer := Answer or UInt64(Cardinal(Length(L[1])));",
+                "  finally",
+                "    L.Free;",
+                "  end;"]
+    if shape == "stream-seek-end":
+        return ["  var S := TMemoryStream.Create;",
+                "  var Buf: array[0..15] of Byte;",
+                "  try",
+                "    FillChar(Buf, SizeOf(Buf), 7);",
+                "    S.WriteBuffer(Buf, SizeOf(Buf));",
+                "    Answer := UInt64(S.Seek(Int64(0), soEnd)) shl 8;",
+                "    Answer := Answer or UInt64(Cardinal(S.Size));",
+                "  finally",
+                "    S.Free;",
+                "  end;"]
+    if shape == "stream-seek-beyond":
+        return ["  var S := TMemoryStream.Create;",
+                "  var Buf: array[0..7] of Byte;",
+                "  try",
+                "    FillChar(Buf, SizeOf(Buf), 1);",
+                "    S.WriteBuffer(Buf, SizeOf(Buf));",
+                "    { позиция за концом разрешена, размер при этом не растёт }",
+                "    Answer := UInt64(S.Seek(Int64(64), soBeginning)) shl 8;",
+                "    Answer := Answer or UInt64(Cardinal(S.Size));",
+                "  finally",
+                "    S.Free;",
+                "  end;"]
+    if shape == "stream-copyfrom":
+        return ["  var A := TMemoryStream.Create;",
+                "  var B := TMemoryStream.Create;",
+                "  var Buf: array[0..31] of Byte;",
+                "  try",
+                "    FillChar(Buf, SizeOf(Buf), 9);",
+                "    A.WriteBuffer(Buf, SizeOf(Buf));",
+                "    A.Position := 0;",
+                "    B.CopyFrom(A, 0);",
+                "    Answer := UInt64(Cardinal(B.Size)) shl 8;",
+                "    Answer := Answer or UInt64(Cardinal(B.Position));",
+                "  finally",
+                "    B.Free;",
+                "    A.Free;",
+                "  end;"]
+    if shape == "stringstream-read-chunks":
+        return ["  var S := TStringStream.Create(%s);" % s("abcdefghij"),
+                "  try",
+                "    S.Position := 0;",
+                "    Answer := UInt64(Cardinal(Length(S.ReadString(4)))) shl 8;",
+                "    Answer := Answer or "
+                "UInt64(Cardinal(Length(S.ReadString(99))));",
+                "  finally",
+                "    S.Free;",
+                "  end;"]
+    if shape == "stringstream-unicode":
+        return ["  var S := TStringStream.Create(#$0410#$0411#$0412);",
+                "  try",
+                "    Answer := UInt64(Cardinal(S.Size)) shl 8;",
+                "    S.Position := 0;",
+                "    Answer := Answer or UInt64(Cardinal(Length(S.DataString)));",
+                "  finally",
+                "    S.Free;",
+                "  end;"]
+    if shape == "dynarray-copy-unmanaged":
+        return ["  var A: System.TArray<Integer>;",
+                "  A := [1, 2, 3, 4, 5];",
+                "  var B := Copy(A, 1, 3);",
+                "  Answer := UInt64(Cardinal(Length(B))) shl 8;",
+                "  Answer := Answer or UInt64(Cardinal(B[0] + B[2]));"]
+    if shape == "dynarray-copy-managed":
+        return ["  var A: System.TArray<string>;",
+                "  A := [%s, %s, %s];" % (s("one"), s("two"), s("three")),
+                "  var B := Copy(A, 1, 2);",
+                "  B[0] := %s;" % s("changed"),
+                "  { копия обязана быть отдельной }",
+                "  Answer := UInt64(Cardinal(Length(B))) shl 8;",
+                "  Answer := Answer or UInt64(Ord(A[1] = %s));" % s("two")]
+    if shape == "dynarray-shrink":
+        return ["  var A: System.TArray<Integer>;",
+                "  SetLength(A, 8);",
+                "  A[7] := 42;",
+                "  SetLength(A, 3);",
+                "  SetLength(A, 8);",
+                "  { выросший хвост обязан быть нулевым }",
+                "  Answer := UInt64(Cardinal(Length(A))) shl 8;",
+                "  Answer := Answer or UInt64(Cardinal(A[7]));"]
+    if shape == "dynarray-insert-delete":
+        return ["  var A: System.TArray<Integer>;",
+                "  A := [1, 2, 3];",
+                "  Insert([9], A, 1);",
+                "  Delete(A, 0, 1);",
+                "  Answer := UInt64(Cardinal(Length(A))) shl 8;",
+                "  Answer := Answer or UInt64(Cardinal(A[0]));"]
+    if shape == "dynarray-of-record-copy":
+        e.line("type")
+        e.line("  TDvlRtlRec%s = record" % tag)
+        e.line("    Slot: Integer;")
+        e.line("    Text: string;")
+        e.line("  end;")
+        e.line()
+        return ["  var A: System.TArray<TDvlRtlRec%s>;" % tag,
+                "  SetLength(A, 2);",
+                "  A[0].Slot := 5;",
+                "  A[0].Text := %s;" % s("five"),
+                "  var B := Copy(A, 0, 2);",
+                "  B[0].Text := %s;" % s("other"),
+                "  Answer := UInt64(Cardinal(B[0].Slot)) shl 8;",
+                "  Answer := Answer or UInt64(Ord(A[0].Text = %s));" % s("five")]
+    if shape == "list-remove-order":
+        return ["  var L := TList<Integer>.Create;",
+                "  try",
+                "    L.AddRange([10, 20, 30, 20]);",
+                "    L.Remove(20);",
+                "    Answer := UInt64(Cardinal(L.Count)) shl 8;",
+                "    Answer := Answer or UInt64(Cardinal(L[1]));",
+                "  finally",
+                "    L.Free;",
+                "  end;"]
+    if shape == "list-sort-order":
+        return ["  var L := TList<Integer>.Create;",
+                "  try",
+                "    L.AddRange([5, 1, 4, 1, 3]);",
+                "    L.Sort;",
+                "    Answer := UInt64(Cardinal(L[0])) shl 8;",
+                "    Answer := Answer or UInt64(Cardinal(L[L.Count - 1]));",
+                "  finally",
+                "    L.Free;",
+                "  end;"]
+    if shape == "list-extract":
+        return ["  var L := TList<Integer>.Create;",
+                "  try",
+                "    L.AddRange([7, 8, 9]);",
+                "    var Got := L.Extract(8);",
+                "    Answer := UInt64(Cardinal(Got)) shl 8;",
+                "    Answer := Answer or UInt64(Cardinal(L.Count));",
+                "  finally",
+                "    L.Free;",
+                "  end;"]
+    if shape == "dict-add-lookup":
+        return ["  var D := TDictionary<string, Integer>.Create;",
+                "  var Got: Integer;",
+                "  try",
+                "    D.Add(%s, 1);" % s("one"),
+                "    D.AddOrSetValue(%s, 11);" % s("one"),
+                "    Answer := UInt64(Ord(D.TryGetValue(%s, Got))) shl 8;"
+                % s("one"),
+                "    Answer := Answer or UInt64(Cardinal(Got));",
+                "  finally",
+                "    D.Free;",
+                "  end;"]
+    if shape == "dict-remove-rehash":
+        return ["  var D := TDictionary<Integer, Integer>.Create;",
+                "  var Got: Integer;",
+                "  var I: Integer;",
+                "  try",
+                "    for I := 0 to 63 do",
+                "      D.Add(I, I * 2);",
+                "    for I := 0 to 31 do",
+                "      D.Remove(I);",
+                "    Answer := UInt64(Cardinal(D.Count)) shl 8;",
+                "    Answer := Answer or UInt64(Ord(D.TryGetValue(40, Got)));",
+                "  finally",
+                "    D.Free;",
+                "  end;"]
+    if shape == "dict-pairs":
+        return ["  var D := TDictionary<Integer, Integer>.Create;",
+                "  var Sum: Integer;",
+                "  try",
+                "    D.Add(1, 10);",
+                "    D.Add(2, 20);",
+                "    Sum := 0;",
+                "    for var Pair in D do",
+                "      Sum := Sum + Pair.Value;",
+                "    Answer := UInt64(Cardinal(Sum)) shl 8;",
+                "    Answer := Answer or UInt64(Cardinal(D.Count));",
+                "  finally",
+                "    D.Free;",
+                "  end;"]
+    if shape == "pos-and-copy":
+        return ["  var S: string := %s;" % s("abcdefabc"),
+                "  Answer := UInt64(Cardinal(Pos(%s, S))) shl 8;" % s("def"),
+                "  Answer := Answer or UInt64(Cardinal(Length(Copy(S, 4, 99))));"]
+    if shape == "stringreplace-all":
+        return ["  var S := StringReplace(%s, %s, %s, [rfReplaceAll]);"
+                % (s("a-b-c"), s("-"), s("+")),
+                "  Answer := UInt64(Cardinal(Length(S))) shl 8;",
+                "  Answer := Answer or UInt64(Cardinal(Pos(%s, S)));" % s("+")]
+    if shape == "trim-forms":
+        return ["  Answer := UInt64(Cardinal(Length(Trim(%s)))) shl 8;"
+                % s("  x  "),
+                "  Answer := Answer or "
+                "UInt64(Cardinal(Length(TrimLeft(%s))));" % s("  x ")]
+    if shape == "sametext-ascii":
+        return ["  Answer := UInt64(Ord(SameText(%s, %s))) shl 8;"
+                % (s("Alpha"), s("ALPHA")),
+                "  Answer := Answer or UInt64(Ord(SameStr(%s, %s)));"
+                % (s("Alpha"), s("ALPHA"))]
+    if shape == "uppercase-ascii":
+        return ["  Answer := UInt64(Cardinal(Length(UpperCase(%s)))) shl 8;"
+                % s("mixedCase"),
+                "  Answer := Answer or UInt64(Ord(UpperCase(%s) = %s));"
+                % (s("abc"), s("ABC"))]
+    if shape == "int-to-str-bounds":
+        return ["  Answer := UInt64(Cardinal(Length(IntToStr(Low(Int64))))) shl 8;",
+                "  Answer := Answer or "
+                "UInt64(Cardinal(Length(IntToStr(High(Int64)))));"]
+    if shape == "utf8-roundtrip":
+        return ["  var W: string := %s + #$0410 + #$4E2D;" % s("ab"),
+                "  var U := UTF8Encode(W);",
+                "  var Back := UTF8ToString(U);",
+                "  Answer := UInt64(Cardinal(Length(U))) shl 8;",
+                "  Answer := Answer or UInt64(Ord(Back = W));"]
+    if shape == "utf8-length":
+        return ["  var U: UTF8String := UTF8Encode(%s + #$0410 + #$4E2D);"
+                % s("a"),
+                "  Answer := UInt64(Cardinal(Length(U))) shl 8;",
+                "  Answer := Answer or "
+                "UInt64(Cardinal(Length(UTF8ToString(U))));"]
+    if shape == "ansi-to-unicode-roundtrip":
+        return ["  var A: AnsiString := AnsiString(%s);" % s("plain"),
+                "  var W: string := string(A);",
+                "  Answer := UInt64(Cardinal(Length(W))) shl 8;",
+                "  Answer := Answer or UInt64(Ord(AnsiString(W) = A));"]
+    if shape == "path-extract":
+        return ["  var P: string := %s + PathDelim + %s + PathDelim + %s;"
+                % (s("dir"), s("sub"), s("file.txt")),
+                "  Answer := UInt64(Cardinal(Length(ExtractFileName(P)))) shl 8;",
+                "  Answer := Answer or "
+                "UInt64(Cardinal(Length(ExtractFileExt(P))));"]
+    # path-change-ext
+    return ["  var P: string := %s;" % s("name.old"),
+            "  var Q := ChangeFileExt(P, %s);" % s(".new"),
+            "  Answer := UInt64(Cardinal(Length(Q))) shl 8;",
+            "  Answer := Answer or UInt64(Ord(ExtractFileExt(Q) = %s));"
+            % s(".new")]
+
+
+def layer_rtl(e: Emitter, rng: random.Random, count: int,
+              start: int) -> list[CaseRecord]:
+    """Контракт стандартной библиотеки: она обязана вести себя как у Delphi."""
+    records: list[CaseRecord] = []
+    calls: list[str] = []
+    for offset, shape in enumerate(RTL_SHAPES):
+        index = start + offset
+        name = "dvl-rtllib-%s" % shape
+        proc = "DvlRtlLib%05d" % index
+        tag = "%05d" % index
+
+        body = emit_rtl_case(e, shape, tag)
+        e.line("procedure %s;" % proc)
+        e.line("var")
+        e.line("  Answer: UInt64;")
+        e.line("begin")
+        e.line("  { %s }" % shape)
+        e.line("  Answer := $FFFF;")
+        for line in body:
+            e.line(line)
+        e.line("  DevilStep('%s');" % name)
+        e.line("  { модели нет: контракт в том, что библиотека отвечает так же, "
+               "как у Delphi }")
+        e.line("  DevilNote('%s', Answer);" % name)
+        e.line("  DevilCheckBool('%s-answered', Answer <> $FFFF);" % name)
+        e.line("end;")
+        e.line()
+
+        calls.append(proc)
+        records.append(CaseRecord(name=name, layer="rtllib",
+                                  detail={"shape": shape}))
+
+    emit_runner(e, "RtlLib", calls)
+    return records
+
+
+# что производитель кладёт в модуль, а потребитель обязан прочитать так же
+PPU_SHAPES = (
+    "alias-width", "alias-signedness", "subrange-bounds", "enum-base-size",
+    "set-size", "typed-const-precision", "typed-const-string",
+    "record-layout", "packed-record-layout", "record-alignment",
+    "class-field-offset", "class-virtual-index", "interface-guid",
+    "overload-set", "default-parameter", "calling-convention",
+    "generic-specialized-there", "generic-specialized-here",
+    "inline-body-across", "const-expression-across", "helper-visible-across",
+    "class-const-across", "published-property-across", "attribute-across",
+)
+
+
+def write_ppu_unit(out: Path) -> None:
+    """Модуль-производитель: потребитель увидит только его PPU."""
+    lines = ["unit devil_ppu_source;", "",
+             "{$ifdef FPC}",
+             "  {$mode delphiunicode}{$H+}",
+             "  {$modeswitch advancedrecords}",
+             "  {$modeswitch INLINEVARS}",
+             "{$endif}", "",
+             "interface", "",
+             "uses",
+             "  SysUtils;", "",
+             "type",
+             "  { псевдонимы: ширина и знак обязаны пережить границу }",
+             "  TDvlPpuNarrow = type SmallInt;",
+             "  TDvlPpuUnsigned = type Word;",
+             "  TDvlPpuRange = 10..250;",
+             "  TDvlPpuEnum = (dvlPpuA, dvlPpuB, dvlPpuC);",
+             "  TDvlPpuSet = set of TDvlPpuEnum;", "",
+             "  { layout: смещения полей и упаковка }",
+             "  TDvlPpuRec = record",
+             "    Head: Byte;",
+             "    Wide: Int64;",
+             "    Tail: Word;",
+             "  end;",
+             "  TDvlPpuPacked = packed record",
+             "    Head: Byte;",
+             "    Wide: Int64;",
+             "    Tail: Word;",
+             "  end;",
+             "  {$ifdef FPC}{$push}{$endif}",
+             "  {$A8}",
+             "  TDvlPpuAligned = record",
+             "    Head: Byte;",
+             "    Wide: Int64;",
+             "  end;",
+             "  {$ifdef FPC}{$pop}{$endif}", "",
+             "  { класс: смещение поля и место метода в таблице }",
+             "  TDvlPpuBase = class",
+             "  public",
+             "    Slot: Integer;",
+             "    Extra: Int64;",
+             "    function Kind: Integer; virtual;",
+             "    function Second: Integer; virtual;",
+             "  end;",
+             "",
+             "  {$M+}",
+             "  TDvlPpuPublished = class",
+             "  private",
+             "    FSlot: Integer;",
+             "  published",
+             "    property Slot: Integer read FSlot write FSlot;",
+             "  end;",
+             "  {$M-}", "",
+             "  IDvlPpu = interface",
+             "    ['{7A1D0000-0000-0000-0000-00000000000D}']",
+             "    function Ask: Integer;",
+             "  end;", "",
+             "  { обобщение, специализируемое по обе стороны границы }",
+             "  TDvlPpuBox<T> = record",
+             "    Value: T;",
+             "    function Width: Integer;",
+             "  end;",
+             "  TDvlPpuHere = TDvlPpuBox<SmallInt>;", "",
+             "  TDvlPpuHelperHost = class",
+             "  public",
+             "    Payload: Integer;",
+             "  end;",
+             "  TDvlPpuHelper = class helper for TDvlPpuHelperHost",
+             "  public",
+             "    function Doubled: Integer;",
+             "  end;", "",
+             "  TDvlPpuWithConst = class",
+             "  public",
+             "    const Marker = 4242;",
+             "  end;", "",
+             "  DvlPpuMarkAttribute = class(TCustomAttribute)",
+             "  public",
+             "    Tag: Integer;",
+             "    constructor Create(ATag: Integer);",
+             "  end;", "",
+             "  [DvlPpuMark(77)]",
+             "  TDvlPpuMarked = class",
+             "  end;", "",
+             "const",
+             "  { типизированные константы: точность и текст }",
+             "  DvlPpuCurrency: Currency = 1.2345;",
+             "  DvlPpuDouble: Double = 0.1;",
+             "  DvlPpuText: string = 'ppu-text';",
+             "  DvlPpuUntyped = 300;", "",
+             "{ перегрузки: набор кандидатов обязан переехать целиком }",
+             "function DvlPpuPick(const V: Integer): Integer; overload;",
+             "function DvlPpuPick(const V: Int64): Integer; overload;",
+             "function DvlPpuPick(const V: string): Integer; overload;", "",
+             "{ значение по умолчанию видно только через модуль }",
+             "function DvlPpuWithDefault(A: Integer; B: Integer = 7): Integer;",
+             "{ соглашение вызова объявлено здесь, вызов будет там }",
+             "function DvlPpuStd(A, B, C, D, E: Integer): Integer; stdcall;",
+             "{ тело инлайна обязано доехать до потребителя }",
+             "function DvlPpuInline(const V: Int64): Int64; inline;",
+             "function DvlPpuMakeHere: TDvlPpuHere;", "",
+             "implementation", "",
+             "constructor DvlPpuMarkAttribute.Create(ATag: Integer);",
+             "begin",
+             "  inherited Create;",
+             "  Tag := ATag;",
+             "end;", "",
+             "function TDvlPpuBase.Kind: Integer;",
+             "begin",
+             "  Result := 1;",
+             "end;", "",
+             "function TDvlPpuBase.Second: Integer;",
+             "begin",
+             "  Result := 2;",
+             "end;", "",
+             "function TDvlPpuBox<T>.Width: Integer;",
+             "begin",
+             "  Result := SizeOf(T);",
+             "end;", "",
+             "function TDvlPpuHelper.Doubled: Integer;",
+             "begin",
+             "  Result := Payload * 2;",
+             "end;", "",
+             "function DvlPpuPick(const V: Integer): Integer;",
+             "begin",
+             "  Result := 1;",
+             "end;", "",
+             "function DvlPpuPick(const V: Int64): Integer;",
+             "begin",
+             "  Result := 2;",
+             "end;", "",
+             "function DvlPpuPick(const V: string): Integer;",
+             "begin",
+             "  Result := 3;",
+             "end;", "",
+             "function DvlPpuWithDefault(A: Integer; B: Integer): Integer;",
+             "begin",
+             "  Result := A * 100 + B;",
+             "end;", "",
+             "function DvlPpuStd(A, B, C, D, E: Integer): Integer; stdcall;",
+             "begin",
+             "  Result := A + B * 2 + C * 3 + D * 4 + E * 5;",
+             "end;", "",
+             "function DvlPpuInline(const V: Int64): Int64;",
+             "begin",
+             "  Result := V;",
+             "end;", "",
+             "function DvlPpuMakeHere: TDvlPpuHere;",
+             "begin",
+             "  Result.Value := SmallInt(-32767);",
+             "end;", "",
+             "end."]
+    (out / "devil_ppu_source.pas").write_text("\n".join(lines) + "\n",
+                                              encoding="utf-8")
+
+
+def emit_ppu_case(e: Emitter, shape: str, tag: str) -> list[str]:
+    """Что потребитель видит через границу модуля."""
+    if shape == "alias-width":
+        return ["  var V: TDvlPpuNarrow := TDvlPpuNarrow(-32767);",
+                "  Answer := UInt64(Cardinal(SizeOf(V))) shl 16;",
+                "  Answer := Answer or UInt64(Word(V));"]
+    if shape == "alias-signedness":
+        return ["  var V: TDvlPpuUnsigned := TDvlPpuUnsigned($FFFF);",
+                "  Answer := UInt64(Cardinal(SizeOf(V))) shl 16;",
+                "  Answer := Answer or UInt64(Int64(V) and $FFFF);"]
+    if shape == "subrange-bounds":
+        return ["  Answer := UInt64(Cardinal(Low(TDvlPpuRange))) shl 16;",
+                "  Answer := Answer or UInt64(Cardinal(High(TDvlPpuRange)));"]
+    if shape == "enum-base-size":
+        return ["  Answer := UInt64(Cardinal(SizeOf(TDvlPpuEnum))) shl 16;",
+                "  Answer := Answer or UInt64(Cardinal(Ord(High(TDvlPpuEnum))));"]
+    if shape == "set-size":
+        return ["  var S: TDvlPpuSet := [dvlPpuA, dvlPpuC];",
+                "  Answer := UInt64(Cardinal(SizeOf(S))) shl 16;",
+                "  Answer := Answer or UInt64(Ord(dvlPpuC in S));"]
+    if shape == "typed-const-precision":
+        return ["  { у Currency четыре знака: округление обязано пережить PPU }",
+                "  Answer := UInt64(Cardinal(Round(DvlPpuCurrency * 10000)));"]
+    if shape == "typed-const-string":
+        return ["  Answer := UInt64(Cardinal(Length(DvlPpuText))) shl 16;",
+                "  Answer := Answer or UInt64(Cardinal(DvlPpuUntyped));"]
+    if shape == "record-layout":
+        return ["  var R: TDvlPpuRec;",
+                "  Answer := UInt64(Cardinal(SizeOf(R))) shl 16;",
+                "  Answer := Answer or UInt64(Cardinal(NativeUInt(@R.Wide) - "
+                "NativeUInt(@R)));"]
+    if shape == "packed-record-layout":
+        return ["  var R: TDvlPpuPacked;",
+                "  Answer := UInt64(Cardinal(SizeOf(R))) shl 16;",
+                "  Answer := Answer or UInt64(Cardinal(NativeUInt(@R.Wide) - "
+                "NativeUInt(@R)));"]
+    if shape == "record-alignment":
+        return ["  var R: TDvlPpuAligned;",
+                "  Answer := UInt64(Cardinal(SizeOf(R))) shl 16;",
+                "  Answer := Answer or UInt64(Cardinal(NativeUInt(@R.Wide) - "
+                "NativeUInt(@R)));"]
+    if shape == "class-field-offset":
+        return ["  var Held := TDvlPpuBase.Create;",
+                "  try",
+                "    Held.Slot := 5;",
+                "    Held.Extra := 9;",
+                "    Answer := UInt64(Cardinal(Held.Slot)) shl 16;",
+                "    Answer := Answer or UInt64(Cardinal(Held.Extra));",
+                "  finally",
+                "    Held.Free;",
+                "  end;"]
+    if shape == "class-virtual-index":
+        e.line("type")
+        e.line("  TDvlPpuLeaf%s = class(TDvlPpuBase)" % tag)
+        e.line("  public")
+        e.line("    function Kind: Integer; override;")
+        e.line("  end;")
+        e.line()
+        e.line("function TDvlPpuLeaf%s.Kind: Integer;" % tag)
+        e.line("begin")
+        e.line("  { перекрыт первый виртуальный метод; второй обязан остаться "
+               "на своём месте в таблице }")
+        e.line("  Result := 10 + inherited Kind;")
+        e.line("end;")
+        e.line()
+        return ["  var Held: TDvlPpuBase := TDvlPpuLeaf%s.Create;" % tag,
+                "  try",
+                "    Answer := UInt64(Cardinal(Held.Kind)) shl 16;",
+                "    Answer := Answer or UInt64(Cardinal(Held.Second));",
+                "  finally",
+                "    Held.Free;",
+                "  end;"]
+    if shape == "interface-guid":
+        e.line("type")
+        e.line("  TDvlPpuImpl%s = class(TInterfacedObject, IDvlPpu)" % tag)
+        e.line("  public")
+        e.line("    function Ask: Integer;")
+        e.line("  end;")
+        e.line()
+        e.line("function TDvlPpuImpl%s.Ask: Integer;" % tag)
+        e.line("begin")
+        e.line("  Result := 7;")
+        e.line("end;")
+        e.line()
+        return ["  var Obj: IDvlPpu := TDvlPpuImpl%s.Create;" % tag,
+                "  var Other: IInterface := Obj;",
+                "  var Back: IDvlPpu;",
+                "  Answer := UInt64(Ord(Supports(Other, IDvlPpu, Back))) shl 16;",
+                "  Answer := Answer or UInt64(Cardinal(Back.Ask));"]
+    if shape == "overload-set":
+        return ["  var Wide: Int64 := 7;",
+                "  var Text: string := 'x';",
+                "  Answer := UInt64(Cardinal(DvlPpuPick(Wide))) shl 16;",
+                "  Answer := Answer or UInt64(Cardinal(DvlPpuPick(Text)));"]
+    if shape == "default-parameter":
+        return ["  Answer := UInt64(Cardinal(DvlPpuWithDefault(1))) shl 16;",
+                "  Answer := Answer or UInt64(Cardinal(DvlPpuWithDefault(1, 3)));"]
+    if shape == "calling-convention":
+        return ["  Answer := UInt64(Cardinal(DvlPpuStd(1, 2, 3, 4, 5)));"]
+    if shape == "generic-specialized-there":
+        return ["  { специализация сделана в модуле-производителе }",
+                "  var Box := DvlPpuMakeHere;",
+                "  Answer := UInt64(Cardinal(Box.Width)) shl 16;",
+                "  Answer := Answer or UInt64(Word(Box.Value));"]
+    if shape == "generic-specialized-here":
+        return ["  { то же обобщение, но специализировано на этой стороне }",
+                "  var Box: TDvlPpuBox<SmallInt>;",
+                "  Box.Value := SmallInt(-32767);",
+                "  Answer := UInt64(Cardinal(Box.Width)) shl 16;",
+                "  Answer := Answer or UInt64(Word(Box.Value));"]
+    if shape == "inline-body-across":
+        return ["  var V: Int64 := OpaqueI(-32767);",
+                "  Answer := UInt64(Cardinal(Word(DvlPpuInline(V)))) shl 16;",
+                "  Answer := Answer or UInt64(Cardinal(SizeOf(DvlPpuInline(V))));"]
+    if shape == "const-expression-across":
+        return ["  { нетипизированная константа из модуля в константном "
+                "выражении этой стороны }",
+                "  const Doubled = DvlPpuUntyped * 2;",
+                "  Answer := UInt64(Cardinal(Doubled));"]
+    if shape == "helper-visible-across":
+        return ["  var Host := TDvlPpuHelperHost.Create;",
+                "  try",
+                "    Host.Payload := 21;",
+                "    Answer := UInt64(Cardinal(Host.Doubled));",
+                "  finally",
+                "    Host.Free;",
+                "  end;"]
+    if shape == "class-const-across":
+        return ["  Answer := UInt64(Cardinal(TDvlPpuWithConst.Marker));"]
+    if shape == "published-property-across":
+        return ["  var Ctx: TRttiContext := TRttiContext.Create;",
+                "  var Count := 0;",
+                "  for var P in Ctx.GetType(TDvlPpuPublished).GetProperties do",
+                "    Inc(Count);",
+                "  Answer := UInt64(Cardinal(Count));"]
+    # attribute-across
+    return ["  var Ctx: TRttiContext := TRttiContext.Create;",
+            "  var Sum := 0;",
+            "  for var A in Ctx.GetType(TDvlPpuMarked).GetAttributes do",
+            "    If A is DvlPpuMarkAttribute then",
+            "      Sum := Sum + DvlPpuMarkAttribute(A).Tag;",
+            "  Answer := UInt64(Cardinal(Sum));"]
+
+
+def layer_ppu(e: Emitter, rng: random.Random, count: int,
+              start: int) -> list[CaseRecord]:
+    """Что объявление несёт с собой через границу раздельной компиляции."""
+    records: list[CaseRecord] = []
+    calls: list[str] = []
+    for offset, shape in enumerate(PPU_SHAPES):
+        index = start + offset
+        name = "dvl-ppu-%s" % shape
+        proc = "DvlPpu%05d" % index
+        tag = "%05d" % index
+
+        body = emit_ppu_case(e, shape, tag)
+        e.line("procedure %s;" % proc)
+        e.line("var")
+        e.line("  Answer: UInt64;")
+        e.line("begin")
+        e.line("  { %s: производитель знает, потребитель обязан узнать }"
+               % shape)
+        e.line("  Answer := $FFFFFFFF;")
+        for line in body:
+            e.line(line)
+        e.line("  DevilStep('%s');" % name)
+        e.line("  DevilNote('%s', Answer);" % name)
+        e.line("  DevilCheckBool('%s-answered', Answer <> $FFFFFFFF);" % name)
+        e.line("end;")
+        e.line()
+
+        calls.append(proc)
+        records.append(CaseRecord(name=name, layer="ppu",
+                                  detail={"shape": shape}))
+
+    emit_runner(e, "Ppu", calls)
+    return records
+
+
+# формы, где важно не значение, а сколько раз и в каком составе сработали
+# защищённые области
+REGION_SHAPES = (
+    "finally-in-loop", "finally-with-break", "finally-with-continue",
+    "finally-with-exit", "nested-five-deep", "finally-around-inlined",
+    "finally-around-inlined-managed", "except-then-finally",
+    "reraise-through-finally", "exit-from-except", "finally-in-except",
+    "loop-inside-try", "try-inside-loop-inside-try", "finally-after-raise",
+    "dead-looking-region", "region-around-closure", "region-around-thread-join",
+    "nested-loops-with-finally",
+)
+
+
+def emit_region_case(e: Emitter, shape: str, tag: str) -> tuple[list[str], int]:
+    """Тело кейса и сколько раз тело finally обязано отработать."""
+    if shape == "finally-in-loop":
+        return (["  for var I := 1 to 5 do",
+                 "  begin",
+                 "    try",
+                 "      Inc(Body);",
+                 "    finally",
+                 "      Inc(Guard);",
+                 "    end;",
+                 "  end;"], 5)
+    if shape == "finally-with-break":
+        return (["  for var I := 1 to 5 do",
+                 "  begin",
+                 "    try",
+                 "      Inc(Body);",
+                 "      If I = 3 then",
+                 "        Break;",
+                 "    finally",
+                 "      Inc(Guard);",
+                 "    end;",
+                 "  end;"], 3)
+    if shape == "finally-with-continue":
+        return (["  for var I := 1 to 4 do",
+                 "  begin",
+                 "    try",
+                 "      If I = 2 then",
+                 "        Continue;",
+                 "      Inc(Body);",
+                 "    finally",
+                 "      Inc(Guard);",
+                 "    end;",
+                 "  end;"], 4)
+    if shape == "finally-with-exit":
+        e.line("procedure DvlRegExit%s(var Guard, Body: Integer);" % tag)
+        e.line("begin")
+        e.line("  for var I := 1 to 5 do")
+        e.line("  begin")
+        e.line("    try")
+        e.line("      Inc(Body);")
+        e.line("      If I = 2 then")
+        e.line("        Exit;")
+        e.line("    finally")
+        e.line("      Inc(Guard);")
+        e.line("    end;")
+        e.line("  end;")
+        e.line("end;")
+        e.line()
+        return (["  DvlRegExit%s(Guard, Body);" % tag], 2)
+    if shape == "nested-five-deep":
+        lines = []
+        for depth in range(5):
+            lines.append("  " * (depth + 1) + "try")
+        lines.append("  " * 6 + "Inc(Body);")
+        for depth in range(4, -1, -1):
+            lines.append("  " * (depth + 1) + "finally")
+            lines.append("  " * (depth + 2) + "Inc(Guard);")
+            lines.append("  " * (depth + 1) + "end;")
+        return (lines, 5)
+    if shape in ("finally-around-inlined", "finally-around-inlined-managed"):
+        managed = shape.endswith("managed")
+        e.line("function DvlRegStep%s(V: Integer): Integer; inline;" % tag)
+        if managed:
+            e.line("var")
+            e.line("  Text: AnsiString;")
+        e.line("begin")
+        if managed:
+            e.line("  { managed-временная внутри подставляемого тела: регион "
+                   "меняется в момент подстановки }")
+            e.line("  Text := Copy(AnsiString('guard'), 1, 5);")
+            e.line("  Result := V + Length(Text) - 5;")
+        else:
+            e.line("  Result := V;")
+        e.line("end;")
+        e.line()
+        return (["  for var I := 1 to 3 do",
+                 "  begin",
+                 "    try",
+                 "      Inc(Body, DvlRegStep%s(1));" % tag,
+                 "    finally",
+                 "      Inc(Guard, DvlRegStep%s(1));" % tag,
+                 "    end;",
+                 "  end;"], 3)
+    if shape == "except-then-finally":
+        return (["  for var I := 1 to 3 do",
+                 "  begin",
+                 "    try",
+                 "      try",
+                 "        Inc(Body);",
+                 "        raise Exception.Create('x');",
+                 "      except",
+                 "        Inc(Body);",
+                 "      end;",
+                 "    finally",
+                 "      Inc(Guard);",
+                 "    end;",
+                 "  end;"], 3)
+    if shape == "reraise-through-finally":
+        return (["  try",
+                 "    try",
+                 "      try",
+                 "        Inc(Body);",
+                 "        raise Exception.Create('x');",
+                 "      finally",
+                 "        Inc(Guard);",
+                 "      end;",
+                 "    finally",
+                 "      Inc(Guard);",
+                 "    end;",
+                 "  except",
+                 "    Inc(Body);",
+                 "  end;"], 2)
+    if shape == "exit-from-except":
+        e.line("procedure DvlRegEscape%s(var Guard, Body: Integer);" % tag)
+        e.line("begin")
+        e.line("  try")
+        e.line("    try")
+        e.line("      Inc(Body);")
+        e.line("      raise Exception.Create('x');")
+        e.line("    except")
+        e.line("      Exit;")
+        e.line("    end;")
+        e.line("  finally")
+        e.line("    Inc(Guard);")
+        e.line("  end;")
+        e.line("end;")
+        e.line()
+        return (["  DvlRegEscape%s(Guard, Body);" % tag], 1)
+    if shape == "finally-in-except":
+        return (["  try",
+                 "    Inc(Body);",
+                 "    raise Exception.Create('x');",
+                 "  except",
+                 "    try",
+                 "      Inc(Body);",
+                 "    finally",
+                 "      Inc(Guard);",
+                 "    end;",
+                 "  end;"], 1)
+    if shape == "loop-inside-try":
+        return (["  try",
+                 "    for var I := 1 to 6 do",
+                 "      Inc(Body);",
+                 "  finally",
+                 "    Inc(Guard);",
+                 "  end;"], 1)
+    if shape == "try-inside-loop-inside-try":
+        return (["  try",
+                 "    for var I := 1 to 4 do",
+                 "    begin",
+                 "      try",
+                 "        Inc(Body);",
+                 "      finally",
+                 "        Inc(Guard);",
+                 "      end;",
+                 "    end;",
+                 "  finally",
+                 "    Inc(Guard);",
+                 "  end;"], 5)
+    if shape == "finally-after-raise":
+        return (["  try",
+                 "    try",
+                 "      raise Exception.Create('x');",
+                 "    finally",
+                 "      Inc(Guard);",
+                 "    end;",
+                 "  except",
+                 "    Inc(Body);",
+                 "  end;"], 1)
+    if shape == "dead-looking-region":
+        return (["  { тело выглядит неспособным бросить, но область обязана "
+                 "остаться: доказательство мертвости здесь неверно }",
+                 "  for var I := 1 to 3 do",
+                 "  begin",
+                 "    try",
+                 "      Inc(Body);",
+                 "      If OpaqueI(0) <> 0 then",
+                 "        raise Exception.Create('never');",
+                 "    finally",
+                 "      Inc(Guard);",
+                 "    end;",
+                 "  end;"], 3)
+    if shape == "region-around-closure":
+        e.line("type")
+        e.line("  TDvlRegStep%s = reference to procedure;" % tag)
+        e.line()
+        return (["  var Step: TDvlRegStep%s;" % tag,
+                 "  Step :=",
+                 "    procedure",
+                 "    begin",
+                 "      Inc(Body);",
+                 "    end;",
+                 "  for var I := 1 to 3 do",
+                 "  begin",
+                 "    try",
+                 "      Step();",
+                 "    finally",
+                 "      Inc(Guard);",
+                 "    end;",
+                 "  end;"], 3)
+    if shape == "region-around-thread-join":
+        e.line("type")
+        e.line("  TDvlRegWorker%s = class(TThread)" % tag)
+        e.line("  public")
+        e.line("    Seen: Integer;")
+        e.line("    procedure Execute; override;")
+        e.line("  end;")
+        e.line()
+        e.line("procedure TDvlRegWorker%s.Execute;" % tag)
+        e.line("begin")
+        e.line("  Seen := 1;")
+        e.line("end;")
+        e.line()
+        return (["  var Worker := TDvlRegWorker%s.Create(True);" % tag,
+                 "  try",
+                 "    Worker.FreeOnTerminate := False;",
+                 "    Worker.Start;",
+                 "    Worker.WaitFor;",
+                 "    Inc(Body, Worker.Seen);",
+                 "  finally",
+                 "    Inc(Guard);",
+                 "    Worker.Free;",
+                 "  end;"], 1)
+    # nested-loops-with-finally
+    return (["  for var I := 1 to 3 do",
+             "    for var J := 1 to 2 do",
+             "    begin",
+             "      try",
+             "        Inc(Body);",
+             "      finally",
+             "        Inc(Guard);",
+             "      end;",
+             "    end;"], 6)
+
+
+def layer_region(e: Emitter, rng: random.Random, count: int,
+                 start: int) -> list[CaseRecord]:
+    """Сколько раз сработала защищённая область — число, заданное языком."""
+    records: list[CaseRecord] = []
+    calls: list[str] = []
+    for offset, shape in enumerate(REGION_SHAPES):
+        index = start + offset
+        name = "dvl-region-%s" % shape
+        proc = "DvlRegion%05d" % index
+        tag = "%05d" % index
+
+        body, expected = emit_region_case(e, shape, tag)
+        e.line("procedure %s;" % proc)
+        e.line("var")
+        e.line("  Guard, Body: Integer;")
+        e.line("begin")
+        e.line("  { %s: тело finally обязано отработать ровно %d раз }"
+               % (shape, expected))
+        e.line("  Guard := 0;")
+        e.line("  Body := 0;")
+        for line in body:
+            e.line(line)
+        e.line("  DevilStep('%s');" % name)
+        e.line("  DevilCheckU('%s-guard', UInt64(Cardinal(Guard)), %d);"
+               % (name, expected))
+        e.line("  DevilFeed(UInt64(Cardinal(Body)));")
+        e.line("end;")
+        e.line()
+
+        calls.append(proc)
+        records.append(CaseRecord(name=name, layer="region",
+                                  detail={"shape": shape,
+                                          "expected": expected}))
+
+    emit_runner(e, "Region", calls)
+    return records
+
+
 PROGRAM_TEMPLATE = """program devil;
 
 {{ Generated by scripts/generate_devil.py.  One seed, one program. }}
@@ -16169,7 +17177,7 @@ uses
   mormot.core.fpcx64mm,
   {{$ifdef UNIX}}cthreads,{{$endif}}
 {{$endif}}
-  SysUtils, Classes, Math, Variants, TypInfo, Rtti, devil_runtime{uses_extra};
+  SysUtils, Classes, Math, Variants, TypInfo, Rtti, Generics.Collections, devil_runtime{uses_extra};
 
 {{$I devil_support.inc}}
 {includes}
@@ -16242,6 +17250,9 @@ LAYERS = {
     "attr": layer_attr,
     "deliver": layer_deliver,
     "load": layer_load,
+    "rtllib": layer_rtl,
+    "ppu": layer_ppu,
+    "region": layer_region,
 }
 
 # Числовые слои держатся на голодном пайке специально.  Сверять результат
@@ -16304,6 +17315,9 @@ LAYER_RUNNERS = {
     "attr": "RunDevilAttrLayer",
     "deliver": "RunDevilDeliverLayer",
     "load": "RunDevilLoadLayer",
+    "rtllib": "RunDevilRtlLibLayer",
+    "ppu": "RunDevilPpuLayer",
+    "region": "RunDevilRegionLayer",
 }
 
 
@@ -16406,6 +17420,8 @@ def main() -> None:
 
     check_unique_declarations(out, selected)
     check_case_names(records)
+    if "ppu" in selected:
+        write_ppu_unit(out)
     if "deliver" in selected:
         write_provenance_unit(out)
     if "scope" in selected:
@@ -16430,6 +17446,7 @@ def main() -> None:
                                    else ())
                 + ((INIT_UNITS[::-1] + ("devil_cycle_x", "devil_cycle_y"))
                    if "init" in selected else ())
+                + (("devil_ppu_source",) if "ppu" in selected else ())
                 + (("devil_provenance",) if "deliver" in selected else ())
                 + (("devil_scope_a", "devil_scope_b")
                    if "scope" in selected else ())

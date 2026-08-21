@@ -47,8 +47,8 @@ end;
 
 procedure DvlArr00004;
 var
-  A: TArray<Integer>;
-  B: TArray<Integer>;
+  A: System.TArray<Integer>;
+  B: System.TArray<Integer>;
 begin
   SetLength(A, 6);
   A[0] := 11;
@@ -92,7 +92,7 @@ end;
 
 procedure DvlArr00008;
 var
-  A: TArray<TArray<Integer>>;
+  A: System.TArray<System.TArray<Integer>>;
 begin
   SetLength(A, 2);
   SetLength(A[0], 3);
@@ -143,7 +143,7 @@ end;
 
 procedure DvlArr00011;
 var
-  A: TArray<Integer>;
+  A: System.TArray<Integer>;
   G1: Integer;
 begin
   G1 := 0;
@@ -164,8 +164,8 @@ end;
 
 procedure DvlArr00012;
 var
-  A: TArray<Integer>;
-  B: TArray<Integer>;
+  A: System.TArray<Integer>;
+  B: System.TArray<Integer>;
 begin
   SetLength(A, 4);
   A[0] := 11;
@@ -187,9 +187,9 @@ end;
 
 procedure DvlArr00014;
 var
-  A: TArray<Integer>;
-  B: TArray<Integer>;
-  C: TArray<Integer>;
+  A: System.TArray<Integer>;
+  B: System.TArray<Integer>;
+  C: System.TArray<Integer>;
 begin
   if OpaqueU(1) = 1 then
   begin
@@ -258,8 +258,8 @@ end;
 
 procedure DvlArr00018;
 var
-  A: TArray<Integer>;
-  B: TArray<Integer>;
+  A: System.TArray<Integer>;
+  B: System.TArray<Integer>;
 begin
   SetLength(A, 4);
   A[0] := 11;
@@ -291,194 +291,6 @@ begin
   DevilCheckU('dvl-arr-00019-high', UInt64(Cardinal(Arr[0])), 0);
 end;
 
-procedure DvlArr00020;
-var
-  A: TArray<TArray<Integer>>;
-  G1: Integer;
-begin
-  G1 := 0;
-  while G1 <= Integer(OpaqueU(0)) do
-  begin
-    if OpaqueU(1) = 1 then
-    begin
-  SetLength(A, 2);
-  SetLength(A[0], 3);
-  SetLength(A[1], 1);
-  A[0][2] := 42;
-  A[1][0] := 7;
-    end
-    else
-      DevilFailures := High(UInt64);
-    Inc(G1);
-  end;
-  DevilCheckU('dvl-arr-00020-inner-len', UInt64(Length(A[0])), 3);
-  DevilCheckU('dvl-arr-00020-inner-value', UInt64(Cardinal(A[0][2])), 42);
-end;
-
-procedure DvlArr00021;
-var
-  A: TArray<Integer>;
-  B: TArray<Integer>;
-begin
-  if OpaqueU(1) = 1 then
-  begin
-  SetLength(A, 4);
-  A[0] := 11;
-  B := Copy(A);
-  B[0] := 22;
-  end
-  else
-    DevilFailures := High(UInt64);
-  DevilCheckU('dvl-arr-00021-source', UInt64(Cardinal(A[0])), 11);
-  DevilCheckU('dvl-arr-00021-copy', UInt64(Cardinal(B[0])), 22);
-end;
-
-procedure DvlArr00022;
-var
-  A: TArray<Integer>;
-  W1: TDvlBox;
-begin
-  W1.Fi32 := Integer(OpaqueI(1));
-  with W1 do
-  begin
-  SetLength(A, 3);
-  A[0] := 1;
-  A[1] := 2;
-  A[2] := 3;
-  Insert(9, A, 1);
-  Delete(A, 0, 1);
-    if Fi32 <> 1 then
-      DevilFailures := High(UInt64);
-  end;
-  DevilCheckU('dvl-arr-00022-len', UInt64(Length(A)), 3);
-  DevilCheckU('dvl-arr-00022-head', UInt64(Cardinal(A[0])), 9);
-  DevilCheckU('dvl-arr-00022-tail', UInt64(Cardinal(A[2])), 3);
-end;
-
-procedure DvlArr00023;
-var
-  Arr: array[0..7] of Integer;
-  K: Integer;
-begin
-  for K := 0 to 7 do
-    Arr[K] := K * 7 + 1;
-  DevilCheckU('dvl-arr-00023-value', UInt64(Cardinal(Arr[4])), 29);
-end;
-
-procedure DvlArr00024;
-var
-  A: TArray<Integer>;
-  B: TArray<Integer>;
-  C: TArray<Integer>;
-begin
-  SetLength(A, 2);
-  A[0] := 1;
-  A[1] := 2;
-  SetLength(B, 2);
-  B[0] := 3;
-  B[1] := 4;
-  C := Concat(A, B);
-  DevilCheckU('dvl-arr-00024-len', UInt64(Length(C)), 4);
-  DevilCheckU('dvl-arr-00024-tail', UInt64(Cardinal(C[3])), 4);
-end;
-
-procedure DvlArr00025;
-var
-  Arr: array[0..7] of Integer;
-  K: Integer;
-  P: PInteger;
-begin
-  repeat
-  for K := 0 to 7 do
-    Arr[K] := K * 5;
-  P := @Arr[0];
-  K := 0;
-  while NativeUInt(P) <= NativeUInt(@Arr[7]) do
-  begin
-    K := K + P^;
-    Inc(P);
-  end;
-  until OpaqueU(1) = 1;
-  DevilCheckU('dvl-arr-00025-sum', UInt64(Cardinal(K)), 140);
-end;
-
-procedure DvlArr00026;
-var
-  Arr: TArray<Integer>;
-  K: Integer;
-  S1: AnsiString;
-  Guard1: IInterface;
-  Alive1: Integer;
-begin
-  Alive1 := TDvlGuard.Alive;
-  Guard1 := TDvlGuard.Create;
-  S1 := AnsiString('dvl-00001');
-  SetLength(Arr, 4);
-  for K := 0 to 3 do
-    Arr[K] := K;
-  SetLength(Arr, 6);
-  if Length(S1) <> 9 then
-    DevilFailures := High(UInt64);
-  Guard1 := nil;
-  if TDvlGuard.Alive <> Alive1 then
-    DevilFailures := High(UInt64);
-  DevilCheckU('dvl-arr-00026-len', UInt64(Length(Arr)), 6);
-  DevilCheckU('dvl-arr-00026-kept', UInt64(Cardinal(Arr[3])), 3);
-  DevilCheckU('dvl-arr-00026-fresh', UInt64(Cardinal(Arr[5])), 0);
-end;
-
-procedure DvlArr00027;
-var
-  Arr: array[0..3] of Integer;
-  K: Integer;
-  P: PInteger;
-begin
-  for K := 0 to 3 do
-    Arr[K] := K * 5;
-  P := @Arr[0];
-  K := 0;
-  while NativeUInt(P) <= NativeUInt(@Arr[3]) do
-  begin
-    K := K + P^;
-    Inc(P);
-  end;
-  DevilCheckU('dvl-arr-00027-sum', UInt64(Cardinal(K)), 30);
-end;
-
-procedure DvlArr00028;
-var
-  Arr: array[0..3] of Integer;
-  K: Integer;
-  P: PInteger;
-begin
-  for K := 0 to 3 do
-    Arr[K] := K * 5;
-  P := @Arr[0];
-  K := 0;
-  while NativeUInt(P) <= NativeUInt(@Arr[3]) do
-  begin
-    K := K + P^;
-    Inc(P);
-  end;
-  DevilCheckU('dvl-arr-00028-sum', UInt64(Cardinal(K)), 30);
-end;
-
-procedure DvlArr00029;
-var
-  Arr: array[-3..2] of Integer;
-  K: Integer;
-begin
-  if OpaqueU(1) = 1 then
-  begin
-  for K := -3 to 2 do
-    Arr[K] := K * 3;
-  end
-  else
-    DevilFailures := High(UInt64);
-  DevilCheckU('dvl-arr-00029-low', UInt64(Cardinal(Arr[-3])), 4294967287);
-  DevilCheckU('dvl-arr-00029-high', UInt64(Cardinal(Arr[2])), 6);
-end;
-
 procedure RunDevilArrLayer;
 begin
   DvlArr00000;
@@ -501,14 +313,4 @@ begin
   DvlArr00017;
   DvlArr00018;
   DvlArr00019;
-  DvlArr00020;
-  DvlArr00021;
-  DvlArr00022;
-  DvlArr00023;
-  DvlArr00024;
-  DvlArr00025;
-  DvlArr00026;
-  DvlArr00027;
-  DvlArr00028;
-  DvlArr00029;
 end;

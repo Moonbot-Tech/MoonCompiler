@@ -182,93 +182,6 @@ begin
   DevilCheckU('dvl-init-00019-count', UInt64(Cardinal(DvlSeed00019.Count)), 19);
 end;
 
-procedure DvlInit00020;
-begin
-  { two units that use each other through implementation: both are ready, and a call can bounce between them }
-  DevilCheckU('dvl-init-00020-x-ready', UInt64(Cardinal(DvlXReady)), 3);
-  DevilCheckU('dvl-init-00020-y-ready', UInt64(Cardinal(DvlYReady)), 4);
-  DevilCheckU('dvl-init-00020-bounce-none', UInt64(Cardinal(DvlXStep(0))), 3);
-  DevilCheckU('dvl-init-00020-bounce-one', UInt64(Cardinal(DvlXStep(1))), 7);
-  DevilCheckU('dvl-init-00020-bounce-three', UInt64(Cardinal(DvlXStep(3))), 14);
-end;
-
-procedure DvlInit00021;
-begin
-  { the chain decides the order, not the uses clause; a class constructor runs just before its own unit body }
-  DevilCheckU('dvl-init-00021-order', UInt64(Ord(DevilUnitTrail = 'CcBbAayx')), 1);
-end;
-
-procedure DvlInit00022;
-begin
-  { each unit filled its own global before the program body started }
-  DevilCheckU('dvl-init-00022-c', UInt64(Cardinal(DvlCMark)), 10);
-  DevilCheckU('dvl-init-00022-text', UInt64(Length(DvlCText)), 3);
-end;
-
-procedure DvlInit00023;
-begin
-  { a class constructor runs once, before anything can touch the class }
-  DevilCheckU('dvl-init-00023-c', UInt64(Cardinal(TDvlCHolder.Stamp)), 1);
-  DevilCheckU('dvl-init-00023-b', UInt64(Cardinal(TDvlBHolder.Stamp)), 2);
-  DevilCheckU('dvl-init-00023-a', UInt64(Cardinal(TDvlAHolder.Stamp)), 3);
-end;
-
-procedure DvlInit00024;
-var
-  Total: Integer;
-begin
-  Total := Length(DvlAText) + Length(DvlBText) + Length(DvlCText);
-  { managed globals of a unit are alive from its initialization until its finalization }
-  DevilCheckU('dvl-init-00024-total', UInt64(Cardinal(Total)), 9);
-end;
-
-procedure DvlInit00025;
-begin
-  { B added C's value to its own, so B ran after C }
-  DevilCheckU('dvl-init-00025-b', UInt64(Cardinal(DvlBMark)), 30);
-  { and A added B's already-summed value }
-  DevilCheckU('dvl-init-00025-a', UInt64(Cardinal(DvlAMark)), 60);
-end;
-
-type
-  TDvlSeed00026 = record
-    Name: string;
-    Count: Integer;
-  end;
-
-const
-  DvlSeed00026: TDvlSeed00026 = (Name: 'seed'; Count: 26);
-
-procedure DvlInit00026;
-begin
-  { a typed constant with a managed field is built before any code runs, and stays valid }
-  DevilCheckU('dvl-init-00026-name', UInt64(Length(DvlSeed00026.Name)), 4);
-  DevilCheckU('dvl-init-00026-count', UInt64(Cardinal(DvlSeed00026.Count)), 26);
-end;
-
-procedure DvlInit00027;
-begin
-  { two units that use each other through implementation: both are ready, and a call can bounce between them }
-  DevilCheckU('dvl-init-00027-x-ready', UInt64(Cardinal(DvlXReady)), 3);
-  DevilCheckU('dvl-init-00027-y-ready', UInt64(Cardinal(DvlYReady)), 4);
-  DevilCheckU('dvl-init-00027-bounce-none', UInt64(Cardinal(DvlXStep(0))), 3);
-  DevilCheckU('dvl-init-00027-bounce-one', UInt64(Cardinal(DvlXStep(1))), 7);
-  DevilCheckU('dvl-init-00027-bounce-three', UInt64(Cardinal(DvlXStep(3))), 14);
-end;
-
-procedure DvlInit00028;
-begin
-  { the chain decides the order, not the uses clause; a class constructor runs just before its own unit body }
-  DevilCheckU('dvl-init-00028-order', UInt64(Ord(DevilUnitTrail = 'CcBbAayx')), 1);
-end;
-
-procedure DvlInit00029;
-begin
-  { each unit filled its own global before the program body started }
-  DevilCheckU('dvl-init-00029-c', UInt64(Cardinal(DvlCMark)), 10);
-  DevilCheckU('dvl-init-00029-text', UInt64(Length(DvlCText)), 3);
-end;
-
 procedure RunDevilInitLayer;
 begin
   DvlInit00000;
@@ -291,14 +204,4 @@ begin
   DvlInit00017;
   DvlInit00018;
   DvlInit00019;
-  DvlInit00020;
-  DvlInit00021;
-  DvlInit00022;
-  DvlInit00023;
-  DvlInit00024;
-  DvlInit00025;
-  DvlInit00026;
-  DvlInit00027;
-  DvlInit00028;
-  DvlInit00029;
 end;

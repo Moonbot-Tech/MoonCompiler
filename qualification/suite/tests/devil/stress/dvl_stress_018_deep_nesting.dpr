@@ -1,4 +1,4 @@
-program dvl_stress_012_deep_nesting;
+program dvl_stress_018_deep_nesting;
 {$ifdef FPC}
   {$mode delphiunicode}{$H+}
   {$modeswitch advancedrecords}
@@ -58,31 +58,7 @@ begin
                                       begin
                                         if R >= 19 then
                                         begin
-                                          if R >= 20 then
-                                          begin
-                                            if R >= 21 then
-                                            begin
-                                              if R >= 22 then
-                                              begin
-                                                if R >= 23 then
-                                                begin
-                                                  if R >= 24 then
-                                                  begin
-                                                    if R >= 25 then
-                                                    begin
-                                                      if R >= 26 then
-                                                      begin
-                                                        if R >= 27 then
-                                                        begin
-                                                          Inc(R);
-                                                        end;
-                                                      end;
-                                                    end;
-                                                  end;
-                                                end;
-                                              end;
-                                            end;
-                                          end;
+                                          Inc(R);
                                         end;
                                       end;
                                     end;

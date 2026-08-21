@@ -245,7 +245,7 @@ begin
   { array-element asked about its refcount }
   DevilStep('dvl-lit-array-element-refcount');
   DvlLitTwin := AnsiString('poke-me');
-  var Items: TArray<AnsiString>;
+  var Items: System.TArray<AnsiString>;
   SetLength(Items, 2);
   Items[1] := AnsiString('poke-me');
   Answer := UInt64(Cardinal(StringRefCount(Items[1])));
@@ -259,7 +259,7 @@ begin
   { array-element asked about its writable }
   DevilStep('dvl-lit-array-element-writable');
   DvlLitTwin := AnsiString('poke-me');
-  var Items: TArray<AnsiString>;
+  var Items: System.TArray<AnsiString>;
   SetLength(Items, 2);
   Items[1] := AnsiString('poke-me');
   { 1 if the buffer belongs to us, 2 if it is the image }
@@ -274,7 +274,7 @@ begin
   { array-element asked about its identity }
   DevilStep('dvl-lit-array-element-identity');
   DvlLitTwin := AnsiString('poke-me');
-  var Items: TArray<AnsiString>;
+  var Items: System.TArray<AnsiString>;
   SetLength(Items, 2);
   Items[1] := AnsiString('poke-me');
   { does it share storage with another occurrence of the same literal }
@@ -289,7 +289,7 @@ begin
   { nested-array asked about its refcount }
   DevilStep('dvl-lit-nested-array-refcount');
   DvlLitTwin := AnsiString('poke-me');
-  var Rows: TArray<TArray<AnsiString>>;
+  var Rows: System.TArray<System.TArray<AnsiString>>;
   SetLength(Rows, 2);
   SetLength(Rows[1], 2);
   Rows[1][1] := AnsiString('poke-me');
@@ -304,7 +304,7 @@ begin
   { nested-array asked about its writable }
   DevilStep('dvl-lit-nested-array-writable');
   DvlLitTwin := AnsiString('poke-me');
-  var Rows: TArray<TArray<AnsiString>>;
+  var Rows: System.TArray<System.TArray<AnsiString>>;
   SetLength(Rows, 2);
   SetLength(Rows[1], 2);
   Rows[1][1] := AnsiString('poke-me');
@@ -320,7 +320,7 @@ begin
   { nested-array asked about its identity }
   DevilStep('dvl-lit-nested-array-identity');
   DvlLitTwin := AnsiString('poke-me');
-  var Rows: TArray<TArray<AnsiString>>;
+  var Rows: System.TArray<System.TArray<AnsiString>>;
   SetLength(Rows, 2);
   SetLength(Rows[1], 2);
   Rows[1][1] := AnsiString('poke-me');

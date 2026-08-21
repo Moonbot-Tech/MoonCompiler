@@ -203,6 +203,134 @@ def shape_inline_managed_finally(rng: random.Random) -> str:
     return "\n" + "\n".join(parts)
 
 
+# константы вокруг границы, за которой x86-64 не умеет положить значение прямо
+# в инструкцию: immediate знаково расширяется из 32 бит
+NON_ENCODABLE = ("$80000000", "$100000000", "$10000000000",
+                 "$7FFFFFFFFFFFFFFF", "$FFFFFFFF00000000")
+
+
+def shape_wide_immediate(rng: random.Random) -> str:
+    """Константа, которая не влезает в immediate: собирается ли код вообще.
+
+    Первый выживший мутант стенда (`Materialize non-encodable x86-64 modulus
+    masks`) ломался именно здесь: код не собирался, потому что ассемблер не мог
+    закодировать маску. Проверяется не результат операции, а способность
+    компилятора выпустить инструкцию.
+    """
+    parts = ["var", "  A, B: UInt64;", "  S: Int64;", "  Sum: UInt64;", "",
+             "function Opaque(V: UInt64): UInt64;", "begin",
+             "  Result := V xor 0;", "end;", "",
+             "begin", "  A := Opaque($123456789ABCDEF0);",
+             "  S := Int64(Opaque($0FEDCBA987654321));", "  Sum := 0;"]
+    for k, imm in enumerate(NON_ENCODABLE):
+        # каждая операция из тех, где константа обычно едет прямо в инструкцию
+        parts += [f"  B := A mod {imm};", "  Sum := Sum xor B;",
+                  f"  B := A and {imm};", "  Sum := Sum xor B;",
+                  f"  B := A or {imm};", "  Sum := Sum xor B;",
+                  f"  B := A xor {imm};", "  Sum := Sum xor B;",
+                  f"  If A >= {imm} then", "    Sum := Sum xor 1;",
+                  f"  B := A div {imm};", "  Sum := Sum xor B;"]
+        if k % 2 == 0:
+            parts += [f"  S := S and Int64({imm});",
+                      "  Sum := Sum xor UInt64(S);"]
+    parts += ["  WriteLn(Sum);", "end."]
+    return "\n" + "\n".join(parts)
+
+
+def shape_huge_offsets(rng: random.Random) -> str:
+    """Поле за большим смещением: адресация перестаёт влезать в короткую форму."""
+    pad = rng.choice((64 * 1024, 256 * 1024, 1024 * 1024))
+    parts = ["type", "  TWide = record",
+             "    Head: Int64;",
+             "    Filler: array[0..%d] of Byte;" % (pad - 1),
+             "    Tail: Int64;",
+             "    Deep: array[0..%d] of Int64;" % (pad // 8 - 1),
+             "    Last: Int64;",
+             "  end;", "",
+             "var", "  R: TWide;", "  Sum: Int64;", "",
+             "begin",
+             "  FillChar(R, SizeOf(R), 0);",
+             "  R.Head := 1;",
+             "  R.Tail := 2;",
+             "  R.Last := 3;",
+             "  R.Deep[High(R.Deep)] := 4;",
+             "  Sum := R.Head + R.Tail + R.Last + R.Deep[High(R.Deep)];",
+             "  WriteLn(Sum, ' ', SizeOf(R));",
+             "end."]
+    return "\n" + "\n".join(parts)
+
+
+def shape_many_parameters(rng: random.Random) -> str:
+    """Аргументы, которых заведомо больше, чем регистров под них."""
+    count = rng.randrange(24, 48)
+    names = ["A%d" % k for k in range(count)]
+    sig = "; ".join("%s: Int64" % n for n in names)
+    body = " + ".join(names)
+    parts = ["function Wide(%s): Int64;" % sig, "begin",
+             "  Result := %s;" % body, "end;", "",
+             "function WideStd(%s): Int64; stdcall;" % sig, "begin",
+             "  Result := %s;" % body, "end;", "",
+             "var", "  Total: Int64;", "begin",
+             "  Total := Wide(%s);" % ", ".join(str(k + 1) for k in range(count)),
+             "  Total := Total + WideStd(%s);"
+             % ", ".join(str(k + 1) for k in range(count)),
+             "  WriteLn(Total);", "end."]
+    return "\n" + "\n".join(parts)
+
+
+def shape_wide_set(rng: random.Random) -> str:
+    """Множество во всю ширину байта: операции над 32-байтовым значением."""
+    parts = ["type", "  TWide = set of Byte;", "",
+             "var", "  A, B, C: TWide;", "  I, Seen: Integer;", "",
+             "begin", "  A := [];", "  B := [];",
+             "  for I := 0 to 255 do",
+             "    if (I and 1) = 0 then", "      Include(A, I)",
+             "    else", "      Include(B, I);",
+             "  C := A + B;", "  Seen := 0;",
+             "  for I := 0 to 255 do",
+             "    if I in C then", "      Inc(Seen);",
+             "  WriteLn(Seen, ' ', SizeOf(C), ' ', Ord(A * B = []));",
+             "end."]
+    return "\n" + "\n".join(parts)
+
+
+def shape_edge_case_labels(rng: random.Random) -> str:
+    """Метки case у краёв диапазона: таблица переходов на границе."""
+    parts = ["var", "  V: Int64;", "  Seen: Integer;", "",
+             "function Opaque(X: Int64): Int64;", "begin",
+             "  Result := X xor 0;", "end;", "",
+             "begin", "  Seen := 0;",
+             "  V := Opaque(High(Int64));",
+             "  case V of",
+             "    Low(Int64): Seen := 1;",
+             "    Low(Int64) + 1: Seen := 2;",
+             "    -1: Seen := 3;",
+             "    0: Seen := 4;",
+             "    High(Int64) - 1: Seen := 5;",
+             "    High(Int64): Seen := 6;",
+             "  else", "    Seen := 7;", "  end;",
+             "  WriteLn(Seen);", "end."]
+    return "\n" + "\n".join(parts)
+
+
+def shape_big_value_aggregate(rng: random.Random) -> str:
+    """Агрегат по значению, который не проходит ни в один регистр."""
+    size = rng.choice((1024, 8192, 65536))
+    parts = ["type", "  TBig = record",
+             "    Mark: Int64;",
+             "    Body: array[0..%d] of Byte;" % (size - 1),
+             "  end;", "",
+             "function Take(const A: TBig; B: TBig): Int64;", "begin",
+             "  Result := A.Mark + B.Mark + A.Body[0] + B.Body[High(B.Body)];",
+             "end;", "",
+             "var", "  X: TBig;", "begin",
+             "  FillChar(X, SizeOf(X), 0);",
+             "  X.Mark := 5;", "  X.Body[0] := 6;",
+             "  X.Body[High(X.Body)] := 7;",
+             "  WriteLn(Take(X, X), ' ', SizeOf(TBig));", "end."]
+    return "\n" + "\n".join(parts)
+
+
 SHAPES = {
     "deep-expression": shape_deep_expression,
     "deep-nesting": shape_deep_nesting,
@@ -215,6 +343,12 @@ SHAPES = {
     "closure-depth": shape_closure_depth,
     "string-literal": shape_string_literal,
     "inline-managed-finally": shape_inline_managed_finally,
+    "wide-immediate": shape_wide_immediate,
+    "huge-offsets": shape_huge_offsets,
+    "many-parameters": shape_many_parameters,
+    "wide-set": shape_wide_set,
+    "edge-case-labels": shape_edge_case_labels,
+    "big-value-aggregate": shape_big_value_aggregate,
 }
 
 

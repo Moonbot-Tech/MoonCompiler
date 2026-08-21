@@ -2,7 +2,7 @@
 
 function DvlGpPass00000(const V: Int64): Int64;
 var
-  Items: TArray<Int64>;
+  Items: System.TArray<Int64>;
 begin
   SetLength(Items, 2);
   Items[1] := V;
@@ -24,7 +24,7 @@ end;
 
 function DvlGpPass00001(const V: Int64): Int64;
 var
-  Items: TArray<Int64>;
+  Items: System.TArray<Int64>;
 begin
   SetLength(Items, 2);
   Items[1] := V;
@@ -46,7 +46,7 @@ end;
 
 function DvlGpPass00002(const V: Int64): Int64;
 var
-  Items: TArray<Int64>;
+  Items: System.TArray<Int64>;
 begin
   SetLength(Items, 2);
   Items[1] := V;
@@ -68,7 +68,7 @@ end;
 
 function DvlGpPass00003(const V: Int64): Int64;
 var
-  Items: TArray<Int64>;
+  Items: System.TArray<Int64>;
 begin
   SetLength(Items, 2);
   Items[1] := V;
@@ -90,7 +90,7 @@ end;
 
 function DvlGpPass00004(const V: Int64): Int64;
 var
-  Items: TArray<Int64>;
+  Items: System.TArray<Int64>;
 begin
   SetLength(Items, 2);
   Items[1] := V;
@@ -112,7 +112,7 @@ end;
 
 function DvlGpPass00005(const V: Int64): Int64;
 var
-  Items: TArray<Int64>;
+  Items: System.TArray<Int64>;
 begin
   SetLength(Items, 2);
   Items[1] := V;
@@ -134,7 +134,7 @@ end;
 
 function DvlGpPass00006(const V: Int64): Int64;
 var
-  Items: TArray<Int64>;
+  Items: System.TArray<Int64>;
 begin
   SetLength(Items, 2);
   Items[1] := V;
@@ -156,7 +156,7 @@ end;
 
 function DvlGpPass00007(const V: Int64): Int64;
 var
-  Items: TArray<Int64>;
+  Items: System.TArray<Int64>;
 begin
   SetLength(Items, 2);
   Items[1] := V;
@@ -178,7 +178,7 @@ end;
 
 function DvlGpPass00008(const V: Int64): Int64;
 var
-  Items: TArray<Int64>;
+  Items: System.TArray<Int64>;
 begin
   SetLength(Items, 2);
   Items[1] := V;
@@ -200,7 +200,7 @@ end;
 
 function DvlGpPass00009(const V: Int64): Int64;
 var
-  Items: TArray<Int64>;
+  Items: System.TArray<Int64>;
 begin
   SetLength(Items, 2);
   Items[1] := V;
@@ -222,7 +222,7 @@ end;
 
 function DvlGpPass00010(const V: Int64): Int64;
 var
-  Items: TArray<Int64>;
+  Items: System.TArray<Int64>;
 begin
   SetLength(Items, 2);
   Items[1] := V;
@@ -602,406 +602,6 @@ begin
   DevilCheckU('dvl-genpath-generic-interface-byte-m1-wide', UInt64(Int64(DvlGpPass00019(Value))), UInt64(Int64(-1)));
 end;
 
-type
-  IDvlGp00020 = interface
-    ['{6D000014-0000-0000-0000-000000000001}']
-    function Pass(const V: Int64): Int64;
-  end;
-
-  TDvlGpImpl00020 = class(TInterfacedObject, IDvlGp00020)
-  public
-    function Pass(const V: Int64): Int64;
-  end;
-
-function TDvlGpImpl00020.Pass(const V: Int64): Int64;
-var
-  Box: TDvlCarrier<Int64>;
-begin
-  Box.Put(V);
-  Result := Box.Get;
-end;
-
-function DvlGpPass00020(const V: Int64): Int64;
-var
-  Impl: IDvlGp00020;
-begin
-  Impl := TDvlGpImpl00020.Create;
-  Result := Impl.Pass(V);
-end;
-
-procedure DvlGp00020;
-var
-  Value: Int64;
-  Narrow: Byte;
-begin
-  { -2147483647 through a generic-interface, then narrowed to Byte: the step where dvl-0001 and dvl-0026 dropped the passenger }
-  Value := Int64(OpaqueI(-2147483647));
-  Narrow := Byte(DvlGpPass00020(Value));
-  DevilFeed(UInt64(Narrow));
-  DevilCheckU('dvl-genpath-generic-interface-byte-m2147483647-narrowed', UInt64(Narrow), UInt64($1));
-  DevilCheckU('dvl-genpath-generic-interface-byte-m2147483647-wide', UInt64(Int64(DvlGpPass00020(Value))), UInt64(Int64(-2147483647)));
-end;
-
-type
-  IDvlGp00021 = interface
-    ['{6D000015-0000-0000-0000-000000000001}']
-    function Pass(const V: Int64): Int64;
-  end;
-
-  TDvlGpImpl00021 = class(TInterfacedObject, IDvlGp00021)
-  public
-    function Pass(const V: Int64): Int64;
-  end;
-
-function TDvlGpImpl00021.Pass(const V: Int64): Int64;
-var
-  Box: TDvlCarrier<Int64>;
-begin
-  Box.Put(V);
-  Result := Box.Get;
-end;
-
-function DvlGpPass00021(const V: Int64): Int64;
-var
-  Impl: IDvlGp00021;
-begin
-  Impl := TDvlGpImpl00021.Create;
-  Result := Impl.Pass(V);
-end;
-
-procedure DvlGp00021;
-var
-  Value: Int64;
-  Narrow: Byte;
-begin
-  { 65535 through a generic-interface, then narrowed to Byte: the step where dvl-0001 and dvl-0026 dropped the passenger }
-  Value := Int64(OpaqueI(65535));
-  Narrow := Byte(DvlGpPass00021(Value));
-  DevilFeed(UInt64(Narrow));
-  DevilCheckU('dvl-genpath-generic-interface-byte-65535-narrowed', UInt64(Narrow), UInt64($FF));
-  DevilCheckU('dvl-genpath-generic-interface-byte-65535-wide', UInt64(Int64(DvlGpPass00021(Value))), UInt64(Int64(65535)));
-end;
-
-type
-  IDvlGp00022 = interface
-    ['{6D000016-0000-0000-0000-000000000001}']
-    function Pass(const V: Int64): Int64;
-  end;
-
-  TDvlGpImpl00022 = class(TInterfacedObject, IDvlGp00022)
-  public
-    function Pass(const V: Int64): Int64;
-  end;
-
-function TDvlGpImpl00022.Pass(const V: Int64): Int64;
-var
-  Box: TDvlCarrier<Int64>;
-begin
-  Box.Put(V);
-  Result := Box.Get;
-end;
-
-function DvlGpPass00022(const V: Int64): Int64;
-var
-  Impl: IDvlGp00022;
-begin
-  Impl := TDvlGpImpl00022.Create;
-  Result := Impl.Pass(V);
-end;
-
-procedure DvlGp00022;
-var
-  Value: Int64;
-  Narrow: Byte;
-begin
-  { -129 through a generic-interface, then narrowed to Byte: the step where dvl-0001 and dvl-0026 dropped the passenger }
-  Value := Int64(OpaqueI(-129));
-  Narrow := Byte(DvlGpPass00022(Value));
-  DevilFeed(UInt64(Narrow));
-  DevilCheckU('dvl-genpath-generic-interface-byte-m129-narrowed', UInt64(Narrow), UInt64($7F));
-  DevilCheckU('dvl-genpath-generic-interface-byte-m129-wide', UInt64(Int64(DvlGpPass00022(Value))), UInt64(Int64(-129)));
-end;
-
-type
-  IDvlGp00023 = interface
-    ['{6D000017-0000-0000-0000-000000000001}']
-    function Pass(const V: Int64): Int64;
-  end;
-
-  TDvlGpImpl00023 = class(TInterfacedObject, IDvlGp00023)
-  public
-    function Pass(const V: Int64): Int64;
-  end;
-
-function TDvlGpImpl00023.Pass(const V: Int64): Int64;
-var
-  Box: TDvlCarrier<Int64>;
-begin
-  Box.Put(V);
-  Result := Box.Get;
-end;
-
-function DvlGpPass00023(const V: Int64): Int64;
-var
-  Impl: IDvlGp00023;
-begin
-  Impl := TDvlGpImpl00023.Create;
-  Result := Impl.Pass(V);
-end;
-
-procedure DvlGp00023;
-var
-  Value: Int64;
-  Narrow: Cardinal;
-begin
-  { -32767 through a generic-interface, then narrowed to Cardinal: the step where dvl-0001 and dvl-0026 dropped the passenger }
-  Value := Int64(OpaqueI(-32767));
-  Narrow := Cardinal(DvlGpPass00023(Value));
-  DevilFeed(UInt64(Narrow));
-  DevilCheckU('dvl-genpath-generic-interface-cardinal-m32767-narrowed', UInt64(Narrow), UInt64($FFFF8001));
-  DevilCheckU('dvl-genpath-generic-interface-cardinal-m32767-wide', UInt64(Int64(DvlGpPass00023(Value))), UInt64(Int64(-32767)));
-end;
-
-type
-  IDvlGp00024 = interface
-    ['{6D000018-0000-0000-0000-000000000001}']
-    function Pass(const V: Int64): Int64;
-  end;
-
-  TDvlGpImpl00024 = class(TInterfacedObject, IDvlGp00024)
-  public
-    function Pass(const V: Int64): Int64;
-  end;
-
-function TDvlGpImpl00024.Pass(const V: Int64): Int64;
-var
-  Box: TDvlCarrier<Int64>;
-begin
-  Box.Put(V);
-  Result := Box.Get;
-end;
-
-function DvlGpPass00024(const V: Int64): Int64;
-var
-  Impl: IDvlGp00024;
-begin
-  Impl := TDvlGpImpl00024.Create;
-  Result := Impl.Pass(V);
-end;
-
-procedure DvlGp00024;
-var
-  Value: Int64;
-  Narrow: Cardinal;
-begin
-  { 32767 through a generic-interface, then narrowed to Cardinal: the step where dvl-0001 and dvl-0026 dropped the passenger }
-  Value := Int64(OpaqueI(32767));
-  Narrow := Cardinal(DvlGpPass00024(Value));
-  DevilFeed(UInt64(Narrow));
-  DevilCheckU('dvl-genpath-generic-interface-cardinal-32767-narrowed', UInt64(Narrow), UInt64($7FFF));
-  DevilCheckU('dvl-genpath-generic-interface-cardinal-32767-wide', UInt64(Int64(DvlGpPass00024(Value))), UInt64(Int64(32767)));
-end;
-
-type
-  IDvlGp00025 = interface
-    ['{6D000019-0000-0000-0000-000000000001}']
-    function Pass(const V: Int64): Int64;
-  end;
-
-  TDvlGpImpl00025 = class(TInterfacedObject, IDvlGp00025)
-  public
-    function Pass(const V: Int64): Int64;
-  end;
-
-function TDvlGpImpl00025.Pass(const V: Int64): Int64;
-var
-  Box: TDvlCarrier<Int64>;
-begin
-  Box.Put(V);
-  Result := Box.Get;
-end;
-
-function DvlGpPass00025(const V: Int64): Int64;
-var
-  Impl: IDvlGp00025;
-begin
-  Impl := TDvlGpImpl00025.Create;
-  Result := Impl.Pass(V);
-end;
-
-procedure DvlGp00025;
-var
-  Value: Int64;
-  Narrow: Cardinal;
-begin
-  { -1 through a generic-interface, then narrowed to Cardinal: the step where dvl-0001 and dvl-0026 dropped the passenger }
-  Value := Int64(OpaqueI(-1));
-  Narrow := Cardinal(DvlGpPass00025(Value));
-  DevilFeed(UInt64(Narrow));
-  DevilCheckU('dvl-genpath-generic-interface-cardinal-m1-narrowed', UInt64(Narrow), UInt64($FFFFFFFF));
-  DevilCheckU('dvl-genpath-generic-interface-cardinal-m1-wide', UInt64(Int64(DvlGpPass00025(Value))), UInt64(Int64(-1)));
-end;
-
-type
-  IDvlGp00026 = interface
-    ['{6D00001A-0000-0000-0000-000000000001}']
-    function Pass(const V: Int64): Int64;
-  end;
-
-  TDvlGpImpl00026 = class(TInterfacedObject, IDvlGp00026)
-  public
-    function Pass(const V: Int64): Int64;
-  end;
-
-function TDvlGpImpl00026.Pass(const V: Int64): Int64;
-var
-  Box: TDvlCarrier<Int64>;
-begin
-  Box.Put(V);
-  Result := Box.Get;
-end;
-
-function DvlGpPass00026(const V: Int64): Int64;
-var
-  Impl: IDvlGp00026;
-begin
-  Impl := TDvlGpImpl00026.Create;
-  Result := Impl.Pass(V);
-end;
-
-procedure DvlGp00026;
-var
-  Value: Int64;
-  Narrow: Cardinal;
-begin
-  { -2147483647 through a generic-interface, then narrowed to Cardinal: the step where dvl-0001 and dvl-0026 dropped the passenger }
-  Value := Int64(OpaqueI(-2147483647));
-  Narrow := Cardinal(DvlGpPass00026(Value));
-  DevilFeed(UInt64(Narrow));
-  DevilCheckU('dvl-genpath-generic-interface-cardinal-m2147483647-narrowed', UInt64(Narrow), UInt64($80000001));
-  DevilCheckU('dvl-genpath-generic-interface-cardinal-m2147483647-wide', UInt64(Int64(DvlGpPass00026(Value))), UInt64(Int64(-2147483647)));
-end;
-
-type
-  IDvlGp00027 = interface
-    ['{6D00001B-0000-0000-0000-000000000001}']
-    function Pass(const V: Int64): Int64;
-  end;
-
-  TDvlGpImpl00027 = class(TInterfacedObject, IDvlGp00027)
-  public
-    function Pass(const V: Int64): Int64;
-  end;
-
-function TDvlGpImpl00027.Pass(const V: Int64): Int64;
-var
-  Box: TDvlCarrier<Int64>;
-begin
-  Box.Put(V);
-  Result := Box.Get;
-end;
-
-function DvlGpPass00027(const V: Int64): Int64;
-var
-  Impl: IDvlGp00027;
-begin
-  Impl := TDvlGpImpl00027.Create;
-  Result := Impl.Pass(V);
-end;
-
-procedure DvlGp00027;
-var
-  Value: Int64;
-  Narrow: Cardinal;
-begin
-  { 65535 through a generic-interface, then narrowed to Cardinal: the step where dvl-0001 and dvl-0026 dropped the passenger }
-  Value := Int64(OpaqueI(65535));
-  Narrow := Cardinal(DvlGpPass00027(Value));
-  DevilFeed(UInt64(Narrow));
-  DevilCheckU('dvl-genpath-generic-interface-cardinal-65535-narrowed', UInt64(Narrow), UInt64($FFFF));
-  DevilCheckU('dvl-genpath-generic-interface-cardinal-65535-wide', UInt64(Int64(DvlGpPass00027(Value))), UInt64(Int64(65535)));
-end;
-
-type
-  IDvlGp00028 = interface
-    ['{6D00001C-0000-0000-0000-000000000001}']
-    function Pass(const V: Int64): Int64;
-  end;
-
-  TDvlGpImpl00028 = class(TInterfacedObject, IDvlGp00028)
-  public
-    function Pass(const V: Int64): Int64;
-  end;
-
-function TDvlGpImpl00028.Pass(const V: Int64): Int64;
-var
-  Box: TDvlCarrier<Int64>;
-begin
-  Box.Put(V);
-  Result := Box.Get;
-end;
-
-function DvlGpPass00028(const V: Int64): Int64;
-var
-  Impl: IDvlGp00028;
-begin
-  Impl := TDvlGpImpl00028.Create;
-  Result := Impl.Pass(V);
-end;
-
-procedure DvlGp00028;
-var
-  Value: Int64;
-  Narrow: Cardinal;
-begin
-  { -129 through a generic-interface, then narrowed to Cardinal: the step where dvl-0001 and dvl-0026 dropped the passenger }
-  Value := Int64(OpaqueI(-129));
-  Narrow := Cardinal(DvlGpPass00028(Value));
-  DevilFeed(UInt64(Narrow));
-  DevilCheckU('dvl-genpath-generic-interface-cardinal-m129-narrowed', UInt64(Narrow), UInt64($FFFFFF7F));
-  DevilCheckU('dvl-genpath-generic-interface-cardinal-m129-wide', UInt64(Int64(DvlGpPass00028(Value))), UInt64(Int64(-129)));
-end;
-
-type
-  IDvlGp00029 = interface
-    ['{6D00001D-0000-0000-0000-000000000001}']
-    function Pass(const V: Int64): Int64;
-  end;
-
-  TDvlGpImpl00029 = class(TInterfacedObject, IDvlGp00029)
-  public
-    function Pass(const V: Int64): Int64;
-  end;
-
-function TDvlGpImpl00029.Pass(const V: Int64): Int64;
-var
-  Box: TDvlCarrier<Int64>;
-begin
-  Box.Put(V);
-  Result := Box.Get;
-end;
-
-function DvlGpPass00029(const V: Int64): Int64;
-var
-  Impl: IDvlGp00029;
-begin
-  Impl := TDvlGpImpl00029.Create;
-  Result := Impl.Pass(V);
-end;
-
-procedure DvlGp00029;
-var
-  Value: Int64;
-  Narrow: SmallInt;
-begin
-  { -32767 through a generic-interface, then narrowed to SmallInt: the step where dvl-0001 and dvl-0026 dropped the passenger }
-  Value := Int64(OpaqueI(-32767));
-  Narrow := SmallInt(DvlGpPass00029(Value));
-  DevilFeed(UInt64(Narrow));
-  DevilCheckU('dvl-genpath-generic-interface-smallint-m32767-narrowed', UInt64(Word(Narrow)), UInt64($8001));
-  DevilCheckU('dvl-genpath-generic-interface-smallint-m32767-wide', UInt64(Int64(DvlGpPass00029(Value))), UInt64(Int64(-32767)));
-end;
-
 procedure RunDevilGenpathLayer;
 begin
   DvlGp00000;
@@ -1024,14 +624,4 @@ begin
   DvlGp00017;
   DvlGp00018;
   DvlGp00019;
-  DvlGp00020;
-  DvlGp00021;
-  DvlGp00022;
-  DvlGp00023;
-  DvlGp00024;
-  DvlGp00025;
-  DvlGp00026;
-  DvlGp00027;
-  DvlGp00028;
-  DvlGp00029;
 end;

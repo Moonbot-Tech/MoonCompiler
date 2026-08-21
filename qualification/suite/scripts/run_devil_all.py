@@ -86,6 +86,9 @@ def main() -> None:
         delphi = ["--dcc", str(args.dcc), "--dcc-lib", str(args.dcc_lib)]
 
     stages = [
+        # A finding must be registered consistently in all reader-facing
+        # Devil indexes before the more expensive gates start.
+        ("registry", [sys.executable, str(SCRIPTS / "check_devil_registry.py")]),
         ("codegen", [sys.executable, str(SCRIPTS / "run_devil_codegen_gate.py"),
                      "--work", str(run_root / "codegen"),
                      "--report", str(run_root / "codegen.json")] + common),
@@ -97,6 +100,14 @@ def main() -> None:
         ("env", [sys.executable, str(SCRIPTS / "run_devil_env_gate.py")]
          + common + ["--work", str(run_root / "env"),
                      "--report", str(run_root / "env.json")]),
+        # ключи сборки не имеют права менять поведение программы
+        ("modes", [sys.executable, str(SCRIPTS / "run_devil_modes_gate.py")]
+         + common + ["--work", str(run_root / "modes"),
+                     "--report", str(run_root / "modes.json")]),
+        ("resident", [sys.executable,
+                      str(SCRIPTS / "run_devil_resident_gate.py"),
+                      "--work", str(run_root / "resident"),
+                      "--report", str(run_root / "resident.json")]),
         ("stress", [sys.executable, str(SCRIPTS / "run_devil_stress_gate.py")]
          + common + ["--cases", str(args.stress_cases),
                      "--work", str(run_root / "stress"),
@@ -118,7 +129,8 @@ def main() -> None:
     for name, cmd in stages:
         code, log, seconds = run(cmd, args.timeout)
         verdict = [l for l in log.splitlines()
-                   if l.startswith(("DEVIL_", "  NEW", "  known"))][-8:]
+                   if l.startswith(("DEVIL_", "RESIDENT_", "  NEW",
+                                    "  known"))][-8:]
         results.append({"stage": name, "code": code,
                         "seconds": round(seconds, 1), "tail": verdict})
         print(f"=== {name}: exit {code} in {seconds:.0f}s")

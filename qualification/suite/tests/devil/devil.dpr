@@ -26,10 +26,60 @@ uses
   mormot.core.fpcx64mm,
   {$ifdef UNIX}cthreads,{$endif}
 {$endif}
-  SysUtils, Classes, Math, Variants, TypInfo, Rtti, devil_runtime;
+  SysUtils, Classes, Math, Variants, TypInfo, Rtti, Generics.Collections, devil_runtime, devil_gen_unit, devil_init_a, devil_init_b, devil_init_c, devil_cycle_x, devil_cycle_y, devil_ppu_source, devil_provenance, devil_scope_a, devil_scope_b, devil_chain_gates, devil_chain_types;
 
 {$I devil_support.inc}
+{$I devil_expr.inc}
+{$I devil_unary.inc}
+{$I devil_fold.inc}
+{$I devil_cmp.inc}
+{$I devil_life.inc}
+{$I devil_abi.inc}
+{$I devil_float.inc}
+{$I devil_str.inc}
+{$I devil_disp.inc}
 {$I devil_gen.inc}
+{$I devil_arr.inc}
+{$I devil_unit.inc}
+{$I devil_chk.inc}
+{$I devil_thr.inc}
+{$I devil_set.inc}
+{$I devil_rtti.inc}
+{$I devil_flow.inc}
+{$ifdef FPC}
+{$I devil_i128.inc}
+{$endif}
+{$I devil_lang.inc}
+{$I devil_uni.inc}
+{$I devil_exc.inc}
+{$I devil_init.inc}
+{$I devil_opt.inc}
+{$I devil_call.inc}
+{$I devil_inl.inc}
+{$I devil_intf.inc}
+{$I devil_dyn.inc}
+{$I devil_asm.inc}
+{$I devil_io.inc}
+{$I devil_decl.inc}
+{$I devil_chain.inc}
+{$I devil_meta.inc}
+{$I devil_weave.inc}
+{$I devil_matrix.inc}
+{$I devil_composite.inc}
+{$I devil_genpath.inc}
+{$I devil_narrowpath.inc}
+{$I devil_pick.inc}
+{$I devil_scope.inc}
+{$I devil_lit.inc}
+{$I devil_capture.inc}
+{$I devil_attr.inc}
+{$I devil_deliver.inc}
+{$ifdef FPC}
+{$I devil_load.inc}
+{$endif}
+{$I devil_rtllib.inc}
+{$I devil_ppu.inc}
+{$I devil_region.inc}
 
 begin
   { Delphi Win64 masks every floating point exception by default while FPC
@@ -37,10 +87,148 @@ begin
      same environment on both. }
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow,
     exUnderflow, exPrecision]);
-  WriteLn('DEVIL_LAYERS gen');
+  WriteLn('DEVIL_LAYERS expr,unary,fold,cmp,life,abi,float,str,disp,gen,arr,unit,chk,thr,set,rtti,flow,lang,uni,exc,init,opt,call,inl,intf,dyn,asm,io,decl,chain,meta,weave,matrix,composite,genpath,narrowpath,pick,scope,lit,capture,attr,deliver,rtllib,ppu,region'{$ifdef FPC} + ',i128'{$endif}{$ifdef FPC} + ',load'{$endif});
 
+  DevilLayerBegin('expr');
+  RunDevilExprLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('unary');
+  RunDevilUnaryLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('fold');
+  RunDevilFoldLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('cmp');
+  RunDevilCmpLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('life');
+  RunDevilLifeLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('abi');
+  RunDevilAbiLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('float');
+  RunDevilFloatLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('str');
+  RunDevilStrLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('disp');
+  RunDevilDispLayer;
+  DevilLayerEnd;
   DevilLayerBegin('gen');
   RunDevilGenLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('arr');
+  RunDevilArrLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('unit');
+  RunDevilUnitLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('chk');
+  RunDevilChkLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('thr');
+  RunDevilThrLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('set');
+  RunDevilSetLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('rtti');
+  RunDevilRttiLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('flow');
+  RunDevilFlowLayer;
+  DevilLayerEnd;
+{$ifdef FPC}
+  RunDevilI128Layer;
+{$endif}
+  DevilLayerBegin('lang');
+  RunDevilLangLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('uni');
+  RunDevilUniLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('exc');
+  RunDevilExcLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('init');
+  RunDevilInitLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('opt');
+  RunDevilOptLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('call');
+  RunDevilCallLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('inl');
+  RunDevilInlLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('intf');
+  RunDevilIntfLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('dyn');
+  RunDevilDynLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('asm');
+  RunDevilAsmLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('io');
+  RunDevilIoLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('decl');
+  RunDevilDeclLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('chain');
+  RunDevilChainLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('meta');
+  RunDevilMetaLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('weave');
+  RunDevilWeaveLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('matrix');
+  RunDevilMatrixLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('composite');
+  RunDevilCompositeLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('genpath');
+  RunDevilGenpathLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('narrowpath');
+  RunDevilNarrowpathLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('pick');
+  RunDevilPickLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('scope');
+  RunDevilScopeLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('lit');
+  RunDevilLitLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('capture');
+  RunDevilCaptureLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('attr');
+  RunDevilAttrLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('deliver');
+  RunDevilDeliverLayer;
+  DevilLayerEnd;
+{$ifdef FPC}
+  RunDevilLoadLayer;
+{$endif}
+  DevilLayerBegin('rtllib');
+  RunDevilRtlLibLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('ppu');
+  RunDevilPpuLayer;
+  DevilLayerEnd;
+  DevilLayerBegin('region');
+  RunDevilRegionLayer;
   DevilLayerEnd;
   { the instrument checks itself: the accumulator must have moved, and the
      number of feeds must be in the range the generator wrote }
@@ -51,5 +239,5 @@ begin
   { порядковый канал есть не в каждом наборе слоёв: требовать шагов
      безусловно значит краснеть там, где их нет по построению.  Сравнение
      числа шагов между сборками делает гейт, и оно работает всегда. }
-  Halt(DevilReport('DEVIL', 24));
+  Halt(DevilReport('DEVIL', 5));
 end.

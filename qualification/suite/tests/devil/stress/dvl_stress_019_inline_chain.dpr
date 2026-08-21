@@ -1,4 +1,4 @@
-program dvl_stress_013_inline_chain;
+program dvl_stress_019_inline_chain;
 {$ifdef FPC}
   {$mode delphiunicode}{$H+}
   {$modeswitch advancedrecords}
@@ -130,10 +130,22 @@ function F28(X: Integer): Integer; inline;
 begin
   Result := F27(X) + 28;
 end;
+function F29(X: Integer): Integer; inline;
+begin
+  Result := F28(X) + 29;
+end;
+function F30(X: Integer): Integer; inline;
+begin
+  Result := F29(X) + 30;
+end;
+function F31(X: Integer): Integer; inline;
+begin
+  Result := F30(X) + 31;
+end;
 
 var
   R: Integer;
 begin
-  R := F28(1);
+  R := F31(1);
   WriteLn(R);
 end.

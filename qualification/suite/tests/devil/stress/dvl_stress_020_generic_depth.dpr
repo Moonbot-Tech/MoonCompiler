@@ -1,4 +1,4 @@
-program dvl_stress_014_generic_depth;
+program dvl_stress_020_generic_depth;
 {$ifdef FPC}
   {$mode delphiunicode}{$H+}
   {$modeswitch advancedrecords}

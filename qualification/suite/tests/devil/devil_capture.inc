@@ -66,7 +66,7 @@ type
 function DvlCapAsk00002: Integer;
 var
   Steps: array[1..3] of TDvlCapStep00002;
-  Items: TArray<Integer>;
+  Items: System.TArray<Integer>;
   Slot: Integer;
 begin
   Items := [1, 2, 3];
@@ -396,7 +396,7 @@ type
 
 function DvlCapAsk00011: Integer;
 var
-  Items: TArray<Integer>;
+  Items: System.TArray<Integer>;
   Step: TDvlCapStep00011;
 begin
   Items := [1, 1];

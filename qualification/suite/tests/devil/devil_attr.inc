@@ -13,7 +13,7 @@ begin
   Tag := ATag;
 end;
 
-function DvlAttrSum(const Items: TArray<TCustomAttribute>): Integer;
+function DvlAttrSum(const Items: System.TArray<TCustomAttribute>): Integer;
 var
   A: TCustomAttribute;
 begin
