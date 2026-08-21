@@ -32,6 +32,7 @@ CORE_TESTS = (
     "tdelphianonymousnew1",
     "tsetconstbase1",
     "tx86boolconstmovwidth1",
+    "tunicodeguidparse1",
     "tloopinvariantaddr1",
     "tloopinvariantarraywrite1",
     "tdelphiinlineexceptreg1",
@@ -342,11 +343,19 @@ def main() -> int:
     (result_root / "results.json").write_text(
         json.dumps(rows, indent=2) + "\n", encoding="utf-8"
     )
+    rtl_dir = compiler.parents[2] / "units" / "x86_64-win64" / "rtl"
+    rtl_units = (rtl_dir / "system.ppu", rtl_dir / "sysutils.ppu")
+    missing_rtl_units = [str(unit) for unit in rtl_units if not unit.is_file()]
+    if missing_rtl_units:
+        raise RuntimeError(
+            "missing installed RTL units: " + ", ".join(missing_rtl_units)
+        )
     provenance = {
         "compiler": str(compiler),
         "compiler_sha256": sha256(compiler),
         "config": str(config),
         "config_sha256": sha256(config),
+        "rtl_units": {str(unit): sha256(unit) for unit in rtl_units},
         "sources": {
             **{str(source.relative_to(compiler_root)): sha256(source) for _, source, _ in cases},
             **{
