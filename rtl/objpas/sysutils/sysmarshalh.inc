@@ -42,7 +42,7 @@ type
     TUnfixProc = procedure(Ptr: TPtrWrapper);
 
     { Not required if there is a way to take an address of a generic procedure specialization... }
-    generic TAddressableUnfixArraySpecialization<T> = record
+    SYSUTILS_GENERIC TAddressableUnfixArraySpecialization<T> = record
       class procedure UnfixArray(ArrPtr: TPtrWrapper); static;
     end;
 
@@ -92,7 +92,7 @@ type
     { No clue what's it, let it be a synonym of FixArray for now... }
     function AsRaw(const B: TBytes): TPtrWrapper; inline;
 
-    generic function FixArray<T>(const Arr: specialize TArray<T>): TPtrWrapper;
+    SYSUTILS_GENERIC function FixArray<T>(const Arr: SYSUTILS_SPECIALIZE TArray<T>): TPtrWrapper;
     function FixString(var Str: UnicodeString): TPtrWrapper;
     function UnsafeFixString(const Str: UnicodeString): TPtrWrapper;
 

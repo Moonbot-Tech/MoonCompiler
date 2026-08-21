@@ -94,9 +94,9 @@ begin
     P := NewPtr;
 end;
 
-class procedure TMarshaller.TAddressableUnfixArraySpecialization.UnfixArray(ArrPtr: TPtrWrapper);
+class procedure TMarshaller.TAddressableUnfixArraySpecialization SYSUTILS_GENERIC_PARAMS_T.UnfixArray(ArrPtr: TPtrWrapper);
 begin
-  TMarshal.specialize UnfixArray<T>(ArrPtr);
+  TMarshal.SYSUTILS_SPECIALIZE UnfixArray<T>(ArrPtr);
 end;
 
 destructor TMarshaller.TDeferUnfix.Done;
@@ -243,17 +243,19 @@ end;
 
 function TMarshaller.AsRaw(const B: TBytes): TPtrWrapper;
 begin
-  Result := specialize FixArray<Byte>(B);
+  Result := SYSUTILS_SPECIALIZE FixArray<Byte>(B);
 end;
 
-generic function TMarshaller.FixArray<T>(const Arr: specialize TArray<T>): TPtrWrapper;
+SYSUTILS_GENERIC function TMarshaller.FixArray<T>(const Arr: SYSUTILS_SPECIALIZE TArray<T>): TPtrWrapper;
+type
+  TUnfixArraySpecialization = SYSUTILS_SPECIALIZE TAddressableUnfixArraySpecialization<T>;
 var
   D: PDeferUnfix;
 begin
   Pointer(D) := PushDefer(SizeOf(TDeferUnfix));
   D^.Init;
-  Result := TMarshal.specialize FixArray<T>(Arr);
-  D^.Unfix := @specialize TAddressableUnfixArraySpecialization<T>.UnfixArray;
+  Result := TMarshal.SYSUTILS_SPECIALIZE FixArray<T>(Arr);
+  D^.Unfix := @TUnfixArraySpecialization.UnfixArray;
   D^.P := Result;
 end;
 

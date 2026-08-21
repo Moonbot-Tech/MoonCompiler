@@ -918,7 +918,7 @@ end;
 
 
 // generic ifthen..
-generic function IfThen<T>(val:boolean;const iftrue:T; const iffalse:T) :T; inline; overload;
+SYSUTILS_GENERIC function IfThen<T>(val:boolean;const iftrue:T; const iffalse:T) :T; inline; overload;
 begin
   if val then
     Result := ifTrue
@@ -926,13 +926,13 @@ begin
     Result:=ifFalse;
 end;
 
-generic function Exchange<T>(var target:T; const newvalue:T) :T;
+SYSUTILS_GENERIC function Exchange<T>(var target:T; const newvalue:T) :T;
 begin
   Result := target;
   target := newvalue;
 end;
 
-generic function Extract<T>(var from: T) :T;
+SYSUTILS_GENERIC function Extract<T>(var from: T) :T;
 type
   RawT = array[0 .. sizeof(T) - 1] of byte;
 begin
@@ -941,7 +941,7 @@ begin
   Initialize(from);
 end;
 
-generic procedure Swap<T>(var lhs,rhs: T);
+SYSUTILS_GENERIC procedure Swap<T>(var lhs,rhs: T);
 type
   RawT = array[0 .. sizeof(T) - 1] of byte;
 var

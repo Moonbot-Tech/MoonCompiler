@@ -13,6 +13,15 @@
 
  **********************************************************************}
 {$MACRO ON}
+{$ifdef MOONCOMPILER_DELPHI_CALLBACK_TYPES}
+{$define SYSUTILS_GENERIC:=}
+{$define SYSUTILS_SPECIALIZE:=}
+{$define SYSUTILS_GENERIC_PARAMS_T:=<T>}
+{$else}
+{$define SYSUTILS_GENERIC:=generic}
+{$define SYSUTILS_SPECIALIZE:=specialize}
+{$define SYSUTILS_GENERIC_PARAMS_T:=}
+{$endif MOONCOMPILER_DELPHI_CALLBACK_TYPES}
 {$IFNDEF FPC_DOTTEDUNITS}
 {$DEFINE SUT:=sysutils}
 {$DEFINE BU:=baseunix}
@@ -40,6 +49,23 @@ function GetTickCount64: QWord;
 
   { Read String Handling functions declaration }
   {$i sysstrh.inc}
+
+{$ifdef MOONCOMPILER_DELPHI_CALLBACK_TYPES}
+type
+   TProc = reference to procedure;
+   TProc<T1> = reference to procedure(Arg1: T1);
+   TProc<T1, T2> = reference to procedure(Arg1: T1; Arg2: T2);
+   TProc<T1, T2, T3> = reference to procedure(Arg1: T1; Arg2: T2; Arg3: T3);
+   TProc<T1, T2, T3, T4> = reference to procedure(Arg1: T1; Arg2: T2; Arg3: T3; Arg4: T4);
+
+   TFunc<TResult> = reference to function: TResult;
+   TFunc<T1, TResult> = reference to function(Arg1: T1): TResult;
+   TFunc<T1, T2, TResult> = reference to function(Arg1: T1; Arg2: T2): TResult;
+   TFunc<T1, T2, T3, TResult> = reference to function(Arg1: T1; Arg2: T2; Arg3: T3): TResult;
+   TFunc<T1, T2, T3, T4, TResult> = reference to function(Arg1: T1; Arg2: T2; Arg3: T3; Arg4: T4): TResult;
+
+   TPredicate<T> = reference to function(Arg1: T): Boolean;
+{$endif MOONCOMPILER_DELPHI_CALLBACK_TYPES}
 
 type
    { some helpful data types }
@@ -283,10 +309,10 @@ type
   procedure AddTerminateProc(TermProc: TTerminateProc);
   function CallTerminateProcs: Boolean;
 
-generic function IfThen<T>(val:boolean;const iftrue:T; const iffalse:T) :T; inline; overload;
-generic function Exchange<T>(var target:T; const newvalue:T) :T; inline;
-generic function Extract<T>(var from: T) :T;inline;overload;
-generic procedure Swap<T>(var lhs,rhs: T);inline;overload;
+SYSUTILS_GENERIC function IfThen<T>(val:boolean;const iftrue:T; const iffalse:T) :T; inline; overload;
+SYSUTILS_GENERIC function Exchange<T>(var target:T; const newvalue:T) :T; inline;
+SYSUTILS_GENERIC function Extract<T>(var from: T) :T;inline;overload;
+SYSUTILS_GENERIC procedure Swap<T>(var lhs,rhs: T);inline;overload;
 
 Var
    OnShowException : Procedure (Msg : ShortString);

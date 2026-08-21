@@ -17,9 +17,16 @@
 {$IFNDEF FPC_DOTTEDUNITS}
 unit SysUtils;
 {$ENDIF FPC_DOTTEDUNITS}
-interface
 
 {$MODE objfpc}
+{$ifdef MOONCOMPILER_DELPHI_CALLBACK_TYPES}
+{$modeswitch implicitgenerics}
+{$modeswitch anonymousfunctions}
+{$modeswitch functionreferences}
+{$endif MOONCOMPILER_DELPHI_CALLBACK_TYPES}
+
+interface
+
 {$MODESWITCH OUT}
 {$IFDEF UNICODERTL}
 {$MODESWITCH UNICODESTRINGS}
