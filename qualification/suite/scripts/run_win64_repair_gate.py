@@ -38,6 +38,11 @@ CORE_TESTS = (
     "tdelphistringlistbom1",
     "tdelphivariantstring1",
     "tdelphinegativezero1",
+    "tmoonoddconstu641",
+    "tmoonconstpropglobalcalls1",
+    "tmooninlinemanagedexprfinally1",
+    "tmoondelphicallbacktypes1",
+    "tmoonattributemarker1",
     "tloopinvariantaddr1",
     "tloopinvariantarraywrite1",
     "tdelphiinlineexceptreg1",
@@ -57,6 +62,7 @@ NEGATIVE_TESTS = (
     ("inline_const_string_char_reassign_fail", "Can't assign values to const variable"),
     ("inline_const_var_parameter_rejected", "Can't assign values to const variable"),
     ("dead_try_handler_still_checked", 'Identifier not found "MissingInDeadHandler"'),
+    ("array_const_index_out_of_range", "Range check error while evaluating constants"),
 )
 
 

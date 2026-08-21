@@ -3,12 +3,6 @@
   "note": "Каждая запись привязана к разобранной находке в findings/. Гейт не прячет их, а считает отдельно, чтобы новое не тонуло в уже известном.",
   "known": [
     {
-      "id": "dvl-0003",
-      "kind": "observation-split",
-      "note_name": "^dvl-life-[0-9]+-(order|trail)$",
-      "note": "O2/O3 инвертируют порядок финализации при раскрутке исключения"
-    },
-    {
       "id": "dvl-0004",
       "kind": "model-mismatch",
       "check": "^dvl-abi-[0-9]+-value-[0-9]+$",
@@ -55,17 +49,6 @@
       "kind": "model-mismatch",
       "check": "^dvl-flow-[0-9]+-case$",
       "note": "Delphi усекает Int64-селектор case до 32 бит; наш компилятор корректен"
-    },
-    {
-      "id": "dvl-0002",
-      "kind": "internal-error",
-      "note": "ICE 200706094 на Odd(UInt64-константа); ловится слоем unary"
-    },
-    {
-      "id": "dvl-0011",
-      "kind": "model-mismatch",
-      "check": "^dvl-i128-[0-9]+-(high|low)$",
-      "note": "O3 знаково расширяет старшую половину 128-битного результата"
     },
     {
       "id": "dvl-0027",
@@ -146,26 +129,6 @@
       "note": "атрибут перед class var не привязывается"
     },
     {
-      "id": "dvl-0033",
-      "case": "attribute-marker-type",
-      "note": "атрибут без своего конструктора: унаследованный Create не рассматривается"
-    },
-    {
-      "id": "dvl-0033",
-      "case": "attribute-marker-field",
-      "note": "то же в позиции поля"
-    },
-    {
-      "id": "dvl-0033",
-      "case": "attribute-marker-property",
-      "note": "то же в позиции свойства"
-    },
-    {
-      "id": "dvl-0033",
-      "case": "attribute-marker-method",
-      "note": "то же в позиции метода"
-    },
-    {
       "id": "dvl-0034",
       "case": "bare-method-into-reference",
       "note": "имя метода без скобок перед reference to: мы вызываем, Delphi берёт адрес"
@@ -193,7 +156,7 @@
     {
       "id": "dvl-0037",
       "kind": "observation-split",
-      "note_name": "^dvl-attr-(class-field|record-field|method|public-property)-readback$",
+      "note_name": "^dvl-attr-(method|public-property)-readback$",
       "note": "атрибут принят, но не попал в таблицы RTTI"
     },
     {
@@ -205,26 +168,6 @@
       "id": "dvl-0039",
       "case": "int64-arg-vs-integer-cardinal",
       "note": "Int64 против Integer/Cardinal: Delphi выбирает, мы объявляем ничью"
-    },
-    {
-      "id": "dvl-0005",
-      "case": "array-const-index-out-of-range",
-      "note": "константный индекс за границей массива принимается молча (запись реестра пересобрана после потери каталога)"
-    },
-    {
-      "id": "dvl-0019",
-      "case": "stdtype-tproc",
-      "note": "TProc отсутствует в RTL (запись реестра пересобрана после потери каталога)"
-    },
-    {
-      "id": "dvl-0019",
-      "case": "stdtype-tfunc",
-      "note": "TFunc<T> отсутствует в RTL (запись реестра пересобрана после потери каталога)"
-    },
-    {
-      "id": "dvl-0019",
-      "case": "stdtype-tpredicate",
-      "note": "TPredicate<T> отсутствует в RTL (запись реестра пересобрана после потери каталога)"
     },
     {
       "id": "dvl-0020",
@@ -276,12 +219,6 @@
       "note": "ASCII-литерал едет в array of const как vtChar вместо vtWideChar (запись реестра пересобрана после потери каталога)"
     },
     {
-      "id": "dvl-0018",
-      "kind": "observation-split",
-      "note_name": "^dvl-inl-[0-9]+-(calls|total)$",
-      "note": "release схлопывает два вызова функции с побочным эффектом (запись реестра пересобрана после потери каталога)"
-    },
-    {
       "id": "dvl-0014",
       "kind": "observation-split",
       "note_name": "^dvl-uni-[0-9]+-(typename|char-kind|wide-kind)$",
@@ -312,22 +249,10 @@
       "note": "то же для строковых типов (запись реестра пересобрана после потери каталога)"
     },
     {
-      "id": "dvl-0018",
-      "kind": "model-mismatch",
-      "check": "^dvl-inl-[0-9]+-(calls|total)$",
-      "note": "release схлопывает два вызова функции с побочным эффектом (запись реестра пересобрана после потери каталога)"
-    },
-    {
       "id": "dvl-0040",
       "kind": "observation-split",
       "note_name": "^dvl-attr-rtti-explicit-public-readback$",
       "note": "{$RTTI EXPLICIT} не управляет составом таблиц: мы пишем то, что Delphi выбрасывает"
-    },
-    {
-      "id": "dvl-0017",
-      "kind": "internal-error",
-      "detail": "Internal error 200405231",
-      "note": "инлайн managed-процедуры в finally роняет фронт (запись реестра пересобрана после потери каталога)"
     }
   ]
 }
