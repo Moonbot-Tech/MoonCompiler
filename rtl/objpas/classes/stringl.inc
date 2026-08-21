@@ -1110,7 +1110,7 @@ begin
   inherited Create;
   FDefaultEncoding:=TEncoding.Default;
   FEncoding:=nil;
-  FOptions := [soTrailingLineBreak,soUseLocale,soPreserveBOM];
+  FOptions := [soWriteBOM,soTrailingLineBreak,soUseLocale];
   FAlwaysQuote:=False;
 end;
 

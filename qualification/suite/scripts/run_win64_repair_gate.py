@@ -35,6 +35,7 @@ CORE_TESTS = (
     "tunicodeguidparse1",
     "tdelphiqualifiedinteger1",
     "tdelphisplitempty1",
+    "tdelphistringlistbom1",
     "tloopinvariantaddr1",
     "tloopinvariantarraywrite1",
     "tdelphiinlineexceptreg1",
