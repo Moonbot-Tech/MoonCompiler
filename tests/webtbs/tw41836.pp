@@ -9,9 +9,9 @@ program tw41836;
 
 {$mode objfpc}
 
-function CloneToHeap(s: shortstring): pchar; inline;
+function CloneToHeap(s: shortstring): pansichar; inline;
 var
-  p: pchar;
+  p: pansichar;
 begin
   getmem(p, length(s)+1);
   move(s[1], p^, length(s));
@@ -19,9 +19,9 @@ begin
   result := p;
 end;
 
-function CloneToHeapConst(const s: shortstring): pchar; inline;
+function CloneToHeapConst(const s: shortstring): pansichar; inline;
 var
-  p: pchar;
+  p: pansichar;
 begin
   getmem(p, length(s)+1);
   move(s[1], p^, length(s));
@@ -45,7 +45,7 @@ const
   bytes: array[0..3] of byte = (10, 20, 30, 40);
 
 var
-  q: pchar;
+  q: pansichar;
   s: shortstring;
 begin
   { constant actual: the case that used to break }
