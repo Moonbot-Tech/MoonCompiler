@@ -2524,7 +2524,7 @@ implementation
                    else
                      hp:=create_simplified_ord_const(sqr(vl.uvalue),resultdef,forinline,false);
                  in_const_odd :
-                   hp:=cordconstnode.create(qword(odd(int64(vl))),pasbool1type,true);
+                   hp:=cordconstnode.create(vl.uvalue and 1,pasbool1type,true);
                  in_const_swap_word :
                    hp:=cordconstnode.create((vl and $ff) shl 8+(vl shr 8),left.resultdef,true);
                  in_const_swap_long :
