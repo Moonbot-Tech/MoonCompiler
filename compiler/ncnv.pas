@@ -1433,19 +1433,28 @@ implementation
                 (tstringdef(left.resultdef).stringtype=st_ansistring) and
                 (tstringdef(resultdef).encoding<>tstringdef(left.resultdef).encoding) then
           begin
-            result:=ccallnode.createinternres(
-                      'fpc_ansistr_to_ansistr',
-                      ccallparanode.create(
-                        cordconstnode.create(
-                          tstringdef(resultdef).encoding,
-                          u16inttype,
-                          true
-                        ),
-                        ccallparanode.create(left,nil)
-                      ),
-                      resultdef
-                    );
-            left:=nil;
+            { Delphi explicit casts between byte-string code pages are a
+              storage view: they preserve the pointer, bytes and code-page
+              header.  Ordinary assignment remains a transcoding operation. }
+            if (m_delphi in current_settings.modeswitches) and
+               (nf_explicit in flags) then
+              convtype:=tc_equal
+            else
+              begin
+                result:=ccallnode.createinternres(
+                          'fpc_ansistr_to_ansistr',
+                          ccallparanode.create(
+                            cordconstnode.create(
+                              tstringdef(resultdef).encoding,
+                              u16inttype,
+                              true
+                            ),
+                            ccallparanode.create(left,nil)
+                          ),
+                          resultdef
+                        );
+                left:=nil;
+              end;
           end
         else if (left.nodetype=stringconstn) and
                 (tstringdef(left.resultdef).stringtype in [st_unicodestring,st_widestring]) and
