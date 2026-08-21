@@ -274,6 +274,17 @@ implementation
              end;
           end;
 
+        procedure consume_delphi_ref_modifier;
+          begin
+            consume(_LECKKLAMMER);
+            if (current_scanner.token<>_ID) or
+               (current_scanner.pattern<>'REF') then
+              Message(parser_e_syntax_error)
+            else
+              consume(_ID);
+            consume(_RECKKLAMMER);
+          end;
+
 
       begin
         old_block_type:=block_type;
@@ -294,11 +305,27 @@ implementation
         is_univ:=false;
         repeat
           parseprocvar:=pv_none;
-          if try_to_consume(_VAR) then
+          if (m_delphi in current_settings.modeswitches) and
+             (current_scanner.token=_LECKKLAMMER) then
+            begin
+              consume_delphi_ref_modifier;
+              consume(_CONST);
+              varspez:=vs_constref;
+            end
+          else if try_to_consume(_VAR) then
             varspez:=vs_var
           else
             if try_to_consume(_CONST) then
-              varspez:=vs_const
+              begin
+                if (m_delphi in current_settings.modeswitches) and
+                   (current_scanner.token=_LECKKLAMMER) then
+                  begin
+                    consume_delphi_ref_modifier;
+                    varspez:=vs_constref;
+                  end
+                else
+                  varspez:=vs_const;
+              end
           else
             if (m_out in current_settings.modeswitches) and
                try_to_consume(_OUT) then
