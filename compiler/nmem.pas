@@ -147,7 +147,10 @@ interface
        TVecNodeFlag = (
          vnf_memindex,
          vnf_memseg,
-         vnf_callunique
+         vnf_callunique,
+         { The array index was an ordinal constant in the parsed source.
+           Optimizer and inliner substitutions must not acquire this flag. }
+         vnf_source_const_index
        );
 
        TVecNodeFlags = set of TVecNodeFlag;
@@ -1109,7 +1112,7 @@ implementation
          htype,elementdef,elementptrdef : tdef;
          newordtyp: tordtype;
          valid : boolean;
-         minvalue, maxvalue: Tconstexprint;
+         minvalue, maxvalue, indexvalue: Tconstexprint;
          tup_idx, tup_fld : longint;
          tup_sym : tsym;
       begin
@@ -1187,6 +1190,36 @@ implementation
            case left.resultdef.typ of
              arraydef:
                begin
+                  { A constant index outside the declared bounds of a fixed
+                    array is invalid independently of the runtime range-check
+                    switch.  Do this before adapting the index type: with
+                    range checking disabled that conversion may deliberately
+                    wrap, which must not turn an invalid source constant into
+                    a valid array access. }
+                  if (vnf_source_const_index in vecnodeflags) and
+                     (right.nodetype=ordconstn) and
+                     not is_special_array(left.resultdef) then
+                    begin
+                      indexvalue:=tordconstnode(right).value;
+                      if indexvalue.signed then
+                        valid:=(indexvalue.svalue>=Tarraydef(left.resultdef).lowrange) and
+                               (indexvalue.svalue<=Tarraydef(left.resultdef).highrange)
+                      else if Tarraydef(left.resultdef).highrange<0 then
+                        valid:=false
+                      else
+                        valid:=(indexvalue.uvalue<=qword(Tarraydef(left.resultdef).highrange)) and
+                               ((Tarraydef(left.resultdef).lowrange<=0) or
+                                (indexvalue.uvalue>=qword(Tarraydef(left.resultdef).lowrange)));
+                      if not valid then
+                        begin
+                          Message3(type_e_range_check_error_bounds,
+                            tostr(indexvalue),
+                            tostr(Tarraydef(left.resultdef).lowrange),
+                            tostr(Tarraydef(left.resultdef).highrange));
+                          result:=cerrornode.create;
+                          exit;
+                        end;
+                    end;
                  htype:=Tarraydef(left.resultdef).rangedef;
                  if ado_isvariant in Tarraydef(left.resultdef).arrayoptions then
                    {Variant arrays are a special array, can have negative indexes and would therefore

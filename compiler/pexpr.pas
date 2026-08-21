@@ -3002,6 +3002,13 @@ implementation
     { returns whether or not p1 has been changed }
     function postfixoperators(var p1:tnode;var again:boolean;getaddr:boolean): boolean;
 
+      function createsourcevec(l,r:tnode):tnode;
+        begin
+          result:=cvecnode.create(l,r);
+          if r.nodetype=ordconstn then
+            include(tvecnode(result).vecnodeflags,vnf_source_const_index);
+        end;
+
       { tries to avoid syntax errors after invalid qualifiers }
       procedure recoverconsume_postfixops;
        begin
@@ -3429,7 +3436,7 @@ implementation
                                   if try_to_consume(_POINTPOINT) then
                                     { Support mem[$a000:$0000..$07ff] which returns array [0..$7ff] of memtype.}
                                     p2:=crangenode.create(p2,caddnode.create(addn,comp_expr([ef_accept_equal]),p3.getcopy));
-                                  p1:=cvecnode.create(p1,p2);
+                                  p1:=createsourcevec(p1,p2);
                                   include(tvecnode(p1).vecnodeflags,vnf_memseg);
                                   include(tvecnode(p1).vecnodeflags,vnf_memindex);
                                 end
@@ -3438,7 +3445,7 @@ implementation
                                   if try_to_consume(_POINTPOINT) then
                                     { Support mem[$80000000..$80000002] which returns array [0..2] of memtype.}
                                     p2:=crangenode.create(p2,comp_expr([ef_accept_equal]));
-                                  p1:=cvecnode.create(p1,p2);
+                                  p1:=createsourcevec(p1,p2);
                                   include(tvecnode(p1).vecnodeflags,vnf_memindex);
                                 end;
 {$else}
@@ -3450,7 +3457,7 @@ implementation
                                if try_to_consume(_POINTPOINT) then
                                  { Support arrayvar[0..9] which returns array [0..9] of arraytype.}
                                  p2:=crangenode.create(p2,comp_expr([ef_accept_equal]));
-                               p1:=cvecnode.create(p1,p2);
+                               p1:=createsourcevec(p1,p2);
                              end;
                          end;
                        else
