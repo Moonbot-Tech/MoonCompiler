@@ -30,6 +30,12 @@ CORE_TESTS = (
     "tdelphisparseenumtypeinfo1",
     "tdelphiinlineconstruntime1",
     "tdelphianonymousnew1",
+    "tdelphiconstref1",
+    "tarrayconstafterinline1",
+    "tdelphiunicodeliteral1",
+    "tdelphibytestringcast1",
+    "tdelphiintpair1",
+    "tobjfpcliteralcastoverload1",
     "tsetconstbase1",
     "tx86boolconstmovwidth1",
     "tunicodeguidparse1",
@@ -63,6 +69,8 @@ NEGATIVE_TESTS = (
     ("inline_const_var_parameter_rejected", "Can't assign values to const variable"),
     ("dead_try_handler_still_checked", 'Identifier not found "MissingInDeadHandler"'),
     ("array_const_index_out_of_range", "Range check error while evaluating constants"),
+    ("delphi_constref_write_rejected", "Can't assign values to const variable"),
+    ("objfpc_delphi_constref_rejected", "Syntax error"),
 )
 
 

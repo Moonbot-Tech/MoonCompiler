@@ -56,42 +56,6 @@
       "note": "вещественный литерал против Double/Currency: Delphi отвергает как неоднозначный, мы выбираем Double"
     },
     {
-      "id": "dvl-0028",
-      "kind": "observation-split",
-      "note_name": "^dvl-pick-int-sign-var-(byte|word)-picked$",
-      "note": "узкий беззнаковый аргумент уходит в Cardinal, у Delphi в Integer"
-    },
-    {
-      "id": "dvl-0028",
-      "kind": "observation-split",
-      "note_name": "^dvl-deliver-int-sign(64)?-lit-1-cast$",
-      "note": "та же пара кандидатов после каста литерала в узкий тип"
-    },
-    {
-      "id": "dvl-0028",
-      "kind": "observation-split",
-      "note_name": "^dvl-deliver-int-sign-var-byte-(cast|inline-result|noinline-result|generic-arg|closure|with-scope|const-param|typed-const|case-arm|ternary-like)$",
-      "note": "dvl-0028 доезжает по всем доставкам, где значение получает тип"
-    },
-    {
-      "id": "dvl-0029",
-      "kind": "observation-split",
-      "note_name": "^dvl-pick-(char|char-form)-lit-char(-chr)?-picked$",
-      "note": "свёрнутое символьное выражение из ASCII выбирает AnsiChar вместо Char"
-    },
-    {
-      "id": "dvl-0029",
-      "kind": "observation-split",
-      "note_name": "^dvl-deliver-char-form-lit-char-(direct|paren|paren-twice|ppu-const)$",
-      "note": "dvl-0029 живёт, пока значение остаётся литералом; провенанс переживает PPU"
-    },
-    {
-      "id": "dvl-0030",
-      "kind": "observation-split",
-      "note_name": "^dvl-pick-string-form-lit-str-concat-picked$",
-      "note": "сложение двух кавычечных литералов даёт Ansi-типизированную константу"
-    },
-    {
       "id": "dvl-0031",
       "kind": "observation-split",
       "note_name": "^dvl-lit-(array-element|captured|form-ansi-cast|form-concat|form-implicit|form-rawbyte-cast|form-typed-const|form-unicode-plain|form-utf8-cast|global|global-record-field|interface-field|nested-array|object-field|out-param|result|static-array|threadvar)-(refcount|writable)$",
@@ -144,16 +108,6 @@
       "note": "class operator Assign не поддержан"
     },
     {
-      "id": "dvl-0036",
-      "case": "constref-parameter",
-      "note": "модификатор const [ref] не разбирается"
-    },
-    {
-      "id": "dvl-0036",
-      "case": "constref-record-parameter",
-      "note": "то же для параметра-записи"
-    },
-    {
       "id": "dvl-0037",
       "kind": "observation-split",
       "note_name": "^dvl-attr-(method|public-property)-readback$",
@@ -163,11 +117,6 @@
       "id": "dvl-0038",
       "case": "helper-name-as-type",
       "note": "имя хелпера в позиции типа: мы принимаем, Delphi отвергает"
-    },
-    {
-      "id": "dvl-0039",
-      "case": "int64-arg-vs-integer-cardinal",
-      "note": "Int64 против Integer/Cardinal: Delphi выбирает, мы объявляем ничью"
     },
     {
       "id": "dvl-0020",
@@ -195,12 +144,6 @@
       "note": "константный сдвиг шире типа (запись реестра пересобрана после потери каталога)"
     },
     {
-      "id": "dvl-0013",
-      "kind": "observation-split",
-      "note_name": "^dvl-(uni|chain)-[0-9]+-cast-(byte|length|first-byte)$",
-      "note": "приведение между байтовыми строками перекодирует вместо переинтерпретации (запись реестра пересобрана после потери каталога)"
-    },
-    {
       "id": "dvl-0015",
       "kind": "observation-split",
       "note_name": "^dvl-chain-[0-9]+-variant-small$",
@@ -213,12 +156,6 @@
       "note": "вещественный литерал в Variant кладётся Double вместо Currency (запись реестра пересобрана после потери каталога)"
     },
     {
-      "id": "dvl-0012",
-      "kind": "observation-split",
-      "note_name": "^dvl-chain-[0-9]+-varrec-ascii$",
-      "note": "ASCII-литерал едет в array of const как vtChar вместо vtWideChar (запись реестра пересобрана после потери каталога)"
-    },
-    {
       "id": "dvl-0014",
       "kind": "observation-split",
       "note_name": "^dvl-uni-[0-9]+-(typename|char-kind|wide-kind)$",
@@ -229,12 +166,6 @@
       "kind": "observation-split",
       "note_name": "^dvl-lang-[0-9]+-(type|real-type|real-element-type)$",
       "note": "то же для имён типов, видимых через RTTI (запись реестра пересобрана после потери каталога)"
-    },
-    {
-      "id": "dvl-0013",
-      "kind": "model-mismatch",
-      "check": "^dvl-uni-[0-9]+-cast-(byte|length)$",
-      "note": "приведение между байтовыми строками перекодирует вместо переинтерпретации (запись реестра пересобрана после потери каталога)"
     },
     {
       "id": "dvl-0014",
