@@ -346,9 +346,6 @@ unit optconstprop;
                           ) or
                           ((tloadnode(l).symtableentry.typ=paravarsym) and
                            (tloadnode(l).symtable=current_procinfo.procdef.parast)
-                          ) or
-                          ((tloadnode(l).symtableentry.typ=staticvarsym) and
-                           (tloadnode(l).symtable.symtabletype=staticsymtable)
                           )
                          )) or
                         (l.nodetype = temprefn)) and
