@@ -102,7 +102,7 @@ function Build-Compiler {
 
     # Compiler/IDE tools keep their host representation.  The target RTL and
     # application-facing packages use the modern Delphi Unicode ABI.
-    $unicodeOptions = 'OPT=-O2 -dUNICODERTL -dFPC_OS_UNICODE -dMOONCOMPILER_DELPHI_CALLBACK_TYPES'
+    $unicodeOptions = 'OPT=-O2 -dUNICODERTL -dFPC_OS_UNICODE -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES'
     Invoke-Checked $makePath @(
       '-C', (Join-Path $Root 'rtl'), 'clean', "FPC=$targetCompiler",
       'CPU_TARGET=x86_64', 'OS_TARGET=win64')

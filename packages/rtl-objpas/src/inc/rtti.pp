@@ -468,6 +468,10 @@ type
   TRttiEnumerationType = class(TRttiOrdinalType)
   private
     function GetUnderlyingType: TRttiType;
+{$ifdef ENABLE_DELPHI_RTTI}
+  protected
+    function GetTypeKind: TTypeKind; override;
+{$endif ENABLE_DELPHI_RTTI}
   public
     function GetNames: TStringDynArray;
     generic class function GetName<T{: enum}>(AValue: T): string; reintroduce; static;
@@ -2515,6 +2519,9 @@ begin
           tkInteger,
           tkChar,
           tkWChar: Result := TRttiOrdinalType.Create(ATypeInfo);
+{$ifdef ENABLE_DELPHI_RTTI}
+          tkBool,
+{$endif ENABLE_DELPHI_RTTI}
           tkEnumeration : Result := TRttiEnumerationType.Create(ATypeInfo);
           tkSString,
           tkLString,
@@ -2763,6 +2770,10 @@ function TValue.GetTypeKind: TTypeKind;
 begin
   if not Assigned(FData.FTypeInfo) then
     Result := tkUnknown
+{$ifdef ENABLE_DELPHI_RTTI}
+  else if FData.FTypeInfo^.Kind=tkBool then
+    Result := tkEnumeration
+{$endif ENABLE_DELPHI_RTTI}
   else
     result := FData.FTypeInfo^.Kind;
 end;
@@ -4607,7 +4618,7 @@ end;
 
 function TValue.AsBoolean: boolean;
 begin
-  if (Kind = tkBool) then
+  if Assigned(FData.FTypeInfo) and (FData.FTypeInfo^.Kind=tkBool) then
     case TypeData^.OrdType of
       otSByte:  Result := ByteBool(FData.FAsSByte);
       otUByte:  Result := Boolean(FData.FAsUByte);
@@ -4812,6 +4823,10 @@ function TValue.AsVariant : Variant;
 begin
   if (Kind=tkVariant) then
     Result:= PVariant(FData.FValueData.GetReferenceToRawData)^
+{$ifdef ENABLE_DELPHI_RTTI}
+  else if IsType(System.TypeInfo(Boolean)) then
+    Result:=AsBoolean
+{$endif ENABLE_DELPHI_RTTI}
   else
     raise EInvalidCast.Create(SErrInvalidTypecast);
 end;
@@ -5027,7 +5042,10 @@ begin
     data := PByte(data) + AIndex * elsize;
   end;
   { maybe we'll later on allow some typecasts, but for now be restrictive }
-  if eltype^.Kind <> AValue.Kind then
+  { Kind deliberately exposes Boolean as Delphi's tkEnumeration.  Internal
+    storage compatibility still follows the raw type-info kind. }
+  if not Assigned(AValue.FData.FTypeInfo) or
+     (eltype^.Kind <> AValue.FData.FTypeInfo^.Kind) then
     raise EInvalidCast.Create(SErrInvalidTypecast);
   td := GetTypeData(eltype);
   tdv := AValue.TypeData;
@@ -5722,8 +5740,21 @@ end;
 function TRttiEnumerationType.GetUnderlyingType: TRttiType;
 
 begin
-  Result:=GRttiPool[FUsePublishedOnly].GetType(GetTypeData(Handle)^.BaseType);
+{$ifdef ENABLE_DELPHI_RTTI}
+  if Handle^.Kind=tkBool then
+    Result:=Self
+  else
+{$endif ENABLE_DELPHI_RTTI}
+    Result:=GRttiPool[FUsePublishedOnly].GetType(GetTypeData(Handle)^.BaseType);
 end;
+
+
+{$ifdef ENABLE_DELPHI_RTTI}
+function TRttiEnumerationType.GetTypeKind: TTypeKind;
+begin
+  Result:=tkEnumeration;
+end;
+{$endif ENABLE_DELPHI_RTTI}
 
 
 function TRttiEnumerationType.GetNames: TStringDynArray;

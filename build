@@ -73,16 +73,16 @@ build_compiler() {
   # application-facing packages use the modern Delphi Unicode ABI.
   make -C "$ROOT/rtl" clean FPC="$target_compiler"
   make -C "$ROOT/rtl" -j1 all FPC="$target_compiler" \
-    OPT='-O2 -dUNICODERTL -dMOONCOMPILER_DELPHI_CALLBACK_TYPES'
+    OPT='-O2 -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES'
   make -C "$ROOT/rtl" install FPC="$target_compiler" \
-    FPCMAKE="$target_fpcmake" OPT='-O2 -dUNICODERTL -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' \
+    FPCMAKE="$target_fpcmake" OPT='-O2 -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' \
     INSTALL_PREFIX="$new_toolchain"
   make -C "$ROOT/packages" clean FPC="$target_compiler" \
     FPMAKEOPT=--NoIDE=1
   make -C "$ROOT/packages" -j1 all FPC="$target_compiler" \
-    OPT='-O2 -dUNICODERTL -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' FPMAKEOPT=--NoIDE=1
+    OPT='-O2 -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' FPMAKEOPT=--NoIDE=1
   make -C "$ROOT/packages" install FPC="$target_compiler" \
-    FPCMAKE="$target_fpcmake" OPT='-O2 -dUNICODERTL -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' FPMAKEOPT=--NoIDE=1 \
+    FPCMAKE="$target_fpcmake" OPT='-O2 -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' FPMAKEOPT=--NoIDE=1 \
     INSTALL_PREFIX="$new_toolchain"
 
   ln -s "../lib/fpc/$version_dir/ppcx64" "$new_toolchain/bin/ppcx64"

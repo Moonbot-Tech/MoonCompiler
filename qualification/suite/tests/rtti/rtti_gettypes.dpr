@@ -13,7 +13,8 @@ uses
   rtti_catalog_base,
   rtti_catalog_generic,
   rtti_catalog_plain,
-  rtti_catalog_runtime_tables;
+  rtti_catalog_runtime_tables,
+  rtti_delphi_defaults;
 
 type
   {$RTTI EXPLICIT FIELDS([vcPrivate,vcPublic])}
@@ -271,6 +272,61 @@ begin
   end;
 end;
 
+procedure CheckDelphiDefaults;
+var
+  Context: TRttiContext;
+  RttiType: TRttiType;
+  Field: TRttiField;
+  Attribute: TCustomAttribute;
+  Value: TValue;
+  ArrayValue: TValue;
+  BooleanPair: TBooleanPair;
+  FoundAttribute: Boolean;
+begin
+  Context:=TRttiContext.Create;
+  try
+    RttiType:=Context.GetType(TypeInfo(TDefaultRttiClass));
+    if not Assigned(RttiType) then
+      Fail('default RTTI class is missing');
+    Field:=RttiType.GetField('Enabled');
+    if not Assigned(Field) then
+      Fail('Delphi default public-field RTTI is missing');
+    if Field.FieldType.Handle<>TypeInfo(Boolean) then
+      Fail('Boolean field lost its type identity');
+    if Field.FieldType.TypeKind<>tkEnumeration then
+      Fail('Boolean RTTI is not exposed as a Delphi enumeration');
+    if not(Field.FieldType is TRttiEnumerationType) then
+      Fail('Boolean RTTI has the wrong facade class');
+    if TRttiEnumerationType(Field.FieldType).UnderlyingType<>Field.FieldType then
+      Fail('Boolean RTTI has the wrong underlying type');
+    if Length(TRttiEnumerationType(Field.FieldType).GetNames)<>2 then
+      Fail('Boolean RTTI has the wrong name table');
+    Value:=TValue.From<Boolean>(True);
+    if Value.Kind<>tkEnumeration then
+      Fail('Boolean TValue is not exposed as a Delphi enumeration');
+    if not Value.AsBoolean then
+      Fail('Boolean TValue lost its value');
+    if Value.ToString<>'True' then
+      Fail('Boolean TValue lost its textual representation');
+    if not Boolean(Value.AsVariant) then
+      Fail('Boolean TValue lost its Variant conversion');
+    BooleanPair[0]:=False;
+    BooleanPair[1]:=False;
+    ArrayValue:=TValue.From<TBooleanPair>(BooleanPair);
+    ArrayValue.SetArrayElement(1,Value);
+    if not ArrayValue.GetArrayElement(1).AsBoolean then
+      Fail('Boolean TValue array assignment lost its raw storage kind');
+    FoundAttribute:=False;
+    for Attribute in Field.GetAttributes do
+      if Attribute is TDefaultFieldAttribute then
+        FoundAttribute:=True;
+    if not FoundAttribute then
+      Fail('default public-field attribute is missing');
+  finally
+    Context.Free;
+  end;
+end;
+
 procedure TGetTypesThread.Execute;
 var
   I: Integer;
@@ -338,6 +394,7 @@ begin
     Fail('threadvar table regression');
   CheckCatalog;
   CheckDefaultRegistry;
+  CheckDelphiDefaults;
   CheckThreads;
   CheckDropContext;
   Writeln('RTTI_GETTYPES_PASS');
