@@ -1739,6 +1739,11 @@ function FileNames(const Directory, Mask: TFileName;
 var
   m: TMatchDynArray;
   cb: TOnPosixFileName;
+  {$ifdef UNICODE}
+  i: PtrInt;
+  names: TRawUtf8DynArray;
+  mask8, ignore8: RawUtf8;
+  {$endif UNICODE}
 {$endif OSPOSIX}
 begin
   {$ifdef OSPOSIX}
@@ -1751,8 +1756,27 @@ begin
     if Mask <> FILES_ALL then
     begin
       cb := @MatchAnyP; // exact same signature than TOnPosixFileName callback
+      {$ifdef UNICODE}
+      mask8 := StringToUtf8(Mask);
+      SetMatchs(mask8, {caseinsens=}false, m, ';');
+      {$else}
       SetMatchs(Mask, {caseinsens=}false, m, ';');
+      {$endif UNICODE}
     end;
+    {$ifdef UNICODE}
+    names := PosixFileNames(Directory,
+      ffoSubFolder in Options, cb, pointer(m), ffoExcludesDir in Options);
+    if IgnoreFileName <> '' then
+    begin
+      ignore8 := StringToUtf8(IgnoreFileName);
+      DeleteRawUtf8(names, FindRawUtf8(names, ignore8));
+    end;
+    if ffoSortByName in Options then
+      QuickSortRawUtf8(names, length(names));
+    SetLength(result, length(names));
+    for i := 0 to length(names) - 1 do
+      Utf8ToFileName(names[i], result[i]);
+    {$else}
     result := PosixFileNames(Directory,
       ffoSubFolder in Options, cb, pointer(m), ffoExcludesDir in Options);
     if result = nil then
@@ -1761,6 +1785,7 @@ begin
       DeleteRawUtf8(result, FindRawUtf8(result, IgnoreFileName));
     if ffoSortByName in Options then
       QuickSortRawUtf8(result, length(result));
+    {$endif UNICODE}
   end
   else
   {$endif OSPOSIX}

@@ -998,8 +998,11 @@ const
   // with proper conversion into RawUtf8 or TFileName/string
   _AW = 'A';
 
+{$endif UNICODE}
+
+{$if defined(FPC) or not defined(UNICODE)}
 type
-  /// low-level API structure, not defined in old Delphi versions
+  /// low-level API structure, not defined by FPC nor old Delphi versions
   TOSVersionInfoEx = record
     dwOSVersionInfoSize: DWORD;
     dwMajorVersion: DWORD;
@@ -1014,7 +1017,7 @@ type
     wReserved: BYTE;
   end;
 
-{$endif UNICODE}
+{$ifend}
 
 var
   /// is set to TRUE if the current process is a 32-bit image running under WOW64
@@ -2986,6 +2989,16 @@ function Unicode_InPlaceLower(W: PWideChar; WLen: integer): integer;
 // - caller should always call Dest.Done to release any (unlikely) allocated memory
 function Unicode_FromUtf8(Text: PUtf8Char; TextLen: PtrInt;
   var Dest: TSynTempBuffer): PWideChar;
+
+/// local RTL wrapper function to avoid linking mormot.core.unicode.pas
+// - returns dest.buf as PUtf8Char result, and dest.len as length in UTF-8 bytes
+// - caller should always call Dest.Done to release any (unlikely) allocated memory
+function Unicode_ToUtf8(Text: PWideChar; var Dest: TSynTempBuffer;
+  TextLen: PtrInt = 0): pointer; overload;
+
+/// local RTL wrapper function to avoid linking mormot.core.unicode.pas
+procedure Unicode_ToUtf8(Text: PWideChar; TextLen: PtrInt;
+  var Dest: RawUtf8); overload;
 
 /// returns a system-wide current monotonic timestamp as milliseconds
 // - will use the corresponding native API function under Vista+, or will be
@@ -6370,6 +6383,41 @@ begin
   end;
 end;
 
+function Unicode_ToUtf8(Text: PWideChar; var Dest: TSynTempBuffer;
+  TextLen: PtrInt): pointer;
+var
+  i: PtrInt;
+begin
+  if TextLen = 0 then
+    TextLen := StrLenW(Text);
+  if TextLen = 0 then
+    result := Dest.Init(0)
+  else if IsAnsiCompatibleW(Text, TextLen) then
+  begin
+    result := Dest.Init(TextLen);
+    for i := 0 to TextLen - 1 do
+      PByteArray(result)[i] := PWordArray(Text)[i];
+  end
+  else
+  begin
+    Dest.len := UnicodeToUtf8(
+      Dest.Init(TextLen * 3), TextLen * 3 + 16, Text, TextLen);
+    if Dest.len <> 0 then
+      dec(Dest.len); // RTL result includes the null terminator
+    result := Dest.buf;
+  end;
+end;
+
+procedure Unicode_ToUtf8(Text: PWideChar; TextLen: PtrInt;
+  var Dest: RawUtf8);
+var
+  tmp: TSynTempBuffer;
+begin
+  Unicode_ToUtf8(Text, tmp, TextLen);
+  FastSetString(Dest, tmp.buf, tmp.len);
+  tmp.Done;
+end;
+
 function NowUtc: TDateTime;
 begin
   result := UnixMSTimeUtcFast / Int64(MilliSecsPerDay) + Int64(UnixDelta);
@@ -7467,11 +7515,30 @@ end;
 
 function TExecutableResource.Open(const ResourceName: string; ResType: PChar;
   Instance: TLibHandle): boolean;
+{$if defined(FPC) and defined(UNICODE) and defined(OSPOSIX)}
+var
+  ResourceNameUtf8,
+  ResourceTypeUtf8: RawUtf8;
+  ResourceTypeAnsi: PAnsiChar;
+{$ifend}
 begin
   result := false;
   if Instance = 0 then
     Instance := HInstance;
+  {$if defined(FPC) and defined(UNICODE) and defined(OSPOSIX)}
+  Unicode_ToUtf8(pointer(ResourceName), Length(ResourceName), ResourceNameUtf8);
+  if PtrUInt(ResType) <= High(Word) then
+    ResourceTypeAnsi := PAnsiChar(ResType) // numeric MAKEINTRESOURCE value
+  else
+  begin
+    Unicode_ToUtf8(ResType, 0, ResourceTypeUtf8);
+    ResourceTypeAnsi := pointer(ResourceTypeUtf8);
+  end;
+  HResInfo := FindResource(
+    Instance, pointer(ResourceNameUtf8), ResourceTypeAnsi);
+  {$else}
   HResInfo := FindResource(Instance, PChar(ResourceName), ResType);
+  {$ifend}
   if HResInfo = 0 then
     exit;
   HGlobal := LoadResource(Instance, HResInfo);
@@ -10643,6 +10710,9 @@ var
 begin
   {$ifdef ISFPC27}
   SetMultiByteConversionCodePage(CP_UTF8);
+  {$ifdef OSPOSIX}
+  SetMultiByteFileSystemCodePage(CP_UTF8);
+  {$endif OSPOSIX}
   SetMultiByteRTLFileSystemCodePage(CP_UTF8);
   {$endif ISFPC27}
   GlobalCriticalSection.Init;

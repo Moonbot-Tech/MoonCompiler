@@ -6,6 +6,7 @@
 }
 
 uses
+  cwstring, // install UTF-8 capable Unicode RTL conversions before this unit
   baseunix,
   unix,
   unixcp,
@@ -30,9 +31,154 @@ uses
   dl,
   initc; // we statically link the libc for some raw calls
 
+// POSIX file-system APIs consume UTF-8 bytes.  Keep the application-facing
+// TFileName Unicode contract and transcode only at this boundary.
+
+function PosixDlopen(const FileName: TFileName; Flags: integer): pointer; inline;
 {$ifdef UNICODE}
-  'mORMot assumes no UNICODE on POSIX, i.e. as TFileName = PChar = PUtf8Char'
+var
+  tmp: TSynTempBuffer;
 {$endif UNICODE}
+begin
+  {$ifdef UNICODE}
+  result := dlopen(PAnsiChar(Unicode_ToUtf8(
+    pointer(FileName), tmp, length(FileName))), Flags);
+  tmp.Done;
+  {$else}
+  result := dlopen(pointer(FileName), Flags);
+  {$endif UNICODE}
+end;
+
+function PosixStat(const FileName: TFileName; var st: TStat): cint; inline;
+{$ifdef UNICODE}
+var
+  tmp: TSynTempBuffer;
+{$endif UNICODE}
+begin
+  {$ifdef UNICODE}
+  result := fpStat(PAnsiChar(Unicode_ToUtf8(
+    pointer(FileName), tmp, length(FileName))), st);
+  tmp.Done;
+  {$else}
+  result := fpStat(pointer(FileName), st);
+  {$endif UNICODE}
+end;
+
+function PosixUtime(const FileName: TFileName; times: PUtimBuf): cint; inline;
+{$ifdef UNICODE}
+var
+  tmp: TSynTempBuffer;
+{$endif UNICODE}
+begin
+  {$ifdef UNICODE}
+  result := FpUtime(PAnsiChar(Unicode_ToUtf8(
+    pointer(FileName), tmp, length(FileName))), times);
+  tmp.Done;
+  {$else}
+  result := FpUtime(pointer(FileName), times);
+  {$endif UNICODE}
+end;
+
+function PosixAccess(const FileName: TFileName; Mode: cint): cint; inline;
+{$ifdef UNICODE}
+var
+  tmp: TSynTempBuffer;
+{$endif UNICODE}
+begin
+  {$ifdef UNICODE}
+  result := fpaccess(PAnsiChar(Unicode_ToUtf8(
+    pointer(FileName), tmp, length(FileName))), Mode);
+  tmp.Done;
+  {$else}
+  result := fpaccess(pointer(FileName), Mode);
+  {$endif UNICODE}
+end;
+
+function PosixChmod(const FileName: TFileName; Mode: mode_t): cint; inline;
+{$ifdef UNICODE}
+var
+  tmp: TSynTempBuffer;
+{$endif UNICODE}
+begin
+  {$ifdef UNICODE}
+  result := fpchmod(PAnsiChar(Unicode_ToUtf8(
+    pointer(FileName), tmp, length(FileName))), Mode);
+  tmp.Done;
+  {$else}
+  result := fpchmod(pointer(FileName), Mode);
+  {$endif UNICODE}
+end;
+
+function PosixSymlink(const Target, SymLink: TFileName): cint; inline;
+{$ifdef UNICODE}
+var
+  t, s: TSynTempBuffer;
+{$endif UNICODE}
+begin
+  {$ifdef UNICODE}
+  result := fpsymlink(
+    PAnsiChar(Unicode_ToUtf8(pointer(Target), t, length(Target))),
+    PAnsiChar(Unicode_ToUtf8(pointer(SymLink), s, length(SymLink))));
+  t.Done;
+  s.Done;
+  {$else}
+  result := fpsymlink(pointer(Target), pointer(SymLink));
+  {$endif UNICODE}
+end;
+
+function PosixOpen(const FileName: TFileName; Flags: cint): cint; inline;
+{$ifdef UNICODE}
+var
+  tmp: TSynTempBuffer;
+{$endif UNICODE}
+begin
+  {$ifdef UNICODE}
+  result := fpOpen(PAnsiChar(Unicode_ToUtf8(
+    pointer(FileName), tmp, length(FileName))), Flags);
+  tmp.Done;
+  {$else}
+  result := fpOpen(pointer(FileName), Flags);
+  {$endif UNICODE}
+end;
+
+function PosixOpenDir(const Path: TFileName): pDir; inline;
+{$ifdef UNICODE}
+var
+  tmp: TSynTempBuffer;
+{$endif UNICODE}
+begin
+  {$ifdef UNICODE}
+  result := FpOpendir(PAnsiChar(Unicode_ToUtf8(
+    pointer(Path), tmp, length(Path))));
+  tmp.Done;
+  {$else}
+  result := FpOpendir(pointer(Path));
+  {$endif UNICODE}
+end;
+
+function PosixStatFS(const Path: TFileName; Info: PStatfs): cint; inline;
+{$ifdef UNICODE}
+var
+  tmp: TSynTempBuffer;
+{$endif UNICODE}
+begin
+  {$ifdef UNICODE}
+  result := fpStatFS(PAnsiChar(Unicode_ToUtf8(
+    pointer(Path), tmp, length(Path))), Info);
+  tmp.Done;
+  {$else}
+  result := fpStatFS(pointer(Path), Info);
+  {$endif UNICODE}
+end;
+
+procedure PosixTextToUtf8(const Text: TFileName; var Utf8: RawUtf8); inline;
+begin
+  {$ifdef UNICODE}
+  Unicode_ToUtf8(pointer(Text), length(Text), Utf8);
+  {$else}
+  FastSetString(Utf8, pointer(Text), length(Text));
+  {$endif UNICODE}
+end;
 
 
 // define some raw text functions, to avoid linking mormot.core.text
@@ -168,7 +314,7 @@ end;
 
 function LibraryOpen(const LibraryName: TFileName): TLibHandle;
 begin
-  result := TLibHandle(dlopen(pointer(LibraryName), RTLD_LAZY));
+  result := TLibHandle(PosixDlopen(LibraryName, RTLD_LAZY));
 end;
 
 procedure LibraryClose(Lib: TLibHandle);
@@ -272,7 +418,7 @@ begin
     Loaded := true;
     if LibName <> '' then
     begin
-      icu := dlopen(pointer(LibName), RTLD_LAZY);
+      icu := PosixDlopen(LibName, RTLD_LAZY);
       if icu = nil then
         exit;
     end
@@ -291,12 +437,12 @@ begin
       begin
         // there is no link to the library -> try e.g. 'libicudata.so.67'
         if Version <> '' then
-          icudata := dlopen(pointer('libicudata.so.' + Version), RTLD_LAZY);
+          icudata := PosixDlopen('libicudata.so.' + Version, RTLD_LAZY);
         if icudata = nil then
           for i := ICU_MAX downto ICU_MIN do
           begin
             str(i, v);
-            icudata := dlopen(pointer('libicudata.so.' + v), RTLD_LAZY);
+            icudata := PosixDlopen('libicudata.so.' + v, RTLD_LAZY);
             if icudata <> nil then
             begin
               Version := v;
@@ -309,9 +455,9 @@ begin
       {$endif OSANDROID}
       if icudata <> nil then
       begin
-        icu := dlopen(pointer('libicuuc.so' + so), RTLD_LAZY);
+        icu := PosixDlopen('libicuuc.so' + so, RTLD_LAZY);
         if icu <> nil then
-          icui18n := dlopen(pointer('libicui18n.so' + so), RTLD_LAZY);
+          icui18n := PosixDlopen('libicui18n.so' + so, RTLD_LAZY);
       end;
       {$endif OSDARWIN}
       if icui18n = nil then
@@ -1162,7 +1308,7 @@ var
 begin
   result := 0;
   if (FileName <> '') and
-     (fpStat(pointer(FileName), st) = 0) and
+     (PosixStat(FileName, st) = 0) and
      (AllowDir or
       (not FpS_ISDIR(st.st_mode))) then
     result := st.st_mtime; // as TUnixTime seconds, with no local conversion
@@ -1188,7 +1334,7 @@ begin
     exit;
   t.actime := Time;
   t.modtime := Time;
-  result := FpUtime(pointer(Dest), @t) = 0; // direct syscall
+  result := PosixUtime(Dest, @t) = 0; // direct syscall
 end;
 
 function FileSetDateFrom(const Dest: TFileName; SourceHandle: THandle): boolean;
@@ -1235,21 +1381,21 @@ end;
 function FileIsWritable(const FileName: TFileName): boolean;
 begin
   result := (FileName <> '') and
-            (fpaccess(pointer(FileName), W_OK) = 0);
+            (PosixAccess(FileName, W_OK) = 0);
 end;
 
 procedure FileSetHidden(const FileName: TFileName; ReadOnly: boolean);
 begin
   if FileName <> '' then
     if ReadOnly then
-      fpchmod(pointer(FileName), S_IRUSR)
+      PosixChmod(FileName, S_IRUSR)
     else
-      fpchmod(pointer(FileName), S_IRUSR or S_IWUSR);
+      PosixChmod(FileName, S_IRUSR or S_IWUSR);
 end;
 
 procedure FileSetSticky(const FileName: TFileName);
 begin
-  fpchmod(FileName, S_IRUSR or S_IWUSR or S_IRGRP or S_IROTH or S_ISVTX);
+  PosixChmod(FileName, S_IRUSR or S_IWUSR or S_IRGRP or S_IROTH or S_ISVTX);
 end;
 
 function FileSize(const FileName: TFileName): Int64;
@@ -1257,7 +1403,7 @@ var
   st: TStat;
 begin
   if (FileName = '') or
-     (fpStat(pointer(FileName), st) <> 0) or
+     (PosixStat(FileName, st) <> 0) or
      FpS_ISDIR(st.st_mode) then
     result := 0
   else
@@ -1269,7 +1415,7 @@ var
   st: TStat;
 begin
   result := (FileName <> '') and
-            (fpStat(pointer(FileName), st) = 0) and
+            (PosixStat(FileName, st) = 0) and
             not FpS_ISDIR(st.st_mode);
 end;
 
@@ -1305,7 +1451,7 @@ var
   st: TStat;
 begin
   result := (FileName <> '') and
-            (fpStat(pointer(FileName), st) = 0);
+            (PosixStat(FileName, st) = 0);
   if not result then
     exit;
   if FpS_ISDIR(st.st_mode) then
@@ -1378,7 +1524,7 @@ var
   st: TStat;
 begin
   result := (FileName <> '') and
-            (fpStat(pointer(FileName), st) = 0) and
+            (PosixStat(FileName, st) = 0) and
             (st.st_mode and (S_IXUSR or S_IXGRP or S_IXOTH) <> 0) and
             not FpS_ISDIR(st.st_mode);
 end;
@@ -1388,7 +1534,7 @@ var
   st: TStat;
 begin
   result := (FileName <> '') and
-            (fpStat(pointer(FileName), st) = 0) and
+            (PosixStat(FileName, st) = 0) and
             fpS_ISLNK(st.st_mode) and
             not FpS_ISDIR(st.st_mode);
 end;
@@ -1396,10 +1542,16 @@ end;
 function GetExecutableName(aAddress: pointer): TFileName;
 var
   dlinfo: dl_info;
+  fn: RawUtf8;
 begin
   FillCharFast(dlinfo, sizeof(dlinfo), 0);
   dladdr(aAddress, @dlinfo);
+  {$ifdef UNICODE}
+  FastSetString(fn, dlinfo.dli_fname, StrLen(dlinfo.dli_fname));
+  result := ExpandFileName(string(fn));
+  {$else}
   result := ExpandFileName(string(dlinfo.dli_fname));
+  {$endif UNICODE}
 end;
 
 function CopyFile(const Source, Target: TFileName;
@@ -1436,7 +1588,7 @@ function FileSymLink(const SymLink, Target: TFileName): boolean;
 begin
   result := (SymLink <> '') and
             FileExists(Target) and
-            (fpsymlink(pointer(Target), pointer(SymLink)) = 0);
+            (PosixSymlink(Target, SymLink) = 0);
 end;
 
 function ValidHandle(Handle: THandle): boolean;
@@ -1463,14 +1615,14 @@ end;
 function FileOpenSequentialRead(const FileName: TFileName): integer;
 begin
   // SysUtils.FileOpen = fpOpen + fpFlock
-  result := fpOpen(pointer(FileName), O_RDONLY); // no fpFlock() call
+  result := PosixOpen(FileName, O_RDONLY); // no fpFlock() call
 end;
 
 function FileIsReadable(const aFileName: TFileName): boolean;
 var
   fd: integer;
 begin
-  fd := fpOpen(pointer(aFileName), O_RDONLY); // no fpFlock() call
+  fd := PosixOpen(aFileName, O_RDONLY); // no fpFlock() call
   result := ValidHandle(fd);
   if result then
     FpClose(fd);
@@ -2324,13 +2476,23 @@ var
     dir: pDir;
     ent: pDirent;
     sublen, entlen: PtrInt;
+    subptr: pointer;
     fn: RawUtf8;
     withsub: boolean;
+    {$ifdef UNICODE}
+    tmp: TSynTempBuffer;
+    {$endif UNICODE}
   begin
-    dir := FpOpendir(root + subpath); // much faster alternative to FindFirst()
+    dir := PosixOpenDir(root + subpath); // much faster alternative to FindFirst()
     if dir = nil then
       exit;
+    {$ifdef UNICODE}
+    subptr := Unicode_ToUtf8(pointer(subpath), tmp, length(subpath));
+    sublen := tmp.len;
+    {$else}
+    subptr := pointer(subpath);
     sublen := length(subpath);
+    {$endif UNICODE}
     repeat
       ent := FpReaddir(dir^); // FPC RTL use getdents64 syscall on Linux and BSD :)
       if ent = nil then
@@ -2359,7 +2521,7 @@ var
          (sublen <> 0) then // fn := subpath + '/' + d_name
       begin
         FastSetString(fn, sublen + entlen + 1);
-        MoveFast(pointer(subpath)^, pointer(fn)^, sublen);
+        MoveFast(subptr^, pointer(fn)^, sublen);
         PByteArray(fn)[sublen] := ord('/');
         MoveFast(ent^.d_name, PByteArray(fn)[sublen + 1], entlen);
       end
@@ -2379,6 +2541,9 @@ var
       end;
     until false;
     FpClosedir(dir^);
+    {$ifdef UNICODE}
+    tmp.Done;
+    {$endif UNICODE}
   end;
 
 begin
@@ -2973,7 +3138,7 @@ begin
   if aDriveFolderOrFile = '' then
     aDriveFolderOrFile := '.';
   FillCharFast(fs, SizeOf(fs), 0);
-  result := fpStatFS(aDriveFolderOrFile, @fs) = 0;
+  result := PosixStatFS(aDriveFolderOrFile, @fs) = 0;
   aAvailableBytes := QWord(fs.bavail) * QWord(fs.bsize);
   aFreeBytes := aAvailableBytes; // no user Quota involved here
   aTotalBytes := QWord(fs.blocks) * QWord(fs.bsize);
@@ -3452,7 +3617,7 @@ begin
   end;
 end;
 
-function RunInternal(args: PPAnsiChar; waitfor: boolean; const env: TFileName;
+function RunInternal(args: PPAnsiChar; waitfor: boolean; const env: RawUtf8;
   options: TRunOptions): integer;
 var
   pid: TPID;
@@ -3534,31 +3699,41 @@ function RunProcess(const path, arg1: TFileName; waitfor: boolean;
   const arg2, arg3, arg4, arg5, env: TFileName;
   options: TRunOptions): integer;
 var
-  a: array[0..6] of PAnsiChar; // assume no UNICODE on POSIX, i.e. as TFileName
+  a: array[0..6] of PAnsiChar;
+  u: array[0..6] of RawUtf8;
 begin
-  a[0] := pointer(path);
-  a[1] := pointer(arg1);
-  a[2] := pointer(arg2);
-  a[3] := pointer(arg3);
-  a[4] := pointer(arg4);
-  a[5] := pointer(arg5);
+  PosixTextToUtf8(path, u[0]);
+  PosixTextToUtf8(arg1, u[1]);
+  PosixTextToUtf8(arg2, u[2]);
+  PosixTextToUtf8(arg3, u[3]);
+  PosixTextToUtf8(arg4, u[4]);
+  PosixTextToUtf8(arg5, u[5]);
+  PosixTextToUtf8(env, u[6]);
+  a[0] := pointer(u[0]);
+  a[1] := pointer(u[1]);
+  a[2] := pointer(u[2]);
+  a[3] := pointer(u[3]);
+  a[4] := pointer(u[4]);
+  a[5] := pointer(u[5]);
   a[6] := nil; // end pointer list with null
-  result := RunInternal(@a, waitfor, env, options);
+  result := RunInternal(@a, waitfor, u[6], options);
 end;
 
 function RunCommand(const cmd: TFileName; waitfor: boolean;
   const env: TFileName; options: TRunOptions; parsed: PParseCommands): integer;
 var
-  temp: RawUtf8;
+  temp, cmd8, env8: RawUtf8;
   err: TParseCommands;
   a: TParseCommandsArgs;
 begin
-  err := ParseCommandArgs(cmd, @a, nil, @temp);
+  PosixTextToUtf8(cmd, cmd8);
+  PosixTextToUtf8(env, env8);
+  err := ParseCommandArgs(cmd8, @a, nil, @temp);
   if parsed <> nil then
     parsed^ := err;
   if err = [] then
     // no need to spawn the shell for simple commands
-    result := RunInternal(a, waitfor, env, options)
+    result := RunInternal(a, waitfor, env8, options)
   else if err * PARSECOMMAND_ERROR <> [] then
     // no system call for clearly invalid command line
     result := -ESysEPERM
@@ -3567,15 +3742,16 @@ begin
     // execute complex commands via the shell
     a[0] := '/bin/sh';
     a[1] := '-c';
-    a[2] := pointer(cmd);
+    a[2] := pointer(cmd8);
     a[3] := nil;
-    result := RunInternal(@a, waitfor, env, options);
+    result := RunInternal(@a, waitfor, env8, options);
   end;
 end;
 
 function RunRedirect(const cmd: TFileName; exitcode: PInteger;
   const onoutput: TOnRedirect; waitfordelayms: cardinal;
-  setresult: boolean; const env, wrkdir: TFileName; options: TRunOptions): RawByteString;
+  setresult: boolean; const env: TFileName; const wrkdir: TFileName;
+  options: TRunOptions): RawByteString;
 var
   // notes: - FPC popen() allows access to the pid whereas clib popen() won't
   //        - env and options params are not supported by popen() so are ignored
@@ -3585,6 +3761,7 @@ var
   n, l: TSsize;
   wait: cardinal;
   endtix: Int64;
+  cmd8: RawUtf8;
   tmp: array[word] of byte; // 64KB stack buffer
 
   function RedirectOutput(flush: boolean; var redir: RawByteString): boolean;
@@ -3626,9 +3803,10 @@ var
 
 begin
   result := '';
+  PosixTextToUtf8(cmd, cmd8);
   if wrkdir <> '' then
     ChDir(wrkdir);
-  if popen(f, cmd, 'r') <> 0 then // fork and launch cmd - env is ignored by now
+  if popen(f, cmd8, 'r') <> 0 then // fork and launch cmd - env is ignored by now
     exit;
   fd := TFileRec(f).Handle;
   pid := pcint(@TFileRec(f).userdata[2])^; // see popen() from Unix.pp

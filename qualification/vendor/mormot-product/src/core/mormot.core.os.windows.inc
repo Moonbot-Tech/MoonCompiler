@@ -2228,7 +2228,8 @@ end;
 function CoCreateGuid(out guid: THash128Rec): HRESULT;
   stdcall; external 'ole32.dll';
 
-{$ifndef UNICODE} // 64-bit aware Windows API missing on FPC and oldest Delphi
+{$if defined(FPC) or not defined(UNICODE)}
+// 64-bit aware Windows API missing on FPC and oldest Delphi
 
 type
   TMemoryStatusEx = record
@@ -2247,7 +2248,7 @@ type
 function GlobalMemoryStatusEx(var lpBuffer: TMemoryStatusEx): BOOL;
   stdcall; external kernel32;
 
-{$endif UNICODE}
+{$ifend}
 
 procedure XorOSEntropy(var e: THash512Rec);
 var
@@ -5201,10 +5202,13 @@ type
   {$A+}
 
 
-{$ifndef UNICODE}
+{$ifdef FPC}
+function GetVersionExExtended(var lpVersionInformation: TOSVersionInfoEx): BOOL;
+  stdcall; external kernel32 name {$ifdef UNICODE}'GetVersionExW'{$else}'GetVersionExA'{$endif};
+{$else}{$ifndef UNICODE}
 function GetVersionEx(var lpVersionInformation: TOSVersionInfoEx): BOOL;
   stdcall; external kernel32 name 'GetVersionExA';
-{$endif UNICODE}
+{$endif UNICODE}{$endif FPC}
 
 function GetLocalTimeOffset: integer; // not defined in oldest Delphi
 var
@@ -5321,7 +5325,11 @@ begin
   if GlobalMemoryStatusEx(mem) then
     SystemMemorySize := mem.ullTotalPhys;
   OSVersionInfo.dwOSVersionInfoSize := SizeOf(OSVersionInfo);
+  {$ifdef FPC}
+  GetVersionExExtended(OSVersionInfo);
+  {$else}
   GetVersionEx(OSVersionInfo);
+  {$endif FPC}
   Vers := wUnknown;
   with OSVersionInfo do
     // see https://msdn.microsoft.com/en-us/library/windows/desktop/ms724833

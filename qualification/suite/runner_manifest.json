@@ -1695,6 +1695,25 @@
         "source": "fixtures/minimized/mormot_runredirect_eof_probe.pas",
         "source_sha256": "efb932648302b3e5962aacfda4369677b987738ec651d9cf66357961bf514e19"
       },
+      "unicode-posix-boundaries": {
+        "compile_timeout_seconds": 300,
+        "compiler_allow": [
+          "moonbot-compiler-beta"
+        ],
+        "expected_marker": "PASS mormot-unicode-posix-boundaries",
+        "mormot_source": "current",
+        "option_sets": {
+          "O2": [
+            "-O2"
+          ],
+          "O3": [
+            "-O3"
+          ]
+        },
+        "run_timeout_seconds": 10,
+        "source": "fixtures/minimized/mormot_unicode_posix_probe.pas",
+        "source_sha256": "58741726426dd7851df7c17eb0612e48af4e0800de676ce9a65ffff27d98b681"
+      },
       "current-o3-partial-set": {
         "compile_timeout_seconds": 300,
         "compiler_allow": [

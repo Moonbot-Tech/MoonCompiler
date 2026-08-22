@@ -1669,7 +1669,8 @@ function GetSetCsvValue(aTypeInfo: PRttiInfo; Csv: PUtf8Char): QWord;
 
 /// helper to retrieve all (translated) caption texts of an enumerate
 // - may be used as cache for overloaded ToCaption() content
-procedure GetEnumCaptions(aTypeInfo: PRttiInfo; aDest: PString);
+procedure GetEnumCaptions(aTypeInfo: PRttiInfo;
+  aDest: {$ifdef UNICODE}PUnicodeString{$else}PAnsiString{$endif});
 
 /// UnCamelCase and translate the enumeration item
 function GetCaptionFromEnum(aTypeInfo: PRttiInfo; aIndex: integer): string;
@@ -6183,7 +6184,8 @@ begin
   GetCaptionFromPCharLen(tmp, result);
 end;
 
-procedure GetEnumCaptions(aTypeInfo: PRttiInfo; aDest: PString);
+procedure GetEnumCaptions(aTypeInfo: PRttiInfo;
+  aDest: {$ifdef UNICODE}PUnicodeString{$else}PAnsiString{$endif});
 var
   MinValue, MaxValue, i: integer;
   res: PShortString;
@@ -7382,9 +7384,9 @@ begin
       result := ptUnicodeString;
   {$endif HASVARUSTRING}
   {$ifdef FPC_OR_UNICODE}
-    {$ifdef UNICODE}
+    {$ifndef FPC}{$ifdef UNICODE}
     rkProcedure,
-    {$endif UNICODE}
+    {$endif UNICODE}{$endif FPC}
     rkClassRef,
     rkPointer:
       result := ptPtrInt;
