@@ -175,7 +175,7 @@ implementation
       tokens,
       symconst,symdef,symsym,symcpu,symtable,defutil,defcmp,
       cgbase,
-      htypechk,pass_1,
+      htypechk,pass_1,pbase,
       nld,nbas,nmat,ncnv,ncon,nset,nopt,ncal,ninl,nmem,nutils,nflw,
       {$ifdef state_tracking}
       nstate,
@@ -207,6 +207,13 @@ const
 {$else}
         result:=pbestrealtype^;
 {$endif}
+      end;
+
+
+    function is_literal_byte_string(n: tnode): boolean; inline;
+      begin
+        result:=(n.nodetype=stringconstn) and
+          tstringconstnode(n).hasliteralbytes;
       end;
 
 
@@ -957,6 +964,7 @@ const
         concatstrings : boolean;
         c1,c2   : array[0..1] of ansichar;
         s1,s2,stmp   : pansichar;
+        literal1,literal2,literalresult : TAnsiCharDynArray;
         l1,l2   : longint;
         resultset : Tconstset;
         res,wrapped,
@@ -1543,6 +1551,24 @@ const
                   begin
                      concatwidestrings(ws1,ws2);
                      t:=cstringconstnode.createunistr(ws1);
+                     if tstringconstnode(left).hasliteralbytes or
+                        tstringconstnode(right).hasliteralbytes then
+                       begin
+                         tstringconstnode(left).getliteralbytes(literal1);
+                         tstringconstnode(right).getliteralbytes(literal2);
+                         setlength(literalresult,
+                           length(literal1)+length(literal2));
+                         if length(literal1)>0 then
+                           move(literal1[0],literalresult[0],length(literal1));
+                         if length(literal2)>0 then
+                           move(literal2[0],literalresult[length(literal1)],
+                             length(literal2));
+                         if length(literalresult)>0 then
+                           tstringconstnode(t).setliteralbytes(
+                             @literalresult[0],length(literalresult))
+                         else
+                           tstringconstnode(t).setliteralbytes(nil,0);
+                       end;
                   end;
                 ltn :
                   t:=cordconstnode.create(byte(comparewidestrings(ws1,ws2)<0),pasbool1type,true);
@@ -2871,6 +2897,34 @@ const
               end;
           end;
 
+        { Delphi resolves a WideChar literal against an AnsiChar operand in
+          the byte-character domain. This is an ordinal narrowing, not a
+          source-codepage conversion: #$80..#$ff must remain their byte value,
+          and larger literals are truncated with a data-loss warning. }
+        if (m_delphi in current_settings.modeswitches) and
+           (m_default_unicodestring in current_settings.modeswitches) and
+           (nodetype in [ltn,lten,gtn,gten,unequaln,equaln]) then
+          begin
+            if (lt=ordconstn) and is_widechar(ld) and is_char(rd) then
+              begin
+                if tordconstnode(left).value.uvalue>255 then
+                  Message(type_w_unicode_data_loss);
+                tordconstnode(left).value.uvalue:=
+                  tordconstnode(left).value.uvalue and $ff;
+                tordconstnode(left).changecharactertype(cansichartype);
+                ld:=left.resultdef;
+              end;
+            if (rt=ordconstn) and is_widechar(rd) and is_char(ld) then
+              begin
+                if tordconstnode(right).value.uvalue>255 then
+                  Message(type_w_unicode_data_loss);
+                tordconstnode(right).value.uvalue:=
+                  tordconstnode(right).value.uvalue and $ff;
+                tordconstnode(right).changecharactertype(cansichartype);
+                rd:=right.resultdef;
+              end;
+          end;
+
          { 4 character constant strings are compatible with orddef }
          { in macpas mode (become cardinals)                       }
          if (m_mac in current_settings.modeswitches) and
@@ -3597,7 +3651,12 @@ const
             if (nodetype in [addn,equaln,unequaln,lten,gten,ltn,gtn]) then
               begin
                 { Is there a unicodestring? }
-                if is_unicodestring(rd) or is_unicodestring(ld) or
+                if (is_unicodestring(rd) and
+                    not(is_rawbytestring(ld) and
+                        is_literal_byte_string(right))) or
+                   (is_unicodestring(ld) and
+                    not(is_rawbytestring(rd) and
+                        is_literal_byte_string(left))) or
                    ((m_default_unicodestring in current_settings.modeswitches) and
                     (cs_refcountedstrings in current_settings.localswitches) and
                     (
@@ -3609,6 +3668,13 @@ const
                      (not(is_rawbytestring(rd) or is_rawbytestring(ld) or
                           ((nodetype=addn) and
                            (anf_rawbytestring_concat in addnodeflags))) and
+                      { A typed array of AnsiChar is a byte context in Delphi.
+                        Keep a concatenation of byte literal fragments in that
+                        domain instead of promoting it to Unicode before the
+                        typed-constant writer sees the target. Explicit wide
+                        operands are still selected by the checks above. }
+                      not(assigned(getchararraydef) and
+                          is_char(getchararraydef.elementdef)) and
                       ((lt=stringconstn) or (rt=stringconstn)))
                     )
                    ) then
@@ -3660,6 +3726,21 @@ const
                     end;
                   st_ansistring :
                     begin
+                      { An untyped Delphi Unicode literal remains Unicode for
+                        overload resolution, but a RawByteString peer consumes
+                        its preserved #$xx/source bytes. }
+                      if is_rawbytestring(ld) and
+                         is_literal_byte_string(right) then
+                        begin
+                          tstringconstnode(right).changestringtype(ld);
+                          rd:=right.resultdef;
+                        end;
+                      if is_rawbytestring(rd) and
+                         is_literal_byte_string(left) then
+                        begin
+                          tstringconstnode(left).changestringtype(rd);
+                          ld:=left.resultdef;
+                        end;
                       { Delphi compares RawByteString operands byte-for-byte;
                         keep the raw static type so first_addstring can select
                         the matching helper. }

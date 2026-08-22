@@ -6368,6 +6368,13 @@ implementation
              _CSTRING :
                begin
                  p1:=cstringconstnode.createpchar(pansichar(current_scanner.cstringpattern),length(current_scanner.cstringpattern),nil);
+                 { Preserve the scanner bytes of an untyped source literal.
+                   In Delphi Unicode mode these bytes may later acquire
+                   Unicode expression semantics while numeric #$xx fragments
+                   must still materialize byte-for-byte in RawByteString. }
+                 tstringconstnode(p1).setliteralbytes(
+                   pansichar(current_scanner.cstringpattern),
+                   length(current_scanner.cstringpattern));
                  consume(_CSTRING);
                  if current_scanner.token in postfixoperator_tokens then
                    begin
@@ -6384,6 +6391,7 @@ implementation
                    p1:=cordconstnode.create(ord(current_scanner.pattern[1]),cwidechartype,true)
                  else
                    p1:=cordconstnode.create(ord(current_scanner.pattern[1]),cansichartype,true);
+                 tordconstnode(p1).literalbyte:=true;
                  consume(_CCHAR);
                  if current_scanner.token=_POINT then
                    begin
@@ -7821,10 +7829,33 @@ implementation
     var
       p:tnode;
       snode : tstringconstnode absolute p;
-      s : string;
       pw : tcompilerwidestring;
-      pc : pansichar;
-      len : Integer;
+
+      function wide_to_source(const w: tcompilerwidestring): string;
+      var
+        pc: pansichar;
+        len,
+        wlen: Integer;
+      begin
+        result:='';
+        wlen:=getlengthwidestring(w);
+        if wlen=0 then
+          exit;
+        if current_settings.sourcecodepage=CP_UTF8 then
+          begin
+            len:=UnicodeToUtf8(nil,0,w.asconstpunicodechar,wlen);
+            pc:=getmem(len);
+            UnicodeToUtf8(pc,len,w.asconstpunicodechar,wlen);
+          end
+        else
+          begin
+            pc:=getmem(wlen+1);
+            pc[wlen]:=#0;
+            unicode2ascii(w,pc,current_settings.sourcecodepage);
+          end;
+        result:=strpas(pc);
+        freemem(pc);
+      end;
 
     begin
       get_stringconst:='';
@@ -7833,19 +7864,19 @@ implementation
         begin
           if (p.nodetype=ordconstn) and is_char(p.resultdef) then
             get_stringconst:=char(tordconstnode(p).value.svalue)
+          else if (p.nodetype=ordconstn) and is_widechar(p.resultdef) then
+            begin
+              initwidestring(pw);
+              setlengthwidestring(pw,1);
+              pw.data[0]:=tordconstnode(p).value.svalue;
+              get_stringconst:=wide_to_source(pw);
+              donewidestring(pw);
+            end
           else
             Message(parser_e_illegal_expression);
         end
       else if (tstringconstnode(p).cst_type in [cst_unicodestring,cst_widestring]) then
-         begin
-           pw:=snode.valuews;
-           len:=getlengthwidestring(pw);
-           pc:=getmem(Len+1);
-           pc[len]:=#0;
-           unicode2ascii(pw,pc,current_settings.sourcecodepage);
-           get_stringconst:=strpas(pc);
-           freemem(pc);
-         end
+        get_stringconst:=wide_to_source(snode.valuews)
       else
         get_stringconst:=snode.asrawbytestring;
       p.free;

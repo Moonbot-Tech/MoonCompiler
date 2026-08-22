@@ -421,6 +421,7 @@ implementation
          got_addrn:=false;
          getprocvardef:=nil;
          getfuncrefdef:=nil;
+         getchararraydef:=nil;
 
        { show info }
          Message1(parser_i_compiling,module.mainsource);

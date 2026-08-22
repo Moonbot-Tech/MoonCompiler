@@ -7,6 +7,9 @@ program tdelphirawbyteconcat1;
 {$h+}
 
 uses
+{$ifdef UNIX}
+  cwstring,
+{$endif}
 {$ifdef FPC}
   SysUtils;
 {$else}

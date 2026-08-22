@@ -1293,11 +1293,25 @@ implementation
               if (tstringdef(resultdef).stringtype in [st_widestring,st_unicodestring]) then
                begin
                  initwidestring(ws);
-                 if torddef(left.resultdef).ordtype=uwidechar then
+                 if tordconstnode(left).literalbyte then
+                   { Delphi types #$00..#$ff as Unicode Char in Unicode mode,
+                     but decodes that source byte through the source code page
+                     when a Unicode value is required.  Its original byte is
+                     retained separately for RawByteString materialization. }
+                   concatwidestringchar(ws,
+                     asciichar2unicode(chr(tordconstnode(left).value.uvalue)))
+                 else if torddef(left.resultdef).ordtype=uwidechar then
                    concatwidestringchar(ws,tcompilerwidechar(tordconstnode(left).value.uvalue))
                  else
                    concatwidestringchar(ws,asciichar2unicode(chr(tordconstnode(left).value.uvalue)));
                  hp:=cstringconstnode.createunistr(ws);
+                 if tordconstnode(left).literalbyte and
+                    (m_delphi in current_settings.modeswitches) and
+                    (m_default_unicodestring in current_settings.modeswitches) then
+                   begin
+                     sa:=chr(tordconstnode(left).value.uvalue);
+                     hp.setliteralbytes(@sa[1],1);
+                   end;
                  hp.changestringtype(resultdef);
                  donewidestring(ws);
                end
@@ -1496,6 +1510,25 @@ implementation
         hp : tordconstnode;
       begin
          result:=nil;
+         { Delphi character casts are ordinal casts. They do not decode an
+           AnsiChar through the current source code page, nor encode a
+           WideChar through it. }
+         if (m_delphi in current_settings.modeswitches) and
+            (nf_explicit in flags) and
+            (left.nodetype=ordconstn) then
+           begin
+             hp:=cordconstnode.create(tordconstnode(left).value,resultdef,false);
+             hp.literalbyte:=tordconstnode(left).literalbyte;
+             if torddef(resultdef).ordtype=uchar then
+               begin
+                 if hp.value.uvalue>255 then
+                   Message(type_w_unicode_data_loss);
+                 hp.value.uvalue:=hp.value.uvalue and $ff;
+               end;
+             hp.value.signed:=false;
+             result:=hp;
+             exit;
+           end;
          if (left.nodetype=ordconstn) and
             ((torddef(resultdef).ordtype<>uchar) or
              (torddef(left.resultdef).ordtype<>uwidechar) or
@@ -1511,6 +1544,7 @@ implementation
                 hp:=cordconstnode.create(
                       ord(unicode2asciichar(tcompilerwidechar(tordconstnode(left).value.uvalue))),
                       cansichartype,true);
+                hp.literalbyte:=tordconstnode(left).literalbyte;
                 result:=hp;
               end
              else if (torddef(resultdef).ordtype=uwidechar) and
@@ -1519,6 +1553,7 @@ implementation
                 hp:=cordconstnode.create(
                       asciichar2unicode(chr(tordconstnode(left).value.uvalue)),
                       cwidechartype,true);
+                hp.literalbyte:=tordconstnode(left).literalbyte;
                 result:=hp;
               end
              else
@@ -3797,6 +3832,10 @@ implementation
                 if is_ansistring(resultdef) and
                   { do not mess with the result type for internally created nodes }
                   not(nf_internal in flags) and
+                  { Delphi keeps numeric #$xx fragments byte-exact when an
+                    untyped Unicode literal is materialized as RawByteString. }
+                  not(is_rawbytestring(resultdef) and
+                    tstringconstnode(left).hasliteralbytes) and
                   ((tstringdef(resultdef).encoding=0) or (tstringdef(resultdef).encoding=globals.CP_NONE)) then
                   tstringconstnode(left).changestringtype(getansistringdef)
                 else
@@ -4475,6 +4514,13 @@ implementation
                 firstpass(result);
                 exit;
               end;
+          end;
+        if (m_delphi in current_settings.modeswitches) and
+           (nf_explicit in flags) then
+          begin
+            convtype:=tc_int_2_int;
+            result:=first_int_to_int;
+            exit;
           end;
         if (torddef(resultdef).ordtype=uchar) and
            (torddef(left.resultdef).ordtype=uwidechar) then

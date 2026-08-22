@@ -464,12 +464,15 @@ interface
           explicitdef : boolean;
           delphiplus  : boolean;
           value       : tconstvalue;
+          literalbytes : TAnsiCharDynArray;
+          hasliteralbytes : boolean;
           constructor create_ord(const n : TSymStr;t : tconsttyp;v : tconstexprint;def:tdef);virtual;
           constructor create_ordptr(const n : TSymStr;t : tconsttyp;v : tconstptruint;def:tdef);virtual;
           constructor create_ptr(const n : TSymStr;t : tconsttyp;v : pointer;def:tdef);virtual;
           constructor create_string(const n : TSymStr;t : tconsttyp;str:pansichar;l:longint;def:tdef);virtual;
           constructor create_wstring(const n : TSymStr;t : tconsttyp;pw:tcompilerwidestring);virtual;
           constructor create_undefined(const n : TSymStr;def:tdef);virtual;
+          procedure setliteralbytes(s:pansichar; l:longint);
           constructor ppuload(ppufile:tcompilerppufile);
           destructor  destroy;override;
           procedure buildderef;override;
@@ -2806,6 +2809,8 @@ implementation
          value.valueord:=v;
          constdef:=def;
          constdefderef.reset;
+         literalbytes:=nil;
+         hasliteralbytes:=false;
       end;
 
 
@@ -2817,6 +2822,8 @@ implementation
          value.valueordptr:=v;
          constdef:=def;
          constdefderef.reset;
+         literalbytes:=nil;
+         hasliteralbytes:=false;
       end;
 
 
@@ -2828,6 +2835,8 @@ implementation
          value.valueptr:=v;
          constdef:=def;
          constdefderef.reset;
+         literalbytes:=nil;
+         hasliteralbytes:=false;
       end;
 
 
@@ -2843,6 +2852,8 @@ implementation
            constdef:=carraydef.getreusable(cansichartype,l);
          constdefderef.reset;
          value.len:=l;
+         literalbytes:=nil;
+         hasliteralbytes:=false;
       end;
 
 
@@ -2855,6 +2866,8 @@ implementation
          constdef:=carraydef.getreusable(cwidechartype,getlengthwidestring(pw));
          constdefderef.reset;
          value.len:=getlengthwidestring(pw);
+         literalbytes:=nil;
+         hasliteralbytes:=false;
       end;
 
 
@@ -2864,6 +2877,17 @@ implementation
         fillchar(value,sizeof(value),#0);
         consttyp:=constnone;
         constdef:=def;
+        literalbytes:=nil;
+        hasliteralbytes:=false;
+      end;
+
+
+    procedure tconstsym.setliteralbytes(s:pansichar; l:longint);
+      begin
+        hasliteralbytes:=true;
+        setlength(literalbytes,l);
+        if l>0 then
+          move(s^,literalbytes[0],l);
       end;
 
 
@@ -2902,6 +2926,15 @@ implementation
          consttyp:=tconsttyp(ppufile.getbyte);
          explicitdef:=ppufile.getbyte<>0;
          delphiplus:=ppufile.getbyte<>0;
+         hasliteralbytes:=ppufile.getbyte<>0;
+         literalbytes:=nil;
+         if hasliteralbytes then
+           begin
+             i:=ppufile.getlongint;
+             setlength(literalbytes,i);
+             if i>0 then
+               ppufile.getdata(literalbytes[0],i);
+           end;
          fillchar(value, sizeof(value), #0);
          case consttyp of
            constord :
@@ -2964,6 +2997,7 @@ implementation
 
     destructor tconstsym.destroy;
       begin
+        literalbytes:=nil;
         case consttyp of
           constnone,
           constord,
@@ -3033,6 +3067,13 @@ implementation
          ppufile.putbyte(byte(consttyp));
          ppufile.putbyte(byte(explicitdef));
          ppufile.putbyte(byte(delphiplus));
+         ppufile.putbyte(byte(hasliteralbytes));
+         if hasliteralbytes then
+           begin
+             ppufile.putlongint(length(literalbytes));
+             if length(literalbytes)>0 then
+               ppufile.putdata(literalbytes[0],length(literalbytes));
+           end;
          case consttyp of
            constnil :
              ppufile.putderef(constdefderef);

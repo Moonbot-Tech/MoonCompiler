@@ -4,6 +4,11 @@ program tdelphibytestringcast1;
   {$mode delphiunicode}
 {$endif}
 
+{$if defined(FPC) and defined(UNIX)}
+uses
+  cwstring;
+{$endif}
+
 type
   TCP1251 = type AnsiString(1251);
   TCP866 = type AnsiString(866);

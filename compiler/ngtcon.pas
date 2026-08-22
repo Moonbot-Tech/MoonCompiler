@@ -1292,6 +1292,7 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
         dyncountloc : ttypedconstplaceholder;
         llofs : tasmlabofs;
         dynarrdef : tdef;
+        oldchararraydef : tarraydef;
       begin
         { dynamic array }
         if is_dynamic_array(def) then
@@ -1398,7 +1399,13 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
           begin
              ftcb.maybe_begin_aggregate(def);
              char_size:=def.elementdef.size;
-             n:=comp_expr([ef_accept_equal]);
+             oldchararraydef:=getchararraydef;
+             getchararraydef:=def;
+             try
+               n:=comp_expr([ef_accept_equal]);
+             finally
+               getchararraydef:=oldchararraydef;
+             end;
              if n.nodetype=stringconstn then
                begin
                  len:=tstringconstnode(n).len;
@@ -2085,6 +2092,7 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
         n : tnode;
         i : longint;
         orgbase: tnode;
+        oldchararraydef : tarraydef;
       begin
         { dynamic array nil }
         if is_dynamic_array(def) then
@@ -2118,7 +2126,13 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
         { if array of char then we allow also a string }
         else if is_anychar(def.elementdef) then
           begin
-             n:=comp_expr([ef_accept_equal]);
+             oldchararraydef:=getchararraydef;
+             getchararraydef:=def;
+             try
+               n:=comp_expr([ef_accept_equal]);
+             finally
+               getchararraydef:=oldchararraydef;
+             end;
              addstatement(statmnt,cassignmentnode.create_internal(basenode,n));
              basenode:=nil;
           end

@@ -94,6 +94,7 @@ implementation
         pg : pguid;
         sp : pansichar;
         pw : tcompilerwidestring;
+        literalbytevalue : ansichar;
         storetokenpos : tfileposinfo;
       begin
         constsym_from_node:=nil;
@@ -110,6 +111,11 @@ implementation
                  hp:=cconstsym.create_ordptr(orgname,constpointer,tordconstnode(p).value.uvalue,p.resultdef)
                else
                  hp:=cconstsym.create_ord(orgname,constord,tordconstnode(p).value,p.resultdef);
+               if tordconstnode(p).literalbyte then
+                 begin
+                   literalbytevalue:=ansichar(tordconstnode(p).value.uvalue);
+                   hp.setliteralbytes(@literalbytevalue,1);
+                 end;
              end;
            stringconstn:
              begin
@@ -118,6 +124,13 @@ implementation
                    initwidestring(pw);
                    copywidestring(tstringconstnode(p).valuews,pw);
                    hp:=cconstsym.create_wstring(orgname,constwstring,pw);
+                   if tstringconstnode(p).hasliteralbytes then
+                     if length(tstringconstnode(p).literalbytes)>0 then
+                       hp.setliteralbytes(
+                         @tstringconstnode(p).literalbytes[0],
+                         length(tstringconstnode(p).literalbytes))
+                     else
+                       hp.setliteralbytes(nil,0);
                  end
                else
                  begin
@@ -2023,6 +2036,12 @@ implementation
                                initwidestring(pw);
                                copywidestring(valuews,pw);
                                sym:=cconstsym.create_wstring(orgname,constwresourcestring,pw);
+                               if hasliteralbytes then
+                                 if length(literalbytes)>0 then
+                                   tconstsym(sym).setliteralbytes(
+                                     @literalbytes[0],length(literalbytes))
+                                 else
+                                   tconstsym(sym).setliteralbytes(nil,0);
                                end;
                           end;
                       else

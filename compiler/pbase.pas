@@ -55,6 +55,10 @@ interface
        { special for function reference vars }
        getfuncrefdef : tobjectdef = nil;
 
+       { target context while parsing the compact string form of a typed
+         static array of characters }
+       getchararraydef : tarraydef = nil;
+
        { for operators }
        optoken : ttoken;
 

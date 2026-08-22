@@ -3,6 +3,11 @@ program tobjfpcliteralcastoverload1;
 {$mode objfpc}
 {$h+}
 
+{$ifdef UNIX}
+uses
+  cwstring;
+{$endif}
+
 type
   TCP1251 = type AnsiString(1251);
 

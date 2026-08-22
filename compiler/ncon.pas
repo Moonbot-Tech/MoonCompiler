@@ -69,6 +69,7 @@ interface
           value : TConstExprInt;
           rangecheck : boolean;
           delphisign : tdelphisign;
+          literalbyte : boolean;
           { create an ordinal constant node of the specified type and value.
             _rangecheck determines if the value of the ordinal should be checked
             against the ranges of the type definition.
@@ -132,6 +133,11 @@ interface
           astringdef : tdef;
           astringdefderef : tderef;
           cst_type : tconststringtype;
+          { Exact byte materialization of an otherwise Unicode literal.
+            Delphi keeps numeric #$xx fragments byte-exact when an untyped
+            literal is later consumed by RawByteString. }
+          literalbytes : TAnsiCharDynArray;
+          hasliteralbytes : boolean;
           constructor createstr(const s : string);virtual;
           constructor createpchar(s: pansichar; l: longint; def: tdef);virtual;
           constructor createunistr(w : tcompilerwidestring);virtual;
@@ -146,6 +152,8 @@ interface
           function getpcharcopy : pansichar;
           function docompare(p: tnode) : boolean; override;
           procedure changestringtype(def:tdef);
+          procedure setliteralbytes(s:pansichar; l:longint);
+          procedure getliteralbytes(out bytes:TAnsiCharDynArray);
           function fullcompare(p: tstringconstnode): longint;
           function emit_data(tcb:ttai_typedconstbuilder):sizeint; override;
           function asrawbytestring: rawbytestring;
@@ -380,6 +388,8 @@ implementation
               { no range checking; if it has a fixed type, the necessary value
                 truncation was already performed at the declaration time }
               p1:=cordconstnode.create(p.value.valueord,p.constdef,false);
+              if p.hasliteralbytes and (length(p.literalbytes)=1) then
+                tordconstnode(p1).literalbyte:=true;
             end;
           conststring :
             begin
@@ -396,7 +406,15 @@ implementation
               freemem(pc);
             end;
           constwstring :
-            p1:=cstringconstnode.createunistr(p.value.valuews);
+            begin
+              p1:=cstringconstnode.createunistr(p.value.valuews);
+              if p.hasliteralbytes then
+                if length(p.literalbytes)>0 then
+                  tstringconstnode(p1).setliteralbytes(
+                    @p.literalbytes[0],length(p.literalbytes))
+                else
+                  tstringconstnode(p1).setliteralbytes(nil,0);
+            end;
           constreal :
             begin
               if (sp_generic_para in p.symoptions) and not (sp_generic_const in p.symoptions) then
@@ -680,6 +698,7 @@ implementation
          typedef:=def;
          rangecheck := _rangecheck;
          delphisign:=ds_none;
+         literalbyte:=false;
       end;
 
 
@@ -698,6 +717,7 @@ implementation
         ppufile.getderef(typedefderef);
         value:=ppufile.getexprint;
         delphisign:=tdelphisign(ppufile.getbyte);
+        literalbyte:=ppufile.getbyte<>0;
         { normally, the value is already compiled, so we don't need
           to do once again a range check
         }
@@ -711,6 +731,7 @@ implementation
         ppufile.putderef(typedefderef);
         ppufile.putexprint(value);
         ppufile.putbyte(byte(delphisign));
+        ppufile.putbyte(byte(literalbyte));
       end;
 
 
@@ -738,6 +759,7 @@ implementation
          n.value:=value;
          n.typedef := typedef;
          n.delphisign:=delphisign;
+         n.literalbyte:=literalbyte;
          dogetcopy:=n;
       end;
 
@@ -763,6 +785,7 @@ implementation
           inherited docompare(p) and
           (value = tordconstnode(p).value) and
           (delphisign = tordconstnode(p).delphisign) and
+          (literalbyte = tordconstnode(p).literalbyte) and
           equal_defs(typedef,tordconstnode(p).typedef);
       end;
 
@@ -913,6 +936,8 @@ implementation
            move(s[1],valueas[0],l);
          lab_str:=nil;
          cst_type:=cst_conststring;
+         literalbytes:=nil;
+         hasliteralbytes:=false;
       end;
 
 
@@ -924,6 +949,8 @@ implementation
          copywidestring(w,valuews);
          lab_str:=nil;
          cst_type:=cst_unicodestring;
+         literalbytes:=nil;
+         hasliteralbytes:=false;
       end;
 
 
@@ -944,6 +971,8 @@ implementation
          else
            cst_type:=cst_conststring;
          lab_str:=nil;
+         literalbytes:=nil;
+         hasliteralbytes:=false;
       end;
 
 
@@ -991,6 +1020,15 @@ implementation
         lab_str:=tasmlabel(ppufile.getasmsymbol);
         if cst_type=cst_ansistring then
           ppufile.getderef(astringdefderef);
+        hasliteralbytes:=ppufile.getbyte<>0;
+        literalbytes:=nil;
+        if hasliteralbytes then
+          begin
+            i:=ppufile.getlongint;
+            setlength(literalbytes,i);
+            if i>0 then
+              ppufile.getdata(literalbytes[0],i);
+          end;
       end;
 
 
@@ -1007,6 +1045,13 @@ implementation
         ppufile.putasmsymbol(lab_str);
         if cst_type=cst_ansistring then
           ppufile.putderef(astringdefderef);
+        ppufile.putbyte(byte(hasliteralbytes));
+        if hasliteralbytes then
+          begin
+            ppufile.putlongint(length(literalbytes));
+            if length(literalbytes)>0 then
+              ppufile.putdata(literalbytes[0],length(literalbytes));
+          end;
       end;
 
 
@@ -1049,6 +1094,11 @@ implementation
              move(valueas[0],n.valueas[0],len);
            end;
          n.astringdef:=astringdef;
+         if hasliteralbytes then
+           if length(literalbytes)>0 then
+             n.setliteralbytes(@literalbytes[0],length(literalbytes))
+           else
+             n.setliteralbytes(nil,0);
          dogetcopy:=n;
       end;
 
@@ -1111,8 +1161,10 @@ implementation
       end;
 
     function tstringconstnode.docompare(p: tnode): boolean;
+      var
+        i: SizeInt;
       begin
-        docompare :=
+        result :=
           inherited docompare(p) and
           (len = tstringconstnode(p).len) and
           (lab_str = tstringconstnode(p).lab_str) and
@@ -1122,6 +1174,63 @@ implementation
             (cst_type = tstringconstnode(p).cst_type) and
             (fullcompare(tstringconstnode(p)) = 0))
           ;
+        if not result or
+           (hasliteralbytes<>tstringconstnode(p).hasliteralbytes) then
+          exit(false);
+        if hasliteralbytes then
+          begin
+            if length(literalbytes)<>length(tstringconstnode(p).literalbytes) then
+              exit(false);
+            for i:=0 to length(literalbytes)-1 do
+              if literalbytes[i]<>tstringconstnode(p).literalbytes[i] then
+                exit(false);
+          end;
+      end;
+
+
+    procedure tstringconstnode.setliteralbytes(s:pansichar; l:longint);
+      begin
+        hasliteralbytes:=true;
+        setlength(literalbytes,l);
+        if l>0 then
+          move(s^,literalbytes[0],l);
+      end;
+
+
+    procedure tstringconstnode.getliteralbytes(out bytes:TAnsiCharDynArray);
+      var
+        cp: tstringencoding;
+        l,l2: longint;
+      begin
+        if hasliteralbytes then
+          begin
+            bytes:=copy(literalbytes,0,length(literalbytes));
+            exit;
+          end;
+        if not(cst_type in [cst_widestring,cst_unicodestring]) then
+          begin
+            setlength(bytes,len);
+            if len>0 then
+              move(valueas[0],bytes[0],len);
+            exit;
+          end;
+        cp:=current_settings.sourcecodepage;
+        if cp=CP_UTF8 then
+          begin
+            l2:=len;
+            l:=UnicodeToUtf8(nil,0,valuews.asconstpunicodechar,l2);
+            setlength(bytes,l);
+            if l>0 then
+              UnicodeToUtf8(@bytes[0],l,valuews.asconstpunicodechar,l2);
+            if l>0 then
+              setlength(bytes,l-1);
+          end
+        else
+          begin
+            setlength(bytes,len);
+            if len>0 then
+              unicode2ascii(valuews,pansichar(@bytes[0]),cp);
+          end;
       end;
 
 
@@ -1134,7 +1243,7 @@ implementation
         pc : pansichar;
         cp1 : tstringencoding;
         cp2 : tstringencoding;
-        l,l2 : longint;
+        i,l,l2 : longint;
       begin
         if def.typ<>stringdef then
           internalerror(200510011);
@@ -1142,34 +1251,60 @@ implementation
         if (tstringdef(def).stringtype in [st_widestring,st_unicodestring]) and
            not(cst_type in [cst_widestring,cst_unicodestring]) then
           begin
+            if not hasliteralbytes then
+              setliteralbytes(asconstpchar,len);
             initwidestring(valuews);
-            ascii2unicode(asconstpchar,len,current_settings.sourcecodepage,valuews);
+            if (cst_type=cst_conststring) and
+               (current_settings.sourcecodepage=CP_UTF8) then
+              begin
+                { The scanner already turns quoted UTF-8 source text into a
+                  wide token. Bytes still present in an untyped constant are
+                  numeric #$xx fragments and denote ordinal code points. }
+                setlengthwidestring(valuews,len);
+                for i:=0 to len-1 do
+                  valuews.data[i]:=byte(valueas[i]);
+              end
+            else
+              ascii2unicode(asconstpchar,len,current_settings.sourcecodepage,valuews);
+            valueas:=nil;
           end
         else
           { convert unicode 2 ascii }
           if (cst_type in [cst_widestring,cst_unicodestring]) and
             not(tstringdef(def).stringtype in [st_widestring,st_unicodestring]) then
             begin
-              cp1:=tstringdef(def).encoding;
-              if (cp1=globals.CP_NONE) or (cp1=0) then
-                cp1:=current_settings.sourcecodepage;
-              if (cp1=CP_UTF8) then
+              if is_rawbytestring(def) and hasliteralbytes then
                 begin
-                  l2:=len;
-                  l:=UnicodeToUtf8(nil,0,valuews.asconstpunicodechar,l2);
-                  setlength(valueas,l+1);
-                  valueas[l]:=#0;
-                  if l>0 then
-                    UnicodeToUtf8(asconstpchar,l,valuews.asconstpunicodechar,l2);
-                  len:=l-1;
+                  len:=length(literalbytes);
+                  setlength(valueas,len+1);
+                  if len>0 then
+                    move(literalbytes[0],valueas[0],len);
+                  valueas[len]:=#0;
                   donewidestring(valuews);
                 end
               else
                 begin
-                  setlength(valueas,getlengthwidestring(valuews)+1);
-                  len:=Length(valueas)-1;
-                  unicode2ascii(valuews,asconstpchar,cp1);
-                  donewidestring(valuews);
+                  cp1:=tstringdef(def).encoding;
+                  if (cp1=globals.CP_NONE) or (cp1=0) then
+                    cp1:=current_settings.sourcecodepage;
+                  if (cp1=CP_UTF8) then
+                    begin
+                      l2:=len;
+                      l:=UnicodeToUtf8(nil,0,valuews.asconstpunicodechar,l2);
+                      setlength(valueas,l+1);
+                      valueas[l]:=#0;
+                      if l>0 then
+                        UnicodeToUtf8(asconstpchar,l,valuews.asconstpunicodechar,l2);
+                      len:=l-1;
+                      donewidestring(valuews);
+                    end
+                  else
+                    begin
+                      setlength(valueas,getlengthwidestring(valuews)+1);
+                      len:=Length(valueas)-1;
+                      unicode2ascii(valuews,asconstpchar,cp1);
+                      donewidestring(valuews);
+                    end;
                 end;
             end
         else

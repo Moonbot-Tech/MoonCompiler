@@ -33,6 +33,7 @@ CORE_TESTS = (
     "tdelphiconstref1",
     "tarrayconstafterinline1",
     "tdelphiunicodeliteral1",
+    "tdelphibyteconstppu1",
     "tdelphibytestringcast1",
     "tdelphiintpair1",
     "tobjfpcliteralcastoverload1",
