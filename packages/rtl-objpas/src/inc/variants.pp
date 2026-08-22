@@ -626,7 +626,13 @@ begin
     full path below }
   case TVarData(v).vType of
     varInteger  : exit(TVarData(v).vInteger);
-    varInt64    : exit(Longint(TVarData(v).vInt64));
+    { Delphi raises EVariantOverflowError on a narrowing Int64
+      conversion instead of truncating (dvl-0035/variant cluster) }
+    varInt64    : if (TVarData(v).vInt64>=Low(Longint)) and
+                     (TVarData(v).vInt64<=High(Longint)) then
+                    exit(Longint(TVarData(v).vInt64))
+                  else
+                    VarOverflowError(varInt64,varInteger);
     varSmallInt : exit(TVarData(v).vSmallInt);
     varShortInt : exit(TVarData(v).vShortInt);
     varByte     : exit(TVarData(v).vByte);
@@ -1566,24 +1572,32 @@ begin
   r := VariantToInt64(vr);
   Overflow := False;
   case OpCode of
+    { Delphi wraps the Int64 domain silently on overflow (measured:
+      $4000000000000000 * 4 = 0), it never falls back to float }
+{$push}
+{$R-}{$Q-}
+    opAdd      :  l := l  + r;
+    opSubtract :  l := l  - r;
+    opMultiply :  l := l  * r;
+{$pop}
+{$ifndef FPUNONE}
+    { the power operator is an FPC extension without a Delphi contract -
+      it keeps the checked path with the float fallback }
+    opPower:
+      begin
 {$push}
 {$R+}{$Q+}
-    opAdd..opMultiply,opPower: try
-      case OpCode of
-        opAdd      :  l := l  + r;
-        opSubtract :  l := l  - r;
-        opMultiply :  l := l  * r;
-{$ifndef FPUNONE}
-        opPower    :  l := l ** r;
-{$endif}
-      end;
-    except
-      on E: {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.ERangeError do
-        Overflow := True;
-      on E: {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.EIntOverflow do
-        Overflow := True;
-    end;
+        try
+          l := l ** r;
+        except
+          on E: {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.ERangeError do
+            Overflow := True;
+          on E: {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.EIntOverflow do
+            Overflow := True;
+        end;
 {$pop}
+      end;
+{$endif}
     opIntDivide  : l := l div r;
     opModulus    : l := l mod r;
     opShiftLeft  : l := l shl r;
@@ -1601,6 +1615,75 @@ begin
     vl.vType := varInt64;
     vl.vInt64 := l;
   end;
+end;
+
+
+procedure DoVarOpQWord(var vl : TVarData; const vr : TVarData; const OpCode : TVarOp);
+
+  function AsQWord(const v : TVarData) : QWord;
+  begin
+    { Delphi rejects mixing a negative operand into the unsigned 64-bit
+      domain with EVariantOverflowError }
+    case v.vType of
+      varShortInt : if v.vShortInt < 0 then
+                      VarOverflowError(v.vType,varQWord)
+                    else
+                      Result := QWord(v.vShortInt);
+      varSmallInt : if v.vSmallInt < 0 then
+                      VarOverflowError(v.vType,varQWord)
+                    else
+                      Result := QWord(v.vSmallInt);
+      varInteger  : if v.vInteger < 0 then
+                      VarOverflowError(v.vType,varQWord)
+                    else
+                      Result := QWord(v.vInteger);
+      varInt64    : if v.vInt64 < 0 then
+                      VarOverflowError(v.vType,varQWord)
+                    else
+                      Result := QWord(v.vInt64);
+      varQWord    : Result := v.vQWord;
+      varByte     : Result := v.vByte;
+      varWord     : Result := v.vWord;
+      varLongWord : Result := v.vLongWord;
+    else
+      Result := VariantToQWord(v);
+    end;
+  end;
+
+var
+  l, r : QWord;
+begin
+  { the power operator has no Delphi contract - keep the historical
+    Int64 path for it }
+  if OpCode = opPower then
+    begin
+      DoVarOpInt64(vl, vr, OpCode);
+      exit;
+    end;
+  l := AsQWord(vl);
+  r := AsQWord(vr);
+  case OpCode of
+    { Delphi keeps the unsigned 64-bit domain unsigned and wraps it
+      silently (measured: High(QWord) + 2 = 1) }
+{$push}
+{$R-}{$Q-}
+    opAdd        : l := l + r;
+    opSubtract   : l := l - r;
+    opMultiply   : l := l * r;
+{$pop}
+    opIntDivide  : l := l div r;
+    opModulus    : l := l mod r;
+    opShiftLeft  : l := l shl r;
+    opShiftRight : l := l shr r;
+    opAnd        : l := l and r;
+    opOr         : l := l  or r;
+    opXor        : l := l xor r;
+  else
+    VarInvalidOp(vl.vType, vr.vType, OpCode);
+  end;
+  DoVarClearIfComplex(vl);
+  vl.vType := varQWord;
+  vl.vQWord := l;
 end;
 
 procedure DoVarOpInt64to32(var vl : TVarData; const vr : TVarData; const OpCode : TVarOp);
@@ -1640,8 +1723,15 @@ begin
     vl.vType := varInteger;
     vl.vInteger := res;
   end else begin
+{$ifndef FPUNONE}
+    { Delphi sends a 32-bit domain overflow to Double, losing precision
+      by contract (measured: MaxInt*MaxInt = 4.61...E18) }
+    vl.vType := varDouble;
+    vl.vDouble := res;
+{$else}
     vl.vType := varInt64;
     vl.vInt64 := res;
+{$endif}
   end;
 end;
 
@@ -1907,10 +1997,15 @@ begin
         VarInvalidOp(TVarData(Left).vType, TVarData(Right).vType, OpCode);
       end;
     ctInt64:
-      if OpCode <> opDivide then
-        DoVarOpInt64(TVarData(Left),TVarData(Right),OpCode)
+      if OpCode = opDivide then
+        DoVarOpFloat(TVarData(Left),TVarData(Right),OpCode)
+      { a QWord operand keeps the arithmetic in the unsigned 64-bit
+        domain, like Delphi }
+      else if (TVarData(Left).vType = varQWord) or
+              (TVarData(Right).vType = varQWord) then
+        DoVarOpQWord(TVarData(Left),TVarData(Right),OpCode)
       else
-        DoVarOpFloat(TVarData(Left),TVarData(Right),OpCode);
+        DoVarOpInt64(TVarData(Left),TVarData(Right),OpCode);
     ctNull:
       DoVarOpNull(TVarData(Left),TVarData(Right),OpCode);
     ctWideStr:

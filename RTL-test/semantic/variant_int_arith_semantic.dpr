@@ -1,22 +1,30 @@
 program variant_int_arith_semantic;
 
+{$APPTYPE CONSOLE}
+
 {$ifdef FPC}
   {$mode delphi}
 {$endif}
 
-{ Semantic pin for the unchecked 32-bit variant arithmetic fast path:
-  result variant types (varInteger when the value fits, varInt64 when the
-  32-bit intermediate overflows), exact values at the signed boundaries,
-  mixed small ordinal types, and the untouched slow paths (Int64 operands
-  with their float overflow fallback, power, division).
+{ Semantic pin for Delphi-compatible integer Variant arithmetic, all
+  expectations DCC64-measured:
 
-  Known divergence from DCC64 36.0, kept pending a dedicated repair (see
-  PENDING_COMPILER_CLUSTERS "Вариантная арифметика"): on overflow DCC sends
-  the varInteger domain to varDouble (losing precision) while we escalate
-  to exact varInt64; DCC wraps the varInt64 domain silently while we fall
-  back to varDouble; DCC raises EVariantOverflowError on a narrowing
-  Int64->Integer variant conversion while we truncate.  The checks below
-  pin OUR contract to guard the fast path against regressions. }
+  - the 32-bit signed domain keeps varInteger while the value fits and
+    goes to varDouble on overflow, losing precision by contract
+    (MaxInt*MaxInt = 4.61...E18);
+  - the Int64 domain wraps silently on overflow, it never falls back to
+    float ($4000000000000000 * 4 = 0);
+  - a QWord operand keeps the arithmetic in the unsigned 64-bit domain
+    (varUInt64, silent wrap: High(QWord)+2 = 1), and mixing a negative
+    operand into it raises EVariantOverflowError;
+  - unsigned 32-bit operands (varLongWord) run in the Int64 domain and
+    stay varInt64 even when the value would fit varInteger;
+  - the narrowing Int64->Integer conversion raises EVariantOverflowError
+    instead of truncating, while conversions to Cardinal/Word truncate;
+  - div/mod stay on the Int64 path.
+
+  The ** power operator is an FPC extension without a Delphi contract
+  and keeps its checked path with the float fallback. }
 
 uses
   {$ifdef FPC}
@@ -40,6 +48,7 @@ end;
 var
   A, B, R: Variant;
   I64: Int64;
+  Raised: Boolean;
 begin
   { plain integer arithmetic keeps varInteger }
   A := 100;
@@ -57,53 +66,56 @@ begin
   If R <> -100 then
     Fail('sub value');
 
-  { 32-bit overflow promotes to varInt64 with the exact value }
-  A := High(LongInt);
-  B := High(LongInt);
+  { 32-bit signed domain overflow goes to varDouble }
+  A := Integer(2147483647);
+  B := Integer(2147483647);
   R := A * B;
-  CheckType('mul overflow', R, varInt64);
-  I64 := R;
-  If I64 <> Int64(High(LongInt)) * High(LongInt) then
+  CheckType('mul overflow', R, varDouble);
+  If Abs(Double(R) - 4.6116860141324206e18) > 1e5 then
     Fail('mul overflow value');
-  R := A + 1;
-  CheckType('add overflow', R, varInt64);
-  If R <> Int64(High(LongInt)) + 1 then
+  R := A + A;
+  CheckType('add overflow', R, varDouble);
+  If Double(R) <> 4294967294.0 then
     Fail('add overflow value');
-  A := Low(LongInt);
+  A := Integer(-2147483648);
   R := A - 1;
-  CheckType('sub underflow', R, varInt64);
-  If R <> Int64(Low(LongInt)) - 1 then
+  CheckType('sub underflow', R, varDouble);
+  If Double(R) <> -2147483649.0 then
     Fail('sub underflow value');
-  R := A * (-1);
-  CheckType('neg low', R, varInt64);
-  If R <> -Int64(Low(LongInt)) then
-    Fail('neg low value');
 
-  { a folded non-negative constant expression carries the unsigned Delphi
-    Variant type (dvl-0015): High(LongInt)-1 arrives as varLongWord, and
-    the LongWord domain runs in Int64 - DCC64 measured, both match }
-  A := High(LongInt) - 1;
-  CheckType('fit high carrier', A, varLongWord);
+  { unsigned 32-bit operands run in the Int64 domain without shrinking }
+  A := High(LongInt) - 1;   { a folded non-negative expression: varLongWord }
   R := A + 1;
   CheckType('fit high', R, varInt64);
   If R <> High(LongInt) then
     Fail('fit high value');
+  A := Word(60000);
+  B := 100000;              { literal carrier: varLongWord }
+  R := A + B;
+  CheckType('word+longword', R, varInt64);
+  If R <> 160000 then
+    Fail('word+longword value');
+  A := Cardinal(4000000000);
+  B := Cardinal(1000000000);
+  R := A + B;
+  CheckType('longword add', R, varInt64);
+  If R <> 5000000000 then
+    Fail('longword add value');
+  { and wraps like the Int64 domain }
+  A := Cardinal(4000000000);
+  B := Cardinal(4000000000);
+  R := A * B;
+  CheckType('longword mul wrap', R, varInt64);
+  If R <> Int64(-2446744073709551616) then
+    Fail('longword mul wrap value');
 
-  { mixed small ordinal source types }
+  { mixed small ordinal source types stay in the signed 32-bit domain }
   A := Byte(200);
   B := SmallInt(-300);
   R := A * B;
   CheckType('byte*smallint', R, varInteger);
   If R <> -60000 then
     Fail('byte*smallint value');
-  { the literal 100000 arrives as varLongWord (dvl-0015) and the unsigned
-    32-bit domain runs in Int64 - DCC64 measured, both match }
-  A := Word(60000);
-  B := 100000;
-  R := A + B;
-  CheckType('word+int', R, varInt64);
-  If R <> 160000 then
-    Fail('word+int value');
 
   { chains as in real expressions }
   A := 47;
@@ -112,25 +124,55 @@ begin
   If R <> 148 then
     Fail('chain value');
 
-  { Int64 operands keep the checked slow path with float fallback }
+  { the Int64 domain wraps silently }
   A := Int64($4000000000000000);
   B := 4;
   R := A * B;
-  If VarType(R) <> varDouble then
-    Fail('int64 overflow fallback type');
-  If Abs(Double(R) - 4.0 * $4000000000000000) > 1e4 then
-    Fail('int64 overflow fallback value');
+  CheckType('int64 wrap', R, varInt64);
+  If R <> 0 then
+    Fail('int64 wrap value');
   A := Int64(100);
   B := Int64(23);
   R := A + B;
   If R <> 123 then
     Fail('int64 plain add');
 
-  { power and division stay on their own paths }
+  { the unsigned 64-bit domain stays unsigned and wraps }
+  A := UInt64($8000000000000000);
+  B := 2;
+  R := A + B;
+  CheckType('uint64 add', R, varUInt64);
+  If R <> UInt64($8000000000000002) then
+    Fail('uint64 add value');
+  A := UInt64($FFFFFFFFFFFFFFFF);
+  B := UInt64(2);
+  R := A + B;
+  CheckType('uint64 wrap', R, varUInt64);
+  If R <> 1 then
+    Fail('uint64 wrap value');
+
+  { mixing a negative operand into the unsigned 64-bit domain raises }
+  A := UInt64($8000000000000000);
+  B := Integer(-1);
+  Raised := False;
+  try
+    R := A + B;
+  except
+    on EVariantOverflowError do
+      Raised := True;
+  end;
+  If not Raised then
+    Fail('uint64 + negative must raise');
+
+  { power stays on its own checked path }
+  {$ifdef FPC}
   A := 2;
   R := A ** 10;
   If R <> 1024 then
     Fail('power value');
+  {$endif FPC}
+
+  { division domains }
   A := 7;
   B := 2;
   R := A / B;
@@ -140,20 +182,40 @@ begin
   R := A div B;
   If R <> 3 then
     Fail('intdiv value');
+  A := Int64(10);
+  B := Int64(4);
+  R := A div B;
+  CheckType('int64 intdiv', R, varInt64);
+  If R <> 2 then
+    Fail('int64 intdiv value');
+  R := A mod B;
+  If R <> 2 then
+    Fail('int64 mod value');
 
-  { conversion fast paths: exact values for direct integer payloads,
-    truncation contract for Int64->LongInt, slow paths kept for floats,
-    strings and null }
+  { conversions: exact payloads, Delphi narrowing contract }
   A := 123;
   I64 := A;
   If I64 <> 123 then
-    Fail('toint64 varInteger');
+    Fail('toint64 small');
   A := Int64($123456789A);
   I64 := A;
   If I64 <> $123456789A then
     Fail('toint64 varInt64');
-  If Integer(A) <> Integer($3456789A) then
-    Fail('toint truncation');
+  Raised := False;
+  try
+    If Integer(A) = 0 then ;
+  except
+    on EVariantOverflowError do
+      Raised := True;
+  end;
+  If not Raised then
+    Fail('narrowing Int64->Integer must raise');
+  A := Integer(-5);
+  If Cardinal(A) <> 4294967291 then
+    Fail('narrowing to Cardinal truncates');
+  A := Int64(70000);
+  If Word(A) <> 4464 then
+    Fail('narrowing to Word truncates');
   A := Byte(200);
   If Integer(A) <> 200 then
     Fail('toint varByte');
