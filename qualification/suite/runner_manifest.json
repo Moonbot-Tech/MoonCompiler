@@ -1705,6 +1705,25 @@
           "fixtures/minimized/mormot_ikeyvalue_rtti_link_unit.pas"
         ]
       },
+      "record-fields-rtti": {
+        "compile_timeout_seconds": 300,
+        "compiler_allow": [
+          "moonbot-compiler-beta"
+        ],
+        "expected_marker": "MORMOT_RECORD_FIELDS_RTTI_PASS",
+        "mormot_source": "current",
+        "option_sets": {
+          "O2": [
+            "-O2"
+          ],
+          "O3": [
+            "-O3"
+          ]
+        },
+        "run_timeout_seconds": 5,
+        "source": "fixtures/minimized/mormot_record_fields_rtti_probe.pas",
+        "source_sha256": "8aea390975666db0b11cc03c7ef2c1febe9b9c7ff69858eac66655fd7a9e82db"
+      },
       "runredirect-eof": {
         "compile_timeout_seconds": 300,
         "compiler_allow": [

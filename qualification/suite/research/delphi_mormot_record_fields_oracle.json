@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "compiler": "Delphi 12.2 Win64 compiler 36.0",
+  "compiler_sha256": "68cf81c0b1044e585eb584d96947a01e669605d8ac1ed048a2de44fd867fdb88",
+  "test": {
+    "test_id": "mormot-record-fields-rtti",
+    "source_sha256": "8aea390975666db0b11cc03c7ef2c1febe9b9c7ff69858eac66655fd7a9e82db",
+    "mormot_core_rtti_sha256": "3f59e0672cdb74e76feb94a3713e20cb1f7b2fa4f8d83b521d109b8ed8990929",
+    "mormot_delphi_include_sha256": "2ccf292c63ea4376497a543bed1ef7ecbd9b9d6f33d23d299c5f1556468506b4",
+    "compile_exit_code": 0,
+    "run_exit_code": 0,
+    "expected_marker": "MORMOT_RECORD_FIELDS_RTTI_PASS"
+  }
+}

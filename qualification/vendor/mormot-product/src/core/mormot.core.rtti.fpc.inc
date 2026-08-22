@@ -456,9 +456,12 @@ function TRttiInfo.RecordAllFields(out RecSize: PtrInt): TRttiRecordAllFields;
 var
   tab: PExtendedFieldTable;
   ent: PExtendedFieldEntry;
+  info,
+  item: PRttiInfo;
   i: integer;
 begin
   result := nil; // reset any previous list
+  RecSize := RecordSize;
   tab := PRecordData(GetTypeData(@self))^.ExtendedFields;
   if (tab = nil) or
      (tab^.FieldCount = 0) then
@@ -469,7 +472,29 @@ begin
     ent := tab^.Field[i];
     with result[i] do
     begin
-      TypeInfo := DeRef(ent^.FieldType);
+      info := DeRef(ent^.FieldType);
+      if info = nil then
+      begin
+        // same contract as the Delphi branch: one field without usable RTTI
+        // makes the whole automatic record description incomplete
+        result := nil;
+        exit;
+      end;
+      if info^.Kind = rkSet then
+      begin
+        item := DeRef(PTypeData(GetTypeData(info))^.CompTypeRef);
+        if (item = nil) or
+           (item^.Kind <> rkEnumeration) then
+        begin
+          // FPC exposes e.g. "set of 0..15" through a rkInteger item, but
+          // there is no enumeration name table to drive mORMot serialization.
+          // Delphi reports the matching field type as nil, so reject the same
+          // incomplete record RTTI instead of reading a fake BaseTypeRef.
+          result := nil;
+          exit;
+        end;
+      end;
+      TypeInfo := info;
       Offset := ent^.FieldOffset;
       Name := ent^.Name;
       if Name = nil then
