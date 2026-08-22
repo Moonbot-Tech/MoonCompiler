@@ -14,6 +14,7 @@ uses
   rtti_catalog_generic,
   rtti_catalog_plain,
   rtti_catalog_runtime_tables,
+  rtti_extended_dependencies,
   rtti_delphi_defaults;
 
 type
@@ -385,6 +386,8 @@ begin
 end;
 
 begin
+  if not CheckExtendedDependencies then
+    Fail('extended RTTI dependency linkage failed');
   if not TouchNonPublicCatalogTypes then
     Fail('non-public type linkage check failed');
   if CatalogResource<>'resource-ok' then

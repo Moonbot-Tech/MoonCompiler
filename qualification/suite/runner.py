@@ -2241,6 +2241,10 @@ def run_mormot_probe_case(
     if memory_manager_source is not None and not memory_manager_source.is_file():
         raise RuntimeError(f"mORMot memory manager is missing: {memory_manager_source}")
     program_source = ROOT / probe["source"]
+    support_sources = [ROOT / path for path in probe.get("support_sources", [])]
+    for support_source in support_sources:
+        if not support_source.is_file():
+            raise RuntimeError(f"mORMot probe support source is missing: {support_source}")
 
     test_id = f"mormot-probe-{probe_id}"
     work = mormot_work_dir(
@@ -2294,6 +2298,13 @@ def run_mormot_probe_case(
         "test_id": test_id,
         "source": str(program_source.relative_to(ROOT)),
         "source_sha256": sha256(program_source),
+        "support_sources": [
+            {
+                "source": str(source.relative_to(ROOT)),
+                "source_sha256": sha256(source),
+            }
+            for source in support_sources
+        ],
         "mormot_source_commit": source.get("commit", "worktree"),
         "static_input": str(static_input.relative_to(ROOT)),
         "static_input_sha256": static_input_sha256,

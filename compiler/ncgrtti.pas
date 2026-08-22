@@ -51,9 +51,10 @@ interface
         { write comments ? }
         addcomments : boolean;
         procedure fields_write_rtti(st:tsymtable;rt:trttitype);
-        procedure params_write_rtti(def:tabstractprocdef;rt:trttitype;allow_hidden:boolean);
+        procedure params_write_rtti(def:tabstractprocdef;rt:trttitype);
         procedure fields_write_rtti_data(tcb: ttai_typedconstbuilder; def: tabstractrecorddef; rt: trttitype);
-        procedure methods_write_rtti(st:tsymtable;rt:trttitype;visibilities:tvisibilities;allow_hidden:boolean);
+        procedure methods_write_rtti(st:tsymtable;rt:trttitype;visibilities:tvisibilities);
+        procedure properties_write_rtti(st:tsymtable;rt:trttitype;visibilities:tvisibilities);
         procedure write_rtti_extrasyms(def:Tdef;rt:Trttitype;mainrtti:Tasmsymbol);
         procedure published_write_rtti(def : tobjectdef;rt:trttitype);
         procedure properties_write_rtti_data(tcb:ttai_typedconstbuilder;propnamelist:TFPHashObjectList;st:tsymtable;extended_rtti:boolean;visibilities:tvisibilities);
@@ -905,7 +906,7 @@ implementation
       end;
 
 
-    procedure TRTTIWriter.params_write_rtti(def:tabstractprocdef;rt:trttitype;allow_hidden:boolean);
+    procedure TRTTIWriter.params_write_rtti(def:tabstractprocdef;rt:trttitype);
       var
         i   : longint;
         sym : tparavarsym;
@@ -913,22 +914,19 @@ implementation
         for i:=0 to def.paras.count-1 do
           begin
             sym:=tparavarsym(def.paras[i]);
-            if not (vo_is_hidden_para in sym.varoptions) or allow_hidden then
-              begin
-                if is_open_array(sym.vardef) or is_array_of_const(sym.vardef) then
-                  write_rtti(tarraydef(sym.vardef).elementdef,rt)
-                else
-                  write_rtti(sym.vardef,rt);
-              end;
+            if is_open_array(sym.vardef) or is_array_of_const(sym.vardef) then
+              write_rtti(tarraydef(sym.vardef).elementdef,rt)
+            else
+              write_rtti(sym.vardef,rt);
           end;
       end;
 
 
-    procedure TRTTIWriter.methods_write_rtti(st:tsymtable;rt:trttitype;visibilities:tvisibilities;allow_hidden:boolean);
+    procedure TRTTIWriter.methods_write_rtti(st:tsymtable;rt:trttitype;visibilities:tvisibilities);
       var
         i,j : longint;
         sym : tprocsym;
-        def : tabstractprocdef;
+        def : tprocdef;
       begin
         for i:=0 to st.symlist.count-1 do
           if tsym(st.symlist[i]).typ=procsym then
@@ -936,10 +934,40 @@ implementation
               sym:=tprocsym(st.symlist[i]);
               for j:=0 to sym.procdeflist.count-1 do
                 begin
-                  def:=tabstractprocdef(sym.procdeflist[j]);
-                  write_rtti(def.returndef,rt);
-                  params_write_rtti(def,rt,allow_hidden);
+                  def:=tprocdef(sym.procdeflist[j]);
+                  if (not def.is_generic) and
+                     (def.visibility in visibilities) then
+                    begin
+                      write_rtti(def.returndef,rt);
+                      params_write_rtti(def,rt);
+                    end;
                 end;
+            end;
+      end;
+
+
+    procedure TRTTIWriter.properties_write_rtti(st:tsymtable;rt:trttitype;visibilities:tvisibilities);
+      var
+        i,j : longint;
+        sym : tpropertysym;
+        para : tparavarsym;
+      begin
+        for i:=0 to st.symlist.count-1 do
+          if (tsym(st.symlist[i]).typ=propertysym) and
+             (tsym(st.symlist[i]).visibility in visibilities) then
+            begin
+              sym:=tpropertysym(st.symlist[i]);
+              write_rtti(sym.propdef,rt);
+              if assigned(sym.parast) then
+                for j:=0 to sym.parast.symlist.count-1 do
+                  if tsym(sym.parast.symlist[j]).typ=paravarsym then
+                    begin
+                      para:=tparavarsym(sym.parast.symlist[j]);
+                      if is_open_array(para.vardef) or is_array_of_const(para.vardef) then
+                        write_rtti(tarraydef(para.vardef).elementdef,rt)
+                      else
+                        write_rtti(para.vardef,rt);
+                    end;
             end;
       end;
 
@@ -2808,6 +2836,13 @@ implementation
                   write_rtti(def, initrtti);
                 end;
               fields_write_rtti(trecorddef(def).symtable,rt);
+              if rt=fullrtti then
+                begin
+                  methods_write_rtti(trecorddef(def).symtable,rt,
+                    trecorddef(def).rtti_visibilities_for_option(ro_methods));
+                  properties_write_rtti(trecorddef(def).symtable,rt,
+                    trecorddef(def).rtti_visibilities_for_option(ro_properties));
+                end;
             end;
           objectdef :
             begin
@@ -2832,7 +2867,7 @@ implementation
                     end;
                   if (is_interface(def) or is_dispinterface(def))
                       and (oo_can_have_published in tobjectdef(def).objectoptions) then
-                    methods_write_rtti(tobjectdef(def).symtable,rt,[vis_published],true);
+                    methods_write_rtti(tobjectdef(def).symtable,rt,[vis_published]);
                 end;
             end;
           classrefdef,
@@ -2840,7 +2875,7 @@ implementation
             if not is_objc_class_or_protocol(tabstractpointerdef(def).pointeddef) then
               write_rtti(tabstractpointerdef(def).pointeddef,rt);
           procvardef:
-            params_write_rtti(tabstractprocdef(def),rt,false);
+            params_write_rtti(tabstractprocdef(def),rt);
           else
             ;
         end;

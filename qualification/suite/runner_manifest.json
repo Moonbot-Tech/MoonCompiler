@@ -1683,6 +1683,28 @@
   },
   "mormot": {
     "probes": {
+      "extended-rtti-generic-property-link": {
+        "compile_timeout_seconds": 300,
+        "compiler_allow": [
+          "moonbot-compiler-beta"
+        ],
+        "expected_marker": "MORMOT_IKEYVALUE_RTTI_LINK_PASS",
+        "mormot_source": "current",
+        "option_sets": {
+          "O2": [
+            "-O2"
+          ],
+          "O3": [
+            "-O3"
+          ]
+        },
+        "run_timeout_seconds": 5,
+        "source": "fixtures/minimized/mormot_ikeyvalue_rtti_link.pas",
+        "source_sha256": "50e6cea3c9d8e590a9a47ac352f4671fe5cc1dcbf0de107a5e279a999f5ac5bf",
+        "support_sources": [
+          "fixtures/minimized/mormot_ikeyvalue_rtti_link_unit.pas"
+        ]
+      },
       "runredirect-eof": {
         "compile_timeout_seconds": 300,
         "compiler_allow": [
