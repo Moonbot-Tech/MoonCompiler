@@ -24,14 +24,7 @@ EXPECTED_COMMON=(
   fty-anon-varpart-arm-lo
   zoo-stoned-cur-litfloat
 )
-EXPECTED_OMNI=(
-  moon-rtti-public-code-address-call
-  moon-rtti-public-method-catalog-visible
-  moon-rtti-public-method-direct-visible
-  moon-rtti-public-method-code-address
-)
-# The moon-rtti-public entries pin a Delphi 12.2 deviation in explicit RTTI
-# for public methods. Published methods use the same CodeAddress path and pass.
+EXPECTED_OMNI=()
 
 [[ -x "$FPC" && -f "$CFG" ]] || usage
 [[ ! -e "$RUN" ]] || {
@@ -99,7 +92,7 @@ run_program() {
 run_public_rtti_known_repro() {
   local option out log expected
   expected="$RUN/rtti-public-method.expected"
-  printf '%s\n' 'METHOD=0' 'CODE=0' 'CALLED=0' >"$expected"
+  printf '%s\n' 'METHOD=1' 'CODE=1' 'CALLED=1' >"$expected"
   for option in O2 O3; do
     out="$RUN/rtti-public-method-${option,,}"
     mkdir -p "$out"

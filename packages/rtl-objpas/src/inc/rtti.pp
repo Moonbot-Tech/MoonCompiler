@@ -62,11 +62,9 @@ uses
 {$ENDIF FPC_DOTTEDUNITS}
 
 Const
-{$IFDEF FPC_DOTTEDUNITS}
+  { with the Delphi extended RTTI enabled the context serves public
+    members and their attributes like Delphi does (dvl-0037) }
   DefaultUsePublishedOnly = Not TObject.SystemHasExtendedRTTI;
-{$ELSE}
-  DefaultUsePublishedOnly = True;
-{$ENDIF}
 
 Var
   GlobalUsePublishedOnly : Boolean = DefaultUsePublishedOnly;

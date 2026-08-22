@@ -18,11 +18,7 @@ $ExpectedCommon = @(
   'fb3-neg-zero-plus-zero', 'fb3-ord-complement-sum', 'fb3-ord-mux-nan',
   'fty-anon-varpart-arm-hi', 'fty-anon-varpart-arm-lo',
   'zoo-stoned-cur-litfloat')
-$ExpectedOmni = @(
-  'moon-rtti-public-code-address-call',
-  'moon-rtti-public-method-catalog-visible',
-  'moon-rtti-public-method-direct-visible',
-  'moon-rtti-public-method-code-address')
+$ExpectedOmni = @()
 
 If (Test-Path -LiteralPath $Run) { throw "run already exists: $Run" }
 New-Item -ItemType Directory -Path $Run | Out-Null
@@ -97,7 +93,7 @@ function Invoke-FormsProgram([string]$Name, [string]$Source) {
 }
 
 function Invoke-PublicRttiKnownRepro {
-  $Expected = @('METHOD=0', 'CODE=0', 'CALLED=0')
+  $Expected = @('METHOD=1', 'CODE=1', 'CALLED=1')
   foreach ($Option in @('O2', 'O3')) {
     $Out = Join-Path $Run "rtti-public-method-$($Option.ToLowerInvariant())"
     New-Item -ItemType Directory -Path $Out | Out-Null
@@ -130,4 +126,4 @@ $Inputs | Sort-Object -Unique | ForEach-Object {
   $Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_).Hash.ToLowerInvariant()
   "$Hash *$([IO.Path]::GetFullPath($_))"
 } | Set-Content -LiteralPath (Join-Path $Run 'SHA256SUMS') -Encoding ascii
-Write-Output 'FORMS_GATE_OK common=9 omni_extra=4 modes=2 seeds=6 programs=2 standalone=2'
+Write-Output "FORMS_GATE_OK common=$($ExpectedCommon.Count) omni_extra=$($ExpectedOmni.Count) modes=2 seeds=$($Seeds.Count) programs=2 standalone=2"

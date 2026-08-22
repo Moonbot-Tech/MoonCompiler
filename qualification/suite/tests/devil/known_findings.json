@@ -61,12 +61,6 @@
       "note": "имя метода без скобок перед reference to: мы вызываем, Delphi берёт адрес"
     },
     {
-      "id": "dvl-0037",
-      "kind": "observation-split",
-      "note_name": "^dvl-attr-(method|public-property)-readback$",
-      "note": "атрибут принят, но не попал в таблицы RTTI"
-    },
-    {
       "id": "dvl-0038",
       "case": "helper-name-as-type",
       "note": "имя хелпера в позиции типа: мы принимаем, Delphi отвергает"
@@ -125,12 +119,6 @@
       "kind": "model-mismatch",
       "check": "^dvl-uni-[0-9]+-(typename|char-kind|wide-kind)$",
       "note": "то же для строковых типов (запись реестра пересобрана после потери каталога)"
-    },
-    {
-      "id": "dvl-0040",
-      "kind": "observation-split",
-      "note_name": "^dvl-attr-rtti-explicit-public-readback$",
-      "note": "{$RTTI EXPLICIT} не управляет составом таблиц: мы пишем то, что Delphi выбрасывает"
     }
   ]
 }

@@ -1434,10 +1434,18 @@ implementation
               write_prop_params(tcb,sym.parast)
             else
               tcb.emit_tai(tai_const.create_nil_dataptr,voidpointertype);
-            { write reference to attribute table }
+            { write reference to attribute table; under an (inherited)
+              RTTI directive the property visibility must be granted by
+              the PROPERTIES set, or Delphi drops the attributes while the
+              classic property record itself stays (dvl-0040) }
             if addcomments then
               tcb.emit_comment(#9'attributes');
-            write_attribute_data(tcb,sym.rtti_attribute_list);
+            if (st.defowner.typ in [objectdef,recorddef]) and
+               tabstractrecorddef(st.defowner).has_extended_rtti and
+               not(sym.visibility in tabstractrecorddef(st.defowner).rtti_visibilities_for_option(ro_properties)) then
+              write_attribute_data(tcb,nil)
+            else
+              write_attribute_data(tcb,sym.rtti_attribute_list);
             { write property name }
             if addcomments then
               tcb.emit_comment(#9'name');
@@ -1993,6 +2001,11 @@ implementation
           begin
             propnamelist:=TFPHashObjectList.Create;
             visibilities:=def.rtti_visibilities_for_option(ro_properties);
+            { published properties stay enumerable regardless of the RTTI
+              directive - the classic M+ contract; the directive only
+              governs their attribute payload (dvl-0040) }
+            if def.typ=objectdef then
+              include(visibilities,vis_published);
             collect_propnamelist(propnamelist,def,visibilities);
             properties_write_rtti_data(tcb,propnamelist,def.symtable,true,visibilities);
             propnamelist.free;
@@ -2229,6 +2242,10 @@ implementation
           begin
             propnamelist:=TFPHashObjectList.Create;
             visibilities:=def.rtti_visibilities_for_option(ro_properties);
+            { published properties stay enumerable regardless of the RTTI
+              directive - the classic M+ contract; the directive only
+              governs their attribute payload (dvl-0040) }
+            include(visibilities,vis_published);
             collect_propnamelist(propnamelist,def,visibilities);
             properties_write_rtti_data(tcb,propnamelist,def.symtable,true,visibilities);
             propnamelist.free;

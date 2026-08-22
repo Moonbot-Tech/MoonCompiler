@@ -1,9 +1,9 @@
-omni_forms	1	FORMS_FAIL seed=1 failures=13 core_checks=101345 core_digest=3EB187C58FD1BF62 modern_checks=1510 modern_digest=47AFF71BB61D8155
-omni_forms	2	FORMS_FAIL seed=2 failures=13 core_checks=101417 core_digest=E42A52774C291719 modern_checks=1510 modern_digest=47AFF71BB61D8155
-omni_forms	3	FORMS_FAIL seed=3 failures=13 core_checks=101346 core_digest=4D6215D217AFF291 modern_checks=1510 modern_digest=47AFF71BB61D8155
-omni_forms	7885642623054963745	FORMS_FAIL seed=7885642623054963745 failures=13 core_checks=101373 core_digest=1C7B01641C6E9487 modern_checks=1510 modern_digest=47AFF71BB61D8155
-omni_forms	11400714819323198485	FORMS_FAIL seed=11400714819323198485 failures=13 core_checks=101373 core_digest=86CA16A9048CC7B0 modern_checks=1510 modern_digest=47AFF71BB61D8155
-omni_forms	18446744073709551615	FORMS_FAIL seed=18446744073709551615 failures=13 core_checks=101409 core_digest=5AD722957582BC69 modern_checks=1510 modern_digest=47AFF71BB61D8155
+omni_forms	1	FORMS_FAIL seed=1 failures=9 core_checks=101389 core_digest=8B12B169FDEA73C6 modern_checks=1510 modern_digest=47AFF71BB61D8155
+omni_forms	2	FORMS_FAIL seed=2 failures=9 core_checks=101461 core_digest=DD4688D371FF4E5D modern_checks=1510 modern_digest=47AFF71BB61D8155
+omni_forms	3	FORMS_FAIL seed=3 failures=9 core_checks=101390 core_digest=3EC7558425D4C13D modern_checks=1510 modern_digest=47AFF71BB61D8155
+omni_forms	7885642623054963745	FORMS_FAIL seed=7885642623054963745 failures=9 core_checks=101417 core_digest=C5C41D4CDCA5440B modern_checks=1510 modern_digest=47AFF71BB61D8155
+omni_forms	11400714819323198485	FORMS_FAIL seed=11400714819323198485 failures=9 core_checks=101417 core_digest=F1547AB63A8DCDF4 modern_checks=1510 modern_digest=47AFF71BB61D8155
+omni_forms	18446744073709551615	FORMS_FAIL seed=18446744073709551615 failures=9 core_checks=101453 core_digest=44B81EC22CAAE4FD modern_checks=1510 modern_digest=47AFF71BB61D8155
 mega_forms	1	MEGA_FAIL seed=1 failures=9 recorded=9 overflow=0 core_checks=68540 core_digest=22371ED2207D1331 modern_checks=33 modern_digest=153E98188DD0CD63 runtime_checks=31169810 runtime_seed=11400714819323198484 runtime_visits=16 runtime_cross=64 runtime_peak=4 runtime_managed=768/768 runtime_digest=3CC70129EC3DB950 reference_skips=0 braided_checks=24559296 braided_digest=B09E21450D996675
 mega_forms	2	MEGA_FAIL seed=2 failures=9 recorded=9 overflow=0 core_checks=68543 core_digest=DDE2A15FDC65F8EF modern_checks=33 modern_digest=153E98188DD0CD63 runtime_checks=31511535 runtime_seed=11400714819323198487 runtime_visits=16 runtime_cross=64 runtime_peak=4 runtime_managed=768/768 runtime_digest=A3B175BD37A26229 reference_skips=0 braided_checks=23987571 braided_digest=C7B93F45BFD5668A
 mega_forms	3	MEGA_FAIL seed=3 failures=9 recorded=9 overflow=0 core_checks=68572 core_digest=12310CD1FDA63FE7 modern_checks=33 modern_digest=6BB54119E102CBED runtime_checks=30874927 runtime_seed=11400714819323198486 runtime_visits=16 runtime_cross=64 runtime_peak=4 runtime_managed=768/768 runtime_digest=82F0F7D3CE6890FE reference_skips=0 braided_checks=24779646 braided_digest=BA089DCEB1A7632F
