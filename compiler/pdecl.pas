@@ -50,7 +50,7 @@ interface
     procedure threadvar_dec(out had_generic:boolean);
     procedure property_dec;
     procedure resourcestring_dec(out had_generic:boolean);
-    procedure parse_rttiattributes(var rtti_attrs_def:trtti_attribute_list);
+    procedure parse_rttiattributes(var rtti_attrs_def:trtti_attribute_list;bracket_consumed:boolean=false);
     function parse_forward_declaration(sym:tsym;gentypename,genorgtypename:tidstring;genericdef:tdef;generictypelist:tfphashobjectlist;out newtype:ttypesym):tdef;
 
 implementation
@@ -1062,7 +1062,7 @@ implementation
          internalerror(2012111101);
       end;
 
-    procedure parse_rttiattributes(var rtti_attrs_def:trtti_attribute_list);
+    procedure parse_rttiattributes(var rtti_attrs_def:trtti_attribute_list;bracket_consumed:boolean=false);
 
       function read_attr_paras:tnode;
         var
@@ -1091,7 +1091,8 @@ implementation
         typesym : ttypesym;
         parasok : boolean;
       begin
-        consume(_LECKKLAMMER);
+        if not bracket_consumed then
+          consume(_LECKKLAMMER);
 
         repeat
           { Parse attribute type }

@@ -4149,6 +4149,7 @@ implementation
     function inline_var_statement : tnode;
       var
         vs             : tabstractnormalvarsym;
+        vattrs         : trtti_attribute_list;
         hdef           : tdef;
         initexpr       : tnode;
         i              : longint;
@@ -4289,6 +4290,22 @@ implementation
             exit;
           end;
 
+        { Delphi accepts attributes before the name of an inline variable
+          (dvl-0032); locals carry no RTTI, but the attributes must parse
+          and bind so the program compiles }
+        vattrs := nil;
+        if (m_prefixed_attributes in current_settings.modeswitches) and
+           (current_scanner.token = _LECKKLAMMER) then
+          begin
+            { the attribute class name must resolve as a type }
+            old_block_type := block_type;
+            block_type := bt_type;
+            repeat
+              parse_rttiattributes(vattrs);
+            until current_scanner.token <> _LECKKLAMMER;
+            block_type := old_block_type;
+          end;
+
         if current_scanner.token <> _ID then
           begin
             consume(_ID);   { generate the expected-identifier error }
@@ -4307,6 +4324,13 @@ implementation
             sc.add(vs);
             consume(_ID);
           until not try_to_consume(_COMMA);
+
+          if assigned(vattrs) then
+            begin
+              for i := 0 to sc.count - 2 do
+                trtti_attribute_list.copyandbind(vattrs,tabstractnormalvarsym(sc[i]).rtti_attribute_list);
+              trtti_attribute_list.bind(vattrs,tabstractnormalvarsym(sc[sc.count-1]).rtti_attribute_list);
+            end;
 
           { --- now parse the type or initialiser --------------------------------- }
           if current_scanner.token = _COLON then

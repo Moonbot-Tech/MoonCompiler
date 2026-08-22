@@ -211,6 +211,8 @@ implementation
         i       : longint;
         srsym   : tsym;
         pv      : tprocvardef;
+        paraattrs : trtti_attribute_list;
+        had_ref_modifier : boolean;
         varspez : Tvarspez;
         defaultvalue : tconstsym;
         defaultrequired : boolean;
@@ -305,10 +307,33 @@ implementation
         is_univ:=false;
         repeat
           parseprocvar:=pv_none;
-          if (m_delphi in current_settings.modeswitches) and
-             (current_scanner.token=_LECKKLAMMER) then
+          { attributes and/or the bare [ref] modifier before the parameter
+            (dvl-0032); [ref] keeps its historical meaning, anything else
+            inside the brackets is an attribute }
+          paraattrs:=nil;
+          had_ref_modifier:=false;
+          if m_delphi in current_settings.modeswitches then
+            while (current_scanner.token=_LECKKLAMMER) and
+                  not had_ref_modifier do
+              begin
+                consume(_LECKKLAMMER);
+                if (current_scanner.token=_ID) and
+                   (current_scanner.pattern='REF') then
+                  begin
+                    consume(_ID);
+                    consume(_RECKKLAMMER);
+                    had_ref_modifier:=true;
+                  end
+                else
+                  begin
+                    { the attribute class name must resolve as a type }
+                    block_type:=bt_type;
+                    parse_rttiattributes(paraattrs,true);
+                    block_type:=bt_var;
+                  end;
+              end;
+          if had_ref_modifier then
             begin
-              consume_delphi_ref_modifier;
               consume(_CONST);
               varspez:=vs_constref;
             end
@@ -430,6 +455,18 @@ implementation
              vs.free; // no nil needed
             consume(_ID);
           until not try_to_consume(_COMMA);
+          if assigned(paraattrs) then
+            begin
+              for i:=0 to sc.count-2 do
+                trtti_attribute_list.copyandbind(paraattrs,tparavarsym(sc[i]).rtti_attribute_list);
+              if sc.count>0 then
+                trtti_attribute_list.bind(paraattrs,tparavarsym(sc.Last).rtti_attribute_list)
+              else
+                begin
+                  paraattrs.free;
+                  paraattrs:=nil;
+                end;
+            end;
           locationstr:='';
           { macpas anonymous procvar }
           if parseprocvar<>pv_none then

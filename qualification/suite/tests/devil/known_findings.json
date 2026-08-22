@@ -56,31 +56,6 @@
       "note": "вещественный литерал против Double/Currency: Delphi отвергает как неоднозначный, мы выбираем Double"
     },
     {
-      "id": "dvl-0032",
-      "case": "attribute-ctor-parameter",
-      "note": "атрибут перед параметром не разбирается"
-    },
-    {
-      "id": "dvl-0032",
-      "case": "attribute-ctor-inline-var",
-      "note": "атрибут перед inline-переменной не разбирается"
-    },
-    {
-      "id": "dvl-0032",
-      "case": "attribute-marker-parameter",
-      "note": "то же в позиции параметра, атрибут-маркер"
-    },
-    {
-      "id": "dvl-0032",
-      "case": "attribute-marker-inline-var",
-      "note": "то же в позиции inline-переменной, атрибут-маркер"
-    },
-    {
-      "id": "dvl-0032",
-      "case": "attribute-on-class-var",
-      "note": "атрибут перед class var не привязывается"
-    },
-    {
       "id": "dvl-0034",
       "case": "bare-method-into-reference",
       "note": "имя метода без скобок перед reference to: мы вызываем, Delphi берёт адрес"

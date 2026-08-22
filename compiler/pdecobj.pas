@@ -1181,8 +1181,10 @@ implementation
           if not((current_scanner.token in [_FUNCTION,_PROCEDURE,_PROPERTY,_VAR,_THREADVAR]) or (current_scanner.token=_DESTRUCTOR) or (current_scanner.token=_CONSTRUCTOR)) then
             Message(parser_e_procedure_or_function_expected);
 
-          { class properties currently can't have attributes }
-          if not(current_scanner.token in [_FUNCTION,_PROCEDURE]) then
+          { class properties currently can't have attributes; class var
+            fields accept them like Delphi (dvl-0032) - the field binding
+            after read_record_fields picks them up }
+          if not(current_scanner.token in [_FUNCTION,_PROCEDURE,_VAR,_THREADVAR]) then
             check_unbound_attributes;
 
           { Java interfaces can contain final class vars }
@@ -1265,8 +1267,8 @@ implementation
               end;
             _VAR :
               begin
-                check_unbound_attributes;
-                rtti_attrs_def := nil;
+                { attributes before a var/class var section bind to its
+                  first field(s), like Delphi (dvl-0032) }
                 parse_var(false);
                 { expect at least one var declaration }
                 if current_scanner.token<>_ID then
