@@ -342,6 +342,34 @@ implementation
     type
       ttypeconvnodetype = (tct_implicit,tct_explicit,tct_internal);
 
+    { Delphi picks the Variant carrier type for an integer constant by its
+      value: the smallest unsigned integer for a non-negative value, the
+      smallest signed one otherwise (dvl-0015 matrix vs DCC64 36.0). }
+    function delphi_variant_carrier_def(const value: tconstexprint): tdef;
+      begin
+        if value>=0 then
+          begin
+            if value<=255 then
+              result:=u8inttype
+            else if value<=65535 then
+              result:=u16inttype
+            else if value<=high(cardinal) then
+              result:=u32inttype
+            else if value<=high(int64) then
+              result:=s64inttype
+            else
+              result:=u64inttype;
+          end
+        else if value>=-128 then
+          result:=s8inttype
+        else if value>=-32768 then
+          result:=s16inttype
+        else if value>=low(longint) then
+          result:=s32inttype
+        else
+          result:=s64inttype;
+      end;
+
     procedure do_inserttypeconv(var p: tnode;def: tdef; convtype: ttypeconvnodetype);
 
       begin
@@ -3059,6 +3087,8 @@ implementation
         newstatement: tstatementnode;
         tempnode: ttempcreatenode;
         baseorddef: tdef;
+        carrierdef: tdef;
+        carrierpd: tprocdef;
       begin
         result:=nil;
         resultdef:=totypedef;
@@ -3178,6 +3208,39 @@ implementation
 
               te_convert_operator :
                 begin
+                  { Delphi picks the Variant carrier for an integer constant
+                    by its value, preferring the unsigned family for
+                    non-negative values; the operator search worked from the
+                    constant's own def, which prefers the signed family
+                    (dvl-0015), so re-aim it at the Delphi carrier.  Only
+                    value-shaped forms qualify: a bare literal, an untyped
+                    const and any folded constant expression carry the
+                    minimal def for their value (genintconstnode), while a
+                    typed cast (the simplify fold marks its constant with
+                    nf_explicit) or an intrinsic (a non-minimal def) keeps
+                    its formal def and, like DCC, the carrier of that
+                    formal type. }
+                  if (m_delphi in current_settings.modeswitches) and
+                     (resultdef.typ=variantdef) and
+                     (left.nodetype=ordconstn) and
+                     not(nf_explicit in left.flags) and
+                     is_integer(left.resultdef) then
+                    begin
+                      int_to_type(tordconstnode(left).value,carrierdef);
+                      if equal_defs(left.resultdef,carrierdef) then
+                        begin
+                          carrierdef:=delphi_variant_carrier_def(tordconstnode(left).value);
+                          if not equal_defs(left.resultdef,carrierdef) then
+                            begin
+                              carrierpd:=search_assignment_operator(carrierdef,resultdef,ordconstn,false);
+                              if assigned(carrierpd) then
+                                begin
+                                  aprocdef:=carrierpd;
+                                  inserttypeconv(left,carrierdef);
+                                end;
+                            end;
+                        end;
+                    end;
                   include(current_procinfo.flags,pi_do_call);
                   addsymref(aprocdef.procsym,aprocdef);
                   hp:=ccallnode.create(ccallparanode.create(left,nil),Tprocsym(aprocdef.procsym),nil,nil,[],nil);

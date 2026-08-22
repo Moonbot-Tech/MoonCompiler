@@ -1,13 +1,19 @@
 program variant_literal_type_semantic;
 
+{$APPTYPE CONSOLE}
+
+{$ifdef FPC}
 {$mode delphiunicode}{$H+}
+{$endif FPC}
 
 uses
+  {$ifdef FPC}
   mormot.core.fpcx64mm,
   {$ifdef UNIX}
   cthreads,
   cwstring,
   {$endif UNIX}
+  {$endif FPC}
   SysUtils,
   Variants;
 
@@ -23,8 +29,10 @@ end;
 var
   V, W: Variant;
 begin
+  { a non-negative literal carries the smallest unsigned Variant type
+    (dvl-0015, DCC64 measured) }
   V := 897;
-  Check(VarType(V) = varSmallInt, 'untyped bounded literal');
+  Check(VarType(V) = varWord, 'untyped bounded literal');
   Check(Integer(V) = 897, 'untyped literal value');
 
   V := Integer(897);

@@ -8,7 +8,15 @@ program variant_int_arith_semantic;
   result variant types (varInteger when the value fits, varInt64 when the
   32-bit intermediate overflows), exact values at the signed boundaries,
   mixed small ordinal types, and the untouched slow paths (Int64 operands
-  with their float overflow fallback, power, division). }
+  with their float overflow fallback, power, division).
+
+  Known divergence from DCC64 36.0, kept pending a dedicated repair (see
+  PENDING_COMPILER_CLUSTERS "Вариантная арифметика"): on overflow DCC sends
+  the varInteger domain to varDouble (losing precision) while we escalate
+  to exact varInt64; DCC wraps the varInt64 domain silently while we fall
+  back to varDouble; DCC raises EVariantOverflowError on a narrowing
+  Int64->Integer variant conversion while we truncate.  The checks below
+  pin OUR contract to guard the fast path against regressions. }
 
 uses
   {$ifdef FPC}
@@ -71,10 +79,13 @@ begin
   If R <> -Int64(Low(LongInt)) then
     Fail('neg low value');
 
-  { boundary results that still fit stay varInteger }
+  { a folded non-negative constant expression carries the unsigned Delphi
+    Variant type (dvl-0015): High(LongInt)-1 arrives as varLongWord, and
+    the LongWord domain runs in Int64 - DCC64 measured, both match }
   A := High(LongInt) - 1;
+  CheckType('fit high carrier', A, varLongWord);
   R := A + 1;
-  CheckType('fit high', R, varInteger);
+  CheckType('fit high', R, varInt64);
   If R <> High(LongInt) then
     Fail('fit high value');
 
@@ -85,10 +96,12 @@ begin
   CheckType('byte*smallint', R, varInteger);
   If R <> -60000 then
     Fail('byte*smallint value');
+  { the literal 100000 arrives as varLongWord (dvl-0015) and the unsigned
+    32-bit domain runs in Int64 - DCC64 measured, both match }
   A := Word(60000);
   B := 100000;
   R := A + B;
-  CheckType('word+int', R, varInteger);
+  CheckType('word+int', R, varInt64);
   If R <> 160000 then
     Fail('word+int value');
 

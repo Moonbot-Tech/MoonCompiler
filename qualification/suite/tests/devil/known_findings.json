@@ -132,12 +132,6 @@
       "note": "константный сдвиг шире типа (запись реестра пересобрана после потери каталога)"
     },
     {
-      "id": "dvl-0015",
-      "kind": "observation-split",
-      "note_name": "^dvl-chain-[0-9]+-variant-small$",
-      "note": "целый литерал в Variant сужается по знаковому типу (запись реестра пересобрана после потери каталога)"
-    },
-    {
       "id": "dvl-0016",
       "kind": "observation-split",
       "note_name": "^dvl-chain-[0-9]+-variant-real$",

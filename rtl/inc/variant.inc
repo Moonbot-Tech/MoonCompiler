@@ -182,7 +182,9 @@ end;
 
 operator :=(const source : dword) dest : variant;{$ifdef SYSTEMINLINE}inline;{$endif}
 begin
-  Variantmanager.varfromInt(Dest,Source,4);
+  { varfromInt takes the source bits in a longint; the explicit cast keeps
+    the constant folder quiet about values above High(LongInt) }
+  Variantmanager.varfromInt(Dest,LongInt(Source),4);
 end;
 
 
