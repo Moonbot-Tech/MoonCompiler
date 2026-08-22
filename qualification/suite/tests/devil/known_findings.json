@@ -61,16 +61,6 @@
       "note": "имя метода без скобок перед reference to: мы вызываем, Delphi берёт адрес"
     },
     {
-      "id": "dvl-0035",
-      "case": "record-operator-initialize",
-      "note": "class operator Initialize не поддержан"
-    },
-    {
-      "id": "dvl-0035",
-      "case": "record-operator-assign",
-      "note": "class operator Assign не поддержан"
-    },
-    {
       "id": "dvl-0037",
       "kind": "observation-split",
       "note_name": "^dvl-attr-(method|public-property)-readback$",

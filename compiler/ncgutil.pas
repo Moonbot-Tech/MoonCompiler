@@ -526,6 +526,13 @@ implementation
                end;
              vs_out :
                begin
+                 { the body of the Initialize management operator receives
+                   raw storage - initializing its own out parameter would
+                   recurse into itself (Delphi declares it with out) }
+                 if (current_procinfo.procdef.proctypeoption=potype_operator) and
+                    (current_procinfo.procdef.procsym.name='initialize') and
+                    (tparavarsym(p).vardef=current_procinfo.procdef.struct) then
+                   exit;
                  { we have no idea about the alignment at the callee side,
                    and the user also cannot specify "unaligned" here, so
                    assume worst case }

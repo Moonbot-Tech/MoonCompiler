@@ -177,6 +177,7 @@ type
     _WHILE,
     _WRITE,
     _ADDREF,
+    _ASSIGN,
     _CBLOCK,
     _DISPID,
     _DIVIDE,
@@ -537,6 +538,7 @@ var
       (str:'WHILE'         ;special:false;keyword:alllanguagemodes;op:NOTOKEN),
       (str:'WRITE'         ;special:false;keyword:[m_none];op:NOTOKEN),
       (str:'ADDREF'        ;special:false;keyword:[m_none];op:NOTOKEN),
+      (str:'ASSIGN'        ;special:false;keyword:[m_none];op:NOTOKEN),
       (str:'CBLOCK'        ;special:false;keyword:[m_none];op:NOTOKEN),
       (str:'DISPID'        ;special:false;keyword:[m_none];op:NOTOKEN),
       (str:'DIVIDE'        ;special:false;keyword:[m_none];op:NOTOKEN), { delphi operator name }

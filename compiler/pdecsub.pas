@@ -741,6 +741,8 @@ implementation
                     _FINALIZE:optoken:=_OP_FINALIZE;
                     _ADDREF:optoken:=_OP_ADDREF;
                     _COPY:optoken:=_OP_COPY;
+                    { Delphi name for the copy management operator }
+                    _ASSIGN:optoken:=_OP_COPY;
                     else
                     if (m_delphi in current_settings.modeswitches) then
                       case lastidtoken of
@@ -1753,24 +1755,44 @@ implementation
               { operators without result (management operators) }
               if optoken in [_OP_INITIALIZE, _OP_FINALIZE, _OP_ADDREF, _OP_COPY] then
                 begin
-                  { single var parameter to point the record }
+                  { single var parameter to point the record; Delphi declares
+                    Initialize with an out parameter (dvl-0035) - the calling
+                    convention is the same address }
                   if (optoken in [_OP_INITIALIZE, _OP_FINALIZE, _OP_ADDREF]) and
                      (
                       (pd.parast.SymList.Count<>1) or
                       (tparavarsym(pd.parast.SymList[0]).vardef<>pd.struct) or
-                      (tparavarsym(pd.parast.SymList[0]).varspez<>vs_var)
+                      not((tparavarsym(pd.parast.SymList[0]).varspez=vs_var) or
+                          ((optoken=_OP_INITIALIZE) and
+                           (tparavarsym(pd.parast.SymList[0]).varspez=vs_out)))
                      ) then
                     Message(parser_e_overload_impossible)
-                  { constref (source) and var (dest) parameter to point the records }
-                  else if (optoken=_OP_COPY) and
-                     (
-                      (pd.parast.SymList.Count<>2) or
-                      (tparavarsym(pd.parast.SymList[0]).vardef<>pd.struct) or
-                      (tparavarsym(pd.parast.SymList[0]).varspez<>vs_constref) or
-                      (tparavarsym(pd.parast.SymList[1]).vardef<>pd.struct) or
-                      (tparavarsym(pd.parast.SymList[1]).varspez<>vs_var)
-                     ) then
-                    Message(parser_e_overload_impossible);
+                  { constref (source) and var (dest) parameter to point the
+                    records; Delphi's Assign form declares (var Dest;
+                    const [ref]/var Src) - accept it and swap the parameter
+                    numbers so the physical convention matches the runtime's
+                    (source, dest) order while the body keeps its names }
+                  else if optoken=_OP_COPY then
+                    begin
+                      if (pd.parast.SymList.Count=2) and
+                         (tparavarsym(pd.parast.SymList[0]).vardef=pd.struct) and
+                         (tparavarsym(pd.parast.SymList[0]).varspez=vs_var) and
+                         (tparavarsym(pd.parast.SymList[1]).vardef=pd.struct) and
+                         (tparavarsym(pd.parast.SymList[1]).varspez in [vs_constref,vs_var]) then
+                        begin
+                          i:=tparavarsym(pd.parast.SymList[0]).paranr;
+                          tparavarsym(pd.parast.SymList[0]).paranr:=
+                            tparavarsym(pd.parast.SymList[1]).paranr;
+                          tparavarsym(pd.parast.SymList[1]).paranr:=i;
+                          pd.calcparas;
+                        end
+                      else if (pd.parast.SymList.Count<>2) or
+                         (tparavarsym(pd.parast.SymList[0]).vardef<>pd.struct) or
+                         (tparavarsym(pd.parast.SymList[0]).varspez<>vs_constref) or
+                         (tparavarsym(pd.parast.SymList[1]).vardef<>pd.struct) or
+                         (tparavarsym(pd.parast.SymList[1]).varspez<>vs_var) then
+                        Message(parser_e_overload_impossible);
+                    end;
 
                   trecordsymtable(pd.procsym.Owner).includemanagementoperator(
                     token2managementoperator(optoken));
