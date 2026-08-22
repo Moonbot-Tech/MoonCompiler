@@ -8,6 +8,7 @@ mm=${4:?bundled memory-manager source is required}
 seed=${5:-5579800982869324342}
 tool_dir=$(cd "$(dirname "$0")" && pwd)
 src=$(cd "$tool_dir/../../tests/memory" && pwd)
+perf_common=$(cd "$tool_dir/../../../performance/common" && pwd)
 mm=$(realpath "$mm")
 mm_dir=$(dirname "$mm")
 build=$root/build
@@ -91,6 +92,11 @@ compile_test product small-pool-leak-report memory_small_pool_last_free_finalize
   -dFPCMM_REPORTMEMORYLEAKS -dFPCMM_MEDIUMLASTFREE_TEST
 compile_test product memory-large-boundary memory_large_boundary.dpr
 compile_test product memory-mega memory_mega.dpr
+compile_test product memory-massive memory_massive.dpr \
+  -Fu"$perf_common" -dFPCMM_SMALLLASTFREE_TEST -dFPCMM_MEDIUMLASTFREE_TEST
+compile_test product memory-massive-diagnostic memory_massive.dpr \
+  -Fu"$perf_common" -dFPCMM_SMALLLASTFREE_TEST -dFPCMM_MEDIUMLASTFREE_TEST \
+  -dFPCX64MM_DIAGNOSTIC -dFPCX64MM_DIAGNOSTIC_LARGE
 compile_test product memory-chaos memory_chaos.dpr
 compile_test product memory-chaos-diagnostic memory_chaos.dpr \
   -dFPCX64MM_DIAGNOSTIC -dFPCX64MM_DIAGNOSTIC_LARGE
@@ -117,6 +123,15 @@ grep -q 'MEMORY_LARGE_BOUNDARY_PASS' \
   "$results/memory-large-boundary/run.log"
 run_one memory-mega-full "$build/memory-mega/memory-mega" full "$seed"
 grep -q 'MEMORY_MEGA_PASS' "$results/memory-mega-full/run.log"
+run_one memory-massive-quick \
+  "$build/memory-massive/memory-massive" quick "$seed"
+grep -q 'MEMORY_MASSIVE_PASS' "$results/memory-massive-quick/run.log"
+run_one memory-massive-diagnostic-quick \
+  "$build/memory-massive-diagnostic/memory-massive-diagnostic" quick "$seed"
+grep -q 'MEMORY_MASSIVE_PASS' \
+  "$results/memory-massive-diagnostic-quick/run.log"
+grep -Eq 'FPCX64MM_DIAGNOSTIC verify live=0 large=0 small-pending=[0-9]+ medium-pending=[0-9]+' \
+  "$results/memory-massive-diagnostic-quick/run.log"
 run_one memory-chaos-release "$build/memory-chaos/memory-chaos" \
   all "$seed" 5 8
 grep -q 'CHAOS_PASS' "$results/memory-chaos-release/run.log"

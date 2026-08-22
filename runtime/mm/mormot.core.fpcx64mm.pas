@@ -328,6 +328,11 @@ function Fpcx64mmDebugFreedPoisonCount: QWord;
 
 {$ifdef FPCMM_SMALLLASTFREE_TEST}
 procedure Fpcx64mmTestLockSmallBlockType(P: pointer; Locked: boolean);
+/// lock the selected request class and its allocation fallbacks in all arenas
+procedure Fpcx64mmTestLockSmallRequestClasses(Size: PtrUInt;
+  ClassCount: cardinal; Locked: boolean);
+/// total number of allocator sleeps across all small request sizes
+function Fpcx64mmTestSmallGetmemSleepCount: cardinal;
 function Fpcx64mmTestSmallLastFreeCount(P: pointer): cardinal;
 procedure Fpcx64mmTestCorruptSmallLastFreeHead(P: pointer);
 {$endif FPCMM_SMALLLASTFREE_TEST}
@@ -5277,6 +5282,43 @@ begin
   pool := PSmallBlockPoolHeader(
     PPtrUInt(PByte(P) - BlockHeaderSize)^ and DropSmallFlagsMask);
   pool^.BlockType^.Locked := Locked;
+end;
+
+procedure Fpcx64mmTestLockSmallRequestClasses(Size: PtrUInt;
+  ClassCount: cardinal; Locked: boolean);
+var
+  arena, classindex, offset: cardinal;
+  blocktype: PSmallBlockType;
+begin
+  if (ClassCount = 0) or
+     (Size > MaximumSmallBlockSize - BlockHeaderSize) then
+    exit;
+  classindex := SmallBlockInfo.GetmemLookup[
+    (Size + BlockHeaderSize - 1) div SmallBlockGranularity];
+  if classindex + ClassCount > NumSmallBlockTypes then
+    ClassCount := NumSmallBlockTypes - classindex;
+  blocktype := @SmallBlockInfo.Small[classindex];
+  for offset := 0 to ClassCount - 1 do
+    PSmallBlockType(PByte(blocktype) +
+      offset * SizeOf(TSmallBlockType))^.Locked := Locked;
+  if classindex >= NumTinyBlockTypes then
+    exit;
+  for arena := 0 to NumTinyBlockArenas - 1 do
+  begin
+    blocktype := @SmallBlockInfo.Tiny[arena][classindex];
+    for offset := 0 to ClassCount - 1 do
+      PSmallBlockType(PByte(blocktype) +
+        offset * SizeOf(TSmallBlockType))^.Locked := Locked;
+  end;
+end;
+
+function Fpcx64mmTestSmallGetmemSleepCount: cardinal;
+var
+  i: cardinal;
+begin
+  result := 0;
+  for i := 0 to high(SmallBlockInfo.GetmemSleepCount) do
+    inc(result, SmallBlockInfo.GetmemSleepCount[i]);
 end;
 
 function Fpcx64mmTestSmallLastFreeCount(P: pointer): cardinal;
