@@ -11,6 +11,76 @@ import runner
 
 
 class RunnerContractsTest(unittest.TestCase):
+    def test_current_compiler_paths_follow_the_host_platform(self) -> None:
+        compiler = {
+            "driver": "linux/bin/fpc",
+            "config": "linux/etc/fpc.cfg",
+            "driver_win64": "win64/fpc.exe",
+            "config_win64": "win64/fpc.cfg",
+        }
+        with mock.patch.object(
+            runner, "compiler_platform_name", return_value="win64",
+        ):
+            self.assertEqual(
+                runner.compiler_path(compiler, "driver"),
+                runner.ROOT / "win64/fpc.exe",
+            )
+            self.assertEqual(
+                runner.compiler_path(compiler, "config"),
+                runner.ROOT / "win64/fpc.cfg",
+            )
+        with mock.patch.object(
+            runner, "compiler_platform_name", return_value="linux",
+        ):
+            self.assertEqual(
+                runner.compiler_path(compiler, "driver"),
+                runner.ROOT / "linux/bin/fpc",
+            )
+            self.assertEqual(
+                runner.compiler_path(compiler, "config"),
+                runner.ROOT / "linux/etc/fpc.cfg",
+            )
+
+    def test_executable_path_uses_the_host_suffix(self) -> None:
+        source = Path("fixture.pas")
+        with mock.patch.object(runner, "executable_suffix", return_value=".exe"):
+            self.assertEqual(
+                runner.executable_path(Path("build"), source),
+                Path("build/fixture.exe"),
+            )
+        with mock.patch.object(runner, "executable_suffix", return_value=""):
+            self.assertEqual(
+                runner.executable_path(Path("build"), source),
+                Path("build/fixture"),
+            )
+
+    def test_fixture_expectations_are_platform_specific(self) -> None:
+        manifest = {
+            "compilers": {
+                "current": {
+                    "fixture_exact_expectation_alias_win64": "current-win64",
+                },
+            },
+        }
+        with mock.patch.object(
+            runner, "compiler_platform_name", return_value="win64",
+        ):
+            self.assertEqual(
+                runner.fixture_exact_expectation_compiler(manifest, "current"),
+                "current-win64",
+            )
+        with mock.patch.object(
+            runner, "compiler_platform_name", return_value="linux",
+        ):
+            self.assertEqual(
+                runner.fixture_exact_expectation_compiler(manifest, "current"),
+                "current",
+            )
+        self.assertEqual(
+            runner.fixture_exact_expectation_compilers(manifest, "current"),
+            {"current", "current-win64"},
+        )
+
     def test_automatic_run_directories_do_not_collide(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

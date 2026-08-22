@@ -114,13 +114,28 @@ def mormot_test_inputs(
     return staged_root / "test/mormot2tests.dpr", provenance_source
 
 
+def compiler_platform_name() -> str:
+    return "win64" if os.name == "nt" else "linux"
+
+
+def compiler_path(compiler: dict[str, Any], name: str) -> Path | None:
+    platform_name = compiler_platform_name()
+    value = compiler.get(f"{name}_{platform_name}", compiler.get(name))
+    if value is None:
+        return None
+    path = Path(value)
+    if not path.is_absolute():
+        path = ROOT / path
+    return path
+
+
 def compiler_provenance(compiler: dict[str, Any]) -> str:
-    key = compiler["driver"]
+    driver = compiler_path(compiler, "driver")
+    if driver is None:
+        raise RuntimeError("compiler driver is not configured")
+    key = str(driver)
     if key in COMPILER_PROVENANCE:
         return COMPILER_PROVENANCE[key]
-    driver = Path(key)
-    if not driver.is_absolute():
-        driver = ROOT / driver
     if not driver.is_file():
         raise RuntimeError(f"compiler driver is missing: {driver}")
     actual = sha256(driver)
@@ -130,14 +145,12 @@ def compiler_provenance(compiler: dict[str, Any]) -> str:
 
 def compiler_command(compiler: dict[str, Any]) -> list[str]:
     compiler_provenance(compiler)
-    driver = Path(compiler["driver"])
-    if not driver.is_absolute():
-        driver = ROOT / driver
+    driver = compiler_path(compiler, "driver")
+    if driver is None:
+        raise RuntimeError("compiler driver is not configured")
     command = [str(driver)]
-    if compiler.get("config"):
-        config = Path(compiler["config"])
-        if not config.is_absolute():
-            config = ROOT / config
+    config = compiler_path(compiler, "config")
+    if config is not None:
         command.extend(["-n", f"@{config}"])
     for arg in compiler.get("base_args", []):
         if arg.startswith("-Fu") and not Path(arg[3:]).is_absolute():
@@ -205,9 +218,23 @@ def fixture_case_key(test_id: str, compiler_id: str, option_id: str) -> str:
 def fixture_exact_expectation_compiler(
     manifest: dict[str, Any], compiler_id: str,
 ) -> str:
-    return manifest["compilers"][compiler_id].get(
-        "fixture_exact_expectation_alias", compiler_id,
+    compiler = manifest["compilers"][compiler_id]
+    default = compiler.get("fixture_exact_expectation_alias", compiler_id)
+    return compiler.get(
+        f"fixture_exact_expectation_alias_{compiler_platform_name()}", default,
     )
+
+
+def fixture_exact_expectation_compilers(
+    manifest: dict[str, Any], compiler_id: str,
+) -> set[str]:
+    compiler = manifest["compilers"][compiler_id]
+    default = compiler.get("fixture_exact_expectation_alias", compiler_id)
+    return {
+        default,
+        compiler.get("fixture_exact_expectation_alias_linux", default),
+        compiler.get("fixture_exact_expectation_alias_win64", default),
+    }
 
 
 def fixture_compatibility_compiler(
@@ -361,14 +388,15 @@ def fixture_matrix(manifest: dict[str, Any]) -> set[str]:
             for option_id in manifest["option_sets"]:
                 if test.get("option_allow") and option_id not in test["option_allow"]:
                     continue
-                key = fixture_case_key(
-                    test["id"],
-                    fixture_exact_expectation_compiler(manifest, compiler_id),
-                    option_id,
-                )
-                if key in keys:
-                    raise RuntimeError(f"duplicate fixture matrix key: {key}")
-                keys.add(key)
+                for expectation_compiler in fixture_exact_expectation_compilers(
+                    manifest, compiler_id,
+                ):
+                    key = fixture_case_key(
+                        test["id"], expectation_compiler, option_id,
+                    )
+                    if key in keys:
+                        raise RuntimeError(f"duplicate fixture matrix key: {key}")
+                    keys.add(key)
     return keys
 
 
@@ -674,7 +702,11 @@ def run_process(
     env: dict[str, str] | None = None,
 ) -> tuple[int | None, bool, float]:
     start = time.monotonic()
-    full_command = ["nice", "-n", "15", "ionice", "-c2", "-n7", *command]
+    is_windows = os.name == "nt"
+    full_command = (
+        command if is_windows
+        else ["nice", "-n", "15", "ionice", "-c2", "-n7", *command]
+    )
     with log_path.open("w", encoding="utf-8") as log:
         log.write("COMMAND " + shlex.join(full_command) + "\n")
         log.flush()
@@ -684,25 +716,44 @@ def run_process(
             env=env,
             stdout=log,
             stderr=subprocess.STDOUT,
-            start_new_session=True,
+            start_new_session=not is_windows,
         )
         try:
             return process.wait(timeout=timeout), False, time.monotonic() - start
         except subprocess.TimeoutExpired:
-            try:
-                os.killpg(process.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+            if is_windows:
+                subprocess.run(
+                    ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                )
+            else:
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
             try:
                 process.wait(timeout=3)
             except subprocess.TimeoutExpired:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
+                if is_windows:
+                    process.kill()
+                else:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
                 process.wait()
             log.write(f"TIMEOUT after {timeout}s\n")
             return None, True, time.monotonic() - start
+
+
+def executable_suffix() -> str:
+    return ".exe" if os.name == "nt" else ""
+
+
+def executable_path(directory: Path, source: Path) -> Path:
+    return directory / f"{source.stem}{executable_suffix()}"
 
 
 def compile_and_run(
@@ -745,7 +796,7 @@ def compile_and_run(
     elif test.get("compile_only", False):
         observed = "pass"
     else:
-        executable = work / source.stem
+        executable = executable_path(work, source)
         run_rc, run_timeout, run_seconds = run_process(
             [str(executable), *(run_args or [])], ROOT,
             test.get("run_timeout_seconds", 90), run_log,
@@ -958,7 +1009,7 @@ def compile_ppu_and_consumer(
             observed = "pass"
             failure_phase = None
         else:
-            executable = consumer_work / consumer.stem
+            executable = executable_path(consumer_work, consumer)
             run_rc, run_timeout, run_seconds = run_process(
                 [str(executable)], ROOT, 90, run_log
             )
@@ -1316,7 +1367,7 @@ def run_benchmark(
             work = build_root / compiler_id / option_id
             units = work / "units"
             units.mkdir(parents=True, exist_ok=True)
-            executable = work / source.stem
+            executable = executable_path(work, source)
             compile_log = work / "compile.log"
             command = compiler_command(compiler)
             command.extend(options)

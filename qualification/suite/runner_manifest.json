@@ -115,8 +115,11 @@
     },
     "moonbot-compiler-beta": {
       "config": "../../.moonbot/toolchain/etc/fpc.cfg",
+      "config_win64": "../../.moonbot/toolchain/bin/x86_64-win64/fpc.cfg",
       "driver": "../../.moonbot/toolchain/bin/fpc",
+      "driver_win64": "../../.moonbot/toolchain/bin/x86_64-win64/fpc.exe",
       "fixture_compatibility_alias": "unleashed-latest",
+      "fixture_exact_expectation_alias_win64": "moonbot-compiler-beta-win64",
       "kind": "current-worktree"
     },
     "fpc-ea11517-affected": {
@@ -348,7 +351,7 @@
   },
   "fixture_expectations": {
     "path": "research/fixture_expected_outcomes.audited-002.json",
-    "sha256": "1addd11ed7b550ba7b539323c1ba467be5ac0c5c440f494572187732ae6126ed"
+    "sha256": "6884679e82cb570b3dde53e993bb72652cd49223ba133d5a55b5f701105696ca"
   },
   "fixture_oracles": {
     "path": "research/fixture_oracles.json",

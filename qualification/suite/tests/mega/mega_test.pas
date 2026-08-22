@@ -10,7 +10,7 @@ program mega_test;
 {$endif}
 
 uses
-  cthreads, SysUtils, Classes, Math, mega_portable;
+  {$ifdef UNIX}cthreads,{$endif} SysUtils, Classes, Math, mega_portable;
 
 const
   WorkerCount = 4;
