@@ -374,6 +374,7 @@ implementation
 
     uses
       SysUtils,
+      charset,
       cutils,cfileutl,
       systems,
       switches,
@@ -6192,7 +6193,12 @@ type
       trimcount,m,code,len,quote_count,init_quote_count,whitespace_count,quote_col : integer;
       style : tQuoteStyle;
       iswidestring : boolean;
+      { the wide content came from a quoted source character (not from a
+        #-escape) - only meaningful for single-character literals }
+      widecharquoted : boolean;
+      ansimap : punicodemap;
       asciinr : string[33];
+      ansiliteral : ansistring;
       last_c : char;
       whitespace_only, had_newline, first_multiline, backtick : boolean;
       d : cardinal;
@@ -6209,6 +6215,7 @@ type
       had_newline:=false;
       first_multiline:=false;
       had_multiline_string:=false;
+      widecharquoted:=false;
       backtick:=(c='`');
       if backtick then
         style:=qsBacktick
@@ -6449,6 +6456,7 @@ type
                 { interpret as utf-8 string? }
                 if (ord(c)>=$80) and (current_settings.sourcecodepage=CP_UTF8) then
                   begin
+                    widecharquoted:=true;
                     { convert existing string to an utf-8 string }
                     if not iswidestring then
                       begin
@@ -6670,7 +6678,26 @@ type
             postprocessutf8multiline(len,quote_col,init_quote_count);
             end;
           if patternw.len=1 then
-            token:=_CWCHAR
+            begin
+              token:=_CWCHAR;
+              { dvl-0029: Delphi types a quoted non-ASCII character literal
+                through the system ANSI codepage - a representable character
+                becomes AnsiChar carrying the ANSI byte, everything else
+                stays wide.  #-escapes keep the width their form selects. }
+              if widecharquoted then
+                begin
+                  ansimap:=charliteralmap;
+                  if assigned(ansimap) then
+                    begin
+                      ansiliteral:=getascii(tunicodechar(getcharwidestring(patternw,0)),ansimap);
+                      if (length(ansiliteral)=1) and (ansiliteral[1]<>'?') then
+                        begin
+                          token:=_CCHAR;
+                          pattern:=ansiliteral;
+                        end;
+                    end;
+                end;
+            end
           else
             token:=_CWSTRING;
         end

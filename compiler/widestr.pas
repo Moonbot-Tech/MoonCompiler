@@ -51,6 +51,9 @@ unit widestr;
     procedure concatwidestrings(s1,s2 : tcompilerwidestring);
     function comparewidestrings(s1,s2 : tcompilerwidestring) : SizeInt;
     procedure copywidestring(s,d : tcompilerwidestring);
+    { the system ANSI codepage map byte characters live in under the
+      Delphi Unicode ABI with a UTF-8 source file, nil otherwise }
+    function charliteralmap : punicodemap;
     function asciichar2unicode(c : char) : tcompilerwidechar;
     function unicode2asciichar(c : tcompilerwidechar) : char;
     procedure ascii2unicode(p : pansichar;l : SizeInt;cp : tstringencoding;r : tcompilerwidestring;codepagetranslation : boolean = true);
@@ -177,6 +180,22 @@ unit widestr;
          comparewidestrings:=temp;
       end;
 
+    function charliteralmap : punicodemap;
+      begin
+        { In the Delphi Unicode ABI byte characters semantically carry the
+          system ANSI codepage even when the source file itself is UTF-8
+          (dvl-0029): a quoted non-ASCII literal is tokenized to its ANSI
+          byte, so the byte<->wide character conversions must run over the
+          same map. }
+        if (current_settings.sourcecodepage=CP_UTF8) and
+           (m_delphi in current_settings.modeswitches) and
+           (m_default_unicodestring in current_settings.modeswitches) and
+           mappingavailable(DefaultSystemCodePage) then
+          result:=getmap(DefaultSystemCodePage)
+        else
+          result:=nil;
+      end;
+
     function asciichar2unicode(c : char) : tcompilerwidechar;
       var
          m : punicodemap;
@@ -187,18 +206,23 @@ unit widestr;
              asciichar2unicode:=getunicode(c,m);
            end
          else
-           result:=tcompilerwidechar(c);
+           begin
+             m:=charliteralmap;
+             if assigned(m) then
+               result:=tcompilerwidechar(getunicode(c,m))
+             else
+               result:=tcompilerwidechar(c);
+           end;
       end;
 
     function unicode2asciichar(c : tcompilerwidechar) : char;
-      {begin
-        if word(c)<128 then
-          unicode2asciichar:=char(word(c))
-         else
-          unicode2asciichar:='?';
-      end;}
+      var
+         m : punicodemap;
       begin
-         Result := getascii(c,getmap(current_settings.sourcecodepage))[1];
+         m:=charliteralmap;
+         if not assigned(m) then
+           m:=getmap(current_settings.sourcecodepage);
+         Result := getascii(c,m)[1];
       end;
 
 
