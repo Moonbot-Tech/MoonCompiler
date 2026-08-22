@@ -9,10 +9,11 @@ uses
   mormot.core.fpcx64mm;
 
 const
-  BoundarySizes: array[0..13] of PtrUInt = (
+  BoundarySizes: array[0..16] of PtrUInt = (
     264744, 264745,
     327640, 327641, 327642,
     655320, 655321, 655322,
+    1048575, 1048576, 1048577,
     4194264, 4194265, 4194266,
     6291416, 6291417, 6291418);
 
