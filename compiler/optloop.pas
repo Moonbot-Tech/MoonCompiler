@@ -695,7 +695,10 @@ unit optloop;
                       addstatement(initcodestatements,tempnode);
                       addstatement(initcodestatements,cassignmentnode.create(
                         ctemprefnode.create(tempnode),
-                        caddrnode.create(cvecnode.create(
+                        { This is the address of the element storage, also for
+                          procvar elements.  A source-level @ProcVar may mean
+                          the stored code address instead. }
+                        caddrnode.create_internal(cvecnode.create(
                           tvecnode(n).left.getcopy,
                           tvecnode(n).right.getcopy))));
                       n:=ctypeconvnode.create_internal(
@@ -724,15 +727,18 @@ unit optloop;
                 { plain read of the loop variable? }
                 not(nf_write in tvecnode(n).right.flags) and
                 not(nf_modify in tvecnode(n).right.flags) and
+                { The replacement is a raw maintained pointer and therefore
+                  cannot preserve a source-level range/overflow check at each
+                  element access. }
+                (([cs_check_overflow,cs_check_range]*n.localswitches)=[]) and
                 { direct array access? }
                 ((tvecnode(n).left.nodetype=loadn) or
                 { ... or loop invariant expression? }
                 is_loop_invariant(currforloop,tvecnode(n).right)) and
                 { a dynamic array needs its base pointer pinned for the whole
-                  loop, and the raw deref drops the per-element range check }
+                  loop }
                 (not(is_dynamic_array(tvecnode(n).left.resultdef)) or
-                 ((([cs_check_overflow,cs_check_range]*n.localswitches)=[]) and
-                  dynarray_base_is_loop_invariant(currforloop,tvecnode(n).left)))
+                 dynarray_base_is_loop_invariant(currforloop,tvecnode(n).left))
 {$if not (defined(cpu16bitalu) or defined(cpu8bitalu))}
                 { removing the multiplication is only worth the
                   effort if it's not a simple shift ... }
@@ -791,14 +797,20 @@ unit optloop;
                       addstatement(initcodestatements,tempnode);
 
                       startvaltemp:=maybereplacewithtemp(currforloop.right,initcode,initcodestatements,currforloop.right.resultdef.size,true);
-                      nn:=caddrnode.create(
-                          { An address delta is signed even if array indexing
-                            normalized the original index to an unsigned type.
-                            Zero-extending a negative loop bound would move a
-                            32-bit index 4 Gi elements above the array. }
-                          cvecnode.create(tvecnode(n).left.getcopy,
-                            ctypeconvnode.create_internal(currforloop.right.getcopy,ptrsinttype))
-                        );
+                      { The maintained pointer is an address cursor, not a
+                        source-level element access.  A guarded loop may start
+                        before or after the array's declared slice and only
+                        dereference once the source guard admits the index.
+                        Use an explicitly signed address delta and do not
+                        narrow it to the source array's enum/subrange. }
+                      nn:=cvecnode.create(tvecnode(n).left.getcopy,
+                        ctypeconvnode.create_internal(
+                          currforloop.right.getcopy,ptrsinttype));
+                      include(tvecnode(nn).vecnodeflags,vnf_internal_address_index);
+                      { Request the storage address explicitly: normal Pascal
+                        @ProcVar denotes the stored code address in modes where
+                        procedure variables have special @ semantics. }
+                      nn:=caddrnode.create_internal(nn);
                       { If the calculation is not performed at the end
                         it is needed to adjust the starting value }
                       if not docalcatend then

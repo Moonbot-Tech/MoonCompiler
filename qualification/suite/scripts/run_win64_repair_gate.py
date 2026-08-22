@@ -52,6 +52,7 @@ CORE_TESTS = (
     "tmoonattributemarker1",
     "tloopinvariantaddr1",
     "tloopinvariantarraywrite1",
+    "tstrengthenumguard1",
     "tdelphiinlineexceptreg1",
     "tdelphiinlinefuncrettemp1",
 )

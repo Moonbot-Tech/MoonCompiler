@@ -150,7 +150,12 @@ interface
          vnf_callunique,
          { The array index was an ordinal constant in the parsed source.
            Optimizer and inliner substitutions must not acquire this flag. }
-         vnf_source_const_index
+         vnf_source_const_index,
+         { Internal address-only indexing used by induction-variable
+           strength reduction.  The maintained pointer may start outside a
+           guarded array slice, so keep its signed machine index instead of
+           narrowing it to the source array's declared index range. }
+         vnf_internal_address_index
        );
 
        TVecNodeFlags = set of TVecNodeFlag;
@@ -1186,7 +1191,8 @@ implementation
 
          { maybe type conversion for the index value, but
            do not convert range nodes }
-         if (right.nodetype<>rangen) then
+         if (right.nodetype<>rangen) and
+            not(vnf_internal_address_index in vecnodeflags) then
            case left.resultdef.typ of
              arraydef:
                begin
@@ -1358,8 +1364,9 @@ implementation
            arraydef :
              begin
                { check type of the index value }
-               if (compare_defs(right.resultdef,tarraydef(left.resultdef).rangedef,right.nodetype)=te_incompatible) then
-                 IncompatibleTypes(right.resultdef,tarraydef(left.resultdef).rangedef);
+                if not(vnf_internal_address_index in vecnodeflags) and
+                   (compare_defs(right.resultdef,tarraydef(left.resultdef).rangedef,right.nodetype)=te_incompatible) then
+                  IncompatibleTypes(right.resultdef,tarraydef(left.resultdef).rangedef);
                if right.nodetype=rangen then
                  resultdef:=left.resultdef
                else
