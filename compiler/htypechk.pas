@@ -85,6 +85,7 @@ interface
         procedure create_candidate_list(flags:tcallcandidatesflags;spezcontext:tspecializationcontext);
         procedure calc_distance(st_root:tsymtable;flags:tcallcandidatesflags);
         function  proc_add(st:tsymtable;pd:tprocdef):pcandidate;
+        function  compare_delphi_character_argument(currpd,bestpd:pcandidate):integer;
         function  compare_delphi_contextual_uint64(currpd,bestpd:pcandidate):integer;
         function  compare_delphi_same_width_integer_pair(currpd,bestpd:pcandidate):integer;
       public
@@ -3358,6 +3359,17 @@ implementation
                if (def_from=def_to) then
                  eq:=te_exact
               else
+              { Delphi resolves a character literal to a character overload
+                before considering any string overload, even when narrowing a
+                WideChar literal to AnsiChar. Keep the exact character type
+                above, and rank any other character target as equal here. }
+               if assigned(currpara) and
+                  not(currpara.varspez in [vs_var,vs_out]) and
+                  (currpt.left.nodetype=ordconstn) and
+                  (is_char(def_from) or is_widechar(def_from)) and
+                  (is_char(def_to) or is_widechar(def_to)) then
+                 eq:=te_equal
+              else
               { for value and const parameters check if a integer is constant or
                 included in other integer -> equal and calc ordinal_distance }
                if assigned(currpara) and
@@ -3594,6 +3606,84 @@ implementation
             end;
         end
       end;
+
+    function tcallcandidates.compare_delphi_character_argument(currpd,bestpd:pcandidate):integer;
+      function next_visible_para(const candidate:pcandidate;var paraidx:integer):tparavarsym;
+        begin
+          while (paraidx>=0) and
+                (vo_is_hidden_para in tparavarsym(candidate^.data.paras[paraidx]).varoptions) do
+            dec(paraidx);
+          if paraidx<0 then
+            result:=nil
+          else
+            begin
+              result:=tparavarsym(candidate^.data.paras[paraidx]);
+              dec(paraidx);
+            end;
+        end;
+
+      function is_character(def:tdef):boolean;
+        begin
+          result:=is_char(def) or is_widechar(def);
+        end;
+
+      function pair_preference(source:tnode;currtarget,besttarget:tdef):integer;
+        var
+          currchar,
+          bestchar : boolean;
+        begin
+          result:=0;
+          if not is_character(source.resultdef) then
+            exit;
+          currchar:=is_character(currtarget);
+          bestchar:=is_character(besttarget);
+          if source.nodetype=ordconstn then
+            exit;
+          if (currtarget.typ=stringdef) and bestchar then
+            result:=1
+          else if (besttarget.typ=stringdef) and currchar then
+            result:=-1;
+        end;
+
+      var
+        curridx,
+        bestidx,
+        preference,
+        current : integer;
+        currpara,
+        bestpara : tparavarsym;
+        pt : tcallparanode;
+      begin
+        result:=0;
+        if not (m_delphi in current_settings.modeswitches) then
+          exit;
+        curridx:=currpd^.firstparaidx;
+        bestidx:=bestpd^.firstparaidx;
+        pt:=tcallparanode(FParaNode);
+        preference:=0;
+        while assigned(pt) do
+          begin
+            currpara:=next_visible_para(currpd,curridx);
+            bestpara:=next_visible_para(bestpd,bestidx);
+            if not assigned(currpara) or not assigned(bestpara) then
+              exit(0);
+            if not (currpara.varspez in [vs_var,vs_out]) and
+               not (bestpara.varspez in [vs_var,vs_out]) then
+              begin
+                current:=pair_preference(pt.left,currpara.vardef,bestpara.vardef);
+                if current<>0 then
+                  begin
+                    if preference=0 then
+                      preference:=current
+                    else if preference<>current then
+                      exit(0);
+                  end;
+              end;
+            pt:=tcallparanode(pt.right);
+          end;
+        result:=preference;
+      end;
+
 
     function tcallcandidates.compare_delphi_contextual_uint64(currpd,bestpd:pcandidate):integer;
       function contextual_uint64_expression(p:tnode):boolean;
@@ -4023,6 +4113,8 @@ implementation
               else
                 res:=is_better_candidate_single_variant(hp,besthpstart);
               if (res=0) and not hp^.invalid and not besthpstart^.invalid then
+                res:=compare_delphi_character_argument(hp,besthpstart);
+              if (res=0) and not hp^.invalid and not besthpstart^.invalid then
                 res:=compare_delphi_contextual_uint64(hp,besthpstart);
               if (res>0) then
                begin
@@ -4196,6 +4288,8 @@ implementation
                        compare_delphi_same_width_integer_pair(hp,besthpstart))
                    else
                      res:=is_better_candidate_single_variant(hp,besthpstart);
+                   if (res=0) and not hp^.invalid and not besthpstart^.invalid then
+                     res:=compare_delphi_character_argument(hp,besthpstart);
                    if (res=0) and not hp^.invalid and not besthpstart^.invalid then
                      res:=compare_delphi_contextual_uint64(hp,besthpstart);
                  end;
