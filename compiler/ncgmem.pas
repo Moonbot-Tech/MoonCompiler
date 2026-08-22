@@ -1107,29 +1107,38 @@ implementation
                 begin
                    extraoffset:=0;
                    rightp:=actualtargetnode(@right);
-                   if rightp^.nodetype=addn then
+                   { Do not move a constant add/sub across a retaining type
+                     conversion.  Fixed-array indexing may wrap the complete
+                     expression in a non-negative range type.  Rewriting
+                       range(J + 1)  as  range(J) + 1
+                     then zero-extends J=-1 before address scaling and turns
+                     the valid final index 0 into a huge address. }
+                   if rightp=@right then
                      begin
-                        if taddnode(rightp^).right.nodetype=ordconstn then
-                          begin
-                            extraoffset:=tordconstnode(taddnode(rightp^).right).value.svalue;
-                            replacenode(rightp^,taddnode(rightp^).left);
-                          end
-                        else if taddnode(rightp^).left.nodetype=ordconstn then
-                          begin
-                            extraoffset:=tordconstnode(taddnode(rightp^).left).value.svalue;
-                            replacenode(rightp^,taddnode(rightp^).right);
-                          end;
-                     end
-                   else if rightp^.nodetype=subn then
-                     begin
-                        if taddnode(rightp^).right.nodetype=ordconstn then
-                          begin
-                            extraoffset:=-tordconstnode(taddnode(rightp^).right).value.svalue;
-                            replacenode(rightp^,taddnode(rightp^).left);
-                          end;
+                       if rightp^.nodetype=addn then
+                         begin
+                            if taddnode(rightp^).right.nodetype=ordconstn then
+                              begin
+                                extraoffset:=tordconstnode(taddnode(rightp^).right).value.svalue;
+                                replacenode(rightp^,taddnode(rightp^).left);
+                              end
+                            else if taddnode(rightp^).left.nodetype=ordconstn then
+                              begin
+                                extraoffset:=tordconstnode(taddnode(rightp^).left).value.svalue;
+                                replacenode(rightp^,taddnode(rightp^).right);
+                              end;
+                         end
+                       else if rightp^.nodetype=subn then
+                         begin
+                            if taddnode(rightp^).right.nodetype=ordconstn then
+                              begin
+                                extraoffset:=-tordconstnode(taddnode(rightp^).right).value.svalue;
+                                replacenode(rightp^,taddnode(rightp^).left);
+                              end;
+                         end;
                      end;
                    update_reference_offset(location.reference,extraoffset,mulsize);
-                end;
+                 end;
               { calculate from left to right }
               if not(location.loc in [LOC_CREFERENCE,LOC_REFERENCE]) then
                 internalerror(200304237);

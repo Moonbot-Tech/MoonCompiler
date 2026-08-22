@@ -53,6 +53,7 @@ CORE_TESTS = (
     "tloopinvariantaddr1",
     "tloopinvariantarraywrite1",
     "tstrengthenumguard1",
+    "tarrayindexoffsetconv1",
     "tdelphiinlineexceptreg1",
     "tdelphiinlinefuncrettemp1",
 )
