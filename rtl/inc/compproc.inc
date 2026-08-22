@@ -345,6 +345,7 @@ Procedure fpc_ansistr_decr_ref (Var S : Pointer); compilerproc; {$if FPC_FULLVER
   astrings.inc) and cannot be inline }
 Procedure fpc_ansistr_incr_ref (S : Pointer); compilerproc; {$if (FPC_FULLVERSION>30202) and not defined(CPUX86_64)}inline;{$ifend}
 Procedure fpc_AnsiStr_Assign (Var DestS : Pointer;S2 : Pointer); compilerproc;
+Procedure fpc_AnsiStr_Assign_Global (Var DestS : Pointer;S2 : Pointer); compilerproc;
 Procedure fpc_AnsiStr_Concat (Var DestS : RawByteString;const S1,S2 : RawByteString;cp : TSystemCodePage); compilerproc;
 Procedure fpc_AnsiStr_Concat_multi (Var DestS : RawByteString;const sarr:array of RawByteString;cp : TSystemCodePage); compilerproc;
 {$ifdef EXTRAANSISHORT}
@@ -430,6 +431,7 @@ Function fpc_AnsiStr_To_UnicodeStr (Const S2 : RawByteString): UnicodeString; co
 Function fpc_UnicodeStr_To_WideStr (const S2 : UnicodeString): WideString; compilerproc;
 Function fpc_WideStr_To_UnicodeStr (Const S2 : WideString): UnicodeString; compilerproc;
 Procedure fpc_UnicodeStr_Assign (Var S1 : Pointer;S2 : Pointer); compilerproc;
+Procedure fpc_UnicodeStr_Assign_Global (Var DestS : Pointer;S2 : Pointer); compilerproc;
 Procedure fpc_UnicodeStr_Concat (Var DestS : Unicodestring;const S1,S2 : UnicodeString); compilerproc;
 Procedure fpc_UnicodeStr_Concat_multi (Var DestS : Unicodestring;const sarr:array of Unicodestring); compilerproc;
 Function fpc_Char_To_UnicodeStr(const c : AnsiChar): UnicodeString; compilerproc;

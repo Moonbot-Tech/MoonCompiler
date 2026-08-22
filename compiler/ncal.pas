@@ -6243,8 +6243,12 @@ implementation
              assigned(call.methodpointer) then
             exit;
           helper:=upper(tprocdef(call.procdefinition).procsym.name);
+          { the _global forms are accepted here and filtered by their
+            source form after the parameter walk }
           if (helper<>'FPC_UNICODESTR_ASSIGN') and
+             (helper<>'FPC_UNICODESTR_ASSIGN_GLOBAL') and
              (helper<>'FPC_ANSISTR_ASSIGN') and
+             (helper<>'FPC_ANSISTR_ASSIGN_GLOBAL') and
              (helper<>'FPC_WIDESTR_ASSIGN') and
              (helper<>'FPC_DYNARRAY_ASSIGN') then
             exit;
@@ -6292,6 +6296,18 @@ implementation
             end;
           result:=assigned(destexpr) and assigned(src) and
                   (nf_is_funcret in destexpr.flags);
+          { the _global helper also materializes a Ref<0 source (dvl-0031).
+            Dropping it is the same rewrite only when the source provably
+            cannot hold a shared constant: a literal, a string temp or a
+            stack-frame chain can, while every escaping storage is already
+            materialized by the same invariant and fresh values own their
+            buffer. }
+          if result and
+             ((helper='FPC_UNICODESTR_ASSIGN_GLOBAL') or
+              (helper='FPC_ANSISTR_ASSIGN_GLOBAL')) and
+             ((src.nodetype in [stringconstn,temprefn]) or
+              string_storage_is_stack_local(src)) then
+            result:=false;
           if result then
             destdef:=destexpr.resultdef;
         end;

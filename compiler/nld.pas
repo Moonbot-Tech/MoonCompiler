@@ -1094,13 +1094,27 @@ implementation
         else if not(target_info.system in systems_garbage_collected_managed_types) and
           not(is_const(left)) then
           begin
-            { call helpers for pointer-sized managed types }
+            { call helpers for pointer-sized managed types.  Delphi
+              materializes a string literal stored in any target escaping
+              the current stack frame (dvl-0031 matrix), so such targets
+              take the _global helper, which copies a Ref<0 source at run
+              time; widestrings always copy on assignment already. }
             if is_widestring(left.resultdef) then
               hs:='fpc_widestr_assign'
             else if is_ansistring(left.resultdef) then
-              hs:='fpc_ansistr_assign'
+              begin
+                if string_storage_is_stack_local(left) then
+                  hs:='fpc_ansistr_assign'
+                else
+                  hs:='fpc_ansistr_assign_global';
+              end
             else if is_unicodestring(left.resultdef) then
-              hs:='fpc_unicodestr_assign'
+              begin
+                if string_storage_is_stack_local(left) then
+                  hs:='fpc_unicodestr_assign'
+                else
+                  hs:='fpc_unicodestr_assign_global';
+              end
             else if is_interfacecom_or_dispinterface(left.resultdef) then
               begin
                 if tempreturnfromcall(true) then

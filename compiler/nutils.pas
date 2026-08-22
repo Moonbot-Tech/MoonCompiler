@@ -91,6 +91,17 @@ interface
       interface }
     function load_vmt_for_self_node(self_node: tnode): tnode;
 
+    { Walks a static array element/record field chain down to its root
+      symbol and tells whether the string storage it names lives in the
+      current stack frame (a plain local or a value parameter).  Delphi
+      (DCC64 36.0, dvl-0031 matrix) keeps a shared literal only in such
+      storage; every escaping class - the function result, var/out
+      parameters, captured locals, globals, threadvars, object fields,
+      dynamic arrays and dereferenced pointers - owns a materialized copy,
+      so as a source such a chain is the only variable form that can still
+      carry a Ref<0 constant at run time. }
+    function string_storage_is_stack_local(target: tnode): boolean;
+
     function node_complexity(p: tnode): cardinal;
     function node_resources_fpu(p: tnode): cardinal;
     procedure node_tree_set_filepos(var n:tnode;const filepos:tfileposinfo);
@@ -709,6 +720,44 @@ implementation
             addstatement(stat,ctemprefnode.create(vmt_temp));
             result:=block;
           end
+      end;
+
+
+    function string_storage_is_stack_local(target: tnode): boolean;
+      begin
+        result:=false;
+        while true do
+          case target.nodetype of
+            vecn:
+              begin
+                target:=tunarynode(target).left;
+                if (target.resultdef.typ<>arraydef) or
+                   is_dynamic_array(target.resultdef) then
+                  exit;
+              end;
+            subscriptn:
+              begin
+                target:=tunarynode(target).left;
+                if target.resultdef.typ<>recorddef then
+                  exit;
+              end;
+            loadn:
+              begin
+                result:=
+                  (
+                   (tloadnode(target).symtableentry.typ=localvarsym) or
+                   (
+                    (tloadnode(target).symtableentry.typ=paravarsym) and
+                    (tparavarsym(tloadnode(target).symtableentry).varspez=vs_value)
+                   )
+                  ) and
+                  not(vo_is_funcret in tabstractnormalvarsym(tloadnode(target).symtableentry).varoptions) and
+                  not(tabstractnormalvarsym(tloadnode(target).symtableentry).is_captured);
+                exit;
+              end;
+            else
+              exit;
+          end;
       end;
 
 

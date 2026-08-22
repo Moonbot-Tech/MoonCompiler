@@ -56,18 +56,6 @@
       "note": "вещественный литерал против Double/Currency: Delphi отвергает как неоднозначный, мы выбираем Double"
     },
     {
-      "id": "dvl-0031",
-      "kind": "observation-split",
-      "note_name": "^dvl-lit-(array-element|captured|form-ansi-cast|form-concat|form-implicit|form-rawbyte-cast|form-typed-const|form-unicode-plain|form-utf8-cast|global|global-record-field|interface-field|nested-array|object-field|out-param|result|static-array|threadvar)-(refcount|writable)$",
-      "note": "литерал не материализуется: счётчик -1 и запись в буфер падает везде, кроме локальной"
-    },
-    {
-      "id": "dvl-0031",
-      "kind": "observation-split",
-      "note_name": "^dvl-lit-(array-element|captured|global|global-record-field|interface-field|local|nested-array|object-field|out-param|result|static-array|threadvar)-identity$",
-      "note": "два вхождения одного литерала делят буфер, у Delphi буферы разные"
-    },
-    {
       "id": "dvl-0032",
       "case": "attribute-ctor-parameter",
       "note": "атрибут перед параметром не разбирается"

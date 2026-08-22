@@ -306,6 +306,48 @@ end;
 { alias for internal use }
 Procedure fpc_AnsiStr_Assign (Var S1 : Pointer;S2 : Pointer);[external name 'FPC_ANSISTR_ASSIGN'];
 
+
+procedure fpc_AnsiStr_Assign_Materialize (Var DestS : Pointer;S2 : Pointer);
+{$if FPC_FULLVERSION>=30301}noinline;{$endif}
+var
+  NewP : Pointer;
+  FullSize : SizeInt;
+begin
+  FullSize:=PAnsiRec(S2-AnsiFirstOff)^.Len+(AnsiFirstOff+1);
+  NewP:=GetMem(FullSize)+AnsiFirstOff;
+  Move((S2-AnsiFirstOff)^,(NewP-AnsiFirstOff)^,FullSize); { Header, payload and #0; only the refcount needs adjusting. }
+  PAnsiRec(NewP-AnsiFirstOff)^.Ref:=1;
+  fpc_ansistr_decr_ref(DestS);
+  DestS:=NewP;
+end;
+
+
+{ Delphi keeps a shared literal only in targets living in the current
+  stack frame; every escaping target (global, threadvar, object field,
+  array element, heap record, var/out parameter, function result,
+  captured local) owns a writable heap copy with Ref=1.  The compiler
+  routes assignments to escaping targets here; the copy fires only when
+  the source holds a compile-time constant (Ref<0) at run time, which
+  also covers constants arriving indirectly, e.g. from typed consts. }
+{$if defined(CPUX86_64) and not defined(VER3_2)}
+Procedure fpc_AnsiStr_Assign_Global (Var DestS : Pointer;S2 : Pointer);[Public,Alias:'FPC_ANSISTR_ASSIGN_GLOBAL']; compilerproc; assembler; nostackframe;
+asm
+  testq  {$ifdef FPC_ABI_WIN64} %rdx,%rdx {$else} %rsi,%rsi {$endif}
+  jz     FPC_ANSISTR_ASSIGN
+  cmpl   $0,{$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
+  jl     fpc_AnsiStr_Assign_Materialize
+  jmp    FPC_ANSISTR_ASSIGN
+end;
+{$else}
+Procedure fpc_AnsiStr_Assign_Global (Var DestS : Pointer;S2 : Pointer);[Public,Alias:'FPC_ANSISTR_ASSIGN_GLOBAL']; compilerproc;
+begin
+  if (S2<>nil) and (PAnsiRec(S2-AnsiFirstOff)^.Ref<0) then
+    fpc_AnsiStr_Assign_Materialize(DestS,S2)
+  else
+    fpc_AnsiStr_Assign(DestS,S2);
+end;
+{$ifend}
+
 {$ifndef FPC_HAS_ANSISTR_CONCAT_COMPLEX}
 {$define FPC_HAS_ANSISTR_CONCAT_COMPLEX}
 { keeps implicit try..finally block out from primary control flow }

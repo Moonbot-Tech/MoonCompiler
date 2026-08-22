@@ -519,6 +519,44 @@ Procedure fpc_UnicodeStr_Assign (Var S1 : Pointer;S2 : Pointer);[external name '
 {$endif FPC_UNICODESTR_ASSIGN}
 
 
+procedure fpc_UnicodeStr_Assign_Materialize (Var DestS : Pointer;S2 : Pointer);
+{$if FPC_FULLVERSION>=30301}noinline;{$endif}
+var
+  NewP : Pointer;
+  FullSize : SizeInt;
+begin
+  FullSize:=(PUnicodeRec(S2-UnicodeFirstOff)^.Len+1)*SizeOf(UnicodeChar)+UnicodeFirstOff;
+  NewP:=GetMem(FullSize)+UnicodeFirstOff;
+  Move((S2-UnicodeFirstOff)^,(NewP-UnicodeFirstOff)^,FullSize); { Header, payload and terminator; only the refcount needs adjusting. }
+  PUnicodeRec(NewP-UnicodeFirstOff)^.Ref:=1;
+  fpc_unicodestr_decr_ref(DestS);
+  DestS:=NewP;
+end;
+
+
+{ Delphi keeps a shared literal only in targets living in the current
+  stack frame; every escaping target owns a writable heap copy with
+  Ref=1 - see the ansistring twin for the full contract. }
+{$ifdef CPUX86_64}
+Procedure fpc_UnicodeStr_Assign_Global (Var DestS : Pointer;S2 : Pointer);[Public,Alias:'FPC_UNICODESTR_ASSIGN_GLOBAL']; compilerproc; assembler; nostackframe;
+asm
+  testq  {$ifdef FPC_ABI_WIN64} %rdx,%rdx {$else} %rsi,%rsi {$endif}
+  jz     FPC_UNICODESTR_ASSIGN
+  cmpl   $0,{$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
+  jl     fpc_UnicodeStr_Assign_Materialize
+  jmp    FPC_UNICODESTR_ASSIGN
+end;
+{$else CPUX86_64}
+Procedure fpc_UnicodeStr_Assign_Global (Var DestS : Pointer;S2 : Pointer);[Public,Alias:'FPC_UNICODESTR_ASSIGN_GLOBAL']; compilerproc;
+begin
+  if (S2<>nil) and (PUnicodeRec(S2-UnicodeFirstOff)^.Ref<0) then
+    fpc_UnicodeStr_Assign_Materialize(DestS,S2)
+  else
+    fpc_UnicodeStr_Assign(DestS,S2);
+end;
+{$endif CPUX86_64}
+
+
 {$ifndef FPC_HAS_UNICODESTR_CONCAT}
 {$define FPC_HAS_UNICODESTR_CONCAT}
 procedure fpc_UnicodeStr_Concat (var DestS:Unicodestring;const S1,S2 : UnicodeString); compilerproc;
