@@ -6779,6 +6779,11 @@ unit aoptx86;
             if (taicpu(p).opsize >= S_L) and
               GetNextInstructionUsingReg(p,hp1, ActiveReg) and
               MatchInstruction(hp1,A_LEA,[]) and
+              { A narrower ADD wraps before a wider LEA uses the value.  Moving
+                the constant into that LEA would remove the narrow wrap (and,
+                on x86-64, the implicit zero extension of a 32-bit write). }
+              (topsize2memsize[taicpu(p).opsize] >=
+                topsize2memsize[taicpu(hp1).opsize]) and
               (SuperRegistersEqual(ActiveReg, taicpu(hp1).oper[0]^.ref^.base) or
                SuperRegistersEqual(ActiveReg, taicpu(hp1).oper[0]^.ref^.index)) and
               (
@@ -6796,9 +6801,9 @@ unit aoptx86;
 {$R-}{$Q-}
                 { Explicitly disable overflow checking for these offset calculation
                   as those do not matter for the final result }
-                if ActiveReg=taicpu(hp1).oper[0]^.ref^.base then
+                if SuperRegistersEqual(ActiveReg,taicpu(hp1).oper[0]^.ref^.base) then
                   inc(taicpu(hp1).oper[0]^.ref^.offset,taicpu(p).oper[0]^.val);
-                if ActiveReg=taicpu(hp1).oper[0]^.ref^.index then
+                if SuperRegistersEqual(ActiveReg,taicpu(hp1).oper[0]^.ref^.index) then
                   inc(taicpu(hp1).oper[0]^.ref^.offset,taicpu(p).oper[0]^.val*max(taicpu(hp1).oper[0]^.ref^.scalefactor,1));
 {$pop}
 {$ifdef x86_64}
