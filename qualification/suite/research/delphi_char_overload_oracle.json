@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "compiler": "Delphi 12.2 Win64 compiler 36.0",
+  "compiler_sha256": "68cf81c0b1044e585eb584d96947a01e669605d8ac1ed048a2de44fd867fdb88",
+  "test": {
+    "test_id": "mormot-unicode-char-overload",
+    "source_sha256": "0f7c24c2fc8baab74fa6fd4129fcd96a09929341a074f10c043cb97a3cffa0b9",
+    "adaptation": "none; FPC directives are conditional",
+    "compile_exit_code": 0,
+    "run_exit_code": 0
+  }
+}

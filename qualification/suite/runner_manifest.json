@@ -1086,6 +1086,13 @@
       ],
       "id": "moonbot-inline-pointer-new",
       "source": "fixtures/minimized/moonbot_inline_pointer_new.pas"
+    },
+    {
+      "compiler_allow": [
+        "moonbot-compiler-beta"
+      ],
+      "id": "mormot-unicode-char-overload",
+      "source": "fixtures/minimized/mormot_unicode_char_overload.pas"
     }
   ],
   "mega": {
