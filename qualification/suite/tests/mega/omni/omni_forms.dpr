@@ -14006,6 +14006,236 @@ end;
 
 { ---------------------------------------------------------------- }
 
+function OmniCharOrRaw(const Value: AnsiChar): Byte; overload;
+begin
+  Result := 1;
+end;
+
+function OmniCharOrRaw(const Value: RawByteString): Byte; overload;
+begin
+  Result := 2;
+end;
+
+function OmniCharOrUnicode(const Value: AnsiChar): Byte; overload;
+begin
+  Result := 1;
+end;
+
+function OmniCharOrUnicode(const Value: UnicodeString): Byte; overload;
+begin
+  Result := 2;
+end;
+
+function OmniAnsiOrWide(const Value: AnsiChar): Byte; overload;
+begin
+  Result := 1;
+end;
+
+function OmniAnsiOrWide(const Value: WideChar): Byte; overload;
+begin
+  Result := 2;
+end;
+
+function OmniWideOrRaw(const Value: WideChar): Byte; overload;
+begin
+  Result := 1;
+end;
+
+function OmniWideOrRaw(const Value: RawByteString): Byte; overload;
+begin
+  Result := 2;
+end;
+
+function OmniReturnWide(Value: WideChar): WideChar;
+begin
+  Result := Value;
+end;
+
+procedure RunDelphiCharacterOverloadForms;
+const
+  NamedAscii = 'A';
+  NamedWide = #$2603;
+var
+  A: AnsiChar;
+  W: WideChar;
+  R: RawByteString;
+  WideTable: array[0..1] of WideChar;
+begin
+  { Delphi treats an ordinal character constant as a character argument
+    before considering any string conversion, even above the AnsiChar range. }
+  Check(OmniCharOrRaw(#0) = 1, 'litov-char-raw-nul');
+  Check(OmniCharOrRaw(#$7f) = 1, 'litov-char-raw-ascii-edge');
+  Check(OmniCharOrRaw(#$80) = 1, 'litov-char-raw-high-bit');
+  Check(OmniCharOrRaw(#$ff) = 1, 'litov-char-raw-byte-edge');
+  Check(OmniCharOrRaw(#$100) = 1, 'litov-char-raw-wide-edge');
+  Check(OmniCharOrRaw(#$2603) = 1, 'litov-char-raw-nonascii');
+  Check(OmniCharOrRaw(NamedAscii) = 1, 'litov-char-raw-named-ascii');
+  Check(OmniCharOrRaw(NamedWide) = 1, 'litov-char-raw-named-wide');
+  Check(OmniCharOrRaw(Chr(65)) = 1, 'litov-char-raw-folded-chr');
+  Check(OmniCharOrUnicode(#0) = 1, 'litov-char-unicode-nul');
+  Check(OmniCharOrUnicode(#$2603) = 1, 'litov-char-unicode-wide');
+  Check(OmniAnsiOrWide('A') = 2, 'litov-ansi-wide-literal');
+  Check(OmniAnsiOrWide(#$2603) = 2, 'litov-ansi-wide-nonascii');
+  Check(OmniWideOrRaw(#0) = 1, 'litov-wide-raw-nul');
+  Check(OmniWideOrRaw(#$2603) = 1, 'litov-wide-raw-nonascii');
+
+  { A non-constant WideChar expression follows Delphi's different rule:
+    against AnsiChar it uses the string candidate, while an exact WideChar
+    candidate still wins. This keeps the tie-breaker out of literal typing. }
+  A := 'A';
+  W := #$2603;
+  R := 'raw';
+  WideTable[0] := W;
+  WideTable[1] := 'Z';
+  Check(OmniCharOrRaw(A) = 1, 'litov-char-raw-ansi-variable');
+  Check(OmniCharOrRaw(W) = 2, 'litov-char-raw-wide-variable');
+  Check(OmniCharOrRaw(OmniReturnWide(W)) = 2,
+    'litov-char-raw-wide-result');
+  Check(OmniCharOrRaw(WideTable[Integer(RtZero)]) = 2,
+    'litov-char-raw-wide-indexed');
+  Check(OmniCharOrRaw(R) = 2, 'litov-char-raw-string-variable');
+  Check(OmniAnsiOrWide(W) = 2, 'litov-ansi-wide-variable');
+  Check(OmniWideOrRaw(W) = 1, 'litov-wide-raw-variable');
+  Mix(UInt64(A) xor (UInt64(W) shl 8) xor UInt64(Length(R)));
+end;
+
+{ ---------------------------------------------------------------- }
+
+type
+  TOmniByteArray = array[0..255] of Byte;
+  POmniByteArray = ^TOmniByteArray;
+  TOmniWordArray = array[0..255] of Word;
+  POmniWordArray = ^TOmniWordArray;
+
+function OmniByteAddress(P: Pointer): Pointer; inline;
+begin
+  Result := @POmniByteArray(P)[PByte(P + 1)^ + 2];
+end;
+
+function OmniByteAddressConstLeft(P: Pointer): Pointer; inline;
+begin
+  Result := @POmniByteArray(P)[2 + PByte(P + 1)^];
+end;
+
+function OmniByteAddressSubtract(P: Pointer): Pointer; inline;
+begin
+  Result := @POmniByteArray(P)[PByte(P + 1)^ - (-2)];
+end;
+
+function OmniByteAddressFromOffsetBase(P: Pointer): Pointer; inline;
+begin
+  Result := @POmniByteArray(P + 3)[PByte(P + 1)^ + 2];
+end;
+
+function OmniWordAddress(P: Pointer): Pointer; inline;
+begin
+  Result := @POmniWordArray(P)[PByte(P + 1)^ + 2];
+end;
+
+{$push}{$Q-}
+function OmniCardinalAddress(Base: PtrUInt; Index: Cardinal): PtrUInt;
+{$ifdef FPC}noinline;{$endif}
+begin
+  Inc(Index, 2);
+  Result := Base + Index;
+end;
+{$pop}
+
+function OmniUInt64Address(Base: PtrUInt; Index: UInt64): PtrUInt;
+{$ifdef FPC}noinline;{$endif}
+begin
+  Inc(Index, 2);
+  Result := Base + Index;
+end;
+
+procedure RunPointerIndexOffsetForms;
+var
+  Buffer: array[0..511] of Byte;
+  I: Integer;
+  Base: PtrUInt;
+begin
+  Base := PtrUInt(@Buffer);
+  for I := 0 to 200 do
+  begin
+    Buffer[1] := I;
+    Check(PtrUInt(OmniByteAddress(@Buffer)) - Base = PtrUInt(I + 2),
+      'lea-index-plus-right');
+    Check(PtrUInt(OmniByteAddressConstLeft(@Buffer)) - Base = PtrUInt(I + 2),
+      'lea-index-plus-left');
+    Check(PtrUInt(OmniByteAddressSubtract(@Buffer)) - Base = PtrUInt(I + 2),
+      'lea-index-sub-negative');
+    Check(PtrUInt(OmniByteAddressFromOffsetBase(@Buffer)) - Base =
+      PtrUInt(I + 5), 'lea-index-offset-base');
+    Check(PtrUInt(OmniWordAddress(@Buffer)) - Base = PtrUInt((I + 2) * 2),
+      'lea-index-scaled-word');
+  end;
+  Check(OmniCardinalAddress(Base, High(Cardinal)) - Base = 1,
+    'lea-narrow-wrap-before-wide');
+  Check(OmniUInt64Address(Base, 40) - Base = 42,
+    'lea-wide-fold-control');
+end;
+
+procedure RunFunctionResultCounterForms;
+type
+  TResultGranularity = (rgUndefined, rgHour, rgDay, rgMonth, rgYear);
+  TResultSignedIndex = -2 .. 0;
+const
+  GRANULARITY_MARKERS: array[rgDay .. rgYear] of Integer = (29, 30, 31);
+  INTEGER_MARKERS: array[2 .. 4] of Integer = (42, 43, 44);
+  SIGNED_MARKERS: array[TResultSignedIndex] of Integer = (52, 53, 54);
+
+  function FindGranularity(Marker: Integer): TResultGranularity;
+  begin
+    for Result := rgDay to rgYear do
+      if GRANULARITY_MARKERS[Result] = Marker then
+        Exit;
+    Result := rgUndefined;
+  end;
+
+  function FindInteger(Marker: Integer): Integer;
+  begin
+    for Result := 2 to 4 do
+      if INTEGER_MARKERS[Result] = Marker then
+        Exit;
+    Result := -1;
+  end;
+
+  function FindIntegerBackward(Marker: Integer): Integer;
+  begin
+    for Result := 4 downto 2 do
+      if INTEGER_MARKERS[Result] = Marker then
+        Exit;
+    Result := -1;
+  end;
+
+  function FindSigned(Marker: Integer): TResultSignedIndex;
+  begin
+    for Result := High(TResultSignedIndex) downto Low(TResultSignedIndex) do
+      if SIGNED_MARKERS[Result] = Marker then
+        Exit;
+    Result := Low(TResultSignedIndex);
+  end;
+
+begin
+  Check(FindGranularity(29) = rgDay, 'result-loop-enum-first');
+  Check(FindGranularity(30) = rgMonth, 'result-loop-enum-middle');
+  Check(FindGranularity(31) = rgYear, 'result-loop-enum-last');
+  Check(FindGranularity(99) = rgUndefined, 'result-loop-enum-miss');
+  Check(FindInteger(42) = 2, 'result-loop-int-first');
+  Check(FindInteger(43) = 3, 'result-loop-int-middle');
+  Check(FindInteger(44) = 4, 'result-loop-int-last');
+  Check(FindInteger(99) = -1, 'result-loop-int-miss');
+  Check(FindIntegerBackward(44) = 4, 'result-loop-backward-first');
+  Check(FindIntegerBackward(43) = 3, 'result-loop-backward-middle');
+  Check(FindIntegerBackward(42) = 2, 'result-loop-backward-last');
+  Check(FindIntegerBackward(99) = -1, 'result-loop-backward-miss');
+  Check(FindSigned(54) = 0, 'result-loop-signed-first');
+  Check(FindSigned(53) = -1, 'result-loop-signed-middle');
+  Check(FindSigned(52) = -2, 'result-loop-signed-last');
+end;
+
+{ ---------------------------------------------------------------- }
+
 procedure ReadSeed;
 var
   S: string;
@@ -14050,6 +14280,9 @@ begin
   RunCurrencyForms;
   RunRecordAbiForms;
   RunWideOpForms;
+  RunDelphiCharacterOverloadForms;
+  RunPointerIndexOffsetForms;
+  RunFunctionResultCounterForms;
   RunStringCowForms;
   RunDispatchForms;
   RunFlowForms;
