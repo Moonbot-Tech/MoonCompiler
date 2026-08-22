@@ -3595,8 +3595,8 @@ var
     if WaitReadPending(fd, wait) then
     begin
       n := fpread(fd, tmp, SizeOf(tmp));
-      if n < 0 then
-        exit; // pipe closed = execution finished
+      if n <= 0 then
+        exit; // 0=EOF after POLLHUP, <0=pipe closed or read error
       if setresult and
          (n <> 0) then
       begin

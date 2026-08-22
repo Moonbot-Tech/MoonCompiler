@@ -1676,6 +1676,25 @@
   },
   "mormot": {
     "probes": {
+      "runredirect-eof": {
+        "compile_timeout_seconds": 300,
+        "compiler_allow": [
+          "moonbot-compiler-beta"
+        ],
+        "expected_marker": "PASS mormot-runredirect-eof",
+        "mormot_source": "current",
+        "option_sets": {
+          "O2": [
+            "-O2"
+          ],
+          "O3": [
+            "-O3"
+          ]
+        },
+        "run_timeout_seconds": 5,
+        "source": "fixtures/minimized/mormot_runredirect_eof_probe.pas",
+        "source_sha256": "efb932648302b3e5962aacfda4369677b987738ec651d9cf66357961bf514e19"
+      },
       "current-o3-partial-set": {
         "compile_timeout_seconds": 300,
         "compiler_allow": [
