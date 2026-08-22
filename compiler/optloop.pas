@@ -367,7 +367,12 @@ unit optloop;
               if (pi_dfaavailable in current_procinfo.flags) and
                 assigned(loop.optinfo) and
                 assigned(expr.optinfo) and
-                not(expr.isequal(tfornode(loop).left)) then
+                { The parser may retain an equal conversion around the loop
+                  target (notably for a function Result used as an enum
+                  counter).  Compare the actual storage, otherwise the DFA
+                  body summary cannot see the implicit per-iteration write
+                  and may classify the counter as loop invariant. }
+                not(expr.isequal(actualtargetnode(@tfornode(loop).left)^)) then
                 { no aliasing? }
                 result:=(([nf_write,nf_modify]*expr.flags)=[]) and not(tabstractvarsym(tloadnode(expr).symtableentry).addr_taken) and
                 { no definition in the loop? }

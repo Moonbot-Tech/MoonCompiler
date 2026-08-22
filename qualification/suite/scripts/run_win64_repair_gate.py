@@ -53,11 +53,16 @@ CORE_TESTS = (
     "tloopinvariantaddr1",
     "tloopinvariantarraywrite1",
     "tstrengthenumguard1",
+    "tstrengthresultcounter1",
+    "tstrengthresultcountertrace1",
     "tarrayindexoffsetconv1",
     "tarraypointerindexoffset1",
     "tdelphiinlineexceptreg1",
     "tdelphiinlinefuncrettemp1",
 )
+CORE_SOURCE_ARGS = {
+    "tstrengthresultcountertrace1": ["-gt"],
+}
 GENERIC_TESTS = (
     "tinlinegenericcomparer1",
     "tnestedgenericarray1",
@@ -247,7 +252,11 @@ def main() -> int:
 
     cases: list[tuple[str, Path, list[str]]] = []
     for name in CORE_TESTS:
-        cases.append((name, compiler_root / "tests" / "test" / "cg" / f"{name}.pp", []))
+        cases.append((
+            name,
+            compiler_root / "tests" / "test" / "cg" / f"{name}.pp",
+            CORE_SOURCE_ARGS.get(name, []),
+        ))
     generic_args = generic_source_args(compiler_root)
     for name in GENERIC_TESTS:
         cases.append(
