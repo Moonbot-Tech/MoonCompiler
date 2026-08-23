@@ -1837,6 +1837,7 @@
           "23999",
           "23998"
         ],
+        "source_patch": "patches/mormot-compiler-corpus-2026-unicode.diff",
         "static_dir": "fixtures/mormot-compiler-corpus-2026/static/x86_64-linux",
         "static_manifest": "fixtures/mormot-compiler-corpus-2026/static/x86_64-linux.SHA256SUMS"
       },

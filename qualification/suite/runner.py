@@ -58,6 +58,41 @@ def require_clean_git_source(source_root: Path, expected_commit: str | None) -> 
         )
 
 
+def mormot_source_patch(source: dict[str, Any]) -> Path | None:
+    configured = source.get("source_patch")
+    if configured is None:
+        return None
+    patch = ROOT / configured
+    if not patch.is_file():
+        raise RuntimeError(f"mORMot source patch is missing: {patch}")
+    return patch
+
+
+def stage_mormot_source_tree(
+    source_root: Path, staged_root: Path, patch: Path,
+) -> None:
+    """Copy exact mORMot sources and patch only the disposable copy."""
+    shutil.copytree(source_root / "src", staged_root / "src")
+    command = [
+        "git", "apply", "--no-index", "--ignore-space-change",
+        "--ignore-whitespace", str(patch.resolve()),
+    ]
+    try:
+        subprocess.run(
+            [*command[:2], "--check", *command[2:]], cwd=staged_root,
+            check=True, capture_output=True, text=True,
+        )
+        subprocess.run(
+            command, cwd=staged_root, check=True, capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as error:
+        detail = error.stderr.strip() or error.stdout.strip()
+        raise RuntimeError(
+            f"cannot apply mORMot source patch {patch}: {detail}"
+        ) from error
+
+
 def mormot_static_inputs(
     source_root: Path, source: dict[str, Any],
 ) -> tuple[Path, Path, str]:
@@ -79,25 +114,31 @@ def mormot_static_inputs(
 
 def mormot_test_inputs(
     source_root: Path, source: dict[str, Any], work: Path,
-) -> tuple[Path, Path]:
+) -> tuple[Path, Path, Path, Path | None]:
     """Stage the matching test tree beside the exact product source tree."""
     configured = source.get("test_path")
     test_root = ROOT / configured if configured else source_root / "test"
     rtsp_ports = source.get("rtsp_ports")
+    source_patch = mormot_source_patch(source)
     provenance_source = test_root / "mormot2tests.dpr"
     if not provenance_source.is_file():
         raise RuntimeError(f"mORMot test program is missing: {provenance_source}")
-    if not configured and not rtsp_ports:
-        return provenance_source, provenance_source
+    if not configured and not rtsp_ports and source_patch is None:
+        return provenance_source, provenance_source, source_root, None
 
     staged_root = work / "source"
     if staged_root.exists():
         shutil.rmtree(staged_root)
     staged_root.mkdir(parents=True)
     shutil.copytree(test_root, staged_root / "test")
-    (staged_root / "src").symlink_to(
-        source_root / "src", target_is_directory=True,
-    )
+    if source_patch is None:
+        (staged_root / "src").symlink_to(
+            source_root / "src", target_is_directory=True,
+        )
+        compile_source_root = source_root
+    else:
+        stage_mormot_source_tree(source_root, staged_root, source_patch)
+        compile_source_root = staged_root
     (staged_root / "static").symlink_to(
         source_root / "static", target_is_directory=True,
     )
@@ -111,7 +152,10 @@ def mormot_test_inputs(
             text.replace(old, f"'{rtsp_ports[0]}', '{rtsp_ports[1]}'"),
             encoding="utf-8",
         )
-    return staged_root / "test/mormot2tests.dpr", provenance_source
+    return (
+        staged_root / "test/mormot2tests.dpr", provenance_source,
+        compile_source_root, source_patch,
+    )
 
 
 def compiler_platform_name() -> str:
@@ -2399,9 +2443,9 @@ def _run_mormot_case_in_workspace(
 
     test_id = f"mormot-{source_id}"
     (work / "lib").mkdir(parents=True, exist_ok=True)
-    program_source, provenance_source = mormot_test_inputs(
-        source_root, source, work,
-    )
+    (
+        program_source, provenance_source, compile_source_root, source_patch,
+    ) = mormot_test_inputs(source_root, source, work)
     memory_manager = source.get("memory_manager")
     memory_manager_source = ROOT / memory_manager if memory_manager else None
     if memory_manager:
@@ -2412,7 +2456,8 @@ def _run_mormot_case_in_workspace(
     run_log = work / "run.log"
     compile_rc, compile_timeout, compile_seconds = run_process(
         mormot_compile_command(
-            compiler, options, source_root, static_dir, work, program_source,
+            compiler, options, compile_source_root, static_dir, work,
+            program_source,
             pinned_memory_manager=memory_manager_source,
         ),
         program_source.parent, 600, compile_log,
@@ -2499,6 +2544,10 @@ def _run_mormot_case_in_workspace(
         "source": str(provenance_source.relative_to(ROOT)),
         "source_sha256": sha256(provenance_source),
         "source_commit": source.get("commit", "worktree"),
+        "source_patch": (
+            str(source_patch.relative_to(ROOT)) if source_patch else None
+        ),
+        "source_patch_sha256": sha256(source_patch) if source_patch else None,
         "test_source_commit": source.get("test_commit"),
         "memory_manager": memory_manager,
         "memory_manager_sha256": (

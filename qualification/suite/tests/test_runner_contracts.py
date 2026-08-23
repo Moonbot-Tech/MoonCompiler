@@ -117,6 +117,34 @@ class RunnerContractsTest(unittest.TestCase):
         ), self.assertRaisesRegex(RuntimeError, "not clean commit"):
             runner.require_clean_git_source(Path("source"), "expected")
 
+    def test_mormot_source_patch_changes_only_the_staged_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            staged = root / "staged"
+            unit = source / "src/core/unit.pas"
+            unit.parent.mkdir(parents=True)
+            unit.write_bytes(b"before\r\n")
+            staged.mkdir()
+            patch = root / "source.patch"
+            patch.write_text(
+                "diff --git a/src/core/unit.pas b/src/core/unit.pas\n"
+                "--- a/src/core/unit.pas\n"
+                "+++ b/src/core/unit.pas\n"
+                "@@ -1 +1 @@\n"
+                "-before\n"
+                "+after\n",
+                encoding="utf-8",
+            )
+
+            runner.stage_mormot_source_tree(source, staged, patch)
+
+            self.assertEqual(unit.read_text(encoding="utf-8"), "before\n")
+            self.assertEqual(
+                (staged / "src/core/unit.pas").read_text(encoding="utf-8"),
+                "after\n",
+            )
+
     def test_upstream_options_require_the_same_current_test_set(self) -> None:
         reference = {
             "unique_tests": 2,
