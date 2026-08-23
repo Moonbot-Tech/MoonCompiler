@@ -481,7 +481,7 @@ unit optloop;
       end;
 
 
-    function invalidatesdynarraybase(var n : tnode;arg : pointer) : foreachnoderesult;
+    function invalidatesimplicitarraybase(var n : tnode;arg : pointer) : foreachnoderesult;
       begin
         result:=fen_false;
         case n.nodetype of
@@ -504,12 +504,13 @@ unit optloop;
       end;
 
 
-    { a dynamic array's base is a pointer VALUE loaded from the variable:
+    { a dynamic array or dynamic string base is a pointer VALUE loaded from
+      the variable:
       bumping a cached copy across iterations is only legal while nothing in
-      the body can move that pointer - no reassignment or SetLength of the
-      array variable itself.  Element writes are fine, they never move the
-      base (dynamic arrays are not copy-on-write) }
-    function dynarray_base_is_loop_invariant(loop : tfornode;base : tnode) : boolean;
+      the body can replace that pointer.  Element writes are fine for dynamic
+      arrays, since they are not copy-on-write; string element writes already
+      stay outside this read-only strength-reduction path. }
+    function implicit_array_base_is_loop_invariant(loop : tfornode;base : tnode) : boolean;
       begin
         result:=false;
         if (base.nodetype<>loadn) or
@@ -520,7 +521,7 @@ unit optloop;
         if (tloadnode(base).symtableentry.typ=staticvarsym) and
           (vo_is_thread_var in tstaticvarsym(tloadnode(base).symtableentry).varoptions) then
           exit;
-        result:=not foreachnodestatic(pm_preprocess,loop.t2,@invalidatesdynarraybase,
+        result:=not foreachnodestatic(pm_preprocess,loop.t2,@invalidatesimplicitarraybase,
           tloadnode(base).symtableentry);
       end;
 
@@ -740,10 +741,10 @@ unit optloop;
                 ((tvecnode(n).left.nodetype=loadn) or
                 { ... or loop invariant expression? }
                 is_loop_invariant(currforloop,tvecnode(n).right)) and
-                { a dynamic array needs its base pointer pinned for the whole
-                  loop }
-                (not(is_dynamic_array(tvecnode(n).left.resultdef)) or
-                 dynarray_base_is_loop_invariant(currforloop,tvecnode(n).left))
+                { an implicit array pointer needs its base value pinned for
+                  the whole loop }
+                (not(is_implicit_array_pointer(tvecnode(n).left.resultdef)) or
+                  implicit_array_base_is_loop_invariant(currforloop,tvecnode(n).left))
 {$if not (defined(cpu16bitalu) or defined(cpu8bitalu))}
                 { removing the multiplication is only worth the
                   effort if it's not a simple shift ... }
@@ -765,7 +766,7 @@ unit optloop;
                     counter that stays live would make the pointer a second
                     induction variable with a loop-carried load address }
                   or ((tvecnode(n).left.nodetype=loadn) and
-                      (is_dynamic_array(tvecnode(n).left.resultdef) or
+                      (is_implicit_array_pointer(tvecnode(n).left.resultdef) or
                        ((tloadnode(tvecnode(n).left).symtableentry.typ=staticvarsym) and
                         not(vo_is_thread_var in tstaticvarsym(tloadnode(tvecnode(n).left).symtableentry).varoptions))) and
                       (counter_dies_with_indexing(currforloop) or

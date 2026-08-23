@@ -14099,6 +14099,53 @@ begin
   Mix(UInt64(A) xor (UInt64(W) shl 8) xor UInt64(Length(R)));
 end;
 
+{ A loop optimizer may replace indexed access with a bumped pointer only while
+  the managed pointer stored in the string/dynamic-array variable is stable. }
+procedure RunMutableStringBaseLoopForms;
+var
+  U: UnicodeString;
+  A: AnsiString;
+  D: array of Byte;
+  I: Integer;
+  Sum: Integer;
+begin
+  U := 'abcdefgh';
+  Sum := 0;
+  for I := 1 to 8 do
+  begin
+    Inc(Sum, Ord(U[I]));
+    If I = 3 then
+      U := 'ABCDEFGH';
+  end;
+  Check(Sum = 644, 'optloop-mutable-unicode-base');
+
+  A := 'abcdefgh';
+  Sum := 0;
+  for I := 1 to 8 do
+  begin
+    Inc(Sum, Ord(A[I]));
+    If I = 3 then
+      A := 'ABCDEFGH';
+  end;
+  Check(Sum = 644, 'optloop-mutable-ansi-base');
+
+  SetLength(D, 8);
+  for I := 0 to High(D) do
+    D[I] := Byte(I + 1);
+  Sum := 0;
+  for I := 0 to High(D) do
+  begin
+    Inc(Sum, D[I]);
+    If I = 2 then
+    begin
+      SetLength(D, 12);
+      D[3] := 40;
+    end;
+  end;
+  Check(Sum = 72, 'optloop-mutable-dynarray-base');
+  Mix(UInt64(UInt32(Sum)));
+end;
+
 { ---------------------------------------------------------------- }
 
 procedure CheckOmniRawBytes(const Value: RawByteString;
@@ -14449,6 +14496,7 @@ begin
   RunAbsPtrForms;
   RunHelperDefPropForms;
   RunSSEnumForms;
+  RunMutableStringBaseLoopForms;
 
   { assimilated compiler-slice }
   RunIssueSliceAForms;

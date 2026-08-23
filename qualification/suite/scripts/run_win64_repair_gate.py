@@ -54,6 +54,7 @@ CORE_TESTS = (
     "tmoonattributemarker1",
     "tloopinvariantaddr1",
     "tloopinvariantarraywrite1",
+    "tloopmutablestringbase1",
     "tstrengthenumguard1",
     "tstrengthresultcounter1",
     "tstrengthresultcountertrace1",
