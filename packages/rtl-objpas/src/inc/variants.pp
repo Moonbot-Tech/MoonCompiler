@@ -650,7 +650,11 @@ begin
       Result := dest.vinteger;
     end
   else
-    Result := VariantToLongInt(TVarData(V));
+    try
+      Result := VariantToLongInt(TVarData(V));
+    except
+      HandleConversionException(TVarData(V).vType,varInteger);
+    end;
 end;
 
 function Sysvartoint64 (const v : Variant) : Int64;
@@ -679,7 +683,11 @@ begin
       Result := dest.vint64;
     end
   else
-    Result := VariantToInt64(TVarData(V));
+    try
+      Result := VariantToInt64(TVarData(V));
+    except
+      HandleConversionException(TVarData(V).vType,varInt64);
+    end;
 end;
 
 
@@ -699,7 +707,11 @@ begin
       Result := dest.vqword;
     end
   else
-    Result := VariantToQWord (TVarData(V));
+    try
+      Result := VariantToQWord(TVarData(V));
+    except
+      HandleConversionException(TVarData(V).vType,varQWord);
+    end;
 end;
 
 
@@ -4769,7 +4781,14 @@ procedure VarResultCheck(AResult: HRESULT; ASourceType, ADestType: TVarType);
 
 procedure HandleConversionException(const ASourceType, ADestType: TVarType);
   begin
-    if exceptobject is econverterror then
+    if exceptobject is EVariantError then
+      case EVariantError(exceptobject).ErrCode of
+        VAR_TYPEMISMATCH: VarCastError(ASourceType,ADestType);
+        VAR_OVERFLOW: VarOverflowError(ASourceType,ADestType);
+      else
+        raise exception(acquireexceptionobject);
+      end
+    else if exceptobject is econverterror then
       VarCastError(asourcetype,adesttype)
     else if (exceptobject is eoverflow) or
       (exceptobject is erangeerror) then

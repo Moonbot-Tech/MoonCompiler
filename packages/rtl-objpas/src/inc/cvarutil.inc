@@ -24,6 +24,63 @@ begin
   Raise EVariantError.CreateCode(VAR_TYPEMISMATCH);
 end;
 
+Procedure VariantOverflow;
+begin
+  Raise EVariantError.CreateCode(VAR_OVERFLOW);
+end;
+
+Function VariantStringChar(P: Pointer; CharSize, Index: SizeInt): WideChar; inline;
+begin
+  if CharSize=1 then
+    Result:=WideChar(PByte(P)[Index-1])
+  else
+    Result:=WideChar(PWord(P)[Index-1]);
+end;
+
+Function ValErrorIsOverflow(P: Pointer; Len, CharSize: SizeInt;
+  Error: Word; UnsignedTarget: Boolean): Boolean;
+var
+  Base, Digit, First: Integer;
+  C: WideChar;
+begin
+  Result:=False;
+  if (P=nil) or (Error<1) or (Error>Len) then
+    Exit;
+  First:=1;
+  while (First<=Len) and (VariantStringChar(P,CharSize,First)<=' ') do
+    Inc(First);
+  if First>Len then
+    Exit;
+  C:=VariantStringChar(P,CharSize,First);
+  if C in ['+','-'] then
+    begin
+      if UnsignedTarget and (C='-') and (Error=First) then
+        begin
+          Inc(First);
+          Result:=(First<=Len) and
+            (VariantStringChar(P,CharSize,First) in ['0'..'9']);
+          Exit;
+        end;
+      Inc(First);
+    end;
+  Base:=10;
+  if First<=Len then
+    case VariantStringChar(P,CharSize,First) of
+      '$': Base:=16;
+      '%': Base:=2;
+      '&': Base:=8;
+    end;
+  C:=VariantStringChar(P,CharSize,Error);
+  case C of
+    '0'..'9': Digit:=Ord(C)-Ord('0');
+    'A'..'F': Digit:=Ord(C)-Ord('A')+10;
+    'a'..'f': Digit:=Ord(C)-Ord('a')+10;
+  else
+    Exit;
+  end;
+  Result:=Digit<Base;
+end;
+
 
 Function ExceptionToVariantError (E : Exception): HResult;
 
@@ -228,31 +285,53 @@ end;
 
 {--- LongInt ---}
 
+Function CheckedLongInt(const Value: Int64): LongInt;
+begin
+  if (Value<Low(LongInt)) or (Value>High(LongInt)) then
+    Raise EVariantError.CreateCode(VAR_OVERFLOW);
+  Result:=LongInt(Value);
+end;
+
 Function WStrToLongInt(p: Pointer) : LongInt;
 var
   Error : Word;
+  S: WideString;
 begin
-  Val(WideString(p), Result, Error);
+  S:=WideString(p);
+  Val(S, Result, Error);
   if Error <> 0 then
-    VariantTypeMismatch(varOleStr, varInteger);
+    if ValErrorIsOverflow(Pointer(S),Length(S),SizeOf(WideChar),Error,False) then
+      VariantOverflow
+    else
+      VariantTypeMismatch(varOleStr, varInteger);
 end;
 
 Function LStrToLongInt(p: Pointer) : LongInt;
 var
   Error : Word;
+  S: AnsiString;
 begin
-  Val(AnsiString(p), Result, Error);
+  S:=AnsiString(p);
+  Val(S, Result, Error);
   if Error <> 0 then
-    VariantTypeMismatch(varString, varInteger);
+    if ValErrorIsOverflow(Pointer(S),Length(S),SizeOf(AnsiChar),Error,False) then
+      VariantOverflow
+    else
+      VariantTypeMismatch(varString, varInteger);
 end;
 
 Function UStrToLongInt(p: Pointer) : LongInt;
 var
   Error : Word;
+  S: UnicodeString;
 begin
-  Val(UnicodeString(p), Result, Error);
+  S:=UnicodeString(p);
+  Val(S, Result, Error);
   if Error <> 0 then
-    VariantTypeMismatch(varUString, varInteger);
+    if ValErrorIsOverflow(Pointer(S),Length(S),SizeOf(WideChar),Error,False) then
+      VariantOverflow
+    else
+      VariantTypeMismatch(varUString, varInteger);
 end;
 
 Function VariantToLongInt(const VargSrc : TVarData) : LongInt;
@@ -269,18 +348,21 @@ begin
         varShortInt : Result := vShortInt;
         varInteger  : Result := vInteger;
 {$ifndef FPUNONE}
-        varSingle   : Result := longint(Round(vSingle));
-        varDouble   : Result := longint(Round(vDouble));
-        varDate     : Result := longint(Round(vDate));
+        varSingle   : Result := CheckedLongInt(Round(vSingle));
+        varDouble   : Result := CheckedLongInt(Round(vDouble));
+        varDate     : Result := CheckedLongInt(Round(vDate));
 {$endif}
-        varCurrency : Result := longint(Round(vCurrency));
+        varCurrency : Result := CheckedLongInt(Round(vCurrency));
         varBoolean  : Result := SmallInt(vBoolean);
         varVariant  : Result := VariantToLongInt(PVarData(vPointer)^);
         varByte     : Result := vByte;
         varWord     : Result := vWord;
-        varLongWord : Result := longint(vLongWord);
-        varInt64    : Result := longint(vInt64);
-        varQword    : Result := longint(vQWord);
+        varLongWord : Result := CheckedLongInt(vLongWord);
+        varInt64    : Result := CheckedLongInt(vInt64);
+        varQword    : if vQWord<=QWord(High(LongInt)) then
+                        Result:=LongInt(vQWord)
+                      else
+                        Raise EVariantError.CreateCode(VAR_OVERFLOW);
         varOleStr   : Result := WStrToLongInt(vOleStr);
         varString   : Result := LStrToLongInt(vString);
         varUString  : Result := UStrToLongInt(vString);
@@ -292,18 +374,21 @@ begin
         varShortInt : Result := PShortInt(vPointer)^;
         varInteger  : Result := PInteger(vPointer)^;
 {$ifndef FPUNONE}
-        varSingle   : Result := longint(Round(PSingle(vPointer)^));
-        varDouble   : Result := longint(Round(PDouble(vPointer)^));
-        varDate     : Result := longint(Round(PDate(vPointer)^));
+        varSingle   : Result := CheckedLongInt(Round(PSingle(vPointer)^));
+        varDouble   : Result := CheckedLongInt(Round(PDouble(vPointer)^));
+        varDate     : Result := CheckedLongInt(Round(PDate(vPointer)^));
 {$endif}
-        varCurrency : Result := longint(Round(PCurrency(vPointer)^));
+        varCurrency : Result := CheckedLongInt(Round(PCurrency(vPointer)^));
         varBoolean  : Result := SmallInt(PWordBool(vPointer)^);
         varVariant  : Result := VariantToLongInt(PVarData(vPointer)^);
         varByte     : Result := PByte(vPointer)^;
         varWord     : Result := PWord(vPointer)^;
-        varLongWord : Result := longint(PLongWord(vPointer)^);
-        varInt64    : Result := longint(PInt64(vPointer)^);
-        varQword    : Result := longint(PQWord(vPointer)^);
+        varLongWord : Result := CheckedLongInt(PLongWord(vPointer)^);
+        varInt64    : Result := CheckedLongInt(PInt64(vPointer)^);
+        varQword    : if PQWord(vPointer)^<=QWord(High(LongInt)) then
+                        Result:=LongInt(PQWord(vPointer)^)
+                      else
+                        Raise EVariantError.CreateCode(VAR_OVERFLOW);
         varOleStr   : Result := WStrToLongInt(PPointer(vPointer)^);
         varString   : Result := LStrToLongInt(PPointer(vPointer)^);
         varUString  : Result := UStrToLongInt(PPointer(vPointer)^);
@@ -1123,7 +1208,7 @@ begin
         varWord     : Result := vWord;
         varLongWord : Result := vLongWord;
         varInt64    : Result := vInt64;
-        varQword    : Result := int64(vQWord);
+        varQword    : Result := Int64(vQWord);
         varOleStr   : Result := WStrToInt64(vOleStr);
         varString   : Result := LStrToInt64(vString);
         varUString  : Result := UStrToInt64(vString);
@@ -1146,7 +1231,7 @@ begin
         varWord     : Result := PWord(vPointer)^;
         varLongWord : Result := PLongWord(vPointer)^;
         varInt64    : Result := PInt64(vPointer)^;
-        varQword    : Result := PQWord(vPointer)^;
+        varQword    : Result := Int64(PQWord(vPointer)^);
         varOleStr   : Result := WStrToInt64(PPointer(vPointer)^);
         varString   : Result := LStrToInt64(PPointer(vPointer)^);
         varUString  : Result := UStrToInt64(PPointer(vPointer)^);
@@ -1165,31 +1250,53 @@ end;
 
 {--- QWord ---}
 
+Function CheckedQWord(const Value: Int64): QWord;
+begin
+  if Value<0 then
+    Raise EVariantError.CreateCode(VAR_OVERFLOW);
+  Result:=QWord(Value);
+end;
+
 Function WStrToQWord(p: Pointer) : QWord;
 var
   Error : Word;
+  S: WideString;
 begin
-  Val(WideString(p), Result, Error);
+  S:=WideString(p);
+  Val(S, Result, Error);
   if Error <> 0 then
-    VariantTypeMismatch(varOleStr, varQWord);
+    if ValErrorIsOverflow(Pointer(S),Length(S),SizeOf(WideChar),Error,True) then
+      VariantOverflow
+    else
+      VariantTypeMismatch(varOleStr, varQWord);
 end;
 
 Function LStrToQWord(p: Pointer) : QWord;
 var
   Error : Word;
+  S: AnsiString;
 begin
-  Val(AnsiString(p), Result, Error);
+  S:=AnsiString(p);
+  Val(S, Result, Error);
   if Error <> 0 then
-    VariantTypeMismatch(varString, varQWord);
+    if ValErrorIsOverflow(Pointer(S),Length(S),SizeOf(AnsiChar),Error,True) then
+      VariantOverflow
+    else
+      VariantTypeMismatch(varString, varQWord);
 end;
 
 Function UStrToQWord(p: Pointer) : QWord;
 var
   Error : Word;
+  S: UnicodeString;
 begin
-  Val(UnicodeString(p), Result, Error);
+  S:=UnicodeString(p);
+  Val(S, Result, Error);
   if Error <> 0 then
-    VariantTypeMismatch(varUString, varQWord);
+    if ValErrorIsOverflow(Pointer(S),Length(S),SizeOf(WideChar),Error,True) then
+      VariantOverflow
+    else
+      VariantTypeMismatch(varUString, varQWord);
 end;
 
 Function VariantToQWord(const VargSrc : TVarData) : QWord;
@@ -1202,21 +1309,21 @@ begin
     case vType and not varTypeMask of
       0: case vType of
         varEmpty    : Result := 0;
-        varSmallInt : Result := qword(vSmallInt);
-        varShortInt : Result := qword(vShortInt);
-        varInteger  : Result := qword(vInteger);
+        varSmallInt : Result := CheckedQWord(vSmallInt);
+        varShortInt : Result := CheckedQWord(vShortInt);
+        varInteger  : Result := CheckedQWord(vInteger);
 {$ifndef FPUNONE}
-        varSingle   : Result := qword(Round(vSingle));
-        varDouble   : Result := qword(Round(vDouble));
-        varCurrency : Result := qword(Round(vCurrency));
-        varDate     : Result := qword(Round(vDate));
+        varSingle   : Result := CheckedQWord(Round(vSingle));
+        varDouble   : Result := CheckedQWord(Round(vDouble));
+        varCurrency : Result := CheckedQWord(Round(vCurrency));
+        varDate     : Result := CheckedQWord(Round(vDate));
 {$endif}
-        varBoolean  : Result := qword(SmallInt(vBoolean));
+        varBoolean  : Result := CheckedQWord(SmallInt(vBoolean));
         varVariant  : Result := VariantToQWord(PVarData(vPointer)^);
         varByte     : Result := vByte;
         varWord     : Result := vWord;
         varLongWord : Result := vLongWord;
-        varInt64    : Result := qword(vInt64);
+        varInt64    : Result := CheckedQWord(vInt64);
         varQword    : Result := vQWord;
         varOleStr   : Result := WStrToQWord(vOleStr);
         varString   : Result := LStrToQWord(vString);
@@ -1225,21 +1332,21 @@ begin
         VariantTypeMismatch(vType, varQWord);
       end;
       varByRef: if Assigned(vPointer) then case vType and varTypeMask of
-        varSmallInt : Result := qword(PSmallInt(vPointer)^);
-        varShortInt : Result := qword(PShortInt(vPointer)^);
-        varInteger  : Result := qword(PInteger(vPointer)^);
+        varSmallInt : Result := CheckedQWord(PSmallInt(vPointer)^);
+        varShortInt : Result := CheckedQWord(PShortInt(vPointer)^);
+        varInteger  : Result := CheckedQWord(PInteger(vPointer)^);
 {$ifndef FPUNONE}
-        varSingle   : Result := qword(Round(PSingle(vPointer)^));
-        varDouble   : Result := qword(Round(PDouble(vPointer)^));
-        varCurrency : Result := qword(Round(PCurrency(vPointer)^));
-        varDate     : Result := qword(Round(PDate(vPointer)^));
+        varSingle   : Result := CheckedQWord(Round(PSingle(vPointer)^));
+        varDouble   : Result := CheckedQWord(Round(PDouble(vPointer)^));
+        varCurrency : Result := CheckedQWord(Round(PCurrency(vPointer)^));
+        varDate     : Result := CheckedQWord(Round(PDate(vPointer)^));
 {$endif}
-        varBoolean  : Result := qword(SmallInt(PWordBool(vPointer)^));
+        varBoolean  : Result := CheckedQWord(SmallInt(PWordBool(vPointer)^));
         varVariant  : Result := VariantToQWord(PVarData(vPointer)^);
         varByte     : Result := PByte(vPointer)^;
         varWord     : Result := PWord(vPointer)^;
         varLongWord : Result := PLongWord(vPointer)^;
-        varInt64    : Result := qword(PInt64(vPointer)^);
+        varInt64    : Result := CheckedQWord(PInt64(vPointer)^);
         varQword    : Result := PQWord(vPointer)^;
         varOleStr   : Result := WStrToQWord(PPointer(vPointer)^);
         varString   : Result := LStrToQWord(PPointer(vPointer)^);

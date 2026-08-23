@@ -19,8 +19,12 @@ program variant_int_arith_semantic;
     operand into it raises EVariantOverflowError;
   - unsigned 32-bit operands (varLongWord) run in the Int64 domain and
     stay varInt64 even when the value would fit varInteger;
-  - the narrowing Int64->Integer conversion raises EVariantOverflowError
-    instead of truncating, while conversions to Cardinal/Word truncate;
+  - Integer conversion raises EVariantOverflowError for every numeric carrier
+    outside its range and EVariantTypeCastError for malformed strings;
+  - UInt64 rejects negative carriers with EVariantOverflowError;
+  - Byte/Word/Cardinal preserve Delphi truncation for values which first fit
+    the Integer conversion domain;
+  - QWord->Int64 preserves Delphi's bit-pattern reinterpretation;
   - div/mod stay on the Int64 path.
 
   The ** power operator is an FPC extension without a Delphi contract
@@ -48,6 +52,8 @@ end;
 var
   A, B, R: Variant;
   I64: Int64;
+  U64: UInt64;
+  RefI64: Int64;
   Raised: Boolean;
 begin
   { plain integer arithmetic keeps varInteger }
@@ -210,6 +216,101 @@ begin
   end;
   If not Raised then
     Fail('narrowing Int64->Integer must raise');
+  A := Cardinal(High(Cardinal));
+  Raised := False;
+  try
+    If Integer(A) = 0 then ;
+  except
+    on EVariantOverflowError do
+      Raised := True;
+  end;
+  If not Raised then
+    Fail('narrowing Cardinal->Integer must raise');
+  A := 2147483647.5;
+  Raised := False;
+  try
+    If Integer(A) = 0 then ;
+  except
+    on EVariantOverflowError do
+      Raised := True;
+  end;
+  If not Raised then
+    Fail('rounded Double->Integer overflow must raise');
+  A := '2147483648';
+  Raised := False;
+  try
+    If Integer(A) = 0 then ;
+  except
+    on EVariantOverflowError do
+      Raised := True;
+  end;
+  If not Raised then
+    Fail('numeric string->Integer overflow must raise');
+  A := 'not-a-number';
+  Raised := False;
+  try
+    If Integer(A) = 0 then ;
+  except
+    on EVariantTypeCastError do
+      Raised := True;
+  end;
+  If not Raised then
+    Fail('malformed string->Integer must be a type cast error');
+
+  A := UInt64($8000000000000000);
+  I64 := A;
+  If I64 <> Low(Int64) then
+    Fail('QWord->Int64 keeps the Delphi bit pattern');
+  A := Int64(-1);
+  Raised := False;
+  try
+    U64 := A;
+  except
+    on EVariantOverflowError do
+      Raised := True;
+  end;
+  If not Raised then
+    Fail('negative Int64->UInt64 must raise');
+  A := '-1';
+  Raised := False;
+  try
+    U64 := A;
+  except
+    on EVariantOverflowError do
+      Raised := True;
+  end;
+  If not Raised then
+    Fail('negative numeric string->UInt64 must raise');
+  A := '18446744073709551616';
+  Raised := False;
+  try
+    U64 := A;
+  except
+    on EVariantOverflowError do
+      Raised := True;
+  end;
+  If not Raised then
+    Fail('oversized numeric string->UInt64 must raise');
+  A := '18446744073709551615';
+  U64 := A;
+  If U64 <> High(UInt64) then
+    Fail('maximum numeric string->UInt64');
+
+  VarClear(A);
+  RefI64 := -1;
+  TVarData(A).VType := varInt64 or varByRef;
+  TVarData(A).VPointer := @RefI64;
+  Raised := False;
+  try
+    U64 := A;
+  except
+    on EVariantOverflowError do
+      Raised := True;
+  end;
+  TVarData(A).VType := varEmpty;
+  If not Raised then
+    Fail('negative byref Int64->UInt64 must raise');
+
   A := Integer(-5);
   If Cardinal(A) <> 4294967291 then
     Fail('narrowing to Cardinal truncates');
