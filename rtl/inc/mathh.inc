@@ -17,7 +17,12 @@
 {$if defined(cpui8086) or defined(cpui386) or defined(cpux86_64)}
     {$define FPC_SYSTEM_FPU_CUSTOM_CONTROL_WORD}
     const
-      Default8087CW : word = $1332;
+      Default8087CW : word =
+{$ifdef CPUX86_64}
+        $133F;
+{$else CPUX86_64}
+        $1332;
+{$endif CPUX86_64}
 
     procedure Set8087CW(cw:word);
     function Get8087CW:word;
@@ -26,7 +31,12 @@
 {$if defined (cpui386) or defined(cpux86_64)}
     {$define FPC_SYSTEM_FPU_CUSTOM_CONTROL_WORD}
     const
-      DefaultMXCSR: dword = $1900;
+      DefaultMXCSR: dword =
+{$ifdef CPUX86_64}
+        $1F80;
+{$else CPUX86_64}
+        $1900;
+{$endif CPUX86_64}
 
     procedure SetMXCSR(w: dword);
     function GetMXCSR: dword;
