@@ -420,6 +420,18 @@ $Stages = @(
       'workloads/stream-scale',
       'workloads/stream-triad'
     )
+  },
+  [ordered]@{
+    id = 'dictionary_matrix_20260823'
+    label = 'Сейчас: + размерная матрица TDictionary'
+    short = 'Dictionary matrix'
+    note = 'Compiler binary не менялся относительно предыдущей колонки. Добавлены 24 medium-case: UInt64/UnicodeString key/value, 100/10 000 элементов, grow/reserve/lookup/churn. 24/24 oracle MATCH; один Delphi process-pair отмечен drift. По 23 устойчивым новым cases geomean Moon/Delphi = 0.9569.'
+    inherit = 'integration_final_20260823'
+    tracked = $true
+    files = @('evidence\dictionary-matrix-20260823\summary.json')
+    unstable = @(
+      'dictionary/u64-u64-build-grow-100'
+    )
   }
 )
 
@@ -506,6 +518,7 @@ function Get-CaseDescription([string]$Case) {
     '^layout/fill-(\d+)$' { return "FillChar блока размером $($Matches[1]) байт." }
     '^codegen/call-(.+)$' { return "Compiler codegen вызова: $($Matches[1])." }
     '^codegen/case-(.+)$' { return "Compiler codegen оператора case: $($Matches[1])." }
+    '^dictionary/(.+)$' { return "TDictionary: $($Matches[1] -replace '-', ' ')." }
     '^rtl-collections/(.+)$' { return "Операция контейнерного RTL: $($Matches[1] -replace '-', ' ')." }
     '^rtl/(.+)$' { return "Операция RTL: $($Matches[1] -replace '-', ' ')." }
     '^managed/(.+)$' { return "Managed lifetime/operation: $($Matches[1] -replace '-', ' ')." }
