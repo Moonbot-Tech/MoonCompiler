@@ -12,7 +12,7 @@ program omni_forms;
   digest must be identical for every compiler/option tuple. }
 
 {$ifdef FPC}
-  {$mode delphiunicode}{$H+}
+  {$mode delphiunicode}{$H+}{$codepage utf8}
   {$modeswitch advancedrecords}
   {$if FPC_FULLVERSION >= 30301}
     {$modeswitch anonymousfunctions}
@@ -14101,6 +14101,48 @@ end;
 
 { ---------------------------------------------------------------- }
 
+procedure CheckOmniRawBytes(const Value: RawByteString;
+  const Expected: array of Byte; const Name: AnsiString);
+var
+  I: Integer;
+begin
+  Check(Length(Value) = Length(Expected), Name + '-length');
+  if Length(Value) <> Length(Expected) then
+    Exit;
+  for I := 0 to High(Expected) do
+    Check(Byte(Value[I + 1]) = Expected[I], Name + '-byte-' + IntToStr(I));
+end;
+
+procedure RunRawByteConstantForms;
+const
+  ByteEf = AnsiChar($ef);
+  ByteBb = AnsiChar($bb);
+  ByteBf = AnsiChar($bf);
+  Direct: RawByteString =
+    AnsiChar($ef) + AnsiChar($bb) + AnsiChar($bf);
+  Pair: RawByteString = AnsiChar($80) + AnsiChar($ff);
+  NestedLeft: RawByteString =
+    (AnsiChar($ef) + AnsiChar($bb)) + AnsiChar($bf);
+  NestedRight: RawByteString =
+    AnsiChar($ef) + (AnsiChar($bb) + AnsiChar($bf));
+  Named: RawByteString = ByteEf + ByteBb + ByteBf;
+  LiteralMixed: RawByteString = #$ef + AnsiChar($bb) + AnsiChar($bf);
+  AsciiEdges: RawByteString =
+    AnsiChar('A') + AnsiChar($80) + AnsiChar('Z');
+begin
+  CheckOmniRawBytes(Direct, [$ef, $bb, $bf], 'rawconst-direct');
+  CheckOmniRawBytes(Pair, [$80, $ff], 'rawconst-pair');
+  CheckOmniRawBytes(NestedLeft, [$ef, $bb, $bf], 'rawconst-left');
+  CheckOmniRawBytes(NestedRight, [$ef, $bb, $bf], 'rawconst-right');
+  CheckOmniRawBytes(Named, [$ef, $bb, $bf], 'rawconst-named');
+  CheckOmniRawBytes(LiteralMixed, [$ef, $bb, $bf], 'rawconst-mixed');
+  CheckOmniRawBytes(AsciiEdges, [$41, $80, $5a], 'rawconst-ascii-edges');
+  Mix(UInt64(Byte(Direct[1])) or (UInt64(Byte(Direct[2])) shl 8) or
+    (UInt64(Byte(Direct[3])) shl 16));
+end;
+
+{ ---------------------------------------------------------------- }
+
 type
   TOmniByteArray = array[0..255] of Byte;
   POmniByteArray = ^TOmniByteArray;
@@ -14281,6 +14323,7 @@ begin
   RunRecordAbiForms;
   RunWideOpForms;
   RunDelphiCharacterOverloadForms;
+  RunRawByteConstantForms;
   RunPointerIndexOffsetForms;
   RunFunctionResultCounterForms;
   RunStringCowForms;

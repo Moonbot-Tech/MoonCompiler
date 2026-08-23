@@ -84,11 +84,17 @@ REVIEWED_PASS_FIXTURES = frozenset({
     "mega-001-negative-constant-div",
     "min-fpc-41796",
     "min-fpc-41810",
+    "mormot-rawbytestring-bom-const",
+    "mormot-unicode-char-overload",
     "moonbot-inline-pointer-new",
     "unleashed-17",
     "unleashed-20",
 })
 DELPHI_PROOF_PATH = "research/delphi_fixture_oracle_probe.json"
+SUPPLEMENTAL_DELPHI_PROOF_PATHS = (
+    "research/delphi_char_overload_oracle.json",
+    "research/delphi_rawbyte_const_oracle.json",
+)
 REFERENCE_PROOF_PATH = "research/fixture_reference_probe.json"
 
 
@@ -124,7 +130,17 @@ def delphi_references() -> dict[str, dict]:
     for test in proof["tests"]:
         if test["compile_exit_code"] != 0 or test["run_exit_code"] != 0:
             raise RuntimeError(f"failed Delphi fixture oracle: {test['test_id']}")
-        result[test["test_id"]] = test
+        result[test["test_id"]] = dict(test, proof_path=DELPHI_PROOF_PATH)
+    for proof_name in SUPPLEMENTAL_DELPHI_PROOF_PATHS:
+        supplemental = json.loads((ROOT / proof_name).read_text(encoding="utf-8"))
+        test = supplemental["test"]
+        if test["compile_exit_code"] != 0 or test["run_exit_code"] != 0:
+            raise RuntimeError(f"failed Delphi fixture oracle: {test['test_id']}")
+        result[test["test_id"]] = dict(
+            test,
+            adapted_source_sha256=test["source_sha256"],
+            proof_path=proof_name,
+        )
     return result
 
 
@@ -160,10 +176,11 @@ def issue_evidence(
         result = {"basis": "lab-reproducer"}
     references = []
     if test_id in delphi:
+        proof_path = delphi[test_id]["proof_path"]
         references.append({
             "kind": "delphi-12.2-win64",
-            "path": DELPHI_PROOF_PATH,
-            "sha256": runner.sha256(ROOT / DELPHI_PROOF_PATH),
+            "path": proof_path,
+            "sha256": runner.sha256(ROOT / proof_path),
             "adapted_source_sha256": delphi[test_id]["adapted_source_sha256"],
         })
     if test_id in compiler_refs:

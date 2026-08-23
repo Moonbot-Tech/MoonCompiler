@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "compiler": "Delphi 12.2 Win64 compiler 36.0",
+  "compiler_sha256": "68cf81c0b1044e585eb584d96947a01e669605d8ac1ed048a2de44fd867fdb88",
+  "test": {
+    "test_id": "mormot-rawbytestring-bom-const",
+    "source_sha256": "0c4ba537d2c9f3fe749094424dabc568997fda425519913dad60d3ef4708e14d",
+    "adaptation": "none; FPC directives are conditional",
+    "compile_exit_code": 0,
+    "run_exit_code": 0
+  }
+}

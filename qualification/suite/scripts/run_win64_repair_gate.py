@@ -17,6 +17,7 @@ CORE_TESTS = (
     "tu64modpow2mask1",
     "tdelphicurrencymul1",
     "tdelphirawbyteconcat1",
+    "tdelphirawbyteconst1",
     "tunsignednarrowarith1",
     "tdelphix86shiftfold1",
     "tcapturedinlineinterface1",

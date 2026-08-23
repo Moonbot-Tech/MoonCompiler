@@ -1305,7 +1305,11 @@ implementation
                  else
                    concatwidestringchar(ws,asciichar2unicode(chr(tordconstnode(left).value.uvalue)));
                  hp:=cstringconstnode.createunistr(ws);
-                 if tordconstnode(left).literalbyte and
+                 { A scanner byte and a typed AnsiChar both retain their
+                   single-byte identity when this Unicode expression is later
+                   materialized as RawByteString. }
+                 if (tordconstnode(left).literalbyte or
+                    (torddef(left.resultdef).ordtype=uchar)) and
                     (m_delphi in current_settings.modeswitches) and
                     (m_default_unicodestring in current_settings.modeswitches) then
                    begin

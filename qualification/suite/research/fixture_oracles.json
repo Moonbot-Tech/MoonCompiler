@@ -1388,6 +1388,27 @@
         "spec_sha256": "7533435ae1ee40e94654f42f087aca2a0ed055bc7236288ef9b681c7787a9cde"
       }
     },
+    "mormot-rawbytestring-bom-const": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "public mORMot reproducer and Delphi constant semantics",
+        "independent_references": [
+          {
+            "adapted_source_sha256": "0c4ba537d2c9f3fe749094424dabc568997fda425519913dad60d3ef4708e14d",
+            "kind": "delphi-12.2-win64",
+            "path": "research/delphi_rawbyte_const_oracle.json",
+            "sha256": "26ff37a4f2707c946978612d4bbb78f8744b82d1512e901fa1691ce1734d6450"
+          }
+        ]
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "0c4ba537d2c9f3fe749094424dabc568997fda425519913dad60d3ef4708e14d",
+        "spec_sha256": "6146c78e1a4ee867feaa9d15c1af65db625965090c5adcf0706098dcae495b74"
+      }
+    },
     "mormot-unicode-char-overload": {
       "acceptance": {
         "observed_result": "pass"

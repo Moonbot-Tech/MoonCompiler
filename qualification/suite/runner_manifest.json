@@ -351,11 +351,11 @@
   },
   "fixture_expectations": {
     "path": "research/fixture_expected_outcomes.audited-002.json",
-    "sha256": "6884679e82cb570b3dde53e993bb72652cd49223ba133d5a55b5f701105696ca"
+    "sha256": "7750fdd0cbab29caffaf8d5ca756ebb0949e11619c226003326bab6808c1ef66"
   },
   "fixture_oracles": {
     "path": "research/fixture_oracles.json",
-    "sha256": "97e34f2262af34e7adc32d3345fb083464c93401ad5617fe87faa73636438c93"
+    "sha256": "c13ae5b767f2e6a910f723e77d2eb80e5fb32d072f153fd417423d420277df1c"
   },
   "fixture_qualification_compilers": [
     "moonbot-compiler-beta"
@@ -1096,6 +1096,13 @@
       ],
       "id": "mormot-unicode-char-overload",
       "source": "fixtures/minimized/mormot_unicode_char_overload.pas"
+    },
+    {
+      "compiler_allow": [
+        "moonbot-compiler-beta"
+      ],
+      "id": "mormot-rawbytestring-bom-const",
+      "source": "fixtures/minimized/mormot_rawbytestring_bom_const.pas"
     }
   ],
   "mega": {
