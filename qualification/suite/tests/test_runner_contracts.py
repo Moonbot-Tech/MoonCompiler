@@ -1,4 +1,5 @@
 import sys
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -116,6 +117,56 @@ class RunnerContractsTest(unittest.TestCase):
             runner.subprocess, "run", side_effect=(wrong, clean),
         ), self.assertRaisesRegex(RuntimeError, "not clean commit"):
             runner.require_clean_git_source(Path("source"), "expected")
+
+    def test_missing_public_mormot_source_is_prepared_at_exact_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repository = root / "repository"
+            checkout = root / "deps/source"
+            subprocess.run(
+                ["git", "init", "--quiet", str(repository)], check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(repository), "config", "user.email",
+                 "qualification@example.invalid"], check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(repository), "config", "user.name",
+                 "Qualification"], check=True,
+            )
+            (repository / "unit.pas").write_text("unit source;\n", encoding="utf-8")
+            subprocess.run(
+                ["git", "-C", str(repository), "add", "unit.pas"], check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(repository), "commit", "--quiet", "-m",
+                 "fixture"], check=True,
+            )
+            commit = subprocess.run(
+                ["git", "-C", str(repository), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+
+            runner.ensure_clean_git_source(checkout, commit, str(repository))
+
+            runner.require_clean_git_source(checkout, commit)
+            self.assertEqual(
+                (checkout / "unit.pas").read_text(encoding="utf-8"),
+                "unit source;\n",
+            )
+            self.assertEqual(list(checkout.parent.glob(".source-*")), [])
+
+    def test_existing_mormot_source_is_never_replaced(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source"
+            source.mkdir()
+            marker = source / "local-work.txt"
+            marker.write_text("keep\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "not a readable Git checkout"):
+                runner.ensure_clean_git_source(
+                    source, "expected", "https://example.invalid/source.git",
+                )
+            self.assertEqual(marker.read_text(encoding="utf-8"), "keep\n")
 
     def test_mormot_source_patch_changes_only_the_staged_copy(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

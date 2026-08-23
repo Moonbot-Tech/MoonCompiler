@@ -1833,6 +1833,7 @@
         },
         "memory_manager": "../../runtime/mm/mormot.core.fpcx64mm.pas",
         "path": "../../.qualification/deps/mormot2-compiler-corpus",
+        "url": "https://github.com/synopse/mORMot2.git",
         "rtsp_ports": [
           "23999",
           "23998"

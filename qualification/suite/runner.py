@@ -44,18 +44,91 @@ def require_clean_git_source(source_root: Path, expected_commit: str | None) -> 
     """Reject a versioned source checkout whose tree no longer matches HEAD."""
     if expected_commit is None:
         return
-    actual = subprocess.run(
-        ["git", "-C", str(source_root), "rev-parse", "HEAD"],
-        check=True, capture_output=True, text=True,
-    ).stdout.strip()
-    dirty = subprocess.run(
-        ["git", "-C", str(source_root), "status", "--porcelain"],
-        check=True, capture_output=True, text=True,
-    ).stdout.strip()
+    try:
+        actual = subprocess.run(
+            ["git", "-C", str(source_root), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "-C", str(source_root), "status", "--porcelain"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise RuntimeError(
+            f"mORMot source is not a readable Git checkout: {source_root}"
+        ) from error
     if actual != expected_commit or dirty:
         raise RuntimeError(
             f"mORMot source is not clean commit {expected_commit}: {source_root}"
         )
+
+
+def ensure_clean_git_source(
+    source_root: Path, expected_commit: str | None, repository_url: str | None,
+) -> None:
+    """Fetch a missing public checkout, but never modify an existing one."""
+    if expected_commit is None:
+        return
+    if source_root.exists() or source_root.is_symlink():
+        require_clean_git_source(source_root, expected_commit)
+        return
+    if repository_url is None:
+        raise RuntimeError(
+            f"mORMot source is missing and has no repository URL: {source_root}"
+        )
+
+    source_root.parent.mkdir(parents=True, exist_ok=True)
+    staged_root = Path(tempfile.mkdtemp(
+        prefix=f".{source_root.name}-", dir=source_root.parent,
+    ))
+    try:
+        commands = (
+            ["git", "init", "--quiet", str(staged_root)],
+            ["git", "-C", str(staged_root), "remote", "add", "origin",
+             repository_url],
+            ["git", "-C", str(staged_root), "fetch", "--quiet", "--depth=1",
+             "origin", expected_commit],
+            ["git", "-C", str(staged_root), "checkout", "--quiet", "--detach",
+             "FETCH_HEAD"],
+        )
+        for command in commands:
+            subprocess.run(
+                command, check=True, capture_output=True, text=True,
+            )
+        require_clean_git_source(staged_root, expected_commit)
+
+        if source_root.exists() or source_root.is_symlink():
+            require_clean_git_source(source_root, expected_commit)
+        else:
+            try:
+                staged_root.replace(source_root)
+            except OSError:
+                if not (source_root.exists() or source_root.is_symlink()):
+                    raise
+                require_clean_git_source(source_root, expected_commit)
+        require_clean_git_source(source_root, expected_commit)
+    except (OSError, subprocess.CalledProcessError) as error:
+        if isinstance(error, subprocess.CalledProcessError):
+            detail = error.stderr.strip() or error.stdout.strip()
+        else:
+            detail = str(error)
+        raise RuntimeError(
+            f"could not prepare mORMot source {expected_commit}: {detail}"
+        ) from error
+    finally:
+        if staged_root.exists():
+            shutil.rmtree(staged_root)
+
+
+def prepare_mormot_dependencies(manifest: dict[str, Any]) -> None:
+    for source in manifest["mormot"]["sources"].values():
+        repository_url = source.get("url")
+        if repository_url is None:
+            continue
+        ensure_clean_git_source(
+            ROOT / source["path"], source.get("commit"), repository_url,
+        )
+        print(f"mORMot compiler corpus is ready: {source['commit']}")
 
 
 def mormot_source_patch(source: dict[str, Any]) -> Path | None:
@@ -2327,7 +2400,9 @@ def run_mormot_probe_case(
     option_id: str, options: list[str],
 ) -> None:
     source_root = ROOT / source["path"]
-    require_clean_git_source(source_root, source.get("commit"))
+    ensure_clean_git_source(
+        source_root, source.get("commit"), source.get("url"),
+    )
     static_dir, static_input, static_input_sha256 = mormot_static_inputs(
         source_root, source,
     )
@@ -2436,7 +2511,9 @@ def _run_mormot_case_in_workspace(
     options: list[str], work: Path, artifacts: Path,
 ) -> None:
     source_root = ROOT / source["path"]
-    require_clean_git_source(source_root, source.get("commit"))
+    ensure_clean_git_source(
+        source_root, source.get("commit"), source.get("url"),
+    )
     static_dir, static_input, static_input_sha256 = mormot_static_inputs(
         source_root, source,
     )
@@ -2683,7 +2760,10 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "stage",
-        choices=["fixtures", "mega", "benchmark", "upstream", "mormot", "all"],
+        choices=[
+            "prepare", "fixtures", "mega", "benchmark", "upstream", "mormot",
+            "all",
+        ],
     )
     parser.add_argument("--compiler", action="append")
     parser.add_argument("--option", action="append")
@@ -2691,6 +2771,9 @@ def main() -> int:
     parser.add_argument("--run-id")
     args = parser.parse_args()
     manifest = load_manifest()
+    if args.stage == "prepare":
+        prepare_mormot_dependencies(manifest)
+        return 0
     run_id, run_dir = create_run_directory(
         ROOT / "results" / "runs", args.stage, args.run_id,
     )
