@@ -911,13 +911,14 @@ function TOpenAddressingLP<OPEN_ADDRESSING_CONSTRAINTS>.DoRemove(AIndex: SizeInt
   ACollectionNotification: TCollectionNotification): TValue;
 var
   LItem: PItem;
-  LPair: TPair<TKey, TValue>;
+  LKey: TKey;
   LLengthMask: SizeInt;
   i, LIndex, LGapIndex: SizeInt;
   LHash, LBucket: UInt32;
 begin
   LItem := @FItems[AIndex];
-  LPair := LItem.Pair;
+  Result := LItem.Pair.Value;
+  LKey := LItem.Pair.Key;
 
   // try fill gap
   LHash := LItem.Hash;
@@ -949,8 +950,8 @@ begin
   LItem.Pair := Default(TPair<TKey, TValue>);
   Dec(FItemsLength);
 
-  Result := LPair.Value;
-  PairNotify(LPair, ACollectionNotification);
+  KeyNotify(LKey, ACollectionNotification);
+  ValueNotify(Result, ACollectionNotification);
 end;
 
 function TOpenAddressingLP<OPEN_ADDRESSING_CONSTRAINTS>.FindBucketIndex(const AItems: TArray<TItem>;

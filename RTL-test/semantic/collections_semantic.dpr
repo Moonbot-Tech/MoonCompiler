@@ -122,7 +122,9 @@ end;
 
 function TConstantHashComparer.GetHashCode(const AValue: Integer): UInt32;
 begin
-  Result := 1;
+  // Start the collision cluster at the end of a power-of-two table so that
+  // removal has to shift managed entries across the physical wraparound.
+  Result := $7FFFFFFE;
 end;
 
 procedure TDictionaryObserver.KeyNotify(ASender: TObject; const AItem: Integer;
@@ -323,6 +325,7 @@ procedure TestDictionaryNotificationsAndManagedLifetime;
 var
   I: Integer;
   Item: ITracked;
+  Comparer: IEqualityComparer<Integer>;
   Dictionary: TDictionary<Integer, UnicodeString>;
   ManagedDictionary: TDictionary<Integer, ITracked>;
   Observer: TDictionaryObserver;
@@ -350,7 +353,8 @@ begin
 
   InterfacesDestroyed := 0;
   Item := nil;
-  ManagedDictionary := TDictionary<Integer, ITracked>.Create;
+  Comparer := TConstantHashComparer.Create;
+  ManagedDictionary := TDictionary<Integer, ITracked>.Create(16, Comparer);
   try
     for I := 1 to 8 do
     begin
@@ -366,6 +370,7 @@ begin
   finally
     Item := nil;
     ManagedDictionary.Free;
+    Comparer := nil;
   end;
   Check(InterfacesDestroyed = 8, 'dictionary managed lifetime exact');
 end;
