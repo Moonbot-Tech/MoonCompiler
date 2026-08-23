@@ -432,6 +432,16 @@ $Stages = @(
     unstable = @(
       'dictionary/u64-u64-build-grow-100'
     )
+  },
+  [ordered]@{
+    id = 'dictionary_lookup_20260823'
+    label = 'Сейчас: managed remove + numeric lookup'
+    short = 'Dictionary lookup'
+    note = 'PERF-039..041: DoRemove без временного managed TPair; TryGetValue приведён к Delphi var-контракту; linear probing идёт указателем и wrapper инлайнится. MM и load factor не менялись. Exact-source Win64 O3 medium: 30/30 oracle MATCH; UInt64->UInt64 mixed 1.056 -> 0.963, UInt64->String 1.160 -> 1.007.'
+    inherit = 'dictionary_matrix_20260823'
+    files = @('evidence\dictionary-lookup-20260823\summary.json')
+    tracked = $true
+    unstable = @()
   }
 )
 

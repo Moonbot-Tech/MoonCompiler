@@ -1,0 +1,2222 @@
+{
+  "dictionary/string-u64-build-grow-100": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UnicodeString,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "1E3779B97F4A7C71"
+      ],
+      "moon": [
+        "1E3779B97F4A7C71"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 436.10846153846154,
+        "median": 436.21076923076924,
+        "mean": 437.4567307692308,
+        "minimum": 434.3765384615385,
+        "maximum": 443.0726923076923,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 436.5980769230769,
+        "median": 436.7076923076923,
+        "mean": 437.6524725274725,
+        "minimum": 435.0269230769231,
+        "maximum": 442.9923076923077,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.3902800803782247,
+        "median": 1.373988744284207,
+        "mean": 1.092444232755012,
+        "minimum": 0.6917359140432352,
+        "maximum": 1.4032393499746294,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 447.7989423076923,
+        "median": 447.4536538461538,
+        "mean": 447.1404235830762,
+        "minimum": 439.73169811320753,
+        "maximum": 456.1750980392157,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 445.9153846153846,
+        "median": 447.0846153846154,
+        "mean": 447.53790202583207,
+        "minimum": 440.6566037735849,
+        "maximum": 455.92549019607844,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.3475670932536654,
+        "median": 1.3484532701609946,
+        "mean": 1.1638862223082498,
+        "minimum": 0.6705461786377935,
+        "maximum": 1.380818770298036,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.021340697966357,
+    "moon_mm_over_moon_default": 0.9981838829827311
+  },
+  "dictionary/string-u64-build-grow-10000": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UnicodeString,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "1E3779B97F4A5B05"
+      ],
+      "moon": [
+        "1E3779B97F4A5B05"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 666.4877,
+        "median": 666.615,
+        "mean": 666.9882142857143,
+        "minimum": 663.0468000000001,
+        "maximum": 670.1585,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 666.349,
+        "median": 667.337,
+        "mean": 667.1415714285714,
+        "minimum": 662.739,
+        "maximum": 669.712,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.9442257670074653,
+        "median": 0.9442257670074653,
+        "mean": 1.0188183950371263,
+        "minimum": 0.9361907372539503,
+        "maximum": 1.1775336378969137,
+        "kept": 6,
+        "rejected": 1
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 440.5131,
+        "median": 441.5372,
+        "mean": 443.0544857142857,
+        "minimum": 439.50419999999997,
+        "maximum": 452.00620000000004,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 440.26800000000003,
+        "median": 442.434,
+        "mean": 443.37585714285717,
+        "minimum": 440.002,
+        "maximum": 451.877,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0780922612354136,
+        "median": 1.0714383674365022,
+        "mean": 1.0180752854090516,
+        "minimum": 0.71856425114108,
+        "maximum": 1.078801408483119,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.6607168315702432,
+    "moon_mm_over_moon_default": 1.0492189268734435
+  },
+  "dictionary/string-u64-build-reserved-100": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UnicodeString,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "1E3779B97F4A7C71"
+      ],
+      "moon": [
+        "1E3779B97F4A7C71"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 265.62773255813954,
+        "median": 266.1609411764706,
+        "mean": 265.420080165047,
+        "minimum": 258.35034090909096,
+        "maximum": 268.09000000000003,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 266.4668125854993,
+        "median": 266.49176470588236,
+        "mean": 265.6066226659797,
+        "minimum": 258.31363636363636,
+        "maximum": 267.9223529411765,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.3885741542987753,
+        "median": 1.383410582980287,
+        "mean": 1.284763843741258,
+        "minimum": 0.6930152929070716,
+        "maximum": 1.393310326993214,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 326.9006308685446,
+        "median": 323.1213888888889,
+        "mean": 322.2966430961142,
+        "minimum": 311.7675,
+        "maximum": 330.93985915492954,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 326.9265551643192,
+        "median": 323.89722222222224,
+        "mean": 322.4575382535453,
+        "minimum": 312.15,
+        "maximum": 330.49295774647885,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.3621988866113992,
+        "median": 1.3495597196370657,
+        "mean": 1.2528040023119174,
+        "minimum": 0.66135326634442,
+        "maximum": 1.3623384266625977,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.2268940810759337,
+    "moon_mm_over_moon_default": 1.0186549792934767
+  },
+  "dictionary/string-u64-build-reserved-10000": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UnicodeString,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "1E3779B97F4A5B05"
+      ],
+      "moon": [
+        "1E3779B97F4A5B05"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 365.41655000000003,
+        "median": 365.7576,
+        "mean": 366.0322857142857,
+        "minimum": 361.6935,
+        "maximum": 370.2416,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 367.23199999999997,
+        "median": 366.83299999999997,
+        "mean": 366.4855714285714,
+        "minimum": 361.228,
+        "maximum": 372.02,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.286297997501824,
+        "median": 1.229588825496754,
+        "mean": 1.0855513559869086,
+        "minimum": 0.8192337739281801,
+        "maximum": 1.292176645716176,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 329.97204999999997,
+        "median": 329.73929999999996,
+        "mean": 328.6299714285714,
+        "minimum": 323.0817,
+        "maximum": 335.87059999999997,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 328.1015,
+        "median": 328.206,
+        "mean": 328.8682857142857,
+        "minimum": 322.278,
+        "maximum": 335.711,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.9378471505695853,
+        "median": 0.9443554772332783,
+        "mean": 0.9466217481997489,
+        "minimum": 0.9374756256337335,
+        "maximum": 0.9603004126987054,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "candidate_over_baseline": 0.8934447433774835,
+    "moon_mm_over_moon_default": 1.6835819440382178
+  },
+  "dictionary/string-u64-churn-100": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UnicodeString,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "2F7412BC39CDFC7B"
+      ],
+      "moon": [
+        "2F7412BC39CDFC7B"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 184.28130146865985,
+        "median": 184.14983870967743,
+        "mean": 184.2295408444794,
+        "minimum": 182.08992,
+        "maximum": 186.7548,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 182.71264193548387,
+        "median": 183.38064516129032,
+        "mean": 183.97005490240156,
+        "minimum": 182.3392,
+        "maximum": 186.7168,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.6867332004315632,
+        "median": 0.6904124358192599,
+        "mean": 0.6917314928028029,
+        "minimum": 0.6866652896738724,
+        "maximum": 0.6997689083157178,
+        "kept": 5,
+        "rejected": 2
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 100.02298222495816,
+        "median": 100.32,
+        "mean": 100.44699681051827,
+        "minimum": 100.00803493449781,
+        "maximum": 101.06882352941176,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 101.22541910020531,
+        "median": 100.76666666666667,
+        "mean": 100.67113113607249,
+        "minimum": 99.9947598253275,
+        "maximum": 101.26079295154184,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.6715886692844881,
+        "median": 0.6715886692844881,
+        "mean": 0.6577508910624237,
+        "minimum": 0.5974320934785269,
+        "maximum": 0.6903941322021916,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "candidate_over_baseline": 0.554014314652339,
+    "moon_mm_over_moon_default": 1.0458596647401506
+  },
+  "dictionary/string-u64-churn-10000": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UnicodeString,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "38CB6442CE445F2B"
+      ],
+      "moon": [
+        "38CB6442CE445F2B"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 211.9355,
+        "median": 211.9298,
+        "mean": 211.84185714285715,
+        "minimum": 210.9665,
+        "maximum": 213.3168,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 211.394,
+        "median": 211.71699999999998,
+        "mean": 211.9667142857143,
+        "minimum": 210.558,
+        "maximum": 213.332,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7493717503412176,
+        "median": 0.7480479991021345,
+        "mean": 0.746948216045338,
+        "minimum": 0.7421921387008669,
+        "maximum": 0.7495047272762159,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 184.7674,
+        "median": 185.269,
+        "mean": 185.27985714285714,
+        "minimum": 183.9409,
+        "maximum": 186.3976,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 186.086,
+        "median": 185.668,
+        "mean": 185.57842857142856,
+        "minimum": 184.39499999999998,
+        "maximum": 186.504,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.8532689506025881,
+        "median": 0.8461266385745763,
+        "mean": 0.8417849111865526,
+        "minimum": 0.8206924806185264,
+        "maximum": 0.8541938869785317,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "candidate_over_baseline": 0.8802804242315297,
+    "moon_mm_over_moon_default": 1.1321234539359613
+  },
+  "dictionary/string-u64-lookup-mixed-100": {
+    "layer": "rtl",
+    "unit": "TDictionary<UnicodeString,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "73513B1222FFC510"
+      ],
+      "moon": [
+        "73513B1222FFC510"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 142.6959375,
+        "median": 142.431125,
+        "mean": 142.18481860307415,
+        "minimum": 140.733,
+        "maximum": 143.743417721519,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 142.64249999999998,
+        "median": 142.61875,
+        "mean": 142.26499095840867,
+        "minimum": 140.90875,
+        "maximum": 143.89493670886077,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7007779728681862,
+        "median": 0.7007779728681862,
+        "mean": 0.6980860262729848,
+        "minimum": 0.6869339664116768,
+        "maximum": 0.7038541929438898,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 41.20441280149636,
+        "median": 41.20969202898551,
+        "mean": 41.22732743103532,
+        "minimum": 41.03245487364621,
+        "maximum": 41.42103636363636,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 41.34663503649635,
+        "median": 41.29746376811594,
+        "mean": 41.25840086332496,
+        "minimum": 41.078,
+        "maximum": 41.3492700729927,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.3917812294549283,
+        "median": 1.3856864136218516,
+        "mean": 1.1875908177149095,
+        "minimum": 0.6715693016538872,
+        "maximum": 1.3961800513794258,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.28986196285466365,
+    "moon_mm_over_moon_default": 0.9861055880737902
+  },
+  "dictionary/string-u64-lookup-mixed-10000": {
+    "layer": "rtl",
+    "unit": "TDictionary<UnicodeString,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "6243E7E5E41EC040"
+      ],
+      "moon": [
+        "6243E7E5E41EC040"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 154.108525,
+        "median": 154.5365,
+        "mean": 154.46579285714284,
+        "minimum": 153.691,
+        "maximum": 155.4029,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 154.71699999999998,
+        "median": 154.7075,
+        "mean": 154.57857142857142,
+        "minimum": 153.881,
+        "maximum": 155.306,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0268510697974547,
+        "median": 1.0249396515533165,
+        "mean": 1.0242044417020544,
+        "minimum": 1.018901021509408,
+        "maximum": 1.0303975521051434,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 75.449475,
+        "median": 75.17824999999999,
+        "mean": 75.18354285714285,
+        "minimum": 74.57405,
+        "maximum": 75.54685,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 75.164,
+        "median": 75.164,
+        "mean": 75.13550000000001,
+        "minimum": 74.651,
+        "maximum": 75.734,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0504590148474198,
+        "median": 1.0503777998870634,
+        "mean": 1.0499543051318176,
+        "minimum": 1.044430927187289,
+        "maximum": 1.0578661232337867,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.4858160383151173,
+    "moon_mm_over_moon_default": 1.0064877242081163
+  },
+  "dictionary/u64-string-build-grow-100": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UInt64,UnicodeString>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "0000000000000072"
+      ],
+      "moon": [
+        "0000000000000072"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 326.85192546583846,
+        "median": 327.6673913043478,
+        "mean": 326.7735314995563,
+        "minimum": 320.5217391304348,
+        "maximum": 329.2782608695652,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 327.31964803312627,
+        "median": 327.5434782608696,
+        "mean": 326.95240461401954,
+        "minimum": 320.13623188405796,
+        "maximum": 329.5536231884058,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.3932920697698292,
+        "median": 1.3940188783612584,
+        "mean": 1.2921035170660091,
+        "minimum": 0.6928124861437502,
+        "maximum": 1.4357386358415496,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 439.96364840348326,
+        "median": 436.72037735849057,
+        "mean": 436.82003248324,
+        "minimum": 431.83833333333337,
+        "maximum": 440.00056603773584,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 440.91168359941946,
+        "median": 437.2867924528302,
+        "mean": 437.38775197548784,
+        "minimum": 432.35555555555555,
+        "maximum": 441.23846153846154,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.3920877360904063,
+        "median": 1.3607249071441323,
+        "mean": 1.0822177759135747,
+        "minimum": 0.6839600961264878,
+        "maximum": 1.3925280288041637,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.3470370209942213,
+    "moon_mm_over_moon_default": 1.0325883227538817
+  },
+  "dictionary/u64-string-build-grow-10000": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UInt64,UnicodeString>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "0000000000002706"
+      ],
+      "moon": [
+        "0000000000002706"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 556.65725,
+        "median": 556.3181,
+        "mean": 555.6178142857143,
+        "minimum": 550.0177,
+        "maximum": 563.8933999999999,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 552.0165,
+        "median": 553.945,
+        "mean": 555.2424285714286,
+        "minimum": 549.613,
+        "maximum": 564.205,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.138533268004008,
+        "median": 1.12285063930624,
+        "mean": 1.0474890101257042,
+        "minimum": 0.848525330856997,
+        "maximum": 1.1390206609235727,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 420.02919999999995,
+        "median": 418.1634,
+        "mean": 416.4734857142857,
+        "minimum": 409.4158,
+        "maximum": 420.6524,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 417.924,
+        "median": 417.848,
+        "mean": 416.12985714285713,
+        "minimum": 410.438,
+        "maximum": 420.375,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.1299025041280866,
+        "median": 1.1265293762812394,
+        "mean": 1.028960479850309,
+        "minimum": 0.7581675877897414,
+        "maximum": 1.157598911424853,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.7570860653621767,
+    "moon_mm_over_moon_default": 1.0324821629740895
+  },
+  "dictionary/u64-string-build-reserved-100": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UInt64,UnicodeString>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "0000000000000072"
+      ],
+      "moon": [
+        "0000000000000072"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 174.07323605402232,
+        "median": 174.19784615384617,
+        "mean": 174.42842616280694,
+        "minimum": 172.98330769230768,
+        "maximum": 176.29643410852714,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 173.60884615384614,
+        "median": 174.04580152671755,
+        "mean": 174.33498161345133,
+        "minimum": 172.81230769230768,
+        "maximum": 176.47906976744187,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.6938804794681046,
+        "median": 0.6960375971668485,
+        "mean": 0.6966929574412564,
+        "minimum": 0.6933597216798608,
+        "maximum": 0.7021682956971127,
+        "kept": 5,
+        "rejected": 2
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 315.96366666666665,
+        "median": 316.48534246575343,
+        "mean": 317.38653489889106,
+        "minimum": 312.0606849315069,
+        "maximum": 327.44853333333333,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 317.2585296803653,
+        "median": 317.03972602739725,
+        "mean": 317.84627788649703,
+        "minimum": 312.4328767123288,
+        "maximum": 327.864,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.3829361228965023,
+        "median": 1.3368183295973717,
+        "mean": 1.0656839858375726,
+        "minimum": 0.6482730007260658,
+        "maximum": 1.3830248634677855,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.8274329719305997,
+    "moon_mm_over_moon_default": 1.0052220763780557
+  },
+  "dictionary/u64-string-build-reserved-10000": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UInt64,UnicodeString>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "0000000000002706"
+      ],
+      "moon": [
+        "0000000000002706"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 266.04845,
+        "median": 267.29675,
+        "mean": 268.44941666666665,
+        "minimum": 265.1146,
+        "maximum": 273.7197,
+        "kept": 6,
+        "rejected": 1
+      },
+      "cycles": {
+        "mode": 266.1425,
+        "median": 267.501,
+        "mean": 268.63783333333333,
+        "minimum": 265.468,
+        "maximum": 274.094,
+        "kept": 6,
+        "rejected": 1
+      },
+      "effective_cores": {
+        "mode": 1.1320845260061674,
+        "median": 1.136863856460479,
+        "mean": 1.168026725960583,
+        "minimum": 1.1316477515517154,
+        "maximum": 1.3533215925166728,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 294.1618,
+        "median": 294.17510000000004,
+        "mean": 295.58842857142855,
+        "minimum": 292.39099999999996,
+        "maximum": 300.4318,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 294.1675,
+        "median": 295.298,
+        "mean": 295.86528571428573,
+        "minimum": 292.201,
+        "maximum": 300.903,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0541477927598286,
+        "median": 1.0516644904222812,
+        "mean": 0.9763444433443647,
+        "minimum": 0.5236909402305245,
+        "maximum": 1.0577801848153539,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.1053007317508479,
+    "moon_mm_over_moon_default": 1.6001757015141338
+  },
+  "dictionary/u64-string-churn-100": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UInt64,UnicodeString>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "0000000000000072"
+      ],
+      "moon": [
+        "0000000000000072"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 84.98862453531598,
+        "median": 84.9942750929368,
+        "mean": 85.37913640393737,
+        "minimum": 84.75772388059701,
+        "maximum": 86.61873134328357,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 85.182156133829,
+        "median": 85.25278810408922,
+        "mean": 85.36683291304648,
+        "minimum": 84.6634328358209,
+        "maximum": 86.50671641791045,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.698222608807789,
+        "median": 0.6960856869491866,
+        "mean": 0.6941299773593448,
+        "minimum": 0.6860713250726687,
+        "maximum": 0.6982772104663375,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 94.9433193277311,
+        "median": 94.68546218487396,
+        "mean": 94.74669342537666,
+        "minimum": 94.11774590163935,
+        "maximum": 95.79961702127659,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 95.02394957983194,
+        "median": 95.01596638655462,
+        "mean": 94.92372857206018,
+        "minimum": 94.29139344262296,
+        "maximum": 95.92170212765957,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.409800944895,
+        "median": 1.3869779415028183,
+        "mean": 1.190499496810945,
+        "minimum": 0.6846733943587294,
+        "maximum": 1.409912247061743,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.115538205331884,
+    "moon_mm_over_moon_default": 1.0333699407145258
+  },
+  "dictionary/u64-string-churn-10000": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UInt64,UnicodeString>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "0000000000002706"
+      ],
+      "moon": [
+        "0000000000002706"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 109.6908,
+        "median": 110.0233,
+        "mean": 110.34643571428572,
+        "minimum": 109.67750000000001,
+        "maximum": 111.72569999999999,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 109.934,
+        "median": 110.048,
+        "mean": 110.143,
+        "minimum": 109.7915,
+        "maximum": 110.941,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.4255902845862414,
+        "median": 1.407949394919668,
+        "mean": 1.209205203595343,
+        "minimum": 0.7118645612180743,
+        "maximum": 1.4263219151509618,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 156.69395,
+        "median": 156.6379,
+        "mean": 156.64414285714287,
+        "minimum": 156.2389,
+        "maximum": 157.225,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 157.016,
+        "median": 157.016,
+        "mean": 156.99971428571428,
+        "minimum": 156.408,
+        "maximum": 157.852,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.9972811900163969,
+        "median": 0.997701296213524,
+        "mean": 0.9995314373879701,
+        "minimum": 0.9939251296078369,
+        "maximum": 1.0061495862712901,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.4282751469063255,
+    "moon_mm_over_moon_default": 1.036498181362097
+  },
+  "dictionary/u64-string-lookup-halfload-10000": {
+    "layer": "rtl",
+    "unit": "TDictionary<UInt64,UnicodeString>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "0000000000002710"
+      ],
+      "moon": [
+        "0000000000002710"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 68.4589,
+        "median": 68.4551,
+        "mean": 68.41031428571428,
+        "minimum": 68.1758,
+        "maximum": 68.59285,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 68.552,
+        "median": 68.552,
+        "mean": 68.52757142857143,
+        "minimum": 68.324,
+        "maximum": 68.761,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.1458554969538532,
+        "median": 1.1458554969538532,
+        "mean": 1.146077792973793,
+        "minimum": 1.1432229742088897,
+        "maximum": 1.1500978963329358,
+        "kept": 6,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 52.2611625,
+        "median": 52.260925,
+        "mean": 52.199242857142856,
+        "minimum": 52.0106,
+        "maximum": 52.354974999999996,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 52.181124999999994,
+        "median": 52.269,
+        "mean": 52.27782142857143,
+        "minimum": 52.1455,
+        "maximum": 52.4495,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7563839395737236,
+        "median": 0.7563839395737236,
+        "mean": 0.7570880085957646,
+        "minimum": 0.7555061286657158,
+        "maximum": 0.7600780265698955,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "candidate_over_baseline": 0.7611904101995564,
+    "moon_mm_over_moon_default": 1.0115561694290975
+  },
+  "dictionary/u64-string-lookup-hit-10000": {
+    "layer": "rtl",
+    "unit": "TDictionary<UInt64,UnicodeString>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "0000000000002710"
+      ],
+      "moon": [
+        "0000000000002710"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 66.57251666666667,
+        "median": 66.58866666666667,
+        "mean": 66.48380476190476,
+        "minimum": 65.9433,
+        "maximum": 66.75016666666667,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 66.747,
+        "median": 66.60133333333333,
+        "mean": 66.53980952380952,
+        "minimum": 66.06933333333333,
+        "maximum": 66.88,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7911853117608741,
+        "median": 0.7879742068516389,
+        "mean": 0.7770344939145468,
+        "minimum": 0.727925795826714,
+        "maximum": 0.7927126245510075,
+        "kept": 6,
+        "rejected": 1
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 63.8837,
+        "median": 63.86723333333333,
+        "mean": 63.78661904761905,
+        "minimum": 63.4353,
+        "maximum": 64.1497,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 64.049,
+        "median": 63.94133333333333,
+        "mean": 63.83728571428571,
+        "minimum": 63.39666666666667,
+        "maximum": 64.068,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.829310770740497,
+        "median": 0.8260572325160707,
+        "mean": 0.8234397522055183,
+        "minimum": 0.8109384569073792,
+        "maximum": 0.8307060868825528,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "candidate_over_baseline": 0.959578707657273,
+    "moon_mm_over_moon_default": 1.0816042780748665
+  },
+  "dictionary/u64-string-lookup-miss-10000": {
+    "layer": "rtl",
+    "unit": "TDictionary<UInt64,UnicodeString>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "0000000000002710"
+      ],
+      "moon": [
+        "0000000000002710"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 66.94460000000001,
+        "median": 66.99716666666666,
+        "mean": 67.08203333333333,
+        "minimum": 66.76410000000001,
+        "maximum": 67.74766666666666,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 67.05099999999999,
+        "median": 67.184,
+        "mean": 67.21566666666666,
+        "minimum": 66.89266666666667,
+        "maximum": 67.76033333333334,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.780376106618577,
+        "median": 0.7806918053591682,
+        "mean": 0.7810939008888177,
+        "minimum": 0.7779553590544046,
+        "maximum": 0.7837462317481177,
+        "kept": 5,
+        "rejected": 2
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 72.30006666666668,
+        "median": 72.31716666666668,
+        "mean": 72.41207619047618,
+        "minimum": 71.38743333333333,
+        "maximum": 73.18103333333335,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 72.44066666666667,
+        "median": 72.44066666666667,
+        "mean": 72.50852380952381,
+        "minimum": 71.46533333333333,
+        "maximum": 73.302,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7375174936911115,
+        "median": 0.7306506390893746,
+        "mean": 0.7253436636663306,
+        "minimum": 0.6998692084423263,
+        "maximum": 0.7380692580573545,
+        "kept": 6,
+        "rejected": 1
+      }
+    },
+    "candidate_over_baseline": 1.0803816000755646,
+    "moon_mm_over_moon_default": 1.0518668383299614
+  },
+  "dictionary/u64-string-lookup-mixed-100": {
+    "layer": "rtl",
+    "unit": "TDictionary<UInt64,UnicodeString>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "0000000000000064"
+      ],
+      "moon": [
+        "0000000000000064"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 55.35054759649538,
+        "median": 55.355485436893204,
+        "mean": 55.390420187468784,
+        "minimum": 55.09348039215686,
+        "maximum": 55.760365853658534,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 55.34735318493962,
+        "median": 55.35951219512195,
+        "mean": 55.450990490915764,
+        "minimum": 55.21176470588235,
+        "maximum": 56.03609756097561,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.6923125159722601,
+        "median": 0.6951125529175741,
+        "mean": 0.6954690769234303,
+        "minimum": 0.6911576060512231,
+        "maximum": 0.7004935958073497,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 37.86677600334448,
+        "median": 37.96041666666666,
+        "mean": 38.012886894077816,
+        "minimum": 37.834147157190635,
+        "maximum": 38.236216216216214,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 37.908018394648835,
+        "median": 37.949333333333335,
+        "mean": 38.03240206537376,
+        "minimum": 37.87926421404682,
+        "maximum": 38.255892255892256,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.39969144917535,
+        "median": 1.3983541930489491,
+        "mean": 1.397259595765504,
+        "minimum": 1.3912695055984685,
+        "maximum": 1.405928745281703,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.6849111332927093,
+    "moon_mm_over_moon_default": 1.0301046513551022
+  },
+  "dictionary/u64-string-lookup-mixed-10000": {
+    "layer": "rtl",
+    "unit": "TDictionary<UInt64,UnicodeString>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "0000000000002710"
+      ],
+      "moon": [
+        "0000000000002710"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 68.362,
+        "median": 68.2993,
+        "mean": 68.26238571428571,
+        "minimum": 68.0618,
+        "maximum": 68.45795000000001,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 68.343,
+        "median": 68.4,
+        "mean": 68.42714285714285,
+        "minimum": 68.267,
+        "maximum": 68.571,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.1484579626538858,
+        "median": 1.146300328718479,
+        "mean": 1.1444306161280455,
+        "minimum": 1.1352572765450397,
+        "maximum": 1.1516491615994104,
+        "kept": 6,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 68.625625,
+        "median": 68.62039999999999,
+        "mean": 68.43067142857143,
+        "minimum": 67.92215,
+        "maximum": 68.8199,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 68.81800000000001,
+        "median": 68.799,
+        "mean": 68.51671428571429,
+        "minimum": 67.697,
+        "maximum": 69.027,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.1462632357120968,
+        "median": 1.1471341834974194,
+        "mean": 1.1496443868235522,
+        "minimum": 1.1445041824760844,
+        "maximum": 1.160295253371354,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.0069502363080347,
+    "moon_mm_over_moon_default": 1.0335283207304895
+  },
+  "dictionary/u64-u64-build-grow-100": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UInt64,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "CF82338BAED89172"
+      ],
+      "moon": [
+        "CF82338BAED89172"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 133.6888709233521,
+        "median": 133.71053254437868,
+        "mean": 133.76303103184304,
+        "minimum": 133.3545930232558,
+        "maximum": 134.26294117647058,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 133.43887140902874,
+        "median": 133.64823529411765,
+        "mean": 133.77698408715352,
+        "minimum": 133.41976744186047,
+        "maximum": 134.36352941176472,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.697826590203527,
+        "median": 0.6958119748558997,
+        "mean": 0.6947313489317837,
+        "minimum": 0.6893798008409331,
+        "maximum": 0.6979216451744022,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 101.79909743353619,
+        "median": 102.11094170403588,
+        "mean": 102.23822482659286,
+        "minimum": 101.64147982062781,
+        "maximum": 103.10638392857143,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 101.92264573991031,
+        "median": 102.14196428571428,
+        "mean": 102.53822385320024,
+        "minimum": 101.83318385650225,
+        "maximum": 104.59330357142858,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.690700295881575,
+        "median": 0.690700295881575,
+        "mean": 0.688948893989163,
+        "minimum": 0.6760147793055111,
+        "maximum": 0.698380204887991,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "candidate_over_baseline": 0.7638152561069549,
+    "moon_mm_over_moon_default": 1.0066001169049223
+  },
+  "dictionary/u64-u64-build-grow-10000": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UInt64,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "CF82338BAED8B606"
+      ],
+      "moon": [
+        "CF82338BAED8B606"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 259.54380000000003,
+        "median": 259.35,
+        "mean": 256.6281142857143,
+        "minimum": 245.78969999999998,
+        "maximum": 265.33500000000004,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 259.711,
+        "median": 259.692,
+        "mean": 257.19485714285713,
+        "minimum": 248.083,
+        "maximum": 266.95,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.1828144678490522,
+        "median": 1.1222921335401943,
+        "mean": 0.9279820387718593,
+        "minimum": 0.5793603120573687,
+        "maximum": 1.2194217794583035,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 143.25145,
+        "median": 145.6787,
+        "mean": 147.33224285714286,
+        "minimum": 143.06810000000002,
+        "maximum": 152.3477,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 144.0485,
+        "median": 146.034,
+        "mean": 147.49699999999999,
+        "minimum": 143.146,
+        "maximum": 152.285,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0654511452605098,
+        "median": 1.062657698402443,
+        "mean": 1.0519664332416678,
+        "minimum": 1.0072522159548751,
+        "maximum": 1.0926726247919551,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.5546492062330821,
+    "moon_mm_over_moon_default": 0.9640155127471549
+  },
+  "dictionary/u64-u64-build-reserved-100": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UInt64,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "CF82338BAED89172"
+      ],
+      "moon": [
+        "CF82338BAED89172"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 90.11262045369328,
+        "median": 90.12559523809523,
+        "mean": 90.15205385937884,
+        "minimum": 89.81269841269841,
+        "maximum": 90.59517928286851,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 90.23087936507937,
+        "median": 90.1816,
+        "mean": 90.1542021110907,
+        "minimum": 89.61666666666666,
+        "maximum": 90.77609561752988,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.6984117608985059,
+        "median": 0.6963776119806695,
+        "mean": 0.6876245775243476,
+        "minimum": 0.6519027215113296,
+        "maximum": 0.7044253692316015,
+        "kept": 6,
+        "rejected": 1
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 83.2366499004645,
+        "median": 83.0761231884058,
+        "mean": 83.02028775015098,
+        "minimum": 82.70576086956521,
+        "maximum": 83.25744525547447,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 82.85514492753623,
+        "median": 83.02173913043478,
+        "mean": 83.03304639785576,
+        "minimum": 82.69130434782609,
+        "maximum": 83.41970802919708,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.3854009856131264,
+        "median": 1.3878772805599475,
+        "mean": 1.385765653630167,
+        "minimum": 1.3575505877651024,
+        "maximum": 1.397391238245145,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.9182570923674533,
+    "moon_mm_over_moon_default": 0.9742555652974283
+  },
+  "dictionary/u64-u64-build-reserved-10000": {
+    "layer": "rtl+mm",
+    "unit": "TDictionary<UInt64,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "CF82338BAED8B606"
+      ],
+      "moon": [
+        "CF82338BAED8B606"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 144.16535,
+        "median": 144.5558,
+        "mean": 146.85941428571428,
+        "minimum": 144.1587,
+        "maximum": 152.7049,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 144.4665,
+        "median": 145.008,
+        "mean": 147.16042857142858,
+        "minimum": 144.4,
+        "maximum": 152.646,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0305537790518904,
+        "median": 1.008899028368394,
+        "mean": 1.0067382423768008,
+        "minimum": 0.9716918943794232,
+        "maximum": 1.036271148221593,
+        "kept": 6,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 196.232,
+        "median": 198.2859,
+        "mean": 199.37785714285715,
+        "minimum": 195.966,
+        "maximum": 211.0995,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 198.265,
+        "median": 198.36,
+        "mean": 199.7632857142857,
+        "minimum": 195.79500000000002,
+        "maximum": 211.489,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7922385000150542,
+        "median": 0.7918890291060396,
+        "mean": 0.791676315694794,
+        "minimum": 0.7852232295414799,
+        "maximum": 0.800276575584522,
+        "kept": 5,
+        "rejected": 2
+      }
+    },
+    "candidate_over_baseline": 1.3723942921023213,
+    "moon_mm_over_moon_default": 2.421394593340294
+  },
+  "dictionary/u64-u64-churn-100": {
+    "layer": "rtl",
+    "unit": "TDictionary<UInt64,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "FEC1588EE85F1178"
+      ],
+      "moon": [
+        "FEC1588EE85F1178"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 62.800777012168304,
+        "median": 63.10093663911846,
+        "mean": 63.14709059236708,
+        "minimum": 62.79050139275766,
+        "maximum": 63.68608938547486,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 63.109409888357256,
+        "median": 63.11578947368421,
+        "mean": 63.158510772007624,
+        "minimum": 62.83157894736842,
+        "maximum": 63.61284916201117,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7020019398777837,
+        "median": 0.699013669976621,
+        "mean": 0.6986027389495768,
+        "minimum": 0.6936121099125494,
+        "maximum": 0.7027715059325159,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 61.39368563685637,
+        "median": 61.395745257452575,
+        "mean": 61.41778032309045,
+        "minimum": 61.31130081300813,
+        "maximum": 61.516747967479674,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 61.38859130280676,
+        "median": 61.448780487804875,
+        "mean": 61.471370261001475,
+        "minimum": 61.31490514905149,
+        "maximum": 61.665498652291106,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7018183646979328,
+        "median": 0.7018183646979328,
+        "mean": 0.7002133943351405,
+        "minimum": 0.6944074093826107,
+        "maximum": 0.7028094385620857,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "candidate_over_baseline": 0.9727327733123368,
+    "moon_mm_over_moon_default": 0.9831766738163175
+  },
+  "dictionary/u64-u64-churn-10000": {
+    "layer": "rtl",
+    "unit": "TDictionary<UInt64,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "E97E2E701FD6B228"
+      ],
+      "moon": [
+        "E97E2E701FD6B228"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 78.796325,
+        "median": 78.793,
+        "mean": 78.70573571428571,
+        "minimum": 78.47,
+        "maximum": 78.89275,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 79.13974999999999,
+        "median": 78.983,
+        "mean": 78.94500000000001,
+        "minimum": 78.508,
+        "maximum": 79.39150000000001,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.9922997575215617,
+        "median": 0.9900017740831791,
+        "mean": 0.9837463970769519,
+        "minimum": 0.9597430038573991,
+        "maximum": 1.0027145488265834,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 105.9744,
+        "median": 105.9326,
+        "mean": 105.6838357142857,
+        "minimum": 104.72515,
+        "maximum": 106.54345,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 106.229,
+        "median": 105.887,
+        "mean": 105.8775,
+        "minimum": 104.918,
+        "maximum": 106.78,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.4887580078980682,
+        "median": 1.4685495429873823,
+        "mean": 1.1643766205063548,
+        "minimum": 0.7197973050788898,
+        "maximum": 1.4919886179172317,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.3422963807694617,
+    "moon_mm_over_moon_default": 1.0335043209020751
+  },
+  "dictionary/u64-u64-lookup-halfload-10000": {
+    "layer": "rtl",
+    "unit": "TDictionary<UInt64,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "6243E7E5E41EC040"
+      ],
+      "moon": [
+        "6243E7E5E41EC040"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 62.656775,
+        "median": 62.657250000000005,
+        "mean": 62.940485714285714,
+        "minimum": 62.229749999999996,
+        "maximum": 64.05279999999999,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 62.852,
+        "median": 62.852,
+        "mean": 63.157357142857144,
+        "minimum": 62.662,
+        "maximum": 64.09649999999999,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.2507354930411219,
+        "median": 1.2437937415337896,
+        "mean": 1.2414672438747631,
+        "minimum": 1.2240884947432744,
+        "maximum": 1.2510108167399259,
+        "kept": 6,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 45.6629375,
+        "median": 45.552499999999995,
+        "mean": 45.49305714285714,
+        "minimum": 45.141149999999996,
+        "maximum": 45.677899999999994,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 45.70925,
+        "median": 45.6095,
+        "mean": 45.606785714285714,
+        "minimum": 45.4765,
+        "maximum": 45.733,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.8664910684711788,
+        "median": 0.8663949652055782,
+        "mean": 0.8644819494977137,
+        "minimum": 0.8560564969894205,
+        "maximum": 0.870202053955312,
+        "kept": 5,
+        "rejected": 2
+      }
+    },
+    "candidate_over_baseline": 0.727252116082225,
+    "moon_mm_over_moon_default": 0.9998960931005818
+  },
+  "dictionary/u64-u64-lookup-hit-10000": {
+    "layer": "rtl",
+    "unit": "TDictionary<UInt64,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "6243E7E5E41EC040"
+      ],
+      "moon": [
+        "6243E7E5E41EC040"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 55.9823125,
+        "median": 55.9854,
+        "mean": 56.099875,
+        "minimum": 55.81345,
+        "maximum": 57.009975,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 55.997749999999996,
+        "median": 56.0025,
+        "mean": 56.15857142857143,
+        "minimum": 55.9075,
+        "maximum": 57.114,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7078543534902152,
+        "median": 0.7078206824070886,
+        "mean": 0.7018158827256286,
+        "minimum": 0.677744812270109,
+        "maximum": 0.7097111191860465,
+        "kept": 5,
+        "rejected": 2
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 49.123787500000006,
+        "median": 49.526825,
+        "mean": 49.96185714285714,
+        "minimum": 49.07605,
+        "maximum": 51.186949999999996,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 49.533,
+        "median": 49.5425,
+        "mean": 49.80307142857143,
+        "minimum": 49.1625,
+        "maximum": 51.053,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.6039153230553522,
+        "median": 1.5723349551444283,
+        "mean": 1.3536820955778142,
+        "minimum": 0.7709691266955153,
+        "maximum": 1.6080231349504472,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.8845533972347104,
+    "moon_mm_over_moon_default": 1.0214516602997354
+  },
+  "dictionary/u64-u64-lookup-miss-10000": {
+    "layer": "rtl",
+    "unit": "TDictionary<UInt64,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "0000000000002710"
+      ],
+      "moon": [
+        "0000000000002710"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 67.75273333333334,
+        "median": 67.81163333333333,
+        "mean": 67.8433,
+        "minimum": 67.6552,
+        "maximum": 68.05609999999999,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 67.95033333333333,
+        "median": 67.93133333333333,
+        "mean": 67.90057142857142,
+        "minimum": 67.526,
+        "maximum": 68.172,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.5543747564694461,
+        "median": 1.5406915116525581,
+        "mean": 1.216468540322848,
+        "minimum": 0.7723372283844435,
+        "maximum": 1.5549971388052646,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 66.17351666666667,
+        "median": 66.2568,
+        "mean": 66.25155238095238,
+        "minimum": 65.73936666666665,
+        "maximum": 66.58930000000001,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 66.15166666666667,
+        "median": 66.29733333333333,
+        "mean": 66.35433333333333,
+        "minimum": 66.14533333333334,
+        "maximum": 66.70266666666667,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7980182720678042,
+        "median": 0.794832372099038,
+        "mean": 0.7893359593155983,
+        "minimum": 0.768413649977132,
+        "maximum": 0.7992654430871852,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "candidate_over_baseline": 0.9735296858980335,
+    "moon_mm_over_moon_default": 0.9912688621049637
+  },
+  "dictionary/u64-u64-lookup-mixed-100": {
+    "layer": "rtl",
+    "unit": "TDictionary<UInt64,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "73513B1222FFC510"
+      ],
+      "moon": [
+        "73513B1222FFC510"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 51.26408021700833,
+        "median": 51.26522321428571,
+        "mean": 51.28101023617821,
+        "minimum": 51.022209821428575,
+        "maximum": 51.476866359447,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 51.26595731902627,
+        "median": 51.28303571428572,
+        "mean": 51.35140066879918,
+        "minimum": 51.011607142857144,
+        "maximum": 51.89539170506912,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.6950625747918113,
+        "median": 0.6946080632326725,
+        "mean": 0.69327583363729,
+        "minimum": 0.6843405366105763,
+        "maximum": 0.7006977828801033,
+        "kept": 5,
+        "rejected": 2
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 32.19204545454546,
+        "median": 32.19204545454546,
+        "mean": 32.208087271524775,
+        "minimum": 32.117037037037036,
+        "maximum": 32.304857954545454,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 32.23522727272727,
+        "median": 32.23522727272727,
+        "mean": 32.249047827172824,
+        "minimum": 32.15384615384615,
+        "maximum": 32.39176136363636,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.394631674703681,
+        "median": 1.3942178995270813,
+        "mean": 1.29437518368017,
+        "minimum": 0.6983396277011776,
+        "maximum": 1.3989676737741685,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.6287842646169381,
+    "moon_mm_over_moon_default": 0.9633594935912921
+  },
+  "dictionary/u64-u64-lookup-mixed-10000": {
+    "layer": "rtl",
+    "unit": "TDictionary<UInt64,UInt64>",
+    "primary_metric": "cycles",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "delphi": [
+        "6243E7E5E41EC040"
+      ],
+      "moon": [
+        "6243E7E5E41EC040"
+      ]
+    },
+    "delphi": {
+      "tsc": {
+        "mode": 62.851524999999995,
+        "median": 62.845349999999996,
+        "mean": 62.74030714285714,
+        "minimum": 62.3352,
+        "maximum": 63.137950000000004,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 63.042,
+        "median": 63.042,
+        "mean": 63.00671428571429,
+        "minimum": 62.738,
+        "maximum": 63.308,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.2473506288774043,
+        "median": 1.2473506288774043,
+        "mean": 1.2447709702375034,
+        "minimum": 1.2292405850005113,
+        "maximum": 1.2550301608848264,
+        "kept": 6,
+        "rejected": 0
+      }
+    },
+    "moon": {
+      "tsc": {
+        "mode": 60.539225,
+        "median": 61.0033,
+        "mean": 61.066678571428575,
+        "minimum": 60.5321,
+        "maximum": 61.9989,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 60.724000000000004,
+        "median": 61.18,
+        "mean": 61.21257142857143,
+        "minimum": 60.705,
+        "maximum": 62.073,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.2824318096831133,
+        "median": 1.2824318096831133,
+        "mean": 1.2836346299997101,
+        "minimum": 1.2708107976218554,
+        "maximum": 1.298285847230185,
+        "kept": 6,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.9632308619650393,
+    "moon_mm_over_moon_default": 1.02272
+  }
+}
