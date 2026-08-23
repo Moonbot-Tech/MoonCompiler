@@ -5,10 +5,11 @@ program string_helper_facades_semantic;
 {$endif}
 
 { Semantic pin for the TStringHelper facade repairs (syshelps.inc):
-  Split takes a two-pass exact-allocation path for unquoted character
-  separators, IndexOf routes full-tail searches through Pos, and the
-  IgnoreCase facades of StartsWith/EndsWith/Contains compare in place
-  with the ASCII fold instead of building temporaries.  Pins the edge
+  Split avoids speculative result capacity when no separator exists,
+  IndexOf routes full-tail searches through Pos, and the IgnoreCase
+  facades compare in place with the ASCII fold.  Contains searches only
+  positions matching either ASCII case of the first needle character.
+  Pins the edge
   behaviour of all rewritten paths: an empty source, empty fields,
   leading/trailing and doubled separators, ExcludeEmpty, ACount limits, the quoted path,
   fold class limited to ASCII, and IndexOf window clamping. }
@@ -30,6 +31,7 @@ procedure CheckSplit;
 var
   S: UnicodeString;
   P: TArray<UnicodeString>;
+  EmptySeparators: TArray<WideChar>;
 begin
   S := 'a,b,c';
   P := S.Split([WideChar(',')]);
@@ -65,6 +67,15 @@ begin
   P := S.Split([WideChar(',')]);
   If (Length(P) <> 1) or (P[0] <> 'no-separators') then
     Fail('split no hit');
+
+  SetLength(EmptySeparators, 0);
+  P := S.Split(EmptySeparators);
+  If (Length(P) <> 1) or (P[0] <> 'no-separators') then
+    Fail('split empty separator list');
+
+  P := S.Split([WideChar(',')], WideChar(#0), WideChar(#0), -1);
+  If Length(P) <> 0 then
+    Fail('split negative count');
 
   { quoted path keeps the old engine }
   S := 'a,"b,c",d';
@@ -122,6 +133,14 @@ begin
     Fail('contains nocase miss');
   If S.Contains(UnicodeString(''), True) then
     Fail('contains empty needle');
+  S := StringOfChar('x', 4096) + 'NeedLE';
+  If not S.Contains(UnicodeString('needle'), True) then
+    Fail('contains long candidate scan');
+  S := StringOfChar('n', 4096) + 'NeedLE';
+  If not S.Contains(UnicodeString('needle'), True) then
+    Fail('contains repeated first-char candidates');
+  If S.Contains(UnicodeString('needlf'), True) then
+    Fail('contains repeated first-char miss');
   { the fold class is ASCII only - non-ASCII case pairs stay distinct,
     exactly like the Pos(LowerCase,LowerCase) engine before }
   S := UnicodeString('caf') + WideChar($00C9); { CAFE with U+00C9 }

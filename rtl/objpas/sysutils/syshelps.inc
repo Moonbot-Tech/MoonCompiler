@@ -451,8 +451,9 @@ end;
 
 function TStringHelper.Contains(const AValue: TStringType; IgnoreCase: Boolean = False): Boolean;
 Var
-  L,NS,I : SizeInt;
+  L,NS,I,Remain,Ofs1,Ofs2 : SizeInt;
   PS,PV : PTStringChar;
+  C1,C2 : TStringChar;
 begin
   if not IgnoreCase then
     Exit(Pos(AValue,Self)>0);
@@ -469,9 +470,30 @@ begin
   PS:=PTStringChar(Pointer(Self));
   PV:=PTStringChar(Pointer(AValue));
 {$ENDIF}
-  for I:=0 to NS-L do
+  C1:=PV^;
+  C2:=C1;
+  if (C2>='a') and (C2<='z') then
+    Dec(C2,Ord('a')-Ord('A'))
+  else if (C2>='A') and (C2<='Z') then
+    Inc(C2,Ord('a')-Ord('A'));
+  I:=0;
+  while I<=NS-L do
+    begin
+    Remain:=NS-L-I+1;
+    Ofs1:=IndexChar((PS+I)^,Remain,C1);
+    if C2<>C1 then
+      begin
+      Ofs2:=IndexChar((PS+I)^,Remain,C2);
+      if (Ofs1<0) or ((Ofs2>=0) and (Ofs2<Ofs1)) then
+        Ofs1:=Ofs2;
+      end;
+    if Ofs1<0 then
+      Exit(False);
+    Inc(I,Ofs1);
     if SameTextRange(PS+I,PV,L) then
       Exit(True);
+    Inc(I);
+    end;
   Result:=False;
 end;
 
@@ -1301,6 +1323,36 @@ begin
       SrcLen:=System.Length(Self);
       PS:=PTStringChar(Pointer(Self));
       PE:=PS+SrcLen;
+      { The overwhelmingly common no-hit case is already the complete result.
+        Avoid allocating an eight-slot pointer array only to shrink it to one. }
+      if ACount>=0 then
+        begin
+        if High(Separators)=0 then
+          Sep:=IndexChar(PS^,SrcLen,Separators[0])
+        else
+          begin
+          Sep:=-1;
+          PC:=PS;
+          while PC<PE do
+            begin
+            for J:=0 to High(Separators) do
+              if PC^=Separators[J] then
+                begin
+                Sep:=PC-PS;
+                Break;
+                end;
+            if Sep>=0 then
+              Break;
+            Inc(PC);
+            end;
+          end;
+        if Sep<0 then
+          begin
+          SetLength(Result,1);
+          SetString(Result[0],PS,SrcLen);
+          exit;
+          end;
+        end;
       SetLength(Result,8);
       Len:=0;
       LastSep:=0;
