@@ -401,6 +401,25 @@ $Stages = @(
       'managed/closure-create-invoke',
       'mm/alloc-free-1m'
     )
+  },
+  [ordered]@{
+    id = 'integration_final_20260823'
+    label = 'Финал: текущий main 81daffaa'
+    short = 'Main 2026-08-23'
+    note = 'Точный Win64 O3 medium на 81daffaa: 390/390 semantic oracles MATCH. Девять process-drift cases отмечены знаком † и исключены из агрегата; без них geomean Moon/Delphi = 0.7318, 195 выигрышей, 118 паритетов, 68 проигрышей. Allocator-группа: bundled MM / default FPC MM = 0.6179.'
+    tracked = $true
+    files = @('evidence\integration-final-20260823\summary.json')
+    unstable = @(
+      'abi/record16-value',
+      'codegen/scan-llc',
+      'codegen/scan-strided',
+      'managed/interface-copy-call',
+      'mm/alloc-free-1m',
+      'rtl-collections/objectlist-owned-clear',
+      'rtl-collections/stack-string-roundtrip',
+      'workloads/stream-scale',
+      'workloads/stream-triad'
+    )
   }
 )
 
@@ -621,7 +640,7 @@ const dh=document.createElement('th');dh.dataset.key='delta';dh.textContent='С�
 const groups=[...new Set(DATA.rows.map(r=>r.group))].sort();for(const g of groups){groupSelect.insertAdjacentHTML('beforeend',`<option>${esc(g)}</option>`)}
 stageNotesEl.innerHTML=DATA.stages.map(s=>`<div class="stage-note"><b>${esc(s.label)}:</b> ${esc(s.note)}</div>`).join('');
 function currentStatus(r){const v=r.values[current];return v==null?'missing':v<.95?'win':v<=1.05?'same':'loss'}
-function renderCards(){const vals=DATA.rows.map(r=>r.values[current]).filter(v=>v!=null);const win=vals.filter(v=>v<.95).length,same=vals.filter(v=>v>=.95&&v<=1.05).length,loss=vals.filter(v=>v>1.05).length;cardsEl.innerHTML=`<div class="card"><b>${vals.length}</b>текущих cases</div><div class="card"><b>${geomean(vals).toFixed(3)}×</b>текущий geomean</div><div class="card"><b>${win}</b>Moon быстрее</div><div class="card"><b>${same}</b>паритет</div><div class="card"><b>${loss}</b>Moon медленнее</div>`}
+function renderCards(){const stable=DATA.rows.filter(r=>r.values[current]!=null&&!r.unstable.includes(current)),vals=stable.map(r=>r.values[current]),drift=DATA.rows.filter(r=>r.values[current]!=null&&r.unstable.includes(current)).length;const win=vals.filter(v=>v<.95).length,same=vals.filter(v=>v>=.95&&v<=1.05).length,loss=vals.filter(v=>v>1.05).length;cardsEl.innerHTML=`<div class="card"><b>${vals.length}</b>устойчивых cases</div><div class="card"><b>${geomean(vals).toFixed(3)}×</b>текущий geomean</div><div class="card"><b>${win}</b>Moon быстрее</div><div class="card"><b>${same}</b>паритет</div><div class="card"><b>${loss}</b>Moon медленнее</div><div class="card"><b>${drift}</b>process-drift</div>`}
 function delta(r){const a=r.values[DATA.stages[0].id],b=r.values[current];return a==null||b==null?null:b/a}
 function render(){const q=searchInput.value.trim().toLowerCase(),g=groupSelect.value,st=statusSelect.value;let rows=DATA.rows.filter(r=>(!q||(r.case+' '+r.description).toLowerCase().includes(q))&&(!g||r.group===g)&&(!st||currentStatus(r)===st));rows.sort((a,b)=>{let av=sortKey==='delta'?delta(a):sortKey in a?a[sortKey]:a.values[sortKey],bv=sortKey==='delta'?delta(b):sortKey in b?b[sortKey]:b.values[sortKey];if(av==null&&bv==null)return a.case.localeCompare(b.case);if(av==null)return 1;if(bv==null)return-1;return(typeof av==='number'?(av-bv):String(av).localeCompare(String(bv)))*sortDir});bodyEl.innerHTML=rows.map(r=>{let cells=`<td class="case">${esc(r.case)}</td><td class="desc">${esc(r.description)}</td>`;for(const s of DATA.stages){const v=r.values[s.id],u=r.unstable.includes(s.id)?' unstable':'';cells+=`<td class="ratio ${cls(v)}${u}" title="${u?'process-drift; коэффициент требует повтора':''}">${fmt(v)}</td>`}const d=delta(r);let dt=d==null?'—':(d<1?'быстрее на ':'медленнее на ')+Math.abs((d-1)*100).toFixed(1)+'%';cells+=`<td class="delta ${d==null?'missing':d<.95?'good':d<=1.05?'same':'bad'}">${dt}</td>`;return`<tr>${cells}</tr>`}).join('')}
 head.addEventListener('click',e=>{const k=e.target.dataset.key;if(!k)return;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=k==='case'||k==='description'?1:-1}render()});for(const el of [searchInput,groupSelect,statusSelect])el.addEventListener('input',render);renderCards();render();
