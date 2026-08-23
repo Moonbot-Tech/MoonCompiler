@@ -45,6 +45,7 @@ PROGRAMS = {
         "dispatch",
         "managed",
         "algorithms",
+        "dictionary",
         "json",
         "mm",
         "rtl",
