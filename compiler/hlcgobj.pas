@@ -5454,6 +5454,10 @@ implementation
        begin
          if (tparavarsym(p).varspez=vs_value) then
           begin
+            { the caller owns the operator-made copy of a Delphi-assign
+              record and finalizes it after the call (dvl-0035) }
+            if is_delphi_assign_record(tparavarsym(p).vardef) then
+              exit;
             include(current_procinfo.flags,pi_needs_implicit_finally);
             location_get_data_ref(list,tparavarsym(p).vardef,tparavarsym(p).localloc,href,
               is_open_array(tparavarsym(p).vardef) or
@@ -5517,7 +5521,10 @@ implementation
          needs_inittable:=is_managed_type(tparavarsym(p).vardef);
          case tparavarsym(p).varspez of
            vs_value :
-             if needs_inittable then
+             if needs_inittable and
+                { a Delphi-assign record was already copied by the caller
+                  through the user's Assign operator (dvl-0035) }
+                not is_delphi_assign_record(tparavarsym(p).vardef) then
                begin
                  { variants are already handled by the call to fpc_variant_copy_overwrite if
                    they are passed by reference }

@@ -1288,9 +1288,14 @@ unit cpupara;
             result:=false;
           recorddef :
             begin
+              { a record with Delphi Assign copy semantics must reach the
+                callee through the caller-made operator copy, whatever its
+                size (dvl-0035) }
+              if is_delphi_assign_record(def) then
+                result:=true
               { MetroWerks Pascal: const records always passed by reference
                 (for Mac OS X interfaces) }
-              if (calloption=pocall_mwpascal) and
+              else if (calloption=pocall_mwpascal) and
                  (varspez=vs_const) then
                 result:=true
               { Win ABI depends on size to pass it in a register or not }

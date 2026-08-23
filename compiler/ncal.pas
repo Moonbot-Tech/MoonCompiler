@@ -954,6 +954,28 @@ implementation
                   reused above) }
                 left:=ctypeconvnode.create_explicit(ctemprefnode.create(paratemp),parasym.vardef);
               end
+            else if is_delphi_assign_record(parasym.vardef) then
+              begin
+                { Delphi copy semantics (dvl-0035): the caller builds a
+                  per-call temp with Initialize + the user's Assign and
+                  finalizes it right after the call.  The temp is typed as
+                  raw bytes so the generic managed-slot bookkeeping
+                  (prologue init, slot-reuse finalize, funclet) stays out -
+                  the explicit pair here owns the whole lifecycle. }
+                temparraydef:=carraydef.getreusable(u8inttype,left.resultdef.size);
+                paratemp:=ctempcreatenode.create(temparraydef,temparraydef.size,tt_persistent,false);
+                addstatement(initstat,paratemp);
+                addstatement(initstat,
+                  cnodeutils.initialize_data_node(
+                    ctypeconvnode.create_internal(
+                      ctemprefnode.create(paratemp),left.resultdef),false));
+                addstatement(initstat,
+                  cassignmentnode.create(
+                    ctypeconvnode.create_internal(
+                      ctemprefnode.create(paratemp),left.resultdef),
+                    left));
+                left:=ctypeconvnode.create_explicit(ctemprefnode.create(paratemp),left.resultdef);
+              end
             else if is_managed_type(left.resultdef) then
               begin
                 { don't increase/decrease the reference count here, will be done by
@@ -982,6 +1004,14 @@ implementation
                 left:=ctemprefnode.create(paratemp);
               end;
             { add the finish statements to the call cleanup block }
+            { the caller owns the operator copy of a Delphi-assign record:
+              finalize it right after the call, like Delphi, before the
+              temp slot is released for reuse (dvl-0035) }
+            if is_delphi_assign_record(parasym.vardef) then
+              addstatement(finistat,
+                cnodeutils.finalize_data_node(
+                  ctypeconvnode.create_internal(
+                    ctemprefnode.create(paratemp),parasym.vardef)));
             addstatement(finistat,ctempdeletenode.create(paratemp));
             callnode.add_done_statement(finiblock);
 
@@ -1135,7 +1165,11 @@ implementation
           call and hence no "caller side" either)
           }
         if assigned(callnode) and
-           (target_info.system in systems_caller_copy_addr_value_para) and
+           ((target_info.system in systems_caller_copy_addr_value_para) or
+            { a Delphi-assign record is copied by the caller through the
+              user's Assign operator on every target (dvl-0035) }
+            (assigned(parasym) and
+             is_delphi_assign_record(parasym.vardef))) and
            ((assigned(parasym) and
              (parasym.varspez=vs_value)) or
             (cpf_varargs_para in callparaflags)) and
@@ -5284,6 +5318,21 @@ implementation
 
 
     procedure tcallnode.check_inlining;
+
+      function has_delphi_assign_value_para: boolean;
+        var
+          i : longint;
+        begin
+          { the inlined parameter path copies byte-wise and would bypass
+            the user's Assign operator of a Delphi-assign record
+            (dvl-0035) - such calls stay real calls }
+          result:=false;
+          for i:=0 to procdefinition.paras.count-1 do
+            if (tparavarsym(procdefinition.paras[i]).varspez=vs_value) and
+               is_delphi_assign_record(tparavarsym(procdefinition.paras[i]).vardef) then
+              exit(true);
+        end;
+
       var
         st   : tsymtable;
         para : tcallparanode;
@@ -5292,6 +5341,7 @@ implementation
         if (po_inline in procdefinition.procoptions) and
            (procdefinition.typ=procdef) and
            tprocdef(procdefinition).has_inlininginfo and
+           not has_delphi_assign_value_para and
            heuristics_favors_inlining then
           begin
             include(callnodeflags,cnf_do_inline);

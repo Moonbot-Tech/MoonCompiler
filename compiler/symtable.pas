@@ -410,6 +410,10 @@ interface
       fromtreetype:tnodetype;explicit:boolean):Tprocdef;
     function  search_enumerator_operator(from_def,to_def:Tdef):Tprocdef;
     function  search_management_operator(mop:tmanagementoperator;pd:Tdef):Tprocdef;
+    { record with a Copy/Assign management operator but no AddRef: Delphi
+      copy semantics - every copy runs through the user's operator on the
+      caller side, byte copies and callee-side addref would bypass it }
+    function  is_delphi_assign_record(def:tdef):boolean;
     { searches for the helper definition that's currently active for pd }
     function  search_last_objectpascal_helper(pd : tdef;contextclassh : tabstractrecorddef;out odef : tobjectdef):boolean;
     { searches whether the symbol s is available in the currently active }
@@ -4697,6 +4701,41 @@ implementation
           symtablestack.pop(tabstractrecorddef(to_def).symtable);
         if from_def.typ in [recorddef,objectdef] then
           symtablestack.pop(tabstractrecorddef(from_def).symtable);
+      end;
+
+
+    function is_delphi_assign_record(def:tdef):boolean;
+      var
+        i : longint;
+        sym : tsym;
+        fdef : tdef;
+      begin
+        result:=false;
+        if not assigned(def) or
+           (def.typ<>recorddef) or
+           not assigned(trecorddef(def).symtable) then
+          exit;
+        if (mop_copy in trecordsymtable(trecorddef(def).symtable).managementoperators) and
+           not(mop_addref in trecordsymtable(trecorddef(def).symtable).managementoperators) then
+          exit(true);
+        { a record aggregating such a record - directly or through a static
+          array - copies through the user's operator as well; fields of a
+          record still being parsed may not carry their def yet, and class
+          var fields (sp_static) are no part of the instance copy - one of
+          the record's own type (TTimeSpan.FMinValue) would recurse forever }
+        for i:=0 to trecorddef(def).symtable.SymList.Count-1 do
+          begin
+            sym:=tsym(trecorddef(def).symtable.SymList[i]);
+            if (sym.typ<>fieldvarsym) or
+               (sp_static in sym.symoptions) or
+               not assigned(tfieldvarsym(sym).vardef) then
+              continue;
+            fdef:=tfieldvarsym(sym).vardef;
+            while (fdef.typ=arraydef) and not is_special_array(fdef) do
+              fdef:=tarraydef(fdef).elementdef;
+            if is_delphi_assign_record(fdef) then
+              exit(true);
+          end;
       end;
 
 

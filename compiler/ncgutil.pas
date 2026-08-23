@@ -104,7 +104,7 @@ implementation
   uses
     cutils,cclasses,
     globals,systems,verbose,
-    defutil,
+    defutil,symtable,
     procinfo,paramgr,
     dbgbase,
     nadd,nbas,ncon,nld,nmem,nutils,
@@ -500,6 +500,10 @@ implementation
            case tparavarsym(p).varspez of
              vs_value :
                begin
+                 { a Delphi-assign record was already copied by the caller
+                   through the user's Assign operator (dvl-0035) }
+                 if is_delphi_assign_record(tparavarsym(p).vardef) then
+                   exit;
                  { variants are already handled by the call to fpc_variant_copy_overwrite if
                    they are passed by reference }
                  if not((tparavarsym(p).vardef.typ=variantdef) and

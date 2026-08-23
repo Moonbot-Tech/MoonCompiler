@@ -440,6 +440,10 @@ implementation
               paramanager.push_addr_param(varspez,vardef,pd.proccalloption) and
               not(is_open_array(vardef) or
                   is_array_of_const(vardef)) and
+              { the caller passes the address of an operator-made per-call
+                copy of a Delphi-assign record - the callee uses it
+                directly (dvl-0035) }
+              not is_delphi_assign_record(vardef) and
               (not(target_info.system in systems_caller_copy_addr_value_para) or
                ((pd.proccalloption in cdecl_pocalls) and
                 (vardef.typ=arraydef))) then

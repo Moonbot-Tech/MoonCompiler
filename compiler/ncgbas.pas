@@ -78,7 +78,7 @@ interface
       globals,
       cutils,verbose,
       aasmbase,aasmcpu,
-      symsym,symconst,symtable,defutil,
+      symsym,symconst,symdef,symtable,defutil,
       pass_2,ncgutil,
       cgbase,cgobj,hlcgobj,
       procinfo,
@@ -533,7 +533,17 @@ interface
                 location_reset_ref(tempinfo^.location,LOC_REFERENCE,def_cgsize(tempinfo^.typedef),0,[]);
                 tg.gethltempmanaged(current_asmdata.CurrAsmList,tempinfo^.typedef,tempinfo^.temptype,tempinfo^.location.reference);
                 if not(ti_nofini in tempflags) then
-                  hlcg.g_finalize(current_asmdata.CurrAsmList,tempinfo^.typedef,tempinfo^.location.reference);
+                  begin
+                    hlcg.g_finalize(current_asmdata.CurrAsmList,tempinfo^.typedef,tempinfo^.location.reference);
+                    { a record with an Initialize management operator must be
+                      reinitialized for the slot's next tenant: the user's
+                      Copy/Assign contract expects an initialized destination
+                      (dvl-0035); for other managed types finalize already
+                      leaves the zeroed = initialized state }
+                    if (tempinfo^.typedef.typ=recorddef) and
+                       (mop_initialize in trecordsymtable(trecorddef(tempinfo^.typedef).symtable).managementoperators) then
+                      hlcg.g_initialize(current_asmdata.CurrAsmList,tempinfo^.typedef,tempinfo^.location.reference);
+                  end;
               end
             else if (ti_may_be_in_reg in tempflags) then
               begin
