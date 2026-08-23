@@ -11,6 +11,7 @@ uses
   SysUtils,
   Classes,
   Generics.Defaults,
+  Generics.MemoryExpanders,
   Generics.Collections;
 
 type
@@ -40,6 +41,9 @@ type
     function Equals(const ALeft, ARight: Integer): Boolean; override;
     function GetHashCode(const AValue: Integer): UInt32; override;
   end;
+
+  TQuadraticLPDictionary = TOpenAddressingLP<Integer, UnicodeString,
+    TDefaultHashFactory, TQuadraticProbing>;
 
   TDictionaryObserver = class
   public
@@ -325,8 +329,10 @@ procedure TestDictionaryNotificationsAndManagedLifetime;
 var
   I: Integer;
   Item: ITracked;
+  Text: UnicodeString;
   Comparer: IEqualityComparer<Integer>;
   Dictionary: TDictionary<Integer, UnicodeString>;
+  StringDictionary: TDictionary<UnicodeString, UnicodeString>;
   ManagedDictionary: TDictionary<Integer, ITracked>;
   Observer: TDictionaryObserver;
 begin
@@ -373,6 +379,51 @@ begin
     Comparer := nil;
   end;
   Check(InterfacesDestroyed = 8, 'dictionary managed lifetime exact');
+
+  Dictionary := TDictionary<Integer, UnicodeString>.Create;
+  try
+    Dictionary.Add(7, 'seven');
+    Text := 'previous';
+    Check(Dictionary.TryGetValue(7, Text) and (Text = 'seven'),
+      'dictionary managed TryGetValue hit replaces value');
+    Check(not Dictionary.TryGetValue(8, Text) and (Text = ''),
+      'dictionary managed TryGetValue miss clears value');
+  finally
+    Dictionary.Free;
+  end;
+
+  StringDictionary := TDictionary<UnicodeString, UnicodeString>.Create;
+  try
+    StringDictionary.Add('key', 'value');
+    Text := 'key';
+    Check(StringDictionary.TryGetValue(Text, Text) and (Text = 'value'),
+      'dictionary TryGetValue preserves aliased managed key');
+  finally
+    StringDictionary.Free;
+  end;
+end;
+
+procedure TestCustomProbeSequenceLookup;
+var
+  Dictionary: TQuadraticLPDictionary;
+  Comparer: IEqualityComparer<Integer>;
+  Text: UnicodeString;
+begin
+  Comparer := TConstantHashComparer.Create;
+  Dictionary := TQuadraticLPDictionary.Create(16, Comparer);
+  try
+    Dictionary.Add(1, 'one');
+    Dictionary.Add(2, 'two');
+    Dictionary.Add(3, 'three');
+    Check(Dictionary.TryGetValue(1, Text) and (Text = 'one'),
+      'custom probe first collision lookup');
+    Check(Dictionary.TryGetValue(2, Text) and (Text = 'two'),
+      'custom probe second collision lookup');
+    Check(Dictionary.TryGetValue(3, Text) and (Text = 'three'),
+      'custom probe third collision lookup');
+  finally
+    Dictionary.Free;
+  end;
 end;
 
 procedure TestQueueAndStack;
@@ -643,6 +694,7 @@ begin
     TestListCompleteSurface;
     TestDictionaryOperationsAndCollisions;
     TestDictionaryNotificationsAndManagedLifetime;
+    TestCustomProbeSequenceLookup;
     TestQueueAndStack;
     TestArrayAlgorithms;
     TestOwningCollections;

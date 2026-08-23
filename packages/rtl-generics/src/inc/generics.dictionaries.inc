@@ -715,7 +715,7 @@ begin
   Result := LPValue <> Nil;
 end;
 
-function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
+function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TryGetValue(const AKey: TKey; var AValue: TValue): Boolean;
 var
   LIndex: SizeInt;
 begin
@@ -994,6 +994,38 @@ begin
 
     Result := TProbeSequence.Probe(i, AHash) and LLengthMask;
 
+  until false;
+end;
+
+function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.FindBucketIndexForHash(
+  const AItems: TArray<TItem>; const AKey: TKey; var AHash: UInt32): SizeInt;
+var
+  LItem: PItem;
+  m: SizeInt;
+begin
+  m := Length(AItems);
+
+  if m = 0 then
+    Exit(-1);
+
+  Result := AHash and (m - 1);
+  LItem := @AItems[Result];
+
+  repeat
+    if (LItem.Hash and UInt32.GetSignMask) = 0 then
+      Exit(not Result);
+
+    if (LItem.Hash = AHash) and
+        FEqualityComparer.Equals(AKey, LItem.Pair.Key) then
+      Exit;
+
+    Inc(Result);
+    Inc(LItem);
+    if Result = m then
+    begin
+      Result := 0;
+      LItem := @AItems[0];
+    end;
   until false;
 end;
 

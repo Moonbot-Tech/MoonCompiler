@@ -286,7 +286,7 @@ type
     function GetOrAddMutableValue(const AKey: TKey): PValue; inline;
     function GetMutableValue(const AKey: TKey): PValue; inline;
     function TryGetMutableValue(const AKey: TKey; out APValue: PValue): Boolean;
-    function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
+    function TryGetValue(const AKey: TKey; var AValue: TValue): Boolean; inline;
     function TryAdd(const AKey: TKey; const AValue: TValue): Boolean;
     procedure AddOrSetValue(const AKey: TKey; const AValue: TValue);
     function ContainsKey(const AKey: TKey): Boolean; inline;
@@ -644,9 +644,16 @@ type
       const AComparer: IEqualityComparer<TKey>); overload;
   end;
 
+  TOpenAddressingLinearLP<TKey, TValue, THashFactory> = class(
+    TOpenAddressingLP<TKey, TValue, THashFactory, TLinearProbing>)
+  protected
+    function FindBucketIndexForHash(const AItems: TArray<TItem>; const AKey: TKey;
+      var AHash: UInt32): SizeInt; override;
+  end;
+
   // useful generics overloads
-  TOpenAddressingLP<TKey, TValue, THashFactory> = class(TOpenAddressingLP<TKey, TValue, THashFactory, TLinearProbing>);
-  TOpenAddressingLP<TKey, TValue>  = class(TOpenAddressingLP<TKey, TValue, TDefaultHashFactory, TLinearProbing>);
+  TOpenAddressingLP<TKey, TValue, THashFactory> = class(TOpenAddressingLinearLP<TKey, TValue, THashFactory>);
+  TOpenAddressingLP<TKey, TValue> = class(TOpenAddressingLinearLP<TKey, TValue, TDefaultHashFactory>);
 
   TObjectOpenAddressingLP<TKey, TValue, THashFactory> = class(TObjectOpenAddressingLP<TKey, TValue, THashFactory, TLinearProbing>);
   TObjectOpenAddressingLP<TKey, TValue> = class(TObjectOpenAddressingLP<TKey, TValue, TDefaultHashFactory, TLinearProbing>);
