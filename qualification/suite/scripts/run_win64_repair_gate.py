@@ -55,6 +55,7 @@ CORE_TESTS = (
     "tloopinvariantaddr1",
     "tloopinvariantarraywrite1",
     "tloopmutablestringbase1",
+    "twidecharsetmembership1",
     "tstrengthenumguard1",
     "tstrengthresultcounter1",
     "tstrengthresultcountertrace1",

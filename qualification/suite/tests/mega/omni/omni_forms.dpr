@@ -14146,6 +14146,53 @@ begin
   Mix(UInt64(UInt32(Sum)));
 end;
 
+var
+  OmniWideSetCalls: Integer;
+
+function OmniCountedWide(Value: Word): WideChar;
+begin
+  Inc(OmniWideSetCalls);
+  Result := WideChar(Value);
+end;
+
+procedure RunWideCharSetMembershipForms;
+var
+  I: Integer;
+  W: WideChar;
+  Hits4, Hits5, HitsDense, HitsByte, HitsVariable: Integer;
+  ByteSet: set of AnsiChar;
+begin
+  Hits4 := 0;
+  Hits5 := 0;
+  HitsDense := 0;
+  HitsByte := 0;
+  for I := 0 to 1000 do
+  begin
+    W := WideChar(I);
+    If W in ['a', 'e', 'i', 'o'] then Inc(Hits4);
+    If W in ['a', 'e', 'i', 'o', 'u'] then Inc(Hits5);
+    If W in ['0'..'9', 'A'..'F', 'a'..'f', '_', '$', #$80..#$ff] then
+      Inc(HitsDense);
+    If W in [#$80..#$ff] then Inc(HitsByte);
+  end;
+  Check(Hits4 = 4, 'wide-set-four-ranges');
+  Check(Hits5 = 5, 'wide-set-five-ranges');
+  Check(HitsDense = 152, 'wide-set-dense-ranges');
+  Check(HitsByte = 128, 'wide-set-byte-range');
+
+  OmniWideSetCalls := 0;
+  Check(not (OmniCountedWide($410) in ['a', 'e', 'i', 'o', 'u']),
+    'wide-set-no-ansi-remap');
+  Check(OmniWideSetCalls = 1, 'wide-set-single-evaluation');
+
+  ByteSet := [AnsiChar(#$80)..AnsiChar(#$ff)];
+  HitsVariable := 0;
+  for I := 0 to 1000 do
+    If WideChar(I) in ByteSet then Inc(HitsVariable);
+  Check(HitsVariable = 128, 'wide-set-variable-byte-set');
+  Mix(UInt64(UInt32(HitsDense + HitsVariable)));
+end;
+
 { ---------------------------------------------------------------- }
 
 procedure CheckOmniRawBytes(const Value: RawByteString;
@@ -14497,6 +14544,7 @@ begin
   RunHelperDefPropForms;
   RunSSEnumForms;
   RunMutableStringBaseLoopForms;
+  RunWideCharSetMembershipForms;
 
   { assimilated compiler-slice }
   RunIssueSliceAForms;
