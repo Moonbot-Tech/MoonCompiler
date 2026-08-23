@@ -1542,41 +1542,33 @@ implementation
         hp : tordconstnode;
       begin
          result:=nil;
-         { Delphi character casts are ordinal casts. They do not decode an
-           AnsiChar through the current source code page, nor encode a
-           WideChar through it. }
-         if (m_delphi in current_settings.modeswitches) and
-            (nf_explicit in flags) and
-            (left.nodetype=ordconstn) then
-           begin
-             hp:=cordconstnode.create(tordconstnode(left).value,resultdef,false);
-             hp.literalbyte:=tordconstnode(left).literalbyte;
-             if torddef(resultdef).ordtype=uchar then
-               begin
-                 if hp.value.uvalue>255 then
-                   Message(type_w_unicode_data_loss);
-                 hp.value.uvalue:=hp.value.uvalue and $ff;
-               end;
-             hp.value.signed:=false;
-             result:=hp;
-             exit;
-           end;
+         { Delphi's run-time explicit character casts are ordinal operations,
+           which is already the normal code-generation path below.  Constant
+           character casts are different: DCC folds them through the source
+           ANSI code page, exactly like an implicit constant conversion. }
          if (left.nodetype=ordconstn) and
             ((torddef(resultdef).ordtype<>uchar) or
              (torddef(left.resultdef).ordtype<>uwidechar) or
-             (current_settings.sourcecodepage<>CP_UTF8))
+             (current_settings.sourcecodepage<>CP_UTF8) or
+             (tordconstnode(left).value.uvalue<=127))
          then
            begin
              if (torddef(resultdef).ordtype=uchar) and
-                (torddef(left.resultdef).ordtype=uwidechar) and
-                (current_settings.sourcecodepage<>CP_UTF8) then
+                (torddef(left.resultdef).ordtype=uwidechar) then
               begin
-                if tordconstnode(left).value.uvalue>127 then
-                  Message(type_w_unicode_data_loss);
-                hp:=cordconstnode.create(
-                      ord(unicode2asciichar(tcompilerwidechar(tordconstnode(left).value.uvalue))),
-                      cansichartype,true);
-                hp.literalbyte:=tordconstnode(left).literalbyte;
+                if current_settings.sourcecodepage<>CP_UTF8 then
+                  begin
+                    if tordconstnode(left).value.uvalue>127 then
+                      Message(type_w_unicode_data_loss);
+                    hp:=cordconstnode.create(
+                          ord(unicode2asciichar(tcompilerwidechar(tordconstnode(left).value.uvalue))),
+                          cansichartype,true);
+                  end
+                else
+                  hp:=cordconstnode.create(
+                        tordconstnode(left).value.uvalue,cansichartype,true);
+                { The explicit AnsiChar target is the byte-domain proof. }
+                hp.literalbyte:=true;
                 result:=hp;
               end
              else if (torddef(resultdef).ordtype=uwidechar) and

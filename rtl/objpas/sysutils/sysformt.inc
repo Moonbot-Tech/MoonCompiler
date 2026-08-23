@@ -625,7 +625,14 @@ begin
                   vtString:
                     hs:=TFormatString(Args[doarg].VString^);
                   vtChar:
+{$ifdef INWIDEFORMAT}
+                    { Delphi formats a vtChar payload by its ordinal value.
+                      An implicit AnsiChar-to-UnicodeString assignment would
+                      instead decode it through the system code page. }
+                    hs:=TFormatString(WideChar(Ord(Args[doarg].VChar)));
+{$else INWIDEFORMAT}
                     hs:=TFormatString(Args[doarg].VChar);
+{$endif INWIDEFORMAT}
                   vtPChar:
                     hs:=TFormatString(Args[doarg].VPChar);
                   vtPWideChar:
