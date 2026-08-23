@@ -97,6 +97,12 @@
       "note": "вещественный литерал в Variant кладётся Double вместо Currency (запись реестра пересобрана после потери каталога)"
     },
     {
+      "id": "dvl-0056",
+      "kind": "observation-split",
+      "note_name": "^dvl-inl-[0-9]+-total$",
+      "note": "две инлайн-вставки в одном выражении: DCC хойстит side-effect'ы до вычисления, мы вычисляем последовательно как невставленный вызов — расхождение в нашу пользу"
+    },
+    {
       "id": "dvl-0014",
       "kind": "observation-split",
       "note_name": "^dvl-uni-[0-9]+-(typename|char-kind|wide-kind)$",
