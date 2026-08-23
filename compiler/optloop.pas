@@ -485,9 +485,14 @@ unit optloop;
       begin
         result:=fen_false;
         case n.nodetype of
-          calln,
+          calln:
+            { A non-address-taken local that is not captured cannot be
+              reached by a call.  Globals, parameters and captured locals
+              retain the conservative barrier. }
+            if (tsym(arg).typ<>localvarsym) or
+              tlocalvarsym(tsym(arg)).is_captured then
+              result:=fen_norecurse_true;
           asmn:
-            { a call can reach any global and any captured local }
             result:=fen_norecurse_true;
           derefn:
             { a pointer store can hit a variable whose address escaped in the
