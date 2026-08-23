@@ -217,6 +217,28 @@ const
       end;
 
 
+    procedure materialize_literal_bytes_as_ansistring(var n: tnode);
+      var
+        bytes : TAnsiCharDynArray;
+        oldfileinfo : tfileposinfo;
+        oldflags : tnodeflags;
+      begin
+        if (n.nodetype<>stringconstn) or
+           not tstringconstnode(n).hasliteralbytes or
+           (length(tstringconstnode(n).literalbytes)<=1) then
+          exit;
+        tstringconstnode(n).getliteralbytes(bytes);
+        oldfileinfo:=n.fileinfo;
+        oldflags:=n.flags;
+        n.free;
+        n:=cstringconstnode.createpchar(@bytes[0],length(bytes),
+          getansistringdef);
+        n.fileinfo:=oldfileinfo;
+        n.flags:=oldflags;
+        typecheckpass(n);
+      end;
+
+
     function excesspromotiondef : tdef;
       begin
         if m_delphi in current_settings.modeswitches then
@@ -1551,6 +1573,9 @@ const
                   begin
                      concatwidestrings(ws1,ws2);
                      t:=cstringconstnode.createunistr(ws1);
+                     if (nf_explicit in left.flags) or
+                        (nf_explicit in right.flags) then
+                       include(t.flags,nf_explicit);
                      if tstringconstnode(left).hasliteralbytes or
                         tstringconstnode(right).hasliteralbytes then
                        begin
@@ -1641,11 +1666,29 @@ const
                 addn :
                   begin
                     stmp:=concatansistrings(s1,s2,l1,l2);
-                    t:=cstringconstnode.createpchar(stmp,l1+l2,nil);
+                    { Type checking has already converted both constant
+                      operands to the result code page.  Preserve that fact
+                      when their bytes are joined; creating an untyped source
+                      and converting it once more double-transcodes an
+                      expression such as UTF8String('u') + #$85. }
+                    if is_ansistring(resultdef) and
+                       is_ansistring(left.resultdef) and
+                       is_ansistring(right.resultdef) and
+                       (tstringdef(left.resultdef).encoding=
+                        tstringdef(resultdef).encoding) and
+                       (tstringdef(right.resultdef).encoding=
+                        tstringdef(resultdef).encoding) then
+                      t:=cstringconstnode.createpchar(stmp,l1+l2,resultdef)
+                    else
+                      t:=cstringconstnode.createpchar(stmp,l1+l2,nil);
+                    if (nf_explicit in left.flags) or
+                       (nf_explicit in right.flags) then
+                      include(t.flags,nf_explicit);
                     Freemem(stmp);
                     typecheckpass(t);
                     if not is_ansistring(resultdef) or
-                       (tstringdef(resultdef).encoding<>globals.CP_NONE) then
+                       (tstringdef(resultdef).encoding<>globals.CP_NONE) or
+                       (anf_rawbytestring_concat in addnodeflags) then
                       tstringconstnode(t).changestringtype(resultdef)
                     else
                       tstringconstnode(t).changestringtype(getansistringdef)
@@ -2467,7 +2510,9 @@ const
 
     function taddnode.pass_typecheck:tnode;
       var
-        rawbytestringconcat: boolean;
+        rawbytestringconcat,
+        lefttypedansiliteral,
+        righttypedansiliteral: boolean;
 
       function is_rawbytestring_concat_operand(n: tnode): boolean;
         begin
@@ -2481,14 +2526,63 @@ const
               taddnode(n).addnodeflags;
         end;
 
+      function is_explicit_typed_ansistring_literal(n: tnode): boolean;
+        begin
+          if (n.nodetype=typeconvn) then
+            result:=(nf_explicit in n.flags) and
+              not(nf_internal in n.flags) and
+              is_ansistring(ttypeconvnode(n).totypedef) and
+              not is_rawbytestring(ttypeconvnode(n).totypedef) and
+              assigned(ttypeconvnode(n).left) and
+              (ttypeconvnode(n).left.nodetype=stringconstn)
+          else
+            result:=(n.nodetype=stringconstn) and
+              (nf_explicit in n.flags) and
+              assigned(n.resultdef) and
+              is_ansistring(n.resultdef) and
+              not is_rawbytestring(n.resultdef);
+        end;
+
       begin
         { This function is small to keep the stack small for recursive of
           large + operations }
         rawbytestringconcat:=(nodetype=addn) and
           (is_rawbytestring_concat_operand(left) or
            is_rawbytestring_concat_operand(right));
+        { Remember the explicit source construct before child type checking
+          folds UTF8String('u') to an ordinary typed string constant.  Delphi
+          treats that casted literal as source text, unlike a variable or a
+          named typed constant, which owns an adjacent byte literal. }
+        lefttypedansiliteral:=(nodetype=addn) and
+          is_explicit_typed_ansistring_literal(left);
+        righttypedansiliteral:=(nodetype=addn) and
+          is_explicit_typed_ansistring_literal(right);
         typecheckpass(left);
         typecheckpass(right);
+        lefttypedansiliteral:=lefttypedansiliteral or
+          is_explicit_typed_ansistring_literal(left);
+        righttypedansiliteral:=righttypedansiliteral or
+          is_explicit_typed_ansistring_literal(right);
+        { Materialize adjacent numeric #$xx bytes in the ordinary AnsiString
+          source domain while the original cast context is still known.  A
+          single byte is still an ordconst here; a byte sequence has already
+          folded to a stringconst but retains its exact source bytes.  The
+          normal string conversion then performs exactly one conversion to
+          the concrete target code page. }
+        if lefttypedansiliteral and
+           (right.nodetype=ordconstn) and
+           (tordconstnode(right).literalbyte or
+            (torddef(right.resultdef).ordtype=uchar)) then
+          inserttypeconv(right,getansistringdef);
+        if lefttypedansiliteral then
+          materialize_literal_bytes_as_ansistring(right);
+        if righttypedansiliteral and
+           (left.nodetype=ordconstn) and
+           (tordconstnode(left).literalbyte or
+            (torddef(left.resultdef).ordtype=uchar)) then
+          inserttypeconv(left,getansistringdef);
+        if righttypedansiliteral then
+          materialize_literal_bytes_as_ansistring(left);
         { Plain variable/load nodes learn their result definitions only during
           the child typecheck above.  Keep the pre-typecheck check for an
           explicit RawByteString cast that may be folded away, and repeat it
@@ -2843,6 +2937,75 @@ const
               inserttypeconv(left,resultrealdef);
             end;
          end;
+
+        { A typed byte-string value gives an adjacent constant literal its
+          byte domain in Delphi.  A byte-valued #$xx literal keeps its ordinal
+          byte.  ASCII is invariant across the supported code pages; any
+          other folded wide-character expression is converted to the typed
+          operand's target domain.  A casted byte-string literal does not own
+          another literal.  Do this before the generic promotion below. }
+        if (m_delphi in current_settings.modeswitches) and
+           (m_default_unicodestring in current_settings.modeswitches) and
+           (nodetype=addn) then
+          begin
+            if is_ansistring(left.resultdef) and
+               (left.nodetype<>stringconstn) then
+              begin
+                if (right.nodetype=stringconstn) then
+                  begin
+                    if not is_rawbytestring(left.resultdef) then
+                      materialize_literal_bytes_as_ansistring(right);
+                    tstringconstnode(right).changestringtype(left.resultdef);
+                  end
+                else if is_char(right.resultdef) then
+                  begin
+                    { The parser may fold AnsiChar($xx) directly to an
+                      AnsiChar ordconst without leaving a typeconv node.  Its
+                      static character type, rather than the disappeared cast,
+                      is the byte-domain proof needed by char-to-string. }
+                    if right.nodetype=ordconstn then
+                      tordconstnode(right).literalbyte:=true;
+                    inserttypeconv(right,left.resultdef);
+                  end
+                else if (right.nodetype=ordconstn) and
+                        is_widechar(right.resultdef) then
+                  begin
+                    if tordconstnode(right).literalbyte or
+                       (tordconstnode(right).value.uvalue<=127) then
+                      tordconstnode(right).changecharactertype(cansichartype);
+                    { Keep the exact static code page of the typed operand.
+                      Falling through to the generic char path would instead
+                      manufacture getansistringdef (the source code page), so
+                      A: AnsiString(CP_ACP) + #$85 was later transcoded from
+                      an invalid UTF-8 one-byte temporary into '?'. }
+                    inserttypeconv(right,left.resultdef);
+                  end;
+              end;
+            if is_ansistring(right.resultdef) and
+               (right.nodetype<>stringconstn) then
+              begin
+                if (left.nodetype=stringconstn) then
+                  begin
+                    if not is_rawbytestring(right.resultdef) then
+                      materialize_literal_bytes_as_ansistring(left);
+                    tstringconstnode(left).changestringtype(right.resultdef);
+                  end
+                else if is_char(left.resultdef) then
+                  begin
+                    if left.nodetype=ordconstn then
+                      tordconstnode(left).literalbyte:=true;
+                    inserttypeconv(left,right.resultdef);
+                  end
+                else if (left.nodetype=ordconstn) and
+                        is_widechar(left.resultdef) then
+                  begin
+                    if tordconstnode(left).literalbyte or
+                       (tordconstnode(left).value.uvalue<=127) then
+                      tordconstnode(left).changecharactertype(cansichartype);
+                    inserttypeconv(left,right.resultdef);
+                  end;
+              end;
+          end;
 
         { If both operands are constant and there is a unicodestring
           or unicodestring then convert everything to unicodestring }
@@ -3675,6 +3838,10 @@ const
                         operands are still selected by the checks above. }
                       not(assigned(getchararraydef) and
                           is_char(getchararraydef.elementdef)) and
+                      { Two byte-domain operands stay byte-domain even when
+                        constant casts have simplified to stringconstn. }
+                      not((is_ansistring(rd) or is_char(rd)) and
+                          (is_ansistring(ld) or is_char(ld))) and
                       ((lt=stringconstn) or (rt=stringconstn)))
                     )
                    ) then
@@ -3741,12 +3908,24 @@ const
                           tstringconstnode(left).changestringtype(rd);
                           ld:=left.resultdef;
                         end;
-                      { Delphi compares RawByteString operands byte-for-byte;
-                        keep the raw static type so first_addstring can select
-                        the matching helper. }
-                      if not((nodetype in [equaln,unequaln,lten,gten,ltn,gtn]) and
+                      { Delphi compares RawByteString operands byte-for-byte.
+                        Keep typed AnsiStrings in their original domains so
+                        first_addstring can select the raw helper without a
+                        code-page conversion.  Non-string operands still have
+                        to become RawByteString: otherwise AnsiChar = RawByteString
+                        remains a mixed ordinal/string tree and never reaches
+                        the string comparison path (while the reverse order
+                        happens to work). }
+                      if (nodetype in [equaln,unequaln,lten,gten,ltn,gtn]) and
                          (m_delphi in current_settings.modeswitches) and
-                         (is_rawbytestring(ld) or is_rawbytestring(rd))) then
+                         (is_rawbytestring(ld) or is_rawbytestring(rd)) then
+                        begin
+                          if not is_ansistring(ld) then
+                            inserttypeconv(left,rd);
+                          if not is_ansistring(rd) then
+                            inserttypeconv(right,ld);
+                        end
+                      else
                         begin
                           { use same code page if possible (don't force same
                             code page in case both are ansistrings with code

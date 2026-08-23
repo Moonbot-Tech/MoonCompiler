@@ -6391,7 +6391,13 @@ implementation
                    p1:=cordconstnode.create(ord(current_scanner.pattern[1]),cwidechartype,true)
                  else
                    p1:=cordconstnode.create(ord(current_scanner.pattern[1]),cansichartype,true);
-                 tordconstnode(p1).literalbyte:=true;
+                  { Only non-ASCII scanner bytes need provenance to prevent a
+                    later code-page conversion from changing their storage.
+                    Keeping this marker on ordinary quoted ASCII characters
+                    would also make a surrounding explicit byte-string cast
+                    own the literal and change Delphi overload resolution. }
+                  tordconstnode(p1).literalbyte:=
+                    ord(current_scanner.pattern[1])>127;
                  consume(_CCHAR);
                  if current_scanner.token=_POINT then
                    begin

@@ -1026,6 +1026,12 @@ implementation
     constructor ttypeconvnode.create_explicit(node : tnode;def:tdef);
 
       begin
+         { Keep the source-level nature of a typed byte-string literal on the
+           literal itself.  Constant type-conversion nodes may be eliminated
+           before a surrounding concatenation is built; without this marker a
+           casted literal becomes indistinguishable from a named typed value. }
+         if (node.nodetype=stringconstn) and is_ansistring(def) then
+           include(node.flags,nf_explicit);
          self.create(node,def);
          include(flags,nf_explicit);
       end;
@@ -1351,9 +1357,14 @@ implementation
                 begin
                   if (torddef(left.resultdef).ordtype=uwidechar) then
                     begin
-                      if not((current_settings.sourcecodepage=CP_UTF8) or
-                             ((tstringdef(resultdef).stringtype=st_ansistring) and
-                              (tstringdef(resultdef).encoding=CP_UTF8))) then
+                      { The source-file encoding tells the scanner how to read
+                        a literal; it is not the destination encoding of an
+                        already typed WideChar.  Only an explicit UTF8String
+                        target may UTF-8 encode it here.  A plain AnsiString
+                        conversion must use the run-time system code page, as
+                        Delphi does. }
+                      if not((tstringdef(resultdef).stringtype=st_ansistring) and
+                             (tstringdef(resultdef).encoding=CP_UTF8)) then
                         begin
                           if tordconstnode(left).value.uvalue>127 then
                             begin
@@ -1373,7 +1384,12 @@ implementation
                               exit;
                             end
                           else
-                            hp:=cstringconstnode.createstr(unicode2asciichar(tcompilerwidechar(tordconstnode(left).value.uvalue)));
+                            { ASCII is byte-identical in every supported code
+                              page.  Do not consult the compiler host's
+                              reverse Unicode map here: a headless POSIX
+                              compiler may not have one installed, and no
+                              mapping is necessary for this domain. }
+                            hp:=cstringconstnode.createstr(chr(tordconstnode(left).value.uvalue));
                         end
                       else
                         begin
@@ -1393,12 +1409,42 @@ implementation
                     end
                   else
                     hp:=cstringconstnode.createstr(chr(tordconstnode(left).value.uvalue));
-                  { output string consts in local ansistring encoding }
-                  if is_ansistring(resultdef) and ((tstringdef(resultdef).encoding=0) or (tstringdef(resultdef).encoding=globals.CP_NONE)) then
+                  { A scanner byte or a typed AnsiChar already has a byte
+                    domain.  Labelling that one-byte constant with the source
+                    code page would make a later CP_NONE/CP_ACP concat
+                    transcode it (and turn an invalid UTF-8 byte into '?'). }
+                  if is_ansistring(resultdef) and
+                     (m_delphi in current_settings.modeswitches) and
+                     (m_default_unicodestring in current_settings.modeswitches) and
+                     (tordconstnode(left).literalbyte or
+                      (torddef(left.resultdef).ordtype=uchar)) then
+                    begin
+                      { A numeric #$xx literal or an explicitly typed
+                        AnsiChar is already one byte.  Delphi keeps that byte
+                        verbatim even when the destination is UTF8String; a
+                        multi-character literal remains source text and is
+                        transcoded normally. }
+                      if is_rawbytestring(resultdef) then
+                        { RawByteString is dynamically encoded: the byte stays
+                          unchanged, while its header records the active source
+                          code page rather than CP_NONE. }
+                        tstringconstnode(hp).changestringtype(getansistringdef)
+                      else
+                        begin
+                          tstringconstnode(hp).cst_type:=cst_ansistring;
+                          tstringconstnode(hp).astringdef:=resultdef;
+                          tstringconstnode(hp).resultdef:=resultdef;
+                        end;
+                    end
+                  else if is_ansistring(resultdef) and
+                     ((tstringdef(resultdef).encoding=0) or
+                      (tstringdef(resultdef).encoding=globals.CP_NONE)) then
                     tstringconstnode(hp).changestringtype(getansistringdef)
                   else
                     tstringconstnode(hp).changestringtype(resultdef);
                 end;
+              if nf_explicit in flags then
+                include(hp.flags,nf_explicit);
               result:=hp;
            end
          else
@@ -1472,6 +1518,8 @@ implementation
            (tstringdef(left.resultdef).stringtype in [st_unicodestring,st_widestring]) then
           begin
             tstringconstnode(left).changestringtype(resultdef);
+            if nf_explicit in flags then
+              include(left.flags,nf_explicit);
             Result:=left;
             left:=nil;
           end
@@ -3891,14 +3939,22 @@ implementation
                 if is_ansistring(resultdef) and
                   { do not mess with the result type for internally created nodes }
                   not(nf_internal in flags) and
-                  { Delphi keeps numeric #$xx fragments byte-exact when an
-                    untyped Unicode literal is materialized as RawByteString. }
-                  not(is_rawbytestring(resultdef) and
-                    tstringconstnode(left).hasliteralbytes) and
                   ((tstringdef(resultdef).encoding=0) or (tstringdef(resultdef).encoding=globals.CP_NONE)) then
-                  tstringconstnode(left).changestringtype(getansistringdef)
+                  begin
+                    { RawByteString constants carry the active source code page
+                      at run time, just like Delphi and ordinary FPC constants.
+                      Numeric #$xx fragments must nevertheless keep their exact
+                      scanner bytes. Materialize those bytes first, then retag
+                      the already materialized constant without transcoding it. }
+                    if is_rawbytestring(resultdef) and
+                      tstringconstnode(left).hasliteralbytes then
+                      tstringconstnode(left).changestringtype(resultdef);
+                    tstringconstnode(left).changestringtype(getansistringdef);
+                  end
                 else
                   tstringconstnode(left).changestringtype(resultdef);
+                if nf_explicit in flags then
+                  include(left.flags,nf_explicit);
                 result:=left;
                 left:=nil;
                 exit;

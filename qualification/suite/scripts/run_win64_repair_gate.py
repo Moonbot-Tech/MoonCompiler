@@ -36,6 +36,7 @@ CORE_TESTS = (
     "tdelphiunicodeliteral1",
     "tdelphibyteconstppu1",
     "tdelphibytestringcast1",
+    "tdelphibytestringconcatdomain1",
     "tdelphicharcast1",
     "tdelphiintpair1",
     "tobjfpcliteralcastoverload1",

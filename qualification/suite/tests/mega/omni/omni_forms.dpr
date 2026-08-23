@@ -14237,6 +14237,152 @@ end;
 
 { ---------------------------------------------------------------- }
 
+function OmniPickAnsiConcat(const V: AnsiString): Integer; overload;
+begin
+  Result := 1;
+end;
+
+function OmniPickAnsiConcat(const V: UnicodeString): Integer; overload;
+begin
+  Result := 2;
+end;
+
+function OmniPickRawConcat(const V: RawByteString): Integer; overload;
+begin
+  Result := 1;
+end;
+
+function OmniPickRawConcat(const V: UnicodeString): Integer; overload;
+begin
+  Result := 2;
+end;
+
+function OmniPickUtf8Concat(const V: UTF8String): Integer; overload;
+begin
+  Result := 1;
+end;
+
+function OmniPickUtf8Concat(const V: UnicodeString): Integer; overload;
+begin
+  Result := 2;
+end;
+
+function OmniMakeAnsiConcat: AnsiString;
+begin
+  Result := 'f';
+end;
+
+function OmniRuntimeWideConcat(Value: Word): WideChar;
+begin
+  Result := WideChar(Value + Word(RtZero));
+end;
+
+procedure RunByteStringConcatDomainForms;
+const
+  NamedAnsi: AnsiString = 'a';
+  NamedU8: UTF8String = 'u';
+var
+  A: AnsiString;
+  Expected: AnsiString;
+  R: RawByteString;
+  U8, U8Value, ExpectedU8: UTF8String;
+  U: UnicodeString;
+  W: WideChar;
+begin
+  A := 'a';
+  R := 'r';
+  U8 := 'u';
+  U := 'w';
+
+  Check(OmniPickAnsiConcat(AnsiString('a') + 'b') = 2,
+    'strdom-ansi-cast-plus-literal');
+  Check(OmniPickAnsiConcat(AnsiString('a') + AnsiString('b')) = 1,
+    'strdom-two-ansi-casts');
+  Check(OmniPickAnsiConcat(NamedAnsi + 'b') = 1,
+    'strdom-named-ansi-plus-literal');
+  Check(OmniPickAnsiConcat(A + 'b') = 1,
+    'strdom-ansi-var-plus-literal');
+  Check(OmniPickAnsiConcat('b' + A) = 1,
+    'strdom-literal-plus-ansi-var');
+  Check(OmniPickAnsiConcat(OmniMakeAnsiConcat + 'b') = 1,
+    'strdom-ansi-result-plus-literal');
+  Check(OmniPickAnsiConcat(A + #233) = 1,
+    'strdom-ansi-var-plus-char');
+  Check(OmniPickAnsiConcat(A + #1081) = 1,
+    'strdom-ansi-var-plus-wide-literal');
+  Check(OmniPickAnsiConcat(A + WideChar(1081)) = 1,
+    'strdom-ansi-var-plus-wide-cast');
+  Check(OmniPickAnsiConcat(A + U) = 2,
+    'strdom-ansi-plus-unicode-var');
+
+  Check(OmniPickRawConcat(RawByteString('r') + 'b') = 2,
+    'strdom-raw-cast-plus-literal');
+  Check(OmniPickRawConcat(RawByteString('r') + RawByteString('b')) = 1,
+    'strdom-two-raw-casts');
+  Check(OmniPickRawConcat(R + 'b') = 1,
+    'strdom-raw-var-plus-literal');
+  Check(OmniPickRawConcat('b' + R) = 1,
+    'strdom-literal-plus-raw-var');
+  Check(OmniPickRawConcat(R + U) = 2,
+    'strdom-raw-plus-unicode-var');
+
+  Check(OmniPickUtf8Concat(UTF8String('u') + 'b') = 2,
+    'strdom-utf8-cast-plus-literal');
+  Check(OmniPickUtf8Concat(UTF8String('u') + UTF8String('b')) = 1,
+    'strdom-two-utf8-casts');
+  Check(OmniPickUtf8Concat(U8 + 'b') = 1,
+    'strdom-utf8-var-plus-literal');
+  Check(OmniPickUtf8Concat('b' + U8) = 1,
+    'strdom-literal-plus-utf8-var');
+  Check(OmniPickUtf8Concat(U8 + U) = 2,
+    'strdom-utf8-plus-unicode-var');
+
+  Check(Byte((A + #$85)[2]) = $85,
+    'strdom-raw-byte-literal');
+  Check((Byte((A + #$85#$86)[2]) = $85) and
+    (Byte((A + #$85#$86)[3]) = $86),
+    'strdom-raw-byte-literal-pair');
+  Check(Byte((A + AnsiChar($85))[2]) = $85,
+    'strdom-explicit-ansichar-byte');
+  Check(Byte((A + AnsiChar('Z'))[2]) = Ord('Z'),
+    'strdom-explicit-ansichar-quoted');
+  W := OmniRuntimeWideConcat($85);
+  Expected := A + W;
+  Check(A + Chr($85) = Expected,
+    'strdom-chr-uses-codepage');
+  Expected := A + W;
+  Check(A + WideChar($85) = Expected,
+    'strdom-wide-cast-uses-codepage');
+
+  U8 := 'u';
+  U8Value := U8 + #$85;
+  Check((StringCodePage(U8Value) = 65001) and
+    (Length(U8Value) = 2) and (Byte(U8Value[2]) = $85),
+    'strdom-utf8-runtime-single-byte');
+  U8Value := U8 + AnsiChar($85);
+  Check((StringCodePage(U8Value) = 65001) and
+    (Length(U8Value) = 2) and (Byte(U8Value[2]) = $85),
+    'strdom-utf8-runtime-ansichar');
+  U8Value := NamedU8 + #$85;
+  Check((Length(U8Value) = 2) and (Byte(U8Value[2]) = $85),
+    'strdom-utf8-named-single-byte');
+  ExpectedU8 := U8 + AnsiString(#$85#$86);
+  Check(U8 + #$85#$86 = ExpectedU8,
+    'strdom-utf8-runtime-pair-transcode');
+  Check(NamedU8 + #$85#$86 = ExpectedU8,
+    'strdom-utf8-named-pair-transcode');
+  ExpectedU8 := U8 + AnsiString(#$85);
+  Check(UTF8String('u') + #$85 = ExpectedU8,
+    'strdom-utf8-folded-single-transcode');
+  Check(UTF8String('u') + AnsiChar($85) = ExpectedU8,
+    'strdom-utf8-folded-ansichar-transcode');
+  ExpectedU8 := U8 + AnsiString(#$85#$86);
+  Check(UTF8String('u') + #$85#$86 = ExpectedU8,
+    'strdom-utf8-folded-pair-transcode');
+end;
+
+{ ---------------------------------------------------------------- }
+
 type
   TOmniByteArray = array[0..255] of Byte;
   POmniByteArray = ^TOmniByteArray;
@@ -14418,6 +14564,7 @@ begin
   RunWideOpForms;
   RunDelphiCharacterOverloadForms;
   RunRawByteConstantForms;
+  RunByteStringConcatDomainForms;
   RunPointerIndexOffsetForms;
   RunFunctionResultCounterForms;
   RunStringCowForms;

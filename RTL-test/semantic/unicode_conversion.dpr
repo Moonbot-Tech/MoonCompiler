@@ -271,6 +271,15 @@ begin
   Check(UnicodeSameStr(A,B),'same-str embedded NUL equal');
 end;
 
+function ExplicitAnsiConcatSeed(Seed: Integer): AnsiString;
+begin
+  { Keep the explicit ASCII literal conversion next to a non-constant
+    conversion.  On POSIX this used to ask the compiler host for a reverse
+    Unicode map even though ASCII needs no mapping, and crashed the compiler
+    before code generation. }
+  Result:=AnsiString('a')+AnsiString(IntToStr(Seed));
+end;
+
 begin
   try
     CheckAscii;
@@ -280,6 +289,8 @@ begin
     CheckRandomScalars;
     CheckInvariantCase;
     CheckOrdinalComparison;
+    Check(ExplicitAnsiConcatSeed(7)='a7',
+      'explicit ANSI literal and runtime concat');
     WriteLn('UNICODE_CONVERSION_PASS');
   except
     on E: Exception do
