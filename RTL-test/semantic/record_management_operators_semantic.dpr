@@ -27,6 +27,9 @@ program record_management_operators_semantic;
 uses
   {$ifdef FPC}
   mormot.core.fpcx64mm,
+  {$ifdef UNIX}
+  cthreads,
+  {$endif UNIX}
   {$endif FPC}
   SysUtils;
 

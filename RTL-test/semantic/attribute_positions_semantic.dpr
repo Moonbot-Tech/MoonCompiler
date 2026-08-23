@@ -16,6 +16,9 @@ program attribute_positions_semantic;
 uses
   {$ifdef FPC}
   mormot.core.fpcx64mm,
+  {$ifdef UNIX}
+  cthreads,
+  {$endif UNIX}
   {$endif FPC}
   SysUtils;
 

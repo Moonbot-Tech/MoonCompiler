@@ -20,6 +20,9 @@
 uses
   {$ifdef FPC}
   mormot.core.fpcx64mm,
+  {$ifdef UNIX}
+  cthreads,
+  {$endif UNIX}
   {$else FPC}
   Winapi.Windows,
   {$endif FPC}
