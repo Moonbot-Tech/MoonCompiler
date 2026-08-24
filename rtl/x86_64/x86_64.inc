@@ -32,6 +32,7 @@ var
 {$endif}
 var
   has_sse41_support,fpc_cpuinit_performed : boolean;
+  move_nt_threshold : SizeUInt = 4 * 1024 * 1024;
 
 {$define FPC_SYSTEM_HAS_SPTR}
 Function Sptr : Pointer;assembler;nostackframe;
@@ -100,79 +101,117 @@ asm
     mov    %rdx, %r8
     mov    %rsi, %rdx
     mov    %rdi, %rcx
-{$elseif defined(move_use_fast_repmovstos)}
-    push   %rsi
-.seh_pushreg %rsi
-    push   %rdi
-.seh_pushreg %rdi
-.seh_endprologue
 {$endif}
 
 {$ifdef move_use_fast_repmovstos}
 .LRe:
 {$endif}
-    cmp    $3, %r8
-    jle    .L3OrLess
-    cmp    $8, %r8
-    jle    .L4to8
-    cmp    $16, %r8
-    jle    .L9to16
-    movups (%rcx), %xmm4         { First and last 16 bytes, used both in .L33OrMore and 17–32 branch. }
-    movups -16(%rcx,%r8), %xmm5
-    cmp    $32, %r8
-    jg     .L33OrMore
-    movups %xmm4, (%rdx)         { 17–32 bytes }
-    movups %xmm5, -16(%rdx,%r8)
-{$if defined(FPC_ABI_WIN64) and defined(move_use_fast_repmovstos)}
-    pop    %rdi
-    pop    %rsi
-{$endif}
+    mov    %r8, %rax
+    cmp    $32, %rax
+    jg     .L33OrMoreCheckAvx
+    ja     .Lquit                 { Count <= 0. }
+    cmp    $16, %al
+    jle    .L16OrLess
+    movups (%rcx), %xmm0
+    movups -16(%rcx,%rax), %xmm1
+    movups %xmm0, (%rdx)
+    movups %xmm1, -16(%rdx,%rax)
     ret
 
-    .balign 16
+.L16OrLess:
+    cmp    $8, %al
+    jle    .L8OrLess
+    mov    (%rcx), %r8
+    mov    -8(%rcx,%rax), %r9
+    mov    %r8, (%rdx)
+    mov    %r9, -8(%rdx,%rax)
+    ret
+
+.L8OrLess:
+    cmp    $3, %al
+    jle    .L3OrLess
+    mov    (%rcx), %eax
+    mov    -4(%rcx,%r8), %r9d
+    mov    %eax, (%rdx)
+    mov    %r9d, -4(%rdx,%r8)
+    ret
+
 .L3OrLess:
     cmp    $1, %r8
-    jl     .LZero
+    jl     .Lquit
     movzbl (%rcx), %eax
     je     .LOne
     movzwl -2(%rcx,%r8), %r9d
     mov    %r9w, -2(%rdx,%r8)
 .LOne:
     mov    %al, (%rdx)
-.LZero:
-{$if defined(FPC_ABI_WIN64) and defined(move_use_fast_repmovstos)}
-    pop    %rdi
-    pop    %rsi
-{$endif}
-    ret
-
-.L4to8:
-    mov    (%rcx), %eax
-    mov    -4(%rcx,%r8), %r9d
-    mov    %eax, (%rdx)
-    mov    %r9d, -4(%rdx,%r8)
-{$if defined(FPC_ABI_WIN64) and defined(move_use_fast_repmovstos)}
-    pop    %rdi
-    pop    %rsi
-{$endif}
-    ret
-
-.L9to16:
-    mov    (%rcx), %rax
-    mov    -8(%rcx,%r8), %r9
-    mov    %rax, (%rdx)
-    mov    %r9, -8(%rdx,%r8)
 .Lquit:
-{$if defined(FPC_ABI_WIN64) and defined(move_use_fast_repmovstos)}
-    pop    %rdi
-    pop    %rsi
-{$endif}
     ret
-{$if defined(FPC_ABI_WIN64) and defined(move_use_fast_repmovstos)}
-    .byte  102,102,102,102,102,144
-{$else}
-    .byte  102,102,102,102,102,102,102,102,102,102,102,144
-{$endif}                         { Turns .balign 16 before .Lloop32f into a no-op. }
+
+.L33OrMoreCheckAvx:
+    cmp    $96, %r8
+    jg     .LCheckAvx
+    cmp    $64, %r8
+    jle    .L33To64
+    cmp    %rcx, %rdx
+    je     .Lquit
+    cmp    $80, %r8
+    jle    .L65To80
+    jmp    .L81To96
+.LCheckAvx:
+    cmp    %rcx, %rdx
+    je     .Lquit
+{$ifdef FPC_PIC}
+    movq   has_avx_support@GOTPCREL(%rip), %rax
+    cmpb   $1, (%rax)
+{$else FPC_PIC}
+    cmpb   $1, has_avx_support(%rip)
+{$endif FPC_PIC}
+    je     .LAvxMove
+    movups (%rcx), %xmm4         { First and last 16 bytes, used both in the legacy SSE paths. }
+    movups -16(%rcx,%r8), %xmm5
+    jmp    .L33OrMore
+
+.L33To64:
+    movups 0(%rcx), %xmm0
+    movups 16(%rcx), %xmm1
+    movups -32(%rcx,%r8), %xmm2
+    movups -16(%rcx,%r8), %xmm3
+    cmp    %rcx, %rdx
+    je     .Lquit
+    movups %xmm0, 0(%rdx)
+    movups %xmm1, 16(%rdx)
+    movups %xmm2, -32(%rdx,%r8)
+    movups %xmm3, -16(%rdx,%r8)
+    ret
+
+.L65To80:
+    movups 0(%rcx), %xmm0
+    movups 16(%rcx), %xmm1
+    movups 32(%rcx), %xmm2
+    movups -32(%rcx,%r8), %xmm3
+    movups -16(%rcx,%r8), %xmm4
+    movups %xmm0, 0(%rdx)
+    movups %xmm1, 16(%rdx)
+    movups %xmm2, 32(%rdx)
+    movups %xmm3, -32(%rdx,%r8)
+    movups %xmm4, -16(%rdx,%r8)
+    ret
+
+.L81To96:
+    movups 0(%rcx), %xmm0
+    movups 16(%rcx), %xmm1
+    movups 32(%rcx), %xmm2
+    movups 48(%rcx), %xmm3
+    movups 64(%rcx), %xmm4
+    movups -16(%rcx,%r8), %xmm5
+    movups %xmm0, 0(%rdx)
+    movups %xmm1, 16(%rdx)
+    movups %xmm2, 32(%rdx)
+    movups %xmm3, 48(%rdx)
+    movups %xmm4, 64(%rdx)
+    movups %xmm5, -16(%rdx,%r8)
+    ret
 
 .L33OrMore:
     movups -32(%rcx,%r8), %xmm3  { Second vector from the end. Wasted read if .Lback branch is taken (it uses second vector from the start instead), }
@@ -219,10 +258,6 @@ asm
     movups %xmm3, (%rdx, %r8)
     movups %xmm5, 16(%rdx,%r8)   { Write first and last 16 bytes after everything else. }
     movups %xmm4, (%r9)          { Important for <16-byte step between src and dest. }
-{$if defined(FPC_ABI_WIN64) and defined(move_use_fast_repmovstos)}
-    pop    %rdi
-    pop    %rsi
-{$endif}
     ret
 
 {$ifdef move_use_fast_repmovstos}
@@ -237,14 +272,18 @@ asm
     cmpb   $1, fast_large_repmovstosb(%rip)
 {$endif FPC_PIC}
     jne    .LRepMovsIsNotBetterF
+{$ifdef FPC_ABI_WIN64}
+    mov    %rsi, %r10
+    mov    %rdi, %r11
+{$endif}
     lea    (%rcx,%rdx), %rsi
     mov    %rdx, %rdi
     lea    32(%r8), %rcx
     rep movsb
     movdqu %xmm4, (%r9) { last 16 aren't required }
 {$ifdef FPC_ABI_WIN64}
-    pop    %rdi
-    pop    %rsi
+    mov    %r10, %rsi
+    mov    %r11, %rdi
 {$endif}
     ret
 {$endif move_use_fast_repmovstos}
@@ -312,10 +351,6 @@ asm
     movups %xmm3, -16(%rdx)
     movups %xmm4, -32(%rdx)
     movups %xmm5, -16(%r9)
-{$if defined(FPC_ABI_WIN64) and defined(move_use_fast_repmovstos)}
-    pop    %rdi
-    pop    %rsi
-{$endif}
     ret
 
 {$ifdef move_use_fast_repmovstos}
@@ -357,6 +392,10 @@ asm
 {$endif FPC_PIC}
     jne    .LRepMovsIsNotBetterB
     movups %xmm5, -16(%r9)       { Write last 16 bytes right away. Unlike in the SSE branch, it is safe here because step is >= 16... assuming ErmsThreshold >= 16 :). }
+{$ifdef FPC_ABI_WIN64}
+    mov    %rsi, %r10
+    mov    %rdi, %r11
+{$endif}
     mov    %rcx, %rax            { rax = src - dst = -step; as rcx will be required for rep movsb. }
     add    $32, %r8              { r8 = remaining }
     add    %rax, %r8             { remaining -= step }
@@ -374,6 +413,10 @@ asm
     sub    %rax, %r8             { r8 = remaining }
     sub    %r8, %rdx             { rdx = dest }
     lea    (%rax,%rdx), %rcx     { rcx = src }
+{$ifdef FPC_ABI_WIN64}
+    mov    %r10, %rsi
+    mov    %r11, %rdi
+{$endif}
     jmp    .LRe                  { Remaining piece ("a" in the example above). }
 {$endif}
 
@@ -401,6 +444,239 @@ asm
     sfence
     add    $PrefetchDistance+64, %r8
     jmpq   .LRestAfterNTb
+
+    .balign 16
+.LAvxMove:
+{$ifdef FPC_PIC}
+    mov    %r8, %rax
+{$endif FPC_PIC}
+    cmp    $128, %rax
+    jbe    .LAvxInitial128
+    cmp    $160, %rax
+    jbe    .LAvxTail160Body
+    cmp    $192, %rax
+    jbe    .LAvxTail192Body
+    mov    %rdx, %r9
+    sub    %rcx, %r9             { r9 = dest - source }
+    cmp    %r8, %r9
+    jb     .LAvxBackward         { unsigned(dest - source) < count: copy backwards }
+
+    cmp    $320, %rax
+    jbe    .LAvxForwardOne128
+
+.LAvxCheckNtThreshold:
+{$ifdef FPC_PIC}
+    movq   move_nt_threshold@GOTPCREL(%rip), %r10
+    cmp    (%r10), %r8
+{$else FPC_PIC}
+    cmp    move_nt_threshold(%rip), %r8
+{$endif FPC_PIC}
+    jae    .LAvxMaybeNt
+.LAvxTemporalForward:
+    test   $31, %rdx
+    jz     .LAvxLoop128f
+    cmp    %rcx, %rdx
+    jae    .LAvxAlignForward
+    mov    %rcx, %r10
+    sub    %rdx, %r10
+    cmp    %r8, %r10
+    jb     .LAvxLoop128f         { Forward overlap: keep the direction-safe unaligned loop. }
+.LAvxAlignForward:
+    mov    %rdx, %r9
+    neg    %r9
+    and    $31, %r9
+    vmovdqu 0(%rcx), %ymm0
+    vmovdqu %ymm0, 0(%rdx)
+    add    %r9, %rcx
+    add    %r9, %rdx
+    sub    %r9, %rax
+    .balign 16
+.LAvxLoop128f:
+    cmp    $192, %rax
+    jbe    .LAvxTail192
+    vmovdqu 0(%rcx), %ymm0
+    vmovdqu 32(%rcx), %ymm1
+    vmovdqu 64(%rcx), %ymm2
+    vmovdqu 96(%rcx), %ymm3
+    vmovdqu %ymm0, 0(%rdx)
+    vmovdqu %ymm1, 32(%rdx)
+    vmovdqu %ymm2, 64(%rdx)
+    vmovdqu %ymm3, 96(%rdx)
+    add    $128, %rcx
+    add    $128, %rdx
+    sub    $128, %rax
+    jmp    .LAvxLoop128f
+
+    .balign 16
+.LAvxForwardOne128:
+    vmovdqu 0(%rcx), %ymm0
+    vmovdqu %ymm0, 0(%rdx)
+    vmovdqu 32(%rcx), %ymm1
+    vmovdqu %ymm1, 32(%rdx)
+    vmovdqu 64(%rcx), %ymm2
+    vmovdqu %ymm2, 64(%rdx)
+    vmovdqu 96(%rcx), %ymm3
+    vmovdqu %ymm3, 96(%rdx)
+    add    $128, %rcx
+    add    $128, %rdx
+    sub    $128, %rax
+    jmp    .LAvxTail192
+
+    .balign 16
+.LAvxInitial128:
+    vmovdqu 0(%rcx), %ymm0
+    vmovdqu 32(%rcx), %ymm1
+    vmovdqu 64(%rcx), %ymm2
+    vmovdqu -32(%rcx,%rax), %ymm3
+    vmovdqu %ymm0, 0(%rdx)
+    vmovdqu %ymm1, 32(%rdx)
+    vmovdqu %ymm2, 64(%rdx)
+    vmovdqu %ymm3, -32(%rdx,%rax)
+    jmp    .LAvxReturn
+
+.LAvxMaybeNt:
+    cmp    %rcx, %rdx
+    jae    .LAvxNtPrepare       { dest > source is already proven non-overlapping. }
+    mov    %rcx, %r10
+    sub    %rdx, %r10
+    cmp    %r8, %r10
+    jb     .LAvxTemporalForward { Forward overlap must remain cacheable and direction-safe. }
+.LAvxNtPrepare:
+    test   $31, %rdx
+    jz     .LAvxNtLoop128f
+    mov    %rdx, %r9
+    neg    %r9
+    and    $31, %r9
+    vmovdqu 0(%rcx), %ymm0
+    vmovdqu %ymm0, 0(%rdx)
+    add    %r9, %rcx
+    add    %r9, %rdx
+    sub    %r9, %rax
+    .balign 16
+.LAvxNtLoop128f:
+    cmp    $128, %rax
+    jbe    .LAvxNtTail
+    vmovdqu 0(%rcx), %ymm0
+    vmovdqu 32(%rcx), %ymm1
+    vmovdqu 64(%rcx), %ymm2
+    vmovdqu 96(%rcx), %ymm3
+    vmovntdq %ymm0, 0(%rdx)
+    vmovntdq %ymm1, 32(%rdx)
+    vmovntdq %ymm2, 64(%rdx)
+    vmovntdq %ymm3, 96(%rdx)
+    add    $128, %rcx
+    add    $128, %rdx
+    sub    $128, %rax
+    jmp    .LAvxNtLoop128f
+.LAvxNtTail:
+    sfence
+    jmp    .LAvxTail
+
+.LAvxBackward:
+    vmovdqu 0(%rcx), %ymm1
+    vmovdqu -32(%rcx,%r8), %ymm2
+    lea    -32(%rdx,%r8), %rax
+    and    $-32, %rax             { Align every backward store without touching the ends early. }
+    sub    %rdx, %rax             { rax = aligned destination offset from its beginning. }
+    .balign 16
+.LAvxLoop32b:
+    vmovdqu 0(%rcx,%rax), %ymm0
+    vmovdqa %ymm0, 0(%rdx,%rax)
+    sub    $32, %rax
+    jg     .LAvxLoop32b
+    vmovdqu %ymm1, 0(%rdx)
+    vmovdqu %ymm2, -32(%rdx,%r8)
+    jmp    .LAvxReturn
+
+.LAvxTail192:
+    cmp    $128, %rax
+    jbe    .LAvxTail128Body
+    cmp    $160, %rax
+    jbe    .LAvxTail160Body
+.LAvxTail192Body:
+    vmovdqu 0(%rcx), %ymm0
+    vmovdqu 32(%rcx), %ymm1
+    vmovdqu 64(%rcx), %ymm2
+    vmovdqu -96(%rcx,%rax), %ymm3
+    vmovdqu -64(%rcx,%rax), %ymm4
+    vmovdqu -32(%rcx,%rax), %ymm5
+    vmovdqu %ymm0, 0(%rdx)
+    vmovdqu %ymm1, 32(%rdx)
+    vmovdqu %ymm2, 64(%rdx)
+    vmovdqu %ymm3, -96(%rdx,%rax)
+    vmovdqu %ymm4, -64(%rdx,%rax)
+    vmovdqu %ymm5, -32(%rdx,%rax)
+    jmp    .LAvxReturn
+.LAvxTail160Body:
+    vmovdqu 0(%rcx), %ymm0
+    vmovdqu 32(%rcx), %ymm1
+    vmovdqu 64(%rcx), %ymm2
+    vmovdqu -64(%rcx,%rax), %ymm3
+    vmovdqu -32(%rcx,%rax), %ymm4
+    vmovdqu %ymm0, 0(%rdx)
+    vmovdqu %ymm1, 32(%rdx)
+    vmovdqu %ymm2, 64(%rdx)
+    vmovdqu %ymm3, -64(%rdx,%rax)
+    vmovdqu %ymm4, -32(%rdx,%rax)
+    jmp    .LAvxReturn
+
+.LAvxTail:
+    cmp    $64, %rax
+    jbe    .LAvxTail64
+.LAvxTail128Body:
+    vmovdqu 0(%rcx), %ymm0
+    vmovdqu 32(%rcx), %ymm1
+    vmovdqu -64(%rcx,%rax), %ymm2
+    vmovdqu -32(%rcx,%rax), %ymm3
+    vmovdqu %ymm0, 0(%rdx)
+    vmovdqu %ymm1, 32(%rdx)
+    vmovdqu %ymm2, -64(%rdx,%rax)
+    vmovdqu %ymm3, -32(%rdx,%rax)
+    jmp    .LAvxReturn
+.LAvxTail64:
+    cmp    $32, %rax
+    jbe    .LAvxTail32
+    vmovdqu 0(%rcx), %ymm0
+    vmovdqu -32(%rcx,%rax), %ymm1
+    vmovdqu %ymm0, 0(%rdx)
+    vmovdqu %ymm1, -32(%rdx,%rax)
+    jmp    .LAvxReturn
+.LAvxTail32:
+    cmp    $16, %rax
+    jbe    .LAvxTail16
+    vmovdqu 0(%rcx), %xmm0
+    vmovdqu -16(%rcx,%rax), %xmm1
+    vmovdqu %xmm0, 0(%rdx)
+    vmovdqu %xmm1, -16(%rdx,%rax)
+    jmp    .LAvxReturn
+.LAvxTail16:
+    cmp    $8, %rax
+    jbe    .LAvxTail8
+    mov    0(%rcx), %r9
+    mov    -8(%rcx,%rax), %r8
+    mov    %r9, 0(%rdx)
+    mov    %r8, -8(%rdx,%rax)
+    jmp    .LAvxReturn
+.LAvxTail8:
+    cmp    $3, %rax
+    jbe    .LAvxTail4
+    mov    0(%rcx), %r9d
+    mov    -4(%rcx,%rax), %r8d
+    mov    %r9d, 0(%rdx)
+    mov    %r8d, -4(%rdx,%rax)
+    jmp    .LAvxReturn
+.LAvxTail4:
+    cmp    $1, %rax
+    jl     .LAvxReturn
+    movzbl 0(%rcx), %r9d
+    je     .LAvxTailOne
+    movzwl -2(%rcx,%rax), %r8d
+    mov    %r8w, -2(%rdx,%rax)
+.LAvxTailOne:
+    mov    %r9b, 0(%rdx)
+.LAvxReturn:
+    vzeroupper
+    ret
 end;
 {$endif FPC_SYSTEM_HAS_MOVE}
 
@@ -1729,10 +2005,38 @@ const
   MM_MaskUnderflow = %0000100000000000;
   MM_MaskPrecision = %0001000000000000;
 
+function x86_largest_deterministic_cache(leaf: dword): SizeUInt;
+  var
+    subleaf,cpuid_eax,cpuid_ebx,cpuid_ecx : dword;
+    cache_bytes : qword;
+  begin
+    result:=0;
+    subleaf:=0;
+    repeat
+      asm
+        movl leaf,%eax
+        movl subleaf,%ecx
+        cpuid
+        movl %eax,cpuid_eax
+        movl %ebx,cpuid_ebx
+        movl %ecx,cpuid_ecx
+      end ['eax', 'ebx', 'ecx', 'edx'];
+      if cpuid_eax and $1f=0 then
+        break;
+      cache_bytes:=qword((cpuid_ebx and $fff)+1) *
+        (((cpuid_ebx shr 12) and $3ff)+1) *
+        ((cpuid_ebx shr 22)+1) * (qword(cpuid_ecx)+1);
+      if cache_bytes>result then
+        result:=cache_bytes;
+      inc(subleaf);
+    until subleaf=32;
+  end;
+
 {$define FPC_SYSTEM_HAS_FPC_CPUINIT}
 procedure fpc_cpuinit;
   var
-    _eax,cpuid7_ebx,cpuid1_ecx : dword;
+    _eax,max_extended,cpuid7_ebx,cpuid1_ecx : dword;
+    cache_size,extended_cache_size : SizeUInt;
   begin
     { don't let libraries influence the FPU cw set by the host program }
     if IsLibrary then
@@ -1751,6 +2055,23 @@ procedure fpc_cpuinit;
       movl %ecx,cpuid1_ecx
     end ['eax', 'ebx', 'ecx', 'edx'];
     has_sse41_support:=boolean(cpuid1_ecx shr 19 and 1);
+    cache_size:=0;
+    if _eax>=4 then
+      cache_size:=x86_largest_deterministic_cache(4);
+    asm
+      movl $0x80000000,%eax
+      xorl %ecx,%ecx
+      cpuid
+      movl %eax,max_extended
+    end ['eax', 'ebx', 'ecx', 'edx'];
+    if max_extended>=$8000001d then
+      begin
+        extended_cache_size:=x86_largest_deterministic_cache($8000001d);
+        if extended_cache_size>cache_size then
+          cache_size:=extended_cache_size;
+      end;
+    if (cache_size>=1024*1024) and (cache_size<=1024*1024*1024) then
+      move_nt_threshold:=cache_size shr 1;
     if _eax>=7 then
       begin
         asm
