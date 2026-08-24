@@ -303,6 +303,16 @@ type
   private
     function GetItem(AIndex: SizeInt): T; inline;
     procedure SetItem(AIndex: SizeInt; const AValue: T); inline;
+    { the one gate for every storage fast path: an exact TList<T> cannot
+      have Notify overridden in a descendant, and without a subscriber
+      the virtual Notify is an empty call - the elements may then be
+      moved as raw storage instead of one-by-one }
+    function DirectStorage: Boolean; inline;
+    { noinline: a generic method's body is compiled in the USER's module
+      with the user's -O switches, so without it -O3 auto-inline folds
+      this arm back into Delete's caller frame - and with it the
+      discarded-DoRemove-result temp pair this split exists to remove }
+    procedure DeleteFallback(AIndex: SizeInt); noinline;
   public
     constructor Create; overload;
     constructor Create(const AComparer: IComparer<T>); overload;
@@ -1775,18 +1785,16 @@ begin
   Result := FItems[AIndex];
   Dec(FLength);
 
-  { the managed slot must release its reference (Result took its own), and
-    slots past Count must stay zeroed - the dynamic array finalizes its
-    full capacity.  Unmanaged slots are dead bytes: every write path
-    overwrites before reading, so clearing them is wasted traffic }
-  if IsManagedType(T) then
-    FItems[AIndex] := Default(T);
+  { every capacity slot of the backing array stays ALIVE (the dynamic
+    array init/finalizes its full capacity): the removed value dies here
+    through the user's Finalize (Result took its own copy above), the
+    shift MOVES ownership byte-wise, and the vacated tail slot is born
+    again - the Delphi hook order (finalize removed, initialize vacated).
+    For plain types all of this compiles to the bare Move (dvl-0059) }
+  System.Finalize(FItems[AIndex]);
   if AIndex <> FLength then
-  begin
     System.Move(FItems[AIndex + 1], FItems[AIndex], (FLength - AIndex) * SizeOf(T));
-    if IsManagedType(T) then
-      FillChar(FItems[FLength], SizeOf(T), 0);
-  end;
+  System.Initialize(FItems[FLength]);
 
   Notify(Result, ACollectionNotification);
 end;
@@ -1936,6 +1944,11 @@ begin
   FLength := AValue;
 end;
 
+function TList<T>.DirectStorage: Boolean;
+begin
+  Result := (ClassInfo = TypeInfo(TList<T>)) and not Assigned(FOnNotify);
+end;
+
 function TList<T>.GetItem(AIndex: SizeInt): T;
 begin
   if SizeUInt(AIndex) >= SizeUInt(FLength) then
@@ -1975,8 +1988,7 @@ begin
     either branch: an early exit inlined into a caller's exception region
     is compiled as a local unwind call, which would cost more than the
     virtual calls this path removes }
-  if (Result <= High(FItems)) and (ClassInfo = TypeInfo(TList<T>)) and
-      not Assigned(FOnNotify) then
+  if (Result <= High(FItems)) and DirectStorage then
   begin
     Inc(FLength);
     FItems[Result] := AValue;
@@ -2021,8 +2033,20 @@ procedure TList<T>.InternalInsert(AIndex: SizeInt; const AValue: T);
 begin
   if AIndex <> PrepareAddingItem then
   begin
+    { PrepareAddingItem has made one previously spare capacity slot part of
+      Count.  That slot is already alive because the backing dynamic array
+      initializes its full capacity; bury its idle value before the shift
+      overwrites it.  Otherwise a custom Initialize which owns a resource is
+      leaked even though ordinary strings hide the bug with their nil idle
+      value. }
+    if IsManagedType(T) then
+      System.Finalize(FItems[Pred(Count)]);
     System.Move(FItems[AIndex], FItems[AIndex + 1], ((Count - AIndex) - 1) * SizeOf(T));
-    FillChar(FItems[AIndex], SizeOf(T), 0);
+    { the shift moved the slot's ownership up - the gap is born again, so
+      the assignment below runs the user's Assign into a live, freshly
+      initialized destination (the Delphi 'initialize gap, assign' order);
+      no-op for plain types (dvl-0059) }
+    System.Initialize(FItems[AIndex]);
   end;
 
   FItems[AIndex] := AValue;
@@ -2051,16 +2075,34 @@ begin
   if LLength = 0 then
     Exit;
 
-  LDirect := (ClassInfo = TypeInfo(TList<T>)) and not Assigned(FOnNotify);
+  { a managed RECORD - or a static ARRAY reaching one - may carry
+    Copy/Assign management operators, which the byte-wise arm
+    (Move + addref) would bypass: the user Assign lives in RTTI as
+    mop Copy, and addref only runs mop AddRef, so a live-resource
+    copy without the operator is double ownership.  Strings,
+    interfaces and dynarrays keep the direct arm: their copy IS the
+    addref.  DCC64 itself runs the operators here for both kinds
+    (its pointer-sized managed-array crash is its own TListHelper
+    misclassification, not a canon we reproduce) (dvl-0059) }
+  LDirect := DirectStorage and
+    not (IsManagedType(T) and (GetTypeKind(T) in [tkRecord, tkArray]));
 
   if AIndex <> PrepareAddingRange(LLength) then
   begin
+    { The LLength newly occupied tail slots were already initialized as
+      capacity.  They are destinations of the shift, so release their idle
+      values before ownership is moved over them. }
+    if IsManagedType(T) then
+      for i := Count - LLength to Pred(Count) do
+        System.Finalize(FItems[i]);
     System.Move(FItems[AIndex], FItems[AIndex + LLength], ((Count - AIndex) - LLength) * SizeOf(T));
-    { the per-element assignments below would otherwise release the managed
-      values the gap still aliases with the tail moved above; the direct
-      path overwrites the gap bitwise and never reads its old contents }
+    { the tail shift moved the gap slots' ownership up; the direct path
+      overwrites the gap bitwise and never reads it, the per-element path
+      assigns into live destinations - so the gap is born again for it
+      (zeroing it would hand the user's Finalize dead zeroes later) }
     if IsManagedType(T) and not LDirect then
-      FillChar(FItems[AIndex], SizeOf(T) * LLength, 0);
+      for i := AIndex to Pred(AIndex + LLength) do
+        System.Initialize(FItems[i]);
   end;
 
   { exact TList<T> without a subscriber never needs the virtual Notify
@@ -2135,8 +2177,7 @@ procedure TList<T>.Pack;
 var
   I, LOldLength, LWriteIndex: SizeInt;
 begin
-  if (ClassInfo = TypeInfo(TList<T>)) and FUseDefaultComparer and
-      not Assigned(OnNotify) and not IsManagedType(T) then
+  if DirectStorage and FUseDefaultComparer and not IsManagedType(T) then
   begin
     LOldLength := FLength;
     LWriteIndex := 0;
@@ -2209,24 +2250,39 @@ begin
     end;
 end;
 
+{ the slow arm lives outside the inlined Delete on purpose: DoRemove is a
+  FUNCTION returning the removed element, and a discarded record result
+  needs a caller-frame managed temp - born in the prologue, buried in the
+  unwind funclet - so keeping the call inside the inlined body charged
+  every caller frame one user Initialize/Finalize pair even when this arm
+  never ran (measured; meta-audit of dvl-0059).  Here the temp lives in
+  this frame and is paid only when the arm actually runs }
+procedure TList<T>.DeleteFallback(AIndex: SizeInt);
+begin
+  DoRemove(AIndex, cnRemoved);
+end;
+
 procedure TList<T>.Delete(AIndex: SizeInt);
 begin
   { the virtual DoRemove materializes the removed element only to hand it
-    to Notify; exact TList<T> without a subscriber just closes the gap.
-    Unmanaged elements past Count stay as dead bytes (Delphi parity), the
-    managed tail slot must be zeroed - the array finalizes full capacity.
-    No Exit: this body is inlined, and an early exit inside a caller's
-    exception region compiles into a local unwind call }
-  if (ClassInfo = TypeInfo(TList<T>)) and not Assigned(FOnNotify) and
-      not IsManagedType(T) and (AIndex >= 0) and (AIndex < FLength) then
+    to Notify; exact TList<T> without a subscriber skips that copy: the
+    removed value dies through the user's Finalize, the shift moves
+    ownership, the vacated tail slot is born again - the Delphi hook
+    order, with no extra copy pair (dvl-0059).  Unmanaged elements past
+    Count stay dead bytes (Delphi parity).  No Exit: this body is
+    inlined, and an early exit inside a caller's exception region
+    compiles into a local unwind call }
+  if DirectStorage and (AIndex >= 0) and (AIndex < FLength) then
   begin
+    System.Finalize(FItems[AIndex]);
     Dec(FLength);
     if AIndex <> FLength then
       System.Move(FItems[AIndex + 1], FItems[AIndex],
         (FLength - AIndex) * SizeOf(T));
+    System.Initialize(FItems[FLength]);
   end
   else
-    DoRemove(AIndex, cnRemoved);
+    DeleteFallback(AIndex);
 end;
 
 procedure TList<T>.DeleteRange(AIndex, ACount: SizeInt);
@@ -2243,29 +2299,42 @@ begin
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
   LMoveDelta := Count - (AIndex + ACount);
-  if (ClassInfo = TypeInfo(TList<T>)) and not Assigned(OnNotify) and
-      not IsManagedType(T) then
+  if DirectStorage then
   begin
+    { no subscriber - no snapshot needed.  The removed values die through
+      the user's Finalize, the shift moves ownership, the vacated tail
+      slots are born again; for plain types this is the bare Move
+      (dvl-0059).  Unmanaged slots past Count stay dead bytes, as before }
+    if IsManagedType(T) then
+      for i := AIndex to Pred(AIndex + ACount) do
+        System.Finalize(FItems[i]);
     if LMoveDelta <> 0 then
       System.Move(FItems[AIndex + ACount], FItems[AIndex],
         LMoveDelta * SizeOf(T));
-    { unmanaged elements past Count are dead bytes: Delphi 12.2 leaves them
-      untouched as well, and every write path overwrites before reading }
+    if IsManagedType(T) then
+      for i := Count - ACount to Pred(Count) do
+        System.Initialize(FItems[i]);
     Dec(FLength, ACount);
     Exit;
   end;
 
   LDeleted := nil;
   SetLength(LDeleted, ACount);
+  { our SetLength births every slot; the byte-wise Move below would bury
+    those births alive - release them first, then the Move carries the
+    ownership of the removed values into the snapshot (dvl-0059) }
+  if IsManagedType(T) then
+    for i := 0 to High(LDeleted) do
+      System.Finalize(LDeleted[i]);
   System.Move(FItems[AIndex], LDeleted[0], ACount * SizeOf(T));
 
-  if LMoveDelta = 0 then
-    FillChar(FItems[AIndex], ACount * SizeOf(T), #0)
-  else
-  begin
+  if LMoveDelta <> 0 then
     System.Move(FItems[AIndex + ACount], FItems[AIndex], LMoveDelta * SizeOf(T));
-    FillChar(FItems[Count - ACount], ACount * SizeOf(T), #0);
-  end;
+  { the vacated tail slots are born again instead of zeroed; unmanaged
+    slots past Count stay dead bytes }
+  if IsManagedType(T) then
+    for i := Count - ACount to Pred(Count) do
+      System.Initialize(FItems[i]);
 
   Dec(FLength, ACount);
 
@@ -2308,7 +2377,9 @@ end;
 
 procedure TList<T>.Move(AIndex, ANewIndex: SizeInt);
 var
-  LTemp: T;
+  { one extra byte keeps the declaration legal for SizeOf(T) = 0 (empty
+    records back the set containers); the moves stay SizeOf(T) exact }
+  LTemp: array[0..SizeOf(T)] of Byte;
 begin
   if ANewIndex = AIndex then
     Exit;
@@ -2316,16 +2387,18 @@ begin
   if (ANewIndex < 0) or (ANewIndex >= Count) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  LTemp := FItems[AIndex];
-  FItems[AIndex] := Default(T);
-
+  { a reorder is an ownership transfer, not a copy: DCC64 runs no user
+    operator and no refcount traffic here - the value travels through a
+    raw byte buffer, the shifted slots carry their values along, and
+    every slot holds a live value throughout (dvl-0059 meta-audit; the
+    old typed temp + Default reset + FillChar ran the operators over
+    dead zeroes) }
+  System.Move(FItems[AIndex], LTemp, SizeOf(T));
   if AIndex < ANewIndex then
     System.Move(FItems[Succ(AIndex)], FItems[AIndex], (ANewIndex - AIndex) * SizeOf(T))
   else
     System.Move(FItems[ANewIndex], FItems[Succ(ANewIndex)], (AIndex - ANewIndex) * SizeOf(T));
-
-  FillChar(FItems[ANewIndex], SizeOf(T), #0);
-  FItems[ANewIndex] := LTemp;
+  System.Move(LTemp, FItems[ANewIndex], SizeOf(T));
 end;
 
 function TList<T>.First: T;
@@ -2340,7 +2413,7 @@ end;
 
 procedure TList<T>.Clear;
 begin
-  if (ClassInfo = TypeInfo(TList<T>)) and not Assigned(OnNotify) then
+  if DirectStorage then
   begin
     FLength := 0;
     FItems := nil;
@@ -2824,15 +2897,27 @@ begin
 end;
 
 procedure TQueue<T>.MoveToFront;
+var
+  i: SizeInt;
 begin
   if FLength > FLow then
+  begin
+    { Dequeued prefix slots are still alive (DoRemove assigns Default(T)).
+      They are about to be overwritten by the active suffix, so bury those
+      idle values first.  The overlapping remainder is an ownership move;
+      the duplicated tail is re-born below. }
+    if IsManagedType(T) and (FLow > 0) then
+      for i := 0 to Pred(FLow) do
+        System.Finalize(FItems[i]);
+    System.Move(FItems[FLow], FItems[0], (FLength - FLow) * SizeOf(T));
+    { the shift moved the tail slots' ownership to the front; every
+      capacity slot stays alive, so the vacated tail is born again
+      instead of zeroed - zero slots would hand the user's Finalize
+      dead zeroes when the array dies (dvl-0059 model, PENDING 10) }
     if IsManagedType(T) then
-    begin
-      System.Move(FItems[FLow], FItems[0], (FLength - FLow) * SizeOf(T));
-      FillChar(FItems[FLength - FLow], FLow * SizeOf(T), 0);
-    end
-    else
-      Move(FItems[FLow], FItems[0], (FLength - FLow) * SizeOf(T));
+      for i := FLength - FLow to Pred(FLength) do
+        System.Initialize(FItems[i]);
+  end;
 
   FLength := FLength - FLow;
   FLow := 0;
