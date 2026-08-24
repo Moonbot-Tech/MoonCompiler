@@ -97,10 +97,15 @@ unit mormot.core.fpcx64mm;
 // GPF if CR4.TSD bit is set on hardened systems, it is disabled by default
 {.$define FPCMM_SLEEPTSC}
 
-// checks leaks and write them to the console at process shutdown
+// checks leaks and write them to the console after all unit finalizers
 // - only basic information will be included: more debugging information (e.g.
-// call stack) may be gathered using heaptrc or valgrid
+// call stack) may be gathered using heaptrc or valgrind
 {.$define FPCMM_REPORTMEMORYLEAKS}
+
+// restore the previous MM and release all arenas during unit finalization
+// - unsafe for production: later unit finalizers may still own our allocations
+// - only for controlled allocator teardown diagnostics
+{.$define FPCMM_UNINSTALL_AT_EXIT}
 
 // won't check the IsMultiThread global, but assume it is true
 // - multi-threaded apps (e.g. a Server Daemon instance) will be faster with it
@@ -5419,6 +5424,7 @@ var
 begin
   {$ifdef FPCMM_REPORTMEMORYLEAKS}
   leaks := 0;
+  writeln('FPCMM_REPORTMEMORYLEAKS_BEGIN');
   {$endif FPCMM_REPORTMEMORYLEAKS}
   p := @SmallBlockInfo;
   for i := 0 to high(SmallBlockInfo.SmallLastFree) do
@@ -5484,6 +5490,9 @@ begin
   end;
   LargeBlocksCircularList.PreviousLargeBlockHeader := @LargeBlocksCircularList;
   LargeBlocksCircularList.NextLargeBlockHeader := @LargeBlocksCircularList;
+  {$ifdef FPCMM_REPORTMEMORYLEAKS}
+  writeln('FPCMM_REPORTMEMORYLEAKS_DONE');
+  {$endif FPCMM_REPORTMEMORYLEAKS}
 end;
 
 {$I+}
@@ -5518,19 +5527,38 @@ var
   OldMM: TMemoryManager;
 
 
+procedure FinalizeInstalledMemoryManager;
+begin
+  {$ifdef FPCX64MM_DIAGNOSTIC_ACTIVE}
+  Fpcx64mmDebugVerifyHeap;
+  DiagReportLeaks;
+  {$endif FPCX64MM_DIAGNOSTIC_ACTIVE}
+  SetMemoryManager(OldMM);
+  FreeAllMemory;
+  {$if defined(FPCX64MM_DIAGNOSTIC_ACTIVE) or
+      defined(FPCMM_REPORTMEMORYLEAKS)}
+  Flush(Output);
+  {$endif}
+end;
+
+
 initialization
   InitializeMemoryManager;
   GetMemoryManager(OldMM);
   SetMemoryManager(NewMM);
+  {$ifndef FPCMM_UNINSTALL_AT_EXIT}
+  SetMemoryManagerFinalizeProc(@FinalizeInstalledMemoryManager);
+  {$endif FPCMM_UNINSTALL_AT_EXIT}
 
 finalization
-  {$ifdef FPCX64MM_DIAGNOSTIC_ACTIVE}
-  Fpcx64mmDebugVerifyHeap;
-  DiagReportLeaks;
-  Flush(Output);
-  {$endif FPCX64MM_DIAGNOSTIC_ACTIVE}
-  SetMemoryManager(OldMM);
-  FreeAllMemory;
+  { Units pulled in while this MM is initialized finalize after this unit.
+    They must keep releasing managed values through the still-live manager;
+    production teardown is therefore registered with System and runs only
+    after all unit finalizers.  Keep the historical early teardown only for
+    controlled allocator diagnostics. }
+  {$ifdef FPCMM_UNINSTALL_AT_EXIT}
+  FinalizeInstalledMemoryManager;
+  {$endif FPCMM_UNINSTALL_AT_EXIT}
 
 {$endif FPCMM_STANDALONE}
 

@@ -55,6 +55,18 @@ procedure GetMemoryManager(var MemMgr: TMemoryManager);
 procedure SetMemoryManager(const MemMgr: TMemoryManager);
 function  IsMemoryManagerSet: Boolean;
 
+{$ifdef FPC_HAS_FEATURE_HEAP}
+type
+  TMemoryManagerFinalizeProc = procedure;
+
+{ Installs the one process/module heap callback which System invokes only after
+  every unit finalizer and its own late heap releases have completed.  A custom
+  memory manager which owns process-wide arenas can use this point for its
+  final leak census and teardown; ExitProc is too early because it runs before
+  unit finalization. }
+procedure SetMemoryManagerFinalizeProc(Proc: TMemoryManagerFinalizeProc);
+{$endif FPC_HAS_FEATURE_HEAP}
+
 { Variables }
 const
 {$ifdef LEGACYHEAP}

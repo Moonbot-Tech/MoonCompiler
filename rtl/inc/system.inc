@@ -1253,6 +1253,28 @@ Procedure system_exit;forward;{$ifdef FPC_SYSTEM_EXIT_NO_RETURN}noreturn;{$endif
 Procedure FinalizeHeap;forward;
 {$endif FPC_HAS_FEATURE_HEAP and not HAS_MEMORYMANAGER}
 
+{$ifdef FPC_HAS_FEATURE_HEAP}
+var
+  MemoryManagerFinalizeProc: TMemoryManagerFinalizeProc = nil;
+
+procedure SetMemoryManagerFinalizeProc(Proc: TMemoryManagerFinalizeProc);
+begin
+  MemoryManagerFinalizeProc:=Proc;
+end;
+
+procedure FinalizeMemoryManager;
+var
+  Proc: TMemoryManagerFinalizeProc;
+begin
+  { Clear first: a Halt or runtime error inside the callback must not invoke a
+    half-torn-down memory manager a second time. }
+  Proc:=MemoryManagerFinalizeProc;
+  MemoryManagerFinalizeProc:=nil;
+  if Assigned(Proc) then
+    Proc();
+end;
+{$endif FPC_HAS_FEATURE_HEAP}
+
 {$ifdef FPC_HAS_FEATURE_CONSOLEIO}
 procedure SysFlushStdIO;
 begin
@@ -1346,6 +1368,13 @@ Begin
   if (errorcode<>203) and (errorcode<>204) then
     sysfreemem(cmdline);
 {$endif}
+
+{$ifdef FPC_HAS_FEATURE_HEAP}
+  { A unit-installed memory manager must outlive every unit finalizer.  This is
+    deliberately later than ExitProc and FinalizeUnits, but still before the
+    default heap itself is finalized. }
+  FinalizeMemoryManager;
+{$endif FPC_HAS_FEATURE_HEAP}
 
 {$if defined(FPC_HAS_FEATURE_HEAP) and not defined(HAS_MEMORYMANAGER)}
   FinalizeHeap;

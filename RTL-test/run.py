@@ -55,6 +55,26 @@ FORBIDDEN_O3_CALL_PATTERNS.update({
         r"^\s*call[^\r\n]*READSCALARAFTERWRITE",
     ),
 })
+SOURCE_OPTIONS = {
+    "mm_finalization_lifetime_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
+    "mm_finalization_leak_report_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
+}
+REQUIRED_RUNTIME_PATTERNS = {
+    "mm_finalization_lifetime_semantic": (
+        r"^FPCMM_REPORTMEMORYLEAKS_BEGIN$",
+        r"^FPCMM_REPORTMEMORYLEAKS_DONE$",
+    ),
+    "mm_finalization_leak_report_semantic": (
+        r"^FPCMM_REPORTMEMORYLEAKS_BEGIN$",
+        r"^ small block leak x1 of size=",
+        r"^FPCMM_REPORTMEMORYLEAKS_DONE$",
+    ),
+}
+FORBIDDEN_RUNTIME_PATTERNS = {
+    "mm_finalization_lifetime_semantic": (
+        r"small block leak|medium block leak|large block leak",
+    ),
+}
 MODES = {
     "debug": ["-O-", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa"],
     "o2": ["-O2", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa-"],
@@ -192,6 +212,7 @@ def main() -> int:
                     f"-FU{output}",
                     f"-FE{output}",
                     *MODES[mode],
+                    *SOURCE_OPTIONS.get(source.stem, ()),
                     *(
                         ["-al"]
                         if mode == "o3"
@@ -214,6 +235,22 @@ def main() -> int:
                 if run.returncode != 0 or marker not in run.stdout:
                     print(run.stdout, file=sys.stderr)
                     raise RuntimeError(f"runtime oracle failed: {source.name} {mode}")
+                missing_runtime = [
+                    pattern
+                    for pattern in REQUIRED_RUNTIME_PATTERNS.get(source.stem, ())
+                    if not re.search(pattern, run.stdout, re.MULTILINE)
+                ]
+                forbidden_runtime = [
+                    pattern
+                    for pattern in FORBIDDEN_RUNTIME_PATTERNS.get(source.stem, ())
+                    if re.search(pattern, run.stdout, re.MULTILINE)
+                ]
+                if missing_runtime or forbidden_runtime:
+                    print(run.stdout, file=sys.stderr)
+                    raise RuntimeError(
+                        f"runtime lifecycle oracle failed: {source.name} {mode} "
+                        f"missing={missing_runtime} forbidden={forbidden_runtime}"
+                    )
                 if mode == "o3" and source.stem in (
                     FORBIDDEN_O3_ASM.keys()
                     | FORBIDDEN_O3_CALL_PATTERNS.keys()

@@ -113,6 +113,8 @@ run_one small-pool-leak-report \
   "$build/small-pool-leak-report/small-pool-leak-report"
 grep -q 'SMALL_POOL_LAST_FREE_REPORT_PENDING' \
   "$results/small-pool-leak-report/run.log"
+test "$(grep -c '^FPCMM_REPORTMEMORYLEAKS_DONE$' \
+  "$results/small-pool-leak-report/run.log")" -eq 1
 if grep -q 'medium block leak' "$results/small-pool-leak-report/run.log"; then
   echo 'pending small pool was falsely reported as a medium leak' >&2
   exit 1

@@ -25,6 +25,10 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent
 MANIFEST_PATH = ROOT / "runner_manifest.json"
 COMPILER_PROVENANCE: dict[str, str] = {}
+MM_LEAK_PATTERN = re.compile(
+    r"small block leak|medium block leak|large block leak", re.IGNORECASE,
+)
+MM_REPORT_DONE = "FPCMM_REPORTMEMORYLEAKS_DONE"
 
 
 def load_manifest() -> dict[str, Any]:
@@ -38,6 +42,18 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def memory_report_status(path: Path) -> tuple[int, list[str]]:
+    """Return completed-census count and exact leak-report lines."""
+    if not path.is_file():
+        return 0, []
+    text = path.read_text(encoding="utf-8", errors="replace")
+    completed = len(re.findall(
+        rf"^{re.escape(MM_REPORT_DONE)}$", text, re.MULTILINE,
+    ))
+    leaks = [line for line in text.splitlines() if MM_LEAK_PATTERN.search(line)]
+    return completed, leaks
 
 
 def require_clean_git_source(source_root: Path, expected_commit: str | None) -> None:
@@ -2435,6 +2451,8 @@ def run_mormot_probe_case(
     run_timeout = False
     run_seconds = 0.0
     marker_count = 0
+    memory_report_count = 0
+    memory_leaks: list[str] = []
     if compile_timeout:
         observed = "compile_timeout"
     elif compile_rc != 0:
@@ -2456,9 +2474,15 @@ def run_mormot_probe_case(
                 run_log.read_text(encoding="utf-8", errors="replace"),
                 re.MULTILINE,
             ))
+            memory_report_count, memory_leaks = memory_report_status(run_log)
 
     expected = expected_observed(probe, compiler_id, option_id)
     marker_met = marker_count == 1
+    memory_report_required = memory_manager_source is not None
+    memory_report_met = (
+        not memory_report_required
+        or (memory_report_count == 1 and not memory_leaks)
+    )
     compile_failure_class, first_compile_diagnostic = (
         classify_compile_log(compile_log) if observed.startswith("compile_")
         else (None, None)
@@ -2489,11 +2513,17 @@ def run_mormot_probe_case(
         "expected_observed_result": expected,
         "observed_result": observed,
         "expectation_met": observed == expected and (
-            expected != "pass" or marker_met
+            expected != "pass" or (marker_met and memory_report_met)
         ),
-        "semantic_oracle_met": observed == "pass" and marker_met,
+        "semantic_oracle_met": (
+            observed == "pass" and marker_met and memory_report_met
+        ),
         "expected_marker": probe["expected_marker"],
         "marker_count": marker_count,
+        "memory_report_required": memory_report_required,
+        "memory_report_count": memory_report_count,
+        "memory_report_met": memory_report_met,
+        "memory_leaks": memory_leaks,
         "compile_failure_class": compile_failure_class,
         "first_compile_diagnostic": first_compile_diagnostic,
         "compile_exit_code": compile_rc,
@@ -2550,6 +2580,8 @@ def _run_mormot_case_in_workspace(
         "qualification_failed": None,
         "failed_methods": [],
     }
+    memory_report_count = 0
+    memory_leaks: list[str] = []
     if compile_timeout:
         observed = "compile_timeout"
     elif compile_rc != 0:
@@ -2579,6 +2611,7 @@ def _run_mormot_case_in_workspace(
                     parsed["environment_failed"],
                     parsed["qualification_failed"],
                 )
+            memory_report_count, memory_leaks = memory_report_status(run_log)
 
     expected = expected_observed(source, compiler_id, option_id)
     artifacts.mkdir(parents=True, exist_ok=True)
@@ -2608,12 +2641,19 @@ def _run_mormot_case_in_workspace(
         )
     else:
         qualification_signature_met = None
+    memory_report_required = memory_manager_source is not None
+    memory_report_met = (
+        not memory_report_required
+        or (memory_report_count == 1 and not memory_leaks)
+    )
     expectation_met = observed == expected and (
         expected_class is None or compile_failure_class == expected_class
     ) and (
         expected_diagnostic is None or first_compile_diagnostic == expected_diagnostic
     ) and (
         qualification_signature_met is not False
+    ) and (
+        expected not in ("pass", "run_fail") or memory_report_met
     )
     writer.add({
         "stage": "mormot",
@@ -2657,6 +2697,10 @@ def _run_mormot_case_in_workspace(
         "qualification_signature": qualification_signature,
         "expected_qualification_signature": expected_signature,
         "qualification_signature_met": qualification_signature_met,
+        "memory_report_required": memory_report_required,
+        "memory_report_count": memory_report_count,
+        "memory_report_met": memory_report_met,
+        "memory_leaks": memory_leaks,
         **parsed,
     })
 

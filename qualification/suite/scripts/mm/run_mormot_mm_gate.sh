@@ -109,6 +109,10 @@ for class in "${classes[@]}"; do
   assertions=$(sed -E 's/.*Total failed: [0-9]+ \/ ([0-9,]+).*/\1/' <<<"$line" | tr -d ',')
   [[ $assertions =~ ^[0-9]+$ ]]
   total=$((total + assertions))
+  if [[ $(grep -c '^FPCMM_REPORTMEMORYLEAKS_DONE$' "$log") != 1 ]]; then
+    echo "memory leak census did not complete for $class" >&2
+    exit 1
+  fi
   if grep -Eq 'small block leak|medium block leak|large block leak' "$log"; then
     echo "memory leak reported by $class" >&2
     exit 1
