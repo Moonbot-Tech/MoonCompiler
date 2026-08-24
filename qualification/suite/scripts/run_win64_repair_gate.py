@@ -66,6 +66,7 @@ CORE_TESTS = (
     "tarraypointerindexoffset1",
     "tdelphiinlineexceptreg1",
     "tdelphiinlinefuncrettemp1",
+    "tdelphidefaultarray1",
 )
 CORE_SOURCE_ARGS = {
     "tstrengthresultcountertrace1": ["-gt"],

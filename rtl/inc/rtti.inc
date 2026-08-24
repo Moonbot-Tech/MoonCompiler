@@ -589,6 +589,70 @@ procedure fpc_delphi_copy_array(src,dest,typeinfo : pointer;count : SizeInt); [p
       end;
   end;
 
+{$ifdef FPC_HAS_FEATURE_HEAP}
+{ Replace an initialized static array with a fresh Default(T) value.
+
+  The temporary lives on the heap rather than the caller's stack: a static
+  array can be arbitrarily large, and its element type may require stricter
+  alignment than a byte-array compiler temp provides.  Initialize the whole
+  temporary before touching Dest.  Ownership then moves element by element:
+  even if an old element's Finalize raises after destroying itself, its fresh
+  replacement is installed by the surrounding finally.  The untransferred
+  temporary tail remains owned by this helper and is finalized before storage
+  is released. }
+procedure fpc_assign_default_array(dest,typeinfo : pointer;size,alignment : SizeUInt); [public,alias:'FPC_ASSIGN_DEFAULT_ARRAY']; compilerproc;
+  var
+    ainfo : PArrayInfo;
+    temp,eltype : pointer;
+    allocsize : SizeUInt;
+    count,elsize,done : SizeInt;
+  begin
+    if alignment<sizeof(pointer) then
+      alignment:=sizeof(pointer);
+    allocsize:=size+alignment+sizeof(pointer);
+    if ((alignment and (alignment-1))<>0) or
+       (allocsize<size) or
+       (allocsize<alignment) then
+      RunError(203);
+    ainfo:=PArrayInfo(aligntoqword(typeInfo+2+PByte(typeInfo)[1]));
+    count:=ainfo^.ElCount;
+    if (count<=0) or (ainfo^.Size<=0) or (SizeUInt(ainfo^.Size)<>size) then
+      RunError(203);
+    if ainfo^.Size mod count<>0 then
+      RunError(203);
+    elsize:=ainfo^.Size div count;
+    eltype:=ainfo^.ElInfo^;
+    { Default(T) starts as an all-zero value.  This matters even when the
+      element has Assign but no Initialize: int_initialize then has nothing
+      to call, so an uninitialised heap block would leak allocator contents
+      into the language-level Default value. }
+    temp:=AllocMemAligned(size,alignment);
+    if not assigned(temp) then
+      RunError(203);
+    try
+      int_initialize(temp,typeinfo);
+      done:=0;
+      try
+        while done<count do
+          begin
+            try
+              int_finalize(dest+done*elsize,eltype);
+            finally
+              move(PByte(temp+done*elsize)^,
+                PByte(dest+done*elsize)^,elsize);
+              inc(done);
+            end;
+          end;
+      finally
+        if done<count then
+          int_FinalizeArray(temp+done*elsize,eltype,count-done);
+      end;
+    finally
+      FreeMemAligned(temp);
+    end;
+  end;
+{$endif FPC_HAS_FEATURE_HEAP}
+
 { The following two procedures are now obsolete, needed only for bootstrapping }
 procedure fpc_decref (Data, TypeInfo : Pointer);[Public,alias : 'FPC_DECREF'];  compilerproc;
   begin

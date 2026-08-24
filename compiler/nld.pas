@@ -988,15 +988,35 @@ implementation
           result:=(node.nodetype=temprefn) and (nf_is_funcret in node.flags);
         end;
 
+      function is_delphi_default_array_move(n:tnode):boolean;
+        begin
+          while assigned(n) and
+                (n.nodetype=typeconvn) and
+                ttypeconvnode(n).retains_value_location do
+            n:=ttypeconvnode(n).left;
+          result:=
+            (target_info.system in [system_x86_64_win64,system_x86_64_linux]) and
+            assigned(n) and
+            (n.nodetype=loadn) and
+            (tloadnode(n).symtableentry.typ=staticvarsym) and
+            (vo_is_default_var in tabstractvarsym(tloadnode(n).symtableentry).varoptions) and
+            is_normal_array(left.resultdef) and
+            is_delphi_assign_record(left.resultdef) and
+            equal_defs(n.resultdef,left.resultdef);
+        end;
+
       var
         hp: tnode;
         oldassignmentnode : tassignmentnode;
         hdef: tdef;
         hs: string;
-        needrtti: boolean;
+        needrtti,
+        defaultarrayassign: boolean;
       begin
          result:=nil;
          expectloc:=LOC_VOID;
+
+         defaultarrayassign:=false;
 
          firstpass(left);
 
@@ -1009,6 +1029,7 @@ implementation
          aktassignmentnode:=self;
          firstpass(right);
          aktassignmentnode:=oldassignmentnode;
+         defaultarrayassign:=is_delphi_default_array_move(right);
          if anf_assign_done_in_right in assignmentnodeflags then
            begin
              result:=right;
@@ -1046,6 +1067,29 @@ implementation
             end;
             exit;
            end
+        { Delphi moves the fresh value of Default(StaticArray) without the
+          array element's custom Assign operator.  An Assign-only record is
+          not a managed type, so this semantic case must precede the generic
+          managed-composite branch. }
+        else if defaultarrayassign and
+            not is_const(left) and
+            not(target_info.system in systems_garbage_collected_managed_types) then
+         begin
+           hp:=ccallparanode.create(
+             cordconstnode.create(left.resultdef.alignment,sizeuinttype,false),
+             ccallparanode.create(
+               cordconstnode.create(left.resultdef.size,sizeuinttype,false),
+               ccallparanode.create(caddrnode.create_internal(
+                 crttinode.create(tstoreddef(left.resultdef),initrtti,rdt_normal)),
+                 ccallparanode.create(ctypeconvnode.create_internal(
+                   caddrnode.create_internal(left),voidpointertype),nil))));
+           result:=ccallnode.createintern('fpc_assign_default_array',hp);
+           firstpass(result);
+           left:=nil;
+           right.free;
+           right:=nil;
+           exit;
+         end
         { call helpers for composite types containing automated types }
         else if is_managed_type(left.resultdef) and
             (left.resultdef.typ in [arraydef,objectdef,recorddef]) and

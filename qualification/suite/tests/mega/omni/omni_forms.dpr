@@ -10490,6 +10490,118 @@ begin
 end;
 
 { ---------------------------------------------------------------- }
+{ 61b. Static arrays of records with management operators have a    }
+{ distinct Default(T) assignment contract: the fresh Initialize     }
+{ values are transferred as-is, without the element Assign operator.}
+{ Exercise direct, field, indexed-single-evaluation and generic     }
+{ spellings of the same semantic class.                              }
+
+type
+  TOmniDefaultCell = record
+    Value: Integer;
+    class operator Initialize(out Dest: TOmniDefaultCell);
+    class operator Finalize(var Dest: TOmniDefaultCell);
+    class operator Assign(var Dest: TOmniDefaultCell;
+      const [ref] Src: TOmniDefaultCell);
+  end;
+  TOmniDefaultPair = array[0..1] of TOmniDefaultCell;
+  TOmniDefaultAssignOnly = record
+    Value: Integer;
+    class operator Assign(var Dest: TOmniDefaultAssignOnly;
+      const [ref] Src: TOmniDefaultAssignOnly);
+  end;
+  TOmniDefaultAssignOnlyPair = array[0..1] of TOmniDefaultAssignOnly;
+  TOmniDefaultMatrix = array[0..1] of TOmniDefaultPair;
+  TOmniDefaultHolder = record
+    Pair: TOmniDefaultPair;
+  end;
+  TOmniDefaultReset = class sealed
+  public
+    class procedure Reset<T>(var Dest: T); static;
+  end;
+
+var
+  OmniDefaultPickCalls: Integer;
+
+class operator TOmniDefaultCell.Initialize(out Dest: TOmniDefaultCell);
+begin
+  Dest.Value := 100;
+end;
+
+class operator TOmniDefaultCell.Finalize(var Dest: TOmniDefaultCell);
+begin
+  Dest.Value := -1;
+end;
+
+class operator TOmniDefaultCell.Assign(var Dest: TOmniDefaultCell;
+  const [ref] Src: TOmniDefaultCell);
+begin
+  Dest.Value := Src.Value + 1;
+end;
+
+class operator TOmniDefaultAssignOnly.Assign(var Dest: TOmniDefaultAssignOnly;
+  const [ref] Src: TOmniDefaultAssignOnly);
+begin
+  Dest.Value := Src.Value + 1;
+end;
+
+class procedure TOmniDefaultReset.Reset<T>(var Dest: T);
+begin
+  Dest := Default(T);
+end;
+
+function PickOmniDefaultRow: Integer;
+begin
+  Result := OmniDefaultPickCalls;
+  Inc(OmniDefaultPickCalls);
+end;
+
+procedure RunDefaultOperatorArrayForms;
+var
+  Pair: TOmniDefaultPair;
+  AssignOnlyPair: TOmniDefaultAssignOnlyPair;
+  Matrix: TOmniDefaultMatrix;
+  Holder: TOmniDefaultHolder;
+begin
+  Pair[0].Value := 10;
+  Pair[1].Value := 11;
+  Pair := Default(TOmniDefaultPair);
+  Check((Pair[0].Value = 100) and (Pair[1].Value = 100),
+    'mem-defaultop-direct-fresh-transfer');
+
+  AssignOnlyPair[0].Value := 12;
+  AssignOnlyPair[1].Value := 13;
+  AssignOnlyPair := Default(TOmniDefaultAssignOnlyPair);
+  Check((AssignOnlyPair[0].Value = 0) and (AssignOnlyPair[1].Value = 0),
+    'mem-defaultop-assign-only-fresh-transfer');
+
+  Holder.Pair[0].Value := 20;
+  Holder.Pair[1].Value := 21;
+  Holder.Pair := Default(TOmniDefaultPair);
+  Check((Holder.Pair[0].Value = 100) and
+    (Holder.Pair[1].Value = 100), 'mem-defaultop-field-fresh-transfer');
+
+  Matrix[0][0].Value := 30;
+  Matrix[0][1].Value := 31;
+  Matrix[1][0].Value := 40;
+  Matrix[1][1].Value := 41;
+  OmniDefaultPickCalls := 0;
+  Matrix[PickOmniDefaultRow] := Default(TOmniDefaultPair);
+  Check(OmniDefaultPickCalls = 1, 'mem-defaultop-index-single-eval');
+  Check((Matrix[0][0].Value = 100) and (Matrix[0][1].Value = 100),
+    'mem-defaultop-index-fresh-transfer');
+  Check((Matrix[1][0].Value = 40) and (Matrix[1][1].Value = 41),
+    'mem-defaultop-index-neighbour-intact');
+
+  Pair[0].Value := 50;
+  Pair[1].Value := 51;
+  TOmniDefaultReset.Reset<TOmniDefaultPair>(Pair);
+  Check((Pair[0].Value = 100) and (Pair[1].Value = 100),
+    'mem-defaultop-generic-fresh-transfer');
+  Mix(UInt64(UInt32(Pair[0].Value * 1000 + Pair[1].Value)));
+end;
+
+{ ---------------------------------------------------------------- }
 { ROUND zoo4: repository-mining pass 2 (mORMot2 RSA, fundamentals5 }
 { HugeInt, lgenerics TGOptional, QuickLib TFlexValue). Every shape  }
 { is wrapped in LOOPS, RECURSION or NESTED CALLS, aiming at LICM,   }
@@ -14667,6 +14779,7 @@ begin
   RunStrLifeForms;
   RunRangeFinForms;
   RunMgdConcatForms;
+  RunDefaultOperatorArrayForms;
   RunDefaultDeepForms;
   RunRareOperatorLoopForms;
   RunBigCarryForms;
