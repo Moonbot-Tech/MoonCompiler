@@ -48,6 +48,7 @@ PROGRAMS = {
         "algorithms",
         "dictionary",
         "json",
+        "mormot-json",
         "mm",
         "rtl",
         "rtl-collections",
@@ -57,6 +58,10 @@ PROGRAMS = {
     )
 }
 PROGRAMS["local-pressure"] = PERF_ROOT / "local-pressure" / "pulse_local_pressure.dpr"
+MORMOT_PRODUCT = ROOT / "qualification" / "vendor" / "mormot-product"
+PROGRAM_UNIT_PATHS = {
+    "mormot-json": [MORMOT_PRODUCT / "src" / "core"],
+}
 SYSTEM_LABELS = {
     "delphi": "Delphi 12.2 + default FastMM4",
     "moon": "Moon Compiler + bundled fpcx64mm",
@@ -100,6 +105,7 @@ def build_delphi(program: str) -> Path:
     source = PROGRAMS[program]
     target = output_dir(program, "delphi")
     target.mkdir(parents=True, exist_ok=True)
+    unit_paths = [COMMON, *PROGRAM_UNIT_PATHS.get(program, [])]
     run(
         [
             str(DCC64),
@@ -108,7 +114,8 @@ def build_delphi(program: str) -> Path:
             "-$O+",
             "--inline:auto",
             "-NSSystem;Winapi;System.Win;Data;Xml",
-            f"-U{COMMON}",
+            *(f"-U{path}" for path in unit_paths),
+            *(f"-I{path}" for path in unit_paths),
             f"-E{target}",
             f"-N0{target}",
             str(source),
@@ -123,6 +130,7 @@ def build_moon(program: str, default_mm: bool) -> Path:
     system = "moon-default" if default_mm else "moon"
     target = output_dir(program, system)
     target.mkdir(parents=True, exist_ok=True)
+    unit_paths = [COMMON, *PROGRAM_UNIT_PATHS.get(program, [])]
     args = [
         str(MOON_FPC),
         "-n",
@@ -130,7 +138,8 @@ def build_moon(program: str, default_mm: bool) -> Path:
         "-Mdelphi",
         "-O3",
         "-B",
-        f"-Fu{COMMON}",
+        *(f"-Fu{path}" for path in unit_paths),
+        *(f"-Fi{path}" for path in unit_paths),
         f"-FE{target}",
         f"-FU{target}",
     ]

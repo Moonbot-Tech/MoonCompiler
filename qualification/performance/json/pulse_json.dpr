@@ -36,6 +36,8 @@ type
 var
   JsonSmall, JsonMedium, JsonLarge: RawByteString;
   InvariantFormat: TFormatSettings;
+  PreparedFloats: array[0..63] of string;
+  BuilderChunk: string;
 
 function FloatText(Value: Double): string;
 begin
@@ -326,6 +328,51 @@ begin
   Result := Digest;
 end;
 
+function CaseBuilderGrowth(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  Builder: TStringBuilder;
+  Text: string;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Builder := TStringBuilder.Create(16);
+    try
+      for J := 1 to 1024 do
+        Builder.Append(BuilderChunk);
+      Text := Builder.ToString;
+      Result := Result + UInt64(Length(Text)) + Ord(Text[Length(Text)]);
+    finally
+      Builder.Free;
+    end;
+  end;
+end;
+
+function CaseBuilderPreparedFloats(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+  Builder: TStringBuilder;
+  Text: string;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Builder := TStringBuilder.Create(1024);
+    try
+      for J := 0 to High(PreparedFloats) do
+      begin
+        Builder.Append(PreparedFloats[J]);
+        Builder.Append(',');
+      end;
+      Text := Builder.ToString;
+      Result := Result + UInt64(Length(Text)) + Ord(Text[Length(Text)]);
+    finally
+      Builder.Free;
+    end;
+  end;
+end;
+
 function ScanJson(const Text: RawByteString; Iterations: Integer): UInt64;
 var
   I, J: Integer;
@@ -417,6 +464,7 @@ end;
 
 procedure Run;
 var
+  I: Integer;
   Profile: TPulseProfile;
   SelectedCase: string;
   Found: Boolean;
@@ -427,16 +475,24 @@ begin
   JsonSmall := BuildJson(16);
   JsonMedium := BuildJson(256);
   JsonLarge := BuildJson(4096);
+  BuilderChunk := StringOfChar('x', 64);
+  for I := 0 to High(PreparedFloats) do
+    PreparedFloats[I] := FloatText(100.0 + I * 0.03125);
   VerifyJson;
   PulseInitialize('pulse_json', Profile, SelectedCase);
   Found := False;
   PulseRunCase('pulse_json', 'generate-64', 'rtl', 'TStringBuilder',
     @CaseGenerateJson, 64, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_json', 'scan-small-16', 'codegen', 'Pascal',
+  PulseRunCase('pulse_json', 'builder-growth-64k', 'rtl', 'TStringBuilder',
+    @CaseBuilderGrowth, 65536, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_json', 'builder-append-prepared-floats-64', 'rtl',
+    'TStringBuilder', @CaseBuilderPreparedFloats, 64, Profile, SelectedCase,
+    Found);
+  PulseRunCase('pulse_json', 'byte-scan-small-16', 'codegen', 'Pascal',
     @CaseScanSmall, Length(JsonSmall), Profile, SelectedCase, Found);
-  PulseRunCase('pulse_json', 'scan-medium-256', 'codegen', 'Pascal',
+  PulseRunCase('pulse_json', 'byte-scan-medium-256', 'codegen', 'Pascal',
     @CaseScanMedium, Length(JsonMedium), Profile, SelectedCase, Found);
-  PulseRunCase('pulse_json', 'scan-large-4096', 'codegen', 'Pascal',
+  PulseRunCase('pulse_json', 'byte-scan-large-4096', 'codegen', 'Pascal',
     @CaseScanLarge, Length(JsonLarge), Profile, SelectedCase, Found);
   PulseRunCase('pulse_json', 'parse-small-custom-double', 'compiler+rtl',
     'Pascal', @CaseParseSmallCustom, 16, Profile, SelectedCase, Found);
