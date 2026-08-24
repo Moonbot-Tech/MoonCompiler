@@ -3118,6 +3118,18 @@ const
          { but an int/int gives real/real! }
          if (nodetype=slashn) and not(is_vector(left.resultdef)) and not(is_vector(right.resultdef)) then
           begin
+            { an integer operand next to a Currency one joins the currency
+              domain first (its scale factor folds for constants), so the
+              exact integer division below serves mixed operands too }
+            if s64currencytype.typ<>floatdef then
+              begin
+                if is_currency(left.resultdef) and
+                   (right.resultdef.typ=orddef) and not is_currency(right.resultdef) then
+                  inserttypeconv(right,s64currencytype)
+                else if is_currency(right.resultdef) and
+                   (left.resultdef.typ=orddef) and not is_currency(left.resultdef) then
+                  inserttypeconv(left,s64currencytype);
+              end;
             if is_currency(left.resultdef) and
                is_currency(right.resultdef) then
               { In case of currency, converting to float means dividing by 10000 }
@@ -3132,8 +3144,24 @@ const
                 end
               else
                 begin
+                  { integer-backed Currency: the float detour computes the
+                    quotient in a double, whose 53-bit mantissa is narrower
+                    than a large scaled value - the final digits of real
+                    money get lost (and DCC64 is not even self-consistent
+                    here: x87 on globals, double on locals, truncating
+                    folds).  The RTL divides the exact 128-bit re-scaled
+                    numerator with the fpc_mul_currency rounding rule; the
+                    internal conversion carries the already-scaled result
+                    without another 10000 factor (deep-layer audit,
+                    journal 6) }
                   left.resultdef := s64inttype;
                   right.resultdef := s64inttype;
+                  right:=ccallparanode.create(right,ccallparanode.create(left,nil));
+                  left:=nil;
+                  result:=ctypeconvnode.create_internal(
+                    ccallnode.createintern('fpc_div_currency',right),s64currencytype);
+                  right:=nil;
+                  exit;
                 end;
             if current_settings.fputype=fpu_none then
               begin
@@ -4307,7 +4335,9 @@ const
             case nodetype of
               slashn :
                 begin
-                  { slashn will only work with floats }
+                  { slashn will only work with floats; the integer-backed
+                    Currency/Currency division was already routed to
+                    fpc_div_currency at the operand-conversion point }
                   hp:=caddnode.create(muln,getcopy,crealconstnode.create(10000.0,s64currencytype));
                   include(hp.flags,nf_is_currency);
                   result:=hp;

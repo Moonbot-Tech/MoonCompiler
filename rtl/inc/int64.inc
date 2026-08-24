@@ -484,17 +484,9 @@
 
 {$endif FPC_SYSTEM_HAS_MUL_LONGINT_TO_INT64}
 
-{$ifndef FPC_SYSTEM_HAS_DIV_CURRENCY}
-function fpc_div_currency(n,z : currency) : currency; [public,alias: 'FPC_DIV_CURRENCY']; compilerproc;
-  begin
-    Result:=(int64(z)*10000) div int64(n);
-  end;
-{$endif FPC_SYSTEM_HAS_DIV_CURRENCY}
-
-{$ifndef FPC_SYSTEM_HAS_MOD_CURRENCY}
-function fpc_mod_currency(n,z : currency) : currency; [public,alias: 'FPC_MOD_CURRENCY']; compilerproc;
-  begin
-    Result:=int64(z) mod int64(n);
-  end;
-{$endif FPC_SYSTEM_HAS_MOD_CURRENCY}
+{ the historical fpc_div_currency/fpc_mod_currency pair lived here with a
+  64-bit (z*10000) div n body - the very overflow fpc_mul_currency exists
+  to avoid, and no code generator ever called either of them in this
+  tree.  The name now belongs to the exact 128-bit divider in int128.inc
+  (deep-layer audit, journal 6). }
 

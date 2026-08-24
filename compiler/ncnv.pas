@@ -1750,13 +1750,24 @@ implementation
         result:=nil;
         if not(nf_internal in flags) then
           begin
-            left:=caddnode.create(muln,left,crealconstnode.create(10000.0,left.resultdef));
-            include(left.flags,nf_is_currency);
-            { Convert constants directly, else call Round() }
+            { a real literal carries its exact decimal value in
+              value_currency, parsed digit-by-digit by the host's Val
+              (pexpr) - the value_real*10000.0 detour rounds through the
+              double grid and corrupts the final digits of large money
+              literals.  The historical constant arm also never fired:
+              it tested the node type AFTER the muln wrap below }
             if left.nodetype=realconstn then
-              result:=cordconstnode.create(round(trealconstnode(left).value_real),resultdef,false)
+              result:=cordconstnode.create(
+{$ifdef FPC_CURRENCY_IS_INT64}
+                pint64(@(trealconstnode(left).value_currency))^,
+{$else}
+                round(trealconstnode(left).value_currency*10000),
+{$endif}
+                resultdef,false)
             else
               begin
+                left:=caddnode.create(muln,left,crealconstnode.create(10000.0,left.resultdef));
+                include(left.flags,nf_is_currency);
                 result:=cinlinenode.create(in_round_real,false,left);
                 { Internal type cast to currency }
                 result:=ctypeconvnode.create_internal(result,s64currencytype);

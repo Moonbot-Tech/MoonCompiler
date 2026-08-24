@@ -709,6 +709,7 @@ function fpc_cmp_uint128(a,b : UInt128) : longint; compilerproc;
 function fpc_div_int128(n,z : Int128) : Int128; compilerproc;
 function fpc_mod_int128(n,z : Int128) : Int128; compilerproc;
 function fpc_mul_currency(a,b : int64) : int64; compilerproc;
+function fpc_div_currency(a,b : int64) : int64; compilerproc;
 function fpc_div_uint128(n,z : UInt128) : UInt128; compilerproc;
 function fpc_mod_uint128(n,z : UInt128) : UInt128; compilerproc;
 function fpc_shl_int128(value : Int128; shift : int64) : Int128; compilerproc;
@@ -719,8 +720,6 @@ function fpc_int64_to_int128(v : int64) : Int128; compilerproc;
 function fpc_qword_to_uint128(v : qword) : UInt128; compilerproc;
 {$endif}
 
-function fpc_div_currency(n,z : currency) : currency; compilerproc;
-function fpc_mod_currency(n,z : currency) : currency; compilerproc;
 
 {$ifdef FPC_INCLUDE_SOFTWARE_SHIFT_INT64}
 function fpc_shl_qword(value : qword; shift : ALUUInt) : qword; compilerproc;

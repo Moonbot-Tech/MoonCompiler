@@ -551,6 +551,53 @@ begin
     result:=int64(qlo);
 end;
 
+function fpc_div_currency(a,b:int64):int64; [public,alias:'FPC_DIV_CURRENCY']; compilerproc;
+var
+  alo,blo,plo,phi,qlo,qhi,rlo:qword;
+  negres:boolean;
+begin
+  { Currency division re-scales: the exact quotient is (a*10000)/b, and
+    the re-scaled numerator needs 128 bits before the divide - dividing
+    in 64 bits first (or through a double, whose mantissa is narrower
+    than a large scaled value) loses final digits.  The rounding rule
+    and the overflow contract mirror fpc_mul_currency. }
+  if b=0 then
+    HandleErrorAddrFrameInd(200,get_pc_addr,get_frame);
+  negres:=(a<0) xor (b<0);
+  if a<0 then
+    alo:=qword(-(a+1))+1
+  else
+    alo:=qword(a);
+  if b<0 then
+    blo:=qword(-(b+1))+1
+  else
+    blo:=qword(b);
+  int128_mul64(alo,10000,plo,phi);
+  int128_divmodu64(plo,phi,blo,qlo,qhi,rlo);
+
+  { nearest, ties to even; the remainder is below blo <= 2^63, so the
+    doubled remainder still fits a qword }
+  if ((rlo shl 1)>blo) or
+     (((rlo shl 1)=blo) and odd(qlo)) then
+    begin
+      inc(qlo);
+      if qlo=0 then
+        inc(qhi);
+    end;
+
+  if (qhi<>0) or
+     (not(negres) and (qlo>qword(high(int64)))) or
+     (negres and (qlo>qword($8000000000000000))) then
+    HandleErrorAddrFrameInd(215,get_pc_addr,get_frame);
+  if negres then
+    if qlo=qword($8000000000000000) then
+      result:=low(int64)
+    else
+      result:=-int64(qlo)
+  else
+    result:=int64(qlo);
+end;
+
 {****************************************************************************
                               shifts
     shl/shr operate on the raw payload, so one signed entry point serves
