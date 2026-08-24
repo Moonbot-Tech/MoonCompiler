@@ -502,8 +502,38 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
         winlike   : boolean;
         hsym      : tconstsym;
         paddedstrdata   : shortstring;
+        hp        : tnode;
       begin
         strval:='';
+        { A resourcestring is a reference to mutable runtime data, but a typed
+          constant needs the default resource text in its static image.  Turn
+          the reference into an ordinary string constant before the usual
+          conversion below.  Only a destination with the native string width
+          is registered for SetResourceStrings updates: the runtime table has
+          deliberately always contained native RTLString slots. }
+        if is_constresourcestringnode(node) then
+          begin
+            hsym:=tconstsym(tloadnode(node).symtableentry);
+            if ((((hsym.consttyp=constresourcestring) and is_ansistring(def)) or
+                 ((hsym.consttyp=constwresourcestring) and is_unicodestring(def))) and
+                ((tcsym.owner.symtablelevel<=main_program_level) or
+                 (current_old_block_type=bt_const))) then
+              begin
+                current_asmdata.ResStrInits.Concat(
+                  TTCInitItem.Create(tcsym,curoffset,
+                  current_asmdata.RefAsmSymbol(make_mangledname('RESSTR',hsym.owner,hsym.name),AT_DATA),charpointertype)
+                );
+                Include(tcsym.varoptions,vo_force_finalize);
+              end;
+            if hsym.consttyp=constwresourcestring then
+              hp:=cstringconstnode.createunistr(hsym.value.valuews)
+            else
+              hp:=cstringconstnode.createpchar(
+                pansichar(hsym.value.valueptr),hsym.value.len,hsym.constdef);
+            node.free;
+            node:=hp;
+            do_typecheckpass(node);
+          end;
         { load strval and strlength of the constant tree }
         if (node.nodetype=stringconstn) or is_wide_or_unicode_string(def) or is_constwidecharnode(node) or
           ((node.nodetype=typen) and is_interfacecorba(ttypenode(node).typedef)) or
@@ -536,29 +566,6 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
                   evaluated at compile-time }
                 if not codegenerror then
                   CGMessage(parser_e_widestring_to_ansi_compile_time);
-              end;
-          end
-        else if is_constresourcestringnode(node) then
-          begin
-            hsym:=tconstsym(tloadnode(node).symtableentry);
-            strval:=pansichar(hsym.value.valueptr);
-            strlength:=hsym.value.len;
-            { Delphi-compatible (mis)feature:
-              Link AnsiString constants to their initializing resourcestring,
-              enabling them to be (re)translated at runtime.
-              Wide/UnicodeString are currently rejected above (with incorrect error message).
-              ShortStrings cannot be handled unless another table is built for them;
-              considering this acceptable, because Delphi rejects them altogether.
-            }
-            if (not is_shortstring(def)) and
-               ((tcsym.owner.symtablelevel<=main_program_level) or
-                (current_old_block_type=bt_const)) then
-              begin
-                current_asmdata.ResStrInits.Concat(
-                  TTCInitItem.Create(tcsym,curoffset,
-                  current_asmdata.RefAsmSymbol(make_mangledname('RESSTR',hsym.owner,hsym.name),AT_DATA),charpointertype)
-                );
-                Include(tcsym.varoptions,vo_force_finalize);
               end;
           end
         else

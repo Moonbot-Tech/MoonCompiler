@@ -419,7 +419,7 @@ begin
       ptable:=ResStrInitTable^.Tables[i];
       while Assigned(ptable^.Addr) do
         begin
-          AnsiString(ptable^.Addr^):=ptable^.Data^.CurrentValue;
+          RTLString(ptable^.Addr^):=ptable^.Data^.CurrentValue;
           Inc(ptable);
         end;
     end;
@@ -435,12 +435,11 @@ begin
       ptable:=ResStrInitTable^.Tables[i];
       while Assigned(ptable^.Addr) do
         begin
-          AnsiString(ptable^.Addr^):='';
+          RTLString(ptable^.Addr^):='';
           Inc(ptable);
         end;
     end;
 end;
-
 
 {$endif FPC_HAS_RESSTRINITS}
 

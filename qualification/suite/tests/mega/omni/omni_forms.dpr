@@ -4622,6 +4622,21 @@ end;
 resourcestring
   RsMoon = 'moon-%d-%s';
 
+type
+  TResourceState = (resourceStateFirst, resourceStateSecond);
+
+resourcestring
+  RsFirstState = 'first %s';
+  RsSecondState = 'second';
+
+const
+  ResourceStates: array[TResourceState] of string = (
+    RsFirstState,
+    RsSecondState);
+  ResourceUnicode: UnicodeString = RsFirstState;
+  ResourceAnsi: AnsiString = RsSecondState;
+  ResourceWide: WideString = RsSecondState;
+
 {$J+}
 const
   WritableArr: array[0..2] of Integer = (10, 20, 30);
@@ -4694,6 +4709,20 @@ begin
   { resourcestring through Format }
   S := AnsiString(Format(string(RsMoon), [7, 'bot']));
   Check(S = 'moon-7-bot', 'dlf-resourcestring-format');
+
+  { resourcestring references materialized in typed string constants }
+  Check(ResourceStates[resourceStateFirst] = 'first %s',
+    'dlf-resourcestring-typed-array-first');
+  Check(ResourceStates[resourceStateSecond] = 'second',
+    'dlf-resourcestring-typed-array-second');
+  Check(ResourceUnicode = 'first %s',
+    'dlf-resourcestring-typed-unicode');
+  Check(string(ResourceAnsi) = 'second',
+    'dlf-resourcestring-typed-ansi');
+  Check(string(ResourceWide) = 'second',
+    'dlf-resourcestring-typed-wide');
+  Check(Format(ResourceStates[resourceStateFirst], ['X']) = 'first X',
+    'dlf-resourcestring-typed-format');
 
   { Equals / GetHashCode overrides }
   EqA := TEqObj.Create;
