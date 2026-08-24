@@ -90,6 +90,30 @@ end.
         project / "driver_profile_smoke.dpr",
         """program driver_profile_smoke;
 
+{$define MOONCOMPILER_EXPECT_ASSERTIONS_ON}
+
+{$ifopt I-}
+{$fatal MOONCOMPILER_PRODUCT_IO_CHECK_MUST_BE_ON}
+{$endif}
+{$ifopt Q+}
+{$fatal MOONCOMPILER_PRODUCT_OVERFLOW_CHECK_MUST_BE_OFF}
+{$endif}
+{$ifopt R+}
+{$fatal MOONCOMPILER_PRODUCT_RANGE_CHECK_MUST_BE_OFF}
+{$endif}
+{$ifopt S+}
+{$fatal MOONCOMPILER_PRODUCT_STACK_CHECK_MUST_BE_OFF}
+{$endif}
+{$ifdef MOONCOMPILER_EXPECT_ASSERTIONS_ON}
+{$ifopt C-}
+{$fatal MOONCOMPILER_DEBUG_ASSERTIONS_MUST_BE_ON}
+{$endif}
+{$else}
+{$ifopt C+}
+{$fatal MOONCOMPILER_RELEASE_ASSERTIONS_MUST_BE_OFF}
+{$endif}
+{$endif}
+
 uses
   mormot.core.fpcx64mm,
   {$ifdef UNIX}
@@ -206,6 +230,14 @@ def main() -> int:
             "driver_profile_smoke.exe" if os.name == "nt" else "driver_profile_smoke"
         )
         for profile in ("debug", "release"):
+            smoke = project / "driver_profile_smoke.dpr"
+            source = smoke.read_text(encoding="utf-8")
+            if profile == "release":
+                source = source.replace(
+                    "{$define MOONCOMPILER_EXPECT_ASSERTIONS_ON}",
+                    "{$undef MOONCOMPILER_EXPECT_ASSERTIONS_ON}",
+                )
+                write(smoke, source)
             result = run(build_command(project, profile))
             if f"building {project / 'driver_profile_smoke.dpr'}" not in result.stdout:
                 raise RuntimeError(f"build driver did not report its logical project path\n{result.stdout}")

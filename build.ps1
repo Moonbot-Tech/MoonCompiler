@@ -212,9 +212,9 @@ function Build-Project([string]$Project, [string]$BuildProfile) {
     '-UaSystem.SysConst=SysConst',
     '-UaSystem.RTLConsts=RTLConsts')
   If ($BuildProfile -eq 'debug') {
-    $profileOptions = @('-O-', '-gl', '-gw3', '-Criot', '-Sa')
+    $profileOptions = @('-O-', '-gl', '-gw3', '-Ci', '-Co-', '-Cr-', '-Ct-', '-Sa')
   } else {
-    $profileOptions = @('-O3', '-gl', '-gw3')
+    $profileOptions = @('-O3', '-gl', '-gw3', '-Ci', '-Co-', '-Cr-', '-Ct-', '-Sa-')
   }
   $options = @(
     '-n', "@$config", '-Mdelphi',
