@@ -46,6 +46,7 @@ unit optcall;
       nutils,
       fmodule,
       pass_1,
+      symtable,
       nbas,ncal,nflw,nld;
 
     { this procedure removes the user code flag because it prevents optimizations }
@@ -144,6 +145,23 @@ unit optcall;
       end;
 
 
+    function call_has_delphi_assign_value_para(callnode: tcallnode): boolean;
+      var
+        para: tcallparanode;
+      begin
+        result:=false;
+        para:=tcallparanode(callnode.left);
+        while assigned(para) do
+          begin
+            if (para.parasym.typ=paravarsym) and
+               (para.parasym.varspez=vs_value) and
+               is_delphi_assign_record(para.parasym.vardef) then
+              exit(true);
+            para:=tcallparanode(para.right);
+          end;
+      end;
+
+
     function doinline(var _n: tnode; arg: pointer): foreachnoderesult;
       var
         n,
@@ -179,6 +197,14 @@ unit optcall;
         if (cs_implicit_exceptions in current_settings.moduleswitches) and
            is_void(callnode.procdefinition.returndef) and
            not(pi_needs_implicit_finally in current_procinfo.flags) and
+           { a call with a by-value Delphi-assign record parameter builds
+             its own cleanup frame (the copy's Finalize wrapped in an
+             implicit try..finally by this very routine), so the late,
+             unowned managed temp this guard protects against cannot
+             occur - and a late refusal would break the cnf_do_inline
+             contract: the caller-copy contour is already disabled for
+             this call (dvl-0057) }
+           not(call_has_delphi_assign_value_para(callnode)) and
            not(foreachnodestatic(
              tprocdef(callnode.procdefinition).inlininginfo^.code,
              @inline_body_has_used_managed_local,nil)) and

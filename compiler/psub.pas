@@ -188,15 +188,6 @@ implementation
        {$endif}
        ;
 
-    procedure check_inline_nontrivial_local_init(p: TObject; arg: pointer);
-      begin
-        if (tsym(p).typ=localvarsym) and
-           not(vo_is_funcret in tlocalvarsym(p).varoptions) and
-           has_non_trivial_value_init(tlocalvarsym(p).vardef) then
-          pboolean(arg)^:=true;
-      end;
-
-
     function checknodeinlining(procdef: tprocdef): boolean;
 
       procedure _no_inline(const reason: TMsgStr);
@@ -207,10 +198,8 @@ implementation
         end;
 
       var
-        i,
-        blk_i : integer;
+        i : integer;
         currpara : tparavarsym;
-        hasnontriviallocalinit : boolean;
       begin
         result := false;
         { this code will never be used (only specialisations can be inlined),
@@ -239,23 +228,11 @@ implementation
           (the measured Delphi point of death), the caller's implicit
           finally covers the exception path, and re-created temps finalize
           their previous value on loop re-entry.  A custom Initialize
-          operator is different: native temp initialization is emitted in
-          the caller prologue and would become observable before the call
-          site.  Keep that narrow class out of the inliner until temps can
-          express call-site initialization.  Managed parameters are still
-          checked per call by tcallnode.doinlining. }
-        hasnontriviallocalinit:=false;
-        procdef.localst.SymList.ForEachCall(@check_inline_nontrivial_local_init,
-          @hasnontriviallocalinit);
-        if assigned(procdef.blocklocalsymtables) then
-          for blk_i:=0 to procdef.blocklocalsymtables.count-1 do
-            TSymtable(procdef.blocklocalsymtables[blk_i]).SymList.ForEachCall(
-              @check_inline_nontrivial_local_init,@hasnontriviallocalinit);
-        if hasnontriviallocalinit then
-          begin
-            _no_inline('custom managed local initialization');
-            exit;
-          end;
+          operator no longer blocks inlining: such locals materialize as
+          raw byte temps whose user Initialize runs in the frame's Init
+          phase at the call point (dvl-0057), not from the caller prologue.
+          Managed parameters are still checked per call by
+          tcallnode.doinlining. }
         if pi_calls_c_varargs in current_procinfo.flags then
           begin
             _no_inline('called C-style varargs functions');

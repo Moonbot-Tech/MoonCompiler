@@ -122,6 +122,11 @@ interface
           padalignment : shortint;   { size to a multiple of which the symtable has to be rounded up }
           recordalignmin: shortint; { local equivalentsof global settings, so that records can be created with custom settings internally }
           has_fields_with_mop : tmanagementoperators; { whether any of the fields has the need for a management operator (or one of the field's fields) }
+          { whether any instance field - directly or through static-array
+            wrapping - is a record with Delphi Assign copy semantics; kept
+            incrementally by addfield, like has_fields_with_mop, so the
+            hot-path predicate never walks a half-built symtable }
+          fields_delphi_assign : boolean;
           constructor create(const n:string;usealign,recordminalign:shortint);
           destructor destroy;override;
           procedure ppuload(ppufile:tcompilerppufile);override;
@@ -183,6 +188,10 @@ interface
           constructor create(const n:string;usealign,recordminalign:shortint);
           procedure insertunionst(unionst : trecordsymtable;offset : asizeint);
           procedure includemanagementoperator(mop:tmanagementoperator);
+          { record with a Copy/Assign management operator but no AddRef, or
+            carrying such a record in an instance field: every copy must run
+            through the user's operator on the caller side (dvl-0035) }
+          function has_delphi_assign : boolean;
        end;
 
        tObjectSymtable = class(tabstractrecordsymtable)
@@ -1285,6 +1294,7 @@ implementation
         if (usefieldalignment=C_alignment) then
           fieldalignment:=shortint(ppufile.getbyte);
         ppufile.getset(tppuset1(has_fields_with_mop));
+        fields_delphi_assign:=ppufile.getbyte<>0;
         inherited ppuload(ppufile);
       end;
 
@@ -1307,6 +1317,7 @@ implementation
            def requires storing the set in the recorddef at least between
            ppuload and deref/derefimpl }
          ppufile.putset(tppuset1(has_fields_with_mop));
+         ppufile.putbyte(byte(fields_delphi_assign));
          ppufile.writeentry(ibrecsymtableoptions);
 
          inherited ppuwrite(ppufile);
@@ -1375,11 +1386,25 @@ implementation
         sym.visibility:=vis;
         { this symbol can't be loaded to a register }
         sym.varregable:=vr_none;
-        { management operators }
-        if sym.vardef.typ in [recorddef,objectdef] then
-          has_fields_with_mop:=has_fields_with_mop + tabstractrecordsymtable(tabstractrecorddef(sym.vardef).symtable).has_fields_with_mop;
-        if sym.vardef.typ=recorddef then
-          has_fields_with_mop:=has_fields_with_mop + trecordsymtable(trecorddef(sym.vardef).symtable).managementoperators;
+        { management operators: aggregate from the field's element type,
+          unwrapped through static-array layers - an operator carrier inside
+          an array field is as real as a direct one (dvl-0058: the class
+          init table missed array elements exactly because this aggregate
+          and the offset walk both stopped at the array wrapper) }
+        vardef:=sym.vardef;
+        while (vardef.typ=arraydef) and not is_special_array(vardef) do
+          vardef:=tarraydef(vardef).elementdef;
+        if vardef.typ in [recorddef,objectdef] then
+          has_fields_with_mop:=has_fields_with_mop + tabstractrecordsymtable(tabstractrecorddef(vardef).symtable).has_fields_with_mop;
+        if vardef.typ=recorddef then
+          has_fields_with_mop:=has_fields_with_mop + trecordsymtable(trecorddef(vardef).symtable).managementoperators;
+        { a field of a Delphi-assign record - directly or through static-array
+          wrapping - makes every copy of this record run through the user's
+          operator as well (dvl-0035); the field's type is complete here, so
+          this is the one safe place to aggregate the bit }
+        if (vardef.typ=recorddef) and
+           trecordsymtable(trecorddef(vardef).symtable).has_delphi_assign then
+          fields_delphi_assign:=true;
         { Calculate field offset }
         l:=sym.getsize;
         vardef:=sym.vardef;
@@ -1868,41 +1893,61 @@ implementation
         mop : tmanagementoperator;
         entry : pmanagementoperator_offset_entry;
         sublist : tfplist;
+        eldef : tdef;
+        elemcount,elem : asizeint;
+        elemoffset : asizeint;
         i : longint;
       begin
         if not is_normal_fieldvarsym(sym) then
           exit;
-        if not is_record(fsym.vardef) and not is_object(fsym.vardef) and not is_cppclass(fsym.vardef) then
+        { a static-array field carries its element's operators once per
+          element (dvl-0058: the class init table used to skip such fields
+          entirely, so array elements were never Initialize'd while
+          CleanupInstance still Finalize'd them) }
+        eldef:=fsym.vardef;
+        elemcount:=1;
+        while (eldef.typ=arraydef) and not is_special_array(eldef) do
+          begin
+            elemcount:=elemcount*tarraydef(eldef).elecount;
+            eldef:=tarraydef(eldef).elementdef;
+          end;
+        if not is_record(eldef) and not is_object(eldef) and not is_cppclass(eldef) then
           exit;
         mop:=tmanagementoperator(ptruint(arg));
         if not assigned(mop_list[mop]) then
           internalerror(2018082303);
 
-        if is_record(fsym.vardef) then
+        elem:=0;
+        while elem<elemcount do
           begin
-            if mop in trecordsymtable(trecorddef(fsym.vardef).symtable).managementoperators then
+            elemoffset:=fsym.fieldoffset+elem*eldef.size;
+            inc(elem);
+            if is_record(eldef) then
               begin
-                new(entry);
-                entry^.pd:=search_management_operator(mop,fsym.vardef);
-                if not assigned(entry^.pd) then
-                  internalerror(2018082302);
-                entry^.offset:=fsym.fieldoffset;
+                if mop in trecordsymtable(trecorddef(eldef).symtable).managementoperators then
+                  begin
+                    new(entry);
+                    entry^.pd:=search_management_operator(mop,eldef);
+                    if not assigned(entry^.pd) then
+                      internalerror(2018082302);
+                    entry^.offset:=elemoffset;
+                    mop_list[mop].add(entry);
+                  end;
+              end;
+
+            sublist:=tfplist.create;
+            tabstractrecordsymtable(tabstractrecorddef(eldef).symtable).get_managementoperator_offset_list(mop,sublist);
+            mop_list[mop].capacity:=mop_list[mop].count+sublist.count;
+            for i:=0 to sublist.count-1 do
+              begin
+                entry:=pmanagementoperator_offset_entry(sublist[i]);
+                entry^.offset:=entry^.offset+elemoffset;
                 mop_list[mop].add(entry);
               end;
+            { we don't need to remove the entries as they become part of list }
+            sublist.free;
+            sublist := nil;
           end;
-
-        sublist:=tfplist.create;
-        tabstractrecordsymtable(tabstractrecorddef(fsym.vardef).symtable).get_managementoperator_offset_list(mop,sublist);
-        mop_list[mop].capacity:=mop_list[mop].count+sublist.count;
-        for i:=0 to sublist.count-1 do
-          begin
-            entry:=pmanagementoperator_offset_entry(sublist[i]);
-            entry^.offset:=entry^.offset+fsym.fieldoffset;
-            mop_list[mop].add(entry);
-          end;
-        { we don't need to remove the entries as they become part of list }
-        sublist.free;
-        sublist := nil;
       end;
 
     procedure tabstractrecordsymtable.get_managementoperator_offset_list(mop:tmanagementoperator;list:tfplist);
@@ -2164,6 +2209,14 @@ implementation
         if mop in managementoperators then
           exit;
         include(managementoperators,mop);
+      end;
+
+
+    function trecordsymtable.has_delphi_assign : boolean;
+      begin
+        result:=((mop_copy in managementoperators) and
+                 not(mop_addref in managementoperators)) or
+                fields_delphi_assign;
       end;
 
 
@@ -4705,37 +4758,15 @@ implementation
 
 
     function is_delphi_assign_record(def:tdef):boolean;
-      var
-        i : longint;
-        sym : tsym;
-        fdef : tdef;
       begin
-        result:=false;
-        if not assigned(def) or
-           (def.typ<>recorddef) or
-           not assigned(trecorddef(def).symtable) then
-          exit;
-        if (mop_copy in trecordsymtable(trecorddef(def).symtable).managementoperators) and
-           not(mop_addref in trecordsymtable(trecorddef(def).symtable).managementoperators) then
-          exit(true);
-        { a record aggregating such a record - directly or through a static
-          array - copies through the user's operator as well; fields of a
-          record still being parsed may not carry their def yet, and class
-          var fields (sp_static) are no part of the instance copy - one of
-          the record's own type (TTimeSpan.FMinValue) would recurse forever }
-        for i:=0 to trecorddef(def).symtable.SymList.Count-1 do
-          begin
-            sym:=tsym(trecorddef(def).symtable.SymList[i]);
-            if (sym.typ<>fieldvarsym) or
-               (sp_static in sym.symoptions) or
-               not assigned(tfieldvarsym(sym).vardef) then
-              continue;
-            fdef:=tfieldvarsym(sym).vardef;
-            while (fdef.typ=arraydef) and not is_special_array(fdef) do
-              fdef:=tarraydef(fdef).elementdef;
-            if is_delphi_assign_record(fdef) then
-              exit(true);
-          end;
+        { a static array of such records copies element-wise through the
+          user's operator, exactly like the bare record (measured DCC64);
+          the record's own bit is aggregated at type-building time
+          (includemanagementoperator + addfield), so this is a plain read }
+        while assigned(def) and (def.typ=arraydef) and not is_special_array(def) do
+          def:=tarraydef(def).elementdef;
+        result:=assigned(def) and (def.typ=recorddef) and
+          trecordsymtable(trecorddef(def).symtable).has_delphi_assign;
       end;
 
 

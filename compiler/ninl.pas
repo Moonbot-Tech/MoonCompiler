@@ -527,10 +527,14 @@ implementation
               if not assigned(srsym) then
                 begin
                   varspez:=vs_const;
-                  { if we have an initialize or finalize management operator then
-                    we may not declare this as const as the unit init-/finalization
-                    needs to be able to modify it }
-                  if (def.typ=recorddef) and (mop_initialize in trecordsymtable(trecorddef(def).symtable).managementoperators) then
+                  { if the type carries an Initialize management operator -
+                    directly, in a field, or wrapped in a static array - the
+                    unit initialization must be able to run the operators
+                    over this variable, so it cannot live in read-only
+                    storage (dvl-0058 family: the bare-record check missed
+                    arrays and aggregates, so Default() of those returned
+                    zeroes instead of the operator's values) }
+                  if has_non_trivial_value_init(def) then
                     varspez:=vs_var;
                   { no valid default variable found, so create it }
                   srsym:=cstaticvarsym.create(defaultname,varspez,def,[]);

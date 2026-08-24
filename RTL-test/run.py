@@ -21,18 +21,40 @@ TARGET = re.compile(r"\{\s*%TARGET=(win64|linux)\s*\}", re.IGNORECASE)
 FORBIDDEN_O3_ASM = {
     "collections_codegen": ("MOVENEXT", "GETCURRENT"),
 }
+# Custom-Initialize locals no longer block inlining (dvl-0057): the
+# tracked-record routines must now expand like any ordinary managed-local
+# routine, with the operator lifecycle preserved at the call site.
 FORBIDDEN_O3_CALL_PATTERNS = {
     "inline_managed_locals_semantic": (
         r"^\s*call[^\r\n]*_\$\$_USETAG\$ANSICHAR\s*$",
+        r"^\s*call[^\r\n]*_\$\$_USETRACKEDRECORD\s*$",
+        r"^\s*call[^\r\n]*_\$\$_USETRACKEDAGGREGATE\s*$",
     ),
 }
 REQUIRED_O3_CALL_PATTERNS = {
     "inline_managed_locals_semantic": (
         r"^\s*call[^\r\n]*_\$\$_APPENDGLOBAL\$ANSICHAR\s*$",
-        r"^\s*call[^\r\n]*_\$\$_USETRACKEDRECORD\s*$",
-        r"^\s*call[^\r\n]*_\$\$_USETRACKEDAGGREGATE\s*$",
     ),
 }
+FORBIDDEN_O3_CALL_PATTERNS.update({
+    # managed by-value parameters must not block inlining: the copy is
+    # materialized with the callee's lifetime (journal 6, deep layer).
+    # The negative lookahead admits the finally funclet call
+    # (..._$$_fin$NNNNNNNN) that buries the materialized copy - that
+    # call is the contour working, not the inline failing
+    "inline_managed_value_copy_semantic": (
+        r"^\s*call(?![^\r\n]*_fin\$)[^\r\n]*MODIFYRECBYVALUE",
+        r"^\s*call(?![^\r\n]*_fin\$)[^\r\n]*MODIFYSTRBYVALUE",
+    ),
+    # A read-only const-reference helper over non-local storage is safe to
+    # inline; the alias gate must not block it merely because the argument is
+    # global.  A mutating helper with a value-ABI const scalar must likewise
+    # stay inline after the caller snapshot has been materialized.
+    "inline_const_alias_semantic": (
+        r"^\s*call[^\r\n]*SUMBIG",
+        r"^\s*call[^\r\n]*READSCALARAFTERWRITE",
+    ),
+})
 MODES = {
     "debug": ["-O-", "-gl", "-gw3", "-Criot", "-Sa"],
     "o2": ["-O2", "-gl", "-gw3"],

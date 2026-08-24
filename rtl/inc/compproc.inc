@@ -863,6 +863,7 @@ procedure fpc_initialize_array(data,typeinfo : pointer;count : SizeInt); compile
 procedure fpc_finalize_array(data,typeinfo : pointer;count : SizeInt); compilerproc;
 procedure fpc_addref_array(data,typeinfo: pointer; count: SizeInt); compilerproc;
 procedure fpc_decref_array(data,typeinfo: pointer; count: sizeint); compilerproc;
+procedure fpc_delphi_copy_array(src,dest,typeinfo : pointer;count : SizeInt); compilerproc;
 Function fpc_Copy (Src, Dest, TypeInfo : Pointer) : SizeInt; compilerproc;
 Procedure fpc_Copy_proc (Src, Dest, TypeInfo : Pointer); compilerproc; inline;
 {$ifdef FPC_MANAGED_MOVE}

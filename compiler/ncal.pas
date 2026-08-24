@@ -1003,15 +1003,12 @@ implementation
                   reused above) }
                 left:=ctemprefnode.create(paratemp);
               end;
-            { add the finish statements to the call cleanup block }
-            { the caller owns the operator copy of a Delphi-assign record:
-              finalize it right after the call, like Delphi, before the
-              temp slot is released for reuse (dvl-0035) }
-            if is_delphi_assign_record(parasym.vardef) then
-              addstatement(finistat,
-                cnodeutils.finalize_data_node(
-                  ctypeconvnode.create_internal(
-                    ctemprefnode.create(paratemp),parasym.vardef)));
+            { add the finish statements to the call cleanup block; the
+              operator-made copy of a Delphi-assign record is NOT finalized
+              here - the callee buries it in its epilogue and its unwind
+              funclet, the measured DCC64 ownership (dvl-0057).  This block
+              only runs on the normal path: finalizing here would leak the
+              copy whenever the body raises }
             addstatement(finistat,ctempdeletenode.create(paratemp));
             callnode.add_done_statement(finiblock);
 
@@ -5322,15 +5319,23 @@ implementation
       function has_delphi_assign_value_para: boolean;
         var
           i : longint;
+          vardef : tdef;
         begin
           { the inlined parameter path copies byte-wise and would bypass
             the user's Assign operator of a Delphi-assign record
-            (dvl-0035) - such calls stay real calls }
+            (dvl-0035) - such calls stay real calls; open arrays of such
+            records copy through g_copyvaluepara_openarray, which only
+            the real-call path runs }
           result:=false;
           for i:=0 to procdefinition.paras.count-1 do
-            if (tparavarsym(procdefinition.paras[i]).varspez=vs_value) and
-               is_delphi_assign_record(tparavarsym(procdefinition.paras[i]).vardef) then
-              exit(true);
+            begin
+              if tparavarsym(procdefinition.paras[i]).varspez<>vs_value then
+                continue;
+              vardef:=tparavarsym(procdefinition.paras[i]).vardef;
+              if is_open_array(vardef) and
+                 is_delphi_assign_record(tarraydef(vardef).elementdef) then
+                exit(true);
+            end;
         end;
 
       var
@@ -5375,6 +5380,90 @@ implementation
 
 
     function nonlocalvars(var n: tnode; arg: pointer): foreachnoderesult; forward;
+
+
+    { the assignment lands in storage owned by the inlined body itself:
+      its locals (the function result included), its by-value parameter
+      copies, or a compiler temp - never through an implicit pointer,
+      whose payload lives on the heap }
+    function inline_assign_target_is_callee_local(n: tnode; pd: tprocdef): boolean;
+      var
+        entry: tsym;
+        blk_i: integer;
+      begin
+        result:=false;
+        while assigned(n) do
+          case n.nodetype of
+            typeconvn:
+              n:=ttypeconvnode(n).left;
+            vecn:
+              begin
+                if is_implicit_array_pointer(tvecnode(n).left.resultdef) then
+                  exit;
+                n:=tvecnode(n).left;
+              end;
+            subscriptn:
+              begin
+                if is_implicit_pointer_object_type(tsubscriptnode(n).left.resultdef) then
+                  exit;
+                n:=tsubscriptnode(n).left;
+              end;
+            temprefn:
+              exit(true);
+            loadn:
+              begin
+                entry:=tloadnode(n).symtableentry;
+                { A captured local/parameter of an outer routine still has a
+                  localvarsym/paravarsym node, but it is non-local to THIS
+                  callee.  Check ownership, not merely the symbol kind. }
+                if entry.typ=localvarsym then
+                  begin
+                    result:=entry.owner=pd.localst;
+                    if not result and assigned(pd.blocklocalsymtables) then
+                      for blk_i:=0 to pd.blocklocalsymtables.count-1 do
+                        if entry.owner=TSymtable(pd.blocklocalsymtables[blk_i]) then
+                          exit(true);
+                  end
+                else if entry.typ=paravarsym then
+                  result:=(pd.paras.IndexOf(entry)>=0) and
+                    (tabstractvarsym(entry).varspez=vs_value);
+                exit;
+              end;
+            else
+              exit;
+          end;
+      end;
+
+
+    { can the inlined body change storage outside its own frame?  Everything
+      unknown counts as mutating: an
+      over-block only costs the inline, never correctness.  A pure-read
+      body (loads, arithmetic, reading intrinsics, stores into its own
+      frame) cannot invalidate the alias, so the CSE concern behind the
+      const guard does not arise (deep-layer audit, journal 6) }
+    function inline_body_mutates_nonlocal(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_false;
+        case n.nodetype of
+          calln,asmn:
+            result:=fen_norecurse_true;
+          assignn:
+            if not inline_assign_target_is_callee_local(
+                tassignmentnode(n).left,tprocdef(arg)) then
+              result:=fen_norecurse_true;
+          inlinen:
+            if not (tinlinenode(n).inlinenumber in
+                [in_ord_x,in_length_x,in_chr_byte,in_assigned_x,in_sizeof_x,
+                 in_low_x,in_high_x,in_pred_x,in_succ_x,in_typeinfo_x,
+                 in_abs_long,in_trunc_real,in_round_real,in_frac_real,
+                 in_int_real,in_abs_real,in_sqr_real]) then
+              result:=fen_norecurse_true;
+          else
+            ;
+        end;
+      end;
+
+
     function tcallnode.doinlining: boolean;
       var
         para: tcallparanode;
@@ -5400,13 +5489,27 @@ implementation
                 getinlineparatempinfo(para,complexpara,pushconstaddr);
                 if ((para.parasym.varspez=vs_value) and
                     is_managed_type(para.parasym.vardef) and
+                    { an ordinary managed value needing a private copy is
+                      materialized by createinlineparas as an explicit copy
+                      with the callee's lifetime - the reference's death
+                      stays observable at the end of the inlined body, like
+                      a real call (the dvl-0057 contour, extended from
+                      Delphi-assign records to every managed carrier).
+                      Only special arrays (open array of managed) keep the
+                      guard: their size is not a compile-time constant, so
+                      the byte-temp materialization does not apply }
+                    is_special_array(para.parasym.vardef) and
                     paraneedsinlinetemp(para,pushconstaddr,complexpara)) or
                    { A const parameter passed by reference must keep aliasing
-                     non-local storage across calls made by the callee. CSE
-                     cannot currently preserve that relation after inlining. }
+                     non-local storage across mutations made by the callee.
+                     A body that provably mutates nothing non-local remains
+                     eligible (deep-layer audit, journal 6: DCC64 inlines
+                     plain read-only record helpers over globals). }
                    ((para.parasym.varspez=vs_const) and
                     pushconstaddr and
-                    foreachnodestatic(para.left,@nonlocalvars,pointer(symtableproc))) then
+                    foreachnodestatic(para.left,@nonlocalvars,pointer(symtableproc)) and
+                    foreachnodestatic(tprocdef(procdefinition).inlininginfo^.code,
+                      @inline_body_mutates_nonlocal,pointer(procdefinition))) then
                   exit(false);
               end;
             para:=tcallparanode(para.right);
@@ -5798,6 +5901,9 @@ implementation
     type
       tinlinelocaltempsctx = record
         temps : tfplist;
+        { parallel to temps: nil for a typed temp, the local's record def
+          for a raw byte temp of a custom-Initialize local (dvl-0057) }
+        defs : tfplist;
         usedsyms : tfplist;
       end;
       pinlinelocaltempsctx = ^tinlinelocaltempsctx;
@@ -5834,6 +5940,32 @@ implementation
               The body scan is the oracle; the refs counter can be stale. }
             if pinlinelocaltempsctx(arg)^.usedsyms.IndexOf(p)<0 then
               exit;
+            { a custom-Initialize local materializes as a raw byte temp
+              outside the managed slot machinery, exactly like the operator
+              copy of a parameter: the user's Initialize runs HERE, in the
+              frame's Init phase at the call point - a typed managed temp
+              would run it from the caller's prologue, observably too early
+              (the reason this class used to be kept out of the inliner);
+              the Finalize is collected below and dies with the other
+              locals (dvl-0057) }
+            if has_non_trivial_value_init(tabstractvarsym(p).vardef) then
+              begin
+                tempnode:=ctempcreatenode.create(
+                  carraydef.getreusable(u8inttype,tabstractvarsym(p).vardef.size),
+                  tabstractvarsym(p).vardef.size,tt_persistent,false);
+                addstatement(inlineinitstatement,tempnode);
+                addstatement(inlineinitstatement,
+                  cnodeutils.initialize_data_node(
+                    ctypeconvnode.create_internal(
+                      ctemprefnode.create(tempnode),tabstractvarsym(p).vardef),false));
+                pinlinelocaltempsctx(arg)^.temps.add(tempnode);
+                pinlinelocaltempsctx(arg)^.defs.add(tabstractvarsym(p).vardef);
+                if (tabstractvarsym(p).addr_taken) then
+                  tempnode.includetempflag(ti_addr_taken);
+                inlinelocals[indexnr]:=ctypeconvnode.create_internal(
+                  ctemprefnode.create(tempnode),tabstractvarsym(p).vardef);
+                exit;
+              end;
             tempnode :=ctempcreatenode.create(tabstractvarsym(p).vardef,
               tabstractvarsym(p).vardef.size,tt_persistent,tabstractvarsym(p).is_regvar(false));
             addstatement(inlineinitstatement,tempnode);
@@ -5845,6 +5977,7 @@ implementation
               list at once - a managed local must be finalized before any
               slot is released, in reverse declaration order }
             pinlinelocaltempsctx(arg)^.temps.add(tempnode);
+            pinlinelocaltempsctx(arg)^.defs.add(nil);
             { inherit addr_taken flag }
             if (tabstractvarsym(p).addr_taken) then
               tempnode.includetempflag(ti_addr_taken);
@@ -5888,6 +6021,7 @@ implementation
         if para.parasym.vardef.typ=formaldef then
           exit(false);
 
+
         { A constant actual is spliced into the body as the constant node
           itself, so an expression selecting part of it (s[1] of a string
           constant) folds to a constant of that part alone and the address
@@ -5896,6 +6030,17 @@ implementation
           parameter's address. }
         if is_constnode(para.left) and
            tabstractvarsym(para.parasym).addr_taken then
+          exit(true);
+
+        { A const parameter passed by value is a pre-call snapshot.  Directly
+          substituting the caller expression would read it again after the
+          inlined body changes captured/global storage.  Materialize the ABI
+          copy whenever the body can mutate outside its own frame; a pure body
+          still gets the zero-overhead substitution. }
+        if (para.parasym.varspez=vs_const) and
+           not pushconstaddr and
+           foreachnodestatic(tprocdef(procdefinition).inlininginfo^.code,
+             @inline_body_mutates_nonlocal,pointer(procdefinition)) then
           exit(true);
 
         { We don't need temps for parameters that are already temps, except if
@@ -6108,12 +6253,22 @@ implementation
       var
         para: tcallparanode;
         n: tnode;
-        complexpara: boolean;
+        complexpara,
+        pushconstaddr,
+        materializecopy: boolean;
         blocksts: tfpobjectlist;
         localtempsctx: tinlinelocaltempsctx;
         managedcleanupstatement: tstatementnode;
         localcount, blk_i: integer;
+        delphitemps,
+        delphidefs,
+        delphiassigns: tfplist;
+        delphitemp: ttempcreatenode;
+        temparraydef: tdef;
       begin
+        delphitemps:=nil;
+        delphidefs:=nil;
+        delphiassigns:=nil;
         { parameters }
         para := tcallparanode(left);
         while assigned(para) do
@@ -6133,7 +6288,63 @@ implementation
 
                 firstpass(para.left);
 
-                if not maybecreateinlineparatemp(para,complexpara) and
+                { a by-value Delphi-assign record materializes as an explicit
+                  operator copy - the caller births it here (dvl-0057).  A raw
+                  byte temp outside the managed slot machinery: no prologue
+                  init, no epilogue funclet pass that would run the user's
+                  Finalize a second time.  Initialize + the user's Assign run
+                  at the call point; the Finalize is collected below into the
+                  managed cleanup block, whose implicit try..finally buries
+                  the copy at the return point AND during unwind, exactly like
+                  the callee of a real call.
+                  The same contour serves every ordinary managed value that
+                  needs a private copy (a body that writes its string or
+                  interface parameter): the copy's release stays observable
+                  at the end of the inlined body - a generic typed temp would
+                  live to the caller's epilogue, visibly delaying a refcount
+                  death (the original doinlining guard's motive).  The init/
+                  assign/finalize nodes are type-agnostic, so only this
+                  entry condition widens }
+                materializecopy:=(para.parasym.varspez=vs_value) and
+                  is_delphi_assign_record(para.parasym.vardef);
+                if not materializecopy and
+                   (para.parasym.varspez=vs_value) and
+                   is_managed_type(para.parasym.vardef) and
+                   not is_special_array(para.parasym.vardef) then
+                  begin
+                    getinlineparatempinfo(para,complexpara,pushconstaddr);
+                    materializecopy:=paraneedsinlinetemp(para,pushconstaddr,complexpara);
+                  end;
+                if materializecopy then
+                  begin
+                    temparraydef:=carraydef.getreusable(u8inttype,para.parasym.vardef.size);
+                    delphitemp:=ctempcreatenode.create(temparraydef,temparraydef.size,tt_persistent,false);
+                    addstatement(inlineinitstatement,delphitemp);
+                    addstatement(inlineinitstatement,
+                      cnodeutils.initialize_data_node(
+                        ctypeconvnode.create_internal(
+                          ctemprefnode.create(delphitemp),para.parasym.vardef),false));
+                    { the user's Assign belongs to the frame's Assign
+                      phase: DCC64 initializes every copy and local first,
+                      then runs the Assigns - the node is deferred until
+                      after the locals' Init below }
+                    if not assigned(delphitemps) then
+                      begin
+                        delphitemps:=tfplist.create;
+                        delphidefs:=tfplist.create;
+                        delphiassigns:=tfplist.create;
+                      end;
+                    delphiassigns.add(
+                      cassignmentnode.create(
+                        ctypeconvnode.create_internal(
+                          ctemprefnode.create(delphitemp),para.parasym.vardef),
+                        para.left));
+                    para.left:=ctypeconvnode.create_explicit(
+                      ctemprefnode.create(delphitemp),para.parasym.vardef);
+                    delphitemps.add(delphitemp);
+                    delphidefs.add(para.parasym.vardef);
+                  end
+                else if not maybecreateinlineparatemp(para,complexpara) and
                    complexpara then
                   wrapcomplexinlinepara(para);
               end;
@@ -6147,52 +6358,105 @@ implementation
         if assigned(blocksts) then
           for blk_i:=0 to blocksts.count-1 do
             inc(localcount,TSymtable(blocksts[blk_i]).SymList.count);
-        if localcount=0 then
-          exit;
-        inlinelocals.count:=localcount;
-        localtempsctx.temps:=tfplist.create;
-        localtempsctx.usedsyms:=tfplist.create;
-        foreachnodestatic(tprocdef(procdefinition).inlininginfo^.code,
-          @collectinlineusedsyms,localtempsctx.usedsyms);
-        if assigned(tprocdef(procdefinition).localst) then
-          tprocdef(procdefinition).localst.SymList.ForEachCall(@createlocaltemps,@localtempsctx);
-        { block-scoped locals of the inlined routine get caller temps too,
-          otherwise their loads would keep the stack offsets assigned when
-          the routine itself was compiled }
-        if assigned(blocksts) then
-          for blk_i:=0 to blocksts.count-1 do
-            TSymtable(blocksts[blk_i]).SymList.ForEachCall(@createlocaltemps,@localtempsctx);
-        { Delphi finalizes the callee's managed locals at the point of return
-          in reverse declaration order, and during unwind when an exception
-          leaves the callee (measured: the destructor fires before the
-          statement after the inlined call, and before the caller's handler).
-          A plain managed temp would instead live to the caller's epilogue.
-          Collect the finalizations; doinline wraps the inlined body in an
-          implicit try..finally around them, and the slots are deleted after
-          that frame.  The early finalize nils the values, so the epilogue
-          funclet's second pass is a no-op. }
-        managedcleanupstatement:=nil;
-        for blk_i:=localtempsctx.temps.count-1 downto 0 do
-          if is_managed_type(ttempcreatenode(localtempsctx.temps[blk_i]).tempinfo^.typedef) then
-            begin
-              if not assigned(inlinemanagedcleanupblock) then
-                inlinemanagedcleanupblock:=internalstatements(managedcleanupstatement);
+        if localcount>0 then
+          begin
+          inlinelocals.count:=localcount;
+          localtempsctx.temps:=tfplist.create;
+          localtempsctx.defs:=tfplist.create;
+          localtempsctx.usedsyms:=tfplist.create;
+          foreachnodestatic(tprocdef(procdefinition).inlininginfo^.code,
+            @collectinlineusedsyms,localtempsctx.usedsyms);
+          if assigned(tprocdef(procdefinition).localst) then
+            tprocdef(procdefinition).localst.SymList.ForEachCall(@createlocaltemps,@localtempsctx);
+          { block-scoped locals of the inlined routine get caller temps too,
+            otherwise their loads would keep the stack offsets assigned when
+            the routine itself was compiled }
+          if assigned(blocksts) then
+            for blk_i:=0 to blocksts.count-1 do
+              TSymtable(blocksts[blk_i]).SymList.ForEachCall(@createlocaltemps,@localtempsctx);
+          { Delphi finalizes the callee's managed locals at the point of return
+            in reverse declaration order, and during unwind when an exception
+            leaves the callee (measured: the destructor fires before the
+            statement after the inlined call, and before the caller's handler).
+            A plain managed temp would instead live to the caller's epilogue.
+            Collect the finalizations; doinline wraps the inlined body in an
+            implicit try..finally around them, and the slots are deleted after
+            that frame.  The early finalize nils the values, so the epilogue
+            funclet's second pass is a no-op. }
+          managedcleanupstatement:=nil;
+          for blk_i:=localtempsctx.temps.count-1 downto 0 do
+            if assigned(localtempsctx.defs[blk_i]) then
+              begin
+                { byte temp of a custom-Initialize local: finalize through
+                  the local's own type }
+                if not assigned(inlinemanagedcleanupblock) then
+                  inlinemanagedcleanupblock:=internalstatements(managedcleanupstatement);
+                addstatement(managedcleanupstatement,
+                  cnodeutils.finalize_data_node(
+                    ctypeconvnode.create_internal(
+                      ctemprefnode.create(ttempcreatenode(localtempsctx.temps[blk_i])),
+                      tdef(localtempsctx.defs[blk_i]))));
+              end
+            else if is_managed_type(ttempcreatenode(localtempsctx.temps[blk_i]).tempinfo^.typedef) then
+              begin
+                if not assigned(inlinemanagedcleanupblock) then
+                  inlinemanagedcleanupblock:=internalstatements(managedcleanupstatement);
+                addstatement(managedcleanupstatement,
+                  cnodeutils.finalize_data_node(ctemprefnode.create(ttempcreatenode(localtempsctx.temps[blk_i]))));
+              end;
+          for blk_i:=0 to localtempsctx.temps.count-1 do
+            { a managed temp is referenced from the finally funclet, which is
+              generated after the main pass - a full tempdelete would have
+              invalidated it by then, so only release it to normal (the
+              funcret precedent); byte temps of custom-Initialize locals are
+              finalized from that funclet too }
+            if assigned(localtempsctx.defs[blk_i]) or
+               is_managed_type(ttempcreatenode(localtempsctx.temps[blk_i]).tempinfo^.typedef) then
+              addstatement(inlinecleanupstatement,
+                ctempdeletenode.create_normal_temp(ttempcreatenode(localtempsctx.temps[blk_i])))
+            else
+              addstatement(inlinecleanupstatement,
+                ctempdeletenode.create(ttempcreatenode(localtempsctx.temps[blk_i])));
+          localtempsctx.temps.free;
+          localtempsctx.defs.free;
+          localtempsctx.usedsyms.free;
+          end;
+        { the frame's Assign phase: every copy and local is initialized by
+          now, the user's Assigns run in declaration order (measured DCC64:
+          Init-Init-Init then Assign-Assign) }
+        if assigned(delphiassigns) then
+          begin
+            for blk_i:=0 to delphiassigns.count-1 do
+              addstatement(inlineinitstatement,tnode(delphiassigns[blk_i]));
+            delphiassigns.free;
+          end;
+        { the copies of Delphi-assign parameters die after the callee's
+          locals (the callee's epilogue finalizes parameters after the body's
+          scope has closed), still inside the same implicit finally }
+        if assigned(delphitemps) then
+          begin
+            if assigned(inlinemanagedcleanupblock) then
+              managedcleanupstatement:=laststatement(inlinemanagedcleanupblock)
+            else
+              inlinemanagedcleanupblock:=internalstatements(managedcleanupstatement);
+            { the paranode chain runs last-to-first, so the forward walk
+              finalizes the copies in reverse declaration order - the
+              measured DCC64 epilogue order }
+            for blk_i:=0 to delphitemps.count-1 do
               addstatement(managedcleanupstatement,
-                cnodeutils.finalize_data_node(ctemprefnode.create(ttempcreatenode(localtempsctx.temps[blk_i]))));
-            end;
-        for blk_i:=0 to localtempsctx.temps.count-1 do
-          { a managed temp is referenced from the finally funclet, which is
-            generated after the main pass - a full tempdelete would have
-            invalidated it by then, so only release it to normal (the
-            funcret precedent) }
-          if is_managed_type(ttempcreatenode(localtempsctx.temps[blk_i]).tempinfo^.typedef) then
-            addstatement(inlinecleanupstatement,
-              ctempdeletenode.create_normal_temp(ttempcreatenode(localtempsctx.temps[blk_i])))
-          else
-            addstatement(inlinecleanupstatement,
-              ctempdeletenode.create(ttempcreatenode(localtempsctx.temps[blk_i])));
-        localtempsctx.temps.free;
-        localtempsctx.usedsyms.free;
+                cnodeutils.finalize_data_node(
+                  ctypeconvnode.create_internal(
+                    ctemprefnode.create(ttempcreatenode(delphitemps[blk_i])),
+                    tdef(delphidefs[blk_i]))));
+            for blk_i:=0 to delphitemps.count-1 do
+              { the finalize lives in the finally funclet, generated after
+                the main pass - a full tempdelete would invalidate the temp
+                by then (the funcret precedent above) }
+              addstatement(inlinecleanupstatement,
+                ctempdeletenode.create_normal_temp(ttempcreatenode(delphitemps[blk_i])));
+            delphitemps.free;
+            delphidefs.free;
+          end;
       end;
 
 

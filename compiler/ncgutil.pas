@@ -501,8 +501,12 @@ implementation
              vs_value :
                begin
                  { a Delphi-assign record was already copied by the caller
-                   through the user's Assign operator (dvl-0035) }
-                 if is_delphi_assign_record(tparavarsym(p).vardef) then
+                   through the user's Assign operator; an open array of such
+                   records was copied element-wise through the operators by
+                   g_copyvaluepara_openarray - no addref on top (dvl-0035) }
+                 if is_delphi_assign_record(tparavarsym(p).vardef) or
+                    (is_open_array(tparavarsym(p).vardef) and
+                     is_delphi_assign_record(tarraydef(tparavarsym(p).vardef).elementdef)) then
                    exit;
                  { variants are already handled by the call to fpc_variant_copy_overwrite if
                    they are passed by reference }

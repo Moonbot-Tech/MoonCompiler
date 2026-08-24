@@ -535,13 +535,14 @@ interface
                 if not(ti_nofini in tempflags) then
                   begin
                     hlcg.g_finalize(current_asmdata.CurrAsmList,tempinfo^.typedef,tempinfo^.location.reference);
-                    { a record with an Initialize management operator must be
-                      reinitialized for the slot's next tenant: the user's
-                      Copy/Assign contract expects an initialized destination
-                      (dvl-0035); for other managed types finalize already
-                      leaves the zeroed = initialized state }
-                    if (tempinfo^.typedef.typ=recorddef) and
-                       (mop_initialize in trecordsymtable(trecorddef(tempinfo^.typedef).symtable).managementoperators) then
+                    { a type carrying an Initialize management operator -
+                      directly, in a field, or wrapped in a static array -
+                      must be reinitialized for the slot's next tenant: the
+                      user's Copy/Assign contract expects an initialized
+                      destination (dvl-0035; the bare-record check was the
+                      dvl-0058 family blindness); for other managed types
+                      finalize already leaves the zeroed = initialized state }
+                    if has_non_trivial_value_init(tempinfo^.typedef) then
                       hlcg.g_initialize(current_asmdata.CurrAsmList,tempinfo^.typedef,tempinfo^.location.reference);
                   end;
               end

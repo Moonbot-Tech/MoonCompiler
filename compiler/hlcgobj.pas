@@ -4323,12 +4323,14 @@ implementation
 
   procedure thlcgobj.g_copyvaluepara_openarray(list: TAsmList; const ref: treference; const lenloc: tlocation; arrdef: tarraydef; destreg: tregister);
     var
-      sizereg,sourcereg,lenreg : tregister;
-      cgpara1,cgpara2,cgpara3 : TCGPara;
+      sizereg,sourcereg,lenreg,countreg : tregister;
+      cgpara1,cgpara2,cgpara3,cgpara4 : TCGPara;
       ptrarrdef : tdef;
       pd : tprocdef;
       getmemres : tcgpara;
       destloc : tlocation;
+      hrefrtti : treference;
+      delphicopy : boolean;
     begin
       { because some abis don't support dynamic stack allocation properly
         open array value parameters are copied onto the heap
@@ -4348,6 +4350,16 @@ implementation
 
       sizereg:=getintregister(list,sinttype);
       a_op_const_reg_reg(list,OP_ADD,sinttype,1,lenreg,sizereg);
+      { records with a Delphi Assign operator (and their static-array
+        aggregates) are copied element-wise through the user's operators
+        (dvl-0035) - keep the element count for the copy helper }
+      delphicopy:=is_delphi_assign_record(arrdef.elementdef);
+      countreg:=NR_NO;
+      if delphicopy then
+        begin
+          countreg:=getintregister(list,sinttype);
+          a_load_reg_reg(list,sinttype,sinttype,sizereg,countreg);
+        end;
       a_op_const_reg(list,OP_IMUL,sinttype,arrdef.elesize,sizereg);
       { load source }
       ptrarrdef:=cpointerdef.getreusable(arrdef);
@@ -4366,6 +4378,48 @@ implementation
       location_reset(destloc,LOC_REGISTER,OS_ADDR);
       destloc.register:=destreg;
       gen_load_cgpara_loc(list,ptrarrdef,getmemres,destloc,false);
+
+      if delphicopy then
+        begin
+          { do fpc_delphi_copy_array(src,dest,typeinfo,count) call }
+          pd:=search_system_proc('fpc_delphi_copy_array');
+          reference_reset_symbol(hrefrtti,
+            RTTIWriter.get_rtti_label(arrdef.elementdef,initrtti,def_needs_indirect(arrdef.elementdef)),
+            0,sizeof(pint),[]);
+          cgpara1.init;
+          cgpara2.init;
+          cgpara3.init;
+          cgpara4.init;
+          paramanager.getcgtempparaloc(list,pd,1,cgpara1);
+          paramanager.getcgtempparaloc(list,pd,2,cgpara2);
+          paramanager.getcgtempparaloc(list,pd,3,cgpara3);
+          paramanager.getcgtempparaloc(list,pd,4,cgpara4);
+          if pd.is_pushleftright then
+            begin
+              a_load_reg_cgpara(list,ptrarrdef,sourcereg,cgpara1);
+              a_load_reg_cgpara(list,ptrarrdef,destreg,cgpara2);
+              a_loadaddr_ref_cgpara(list,voidpointertype,hrefrtti,cgpara3);
+              a_load_reg_cgpara(list,sinttype,countreg,cgpara4);
+            end
+          else
+            begin
+              a_load_reg_cgpara(list,sinttype,countreg,cgpara4);
+              a_loadaddr_ref_cgpara(list,voidpointertype,hrefrtti,cgpara3);
+              a_load_reg_cgpara(list,ptrarrdef,destreg,cgpara2);
+              a_load_reg_cgpara(list,ptrarrdef,sourcereg,cgpara1);
+            end;
+          paramanager.freecgpara(list,cgpara4);
+          paramanager.freecgpara(list,cgpara3);
+          paramanager.freecgpara(list,cgpara2);
+          paramanager.freecgpara(list,cgpara1);
+          g_call_system_proc(list,pd,[@cgpara1,@cgpara2,@cgpara3,@cgpara4],nil).resetiftemp;
+          cgpara4.done;
+          cgpara3.done;
+          cgpara2.done;
+          cgpara1.done;
+          getmemres.resetiftemp;
+          exit;
+        end;
 
       { do move call }
       pd:=search_system_proc('MOVE');
@@ -5454,13 +5508,16 @@ implementation
        begin
          if (tparavarsym(p).varspez=vs_value) then
           begin
-            { the caller owns the operator-made copy of a Delphi-assign
-              record and finalizes it after the call (dvl-0035) }
-            if is_delphi_assign_record(tparavarsym(p).vardef) then
-              exit;
             include(current_procinfo.flags,pi_needs_implicit_finally);
+            { a Delphi-assign record parameter: the caller built the
+              operator copy, the callee buries it - here, in the epilogue
+              and in the unwind funclet, which is the measured DCC64
+              behavior when the body raises (dvl-0057).  The copy stays in
+              caller storage and the parameter slot holds its address, so
+              the reference must be dereferenced like an open array's }
             location_get_data_ref(list,tparavarsym(p).vardef,tparavarsym(p).localloc,href,
               is_open_array(tparavarsym(p).vardef) or
+              is_delphi_assign_record(tparavarsym(p).vardef) or
               ((target_info.system in systems_caller_copy_addr_value_para) and
                paramanager.push_addr_param(vs_value,tparavarsym(p).vardef,current_procinfo.procdef.proccalloption)),
               sizeof(pint));
@@ -5523,8 +5580,12 @@ implementation
            vs_value :
              if needs_inittable and
                 { a Delphi-assign record was already copied by the caller
-                  through the user's Assign operator (dvl-0035) }
-                not is_delphi_assign_record(tparavarsym(p).vardef) then
+                  through the user's Assign operator; an open array of such
+                  records was copied element-wise through the operators by
+                  g_copyvaluepara_openarray - no addref on top (dvl-0035) }
+                not is_delphi_assign_record(tparavarsym(p).vardef) and
+                not (is_open_array(tparavarsym(p).vardef) and
+                     is_delphi_assign_record(tarraydef(tparavarsym(p).vardef).elementdef)) then
                begin
                  { variants are already handled by the call to fpc_variant_copy_overwrite if
                    they are passed by reference }

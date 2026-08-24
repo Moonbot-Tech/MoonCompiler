@@ -570,6 +570,25 @@ procedure fpc_addref_array(data,typeinfo: pointer; count: SizeInt); [public,alia
     end;
   end;
 
+{ Caller-visible copy of an open array of records with a Delphi Assign
+  (Copy) operator, measured against DCC64: phase one initializes every
+  destination element (raising mid-phase finalizes the initialized
+  prefix - int_InitializeArray already owns that contract), phase two
+  runs the user's operator element by element (raising mid-phase
+  finalizes nothing of the copy, like Delphi). }
+procedure fpc_delphi_copy_array(src,dest,typeinfo : pointer;count : SizeInt); [public,alias:'FPC_DELPHI_COPY_ARRAY']; compilerproc;
+  var
+    size,i : SizeInt;
+  begin
+    int_InitializeArray(dest,typeinfo,count);
+    if count>0 then
+      begin
+        size:=int_copy(src,dest,typeinfo);
+        for i:=1 to count-1 do
+          int_copy(src+size*i,dest+size*i,typeinfo);
+      end;
+  end;
+
 { The following two procedures are now obsolete, needed only for bootstrapping }
 procedure fpc_decref (Data, TypeInfo : Pointer);[Public,alias : 'FPC_DECREF'];  compilerproc;
   begin
