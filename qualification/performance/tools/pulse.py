@@ -42,6 +42,7 @@ PROGRAMS = {
         "numeric",
         "loops",
         "layout",
+        "move",
         "dispatch",
         "managed",
         "algorithms",
@@ -374,6 +375,38 @@ def process_balanced_cycles(row: dict[str, object]) -> Stats | None:
     return robust_stats(run_modes, True) if run_modes else None
 
 
+def paired_ratio_stats(
+    baseline: dict[str, object], candidate: dict[str, object], metric: str
+) -> Stats:
+    def modes_by_sequence(row: dict[str, object]) -> dict[int, float]:
+        return {
+            sequence: robust_stats(
+                [sample[metric] for sample in samples if sample[metric] > 0]
+            ).mode
+            for sequence, samples in zip(row["run_sequences"], row["run_samples"])
+        }
+
+    baseline_modes = modes_by_sequence(baseline)
+    candidate_modes = modes_by_sequence(candidate)
+    events = sorted(
+        [(sequence, "baseline", value) for sequence, value in baseline_modes.items()]
+        + [(sequence, "candidate", value) for sequence, value in candidate_modes.items()]
+    )
+    ratios: list[float] = []
+    index = 0
+    while index + 1 < len(events):
+        first, second = events[index], events[index + 1]
+        if (second[0] == first[0] + 1) and (first[1] != second[1]):
+            values = {first[1]: first[2], second[1]: second[2]}
+            ratios.append(values["candidate"] / values["baseline"])
+            index += 2
+        else:
+            index += 1
+    if not ratios:
+        raise ValueError("no adjacent baseline/candidate process pairs")
+    return robust_stats(ratios, True)
+
+
 def effective_core_stats(row: dict[str, object]) -> Stats | None:
     values = [
         total["effective_cores"]
@@ -395,7 +428,10 @@ def collect(result: Path) -> tuple[dict[tuple[str, str, str], dict[str, object]]
                 fields = parse_fields(line)
                 key = (system, program, fields["case"])
                 row = rows.setdefault(
-                    key, {"samples": [], "run_samples": [], "totals": [], "oracles": []}
+                    key, {
+                        "samples": [], "run_samples": [], "run_sequences": [],
+                        "totals": [], "oracles": []
+                    }
                 )
                 row.update({name: fields[name] for name in ("layer", "unit")})
                 row["oracles"].append(fields["oracle"])
@@ -409,7 +445,10 @@ def collect(result: Path) -> tuple[dict[tuple[str, str, str], dict[str, object]]
                     "cycles": int(fields["thread_cycles"]) / operations,
                 }
                 rows.setdefault(
-                    key, {"samples": [], "run_samples": [], "totals": [], "oracles": []}
+                    key, {
+                        "samples": [], "run_samples": [], "run_sequences": [],
+                        "totals": [], "oracles": []
+                    }
                 )["samples"].append(sample)
                 log_samples.setdefault(key, []).append(sample)
             elif line.startswith("PULSE_TOTAL "):
@@ -418,12 +457,16 @@ def collect(result: Path) -> tuple[dict[tuple[str, str, str], dict[str, object]]
                 wall = int(fields["wall_ns"])
                 cpu = int(fields["process_cpu_ns"])
                 rows.setdefault(
-                    key, {"samples": [], "run_samples": [], "totals": [], "oracles": []}
+                    key, {
+                        "samples": [], "run_samples": [], "run_sequences": [],
+                        "totals": [], "oracles": []
+                    }
                 )["totals"].append(
                     {"wall": wall, "process_cpu": cpu, "effective_cores": cpu / wall if wall else 0.0}
                 )
         for key, samples in log_samples.items():
             rows[key]["run_samples"].append(samples)
+            rows[key]["run_sequences"].append(int(item["sequence"]))
     return rows, manifest
 
 
@@ -458,6 +501,7 @@ def write_report(result: Path) -> None:
     ]
     oracle_failures: list[str] = []
     drift_failures: list[str] = []
+    drift_notes: list[str] = []
     program_ratios: dict[str, list[float]] = {}
     layer_ratios: dict[str, list[float]] = {}
     mm_program_ratios: dict[str, list[float]] = {}
@@ -467,7 +511,7 @@ def write_report(result: Path) -> None:
         cand = rows.get((candidate, program, case))
         if base is None or cand is None:
             continue
-        primary_metric = "tsc" if program == "threads" else "cycles"
+        primary_metric = "tsc" if program in ("threads", "move") else "cycles"
         try:
             base_primary, _ = process_balanced_stats(base, primary_metric)
             cand_primary, _ = process_balanced_stats(cand, primary_metric)
@@ -479,7 +523,16 @@ def write_report(result: Path) -> None:
         cand_cycles = process_balanced_cycles(cand)
         base_cores = effective_core_stats(base)
         cand_cores = effective_core_stats(cand)
-        ratio = cand_primary.mode / base_primary.mode
+        paired_ratio = (
+            paired_ratio_stats(base, cand, primary_metric)
+            if program == "move"
+            else None
+        )
+        ratio = (
+            paired_ratio.mode
+            if paired_ratio is not None
+            else cand_primary.mode / base_primary.mode
+        )
         program_ratios.setdefault(program, []).append(ratio)
         for layer in str(base.get("layer", "")).split("+"):
             layer_ratios.setdefault(layer, []).append(ratio)
@@ -489,18 +542,27 @@ def write_report(result: Path) -> None:
         oracle_status = "MATCH" if base_oracles == cand_oracles else "DIFF"
         if oracle_status != "MATCH":
             oracle_failures.append(f"{program}/{case}")
-        for system, process_stats in (
-            (baseline, base_primary),
-            (candidate, cand_primary),
-        ):
-            if program != "threads" and process_stats.minimum > 0:
-                drift = process_stats.maximum / process_stats.minimum
+        if paired_ratio is not None:
+            if paired_ratio.minimum > 0:
+                drift = paired_ratio.maximum / paired_ratio.minimum
                 if drift > 1.25:
-                    drift_failures.append(
-                        f"{system}/{program}/{case} process drift {drift:.3f}x"
+                    drift_notes.append(
+                        f"paired/{program}/{case} ratio drift {drift:.3f}x"
                     )
+        else:
+            for system, process_stats in (
+                (baseline, base_primary),
+                (candidate, cand_primary),
+            ):
+                if program != "threads" and process_stats.minimum > 0:
+                    drift = process_stats.maximum / process_stats.minimum
+                    if drift > 1.25:
+                        drift_failures.append(
+                            f"{system}/{program}/{case} process drift {drift:.3f}x"
+                        )
         control_primary = None
         mm_effect = None
+        paired_mm_effect = None
         control_row = rows.get((control, program, case)) if control else None
         if control_row is not None:
             try:
@@ -509,13 +571,27 @@ def write_report(result: Path) -> None:
                 )
             except ValueError as error:
                 raise ValueError(f"{control}/{program}/{case}: {error}") from error
-            if program != "threads" and control_primary.minimum > 0:
+            if program == "move":
+                paired_mm_effect = paired_ratio_stats(
+                    control_row, cand, primary_metric
+                )
+                if paired_mm_effect.minimum > 0:
+                    drift = paired_mm_effect.maximum / paired_mm_effect.minimum
+                    if drift > 1.25:
+                        drift_notes.append(
+                            f"paired-mm/{program}/{case} ratio drift {drift:.3f}x"
+                        )
+            elif program != "threads" and control_primary.minimum > 0:
                 drift = control_primary.maximum / control_primary.minimum
                 if drift > 1.25:
                     drift_failures.append(
                         f"{control}/{program}/{case} process drift {drift:.3f}x"
                     )
-            mm_effect = cand_primary.mode / control_primary.mode
+            mm_effect = (
+                paired_mm_effect.mode
+                if paired_mm_effect is not None
+                else cand_primary.mode / control_primary.mode
+            )
             mm_program_ratios.setdefault(program, []).append(mm_effect)
         markdown.append(
             f"| {program} | {case} | {base.get('layer', '')} | {oracle_status} | "
@@ -533,6 +609,9 @@ def write_report(result: Path) -> None:
             baseline: {"tsc": asdict(base_tsc), "cycles": asdict(base_cycles) if base_cycles else None},
             candidate: {"tsc": asdict(cand_tsc), "cycles": asdict(cand_cycles) if cand_cycles else None},
             "candidate_over_baseline": ratio,
+            "paired_candidate_over_baseline": (
+                asdict(paired_ratio) if paired_ratio is not None else None
+            ),
             "moon_mm_over_moon_default": mm_effect,
         }
         details[f"{program}/{case}"][baseline]["effective_cores"] = (
@@ -591,6 +670,15 @@ def write_report(result: Path) -> None:
         f"- `{name}`: `{ratio:.3f}x`"
         for ratio, name in sorted(ranked_ratios, reverse=True)[:15]
     )
+    if drift_notes:
+        summary.extend([
+            "## Диагностический process drift Move",
+            "",
+            "Эти cases остаются в таблице, но центральное отношение рассчитано "
+            "по соседним зеркальным процессам; drift не подменяет semantic failure.",
+            "",
+        ])
+        summary.extend(f"- `{note}`" for note in drift_notes)
     summary.extend(["", "## Все cases", ""])
     markdown = markdown[:7] + summary + markdown[7:]
     (result / "REPORT.md").write_text("\n".join(markdown) + "\n", encoding="utf-8")
