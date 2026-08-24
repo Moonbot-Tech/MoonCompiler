@@ -1,0 +1,1413 @@
+{
+  "move/hot-a0-a0-n1048576": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "9B97F4A7C1B50B0B"
+      ],
+      "moon-final": [
+        "9B97F4A7C1B50B0B"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 156530.82142857142,
+        "median": 157313.2142857143,
+        "mean": 158078.2551020408,
+        "minimum": 156522.0,
+        "maximum": 161999.42857142858,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 157184.2857142857,
+        "median": 158080.0,
+        "mean": 158062.55102040817,
+        "minimum": 156831.42857142858,
+        "maximum": 159695.0,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7083303531795446,
+        "median": 0.7083303531795446,
+        "mean": 0.7079080470179724,
+        "minimum": 0.6974450078560206,
+        "maximum": 0.7175264738567794,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 66979.89393939394,
+        "median": 66979.0303030303,
+        "mean": 66856.18831168831,
+        "minimum": 66535.20588235294,
+        "maximum": 67156.36363636365,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 66905.90909090909,
+        "median": 66903.0303030303,
+        "mean": 66986.07970460912,
+        "minimum": 66634.11764705883,
+        "maximum": 67701.4705882353,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.4209060447134467,
+        "median": 1.3599018259673799,
+        "mean": 1.099323116633971,
+        "minimum": 0.6792296991827508,
+        "maximum": 1.426497708474081,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.42542697502613624,
+    "paired_candidate_over_baseline": {
+      "mode": 0.42542697502613624,
+      "median": 0.4250853291061508,
+      "mean": 0.4229847211418048,
+      "minimum": 0.41346292494003767,
+      "maximum": 0.4290054736974847,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/hot-a0-a0-n2097152": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "372FE94F82450B0B"
+      ],
+      "moon-final": [
+        "372FE94F82450B0B"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 312699.28571428574,
+        "median": 313771.4285714286,
+        "mean": 314197.1836734694,
+        "minimum": 312590.7142857143,
+        "maximum": 318171.28571428574,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 314735.0,
+        "median": 314368.5714285714,
+        "mean": 314822.2448979592,
+        "minimum": 313337.14285714284,
+        "maximum": 318765.71428571426,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7150294867963332,
+        "median": 0.7098536437147578,
+        "mean": 0.7091738638534608,
+        "minimum": 0.7003962561858997,
+        "maximum": 0.7165919117984278,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 133642.0882352941,
+        "median": 132519.4117647059,
+        "mean": 131213.57090336134,
+        "minimum": 127174.82352941176,
+        "maximum": 133831.5294117647,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 133240.99264705883,
+        "median": 133213.75,
+        "mean": 131445.07352941178,
+        "minimum": 127344.70588235294,
+        "maximum": 133570.0,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.6989832347814158,
+        "median": 0.7117790376782017,
+        "mean": 0.712624088549776,
+        "minimum": 0.6936490601887614,
+        "maximum": 0.7332892186539391,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "candidate_over_baseline": 0.42506330761393846,
+    "paired_candidate_over_baseline": {
+      "mode": 0.42506330761393846,
+      "median": 0.4212578403119174,
+      "mean": 0.41764887313284116,
+      "minimum": 0.39970553358989575,
+      "maximum": 0.4265255444738449,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/hot-a0-a0-n262144": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "E6E5FD29F0B10B0B"
+      ],
+      "moon-final": [
+        "E6E5FD29F0B10B0B"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 15571.671232876713,
+        "median": 15527.424657534248,
+        "mean": 15490.590474445451,
+        "minimum": 15192.168918918918,
+        "maximum": 15681.074829931973,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 15556.575342465752,
+        "median": 15553.972602739726,
+        "mean": 15510.882504374258,
+        "minimum": 15241.081081081082,
+        "maximum": 15673.061224489797,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.6927781720309165,
+        "median": 0.6870309752586874,
+        "mean": 0.6863224220507862,
+        "minimum": 0.6776125487338945,
+        "maximum": 0.6936151889518753,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 15575.131979215872,
+        "median": 15649.930555555555,
+        "mean": 15921.796726279574,
+        "minimum": 15306.04054054054,
+        "maximum": 16918.811594202896,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 15644.543582375478,
+        "median": 15677.638888888889,
+        "mean": 15904.58214421003,
+        "minimum": 15310.405405405405,
+        "maximum": 16824.63768115942,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.6912340843185152,
+        "median": 0.6877382325237462,
+        "mean": 0.6874849724574492,
+        "minimum": 0.6817190226876091,
+        "maximum": 0.691396155616128,
+        "kept": 5,
+        "rejected": 2
+      }
+    },
+    "candidate_over_baseline": 1.0019714689870087,
+    "paired_candidate_over_baseline": {
+      "mode": 1.0019714689870087,
+      "median": 1.0175390495879344,
+      "mean": 1.0281644232992302,
+      "minimum": 0.976083636264807,
+      "maximum": 1.113653467421217,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/hot-a0-a0-n4194304": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "6E5FD29F05A50B0B"
+      ],
+      "moon-final": [
+        "6E5FD29F05A50B0B"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 625347.0,
+        "median": 627500.3333333333,
+        "mean": 629046.5714285714,
+        "minimum": 625271.0,
+        "maximum": 636886.3333333334,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 630261.6666666666,
+        "median": 630800.0,
+        "mean": 631505.7142857143,
+        "minimum": 627253.3333333334,
+        "maximum": 636056.6666666667,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.6629173439840548,
+        "median": 1.6089835343061034,
+        "mean": 1.3979254253651612,
+        "minimum": 0.8317098357339806,
+        "maximum": 1.6679921644400084,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 256493.04464285716,
+        "median": 256464.7142857143,
+        "mean": 258465.86989795917,
+        "minimum": 253645.25,
+        "maximum": 269424.75,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 256737.5,
+        "median": 256785.0,
+        "mean": 258101.42857142858,
+        "minimum": 253840.0,
+        "maximum": 264456.25,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.4862805265717172,
+        "median": 1.4872807748137924,
+        "mean": 1.3190365760134866,
+        "minimum": 0.7575794306881488,
+        "maximum": 1.6649528751738212,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.40797311481673354,
+    "paired_candidate_over_baseline": {
+      "mode": 0.40797311481673354,
+      "median": 0.40844301012323503,
+      "mean": 0.41085210230475455,
+      "minimum": 0.40446433981700297,
+      "maximum": 0.42303427770209123,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/hot-a0-a0-n524288": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "CDCBFA53E04D0B0B"
+      ],
+      "moon-final": [
+        "CDCBFA53E04D0B0B"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 79951.32142857142,
+        "median": 80099.92857142858,
+        "mean": 80126.58673469388,
+        "minimum": 79753.17857142857,
+        "maximum": 80519.96428571429,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 80091.78571428571,
+        "median": 80261.42857142857,
+        "mean": 80334.13265306123,
+        "minimum": 79990.0,
+        "maximum": 80648.21428571429,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.4104630894426144,
+        "median": 1.3574798224199196,
+        "mean": 1.09517722663947,
+        "minimum": 0.6977190726252992,
+        "maximum": 1.411204739841584,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 33703.022388059704,
+        "median": 33862.82089552239,
+        "mean": 33901.444530593784,
+        "minimum": 33700.89552238806,
+        "maximum": 34166.82089552239,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 33754.77611940299,
+        "median": 33797.31343283582,
+        "mean": 33883.51747754733,
+        "minimum": 33740.59701492537,
+        "maximum": 34159.69696969697,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.3888117616547413,
+        "median": 1.3886111666555578,
+        "mean": 1.1855716109832422,
+        "minimum": 0.6689356965493621,
+        "maximum": 1.3901678433047293,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.4219408717759822,
+    "paired_candidate_over_baseline": {
+      "mode": 0.4219408717759822,
+      "median": 0.42205010664600473,
+      "mean": 0.4231044392835545,
+      "minimum": 0.4185408652542984,
+      "maximum": 0.42840701157662187,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/hot-a0-a0-n8388608": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "DCBFA53E0A650B0B"
+      ],
+      "moon-final": [
+        "DCBFA53E0A650B0B"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 1256688.5,
+        "median": 1260441.0,
+        "mean": 1264583.0,
+        "minimum": 1254285.0,
+        "maximum": 1277237.0,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 1269960.0,
+        "median": 1269960.0,
+        "mean": 1269172.857142857,
+        "minimum": 1258180.0,
+        "maximum": 1283070.0,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.2070864687507248,
+        "median": 1.208056285758466,
+        "mean": 1.2108118238900194,
+        "minimum": 1.1869943404109848,
+        "maximum": 1.228496399031355,
+        "kept": 5,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 511140.375,
+        "median": 524993.75,
+        "mean": 524931.3214285715,
+        "minimum": 510715.25,
+        "maximum": 546245.25,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 512216.25,
+        "median": 520172.5,
+        "mean": 522187.85714285716,
+        "minimum": 511717.5,
+        "maximum": 547580.0,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.7446991286715969,
+        "median": 0.7446991286715969,
+        "mean": 0.7431310574116025,
+        "minimum": 0.7337506515705786,
+        "maximum": 0.7493753207326372,
+        "kept": 4,
+        "rejected": 3
+      }
+    },
+    "candidate_over_baseline": 0.4170881718389016,
+    "paired_candidate_over_baseline": {
+      "mode": 0.4170881718389016,
+      "median": 0.4156161679601633,
+      "mean": 0.41516489935861217,
+      "minimum": 0.40019876127802756,
+      "maximum": 0.434588233515736,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/stream-a0-a0-n1048575": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "2528678533201400"
+      ],
+      "moon-final": [
+        "2528678533201400"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 214986.1875,
+        "median": 214912.5625,
+        "mean": 215095.26785714287,
+        "minimum": 209795.921875,
+        "maximum": 222416.078125,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 215973.59375,
+        "median": 215100.78125,
+        "mean": 213882.32142857142,
+        "minimum": 206942.65625,
+        "maximum": 222350.46875,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.9961953197304652,
+        "median": 0.9971268565172566,
+        "mean": 0.9692310541907945,
+        "minimum": 0.8179208992904746,
+        "maximum": 1.0482262334967263,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 337914.8515625,
+        "median": 341553.796875,
+        "mean": 340895.15848214284,
+        "minimum": 326892.328125,
+        "maximum": 350505.171875,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 342283.515625,
+        "median": 339034.21875,
+        "mean": 337839.93303571426,
+        "minimum": 323282.03125,
+        "maximum": 351078.4375,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0176533169081639,
+        "median": 0.9616513559935084,
+        "mean": 0.9599509281261888,
+        "minimum": 0.8836853307292502,
+        "maximum": 1.023928806639646,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.57141066327911,
+    "paired_candidate_over_baseline": {
+      "mode": 1.57141066327911,
+      "median": 1.5730347167350909,
+      "mean": 1.585362977920688,
+      "minimum": 1.5200065708464243,
+      "maximum": 1.670695830226085,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/stream-a0-a0-n1048576": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "E20F6FA49E073D1A"
+      ],
+      "moon-final": [
+        "E20F6FA49E073D1A"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 218231.328125,
+        "median": 218477.4375,
+        "mean": 218337.77901785713,
+        "minimum": 208734.890625,
+        "maximum": 228967.515625,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 210398.28125,
+        "median": 210419.0625,
+        "mean": 213073.9732142857,
+        "minimum": 207960.9375,
+        "maximum": 220266.40625,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.9001480707567568,
+        "median": 0.9158535718655644,
+        "mean": 0.9508529338722446,
+        "minimum": 0.8837319789374855,
+        "maximum": 1.0401311249392564,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 331166.5859375,
+        "median": 330316.1875,
+        "mean": 330665.77901785716,
+        "minimum": 322469.484375,
+        "maximum": 341837.015625,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 331026.015625,
+        "median": 330959.21875,
+        "mean": 329855.69196428574,
+        "minimum": 323736.25,
+        "maximum": 339167.8125,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.8935105850032223,
+        "median": 0.9619783531783055,
+        "mean": 0.9622411845092322,
+        "minimum": 0.890230961520657,
+        "maximum": 1.0527643064051866,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.5219495266806722,
+    "paired_candidate_over_baseline": {
+      "mode": 1.5219495266806722,
+      "median": 1.520782090298912,
+      "mean": 1.5154086177984811,
+      "minimum": 1.4648722210210912,
+      "maximum": 1.582467533391077,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/stream-a0-a0-n16777216": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "616155AF32A73D5E"
+      ],
+      "moon-final": [
+        "616155AF32A73D5E"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 3301893.625,
+        "median": 3266978.75,
+        "mean": 3274066.4285714286,
+        "minimum": 3203979.5,
+        "maximum": 3348284.5,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 3223611.25,
+        "median": 3274697.5,
+        "mean": 3279820.714285714,
+        "minimum": 3171622.5,
+        "maximum": 3427077.5,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.9562025598889967,
+        "median": 0.9564721023868953,
+        "mean": 0.9884467127501506,
+        "minimum": 0.9398453841561617,
+        "maximum": 1.073897922995505,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 3330179.875,
+        "median": 3258585.5,
+        "mean": 3246473.0,
+        "minimum": 3158469.75,
+        "maximum": 3334371.75,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 3163571.25,
+        "median": 3215560.0,
+        "mean": 3218355.714285714,
+        "minimum": 3122650.0,
+        "maximum": 3324952.5,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.8705022911400417,
+        "median": 0.9126752336448598,
+        "mean": 0.9293881678852034,
+        "minimum": 0.8226090187280339,
+        "maximum": 1.08999545011677,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.9956693006006827,
+    "paired_candidate_over_baseline": {
+      "mode": 0.9956693006006827,
+      "median": 0.9933409183120491,
+      "mean": 0.991669464027658,
+      "minimum": 0.9621971358107164,
+      "maximum": 1.024183029422321,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/stream-a0-a0-n2097152": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "1C00DBFAC0273D7A"
+      ],
+      "moon-final": [
+        "1C00DBFAC0273D7A"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 428828.8125,
+        "median": 429397.625,
+        "mean": 432969.87946428574,
+        "minimum": 419850.71875,
+        "maximum": 452928.53125,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 430400.46875,
+        "median": 425588.125,
+        "mean": 424539.73214285716,
+        "minimum": 415167.8125,
+        "maximum": 432546.875,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.036840447186857,
+        "median": 1.0009815847860764,
+        "mean": 0.9446910940361599,
+        "minimum": 0.72367158708209,
+        "maximum": 1.054286080574821,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 651668.234375,
+        "median": 664920.4375,
+        "mean": 665505.3660714285,
+        "minimum": 643741.375,
+        "maximum": 688522.59375,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 660030.3125,
+        "median": 661597.8125,
+        "mean": 657465.3125,
+        "minimum": 629553.125,
+        "maximum": 679808.125,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.9851977048665489,
+        "median": 0.9858390696022663,
+        "mean": 0.9953015069210385,
+        "minimum": 0.961242239669574,
+        "maximum": 1.0317160113835417,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.5550985628489575,
+    "paired_candidate_over_baseline": {
+      "mode": 1.5550985628489575,
+      "median": 1.5484958434504617,
+      "mean": 1.537741227742064,
+      "minimum": 1.4571831349647435,
+      "maximum": 1.6077209960070984,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/stream-a0-a0-n262144": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "900F1EE696D73C5A"
+      ],
+      "moon-final": [
+        "900F1EE696D73C5A"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 77875.58203125,
+        "median": 76418.37109375,
+        "mean": 76001.16629464286,
+        "minimum": 73264.81640625,
+        "maximum": 77903.48828125,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 76389.6484375,
+        "median": 76336.2109375,
+        "mean": 75295.98214285714,
+        "minimum": 72381.09375,
+        "maximum": 76753.3203125,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0346633837668597,
+        "median": 1.0087093308571986,
+        "mean": 1.0096808639886885,
+        "minimum": 0.9518201339147474,
+        "maximum": 1.070141767112917,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 74358.763671875,
+        "median": 75223.15234375,
+        "mean": 76077.30412946429,
+        "minimum": 72334.55859375,
+        "maximum": 84056.07421875,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 75379.53125,
+        "median": 75261.5234375,
+        "mean": 75675.13392857143,
+        "minimum": 72281.640625,
+        "maximum": 83064.8828125,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.9806075918863923,
+        "median": 0.9803173195667154,
+        "mean": 0.970841351371196,
+        "minimum": 0.8953590318088831,
+        "maximum": 1.0259531679463996,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.9611254238487306,
+    "paired_candidate_over_baseline": {
+      "mode": 0.9611254238487306,
+      "median": 0.9843595364191458,
+      "mean": 1.001102727039655,
+      "minimum": 0.9580216321200148,
+      "maximum": 1.079750594673442,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/stream-a0-a0-n33554432": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "E4AD462C1CA73D58"
+      ],
+      "moon-final": [
+        "E4AD462C1CA73D58"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 6639060.75,
+        "median": 6653439.0,
+        "mean": 6774174.5,
+        "minimum": 6437817.5,
+        "maximum": 7337952.0,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 6548682.5,
+        "median": 6555665.0,
+        "mean": 6742421.428571428,
+        "minimum": 6381530.0,
+        "maximum": 7221045.0,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0230875521028884,
+        "median": 1.025030049325357,
+        "mean": 1.0053929911358392,
+        "minimum": 0.8159658499174895,
+        "maximum": 1.0804857172273796,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 6757939.0,
+        "median": 6583148.5,
+        "mean": 6558049.5,
+        "minimum": 6339882.0,
+        "maximum": 6767258.5,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 6759867.5,
+        "median": 6576280.0,
+        "mean": 6547318.571428572,
+        "minimum": 6292515.0,
+        "maximum": 6775495.0,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.9779933649285997,
+        "median": 0.9783985259839167,
+        "mean": 0.9948340746932197,
+        "minimum": 0.9089725773881073,
+        "maximum": 1.0904197369655586,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.0206414721106876,
+    "paired_candidate_over_baseline": {
+      "mode": 1.0206414721106876,
+      "median": 0.9924957748676729,
+      "mean": 0.9704561203446693,
+      "minimum": 0.8642493164305245,
+      "maximum": 1.0281115801864513,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/stream-a0-a0-n4194304": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "C31D7E0C97273D4A"
+      ],
+      "moon-final": [
+        "C31D7E0C97273D4A"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 857143.4375,
+        "median": 856495.0625,
+        "mean": 854015.5625,
+        "minimum": 823398.25,
+        "maximum": 893336.0625,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 857131.5625,
+        "median": 846402.5,
+        "mean": 839713.4821428572,
+        "minimum": 811050.625,
+        "maximum": 857315.625,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.9401742110086525,
+        "median": 0.9539996626657192,
+        "mean": 0.9632275580067644,
+        "minimum": 0.8863481816744323,
+        "maximum": 1.0263287536263617,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 1338012.0625,
+        "median": 1335980.25,
+        "mean": 1338246.169642857,
+        "minimum": 1301197.1875,
+        "maximum": 1383726.0625,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 1320678.125,
+        "median": 1318410.0,
+        "mean": 1318364.1964285714,
+        "minimum": 1262621.25,
+        "maximum": 1423028.75,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0484753891575616,
+        "median": 0.9563104907370127,
+        "mean": 0.9555483760753231,
+        "minimum": 0.8476246618542682,
+        "maximum": 1.0488357084567563,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.5534005460070635,
+    "paired_candidate_over_baseline": {
+      "mode": 1.5534005460070635,
+      "median": 1.5574644459549443,
+      "mean": 1.5686664599205458,
+      "minimum": 1.4565595660143855,
+      "maximum": 1.6718792595334635,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/stream-a0-a0-n524288": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "DC91D3BEC8B73DDA"
+      ],
+      "moon-final": [
+        "DC91D3BEC8B73DDA"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 103040.265625,
+        "median": 103142.2421875,
+        "mean": 104726.04910714286,
+        "minimum": 99645.796875,
+        "maximum": 112175.2578125,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 104018.3203125,
+        "median": 103943.359375,
+        "mean": 104888.27008928571,
+        "minimum": 99459.0625,
+        "maximum": 116630.3125,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0058020357955146,
+        "median": 1.005042903271455,
+        "mean": 0.9728284096198405,
+        "minimum": 0.8112853030799635,
+        "maximum": 1.061934673177097,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 152299.02734375,
+        "median": 154126.6640625,
+        "mean": 161050.828125,
+        "minimum": 149870.6640625,
+        "maximum": 178133.90625,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 152327.3046875,
+        "median": 152397.8125,
+        "mean": 159925.7142857143,
+        "minimum": 149757.109375,
+        "maximum": 177170.546875,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0566861046240088,
+        "median": 0.9900676414212619,
+        "mean": 0.9865541307227849,
+        "minimum": 0.9086500803638089,
+        "maximum": 1.0638860634984817,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.4971595874150174,
+    "paired_candidate_over_baseline": {
+      "mode": 1.4971595874150174,
+      "median": 1.5248161025356846,
+      "mean": 1.5367846709821245,
+      "minimum": 1.4829908331759145,
+      "maximum": 1.632714149993619,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/stream-a0-a0-n67108864": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "F742112600A73D5B"
+      ],
+      "moon-final": [
+        "F742112600A73D5B"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 12891842.0,
+        "median": 13380218.0,
+        "mean": 13415522.714285715,
+        "minimum": 12831707.0,
+        "maximum": 14278709.0,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 13520875.0,
+        "median": 13276630.0,
+        "mean": 13256055.714285715,
+        "minimum": 12830130.0,
+        "maximum": 13691590.0,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0485230696328238,
+        "median": 0.9975022543550949,
+        "mean": 0.9965328504614717,
+        "minimum": 0.895582913424358,
+        "maximum": 1.0979928885196597,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 12657429.5,
+        "median": 12651853.0,
+        "mean": 12673488.57142857,
+        "minimum": 12381179.0,
+        "maximum": 13132192.0,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 12504850.0,
+        "median": 12532400.0,
+        "mean": 12524447.142857144,
+        "minimum": 12228020.0,
+        "maximum": 12810750.0,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.002559748247747,
+        "median": 1.002446772081296,
+        "mean": 0.9941804374081362,
+        "minimum": 0.856142938102529,
+        "maximum": 1.1022262422726592,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 0.9885781061233836,
+    "paired_candidate_over_baseline": {
+      "mode": 0.9885781061233836,
+      "median": 0.963779757769441,
+      "mean": 0.9459389274679941,
+      "minimum": 0.8848998883582543,
+      "maximum": 0.9903034108229192,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/stream-a0-a0-n786432": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "DAED5797A7073D0F"
+      ],
+      "moon-final": [
+        "DAED5797A7073D0F"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 161693.01764705882,
+        "median": 161818.30588235293,
+        "mean": 162388.36974789915,
+        "minimum": 158679.0588235294,
+        "maximum": 166978.92941176472,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 158083.35294117648,
+        "median": 160849.5294117647,
+        "mean": 163046.18487394956,
+        "minimum": 157948.11764705883,
+        "maximum": 174672.5882352941,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.0352884621713137,
+        "median": 1.0315808623685903,
+        "mean": 1.0051936975471347,
+        "minimum": 0.9125100011096121,
+        "maximum": 1.0889909117174472,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 240114.95882352942,
+        "median": 246841.51764705882,
+        "mean": 251631.4655462185,
+        "minimum": 237116.42352941178,
+        "maximum": 283956.7882352941,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 234274.4705882353,
+        "median": 241675.5294117647,
+        "mean": 245944.30252100842,
+        "minimum": 233820.70588235295,
+        "maximum": 269936.3529411765,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 1.033063706273167,
+        "median": 0.9853888362539652,
+        "mean": 0.9711062084029254,
+        "minimum": 0.8645889655128801,
+        "maximum": 1.0330885877596359,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.4859699944066413,
+    "paired_candidate_over_baseline": {
+      "mode": 1.4859699944066413,
+      "median": 1.525423939529564,
+      "mean": 1.5497913628362738,
+      "minimum": 1.4350056424871922,
+      "maximum": 1.7388173392665758,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  },
+  "move/stream-a0-a0-n8388608": {
+    "layer": "rtl+memory",
+    "unit": "System.Move",
+    "primary_metric": "tsc",
+    "oracle_status": "MATCH",
+    "oracles": {
+      "moon-old": [
+        "9C23496B06A73D52"
+      ],
+      "moon-final": [
+        "9C23496B06A73D52"
+      ]
+    },
+    "moon-old": {
+      "tsc": {
+        "mode": 1710984.4375,
+        "median": 1696468.4375,
+        "mean": 1729405.7291666667,
+        "minimum": 1623754.25,
+        "maximum": 1989732.25,
+        "kept": 6,
+        "rejected": 1
+      },
+      "cycles": {
+        "mode": 1633548.75,
+        "median": 1684183.75,
+        "mean": 1732226.0416666667,
+        "minimum": 1623811.25,
+        "maximum": 2024948.75,
+        "kept": 6,
+        "rejected": 1
+      },
+      "effective_cores": {
+        "mode": 1.0851071502859857,
+        "median": 1.0316762198356215,
+        "mean": 1.024548084185193,
+        "minimum": 0.9307070022672023,
+        "maximum": 1.0915742499477985,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "moon-final": {
+      "tsc": {
+        "mode": 2624644.5625,
+        "median": 2624572.125,
+        "mean": 2616521.214285714,
+        "minimum": 2523995.625,
+        "maximum": 2741158.5,
+        "kept": 7,
+        "rejected": 0
+      },
+      "cycles": {
+        "mode": 2497288.75,
+        "median": 2628365.0,
+        "mean": 2625647.3214285714,
+        "minimum": 2495721.25,
+        "maximum": 2787038.75,
+        "kept": 7,
+        "rejected": 0
+      },
+      "effective_cores": {
+        "mode": 0.9769909078295987,
+        "median": 0.9768062319396041,
+        "mean": 0.9810611051050774,
+        "minimum": 0.9539945660469518,
+        "maximum": 1.0272306519052252,
+        "kept": 7,
+        "rejected": 0
+      }
+    },
+    "candidate_over_baseline": 1.5938527702236112,
+    "paired_candidate_over_baseline": {
+      "mode": 1.5938527702236112,
+      "median": 1.532264169517046,
+      "mean": 1.4655136155515722,
+      "minimum": 1.2071060128766675,
+      "maximum": 1.6038181270349254,
+      "kept": 7,
+      "rejected": 0
+    },
+    "moon_mm_over_moon_default": null
+  }
+}

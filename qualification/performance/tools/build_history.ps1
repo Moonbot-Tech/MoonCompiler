@@ -442,6 +442,16 @@ $Stages = @(
     files = @('evidence\dictionary-lookup-20260823\summary.json')
     tracked = $true
     unstable = @()
+  },
+  [ordered]@{
+    id = 'system_move_20260824'
+    label = 'Сейчас: + полный x86-64 System.Move'
+    short = 'System.Move'
+    note = 'PERF-042: 297-case Win64 O3 medium — fixed-size, alignment/page offsets, same-pointer, overlap и streaming до 64 МиБ. 297/297 oracle MATCH; geomean Moon/Delphi 0.936, 124 выигрыша, 144 паритета, 29 проигрышей. AVX temporal/NT policy привязан к половине largest deterministic cache; старый mORMot MoveFast не переносился.'
+    inherit = 'dictionary_lookup_20260823'
+    files = @('evidence\system-move-20260824\summary.json')
+    tracked = $true
+    unstable = @()
   }
 )
 
@@ -525,6 +535,10 @@ function Get-CaseDescription([string]$Case) {
     '^abi/record(\d+)-(value|var|const)$' { return "Передача record размером $($Matches[1]) байт, форма $($Matches[2])." }
     '^abi/return-record(\d+)$' { return "Возврат record размером $($Matches[1]) байт из функции." }
     '^layout/move-(\d+)$' { return "System.Move блока размером $($Matches[1]) байт." }
+    '^move/hot-a(\d+)-a(\d+)-n(\d+)$' { return "System.Move: горячая копия $($Matches[3]) байт, смещения source/dest $($Matches[1])/$($Matches[2])." }
+    '^move/same-a(\d+)-n(\d+)$' { return "System.Move: source=dest, $($Matches[2]) байт, смещение $($Matches[1])." }
+    '^move/overlap-(forward|backward)-d(\d+)-n(\d+)$' { return "System.Move: overlap $($Matches[1]), расстояние $($Matches[2]), размер $($Matches[3])." }
+    '^move/stream-a(\d+)-a(\d+)-n(\d+)$' { return "System.Move: streaming-копия $($Matches[3]) байт, смещения source/dest $($Matches[1])/$($Matches[2])." }
     '^layout/fill-(\d+)$' { return "FillChar блока размером $($Matches[1]) байт." }
     '^codegen/call-(.+)$' { return "Compiler codegen вызова: $($Matches[1])." }
     '^codegen/case-(.+)$' { return "Compiler codegen оператора case: $($Matches[1])." }

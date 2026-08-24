@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build, run and compare the Moon Compiler Pulse qualification suite."""
+"""Build, pair-run and compare the Moon Compiler Pulse qualification suite."""
 
 from __future__ import annotations
 
