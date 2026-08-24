@@ -531,6 +531,87 @@ unit optloop;
       end;
 
 
+    { The four axes of the pointer-bump decision for a counter-indexed
+      vector access, split out so the next repair changes one axis instead
+      of growing the historical single-expression gate (that shape produced
+      the mutable-string-base wrong-code and the local-dynarray profit
+      regression, audit journal 5 B1). }
+
+    { the counter variable is the vector index, read plainly - directly or
+      through the usual array-access type cast }
+    function counter_indexes_vector(loop : tfornode;n : tvecnode) : boolean;
+      begin
+        result:=(n.right.isequal(loop.left) or
+                 ((n.right.nodetype=typeconvn) and
+                  ttypeconvnode(n.right).left.isequal(loop.left))) and
+                (n.right.flags*[nf_write,nf_modify]=[]);
+      end;
+
+
+    { arrays the maintained pointer understands: normal or dynamic, not
+      packed; the replacement is a raw address cursor and cannot preserve a
+      source-level range/overflow check at each element access }
+    function vector_admits_pointer_bump(loop : tfornode;n : tvecnode) : boolean;
+      begin
+        result:=(not(is_special_array(n.left.resultdef)) or
+                 is_dynamic_array(n.left.resultdef)) and
+                not(is_packed_array(n.left.resultdef)) and
+                (([cs_check_overflow,cs_check_range]*n.localswitches)=[]) and
+                { direct array access, or a loop-invariant expression }
+                ((n.left.nodetype=loadn) or
+                 is_loop_invariant(loop,n.right));
+      end;
+
+
+    { an implicit array pointer (dynamic array, dynamic string) is a base
+      VALUE loaded from the variable - bumping a cached copy is only legal
+      while nothing in the body can replace that value }
+    function vector_base_is_stable(loop : tfornode;n : tvecnode) : boolean;
+      begin
+        result:=not(is_implicit_array_pointer(n.left.resultdef)) or
+                implicit_array_base_is_loop_invariant(loop,n.left);
+      end;
+
+
+    { removing the multiplication is only worth a maintained pointer if the
+      scaled access is not already a simple shift ... }
+    function pointer_bump_profitable(loop : tfornode;n : tvecnode) : boolean;
+{$if not (defined(cpu16bitalu) or defined(cpu8bitalu))}
+      var
+        dummy : longint;
+{$endif}
+      begin
+{$if defined(cpu16bitalu) or defined(cpu8bitalu)}
+        result:=true;
+{$else}
+        result:=not(ispowerof2(tcgvecnode(n).get_mul_size,dummy))
+          { power-of-two elements wider than the maximum hardware scale
+            factor pay an explicit shift+add on every element access,
+            exactly like a multiplication }
+          or (tcgvecnode(n).get_mul_size>8)
+{$ifdef cpu64bitaddr}
+          { ... unless the base is a global symbol: 64-bit targets cannot
+            encode a RIP/PC-relative base together with an index register,
+            so scaled access rematerializes the base address inside the loop
+            on every element access.  A dynamic array is even costlier - its
+            base is a pointer value that scaled access RELOADS from the
+            variable on every element, and the 64-bit address needs the
+            32-bit index sign-extended each time.  Only profitable when the
+            counter's body reads all become the bumped pointer - a counter
+            that stays live would make the pointer a second induction
+            variable with a loop-carried load address }
+          or ((n.left.nodetype=loadn) and
+              (is_implicit_array_pointer(n.left.resultdef) or
+               ((tloadnode(n.left).symtableentry.typ=staticvarsym) and
+                not(vo_is_thread_var in tstaticvarsym(tloadnode(n.left).symtableentry).varoptions))) and
+              (counter_dies_with_indexing(loop) or
+               loop_runs_to_completion(loop)))
+{$endif cpu64bitaddr}
+          ;
+{$endif}
+      end;
+
+
     type
       toptimizeinductionvariablescontext = object
         currforloop : tfornode;
@@ -604,7 +685,6 @@ unit optloop;
     function toptimizeinductionvariablescontext.dostrengthreductiontest(var n: tnode): foreachnoderesult;
       var
         tempnode,startvaltemp : ttempcreatenode;
-        dummy : longint;
         nn : tnode;
         nt : tnodetype;
         nflags : tnodeflags;
@@ -726,60 +806,10 @@ unit optloop;
                   result:=fen_norecurse_false;
                 end
               { is the index the counter variable? }
-              else if (not(is_special_array(tvecnode(n).left.resultdef)) or
-                 is_dynamic_array(tvecnode(n).left.resultdef)) and
-                not(is_packed_array(tvecnode(n).left.resultdef)) and
-                (tvecnode(n).right.isequal(currforloop.left) or
-                 { fpc usually creates a type cast to access an array }
-                 ((tvecnode(n).right.nodetype=typeconvn) and
-                  ttypeconvnode(tvecnode(n).right).left.isequal(currforloop.left)
-                 )
-                ) and
-                { plain read of the loop variable? }
-                not(nf_write in tvecnode(n).right.flags) and
-                not(nf_modify in tvecnode(n).right.flags) and
-                { The replacement is a raw maintained pointer and therefore
-                  cannot preserve a source-level range/overflow check at each
-                  element access. }
-                (([cs_check_overflow,cs_check_range]*n.localswitches)=[]) and
-                { direct array access? }
-                ((tvecnode(n).left.nodetype=loadn) or
-                { ... or loop invariant expression? }
-                is_loop_invariant(currforloop,tvecnode(n).right)) and
-                { an implicit array pointer needs its base value pinned for
-                  the whole loop }
-                (not(is_implicit_array_pointer(tvecnode(n).left.resultdef)) or
-                  implicit_array_base_is_loop_invariant(currforloop,tvecnode(n).left))
-{$if not (defined(cpu16bitalu) or defined(cpu8bitalu))}
-                { removing the multiplication is only worth the
-                  effort if it's not a simple shift ... }
-                and (not(ispowerof2(tcgvecnode(n).get_mul_size,dummy))
-                  { power-of-two elements wider than the maximum hardware
-                    scale factor pay an explicit shift+add on every element
-                    access, exactly like a multiplication }
-                  or (tcgvecnode(n).get_mul_size>8)
-{$ifdef cpu64bitaddr}
-                  { ... unless the base is a global symbol: 64-bit targets
-                    cannot encode a RIP/PC-relative base together with an
-                    index register, so scaled access rematerializes the base
-                    address inside the loop on every element access.  A
-                    dynamic array is even costlier - its base is a pointer
-                    value that scaled access RELOADS from the variable on
-                    every element, and the 64-bit address needs the 32-bit
-                    index sign-extended each time.  Only profitable when the
-                    counter's body reads all become the bumped pointer - a
-                    counter that stays live would make the pointer a second
-                    induction variable with a loop-carried load address }
-                  or ((tvecnode(n).left.nodetype=loadn) and
-                      (is_implicit_array_pointer(tvecnode(n).left.resultdef) or
-                       ((tloadnode(tvecnode(n).left).symtableentry.typ=staticvarsym) and
-                        not(vo_is_thread_var in tstaticvarsym(tloadnode(tvecnode(n).left).symtableentry).varoptions))) and
-                      (counter_dies_with_indexing(currforloop) or
-                       loop_runs_to_completion(currforloop)))
-{$endif cpu64bitaddr}
-                  )
-{$endif}
-                then
+              else if counter_indexes_vector(currforloop,tvecnode(n)) and
+                vector_admits_pointer_bump(currforloop,tvecnode(n)) and
+                vector_base_is_stable(currforloop,tvecnode(n)) and
+                pointer_bump_profitable(currforloop,tvecnode(n)) then
                 begin
                   changedforloop:=true;
                   { did we use the same expression before already? }
