@@ -92,6 +92,11 @@ type
     class function BinarySearch<T>(const AValues: array of T; const AItem: T;
       out AFoundIndex: Integer): Boolean; static; overload;
     {$endif CPU64}
+    class procedure Copy<T>(const ASource: array of T;
+      var ADestination: array of T; ASourceIndex, ADestIndex,
+      ACount: NativeInt); static; overload;
+    class procedure Copy<T>(const ASource: array of T;
+      var ADestination: array of T; ACount: NativeInt); static; overload;
   end;
 
   TCustomArrayHelper<T> = class abstract
@@ -1035,6 +1040,13 @@ procedure ErrorArgumentOutOfRange; overload;
 procedure ErrorArgumentOutOfRange(aIndex, aMaxIndex: SizeInt; aListObj: TObject); overload;
 procedure ErrorArgumentOutOfRange(aIndex, aMaxIndex: SizeInt); overload;
 
+{ Proven-span gate (C-001): sign and origin first, then the count against
+  the remainder - Index+Count is never computed, so negative or overflowing
+  operands cannot cancel each other out. Index=Total with Count=0 is a
+  valid empty slice, matching the measured DCC64 boundary. Declared in the
+  interface because generic method bodies are specialized in other units. }
+procedure CheckArraySlice(AIndex, ACount, ATotal: SizeInt); inline;
+
 var
   EmptyRecord: TEmptyRecord;
 
@@ -1063,6 +1075,13 @@ procedure ErrorArgumentOutOfRange(aIndex, aMaxIndex: SizeInt); overload;
 
 begin
   raise EArgumentOutOfRangeException.Create(ListIndexErrorMsg(aIndex,aMaxIndex,''));
+end;
+
+procedure CheckArraySlice(AIndex, ACount, ATotal: SizeInt);
+begin
+  if (SizeUInt(AIndex)>SizeUInt(ATotal)) or
+     (SizeUInt(ACount)>SizeUInt(ATotal-AIndex)) then
+    ErrorArgumentOutOfRange;
 end;
 
 function InCircularRange(ABottom, AItem, ATop: SizeInt): Boolean;
@@ -1113,8 +1132,12 @@ end;
 class procedure TCustomArrayHelper<T>.Sort(var AValues: array of T;
   const AComparer: IComparer<T>; AIndex, ACount: SizeInt);
 begin
+  { validate before the trivial-count exit: a negative count is an error,
+    not an empty sort (measured DCC64) }
+  CheckArraySlice(AIndex,ACount,Length(AValues));
   if ACount <= 1 then
     Exit;
+  { safe after the slice proof: AIndex+ACount <= Length }
   QuickSort(AValues, AIndex, Pred(AIndex + ACount), AComparer);
 end;
 
@@ -1189,6 +1212,20 @@ begin
   AFoundIndex := Integer(NativeIndex);
 end;
 {$endif CPU64}
+
+class procedure TArray.Copy<T>(const ASource: array of T;
+  var ADestination: array of T; ASourceIndex, ADestIndex,
+  ACount: NativeInt);
+begin
+  TArrayHelper<T>.Copy(ASource, ADestination, ASourceIndex, ADestIndex,
+    ACount);
+end;
+
+class procedure TArray.Copy<T>(const ASource: array of T;
+  var ADestination: array of T; ACount: NativeInt);
+begin
+  TArrayHelper<T>.Copy(ASource, ADestination, ACount);
+end;
 
 { TArrayHelper<T> }
 
@@ -1352,13 +1389,17 @@ class function TArrayHelper<T>.BinarySearch(const AValues: array of T; const AIt
   out ASearchResult: TBinarySearchResult; const AComparer: IComparer<T>;
   AIndex, ACount: SizeInt): Boolean;
 var
-  imin, imax, imid: Int32;
+  imin, imax, imid: SizeInt;
 begin
-  if Length(AValues) = 0 then
+  CheckArraySlice(AIndex,ACount,Length(AValues));
+  { a zero count (including an empty array) searches nothing: no comparer
+    call, no pointer formation; the candidate is the insertion point,
+    aligned with the Delphi-compatible AFoundIndex overload }
+  if ACount = 0 then
   begin
     ASearchResult.CompareResult := 0;
     ASearchResult.FoundIndex := -1;
-    ASearchResult.CandidateIndex := -1;
+    ASearchResult.CandidateIndex := AIndex;
     Exit(False);
   end;
   // continually narrow search until just one element remains
@@ -1395,25 +1436,17 @@ begin
 
     // deferred test for equality
 
-  if (imax = imin) then
+  { ACount>0 guarantees imin<=imax on entry and the loop keeps the
+    invariant, so imax=imin holds here by construction }
+  ASearchResult.CompareResult := AComparer.Compare(AValues[imin], AItem);
+  ASearchResult.CandidateIndex := imin;
+  if (ASearchResult.CompareResult = 0) then
   begin
-    ASearchResult.CompareResult := AComparer.Compare(AValues[imin], AItem);
-    ASearchResult.CandidateIndex := imin;
-    if (ASearchResult.CompareResult = 0) then
-    begin
-      ASearchResult.FoundIndex := imin;
-      Exit(True);
-    end else
-    begin
-      ASearchResult.FoundIndex := -1;
-      Exit(False);
-    end;
-  end
-  else
+    ASearchResult.FoundIndex := imin;
+    Exit(True);
+  end else
   begin
-    ASearchResult.CompareResult := 0;
     ASearchResult.FoundIndex := -1;
-    ASearchResult.CandidateIndex := -1;
     Exit(False);
   end;
 end;
@@ -1427,21 +1460,23 @@ end;
 class procedure TArrayHelper<T>.Copy(const aSource: array of T; var aDestination: array of T; aSourceIndex, aDestIndex, aCount: SizeInt);
 
 var
-  I : Integer;
+  I : SizeInt;
 
 begin
-  if (Length(aSource)>0) and (Length(aDestination)>0) and ((@aSource[0]) = (@aDestination[0]))  then
+  { the old NativeUInt(Index)+NativeUInt(Count) form wrapped for a negative
+    index with a small count and admitted an out-of-bounds copy }
+  CheckArraySlice(aSourceIndex,aCount,Length(aSource));
+  CheckArraySlice(aDestIndex,aCount,Length(aDestination));
+  if (Length(aSource)>0) and (Length(aDestination)>0) and
+     (@aSource[0]=@aDestination[0]) then
     raise EArgumentException.Create(SErrSameArrays);
-  if (aCount<0) or
-     (aCount>(Length(aSource)-aSourceIndex)) or
-     (aCount>(Length(aDestination)-aDestIndex)) then
-    ErrorArgumentOutOfRange;
+  if aCount=0 then
+    exit;
 
   if IsManagedType(T) then
     begin
-    // maybe this can be optimized too ?
-    For I:=0 to aCount-1 do
-      aDestination[aDestIndex+i]:=aSource[aSourceIndex+i];
+      for I:=0 to aCount-1 do
+        aDestination[aDestIndex+i]:=aSource[aSourceIndex+i];
     end
   else
     Move(Pointer(@aSource[aSourceIndex])^, Pointer(@aDestination[aDestIndex])^, SizeOf(T)*aCount);
@@ -1584,12 +1619,18 @@ class function TArrayHelper<T>.BinarySearch(const AValues: array of T; const AIt
   out AFoundIndex: SizeInt; const AComparer: IComparer<T>;
   AIndex, ACount: SizeInt): Boolean;
 var
-  imin, imax, imid: Int32;
+  imin, imax, imid: SizeInt;
   LCompare: SizeInt;
 begin
-  if Length(AValues) = 0 then
+  CheckArraySlice(AIndex,ACount,Length(AValues));
+  { a zero count (including an empty array) searches nothing: no comparer
+    call, no pointer formation; AFoundIndex is the insertion point - the
+    measured DCC64 result (the old early exit returned -1 for an empty
+    array and ran the comparer on AValues[AIndex] for a zero count, out
+    of bounds when AIndex=Length) }
+  if ACount = 0 then
   begin
-    AFoundIndex := -1;
+    AFoundIndex := AIndex;
     Exit(False);
   end;
 
@@ -2370,6 +2411,13 @@ procedure TList<T>.Exchange(AIndex1, AIndex2: SizeInt);
 var
   LTemp: T;
 begin
+  { DCC64 runs no checks here and corrupts the heap on an invalid index;
+    that is a defect, not a contract - both indices are proven before the
+    first FItems access (C-001/R-002) }
+  if SizeUInt(AIndex1)>=SizeUInt(Count) then
+    ErrorArgumentOutOfRange(AIndex1,Count-1,Self);
+  if SizeUInt(AIndex2)>=SizeUInt(Count) then
+    ErrorArgumentOutOfRange(AIndex2,Count-1,Self);
   LTemp:=FItems[AIndex1];
   FItems[AIndex1]:=FItems[AIndex2];
   FItems[AIndex2]:=LTemp;
@@ -2381,11 +2429,18 @@ var
     records back the set containers); the moves stay SizeOf(T) exact }
   LTemp: array[0..SizeOf(T)] of Byte;
 begin
+  { the equal-pair shortcut stays FIRST: DCC64 measures Move(i,i) with an
+    invalid i as a no-op, not an error }
   if ANewIndex = AIndex then
     Exit;
 
-  if (ANewIndex < 0) or (ANewIndex >= Count) then
-    raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
+  { source before destination - the DCC64 order, measured through the
+    reported index of a both-invalid pair; the unchecked source used to
+    read and shift through out-of-bounds memory }
+  if SizeUInt(AIndex)>=SizeUInt(Count) then
+    ErrorArgumentOutOfRange(AIndex,Count-1,Self);
+  if SizeUInt(ANewIndex)>=SizeUInt(Count) then
+    ErrorArgumentOutOfRange(ANewIndex,Count-1,Self);
 
   { a reorder is an ownership transfer, not a copy: DCC64 runs no user
     operator and no refcount traffic here - the value travels through a
@@ -2617,13 +2672,14 @@ begin
   end
   else
   begin
-    if LSearchResult.CandidateIndex = -1 then
-      Result := 0
+    { a smaller candidate (CompareResult<0) inserts after itself; otherwise
+      insert at CandidateIndex - on a miss CompareResult=0 means a
+      zero-count search, whose CandidateIndex is already the insertion
+      point (the old -1 empty sentinel is gone) }
+    if LSearchResult.CompareResult < 0 then
+      Result := LSearchResult.CandidateIndex + 1
     else
-      if LSearchResult.CompareResult > 0 then
-        Result := LSearchResult.CandidateIndex
-      else
-        Result := LSearchResult.CandidateIndex + 1;
+      Result := LSearchResult.CandidateIndex;
   end;
 
   InternalInsert(Result, AValue);

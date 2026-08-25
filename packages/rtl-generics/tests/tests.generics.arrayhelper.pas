@@ -97,7 +97,9 @@ var
   LSearchResult: TBinarySearchResult;
 begin
   CheckBinarySearch(nil, 1, False, LSearchResult);
-  CheckSearchResult(LSearchResult, 1, -1, -1, LSearchResult.CompareResult=0);
+  { zero-count contract: CandidateIndex is the insertion point (0 for an
+    empty array), not the old -1 sentinel; nothing was compared }
+  CheckSearchResult(LSearchResult, 1, 0, -1, LSearchResult.CompareResult=0);
 end;
 
 procedure TTestArrayHelper.Test_IndexOf;

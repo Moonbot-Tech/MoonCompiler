@@ -681,8 +681,8 @@ begin
   if aMaxIndex<0 then
     Result:=Format(SListIndexErrorEmptyReason,[aListObjName])
   else
-    Result:=Format(SListIndexErrorRangeReason,[aListObjName]);
-  Result:=Format(SListIndexError, [aIndex])+Result;
+    Result:=Format(SListIndexErrorRangeReason,[aListObjName,aMaxIndex]);
+  Result:=Format(SListIndexError, [aIndex])+': '+Result;
 end;
 
 function ListIndexErrorMsg(AIndex, AMaxIndex: SizeInt; AListObj: TObject): string; overload;
@@ -692,9 +692,9 @@ Var
 
 begin
   if Assigned(aListObj) then
-   Result:=aListObj.ClassName
- else
-   Result:='<Nil>';
+    aName:=aListObj.ClassName
+  else
+    aName:='<Nil>';
   Result:=ListIndexErrorMsg(aIndex, aMaxIndex, aName);
 end;
 
