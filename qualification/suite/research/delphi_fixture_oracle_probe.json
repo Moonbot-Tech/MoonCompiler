@@ -59,6 +59,13 @@
                       "adapted_source_sha256":  "dc83501d3a544592ed238945b4807dc47ab50e64d040b5e13e17901a6205197a",
                       "compile_exit_code":  0,
                       "run_exit_code":  0
+                  },
+                  {
+                      "test_id":  "moonbot-nil-var-overload",
+                      "source_sha256":  "ce6032acd039bdee77a43482b6bcded66513e5115ebe8aebed7b9ba0efd23e17",
+                      "adapted_source_sha256":  "a4f4ceb9d072cd74d6996ca49537c09054dcdb9027aa30638dac25d4f25b6c6d",
+                      "compile_exit_code":  0,
+                      "run_exit_code":  0
                   }
               ]
 }

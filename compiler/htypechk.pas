@@ -2294,17 +2294,39 @@ implementation
 
 
     procedure var_para_allowed(var eq:tequaltype;def_from,def_to:Tdef; fromnode: tnode);
+      function is_readonly_argument(p:tnode):boolean;
+        var
+          sym : tsym;
+        begin
+          while p.nodetype=typeconvn do
+            p:=ttypeconvnode(p).left;
+          if is_constnode(p) then
+            exit(true);
+          if p.nodetype<>loadn then
+            exit(false);
+          sym:=tloadnode(p).symtableentry;
+          if sym.typ=constsym then
+            exit(true);
+          result:=(sym.typ in [absolutevarsym,staticvarsym,localvarsym,paravarsym]) and
+            ((tabstractvarsym(sym).varspez in [vs_const,vs_constref,vs_final]) or
+             (vo_is_const in tabstractvarsym(sym).varoptions));
+        end;
+
       begin
         { Note: eq must be already valid, it will only be updated! }
+        { Type compatibility cannot make a constant addressable.  In
+          particular, nil is represented as a pointer definition and used to
+          reach the implicit pointer-conversion case below; accepting it here
+          keeps a var/out overload alive even though no writable storage can
+          be passed. }
+        if is_readonly_argument(fromnode) then
+          exit;
         case def_to.typ of
           formaldef :
             begin
               { all types can be passed to a formaldef,
                 but it is not the prefered way }
-              if not is_constnode(fromnode) then
-                eq:=te_convert_l6
-              else
-                eq:=te_incompatible;
+              eq:=te_convert_l6;
             end;
           orddef :
             begin

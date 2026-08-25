@@ -14659,6 +14659,93 @@ end;
 
 { ---------------------------------------------------------------- }
 
+type
+  TOmniNilItem = record
+    Value: Integer;
+  end;
+  POmniNilItem = ^TOmniNilItem;
+  PPOmniNilItem = ^POmniNilItem;
+  TOmniNilHolder = record
+    Item: POmniNilItem;
+  end;
+
+{$J-}
+const
+  OmniReadOnlyNilItem: POmniNilItem = nil;
+
+{$J+}
+const
+  OmniWritableNilItem: POmniNilItem = nil;
+
+function OmniPickNil(AValue: PPOmniNilItem): Integer; overload;
+begin
+  Result := 11;
+end;
+
+function OmniPickNil(var AValue: POmniNilItem): Integer; overload;
+begin
+  Result := 12;
+end;
+
+function OmniPickNilPointer(AValue: Pointer): Integer; overload;
+begin
+  Result := 21;
+end;
+
+function OmniPickNilPointer(var AValue: POmniNilItem): Integer; overload;
+begin
+  Result := 22;
+end;
+
+function OmniPickNilOut(AValue: Pointer): Integer; overload;
+begin
+  Result := 31;
+end;
+
+function OmniPickNilOut(out AValue: POmniNilItem): Integer; overload;
+begin
+  AValue := nil;
+  Result := 32;
+end;
+
+procedure OmniCheckConstNilParameter(const AValue: POmniNilItem);
+begin
+  Check(OmniPickNilPointer(AValue) = 21, 'nil-var-const-parameter');
+end;
+
+procedure RunNilVarOverloadForms;
+var
+  Item: POmniNilItem;
+  Outer: PPOmniNilItem;
+  Holder: TOmniNilHolder;
+  Items: array[0..0] of POmniNilItem;
+begin
+  Check(OmniPickNil(nil) = 11, 'nil-var-untyped-literal');
+  Check(OmniPickNilPointer(nil) = 21, 'nil-var-pointer-literal');
+  Check(OmniPickNilPointer(POmniNilItem(nil)) = 21,
+    'nil-var-explicit-pointer-literal');
+  Check(OmniPickNilPointer(OmniReadOnlyNilItem) = 21,
+    'nil-var-readonly-pointer-constant');
+  Check(OmniPickNilPointer(OmniWritableNilItem) = 22,
+    'nil-var-writable-pointer-constant');
+  Check(OmniPickNilOut(nil) = 31, 'nil-out-pointer-literal');
+  OmniCheckConstNilParameter(nil);
+
+  Item := nil;
+  Check(OmniPickNilPointer(Item) = 22, 'nil-var-local-lvalue');
+  Holder.Item := nil;
+  Check(OmniPickNilPointer(Holder.Item) = 22, 'nil-var-field-lvalue');
+  Items[0] := nil;
+  Check(OmniPickNilPointer(Items[0]) = 22, 'nil-var-indexed-lvalue');
+  Outer := @Item;
+  Check(OmniPickNilPointer(Outer^) = 22, 'nil-var-deref-lvalue');
+  Item := Pointer(1);
+  Check(OmniPickNilOut(Item) = 32, 'nil-out-local-lvalue');
+  Check(Item = nil, 'nil-out-local-written');
+end;
+
+{ ---------------------------------------------------------------- }
+
 procedure ReadSeed;
 var
   S: string;
@@ -14708,6 +14795,7 @@ begin
   RunByteStringConcatDomainForms;
   RunPointerIndexOffsetForms;
   RunFunctionResultCounterForms;
+  RunNilVarOverloadForms;
   RunStringCowForms;
   RunDispatchForms;
   RunFlowForms;

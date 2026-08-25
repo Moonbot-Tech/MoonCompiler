@@ -351,11 +351,11 @@
   },
   "fixture_expectations": {
     "path": "research/fixture_expected_outcomes.audited-002.json",
-    "sha256": "7750fdd0cbab29caffaf8d5ca756ebb0949e11619c226003326bab6808c1ef66"
+    "sha256": "eb283e3e1cb42b46f2a8e03c1c7d7605e21276682d6bfca68e16a76bfc6ee4e6"
   },
   "fixture_oracles": {
     "path": "research/fixture_oracles.json",
-    "sha256": "c13ae5b767f2e6a910f723e77d2eb80e5fb32d072f153fd417423d420277df1c"
+    "sha256": "e02839b4dcf33ce9a6fb7f5182bd690796ef4c686f322cfa6b5b23912f58ecee"
   },
   "fixture_qualification_compilers": [
     "moonbot-compiler-beta"
@@ -1089,6 +1089,13 @@
       ],
       "id": "moonbot-inline-pointer-new",
       "source": "fixtures/minimized/moonbot_inline_pointer_new.pas"
+    },
+    {
+      "compiler_allow": [
+        "moonbot-compiler-beta"
+      ],
+      "id": "moonbot-nil-var-overload",
+      "source": "fixtures/minimized/moonbot_nil_var_overload.pas"
     },
     {
       "compiler_allow": [
