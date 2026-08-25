@@ -5914,10 +5914,9 @@ begin
 
   { threadvar managed string: fresh per thread, main copy untouched }
   TvStr := 'main-owned';
-  W := TTvWorker.Create(True);
+  W := TTvWorker.Create;
   try
     W.FreeOnTerminate := False;
-    W.Start;
     W.WaitFor;
     Check(W.SeenLen = 64, 'fin-threadvar-fresh-in-thread');
   finally

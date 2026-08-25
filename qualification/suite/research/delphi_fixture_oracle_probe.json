@@ -66,6 +66,13 @@
                       "adapted_source_sha256":  "a4f4ceb9d072cd74d6996ca49537c09054dcdb9027aa30638dac25d4f25b6c6d",
                       "compile_exit_code":  0,
                       "run_exit_code":  0
+                  },
+                  {
+                      "test_id":  "moonbot-tthread-noarg",
+                      "source_sha256":  "6a7438f8df91412f3acb4e069a34febc83faa73c17feb58fdfd5f01449a18935",
+                      "adapted_source_sha256":  "4bea5b241a26be6c9218adac8bd63ae6b157b2d6ee7c42e17c1e76d681b0be7e",
+                      "compile_exit_code":  0,
+                      "run_exit_code":  0
                   }
               ]
 }

@@ -2349,8 +2349,9 @@ type
     FSuspendedExternal: boolean;
 {$endif}
   public
+    constructor Create; overload;
     constructor Create(CreateSuspended: Boolean;
-                       const StackSize: SizeUInt = DefaultStackSize);
+                       const StackSize: SizeUInt = DefaultStackSize); overload;
     destructor Destroy; override;
     class function CreateAnonymousThread(aProc: TProcedure): TThread; static;
     {$ifdef FPC_HAS_REFERENCE_PROCEDURE}

@@ -32,6 +32,7 @@ CORE_TESTS = (
     "tdelphiinlineconstruntime1",
     "tdelphianonymousnew1",
     "tdelphinilvaroverload1",
+    "tdelphithreadcreate1",
     "tdelphiconstref1",
     "tarrayconstafterinline1",
     "tdelphiunicodeliteral1",

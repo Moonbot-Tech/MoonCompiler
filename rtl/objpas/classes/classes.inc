@@ -259,6 +259,12 @@ function ThreadProc(ThreadObjPtr: Pointer): PtrInt;
 {$i tthread.inc}
 
 
+constructor TThread.Create;
+begin
+  Create(False);
+end;
+
+
 constructor TThread.Create(CreateSuspended: Boolean;
                            const StackSize: SizeUInt);
 begin

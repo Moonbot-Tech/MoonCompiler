@@ -351,11 +351,11 @@
   },
   "fixture_expectations": {
     "path": "research/fixture_expected_outcomes.audited-002.json",
-    "sha256": "eb283e3e1cb42b46f2a8e03c1c7d7605e21276682d6bfca68e16a76bfc6ee4e6"
+    "sha256": "555bce0fd5f76077fc1518c405a3cb66b923e3b80e82d5766fba1961268e5e06"
   },
   "fixture_oracles": {
     "path": "research/fixture_oracles.json",
-    "sha256": "e02839b4dcf33ce9a6fb7f5182bd690796ef4c686f322cfa6b5b23912f58ecee"
+    "sha256": "ce3133648458cd5d1e8ad70aabcebc3876274e8fb93bb5dc13f125bb370fc8e9"
   },
   "fixture_qualification_compilers": [
     "moonbot-compiler-beta"
@@ -1096,6 +1096,16 @@
       ],
       "id": "moonbot-nil-var-overload",
       "source": "fixtures/minimized/moonbot_nil_var_overload.pas"
+    },
+    {
+      "compiler_allow": [
+        "moonbot-compiler-beta"
+      ],
+      "extra_options": [
+        "-UaSystem.Classes=Classes"
+      ],
+      "id": "moonbot-tthread-noarg",
+      "source": "fixtures/minimized/moonbot_tthread_noarg.pas"
     },
     {
       "compiler_allow": [

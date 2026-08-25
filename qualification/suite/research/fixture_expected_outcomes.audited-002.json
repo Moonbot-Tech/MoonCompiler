@@ -53,6 +53,26 @@
       "run_id": "20260823T-win64-fixtures-calibration-1",
       "runner_sha256": "a7f89f3ccefb0c01ae3c209631ea962c19304f3dedc39996a3128c6ed2708a98",
       "semantic_defects": 12
+    },
+    {
+      "compiler": "moonbot-compiler-beta-win64",
+      "kind": "reviewed-product-focused-regression",
+      "manifest_sha256": "bf76800b98f9691daaefabda245b3976686d1340d23949e93a39b109d4ec6b89",
+      "platform": "win64",
+      "qualified_rows": 4,
+      "results_sha256": "88f5252a84c9b471aee87e2f4c5b4a32cfb7b6cf570883f6aa8c23fdd19b5adb",
+      "run_id": "tthread-noarg-fixture-win64-alias-20260825",
+      "runner_sha256": "eb87b446f503762892d6712f740a2c1894606b69cc772506b5fdc2041a938065"
+    },
+    {
+      "compiler": "moonbot-compiler-beta",
+      "kind": "reviewed-product-focused-regression",
+      "manifest_sha256": "bf76800b98f9691daaefabda245b3976686d1340d23949e93a39b109d4ec6b89",
+      "platform": "linux",
+      "qualified_rows": 4,
+      "results_sha256": "99274ef3839c843b69ee8e340b794ee3c268adc3b1a327f83b73fe47c60dff5c",
+      "run_id": "tthread-noarg-fixture-linux-alias-20260825",
+      "runner_sha256": "eb87b446f503762892d6712f740a2c1894606b69cc772506b5fdc2041a938065"
     }
   ],
   "outcomes": {
@@ -19966,6 +19986,133 @@
       "run_exit_code": 0,
       "run_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
+    "moonbot-tthread-noarg/moonbot-compiler-beta-win64/O1": {
+      "compile_exit_code": 0,
+      "compile_failure_class": null,
+      "compile_failure_detail_sha256": null,
+      "consumer_compile_exit_code": null,
+      "failure_phase": null,
+      "first_compile_diagnostic": null,
+      "observed_result": "pass",
+      "options": [
+        "-O1",
+        "-UaSystem.Classes=Classes"
+      ],
+      "producer_compile_exit_code": null,
+      "run_exit_code": 0,
+      "run_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "moonbot-tthread-noarg/moonbot-compiler-beta-win64/O2": {
+      "compile_exit_code": 0,
+      "compile_failure_class": null,
+      "compile_failure_detail_sha256": null,
+      "consumer_compile_exit_code": null,
+      "failure_phase": null,
+      "first_compile_diagnostic": null,
+      "observed_result": "pass",
+      "options": [
+        "-O2",
+        "-UaSystem.Classes=Classes"
+      ],
+      "producer_compile_exit_code": null,
+      "run_exit_code": 0,
+      "run_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "moonbot-tthread-noarg/moonbot-compiler-beta-win64/O3": {
+      "compile_exit_code": 0,
+      "compile_failure_class": null,
+      "compile_failure_detail_sha256": null,
+      "consumer_compile_exit_code": null,
+      "failure_phase": null,
+      "first_compile_diagnostic": null,
+      "observed_result": "pass",
+      "options": [
+        "-O3",
+        "-UaSystem.Classes=Classes"
+      ],
+      "producer_compile_exit_code": null,
+      "run_exit_code": 0,
+      "run_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "moonbot-tthread-noarg/moonbot-compiler-beta-win64/default": {
+      "compile_exit_code": 0,
+      "compile_failure_class": null,
+      "compile_failure_detail_sha256": null,
+      "consumer_compile_exit_code": null,
+      "failure_phase": null,
+      "first_compile_diagnostic": null,
+      "observed_result": "pass",
+      "options": [
+        "-UaSystem.Classes=Classes"
+      ],
+      "producer_compile_exit_code": null,
+      "run_exit_code": 0,
+      "run_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "moonbot-tthread-noarg/moonbot-compiler-beta/O1": {
+      "compile_exit_code": 0,
+      "compile_failure_class": null,
+      "compile_failure_detail_sha256": null,
+      "consumer_compile_exit_code": null,
+      "failure_phase": null,
+      "first_compile_diagnostic": null,
+      "observed_result": "pass",
+      "options": [
+        "-O1",
+        "-UaSystem.Classes=Classes"
+      ],
+      "producer_compile_exit_code": null,
+      "run_exit_code": 0,
+      "run_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "moonbot-tthread-noarg/moonbot-compiler-beta/O2": {
+      "compile_exit_code": 0,
+      "compile_failure_class": null,
+      "compile_failure_detail_sha256": null,
+      "consumer_compile_exit_code": null,
+      "failure_phase": null,
+      "first_compile_diagnostic": null,
+      "observed_result": "pass",
+      "options": [
+        "-O2",
+        "-UaSystem.Classes=Classes"
+      ],
+      "producer_compile_exit_code": null,
+      "run_exit_code": 0,
+      "run_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "moonbot-tthread-noarg/moonbot-compiler-beta/O3": {
+      "compile_exit_code": 0,
+      "compile_failure_class": null,
+      "compile_failure_detail_sha256": null,
+      "consumer_compile_exit_code": null,
+      "failure_phase": null,
+      "first_compile_diagnostic": null,
+      "observed_result": "pass",
+      "options": [
+        "-O3",
+        "-UaSystem.Classes=Classes"
+      ],
+      "producer_compile_exit_code": null,
+      "run_exit_code": 0,
+      "run_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "moonbot-tthread-noarg/moonbot-compiler-beta/default": {
+      "compile_exit_code": 0,
+      "compile_failure_class": null,
+      "compile_failure_detail_sha256": null,
+      "consumer_compile_exit_code": null,
+      "failure_phase": null,
+      "first_compile_diagnostic": null,
+      "observed_result": "pass",
+      "options": [
+        "-UaSystem.Classes=Classes"
+      ],
+      "producer_compile_exit_code": null,
+      "run_exit_code": 0,
+      "run_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+
     "mormot-rawbytestring-bom-const/moonbot-compiler-beta-win64/O1": {
       "compile_exit_code": 0,
       "compile_failure_class": null,
@@ -20823,6 +20970,10 @@
     "moonbot-nil-var-overload": {
       "source_sha256": "ce6032acd039bdee77a43482b6bcded66513e5115ebe8aebed7b9ba0efd23e17",
       "spec_sha256": "38918d2aa7b8173c582e4d7307e93ec2d2f48f45e0709ec26ffa94d65ac3de3a"
+    },
+    "moonbot-tthread-noarg": {
+      "source_sha256": "6a7438f8df91412f3acb4e069a34febc83faa73c17feb58fdfd5f01449a18935",
+      "spec_sha256": "e3f8bc81c2a10f91939fa71254c9f1d721a9201b8d588f2e4b2049a84f624e61"
     },
     "mormot-rawbytestring-bom-const": {
       "source_sha256": "0c4ba537d2c9f3fe749094424dabc568997fda425519913dad60d3ef4708e14d",

@@ -90,6 +90,7 @@ REVIEWED_PASS_FIXTURES = frozenset({
     "mormot-unicode-char-overload",
     "moonbot-inline-pointer-new",
     "moonbot-nil-var-overload",
+    "moonbot-tthread-noarg",
     "unleashed-17",
     "unleashed-20",
 })
