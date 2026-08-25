@@ -2915,6 +2915,34 @@ uses
       i : Integer;
       n : string;
 
+      procedure ReconnectUnitAliases;
+        var
+          j : Integer;
+          AliasName : string;
+          AliasSym,TargetSym : tsym;
+        begin
+          if not assigned(hmodule.globalsymtable) then
+            exit;
+          for j:=0 to hmodule.globalsymtable.symlist.count-1 do
+            begin
+              AliasSym:=tsym(hmodule.globalsymtable.symlist[j]);
+              if (AliasSym.typ=unitsym) and
+                 not assigned(tunitsym(AliasSym).module) then
+                begin
+                  AliasName:=AliasSym.realname;
+                  if Copy(AliasName,1,7)='$hidden' then
+                    Delete(AliasName,1,7);
+                  TargetSym:=tsym(unitsyms.find(
+                    upper(getunitalias(AliasName))));
+                  if assigned(TargetSym) and
+                     (TargetSym.typ=unitsym) and
+                     assigned(tunitsym(TargetSym).module) then
+                    tunitsym(AliasSym).module:=
+                      tunitsym(TargetSym).module;
+                end;
+            end;
+        end;
+
     begin
       if not assigned(genericdef) then
         internalerror(200705151);
@@ -2995,6 +3023,7 @@ uses
             tunitsym(sym).module:=pu.u;
           pu:=tused_unit(pu.next);
         end;
+      ReconnectUnitAliases;
       unitsyms.free;
       unitsyms := nil;
       if assigned(hmodule.globalsymtable) then

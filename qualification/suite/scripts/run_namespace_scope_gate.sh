@@ -64,15 +64,40 @@ run_alias_case() {
   done
 }
 
+run_reverse_alias_case() {
+  local option=$1 source_dir out mode log
+  source_dir="$FIXTURES/reverse_alias"
+  out="$RUN/reverse_alias-${option,,}"
+  mkdir -p "$out"
+
+  for mode in clean reuse; do
+    log="$RUN/reverse_alias-${option,,}-$mode.compile.log"
+    if [[ "$mode" == clean ]]; then
+      rebuild=(-B)
+    else
+      rebuild=()
+    fi
+    "$FPC" -n "@$CFG" -Mdelphi "-$option" -FNScopeX \
+      -UaScopeX.AliasTarget=AliasTarget \
+      "${rebuild[@]}" -Fu"$source_dir" -Fu"$out" -FU"$out" -FE"$out" \
+      "$source_dir/namespace_scope_reverse_alias.dpr" >"$log" 2>&1
+    "$out/namespace_scope_reverse_alias" \
+      >"$RUN/reverse_alias-${option,,}-$mode.run.log"
+    grep -qx NAMESPACE_SCOPE_REVERSE_ALIAS_PASS \
+      "$RUN/reverse_alias-${option,,}-$mode.run.log"
+  done
+}
+
 for option in O2 O3; do
   run_fixture fallback "$option"
   run_fixture partial "$option"
   run_fixture precedence "$option"
   run_fixture nested_generic "$option"
   run_alias_case "$option"
+  run_reverse_alias_case "$option"
 done
 
 sha256sum "$FPC" "$CFG" \
   "$FIXTURES"/*/*.pas "$FIXTURES"/*/*.dpr \
   "$RUN"/*.compile.log "$RUN"/*.run.log >"$RUN/SHA256SUMS"
-echo "NAMESPACE_SCOPE_GATE_OK modes=2 builds=20"
+echo "NAMESPACE_SCOPE_GATE_OK modes=2 builds=24"

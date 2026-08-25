@@ -2888,27 +2888,55 @@ implementation
 
 
     procedure tabstractuniTSymtable.insertunit(sym:TSymEntry);
+{$ifdef UNITALIASES}
       var
-        p:integer;
-        n,ns:string;
-        oldsym:TSymEntry;
-      begin
-        insertsym(sym);
-        n:=sym.realname;
-        p:=pos('.',n);
-        ns:='';
-        while p>0 do
+        i : Integer;
+        alias : tunit_alias;
+        aliasname : string;
+{$endif UNITALIASES}
+
+        procedure InsertUnitName(UnitSym:TSymEntry);
+          var
+            p : Integer;
+            n,ns : string;
+            oldsym : TSymEntry;
           begin
-            if ns='' then
-              ns:=copy(n,1,p-1)
-            else
-              ns:=ns+'.'+copy(n,1,p-1);
-            system.delete(n,1,p);
-            oldsym:=findnamespace(upper(ns));
-            if not assigned(oldsym) then
-              insertsym(cnamespacesym.create(ns));
+            insertsym(UnitSym);
+            n:=UnitSym.realname;
             p:=pos('.',n);
+            ns:='';
+            while p>0 do
+              begin
+                if ns='' then
+                  ns:=copy(n,1,p-1)
+                else
+                  ns:=ns+'.'+copy(n,1,p-1);
+                system.delete(n,1,p);
+                oldsym:=findnamespace(upper(ns));
+                if not assigned(oldsym) then
+                  insertsym(cnamespacesym.create(ns));
+                p:=pos('.',n);
+              end;
           end;
+
+      begin
+        InsertUnitName(sym);
+{$ifdef UNITALIASES}
+        { A default namespace alias maps the fully qualified Delphi unit name
+          to the physical short unit.  When source imports that short name,
+          Delphi keeps both source and fully qualified names available. }
+        if (sym.typ=unitsym) and assigned(unitaliases) then
+          for i:=0 to unitaliases.Count-1 do
+            begin
+              alias:=tunit_alias(unitaliases[i]);
+              aliasname:=unitaliases.NameOfIndex(i);
+              if (pos('.',aliasname)>0) and
+                 (upper(alias.newname)=upper(sym.realname)) and
+                 (upper(aliasname)<>upper(sym.realname)) then
+                InsertUnitName(cunitsym.create(aliasname,
+                  tunitsym(sym).module));
+            end;
+{$endif UNITALIASES}
       end;
 
 
