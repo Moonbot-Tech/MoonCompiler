@@ -33,6 +33,7 @@ CORE_TESTS = (
     "tdelphianonymousnew1",
     "tdelphinilvaroverload1",
     "tdelphithreadcreate1",
+    "tdelphifilegetsize1",
     "tmoonnamespacequalified1",
     "tdelphiconstref1",
     "tarrayconstafterinline1",

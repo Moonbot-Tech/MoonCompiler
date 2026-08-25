@@ -30,6 +30,7 @@ uses
   System.SyncObjs,
   System.Diagnostics,
   System.DateUtils,
+  System.IOUtils,
   System.StrUtils,
   System.TypInfo,
   System.Rtti;
@@ -456,6 +457,8 @@ begin
   end;
 
   FileName := ChangeFileExt(ParamStr(0), '.tmp');
+  DeleteFile(FileName);
+  Check(TFile.GetSize(FileName) = -1, 'file-size-missing');
   try
     FileStream := TFileStream.Create(FileName, fmCreate or fmShareDenyWrite);
     try
@@ -463,6 +466,7 @@ begin
     finally
       FileStream.Free;
     end;
+    Check(TFile.GetSize(FileName) = SizeOf(Buffer), 'file-size');
     FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyWrite);
     try
       FileStream.ReadBuffer(ReadBuffer, SizeOf(ReadBuffer));
@@ -474,6 +478,7 @@ begin
   finally
     DeleteFile(FileName);
   end;
+  Check(TFile.GetSize(FileName) = -1, 'file-size-after-delete');
 end;
 
 procedure CheckUtilitiesAndRtti;

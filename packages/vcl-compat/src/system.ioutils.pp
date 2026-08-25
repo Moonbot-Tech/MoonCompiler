@@ -265,6 +265,7 @@ type
 //    class procedure Encrypt(const aPath: string);
 //{$ENDIF MSWINDOWS}
     class function Exists(const aPath: string; FollowLink: Boolean = True): Boolean; static;
+    class function GetSize(const Path: string): Int64; static;
     class function GetAttributes(const aPath: string; FollowLink: Boolean = True): TFileAttributes; static;
     class function GetCreationTime(const aPath: string): TDateTime; static;
     class function GetCreationTimeUtc(const aPath: string): TDateTime; static;
@@ -1836,6 +1837,47 @@ class function TFile.Exists(const aPath: string; FollowLink: Boolean): Boolean;
 begin
   Result:=FileExists(aPath, FollowLink);
 end;
+
+class function TFile.GetSize(const Path: string): Int64;
+{$IFDEF MSWINDOWS}
+var
+  FilePath: string;
+  Info: TWin32FileAttributeData;
+begin
+  if (Length(Path)<MAX_PATH) or TPath.IsExtendedPrefixed(Path) then
+    FilePath:=Path
+  else
+    FilePath:='\\?\'+Path;
+  if GetFileAttributesEx(PChar(FilePath),GetFileExInfoStandard,@Info) then
+    Result:=(Int64(Info.nFileSizeHigh) shl 32)+Info.nFileSizeLow
+  else
+    Result:=-1;
+end;
+{$ELSE}
+{$IFDEF UNIX}
+var
+  Info: TStat;
+begin
+  if fpStat(Path,Info)=0 then
+    Result:=Info.st_size
+  else
+    Result:=-1;
+end;
+{$ELSE}
+var
+  Info: TSearchRec;
+begin
+  if FindFirst(Path,faAnyFile,Info)=0 then
+    try
+      Result:=Info.Size;
+    finally
+      FindClose(Info);
+    end
+  else
+    Result:=-1;
+end;
+{$ENDIF UNIX}
+{$ENDIF MSWINDOWS}
 
 class function TFile.GetAttributes(const aPath: string; FollowLink: Boolean
   ): TFileAttributes;
