@@ -33,6 +33,7 @@ CORE_TESTS = (
     "tdelphianonymousnew1",
     "tdelphinilvaroverload1",
     "tdelphithreadcreate1",
+    "tmoonnamespacequalified1",
     "tdelphiconstref1",
     "tarrayconstafterinline1",
     "tdelphiunicodeliteral1",
@@ -72,11 +73,16 @@ CORE_TESTS = (
 )
 CORE_SOURCE_ARGS = {
     "tstrengthresultcountertrace1": ["-gt"],
+    "tmoonnamespacequalified1": [
+        "-FNSystem",
+        "-UaSystem.SysUtils=SysUtils",
+    ],
 }
 GENERIC_TESTS = (
     "tinlinegenericcomparer1",
     "tnestedgenericarray1",
     "tqualifiedintegercomparer1",
+    "tdelphitarraycopy1",
 )
 OPTIONS = ("O2", "O3")
 NEGATIVE_TESTS = (

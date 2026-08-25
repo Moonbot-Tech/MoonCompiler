@@ -55,6 +55,7 @@ jobs:
           scripts/run_service_regressions_gate.sh \
             ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
             ci-linux-service
+          scripts/run_rtl_api_surface_gate.sh ci-linux-rtl-api
           scripts/run_namespace_scope_gate.sh \
             ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
             ci-linux-namespace
@@ -120,6 +121,8 @@ jobs:
             $Compiler $Config . ci-win64-repairs
           .\qualification\suite\scripts\run_service_regressions_gate.ps1 `
             $Compiler $Config ci-win64-service
+          .\qualification\suite\scripts\run_rtl_api_surface_gate.ps1 `
+            ci-win64-rtl-api
           .\qualification\suite\scripts\run_rtti_gettypes_gate.ps1 `
             $Compiler $Config ci-win64-rtti
           .\qualification\suite\scripts\run_forms_gate.ps1 `
