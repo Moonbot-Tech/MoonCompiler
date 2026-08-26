@@ -1517,13 +1517,19 @@ type
 
 { TMemoryStream }
 
+{$ifdef UNICODERTL}
+  TMemoryStreamCapacity = NativeInt;
+{$else}
+  TMemoryStreamCapacity = PtrInt;
+{$endif}
+
   TMemoryStream = class(TCustomMemoryStream)
   private
-    FCapacity: PtrInt;
-    procedure SetCapacity(NewCapacity: PtrInt);
+    FCapacity: TMemoryStreamCapacity;
   protected
-    function Realloc(var NewCapacity: PtrInt): Pointer; virtual;
-    property Capacity: PtrInt read FCapacity write SetCapacity;
+    procedure SetCapacity(NewCapacity: TMemoryStreamCapacity); virtual;
+    function Realloc(var NewCapacity: TMemoryStreamCapacity): Pointer; virtual;
+    property Capacity: TMemoryStreamCapacity read FCapacity write SetCapacity;
   public
     destructor Destroy; override;
     procedure Clear;
@@ -1539,7 +1545,7 @@ type
   private
     FBytes: TBytes;
   protected
-    function Realloc(var NewCapacity: PtrInt): Pointer; override;
+    function Realloc(var NewCapacity: TMemoryStreamCapacity): Pointer; override;
   public
     constructor Create(const ABytes: TBytes); virtual; overload;
     property Bytes: TBytes read FBytes;

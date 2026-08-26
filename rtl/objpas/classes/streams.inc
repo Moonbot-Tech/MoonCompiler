@@ -1484,7 +1484,7 @@ end;
 
 Const TMSGrow = 4096; { Use 4k blocks. }
 
-procedure TMemoryStream.SetCapacity(NewCapacity: PtrInt);
+procedure TMemoryStream.SetCapacity(NewCapacity: TMemoryStreamCapacity);
 
 begin
   SetPointer (Realloc(NewCapacity),Fsize);
@@ -1492,10 +1492,10 @@ begin
 end;
 
 
-function TMemoryStream.Realloc(var NewCapacity: PtrInt): Pointer;
+function TMemoryStream.Realloc(var NewCapacity: TMemoryStreamCapacity): Pointer;
 
 Var
-  GC : PtrInt;
+  GC : TMemoryStreamCapacity;
 
 begin
   If NewCapacity<0 Then
@@ -1601,7 +1601,7 @@ begin
   FCapacity:=Length(FBytes);
 end;
 
-function TBytesStream.Realloc(var NewCapacity: PtrInt): Pointer;
+function TBytesStream.Realloc(var NewCapacity: TMemoryStreamCapacity): Pointer;
 begin
   // adapt TMemoryStream code to use with dynamic array
   if NewCapacity<0 Then
