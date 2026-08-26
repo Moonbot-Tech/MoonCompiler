@@ -85,6 +85,7 @@ type
     fLastSentLen: integer;
     procedure DoExecute; override;
     procedure NotifyShutdown;
+    function HasFinished: boolean;
   public
     /// initialize this connection
     constructor Create(const Source: TTftpContext; Owner: TTftpServerThread); reintroduce;
@@ -130,6 +131,7 @@ type
     procedure OnFrameReceived(len: integer; var remote: TNetAddr); override;
     procedure OnIdle(tix64: Int64); override;
     procedure OnShutdown; override; // = Destroy
+    procedure CleanupFinishedConnections;
     procedure NotifyShutdown;
   public
     /// initialize and bind the server instance, in non-suspended state
@@ -204,21 +206,24 @@ begin
   GetMem(fLastSent, fFrameMaxSize);
   MoveFast(Source.Frame^, fLastSent^, Source.FrameLen);
   fLastSentLen := Source.FrameLen;
-  FreeOnTerminate := true;
-  inherited Create({suspended=}false, fOwner.LogClass, FormatUtf8('%#% % %',
+  FreeOnTerminate := false; // fOwner.fConnection owns and joins this thread
+  inherited Create({suspended=}true, fOwner.LogClass, FormatUtf8('%#% % %',
     [TFTP_OPCODE[Source.OpCode], InterlockedIncrement(TTftpConnectionThreadCounter),
      fContext.FileName, KB(fFileSize)]));
 end;
 
 destructor TTftpConnectionThread.Destroy;
 begin
-  Terminate;
-  fContext.Shutdown;
-  if fOwner <> nil then
-    fOwner.fConnection.Remove(self);
+  NotifyShutdown; // stop the transfer loop before TThread.Destroy joins it
   inherited Destroy;
+  fContext.Shutdown; // Execute no longer touches the context or stream
   Freemem(fLastSent);
   FreeMem(fContext.Frame);
+end;
+
+function TTftpConnectionThread.HasFinished: boolean;
+begin
+  result := Finished;
 end;
 
 procedure TTftpConnectionThread.DoExecute;
@@ -319,7 +324,6 @@ end;
 
 procedure TTftpConnectionThread.NotifyShutdown;
 begin
-  fOwner := nil;
   Terminate;
 end;
 
@@ -336,7 +340,7 @@ var
   ok: boolean;
 {$endif OSPOSIX}
 begin
-  fConnection := TSynObjectListLocked.Create({ownobject=}false);
+  fConnection := TSynObjectListLocked.Create({ownobject=}true);
   SetFileFolder(SourceFolder);
   fMaxConnections := 100; // = 100 threads, good enough for regular TFTP server
   fMaxRetry := 2;
@@ -374,7 +378,11 @@ end;
 destructor TTftpServerThread.Destroy;
 begin
   inherited Destroy;
+  FreeAndNil(fConnection); // normally emptied and joined by OnShutdown
   fFileCache.Free;
+  {$ifdef OSPOSIX}
+  FreeAndNil(fPosixFileNames);
+  {$endif OSPOSIX}
 end;
 
 procedure TTftpServerThread.OnShutdown;
@@ -383,10 +391,23 @@ begin
   if fConnection = nil then
     exit;
   NotifyShutdown;
-  FreeAndNil(fConnection);
-  {$ifdef OSPOSIX}
-  FreeAndNil(fPosixFileNames);
-  {$endif OSPOSIX}
+  fConnection.Clear; // owns objects: join every worker before owner teardown
+end;
+
+procedure TTftpServerThread.CleanupFinishedConnections;
+var
+  i: integer;
+begin
+  if fConnection = nil then
+    exit;
+  fConnection.Safe.WriteLock;
+  try
+    for i := fConnection.Count - 1 downto 0 do
+      if TTftpConnectionThread(fConnection.List[i]).HasFinished then
+        fConnection.Delete(i); // OwnObjects=true: release the completed thread
+  finally
+    fConnection.Safe.WriteUnLock;
+  end;
 end;
 
 procedure TTftpServerThread.NotifyShutdown;
@@ -397,34 +418,30 @@ begin
   if (self = nil) or
      (fConnection = nil) then
     exit;
-  t := pointer(fConnection.List);
-  for i := 1 to fConnection.Count do
-  begin
-    t^.NotifyShutdown; // also set fOwner=nil to avoid fConnection.Delete()
-    inc(t);
+  fConnection.Safe.WriteLock;
+  try
+    t := pointer(fConnection.List);
+    for i := 1 to fConnection.Count do
+    begin
+      t^.NotifyShutdown;
+      inc(t);
+    end;
+  finally
+    fConnection.Safe.WriteUnLock;
   end;
 end;
 
 procedure TTftpServerThread.TerminateAndWaitFinished(TimeOutMs: integer);
-var
-  i: integer;
-  endtix: Int64;
-  t: ^TTftpConnectionThread;
 begin
-  endtix := mormot.core.os.GetTickCount64 + TimeOutMs;
   // first notify all sub threads to terminate
   NotifyShutdown;
   // shutdown and wait for main accept() thread
   inherited TerminateAndWaitFinished(TimeOutMs);
-  // wait for sub threads finalization
+  // OnShutdown normally did this from the server thread.  Also cover a server
+  // which never entered Execute or stopped before reaching OnShutdown.
   if fConnection = nil then
     exit;
-  t := pointer(fConnection.List);
-  for i := 1 to fConnection.Count do
-  begin
-    t^.TerminateAndWaitFinished(endtix - mormot.core.os.GetTickCount64);
-    inc(t);
-  end;
+  fConnection.Clear;
 end;
 
 function TTftpServerThread.GetConnectionCount: integer;
@@ -566,6 +583,7 @@ var
   range, retry: integer;
   nr: TNetResult;
   local: TNetAddr;
+  connection: TTftpConnectionThread;
 begin
   // is called from TTftpServerThread.DoExecute context (so fLog is set)
   // with a RRQ/WRQ incoming UDP frame on port 69
@@ -578,6 +596,7 @@ begin
   op := ToOpCode(PTftpFrame(fFrame)^);
   if not (op in [toRrq, toWrq]) then
     exit; // just ignore to avoid DoS on fuzzing
+  CleanupFinishedConnections;
   if fConnection.Count >= fMaxConnections then
   begin
     // this request will be ignored with no ERR sent -> client will retry later
@@ -648,8 +667,23 @@ begin
       [ToText(c.Frame^, c.FrameLen)], self);
   nr := c.SendFrame;
   if nr = nrOk then
-    // actual RRQ/WRQ transmission will take place on a dedicated thread
-    fConnection.Add(TTftpConnectionThread.Create(c, self))
+  begin
+    // Register before Start: the owner can never miss a short-lived worker.
+    // FreeOnTerminate=false lets the server join it before releasing itself.
+    connection := TTftpConnectionThread.Create(c, self);
+    try
+      fConnection.Add(connection);
+    except
+      connection.Free;
+      raise;
+    end;
+    try
+      connection.Start;
+    except
+      fConnection.Remove(connection); // OwnObjects=true: also frees it
+      raise;
+    end;
+  end
   else
   begin
     c.Shutdown;
@@ -660,6 +694,7 @@ end;
 
 procedure TTftpServerThread.OnIdle(tix64: Int64);
 begin
+  CleanupFinishedConnections;
   fFileCache.DeleteDeprecated(tix64);
   {$ifdef OSPOSIX}
   if fPosixFileNames <> nil then
