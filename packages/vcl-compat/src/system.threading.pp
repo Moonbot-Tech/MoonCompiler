@@ -336,6 +336,7 @@ type
       function GetWorkerThreadName: string;
       procedure RemoveFromPool;
       procedure SafeTerminate;
+      procedure TerminatedSet; override;
       procedure Execute; override;
       property ThreadPool: TThreadPool read FThreadPool;
       property RunningEvent: TLightweightEvent read FRunningEvent;
@@ -2408,6 +2409,16 @@ begin
   Terminate;
 end;
 
+procedure TThreadPool.TBaseWorkerThread.TerminatedSet;
+begin
+  { ThreadProc deliberately skips Execute when a suspended/new worker is
+    terminated before its first time slice.  Such a worker will never signal
+    FRunningEvent from Execute, so release BeforeDestruction here as well. }
+  if Assigned(FRunningEvent) then
+    FRunningEvent.SetEvent;
+  inherited TerminatedSet;
+end;
+
 Function TThreadPool.TBaseWorkerThread.GetWorkerThreadName : string;
 
 begin
@@ -2423,13 +2434,18 @@ end;
 
 constructor TThreadPool.TBaseWorkerThread.Create(aThreadPool: TThreadPool);
 begin
-  FreeOnTerminate:=True;
-  inherited Create(False);
+  { Do not start the OS thread before the fields used by Execute have been
+    initialized.  Starting it from the inherited constructor allowed Execute
+    to observe FRunningEvent=nil; the later destructor then waited forever on
+    the newly-created, never-signalled event. }
+  inherited Create(True);
   FRunningEvent:=TLightweightEvent.Create(False);
   FThreadPool:= AThreadPool;
   if Assigned(FThreadPool) then
     FThreadPool.NewThread(Self);
   FMyWorkerID:=NextWorkerID;
+  FreeOnTerminate:=True;
+  Start;
 end;
 
 destructor TThreadPool.TBaseWorkerThread.Destroy;
