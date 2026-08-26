@@ -150,9 +150,9 @@ namespace_options=(
   -UaSystem.RTLConsts=RTLConsts
 )
 if [[ "$profile" == debug ]]; then
-  profile_options=(-O- -gl -gw3 -Ci -Co- -Cr- -Ct- -Sa)
+  profile_options=(-dDEBUG -uRELEASE -O- -gl -gw3 -Ci -Co- -Cr- -Ct- -Sa)
 else
-  profile_options=(-O3 -gl -gw3 -Ci -Co- -Cr- -Ct- -Sa-)
+  profile_options=(-dRELEASE -uDEBUG -O3 -gl -gw3 -Ci -Co- -Cr- -Ct- -Sa-)
 fi
 
 options=(

@@ -87,10 +87,47 @@ end.
 """,
     )
     write(
+        project / "src" / "BuildProfileFlags.pas",
+        """unit BuildProfileFlags;
+
+interface
+
+const
+{$ifdef DEBUG}
+  ProfileProtection = False;
+{$elseif defined(RELEASE)}
+  ProfileProtection = True;
+{$else}
+  {$fatal MOONCOMPILER_BUILD_KIND_IS_MISSING}
+{$endif}
+
+implementation
+
+end.
+""",
+    )
+    write(
         project / "driver_profile_smoke.dpr",
         """program driver_profile_smoke;
 
 {$define MOONCOMPILER_EXPECT_ASSERTIONS_ON}
+{$define MOONCOMPILER_EXPECT_DEBUG}
+
+{$ifdef MOONCOMPILER_EXPECT_DEBUG}
+  {$ifndef DEBUG}
+    {$fatal MOONCOMPILER_DEBUG_DEFINE_IS_MISSING}
+  {$endif}
+  {$ifdef RELEASE}
+    {$fatal MOONCOMPILER_DEBUG_AND_RELEASE_ARE_BOTH_DEFINED}
+  {$endif}
+{$else}
+  {$ifndef RELEASE}
+    {$fatal MOONCOMPILER_RELEASE_DEFINE_IS_MISSING}
+  {$endif}
+  {$ifdef DEBUG}
+    {$fatal MOONCOMPILER_RELEASE_ALSO_DEFINES_DEBUG}
+  {$endif}
+{$endif}
 
 {$ifopt I-}
 {$fatal MOONCOMPILER_PRODUCT_IO_CHECK_MUST_BE_ON}
@@ -121,6 +158,7 @@ uses
   {$endif UNIX}
   System.SysUtils,
   System.Generics.Collections,
+  BuildProfileFlags,
   CustomAlias,
   PinnedDep;
 
@@ -152,7 +190,11 @@ begin
   finally
     Values.Free;
   end;
-  Writeln('MOONCOMPILER_PROJECT_PROFILE_OK');
+{$if ProfileProtection}
+  Writeln('MOONCOMPILER_PROJECT_PROFILE_OK profile=release protection=1');
+{$else}
+  Writeln('MOONCOMPILER_PROJECT_PROFILE_OK profile=debug protection=0');
+{$endif}
 end.
 """,
     )
@@ -237,12 +279,21 @@ def main() -> int:
                     "{$define MOONCOMPILER_EXPECT_ASSERTIONS_ON}",
                     "{$undef MOONCOMPILER_EXPECT_ASSERTIONS_ON}",
                 )
+                source = source.replace(
+                    "{$define MOONCOMPILER_EXPECT_DEBUG}",
+                    "{$undef MOONCOMPILER_EXPECT_DEBUG}",
+                )
                 write(smoke, source)
             result = run(build_command(project, profile))
             if f"building {project / 'driver_profile_smoke.dpr'}" not in result.stdout:
                 raise RuntimeError(f"build driver did not report its logical project path\n{result.stdout}")
             runtime = run([str(executable)], cwd=project)
-            if runtime.stdout.strip() != "MOONCOMPILER_PROJECT_PROFILE_OK":
+            protection = 0 if profile == "debug" else 1
+            expected = (
+                "MOONCOMPILER_PROJECT_PROFILE_OK "
+                f"profile={profile} protection={protection}"
+            )
+            if runtime.stdout.strip() != expected:
                 raise RuntimeError(f"unexpected project output: {runtime.stdout!r}")
 
         if os.name != "nt":
