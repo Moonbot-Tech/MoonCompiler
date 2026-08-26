@@ -2,6 +2,7 @@ from contextlib import redirect_stdout
 import hashlib
 import io
 import json
+import runpy
 import sys
 import tempfile
 import unittest
@@ -17,6 +18,7 @@ sys.path.insert(0, str(SCRIPTS))
 import generate_devil
 import run_devil_env_gate
 import run_devil_gate
+import devil_toolchain
 
 
 def sha256(path: Path) -> str:
@@ -24,6 +26,25 @@ def sha256(path: Path) -> str:
 
 
 class DevilRunnerContractsTest(unittest.TestCase):
+    def test_product_profiles_keep_range_checks_disabled(self) -> None:
+        debug = ["-O-", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa"]
+        release = ["-O3", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa-"]
+        self.assertEqual(devil_toolchain.PROFILES["debug"], debug)
+        self.assertEqual(devil_toolchain.PROFILES["release"], release)
+        self.assertEqual(
+            devil_toolchain.PROFILES["o1"],
+            ["-O1", *release[1:]],
+        )
+        self.assertEqual(
+            devil_toolchain.PROFILES["o2"],
+            ["-O2", *release[1:]],
+        )
+
+        rtl_test = runpy.run_path(str(SUITE.parents[1] / "RTL-test" / "run.py"))
+        self.assertEqual(rtl_test["MODES"]["debug"], debug)
+        self.assertEqual(rtl_test["MODES"]["o2"], ["-O2", *release[1:]])
+        self.assertEqual(rtl_test["MODES"]["o3"], release)
+
     def test_generator_never_rewrites_the_tracked_corpus(self) -> None:
         tracked = [
             DEVIL / "devil.dpr",

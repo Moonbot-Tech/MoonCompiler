@@ -66,10 +66,10 @@ NAMESPACES = [
 
 # what the driver calls debug and release, plus the two levels in between
 PROFILES = {
-    "debug": ["-O-", "-gl", "-gw3", "-Criot", "-Sa"],
-    "o1": ["-O1", "-gl", "-gw3"],
-    "o2": ["-O2", "-gl", "-gw3"],
-    "release": ["-O3", "-gl", "-gw3"],
+    "debug": ["-O-", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa"],
+    "o1": ["-O1", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa-"],
+    "o2": ["-O2", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa-"],
+    "release": ["-O3", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa-"],
 }
 DEFAULT_PROFILES = "debug,o1,o2,release"
 

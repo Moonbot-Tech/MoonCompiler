@@ -56,9 +56,9 @@ FORBIDDEN_O3_CALL_PATTERNS.update({
     ),
 })
 MODES = {
-    "debug": ["-O-", "-gl", "-gw3", "-Criot", "-Sa"],
-    "o2": ["-O2", "-gl", "-gw3"],
-    "o3": ["-O3", "-gl", "-gw3"],
+    "debug": ["-O-", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa"],
+    "o2": ["-O2", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa-"],
+    "o3": ["-O3", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa-"],
 }
 LANGUAGE = [
     "-dMOONCOMPILER_UNICODE_DEFAULT",
