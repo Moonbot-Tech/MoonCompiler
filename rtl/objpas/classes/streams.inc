@@ -1561,13 +1561,29 @@ begin
 end;
 
 
-procedure TMemoryStream.SetSize({$ifdef CPU64}const NewSize: Int64{$else}NewSize: LongInt{$endif});
+procedure TMemoryStream.SetSize(NewSize: LongInt);
+
+begin
+  SetSize(Int64(NewSize));
+end;
+
+
+procedure TMemoryStream.SetSize(const NewSize: Int64);
 
 begin
   SetCapacity (NewSize);
   FSize:=NewSize;
   IF FPosition>FSize then
     FPosition:=FSize;
+end;
+
+
+procedure TMemoryStream.SetSize(NewSize: QWord);
+
+begin
+  if NewSize > QWord(High(Int64)) then
+    raise ERangeError.Create(SRangeError);
+  SetSize(Int64(NewSize));
 end;
 
 function TMemoryStream.Write(const Buffer; Count: LongInt): LongInt;

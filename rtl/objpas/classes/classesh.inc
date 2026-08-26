@@ -1535,7 +1535,9 @@ type
     procedure Clear;
     procedure LoadFromStream(Stream: TStream);
     procedure LoadFromFile(const FileName: string);
-    procedure SetSize({$ifdef CPU64}const NewSize: Int64{$else}NewSize: LongInt{$endif}); override;
+    procedure SetSize(NewSize: LongInt); overload; override;
+    procedure SetSize(const NewSize: Int64); overload; override;
+    procedure SetSize(NewSize: QWord); overload;
     function Write(const Buffer; Count: LongInt): LongInt; override;
   end;
 

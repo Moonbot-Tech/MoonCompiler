@@ -452,8 +452,8 @@ begin
     MemoryStream.ReadBuffer(ReadBuffer, SizeOf(ReadBuffer));
     Check(CompareMem(@Buffer[0], @ReadBuffer[0], SizeOf(Buffer)),
       'memory-stream-read');
-    MemoryStream.SetSize(Int64(8));
-    Check(MemoryStream.Size = 8, 'memory-stream-set-size');
+    MemoryStream.SetSize(8);
+    Check(MemoryStream.Size = 8, 'memory-stream-set-size-integer');
   finally
     MemoryStream.Free;
   end;
