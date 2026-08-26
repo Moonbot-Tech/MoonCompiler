@@ -363,16 +363,16 @@ Implementation
 
 {$IFDEF FPC_DOTTEDUNITS}
 uses
-{$ifdef FPC_USE_LIBC}
+{$if defined(FPC_USE_LIBC) or defined(LINUX)}
    cNetDB,
-{$endif FPC_USE_LIBC}
+{$endif}
    UnixApi.Base,
    System.SysUtils;
 {$ELSE FPC_DOTTEDUNITS}
 uses
-{$ifdef FPC_USE_LIBC}
+{$if defined(FPC_USE_LIBC) or defined(LINUX)}
    cNetDB,
-{$endif FPC_USE_LIBC}
+{$endif}
    BaseUnix,
    sysutils;
 {$ENDIF FPC_DOTTEDUNITS}
@@ -397,6 +397,51 @@ begin
     S:=P;
   Result:=AnsiToString(S);
 end;
+
+{$if defined(FPC_USE_LIBC) or defined(LINUX)}
+Function ResolveNameUsingLibc(const HostName: String; Addresses: Pointer;
+  MaxAddresses, Family: Integer): Integer;
+var
+  Hints: cNetDB.TAddrInfo;
+  Res, Current: cNetDB.PAddrInfo;
+  Name: AnsiString;
+begin
+  Result:=-1;
+  if MaxAddresses=0 then
+    exit;
+  FillChar(Hints,SizeOf(Hints),0);
+  Hints.ai_family:=Family;
+  Hints.ai_socktype:=SOCK_STREAM;
+{$if defined(LINUX) and not defined(FPC_USE_LIBC)}
+  if Family=AF_INET6 then
+    Hints.ai_flags:=cNetDB.AI_V4MAPPED;
+{$endif}
+  Res:=nil;
+  Name:=HostName;
+  if (cNetDB.getaddrinfo(PAnsiChar(Name),nil,@Hints,@Res)<>0) or (Res=nil) then
+    exit;
+  Result:=0;
+  Current:=Res;
+  repeat
+    if Current^.ai_family=Family then
+      begin
+      if Family=AF_INET then
+        begin
+        Move(PInetSockAddr(Current^.ai_addr)^.sin_addr,Addresses^,SizeOf(TInAddr));
+        Inc(PInAddr(Addresses));
+        end
+      else
+        begin
+        Move(PInetSockAddr6(Current^.ai_addr)^.sin6_addr,Addresses^,SizeOf(TIn6Addr));
+        Inc(PIn6Addr(Addresses));
+        end;
+      Inc(Result);
+      end;
+    Current:=Current^.ai_next;
+  until (Current=nil) or (Result>=MaxAddresses);
+  cNetDB.freeaddrinfo(Res);
+end;
+{$endif}
 
 {$ifndef FPC_USE_LIBC}
 type
@@ -1990,10 +2035,15 @@ end;
 
 Function ResolveName(const HostName : String; Var Addresses : Array of THostAddr) : Integer;
 
+{$ifndef LINUX}
 Var
   I : Integer;
+{$endif LINUX}
 
 begin
+{$ifdef LINUX}
+  Result:=ResolveNameUsingLibc(HostName,@Addresses,Length(Addresses),AF_INET);
+{$else LINUX}
   CheckResolveFile;
   I:=0;
   Result:=0;
@@ -2002,6 +2052,7 @@ begin
     Result:=ResolveNameAt(I,HostName,Addresses,0);
     Inc(I);
     end;
+{$endif LINUX}
 end;
 
 //const NoAddress6 : array[0..7] of word = (0,0,0,0,0,0,0,0);
@@ -2073,9 +2124,14 @@ end;
 
 
 Function ResolveName6(const HostName: String; Var Addresses: Array of THostAddr6) : Integer;
+{$ifndef LINUX}
 var
   i: Integer;
+{$endif LINUX}
 begin
+{$ifdef LINUX}
+  Result:=ResolveNameUsingLibc(HostName,@Addresses,Length(Addresses),AF_INET6);
+{$else LINUX}
   CheckResolveFile;
   i := 0;
   Result := 0;
@@ -2083,6 +2139,7 @@ begin
     Result := ResolveNameAt6(I, Hostname, Addresses, 0);
     Inc(i);
   end;
+{$endif LINUX}
 end;
 
 Function ResolveAddressAt(Resolver : Integer; Address : String; Var Names : Array of String; Recurse: Integer) : Integer;
@@ -2688,49 +2745,14 @@ end;
     Implementation based on libc
   ---------------------------------------------------------------------}
 
-Function ResolveName(const HostName : String; Addresses: pointer; MaxAddresses, Family: integer) : Integer;
-var
-  h: TAddrInfo;
-  res, ai: PAddrInfo;
-  A : AnsiString;
-begin
-  Result:=-1;
-  if MaxAddresses = 0 then
-    exit;
-  FillChar(h, SizeOf(h), 0);
-  h.ai_family:=Family;
-  h.ai_socktype:=SOCK_STREAM;
-  res:=nil;
-  A:=HostName;
-  if (getaddrinfo(PAnsiChar(A), nil, @h, @res) <> 0) or (res = nil) then
-    exit;
-  Result:=0;
-  ai:=res;
-  repeat
-    if ai^.ai_family = Family then begin
-      if Family = AF_INET then begin
-        Move(PInetSockAddr(ai^.ai_addr)^.sin_addr, Addresses^, SizeOf(TInAddr));
-        Inc(PInAddr(Addresses));
-      end
-      else begin
-        Move(PInetSockAddr6(ai^.ai_addr)^.sin6_addr, Addresses^, SizeOf(TIn6Addr));
-        Inc(PIn6Addr(Addresses));
-      end;
-      Inc(Result);
-    end;
-    ai:=ai^.ai_next;
-  until (ai = nil) or (Result >= MaxAddresses);
-  freeaddrinfo(res);
-end;
-
 Function ResolveName(const HostName : String; Var Addresses : Array of THostAddr) : Integer;
 begin
-  Result:=ResolveName(HostName, @Addresses, Length(Addresses), AF_INET);
+  Result:=ResolveNameUsingLibc(HostName,@Addresses,Length(Addresses),AF_INET);
 end;
 
 Function ResolveName6(Const HostName : String; Var Addresses : Array of THostAddr6) : Integer;
 begin
-  Result:=ResolveName(HostName, @Addresses, Length(Addresses), AF_INET6);
+  Result:=ResolveNameUsingLibc(HostName,@Addresses,Length(Addresses),AF_INET6);
 end;
 
 Function ResolveAddress(Addr : pointer; AddrLen: integer; Var Names : Array of String) : Integer;

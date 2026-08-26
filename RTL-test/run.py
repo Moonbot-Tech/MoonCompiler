@@ -64,6 +64,9 @@ CURRENT_TREE_UNIT_DIRS = {
     # would otherwise silently reuse the already installed PPU and leave the
     # edited System.NetEncoding source untested.
     "url_encoding_utf8_codepage_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    # Linux forward DNS must exercise the edited fcl-net NetDB source rather
+    # than an older PPU already installed in the product toolchain.
+    "netdb_linux_resolver_semantic": ROOT / "packages" / "fcl-net" / "src",
 }
 REQUIRED_RUNTIME_PATTERNS = {
     "mm_finalization_lifetime_semantic": (
