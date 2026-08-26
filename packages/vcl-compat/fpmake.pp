@@ -36,6 +36,7 @@ begin
     P.Dependencies.Add('fcl-json');
     P.Dependencies.Add('fcl-hash');
     P.Dependencies.Add('hash');
+    P.Dependencies.Add('libffi',[Linux]);
     P.Dependencies.Add('libpcre',[Win64,Linux,darwin]);
     P.Dependencies.Add('wasm-utils',[wasip1,wasip1threads]);
     P.SourcePath.Add('src');

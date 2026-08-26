@@ -72,6 +72,7 @@ CURRENT_TREE_UNIT_DIRS = {
     "task_wait_semantic": ROOT / "packages" / "vcl-compat" / "src",
     "ioutils_api_semantic": ROOT / "packages" / "vcl-compat" / "src",
     "rtl_api_product_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    "rtti_invoke_product_semantic": ROOT / "packages" / "vcl-compat" / "src",
     "thread_pool_lifecycle_semantic": ROOT / "packages" / "vcl-compat" / "src",
 }
 REQUIRED_RUNTIME_PATTERNS = {

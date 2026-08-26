@@ -609,6 +609,13 @@ uses
   {$ELSE}
   Variants,
   {$ENDIF}
+  {$if defined(LINUX) and defined(CPUX86_64)}
+    {$IFDEF FPC_DOTTEDUNITS}
+    Api.Ffi.manager,
+    {$ELSE}
+    ffi.manager,
+    {$ENDIF}
+  {$endif}
   System.JSONConsts, System.JSON;
 
 { JsonIgnoreAttribute }
