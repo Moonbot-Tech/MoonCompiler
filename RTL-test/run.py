@@ -67,6 +67,9 @@ CURRENT_TREE_UNIT_DIRS = {
     # Linux forward DNS must exercise the edited fcl-net NetDB source rather
     # than an older PPU already installed in the product toolchain.
     "netdb_linux_resolver_semantic": ROOT / "packages" / "fcl-net" / "src",
+    # WaitForAll/WaitForAny and the completion callback race live in the
+    # imported Delphi-compatible threading unit, not in an installed RTL PPU.
+    "task_wait_semantic": ROOT / "packages" / "vcl-compat" / "src",
 }
 REQUIRED_RUNTIME_PATTERNS = {
     "mm_finalization_lifetime_semantic": (

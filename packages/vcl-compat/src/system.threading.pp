@@ -555,7 +555,8 @@ type
       OptionFlagMask = [TOptionStateFlag.Replicating, TOptionStateFlag.Replica];
       ReplicatingStates = OptionFlagMask;
       StartedStates = [TOptionStateFlag.Started, TOptionStateFlag.Canceled, TOptionStateFlag.Faulted, TOptionStateFlag.Complete];
-      CompleteStates = [TOptionStateFlag.Destroying, TOptionStateFlag.Complete, TOptionStateFlag.Faulted];
+      CompleteStates = [TOptionStateFlag.Destroying, TOptionStateFlag.Complete,
+        TOptionStateFlag.Canceled, TOptionStateFlag.Faulted];
       CanceledStates = [TOptionStateFlag.Canceled, TOptionStateFlag.Faulted];
 
   Public
@@ -657,6 +658,7 @@ type
     property ThreadPool: TThreadPool read FParams.Pool;
     class function DoWaitForAll(const aTasks: array of ITask; aTimeout: Cardinal): Boolean; static;
     class function DoWaitForAny(const aTasks: array of ITask; aTimeout: Cardinal): Integer; static;
+    class function TimespanToMilliseconds(const aTimeout: TTimeSpan): Cardinal; static;
     class function NewId: Integer; static;
   Public
   public
@@ -1028,6 +1030,8 @@ Resourcestring
   SErrBreakAfterStop = 'Break loop after loop was stopped';
   SErrInvalidTaskConstructor = 'Cannot use parameterless TTask constructor';
   SErrOneOrMoreTasksCancelled = 'One or more tasks where cancelled';
+  SErrWaitNilTask = 'Task cannot be nil';
+  SErrInvalidTimeout = 'Timeout must be between 0 and 2147483647 milliseconds';
   SAggregateExceptionCount = 'Aggregate exception for %d exceptions';
 
 Type
@@ -3293,13 +3297,12 @@ begin
     end
   else
     begin
-    if aTimeOut=INFINITE then
-      Watch:=Default(TStopWatch)
-    else
-      Watch:=TStopWatch.Create;
+    if aTimeOut<>INFINITE then
+      Watch:=TStopWatch.StartNew;
     Repeat
       CheckSynchronize(1);
-    until IsComplete or (Not Watch.IsRunning) or (Watch.ElapsedMilliseconds>aTimeOut);
+    until IsComplete or
+      ((aTimeOut<>INFINITE) and (Watch.ElapsedMilliseconds>=aTimeOut));
     Result:=IsComplete;
     if Result then
       RunChecks;
@@ -3308,7 +3311,7 @@ end;
 
 function TTask.Wait(const aTimeout: TTimeSpan): Boolean;
 begin
-  Result:=Wait(Trunc(aTimeOut.TotalMilliseconds));
+  Result:=Wait(TimespanToMilliseconds(aTimeOut));
 end;
 
 procedure TTask.DoCancel(aDestroying : Boolean);
@@ -3371,16 +3374,25 @@ begin
 end;
 
 procedure TTask.AddCompleteEvent(const aProc: TITaskProc);
+var
+  CallNow: Boolean;
 begin
+  CallNow:=False;
   LockState;
   try
-    If Length(FCompletedEvents)=FCompletedEventCount then
-      SetLength(FCompletedEvents,FCompletedEventCount+32);
-    FCompletedEvents[FCompletedEventCount]:=aProc;
-    Inc(FCompletedEventCount);
+    CallNow:=IsComplete;
+    if not CallNow then
+      begin
+      If Length(FCompletedEvents)=FCompletedEventCount then
+        SetLength(FCompletedEvents,FCompletedEventCount+32);
+      FCompletedEvents[FCompletedEventCount]:=aProc;
+      Inc(FCompletedEventCount);
+      end;
   finally
     UnlockState;
   end;
+  if CallNow then
+    aProc(Self);
 end;
 
 procedure TTask.HandleChildCompletion(const aTask: TAbstractTask.IInternalTask);
@@ -3427,13 +3439,14 @@ begin
   LockState;
   try
     Idx:=FCompletedEventCount-1;
-    While (Idx>0) and (FCompletedEvents[Idx]<>aProc) do
+    While (Idx>=0) and (FCompletedEvents[Idx]<>aProc) do
       Dec(Idx);
     if Idx>=0 then
       begin
       For I:=Idx to FCompletedEventCount-2 do
         FCompletedEvents[I]:=FCompletedEvents[I+1];
-      Dec(FCompletedEventCount)
+      Dec(FCompletedEventCount);
+      FCompletedEvents[FCompletedEventCount]:=Nil;
       end;
   finally
     UnLockState;
@@ -3466,101 +3479,68 @@ begin
 end;
 
 class function TTask.DoWaitForAll(const aTasks: array of ITask; aTimeout: Cardinal): Boolean;
-
 var
   I: Integer;
   Task: TTask;
   TaskI : ITask;
-  WaitTasks: TITaskArray;
-  ExceptionCount,CompletedCount,CancelCount : Integer;
-  aWaitCompletedCount,aWaitCount : Integer;
-  CompleteProc: TITaskProc;
+  ExceptionCount,CancelCount : Integer;
   ExceptionList: TExceptionList;
-  Event : TEvent;
-  Waiting,
-  NeedSync : Boolean;
   Watch : TStopWatch;
-
-  Procedure DoWait;
-
-  begin
-    Result:=False;
-    if not NeedSync then
-      Event.WaitFor(aTimeOut)
-    else
-      Repeat
-        CheckSynchronize(1);
-      until (Event.WaitFor(0)=wrSignaled);
-  end;
-
-  procedure TaskCompleted(ATask: ITask);
-  begin
-    if Waiting then
-      AtomicIncrement(aWaitCompletedCount);
-    AtomicIncrement(CompletedCount);
-    if (ATask as TTask).HasExceptions then
-      AtomicIncrement(ExceptionCount)
-    else if (aTask as TTask).IsCanceled then
-      AtomicIncrement(CancelCount);
-    Event.SetEvent;
-  end;
+  Remaining: Cardinal;
+  NeedSync: Boolean;
 
 begin
   Result:=True;
   ExceptionCount:=0;
-  CompletedCount:=0;
   CancelCount:=0;
-  aWaitCount:=0;
-  aWaitCompletedCount:=0;
-  WaitTasks:=[];
-  CompleteProc:=@TaskCompleted;
-  SetLength(WaitTasks,Length(aTasks));
-  NeedSync:=(TThread.CurrentThread.ThreadID=MainThreadID) and ((aTasks[0] as TTask).FParams.Pool.FInteractive);
-  Waiting:=False;
+  if aTimeout<>INFINITE then
+    Watch:=TStopWatch.StartNew;
+  for TaskI in aTasks do
+    if (TaskI as TTask)=Nil then
+      raise EArgumentNilException.Create(SErrWaitNilTask);
   for TaskI in aTasks do
     begin
     Task:=TaskI as TTask;
-    if Task.IsComplete then
+    if not Task.IsComplete then
       begin
-      TaskCompleted(TaskI);
-      end
-    else
-      begin
-      // Add to wait list
-      if (aTimeout<>INFINITE) or not (Task.InternalExecuteNow and Task.IsComplete) then
+      if (aTimeout=INFINITE) and Task.InternalExecuteNow and Task.IsComplete then
+        Continue;
+      NeedSync:=(TThread.CurrentThread.ThreadID=MainThreadID) and
+        Task.FParams.Pool.FInteractive;
+      if NeedSync then
         begin
-        WaitTasks[aWaitCount]:=TaskI;
-        Inc(aWaitCount);
+        Repeat
+          CheckSynchronize(1);
+          if Task.DoneEvent.WaitFor(0)=wrSignaled then
+            Break;
+        until (aTimeout<>INFINITE) and (Watch.ElapsedMilliseconds>=aTimeout);
+        Result:=Task.IsComplete;
+        end
+      else
+        begin
+        if aTimeout=INFINITE then
+          Remaining:=INFINITE
+        else if Watch.ElapsedMilliseconds>=aTimeout then
+          Remaining:=0
+        else
+          Remaining:=aTimeout-Cardinal(Watch.ElapsedMilliseconds);
+        Result:=Task.DoneEvent.WaitFor(Remaining)=wrSignaled;
         end;
+      if not Result then
+        Break;
       end;
     end;
-  if aWaitCount>0 then
+  if not Result then
+    Exit;
+  for TaskI in aTasks do
     begin
-    Waiting:=True;
-    Event:=TEvent.Create;
-    try
-      for TaskI in WaitTasks do
-        begin
-        Task:=(TaskI as TTask);
-        Task.AddCompleteEvent(CompleteProc);
-        end;
-      if aTimeOut=INFINITE then
-        Watch:=Default(TStopWatch)
-      else
-        Watch:=TStopWatch.Create;
-      While (aWaitCompletedCount<aWaitCount) and ((Not Watch.IsRunning) or (Watch.ElapsedMilliseconds>aTimeOut)) do
-        begin
-        DoWait;
-        Event.ResetEvent;
-        end;
-      Result:=aWaitCompletedCount>=aWaitCount;
-    finally
-      For I:=0 to aWaitCount-1 do
-        (WaitTasks[I] as TTask).RemoveCompleteEvent(CompleteProc);
-      FreeAndNil(Event);
+    Task:=TaskI as TTask;
+    if Task.HasExceptions then
+      Inc(ExceptionCount)
+    else if Task.IsCanceled then
+      Inc(CancelCount);
     end;
-    end;
-  if not Result or ((ExceptionCount=0) and (CancelCount=0)) then
+  if (ExceptionCount=0) and (CancelCount=0) then
     Exit;
   if (ExceptionCount=0) and (CancelCount>0) then
     raise EOperationCancelled.Create(SErrOneOrMoreTasksCancelled);
@@ -3572,125 +3552,105 @@ begin
 end;
 
 class function TTask.DoWaitForAny(const aTasks: array of ITask; aTimeout: Cardinal): Integer;
-
 var
-  Res : Integer;
+  CompleteTask: ITask;
   Lock : TSpinLock;
   Event : TEvent;
-
-  Function MakeCompleted(aIndex : integer) : TITaskProc;
-
-  begin
-    Result:=Procedure (aTask : ITask)
-      begin
-      Lock.Enter;
-      Try
-        if Res=-1 then
-          begin
-          Res:=aIndex;
-          Event.SetEvent;
-          end;
-      finally
-        Lock.Exit;
-      end;
-      if aTask<>Nil then;
-      end;
-    end;
-
-var
-  I,Len : Integer;
-  WaitTasks: TITaskArray;
-  WaitProcs: Array of TITaskProc;
-  aWaitCount : Integer;
+  CompleteProc: TITaskProc;
+  I: Integer;
   NeedSync : Boolean;
+  Waiting: Boolean;
   Watch : TStopWatch;
-
-  Function FillWaitList : Integer;
-
-  begin
-    aWaitCount:=0;
-    SetLength(WaitTasks,Length(aTasks));
-    SetLength(WaitProcs,Length(aTasks));
-    I:=0;
-    Result:=0;
-    While (Result=-1) and (I<Len) do
-      begin
-      if (aTasks[i] as TTask).IsComplete then
-        Result:=I
-      else
-        begin
-        WaitTasks[I]:=aTasks[i];
-        WaitProcs[I]:=MakeCompleted(I);
-        (aTasks[i] as TTask).AddCompleteEvent(WaitProcs[i]);
-        Inc(aWaitCount);
-        end;
-      Inc(I);
-      end;
-  end;
-
-  Procedure DoWait;
-
-  begin
-    if not NeedSync then
-      Event.WaitFor(aTimeOut)
-    else
-      Repeat
-        CheckSynchronize(1);
-      until (Event.WaitFor(0)=wrSignaled);
-  end;
+  WaitResult: TWaitResult;
 
 begin
   Result:=-1;
-  // Check if we have a task that is already done.
-  Len:=Length(aTasks);
-  I:=0;
-  While (Result=-1) and (I<Len) do
+  for I:=Low(aTasks) to High(aTasks) do
     begin
-    if (aTasks[i] as TTask).IsComplete then
+    if (aTasks[I] as TTask)=Nil then
+      raise EArgumentNilException.Create(SErrWaitNilTask);
+    if (Result=-1) and (aTasks[I] as TTask).IsComplete then
       Result:=I;
-    Inc(I);
     end;
-  if (Result<>-1) then
+  if Result<>-1 then
     begin
     aTasks[Result].Wait(0);
     exit;
     end;
-  WaitTasks:=[];
-  NeedSync:=(TThread.CurrentThread.ThreadID=MainThreadID) and ((aTasks[0] as TTask).FParams.Pool.FInteractive);
-  Event:=Nil;
+  if Length(aTasks)=0 then
+    Exit;
+  NeedSync:=(TThread.CurrentThread.ThreadID=MainThreadID) and
+    (aTasks[0] as TTask).FParams.Pool.FInteractive;
   Lock:=TSpinLock.Create(False);
+  Waiting:=True;
+  CompleteTask:=Nil;
+  Event:=TEvent.Create;
+  CompleteProc:=procedure (aTask: ITask)
+    begin
+    Lock.Enter;
+    try
+      if Waiting and (CompleteTask=Nil) then
+        begin
+        CompleteTask:=aTask;
+        Event.SetEvent;
+        end;
+    finally
+      Lock.Exit;
+    end;
+    end;
   try
-    Event:=TEvent.Create;
-    Res:=FillWaitList;
-    if (Res<>-1) then
-      begin
-      aTasks[Res].Wait(0);
-      exit(Res);
-      end;
-    if aWaitCount>0 then
+    try
+      for I:=Low(aTasks) to High(aTasks) do
+        (aTasks[I] as TTask).AddCompleteEvent(CompleteProc);
+      if NeedSync then
+        begin
+        if aTimeout<>INFINITE then
+          Watch:=TStopWatch.StartNew;
+        Repeat
+          WaitResult:=Event.WaitFor(0);
+          if WaitResult=wrSignaled then
+            Break;
+          CheckSynchronize(1);
+        until (aTimeout<>INFINITE) and (Watch.ElapsedMilliseconds>=aTimeout);
+        if WaitResult<>wrSignaled then
+          WaitResult:=Event.WaitFor(0);
+        end
+      else
+        WaitResult:=Event.WaitFor(aTimeout);
+    finally
+      Lock.Enter;
       try
-        if aTimeOut=INFINITE then
-          Watch:=Default(TStopWatch)
-        else
-          Watch:=TStopWatch.Create;
-        While (Res=-1) and ((Not Watch.IsRunning) or (Watch.ElapsedMilliseconds>aTimeOut)) do
-          DoWait;
-        Result:=Res;
-        if (Res<>-1) and ((Not watch.IsRunning) or (Watch.ElapsedMilliseconds<=aTimeOut))  then
-          begin
-          Result:=Res;
-          aTasks[Result].Wait(0);
-          end;
+        Waiting:=False;
       finally
-        For I:=0 to aWaitCount-1 do
-          begin
-          (WaitTasks[I] as TTask).RemoveCompleteEvent(WaitProcs[i]);
-          WaitProcs[i]:=Nil;
-          end;
+        Lock.Exit;
       end;
+      for I:=Low(aTasks) to High(aTasks) do
+        (aTasks[I] as TTask).RemoveCompleteEvent(CompleteProc);
+    end;
+    if WaitResult=wrSignaled then
+      for I:=Low(aTasks) to High(aTasks) do
+        if (CompleteTask<>Nil) and
+          ((aTasks[I] as TTask)=(CompleteTask as TTask)) then
+          begin
+          Result:=I;
+          Break;
+          end;
+    if Result<>-1 then
+      aTasks[Result].Wait(0);
   finally
+    CompleteProc:=Nil;
     FreeAndNil(Event);
   end;
+end;
+
+class function TTask.TimespanToMilliseconds(const aTimeout: TTimeSpan): Cardinal;
+var
+  Total: Int64;
+begin
+  Total:=Trunc(aTimeout.TotalMilliseconds);
+  if (Total<0) or (Total>$7fffffff) then
+    raise EArgumentOutOfRangeException.Create(SErrInvalidTimeout);
+  Result:=Cardinal(Total);
 end;
 
 
@@ -3738,7 +3698,7 @@ end;
 
 class function TTask.WaitForAll(const aTasks: array of ITask; const aTimeout: TTimeSpan): Boolean;
 begin
-  Result:=WaitForAll(aTasks,Trunc(aTimeOut.TotalMilliseconds));
+  Result:=WaitForAll(aTasks,TimespanToMilliseconds(aTimeOut));
 end;
 
 class function TTask.WaitForAny(const aTasks: array of ITask): Integer;
@@ -3753,7 +3713,7 @@ end;
 
 class function TTask.WaitForAny(const aTasks: array of ITask; const aTimeout: TTimeSpan): Integer;
 begin
-  Result:=WaitForAny(aTasks,Trunc(aTimeOut.TotalMilliseconds));
+  Result:=WaitForAny(aTasks,TimespanToMilliseconds(aTimeOut));
 end;
 
 generic class function TTask.Future<T>(aSender: TObject; aEvent: specialize TFunctionEvent<T>) : specialize IFuture<T>;
