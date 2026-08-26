@@ -56,6 +56,16 @@ type
     property Value: Integer read FValue;
   end;
 
+  TProbeMemoryStream = class(TMemoryStream)
+  strict private
+    FCapacityCalls: Integer;
+  protected
+    procedure SetCapacity(NewCapacity: NativeInt); override;
+  public
+    procedure Reserve(NewCapacity: NativeInt);
+    property CapacityCalls: Integer read FCapacityCalls;
+  end;
+
 procedure Check(ACondition: Boolean; const AName: string);
 begin
   If not ACondition then begin
@@ -79,6 +89,17 @@ end;
 procedure TProbeThread.Execute;
 begin
   FValue := 42;
+end;
+
+procedure TProbeMemoryStream.SetCapacity(NewCapacity: NativeInt);
+begin
+  Inc(FCapacityCalls);
+  inherited SetCapacity(NewCapacity);
+end;
+
+procedure TProbeMemoryStream.Reserve(NewCapacity: NativeInt);
+begin
+  SetCapacity(NewCapacity);
 end;
 
 function CompareInteger(const ALeft, ARight: Integer): Integer;
@@ -299,7 +320,9 @@ var
 begin
   Dictionary := TDictionary<string, Integer>.Create(16);
   try
+    Check(Dictionary.IsEmpty, 'dictionary-empty');
     Dictionary.Add('one', 1);
+    Check(not Dictionary.IsEmpty, 'dictionary-not-empty');
     Dictionary.AddOrSetValue('two', 2);
     Dictionary.AddOrSetValue('two', 22);
     Check(Dictionary.TryAdd('three', 3), 'dictionary-try-add');
@@ -321,6 +344,8 @@ begin
     Dictionary.Remove('one');
     Check((Dictionary.Count = 2) and not Dictionary.ContainsKey('one'),
       'dictionary-remove');
+    Dictionary.Clear;
+    Check(Dictionary.IsEmpty, 'dictionary-empty-after-clear');
   finally
     Dictionary.Free;
   end;
@@ -365,7 +390,7 @@ var
   FileName: string;
   FileStream: TFileStream;
   List: TStringList;
-  MemoryStream: TMemoryStream;
+  MemoryStream: TProbeMemoryStream;
   ReadBuffer: array[0..3] of Byte;
   StringBuilder: TStringBuilder;
   StringStream: TStringStream;
@@ -416,15 +441,18 @@ begin
   Buffer[1] := 2;
   Buffer[2] := 3;
   Buffer[3] := 4;
-  MemoryStream := TMemoryStream.Create;
+  MemoryStream := TProbeMemoryStream.Create;
   try
+    MemoryStream.Reserve(4096);
+    Check((MemoryStream.Capacity >= 4096) and
+      (MemoryStream.CapacityCalls = 1), 'memory-stream-capacity-virtual');
     MemoryStream.WriteBuffer(Buffer, SizeOf(Buffer));
     Check(MemoryStream.Size = 4, 'memory-stream-write');
     MemoryStream.Position := 0;
     MemoryStream.ReadBuffer(ReadBuffer, SizeOf(ReadBuffer));
     Check(CompareMem(@Buffer[0], @ReadBuffer[0], SizeOf(Buffer)),
       'memory-stream-read');
-    MemoryStream.SetSize(8);
+    MemoryStream.SetSize(Int64(8));
     Check(MemoryStream.Size = 8, 'memory-stream-set-size');
   finally
     MemoryStream.Free;
@@ -486,6 +514,9 @@ var
   Context: TRttiContext;
   DateTime: TDateTime;
   FloatValue: Double;
+  AnsiMatch: PAnsiChar;
+  AnsiNeedle,
+  AnsiText: AnsiString;
   IntValue: Integer;
   Int64Value: Int64;
   ObjectValue: TObject;
@@ -493,6 +524,9 @@ var
   Stopwatch: TStopwatch;
   UInt64Value: UInt64;
   Value: TValue;
+  WideMatch: PWideChar;
+  WideNeedle,
+  WideText: UnicodeString;
 begin
   If ParamCount < 0 then begin
     SysUtils.DeleteFile('never-created');
@@ -511,6 +545,21 @@ begin
     (Abs(FloatValue - 12.5) < 0.000001), 'try-str-to-float');
   Check(SameText('Moon', 'moon') and StartsText('Moon', 'MoonCompiler') and
     EndsText('Compiler', 'MoonCompiler'), 'string-comparison');
+
+  AnsiText := 'abCDef';
+  AnsiNeedle := 'cd';
+  AnsiMatch := TextPos(PAnsiChar(AnsiText), PAnsiChar(AnsiNeedle));
+  Check((AnsiMatch <> nil) and ((AnsiMatch - PAnsiChar(AnsiText)) = 2),
+    'text-pos-ansi');
+  Check(TextPos(PAnsiChar(AnsiText), PAnsiChar('xy')) = nil,
+    'text-pos-ansi-missing');
+  WideText := 'abCDef';
+  WideNeedle := 'cd';
+  WideMatch := TextPos(PWideChar(WideText), PWideChar(WideNeedle));
+  Check((WideMatch <> nil) and ((WideMatch - PWideChar(WideText)) = 2),
+    'text-pos-wide');
+  Check(TextPos(PWideChar(WideText), PWideChar('xy')) = nil,
+    'text-pos-wide-missing');
 
   Stopwatch := TStopwatch.StartNew;
   TThread.Sleep(1);

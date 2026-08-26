@@ -34,6 +34,9 @@ CORE_TESTS = (
     "tdelphinilvaroverload1",
     "tdelphithreadcreate1",
     "tdelphifilegetsize1",
+    "tdelphimemorystreamcapacity1",
+    "tdelphitextpos1",
+    "tdelphiforvarexplicit1",
     "tmoonnamespacequalified1",
     "tdelphiconstref1",
     "tarrayconstafterinline1",
@@ -84,6 +87,7 @@ GENERIC_TESTS = (
     "tnestedgenericarray1",
     "tqualifiedintegercomparer1",
     "tdelphitarraycopy1",
+    "tdelphidictionaryisempty1",
 )
 OPTIONS = ("O2", "O3")
 NEGATIVE_TESTS = (
