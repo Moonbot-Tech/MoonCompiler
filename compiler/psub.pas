@@ -410,7 +410,10 @@ implementation
       single_statement_body : boolean = false;
 
     function block(islibrary : boolean) : tnode;
+      var
+        implicit_delphi_assembler : boolean;
       begin
+         implicit_delphi_assembler:=false;
          { the headerless `sync <stmt>` body: one statement, no declaration
            part and no begin..end. one-shot so nested bodies parse normally }
          if single_statement_body then
@@ -428,12 +431,25 @@ implementation
          { do we have an assembler block without the po_assembler?
            we should allow this for Delphi compatibility (PFV) }
          if (current_scanner.token=_ASM) and (m_delphi in current_settings.modeswitches) then
-           include(current_procinfo.procdef.procoptions,po_assembler);
+           begin
+             include(current_procinfo.procdef.procoptions,po_assembler);
+             implicit_delphi_assembler:=true;
+           end;
 
          { Handle assembler block different }
          if (po_assembler in current_procinfo.procdef.procoptions) then
           begin
             block:=assembler_block;
+            { Delphi emits a naked x86-64 routine for an implicit pure-asm body
+              only when the body needs neither locals nor stack parameters.
+              Check after parsing the ASM so parameter usage is known.  Keep an
+              explicit FPC "assembler" directive under the existing contract. }
+            if implicit_delphi_assembler and
+               (target_info.cpu=cpu_x86_64) and
+               (current_procinfo.procdef.localst.symtablelevel<>main_program_level) and
+               (tabstractlocalsymtable(current_procinfo.procdef.localst).count_locals=0) and
+               not(current_procinfo.procdef.stack_tainting_parameter(calleeside)) then
+              include(current_procinfo.procdef.procoptions,po_nostackframe);
             exit;
           end;
 
