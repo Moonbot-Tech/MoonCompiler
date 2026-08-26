@@ -3,8 +3,10 @@ program resourcestring_typed_const_semantic;
 { Delphi accepts resourcestring references in typed string constants.  The
   static image receives the resourcestring default text.  FPC additionally
   supports SetResourceStrings(): constants whose destination has the native
-  RTL string width track the translated value; cross-width constants keep
-  their statically converted default and must never be put into that table. }
+  RTL string ABI track the translated value; cross-ABI constants keep their
+  statically converted default and must never be put into that table.  On
+  Linux WideString and UnicodeString are the same RTL type; on Win64
+  WideString is a distinct BSTR. }
 
 {$APPTYPE CONSOLE}
 
@@ -75,12 +77,20 @@ begin
   Check('translated local array', States[stFirst], 'x-first %s');
   Check('translated local unicode', LocalUnicode, 'x-first %s');
   Check('static local ansi', string(LocalAnsi), 'second');
+  {$ifdef MSWINDOWS}
   Check('static local wide', string(LocalWide), 'second');
+  {$else MSWINDOWS}
+  Check('native local wide', string(LocalWide), 'x-second');
+  {$endif MSWINDOWS}
 
   Check('translated PPU array', RemoteStates[remoteStateFirst], 'x-remote first %s');
   Check('translated PPU unicode', RemoteUnicode, 'x-remote first %s');
   Check('static PPU ansi', string(RemoteAnsi), 'remote second');
+  {$ifdef MSWINDOWS}
   Check('static PPU wide', string(RemoteWide), 'remote second');
+  {$else MSWINDOWS}
+  Check('native PPU wide', string(RemoteWide), 'x-remote second');
+  {$endif MSWINDOWS}
 {$endif FPC}
 
   If FailCount = 0 then
