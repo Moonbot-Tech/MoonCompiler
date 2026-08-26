@@ -90,19 +90,19 @@ type
     class function GetCurrentDirectory: string; static;
     class procedure SetCurrentDirectory(const aPath: string); static;
     class function GetLogicalDrives: TStringDynArray; static;
-    //class function GetCreationTime(const aPath: string): TDateTime;
-    //class function GetCreationTimeUtc(const aPath: string): TDateTime;
-    //class function GetLastAccessTime(const aPath: string): TDateTime;
-    //class function GetLastAccessTimeUtc(const aPath: string): TDateTime;
-    //class function GetLastWriteTime(const aPath: string): TDateTime;
-    //class function GetLastWriteTimeUtc(const aPath: string): TDateTime;
+    class function GetCreationTime(const aPath: string): TDateTime; static;
+    class function GetCreationTimeUtc(const aPath: string): TDateTime; static;
+    class function GetLastAccessTime(const aPath: string): TDateTime; static;
+    class function GetLastAccessTimeUtc(const aPath: string): TDateTime; static;
+    class function GetLastWriteTime(const aPath: string): TDateTime; static;
+    class function GetLastWriteTimeUtc(const aPath: string): TDateTime; static;
     class procedure SetAttributes(const aPath: string; const Attributes: TFileAttributes); static;
-    //class procedure SetCreationTime(const aPath: string; const CreationTime: TDateTime);
-    //class procedure SetCreationTimeUtc(const aPath: string; const CreationTime: TDateTime);
-    //class procedure SetLastAccessTime(const aPath: string; const LastAccessTime: TDateTime);
-    //class procedure SetLastAccessTimeUtc(const aPath: string; const LastAccessTime: TDateTime);
-    //class procedure SetLastWriteTime(const aPath: string; const LastWriteTime: TDateTime);
-    //class procedure SetLastWriteTimeUtc(const aPath: string; const LastWriteTime: TDateTime);
+    class procedure SetCreationTime(const aPath: string; const CreationTime: TDateTime); static;
+    class procedure SetCreationTimeUtc(const aPath: string; const CreationTime: TDateTime); static;
+    class procedure SetLastAccessTime(const aPath: string; const LastAccessTime: TDateTime); static;
+    class procedure SetLastAccessTimeUtc(const aPath: string; const LastAccessTime: TDateTime); static;
+    class procedure SetLastWriteTime(const aPath: string; const LastWriteTime: TDateTime); static;
+    class procedure SetLastWriteTimeUtc(const aPath: string; const LastWriteTime: TDateTime); static;
     class function GetParent(const aPath: string): string; static;
     class function GetDirectories(const aPath: string): TStringDynArray; overload; static;
     class function GetDirectories(const aPath: string; const aPredicate: TFilterPredicateLocal): TStringDynArray; overload; static;
@@ -119,8 +119,22 @@ type
     class function GetDirectories(const aPath: string; const aSearchOption: TSearchOption; const aPredicate: TFilterPredicateLocal): TStringDynArray; overload; static;
     class function GetDirectories(const aPath: string; const aSearchOption: TSearchOption; const aPredicate: TFilterPredicateObject): TStringDynArray; overload; static;
     class function GetDirectories(const aPath: string; const aSearchOption: TSearchOption; const aPredicate: TFilterPredicate): TStringDynArray; overload; static;
-    //class function GetDirectoryRoot(const aPath: string): string; { TODO -odj : UNC => \\Servername\Freigabe, sonst c:\, d:\ usw. }
+    class function GetDirectoryRoot(const aPath: string): string; static;
+    class function GetDirectoriesEnumerator(const aPath: string): specialize IEnumerable<string>; overload; static;
+    class function GetDirectoriesEnumerator(const aPath: string; const aPredicate: TFilterPredicate): specialize IEnumerable<string>; overload; static;
+    class function GetDirectoriesEnumerator(const aPath, aSearchPattern: string): specialize IEnumerable<string>; overload; static;
+    class function GetDirectoriesEnumerator(const aPath, aSearchPattern: string; const aPredicate: TFilterPredicate): specialize IEnumerable<string>; overload; static;
+    class function GetDirectoriesEnumerator(const aPath, aSearchPattern: string; const aSearchOption: TSearchOption): specialize IEnumerable<string>; overload; static;
+    class function GetDirectoriesEnumerator(const aPath, aSearchPattern: string; const aSearchOption: TSearchOption; const aPredicate: TFilterPredicate): specialize IEnumerable<string>; overload; static;
+    class function GetDirectoriesEnumerator(const aPath: string; const aSearchOption: TSearchOption; const aPredicate: TFilterPredicate): specialize IEnumerable<string>; overload; static;
     class function GetFiles(const aPath: string): TStringDynArray; overload; static;
+    class function GetFilesEnumerator(const aPath: string): specialize IEnumerable<string>; overload; static;
+    class function GetFilesEnumerator(const aPath: string; const aPredicate: TFilterPredicate): specialize IEnumerable<string>; overload; static;
+    class function GetFilesEnumerator(const aPath, aSearchPattern: string): specialize IEnumerable<string>; overload; static;
+    class function GetFilesEnumerator(const aPath, aSearchPattern: string; const aPredicate: TFilterPredicate): specialize IEnumerable<string>; overload; static;
+    class function GetFilesEnumerator(const aPath, aSearchPattern: string; const aSearchOption: TSearchOption): specialize IEnumerable<string>; overload; static;
+    class function GetFilesEnumerator(const aPath, aSearchPattern: string; const aSearchOption: TSearchOption; const aPredicate: TFilterPredicate): specialize IEnumerable<string>; overload; static;
+    class function GetFilesEnumerator(const aPath: string; const aSearchOption: TSearchOption; const aPredicate: TFilterPredicate): specialize IEnumerable<string>; overload; static;
     class function GetFiles(const aPath: string; const aPredicate: TFilterPredicateLocal): TStringDynArray; overload; static;
     class function GetFiles(const aPath: string; const aPredicate: TFilterPredicateObject): TStringDynArray; overload; static;
     class function GetFiles(const aPath: string; const aPredicate: TFilterPredicate): TStringDynArray; overload; static;
@@ -136,6 +150,11 @@ type
     class function GetFiles(const aPath: string;const aSearchOption: TSearchOption;const aPredicate: TFilterPredicateObject): TStringDynArray; overload; static;
     class function GetFiles(const aPath: string;const aSearchOption: TSearchOption;const aPredicate: TFilterPredicate): TStringDynArray; overload; static;
     class function GetFileSystemEntries(const aPath: string): TStringDynArray;overload; static;
+    class function GetFileSystemEntriesEnumerator(const aPath: string): specialize IEnumerable<string>; overload; static;
+    class function GetFileSystemEntriesEnumerator(const aPath: string; const aPredicate: TFilterPredicate): specialize IEnumerable<string>; overload; static;
+    class function GetFileSystemEntriesEnumerator(const aPath, aSearchPattern: string): specialize IEnumerable<string>; overload; static;
+    class function GetFileSystemEntriesEnumerator(const aPath, aSearchPattern: string; const aPredicate: TFilterPredicate): specialize IEnumerable<string>; overload; static;
+    class function GetFileSystemEntriesEnumerator(const aPath: string; const aSearchOption: TSearchOption; const aPredicate: TFilterPredicate): specialize IEnumerable<string>; overload; static;
     class function GetFileSystemEntries(const aPath: string; const aPredicate: TFilterPredicateLocal): TStringDynArray; overload; static;
     class function GetFileSystemEntries(const aPath: string; const aPredicate: TFilterPredicateObject): TStringDynArray; overload; static;
     class function GetFileSystemEntries(const aPath: string; const aPredicate: TFilterPredicate): TStringDynArray; overload; static;
@@ -246,6 +265,8 @@ type
   private
     class function DetectFileEncoding(const aPath: String; out BOMLength: Integer): TEncoding; static;
     class procedure GetFileTimestamps(const aFilename: TFileName; var aCreate, aWrite, aAccess: TDateTime; IsUTC : Boolean); static;
+    class procedure SetFileTimestamps(const aFilename: TFileName;
+      const aCreate, aWrite, aAccess: PDateTime; IsUTC: Boolean); static;
   public
     class function IntegerToFileAttributes(const Attributes: Integer): TFileAttributes; static;
     class function FileAttributesToInteger(const Attributes: TFileAttributes): Integer; static;
@@ -293,12 +314,12 @@ type
     class procedure Replace(const aSource, aDestination, aBackup: string; const aIgnoreMetadataErrors: Boolean); overload; static;
 {$ENDIF MSWINDOWS}
     class procedure SetAttributes(const aPath: string; const aAttributes: TFileAttributes); static;
-//    class procedure SetCreationTime(const aPath: string; const CreationTime: TDateTime);
-//    class procedure SetCreationTimeUtc(const aPath: string; const CreationTime: TDateTime);
-//    class procedure SetLastAccessTime(const aPath: string; const LastAccessTime: TDateTime);
-//    class procedure SetLastAccessTimeUtc(const aPath: string; const LastAccessTime: TDateTime);
-//    class procedure SetLastWriteTime(const aPath: string; const LastWriteTime: TDateTime);
-//    class procedure SetLastWriteTimeUtc(const aPath: string; const LastWriteTime: TDateTime);
+    class procedure SetCreationTime(const aPath: string; const CreationTime: TDateTime); static;
+    class procedure SetCreationTimeUtc(const aPath: string; const CreationTime: TDateTime); static;
+    class procedure SetLastAccessTime(const aPath: string; const LastAccessTime: TDateTime); static;
+    class procedure SetLastAccessTimeUtc(const aPath: string; const LastAccessTime: TDateTime); static;
+    class procedure SetLastWriteTime(const aPath: string; const LastWriteTime: TDateTime); static;
+    class procedure SetLastWriteTimeUtc(const aPath: string; const LastWriteTime: TDateTime); static;
     class procedure WriteAllBytes(const aPath: string; const aBytes: TBytes); static;
     class procedure WriteAllLines(const aPath: string; const aContents: TStringDynArray); overload; static;
     class procedure WriteAllLines(const aPath: string; const aContents: TStringDynArray; const aEncoding: TEncoding); overload; static;
@@ -336,6 +357,28 @@ uses
   ;
 {$ENDIF FPC_DOTTEDUNITS}
 
+type
+  TStringArrayEnumerator = class(TInterfacedObject,
+    specialize IEnumerator<string>)
+  private
+    FItems: TStringDynArray;
+    FIndex: Integer;
+    function GetCurrent: string;
+    function MoveNext: Boolean;
+    procedure Reset;
+  public
+    constructor Create(const aItems: TStringDynArray);
+  end;
+
+  TStringArrayEnumerable = class(TInterfacedObject,
+    specialize IEnumerable<string>)
+  private
+    FItems: TStringDynArray;
+    function GetEnumerator: specialize IEnumerator<string>;
+  public
+    constructor Create(const aItems: TStringDynArray);
+  end;
+
 ResourceString
   SErrFileExists = 'File "%s" already exists';
   SErrFileNotFound  = 'File "%s" does not exist';
@@ -345,6 +388,41 @@ ResourceString
   {$IfDef Unix}
   errStatFailed = 'Fstat for %a failed. Err.No.: %d';
   {$EndIf}
+
+constructor TStringArrayEnumerator.Create(const aItems: TStringDynArray);
+begin
+  inherited Create;
+  FItems:=aItems;
+  FIndex:=-1;
+end;
+
+function TStringArrayEnumerator.GetCurrent: string;
+begin
+  Result:=FItems[FIndex];
+end;
+
+function TStringArrayEnumerator.MoveNext: Boolean;
+begin
+  Result:=FIndex<High(FItems);
+  if Result then
+    Inc(FIndex);
+end;
+
+procedure TStringArrayEnumerator.Reset;
+begin
+  FIndex:=-1;
+end;
+
+constructor TStringArrayEnumerable.Create(const aItems: TStringDynArray);
+begin
+  inherited Create;
+  FItems:=aItems;
+end;
+
+function TStringArrayEnumerable.GetEnumerator: specialize IEnumerator<string>;
+begin
+  Result:=TStringArrayEnumerator.Create(FItems);
+end;
 
 {$IFDEF MSWINDOWS}
 Const
@@ -1838,6 +1916,94 @@ begin
   Result:=FileExists(aPath, FollowLink);
 end;
 
+class procedure TFile.SetFileTimestamps(const aFilename: TFileName;
+  const aCreate, aWrite, aAccess: PDateTime; IsUTC: Boolean);
+{$IFDEF MSWINDOWS}
+var
+  FileHandle: THandle;
+  Flags: Cardinal;
+  CreateTime,WriteTime,AccessTime: TFileTime;
+  CreateTimePtr,WriteTimePtr,AccessTimePtr: PFileTime;
+
+  function ToFileTime(const aValue: TDateTime): TFileTime;
+  var
+    SystemTime: TSystemTime;
+    LocalFileTime: TFileTime;
+  begin
+    DateTimeToSystemTime(aValue,SystemTime);
+    if not SystemTimeToFileTime(SystemTime,LocalFileTime) then
+      raise EArgumentOutOfRangeException.Create('Invalid date/timestamp');
+    if IsUTC then
+      Result:=LocalFileTime
+    else if not LocalFileTimeToFileTime(LocalFileTime,Result) then
+      RaiseLastOSError;
+  end;
+
+begin
+  CreateTimePtr:=Nil;
+  WriteTimePtr:=Nil;
+  AccessTimePtr:=Nil;
+  if aCreate<>Nil then
+    begin
+    CreateTime:=ToFileTime(aCreate^);
+    CreateTimePtr:=@CreateTime;
+    end;
+  if aWrite<>Nil then
+    begin
+    WriteTime:=ToFileTime(aWrite^);
+    WriteTimePtr:=@WriteTime;
+    end;
+  if aAccess<>Nil then
+    begin
+    AccessTime:=ToFileTime(aAccess^);
+    AccessTimePtr:=@AccessTime;
+    end;
+  Flags:=FILE_ATTRIBUTE_NORMAL;
+  if (GetFileAttributes(PChar(aFilename)) and FILE_ATTRIBUTE_DIRECTORY)<>0 then
+    Flags:=FILE_FLAG_BACKUP_SEMANTICS;
+  FileHandle:=CreateFile(PChar(aFilename),FILE_WRITE_ATTRIBUTES,
+    FILE_SHARE_READ or FILE_SHARE_WRITE or FILE_SHARE_DELETE,Nil,OPEN_EXISTING,
+    Flags,0);
+  if FileHandle=INVALID_HANDLE_VALUE then
+    RaiseLastOSError;
+  try
+    if not SetFileTime(FileHandle,CreateTimePtr,AccessTimePtr,WriteTimePtr) then
+      RaiseLastOSError;
+  finally
+    CloseHandle(FileHandle);
+  end;
+end;
+{$ELSE MSWINDOWS}
+{$IFDEF UNIX}
+var
+  Info: TStat;
+  Times: TUTimBuf;
+  FileNameBytes: RawByteString;
+begin
+  FileNameBytes:=UTF8Encode(aFilename);
+  if fpStat(PAnsiChar(FileNameBytes),Info)<>0 then
+    RaiseLastOSError;
+  { POSIX has no portable creation-time setter.  Delphi likewise validates
+    the path and deliberately leaves creation time unchanged. }
+  if (aWrite=Nil) and (aAccess=Nil) then
+    Exit;
+  Times.actime:=Info.st_atime;
+  Times.modtime:=Info.st_mtime;
+  if aAccess<>Nil then
+    Times.actime:=DateTimeToUnix(aAccess^,IsUTC);
+  if aWrite<>Nil then
+    Times.modtime:=DateTimeToUnix(aWrite^,IsUTC);
+  if fpUTime(PAnsiChar(FileNameBytes),@Times)<>0 then
+    RaiseLastOSError;
+end;
+{$ELSE UNIX}
+begin
+  if (aWrite<>Nil) and (FileSetDate(aFilename,aWrite^)<>0) then
+    raise EInOutError.CreateFmt(SErrFileNotFound,[aFilename]);
+end;
+{$ENDIF UNIX}
+{$ENDIF MSWINDOWS}
+
 class function TFile.GetSize(const Path: string): Int64;
 {$IFDEF MSWINDOWS}
 var
@@ -2176,6 +2342,42 @@ begin
 {$endif}
 end;
 
+class procedure TFile.SetCreationTime(const aPath: string;
+  const CreationTime: TDateTime);
+begin
+  SetFileTimestamps(aPath,@CreationTime,Nil,Nil,False);
+end;
+
+class procedure TFile.SetCreationTimeUtc(const aPath: string;
+  const CreationTime: TDateTime);
+begin
+  SetFileTimestamps(aPath,@CreationTime,Nil,Nil,True);
+end;
+
+class procedure TFile.SetLastAccessTime(const aPath: string;
+  const LastAccessTime: TDateTime);
+begin
+  SetFileTimestamps(aPath,Nil,Nil,@LastAccessTime,False);
+end;
+
+class procedure TFile.SetLastAccessTimeUtc(const aPath: string;
+  const LastAccessTime: TDateTime);
+begin
+  SetFileTimestamps(aPath,Nil,Nil,@LastAccessTime,True);
+end;
+
+class procedure TFile.SetLastWriteTime(const aPath: string;
+  const LastWriteTime: TDateTime);
+begin
+  SetFileTimestamps(aPath,Nil,@LastWriteTime,Nil,False);
+end;
+
+class procedure TFile.SetLastWriteTimeUtc(const aPath: string;
+  const LastWriteTime: TDateTime);
+begin
+  SetFileTimestamps(aPath,Nil,@LastWriteTime,Nil,True);
+end;
+
 class procedure TFile.WriteAllBytes(const aPath: string; const aBytes: TBytes);
 begin
   With Create(aPath) do
@@ -2358,15 +2560,139 @@ begin
   {$EndIf}
 end;
 
+class function TDirectory.GetCreationTime(const aPath: string): TDateTime;
+begin
+  Result:=TFile.GetCreationTime(aPath);
+end;
+
+class function TDirectory.GetCreationTimeUtc(const aPath: string): TDateTime;
+begin
+  Result:=TFile.GetCreationTimeUtc(aPath);
+end;
+
+class function TDirectory.GetLastAccessTime(const aPath: string): TDateTime;
+begin
+  Result:=TFile.GetLastAccessTime(aPath);
+end;
+
+class function TDirectory.GetLastAccessTimeUtc(const aPath: string): TDateTime;
+begin
+  Result:=TFile.GetLastAccessTimeUtc(aPath);
+end;
+
+class function TDirectory.GetLastWriteTime(const aPath: string): TDateTime;
+begin
+  Result:=TFile.GetLastWriteTime(aPath);
+end;
+
+class function TDirectory.GetLastWriteTimeUtc(const aPath: string): TDateTime;
+begin
+  Result:=TFile.GetLastWriteTimeUtc(aPath);
+end;
+
 class procedure TDirectory.SetAttributes(const aPath: string;
   const Attributes: TFileAttributes);
 begin
   TFile.SetAttributes(aPath, Attributes);
 end;
 
+class procedure TDirectory.SetCreationTime(const aPath: string;
+  const CreationTime: TDateTime);
+begin
+  TFile.SetCreationTime(aPath,CreationTime);
+end;
+
+class procedure TDirectory.SetCreationTimeUtc(const aPath: string;
+  const CreationTime: TDateTime);
+begin
+  TFile.SetCreationTimeUtc(aPath,CreationTime);
+end;
+
+class procedure TDirectory.SetLastAccessTime(const aPath: string;
+  const LastAccessTime: TDateTime);
+begin
+  TFile.SetLastAccessTime(aPath,LastAccessTime);
+end;
+
+class procedure TDirectory.SetLastAccessTimeUtc(const aPath: string;
+  const LastAccessTime: TDateTime);
+begin
+  TFile.SetLastAccessTimeUtc(aPath,LastAccessTime);
+end;
+
+class procedure TDirectory.SetLastWriteTime(const aPath: string;
+  const LastWriteTime: TDateTime);
+begin
+  TFile.SetLastWriteTime(aPath,LastWriteTime);
+end;
+
+class procedure TDirectory.SetLastWriteTimeUtc(const aPath: string;
+  const LastWriteTime: TDateTime);
+begin
+  TFile.SetLastWriteTimeUtc(aPath,LastWriteTime);
+end;
+
 class function TDirectory.GetParent(const aPath: string): string;
 begin
   Result:=ExpandFileName(IncludeTrailingPathDelimiter(aPath) + '..');
+end;
+
+class function TDirectory.GetDirectoryRoot(const aPath: string): string;
+begin
+  if Trim(aPath)='' then
+    raise EInOutError.Create(SErrEmptyPath);
+  Result:=TPath.GetPathRoot(TPath.GetFullPath(aPath));
+end;
+
+class function TDirectory.GetDirectoriesEnumerator(const aPath: string
+  ): specialize IEnumerable<string>;
+begin
+  Result:=GetDirectoriesEnumerator(aPath,'*',TSearchOption.soTopDirectoryOnly);
+end;
+
+class function TDirectory.GetDirectoriesEnumerator(const aPath: string;
+  const aPredicate: TFilterPredicate): specialize IEnumerable<string>;
+begin
+  Result:=GetDirectoriesEnumerator(aPath,'*',TSearchOption.soTopDirectoryOnly,
+    aPredicate);
+end;
+
+class function TDirectory.GetDirectoriesEnumerator(const aPath,
+  aSearchPattern: string): specialize IEnumerable<string>;
+begin
+  Result:=GetDirectoriesEnumerator(aPath,aSearchPattern,
+    TSearchOption.soTopDirectoryOnly);
+end;
+
+class function TDirectory.GetDirectoriesEnumerator(const aPath,
+  aSearchPattern: string; const aPredicate: TFilterPredicate
+  ): specialize IEnumerable<string>;
+begin
+  Result:=GetDirectoriesEnumerator(aPath,aSearchPattern,
+    TSearchOption.soTopDirectoryOnly,aPredicate);
+end;
+
+class function TDirectory.GetDirectoriesEnumerator(const aPath,
+  aSearchPattern: string; const aSearchOption: TSearchOption
+  ): specialize IEnumerable<string>;
+begin
+  Result:=TStringArrayEnumerable.Create(
+    GetDirectories(aPath,aSearchPattern,aSearchOption));
+end;
+
+class function TDirectory.GetDirectoriesEnumerator(const aPath,
+  aSearchPattern: string; const aSearchOption: TSearchOption;
+  const aPredicate: TFilterPredicate): specialize IEnumerable<string>;
+begin
+  Result:=TStringArrayEnumerable.Create(
+    GetDirectories(aPath,aSearchPattern,aSearchOption,aPredicate));
+end;
+
+class function TDirectory.GetDirectoriesEnumerator(const aPath: string;
+  const aSearchOption: TSearchOption; const aPredicate: TFilterPredicate
+  ): specialize IEnumerable<string>;
+begin
+  Result:=GetDirectoriesEnumerator(aPath,'*',aSearchOption,aPredicate);
 end;
 
 class function TDirectory.GetDirectories(const aPath: string): TStringDynArray;
@@ -2486,6 +2812,57 @@ begin
   Result:=GetFiles(aPath, '*');
 end;
 
+class function TDirectory.GetFilesEnumerator(const aPath: string
+  ): specialize IEnumerable<string>;
+begin
+  Result:=GetFilesEnumerator(aPath,'*',TSearchOption.soTopDirectoryOnly);
+end;
+
+class function TDirectory.GetFilesEnumerator(const aPath: string;
+  const aPredicate: TFilterPredicate): specialize IEnumerable<string>;
+begin
+  Result:=GetFilesEnumerator(aPath,'*',TSearchOption.soTopDirectoryOnly,
+    aPredicate);
+end;
+
+class function TDirectory.GetFilesEnumerator(const aPath,
+  aSearchPattern: string): specialize IEnumerable<string>;
+begin
+  Result:=GetFilesEnumerator(aPath,aSearchPattern,
+    TSearchOption.soTopDirectoryOnly);
+end;
+
+class function TDirectory.GetFilesEnumerator(const aPath,
+  aSearchPattern: string; const aPredicate: TFilterPredicate
+  ): specialize IEnumerable<string>;
+begin
+  Result:=GetFilesEnumerator(aPath,aSearchPattern,
+    TSearchOption.soTopDirectoryOnly,aPredicate);
+end;
+
+class function TDirectory.GetFilesEnumerator(const aPath,
+  aSearchPattern: string; const aSearchOption: TSearchOption
+  ): specialize IEnumerable<string>;
+begin
+  Result:=TStringArrayEnumerable.Create(
+    GetFiles(aPath,aSearchPattern,aSearchOption));
+end;
+
+class function TDirectory.GetFilesEnumerator(const aPath,
+  aSearchPattern: string; const aSearchOption: TSearchOption;
+  const aPredicate: TFilterPredicate): specialize IEnumerable<string>;
+begin
+  Result:=TStringArrayEnumerable.Create(
+    GetFiles(aPath,aSearchPattern,aSearchOption,aPredicate));
+end;
+
+class function TDirectory.GetFilesEnumerator(const aPath: string;
+  const aSearchOption: TSearchOption; const aPredicate: TFilterPredicate
+  ): specialize IEnumerable<string>;
+begin
+  Result:=GetFilesEnumerator(aPath,'*',aSearchOption,aPredicate);
+end;
+
 class function TDirectory.GetFiles(const aPath: string;
   const aPredicate: TFilterPredicateLocal): TStringDynArray;
 begin
@@ -2595,6 +2972,42 @@ class function TDirectory.GetFileSystemEntries(const aPath: string
   ): TStringDynArray;
 begin
   Result:=GetFileSystemEntries(aPath, '*');
+end;
+
+class function TDirectory.GetFileSystemEntriesEnumerator(const aPath: string
+  ): specialize IEnumerable<string>;
+begin
+  Result:=GetFileSystemEntriesEnumerator(aPath,'*');
+end;
+
+class function TDirectory.GetFileSystemEntriesEnumerator(const aPath: string;
+  const aPredicate: TFilterPredicate): specialize IEnumerable<string>;
+begin
+  Result:=TStringArrayEnumerable.Create(
+    GetFileSystemEntries(aPath,aPredicate));
+end;
+
+class function TDirectory.GetFileSystemEntriesEnumerator(const aPath,
+  aSearchPattern: string): specialize IEnumerable<string>;
+begin
+  Result:=TStringArrayEnumerable.Create(
+    GetFileSystemEntries(aPath,aSearchPattern));
+end;
+
+class function TDirectory.GetFileSystemEntriesEnumerator(const aPath,
+  aSearchPattern: string; const aPredicate: TFilterPredicate
+  ): specialize IEnumerable<string>;
+begin
+  Result:=TStringArrayEnumerable.Create(
+    GetFileSystemEntries(aPath,aSearchPattern,aPredicate));
+end;
+
+class function TDirectory.GetFileSystemEntriesEnumerator(const aPath: string;
+  const aSearchOption: TSearchOption; const aPredicate: TFilterPredicate
+  ): specialize IEnumerable<string>;
+begin
+  Result:=TStringArrayEnumerable.Create(
+    GetFileSystemEntries(aPath,aSearchOption,aPredicate));
 end;
 
 class function TDirectory.GetFileSystemEntries(const aPath: string;

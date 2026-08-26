@@ -70,6 +70,7 @@ CURRENT_TREE_UNIT_DIRS = {
     # WaitForAll/WaitForAny and the completion callback race live in the
     # imported Delphi-compatible threading unit, not in an installed RTL PPU.
     "task_wait_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    "ioutils_api_semantic": ROOT / "packages" / "vcl-compat" / "src",
 }
 REQUIRED_RUNTIME_PATTERNS = {
     "mm_finalization_lifetime_semantic": (
