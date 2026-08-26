@@ -73,6 +73,7 @@ type
     procedure Clear; virtual; abstract;
     procedure Add(const APair: TPair<TKey, TValue>); virtual; abstract;
   strict private // bug #24283. workaround for this class because can't inherit from TEnumerable
+    function GetIsEmpty: Boolean; inline;
     function ToArray(ACount: SizeInt): TArray<TDictionaryPair>; overload;
   public
     function ToArray: TArray<TDictionaryPair>; virtual; final; {override; final; // bug #24283} overload;
@@ -106,6 +107,7 @@ type
     FItemsLength: SizeInt;
   public
     property Count: SizeInt read FItemsLength;
+    property IsEmpty: Boolean read GetIsEmpty;
   end;
 
   { TCustomDictionaryEnumerator }

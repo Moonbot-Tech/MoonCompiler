@@ -62,6 +62,11 @@ begin
   ValueNotify(ANewValue, cnAdded);
 end;
 
+function TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.GetIsEmpty: Boolean;
+begin
+  Result:=FItemsLength=0;
+end;
+
 procedure TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.ValueNotify(const AValue: TValue;
   ACollectionNotification: TCollectionNotification);
 begin
