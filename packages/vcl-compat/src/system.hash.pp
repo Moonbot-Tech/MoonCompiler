@@ -143,7 +143,9 @@ type
       Sha224 : (_S224 : TSHA224);
       Sha256 : (_S256 : TSHA256);
       Sha384 : (_S384 : TSHA384);
-      Sha512 : (_S512 : TSHA512);
+      Sha512,
+      Sha512_224,
+      Sha512_256 : (_S512 : TSHA512);
   end;
 
   { THashBobJenkins }
@@ -677,18 +679,8 @@ end;
 
 { THashSHA2 }
 
-Procedure NotSupportedVersion(aHashVersion : THashSHA2.TSHA2Version);
-var
-  S : String;
-begin
-  WriteStr(S,aHashversion);
-  Raise EHashException.CreateFmt('SHA2 - %s not yet supported',[S]);
-end;
-
 class function THashSHA2.Create(aHashVersion: TSHA2Version): THashSHA2;
 begin
-  if aHashVersion in [SHA512_224, SHA512_256] then
-    NotSupportedVersion(aHashVersion);
   Result.FHashVersion:=aHashVersion;
   Result.Reset;
 end;
@@ -816,12 +808,33 @@ begin
 end;
 
 procedure THashSHA2.Reset;
+const
+  SeedSHA512_224: array[0..7] of QWord = (
+    QWord($8C3D37C819544DA2),QWord($73E1996689DCD4D6),
+    QWord($1DFAB7AE32FF9C82),QWord($679DD514582F9FCF),
+    QWord($0F6D2B697BD44DA8),QWord($77E36F7304C48942),
+    QWord($3F9D85A86A1D36C8),QWord($1112E6AD91D692A1));
+  SeedSHA512_256: array[0..7] of QWord = (
+    QWord($22312194FC2BF72C),QWord($9F555FA3C84C64C2),
+    QWord($2393B86B6F53B151),QWord($963877195940EABD),
+    QWord($96283EE2A88EFFE3),QWord($BE5E1E2553863992),
+    QWord($2B0199FC2C85B8AA),QWord($0EB72DDC81C52CA2));
 begin
   case FHashVersion of
     Sha224 : _S224.Init;
     Sha256 : _S256.Init;
     Sha384 : _S384.Init;
     Sha512 : _S512.Init;
+    Sha512_224 :
+      begin
+      _S512.Base.Init(False);
+      Move(SeedSHA512_224,_S512.Base.Context,SizeOf(SeedSHA512_224));
+      end;
+    Sha512_256 :
+      begin
+      _S512.Base.Init(False);
+      Move(SeedSHA512_256,_S512.Base.Context,SizeOf(SeedSHA512_256));
+      end;
   end;
   FDidFinal:=False;
 end;
@@ -837,7 +850,7 @@ begin
     Sha224 : _S224.Update(aData,aLength);
     Sha256 : _S256.Update(aData,aLength);
     Sha384 : _S384.Update(aData,aLength);
-    Sha512 : _S512.Update(aData,aLength);
+    Sha512,Sha512_224,Sha512_256 : _S512.Update(aData,aLength);
   end;
 end;
 
@@ -864,7 +877,7 @@ begin
     Sha224 : _S224.Final;
     Sha256 : _S256.Final;
     Sha384 : _S384.Final;
-    Sha512 : _S512.Final;
+    Sha512,Sha512_224,Sha512_256 : _S512.Final;
   end;
   FDidFinal:=True;
 end;
@@ -881,7 +894,7 @@ begin
     Sha224 : P:=@_S224.Digest;
     Sha256 : P:=@_S256.Digest;
     Sha384 : P:=@_S384.Digest;
-    Sha512 : P:=@_S512.Digest;
+    Sha512,Sha512_224,Sha512_256 : P:=@_S512.Digest;
   end;
   L:=GetHashSize;
   SetLength(Result,L);
