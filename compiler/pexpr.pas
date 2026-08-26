@@ -7066,7 +7066,8 @@ implementation
               ((m_unleashed in current_settings.modeswitches) and
                (pred_level=opcompare) and
                (current_scanner.token=_OP_NOT))) and
-             ((current_scanner.token<>_EQ) or (ef_accept_equal in flags)) then
+             ((current_scanner.token<>_EQ) or (ef_accept_equal in flags)) and
+             ((current_scanner.token<>_OP_IN) or not (ef_type_only in flags)) then
            begin
              oldt:=current_scanner.token;
              filepos:=current_tokenpos;

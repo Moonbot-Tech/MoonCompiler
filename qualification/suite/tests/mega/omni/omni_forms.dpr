@@ -14743,6 +14743,42 @@ begin
   Check(Item = nil, 'nil-out-local-written');
 end;
 
+{$ifdef HAS_INLINEVAR}
+procedure RunExplicitForVarTypeForms;
+type
+  PLocalInteger = ^Integer;
+var
+  A,
+  B,
+  Count,
+  Sum: Integer;
+  Pointers: array[0..1] of PLocalInteger;
+  Words: array[0..1] of string;
+begin
+  A := 13;
+  B := 29;
+  Pointers[0] := @A;
+  Pointers[1] := @B;
+  Words[0] := 'typed';
+  Words[1] := 'loop';
+
+  Sum := 0;
+  for var Item: PLocalInteger in Pointers do
+    Inc(Sum, Item^);
+  Check(Sum = 42, 'for-var-explicit-pointer-type');
+
+  Count := 0;
+  for var Word: string in Words do
+    Inc(Count, Length(Word));
+  Check(Count = 9, 'for-var-explicit-managed-type');
+
+  Sum := 0;
+  for var I: Integer := 0 to High(Pointers) do
+    Inc(Sum, Pointers[I]^);
+  Check(Sum = 42, 'for-var-explicit-counted-type');
+end;
+{$endif}
+
 { ---------------------------------------------------------------- }
 
 procedure ReadSeed;
@@ -14942,6 +14978,7 @@ begin
 {$ifdef HAS_INLINEVAR}
   RunInlineVarForms;
   RunMoonManagedArrayForms;
+  RunExplicitForVarTypeForms;
 {$endif}
 {$ifdef HAS_MREC}
   RunManagedRecForms;

@@ -88,6 +88,7 @@ REVIEWED_PASS_FIXTURES = frozenset({
     "min-fpc-41810",
     "mormot-rawbytestring-bom-const",
     "mormot-unicode-char-overload",
+    "moonbot-for-var-explicit-pointer",
     "moonbot-inline-pointer-new",
     "moonbot-nil-var-overload",
     "moonbot-tthread-noarg",
@@ -97,6 +98,7 @@ REVIEWED_PASS_FIXTURES = frozenset({
 DELPHI_PROOF_PATH = "research/delphi_fixture_oracle_probe.json"
 SUPPLEMENTAL_DELPHI_PROOF_PATHS = (
     "research/delphi_char_overload_oracle.json",
+    "research/delphi_for_var_explicit_oracle.json",
     "research/delphi_rawbyte_const_oracle.json",
 )
 REFERENCE_PROOF_PATH = "research/fixture_reference_probe.json"

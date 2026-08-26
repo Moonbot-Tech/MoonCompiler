@@ -1430,6 +1430,27 @@
         "spec_sha256": "eb51944316ebc5e9d003760e487072c2eefcbfa8c5b557212245ed8e8286957f"
       }
     },
+    "moonbot-for-var-explicit-pointer": {
+      "acceptance": {
+        "observed_result": "pass"
+      },
+      "evidence": {
+        "basis": "product-reproducer",
+        "independent_references": [
+          {
+            "adapted_source_sha256": "236eba111fd91bb302f04ac2ae883686be3b13c8baf75384cd9d28d69cd0989c",
+            "kind": "delphi-12.2-win64",
+            "path": "research/delphi_for_var_explicit_oracle.json",
+            "sha256": "2f19609dbb81e1ef66c4a1b3d329c56b7f3cbf74dc205a8503dfe42ffe02c707"
+          }
+        ]
+      },
+      "oracle_kind": "runtime-self-check",
+      "provenance": {
+        "source_sha256": "236eba111fd91bb302f04ac2ae883686be3b13c8baf75384cd9d28d69cd0989c",
+        "spec_sha256": "cfaf384a336c52305a9ed5288e9f8447695f13e03eb06091f52441c14eb4e8de"
+      }
+    },
     "moonbot-inline-pointer-new": {
       "acceptance": {
         "observed_result": "pass"

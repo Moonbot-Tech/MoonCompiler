@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "compiler": "Delphi 12.2 Win64 compiler 36.0",
+  "compiler_sha256": "68cf81c0b1044e585eb584d96947a01e669605d8ac1ed048a2de44fd867fdb88",
+  "test": {
+    "test_id": "moonbot-for-var-explicit-pointer",
+    "source_sha256": "236eba111fd91bb302f04ac2ae883686be3b13c8baf75384cd9d28d69cd0989c",
+    "adaptation": "none; FPC directives are conditional",
+    "compile_exit_code": 0,
+    "run_exit_code": 0
+  }
+}

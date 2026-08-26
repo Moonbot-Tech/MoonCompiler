@@ -2533,11 +2533,12 @@ implementation
              symtablestack.top.insertsym(vs);
              consume(_ID);
 
-             if try_to_consume(_COLON) then
+             if current_scanner.token = _COLON then
                begin
                  { Explicit type:  for var I: Integer := ... / for var Item: T in ... }
                  old_block_type := block_type;
                  block_type := bt_var_type;
+                 consume(_COLON);
                  read_anon_type(hdef, false, nil);
                  block_type := old_block_type;
                  vs.vardef := hdef;

@@ -1087,6 +1087,13 @@
       "compiler_allow": [
         "moonbot-compiler-beta"
       ],
+      "id": "moonbot-for-var-explicit-pointer",
+      "source": "fixtures/minimized/moonbot_for_var_explicit_pointer.pas"
+    },
+    {
+      "compiler_allow": [
+        "moonbot-compiler-beta"
+      ],
       "id": "moonbot-inline-pointer-new",
       "source": "fixtures/minimized/moonbot_inline_pointer_new.pas"
     },
