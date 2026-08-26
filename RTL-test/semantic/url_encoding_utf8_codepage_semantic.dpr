@@ -35,6 +35,7 @@ const
   ExpectedUnicode = '%E5%B8%81%E5%AE%89%E4%BA%BA%E7%94%9FUSDT';
   ExpectedAscii = 'AZaz09-_.!*''()@$+%2F%3F%3D%26%2B%25%00';
 var
+  Decoded: UnicodeString;
   RawBinary: RawByteString;
   RawInput: RawByteString;
 begin
@@ -56,6 +57,23 @@ begin
   Check(TNetEncoding.URL.Encode(RawBinary)='%00%7F%80%FF',
     AContext+' arbitrary raw bytes');
   Check(TNetEncoding.URL.Encode('')='',AContext+' empty input');
+
+  Decoded:=TNetEncoding.URL.Decode('Moon%20%D0%96');
+  Check(Decoded='Moon '+WideChar($0416),AContext+' UTF-8 decode');
+  Check(TNetEncoding.URL.Decode('a+b')='a b',AContext+' form-style plus decode');
+  Check(TURLEncoding.URIDecode('a+b',False)='a+b',
+    AContext+' URI plus preservation');
+  Check(TURLEncoding.URIDecode('a+b',True)='a b',
+    AContext+' URI plus conversion');
+  Check(TURLEncoding.URIDecode('%ZZ',False)='%ZZ',
+    AContext+' invalid percent escape preservation');
+  Check(TNetEncoding.URL.Encode('a+b c',[],
+    [TURLEncoding.TEncodeOption.SpacesAsPlus])='a%2Bb+c',
+    AContext+' plus is data when spaces use plus');
+  Check(TNetEncoding.URL.Encode('%2F',[],[])='%2F',
+    AContext+' existing escape preservation');
+  Check(TNetEncoding.URL.EncodeQuery('a+b#c',[])='a+b%23c',
+    AContext+' query unsafe set');
 end;
 
 var

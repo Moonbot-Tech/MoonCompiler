@@ -598,23 +598,121 @@ end;
 
 { TURLEncoding }
 
-function TURLEncoding.DoDecode(const aInput: RawBytestring): RawBytestring;
+function DecodeURLBytes(const aInput: RawByteString;
+  aPlusAsSpaces: Boolean): RawByteString;
+
+  function HexValue(aValue: AnsiChar): Integer; inline;
+  begin
+    case aValue of
+      '0'..'9': Result:=Ord(aValue)-Ord('0');
+      'A'..'F': Result:=Ord(aValue)-Ord('A')+10;
+      'a'..'f': Result:=Ord(aValue)-Ord('a')+10;
+      else Result:=-1;
+    end;
+  end;
+
+var
+  HighNibble,I,LowNibble,OutPos: Integer;
 
 begin
-  Result:=HTTPDecode(aInput);
+  SetLength(Result,Length(aInput));
+  I:=1;
+  OutPos:=1;
+  while I<=Length(aInput) do
+    begin
+    if (aInput[I]='%') and (I+2<=Length(aInput)) then
+      begin
+      HighNibble:=HexValue(aInput[I+1]);
+      LowNibble:=HexValue(aInput[I+2]);
+      if (HighNibble>=0) and (LowNibble>=0) then
+        begin
+        Result[OutPos]:=AnsiChar((HighNibble shl 4) or LowNibble);
+        Inc(I,3);
+        Inc(OutPos);
+        Continue;
+        end;
+      end;
+    if aPlusAsSpaces and (aInput[I]='+') then
+      Result[OutPos]:=' '
+    else
+      Result[OutPos]:=aInput[I];
+    Inc(I);
+    Inc(OutPos);
+    end;
+  SetLength(Result,OutPos-1);
+end;
+
+function TURLEncoding.DoDecode(const aInput: RawBytestring): RawBytestring;
+begin
+  Result:=DecodeURLBytes(aInput,True);
 end;
 
 function TURLEncoding.Encode(const aInput: string; const aSet: TUnsafeChars; const aOptions: TEncodeOptions; aEncoding: TEncoding): string;
 
+const
+  HexDigits = '0123456789ABCDEF';
 
 var
-  S : TUnsafeChars;
+  Bytes: TBytes;
+  ByteValue: Byte;
+  I,OutPos: Integer;
+  S: TUnsafeChars;
+
+  function IsHex(aValue: Byte): Boolean; inline;
+  begin
+    Result:=(aValue>=Ord('0')) and (aValue<=Ord('9')) or
+      (aValue>=Ord('A')) and (aValue<=Ord('F')) or
+      (aValue>=Ord('a')) and (aValue<=Ord('f'));
+  end;
 
 begin
+  if aEncoding=Nil then
+    aEncoding:=TEncoding.UTF8;
+  Bytes:=aEncoding.GetBytes(aInput);
   S:=aSet;
+  if (TEncodeOption.SpacesAsPlus in aOptions) then
+    S:=S+[Ord('+')];
   if (TEncodeOption.EncodePercent in aOptions) then
-    S:=aSet+[Ord('%')];
-  Result:=HttpEncode(aInput,S,TEncodeOption.SpacesAsPlus in aOptions);
+    S:=S+[Ord('%')];
+  SetLength(Result,Length(Bytes)*3);
+  OutPos:=1;
+  I:=0;
+  while I<Length(Bytes) do
+    begin
+    ByteValue:=Bytes[I];
+    if not (TEncodeOption.EncodePercent in aOptions) and
+       (ByteValue=Ord('%')) and (I+2<Length(Bytes)) and
+       IsHex(Bytes[I+1]) and IsHex(Bytes[I+2]) then
+      begin
+      Result[OutPos]:='%';
+      Result[OutPos+1]:=Char(Bytes[I+1]);
+      Result[OutPos+2]:=Char(Bytes[I+2]);
+      Inc(I,3);
+      Inc(OutPos,3);
+      Continue;
+      end;
+    if (ByteValue>=Ord('!')) and (ByteValue<=Ord('~')) and
+       not (ByteValue in S) then
+      begin
+      Result[OutPos]:=Char(ByteValue);
+      Inc(OutPos);
+      end
+    else if (ByteValue=Ord(' ')) and
+            (TEncodeOption.SpacesAsPlus in aOptions) then
+      begin
+      Result[OutPos]:='+';
+      Inc(OutPos);
+      end
+    else
+      begin
+      Result[OutPos]:='%';
+      Result[OutPos+1]:=HexDigits[(ByteValue shr 4)+1];
+      Result[OutPos+2]:=HexDigits[(ByteValue and $0f)+1];
+      Inc(OutPos,3);
+      end;
+    Inc(I);
+    end;
+  SetLength(Result,OutPos-1);
 end;
 
 function TURLEncoding.DoEncode(const aInput: RawBytestring): RawBytestring;
@@ -663,14 +761,15 @@ end;
 function TURLEncoding.EncodeQuery(const aInput: string; const aExtraUnsafeChars: TUnsafeChars): string;
 
 const
-  QueryUnsafeChars: TUnsafeChars = [Ord('''')+Ord('%')];
+  QueryUnsafeChars: TUnsafeChars =
+    [Ord('"'),Ord(''''),Ord('<'),Ord('>'),Ord('#')];
 
 var
   Unsafe: TUnsafeChars;
 
 begin
   Unsafe:=QueryUnsafeChars+aExtraUnsafeChars;
-  Result:=HTTPEncode(aInput,Unsafe,True);
+  Result:=Encode(aInput,Unsafe,[TEncodeOption.EncodePercent]);
 end;
 
 function TURLEncoding.EncodePath(const aPath: string; const aExtraUnsafeChars: TUnsafeChars): string;
@@ -693,7 +792,7 @@ end;
 
 class function TURLEncoding.URIDecode(const aValue: string; aPlusAsSpaces: Boolean): string;
 begin
-  Result:=HTTPDecode(aValue,aPlusAsSpaces);
+  Result:=UTF8Decode(DecodeURLBytes(UTF8Encode(aValue),aPlusAsSpaces));
 end;
 
 
