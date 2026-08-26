@@ -35,6 +35,8 @@ CORE_TESTS = (
     "tdelphithreadcreate1",
     "tdelphifilegetsize1",
     "tdelphimemorystreamcapacity1",
+    "tdelphimemorystreamsetsize1",
+    "tdelphicustomvariantbyref1",
     "tdelphitextpos1",
     "tdelphiforvarexplicit1",
     "tmoonnamespacequalified1",

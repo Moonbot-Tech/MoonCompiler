@@ -1830,6 +1830,25 @@
         "run_timeout_seconds": 5,
         "source": "fixtures/minimized/mormot_variant_bson_probe.pas",
         "source_sha256": "f8c4e03e7a3cafcb4c486855ce6dbed751760ac6e84eea7abfd23638436fa063"
+      },
+      "docvariant-implicit-unicode": {
+        "compile_timeout_seconds": 300,
+        "compiler_allow": [
+          "moonbot-compiler-beta"
+        ],
+        "expected_marker": "PASS mormot-docvariant-unicode",
+        "mormot_source": "current",
+        "option_sets": {
+          "O2": [
+            "-O2"
+          ],
+          "O3": [
+            "-O3"
+          ]
+        },
+        "run_timeout_seconds": 5,
+        "source": "fixtures/minimized/mormot_docvariant_unicode_probe.pas",
+        "source_sha256": "2753db7eb63002fabefd5f85bb75c04572ec1e34cea8209415977edd4597c25d"
       }
     },
     "sources": {

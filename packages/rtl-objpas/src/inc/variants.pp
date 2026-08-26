@@ -616,9 +616,46 @@ begin
 end;
 
 
+function ResolveVariantSource(const V: TVarData; out Source: PVarData): Boolean;
+begin
+  Source := @V;
+  while (Source^.vType = varVariant) or
+      (Source^.vType = (varVariant or varByRef)) do
+  begin
+    Source := PVarData(Source^.vPointer);
+    if not Assigned(Source) then
+      Exit(False);
+  end;
+  Result := True;
+end;
+
+
+function FindCustomVariantSource(const V: TVarData; out Source: PVarData;
+  out Handler: TCustomVariantType): Boolean;
+begin
+  Source := @V;
+  while (Source^.vType = varVariant) or
+      (Source^.vType = (varVariant or varByRef)) do
+  begin
+    Source := PVarData(Source^.vPointer);
+    if not Assigned(Source) then
+      Exit(False);
+  end;
+  Result := FindCustomVariantType(Source^.vType, Handler);
+end;
+
+
+function ResolveVariantReference(const V: TVarData): PVarData; inline;
+begin
+  if not ResolveVariantSource(V, Result) then
+    VarInvalidOp;
+end;
+
+
 function Sysvartoint (const v : Variant) : Longint;
 var Handler: TCustomVariantType;
     dest: TVarData;
+    Source: PVarData;
 begin
   { direct integer payloads skip the custom-type probe and the helper
     call chain; the values are exactly what VariantToLongInt returns for
@@ -643,10 +680,10 @@ begin
       VarCastError(varNull, varInt64)
     else
       Result := 0
-  else if FindCustomVariantType(TVarData(v).vType, Handler) then
+  else if FindCustomVariantSource(TVarData(v), Source, Handler) then
     begin
       VariantInit(dest);
-      Handler.CastTo(dest, TVarData(v), varInteger);
+      Handler.CastTo(dest, Source^, varInteger);
       Result := dest.vinteger;
     end
   else
@@ -660,6 +697,7 @@ end;
 function Sysvartoint64 (const v : Variant) : Int64;
 var Handler: TCustomVariantType;
     dest: TVarData;
+    Source: PVarData;
 begin
   case TVarData(v).vType of
     varInteger  : exit(TVarData(v).vInteger);
@@ -676,10 +714,10 @@ begin
       VarCastError(varNull, varInt64)
     else
       Result := 0
-  else if FindCustomVariantType(TVarData(v).vType, Handler) then
+  else if FindCustomVariantSource(TVarData(v), Source, Handler) then
     begin
       VariantInit(dest);
-      Handler.CastTo(dest, TVarData(v), varInt64);
+      Handler.CastTo(dest, Source^, varInt64);
       Result := dest.vint64;
     end
   else
@@ -694,16 +732,17 @@ end;
 function sysvartoword64 (const v : Variant) : QWord;
 var Handler: TCustomVariantType;
     dest: TVarData;
+    Source: PVarData;
 begin
   if VarType(v) = varNull then
     if NullStrictConvert then
       VarCastError(varNull, varQWord)
     else
       Result := 0
-  else if FindCustomVariantType(TVarData(v).vType, Handler) then
+  else if FindCustomVariantSource(TVarData(v), Source, Handler) then
     begin
       VariantInit(dest);
-      Handler.CastTo(dest, TVarData(v), varQWord);
+      Handler.CastTo(dest, Source^, varQWord);
       Result := dest.vqword;
     end
   else
@@ -718,16 +757,17 @@ end;
 function sysvartobool (const v : Variant) : Boolean;
 var Handler: TCustomVariantType;
     dest: TVarData;
+    Source: PVarData;
 begin
   if VarType(v) = varNull then
     if NullStrictConvert then
       VarCastError(varNull, varBoolean)
     else
       Result := False
-  else if FindCustomVariantType(TVarData(v).vType, Handler) then
+  else if FindCustomVariantSource(TVarData(v), Source, Handler) then
     begin
       VariantInit(dest);
-      Handler.CastTo(dest, TVarData(v), varBoolean);
+      Handler.CastTo(dest, Source^, varBoolean);
       Result := dest.vboolean;
     end
   else
@@ -739,6 +779,7 @@ end;
 function sysvartoreal (const v : Variant) : Extended;
 var Handler: TCustomVariantType;
     dest: TVarData;
+    Source: PVarData;
 begin
   if VarType(v) = varNull then
     if NullStrictConvert then
@@ -746,10 +787,10 @@ begin
     else
       Result := 0
   { TODO: performance: custom variants must be handled after standard ones }
-  else if FindCustomVariantType(TVarData(v).vType, Handler) then
+  else if FindCustomVariantSource(TVarData(v), Source, Handler) then
   begin
     VariantInit(dest);
-    Handler.CastTo(dest, TVarData(v), varDouble);
+    Handler.CastTo(dest, Source^, varDouble);
     Result := dest.vDouble;
   end
   else
@@ -761,16 +802,17 @@ end;
 function sysvartocurr (const v : Variant) : Currency;
 var Handler: TCustomVariantType;
     dest: TVarData;
+    Source: PVarData;
 begin
   if VarType(v) = varNull then
     if NullStrictConvert then
       VarCastError(varNull, varCurrency)
     else
       Result := 0
-  else if FindCustomVariantType(TVarData(v).vType, Handler) then
+  else if FindCustomVariantSource(TVarData(v), Source, Handler) then
     begin
       VariantInit(dest);
-      Handler.CastTo(dest, TVarData(v), varCurrency);
+      Handler.CastTo(dest, Source^, varCurrency);
       Result := dest.vcurrency;
     end
   else
@@ -780,13 +822,14 @@ end;
 function CustomVarToLStr(const v: TVarData; out s: AnsiString): Boolean;
 var
   handler: TCustomVariantType;
+  source: PVarData;
   temp: TVarData;
 begin
-  result := FindCustomVariantType(v.vType, handler);
+  result := FindCustomVariantSource(v, source, handler);
   if result then
   begin
     VariantInit(temp);
-    handler.CastTo(temp, v, varString);
+    handler.CastTo(temp, source^, varString);
     { out-semantic ensures that s is finalized,
       so just copy the pointer and don't finalize the temp }
     Pointer(s) := temp.vString;
@@ -818,17 +861,22 @@ end;
 procedure sysvartowstr (var s : WideString; const v : Variant);
 var Handler: TCustomVariantType;
     dest: TVarData;
+    Source: PVarData;
 begin
   if VarType(v) = varNull then
     if NullStrictConvert then
       VarCastError(varNull, varOleStr)
     else
       s := NullAsStringValue
-   else if FindCustomVariantType(TVarData(v).vType, Handler) then
+   else if FindCustomVariantSource(TVarData(v), Source, Handler) then
     begin
       VariantInit(dest);
-      Handler.CastTo(dest, TVarData(v), varOleStr);
-      s:= dest.volestr;
+      try
+        Handler.CastTo(dest, Source^, varOleStr);
+        s:= dest.volestr;
+      finally
+        DoVarClear(dest);
+      end;
     end
   else
     S := VariantToWideString(TVarData(V));
@@ -898,16 +946,17 @@ end;
 function sysvartotdatetime (const v : Variant) : TDateTime;
 var Handler: TCustomVariantType;
     dest: TVarData;
+    Source: PVarData;
 begin
   if VarType(v) = varNull then
     if NullStrictConvert then
       VarCastError(varNull, varDate)
     else
       Result := 0
-  else if FindCustomVariantType(TVarData(v).vType, Handler) then
+  else if FindCustomVariantSource(TVarData(v), Source, Handler) then
      begin
        VariantInit(dest);
-       Handler.CastTo(dest, TVarData(v), vardate);
+       Handler.CastTo(dest, Source^, vardate);
        Result := dest.vdate;
      end
    else
@@ -1427,6 +1476,13 @@ var
   lct: TCommonType;
   rct: TCommonType;
 begin
+  if (vl.vType = varVariant) or
+      (vl.vType = (varVariant or varByRef)) then
+    Exit(DoVarCmp(ResolveVariantReference(vl)^, vr, OpCode));
+  if (vr.vType = varVariant) or
+      (vr.vType = (varVariant or varByRef)) then
+    Exit(DoVarCmp(vl, ResolveVariantReference(vr)^, OpCode));
+
   { as the function in cvarutil.inc can handle varByRef correctly we simply
     resolve the final type }
   lct := MapToCommonType(VarTypeDeRef(vl));
@@ -1945,10 +2001,25 @@ procedure SysVarOp(var Left : Variant; const Right : Variant; OpCode : TVarOp);
 var
   lct: TCommonType;
   rct: TCommonType;
+  Source: PVarData;
   {$IFDEF DEBUG_VARIANTS}
   i: Integer;
   {$ENDIF}
 begin
+  if (TVarData(Left).vType = varVariant) or
+      (TVarData(Left).vType = (varVariant or varByRef)) then
+  begin
+    Source := ResolveVariantReference(TVarData(Left));
+    DoVarCopy(TVarData(Left), Source^);
+  end;
+  if (TVarData(Right).vType = varVariant) or
+      (TVarData(Right).vType = (varVariant or varByRef)) then
+  begin
+    Source := ResolveVariantReference(TVarData(Right));
+    SysVarOp(Left, Variant(Source^), OpCode);
+    Exit;
+  end;
+
   { as the function in cvarutil.inc can handle varByRef correctly we simply
     resolve the final type }
   lct := MapToCommonType(VarTypeDeRef(Left));
@@ -2647,6 +2718,9 @@ begin
   with aSource do
     if vType = aVarType then
       DoVarCopy(aDest, aSource)
+    else if (vType = varVariant) or
+        (vType = (varVariant or varByRef)) then
+      DoVarCast(aDest, ResolveVariantReference(aSource)^, aVarType)
     else if FindCustomVariantType(vType, Handler) then
       Handler.CastTo(aDest, aSource, aVarType)
     else begin
@@ -3514,7 +3588,7 @@ end;
 procedure VarCopyNoInd(var Dest: Variant; const Source: Variant);
 
 begin
-  NotSupported('VarCopyNoInd');
+  DoVarCopy(TVarData(Dest), TVarData(Source));
 end;
 {$pop}
 

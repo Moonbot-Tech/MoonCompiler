@@ -14779,6 +14779,139 @@ begin
 end;
 {$endif}
 
+type
+  TOmniCustomVariantType = class(TCustomVariantType)
+  public
+    procedure Clear(var V: TVarData); override;
+    procedure Copy(var Dest: TVarData; const Source: TVarData;
+      const Indirect: Boolean); override;
+    procedure CastTo(var Dest: TVarData; const Source: TVarData;
+      const AVarType: TVarType); override;
+    procedure BinaryOp(var Left: TVarData; const Right: TVarData;
+      const Operation: TVarOp); override;
+    function CompareOp(const Left, Right: TVarData;
+      const Operation: TVarOp): Boolean; override;
+  end;
+
+procedure TOmniCustomVariantType.Clear(var V: TVarData);
+begin
+  V.VType := varEmpty;
+end;
+
+procedure TOmniCustomVariantType.BinaryOp(var Left: TVarData;
+  const Right: TVarData; const Operation: TVarOp);
+begin
+  if Operation <> opAdd then
+    RaiseInvalidOp;
+  Variant(Left) := 42 + Integer(Variant(Right));
+end;
+
+function TOmniCustomVariantType.CompareOp(const Left, Right: TVarData;
+  const Operation: TVarOp): Boolean;
+begin
+  if Operation <> opCmpEq then
+    RaiseInvalidOp;
+  Result := Integer(Variant(Right)) = 42;
+end;
+
+procedure TOmniCustomVariantType.Copy(var Dest: TVarData;
+  const Source: TVarData; const Indirect: Boolean);
+begin
+  Dest.VType := Source.VType;
+end;
+
+procedure TOmniCustomVariantType.CastTo(var Dest: TVarData;
+  const Source: TVarData; const AVarType: TVarType);
+begin
+  case AVarType of
+    varInteger:
+      Variant(Dest) := Integer(42);
+    varBoolean:
+      Variant(Dest) := True;
+    varString:
+      Variant(Dest) := AnsiString('custom-reference');
+    varOleStr:
+      Variant(Dest) := WideString('custom-reference');
+    varUString:
+      Variant(Dest) := UnicodeString('custom-reference');
+  else
+    inherited CastTo(Dest, Source, AVarType);
+  end;
+end;
+
+procedure OmniSetVariantByRef(const Source: Variant; var Dest: Variant);
+begin
+  VarClear(Dest);
+  TVarData(Dest).VType := varVariant or varByRef;
+  TVarData(Dest).VPointer := @TVarData(Source);
+end;
+
+function OmniAcceptUnicode(const Value: UnicodeString): Boolean;
+begin
+  Result := Value = 'custom-reference';
+end;
+
+procedure RunCustomVariantByRefForms;
+var
+  Handler: TOmniCustomVariantType;
+  Value,
+  Reference1,
+  Reference2,
+  CastValue,
+  StandardValue,
+  StandardReference: Variant;
+  UnicodeValue: UnicodeString;
+  IntegerValue: Integer;
+  BooleanValue: Boolean;
+begin
+  Handler := TOmniCustomVariantType.Create;
+  try
+    TVarData(Value).VType := Handler.VarType;
+    OmniSetVariantByRef(Value, Reference1);
+    OmniSetVariantByRef(Reference1, Reference2);
+    try
+      UnicodeValue := Reference2;
+      Check(UnicodeValue = 'custom-reference',
+        'variant-custom-byref-unicode-assignment');
+      Check(OmniAcceptUnicode(Reference2),
+        'variant-custom-byref-unicode-argument');
+      IntegerValue := Reference2;
+      Check(IntegerValue = 42, 'variant-custom-byref-integer');
+      BooleanValue := Reference2;
+      Check(BooleanValue, 'variant-custom-byref-boolean');
+      CastValue := VarAsType(Reference2, varUString);
+      Check(UnicodeString(CastValue) = 'custom-reference',
+        'variant-custom-byref-explicit-cast');
+      CastValue := VarAsType(Reference2, Handler.VarType);
+      Check(VarType(CastValue) = Handler.VarType,
+        'variant-custom-byref-same-type-cast');
+      Check(Reference2 = 42, 'variant-custom-byref-compare');
+      CastValue := Reference2 + 8;
+      Check(Integer(CastValue) = 50, 'variant-custom-byref-binary-op');
+
+      StandardValue := 73;
+      OmniSetVariantByRef(StandardValue, StandardReference);
+      IntegerValue := StandardReference;
+      Check(IntegerValue = 73, 'variant-standard-byref-unchanged');
+      Check(StandardReference = 73, 'variant-standard-byref-compare');
+      CastValue := StandardReference + 2;
+      Check(Integer(CastValue) = 75, 'variant-standard-byref-binary-op');
+
+      Mix(UInt64(IntegerValue));
+      Mix(UInt64(Length(UnicodeValue)));
+    finally
+      VarClear(CastValue);
+      VarClear(StandardReference);
+      VarClear(StandardValue);
+      VarClear(Reference2);
+      VarClear(Reference1);
+      VarClear(Value);
+    end;
+  finally
+    Handler.Free;
+  end;
+end;
+
 { ---------------------------------------------------------------- }
 
 procedure ReadSeed;
@@ -14837,6 +14970,7 @@ begin
   RunOldSchoolForms;
   RunAdvancedRecordForms;
   RunVariantForms;
+  RunCustomVariantByRefForms;
 {$ifdef HAS_OLEVARIANT_UTF8}
   RunOleVariantUtf8Forms;
 {$endif}
