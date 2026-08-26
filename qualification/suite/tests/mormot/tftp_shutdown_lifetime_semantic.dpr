@@ -26,6 +26,7 @@ uses
 var
   ConnectionStarted: integer;
   ConnectionDestroyed: integer;
+  OwnerAccessed: integer;
 
 type
   TSlowTftpConnection = class(TTftpConnectionThread)
@@ -37,8 +38,6 @@ type
   end;
 
   TTestTftpServer = class(TTftpServerThread)
-  protected
-    procedure OnShutdown; override;
   public
     procedure AddTestConnection(Connection: TTftpConnectionThread);
     procedure TerminateAndWaitFinished(TimeOutMs: integer = 5000); override;
@@ -51,8 +50,6 @@ begin
 end;
 
 procedure TSlowTftpConnection.DoExecute;
-var
-  Count: integer;
 begin
   InterlockedIncrement(ConnectionStarted);
   while not Terminated do
@@ -60,9 +57,8 @@ begin
   { Stay alive beyond the deliberately short server timeout, then exercise the
     same owner access that the real transfer loop and destructor perform. }
   SleepHiRes(100);
-  Count := fOwner.ConnectionCount;
-  If Count < 0 then
-    Halt(10);
+  If fOwner.MaxRetry >= 0 then
+    InterlockedIncrement(OwnerAccessed);
 end;
 
 destructor TSlowTftpConnection.Destroy;
@@ -77,11 +73,6 @@ begin
   fConnection.Add(Connection);
   if Connection.Suspended then
     Connection.Start;
-end;
-
-procedure TTestTftpServer.OnShutdown;
-begin
-  { Keep the synthetic child until the explicit destructor path under test. }
 end;
 
 procedure TTestTftpServer.TerminateAndWaitFinished(TimeOutMs: integer);
@@ -149,6 +140,9 @@ var
   DestroyedAtReturn: integer;
 
 begin
+  ConnectionStarted := 0;
+  ConnectionDestroyed := 0;
+  OwnerAccessed := 0;
   FillChar(Context, SizeOf(Context), 0);
   Context.BlockSize := 512;
   Context.FrameLen := 2;
@@ -179,6 +173,8 @@ begin
     SleepHiRes(250);
     Halt(2);
   end;
+  If InterlockedCompareExchange(OwnerAccessed, 0, 0) <> 1 then
+    Halt(10);
   {$ifdef OSPOSIX}
   CheckRealTransfer;
   {$endif OSPOSIX}
