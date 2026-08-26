@@ -59,6 +59,12 @@ SOURCE_OPTIONS = {
     "mm_finalization_lifetime_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
     "mm_finalization_leak_report_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
 }
+CURRENT_TREE_UNIT_DIRS = {
+    # This repair lives in packages/vcl-compat.  An ordinary program build
+    # would otherwise silently reuse the already installed PPU and leave the
+    # edited System.NetEncoding source untested.
+    "url_encoding_utf8_codepage_semantic": ROOT / "packages" / "vcl-compat" / "src",
+}
 REQUIRED_RUNTIME_PATTERNS = {
     "mm_finalization_lifetime_semantic": (
         r"^FPCMM_REPORTMEMORYLEAKS_BEGIN$",
@@ -130,10 +136,10 @@ def toolchain() -> tuple[Path, Path, list[str], str]:
     raise RuntimeError("RTL qualification supports only Win64 and Linux x86-64")
 
 
-def execute(command: list[str]) -> subprocess.CompletedProcess[str]:
+def execute(command: list[str], cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
-        cwd=ROOT,
+        cwd=cwd,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -189,6 +195,8 @@ def main() -> int:
             for mode in args.modes:
                 output = work / source.stem / mode
                 output.mkdir(parents=True)
+                unit_dir = CURRENT_TREE_UNIT_DIRS.get(source.stem)
+                rebuild = [] if unit_dir else ["-B"]
                 command = [
                     str(compiler),
                     "-n",
@@ -196,7 +204,7 @@ def main() -> int:
                     *LANGUAGE,
                     *target,
                     "-Rintel",
-                    "-B",
+                    *rebuild,
                     "-dMOONBOT_MM_PROFILE_REQUIRED",
                     "-dFPCMM_BOOSTER",
                     "-dFPCMM_MOONSHARD",
@@ -209,6 +217,7 @@ def main() -> int:
                     f"-Fi{SEMANTIC}",
                     f"-Fu{SEMANTIC / 'support'}",
                     f"-Fi{SEMANTIC / 'support'}",
+                    *([f"-Fu{unit_dir}"] if unit_dir else []),
                     f"-FU{output}",
                     f"-FE{output}",
                     *MODES[mode],
@@ -226,7 +235,7 @@ def main() -> int:
                     ),
                     str(source),
                 ]
-                compiled = execute(command)
+                compiled = execute(command, unit_dir or ROOT)
                 if compiled.returncode != 0:
                     print(compiled.stdout, file=sys.stderr)
                     raise RuntimeError(f"compile failed: {source.name} {mode}")

@@ -619,8 +619,45 @@ end;
 
 function TURLEncoding.DoEncode(const aInput: RawBytestring): RawBytestring;
 
+const
+  HexDigits = '0123456789ABCDEF';
+
+var
+  C: Byte;
+  I, OutPos: SizeInt;
+
 begin
-  Result:=HTTPEncode(aInput)
+  { aInput already contains the UTF-8 bytes produced by TNetEncoding.DoEncode.
+    HTTPEncode accepts the current-codepage String type, so passing a
+    RawByteString through it may transcode those bytes when
+    DefaultSystemCodePage is UTF-8. Encode the raw bytes directly instead. }
+  SetLength(Result,Length(aInput)*3);
+  OutPos:=1;
+  for I:=1 to Length(aInput) do
+    begin
+    C:=Ord(aInput[I]);
+    if C in [Ord('A')..Ord('Z'),Ord('a')..Ord('z'),
+             Ord('*'),Ord('@'),Ord('.'),Ord('_'),Ord('-'),
+             Ord('0')..Ord('9'),Ord('$'),Ord('!'),Ord(''''),
+             Ord('('),Ord(')')] then
+      begin
+      Result[OutPos]:=AnsiChar(C);
+      Inc(OutPos);
+      end
+    else if C=Ord(' ') then
+      begin
+      Result[OutPos]:='+';
+      Inc(OutPos);
+      end
+    else
+      begin
+      Result[OutPos]:='%';
+      Result[OutPos+1]:=HexDigits[(C shr 4)+1];
+      Result[OutPos+2]:=HexDigits[(C and $0f)+1];
+      Inc(OutPos,3);
+      end;
+    end;
+  SetLength(Result,OutPos-1);
 end;
 
 function TURLEncoding.EncodeQuery(const aInput: string; const aExtraUnsafeChars: TUnsafeChars): string;
