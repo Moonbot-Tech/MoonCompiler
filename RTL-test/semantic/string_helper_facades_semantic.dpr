@@ -101,7 +101,8 @@ begin
     Fail('indexof past');
   If S.IndexOf(UnicodeString('')) <> -1 then
     Fail('indexof empty needle');
-  If S.IndexOf(UnicodeString('needle'), -5) <> 7 then
+  { Delphi 12.2 rejects a negative zero-based start instead of clamping it. }
+  If S.IndexOf(UnicodeString('needle'), -5) <> -1 then
     Fail('indexof negative start');
   { windowed search keeps the generic engine }
   If S.IndexOf(UnicodeString('needle'), 0, 12) <> -1 then

@@ -33,6 +33,7 @@ function StrLower(p : PAnsiChar) : PAnsiChar;
 function StrUpper(p : PAnsiChar) : PAnsiChar;
 function StrLIComp(str1,str2 : PAnsiChar;l : SizeInt) : SizeInt;
 function StrPos(str1,str2 : PAnsiChar) : PAnsiChar;
+function TextPos(Str,SubStr : PAnsiChar) : PAnsiChar;
 function StrNew(p : PAnsiChar) : PAnsiChar; overload;
 
 { Different from strings unit - ansistrings or different behaviour }

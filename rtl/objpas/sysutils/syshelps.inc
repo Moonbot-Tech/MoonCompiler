@@ -6,6 +6,34 @@
 {$ifdef IS_ANSISTRINGHELPER}
 type
   TTrimMode = {$push} {$scopedenums on} (Left, Right, Both) {$pop};
+
+{ Public string-helper ranges use clamp/no-match semantics.  Normalize them
+  before any 1-based index or pointer is formed, and use subtraction rather
+  than Start+Count so hostile SizeInt values cannot wrap. }
+function NormalizeForwardStringSpan(Total: SizeInt;
+  var StartIndex, ACount: SizeInt): Boolean; inline;
+var
+  Remaining: SizeInt;
+begin
+  if (StartIndex<0) or (StartIndex>Total) or (ACount<=0) then
+    Exit(False);
+  Remaining:=Total-StartIndex;
+  if ACount>Remaining then
+    ACount:=Remaining;
+  Result:=ACount>0;
+end;
+
+function NormalizeReverseStringSpan(Total: SizeInt;
+  var StartIndex, ACount: SizeInt): Boolean; inline;
+begin
+  if (Total<=0) or (StartIndex<0) or (ACount<=0) then
+    Exit(False);
+  if StartIndex>=Total then
+    StartIndex:=Total-1;
+  if ACount>StartIndex+1 then
+    ACount:=StartIndex+1;
+  Result:=True;
+end;
 {$endif}
 
 {$IF not defined(IS_SHORTSTRINGHELPER) and not defined(IS_UNICODESTRINGHELPER)}
@@ -51,6 +79,57 @@ begin
     end;
   Result:=True;
 end;
+
+{ ordinal slice comparison for managed strings: pointer+length, an
+  embedded NUL is ordinary data, equal prefixes tie-break on length -
+  replaces the NUL-terminated Str(L)Comp facades, which stopped at the
+  first #0 and called shorter/longer prefixes equal }
+Function CompareSlices(P1 : PTStringChar; L1 : SizeInt; P2 : PTStringChar; L2 : SizeInt) : Integer;
+
+Var
+  L : SizeInt;
+
+begin
+  L:=L1;
+  if L2<L then
+    L:=L2;
+  Result:=0;
+  if L>0 then
+    if SizeOf(TStringChar)=1 then
+      Result:=CompareByte(P1^,P2^,L)
+    else
+      Result:=CompareWord(P1^,P2^,L);
+  if Result=0 then
+    Result:=Ord(L1>L2)-Ord(L1<L2);
+end;
+
+{ the same slice walk with the CompareText ASCII fold, returning order -
+  the coIgnoreCase ranged facade compares in place through it }
+Function CompareTextSlices(P1,P2 : PTStringChar; L : SizeInt) : Integer;
+
+Var
+  C1,C2 : Cardinal;
+
+begin
+  Result:=0;
+  While L>0 do
+    begin
+    C1:=Ord(P1^);
+    C2:=Ord(P2^);
+    if C1<>C2 then
+      begin
+      if (C1>=Ord('a')) and (C1<=Ord('z')) then
+        Dec(C1,32);
+      if (C2>=Ord('a')) and (C2<=Ord('z')) then
+        Dec(C2,32);
+      if C1<>C2 then
+        exit(Integer(C1)-Integer(C2));
+      end;
+    Inc(P1);
+    Inc(P2);
+    Dec(L);
+    end;
+end;
 {$ENDIF}
 
 function Trim(const S: TStringType; const ATrimChars: array of TStringChar; mode: TTrimMode): TStringType;
@@ -89,7 +168,9 @@ end;
 
 class function TStringHelper.Compare(const A: TStringType; const B: TStringType): Integer;
 begin
-  Result:=Compare(A,0,B,0,System.Length(B),[]);
+  { the old form compared System.Length(B) characters and called a
+    shorter/longer prefix equal; measured DCC64 tie-breaks on length }
+  Result:=Compare(A,B,[]);
 end;
 
 
@@ -153,39 +234,74 @@ Var
   L : SizeInt;
 
 begin
+  { a negative index or length is an empty range - the old code formed a
+    pointer before the string (measured DCC64 reads garbage there, a
+    defect, not a canvas); the clamp of ALen to the remainders is the
+    existing contract }
+  If IndexA<0 then
+    IndexA:=system.Length(A);
+  If IndexB<0 then
+    IndexB:=system.Length(B);
   L:=ALen;
   If (L>system.Length(A)-IndexA) then
     L:=system.Length(A)-IndexA;
   If (L>system.Length(B)-IndexB) then
     L:=system.Length(B)-IndexB;
+  If L<=0 then
+    exit(0);
   if (coIgnoreCase in Options) then
-    begin
-    Result:=strlicomp(PTStringChar(@A[IndexA+1]),PTStringChar(@B[IndexB+1]),L)
-    end
+    Result:=CompareTextSlices(PTStringChar(@A[IndexA+1]),PTStringChar(@B[IndexB+1]),L)
   else
-    Result:=strlcomp(PTStringChar(@A[IndexA+1]),PTStringChar(@B[IndexB+1]),L);
+    begin
+    if SizeOf(TStringChar)=1 then
+      Result:=CompareByte(A[IndexA+1],B[IndexB+1],L)
+    else
+      Result:=CompareWord(A[IndexA+1],B[IndexB+1],L);
+    end;
 end;
 
 
 class function TStringHelper.CompareOrdinal(const A: TStringType; const B: TStringType
   ): Integer;
 
-Var
-  L : SizeInt;
-
 begin
-  L:=System.Length(B);
-  if L>System.Length(A) then
-    L:=System.Length(A);
-  Result:=CompareOrdinal(A,0,B,0,L);
+{$IFDEF IS_SHORTSTRINGHELPER}
+  Result:=CompareSlices(PTStringChar(@A[1]),System.Length(A),
+    PTStringChar(@B[1]),System.Length(B));
+{$ELSE}
+  Result:=CompareSlices(PTStringChar(Pointer(A)),System.Length(A),
+    PTStringChar(Pointer(B)),System.Length(B));
+{$ENDIF}
 end;
 
 
 class function TStringHelper.CompareOrdinal(const A: TStringType; IndexA: SizeInt;
   const B: TStringType; IndexB: SizeInt; ALen: SizeInt): Integer;
 
+Var
+  LA,LB : SizeInt;
+
 begin
-  Result:=StrLComp(PTStringChar(@A[IndexA+1]), PTStringChar(@B[IndexB+1]), ALen);
+  { proven slices before pointer formation: the old unclamped
+    NUL-terminated StrLComp read past both strings for a large ALen and
+    through a garbage pointer for a negative index (measured DCC64 does
+    the same - a defect, not a canvas) }
+  If IndexA<0 then
+    IndexA:=system.Length(A);
+  If IndexB<0 then
+    IndexB:=system.Length(B);
+  LA:=system.Length(A)-IndexA;
+  If LA>ALen then
+    LA:=ALen;
+  If LA<0 then
+    LA:=0;
+  LB:=system.Length(B)-IndexB;
+  If LB>ALen then
+    LB:=ALen;
+  If LB<0 then
+    LB:=0;
+  Result:=CompareSlices(PTStringChar(@A[IndexA+1]),LA,
+    PTStringChar(@B[IndexB+1]),LB);
 end;
 
 
@@ -221,15 +337,66 @@ end;
 class function TStringHelper.Create(const AValue: array of TStringChar;
   StartIndex: SizeInt; ALen: SizeInt): TStringType;
 begin
+  { the source span is proven before the Move: measured DCC64 reads
+    garbage from around the array for a negative or oversized range (a
+    defect); its negative-length empty result is the canvas }
+  if (StartIndex<0) or (StartIndex>System.Length(AValue)) then
+    exit('');
+  if ALen>System.Length(AValue)-StartIndex then
+    ALen:=System.Length(AValue)-StartIndex;
+  if ALen<0 then
+    ALen:=0;
   SetLength(Result,ALen);
+  { a ShortString destination silently clamps to 255 - the Move must
+    follow the actual length; the old byte count also copied only half
+    of a wide payload }
+  if System.Length(Result)<ALen then
+    ALen:=System.Length(Result);
   if ALen>0 then
-    Move(AValue[StartIndex],Result[1],ALen);
+    Move(AValue[StartIndex],Result[1],ALen*SizeOf(TStringChar));
 end;
 
 
 class function TStringHelper.EndsText(const ASubText, AText: TStringType): Boolean;
+var
+  L, TextLength: SizeInt;
+{$IF defined(IS_ANSISTRINGHELPER) or defined(IS_SHORTSTRINGHELPER)}
+  SubTextUnicode, TextUnicode: UnicodeString;
+{$ENDIF}
+{$IFDEF IS_ANSISTRINGHELPER}
+  SubTextCodePage, TextCodePage: TSystemCodePage;
+{$ENDIF}
 begin
-  Result:=(ASubText<>'') and (SUT.CompareText(System.Copy(AText,System.Length(AText)-System.Length(ASubText)+1,System.Length(ASubText)),ASubText)=0);
+  L:=System.Length(ASubText);
+  TextLength:=System.Length(AText);
+  if (L=0) or (L>TextLength) then
+    Exit(False);
+{$IFDEF IS_ANSISTRINGHELPER}
+  SubTextCodePage:=StringCodePage(ASubText);
+  if (SubTextCodePage=CP_ACP) or (SubTextCodePage=CP_OEMCP) or
+     (SubTextCodePage=CP_NONE) then
+    SubTextCodePage:=DefaultSystemCodePage;
+  TextCodePage:=StringCodePage(AText);
+  if (TextCodePage=CP_ACP) or (TextCodePage=CP_OEMCP) or
+     (TextCodePage=CP_NONE) then
+    TextCodePage:=DefaultSystemCodePage;
+  widestringmanager.Ansi2UnicodeMoveProc(
+    PTStringChar(Pointer(ASubText)),SubTextCodePage,SubTextUnicode,L);
+  widestringmanager.Ansi2UnicodeMoveProc(
+    PTStringChar(Pointer(AText))+TextLength-L,TextCodePage,TextUnicode,L);
+  Result:=SUT.CompareText(TextUnicode,SubTextUnicode)=0;
+{$ELSE}
+{$IFDEF IS_SHORTSTRINGHELPER}
+  widestringmanager.Ansi2UnicodeMoveProc(
+    PTStringChar(@ASubText[1]),DefaultSystemCodePage,SubTextUnicode,L);
+  widestringmanager.Ansi2UnicodeMoveProc(
+    PTStringChar(@AText[1])+TextLength-L,DefaultSystemCodePage,TextUnicode,L);
+  Result:=SUT.CompareText(TextUnicode,SubTextUnicode)=0;
+{$ELSE}
+  Result:=SameTextRange(PTStringChar(Pointer(AText))+TextLength-L,
+    PTStringChar(Pointer(ASubText)),L);
+{$ENDIF}
+{$ENDIF}
 end;
 
 
@@ -427,26 +594,36 @@ end;
 function TStringHelper.CompareTo(const B: TStringType): Integer;
 begin
   // Order is important
+  { slice comparison: an embedded NUL is data (the old StrComp stopped at
+    the first #0 - so does measured DCC64, a recorded divergence in favor
+    of the managed-string contract); the sign matches DCC64 on NUL-free
+    strings, length tie-break included }
 {$IFDEF IS_SHORTSTRINGHELPER}
-  Result:=SUT.StrComp(PTStringChar(@Self[1]),PTStringChar(@B[1]));
+  Result:=CompareSlices(PTStringChar(@Self[1]),System.Length(Self),
+    PTStringChar(@B[1]),System.Length(B));
 {$ELSE}
-  Result:=SUT.StrComp(PTStringChar(Self),PTStringChar(B));
+  Result:=CompareSlices(PTStringChar(Pointer(Self)),System.Length(Self),
+    PTStringChar(Pointer(B)),System.Length(B));
 {$ENDIF}
 end;
 
 procedure TStringHelper.CopyTo(SourceIndex: SizeInt; var destination: array of TStringChar; DestinationIndex: SizeInt; ACount: SizeInt);
 
-Var
-  P1,P2 : PTStringChar;
 begin
-//  Writeln('((',DestinationIndex,'+',ACount,')<',System.Length(Destination),')  : ', ((DestinationIndex+ACount)<System.Length(Destination)));
-  if ((DestinationIndex+ACount)<=System.Length(Destination)) then
-    begin
-//    Writeln('AHA');
-    P1:=@Self[SourceIndex+1];
-    P2:=@Destination[DestinationIndex];
-    Move(P1^,P2^,ACount*SizeOf(TStringChar));
-    end;
+  { both spans proven before pointer formation, keeping the no-throw
+    contract: the old form never checked the source at all (measured
+    DCC64 copies garbage from past the string) and a negative
+    destination index or count slipped through the single sum check }
+  if (SourceIndex<0) or (SourceIndex>Length) or
+     (DestinationIndex<0) or (DestinationIndex>System.Length(Destination)) then
+    exit;
+  if ACount>Length-SourceIndex then
+    ACount:=Length-SourceIndex;
+  if ACount>System.Length(Destination)-DestinationIndex then
+    ACount:=System.Length(Destination)-DestinationIndex;
+  if ACount<=0 then
+    exit;
+  Move(Self[SourceIndex+1],Destination[DestinationIndex],ACount*SizeOf(TStringChar));
 end;
 
 function TStringHelper.Contains(const AValue: TStringType; IgnoreCase: Boolean = False): Boolean;
@@ -654,17 +831,8 @@ end;
 
 function TStringHelper.IndexOf(AValue: TStringChar; StartIndex: SizeInt;
   ACount: SizeInt): SizeInt;
-
-Var
-  CountLim : SizeInt;
-
 begin
-  if StartIndex<0 then
-    StartIndex:=0;
-  CountLim:=System.Length(Self)-StartIndex;
-  if ACount>CountLim then
-    ACount:=CountLim;
-  if ACount<=0 then
+  if not NormalizeForwardStringSpan(System.Length(Self),StartIndex,ACount) then
     Exit(-1);
   // pointer casts are to access self as 0 based index!
   {$IFDEF IS_SHORTSTRINGHELPER}
@@ -685,11 +853,9 @@ Var
   SP,SE : PTStringChar;
 
 begin
-  if StartIndex<0 then
-    StartIndex:=0;
+  if not NormalizeForwardStringSpan(System.Length(Self),StartIndex,ACount) then
+    Exit(-1);
   CountLim:=System.Length(Self)-StartIndex;
-  if ACount>CountLim then
-    ACount:=CountLim;
 {$IFNDEF IS_SHORTSTRINGHELPER}
   { a search that runs to the end of the string is exactly Pos, whose
     vectorized scan beats the generic loop below }
@@ -746,14 +912,20 @@ Var
   end;
 
 Var
-  I,L,Q: SizeInt;
+  I,L,Q,SpanCount: SizeInt;
 
 begin
   Result:=-1;
   LV:=system.Length(AValue);
-  L:=Length-LV+1;
-  if L<0 then
-    L:=0;
+  { an empty needle never matches; without this gate MatchAt read
+    AValue[1] past an empty string }
+  if LV=0 then
+    exit;
+  SpanCount:=Length;
+  if not NormalizeForwardStringSpan(Length,StartIndex,SpanCount) or
+     (LV>SpanCount) then
+    Exit;
+  L:=StartIndex+SpanCount-LV+1;
   I:=StartIndex+1;
   Q:=0;
   if StartQuote=EndQuote then
@@ -803,11 +975,11 @@ Var
   i,L : SizeInt;
 
 begin
-  I:=StartIndex+1;
-  L:=I+ACount-1;
-  If L>Length then
-    L:=Length;
   Result:=-1;
+  if not NormalizeForwardStringSpan(Length,StartIndex,ACount) then
+    Exit;
+  I:=StartIndex+1;
+  L:=StartIndex+ACount;
   While (Result=-1) and (I<=L) do
     begin
     if HaveChar(Self[i],AnyOf) then
@@ -824,7 +996,9 @@ end;
 function TStringHelper.IndexOfAny(const AnyOf: array of TStringType;
   StartIndex: SizeInt): SizeInt;
 begin
-  Result:=IndexOfAny(AnyOf,StartIndex,Length-StartIndex);
+  { Let the ranged facade validate and clamp.  Length-StartIndex can itself
+    overflow for a hostile negative start before that facade sees it. }
+  Result:=IndexOfAny(AnyOf,StartIndex,Length);
 end;
 
 function TStringHelper.IndexOfAny(const AnyOf: array of TStringType;
@@ -880,9 +1054,13 @@ Var
 
 begin
   Result:=-1;
-  L:=StartIndex+ACount-1;
-  if L>Length then
-    L:=Length;
+  { the window is ACount characters, exactly as in IndexOfAny: the old
+    StartIndex+ACount-1 top scanned one character short, so the start-only
+    facades (ACount=Length) never saw the last character and a quoted
+    Split lost a separator in the final position (measured DCC64 finds it) }
+  if not NormalizeForwardStringSpan(Length,StartIndex,ACount) then
+    Exit;
+  L:=StartIndex+ACount;
   I:=StartIndex+1;
   Q:=0;
   if StartQuote=EndQuote then
@@ -989,13 +1167,16 @@ function TStringHelper.LastIndexOf(AValue: TStringChar; AStartIndex: SizeInt;
   ACount: SizeInt): SizeInt;
 
 Var
-  Min : SizeInt;
+  Min, StartIndex, Count: SizeInt;
 
 begin
-  Result:=AStartIndex+1;
-  Min:=Result-ACount+1;
-  If Min<1 then
-    Min:=1;
+  Result:=-1;
+  StartIndex:=AStartIndex;
+  Count:=ACount;
+  if not NormalizeReverseStringSpan(Length,StartIndex,Count) then
+    Exit;
+  Result:=StartIndex+1;
+  Min:=StartIndex-Count+2;
   While (Result>=Min) and (Self[Result]<>AValue) do
     Dec(Result);
   if Result<Min then
@@ -1008,7 +1189,7 @@ end;
 function TStringHelper.LastIndexOf(const AValue: TStringType; AStartIndex: SizeInt; ACount: SizeInt): SizeInt;
 
 var
-  I,L,LS,M : SizeInt;
+  I,L,LS,M,StartIndex,Count : SizeInt;
   S : TStringType;
   P : PTStringChar;
 
@@ -1016,7 +1197,10 @@ begin
   Result:=-1;
   LS:=system.Length(Self);
   L:=system.Length(AValue);
-  if (L=0) or (L>LS) then
+  StartIndex:=AStartIndex;
+  Count:=ACount;
+  if (L=0) or not NormalizeReverseStringSpan(LS,StartIndex,Count) or
+     (L>Count) then
     Exit;
 {$IFDEF IS_SHORTSTRINGHELPER}
   P:=PTStringChar(@AValue[1]);
@@ -1024,16 +1208,13 @@ begin
   P:=PTStringChar(AValue);
 {$ENDIF}
   S:=Self;
-  I:=AStartIndex+1; // 1 based
-  if (I>LS) then
-    I:=LS;
-  I:=I-L+1;
-  M:=AStartIndex-ACount+2; // 1 based
-  if M<1 then
-    M:=1;
+  I:=StartIndex-L+2; // 1 based candidate start
+  M:=StartIndex-Count+2; // 1 based window start
   while (Result=-1) and (I>=M) do
     begin
-    if (0=StrLComp(PTStringChar(@S[I]),P,L)) then
+    { slice equality: the old NUL-terminated StrLComp truncated the
+      comparison at an embedded #0 and reported false matches }
+    if CompareSlices(PTStringChar(@S[I]),L,P,L)=0 then
       Result:=I-1;
     Dec(I);
     end;
@@ -1057,13 +1238,16 @@ function TStringHelper.LastIndexOfAny(const AnyOf: array of TStringChar;
   AStartIndex: SizeInt; ACount: SizeInt): SizeInt;
 
 Var
-  Min : SizeInt;
+  Min, StartIndex, Count : SizeInt;
 
 begin
-  Result:=AStartIndex+1;
-  Min:=Result-ACount+1;
-  If Min<1 then
-    Min:=1;
+  Result:=-1;
+  StartIndex:=AStartIndex;
+  Count:=ACount;
+  if not NormalizeReverseStringSpan(Length,StartIndex,Count) then
+    Exit;
+  Result:=StartIndex+1;
+  Min:=StartIndex-Count+2;
   While (Result>=Min) and Not HaveChar(Self[Result],AnyOf) do
     Dec(Result);
   if Result<Min then
@@ -1617,9 +1801,22 @@ Var
   I : SizeInt;
 
 begin
+  { the source span is proven before element access: measured DCC64
+    reads garbage for a negative or oversized range (a defect); its
+    negative-length range error is the canvas, raised here by SetLength }
+  if (AStartIndex<0) or (AStartIndex>Length) then
+    AStartIndex:=Length;
+  if ALen>Length-AStartIndex then
+    ALen:=Length-AStartIndex;
   SetLength(Result,ALen);
-  For I:=0 to ALen-1 do
-    Result[I]:=Self[AStartIndex+I+1];
+  if SizeOf(TStringChar)=SizeOf(Char) then
+    begin
+    if ALen>0 then
+      Move(Self[AStartIndex+1],Result[0],ALen*SizeOf(Char));
+    end
+  else
+    For I:=0 to ALen-1 do
+      Result[I]:=Self[AStartIndex+I+1];
 end;
 
 

@@ -896,6 +896,49 @@ begin
 end;
 
 
+{ the symmetric simple-wide ASCII fold as a character predicate }
+function TextCharsEqual(A,B : WideChar) : Boolean; inline;
+var
+  CA,CB : Cardinal;
+begin
+  CA:=Ord(A);
+  CB:=Ord(B);
+  if (CA>=Ord('A')) and (CA<=Ord('Z')) then
+    Inc(CA,32);
+  if (CB>=Ord('A')) and (CB<=Ord('Z')) then
+    Inc(CB,32);
+  Result:=CA=CB;
+end;
+
+function TextPos(Str,SubStr : PWideChar) : PWideChar;
+var
+  P,S,Q : PWideChar;
+begin
+  { in-place candidate scan with the simple-wide ASCII fold - the old
+    path built two heap copies and lowercased both on every call, and a
+    nil argument was a raw AV (measured DCC64 does the same - a defect,
+    not a canvas: nil and an empty pattern return nil, as DCC measures
+    for the empty pattern) }
+  Result:=nil;
+  if (Str=nil) or (SubStr=nil) or (SubStr^=#0) then
+    exit;
+  P:=Str;
+  while P^<>#0 do
+    begin
+    S:=P;
+    Q:=SubStr;
+    while (Q^<>#0) and (S^<>#0) and (TextCharsEqual(S^,Q^)) do
+      begin
+      Inc(S);
+      Inc(Q);
+      end;
+    if Q^=#0 then
+      exit(P);
+    Inc(P);
+    end;
+end;
+
+
 
 function BytesOf(const Val: UnicodeString): TBytes;
 begin

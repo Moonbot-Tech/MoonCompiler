@@ -1383,22 +1383,12 @@ begin
 end;
 
 function TextPos(Str, SubStr: PAnsiChar): PAnsiChar;
-
-var
-  R,L,LS : PAnsiChar;
 begin
-  Result:=Nil;
-  L:=nil;
-  LS:=System.AnsiStrings.StrLower(System.AnsiStrings.StrNew(SubStr));
-  try
-    L:=System.AnsiStrings.StrLower(System.AnsiStrings.StrNew(Str));
-    R:=System.AnsiStrings.StrPos(L,LS);
-    if Assigned(R) then
-      Result:=PAnsiChar(Str+(R-LS));
-  finally
-    StrDispose(L);
-    StrDispose(LS);
-  end;
+  { delegate to the allocation-free SysUtils scan; the old local copy
+    also computed the result offset against the WRONG base (the lowered
+    pattern instead of the lowered haystack) and returned a garbage
+    pointer on every hit }
+  Result:={$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.TextPos(Str,SubStr);
 end;
 
 function TextToFloat(Buffer: PAnsiChar; var Value; ValueType: TFloatValue

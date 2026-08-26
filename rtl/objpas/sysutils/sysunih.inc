@@ -63,6 +63,7 @@ function strlower(p : pwidechar) : pwidechar;
 function strupper(p : pwidechar) : pwidechar;
 function strlicomp(str1,str2 : pwidechar;l : SizeInt) : SizeInt;
 function strpos(str1,str2 : pwidechar) : pwidechar;
+function TextPos(Str,SubStr : PWideChar) : PWideChar; overload;
 
 function WideStrAlloc(size: cardinal): pwidechar;
 function StrBufSize(str: pwidechar): Cardinal;
