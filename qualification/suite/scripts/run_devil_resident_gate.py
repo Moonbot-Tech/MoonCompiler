@@ -42,11 +42,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import devil_toolchain as tc  # noqa: E402
+from qualification_contracts import (  # noqa: E402
+    ContractError,
+    LOCKS_PATH,
+    MANIFEST_PATH,
+    load_json,
+    parse_resident_stage_output,
+    require_resident_stage_lock,
+    validate_resident_layer,
+)
 
 SUITE = Path(__file__).resolve().parent.parent
-WORK = SUITE / "tests" / "resident"
-PROGRAM = WORK / "resident.dpr"
-PROFILES = ("debug", "o1", "o2", "release")
 
 # Lines that describe the program's answers. Everything else (timings, counts
 # that legitimately depend on the run shape) stays out of the comparison.
@@ -57,6 +63,8 @@ ANSWER_PREFIXES = (
     "RESIDENT_STAGESUM ",
     "RESIDENT_CARRIER ",
     "RESIDENT_ROOT ",
+    "RESIDENT_CARRIERS ",
+    "RESIDENT_LAPS ",
     "RESIDENT_HANDLED ",
     "RESIDENT_VISITS ",
     "RESIDENT_BORN ",
@@ -66,9 +74,18 @@ ANSWER_PREFIXES = (
     "RESIDENT_SHORT ",
     "RESIDENT_MISROUTED ",
     "RESIDENT_FAULTS ",
+    "RESIDENT_BROKEN ",
 )
 
 FAILURE_PREFIXES = ("RESIDENT_FAILURE", "RESIDENT_STAGEFAULT", "RESIDENT_STUCK")
+REQUIRED_SCALARS = {
+    "RESIDENT_STAGES", "RESIDENT_REGISTRY", "RESIDENT_INITORDER",
+    "RESIDENT_ROOT", "RESIDENT_CARRIERS", "RESIDENT_LAPS",
+    "RESIDENT_HANDLED", "RESIDENT_VISITS", "RESIDENT_BORN",
+    "RESIDENT_ALIVE", "RESIDENT_DRIFTED", "RESIDENT_CORRUPTED",
+    "RESIDENT_SHORT", "RESIDENT_MISROUTED", "RESIDENT_FAULTS",
+    "RESIDENT_BROKEN",
+}
 
 
 class Run:
@@ -119,16 +136,16 @@ class Run:
         return out
 
 
-def build(profile: str, out_dir: Path) -> Path:
+def build(profile: str, out_dir: Path, program: Path, work: Path) -> Path:
     """Build the program exactly the way the driver does, varying only -O."""
     if out_dir.exists():
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True)
     done = subprocess.run(
-        tc.compile_command(PROGRAM, out_dir, profile),
+        tc.compile_command(program, out_dir, profile),
         capture_output=True,
         text=True,
-        cwd=WORK,
+        cwd=work,
     )
     if done.returncode != 0:
         bad = [l.strip() for l in done.stdout.splitlines()
@@ -137,12 +154,14 @@ def build(profile: str, out_dir: Path) -> Path:
     return out_dir / "resident.exe"
 
 
-def run(exe: Path, carriers: int, laps: int, workers: int, timeout: int) -> Run:
+def run(
+    exe: Path, carriers: int, laps: int, workers: int, timeout: int, work: Path
+) -> Run:
     try:
         done = subprocess.run(
             [str(exe), "--seed", "1", "--carriers", str(carriers),
              "--laps", str(laps), "--workers", str(workers)],
-            capture_output=True, text=True, cwd=WORK, timeout=timeout,
+            capture_output=True, text=True, cwd=work, timeout=timeout,
         )
     except subprocess.TimeoutExpired as exc:
         got = exc.stdout or ""
@@ -152,36 +171,107 @@ def run(exe: Path, carriers: int, laps: int, workers: int, timeout: int) -> Run:
     return Run(done.stdout, done.returncode)
 
 
+def verify_stage_inventory(
+    exe: Path, work: Path, timeout: int, locks: dict[str, object], lock_id: str
+) -> tuple[list[str], str]:
+    done = subprocess.run(
+        [str(exe), "--list-stages"],
+        capture_output=True,
+        text=True,
+        cwd=work,
+        timeout=timeout,
+        check=False,
+    )
+    if done.returncode != 0:
+        raise ContractError(f"resident --list-stages failed: {done.returncode}")
+    names = parse_resident_stage_output(done.stdout)
+    return names, require_resident_stage_lock(locks, lock_id, names)
+
+
+def validate_run(
+    label: str,
+    got: Run,
+    stage_names: list[str],
+    carriers: int,
+    findings: list[str],
+) -> None:
+    findings.extend(f"{label}: {line}" for line in got.failures)
+    if got.code != 0 and not got.failures:
+        findings.append(f"{label}: exit {got.code} without naming a failure")
+    missing = sorted(REQUIRED_SCALARS - set(got.answers))
+    if missing:
+        findings.append(f"{label}: missing answer lines {missing}")
+    missing_stages = sorted(set(stage_names) - set(got.stages))
+    extra_stages = sorted(set(got.stages) - set(stage_names))
+    if missing_stages or extra_stages:
+        findings.append(
+            f"{label}: stage answers mismatch: "
+            f"missing={missing_stages}, extra={extra_stages}"
+        )
+    carrier_rows = sum(
+        key.startswith("RESIDENT_CARRIER ") for key in got.answers
+    )
+    if carrier_rows != carriers:
+        findings.append(
+            f"{label}: carrier answers incomplete: {carrier_rows}/{carriers}"
+        )
+
+
 def main() -> int:
+    manifest = load_json(MANIFEST_PATH)
+    locks = load_json(LOCKS_PATH)
+    layer, inventory_digest = validate_resident_layer(manifest, locks)
+    default_shape = layer["shapes"]["default"]
+    handoff_shape = layer["shapes"]["handoff"]
+    program = (SUITE / layer["source"]).resolve()
+    work = program.parent
+
     ap = argparse.ArgumentParser()
-    ap.add_argument("--carriers", type=int, default=8)
-    ap.add_argument("--laps", type=int, default=40)
+    ap.add_argument("--carriers", type=int, default=default_shape["carriers"])
+    ap.add_argument("--laps", type=int, default=default_shape["laps"])
+    ap.add_argument("--handoff", action="store_true")
     ap.add_argument("--timeout", type=int, default=900)
-    ap.add_argument("--profiles", default=",".join(PROFILES))
+    ap.add_argument("--profiles", default=",".join(layer["profiles"]))
     ap.add_argument("--ladder", default="10,60,240",
                     help="lap counts the program must stay green at")
     ap.add_argument("--work", type=Path,
                     default=SUITE / "results" / "devil-resident")
     ap.add_argument("--report", type=Path)
     args = ap.parse_args()
+    if args.handoff:
+        args.carriers = handoff_shape["carriers"]
+        args.laps = handoff_shape["laps"]
 
     profiles = [p.strip() for p in args.profiles.split(",") if p.strip()]
+    if not profiles or len(profiles) != len(set(profiles)):
+        ap.error("profiles must be a non-empty unique list")
+    unknown_profiles = set(profiles) - set(layer["profiles"])
+    if unknown_profiles:
+        ap.error(f"unknown resident profiles: {sorted(unknown_profiles)}")
     findings: list[str] = []
     results: dict[str, Run] = {}
+    stage_names: list[str] | None = None
+    stage_digest: str | None = None
 
     root = args.work.resolve()
     root.mkdir(parents=True, exist_ok=True)
 
     # --- profiles: every optimisation level must give the same answers -------
     for profile in profiles:
-        exe = build(profile, root / profile)
-        got = run(exe, args.carriers, args.laps, 2, args.timeout)
+        exe = build(profile, root / profile, program, work)
+        names, digest = verify_stage_inventory(
+            exe, work, args.timeout, locks, layer["stage_lock"]
+        )
+        if stage_names is not None and names != stage_names:
+            raise ContractError(f"resident stage order differs in profile {profile}")
+        stage_names = names
+        stage_digest = digest
+        got = run(exe, args.carriers, args.laps, 2, args.timeout, work)
         results[profile] = got
+        validate_run(profile, got, names, args.carriers, findings)
         print("profile %-8s rc=%d stages=%s root=%s"
               % (profile, got.code, got.answers.get("RESIDENT_STAGES", "?"),
                  got.answers.get("RESIDENT_ROOT", "?")))
-        for line in got.failures:
-            findings.append("%s: %s" % (profile, line))
 
     base_name = profiles[0]
     base = results[base_name]
@@ -194,9 +284,10 @@ def main() -> int:
     # --- schedule: the answer must not depend on how many threads ran --------
     exe = (root / profiles[-1]) / "resident.exe"
     for workers in (1, 4):
-        got = run(exe, args.carriers, args.laps, workers, args.timeout)
-        for line in got.failures:
-            findings.append("workers=%d: %s" % (workers, line))
+        got = run(exe, args.carriers, args.laps, workers, args.timeout, work)
+        validate_run(
+            f"workers={workers}", got, stage_names, args.carriers, findings
+        )
         diff = got.differences(results[profiles[-1]])
         if diff:
             findings.append("schedule leaks into the answer at workers=%d:\n    %s"
@@ -205,7 +296,8 @@ def main() -> int:
                                               got.answers.get("RESIDENT_ROOT", "?")))
 
     # --- determinism: same binary, twice ------------------------------------
-    again = run(exe, args.carriers, args.laps, 2, args.timeout)
+    again = run(exe, args.carriers, args.laps, 2, args.timeout, work)
+    validate_run("rerun", again, stage_names, args.carriers, findings)
     diff = again.differences(results[profiles[-1]])
     if diff:
         findings.append("same binary drifts between runs:\n    %s"
@@ -214,8 +306,14 @@ def main() -> int:
                                        again.answers.get("RESIDENT_ROOT", "?")))
 
     # --- rebuild: same sources, fresh build ---------------------------------
-    rebuilt = build(profiles[-1], root / (profiles[-1] + "-again"))
-    got = run(rebuilt, args.carriers, args.laps, 2, args.timeout)
+    rebuilt = build(profiles[-1], root / (profiles[-1] + "-again"), program, work)
+    rebuilt_names, rebuilt_digest = verify_stage_inventory(
+        rebuilt, work, args.timeout, locks, layer["stage_lock"]
+    )
+    if rebuilt_names != stage_names or rebuilt_digest != stage_digest:
+        raise ContractError("resident rebuild changed its stage inventory")
+    got = run(rebuilt, args.carriers, args.laps, 2, args.timeout, work)
+    validate_run("rebuild", got, rebuilt_names, args.carriers, findings)
     diff = got.differences(results[profiles[-1]])
     if diff:
         findings.append("rebuild changes behaviour:\n    %s"
@@ -225,18 +323,11 @@ def main() -> int:
 
     # --- ladder: the program must stay green as it ages ---------------------
     for laps in [int(x) for x in args.ladder.split(",") if x.strip()]:
-        got = run(exe, args.carriers, laps, 3, args.timeout)
+        got = run(exe, args.carriers, laps, 3, args.timeout, work)
+        validate_run(f"laps={laps}", got, stage_names, args.carriers, findings)
         print("ladder laps=%-5d rc=%d root=%s handled=%s"
               % (laps, got.code, got.answers.get("RESIDENT_ROOT", "?"),
                  got.answers.get("RESIDENT_HANDLED", "?")))
-        for line in got.failures:
-            findings.append("laps=%d: %s" % (laps, line))
-        # The carrier count times laps times stages is an exact number, and the
-        # program checks it itself; a non-zero exit with no failure line means
-        # it fell over in some way the program did not name.
-        if got.code != 0 and not got.failures:
-            findings.append("laps=%d: exit %d without naming a failure"
-                            % (laps, got.code))
 
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
@@ -255,6 +346,11 @@ def main() -> int:
                 "laps": args.laps,
                 "ladder": args.ladder,
             },
+            "contracts": {
+                "manifest": str(MANIFEST_PATH),
+                "inventory_sha256": inventory_digest,
+                "stage_order_sha256": stage_digest,
+            },
             "findings": findings,
         }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
@@ -271,4 +367,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except (ContractError, RuntimeError, subprocess.TimeoutExpired) as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        raise SystemExit(1)

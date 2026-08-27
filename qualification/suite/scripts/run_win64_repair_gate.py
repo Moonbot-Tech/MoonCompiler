@@ -11,122 +11,16 @@ import subprocess
 import sys
 from pathlib import Path
 
-
-CORE_TESTS = (
-    "tdelphimixeduint641",
-    "tu64modpow2mask1",
-    "tdelphicurrencymul1",
-    "tdelphirawbyteconcat1",
-    "tdelphirawbyteconst1",
-    "tunsignednarrowarith1",
-    "tdelphix86shiftfold1",
-    "tcapturedinlineinterface1",
-    "tcapturedinlineinterface2",
-    "tdelphilocalfinalize1",
-    "tdelphilocalfinalizedefer1",
-    "tdelphimaininlinefinalize1",
-    "tpeepequalregloop1",
-    "tforunrollfinally1",
-    "tforunrollfinally2",
-    "tdelphisparseenumtypeinfo1",
-    "tdelphiinlineconstruntime1",
-    "tdelphianonymousnew1",
-    "tdelphinilvaroverload1",
-    "tdelphivarrankpure1",
-    "tforsteplatchasm1",
-    "tdelphithreadcreate1",
-    "tdelphifilegetsize1",
-    "tdelphimemorystreamcapacity1",
-    "tdelphimemorystreamsetsize1",
-    "tdelphicustomvariantbyref1",
-    "tdelphitextpos1",
-    "tdelphiforvarexplicit1",
-    "tmoonnamespacequalified1",
-    "tdelphiconstref1",
-    "tarrayconstafterinline1",
-    "tdelphiunicodeliteral1",
-    "tdelphibyteconstppu1",
-    "tdelphibytestringcast1",
-    "tdelphibytestringconcatdomain1",
-    "tdelphicharcast1",
-    "tdelphiintpair1",
-    "tobjfpcliteralcastoverload1",
-    "tsetconstbase1",
-    "tx86boolconstmovwidth1",
-    "tunicodeguidparse1",
-    "tdelphiqualifiedinteger1",
-    "tdelphisplitempty1",
-    "tdelphistringlistbom1",
-    "tdelphivariantstring1",
-    "tdelphivariantrawbytestring1",
-    "tdelphinegativezero1",
-    "tmoonoddconstu641",
-    "tmoonconstpropglobalcalls1",
-    "tmooninlinemanagedexprfinally1",
-    "tmoondelphicallbacktypes1",
-    "tmoonattributemarker1",
-    "tloopinvariantaddr1",
-    "tloopinvariantarraywrite1",
-    "tloopmutablestringbase1",
-    "tlooplocaldynarraycall1",
-    "twidecharsetmembership1",
-    "tstrengthenumguard1",
-    "tstrengthresultcounter1",
-    "tstrengthresultcountertrace1",
-    "tarrayindexoffsetconv1",
-    "tarraypointerindexoffset1",
-    "tdelphiinlineexceptreg1",
-    "tdelphiinlinefuncrettemp1",
-    "tdelphidefaultarray1",
-)
-CORE_SOURCE_ARGS = {
-    "tstrengthresultcountertrace1": ["-gt"],
-    "tmoonnamespacequalified1": [
-        "-FNSystem",
-        "-UaSystem.SysUtils=SysUtils",
-    ],
-}
-GENERIC_TESTS = (
-    "tinlinegenericcomparer1",
-    "tnestedgenericarray1",
-    "tqualifiedintegercomparer1",
-    "tdelphitarraycopy1",
-    "tdelphidictionaryisempty1",
-)
-STEP_TESTS = (
-    "tforstep1",
-    "tforstep2",
-    "tforstep3",
-    "tforstep4",
-    "tforstep5",
-    "tforstep6",
-    "tforstep7",
-    "tforstep8",
-    "tforstep9",
-    "tforstep10",
-    "tforstep11",
-    "tforstep12",
-    "tforstep14",
-    "tforstep15",
-)
-# compiled in two separate compiler invocations, so the inline for-step body
-# really crosses the PPU boundary instead of staying in loaded_units memory
-STEP_PPU_UNIT = "uforstep13"
-STEP_PPU_TEST = "tforstep13"
-OPTIONS = ("O2", "O3")
-NEGATIVE_TESTS = (
-    ("delphi_mixed_uint64_pair_ambiguous", "Can't determine which overloaded function to call"),
-    ("inline_const_reassign_fail", "Can't assign values to const variable"),
-    ("inline_const_typed_reassign_fail", "Can't assign values to const variable"),
-    ("inline_const_record_field_reassign_fail", "Can't assign values to const variable"),
-    ("inline_const_string_char_reassign_fail", "Can't assign values to const variable"),
-    ("inline_const_var_parameter_rejected", "Can't assign values to const variable"),
-    ("dead_try_handler_still_checked", 'Identifier not found "MissingInDeadHandler"'),
-    ("array_const_index_out_of_range", "Range check error while evaluating constants"),
-    ("delphi_constref_write_rejected", "Can't assign values to const variable"),
-    ("objfpc_delphi_constref_rejected", "Syntax error"),
-    ("for_step_zero_const_rejected", "Step value must be a positive integer"),
-    ("for_step_negative_const_rejected", "Step value must be a positive integer"),
+from qualification_contracts import (
+    ContractError,
+    MANIFEST_PATH,
+    LOCKS_PATH,
+    canonical_sha256,
+    load_json,
+    planned_pairs,
+    require_exact_actual,
+    require_retirement_only,
+    validate_focused_gate,
 )
 
 
@@ -154,21 +48,6 @@ def compiler_info(compiler: Path, switch: str) -> str:
     if result.returncode != 0:
         raise RuntimeError(f"compiler {switch} failed: {result.stderr.strip()}")
     return result.stdout.strip().lower()
-
-
-def generic_source_args(compiler_root: Path) -> list[str]:
-    package = compiler_root / "packages" / "rtl-generics"
-    return [
-        f"-Fu{package / 'namespaced'}",
-        f"-Fi{package / 'src'}",
-        f"-Fi{package / 'src' / 'inc'}",
-        "-UaSystem.Classes=Classes",
-        "-UaSystem.SysUtils=SysUtils",
-        "-UaSystem.TypInfo=TypInfo",
-        "-UaSystem.Variants=Variants",
-        "-UaSystem.Math=Math",
-        "-UaSystem.CPU=CPU",
-    ]
 
 
 def verify_unrolled_seh(assembly: Path) -> None:
@@ -306,6 +185,32 @@ def verify_inline_funcret_temp(assembly: Path) -> None:
             raise RuntimeError(f"a required managed copy disappeared: {marker}")
 
 
+ASM_VERIFIERS = {
+    "unrolled-seh": verify_unrolled_seh,
+    "loop-invariant-address": verify_loop_invariant_address,
+    "inline-exception-registers": verify_inline_exception_registers,
+    "inline-funcret-temp": verify_inline_funcret_temp,
+    "forstep-latch": verify_forstep_latch,
+}
+
+
+def case_source(root: Path, compiler_root: Path, item: dict[str, object]) -> Path:
+    base = compiler_root if item["source_root"] == "compiler" else root
+    return base / str(item["source"])
+
+
+def case_arguments(
+    gate: dict[str, object], compiler_root: Path, item: dict[str, object]
+) -> list[str]:
+    result: list[str] = []
+    argument_sets = gate["argument_sets"]
+    assert isinstance(argument_sets, dict)
+    for name in item["args"]:
+        for value in argument_sets[name]:
+            result.append(value.format(compiler_root=compiler_root))
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("compiler", type=Path)
@@ -326,192 +231,133 @@ def main() -> int:
     if compiler_info(compiler, "-iTP") != "x86_64" or compiler_info(compiler, "-iTO") != "win64":
         parser.error("this gate requires an x86_64-win64 compiler")
 
-    cases: list[tuple[str, Path, list[str]]] = []
-    for name in CORE_TESTS:
-        cases.append((
-            name,
-            compiler_root / "tests" / "test" / "cg" / f"{name}.pp",
-            CORE_SOURCE_ARGS.get(name, []),
-        ))
-    generic_args = generic_source_args(compiler_root)
-    for name in GENERIC_TESTS:
-        cases.append(
-            (name, compiler_root / "packages" / "rtl-generics" / "tests" / f"{name}.pp", generic_args)
+    manifest = load_json(MANIFEST_PATH)
+    locks = load_json(LOCKS_PATH)
+    gate, inventory_digest = validate_focused_gate(
+        manifest, locks, "win64-repairs"
+    )
+    require_retirement_only(manifest)
+    cases = [case for case in gate["cases"] if case["state"] == "active"]
+    planned = planned_pairs(gate)
+    sources: dict[str, Path] = {}
+    for item in cases:
+        sources[f"{item['source_root']}:{item['source']}"] = case_source(
+            root, compiler_root, item
         )
-    for name in STEP_TESTS:
-        cases.append((name, compiler_root / "tests" / "test" / f"{name}.pp", []))
-    missing = [str(source) for _, source, _ in cases if not source.is_file()]
+        setup = item.get("setup")
+        if setup:
+            sources[f"{setup['source_root']}:{setup['source']}"] = case_source(
+                root, compiler_root, setup
+            )
+        for binding in item["asm"]:
+            if binding["verifier"] not in ASM_VERIFIERS:
+                raise ContractError(
+                    f"unknown ASM verifier for {item['id']}: {binding['verifier']}"
+                )
+    missing = [str(source) for source in sources.values() if not source.is_file()]
     if missing:
         parser.error("missing regression sources: " + ", ".join(missing))
 
     result_root.mkdir(parents=True)
     rows: list[dict[str, object]] = []
     failures: list[str] = []
-    for name, source, source_args in cases:
-        for option in OPTIONS:
-            output = result_root / f"{name}-{option.lower()}"
+    for item in cases:
+        case_id = item["id"]
+        source = case_source(root, compiler_root, item)
+        source_args = case_arguments(gate, compiler_root, item)
+        expectation = item["expectation"]
+        for profile in item["profiles"]:
+            output = result_root / f"{case_id}-{profile.lower()}"
             output.mkdir()
+            profile_args = gate["profiles"][profile]
+            setup = item.get("setup")
+            setup_result: subprocess.CompletedProcess[str] | None = None
+            if setup:
+                setup_source = case_source(root, compiler_root, setup)
+                setup_result = run(
+                    [
+                        str(compiler),
+                        "-n",
+                        f"@{config}",
+                        "-B",
+                        *profile_args,
+                        f"-FU{output}",
+                        f"-FE{output}",
+                        *source_args,
+                        str(setup_source),
+                    ],
+                    cwd=output,
+                )
             command = [
                 str(compiler),
                 "-n",
                 f"@{config}",
-                "-B",
-                f"-{option}",
+                *([] if setup else ["-B"]),
+                *profile_args,
                 f"-FU{output}",
                 f"-FE{output}",
+                *([f"-Fu{output}"] if setup else []),
                 *source_args,
             ]
-            if name in (
-                "tforunrollfinally2",
-                "tloopinvariantaddr1",
-                "tdelphiinlineexceptreg1",
-                "tdelphiinlinefuncrettemp1",
-                "tforsteplatchasm1",
-            ) and option == "O3":
+            if any(binding["profile"] == profile for binding in item["asm"]):
                 command.append("-al")
             command.append(str(source))
-            compiled = run(command, cwd=output)
-            (output / "compile.log").write_text(
-                compiled.stdout + compiled.stderr, encoding="utf-8"
+            compiled = (
+                run(command, cwd=output)
+                if setup_result is None or setup_result.returncode == 0
+                else setup_result
             )
-            executable = output / f"{name}.exe"
+            if setup_result is None:
+                log = compiled.stdout + compiled.stderr
+            elif setup_result.returncode == 0:
+                log = (
+                    setup_result.stdout + setup_result.stderr
+                    + compiled.stdout + compiled.stderr
+                )
+            else:
+                log = setup_result.stdout + setup_result.stderr
+            (output / "compile.log").write_text(log, encoding="utf-8")
+            executable = output / f"{case_id}.exe"
             executed: subprocess.CompletedProcess[str] | None = None
-            if compiled.returncode == 0 and executable.is_file():
+            if (
+                expectation["compile"] == "pass"
+                and compiled.returncode == 0
+                and executable.is_file()
+            ):
                 executed = run([str(executable)], cwd=output, timeout=30)
                 (output / "run.log").write_text(
                     executed.stdout + executed.stderr, encoding="utf-8"
                 )
             row = {
-                "test": name,
-                "option": option,
+                "id": case_id,
+                "profile": profile,
                 "compile_exit": compiled.returncode,
                 "run_exit": None if executed is None else executed.returncode,
             }
+            if expectation["compile"] == "fail":
+                row["diagnostic_matched"] = expectation["diagnostic"] in log
             rows.append(row)
-            if row["compile_exit"] != 0 or row["run_exit"] != 0:
-                failures.append(f"{name}/{option}")
+            if expectation["compile"] == "pass":
+                if row["compile_exit"] != 0 or row["run_exit"] != 0:
+                    failures.append(f"{case_id}/{profile}")
+            elif row["compile_exit"] == 0 or not row["diagnostic_matched"]:
+                failures.append(f"{case_id}/{profile}")
 
-    for option in OPTIONS:
-        output = result_root / f"{STEP_PPU_TEST}-{option.lower()}"
-        output.mkdir()
-        test_dir = compiler_root / "tests" / "test"
-        unit_compiled = run(
-            [
-                str(compiler),
-                "-n",
-                f"@{config}",
-                "-B",
-                f"-{option}",
-                f"-FU{output}",
-                f"-FE{output}",
-                str(test_dir / f"{STEP_PPU_UNIT}.pp"),
-            ],
-            cwd=output,
-        )
-        main_compiled = None
-        executed = None
-        if unit_compiled.returncode == 0:
-            main_compiled = run(
-                [
-                    str(compiler),
-                    "-n",
-                    f"@{config}",
-                    f"-{option}",
-                    f"-FU{output}",
-                    f"-FE{output}",
-                    f"-Fu{output}",
-                    str(test_dir / f"{STEP_PPU_TEST}.pp"),
-                ],
-                cwd=output,
+    require_exact_actual(planned, ((row["id"], row["profile"]) for row in rows))
+    expected_rows = len(planned)
+    for item in cases:
+        for binding in item["asm"]:
+            assembly = (
+                result_root
+                / f"{item['id']}-{binding['profile'].lower()}"
+                / f"{item['id']}.s"
             )
-        (output / "compile.log").write_text(
-            unit_compiled.stdout
-            + unit_compiled.stderr
-            + ("" if main_compiled is None else main_compiled.stdout + main_compiled.stderr),
-            encoding="utf-8",
-        )
-        executable = output / f"{STEP_PPU_TEST}.exe"
-        if main_compiled is not None and main_compiled.returncode == 0 and executable.is_file():
-            executed = run([str(executable)], cwd=output, timeout=30)
-            (output / "run.log").write_text(
-                executed.stdout + executed.stderr, encoding="utf-8"
-            )
-        row = {
-            "test": STEP_PPU_TEST,
-            "option": option,
-            "compile_exit": None if main_compiled is None else main_compiled.returncode,
-            "run_exit": None if executed is None else executed.returncode,
-        }
-        rows.append(row)
-        if row["compile_exit"] != 0 or row["run_exit"] != 0:
-            failures.append(f"{STEP_PPU_TEST}/{option}")
-
-    for name, expected_error in NEGATIVE_TESTS:
-        source = root / "tests" / "smoke" / f"{name}.pas"
-        if not source.is_file():
-            raise RuntimeError(f"missing negative regression source: {source}")
-        for option in OPTIONS:
-            output = result_root / f"{name}-{option.lower()}"
-            output.mkdir()
-            compiled = run(
-                [
-                    str(compiler),
-                    "-n",
-                    f"@{config}",
-                    "-B",
-                    f"-{option}",
-                    f"-FU{output}",
-                    f"-FE{output}",
-                    str(source),
-                ],
-                cwd=output,
-            )
-            log = compiled.stdout + compiled.stderr
-            (output / "compile.log").write_text(log, encoding="utf-8")
-            rows.append(
-                {
-                    "test": name,
-                    "option": option,
-                    "compile_exit": compiled.returncode,
-                    "expected_error": expected_error in log,
-                }
-            )
-            if compiled.returncode == 0 or expected_error not in log:
-                failures.append(f"{name}/{option}")
-
-    expected_rows = (
-        len(CORE_TESTS) + len(GENERIC_TESTS) + len(STEP_TESTS) + 1 + len(NEGATIVE_TESTS)
-    ) * len(OPTIONS)
-    if len(rows) != expected_rows:
-        raise RuntimeError(f"incomplete matrix: {len(rows)}/{expected_rows}")
-    try:
-        verify_unrolled_seh(result_root / "tforunrollfinally2-o3" / "tforunrollfinally2.s")
-    except (OSError, RuntimeError) as error:
-        failures.append(f"seh-assembly ({error})")
-    try:
-        verify_loop_invariant_address(
-            result_root / "tloopinvariantaddr1-o3" / "tloopinvariantaddr1.s"
-        )
-    except (OSError, RuntimeError) as error:
-        failures.append(f"loop-invariant-address-assembly ({error})")
-    try:
-        verify_inline_exception_registers(
-            result_root / "tdelphiinlineexceptreg1-o3" / "tdelphiinlineexceptreg1.s"
-        )
-    except (OSError, RuntimeError) as error:
-        failures.append(f"inline-exception-registers-assembly ({error})")
-    try:
-        verify_inline_funcret_temp(
-            result_root / "tdelphiinlinefuncrettemp1-o3" / "tdelphiinlinefuncrettemp1.s"
-        )
-    except (OSError, RuntimeError) as error:
-        failures.append(f"inline-funcret-temp-assembly ({error})")
-    try:
-        verify_forstep_latch(
-            result_root / "tforsteplatchasm1-o3" / "tforsteplatchasm1.s"
-        )
-    except (OSError, RuntimeError) as error:
-        failures.append(f"forstep-latch-assembly ({error})")
+            try:
+                ASM_VERIFIERS[binding["verifier"]](assembly)
+            except (OSError, RuntimeError) as error:
+                failures.append(
+                    f"{item['id']}/{binding['profile']}/asm ({error})"
+                )
 
     (result_root / "results.json").write_text(
         json.dumps(rows, indent=2) + "\n", encoding="utf-8"
@@ -528,15 +374,14 @@ def main() -> int:
         "compiler_sha256": sha256(compiler),
         "config": str(config),
         "config_sha256": sha256(config),
+        "manifest": str(MANIFEST_PATH),
+        "manifest_sha256": sha256(MANIFEST_PATH),
+        "inventory_sha256": inventory_digest,
+        "planned_sha256": canonical_sha256(
+            [{"id": case_id, "profile": profile} for case_id, profile in sorted(planned)]
+        ),
         "rtl_units": {str(unit): sha256(unit) for unit in rtl_units},
-        "sources": {
-            **{str(source.relative_to(compiler_root)): sha256(source) for _, source, _ in cases},
-            **{
-                str((root / "tests" / "smoke" / f"{name}.pas").relative_to(root)):
-                    sha256(root / "tests" / "smoke" / f"{name}.pas")
-                for name, _ in NEGATIVE_TESTS
-            },
-        },
+        "sources": {name: sha256(source) for name, source in sorted(sources.items())},
         "rows": expected_rows,
     }
     (result_root / "provenance.json").write_text(
@@ -544,13 +389,13 @@ def main() -> int:
     )
     if failures:
         raise RuntimeError("failed checks: " + ", ".join(failures))
-    print(f"WIN64_REPAIR_GATE_OK rows={expected_rows} seh_unrolled=1 invariant_address=1")
+    print(f"WIN64_REPAIR_GATE_OK rows={expected_rows} asm={sum(len(item['asm']) for item in cases)}")
     return 0
 
 
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except (RuntimeError, subprocess.TimeoutExpired) as error:
+    except (ContractError, RuntimeError, subprocess.TimeoutExpired) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         sys.exit(1)

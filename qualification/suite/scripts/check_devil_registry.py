@@ -20,9 +20,19 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
+
+from qualification_contracts import (
+    LOCKS_PATH,
+    MANIFEST_PATH,
+    load_json,
+    require_retirement_only,
+    validate_focused_gate,
+    validate_resident_layer,
+)
 
 DEVIL = Path(__file__).resolve().parents[1] / "tests" / "devil"
 ID_RE = re.compile(r"dvl-(\d{4})")
@@ -38,6 +48,12 @@ def main() -> None:
     args = p.parse_args()
     devil = args.devil.resolve()
 
+    manifest = load_json(MANIFEST_PATH)
+    locks = load_json(LOCKS_PATH)
+    validate_focused_gate(manifest, locks, "win64-repairs")
+    layer, _ = validate_resident_layer(manifest, locks)
+    require_retirement_only(manifest)
+
     findings = devil / "findings"
     journal = devil / "ЖУРНАЛ-НАХОДОК.md"
     status = devil / "STATUS.md"
@@ -52,6 +68,13 @@ def main() -> None:
 
     problems: list[str] = []
 
+    status_text = status.read_text(encoding="utf-8") if status.is_file() else ""
+    for key in ("source", "runner", "readme"):
+        target = (MANIFEST_PATH.parent / layer[key]).resolve()
+        relative = os.path.relpath(target, status.parent).replace("\\", "/")
+        if f"]({relative})" not in status_text:
+            problems.append(f"STATUS misses resident {key} link: {relative}")
+
     for number, path in folders.items():
         if not (path / "FINDING.md").is_file():
             problems.append("dvl-%s: папка без разбора (%s)" % (number, path.name))
@@ -62,7 +85,7 @@ def main() -> None:
                       if excused.is_file() else set())
 
     in_journal = ids_in(journal.read_text(encoding="utf-8")) if journal.is_file() else set()
-    in_status = ids_in(status.read_text(encoding="utf-8")) if status.is_file() else set()
+    in_status = ids_in(status_text)
 
     for number in sorted(folders):
         if number not in in_journal:

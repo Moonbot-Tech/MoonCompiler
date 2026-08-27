@@ -18,6 +18,7 @@ sys.path.insert(0, str(SCRIPTS))
 import generate_devil
 import run_devil_env_gate
 import run_devil_gate
+import run_devil_resident_gate
 import devil_toolchain
 
 
@@ -143,6 +144,19 @@ class DevilRunnerContractsTest(unittest.TestCase):
             row = json.loads(report.read_text(encoding="utf-8"))[0]
         self.assertEqual(row["findings"], [])
         self.assertIn("dvl-0043", {hit["known"] for hit in row["known_hits"]})
+
+    def test_resident_rejects_silent_or_incomplete_execution(self) -> None:
+        findings: list[str] = []
+        run_devil_resident_gate.validate_run(
+            "silent",
+            run_devil_resident_gate.Run("", 0),
+            ["alpha"],
+            1,
+            findings,
+        )
+        self.assertTrue(any("missing answer lines" in item for item in findings))
+        self.assertTrue(any("stage answers mismatch" in item for item in findings))
+        self.assertTrue(any("carrier answers incomplete" in item for item in findings))
 
 
 if __name__ == "__main__":

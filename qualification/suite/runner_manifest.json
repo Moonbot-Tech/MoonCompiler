@@ -1129,6 +1129,1638 @@
       "source": "fixtures/minimized/mormot_rawbytestring_bom_const.pas"
     }
   ],
+  "focused_gates": {
+    "win64-repairs": {
+      "id": "win64-repairs",
+      "runner": "scripts/run_win64_repair_gate.py",
+      "inventory_lock": "focused-win64-repairs/v1",
+      "profiles": {
+        "O2": [
+          "-O2"
+        ],
+        "O3": [
+          "-O3"
+        ]
+      },
+      "argument_sets": {
+        "generic": [
+          "-Fu{compiler_root}/packages/rtl-generics/namespaced",
+          "-Fi{compiler_root}/packages/rtl-generics/src",
+          "-Fi{compiler_root}/packages/rtl-generics/src/inc",
+          "-UaSystem.Classes=Classes",
+          "-UaSystem.SysUtils=SysUtils",
+          "-UaSystem.TypInfo=TypInfo",
+          "-UaSystem.Variants=Variants",
+          "-UaSystem.Math=Math",
+          "-UaSystem.CPU=CPU"
+        ],
+        "namespace": [
+          "-FNSystem",
+          "-UaSystem.SysUtils=SysUtils"
+        ],
+        "trace": [
+          "-gt"
+        ]
+      },
+      "cases": [
+        {
+          "id": "tdelphimixeduint641",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphimixeduint641.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tu64modpow2mask1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tu64modpow2mask1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphicurrencymul1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphicurrencymul1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphirawbyteconcat1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphirawbyteconcat1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphirawbyteconst1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphirawbyteconst1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tunsignednarrowarith1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tunsignednarrowarith1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphix86shiftfold1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphix86shiftfold1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tcapturedinlineinterface1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tcapturedinlineinterface1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tcapturedinlineinterface2",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tcapturedinlineinterface2.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphilocalfinalize1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphilocalfinalize1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphilocalfinalizedefer1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphilocalfinalizedefer1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphimaininlinefinalize1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphimaininlinefinalize1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tpeepequalregloop1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tpeepequalregloop1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforunrollfinally1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforunrollfinally1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforunrollfinally2",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforunrollfinally2.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "unrolled-seh"
+            }
+          ]
+        },
+        {
+          "id": "tdelphisparseenumtypeinfo1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphisparseenumtypeinfo1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphiinlineconstruntime1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphiinlineconstruntime1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphianonymousnew1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphianonymousnew1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphinilvaroverload1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphinilvaroverload1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphivarrankpure1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphivarrankpure1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforsteplatchasm1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforsteplatchasm1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "forstep-latch"
+            }
+          ]
+        },
+        {
+          "id": "tdelphithreadcreate1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphithreadcreate1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphifilegetsize1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphifilegetsize1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphimemorystreamcapacity1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphimemorystreamcapacity1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphimemorystreamsetsize1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphimemorystreamsetsize1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphicustomvariantbyref1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphicustomvariantbyref1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphitextpos1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphitextpos1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphiforvarexplicit1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphiforvarexplicit1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmoonnamespacequalified1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmoonnamespacequalified1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [
+            "namespace"
+          ],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphiconstref1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphiconstref1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tarrayconstafterinline1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tarrayconstafterinline1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphiunicodeliteral1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphiunicodeliteral1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphibyteconstppu1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphibyteconstppu1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphibytestringcast1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphibytestringcast1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphibytestringconcatdomain1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphibytestringconcatdomain1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphicharcast1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphicharcast1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphiintpair1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphiintpair1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tobjfpcliteralcastoverload1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tobjfpcliteralcastoverload1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tsetconstbase1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tsetconstbase1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tx86boolconstmovwidth1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tx86boolconstmovwidth1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tunicodeguidparse1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tunicodeguidparse1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphiqualifiedinteger1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphiqualifiedinteger1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphisplitempty1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphisplitempty1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphistringlistbom1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphistringlistbom1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphivariantstring1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphivariantstring1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphivariantrawbytestring1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphivariantrawbytestring1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphinegativezero1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphinegativezero1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmoonoddconstu641",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmoonoddconstu641.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmoonconstpropglobalcalls1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmoonconstpropglobalcalls1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmooninlinemanagedexprfinally1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmooninlinemanagedexprfinally1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmoondelphicallbacktypes1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmoondelphicallbacktypes1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmoonattributemarker1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmoonattributemarker1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tloopinvariantaddr1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tloopinvariantaddr1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "loop-invariant-address"
+            }
+          ]
+        },
+        {
+          "id": "tloopinvariantarraywrite1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tloopinvariantarraywrite1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tloopmutablestringbase1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tloopmutablestringbase1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tlooplocaldynarraycall1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tlooplocaldynarraycall1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twidecharsetmembership1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twidecharsetmembership1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tstrengthenumguard1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tstrengthenumguard1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tstrengthresultcounter1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tstrengthresultcounter1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tstrengthresultcountertrace1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tstrengthresultcountertrace1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [
+            "trace"
+          ],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tarrayindexoffsetconv1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tarrayindexoffsetconv1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tarraypointerindexoffset1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tarraypointerindexoffset1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphiinlineexceptreg1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphiinlineexceptreg1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "inline-exception-registers"
+            }
+          ]
+        },
+        {
+          "id": "tdelphiinlinefuncrettemp1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphiinlinefuncrettemp1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "inline-funcret-temp"
+            }
+          ]
+        },
+        {
+          "id": "tdelphidefaultarray1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphidefaultarray1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tinlinegenericcomparer1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "packages/rtl-generics/tests/tinlinegenericcomparer1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [
+            "generic"
+          ],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tnestedgenericarray1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "packages/rtl-generics/tests/tnestedgenericarray1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [
+            "generic"
+          ],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tqualifiedintegercomparer1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "packages/rtl-generics/tests/tqualifiedintegercomparer1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [
+            "generic"
+          ],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphitarraycopy1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "packages/rtl-generics/tests/tdelphitarraycopy1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [
+            "generic"
+          ],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphidictionaryisempty1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "packages/rtl-generics/tests/tdelphidictionaryisempty1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [
+            "generic"
+          ],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep2",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep2.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep3",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep3.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep4",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep4.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep5",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep5.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep6",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep6.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep7",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep7.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep8",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep8.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep9",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep9.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep10",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep10.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep11",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep11.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep12",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep12.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep14",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep14.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep15",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep15.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforstep13",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tforstep13.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [],
+          "setup": {
+            "source_root": "compiler",
+            "source": "tests/test/uforstep13.pp"
+          }
+        },
+        {
+          "id": "delphi_mixed_uint64_pair_ambiguous",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/delphi_mixed_uint64_pair_ambiguous.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Can't determine which overloaded function to call"
+          },
+          "asm": []
+        },
+        {
+          "id": "inline_const_reassign_fail",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/inline_const_reassign_fail.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Can't assign values to const variable"
+          },
+          "asm": []
+        },
+        {
+          "id": "inline_const_typed_reassign_fail",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/inline_const_typed_reassign_fail.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Can't assign values to const variable"
+          },
+          "asm": []
+        },
+        {
+          "id": "inline_const_record_field_reassign_fail",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/inline_const_record_field_reassign_fail.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Can't assign values to const variable"
+          },
+          "asm": []
+        },
+        {
+          "id": "inline_const_string_char_reassign_fail",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/inline_const_string_char_reassign_fail.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Can't assign values to const variable"
+          },
+          "asm": []
+        },
+        {
+          "id": "inline_const_var_parameter_rejected",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/inline_const_var_parameter_rejected.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Can't assign values to const variable"
+          },
+          "asm": []
+        },
+        {
+          "id": "dead_try_handler_still_checked",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/dead_try_handler_still_checked.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Identifier not found \"MissingInDeadHandler\""
+          },
+          "asm": []
+        },
+        {
+          "id": "array_const_index_out_of_range",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/array_const_index_out_of_range.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Range check error while evaluating constants"
+          },
+          "asm": []
+        },
+        {
+          "id": "delphi_constref_write_rejected",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/delphi_constref_write_rejected.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Can't assign values to const variable"
+          },
+          "asm": []
+        },
+        {
+          "id": "objfpc_delphi_constref_rejected",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/objfpc_delphi_constref_rejected.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Syntax error"
+          },
+          "asm": []
+        },
+        {
+          "id": "for_step_zero_const_rejected",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/for_step_zero_const_rejected.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Step value must be a positive integer"
+          },
+          "asm": []
+        },
+        {
+          "id": "for_step_negative_const_rejected",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/for_step_negative_const_rejected.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Step value must be a positive integer"
+          },
+          "asm": []
+        }
+      ]
+    }
+  },
   "mega": {
     "compiler_ids": [
       "fpc-3.2.2",
@@ -1963,6 +3595,39 @@
     "fpc-current",
     "unleashed-latest"
   ],
+  "qualification_layers": {
+    "resident": {
+      "id": "resident",
+      "state": "active",
+      "source": "tests/resident/resident.dpr",
+      "runner": "scripts/run_devil_resident_gate.py",
+      "readme": "tests/resident/README.md",
+      "journal": "tests/devil/ЖУРНАЛ-НАХОДОК.md",
+      "known_issues": "../../KNOWN_ISSUES.md",
+      "profiles": [
+        "debug",
+        "o1",
+        "o2",
+        "release"
+      ],
+      "shapes": {
+        "readme-direct": {
+          "carriers": 6,
+          "laps": 12
+        },
+        "handoff": {
+          "carriers": 4,
+          "laps": 8
+        },
+        "default": {
+          "carriers": 8,
+          "laps": 40
+        }
+      },
+      "inventory_lock": "qualification-resident/v1",
+      "stage_lock": "resident-stage-order/v1"
+    }
+  },
   "schema": 1,
   "stable_reference_compilers": [
     "fpc-3.2.4-rc1"
