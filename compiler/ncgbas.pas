@@ -463,6 +463,9 @@ interface
               include(flowcontrol,fc_inherited_exit);
             { the nested block will not span an exit statement of the parent }
             exclude(flowcontrol,fc_exit);
+            { exits to this block's local label do not unwind a surrounding
+              try/finally; a try/finally inside the block sets this flag anew }
+            exclude(flowcontrol,fc_unwind_exit);
             include(flowcontrol,fc_no_direct_exit);
           end;
 

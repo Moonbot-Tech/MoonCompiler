@@ -110,6 +110,17 @@ def verify_inline_exception_registers(assembly: Path) -> None:
     if re.search(r"movq\s+%r[a-z0-9]+,\d+\(%rsp\)", loop):
         raise RuntimeError("scalar inline parameter still spills into the exception frame")
 
+    local_exit = assembly_procedure(
+        text,
+        "P$TDELPHIINLINEEXCEPTREG1_$$_CALLERFINALLYAROUNDLOCALEXIT$LONGINT$$LONGINT:",
+    )
+    if "_FPC_local_unwind" in local_exit:
+        raise RuntimeError(
+            "an Exit local to an inlined block still unwinds the caller's finally"
+        )
+    if ".seh_handler __FPC_specific_handler,@unwind" not in local_exit:
+        raise RuntimeError("the caller's real finally handler disappeared")
+
     for marker in (
         "P$TDELPHIINLINEEXCEPTREG1_$$_THROWTOCALLER$QWORD$$QWORD:",
         "P$TDELPHIINLINEEXCEPTREG1_$$_CHECKEDOVERFLOWCAUGHT$LONGINT$$LONGINT:",

@@ -14,6 +14,7 @@ uses
 
 var
   FinallyValue: UInt64;
+  CallerFinallyRuns, InnerFinallyRuns: Integer;
 
 function Mix(Value: UInt64): UInt64; inline;
 begin
@@ -43,6 +44,42 @@ begin
     Result := Value + 1;
   finally
     FinallyValue := Value;
+  end;
+end;
+
+function LocalExit(Value: Integer): Integer; inline;
+begin
+  If Value = 0 then
+    Exit(37);
+  Result := Value + 1;
+end;
+
+function LocalExitWithOwnFinally(Value: Integer): Integer; inline;
+begin
+  try
+    If Value = 0 then
+      Exit(41);
+    Result := Value + 2;
+  finally
+    Inc(InnerFinallyRuns);
+  end;
+end;
+
+function CallerFinallyAroundLocalExit(Value: Integer): Integer;
+begin
+  try
+    Result := LocalExit(Value) + 5;
+  finally
+    Inc(CallerFinallyRuns);
+  end;
+end;
+
+function CallerFinallyAroundNestedExit(Value: Integer): Integer;
+begin
+  try
+    Result := LocalExitWithOwnFinally(Value) + 5;
+  finally
+    Inc(CallerFinallyRuns);
   end;
 end;
 
@@ -163,4 +200,17 @@ begin
     Halt(9);
   If NilVarCaught <> 89 then
     Halt(10);
+  CallerFinallyRuns := 0;
+  If CallerFinallyAroundLocalExit(0) <> 42 then
+    Halt(11);
+  If CallerFinallyRuns <> 1 then
+    Halt(12);
+  CallerFinallyRuns := 0;
+  InnerFinallyRuns := 0;
+  If CallerFinallyAroundNestedExit(0) <> 46 then
+    Halt(13);
+  If InnerFinallyRuns <> 1 then
+    Halt(14);
+  If CallerFinallyRuns <> 1 then
+    Halt(15);
 end.
