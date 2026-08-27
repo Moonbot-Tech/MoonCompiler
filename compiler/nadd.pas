@@ -176,7 +176,7 @@ implementation
       symconst,symdef,symsym,symcpu,symtable,defutil,defcmp,
       cgbase,
       htypechk,pass_1,pbase,
-      nld,nbas,nmat,ncnv,ncon,nset,nopt,ncal,ninl,nmem,nutils,nflw,
+      nld,nbas,nmat,ncnv,ncon,nset,nopt,ncal,ninl,nmem,nutils,nflw,ntextplan,
       {$ifdef state_tracking}
       nstate,
       {$endif}
@@ -987,6 +987,7 @@ const
         c1,c2   : array[0..1] of ansichar;
         s1,s2,stmp   : pansichar;
         literal1,literal2,literalresult : TAnsiCharDynArray;
+        foldplan : TTextFoldPlan;
         l1,l2   : longint;
         resultset : Tconstset;
         res,wrapped,
@@ -1571,13 +1572,12 @@ const
              case nodetype of
                 addn :
                   begin
+                     foldplan:=plan_wide_const_fold(left,right);
                      concatwidestrings(ws1,ws2);
                      t:=cstringconstnode.createunistr(ws1);
-                     if (nf_explicit in left.flags) or
-                        (nf_explicit in right.flags) then
+                     if foldplan.markexplicit then
                        include(t.flags,nf_explicit);
-                     if tstringconstnode(left).hasliteralbytes or
-                        tstringconstnode(right).hasliteralbytes then
+                     if foldplan.joinliteralbytes then
                        begin
                          tstringconstnode(left).getliteralbytes(literal1);
                          tstringconstnode(right).getliteralbytes(literal2);
@@ -1665,33 +1665,16 @@ const
              case nodetype of
                 addn :
                   begin
+                    foldplan:=plan_ansi_const_fold(left,right,resultdef,
+                      anf_rawbytestring_concat in addnodeflags);
                     stmp:=concatansistrings(s1,s2,l1,l2);
-                    { Type checking has already converted both constant
-                      operands to the result code page.  Preserve that fact
-                      when their bytes are joined; creating an untyped source
-                      and converting it once more double-transcodes an
-                      expression such as UTF8String('u') + #$85. }
-                    if is_ansistring(resultdef) and
-                       is_ansistring(left.resultdef) and
-                       is_ansistring(right.resultdef) and
-                       (tstringdef(left.resultdef).encoding=
-                        tstringdef(resultdef).encoding) and
-                       (tstringdef(right.resultdef).encoding=
-                        tstringdef(resultdef).encoding) then
-                      t:=cstringconstnode.createpchar(stmp,l1+l2,resultdef)
-                    else
-                      t:=cstringconstnode.createpchar(stmp,l1+l2,nil);
-                    if (nf_explicit in left.flags) or
-                       (nf_explicit in right.flags) then
+                    t:=cstringconstnode.createpchar(stmp,l1+l2,
+                      foldplan.createdef);
+                    if foldplan.markexplicit then
                       include(t.flags,nf_explicit);
                     Freemem(stmp);
                     typecheckpass(t);
-                    if not is_ansistring(resultdef) or
-                       (tstringdef(resultdef).encoding<>globals.CP_NONE) or
-                       (anf_rawbytestring_concat in addnodeflags) then
-                      tstringconstnode(t).changestringtype(resultdef)
-                    else
-                      tstringconstnode(t).changestringtype(getansistringdef)
+                    tstringconstnode(t).changestringtype(foldplan.finaldef);
                   end;
                 ltn :
                   t:=cordconstnode.create(byte(compareansistrings(s1,s2,l1,l2)<0),pasbool1type,true);
@@ -2570,16 +2553,12 @@ const
           normal string conversion then performs exactly one conversion to
           the concrete target code page. }
         if lefttypedansiliteral and
-           (right.nodetype=ordconstn) and
-           (tordconstnode(right).literalbyte or
-            (torddef(right.resultdef).ordtype=uchar)) then
+           text_byte_proof(right) then
           inserttypeconv(right,getansistringdef);
         if lefttypedansiliteral then
           materialize_literal_bytes_as_ansistring(right);
         if righttypedansiliteral and
-           (left.nodetype=ordconstn) and
-           (tordconstnode(left).literalbyte or
-            (torddef(left.resultdef).ordtype=uchar)) then
+           text_byte_proof(left) then
           inserttypeconv(left,getansistringdef);
         if righttypedansiliteral then
           materialize_literal_bytes_as_ansistring(left);

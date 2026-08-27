@@ -221,6 +221,10 @@ interface
          procedure putderef(const d:tderef);
          procedure putpropaccesslist(p:tpropaccesslist);
          procedure putasmsymbol(s:tasmsymbol);
+         { the one codec for a preserved source-byte literal payload;
+           tstringconstnode and tconstsym used to carry two copies of it }
+         function  getliteralbytes(out b:TAnsiCharDynArray):boolean;
+         procedure putliteralbytes(has:boolean;const b:TAnsiCharDynArray);
        protected
          procedure RaiseAssertion(Code: Longint); override;
        end;
@@ -1368,6 +1372,34 @@ implementation
     procedure tcompilerppufile.putasmsymbol(s:tasmsymbol);
       begin
         putlongint(0);
+      end;
+
+
+    function tcompilerppufile.getliteralbytes(out b:TAnsiCharDynArray):boolean;
+      var
+        i : longint;
+      begin
+        result:=getbyte<>0;
+        b:=nil;
+        if result then
+          begin
+            i:=getlongint;
+            setlength(b,i);
+            if i>0 then
+              getdata(b[0],i);
+          end;
+      end;
+
+
+    procedure tcompilerppufile.putliteralbytes(has:boolean;const b:TAnsiCharDynArray);
+      begin
+        putbyte(byte(has));
+        if has then
+          begin
+            putlongint(length(b));
+            if length(b)>0 then
+              putdata(b[0],length(b));
+          end;
       end;
 
 {$ifdef MEMDEBUG}

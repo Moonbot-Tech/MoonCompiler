@@ -153,6 +153,8 @@ interface
           function docompare(p: tnode) : boolean; override;
           procedure changestringtype(def:tdef);
           procedure setliteralbytes(s:pansichar; l:longint);
+          { share the refcounted payload instead of copying the bytes }
+          procedure adoptliteralbytes(const b:TAnsiCharDynArray);
           procedure getliteralbytes(out bytes:TAnsiCharDynArray);
           function fullcompare(p: tstringconstnode): longint;
           function emit_data(tcb:ttai_typedconstbuilder):sizeint; override;
@@ -409,11 +411,7 @@ implementation
             begin
               p1:=cstringconstnode.createunistr(p.value.valuews);
               if p.hasliteralbytes then
-                if length(p.literalbytes)>0 then
-                  tstringconstnode(p1).setliteralbytes(
-                    @p.literalbytes[0],length(p.literalbytes))
-                else
-                  tstringconstnode(p1).setliteralbytes(nil,0);
+                tstringconstnode(p1).adoptliteralbytes(p.literalbytes);
             end;
           constreal :
             begin
@@ -1020,15 +1018,7 @@ implementation
         lab_str:=tasmlabel(ppufile.getasmsymbol);
         if cst_type=cst_ansistring then
           ppufile.getderef(astringdefderef);
-        hasliteralbytes:=ppufile.getbyte<>0;
-        literalbytes:=nil;
-        if hasliteralbytes then
-          begin
-            i:=ppufile.getlongint;
-            setlength(literalbytes,i);
-            if i>0 then
-              ppufile.getdata(literalbytes[0],i);
-          end;
+        hasliteralbytes:=ppufile.getliteralbytes(literalbytes);
       end;
 
 
@@ -1045,13 +1035,7 @@ implementation
         ppufile.putasmsymbol(lab_str);
         if cst_type=cst_ansistring then
           ppufile.putderef(astringdefderef);
-        ppufile.putbyte(byte(hasliteralbytes));
-        if hasliteralbytes then
-          begin
-            ppufile.putlongint(length(literalbytes));
-            if length(literalbytes)>0 then
-              ppufile.putdata(literalbytes[0],length(literalbytes));
-          end;
+        ppufile.putliteralbytes(hasliteralbytes,literalbytes);
       end;
 
 
@@ -1095,10 +1079,7 @@ implementation
            end;
          n.astringdef:=astringdef;
          if hasliteralbytes then
-           if length(literalbytes)>0 then
-             n.setliteralbytes(@literalbytes[0],length(literalbytes))
-           else
-             n.setliteralbytes(nil,0);
+           n.adoptliteralbytes(literalbytes);
          dogetcopy:=n;
       end;
 
@@ -1185,6 +1166,13 @@ implementation
               if literalbytes[i]<>tstringconstnode(p).literalbytes[i] then
                 exit(false);
           end;
+      end;
+
+
+    procedure tstringconstnode.adoptliteralbytes(const b:TAnsiCharDynArray);
+      begin
+        hasliteralbytes:=true;
+        literalbytes:=b;
       end;
 
 

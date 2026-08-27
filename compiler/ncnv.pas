@@ -330,7 +330,7 @@ implementation
       globtype,systems,constexp,compinnr,
       cutils,verbose,globals,widestr,ppu,
       symconst,symdef,symsym,symcpu,symtable,
-      ncon,ncal,nset,nadd,nmem,nmat,nbas,nutils,ninl,nflw,
+      ncon,ncal,nset,nadd,nmem,nmat,nbas,nutils,ninl,nflw,ntextplan,
       psub,
       cgbase,procinfo,
       htypechk,blockutl,pparautl,procdefutil,pass_1,cpuinfo;
@@ -1342,8 +1342,7 @@ implementation
                  { A scanner byte and a typed AnsiChar both retain their
                    single-byte identity when this Unicode expression is later
                    materialized as RawByteString. }
-                 if (tordconstnode(left).literalbyte or
-                    (torddef(left.resultdef).ordtype=uchar)) and
+                 if text_byte_proof(left) and
                     (m_delphi in current_settings.modeswitches) and
                     (m_default_unicodestring in current_settings.modeswitches) then
                    begin
@@ -1416,8 +1415,7 @@ implementation
                   if is_ansistring(resultdef) and
                      (m_delphi in current_settings.modeswitches) and
                      (m_default_unicodestring in current_settings.modeswitches) and
-                     (tordconstnode(left).literalbyte or
-                      (torddef(left.resultdef).ordtype=uchar)) then
+                     text_byte_proof(left) then
                     begin
                       { A numeric #$xx literal or an explicitly typed
                         AnsiChar is already one byte.  Delphi keeps that byte

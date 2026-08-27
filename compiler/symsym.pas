@@ -473,6 +473,8 @@ interface
           constructor create_wstring(const n : TSymStr;t : tconsttyp;pw:tcompilerwidestring);virtual;
           constructor create_undefined(const n : TSymStr;def:tdef);virtual;
           procedure setliteralbytes(s:pansichar; l:longint);
+          { share the refcounted payload instead of copying the bytes }
+          procedure adoptliteralbytes(const b:TAnsiCharDynArray);
           constructor ppuload(ppufile:tcompilerppufile);
           destructor  destroy;override;
           procedure buildderef;override;
@@ -2891,6 +2893,13 @@ implementation
       end;
 
 
+    procedure tconstsym.adoptliteralbytes(const b:TAnsiCharDynArray);
+      begin
+        hasliteralbytes:=true;
+        literalbytes:=b;
+      end;
+
+
     constructor tconstsym.ppuload(ppufile:tcompilerppufile);
       var
          pd : pbestreal;
@@ -2926,15 +2935,7 @@ implementation
          consttyp:=tconsttyp(ppufile.getbyte);
          explicitdef:=ppufile.getbyte<>0;
          delphiplus:=ppufile.getbyte<>0;
-         hasliteralbytes:=ppufile.getbyte<>0;
-         literalbytes:=nil;
-         if hasliteralbytes then
-           begin
-             i:=ppufile.getlongint;
-             setlength(literalbytes,i);
-             if i>0 then
-               ppufile.getdata(literalbytes[0],i);
-           end;
+         hasliteralbytes:=ppufile.getliteralbytes(literalbytes);
          fillchar(value, sizeof(value), #0);
          case consttyp of
            constord :
@@ -3067,13 +3068,7 @@ implementation
          ppufile.putbyte(byte(consttyp));
          ppufile.putbyte(byte(explicitdef));
          ppufile.putbyte(byte(delphiplus));
-         ppufile.putbyte(byte(hasliteralbytes));
-         if hasliteralbytes then
-           begin
-             ppufile.putlongint(length(literalbytes));
-             if length(literalbytes)>0 then
-               ppufile.putdata(literalbytes[0],length(literalbytes));
-           end;
+         ppufile.putliteralbytes(hasliteralbytes,literalbytes);
          case consttyp of
            constnil :
              ppufile.putderef(constdefderef);

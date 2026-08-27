@@ -125,12 +125,7 @@ implementation
                    copywidestring(tstringconstnode(p).valuews,pw);
                    hp:=cconstsym.create_wstring(orgname,constwstring,pw);
                    if tstringconstnode(p).hasliteralbytes then
-                     if length(tstringconstnode(p).literalbytes)>0 then
-                       hp.setliteralbytes(
-                         @tstringconstnode(p).literalbytes[0],
-                         length(tstringconstnode(p).literalbytes))
-                     else
-                       hp.setliteralbytes(nil,0);
+                     hp.adoptliteralbytes(tstringconstnode(p).literalbytes);
                  end
                else
                  begin
