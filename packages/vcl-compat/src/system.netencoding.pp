@@ -150,6 +150,11 @@ type
   protected
     Function DoEncode(const aInput: RawBytestring): RawBytestring; overload; override;
     Function DoDecode(const aInput: RawBytestring): RawBytestring; overload; override;
+    { raw URL bytes never pass through Unicode: the inherited byte
+      overloads UTF8-decode the payload (measured DCC64 raises
+      EEncodingError on a $FF byte there - a defect, not a canvas) }
+    Function DoEncode(const aInput: array of Byte): TBytes; overload; override;
+    Function DoDecode(const aInput: array of Byte): TBytes; overload; override;
   Public
     Type
       UnsafeChar = Byte;
@@ -176,9 +181,9 @@ type
 implementation
 
 {$IFDEF FPC_DOTTEDUNITS}
-uses FpWeb.Http.Protocol, Html.Defs, Xml.Read;
+uses System.RTLConsts, FpWeb.Http.Protocol, Html.Defs, Xml.Read;
 {$ELSE FPC_DOTTEDUNITS}
-uses httpprotocol, HTMLDefs, xmlread;
+uses RTLConsts, httpprotocol, HTMLDefs, xmlread;
 {$ENDIF FPC_DOTTEDUNITS}
 
 Resourcestring
@@ -204,8 +209,17 @@ function TCustomBase64Encoding.DoDecode(const aInput, aOutput: TStream): Integer
 
 Var
   S : TBase64DecodingStream;
+  P,Sz : Int64;
 
 begin
+  { the decoder wraps the source at its CURRENT position - the measured
+    DCC64 contract transforms the remaining bytes; a negative, at-end or
+    past-end position returns 0 without touching the output }
+  Result:=0;
+  P:=aInput.Position;
+  Sz:=aInput.Size;
+  if (P<0) or (P>=Sz) then
+    exit;
   S:=CreateDecoder(aInput);
   try
     Result:=S.Size;
@@ -252,14 +266,26 @@ end;
 function TCustomBase64Encoding.DoEncode(const aInput, aOutput: TStream): Integer;
 Var
   S : TBase64EncodingStream;
+  P,Sz,OutStart : Int64;
 
 begin
+  { encode the REMAINING bytes from the current position and report the
+    OUTPUT count - the measured DCC64 contract (the old CopyFrom(aInput,0)
+    rewound the source and returned the input count); a negative, at-end
+    or past-end position returns 0 without touching the output }
+  Result:=0;
+  P:=aInput.Position;
+  Sz:=aInput.Size;
+  if (P<0) or (P>=Sz) then
+    exit;
+  OutStart:=aOutput.Position;
   S:=CreateEncoder(aOutput); //,FCharsPerline,FLineSeparator,FPadEnd);
   try
-    Result:=S.CopyFrom(aInput,0);
+    S.CopyFrom(aInput,Sz-P);
   finally
     S.Free;
   end;
+  Result:=aOutput.Position-OutStart;
 end;
 
 function TCustomBase64Encoding.DoEncode(const aInput: array of Byte): TBytes;
@@ -506,24 +532,58 @@ begin
     Result:=TEncoding.UTF8.GetBytes(DoDecode(UTF8ToString(aInput)));
 end;
 
+{ One stream-transform frame for Encode and Decode (R-014): Position and
+  Size are read once as Int64; a negative, at-end or past-end position
+  returns 0 - the measured DCC64 canvas; the buffer holds exactly the
+  remaining bytes and is filled by a loop that treats a non-positive
+  read as a broken stream (the old encode path used a single unchecked
+  Read and silently encoded the zero tail it never received). }
+function ReadRemainingBytes(aInput: TStream; out aBuf: TBytes): Boolean;
+
+var
+  P,Sz,Remain : Int64;
+  Got : SizeInt;
+  R : LongInt;
+
+begin
+  aBuf:=Default(TBytes);
+  P:=aInput.Position;
+  Sz:=aInput.Size;
+  Result:=(P>=0) and (P<Sz);
+  if not Result then
+    exit;
+  Remain:=Sz-P;
+  if Remain>High(SizeInt) then
+    raise EStreamError.CreateRes(@SReadError);
+  SetLength(aBuf,Remain);
+  Got:=0;
+  while Got<Remain do
+    begin
+    if Remain-Got>High(LongInt) then
+      R:=aInput.Read(aBuf[Got],High(LongInt))
+    else
+      R:=aInput.Read(aBuf[Got],LongInt(Remain-Got));
+    if R<=0 then
+      raise EReadError.CreateRes(@SReadError);
+    Inc(Got,R);
+    end;
+end;
+
 function TNetEncoding.DoDecode(const aInput, aOutput: TStream): Integer;
 
 var
   Src,Dest: TBytes;
-  Len : Integer;
 
 begin
   Result:=0;
-  Len:=aInput.Size;
-  if Len<>0 then
-    begin
-    Src:=Default(TBytes);
-    SetLength(Src,Len);
-    aInput.ReadBuffer(Src,Len);
-    Dest:=DoDecode(Src);
-    Result:=Length(Dest);
-    aOutput.WriteBuffer(Dest,Result);
-    end
+  if not ReadRemainingBytes(aInput,Src) then
+    exit;
+  Dest:=DoDecode(Src);
+  if Length(Dest)>High(Integer) then
+    raise EStreamError.CreateRes(@SWriteError);
+  Result:=Length(Dest);
+  if Result>0 then
+    aOutput.WriteBuffer(Dest[0],Result);
 end;
 
 function TNetEncoding.DoDecodeStringToBytes(const aInput: UnicodeString): TBytes;
@@ -577,20 +637,17 @@ end;
 
 function TNetEncoding.DoEncode(const aInput, aOutput: TStream): Integer;
 var
-  InBuf: array of Byte;
-  OutBuf: TBytes;
+  Src,Dest: TBytes;
 begin
-  if aInput.Size > 0 then
-  begin
-    SetLength(InBuf, aInput.Size);
-    aInput.Read(InBuf[0], aInput.Size);
-    OutBuf:=DoEncode(InBuf);
-    Result:=Length(OutBuf);
-    aOutput.Write(OutBuf, Result);
-    SetLength(InBuf, 0);
-  end
-  else
-    Result:=0;
+  Result:=0;
+  if not ReadRemainingBytes(aInput,Src) then
+    exit;
+  Dest:=DoEncode(Src);
+  if Length(Dest)>High(Integer) then
+    raise EStreamError.CreateRes(@SWriteError);
+  Result:=Length(Dest);
+  if Result>0 then
+    aOutput.WriteBuffer(Dest[0],Result);
 end;
 
 { TBase64Encoding }
@@ -645,6 +702,34 @@ end;
 function TURLEncoding.DoDecode(const aInput: RawBytestring): RawBytestring;
 begin
   Result:=DecodeURLBytes(aInput,True);
+end;
+
+function TURLEncoding.DoEncode(const aInput: array of Byte): TBytes;
+var
+  S,R : RawByteString;
+begin
+  Result:=Default(TBytes);
+  if Length(aInput)=0 then
+    exit;
+  SetString(S,PAnsiChar(@aInput[0]),Length(aInput));
+  R:=DoEncode(S);
+  SetLength(Result,Length(R));
+  if Length(R)>0 then
+    Move(R[1],Result[0],Length(R));
+end;
+
+function TURLEncoding.DoDecode(const aInput: array of Byte): TBytes;
+var
+  S,R : RawByteString;
+begin
+  Result:=Default(TBytes);
+  if Length(aInput)=0 then
+    exit;
+  SetString(S,PAnsiChar(@aInput[0]),Length(aInput));
+  R:=DoDecode(S);
+  SetLength(Result,Length(R));
+  if Length(R)>0 then
+    Move(R[1],Result[0],Length(R));
 end;
 
 function TURLEncoding.Encode(const aInput: string; const aSet: TUnsafeChars; const aOptions: TEncodeOptions; aEncoding: TEncoding): string;
