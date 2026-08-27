@@ -1427,7 +1427,7 @@ function TCustomMemoryStream.Read(var Buffer; Count: LongInt): LongInt;
 
 begin
   Result:=0;
-  If (FSize>0) and (FPosition<Fsize) and (FPosition>=0) then
+  If (Count>0) and (FSize>0) and (FPosition<Fsize) and (FPosition>=0) then
     begin
     Result:=Count;
     If (Result>(FSize-FPosition)) then
@@ -1438,21 +1438,30 @@ begin
 end;
 
 
+{ The seek candidate is proven representable before FPosition is written:
+  a Seek can never publish a wrapped position (measured DCC64 wraps here).
+  A negative position itself stays legal, as in DCC64 - Read/Write gate it. }
+function MemoryStreamSeekTarget(aBase: PtrInt; aOffset: Int64): PtrInt;
+
+begin
+  If ((aOffset>0) and (aBase>High(PtrInt)-aOffset)) or
+     ((aOffset<0) and (aBase<Low(PtrInt)-aOffset)) then
+    Raise ERangeError.Create(SRangeError);
+  Result:=aBase+aOffset;
+end;
+
+
 function TCustomMemoryStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
 
 begin
   Case Word(Origin) of
-    soFromBeginning : FPosition:=Offset;
-    soFromEnd       : FPosition:=FSize+Offset;
-    soFromCurrent   : FPosition:=FPosition+Offset;
+    soFromBeginning : FPosition:=MemoryStreamSeekTarget(0,Offset);
+    soFromEnd       : FPosition:=MemoryStreamSeekTarget(FSize,Offset);
+    soFromCurrent   : FPosition:=MemoryStreamSeekTarget(FPosition,Offset);
   end;
   if SizeBoundsSeek and (FPosition>FSize) then
     FPosition:=FSize;
   Result:=FPosition;
-  {$IFDEF DEBUG}
-  if Result < 0 then
-    raise Exception.Create('TCustomMemoryStream');
-  {$ENDIF}
 end;
 
 
@@ -1484,6 +1493,33 @@ end;
 
 Const TMSGrow = 4096; { Use 4k blocks. }
 
+{ One proven capacity calculator for both Realloc implementations (R-006):
+  a negative request is rejected as an argument error and an unroundable
+  one before it could reach the allocator as a wrapped size (measured
+  DCC64 corrupts the heap on a negative capacity); quarter growth is
+  overflow-safe. Only the returned rounded value reaches the allocator. }
+function MemoryStreamCalcCapacity(aCurrent, aRequested: TMemoryStreamCapacity): TMemoryStreamCapacity;
+
+Var
+  GC : TMemoryStreamCapacity;
+
+begin
+  If aRequested<0 then
+    Raise ERangeError.Create(SRangeError);
+  // if growing, grow at least a quarter
+  If aRequested>aCurrent then
+    begin
+    GC:=aCurrent + (aCurrent shr 2);
+    If (GC>aCurrent) and (aRequested<GC) then
+      aRequested:=GC;
+    end;
+  // round off to block size.
+  If aRequested>High(TMemoryStreamCapacity)-(TMSGrow-1) then
+    Raise EStreamError.Create(SMemoryStreamError);
+  Result:=(aRequested + (TMSGrow-1)) and not (TMSGROW-1);
+end;
+
+
 procedure TMemoryStream.SetCapacity(NewCapacity: TMemoryStreamCapacity);
 
 begin
@@ -1494,22 +1530,8 @@ end;
 
 function TMemoryStream.Realloc(var NewCapacity: TMemoryStreamCapacity): Pointer;
 
-Var
-  GC : TMemoryStreamCapacity;
-
 begin
-  If NewCapacity<0 Then
-    NewCapacity:=0
-  else
-    begin
-      GC:=FCapacity + (FCapacity div 4);
-      // if growing, grow at least a quarter
-      if (NewCapacity>FCapacity) and (NewCapacity < GC) then
-        NewCapacity := GC;
-      // round off to block size.
-      NewCapacity := (NewCapacity + (TMSGrow-1)) and not (TMSGROW-1);
-    end;
-  // Only now check !
+  NewCapacity:=MemoryStreamCalcCapacity(FCapacity,NewCapacity);
   If NewCapacity=FCapacity then
     Result:=FMemory
   else
@@ -1571,6 +1593,11 @@ end;
 procedure TMemoryStream.SetSize(const NewSize: Int64);
 
 begin
+  { validated before any mutation; DCC64 is self-contradictory here
+    (EStreamError via an accidental allocator failure for TMemoryStream,
+    ERangeError for TBytesStream) - unified on the argument-error class }
+  If (NewSize<0) or (NewSize>High(TMemoryStreamCapacity)) then
+    Raise ERangeError.Create(SRangeError);
   SetCapacity (NewSize);
   FSize:=NewSize;
   IF FPosition>FSize then
@@ -1591,9 +1618,15 @@ function TMemoryStream.Write(const Buffer; Count: LongInt): LongInt;
 Var NewPos : PtrInt;
 
 begin
-  If (Count=0) or (FPosition<0) then
+  If (Count<=0) or (FPosition<0) then
     exit(0);
   NewPos:=FPosition+Count;
+  { with FPosition>=0 and a positive LongInt count the sum wraps only into
+    negative values, so this one gate is a complete overflow proof (the
+    measured DCC64 form) - the old unchecked sum wrote through a wrapped
+    position }
+  If NewPos<=0 then
+    exit(0);
   If NewPos>Fsize then
     begin
     IF NewPos>FCapacity then
@@ -1619,15 +1652,10 @@ end;
 
 function TBytesStream.Realloc(var NewCapacity: TMemoryStreamCapacity): Pointer;
 begin
-  // adapt TMemoryStream code to use with dynamic array
-  if NewCapacity<0 Then
-    NewCapacity:=0
-  else
-    begin
-      if (NewCapacity>Capacity) and (NewCapacity < (5*Capacity) div 4) then
-        NewCapacity := (5*Capacity) div 4;
-      NewCapacity := (NewCapacity + (TMSGrow-1)) and not (TMSGROW-1);
-    end;
+  // adapt TMemoryStream code to use with dynamic array; the shared
+  // calculator replaces the (5*Capacity) div 4 form, whose product
+  // overflowed long before the quarter-sum does
+  NewCapacity:=MemoryStreamCalcCapacity(Capacity,NewCapacity);
   if NewCapacity=Capacity then
     Result:=Pointer(FBytes)
   else
