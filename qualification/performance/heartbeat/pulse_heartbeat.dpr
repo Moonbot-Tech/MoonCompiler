@@ -27,13 +27,11 @@ uses
   pulse_process_metrics in '..\common\pulse_process_metrics.pas',
   pulse_harness in '..\common\pulse_harness.pas';
 
-{ Heartbeat imitates one data cycle of a real trading application on
-  deterministic synthetic market data: build an exchange-info JSON document
-  (plain string code and mORMot produce byte-identical output), parse it into
-  market objects with a symbol dictionary, byte-scan a trade stream into
-  per-market rings, aggregate the rings, run spectral and correlation math,
-  rank markets and format a text report. Phases are measured separately and
-  as one end-to-end pipeline. }
+{ Heartbeat is one application-shaped benchmark with independent hot-path
+  lines. It covers a deterministic market-data cycle plus concentrated work
+  from trading and server programs: order-book deltas and sweeps, sorting,
+  binary request/cache/response handling and a timer heap. It deliberately
+  contains no network, storage, logging or server framework. }
 
 const
   SmallMarkets = 100;
@@ -48,6 +46,14 @@ const
   FftMarkets = 32;
   FftSize = 1024;
   TopCount = 20;
+  BookLevels = 4096;
+  BookDeltaCount = 8192;
+  BookSweepCount = 2048;
+  SortItemCount = 8192;
+  SessionCount = 4096;
+  RequestCount = 16384;
+  TimerCount = 8192;
+  TimerOperationCount = 16384;
   PriceScale = 100000000;
   InvPriceScale = 1.0 / PriceScale;
   RollWindow = 32;
@@ -91,6 +97,49 @@ type
     Re, Im: Double;
   end;
 
+  TBookLevel = packed record
+    PriceE8, QtyE8: Int64;
+  end;
+  TBookLevelArray = array of TBookLevel;
+
+  TBookDelta = packed record
+    PriceE8, QtyE8: Int64;
+    Reinsert: Boolean;
+  end;
+  TBookDeltaArray = array of TBookDelta;
+
+  TInt64Array = array of Int64;
+
+  TSessionState = packed record
+    LastSequence: UInt32;
+    Accepted: UInt32;
+    RollingHash: UInt64;
+  end;
+  TSessionStateArray = array of TSessionState;
+  TSessionIndex = TDictionary<UInt64, Integer>;
+
+  TWireHeader = packed record
+    SessionId: UInt64;
+    Sequence: UInt32;
+    PayloadSize: Word;
+    Opcode: Byte;
+    Flags: Byte;
+  end;
+
+  TWireResponse = packed record
+    SessionId: UInt64;
+    Sequence: UInt32;
+    Status: UInt32;
+    PayloadHash: UInt64;
+  end;
+  PWireResponse = ^TWireResponse;
+  TWireResponseArray = array of TWireResponse;
+
+  TTimerEvent = packed record
+    Deadline, Token: UInt64;
+  end;
+  TTimerEventArray = array of TTimerEvent;
+
   TTurnoverComparer = class(TInterfacedObject, IComparer<Integer>)
   private
     FMarkets: TMarketList;
@@ -109,6 +158,17 @@ var
   UnsortedOrderLarge: TArray<Integer>;
   ComparerLarge: IComparer<Integer>;
   TopSmall: array of Integer;
+  JsonProofSmall, JsonProofLarge: UInt64;
+  MarketsProofSmall, MarketsProofLarge: UInt64;
+  BookTemplate, BidBook, AskBook: TBookLevelArray;
+  BookDeltas: TBookDeltaArray;
+  SweepQuantities: TInt64Array;
+  SortRandom, SortAscending, SortDescending, SortDuplicates: TInt64Array;
+  RequestBuffer: RawByteString;
+  SessionsTemplate: TSessionStateArray;
+  SessionIndex: TSessionIndex;
+  Responses: TWireResponseArray;
+  TimerTemplate: TTimerEventArray;
 
 procedure TMarketSim.EnsureRing;
 begin
@@ -153,7 +213,43 @@ end;
 function RotL(Value: UInt64; Bits: Integer): UInt64;
 begin
   Bits := Bits and 63;
-  Result := (Value shl Bits) or (Value shr (64 - Bits));
+  If Bits = 0 then
+    Result := Value
+  else
+    Result := (Value shl Bits) or (Value shr (64 - Bits));
+end;
+
+function HashBytes(Data: Pointer; Count: NativeInt): UInt64;
+const
+  OffsetBasis = UInt64($CBF29CE484222325);
+  Prime = UInt64($00000100000001B3);
+var
+  P: PByte;
+begin
+  Result := OffsetBasis;
+  P := Data;
+  while Count > 0 do
+  begin
+    Result := (Result xor P^) * Prime;
+    Inc(P);
+    Dec(Count);
+  end;
+end;
+
+function FullRawDigest(const Value: RawByteString): UInt64;
+begin
+  If Value = '' then
+    Result := HashBytes(nil, 0)
+  else
+    Result := HashBytes(pointer(Value), Length(Value));
+end;
+
+function FullUnicodeDigest(const Value: UnicodeString): UInt64;
+begin
+  If Value = '' then
+    Result := HashBytes(nil, 0)
+  else
+    Result := HashBytes(pointer(Value), Length(Value) * SizeOf(WideChar));
 end;
 
 { ---------------- deterministic market universe ---------------- }
@@ -438,6 +534,25 @@ begin
       (UInt64(Length(Market.BaseAsset)) shl 17), I);
     If Market.Trading then
       Inc(Result);
+  end;
+end;
+
+function FullMarketsDigest(Markets: TMarketList): UInt64;
+var
+  I: Integer;
+  Market: TMarketSim;
+begin
+  Result := UInt64(Markets.Count);
+  for I := 0 to Markets.Count - 1 do
+  begin
+    Market := Markets[I];
+    Result := RotL(Result, 7) xor FullUnicodeDigest(Market.Symbol);
+    Result := RotL(Result, 7) xor FullUnicodeDigest(Market.BaseAsset);
+    Result := RotL(Result, 7) xor FullUnicodeDigest(Market.QuoteAsset);
+    Result := RotL(Result, 7) xor DoubleBits(Market.TickSize);
+    Result := RotL(Result, 7) xor DoubleBits(Market.StepSize);
+    Result := RotL(Result, 7) xor DoubleBits(Market.MinNotional);
+    Result := RotL(Result, 7) xor UInt64(Ord(Market.Trading));
   end;
 end;
 
@@ -806,6 +921,235 @@ begin
   Result := Result xor (UInt64(Length(Report)) shl 32);
 end;
 
+{ ---------------- concentrated trading hot paths ---------------- }
+
+function LowerBoundBook(const Book: TBookLevelArray; Count: Integer;
+  PriceE8: Int64): Integer;
+var
+  L, H, M: Integer;
+begin
+  L := 0;
+  H := Count;
+  while L < H do
+  begin
+    M := L + (H - L) shr 1;
+    If Book[M].PriceE8 < PriceE8 then
+      L := M + 1
+    else
+      H := M;
+  end;
+  Result := L;
+end;
+
+function RunBookDeltas(Iterations: Integer): UInt64;
+var
+  Book: TBookLevelArray;
+  I, J, Position, Active: Integer;
+  Delta: TBookDelta;
+begin
+  Result := 0;
+  SetLength(Book, Length(BookTemplate));
+  for I := 1 to Iterations do
+  begin
+    Move(BookTemplate[0], Book[0], Length(Book) * SizeOf(TBookLevel));
+    Active := Length(Book);
+    for J := 0 to High(BookDeltas) do
+    begin
+      Delta := BookDeltas[J];
+      Position := LowerBoundBook(Book, Active, Delta.PriceE8);
+      If (Position >= Active) or (Book[Position].PriceE8 <> Delta.PriceE8) then
+        raise EAbort.Create('book delta price is absent');
+      If Delta.Reinsert then
+      begin
+        If Position < Active - 1 then
+          Move(Book[Position + 1], Book[Position],
+            (Active - Position - 1) * SizeOf(TBookLevel));
+        Dec(Active);
+        Position := LowerBoundBook(Book, Active, Delta.PriceE8);
+        If Position < Active then
+          Move(Book[Position], Book[Position + 1],
+            (Active - Position) * SizeOf(TBookLevel));
+        Book[Position].PriceE8 := Delta.PriceE8;
+        Inc(Active);
+      end;
+      Book[Position].QtyE8 := Delta.QtyE8;
+      Result := RotL(Result, 9) xor UInt64(Book[Position].PriceE8) xor
+        RotL(UInt64(Book[Position].QtyE8), Position and 63);
+    end;
+    If Active <> Length(Book) then
+      raise EAbort.Create('book delta changed active size');
+    Result := Result xor HashBytes(@Book[0],
+      Length(Book) * SizeOf(TBookLevel));
+  end;
+end;
+
+function SweepBook(const Book: TBookLevelArray; TargetQty: Int64;
+  Descending: Boolean): UInt64;
+var
+  I, Step: Integer;
+  Take, Left, Cost: Int64;
+begin
+  If Descending then
+  begin
+    I := High(Book);
+    Step := -1;
+  end else
+  begin
+    I := 0;
+    Step := 1;
+  end;
+  Left := TargetQty;
+  Cost := 0;
+  while (Left > 0) and (I >= 0) and (I < Length(Book)) do
+  begin
+    Take := Book[I].QtyE8;
+    If Take > Left then
+      Take := Left;
+    Cost := Cost + (Book[I].PriceE8 div 10000) * (Take div 10000);
+    Dec(Left, Take);
+    Inc(I, Step);
+  end;
+  Result := UInt64(Cost) xor RotL(UInt64(TargetQty - Left), 29) xor
+    UInt64(UInt32(I));
+end;
+
+function CaseBookSweep(Iterations: Integer): UInt64;
+var
+  I, J: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+    for J := 0 to High(SweepQuantities) do
+      Result := RotL(Result, 5) xor SweepBook(BidBook, SweepQuantities[J],
+        True) xor RotL(SweepBook(AskBook, SweepQuantities[J], False), 17);
+end;
+
+function SortAndDigest(const Source: TInt64Array): UInt64;
+var
+  Values: TArray<Int64>;
+begin
+  SetLength(Values, Length(Source));
+  Move(Source[0], Values[0], Length(Source) * SizeOf(Int64));
+  TArray.Sort<Int64>(Values);
+  Result := HashBytes(@Values[0], Length(Values) * SizeOf(Int64));
+end;
+
+function CaseSortMixed(Iterations: Integer): UInt64;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 1 to Iterations do
+  begin
+    Result := Result xor SortAndDigest(SortRandom);
+    Result := RotL(Result, 11) xor SortAndDigest(SortAscending);
+    Result := RotL(Result, 11) xor SortAndDigest(SortDescending);
+    Result := RotL(Result, 11) xor SortAndDigest(SortDuplicates);
+  end;
+end;
+
+{ ---------------- concentrated server hot paths ---------------- }
+
+function ProcessRequests(Iterations: Integer): UInt64;
+const
+  OffsetBasis = UInt64($CBF29CE484222325);
+  Prime = UInt64($00000100000001B3);
+var
+  States: TSessionStateArray;
+  Header: TWireHeader;
+  P: PAnsiChar;
+  Payload: PByte;
+  PayloadHash: UInt64;
+  I, J, StateIndex: Integer;
+  Response: PWireResponse;
+begin
+  Result := 0;
+  SetLength(States, Length(SessionsTemplate));
+  for I := 1 to Iterations do
+  begin
+    Move(SessionsTemplate[0], States[0],
+      Length(States) * SizeOf(TSessionState));
+    P := pointer(RequestBuffer);
+    for J := 0 to RequestCount - 1 do
+    begin
+      Move(P^, Header, SizeOf(Header));
+      Inc(P, SizeOf(Header));
+      Payload := pointer(P);
+      PayloadHash := OffsetBasis;
+      while Payload < PByte(P + Header.PayloadSize) do
+      begin
+        PayloadHash := (PayloadHash xor Payload^) * Prime;
+        Inc(Payload);
+      end;
+      Inc(P, Header.PayloadSize);
+      If not SessionIndex.TryGetValue(Header.SessionId, StateIndex) then
+        raise EAbort.Create('request session is absent');
+      Response := @Responses[J];
+      Response^.SessionId := Header.SessionId;
+      Response^.Sequence := Header.Sequence;
+      Response^.PayloadHash := PayloadHash;
+      If Header.Sequence > States[StateIndex].LastSequence then
+      begin
+        States[StateIndex].LastSequence := Header.Sequence;
+        Inc(States[StateIndex].Accepted);
+        States[StateIndex].RollingHash :=
+          RotL(States[StateIndex].RollingHash, 7) xor PayloadHash;
+        Response^.Status := 1;
+      end else
+        Response^.Status := 0;
+    end;
+    Result := Result xor HashBytes(@Responses[0],
+      Length(Responses) * SizeOf(TWireResponse));
+    Result := Result xor HashBytes(@States[0],
+      Length(States) * SizeOf(TSessionState));
+  end;
+end;
+
+procedure SiftDownTimer(var Heap: TTimerEventArray; Root, Count: Integer);
+var
+  Child: Integer;
+  Value: TTimerEvent;
+begin
+  Value := Heap[Root];
+  while Root < Count shr 1 do
+  begin
+    Child := Root * 2 + 1;
+    If (Child + 1 < Count) and
+       (Heap[Child + 1].Deadline < Heap[Child].Deadline) then
+      Inc(Child);
+    If Value.Deadline <= Heap[Child].Deadline then
+      Break;
+    Heap[Root] := Heap[Child];
+    Root := Child;
+  end;
+  Heap[Root] := Value;
+end;
+
+function ProcessTimers(Iterations: Integer): UInt64;
+var
+  Heap: TTimerEventArray;
+  Event: TTimerEvent;
+  I, J: Integer;
+begin
+  Result := 0;
+  SetLength(Heap, Length(TimerTemplate));
+  for I := 1 to Iterations do
+  begin
+    Move(TimerTemplate[0], Heap[0], Length(Heap) * SizeOf(TTimerEvent));
+    for J := 0 to TimerOperationCount - 1 do
+    begin
+      Event := Heap[0];
+      Result := RotL(Result, 7) xor Event.Deadline xor
+        RotL(Event.Token, 23);
+      Event.Deadline := Event.Deadline + 100000 + (Event.Token and $3fff);
+      Heap[0] := Event;
+      SiftDownTimer(Heap, 0, Length(Heap));
+    end;
+    Result := Result xor HashBytes(@Heap[0],
+      Length(Heap) * SizeOf(TTimerEvent));
+  end;
+end;
+
 { ---------------- cases ---------------- }
 
 function CaseGenerateFormatSmall(Iterations: Integer): UInt64;
@@ -815,6 +1159,7 @@ begin
   Result := 0;
   for I := 1 to Iterations do
     Result := Result + JsonDigest(BuildInfoFormat(SmallDescriptors));
+  Result := Result xor JsonProofSmall;
 end;
 
 function CaseGenerateFormatLarge(Iterations: Integer): UInt64;
@@ -824,6 +1169,7 @@ begin
   Result := 0;
   for I := 1 to Iterations do
     Result := Result + JsonDigest(BuildInfoFormat(LargeDescriptors));
+  Result := Result xor JsonProofLarge;
 end;
 
 function CaseGenerateMormotSmall(Iterations: Integer): UInt64;
@@ -833,6 +1179,7 @@ begin
   Result := 0;
   for I := 1 to Iterations do
     Result := Result + JsonDigest(BuildInfoMormot(SmallDescriptors));
+  Result := Result xor JsonProofSmall;
 end;
 
 function CaseGenerateMormotLarge(Iterations: Integer): UInt64;
@@ -842,6 +1189,7 @@ begin
   Result := 0;
   for I := 1 to Iterations do
     Result := Result + JsonDigest(BuildInfoMormot(LargeDescriptors));
+  Result := Result xor JsonProofLarge;
 end;
 
 function ParseCase(const Json: RawUtf8; Iterations: Integer): UInt64;
@@ -867,12 +1215,12 @@ end;
 
 function CaseParseSmall(Iterations: Integer): UInt64;
 begin
-  Result := ParseCase(InfoJsonSmall, Iterations);
+  Result := ParseCase(InfoJsonSmall, Iterations) xor MarketsProofSmall;
 end;
 
 function CaseParseLarge(Iterations: Integer): UInt64;
 begin
-  Result := ParseCase(InfoJsonLarge, Iterations);
+  Result := ParseCase(InfoJsonLarge, Iterations) xor MarketsProofLarge;
 end;
 
 function CaseScanSmall(Iterations: Integer): UInt64;
@@ -986,6 +1334,109 @@ end;
 
 { ---------------- data preparation ---------------- }
 
+procedure InitializeHotPathData;
+const
+  FirstSessionId = UInt64($4D4F4F4E00000000);
+var
+  Header: TWireHeader;
+  Seed, SessionId: UInt64;
+  P: PAnsiChar;
+  I, J, PayloadSize, TotalSize, BookIndex: Integer;
+  BeforeDigest, AfterDigest: UInt64;
+begin
+  SetLength(BookTemplate, BookLevels);
+  SetLength(BidBook, BookLevels);
+  SetLength(AskBook, BookLevels);
+  for I := 0 to BookLevels - 1 do
+  begin
+    BookTemplate[I].PriceE8 := 1000000000000 + Int64(I) * 100000;
+    BookTemplate[I].QtyE8 := 1000000 + Int64(I mod 97) * 10000;
+    BidBook[I].PriceE8 := 999000000000 + Int64(I) * 100000;
+    BidBook[I].QtyE8 := 500000 + Int64(I mod 113) * 10000;
+    AskBook[I].PriceE8 := 1001000000000 + Int64(I) * 100000;
+    AskBook[I].QtyE8 := 500000 + Int64(I mod 127) * 10000;
+  end;
+
+  SetLength(BookDeltas, BookDeltaCount);
+  Seed := UInt64($B00CDA7A12345679);
+  for I := 0 to High(BookDeltas) do
+  begin
+    BookIndex := Integer(NextRandom(Seed) mod BookLevels);
+    BookDeltas[I].PriceE8 := BookTemplate[BookIndex].PriceE8;
+    BookDeltas[I].QtyE8 := 250000 +
+      Int64(NextRandom(Seed) mod 10000000);
+    BookDeltas[I].Reinsert := (I and 63) = 63;
+  end;
+
+  SetLength(SweepQuantities, BookSweepCount);
+  for I := 0 to High(SweepQuantities) do
+    SweepQuantities[I] := 500000 + Int64(I mod 47) * 150000;
+
+  SetLength(SortRandom, SortItemCount);
+  SetLength(SortAscending, SortItemCount);
+  SetLength(SortDescending, SortItemCount);
+  SetLength(SortDuplicates, SortItemCount);
+  Seed := UInt64($507771A5D15EA5E5);
+  for I := 0 to SortItemCount - 1 do
+  begin
+    SortRandom[I] := Int64(NextRandom(Seed));
+    SortAscending[I] := I;
+    SortDescending[I] := SortItemCount - I;
+    SortDuplicates[I] := Int64(NextRandom(Seed) and 31);
+  end;
+
+  SetLength(SessionsTemplate, SessionCount);
+  SessionIndex := TSessionIndex.Create(SessionCount);
+  for I := 0 to SessionCount - 1 do
+    SessionIndex.Add(FirstSessionId + UInt64(I), I);
+  SetLength(Responses, RequestCount);
+  TotalSize := 0;
+  for I := 0 to RequestCount - 1 do
+    Inc(TotalSize, SizeOf(TWireHeader) + 8 + (I mod 57));
+  SetLength(RequestBuffer, TotalSize);
+  P := pointer(RequestBuffer);
+  Seed := UInt64($5E5510C0CAC4E001);
+  for I := 0 to RequestCount - 1 do
+  begin
+    SessionId := FirstSessionId + UInt64(I mod SessionCount);
+    Header.SessionId := SessionId;
+    Header.Sequence := UInt32(I div SessionCount + 1);
+    Header.PayloadSize := 8 + I mod 57;
+    Header.Opcode := Byte(1 + I mod 7);
+    Header.Flags := Byte((I shr 3) and 3);
+    Move(Header, P^, SizeOf(Header));
+    Inc(P, SizeOf(Header));
+    PayloadSize := Header.PayloadSize;
+    for J := 0 to PayloadSize - 1 do
+      P[J] := AnsiChar(Byte(NextRandom(Seed)));
+    Inc(P, PayloadSize);
+  end;
+  If P <> PAnsiChar(pointer(RequestBuffer)) + Length(RequestBuffer) then
+    raise EAbort.Create('request buffer size mismatch');
+
+  SetLength(TimerTemplate, TimerCount);
+  for I := 0 to TimerCount - 1 do
+  begin
+    TimerTemplate[I].Deadline := UInt64(1000000 + I * 100);
+    TimerTemplate[I].Token := UInt64(I + 1) * UInt64($9E3779B97F4A7C15);
+  end;
+
+  BeforeDigest := RunBookDeltas(1);
+  AfterDigest := RunBookDeltas(1);
+  If BeforeDigest <> AfterDigest then
+    raise EAbort.Create('book delta path is not deterministic');
+  If (CaseBookSweep(1) = 0) or (CaseSortMixed(1) = 0) then
+    raise EAbort.Create('trading hot path proof is empty');
+  BeforeDigest := ProcessRequests(1);
+  AfterDigest := ProcessRequests(1);
+  If BeforeDigest <> AfterDigest then
+    raise EAbort.Create('request path is not deterministic');
+  BeforeDigest := ProcessTimers(1);
+  AfterDigest := ProcessTimers(1);
+  If BeforeDigest <> AfterDigest then
+    raise EAbort.Create('timer path is not deterministic');
+end;
+
 procedure BuildPrepared(const Json: RawUtf8; const Buffer: RawByteString;
   out Markets: TMarketList; out Index: TSymbolIndex);
 begin
@@ -1025,6 +1476,10 @@ begin
 
   BuildPrepared(InfoJsonSmall, TradeBufferSmall, PreparedSmall, IndexSmall);
   BuildPrepared(InfoJsonLarge, TradeBufferLarge, PreparedLarge, IndexLarge);
+  JsonProofSmall := FullRawDigest(InfoJsonSmall);
+  JsonProofLarge := FullRawDigest(InfoJsonLarge);
+  MarketsProofSmall := FullMarketsDigest(PreparedSmall);
+  MarketsProofLarge := FullMarketsDigest(PreparedLarge);
   for I := 0 to FftMarkets - 1 do
     If PreparedSmall[I].RingCount <> RingSize then
       raise EAbort.Create('spectrum ring is not full');
@@ -1052,11 +1507,13 @@ begin
   TArray.Sort<Integer>(Order, ComparerSmall);
   SetLength(TopSmall, TopCount);
   Move(Order[0], TopSmall[0], TopCount * SizeOf(Integer));
+  InitializeHotPathData;
 end;
 
 procedure FinalizeData;
 begin
   ComparerLarge := nil;
+  SessionIndex.Free;
   IndexLarge.Free;
   IndexSmall.Free;
   PreparedLarge.Free;
@@ -1124,6 +1581,21 @@ begin
     Add('report-top20', 'rtl+mm',
       'Format of a top-20 market text report',
       @CaseReport, TopCount);
+    Add('orderbook-delta-4096', 'codegen+rtl+memory',
+      'binary-search update with periodic delete/reinsert in a 4096-level book',
+      @RunBookDeltas, BookDeltaCount);
+    Add('orderbook-sweep-4096', 'codegen+memory',
+      'market-order depth walk and fixed-point VWAP cost over both book sides',
+      @CaseBookSweep, UInt64(BookSweepCount) * 2);
+    Add('sort-int64-4x8192', 'rtl+codegen+mm',
+      'TArray.Sort over random, sorted, reverse and duplicate-heavy Int64 data',
+      @CaseSortMixed, UInt64(SortItemCount) * 4);
+    Add('binary-session-pipeline', 'codegen+rtl+memory',
+      'decode frames, session dictionary lookup, state update and response write',
+      @ProcessRequests, RequestCount);
+    Add('timer-heap-8192', 'codegen+memory',
+      'pop, reschedule and sift-down on a preallocated server timer min-heap',
+      @ProcessTimers, TimerOperationCount);
     Add('end-to-end-100', 'app',
       'parse + scan + aggregate + rank + report pipeline, 100 markets',
       @CaseEndToEnd, UInt64(SmallMarkets) * SmallMessagesPerMarket);
