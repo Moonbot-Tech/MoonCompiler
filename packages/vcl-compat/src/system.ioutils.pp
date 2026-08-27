@@ -2004,17 +2004,55 @@ end;
 {$ENDIF UNIX}
 {$ENDIF MSWINDOWS}
 
+{$IFDEF MSWINDOWS}
+{ canonicalize a long or overflowing path for the W API: the two-call
+  GetFullPathNameW resolves relative, drive-relative, dot and
+  forward-slash forms (a raw '\\?\'+Path prefix disables exactly that
+  normalization inside the API, so prefixing a relative path never
+  worked); canonical UNC gets '\\?\UNC\', a drive path gets '\\?\' }
+function MakeWinApiPath(const Path: string): string;
+var
+  Len: DWORD;
+begin
+  Len:=GetFullPathNameW(PWideChar(Path),0,nil,nil);
+  if Len=0 then
+    exit(Path);
+  SetLength(Result,Len);
+  Len:=GetFullPathNameW(PWideChar(Path),Len,PWideChar(Result),nil);
+  if (Len=0) or (Len>=DWORD(Length(Result))) then
+    exit(Path);
+  SetLength(Result,Len);
+  if (Length(Result)>=2) and (Result[1]='\') and (Result[2]='\') then
+    Result:='\\?\UNC\'+Copy(Result,3,Length(Result)-2)
+  else
+    Result:='\\?\'+Result;
+end;
+{$ENDIF}
+
 class function TFile.GetSize(const Path: string): Int64;
 {$IFDEF MSWINDOWS}
 var
-  FilePath: string;
   Info: TWin32FileAttributeData;
 begin
-  if (Length(Path)<MAX_PATH) or TPath.IsExtendedPrefixed(Path) then
-    FilePath:=Path
-  else
-    FilePath:='\\?\'+Path;
-  if GetFileAttributesEx(PChar(FilePath),GetFileExInfoStandard,@Info) then
+  { the short-path hit stays 0 allocations + 1 GetFileAttributesExW;
+    '\\?\' and '\\.\' pass through untouched }
+  if TPath.IsExtendedPrefixed(Path) or
+     ((Length(Path)>=4) and (Path[1]='\') and (Path[2]='\') and
+      (Path[3]='.') and (Path[4]='\')) then
+    begin
+    if GetFileAttributesEx(PChar(Path),GetFileExInfoStandard,@Info) then
+      exit((Int64(Info.nFileSizeHigh) shl 32)+Info.nFileSizeLow);
+    exit(-1);
+    end;
+  if Length(Path)<MAX_PATH then
+    begin
+    if GetFileAttributesEx(PChar(Path),GetFileExInfoStandard,@Info) then
+      exit((Int64(Info.nFileSizeHigh) shl 32)+Info.nFileSizeLow);
+    { a short path whose expanded absolute form exceeds MAX_PATH }
+    if GetLastError<>ERROR_FILENAME_EXCED_RANGE then
+      exit(-1);
+    end;
+  if GetFileAttributesEx(PChar(MakeWinApiPath(Path)),GetFileExInfoStandard,@Info) then
     Result:=(Int64(Info.nFileSizeHigh) shl 32)+Info.nFileSizeLow
   else
     Result:=-1;
