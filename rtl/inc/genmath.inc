@@ -883,6 +883,7 @@ end;
       DP1 = double(7.85398125648498535156E-1);
       DP2 = double(3.77489470793079817668E-8);
       DP3 = double(2.69515142907905952645E-15);
+      INVPIO2 = double(6.36619772367581343076E-1);
     var
       i: longint;
       y: double;
@@ -895,19 +896,19 @@ end;
       end
       else if (y < lossth) then
       begin
-        y := floord(x/PIO4);
-        i := trunc(y - 16.0*floord(y*0.0625));
-        if odd(i) then
-        begin
-          inc(i);
-          y := y + 1.0;
-        end;
+        { nearest multiple of Pi/2; the argument is non-negative here, so
+          trunc avoids both the former division and two floord operations }
+        i := trunc((y - PIO4) * INVPIO2) + 1;
+        if x < 0 then
+          i := -i;
+        y := i;
+        y := y + y; { DP1..DP3 are the split representation of Pi/4 }
         z := ((x - y * DP1) - y * DP2) - y * DP3;
 
         {If x is near a multiple of Pi/2, the C/W relative error may be large.}
         {In this case redo the calculation with the Payne/Hanek algorithm.    }
         if abs(z) > tol then
-          exit(i shr 1 and 7);
+          exit(i and 7);
       end;
       result := rem_pio2_unlikely(x, z);
     end;
