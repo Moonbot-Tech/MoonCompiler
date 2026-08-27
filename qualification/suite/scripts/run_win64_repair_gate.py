@@ -32,6 +32,7 @@ CORE_TESTS = (
     "tdelphiinlineconstruntime1",
     "tdelphianonymousnew1",
     "tdelphinilvaroverload1",
+    "tdelphivarrankpure1",
     "tdelphithreadcreate1",
     "tdelphifilegetsize1",
     "tdelphimemorystreamcapacity1",

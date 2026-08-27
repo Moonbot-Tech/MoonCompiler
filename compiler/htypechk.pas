@@ -202,10 +202,14 @@ interface
     { takes care of type casts etc.                 }
     procedure set_unique(p : tnode);
 
-    function  valid_for_formal_var(p : tnode; report_errors: boolean) : boolean;
+    { apply_effects=false gives a pure classification: no AST mutation
+      (assignment_side, tcnf_formal_storage_view, make_not_regable), so
+      overload ranking can query candidates without the losing candidate
+      leaving marks on the shared parameter tree }
+    function  valid_for_formal_var(p : tnode; report_errors: boolean; apply_effects: boolean=true) : boolean;
     function  valid_for_formal_constref(p : tnode; report_errors: boolean) : boolean;
     function  valid_for_formal_const(p : tnode; report_errors: boolean) : boolean;
-    function  valid_for_var(p:tnode; report_errors: boolean):boolean;
+    function  valid_for_var(p:tnode; report_errors: boolean; apply_effects: boolean=true):boolean;
     function  valid_for_assignment(p:tnode; report_errors: boolean):boolean;
     function  valid_for_loopvar(p:tnode; report_errors: boolean):boolean;
     function  valid_for_addr(p : tnode; report_errors: boolean) : boolean;
@@ -1671,7 +1675,7 @@ implementation
       end;
 
 
-    function  valid_for_assign(p:tnode;opts:TValidAssigns; report_errors: boolean):boolean;
+    function  valid_for_assign(p:tnode;opts:TValidAssigns; report_errors, apply_effects: boolean):boolean;
       var
         typeconvs: tfpobjectlist;
         hp2,
@@ -1835,11 +1839,12 @@ implementation
                    - typecast from pointer to array }
                  fromdef:=ttypeconvnode(hp).left.resultdef;
                  todef:=hp.resultdef;
-                 if fromdef.typ=formaldef then
+                 if apply_effects and (fromdef.typ=formaldef) then
                    include(ttypeconvnode(hp).convnodeflags,tcnf_formal_storage_view);
                  { typeconversions on the assignment side must keep
                    left.location the same }
-                 if not((target_info.system in systems_jvm) and
+                 if apply_effects and
+                    not((target_info.system in systems_jvm) and
                         (gotsubscript or gotvec)) then
                    begin
                      ttypeconvnode(hp).assignment_side:=true;
@@ -1875,7 +1880,10 @@ implementation
                           be in a register }
                         if (m_tp7 in current_settings.modeswitches) or
                            (todef.size<fromdef.size) then
-                          make_not_regable(hp,[ra_addr_regable])
+                          begin
+                            if apply_effects then
+                              make_not_regable(hp,[ra_addr_regable]);
+                          end
                         else
                           if report_errors then
                             CGMessagePos2(hp.fileinfo,type_e_typecast_wrong_size_for_assignment,tostr(fromdef.size),tostr(todef.size));
@@ -1884,7 +1892,8 @@ implementation
                     { we can never typecast a non-memory value on the assignment
                       side in llvm }
                     else
-                      make_not_regable(hp,[ra_addr_regable])
+                      if apply_effects then
+                        make_not_regable(hp,[ra_addr_regable])
 {$endif llvm}
                   end;
 
@@ -1998,7 +2007,8 @@ implementation
                    because we will force the record into memory for this
                    subscript operation (to a temp location, so the assignment
                    will happen to the temp and be lost) }
-                 if not gotsubscript and
+                 if apply_effects and
+                    not gotsubscript and
                     not gotvec and
                     not tstoreddef(hp.resultdef).is_intregable then
                    make_not_regable(hp,[ra_addr_regable]);
@@ -2249,78 +2259,57 @@ implementation
       end;
 
 
-    function  valid_for_var(p:tnode; report_errors: boolean):boolean;
+    function  valid_for_var(p:tnode; report_errors: boolean; apply_effects: boolean):boolean;
       begin
-        valid_for_var:=valid_for_assign(p,[valid_range],report_errors);
+        valid_for_var:=valid_for_assign(p,[valid_range],report_errors,apply_effects);
       end;
 
 
-    function  valid_for_formal_var(p : tnode; report_errors: boolean) : boolean;
+    function  valid_for_formal_var(p : tnode; report_errors: boolean; apply_effects: boolean) : boolean;
       begin
-        valid_for_formal_var:=valid_for_assign(p,[valid_void,valid_range],report_errors);
+        valid_for_formal_var:=valid_for_assign(p,[valid_void,valid_range],report_errors,apply_effects);
       end;
 
 
     function  valid_for_formal_constref(p : tnode; report_errors: boolean) : boolean;
       begin
         valid_for_formal_constref:=(p.resultdef.typ=formaldef) or
-          valid_for_assign(p,[valid_void,valid_const,valid_range],report_errors);
+          valid_for_assign(p,[valid_void,valid_const,valid_range],report_errors,true);
       end;
 
 
     function  valid_for_formal_const(p : tnode; report_errors: boolean) : boolean;
       begin
         valid_for_formal_const:=(p.resultdef.typ=formaldef) or
-          valid_for_assign(p,[valid_void,valid_const,valid_property,valid_range],report_errors);
+          valid_for_assign(p,[valid_void,valid_const,valid_property,valid_range],report_errors,true);
       end;
 
 
     function  valid_for_assignment(p:tnode; report_errors: boolean):boolean;
       begin
-        valid_for_assignment:=valid_for_assign(p,[valid_property,valid_packed],report_errors);
+        valid_for_assignment:=valid_for_assign(p,[valid_property,valid_packed],report_errors,true);
       end;
 
 
     function  valid_for_loopvar(p:tnode; report_errors: boolean):boolean;
       begin
-        valid_for_loopvar:=valid_for_assign(p,[valid_property],report_errors);
+        valid_for_loopvar:=valid_for_assign(p,[valid_property],report_errors,true);
       end;
 
 
     function  valid_for_addr(p : tnode; report_errors: boolean) : boolean;
       begin
-        result:=valid_for_assign(p,[valid_const,valid_addr,valid_void],report_errors);
+        result:=valid_for_assign(p,[valid_const,valid_addr,valid_void],report_errors,true);
       end;
 
 
-    procedure var_para_allowed(var eq:tequaltype;def_from,def_to:Tdef; fromnode: tnode);
-      function is_readonly_argument(p:tnode):boolean;
-        var
-          sym : tsym;
-        begin
-          while p.nodetype=typeconvn do
-            p:=ttypeconvnode(p).left;
-          if is_constnode(p) then
-            exit(true);
-          if p.nodetype<>loadn then
-            exit(false);
-          sym:=tloadnode(p).symtableentry;
-          if sym.typ=constsym then
-            exit(true);
-          result:=(sym.typ in [absolutevarsym,staticvarsym,localvarsym,paravarsym]) and
-            ((tabstractvarsym(sym).varspez in [vs_const,vs_constref,vs_final]) or
-             (vo_is_const in tabstractvarsym(sym).varoptions));
-        end;
-
+    procedure var_para_allowed(var eq:tequaltype;def_from,def_to:Tdef);
       begin
         { Note: eq must be already valid, it will only be updated! }
-        { Type compatibility cannot make a constant addressable.  In
-          particular, nil is represented as a pointer definition and used to
-          reach the implicit pointer-conversion case below; accepting it here
-          keeps a var/out overload alive even though no writable storage can
-          be passed. }
-        if is_readonly_argument(fromnode) then
-          exit;
+        { This decides type compatibility only.  Addressability of the
+          argument (nil, constants, function results, properties, ...) is a
+          separate question answered by the pure valid_for_var gate in
+          get_information: type compatibility cannot make a value writable. }
         case def_to.typ of
           formaldef :
             begin
@@ -3457,7 +3446,6 @@ implementation
                    n:=currpt.left.getcopy;
                    arrayconstructor_to_set(n);
                    eq:=compare_defs_ext(n.resultdef,def_to,n.nodetype,convtype,pdoper,cdoptions);
-                   check_valid_var:=false;
                    n.free;
                    n := nil;
                  end
@@ -3494,10 +3482,7 @@ implementation
                     is_ansistring(def_to) and
                     (tstringdef(def_from).encoding<>tstringdef(def_to).encoding) and
                     (currpara.varspez in [vs_var,vs_out]) then
-                    begin
-                      eq:=te_convert_l1; // don't allow to pass different ansistring types to each-other
-                      check_valid_var:=false;
-                    end
+                   eq:=te_convert_l1 // don't allow to pass different ansistring types to each-other
                  else
                    eq:=compare_defs_ext(def_from,def_to,currpt.left.nodetype,convtype,pdoper,cdoptions);
 
@@ -3510,8 +3495,7 @@ implementation
                         { para requires an equal type so the previous found
                           match was not good enough, reset to incompatible }
                         eq:=te_incompatible;
-                        var_para_allowed(eq,currpt.resultdef,currpara.vardef,currpt.left);
-                        check_valid_var:=false;
+                        var_para_allowed(eq,currpt.resultdef,currpara.vardef);
                       end
                     else
                       para_allowed(eq,currpt,def_to);
@@ -3532,10 +3516,24 @@ implementation
                 procvar is choosen. See tb0471 (PFV) }
               if (pt<>currpt) and (eq=te_exact) then
                 eq:=te_equal;
-              { if var or out parameter type but paranode not is_valid_for_var }
-              if check_valid_var and assigned(currpara) and (currpara.varspez in [vs_var,vs_out]) and not valid_for_var(currpt.left,false)
-                 and assigned(def_to) and (def_to.typ<>formaldef) and not is_open_array(def_to) then
-                eq:=te_incompatible;
+              { var/out argument must be an addressable lvalue.  This is a pure
+                classification (apply_effects=false): a losing candidate must
+                not leave assignment_side/regability marks on the shared
+                parameter tree; the winner gets the mutating check with
+                diagnostics in ncal.  Open arrays keep their separate
+                contract (element or dynamic array values are allowed). }
+              if check_valid_var and (eq<>te_incompatible) and
+                 assigned(currpara) and (currpara.varspez in [vs_var,vs_out]) and
+                 assigned(def_to) and not is_open_array(def_to) then
+                begin
+                  if def_to.typ=formaldef then
+                    begin
+                      if not valid_for_formal_var(currpt.left,false,false) then
+                        eq:=te_incompatible;
+                    end
+                  else if not valid_for_var(currpt.left,false,false) then
+                    eq:=te_incompatible;
+                end;
 
               { increase correct counter }
               if eq<>te_incompatible then
