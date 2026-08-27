@@ -54,6 +54,7 @@ PROGRAMS = {
         "rtl-collections",
         "threads",
         "workloads",
+        "heartbeat",
         "kernels",
     )
 }
@@ -61,6 +62,7 @@ PROGRAMS["local-pressure"] = PERF_ROOT / "local-pressure" / "pulse_local_pressur
 MORMOT_PRODUCT = ROOT / "qualification" / "vendor" / "mormot-product"
 PROGRAM_UNIT_PATHS = {
     "mormot-json": [MORMOT_PRODUCT / "src" / "core"],
+    "heartbeat": [MORMOT_PRODUCT / "src" / "core"],
 }
 SYSTEM_LABELS = {
     "delphi": "Delphi 12.2 + default FastMM4",

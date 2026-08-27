@@ -238,15 +238,33 @@
     },
     {
       "id": "application-pipeline",
-      "status": "planned",
+      "status": "implemented",
+      "source": "heartbeat/pulse_heartbeat.dpr",
+      "cases": [
+        "generate-info-format-100",
+        "generate-info-format-1000",
+        "generate-info-mormot-100",
+        "generate-info-mormot-1000",
+        "parse-markets-100",
+        "parse-markets-1000",
+        "trade-scan-100",
+        "trade-scan-1000",
+        "aggregate-100",
+        "aggregate-1000",
+        "spectrum-fft-32x1024",
+        "correlation-32x256",
+        "rank-1000",
+        "report-top20",
+        "end-to-end-100"
+      ],
       "coverage": {
         "target": ["win64", "linux-x86_64"],
-        "optimization": ["constant-folding", "copy-propagation", "cse", "dead-code-store", "inlining", "stack-init-final", "register-allocation", "loop-transform", "branch-lowering", "arithmetic-lowering", "address-alias", "rtl-intrinsic", "exception-cleanup", "peephole"],
-        "type": ["signed-integer", "unsigned-integer", "single", "double", "currency", "pointer", "enum-set", "unicode-string", "raw-byte-string", "dynamic-array", "interface", "variant", "managed-record", "closure"],
-        "lifetime": ["write-only", "read-write", "copied", "returned", "escaped", "captured", "early-exit", "exception"],
-        "call": ["inline", "autoinline", "noinline", "indirect", "virtual", "interface", "generic", "ppu-boundary"],
-        "memory": ["register", "stack", "heap", "l1", "l2", "llc", "dram", "sequential", "strided", "random", "aliased"],
-        "concurrency": ["single-unlocked", "single-locked", "independent", "shared-read", "shared-write", "producer-consumer", "cross-thread-free", "false-sharing"]
+        "optimization": ["constant-folding", "inlining", "stack-init-final", "register-allocation", "loop-transform", "branch-lowering", "arithmetic-lowering", "address-alias", "rtl-intrinsic", "exception-cleanup"],
+        "type": ["signed-integer", "unsigned-integer", "single", "double", "pointer", "unicode-string", "raw-byte-string", "dynamic-array", "interface", "variant"],
+        "lifetime": ["write-only", "read-write", "copied", "returned", "escaped", "exception"],
+        "call": ["inline", "autoinline", "indirect", "virtual", "interface", "generic", "ppu-boundary"],
+        "memory": ["stack", "heap", "l1", "l2", "llc", "dram", "sequential", "random"],
+        "concurrency": ["single-unlocked"]
       }
     }
   ]
