@@ -252,7 +252,8 @@ unit optdfa;
           case node.nodetype of
             whilerepeatn:
               begin
-                { analyze the loop condition }
+                { analyze the loop condition, together with the latch code
+                  that runs right before it on every iteration }
                 if not(assigned(node.optinfo^.def)) and
                    not(assigned(node.optinfo^.use)) then
                   begin
@@ -260,6 +261,8 @@ unit optdfa;
                     dfainfo.def:=@node.optinfo^.def;
                     dfainfo.map:=map;
                     foreachnodestatic(pm_postprocess,twhilerepeatnode(node).left,@AddDefUse,@dfainfo);
+                    if assigned(twhilerepeatnode(node).t1) then
+                      foreachnodestatic(pm_postprocess,twhilerepeatnode(node).t1,@AddDefUse,@dfainfo);
                   end;
 
                 { NB: this node should typically have empty def set }
@@ -322,6 +325,8 @@ unit optdfa;
                     foreachnodestatic(pm_postprocess,tfornode(node).left,@AddDefUse,@dfainfo);
                     foreachnodestatic(pm_postprocess,tfornode(node).right,@AddDefUse,@dfainfo);
                     foreachnodestatic(pm_postprocess,tfornode(node).t1,@AddDefUse,@dfainfo);
+                    if assigned(tfornode(node).loopstep) then
+                      foreachnodestatic(pm_postprocess,tfornode(node).loopstep,@AddDefUse,@dfainfo);
                   end;
 
                 { create life for the body }
@@ -913,6 +918,8 @@ unit optdfa;
             whilerepeatn:
               begin
                 MaybeSearchIn(twhilerepeatnode(node).left);
+                if assigned(twhilerepeatnode(node).t1) then
+                  MaybeSearchIn(twhilerepeatnode(node).t1);
                 MaybeDoCheck(twhilerepeatnode(node).right);
               end;
 
@@ -920,6 +927,8 @@ unit optdfa;
               begin
                 MaybeSearchIn(tfornode(node).right);
                 MaybeSearchIn(tfornode(node).t1);
+                if assigned(tfornode(node).loopstep) then
+                  MaybeSearchIn(tfornode(node).loopstep);
                 MaybeDoCheck(tfornode(node).t2);
               end;
 

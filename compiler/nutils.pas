@@ -302,10 +302,16 @@ implementation
               perform(tnode(tcallparanode(n).fparainit));
               perform(tcallparanode(n).fparacopyback);
             end;
-          ifn, whilerepeatn, forn, tryexceptn:
+          ifn, whilerepeatn, tryexceptn:
             begin
               perform(tloopnode(n).t1);
               perform(tloopnode(n).t2);
+            end;
+          forn:
+            begin
+              perform(tloopnode(n).t1);
+              perform(tloopnode(n).t2);
+              perform(tfornode(n).loopstep);
             end;
           raisen, tryfinallyn:
             { frame tree/copy of finally code }

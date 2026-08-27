@@ -153,6 +153,9 @@ implementation
         if lnf_testatbegin in loopflags then
         begin
           hlcg.a_label(current_asmdata.CurrAsmList,lcont);
+          { latch code runs at the continue target, before the condition }
+          if assigned(t1) then
+            secondpass(t1);
           pass_generate_code_condition;
         end;
 
@@ -170,6 +173,9 @@ implementation
         if not (lnf_testatbegin in loopflags) then
           begin
             hlcg.a_label(current_asmdata.CurrAsmList,lcont);
+            { latch code runs at the continue target, before the condition }
+            if assigned(t1) then
+              secondpass(t1);
             pass_generate_code_condition;
           end;
         current_asmdata.CurrAsmList.concat(taicpu.op_const(a_br,0) ); // jump back to loop

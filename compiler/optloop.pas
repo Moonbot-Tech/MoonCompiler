@@ -964,6 +964,13 @@ unit optloop;
         Result:=fen_false;
         if n.nodetype<>forn then
           exit;
+        { induction deltas and the rebuilt for node assume the default step
+          of 1: calccode increments by one element/multiplicand per iteration
+          and cfornode.create below does not carry loopstep. A step loop keeps
+          its own lowering; plain loops nested inside it are still found by
+          the continued traversal }
+        if assigned(tfornode(n).loopstep) then
+          exit;
         ctx^.containsnestedforloop:=false;
         ctx^.optimizeinductionvariablessingleforloop(n);
         { can we avoid further searching? }

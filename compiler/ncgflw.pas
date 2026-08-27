@@ -196,6 +196,9 @@ implementation
            secondpass(right);
 
          hlcg.a_label(current_asmdata.CurrAsmList,lcont);
+         { latch code runs at the continue target, before the condition }
+         if assigned(t1) then
+           secondpass(t1);
          if lnf_checknegate in loopflags then
           begin
              truelabel:=lbreak;

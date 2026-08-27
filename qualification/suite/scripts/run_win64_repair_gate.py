@@ -33,6 +33,7 @@ CORE_TESTS = (
     "tdelphianonymousnew1",
     "tdelphinilvaroverload1",
     "tdelphivarrankpure1",
+    "tforsteplatchasm1",
     "tdelphithreadcreate1",
     "tdelphifilegetsize1",
     "tdelphimemorystreamcapacity1",
@@ -92,6 +93,26 @@ GENERIC_TESTS = (
     "tdelphitarraycopy1",
     "tdelphidictionaryisempty1",
 )
+STEP_TESTS = (
+    "tforstep1",
+    "tforstep2",
+    "tforstep3",
+    "tforstep4",
+    "tforstep5",
+    "tforstep6",
+    "tforstep7",
+    "tforstep8",
+    "tforstep9",
+    "tforstep10",
+    "tforstep11",
+    "tforstep12",
+    "tforstep14",
+    "tforstep15",
+)
+# compiled in two separate compiler invocations, so the inline for-step body
+# really crosses the PPU boundary instead of staying in loaded_units memory
+STEP_PPU_UNIT = "uforstep13"
+STEP_PPU_TEST = "tforstep13"
 OPTIONS = ("O2", "O3")
 NEGATIVE_TESTS = (
     ("delphi_mixed_uint64_pair_ambiguous", "Can't determine which overloaded function to call"),
@@ -104,6 +125,8 @@ NEGATIVE_TESTS = (
     ("array_const_index_out_of_range", "Range check error while evaluating constants"),
     ("delphi_constref_write_rejected", "Can't assign values to const variable"),
     ("objfpc_delphi_constref_rejected", "Syntax error"),
+    ("for_step_zero_const_rejected", "Step value must be a positive integer"),
+    ("for_step_negative_const_rejected", "Step value must be a positive integer"),
 )
 
 
@@ -220,6 +243,35 @@ def verify_inline_exception_registers(assembly: Path) -> None:
             raise RuntimeError(f"real exception path lost its Win64 handler: {marker}")
 
 
+def verify_forstep_latch(assembly: Path) -> None:
+    text = assembly.read_text(encoding="utf-8", errors="replace")
+    body = assembly_procedure(
+        text,
+        "P$TFORSTEPLATCHASM1_$$_SUM$LONGINT$LONGINT$LONGINT$$LONGINT:",
+    )
+    if "fpc_rangeerror" not in body:
+        raise RuntimeError("the runtime step<=0 gate is missing")
+    # isolate the steady-state loop: the last backward conditional jump
+    back_jumps = list(re.finditer(r"\tj([a-z]+)\t(\.Lj\d+)\n", body))
+    loop = None
+    for match in back_jumps:
+        label = match.group(2) + ":"
+        target = body.find(label)
+        if 0 <= target < match.start():
+            loop = body[target:match.end()]
+            break
+    if loop is None:
+        raise RuntimeError("cannot isolate the for-step steady-state loop")
+    if "fpc_rangeerror" in loop:
+        raise RuntimeError("the step gate leaked into the steady state")
+    conditional = re.findall(r"\tj(?!mp)[a-z]+\t", loop)
+    if len(conditional) != 1:
+        raise RuntimeError(
+            f"for-step steady state must carry exactly one continuation "
+            f"compare, found {len(conditional)}"
+        )
+
+
 def verify_inline_funcret_temp(assembly: Path) -> None:
     text = assembly.read_text(encoding="utf-8", errors="replace")
     consume = assembly_procedure(
@@ -286,6 +338,8 @@ def main() -> int:
         cases.append(
             (name, compiler_root / "packages" / "rtl-generics" / "tests" / f"{name}.pp", generic_args)
         )
+    for name in STEP_TESTS:
+        cases.append((name, compiler_root / "tests" / "test" / f"{name}.pp", []))
     missing = [str(source) for _, source, _ in cases if not source.is_file()]
     if missing:
         parser.error("missing regression sources: " + ", ".join(missing))
@@ -312,6 +366,7 @@ def main() -> int:
                 "tloopinvariantaddr1",
                 "tdelphiinlineexceptreg1",
                 "tdelphiinlinefuncrettemp1",
+                "tforsteplatchasm1",
             ) and option == "O3":
                 command.append("-al")
             command.append(str(source))
@@ -335,6 +390,61 @@ def main() -> int:
             rows.append(row)
             if row["compile_exit"] != 0 or row["run_exit"] != 0:
                 failures.append(f"{name}/{option}")
+
+    for option in OPTIONS:
+        output = result_root / f"{STEP_PPU_TEST}-{option.lower()}"
+        output.mkdir()
+        test_dir = compiler_root / "tests" / "test"
+        unit_compiled = run(
+            [
+                str(compiler),
+                "-n",
+                f"@{config}",
+                "-B",
+                f"-{option}",
+                f"-FU{output}",
+                f"-FE{output}",
+                str(test_dir / f"{STEP_PPU_UNIT}.pp"),
+            ],
+            cwd=output,
+        )
+        main_compiled = None
+        executed = None
+        if unit_compiled.returncode == 0:
+            main_compiled = run(
+                [
+                    str(compiler),
+                    "-n",
+                    f"@{config}",
+                    f"-{option}",
+                    f"-FU{output}",
+                    f"-FE{output}",
+                    f"-Fu{output}",
+                    str(test_dir / f"{STEP_PPU_TEST}.pp"),
+                ],
+                cwd=output,
+            )
+        (output / "compile.log").write_text(
+            unit_compiled.stdout
+            + unit_compiled.stderr
+            + ("" if main_compiled is None else main_compiled.stdout + main_compiled.stderr),
+            encoding="utf-8",
+        )
+        executable = output / f"{STEP_PPU_TEST}.exe"
+        if main_compiled is not None and main_compiled.returncode == 0 and executable.is_file():
+            executed = run([str(executable)], cwd=output, timeout=30)
+            (output / "run.log").write_text(
+                executed.stdout + executed.stderr, encoding="utf-8"
+            )
+        row = {
+            "test": STEP_PPU_TEST,
+            "option": option,
+            "compile_exit": None if main_compiled is None else main_compiled.returncode,
+            "run_exit": None if executed is None else executed.returncode,
+        }
+        rows.append(row)
+        if row["compile_exit"] != 0 or row["run_exit"] != 0:
+            failures.append(f"{STEP_PPU_TEST}/{option}")
 
     for name, expected_error in NEGATIVE_TESTS:
         source = root / "tests" / "smoke" / f"{name}.pas"
@@ -370,7 +480,7 @@ def main() -> int:
                 failures.append(f"{name}/{option}")
 
     expected_rows = (
-        len(CORE_TESTS) + len(GENERIC_TESTS) + len(NEGATIVE_TESTS)
+        len(CORE_TESTS) + len(GENERIC_TESTS) + len(STEP_TESTS) + 1 + len(NEGATIVE_TESTS)
     ) * len(OPTIONS)
     if len(rows) != expected_rows:
         raise RuntimeError(f"incomplete matrix: {len(rows)}/{expected_rows}")
@@ -396,6 +506,12 @@ def main() -> int:
         )
     except (OSError, RuntimeError) as error:
         failures.append(f"inline-funcret-temp-assembly ({error})")
+    try:
+        verify_forstep_latch(
+            result_root / "tforsteplatchasm1-o3" / "tforsteplatchasm1.s"
+        )
+    except (OSError, RuntimeError) as error:
+        failures.append(f"forstep-latch-assembly ({error})")
 
     (result_root / "results.json").write_text(
         json.dumps(rows, indent=2) + "\n", encoding="utf-8"

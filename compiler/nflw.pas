@@ -113,14 +113,19 @@ interface
           { this is a dummy node used by the dfa to store life information for the loop iteration }
           loopiteration : tnode;
           { step expression for for-step loops; nil means default step of 1.
-            Not serialized in PPU: a for-loop with step is converted to a
-            while-loop in pass_1 before any cross-unit consumption }
+            Serialized in PPU: the while-loop conversion only happens during
+            the optimize stage, which is after the inline info snapshot of
+            the surrounding procedure was taken }
           loopstep : tnode;
           loopvar_notid:cardinal;
           constructor create(l,r,_t1,_t2 : tnode;back : boolean);virtual;reintroduce;
           destructor destroy;override;
           function dogetcopy : tnode;override;
           function docompare(p:tnode):boolean;override;
+          constructor ppuload(t:tnodetype;ppufile:tcompilerppufile);override;
+          procedure ppuwrite(ppufile:tcompilerppufile);override;
+          procedure buildderefimpl;override;
+          procedure derefimpl;override;
           function pass_typecheck:tnode;override;
           function pass_1 : tnode;override;
           function makewhileloop : tnode;
@@ -1378,6 +1383,9 @@ implementation
          { loop instruction }
          if assigned(right) then
            typecheckpass(right);
+         { latch code, emitted at the continue label before the condition }
+         if assigned(t1) then
+           typecheckpass(t1);
          set_varstate(left,vs_read,[vsf_must_be_valid]);
          if codegenerror then
            exit;
@@ -1404,6 +1412,8 @@ implementation
         result:=nil;
         { convert while i>0 do ... dec(i); to if i>0 then repeat ... dec(i) until i=0; ? }
         if (cs_opt_level2 in current_settings.optimizerswitches) and
+          { rebuilding the node below would drop latch code }
+          not assigned(t1) and
           { while loop? }
           (lnf_testatbegin in loopflags) and not(lnf_checknegate in loopflags) then
           begin
@@ -1535,6 +1545,14 @@ implementation
          if assigned(right) then
            begin
               firstpass(right);
+              if codegenerror then
+                exit;
+           end;
+
+         { latch code }
+         if assigned(t1) then
+           begin
+              firstpass(t1);
               if codegenerror then
                 exit;
            end;
@@ -1965,6 +1983,36 @@ implementation
            );
       end;
 
+
+    constructor tfornode.ppuload(t:tnodetype;ppufile:tcompilerppufile);
+      begin
+        inherited ppuload(t,ppufile);
+        loopstep:=ppuloadnode(ppufile);
+      end;
+
+
+    procedure tfornode.ppuwrite(ppufile:tcompilerppufile);
+      begin
+        inherited ppuwrite(ppufile);
+        ppuwritenode(ppufile,loopstep);
+      end;
+
+
+    procedure tfornode.buildderefimpl;
+      begin
+        inherited buildderefimpl;
+        if assigned(loopstep) then
+          loopstep.buildderefimpl;
+      end;
+
+
+    procedure tfornode.derefimpl;
+      begin
+        inherited derefimpl;
+        if assigned(loopstep) then
+          loopstep.derefimpl;
+      end;
+
     function tfornode.simplify(forinline : boolean) : tnode;
       begin
         result:=nil;
@@ -2036,11 +2084,11 @@ implementation
          check_ranges(t1.fileinfo,t1,rangedef);
          inserttypeconv(t1,rangedef);
 
-         { force step into the loopvar's range type so the i+step in
-           makewhileloop has matching operands; use _internal so chr/enum
-           numeric step values are accepted without an explicit cast }
-         if assigned(loopstep) then
-           inserttypeconv_internal(loopstep,rangedef);
+         { the step keeps its own lossless ordinal type: converting it into
+           the counter's range type here silently truncated e.g. a Byte
+           counter's step 256 to 0 (internal conversions never range check)
+           and made the generated loop hang. makewhileloop widens both sides
+           into a common unsigned domain instead. }
 
          if assigned(t2) then
            typecheckpass(t2);
@@ -2119,10 +2167,13 @@ implementation
         storefilepos: tfileposinfo;
         countermin, countermax: Tconstexprint;
         physmin, physmax: Tconstexprint;
-        firsttemp,prevtemp : ttempcreatenode;
-        firstcheck,breakcheck : tnode;
-        stepblock : tblocknode;
-        stepstatements : tstatementnode;
+        disttemp : ttempcreatenode;
+        widesdef,wideudef : tdef;
+        stepsigned : boolean;
+        latchblock : tblocknode;
+        latchstatements : tstatementnode;
+        whileloopnode : tnode;
+        oldlocalswitches : tlocalswitches;
 
       procedure iterate_counter(var s : tstatementnode;fw : boolean);
         var
@@ -2148,6 +2199,35 @@ implementation
             result:=cinlinenode.createintern(in_pred_x,false,arg);
         end;
 
+      { for-step helpers }
+
+      { read-only copy of the counter node }
+      function counter_read : tnode;
+        begin
+          result:=left.getcopy;
+          node_reset_flags(result,[nf_modify,nf_write],[tnf_pass1_done]);
+        end;
+
+      { raw bits of an ordinal expression reinterpreted in the wide unsigned
+        domain; signed sources are sign-extended first, so differences of two
+        such values equal the differences of the original values. ndef is
+        passed explicitly: fresh temp references carry no resultdef yet }
+      function ord_bits(n : tnode; ndef : tdef) : tnode;
+        begin
+          if is_signed(ndef) then
+            n:=ctypeconvnode.create_internal(n,widesdef);
+          result:=ctypeconvnode.create_internal(n,wideudef);
+        end;
+
+      { the step magnitude in the wide unsigned domain (positive after the
+        runtime gate, so the reinterpretation preserves the value) }
+      function step_bits : tnode;
+        begin
+          result:=ctemprefnode.create(steptemp);
+          if stepsigned then
+            result:=ctypeconvnode.create_internal(result,wideudef);
+        end;
+
       begin
         result:=nil;
         totemp:=nil;
@@ -2156,108 +2236,145 @@ implementation
         storefilepos:=current_filepos;
         current_filepos:=fileinfo;
 
-        { for-step path: when loopstep is set (and not folded to nil for step=1
-          by simplify), generate a dedicated while loop. Increment runs at the
-          START of each iteration (skipped on the first pass via a flag), then
-          a range check, then the body. This keeps `continue` working the same
-          as in a regular for loop: it jumps to the while condition (always
-          true), the next pass runs the increment, and only then the body:
+        { for-step path: when loopstep is set (and not folded to nil for
+          step=1 by simplify), generate a rotated loop measured by physical
+          distance. Step and remaining distance live in a wide unsigned
+          domain, so no counter/step width combination can silently truncate
+          (a Byte counter with step 256 used to become step 0 and hang), and
+          the counter is only incremented when the target is representable -
+          the steady-state increment can neither wrap nor trip $Q/$R:
 
-            steptemp := step;  totemp := to;  i := from;  first := true;
-            while true do begin
-              if first then first := false
-              else i := i + step;
-              if i > to then break;     -- < to for backward
-              body;                     -- continue here lands on the next pass
-            end;
+            step := EvaluateOnce;            -- kept in its own signedness
+            if step <= 0 then RangeError;    -- C-002 runtime contract
+            bound := EvaluateOnce;  i := from;
+            if InitialRangeValid then
+              repeat
+                body;                        -- `continue` lands on the latch
+              latch:
+                dist := bits(bound) - bits(i);       -- reversed for downto
+                i := low_bits(i + step);     -- modular; exact when in range
+                if step > dist then break;   -- counter holds first-past value
+              until false;
 
-          Cost: one bool temp plus one branch per iteration; in return, all
-          control-flow constructs (break/continue/exit/raise) behave naturally. }
+          The latch travels in the while node's spare t1 slot: codegen emits
+          it at the continue label, before the loop condition, so `continue`
+          (also via try/finally unwinding) still runs the increment. Steady
+          state is one compare, one subtraction and one addition; no
+          first-iteration flag, no previous-value temp. }
         if assigned(loopstep) then
           begin
-            result:=internalstatements(statements);
-            loopblock:=internalstatements(loopstatements);
+            { the arithmetic below is modular by construction and must not
+              inherit the surrounding $Q/$R state }
+            oldlocalswitches:=current_settings.localswitches;
+            current_settings.localswitches:=oldlocalswitches-[cs_check_overflow,cs_check_range];
 
-            steptemp:=ctempcreatenode.create(loopstep.resultdef,loopstep.resultdef.size,tt_persistent,true);
+            stepsigned:=is_signed(loopstep.resultdef);
+            if is_128bit(left.resultdef) or is_128bit(loopstep.resultdef) then
+              begin
+                widesdef:=s128inttype;
+                wideudef:=u128inttype;
+              end
+            else
+              begin
+                widesdef:=s64inttype;
+                wideudef:=u64inttype;
+              end;
+
+            result:=internalstatements(statements);
+
+            { step: evaluated once, widened without loss; a runtime step<=0
+              is a range error raised before bound and counter are touched }
+            if stepsigned then
+              steptemp:=ctempcreatenode.create(widesdef,widesdef.size,tt_persistent,true)
+            else
+              steptemp:=ctempcreatenode.create(wideudef,wideudef.size,tt_persistent,true);
             addstatement(statements,steptemp);
-            addstatement(statements,cassignmentnode.create_internal(ctemprefnode.create(steptemp),loopstep.getcopy));
+            addstatement(statements,cassignmentnode.create_internal(ctemprefnode.create(steptemp),
+              ctypeconvnode.create_internal(loopstep.getcopy,steptemp.tempinfo^.typedef)));
+            if stepsigned then
+              addstatement(statements,cifnode.create_internal(
+                caddnode.create_internal(lten,ctemprefnode.create(steptemp),
+                  cordconstnode.create(0,widesdef,false)),
+                ccallnode.createintern('fpc_rangeerror',nil),nil))
+            else
+              addstatement(statements,cifnode.create_internal(
+                caddnode.create_internal(equaln,ctemprefnode.create(steptemp),
+                  cordconstnode.create(0,wideudef,false)),
+                ccallnode.createintern('fpc_rangeerror',nil),nil));
 
             totemp:=ctempcreatenode.create(t1.resultdef,t1.resultdef.size,tt_persistent,true);
             addstatement(statements,totemp);
             addstatement(statements,cassignmentnode.create_internal(ctemprefnode.create(totemp),t1.getcopy));
 
-            firsttemp:=ctempcreatenode.create(pasbool1type,pasbool1type.size,tt_persistent,true);
-            addstatement(statements,firsttemp);
-            addstatement(statements,cassignmentnode.create_internal(ctemprefnode.create(firsttemp),
-              cordconstnode.create(1,pasbool1type,false)));
-
-            prevtemp:=ctempcreatenode.create(left.resultdef,left.resultdef.size,tt_persistent,true);
-            addstatement(statements,prevtemp);
-
             addstatement(statements,cassignmentnode.create_internal(left.getcopy,right.getcopy));
 
-            { if first then first := false
-              else begin prev := i; i := i +/- step; if i wrapped then break; end
+            disttemp:=ctempcreatenode.create(wideudef,wideudef.size,tt_persistent,true);
+            addstatement(statements,disttemp);
 
-              The wrap check is what terminates a loop whose next step would
-              pass the physical maximum of the counter: the increment wraps,
-              the counter moves against the loop direction, and the plain
-              "i > to" check below would never fire again. }
-            stepblock:=internalstatements(stepstatements);
-            leftcopy:=left.getcopy;
-            node_reset_flags(leftcopy,[nf_modify,nf_write],[tnf_pass1_done]);
-            addstatement(stepstatements,cassignmentnode.create_internal(
-              ctemprefnode.create(prevtemp),leftcopy));
-            leftcopy:=left.getcopy;
-            node_reset_flags(leftcopy,[nf_modify,nf_write],[tnf_pass1_done]);
+            { latch: distance check, exit with the modular first-past value,
+              or the provably representable increment }
+            latchblock:=internalstatements(latchstatements);
             if lnf_backward in loopflags then
-              addstatement(stepstatements,cassignmentnode.create_internal(left.getcopy,
-                caddnode.create_internal(subn,leftcopy,ctemprefnode.create(steptemp))))
+              addstatement(latchstatements,cassignmentnode.create_internal(ctemprefnode.create(disttemp),
+                caddnode.create_internal(subn,ord_bits(counter_read,left.resultdef),
+                  ord_bits(ctemprefnode.create(totemp),t1.resultdef))))
             else
-              addstatement(stepstatements,cassignmentnode.create_internal(left.getcopy,
-                caddnode.create_internal(addn,leftcopy,ctemprefnode.create(steptemp))));
-            leftcopy:=left.getcopy;
-            node_reset_flags(leftcopy,[nf_modify,nf_write],[tnf_pass1_done]);
-            if lnf_backward in loopflags then
-              addstatement(stepstatements,cifnode.create(
-                caddnode.create_internal(gtn,leftcopy,ctemprefnode.create(prevtemp)),
-                cbreaknode.create,nil))
-            else
-              addstatement(stepstatements,cifnode.create(
-                caddnode.create_internal(ltn,leftcopy,ctemprefnode.create(prevtemp)),
-                cbreaknode.create,nil));
-            firstcheck:=cifnode.create(ctemprefnode.create(firsttemp),
-              cassignmentnode.create_internal(ctemprefnode.create(firsttemp),
-                cordconstnode.create(0,pasbool1type,false)),
-              stepblock);
-            addstatement(loopstatements,firstcheck);
+              addstatement(latchstatements,cassignmentnode.create_internal(ctemprefnode.create(disttemp),
+                caddnode.create_internal(subn,ord_bits(ctemprefnode.create(totemp),t1.resultdef),
+                  ord_bits(counter_read,left.resultdef))));
 
-            { if i > to (forward) or i < to (backward) then break }
-            leftcopy:=left.getcopy;
-            node_reset_flags(leftcopy,[nf_modify,nf_write],[tnf_pass1_done]);
+            { unconditional modular increment: narrowing the wide sum back to
+              the counter's width is exactly (i +/- step) mod 2^N. When
+              step<=dist the target lies within [from..bound] and the value
+              survives the narrowing; when step>dist the counter receives its
+              modular first-past value and the loop exits without a body run }
             if lnf_backward in loopflags then
-              breakcheck:=cifnode.create(
-                caddnode.create_internal(ltn,leftcopy,ctemprefnode.create(totemp)),
-                cbreaknode.create,nil)
+              addstatement(latchstatements,cassignmentnode.create_internal(left.getcopy,
+                ctypeconvnode.create_internal(
+                  caddnode.create_internal(subn,ord_bits(counter_read,left.resultdef),step_bits),left.resultdef)))
             else
-              breakcheck:=cifnode.create(
-                caddnode.create_internal(gtn,leftcopy,ctemprefnode.create(totemp)),
-                cbreaknode.create,nil);
-            addstatement(loopstatements,breakcheck);
+              addstatement(latchstatements,cassignmentnode.create_internal(left.getcopy,
+                ctypeconvnode.create_internal(
+                  caddnode.create_internal(addn,ord_bits(counter_read,left.resultdef),step_bits),left.resultdef)));
+            addstatement(latchstatements,cifnode.create_internal(
+              caddnode.create_internal(gtn,step_bits,ctemprefnode.create(disttemp)),
+              cbreaknode.create,nil));
 
+            loopblock:=internalstatements(loopstatements);
             addstatement(loopstatements,t2);
             t2:=nil;
 
-            { while true do loopblock }
-            addstatement(statements,cwhilerepeatnode.create(
-              cordconstnode.create(1,pasbool1type,false),
-              loopblock,true,false));
+            { repeat body until false, with the latch in the t1 slot }
+            whileloopnode:=cwhilerepeatnode.create(
+              cordconstnode.create(0,pasbool1type,false),
+              loopblock,false,true);
+            twhilerepeatnode(whileloopnode).t1:=latchblock;
 
-            addstatement(statements,ctempdeletenode.create(firsttemp));
-            addstatement(statements,ctempdeletenode.create(prevtemp));
+            { initial range gate; an empty loop leaves the counter at from.
+              simplify has already dropped the gate for provably nonempty
+              constant bounds }
+            if lnf_testatbegin in loopflags then
+              begin
+                if lnf_backward in loopflags then
+                  addstatement(statements,cifnode.create_internal(
+                    caddnode.create_internal(gten,counter_read,ctemprefnode.create(totemp)),
+                    whileloopnode,nil))
+                else
+                  addstatement(statements,cifnode.create_internal(
+                    caddnode.create_internal(lten,counter_read,ctemprefnode.create(totemp)),
+                    whileloopnode,nil));
+              end
+            else
+              addstatement(statements,whileloopnode);
+
+            addstatement(statements,ctempdeletenode.create(disttemp));
             addstatement(statements,ctempdeletenode.create(totemp));
             addstatement(statements,ctempdeletenode.create(steptemp));
 
+            { typecheck here, while $Q/$R are still lifted, so any conversion
+              materialized by the pass stays check-free as well }
+            typecheckpass(result);
+            current_settings.localswitches:=oldlocalswitches;
             current_filepos:=storefilepos;
             exit;
           end;

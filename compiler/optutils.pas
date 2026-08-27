@@ -448,6 +448,8 @@ unit optutils;
             begin
               CalcExecutionWeights(twhilerepeatnode(n).right,Weight*8);
               CalcExecutionWeights(twhilerepeatnode(n).left,Weight*8);
+              { latch code runs once per iteration, like the condition }
+              CalcExecutionWeights(twhilerepeatnode(n).t1,Weight*8);
               Result:=fen_norecurse_false;
             end;
           ifn:
