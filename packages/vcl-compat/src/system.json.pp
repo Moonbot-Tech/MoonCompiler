@@ -701,7 +701,6 @@ Function CreateParser(aBytes : PByte; aOffset, aSize : Integer; Options: TJSONVa
 
 Var
   PS : TPointerStream;
-  UseBools,Utf8 : Boolean;
 
 begin
   PS:=TPointerStream.Create(aBytes,aOffset,aSize);
@@ -968,8 +967,11 @@ var
   B : TBytes;
   O : TJSONParseOptions;
 begin
+  { the facade encodes the input as UTF-8, so the scanner MUST run in
+    UTF-8 mode - without the option a \u escape above $7F decayed to
+    U+FFFD garbage }
   B:=TEncoding.UTF8.GetBytes(aData);
-  O:=[];
+  O:=[TJSONParseOption.IsUTF8];
   If aUseBool then
     Include(O,TJSONParseOPtion.UseBool);
   If aRaiseExc then
@@ -981,7 +983,8 @@ class function TJSONValue.ParseJSONValue(const aData: UTF8String; aUseBool: Bool
 var
   O : TJSONParseOptions;
 begin
-  O:=[];
+  { the input is UTF-8 by its type - the scanner must know }
+  O:=[TJSONParseOption.IsUTF8];
   If aUseBool then
     Include(O,TJSONParseOPtion.UseBool);
   If aRaiseExc then
@@ -1017,8 +1020,10 @@ var
   B : TBytes;
 
 begin
+  { the facade encodes the input as UTF-8 - the scanner must know }
   B:=TEncoding.UTF8.GetBytes(aData);
-  Result:=ParseJSONFragment(PByte(B),aOffSet,Length(B),aOptions);
+  Result:=ParseJSONFragment(PByte(B),aOffSet,Length(B),
+    aOptions+[TJSONParseOption.IsUTF8]);
 end;
 
 function TJSONValue.FindValue(const aPath: UnicodeString): TJSONValue;

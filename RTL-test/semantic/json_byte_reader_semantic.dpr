@@ -98,14 +98,14 @@ begin
     R.Free;
   end;
 
-  { the public ASCII parse path still works end to end (the Unicode facade
-    is separately broken - CreateParser drops the UTF8 option and \u
-    escapes decay to U+FFFD; recorded for the codecs block, not repaired
-    here) }
-  V := TJSONValue.ParseJSONValue(UnicodeString('{"name":"abc"}'));
+  { the public parse path end to end; the Unicode facade now runs the
+    scanner in UTF-8 mode, so a \u escape above $7F survives (it used to
+    decay to U+FFFD because the facade encoded UTF-8 but never told the
+    scanner) }
+  V := TJSONValue.ParseJSONValue(UnicodeString('{"name":"\u0416\u0435\u0441\u0442"}'));
   try
     Check('parse-value', (V <> nil) and
-      (V.GetValue<UnicodeString>('name') = 'abc'));
+      (V.GetValue<UnicodeString>('name') = #$0416#$0435#$0441#$0442));
   finally
     V.Free;
   end;
