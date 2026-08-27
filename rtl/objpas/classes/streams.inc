@@ -1772,17 +1772,27 @@ end;
 function TStringStream.ReadString(Count: Longint): string;
 
 begin
+{$IF SIZEOF(CHAR)=1}
   Result:=ReadAnsiString(Count);
+{$ELSE}
+  Result:=ReadUnicodeString(Count);
+{$ENDIF}
 end;
 
 function TStringStream.ReadUnicodeString(Count: Longint): UnicodeString;
 
 Var
+  Available : Int64;
   NewLen : Longint;
 
 begin
-  NewLen:=Size-FPosition;
-  If NewLen>Count then NewLen:=Count;
+  Result:='';
+  If (Count<=0) or (FPosition<0) or (FPosition>=Size) then
+    Exit;
+  Available:=Size-FPosition;
+  NewLen:=Count;
+  If Available<NewLen then
+    NewLen:=Available;
   Result:=FEncoding.GetString(FBytes,FPosition,NewLen);
   Inc(FPosition,NewLen);
 end;
@@ -1814,11 +1824,17 @@ end;
 function TStringStream.ReadAnsiString(Count: Longint): AnsiString;
 
 Var
+  Available : Int64;
   NewLen : Longint;
 
 begin
-  NewLen:=Size-FPosition;
-  If NewLen>Count then NewLen:=Count;
+  Result:='';
+  If (Count<=0) or (FPosition<0) or (FPosition>=Size) then
+    Exit;
+  Available:=Size-FPosition;
+  NewLen:=Count;
+  If Available<NewLen then
+    NewLen:=Available;
   Result:=FEncoding.GetAnsiString(FBytes,FPosition,NewLen);
   Inc(FPosition,NewLen);
 end;

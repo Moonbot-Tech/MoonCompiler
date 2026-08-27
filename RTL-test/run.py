@@ -80,6 +80,10 @@ CURRENT_TREE_UNIT_DIRS = {
     # TNetEncoding stream/byte repairs live in packages/vcl-compat.
     "net_encoding_streams_semantic": ROOT / "packages" / "vcl-compat" / "src",
     "html_encoding_spans_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    "text_stream_encoding_semantic": (
+        ROOT / "packages" / "fcl-base" / "src",
+        ROOT / "packages" / "vcl-compat" / "src",
+    ),
 }
 REQUIRED_RUNTIME_PATTERNS = {
     "mm_finalization_lifetime_semantic": (
@@ -211,8 +215,10 @@ def main() -> int:
             for mode in args.modes:
                 output = work / source.stem / mode
                 output.mkdir(parents=True)
-                unit_dir = CURRENT_TREE_UNIT_DIRS.get(source.stem)
-                rebuild = [] if unit_dir else ["-B"]
+                unit_dirs = CURRENT_TREE_UNIT_DIRS.get(source.stem, ())
+                if isinstance(unit_dirs, Path):
+                    unit_dirs = (unit_dirs,)
+                rebuild = [] if unit_dirs else ["-B"]
                 command = [
                     str(compiler),
                     "-n",
@@ -233,7 +239,7 @@ def main() -> int:
                     f"-Fi{SEMANTIC}",
                     f"-Fu{SEMANTIC / 'support'}",
                     f"-Fi{SEMANTIC / 'support'}",
-                    *([f"-Fu{unit_dir}"] if unit_dir else []),
+                    *(f"-Fu{unit_dir}" for unit_dir in unit_dirs),
                     f"-FU{output}",
                     f"-FE{output}",
                     *MODES[mode],
@@ -251,7 +257,7 @@ def main() -> int:
                     ),
                     str(source),
                 ]
-                compiled = execute(command, unit_dir or ROOT)
+                compiled = execute(command, unit_dirs[0] if unit_dirs else ROOT)
                 if compiled.returncode != 0:
                     print(compiled.stdout, file=sys.stderr)
                     raise RuntimeError(f"compile failed: {source.name} {mode}")

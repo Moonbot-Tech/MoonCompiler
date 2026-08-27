@@ -1558,7 +1558,11 @@ begin
     Until BytesRead<>BufDelta;
     SetLength(Buffer,BufLen-BufDelta+BytesRead);
     PreambleLength:=TEncoding.GetBufferEncoding(Buffer,AEncoding,FDefaultEncoding);
+{$if sizeof(char)=1}
     T:=AEncoding.GetAnsiString(Buffer,PreambleLength,Length(Buffer)-PreambleLength);
+{$else}
+    T:=AEncoding.GetString(Buffer,PreambleLength,Length(Buffer)-PreambleLength);
+{$endif}
     if soPreserveBOM in FOptions then
       WriteBOM:=PreambleLength>0;
     SetEncoding(AEncoding);

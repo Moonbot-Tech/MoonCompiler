@@ -1747,6 +1747,7 @@ Var
 
 begin
   B:=[];
+  BOMLength:=0;
   Result:=TEncoding.Default;
   With TFileStream.Create(aPath,fmOpenRead or fmShareDenyWrite) do
     try
@@ -2310,26 +2311,77 @@ begin
 end;
 
 class function TFile.ReadAllText(const aPath: string): string;
-
-var
-  aBOMLength : Integer;
-
 begin
-  Result:=ReadAllText(aPath,DetectFIleEncoding(aPath,aBOMLength));
+  Result:=ReadAllText(aPath,nil);
 end;
 
 class function TFile.ReadAllText(const aPath: string; const aEncoding: TEncoding
   ): string;
 
+  function IsValidUTF8(const Bytes: TBytes; StartIndex: Integer): Boolean;
+  var
+    B0, B1: Byte;
+    I, L: Integer;
+  begin
+    I:=StartIndex;
+    L:=Length(Bytes);
+    While I<L do
+      begin
+      B0:=Bytes[I];
+      If B0<$80 then
+        Inc(I)
+      else If (B0>=$c2) and (B0<=$df) then
+        begin
+        If (I+1>=L) or ((Bytes[I+1] and $c0)<>$80) then
+          Exit(False);
+        Inc(I,2);
+        end
+      else If (B0>=$e0) and (B0<=$ef) then
+        begin
+        If I+2>=L then
+          Exit(False);
+        B1:=Bytes[I+1];
+        If ((B1 and $c0)<>$80) or ((Bytes[I+2] and $c0)<>$80) or
+           ((B0=$e0) and (B1<$a0)) or ((B0=$ed) and (B1>$9f)) then
+          Exit(False);
+        Inc(I,3);
+        end
+      else If (B0>=$f0) and (B0<=$f4) then
+        begin
+        If I+3>=L then
+          Exit(False);
+        B1:=Bytes[I+1];
+        If ((B1 and $c0)<>$80) or ((Bytes[I+2] and $c0)<>$80) or
+           ((Bytes[I+3] and $c0)<>$80) or
+           ((B0=$f0) and (B1<$90)) or ((B0=$f4) and (B1>$8f)) then
+          Exit(False);
+        Inc(I,4);
+        end
+      else
+        Exit(False);
+      end;
+    Result:=True;
+  end;
+
 Var
   B : TBytes;
+  BOMLength: Integer;
+  Encoding, FoundEncoding: TEncoding;
 
 begin
   B:=ReadAllBytes(aPath);
+  FoundEncoding:=aEncoding;
+  BOMLength:=TEncoding.GetBufferEncoding(B,FoundEncoding,TEncoding.UTF8);
+  Encoding:=FoundEncoding;
+  If not Assigned(aEncoding) and (BOMLength=0) and
+     (Encoding=TEncoding.UTF8) and not IsValidUTF8(B,0) then
+    begin
+    Encoding:=TEncoding.ANSI;
+    end;
 {$if sizeof(char)=1}
-  Result:=aEncoding.GetAnsiString(B);
+  Result:=Encoding.GetAnsiString(B,BOMLength,Length(B)-BOMLength);
 {$else}
-  Result:=aEncoding.GetString(B);
+  Result:=Encoding.GetString(B,BOMLength,Length(B)-BOMLength);
 {$endif}
 end;
 

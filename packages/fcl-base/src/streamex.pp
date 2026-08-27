@@ -99,8 +99,8 @@ type
      constructor Create; virtual;
      procedure Reset; virtual; abstract;
      procedure Close; virtual; abstract;
-     procedure ReadLine(out AString: AnsiString); virtual; abstract; overload;
-     function ReadLine: AnsiString; overload;
+     procedure ReadLine(out AString: RTLString); virtual; abstract; overload;
+     function ReadLine: RTLString; overload;
      property Eof: Boolean read IsEof;
      property EndOfStream : boolean read IsEof;
    end;
@@ -109,26 +109,38 @@ type
 
    TStreamReader = class(TTextReader)
    private
-     FBufferRead: Integer;
-     FBufferPosition: Integer;
      FClosed,
      FOwnsStream: Boolean;
      FStream: TStream;
-     FBuffer: array of Byte;
+     FBufferSize: Integer;
+     FBufferedText: RTLString;
+     FBufferedTextPosition: Integer;
+     FByteTail: TBytes;
+     FEncoding: TEncoding;
+     FInitialEncoding: TEncoding;
+     FDetectBOM: Boolean;
+     FStarted: Boolean;
+     FNoDataInStream: Boolean;
+     procedure CompactBufferedText;
+     function CompleteByteCount(const Bytes: TBytes; Count: Integer): Integer;
      procedure FillBuffer;
    Protected
      function IsEof: Boolean; override;
    public
      constructor Create(AStream: TStream; ABufferSize: Integer; AOwnsStream: Boolean); virtual;
      constructor Create(AStream: TStream); virtual;
+     constructor Create(AStream: TStream; ADetectBOM: Boolean); overload;
+     constructor Create(AStream: TStream; AEncoding: TEncoding;
+       ADetectBOM: Boolean = False; ABufferSize: Integer = BUFFER_SIZE); overload;
      constructor Create(const aFilename: string);
      constructor Create(const aFilename: string; aDetectBOM: Boolean);
      constructor Create(const aFilename: string; aEncoding: TEncoding; aDetectBOM: Boolean; aBufferSize: Integer); overload;
      destructor Destroy; override;
      procedure Reset; override;
      procedure Close; override;
-     procedure ReadLine(out AString:Ansistring ); override; overload;
+     procedure ReadLine(out AString: RTLString); override; overload;
      property BaseStream: TStream read FStream;
+     property CurrentEncoding: TEncoding read FEncoding;
      property OwnsStream: Boolean read FOwnsStream write FOwnsStream;
    end;
 
@@ -136,16 +148,17 @@ type
 
    TStringReader = class(TTextReader)
    private
-     FReader: TTextReader;
+     FData: RTLString;
+     FPosition: Integer;
    Protected
      function IsEof: Boolean; override;
    public
-     constructor Create(const AString: AnsiString; ABufferSize: Integer); virtual;
-     constructor Create(const AString: AnsiString); virtual;
+     constructor Create(const AString: RTLString; ABufferSize: Integer); virtual;
+     constructor Create(const AString: RTLString); virtual;
      destructor Destroy; override;
      procedure Reset; override;
      procedure Close; override;
-     procedure ReadLine(out AString: AnsiString); override; overload;
+     procedure ReadLine(out AString: RTLString); override; overload;
    end;
 
    { TFileReader }
@@ -165,7 +178,7 @@ type
      destructor Destroy; override;
      procedure Reset; override;
      procedure Close; override;
-     procedure ReadLine(out AString: AnsiString); override; overload;
+     procedure ReadLine(out AString: RTLString); override; overload;
    end;
 
    { TTextWriter }
@@ -259,7 +272,7 @@ type
    protected
      FBufferIndex: Integer;
      FBuffer: TBytes;
-     procedure WriteBytes(Bytes: TBytes);
+     procedure WriteBytes(const Bytes: TBytes);
    public
      constructor Create(aStream: TStream); overload;
      constructor Create(aStream: TStream; aEncoding: TEncoding; aBufferSize: Integer = 4096); overload;
@@ -372,7 +385,7 @@ end;
 
 { TStreamWriter }
 
-procedure TStreamWriter.WriteBytes(Bytes: TBytes);
+procedure TStreamWriter.WriteBytes(const Bytes: TBytes);
 var
   BufLen,Count,ToWrite: Integer;
   P : PByte;
@@ -398,23 +411,53 @@ end;
 
 constructor TStreamWriter.Create(aStream: TStream);
 begin
-  Create(aStream,TEncoding.UTF8,1024)
+  If not Assigned(aStream) then
+    raise EArgumentException.CreateFmt(SParamIsNil, ['aStream']);
+  FStream:=aStream;
+  FFreeStream:=False;
+  FEncoding:=TEncoding.UTF8;
+  SetLength(FBuffer,1024);
+  FNewLine:=sLineBreak;
+  FAutoFlush:=True;
 end;
 
 constructor TStreamWriter.Create(aStream: TStream; aEncoding: TEncoding;
   aBufferSize: Integer);
 begin
+  If not Assigned(aStream) then
+    raise EArgumentException.CreateFmt(SParamIsNil, ['aStream']);
+  If not Assigned(aEncoding) then
+    raise EArgumentException.CreateFmt(SParamIsNil, ['aEncoding']);
   FStream:=aStream;
   FFreeStream:=False;
   FEncoding:=aEncoding;
+  If aBufferSize<MIN_BUFFER_SIZE then
+    aBufferSize:=MIN_BUFFER_SIZE;
   SetLength(FBuffer,aBufferSize);
   FNewLine:=sLineBreak;
+  FAutoFlush:=True;
+  If FStream.Position=0 then
+    WriteBytes(FEncoding.GetPreamble);
 end;
 
 constructor TStreamWriter.Create(const aFilename: string; aAppend: Boolean);
-
+var
+  F: TStream;
 begin
-  Create(aFileName,aAppend,TEncoding.UTF8,1024);
+  If aAppend and FileExists(aFilename) then
+    begin
+    F:=TFileStream.Create(aFilename,fmOpenWrite);
+    F.Seek(0,soEnd);
+    end
+  else
+    F:=TFileStream.Create(aFilename,fmCreate);
+  try
+    Create(F);
+    OwnStream;
+  except
+    F.Free;
+    raise;
+  end;
 end;
 
 constructor TStreamWriter.Create(const aFilename: string; aAppend: Boolean;
@@ -430,8 +473,13 @@ begin
     end
   else
     F := TFileStream.Create(aFilename, fmCreate);
-  Create(F,aEncoding,aBufferSize);
-  OwnStream;
+  try
+    Create(F,aEncoding,aBufferSize);
+    OwnStream;
+  except
+    F.Free;
+    raise;
+  end;
 end;
 
 destructor TStreamWriter.Destroy;
@@ -506,7 +554,11 @@ end;
 
 procedure TStreamWriter.Write(const aValue: string);
 begin
+{$if sizeof(char)=1}
   WriteBytes(FEncoding.GetAnsiBytes(aValue));
+{$else}
+  WriteBytes(FEncoding.GetBytes(UnicodeString(aValue)));
+{$endif}
 end;
 
 procedure TStreamWriter.Write(aValue: Cardinal);
@@ -531,7 +583,7 @@ begin
   if aCount=0 then exit;
   SetLength(S,aCount);
   Move(aValue[aIndex],PChar(S)^,aCount*SizeOf(Char));
-  WriteBytes(FEncoding.GetAnsiBytes(S));
+  Write(S);
 end;
 
 procedure TStreamWriter.WriteLine;
@@ -923,7 +975,7 @@ begin
   inherited Create;
 end;
 
-function TTextReader.ReadLine: AnsiString;
+function TTextReader.ReadLine: RTLString;
 
 begin
   ReadLine(Result);
@@ -934,16 +986,8 @@ end;
 constructor TStreamReader.Create(AStream: TStream; ABufferSize: Integer;
   AOwnsStream: Boolean);
 begin
-  inherited Create;
-  if not Assigned(AStream) then
-    raise EArgumentException.CreateFmt(SParamIsNil, ['AStream']);
-  FStream := AStream;
-  FOwnsStream := AOwnsStream;
-  FClosed:=False;
-  if ABufferSize >= MIN_BUFFER_SIZE then
-    SetLength(FBuffer, ABufferSize)
-  else
-    SetLength(FBuffer, MIN_BUFFER_SIZE);
+  Create(AStream,TEncoding.UTF8,True,ABufferSize);
+  FOwnsStream:=AOwnsStream;
 end;
 
 constructor TStreamReader.Create(AStream: TStream);
@@ -951,14 +995,40 @@ begin
   Create(AStream, BUFFER_SIZE, False);
 end;
 
+constructor TStreamReader.Create(AStream: TStream; ADetectBOM: Boolean);
+begin
+  Create(AStream,TEncoding.UTF8,ADetectBOM,BUFFER_SIZE);
+end;
+
+constructor TStreamReader.Create(AStream: TStream; AEncoding: TEncoding;
+  ADetectBOM: Boolean; ABufferSize: Integer);
+begin
+  inherited Create;
+  If not Assigned(AStream) then
+    raise EArgumentException.CreateFmt(SParamIsNil, ['AStream']);
+  If not Assigned(AEncoding) then
+    raise EArgumentException.CreateFmt(SParamIsNil, ['AEncoding']);
+  FStream:=AStream;
+  FEncoding:=AEncoding;
+  FInitialEncoding:=AEncoding;
+  FDetectBOM:=ADetectBOM;
+  FOwnsStream:=False;
+  FClosed:=False;
+  FStarted:=False;
+  FNoDataInStream:=False;
+  If ABufferSize<MIN_BUFFER_SIZE then
+    ABufferSize:=MIN_BUFFER_SIZE;
+  FBufferSize:=ABufferSize;
+end;
+
 constructor TStreamReader.Create(const aFilename: string);
 begin
-  Create(aFileName,False);
+  Create(aFileName,TEncoding.UTF8,True,BUFFER_SIZE);
 end;
 
 constructor TStreamReader.Create(const aFilename: string; aDetectBOM: Boolean);
 begin
-  Create(aFileName,TEncoding.Default, aDetectBOM, BUFFER_SIZE);
+  Create(aFileName,TEncoding.UTF8,aDetectBOM,BUFFER_SIZE);
 end;
 
 constructor TStreamReader.Create(const aFilename: string; aEncoding: TEncoding; aDetectBOM: Boolean; aBufferSize: Integer);
@@ -966,9 +1036,14 @@ var
   F : TFileStream;
 
 begin
-  // DetectBOM & encoding ignored for the moment.
   F:=TFileStream.Create(aFileName,fmOpenRead or fmShareDenyWrite);
-  Create(F,aBufferSize,True);
+  try
+    Create(F,aEncoding,aDetectBOM,aBufferSize);
+    FOwnsStream:=True;
+  except
+    F.Free;
+    raise;
+  end;
 end;
 
 destructor TStreamReader.Destroy;
@@ -977,25 +1052,130 @@ begin
   inherited Destroy;
 end;
 
-procedure TStreamReader.FillBuffer;
+procedure TStreamReader.CompactBufferedText;
 begin
-  if FClosed then
-    begin
-    FBufferRead:=0;
-    FBufferPosition:=0;
-    end
+  If FBufferedTextPosition=0 then
+    Exit;
+  If FBufferedTextPosition>=Length(FBufferedText) then
+    FBufferedText:=''
   else
+    Delete(FBufferedText,1,FBufferedTextPosition);
+  FBufferedTextPosition:=0;
+end;
+
+function TStreamReader.CompleteByteCount(const Bytes: TBytes;
+  Count: Integer): Integer;
+var
+  ContinuationCount, ExpectedCount, I: Integer;
+  Lead: Byte;
+begin
+  Result:=Count;
+  If FNoDataInStream or (Count=0) then
+    Exit;
+  case FEncoding.CodePage of
+    CP_UTF16,
+    CP_UTF16BE:
+      Result:=Count and not 1;
+    CP_UTF8:
+      begin
+        I:=Count-1;
+        ContinuationCount:=0;
+        While (I>=0) and ((Bytes[I] and $c0)=$80) do
+          begin
+          Inc(ContinuationCount);
+          Dec(I);
+          end;
+        If I<0 then
+          Exit;
+        Lead:=Bytes[I];
+        If Lead<$80 then
+          ExpectedCount:=1
+        else If (Lead and $e0)=$c0 then
+          ExpectedCount:=2
+        else If (Lead and $f0)=$e0 then
+          ExpectedCount:=3
+        else If (Lead and $f8)=$f0 then
+          ExpectedCount:=4
+        else
+          ExpectedCount:=0;
+        If (ExpectedCount>0) and (ExpectedCount>ContinuationCount+1) then
+          Result:=I;
+      end;
+  end;
+end;
+
+procedure TStreamReader.FillBuffer;
+var
+  Bytes, DetectedPreamble: TBytes;
+  CompleteCount, ReadCount, ReadTotal, StartIndex, TailCount: Integer;
+  Decoded: UnicodeString;
+  DetectedEncoding: TEncoding;
+begin
+  If FClosed or FNoDataInStream then
+    Exit;
+  CompactBufferedText;
+  SetLength(Bytes,Length(FByteTail)+FBufferSize);
+  ReadTotal:=Length(FByteTail);
+  If ReadTotal>0 then
+    Move(FByteTail[0],Bytes[0],ReadTotal);
+  SetLength(FByteTail,0);
+  While ReadTotal<Length(Bytes) do
     begin
-    FBufferRead := FStream.Read(FBuffer[0], Pred(Length(FBuffer)));
-    FBuffer[FBufferRead] := 0;
-    FBufferPosition := 0;
+    ReadCount:=FStream.Read(Bytes[ReadTotal],Length(Bytes)-ReadTotal);
+    If ReadCount<=0 then
+      begin
+      FNoDataInStream:=True;
+      Break;
+      end;
+    Inc(ReadTotal,ReadCount);
+    end;
+  SetLength(Bytes,ReadTotal);
+
+  StartIndex:=0;
+  If not FStarted then
+    begin
+    If FDetectBOM then
+      begin
+      DetectedEncoding:=nil;
+      StartIndex:=TEncoding.GetBufferEncoding(Bytes,DetectedEncoding,nil);
+      If Assigned(DetectedEncoding) then
+        FEncoding:=DetectedEncoding;
+      end
+    else
+      begin
+      DetectedPreamble:=FEncoding.GetPreamble;
+      If (Length(DetectedPreamble)>0) and
+         (ReadTotal>=Length(DetectedPreamble)) and
+         CompareMem(@Bytes[0],@DetectedPreamble[0],Length(DetectedPreamble)) then
+        StartIndex:=Length(DetectedPreamble);
+      end;
+    FStarted:=True;
+    end;
+
+  CompleteCount:=CompleteByteCount(Bytes,ReadTotal);
+  If CompleteCount<StartIndex then
+    CompleteCount:=StartIndex;
+  TailCount:=ReadTotal-CompleteCount;
+  If TailCount>0 then
+    begin
+    SetLength(FByteTail,TailCount);
+    Move(Bytes[CompleteCount],FByteTail[0],TailCount);
+    end;
+  If CompleteCount>StartIndex then
+    begin
+    Decoded:=FEncoding.GetString(Bytes,StartIndex,CompleteCount-StartIndex);
+    FBufferedText:=FBufferedText+RTLString(Decoded);
     end;
 end;
 
 procedure TStreamReader.Reset;
 begin
-  FBufferRead := 0;
-  FBufferPosition := 0;
+  FBufferedText:='';
+  FBufferedTextPosition:=0;
+  SetLength(FByteTail,0);
+  FStarted:=False;
+  FNoDataInStream:=False;
+  FEncoding:=FInitialEncoding;
   if Assigned(FStream) then
     FStream.Seek(0, 0);
 end;
@@ -1011,101 +1191,119 @@ function TStreamReader.IsEof: Boolean;
 begin
   if FClosed or not Assigned(FStream) then
     Exit(True);
-  Result := FBufferPosition >= FBufferRead;
-  if Result then
-  begin
+  While (FBufferedTextPosition>=Length(FBufferedText)) and not FNoDataInStream do
     FillBuffer;
-    Result := FBufferRead = 0;
-  end;
+  Result:=(FBufferedTextPosition>=Length(FBufferedText)) and FNoDataInStream;
 end;
 
-procedure TStreamReader.ReadLine(out AString: Ansistring);
+procedure TStreamReader.ReadLine(out AString: RTLString);
 var
-  VPByte: PByte;
-  VPosition, VStrLength, VLength: Integer;
+  C: Char;
+  SegmentEnd, SegmentStart: Integer;
 begin
-  VPosition := FBufferPosition;
-  SetLength(AString, 0);
-  if FClosed then exit;
-  repeat
-    VPByte := @FBuffer[FBufferPosition];
-    while (FBufferPosition < FBufferRead) and not (VPByte^ in [10, 13]) do
+  AString:='';
+  If IsEof then
+    Exit;
+  While True do
     begin
-      Inc(VPByte);
-      Inc(FBufferPosition);
-    end;
-    if FBufferPosition = FBufferRead then
-    begin
-      VLength := FBufferPosition - VPosition;
-      if VLength > 0 then
+    SegmentStart:=FBufferedTextPosition+1;
+    SegmentEnd:=SegmentStart;
+    While SegmentEnd<=Length(FBufferedText) do
       begin
-        VStrLength := Length(AString);
-        SetLength(AString, VStrLength + VLength);
-        Move(FBuffer[VPosition], AString[Succ(VStrLength)], VLength);
+      C:=FBufferedText[SegmentEnd];
+      If (C=#10) or (C=#13) then
+        begin
+        AString:=AString+Copy(FBufferedText,SegmentStart,
+          SegmentEnd-SegmentStart);
+        FBufferedTextPosition:=SegmentEnd;
+        If C=#13 then
+          begin
+          If (FBufferedTextPosition>=Length(FBufferedText)) and
+             not FNoDataInStream then
+            FillBuffer;
+          If (FBufferedTextPosition<Length(FBufferedText)) and
+             (FBufferedText[FBufferedTextPosition+1]=#10) then
+            Inc(FBufferedTextPosition);
+          end;
+        Exit;
+        end;
+      Inc(SegmentEnd);
       end;
-      FillBuffer;
-      VPByte := @FBuffer[FBufferPosition];
-      VPosition := FBufferPosition;
+    AString:=AString+Copy(FBufferedText,SegmentStart,
+      Length(FBufferedText)-SegmentStart+1);
+    FBufferedTextPosition:=Length(FBufferedText);
+    If FNoDataInStream then
+      Exit;
+    FillBuffer;
     end;
-  until (FBufferPosition = FBufferRead) or (VPByte^ in [10, 13]);
-  VLength := FBufferPosition - VPosition;
-  if VLength > 0 then
-  begin
-    VStrLength := Length(AString);
-    SetLength(AString, VStrLength + VLength);
-    Move(FBuffer[VPosition], AString[Succ(VStrLength)], VLength);
-  end;
-  if (VPByte^ in [10, 13]) and (FBufferPosition < FBufferRead) then
-  begin
-    Inc(FBufferPosition);
-    if VPByte^ = 13 then
-    begin
-      if FBufferPosition = FBufferRead then
-        FillBuffer;
-      if (FBufferPosition < FBufferRead) and (FBuffer[FBufferPosition] = 10) then
-        Inc(FBufferPosition);
-    end;
-  end;
 end;
 
 
 { TStringReader }
 
-constructor TStringReader.Create(const AString: AnsiString; ABufferSize: Integer);
+constructor TStringReader.Create(const AString: RTLString; ABufferSize: Integer);
 begin
   inherited Create;
-  FReader := TStreamReader.Create(TStringStream.Create(AString), ABufferSize, True);
+  FData:=AString;
+  If FData='' then
+    FPosition:=0
+  else
+    FPosition:=1;
 end;
 
-constructor TStringReader.Create(const AString: AnsiString);
+constructor TStringReader.Create(const AString: RTLString);
 begin
   Create(AString, BUFFER_SIZE);
 end;
 
 destructor TStringReader.Destroy;
 begin
-  FReader.Free;
   inherited Destroy;
 end;
 
 procedure TStringReader.Reset;
 begin
-  FReader.Reset;
+  If FData='' then
+    FPosition:=0
+  else
+    FPosition:=1;
 end;
 
 procedure TStringReader.Close;
 begin
-  FReader.Close;
+  FData:='';
+  FPosition:=0;
 end;
 
 function TStringReader.IsEof: Boolean;
 begin
-  Result := FReader.IsEof;
+  Result:=FPosition=0;
 end;
 
-procedure TStringReader.ReadLine(out AString: AnsiString );
+procedure TStringReader.ReadLine(out AString: RTLString);
+var
+  LineEnd, LineStart: Integer;
 begin
-  FReader.ReadLine(AString);
+  AString:='';
+  If FPosition=0 then
+    Exit;
+  LineStart:=FPosition;
+  LineEnd:=LineStart;
+  While (LineEnd<=Length(FData)) and (FData[LineEnd]<>#10) and
+        (FData[LineEnd]<>#13) do
+    Inc(LineEnd);
+  AString:=Copy(FData,LineStart,LineEnd-LineStart);
+  If LineEnd>Length(FData) then
+    FPosition:=0
+  else
+    begin
+    FPosition:=LineEnd+1;
+    If (FData[LineEnd]=#13) and (FPosition<=Length(FData)) and
+       (FData[FPosition]=#10) then
+      Inc(FPosition);
+    If FPosition>Length(FData) then
+      FPosition:=0;
+    end;
 end;
 
 { TFileReader }
@@ -1155,7 +1353,7 @@ begin
   Result := FReader.IsEof;
 end;
 
-procedure TFileReader.ReadLine(out AString: AnsiString);
+procedure TFileReader.ReadLine(out AString: RTLString);
 begin
   FReader.ReadLine(AString);
 end;
