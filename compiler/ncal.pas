@@ -107,6 +107,13 @@ interface
           inlinelevel             : PtrUInt;
           inlinelocals            : TFPObjectList;
           inlineinitstatement,
+          { construction phase of the inline frame (Initialize/arm/Assign of
+            parameter copies and custom-init locals): covered by the frame's
+            implicit try..finally, while the temp creations and flag zeroing
+            stay in inlineinitstatement outside it, so the flag-gated
+            finalizers in the finally part never touch a slot that was not
+            reached (C-003) }
+          inlineconstructionstatement,
           inlinecleanupstatement  : tstatementnode;
           { finalizations of the callee's managed locals, in reverse
             declaration order; the inliner wraps the inlined body in an
@@ -781,12 +788,137 @@ implementation
       end;
 
 
+    { A compiler-made copy of a Delphi-Assign record (a parameter copy, or an
+      inlined routine's custom-Initialize local) carries an ownership flag
+      word behind its data - see fpc_delphi_finalize_copy in the RTL. The
+      builder arms the flag right after the copy's Initialize; whoever
+      finalizes first - the callee's epilogue or unwind funclet, an inline
+      frame's cleanup block, or the caller-side TDelphiCopyGuard slot when an
+      exception fires between construction and transfer - clears it, so the
+      user's Finalize runs exactly once and never on a value whose Initialize
+      did not complete. }
+
+    function delphi_copy_flag_offset(def: tdef): asizeint;
+      begin
+        result:=align(def.size,sizeof(pint));
+      end;
+
+
+    { PSizeUInt(@copy[flag_offset])^ := avalue }
+    function delphi_copy_flag_store(copytemp: ttempcreatenode; def: tdef; avalue: longint): tnode;
+      begin
+        result:=cassignmentnode.create(
+          cderefnode.create(
+            ctypeconvnode.create_internal(
+              caddrnode.create_internal(
+                cvecnode.create(ctemprefnode.create(copytemp),
+                  genintconstnode(delphi_copy_flag_offset(def)))),
+              cpointerdef.getreusable(sizeuinttype))),
+          cordconstnode.create(avalue,sizeuinttype,false));
+      end;
+
+
+    { a typed view of the value stored at the start of its widened byte
+      temp; a plain value typecast would be rejected for the size mismatch
+      with the flag word behind the data }
+    function delphi_copy_data_view(copytemp: ttempcreatenode; def: tdef): tnode;
+      begin
+        result:=cderefnode.create(
+          ctypeconvnode.create_internal(
+            caddrnode.create_internal(
+              cvecnode.create(ctemprefnode.create(copytemp),genintconstnode(0))),
+            cpointerdef.getreusable(def)));
+      end;
+
+
+    var
+      dcguardcounter: longint = 0;
+
+    function delphi_copy_guard_field(guardsym: tlocalvarsym; const aname: string): tnode;
+      begin
+        result:=csubscriptnode.create(
+          tfieldvarsym(search_struct_member(trecorddef(guardsym.vardef),aname)),
+          cloadnode.create(guardsym,guardsym.owner));
+      end;
+
+
+    { The guard is a hidden managed LOCAL of the surrounding procedure (a
+      compiler temp would not do: temps are not covered by the unwind
+      funclet). The prologue zeroes it, the finalize funclet and the
+      epilogue run its Finalize, so arming it after the copy's Initialize
+      makes the copy reachable by exactly one finalizer on every path. }
+    procedure delphi_copy_arm_guard(var stat: tstatementnode; copytemp: ttempcreatenode; def: tdef; out guardsym: tlocalvarsym);
+      var
+        guarddef: tdef;
+      begin
+        guarddef:=search_system_type('TDELPHICOPYGUARD').typedef;
+        inc(dcguardcounter);
+        guardsym:=clocalvarsym.create('$dcguard'+tostr(dcguardcounter),vs_value,guarddef,[]);
+        include(guardsym.symoptions,sp_internal);
+        current_procinfo.procdef.localst.insertsym(guardsym);
+        { a managed local born after the parse-time finalize scan: request
+          the implicit finally frame ourselves, exactly like a managed
+          tempcreate does in pass_1 - the frame is built later in the same
+          code generation pass and would otherwise trip the needs/has
+          invariant (IE 200405231) in a caller without own managed locals }
+        include(current_procinfo.flags,pi_needs_implicit_finally);
+        include(current_procinfo.flags,pi_do_call);
+        addstatement(stat,cassignmentnode.create(
+          delphi_copy_guard_field(guardsym,'DATA'),
+          ctypeconvnode.create_internal(
+            caddrnode.create_internal(
+              cvecnode.create(ctemprefnode.create(copytemp),genintconstnode(0))),
+            voidpointertype)));
+        addstatement(stat,cassignmentnode.create(
+          delphi_copy_guard_field(guardsym,'FLAG'),
+          ctypeconvnode.create_internal(
+            caddrnode.create_internal(
+              cvecnode.create(ctemprefnode.create(copytemp),
+                genintconstnode(delphi_copy_flag_offset(def)))),
+            voidpointertype)));
+        addstatement(stat,cassignmentnode.create(
+          delphi_copy_guard_field(guardsym,'TI'),
+          ctypeconvnode.create_internal(
+            caddrnode.create_internal(
+              crttinode.create(tstoreddef(def),initrtti,rdt_normal)),
+            voidpointertype)));
+      end;
+
+
+    { guard.Flag := nil - run on every completed path: the epilogue and
+      the funclet still finalize the guard local later and must not chase
+      pointers into released temps }
+    procedure delphi_copy_disarm_guard(var stat: tstatementnode; guardsym: tlocalvarsym);
+      begin
+        addstatement(stat,cassignmentnode.create(
+          delphi_copy_guard_field(guardsym,'FLAG'),
+          cnilnode.create));
+      end;
+
+
+    { fpc_delphi_finalize_copy(@copy, rtti) }
+    function delphi_copy_finalize_node(copytemp: ttempcreatenode; def: tdef): tnode;
+      begin
+        result:=ccallnode.createintern('fpc_delphi_finalize_copy',
+          ccallparanode.create(
+            caddrnode.create_internal(
+              crttinode.create(tstoreddef(def),initrtti,rdt_normal)),
+            ccallparanode.create(
+              ctypeconvnode.create_internal(
+                caddrnode.create_internal(
+                  cvecnode.create(ctemprefnode.create(copytemp),genintconstnode(0))),
+                voidpointertype),
+              nil)));
+      end;
+
+
     procedure tcallparanode.copy_value_by_ref_para;
       var
         initstat,
         finistat: tstatementnode;
         finiblock: tblocknode;
         paratemp: ttempcreatenode;
+        guardsym: tlocalvarsym;
         arraysize,
         arraybegin: tnode;
         lefttemp: ttempcreatenode;
@@ -957,24 +1089,35 @@ implementation
             else if is_delphi_assign_record(parasym.vardef) then
               begin
                 { Delphi copy semantics (dvl-0035): the caller builds a
-                  per-call temp with Initialize + the user's Assign and
-                  finalizes it right after the call.  The temp is typed as
-                  raw bytes so the generic managed-slot bookkeeping
-                  (prologue init, slot-reuse finalize, funclet) stays out -
-                  the explicit pair here owns the whole lifecycle. }
-                temparraydef:=carraydef.getreusable(u8inttype,left.resultdef.size);
+                  per-call temp with Initialize + the user's Assign, the
+                  callee buries it (dvl-0057).  The temp is typed as raw
+                  bytes so the generic managed-slot bookkeeping (prologue
+                  init, slot-reuse finalize, funclet) stays out; the flag
+                  word behind the copy plus the guard slot make the copy
+                  reachable by exactly one finalizer even when a later
+                  argument raises before the call (C-003): the guard's
+                  funclet then finalizes it, while on the normal path the
+                  callee clears the flag first and the guard skips }
+                temparraydef:=carraydef.getreusable(u8inttype,
+                  delphi_copy_flag_offset(left.resultdef)+sizeof(pint));
                 paratemp:=ctempcreatenode.create(temparraydef,temparraydef.size,tt_persistent,false);
                 addstatement(initstat,paratemp);
                 addstatement(initstat,
                   cnodeutils.initialize_data_node(
-                    ctypeconvnode.create_internal(
-                      ctemprefnode.create(paratemp),left.resultdef),false));
+                    delphi_copy_data_view(paratemp,left.resultdef),false));
+                { built: arm the flag before the user's Assign - a raising
+                  Assign leaves a finalizable destination (C-003) }
+                addstatement(initstat,delphi_copy_flag_store(paratemp,left.resultdef,1));
+                delphi_copy_arm_guard(initstat,paratemp,left.resultdef,guardsym);
                 addstatement(initstat,
                   cassignmentnode.create(
-                    ctypeconvnode.create_internal(
-                      ctemprefnode.create(paratemp),left.resultdef),
+                    delphi_copy_data_view(paratemp,left.resultdef),
                     left));
-                left:=ctypeconvnode.create_explicit(ctemprefnode.create(paratemp),left.resultdef);
+                left:=delphi_copy_data_view(paratemp,left.resultdef);
+                { disarm in the done-block: the callee finalized the copy and
+                  cleared the flag; the guard local itself dies with the
+                  procedure - its Finalize then skips on the nil Flag }
+                delphi_copy_disarm_guard(finistat,guardsym);
               end
             else if is_managed_type(left.resultdef) then
               begin
@@ -5920,6 +6063,7 @@ implementation
     procedure tcallnode.createlocaltemps(p:TObject;arg:pointer);
       var
         tempnode: ttempcreatenode;
+        localguard: tlocalvarsym;
         indexnr : integer;
       begin
         if (TSym(p).typ <> localvarsym) then
@@ -5951,19 +6095,31 @@ implementation
             if has_non_trivial_value_init(tabstractvarsym(p).vardef) then
               begin
                 tempnode:=ctempcreatenode.create(
-                  carraydef.getreusable(u8inttype,tabstractvarsym(p).vardef.size),
-                  tabstractvarsym(p).vardef.size,tt_persistent,false);
+                  carraydef.getreusable(u8inttype,
+                    delphi_copy_flag_offset(tabstractvarsym(p).vardef)+sizeof(pint)),
+                  delphi_copy_flag_offset(tabstractvarsym(p).vardef)+sizeof(pint),
+                  tt_persistent,false);
+                { creation and flag zeroing outside the frame, the user's
+                  Initialize inside it: a raise from a later local's or
+                  copy's construction reaches the frame's finally, whose
+                  flag-gated finalizer skips the never-built and finalizes
+                  the built exactly once (C-003) }
                 addstatement(inlineinitstatement,tempnode);
                 addstatement(inlineinitstatement,
+                  delphi_copy_flag_store(tempnode,tabstractvarsym(p).vardef,0));
+                addstatement(inlineconstructionstatement,
                   cnodeutils.initialize_data_node(
-                    ctypeconvnode.create_internal(
-                      ctemprefnode.create(tempnode),tabstractvarsym(p).vardef),false));
+                    delphi_copy_data_view(tempnode,tabstractvarsym(p).vardef),false));
+                addstatement(inlineconstructionstatement,
+                  delphi_copy_flag_store(tempnode,tabstractvarsym(p).vardef,1));
+                delphi_copy_arm_guard(inlineconstructionstatement,tempnode,
+                  tabstractvarsym(p).vardef,localguard);
+                delphi_copy_disarm_guard(inlinecleanupstatement,localguard);
                 pinlinelocaltempsctx(arg)^.temps.add(tempnode);
                 pinlinelocaltempsctx(arg)^.defs.add(tabstractvarsym(p).vardef);
                 if (tabstractvarsym(p).addr_taken) then
                   tempnode.includetempflag(ti_addr_taken);
-                inlinelocals[indexnr]:=ctypeconvnode.create_internal(
-                  ctemprefnode.create(tempnode),tabstractvarsym(p).vardef);
+                inlinelocals[indexnr]:=delphi_copy_data_view(tempnode,tabstractvarsym(p).vardef);
                 exit;
               end;
             tempnode :=ctempcreatenode.create(tabstractvarsym(p).vardef,
@@ -6264,6 +6420,7 @@ implementation
         delphidefs,
         delphiassigns: tfplist;
         delphitemp: ttempcreatenode;
+        delphiguard: tlocalvarsym;
         temparraydef: tdef;
       begin
         delphitemps:=nil;
@@ -6317,13 +6474,35 @@ implementation
                   end;
                 if materializecopy then
                   begin
-                    temparraydef:=carraydef.getreusable(u8inttype,para.parasym.vardef.size);
+                    if is_delphi_assign_record(para.parasym.vardef) then
+                      temparraydef:=carraydef.getreusable(u8inttype,
+                        delphi_copy_flag_offset(para.parasym.vardef)+sizeof(pint))
+                    else
+                      temparraydef:=carraydef.getreusable(u8inttype,para.parasym.vardef.size);
                     delphitemp:=ctempcreatenode.create(temparraydef,temparraydef.size,tt_persistent,false);
+                    { the temp creation and the flag zeroing stay OUTSIDE the
+                      frame: they cannot raise, and the frame's flag-gated
+                      finally must find a defined flag even when an earlier
+                      construction step raised before this copy was built }
                     addstatement(inlineinitstatement,delphitemp);
-                    addstatement(inlineinitstatement,
+                    if is_delphi_assign_record(para.parasym.vardef) then
+                      addstatement(inlineinitstatement,
+                        delphi_copy_flag_store(delphitemp,para.parasym.vardef,0));
+                    addstatement(inlineconstructionstatement,
                       cnodeutils.initialize_data_node(
-                        ctypeconvnode.create_internal(
-                          ctemprefnode.create(delphitemp),para.parasym.vardef),false));
+                        delphi_copy_data_view(delphitemp,para.parasym.vardef),false));
+                    { built: a raise from a later copy's Init/Assign reaches
+                      the frame's finally (and, past the inline frame, the
+                      caller's guard funclet); the flag makes the copy
+                      reachable by exactly one finalizer (C-003) }
+                    if is_delphi_assign_record(para.parasym.vardef) then
+                      begin
+                        addstatement(inlineconstructionstatement,
+                          delphi_copy_flag_store(delphitemp,para.parasym.vardef,1));
+                        delphi_copy_arm_guard(inlineconstructionstatement,delphitemp,
+                          para.parasym.vardef,delphiguard);
+                        delphi_copy_disarm_guard(inlinecleanupstatement,delphiguard);
+                      end;
                     { the user's Assign belongs to the frame's Assign
                       phase: DCC64 initializes every copy and local first,
                       then runs the Assigns - the node is deferred until
@@ -6336,11 +6515,9 @@ implementation
                       end;
                     delphiassigns.add(
                       cassignmentnode.create(
-                        ctypeconvnode.create_internal(
-                          ctemprefnode.create(delphitemp),para.parasym.vardef),
+                        delphi_copy_data_view(delphitemp,para.parasym.vardef),
                         para.left));
-                    para.left:=ctypeconvnode.create_explicit(
-                      ctemprefnode.create(delphitemp),para.parasym.vardef);
+                    para.left:=delphi_copy_data_view(delphitemp,para.parasym.vardef);
                     delphitemps.add(delphitemp);
                     delphidefs.add(para.parasym.vardef);
                   end
@@ -6388,14 +6565,13 @@ implementation
             if assigned(localtempsctx.defs[blk_i]) then
               begin
                 { byte temp of a custom-Initialize local: finalize through
-                  the local's own type }
+                  the flag-clearing helper, so the guard slot skips it }
                 if not assigned(inlinemanagedcleanupblock) then
                   inlinemanagedcleanupblock:=internalstatements(managedcleanupstatement);
                 addstatement(managedcleanupstatement,
-                  cnodeutils.finalize_data_node(
-                    ctypeconvnode.create_internal(
-                      ctemprefnode.create(ttempcreatenode(localtempsctx.temps[blk_i])),
-                      tdef(localtempsctx.defs[blk_i]))));
+                  delphi_copy_finalize_node(
+                    ttempcreatenode(localtempsctx.temps[blk_i]),
+                    tdef(localtempsctx.defs[blk_i])));
               end
             else if is_managed_type(ttempcreatenode(localtempsctx.temps[blk_i]).tempinfo^.typedef) then
               begin
@@ -6422,12 +6598,12 @@ implementation
           localtempsctx.usedsyms.free;
           end;
         { the frame's Assign phase: every copy and local is initialized by
-          now, the user's Assigns run in declaration order (measured DCC64:
-          Init-Init-Init then Assign-Assign) }
+          now, the user's Assigns run in paranode order (Init-Init-Init
+          then Assign-Assign, the measured DCC64 phasing) }
         if assigned(delphiassigns) then
           begin
             for blk_i:=0 to delphiassigns.count-1 do
-              addstatement(inlineinitstatement,tnode(delphiassigns[blk_i]));
+              addstatement(inlineconstructionstatement,tnode(delphiassigns[blk_i]));
             delphiassigns.free;
           end;
         { the copies of Delphi-assign parameters die after the callee's
@@ -6441,13 +6617,19 @@ implementation
               inlinemanagedcleanupblock:=internalstatements(managedcleanupstatement);
             { the paranode chain runs last-to-first, so the forward walk
               finalizes the copies in reverse declaration order - the
-              measured DCC64 epilogue order }
+              measured DCC64 epilogue order. A flagged copy goes through
+              the flag-clearing helper, so the guard slot skips it }
             for blk_i:=0 to delphitemps.count-1 do
-              addstatement(managedcleanupstatement,
-                cnodeutils.finalize_data_node(
-                  ctypeconvnode.create_internal(
-                    ctemprefnode.create(ttempcreatenode(delphitemps[blk_i])),
-                    tdef(delphidefs[blk_i]))));
+              if is_delphi_assign_record(tdef(delphidefs[blk_i])) then
+                addstatement(managedcleanupstatement,
+                  delphi_copy_finalize_node(
+                    ttempcreatenode(delphitemps[blk_i]),tdef(delphidefs[blk_i])))
+              else
+                addstatement(managedcleanupstatement,
+                  cnodeutils.finalize_data_node(
+                    ctypeconvnode.create_internal(
+                      ctemprefnode.create(ttempcreatenode(delphitemps[blk_i])),
+                      tdef(delphidefs[blk_i]))));
             for blk_i:=0 to delphitemps.count-1 do
               { the finalize lives in the finally funclet, generated after
                 the main pass - a full tempdelete would invalidate the temp

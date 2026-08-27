@@ -555,10 +555,11 @@ begin
     StaticArrayParam;
     Check('static array param', 'ii|iiaay11:21f11f21|f10f20');
 
-    { the copy of an open array parameter leaks when a user operator
-      raises mid-copy, exactly like DCC64: a raising Assign leaves the
-      whole copy unfinalized, a raising Initialize finalizes only the
-      initialized prefix (the balance check does not apply here) }
+    { C-003: the open-array copy helper owns the whole construction. A
+      raising Assign finalizes every constructed copy (the assigned prefix
+      and the initialized tail) and releases the raw buffer - a deliberate
+      stronger contract than DCC64, which leaks the whole copy. A raising
+      Initialize still finalizes only the initialized prefix }
     Trace := '';
     Boom := 8;
     try
@@ -566,7 +567,7 @@ begin
     except
       Trace := Trace + 'X';
     end;
-    Check('open array assign raise', 'iii|iiiaA!f10f20f30X');
+    Check('open array assign raise', 'iii|iiiaA!f11f100f100f10f20f30X');
 
     Trace := '';
     Boom := 5;
@@ -609,6 +610,11 @@ begin
     ClassFields;
     Check('class array field init', '|iii|100:100:100|f100f100f100|');
 
+    { C-003: when a later copy's Assign raises before the call, every
+      already constructed copy is finalized through its guard local during
+      unwind - the fully assigned first copy (f21) and the initialized
+      second one (f100); DCC64 leaks both, that canvas is deliberately
+      replaced. Guards unwind in symbol order, then the locals in reverse }
     Trace := '';
     Boom := 6;
     try
@@ -616,7 +622,7 @@ begin
     except
       Trace := Trace + 'X';
     end;
-    Check('second copy assign raise', 'ii|iaiA!f20f10X');
+    Check('second copy assign raise', 'ii|iaiA!f21f100f20f10X');
 
     WriteLn('RECORD_MANAGEMENT_OPERATORS_OK');
   except

@@ -148,17 +148,37 @@ end;
 
 procedure InitializeRecord(Data : pointer;Ri : PRecordInfoInit);
 var
-  i : longint;
-  Re : PRecordElement;
+  initialized : SizeInt;
+  first,re : PRecordElement;
 begin
-  Re:=AlignTypeData(Pointer(@Ri^.Count)+SizeOf(Ri^.Count));
-  for i:=Ri^.Count downto 1 Do
-    begin
-      InlinedInitialize(Data+Re^.Offset,Re^.TypeInfo^);
-      Inc(Re);
-    end;
-  if Assigned(Ri^.RecordOp) and Assigned(Ri^.RecordOp^.Initialize) then
-    Ri^.RecordOp^.Initialize(Data);
+  first:=AlignTypeData(Pointer(@Ri^.Count)+SizeOf(Ri^.Count));
+  re:=first;
+  initialized:=0;
+  try
+    while initialized<Ri^.Count do
+      begin
+        InlinedInitialize(Data+re^.Offset,re^.TypeInfo^);
+        inc(initialized);
+        inc(re);
+      end;
+    if Assigned(Ri^.RecordOp) and Assigned(Ri^.RecordOp^.Initialize) then
+      Ri^.RecordOp^.Initialize(Data);
+  except
+    { This initializer owns every automatically constructed field. Whether a
+      later field's Initialize or the record's own custom Initialize raised,
+      the fully constructed prefix is finalized in reverse order: a failing
+      custom Initialize owns only its own partial state, never the fields
+      built by the RTL before it ran. The field whose Initialize raised is
+      not finalized, and the record's custom Finalize is not run - its
+      Initialize never completed. The exception frame is table-driven on
+      x86-64, so the fully initialized path pays no branch for this. }
+    while initialized>0 do
+      begin
+        dec(initialized);
+        int_finalize(Data+first[initialized].Offset,first[initialized].TypeInfo^);
+      end;
+    raise;
+  end;
 end;
 
 Procedure fpc_Initialize (Data,TypeInfo : pointer);[Public,Alias : 'FPC_INITIALIZE'];  compilerproc;
@@ -380,55 +400,6 @@ end;
 {$endif FPC_MANAGED_MOVE}
 
 
-procedure InitializeArrayElements(data,typeinfo : pointer;count : SizeInt); forward;
-
-procedure InitializeArrayRecordElement(Data : pointer;Ri : PRecordInfoInit);
-  var
-    initialized : SizeInt;
-    first,re : PRecordElement;
-  begin
-    first:=AlignTypeData(Pointer(@Ri^.Count)+SizeOf(Ri^.Count));
-    re:=first;
-    initialized:=0;
-    try
-      while initialized<Ri^.Count do
-        begin
-          case PTypeKind(re^.TypeInfo^)^ of
-            tkArray:
-              with PArrayInfo(aligntoqword(re^.TypeInfo^+2+PByte(re^.TypeInfo^)[1]))^ do
-                InitializeArrayElements(data+re^.Offset,ElInfo^,ElCount);
-{$ifdef FPC_HAS_FEATURE_OBJECTS}
-            tkObject,
-{$endif FPC_HAS_FEATURE_OBJECTS}
-            tkRecord:
-              InitializeArrayRecordElement(data+re^.Offset,
-                RTTIRecordInfoInit(re^.TypeInfo^));
-          else
-            InlinedInitialize(data+re^.Offset,re^.TypeInfo^);
-          end;
-          inc(initialized);
-          inc(re);
-        end;
-    except
-      { Delphi's array initializer owns every fully initialized field of
-        the current record element.  Unwind that prefix in reverse, but do
-        not finalize the field whose Initialize raised. }
-      while initialized>0 do
-        begin
-          dec(initialized);
-          int_finalize(data+first[initialized].Offset,
-            first[initialized].TypeInfo^);
-        end;
-      raise;
-    end;
-    { A custom record Initialize owns its own failure contract.  Delphi
-      does not finalize the already initialized fields when this call
-      raises, so keep it outside the prefix-unwind frame. }
-    if Assigned(Ri^.RecordOp) and Assigned(Ri^.RecordOp^.Initialize) then
-      Ri^.RecordOp^.Initialize(Data);
-  end;
-
-
 procedure InitializeArrayElements(data,typeinfo : pointer;count : SizeInt);
   var
     sample,size,initialized : SizeInt;
@@ -448,7 +419,7 @@ procedure InitializeArrayElements(data,typeinfo : pointer;count : SizeInt);
         try
           while initialized<count do
             begin
-              InitializeArrayRecordElement(data+size*initialized,ri);
+              InitializeRecord(data+size*initialized,ri);
               inc(initialized);
             end;
         except
@@ -570,23 +541,87 @@ procedure fpc_addref_array(data,typeinfo: pointer; count: SizeInt); [public,alia
     end;
   end;
 
-{ Caller-visible copy of an open array of records with a Delphi Assign
-  (Copy) operator, measured against DCC64: phase one initializes every
-  destination element (raising mid-phase finalizes the initialized
-  prefix - int_InitializeArray already owns that contract), phase two
-  runs the user's operator element by element (raising mid-phase
-  finalizes nothing of the copy, like Delphi). }
-procedure fpc_delphi_copy_array(src,dest,typeinfo : pointer;count : SizeInt); [public,alias:'FPC_DELPHI_COPY_ARRAY']; compilerproc;
+class operator TDelphiCopyGuard.Initialize(var g: TDelphiCopyGuard);
+begin
+  g.Data:=nil;
+  g.Flag:=nil;
+  g.TI:=nil;
+end;
+
+class operator TDelphiCopyGuard.Finalize(var g: TDelphiCopyGuard);
+begin
+  if Assigned(g.Flag) and (PSizeUInt(g.Flag)^<>0) then
+    begin
+      PSizeUInt(g.Flag)^:=0;
+      { self-disarm before the user's Finalize: the guard slot may be
+        reused by the temp allocator, and its reuse-finalize must not see
+        stale pointers }
+      g.Flag:=nil;
+      int_finalize(g.Data,g.TI);
+    end
+  else
+    g.Flag:=nil;
+end;
+
+{ Finalizes a compiler-constructed value that carries an ownership flag
+  word behind its data (a Delphi-Assign parameter copy, or an inlined
+  custom-Initialize local), and clears the flag. The flag makes ownership
+  exact between several potential finalizers - the callee's epilogue and
+  unwind funclet, the caller's guard, an inline frame's cleanup block: the
+  first one to run finalizes, every later one skips, and a value whose
+  Initialize never completed (flag still 0) is not touched at all. The
+  flag offset is the value's size aligned up to a flag word - every side
+  derives it from the same RTTI. }
+procedure fpc_delphi_finalize_copy(data,typeinfo : pointer); [public,alias:'FPC_DELPHI_FINALIZE_COPY']; compilerproc;
+  var
+    size : SizeInt;
+    flag : PSizeUInt;
+  begin
+    if PTypeKind(typeinfo)^=tkArray then
+      size:=PArrayInfo(aligntoqword(typeinfo+2+PByte(typeinfo)[1]))^.Size
+    else
+      size:=PRecordInfoInit(RTTIRecordInfoInit(typeinfo))^.Size;
+    flag:=PSizeUInt(data+((size+sizeof(SizeUInt)-1) and not(sizeof(SizeUInt)-1)));
+    if flag^<>0 then
+      begin
+        flag^:=0;
+        int_finalize(data,typeinfo);
+      end;
+  end;
+
+{ Callee-side copy of an open array of records with a Delphi Assign (Copy)
+  operator. The helper owns the whole construction: it allocates the raw
+  buffer, initializes every destination element (a mid-phase raise
+  finalizes the initialized prefix - int_InitializeArray owns that
+  contract) and runs the user's operator element by element. On any raise
+  the constructed content is finalized and the raw buffer is released, so
+  no resource is left without an owner; ownership transfers to the callee
+  only through a successful return. This is a deliberate stronger contract
+  than DCC64, which finalizes nothing of the copy. }
+function fpc_delphi_copy_openarray(src,typeinfo : pointer;count : SizeInt) : pointer; [public,alias:'FPC_DELPHI_COPY_OPENARRAY']; compilerproc;
   var
     size,i : SizeInt;
+    constructed : boolean;
   begin
-    int_InitializeArray(dest,typeinfo,count);
-    if count>0 then
-      begin
-        size:=int_copy(src,dest,typeinfo);
-        for i:=1 to count-1 do
-          int_copy(src+size*i,dest+size*i,typeinfo);
-      end;
+    { Only tkArray (a static-array aggregate) and tkRecord/tkObject reach
+      this helper, see is_delphi_assign_record in the compiler. }
+    if PTypeKind(typeinfo)^=tkArray then
+      size:=PArrayInfo(aligntoqword(typeinfo+2+PByte(typeinfo)[1]))^.Size
+    else
+      size:=PRecordInfoInit(RTTIRecordInfoInit(typeinfo))^.Size;
+    GetMem(result,size*count);
+    constructed:=false;
+    try
+      int_InitializeArray(result,typeinfo,count);
+      constructed:=true;
+      for i:=0 to count-1 do
+        int_copy(src+size*i,result+size*i,typeinfo);
+    except
+      if constructed then
+        int_FinalizeArray(result,typeinfo,count);
+      FreeMem(result);
+      raise;
+    end;
   end;
 
 {$ifdef FPC_HAS_FEATURE_HEAP}

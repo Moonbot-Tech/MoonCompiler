@@ -501,6 +501,9 @@ unit hlcgobj;
           procedure g_incrrefcount(list : TAsmList;t: tdef; const ref: treference);virtual;
           procedure g_initialize(list : TAsmList;t : tdef;const ref : treference);virtual;
           procedure g_finalize(list : TAsmList;t : tdef;const ref : treference);virtual;
+          { finalize a caller-made Delphi-Assign parameter copy through the
+            flag word stored behind it (see fpc_delphi_finalize_copy) }
+          procedure g_delphi_finalize_copy(list : TAsmList;t : tdef;const ref : treference);virtual;
           procedure g_array_rtti_helper(list: TAsmList; t: tdef; const ref: treference; const highloc: tlocation;
             const name: string);virtual;
          protected
@@ -3855,6 +3858,35 @@ implementation
       cgpara1.done;
     end;
 
+  procedure thlcgobj.g_delphi_finalize_copy(list: TAsmList; t: tdef; const ref: treference);
+    var
+      href : treference;
+      cgpara1,cgpara2 : TCGPara;
+      pd : tprocdef;
+    begin
+      cgpara1.init;
+      cgpara2.init;
+      pd:=search_system_proc('fpc_delphi_finalize_copy');
+      paramanager.getcgtempparaloc(list,pd,1,cgpara1);
+      paramanager.getcgtempparaloc(list,pd,2,cgpara2);
+      reference_reset_symbol(href,RTTIWriter.get_rtti_label(t,initrtti,def_needs_indirect(t)),0,sizeof(pint),[]);
+      if pd.is_pushleftright then
+        begin
+          a_loadaddr_ref_cgpara(list,t,ref,cgpara1);
+          a_loadaddr_ref_cgpara(list,voidpointertype,href,cgpara2);
+        end
+      else
+        begin
+          a_loadaddr_ref_cgpara(list,voidpointertype,href,cgpara2);
+          a_loadaddr_ref_cgpara(list,t,ref,cgpara1);
+        end;
+      paramanager.freecgpara(list,cgpara1);
+      paramanager.freecgpara(list,cgpara2);
+      g_call_system_proc(list,pd,[@cgpara1,@cgpara2],nil).resetiftemp;
+      cgpara1.done;
+      cgpara2.done;
+    end;
+
   procedure thlcgobj.g_array_rtti_helper(list: TAsmList; t: tdef; const ref: treference; const highloc: tlocation; const name: string);
     var
       cgpara1,cgpara2,cgpara3: TCGPara;
@@ -4324,7 +4356,7 @@ implementation
   procedure thlcgobj.g_copyvaluepara_openarray(list: TAsmList; const ref: treference; const lenloc: tlocation; arrdef: tarraydef; destreg: tregister);
     var
       sizereg,sourcereg,lenreg,countreg : tregister;
-      cgpara1,cgpara2,cgpara3,cgpara4 : TCGPara;
+      cgpara1,cgpara2,cgpara3 : TCGPara;
       ptrarrdef : tdef;
       pd : tprocdef;
       getmemres : tcgpara;
@@ -4350,21 +4382,60 @@ implementation
 
       sizereg:=getintregister(list,sinttype);
       a_op_const_reg_reg(list,OP_ADD,sinttype,1,lenreg,sizereg);
-      { records with a Delphi Assign operator (and their static-array
-        aggregates) are copied element-wise through the user's operators
-        (dvl-0035) - keep the element count for the copy helper }
-      delphicopy:=is_delphi_assign_record(arrdef.elementdef);
-      countreg:=NR_NO;
-      if delphicopy then
-        begin
-          countreg:=getintregister(list,sinttype);
-          a_load_reg_reg(list,sinttype,sinttype,sizereg,countreg);
-        end;
-      a_op_const_reg(list,OP_IMUL,sinttype,arrdef.elesize,sizereg);
       { load source }
       ptrarrdef:=cpointerdef.getreusable(arrdef);
       sourcereg:=getaddressregister(list,ptrarrdef);
       a_loadaddr_ref_reg(list,arrdef,ptrarrdef,ref,sourcereg);
+
+      { records with a Delphi Assign operator (and their static-array
+        aggregates) are copied element-wise through the user's operators
+        (dvl-0035). The helper owns the whole construction - allocation,
+        initialization and the user's Assign calls - so a raise inside any
+        of them cannot leave an ownerless buffer or content behind: the
+        callee receives ownership only through a successful return }
+      delphicopy:=is_delphi_assign_record(arrdef.elementdef);
+      if delphicopy then
+        begin
+          countreg:=getintregister(list,sinttype);
+          a_load_reg_reg(list,sinttype,sinttype,sizereg,countreg);
+          { do destreg:=fpc_delphi_copy_openarray(src,typeinfo,count) call }
+          pd:=search_system_proc('fpc_delphi_copy_openarray');
+          reference_reset_symbol(hrefrtti,
+            RTTIWriter.get_rtti_label(arrdef.elementdef,initrtti,def_needs_indirect(arrdef.elementdef)),
+            0,sizeof(pint),[]);
+          cgpara1.init;
+          cgpara2.init;
+          cgpara3.init;
+          paramanager.getcgtempparaloc(list,pd,1,cgpara1);
+          paramanager.getcgtempparaloc(list,pd,2,cgpara2);
+          paramanager.getcgtempparaloc(list,pd,3,cgpara3);
+          if pd.is_pushleftright then
+            begin
+              a_load_reg_cgpara(list,ptrarrdef,sourcereg,cgpara1);
+              a_loadaddr_ref_cgpara(list,voidpointertype,hrefrtti,cgpara2);
+              a_load_reg_cgpara(list,sinttype,countreg,cgpara3);
+            end
+          else
+            begin
+              a_load_reg_cgpara(list,sinttype,countreg,cgpara3);
+              a_loadaddr_ref_cgpara(list,voidpointertype,hrefrtti,cgpara2);
+              a_load_reg_cgpara(list,ptrarrdef,sourcereg,cgpara1);
+            end;
+          paramanager.freecgpara(list,cgpara3);
+          paramanager.freecgpara(list,cgpara2);
+          paramanager.freecgpara(list,cgpara1);
+          getmemres:=g_call_system_proc(list,pd,[@cgpara1,@cgpara2,@cgpara3],ptrarrdef);
+          cgpara3.done;
+          cgpara2.done;
+          cgpara1.done;
+          location_reset(destloc,LOC_REGISTER,OS_ADDR);
+          destloc.register:=destreg;
+          gen_load_cgpara_loc(list,ptrarrdef,getmemres,destloc,false);
+          getmemres.resetiftemp;
+          exit;
+        end;
+
+      a_op_const_reg(list,OP_IMUL,sinttype,arrdef.elesize,sizereg);
 
       { do getmem call }
       pd:=search_system_proc('fpc_getmem');
@@ -4378,48 +4449,6 @@ implementation
       location_reset(destloc,LOC_REGISTER,OS_ADDR);
       destloc.register:=destreg;
       gen_load_cgpara_loc(list,ptrarrdef,getmemres,destloc,false);
-
-      if delphicopy then
-        begin
-          { do fpc_delphi_copy_array(src,dest,typeinfo,count) call }
-          pd:=search_system_proc('fpc_delphi_copy_array');
-          reference_reset_symbol(hrefrtti,
-            RTTIWriter.get_rtti_label(arrdef.elementdef,initrtti,def_needs_indirect(arrdef.elementdef)),
-            0,sizeof(pint),[]);
-          cgpara1.init;
-          cgpara2.init;
-          cgpara3.init;
-          cgpara4.init;
-          paramanager.getcgtempparaloc(list,pd,1,cgpara1);
-          paramanager.getcgtempparaloc(list,pd,2,cgpara2);
-          paramanager.getcgtempparaloc(list,pd,3,cgpara3);
-          paramanager.getcgtempparaloc(list,pd,4,cgpara4);
-          if pd.is_pushleftright then
-            begin
-              a_load_reg_cgpara(list,ptrarrdef,sourcereg,cgpara1);
-              a_load_reg_cgpara(list,ptrarrdef,destreg,cgpara2);
-              a_loadaddr_ref_cgpara(list,voidpointertype,hrefrtti,cgpara3);
-              a_load_reg_cgpara(list,sinttype,countreg,cgpara4);
-            end
-          else
-            begin
-              a_load_reg_cgpara(list,sinttype,countreg,cgpara4);
-              a_loadaddr_ref_cgpara(list,voidpointertype,hrefrtti,cgpara3);
-              a_load_reg_cgpara(list,ptrarrdef,destreg,cgpara2);
-              a_load_reg_cgpara(list,ptrarrdef,sourcereg,cgpara1);
-            end;
-          paramanager.freecgpara(list,cgpara4);
-          paramanager.freecgpara(list,cgpara3);
-          paramanager.freecgpara(list,cgpara2);
-          paramanager.freecgpara(list,cgpara1);
-          g_call_system_proc(list,pd,[@cgpara1,@cgpara2,@cgpara3,@cgpara4],nil).resetiftemp;
-          cgpara4.done;
-          cgpara3.done;
-          cgpara2.done;
-          cgpara1.done;
-          getmemres.resetiftemp;
-          exit;
-        end;
 
       { do move call }
       pd:=search_system_proc('MOVE');
@@ -5541,6 +5570,10 @@ implementation
                 g_ptrtypecast_ref(list,cpointerdef.getreusable(tparavarsym(p).vardef),cpointerdef.getreusable(eldef),href);
                 g_array_rtti_helper(list,eldef,href,highloc,'fpc_finalize_array');
               end
+            else if is_delphi_assign_record(tparavarsym(p).vardef) then
+              { the caller-made copy carries an ownership flag word: clear
+                it while finalizing, so the caller's guard skips the copy }
+              g_delphi_finalize_copy(list,tparavarsym(p).vardef,href)
             else
               g_finalize(list,tparavarsym(p).vardef,href);
           end;

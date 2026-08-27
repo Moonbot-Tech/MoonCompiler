@@ -95,13 +95,18 @@ begin
   end;
   Check('nested-second', 'I1;I2;I3;I4;F3;F2;F1;caught;');
 
+  { C-003: a failing custom Initialize owns only its own partial state.
+    The automatically constructed fields are finalized by the RTL in
+    reverse order; the record's own Finalize is not run - its Initialize
+    never completed. This is a deliberate stronger contract than DCC64,
+    which leaks the fields here. }
   Boom := 99;
   try
     SetLength(Outer, 2);
   except
     Trail := Trail + 'caught;';
   end;
-  Check('custom-record-op', 'I1;OI;caught;');
+  Check('custom-record-op', 'I1;OI;F1;caught;');
 
   Boom := 0;
   SetLength(Nested, 1);

@@ -165,10 +165,14 @@ unit optcall;
     function doinline(var _n: tnode; arg: pointer): foreachnoderesult;
       var
         n,
-        body : tnode;
+        body,
+        frameblock : tnode;
         para : tcallparanode;
         inlineblock,
+        constructionblock,
         inlinecleanupblock : tblocknode;
+        framestatement,
+        outerstatement : tstatementnode;
         callnode: tcallnode;
       begin
         result:=fen_false;
@@ -220,7 +224,7 @@ unit optcall;
           ((callnode.procdefinition as tprocdef).inlininginfo^.flags*inherited_inlining_flags);
 
         { Create new code block for inlining }
-        inlineblock:=internalstatements(callnode.inlineinitstatement);
+        inlineblock:=internalstatements(outerstatement);
         { make sure that valid_for_assign() returns false for this block
           (otherwise assigning values to the block will result in assigning
            values to the inlined function's result) }
@@ -228,10 +232,16 @@ unit optcall;
         inlinecleanupblock:=internalstatements(callnode.inlinecleanupstatement);
 
         if assigned(callnode.callinitblock) then
-          addstatement(callnode.inlineinitstatement,callnode.callinitblock.getcopy);
+          addstatement(outerstatement,callnode.callinitblock.getcopy);
 
-        { replace complex parameters with temps }
+        { replace complex parameters with temps. Temp creations and flag
+          zeroing land in inlineinitstatement (outside the frame), the
+          construction phase - Initialize, guard arming, the user's Assigns -
+          in inlineconstructionstatement (inside it) }
+        callnode.inlineinitstatement:=outerstatement;
+        constructionblock:=internalstatements(callnode.inlineconstructionstatement);
         callnode.createinlineparas;
+        outerstatement:=callnode.inlineinitstatement;
 
         { create a copy of the body and replace parameter loads with the parameter values }
         body:=tprocdef(callnode.procdefinition).inlininginfo^.code.getcopy;
@@ -240,13 +250,18 @@ unit optcall;
         foreachnodestatic(pm_postprocess,body,@setinlinelevel,pointer(callnode.inlinelevel+1));
         foreachnode(pm_preprocess,body,@callnode.replaceparaload,@callnode.fileinfo);
 
-        { The callee's managed locals die at its return point and during
-          unwind - wrap the body in an implicit finally over their collected
-          finalizations (reverse declaration order); the temp slots are
-          released after the frame, in the cleanup block. }
+        { The frame covers the construction phase AND the body: copies and
+          managed locals die at the callee's return point and during unwind,
+          including an unwind out of a later Initialize/Assign of the
+          construction itself (C-003) - the flag-gated finalizers skip
+          whatever was never built. The temp slots are released after the
+          frame, in the cleanup block. }
+        frameblock:=internalstatements(framestatement);
+        addstatement(framestatement,constructionblock);
+        addstatement(framestatement,body);
         if assigned(callnode.inlinemanagedcleanupblock) then
           begin
-            body:=ctryfinallynode.create_implicit(body,callnode.inlinemanagedcleanupblock);
+            frameblock:=ctryfinallynode.create_implicit(frameblock,callnode.inlinemanagedcleanupblock);
             callnode.inlinemanagedcleanupblock:=nil;
             { the frame costs the caller its DFA passes - the same price a
               hand-written try..finally pays; when the post-inline
@@ -255,10 +270,11 @@ unit optcall;
             include(current_procinfo.flags,pi_uses_exceptions);
           end;
 
-        { Concat the body and finalization parts }
-        addstatement(callnode.inlineinitstatement,body);
-        addstatement(callnode.inlineinitstatement,inlinecleanupblock);
+        { Concat the frame and finalization parts }
+        addstatement(outerstatement,frameblock);
+        addstatement(outerstatement,inlinecleanupblock);
         inlinecleanupblock:=nil;
+        callnode.inlineinitstatement:=outerstatement;
 
         if assigned(callnode.callcleanupblock) then
           addstatement(callnode.inlineinitstatement,callnode.callcleanupblock.getcopy);
@@ -303,6 +319,7 @@ unit optcall;
         callnode.inlinelocals.free;
         callnode.inlinelocals:=nil;
         callnode.inlineinitstatement:=nil;
+        callnode.inlineconstructionstatement:=nil;
         callnode.inlinecleanupstatement:=nil;
 
         n:=callnode.optimize_funcret_assignment(inlineblock);

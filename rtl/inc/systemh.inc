@@ -696,6 +696,21 @@ Type
   POpaqueData = ^TOpaqueData;
   OpaquePointer = type POpaqueData;
 
+{ Internal carrier of the caller-side ownership of a Delphi-Assign record
+  parameter copy between its construction and the transfer to the callee.
+  The compiler materializes one per copy as an ordinary managed temp: its
+  Finalize runs from the caller's cleanup funclet on unwind and from the
+  call's done-block on the normal path, and the flag word stored behind the
+  copy tells whether the copy is still owned here (the callee's own
+  finalization clears it). User code never sees this type. }
+  TDelphiCopyGuard = record
+    Data: Pointer;   { the parameter copy }
+    Flag: Pointer;   { ^SizeUInt behind the copy: <>0 = owned by the guard }
+    TI: Pointer;     { the copy's init RTTI }
+    class operator Initialize(var g: TDelphiCopyGuard);
+    class operator Finalize(var g: TDelphiCopyGuard);
+  end;
+
 { procedure type }
   TProcedure  = Procedure;
 
