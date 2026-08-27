@@ -1932,7 +1932,8 @@ function UnicodeToUtf8(Dest: PAnsiChar; Source: PUnicodeChar; MaxBytes: SizeInt)
   end;
 
 
-function UnicodeToUtf8(Dest: PAnsiChar; MaxDestBytes: SizeUInt; Source: PUnicodeChar; SourceChars: SizeUInt): SizeUInt;
+function UnicodeToUtf8Buffer(Dest: PAnsiChar; MaxDestBytes: SizeUInt;
+  Source: PUnicodeChar; SourceChars: SizeUInt): SizeUInt;
 {$ifdef EXCLUDE_COMPLEX_PROCS}
 begin
   runerror(217);
@@ -1949,18 +1950,20 @@ end;
     j:=0;
     if assigned(Dest) then
       begin
-        while (i<SourceChars) and (j<MaxDestBytes) do
+        while i<SourceChars do
           begin
             lw:=ord(Source[i]);
             case lw of
               0..$7f:
                 begin
+                  if j>=MaxDestBytes then
+                    break;
                   Dest[j]:=AnsiChar(lw);
                   inc(j);
                 end;
               $80..$7ff:
                 begin
-                  if j+1>=MaxDestBytes then
+                  if MaxDestBytes-j<2 then
                     break;
                   Dest[j]:=AnsiChar($c0 or (lw shr 6));
                   Dest[j+1]:=AnsiChar($80 or (lw and $3f));
@@ -1968,7 +1971,7 @@ end;
                 end;
               $800..$d7ff,$e000..$ffff:
                 begin
-                  if j+2>=MaxDestBytes then
+                  if MaxDestBytes-j<3 then
                     break;
                   Dest[j]:=AnsiChar($e0 or (lw shr 12));
                   Dest[j+1]:=AnsiChar($80 or ((lw shr 6) and $3f));
@@ -1982,7 +1985,7 @@ end;
                      (word(Source[i+1]) >= $dc00) and
                      (word(Source[i+1]) <= $dfff) then
                     begin
-                      if j+3>=MaxDestBytes then
+                      if MaxDestBytes-j<4 then
                         break;
                       { $d7c0 is ($d800 - ($10000 shr 10)) }
                       lw:=(longword(lw-$d7c0) shl 10) + (ord(source[i+1]) xor $dc00);
@@ -1995,7 +1998,7 @@ end;
                     end
                   else
                     begin
-                      if j+2>=MaxDestBytes then
+                      if MaxDestBytes-j<3 then
                         break;
                       Dest[j]:=AnsiChar($ef);
                       Dest[j+1]:=AnsiChar($bf);
@@ -2005,7 +2008,7 @@ end;
                 end;
               $dc00..$dfff:
                 begin
-                  if j+2>=MaxDestBytes then
+                  if MaxDestBytes-j<3 then
                     break;
                   Dest[j]:=AnsiChar($ef);
                   Dest[j+1]:=AnsiChar($bf);
@@ -2016,10 +2019,6 @@ end;
             inc(i);
           end;
 
-        if j>SizeUInt(MaxDestBytes-1) then
-          j:=MaxDestBytes-1;
-
-        Dest[j]:=#0;
       end
     else
       begin
@@ -2050,9 +2049,25 @@ end;
             inc(i);
           end;
       end;
-    result:=j+1;
+    result:=j;
   end;
 {$endif EXCLUDE_COMPLEX_PROCS}
+
+
+function UnicodeToUtf8(Dest: PAnsiChar; MaxDestBytes: SizeUInt;
+  Source: PUnicodeChar; SourceChars: SizeUInt): SizeUInt;
+begin
+  Result:=0;
+  if Source=nil then
+    Exit;
+  if Dest=nil then
+    Exit(UnicodeToUtf8Buffer(nil,0,Source,SourceChars)+1);
+  if MaxDestBytes=0 then
+    Exit;
+  Result:=UnicodeToUtf8Buffer(Dest,MaxDestBytes-1,Source,SourceChars);
+  Dest[Result]:=#0;
+  Inc(Result);
+end;
 
 
 function Utf8ToUnicode(Dest: PUnicodeChar; Source: PAnsiChar; MaxChars: SizeInt): SizeInt;{$ifdef SYSTEMINLINE}inline;{$endif}

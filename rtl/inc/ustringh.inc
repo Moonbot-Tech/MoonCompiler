@@ -143,6 +143,8 @@ var
 
 function UnicodeToUtf8(Dest: PAnsiChar; Source: PUnicodeChar; MaxBytes: SizeInt): SizeInt;{$ifdef SYSTEMINLINE}inline;{$endif}
 function UnicodeToUtf8(Dest: PAnsiChar; MaxDestBytes: SizeUInt; Source: PUnicodeChar; SourceChars: SizeUInt): SizeUInt;
+function UnicodeToUtf8Buffer(Dest: PAnsiChar; MaxDestBytes: SizeUInt;
+  Source: PUnicodeChar; SourceChars: SizeUInt): SizeUInt;
 function Utf8ToUnicode(Dest: PUnicodeChar; Source: PAnsiChar; MaxChars: SizeInt): SizeInt;{$ifdef SYSTEMINLINE}inline;{$endif}
 function Utf8ToUnicode(Dest: PUnicodeChar; MaxDestChars: SizeUInt; Source: PAnsiChar; SourceBytes: SizeUInt): SizeUInt;{$ifdef SYSTEMINLINE}inline;{$endif}
 function Utf8ToUnicode(Dest: PUnicodeChar; MaxDestChars: SizeUInt; Source: PAnsiChar; SourceBytes: SizeUInt; IgnoreInvalid : Boolean): SizeUInt;

@@ -286,8 +286,45 @@ begin
     Check(Tracking.InsertCalls=2,'repeat Insert changed descendant calls');
     Tracking.Insert(High(Integer),UnicodeString('z'),0);
     Check(Tracking.InsertCalls=2,'zero repeat called descendant');
+    Tracking.Append(Int64(-1));
+    Tracking.Append(UInt64(2));
+    Check(Tracking.AppendCalls=4,'integer Append bypassed descendant');
   finally
     Tracking.Free;
+  end;
+end;
+
+procedure CheckIntegerSinks;
+var
+  AnsiBuilder: TAnsiStringBuilder;
+  Builder: TStringBuilder;
+begin
+  Builder:=TStringBuilder.Create;
+  try
+    Builder.Append(Low(Int64));
+    Builder.Append(',');
+    Builder.Append(High(Int64));
+    Builder.Append(',');
+    Builder.Append(High(UInt64));
+    Builder.Append(',');
+    Builder.Append(Cardinal(4294967295));
+    Check(Builder.ToString=
+      '-9223372036854775808,9223372036854775807,18446744073709551615,4294967295',
+      'Unicode integer sink');
+  finally
+    Builder.Free;
+  end;
+
+  AnsiBuilder:=TAnsiStringBuilder.Create;
+  try
+    AnsiBuilder.Append(Low(Int64));
+    AnsiBuilder.Append(AnsiChar(','));
+    AnsiBuilder.Append(High(UInt64));
+    Check(AnsiBuilder.ToString=AnsiString(
+      '-9223372036854775808,18446744073709551615'),
+      'Ansi integer sink');
+  finally
+    AnsiBuilder.Free;
   end;
 end;
 
@@ -296,5 +333,6 @@ begin
   CheckAnsiAlias;
   CheckBoundaries;
   CheckRepeatAndVirtualContract;
+  CheckIntegerSinks;
   WriteLn('STRING_BUILDER_TRANSACTION_OK');
 end.

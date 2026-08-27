@@ -610,6 +610,18 @@ end;
 
 { TUTF8Encoding }
 
+function TUTF8Encoding.GetByteCount(Chars: PUnicodeChar;
+  CharCount: Integer): Integer;
+begin
+  Result:=UnicodeToUtf8Buffer(nil,0,Chars,CharCount);
+end;
+
+function TUTF8Encoding.GetBytes(Chars: PUnicodeChar; CharCount: Integer;
+  Bytes: PByte; ByteCount: Integer): Integer;
+begin
+  Result:=UnicodeToUtf8Buffer(PAnsiChar(Bytes),ByteCount,Chars,CharCount);
+end;
+
 constructor TUTF8Encoding.Create;
 begin
   inherited Create(CP_UTF8);

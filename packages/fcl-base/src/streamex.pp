@@ -269,6 +269,7 @@ type
      FEncoding: TEncoding;
      FNewLine: string;
      FAutoFlush: Boolean;
+     procedure WriteUnicodeSpan(Chars: PUnicodeChar; CharCount: Integer);
    protected
      FBufferIndex: Integer;
      FBuffer: TBytes;
@@ -370,11 +371,31 @@ type
 
 Implementation
 
+type
+  TEncodingSinkAccess = class(TEncoding)
+  public
+    function SpanByteCount(Chars: PUnicodeChar; CharCount: Integer): Integer;
+    function SpanGetBytes(Chars: PUnicodeChar; CharCount: Integer;
+      Bytes: PByte; ByteCount: Integer): Integer;
+  end;
+
 ResourceString
   SErrCannotWriteOutsideWindow = 'Cannot write outside allocated window.';
   SErrInvalidSeekWindow = 'Cannot seek outside allocated window.';
   SErrInvalidSeekOrigin = 'Invalid seek origin.';
   SErrCannotChangeWindowSize  = 'Cannot change the size of a windowed stream';
+
+function TEncodingSinkAccess.SpanByteCount(Chars: PUnicodeChar;
+  CharCount: Integer): Integer;
+begin
+  Result:=GetByteCount(Chars,CharCount);
+end;
+
+function TEncodingSinkAccess.SpanGetBytes(Chars: PUnicodeChar;
+  CharCount: Integer; Bytes: PByte; ByteCount: Integer): Integer;
+begin
+  Result:=GetBytes(Chars,CharCount,Bytes,ByteCount);
+end;
 
 { TTextWriter }
 
@@ -419,6 +440,121 @@ begin
   SetLength(FBuffer,1024);
   FNewLine:=sLineBreak;
   FAutoFlush:=True;
+end;
+
+procedure TStreamWriter.WriteUnicodeSpan(Chars: PUnicodeChar;
+  CharCount: Integer);
+var
+  Best,BestByteCount,BufferSpace,ByteCount,Candidate,High,Low,Probe,
+    Written: Integer;
+  Oversized: TBytes;
+
+  function WholeScalarPrefix(Count: Integer): Integer;
+  begin
+    Result:=Count;
+    if (Result<CharCount) and (Result>0) and
+       (Ord(Chars[Result-1])>=$d800) and
+       (Ord(Chars[Result-1])<=$dbff) and
+       (Ord(Chars[Result])>=$dc00) and
+       (Ord(Chars[Result])<=$dfff) then
+      Dec(Result);
+  end;
+
+  procedure WriteOversizedScalar;
+  begin
+    Candidate:=1;
+    if (CharCount>1) and (Ord(Chars[0])>=$d800) and
+       (Ord(Chars[0])<=$dbff) and (Ord(Chars[1])>=$dc00) and
+       (Ord(Chars[1])<=$dfff) then
+      Candidate:=2;
+    ByteCount:=TEncodingSinkAccess(FEncoding).SpanByteCount(Chars,Candidate);
+    SetLength(Oversized,ByteCount);
+    Written:=TEncodingSinkAccess(FEncoding).SpanGetBytes(Chars,Candidate,
+      PByte(Oversized),ByteCount);
+    if Written<>ByteCount then
+      raise EEncodingError.CreateFmt(
+        'Encoding wrote %d bytes instead of %d',[Written,ByteCount]);
+    WriteBytes(Oversized);
+    Inc(Chars,Candidate);
+    Dec(CharCount,Candidate);
+  end;
+begin
+  if CharCount=0 then
+    begin
+    if FAutoFlush then
+      Flush;
+    Exit;
+    end;
+  while CharCount>0 do
+    begin
+    BufferSpace:=Length(FBuffer)-FBufferIndex;
+    if BufferSpace=0 then
+      begin
+      Flush;
+      BufferSpace:=Length(FBuffer);
+      end;
+    Candidate:=WholeScalarPrefix(CharCount);
+    if Candidate>BufferSpace then
+      Candidate:=WholeScalarPrefix(BufferSpace);
+    if Candidate=0 then
+      begin
+      if FBufferIndex>0 then
+        Flush
+      else
+        WriteOversizedScalar;
+      Continue;
+      end;
+    ByteCount:=TEncodingSinkAccess(FEncoding).SpanByteCount(Chars,Candidate);
+    if ByteCount>BufferSpace then
+      begin
+      if FBufferIndex>0 then
+        begin
+        Flush;
+        Continue;
+        end;
+      Best:=0;
+      BestByteCount:=0;
+      Low:=1;
+      High:=Candidate;
+      while Low<=High do
+        begin
+        Probe:=Low+(High-Low) div 2;
+        Candidate:=WholeScalarPrefix(Probe);
+        if Candidate=0 then
+          Low:=Probe+1
+        else
+          begin
+          ByteCount:=TEncodingSinkAccess(FEncoding).SpanByteCount(
+            Chars,Candidate);
+          if ByteCount<=BufferSpace then
+            begin
+            Best:=Candidate;
+            BestByteCount:=ByteCount;
+            Low:=Probe+1;
+            end
+          else
+            High:=Probe-1;
+          end;
+        end;
+      if Best=0 then
+        begin
+        WriteOversizedScalar;
+        Continue;
+        end;
+      Candidate:=Best;
+      ByteCount:=BestByteCount;
+      end;
+    Written:=TEncodingSinkAccess(FEncoding).SpanGetBytes(Chars,Candidate,
+      @FBuffer[FBufferIndex],BufferSpace);
+    if Written<>ByteCount then
+      raise EEncodingError.CreateFmt('Encoding wrote %d bytes instead of %d',
+        [Written,ByteCount]);
+    Inc(FBufferIndex,Written);
+    Inc(Chars,Candidate);
+    Dec(CharCount,Candidate);
+    end;
+  if FAutoFlush then
+    Flush;
 end;
 
 constructor TStreamWriter.Create(aStream: TStream; aEncoding: TEncoding;
@@ -519,7 +655,11 @@ end;
 
 procedure TStreamWriter.Write(aValue: Char);
 begin
+{$if sizeof(char)=1}
   Write(String(aValue));
+{$else}
+  WriteUnicodeSpan(@aValue,1);
+{$endif}
 end;
 
 procedure TStreamWriter.Write(const aValue: TCharArray);
@@ -557,7 +697,7 @@ begin
 {$if sizeof(char)=1}
   WriteBytes(FEncoding.GetAnsiBytes(aValue));
 {$else}
-  WriteBytes(FEncoding.GetBytes(UnicodeString(aValue)));
+  WriteUnicodeSpan(PUnicodeChar(aValue),Length(aValue));
 {$endif}
 end;
 
@@ -577,13 +717,22 @@ begin
 end;
 
 procedure TStreamWriter.Write(const aValue: TCharArray; aIndex, aCount: Integer);
+{$if sizeof(char)=1}
 var
-  S : String;
+  S: String;
+{$endif}
 begin
   if aCount=0 then exit;
+  if (aIndex<0) or (aCount<0) or (aIndex>Length(aValue)) or
+     (aCount>Length(aValue)-aIndex) then
+    raise ERangeError.CreateFmt(SListIndexError,[aIndex]);
+{$if sizeof(char)=1}
   SetLength(S,aCount);
-  Move(aValue[aIndex],PChar(S)^,aCount*SizeOf(Char));
+  Move(aValue[aIndex],S[1],aCount);
   Write(S);
+{$else}
+  WriteUnicodeSpan(@aValue[aIndex],aCount);
+{$endif}
 end;
 
 procedure TStreamWriter.WriteLine;

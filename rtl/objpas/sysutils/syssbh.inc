@@ -23,6 +23,9 @@
     Procedure SetC(Index: Integer; AValue: SBChar);
     Function  GetLength: Integer; inline;
     Procedure SetLength(AValue: Integer);
+    Procedure AppendAscii(const Buffer: ShortString);
+    Function AppendSignedInteger(AValue: Int64): TGenericStringBuilder;
+    Function AppendUnsignedInteger(AValue: UInt64): TGenericStringBuilder;
   protected
     FData: TSBCharArray;
     FLength: Integer;

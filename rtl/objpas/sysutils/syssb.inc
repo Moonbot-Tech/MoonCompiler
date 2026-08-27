@@ -152,6 +152,51 @@ begin
       (OldLength-Index)*SizeOf(SBChar));
 end;
 
+function TGenericStringBuilder.AppendSignedInteger(
+  AValue: Int64): TGenericStringBuilder;
+var
+  Buffer: ShortString;
+begin
+  if ClassType<>TGenericStringBuilder then
+    begin
+    DoAppend(IntToStr(AValue));
+    Exit(Self);
+    end;
+  Str(AValue,Buffer);
+  AppendAscii(Buffer);
+  Result:=Self;
+end;
+
+function TGenericStringBuilder.AppendUnsignedInteger(
+  AValue: UInt64): TGenericStringBuilder;
+var
+  Buffer: ShortString;
+begin
+  if ClassType<>TGenericStringBuilder then
+    begin
+    DoAppend(IntToStr(AValue));
+    Exit(Self);
+    end;
+  Str(AValue,Buffer);
+  AppendAscii(Buffer);
+  Result:=Self;
+end;
+
+procedure TGenericStringBuilder.AppendAscii(const Buffer: ShortString);
+var
+  I,OldLength: Integer;
+begin
+  PrepareGap(FLength,System.Length(Buffer),OldLength);
+{$IFDEF SBUNICODE}
+  for I:=1 to System.Length(Buffer) do
+    FData[OldLength+I-1]:=WideChar(Byte(Buffer[I]));
+{$ELSE}
+  if System.Length(Buffer)>0 then
+    Move(Buffer[1],FData[OldLength],System.Length(Buffer));
+{$ENDIF}
+  FLength:=OldLength+System.Length(Buffer);
+end;
+
 {  These do the actual Appending/Inserting }
 
 procedure TGenericStringBuilder.DoAppend(const S: {$IFDEF SBUNICODE}SBString{$ELSE}RawByteString{$ENDIF});
@@ -262,8 +307,7 @@ end;
 
 function TGenericStringBuilder.Append(const AValue: UInt64): TGenericStringBuilder;
 begin
-  DoAppend(IntToStr(AValue));
-  Result:=self;
+  Result:=AppendUnsignedInteger(AValue);
 end;
 
 function TGenericStringBuilder.Append(const AValue: TSBCharArray): TGenericStringBuilder;
@@ -291,14 +335,12 @@ end;
 
 function TGenericStringBuilder.Append(const AValue: Word): TGenericStringBuilder;
 begin
-  Append(IntToStr(AValue));
-  Result:=self;
+  Result:=AppendUnsignedInteger(AValue);
 end;
 
 function TGenericStringBuilder.Append(const AValue: Cardinal): TGenericStringBuilder;
 begin
-  DoAppend(IntToStr(AValue));
-  Result:=self;
+  Result:=AppendUnsignedInteger(AValue);
 end;
 
 function TGenericStringBuilder.Append(const AValue: SBChar; RepeatCount: Integer
@@ -326,8 +368,7 @@ end;
 
 function TGenericStringBuilder.Append(const AValue: Shortint): TGenericStringBuilder;
 begin
-  DoAppend(IntToStr(AValue));
-  Result:=Self;
+  Result:=AppendSignedInteger(AValue);
 end;
 
 function TGenericStringBuilder.Append(const AValue: SBChar): TGenericStringBuilder;
@@ -385,8 +426,7 @@ end;
 
 function TGenericStringBuilder.Append(const AValue: Byte): TGenericStringBuilder;
 begin
-  DoAppend(IntToStr(AValue));
-  Result:=Self;
+  Result:=AppendUnsignedInteger(AValue);
 end;
 
 function TGenericStringBuilder.Append(const AValue: Double): TGenericStringBuilder;
@@ -397,8 +437,7 @@ end;
 
 function TGenericStringBuilder.Append(const AValue: Int64): TGenericStringBuilder;
 begin
-  DoAppend(IntToStr(AValue));
-  Result:=Self;
+  Result:=AppendSignedInteger(AValue);
 end;
 
 function TGenericStringBuilder.Append(const AValue: TObject): TGenericStringBuilder;
@@ -409,14 +448,12 @@ end;
 
 function TGenericStringBuilder.Append(const AValue: Smallint): TGenericStringBuilder;
 begin
-  DoAppend(IntToStr(AValue));
-  Result:=Self;
+  Result:=AppendSignedInteger(AValue);
 end;
 
 function TGenericStringBuilder.Append(const AValue: LongInt): TGenericStringBuilder;
 begin
-  DoAppend(IntToStr(AValue));
-  Result:=Self;
+  Result:=AppendSignedInteger(AValue);
 end;
 
 Function TGenericStringBuilder.Append(const AValue: TSBCharArray; StartIndex, SBCharCount: Integer): TGenericStringBuilder;

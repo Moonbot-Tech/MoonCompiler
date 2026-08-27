@@ -234,9 +234,11 @@ end;
 procedure TestStreamWriter;
 var
   Bytes, Expected: TBytes;
+  Chars: TCharArray;
   Name: string;
   Raised: Boolean;
   Stream: TMemoryStream;
+  Text: UnicodeString;
   ShortStream: TShortWriteStream;
   Writer: TStreamWriter;
   X: Byte;
@@ -248,6 +250,39 @@ begin
     Bytes:=StreamBytes(Stream);
     Expected:=WithPreamble(TEncoding.UTF8,'Ж€');
     CheckBytes('writer-unicode-bytes',Bytes,Expected);
+  finally
+    Writer.Free;
+    Stream.Free;
+  end;
+
+  Text:=StringOfChar('a',127)+UnicodeString(#$d83d#$de00)+
+    StringOfChar('Ж',130);
+  Stream:=TMemoryStream.Create;
+  Writer:=TStreamWriter.Create(Stream,TEncoding.UTF8,128);
+  try
+    Writer.Write(Text);
+    Bytes:=StreamBytes(Stream);
+    Expected:=WithPreamble(TEncoding.UTF8,Text);
+    CheckBytes('writer-direct-chunk-surrogate',Bytes,Expected);
+  finally
+    Writer.Free;
+    Stream.Free;
+  end;
+
+  SetLength(Chars,5);
+  Chars[0]:='x';
+  Chars[1]:='Ж';
+  Chars[2]:=WideChar($d83d);
+  Chars[3]:=WideChar($de00);
+  Chars[4]:='y';
+  Stream:=TMemoryStream.Create;
+  Writer:=TStreamWriter.Create(Stream,TEncoding.UTF8,128);
+  try
+    Writer.Write(Chars,1,3);
+    Bytes:=StreamBytes(Stream);
+    Expected:=WithPreamble(TEncoding.UTF8,
+      UnicodeString('Ж')+UnicodeString(#$d83d#$de00));
+    CheckBytes('writer-direct-array-span',Bytes,Expected);
   finally
     Writer.Free;
     Stream.Free;
