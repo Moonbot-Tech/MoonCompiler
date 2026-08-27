@@ -186,8 +186,27 @@ uses System.RTLConsts, FpWeb.Http.Protocol, Html.Defs, Xml.Read;
 uses RTLConsts, httpprotocol, HTMLDefs, xmlread;
 {$ENDIF FPC_DOTTEDUNITS}
 
-Resourcestring
-  sInvalidHTMLEntity = 'Invalid HTML encoded character: %s';
+{$macro on}
+{$define HTMLSPAN_ENCODE:=HTMLSpanEncodeRaw}
+{$define HTMLSPAN_PCHAR:=PAnsiChar}
+{$define HTMLSPAN_CHAR:=AnsiChar}
+{$define HTMLSPAN_STRING:=RawByteString}
+{$i system.netencoding.htmlspan.inc}
+{$undef HTMLSPAN_ENCODE}
+{$undef HTMLSPAN_PCHAR}
+{$undef HTMLSPAN_CHAR}
+{$undef HTMLSPAN_STRING}
+
+{$define HTMLSPAN_ENCODE:=HTMLSpanEncodeUnicode}
+{$define HTMLSPAN_PCHAR:=PWideChar}
+{$define HTMLSPAN_CHAR:=UnicodeChar}
+{$define HTMLSPAN_STRING:=UnicodeString}
+{$i system.netencoding.htmlspan.inc}
+{$undef HTMLSPAN_ENCODE}
+{$undef HTMLSPAN_PCHAR}
+{$undef HTMLSPAN_CHAR}
+{$undef HTMLSPAN_STRING}
+{$macro off}
 
 { TCustomBase64Encoding }
 
@@ -886,56 +905,25 @@ end;
 Function THTMLEncoding.DoEncode(const aInput: UnicodeString): UnicodeString;
 
 Var
-  S : UTF8String;
+  Changed: Boolean;
 
 begin
-  S:=UTF8Encode(aInput);
-  Result:=UTF8Decode(DoEncode(S));
+  Result:=HTMLSpanEncodeUnicode(PWideChar(aInput),Length(aInput),Changed);
+  if not Changed then
+    Result:=aInput;
 end;
 
 Function THTMLEncoding.DoEncode(const aInput: RawByteString): RawByteString;
 
 var
-  Src, Curr, OrigDest,Dest : PAnsiChar;
-
-  Procedure CopyData(S : String);
-
-  Var
-    len : integer;
-
-  begin
-    Len:=(Curr-Src);
-    if Len>0 then
-      Move(Src^,Dest^,Len);
-    Src:=Curr;
-    Inc(Src);
-    inc(Dest,Len);
-    Len:=Length(S);
-    if Len>0 then
-      Move(S[1],Dest^,Len);
-    inc(Dest,Len);
-  end;
+  Changed: Boolean;
 
 begin
-  SetLength(Result,Length(aInput)*6);
-  if Length(aInput)=0 then exit;
-  Src:=PAnsiChar(aInput);
-  Curr:=Src;
-  OrigDest:=PAnsiChar(Result);
-  Dest:=OrigDest;
-  // Convert: &, <, >, "
-  while Curr^<>#0 do
-    begin
-    case Curr^ of
-      '&': CopyData('&amp;');
-      '<': CopyData('&lt;');
-      '>': CopyData('&gt;');
-      '"': CopyData('&quot;');
-    end;
-    Inc(Curr);
-    end;
-  CopyData('');
-  SetLength(Result,Dest-OrigDest);
+  Result:=HTMLSpanEncodeRaw(PAnsiChar(aInput),Length(aInput),Changed);
+  if not Changed then
+    Result:=aInput
+  else
+    SetCodePage(Result,StringCodePage(aInput),False);
 end;
 
 Function THTMLEncoding.DoDecode(const aInput: RawByteString): RawByteString;
@@ -954,65 +942,110 @@ end;
 Function THTMLEncoding.DoDecode(const aInput: UnicodeString): UnicodeString;
 
 var
-  Src, Curr, Dest : PWideChar;
+  I, EntityEnd, OutPos, Len: SizeInt;
+  U: UnicodeChar;
+  CodePoint: Cardinal;
+  Entity: UnicodeString;
+  Resolved: Boolean;
 
-  Procedure CopyData(S : UnicodeString);
-
-  Var
-    len : integer;
-
+  function ResolveNumeric(StartIndex, EndIndex: SizeInt;
+    out Value: Cardinal): Boolean;
+  var
+    J: SizeInt;
+    Base, Digit: Cardinal;
   begin
-    Len:=(Curr-Src);
-    if Len>0 then
-      begin
-      Move(Src^,Dest^,Len*Sizeof(UnicodeChar));
-      inc(Dest,Len);
+    Result:=False;
+    Value:=0;
+    Base:=10;
+    J:=StartIndex;
+    if (J<EndIndex) and (aInput[J] in ['x','X']) then
+    begin
+      Base:=16;
+      Inc(J);
+    end;
+    if J>=EndIndex then
+      Exit;
+    while J<EndIndex do
+    begin
+      case aInput[J] of
+        '0'..'9': Digit:=Ord(aInput[J])-Ord('0');
+        'a'..'f': Digit:=Ord(aInput[J])-Ord('a')+10;
+        'A'..'F': Digit:=Ord(aInput[J])-Ord('A')+10;
+      else
+        Exit;
       end;
-    Len:=Length(S);
-    if Len>0 then
-      begin
-      Move(S[1],Dest^,Len*Sizeof(UnicodeChar));
-      inc(Dest,Len);
-      end;
+      if Digit>=Base then
+        Exit;
+      if Value>($10ffff-Digit) div Base then
+        Exit;
+      Value:=Value*Base+Digit;
+      Inc(J);
+    end;
+    Result:=True;
   end;
 
-Var
-  Len : Integer;
-  U : UnicodeChar;
-  US : Unicodestring;
-  Ent,OrigDest : PWideChar;
-
 begin
-  SetLength(Result, Length(aInput));
-  if Length(Result)=0 then exit;
-  Src:=PWideChar(aInput);
-  OrigDest:=PWideChar(Result);
-  Dest:=OrigDest;
-  Curr:=Src;
-  while Curr^ <> #0 do
+  Len:=Length(aInput);
+  if Len=0 then
+    Exit('');
+  I:=1;
+  while (I<=Len) and (aInput[I]<>'&') do
+    Inc(I);
+  if I>Len then
+    Exit(aInput);
+  SetLength(Result,Len);
+  I:=1;
+  OutPos:=1;
+  while I<=Len do
+  begin
+    if aInput[I]='&' then
     begin
-    If Curr^='&' then
+      EntityEnd:=I+1;
+      while (EntityEnd<=Len) and (aInput[EntityEnd]<>';') do
+        Inc(EntityEnd);
+      if EntityEnd<=Len then
       begin
-      CopyData('');
-      Src:=Curr;
-      Ent:=Curr;
-      While Not (Ent^ in [#0,';']) do
-        Inc(Ent);
-      Len:=Ent-Curr-1;
-      SetLength(US,Len);
-      if Len>0 then
-        Move(Curr[1],US[1],Len*SizeOf(UnicodeChar));
-      if not ResolveHTMLEntityReference(US,U) then
-        raise EConvertError.CreateFmt(sInvalidHTMLEntity,[US]);
-      CopyData(U);
-      Curr:=Ent;
-      Src:=Curr;
-      Inc(Src);
+        if (I+1<EntityEnd) and (aInput[I+1]='#') then
+          Resolved:=ResolveNumeric(I+2,EntityEnd,CodePoint)
+        else
+        begin
+          Entity:=Copy(aInput,I+1,EntityEnd-I-1);
+          { HTMLDefs follows HTML 4.01 and therefore omits apos, while the
+            Delphi facade accepts the XML/XHTML entity as well. }
+          if Entity='apos' then
+          begin
+            U:='''';
+            Resolved:=True;
+          end
+          else
+            Resolved:=ResolveHTMLEntityReference(Entity,U);
+          if Resolved then
+            CodePoint:=Ord(U);
+        end;
+        if Resolved then
+        begin
+          if CodePoint<$10000 then
+          begin
+            Result[OutPos]:=UnicodeChar(CodePoint);
+            Inc(OutPos);
+          end
+          else
+          begin
+            Dec(CodePoint,$10000);
+            Result[OutPos]:=UnicodeChar($d800+(CodePoint shr 10));
+            Result[OutPos+1]:=UnicodeChar($dc00+(CodePoint and $3ff));
+            Inc(OutPos,2);
+          end;
+          I:=EntityEnd+1;
+          Continue;
+        end;
       end;
-    Inc(Curr);
     end;
-  CopyData('');
-  SetLength(Result,Dest-OrigDest);
+    Result[OutPos]:=aInput[I];
+    Inc(OutPos);
+    Inc(I);
+    end;
+  SetLength(Result,OutPos-1);
 end;
 
 end.

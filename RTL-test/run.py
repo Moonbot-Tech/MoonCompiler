@@ -79,6 +79,7 @@ CURRENT_TREE_UNIT_DIRS = {
     "json_byte_reader_semantic": ROOT / "packages" / "vcl-compat" / "src",
     # TNetEncoding stream/byte repairs live in packages/vcl-compat.
     "net_encoding_streams_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    "html_encoding_spans_semantic": ROOT / "packages" / "vcl-compat" / "src",
 }
 REQUIRED_RUNTIME_PATTERNS = {
     "mm_finalization_lifetime_semantic": (

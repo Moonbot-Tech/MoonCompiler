@@ -46,7 +46,6 @@ begin
     T:=P.Targets.AddUnit('system.permissions.pp');
     T:=P.Targets.AddUnit('system.messaging.pp');
     T:=P.Targets.AddUnit('system.netencoding.pp');
-    T.ResourceStrings := True;
     T:=P.Targets.AddUnit('system.ioutils.pp');
     T.ResourceStrings := True;
     T:=P.Targets.AddUnit('system.devices.pp');
