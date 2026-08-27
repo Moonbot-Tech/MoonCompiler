@@ -30,6 +30,9 @@
     // Raise error on range check.
     Procedure CheckRange(Idx,Count,MaxLen : Integer);inline;
     Procedure CheckNegative(Const AValue : Integer; Const AName: SBString); inline;
+    Function AliasedDataOffset(const AValue: TSBCharArray;
+      StartIndex, SBCharCount: Integer): Integer; inline;
+    Procedure PrepareGap(Index, Added: Integer; out OldLength: Integer); inline;
     // All appends/inserts pass through here.
 
     Procedure DoAppend(Const S : {$IFDEF SBUNICODE}SBString{$ELSE}RawByteString{$ENDIF});virtual;

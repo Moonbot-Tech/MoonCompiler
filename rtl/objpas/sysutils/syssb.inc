@@ -54,7 +54,10 @@ function TGenericStringBuilder.GetEnumerator: TCharEnumerator;
 var
   StartPosition: PSBChar;
 begin
-  StartPosition := @FData[0];
+  if FLength=0 then
+    StartPosition:=nil
+  else
+    StartPosition:=@FData[0];
   Result.FCurrentPosition := StartPosition;
   Result.FEndPosition := StartPosition + Length;
 end;
@@ -74,14 +77,14 @@ end;
 function TGenericStringBuilder.GetC(Index: Integer): SBChar;
 begin
   CheckNegative(Index,'Index');
-  CheckRange(Index,0,Length);
+  CheckRange(Index,1,Length);
   Result:=FData[Index];
 end;
 
 procedure TGenericStringBuilder.SetC(Index: Integer; AValue: SBChar);
 begin
   CheckNegative(Index,'Index');
-  CheckRange(Index,0,Length-1);
+  CheckRange(Index,1,Length);
   FData[Index]:=AValue;
 end;
 
@@ -102,7 +105,7 @@ end;
 procedure TGenericStringBuilder.CheckRange(Idx, Count, MaxLen: Integer);
 
 begin
-  if (Idx<0) or (Idx+Count>MaxLen) then
+  if (Idx<0) or (Idx>MaxLen) or (Count<0) or (Count>MaxLen-Idx) then
     Raise ERangeError.CreateFmt(SListIndexError,[Idx]);
 end;
 
@@ -115,80 +118,144 @@ begin
     Raise ERangeError.CreateFmt(SParamIsNegative,[AName])
 end;
 
+function TGenericStringBuilder.AliasedDataOffset(const AValue: TSBCharArray;
+  StartIndex, SBCharCount: Integer): Integer;
+var
+  DataEnd, DataStart, SourceEnd, SourceStart: PtrUInt;
+begin
+  Result:=-1;
+  if (SBCharCount=0) or (System.Length(FData)=0) then
+    Exit;
+  DataStart:=PtrUInt(@FData[0]);
+  DataEnd:=DataStart+PtrUInt(System.Length(FData))*SizeOf(SBChar);
+  SourceStart:=PtrUInt(@AValue[StartIndex]);
+  SourceEnd:=SourceStart+PtrUInt(SBCharCount)*SizeOf(SBChar);
+  if (SourceStart>=DataStart) and (SourceEnd<=DataEnd) then
+    Result:=(SourceStart-DataStart) div SizeOf(SBChar);
+end;
+
+procedure TGenericStringBuilder.PrepareGap(Index, Added: Integer;
+  out OldLength: Integer);
+var
+  NewLength: Integer;
+begin
+  OldLength:=FLength;
+  if Added=0 then
+    Exit;
+  if (Added<0) or (Added>FMaxCapacity-OldLength) then
+    Raise ERangeError.CreateFmt(SListIndexError,[Int64(OldLength)+Added]);
+  NewLength:=OldLength+Added;
+  if NewLength>System.Length(FData) then
+    GrowTo(NewLength);
+  if OldLength>Index then
+    Move(FData[Index],FData[Index+Added],
+      (OldLength-Index)*SizeOf(SBChar));
+end;
+
 {  These do the actual Appending/Inserting }
 
 procedure TGenericStringBuilder.DoAppend(const S: {$IFDEF SBUNICODE}SBString{$ELSE}RawByteString{$ENDIF});
 
 Var
-  SL,NewLen : Integer;
+  OldLength,SL : Integer;
 
 begin
-  { the append path works on the fields directly: the Length property
-    setter costs a call plus a capacity walk per append, which dominated
-    this hot path (5.8x against the Delphi builder on literal appends) }
   SL:=System.Length(S);
-  if SL>0 then
-    begin
-    if SL>FMaxCapacity-FLength then
-      Raise ERangeError.CreateFmt(SListIndexError,[Int64(FLength)+SL]);
-    NewLen:=FLength+SL;
-    if NewLen>System.Length(FData) then
-      GrowTo(NewLen);
-    Move(S[1],FData[FLength],SL*SizeOf(SBChar));
-    FLength:=NewLen;
-    end;
+  if SL=0 then
+    Exit;
+  PrepareGap(FLength,SL,OldLength);
+  Move(S[1],FData[OldLength],SL*SizeOf(SBChar));
+  FLength:=OldLength+SL;
 end;
 
 procedure TGenericStringBuilder.DoAppend(const AValue: TSBCharArray; Idx, aCount: Integer
   );
 
 Var
-  NewLen : integer;
+  AliasedOffset,OldLength : Integer;
+  Snapshot: TSBCharArray;
 
 begin
   CheckRange(Idx,aCount,System.Length(AValue));
-  if aCount>0 then
+  if aCount=0 then
+    Exit;
+  if aCount>FMaxCapacity-FLength then
+    Raise ERangeError.CreateFmt(SListIndexError,[Int64(FLength)+aCount]);
+  AliasedOffset:=AliasedDataOffset(AValue,Idx,aCount);
+  Snapshot:=nil;
+  if (AliasedOffset>=0) and (AliasedOffset+aCount>FLength) and
+     (aCount>System.Length(FData)-FLength) then
     begin
-    if aCount>FMaxCapacity-FLength then
-      Raise ERangeError.CreateFmt(SListIndexError,[Int64(FLength)+aCount]);
-    NewLen:=FLength+aCount;
-    if NewLen>System.Length(FData) then
-      GrowTo(NewLen);
-    Move(AValue[Idx],FData[FLength],aCount*SizeOf(SBChar));
-    FLength:=NewLen;
+    System.SetLength(Snapshot,aCount);
+    Move(AValue[Idx],Snapshot[0],aCount*SizeOf(SBChar));
     end;
+  PrepareGap(FLength,aCount,OldLength);
+  if System.Length(Snapshot)>0 then
+    Move(Snapshot[0],FData[OldLength],aCount*SizeOf(SBChar))
+  else if AliasedOffset>=0 then
+    Move(FData[AliasedOffset],FData[OldLength],aCount*SizeOf(SBChar))
+  else
+    Move(AValue[Idx],FData[OldLength],aCount*SizeOf(SBChar));
+  FLength:=OldLength+aCount;
 end;
 
 procedure TGenericStringBuilder.DoInsert(Index: Integer; const AValue: SBString);
 
 Var
-  ShiftLen,LV : Integer;
+  LV,OldLength : Integer;
 
 begin
-  CheckRange(Index,0,Length-1);
+  CheckRange(Index,0,FLength);
   LV:=System.Length(AValue);
-  ShiftLen:=Length-Index;
-  Length:=Length+LV;
-  Move(FData[Index],FData[Index+LV],ShiftLen*SizeOf(SBChar));
+  if LV=0 then
+    Exit;
+  PrepareGap(Index,LV,OldLength);
   Move(AValue[1],FData[Index],LV*SizeOf(SBChar));
+  FLength:=OldLength+LV;
 end;
 
 procedure TGenericStringBuilder.DoInsert(Index: Integer; const AValue: TSBCharArray;
   StartIndex, SBCharCount: Integer);
 
 Var
-  ShiftLen : Integer;
+  AliasedOffset,OldLength,PrefixLength : Integer;
+  Snapshot: TSBCharArray;
 
 begin
-  CheckRange(Index,0,Length-1);
+  CheckRange(Index,0,FLength);
   CheckNegative(StartIndex,'StartIndex');
   CheckNegative(SBCharCount,'SBCharCount');
   CheckRange(StartIndex,SBCharCount,System.Length(AValue));
-  Length:=Length+SBCharCount;
-  ShiftLen:=Length-Index;
-  if ShiftLen> 0 then
-    Move(FData[Index], FData[Index+SBCharCount],ShiftLen*SizeOf(SBChar));
-  Move(AValue[StartIndex],FData[Index],SBCharCount*SizeOf(SBChar));
+  if SBCharCount=0 then
+    Exit;
+  if SBCharCount>FMaxCapacity-FLength then
+    Raise ERangeError.CreateFmt(SListIndexError,
+      [Int64(FLength)+SBCharCount]);
+  AliasedOffset:=AliasedDataOffset(AValue,StartIndex,SBCharCount);
+  Snapshot:=nil;
+  if (AliasedOffset>=0) and (AliasedOffset+SBCharCount>FLength) then
+    begin
+    System.SetLength(Snapshot,SBCharCount);
+    Move(AValue[StartIndex],Snapshot[0],SBCharCount*SizeOf(SBChar));
+    end;
+  PrepareGap(Index,SBCharCount,OldLength);
+  if System.Length(Snapshot)>0 then
+    Move(Snapshot[0],FData[Index],SBCharCount*SizeOf(SBChar))
+  else if AliasedOffset<0 then
+    Move(AValue[StartIndex],FData[Index],SBCharCount*SizeOf(SBChar))
+  else if AliasedOffset+SBCharCount<=Index then
+    Move(FData[AliasedOffset],FData[Index],SBCharCount*SizeOf(SBChar))
+  else if AliasedOffset>=Index then
+    Move(FData[AliasedOffset+SBCharCount],FData[Index],
+      SBCharCount*SizeOf(SBChar))
+  else
+    begin
+    PrefixLength:=Index-AliasedOffset;
+    Move(FData[AliasedOffset],FData[Index],PrefixLength*SizeOf(SBChar));
+    Move(FData[Index+SBCharCount],FData[Index+PrefixLength],
+      (SBCharCount-PrefixLength)*SizeOf(SBChar));
+    end;
+  FLength:=OldLength+SBCharCount;
 end;
 
 { Public routines for appending }
@@ -236,8 +303,23 @@ end;
 
 function TGenericStringBuilder.Append(const AValue: SBChar; RepeatCount: Integer
   ): TGenericStringBuilder;
+var
+  OldLength: Integer;
 begin
-  DoAppend(StringOfChar(AValue,RepeatCount));
+  if ClassType<>TGenericStringBuilder then
+    begin
+    DoAppend(StringOfChar(AValue,RepeatCount));
+    Exit(Self);
+    end;
+  if RepeatCount<=0 then
+    Exit(Self);
+  PrepareGap(FLength,RepeatCount,OldLength);
+{$IFDEF SBUNICODE}
+  FillWord(FData[OldLength],RepeatCount,Word(AValue));
+{$ELSE}
+  FillChar(FData[OldLength],RepeatCount,AValue);
+{$ENDIF}
+  FLength:=OldLength+RepeatCount;
   Result:=Self;
 end;
 
@@ -345,10 +427,20 @@ begin
 end;
 
 Function TGenericStringBuilder.Append(const AValue: SBString; StartIndex, Count: Integer): TGenericStringBuilder;
-
+var
+  OldLength: Integer;
 begin
   CheckRange(StartIndex,Count,System.Length(AValue));
-  DoAppend(Copy(AValue,StartIndex+1,Count));
+  if ClassType<>TGenericStringBuilder then
+    begin
+    DoAppend(Copy(AValue,StartIndex+1,Count));
+    Exit(Self);
+    end;
+  if Count=0 then
+    Exit(Self);
+  PrepareGap(FLength,Count,OldLength);
+  Move(AValue[StartIndex+1],FData[OldLength],Count*SizeOf(SBChar));
+  FLength:=OldLength+Count;
   Result:=Self;
 end;
 
@@ -362,23 +454,20 @@ end;
 function TGenericStringBuilder.Append(const AValue: SBString): TGenericStringBuilder;
 
 Var
-  SL,NewLen : Integer;
+  OldLength,SL : Integer;
 
 begin
-  { the hottest append: skip the virtual DoAppend hop and its second
-    prologue - Delphi's string append is not virtual either.  Same body
-    as DoAppend(S), which stays the entry for the other overloads }
-  SL:=System.Length(AValue);
-  if SL>0 then
+  if ClassType<>TGenericStringBuilder then
     begin
-    if SL>FMaxCapacity-FLength then
-      Raise ERangeError.CreateFmt(SListIndexError,[Int64(FLength)+SL]);
-    NewLen:=FLength+SL;
-    if NewLen>System.Length(FData) then
-      GrowTo(NewLen);
-    Move(AValue[1],FData[FLength],SL*SizeOf(SBChar));
-    FLength:=NewLen;
+    DoAppend(AValue);
+    Exit(Self);
     end;
+  SL:=System.Length(AValue);
+  if SL=0 then
+    Exit(Self);
+  PrepareGap(FLength,SL,OldLength);
+  Move(AValue[1],FData[OldLength],SL*SizeOf(SBChar));
+  FLength:=OldLength+SL;
   Result:=Self;
 end;
 {$ENDIF}
@@ -455,7 +544,9 @@ begin
   if Result then
     Result:=(Length=StringBuilder.Length)
              and (MaxCapacity=StringBuilder.MaxCapacity)
-             and CompareMem(@FData[0],@StringBuilder.FData[0],Length*SizeOf(SBChar));
+             and ((Length=0) or
+               CompareMem(@FData[0],@StringBuilder.FData[0],
+                 Length*SizeOf(SBChar)));
 end;
 
 procedure TGenericStringBuilder.Grow;
@@ -591,10 +682,36 @@ end;
 function TGenericStringBuilder.Insert(Index: Integer; const AValue: SBString;
   const aRepeatCount: Integer): TGenericStringBuilder;
 var
-  I: Integer;
+  Added,Copied,CopyCount,I,OldLength,ValueLength: Integer;
 begin
-  for I:=0 to aRepeatCount-1 do
-    DoInsert(Index,AValue);
+  if ClassType<>TGenericStringBuilder then
+    begin
+    for I:=0 to aRepeatCount-1 do
+      DoInsert(Index,AValue);
+    Exit(Self);
+    end;
+  if aRepeatCount<=0 then
+    Exit(Self);
+  CheckRange(Index,0,FLength);
+  ValueLength:=System.Length(AValue);
+  if ValueLength=0 then
+    Exit(Self);
+  if ValueLength>(FMaxCapacity-FLength) div aRepeatCount then
+    Raise ERangeError.CreateFmt(SListIndexError,
+      [Int64(FLength)+Int64(ValueLength)*aRepeatCount]);
+  Added:=ValueLength*aRepeatCount;
+  PrepareGap(Index,Added,OldLength);
+  Move(AValue[1],FData[Index],ValueLength*SizeOf(SBChar));
+  Copied:=ValueLength;
+  while Copied<Added do
+    begin
+    CopyCount:=Copied;
+    if CopyCount>Added-Copied then
+      CopyCount:=Added-Copied;
+    Move(FData[Index],FData[Index+Copied],CopyCount*SizeOf(SBChar));
+    Inc(Copied,CopyCount);
+    end;
+  FLength:=OldLength+Added;
   Result:=Self;
 end;
 
@@ -670,6 +787,8 @@ begin
   CheckRange(Startindex,Count,Length);
   // Init
   OldLen:=System.Length(OldValue);
+  if OldLen=0 then
+    Raise EArgumentException.Create('OldValue must not be empty');
   NewLen:=System.Length(NewValue);
   Delta:=NewLen-OldLen;
   MaxIndex:=StartIndex+Count;
@@ -711,7 +830,7 @@ begin
     Exit(Self);
   CheckNegative(StartIndex,'StartIndex');
   CheckNegative(Count,'Count');
-  CheckRange(StartIndex,Count-1,Length);
+  CheckRange(StartIndex,Count,Length);
   Cur:=@FData[StartIndex];
   For I:=1 to Count do
     begin
@@ -817,6 +936,7 @@ begin
     if (Delta<0) then
       Length:=OLen+Delta;
     end;
-  Move(New[1],FData[Index],NVLen*SizeOf(SBChar));
+  if NVLen>0 then
+    Move(New[1],FData[Index],NVLen*SizeOf(SBChar));
 end;
 
