@@ -35,8 +35,8 @@ manifest_absolute_path() {
 }
 
 ensure_project_dependency() {
-  local spec=$1 name url commit source_list destination temporary head
-  local -a dependency_sources
+  local spec=$1 name url commit source_list destination temporary head output path python resolved=0
+  local -a dependency_sources resolver
   IFS='|' read -r name url commit source_list <<<"$spec"
   [[ -n "$name" && -n "$url" && -n "$commit" && -n "$source_list" ]] || {
     echo "invalid dependency entry in $manifest: $spec" >&2
@@ -48,6 +48,10 @@ ensure_project_dependency() {
   }
   [[ "$commit" =~ ^[0-9a-fA-F]{40}$ ]] || {
     echo "dependency must use a full 40-character commit: $name" >&2
+    return 1
+  }
+  [[ "$source_list" != ,* && "$source_list" != *, && "$source_list" != *,,* ]] || {
+    echo "dependency source list contains an empty component: $name" >&2
     return 1
   }
   command -v git >/dev/null 2>&1 || {
@@ -87,12 +91,34 @@ ensure_project_dependency() {
     return 1
   }
 
-  local relative source
   IFS=',' read -ra dependency_sources <<<"$source_list"
-  for relative in "${dependency_sources[@]}"; do
-    source="$destination/$relative"
-    add_project_source_tree "$source"
+  python=${MOONCOMPILER_PYTHON:-${PYTHON:-}}
+  if [[ -z "$python" ]]; then
+    python=$(command -v python3 || command -v python || true)
+  fi
+  [[ -n "$python" ]] || {
+    echo "Python 3 is required to validate pinned dependency containment; set PYTHON or MOONCOMPILER_PYTHON" >&2
+    return 1
+  }
+  resolver=("$python" "$ROOT/scripts/resolve_pinned_dependency.py"
+    --checkout "$destination" --format nul)
+  for path in "${dependency_sources[@]}"; do
+    resolver+=(--source "$path")
   done
+  output=$(mktemp)
+  if ! "${resolver[@]}" >"$output"; then
+    rm -f "$output"
+    return 1
+  fi
+  while IFS= read -r -d '' path; do
+    options+=("-Fu$path" "-Fi$path")
+    ((resolved+=1))
+  done <"$output"
+  rm -f "$output"
+  if (( resolved == 0 )); then
+    echo "pinned dependency resolver returned no source roots: $name" >&2
+    return 1
+  fi
 }
 
 configure_project_profile() {

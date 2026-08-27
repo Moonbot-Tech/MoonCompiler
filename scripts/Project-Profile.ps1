@@ -26,6 +26,48 @@ function Resolve-ProjectManifestPath {
   return [IO.Path]::GetFullPath((Join-Path $ManifestDirectory $Value))
 }
 
+function Invoke-PinnedDependencyResolver {
+  param([string]$Checkout, [string[]]$Sources)
+
+  $python = $null
+  $launcherArguments = @()
+  If ($env:MOONCOMPILER_PYTHON) {
+    $python = (Resolve-Path -LiteralPath $env:MOONCOMPILER_PYTHON).Path
+  } elseif ($env:PYTHON) {
+    $python = (Resolve-Path -LiteralPath $env:PYTHON).Path
+  } else {
+    $command = Get-Command py.exe -ErrorAction SilentlyContinue
+    If ($command) {
+      $python = $command.Source
+      $launcherArguments = @('-3')
+    }
+    foreach ($name in @('python3.exe', 'python3', 'python.exe', 'python')) {
+      If ($python) {
+        break
+      }
+      $command = Get-Command $name -ErrorAction SilentlyContinue
+      If ($command -and $command.Source -notmatch '\\Microsoft\\WindowsApps\\') {
+        $python = $command.Source
+      }
+    }
+  }
+  If (-not $python) {
+    throw 'Python 3 is required to validate pinned dependency containment; set PYTHON or MOONCOMPILER_PYTHON'
+  }
+  $arguments = @($launcherArguments) + @(
+    (Join-Path $PSScriptRoot 'resolve_pinned_dependency.py'),
+    '--checkout', $Checkout,
+    '--format', 'json')
+  foreach ($source in $Sources) {
+    $arguments += @('--source', $source)
+  }
+  $json = @(& $python @arguments)
+  If ($LASTEXITCODE -ne 0) {
+    throw "pinned dependency containment resolver failed for $Checkout"
+  }
+  return @((($json -join "`n") | ConvertFrom-Json))
+}
+
 function Get-PinnedProjectDependency {
   param([string]$Spec, [string]$Manifest, [string]$State)
 
@@ -85,8 +127,10 @@ function Get-PinnedProjectDependency {
   }
 
   $options = @()
-  foreach ($relative in $sourceList -split ',') {
-    $options += Get-ProjectTreeOptions (Join-Path $destination $relative)
+  $dependencySources = @($sourceList -split ',')
+  foreach ($directory in Invoke-PinnedDependencyResolver $destination $dependencySources) {
+    $options += "-Fu$directory"
+    $options += "-Fi$directory"
   }
   return $options
 }
