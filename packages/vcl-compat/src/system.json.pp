@@ -114,12 +114,17 @@ type
 
   TJSONByteReader = class
   private
+    type
+      TJSONStringCache = specialize TDictionary<UnicodeString,UnicodeString>;
+    var
     FData: PByte;
     FCurrent : PByte;
     FEnd : PByte;
     FIsUTF8: Boolean;
     FString : Array of WideChar;
     FStringLen : Integer;
+    FCacheEnabled : Boolean;
+    FStringCache : TJSONStringCache;
     function GetOffset : Integer;
   public
     constructor Create(const aData: PByte; const aOffset: Integer; const aRange: Integer); overload;
@@ -134,7 +139,7 @@ type
     function HasMore(const aSize: Integer): Boolean;
     procedure AddChar(aCh: WideChar);
     procedure ResetString; inline;
-    procedure FlushString(out aDest: UnicodeString; aCache: Boolean);
+    procedure FlushString(var aDest: UnicodeString; aCache: Boolean);
     procedure OffsetToPos(aOffset: Integer; var aLine, APos: Integer);
     property Offset: Integer read GetOffset;
   end;
@@ -732,6 +737,9 @@ begin
     FEnd:=FData+aRange-1;
   end;
   FIsUTF8:=aIsUTF8;
+  { string interning pays off only on large inputs - the measured DCC64
+    gate; the dictionary itself is created on first use }
+  FCacheEnabled:=(aRange-aOffset)>1000000;
   // Check
   if (FCurrent<=FEnd-2) then
     begin
@@ -742,6 +750,7 @@ end;
 
 destructor TJSONByteReader.Destroy;
 begin
+  FreeAndNil(FStringCache);
   inherited Destroy;
 end;
 
@@ -787,9 +796,24 @@ begin
 end;
 
 procedure TJSONByteReader.AddChar(aCh: WideChar);
+var
+  NewLen : Integer;
 begin
   if (FStringLen=Length(FString)) then
-    SetLength(FString,2*Length(FString));
+    begin
+    { the old unconditional 2*Length grew an empty buffer to zero and
+      wrote FString[0] into a nil array; growth is geometric from a
+      nonzero base and gated against Integer overflow }
+    if FStringLen=0 then
+      NewLen:=16
+    else if FStringLen<=High(Integer) div 2 then
+      NewLen:=2*FStringLen
+    else
+      NewLen:=High(Integer);
+    SetLength(FString,NewLen);
+    if FStringLen>=Length(FString) then
+      OutOfMemoryError;
+    end;
   FString[FStringLen]:=aCh;
   Inc(FStringLen);
 end;
@@ -799,12 +823,25 @@ begin
   FStringLen:=0;
 end;
 
-procedure TJSONByteReader.FlushString(out aDest: UnicodeString; aCache: Boolean);
+procedure TJSONByteReader.FlushString(var aDest: UnicodeString; aCache: Boolean);
+var
+  Cached : UnicodeString;
 begin
-  SetLength(aDest,FStringLen);
-  if FStringLen>0 then
-    Move(FString[0],aDest[1],FStringLen);
-  aCache:=Not aCache;
+  { SetString copies FStringLen WideChars - the old Move copied
+    FStringLen bytes, half the payload, and left the tail garbage }
+  SetString(aDest,PWideChar(Pointer(FString)),FStringLen);
+  ResetString;
+  { the measured DCC64 cache policy: intern through a dictionary when the
+    caller asks and the input is large enough }
+  if aCache and FCacheEnabled then
+    begin
+    if FStringCache=nil then
+      FStringCache:=TJSONStringCache.Create;
+    if FStringCache.TryGetValue(aDest,Cached) then
+      aDest:=Cached
+    else
+      FStringCache.Add(aDest,aDest);
+    end;
 end;
 
 procedure TJSONByteReader.OffsetToPos(aOffset: Integer; var aLine, APos: Integer);

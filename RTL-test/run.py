@@ -74,6 +74,9 @@ CURRENT_TREE_UNIT_DIRS = {
     "rtl_api_product_semantic": ROOT / "packages" / "vcl-compat" / "src",
     "rtti_invoke_product_semantic": ROOT / "packages" / "vcl-compat" / "src",
     "thread_pool_lifecycle_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    # TJSONByteReader lives in packages/vcl-compat System.JSON; without this
+    # the pin would silently reuse the installed PPU.
+    "json_byte_reader_semantic": ROOT / "packages" / "vcl-compat" / "src",
 }
 REQUIRED_RUNTIME_PATTERNS = {
     "mm_finalization_lifetime_semantic": (
