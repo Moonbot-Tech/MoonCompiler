@@ -328,6 +328,44 @@ def classify(findings: list[dict], known: list[dict]) -> tuple[list[dict], list[
     return fresh, old
 
 
+def absorb_derived_runtime_failures(
+        findings: list[dict], known_hits: list[dict],
+        builds: list[Build]) -> tuple[list[dict], list[dict]]:
+    """Do not report a known failed check twice as a new process failure.
+
+    A non-zero exit is only a derived consequence when the program reached its
+    terminal summary and every named failure from that exact binary is already
+    classified.  A crash, truncated run, or even one unclassified check stays
+    fresh.
+    """
+    known_by_build: dict[str, set[str]] = {}
+    for hit in known_hits:
+        if hit.get("kind") != "model-mismatch":
+            continue
+        check = hit.get("check")
+        if not check:
+            continue
+        for label, value in hit.get("builds", {}).items():
+            if value != "ok":
+                known_by_build.setdefault(label, set()).add(check)
+
+    by_label = {build.label: build for build in builds}
+    fresh: list[dict] = []
+    derived: list[dict] = []
+    for finding in findings:
+        if finding.get("kind") != "runtime-failed":
+            fresh.append(finding)
+            continue
+        build = by_label.get(finding.get("build"))
+        if (build is None or not build.compiled or build.timed_out
+                or not build.digest or not build.failures
+                or not set(build.failures) <= known_by_build.get(build.label, set())):
+            fresh.append(finding)
+            continue
+        derived.append({**finding, "known": "derived"})
+    return fresh, known_hits + derived
+
+
 def compare(builds: list[Build]) -> list[dict]:
     """Every disagreement, whether against the model or between builds."""
     findings: list[dict] = []
@@ -582,6 +620,8 @@ def main() -> None:
                                      "check": name})
         findings, known_hits = classify(
             findings, load_known(DEVIL / "known_findings.json"))
+        findings, known_hits = absorb_derived_runtime_failures(
+            findings, known_hits, builds)
         # a digest split is a consequence, not a cause: when every underlying
         # disagreement is already analysed, the split carries no new
         # information.  But it is only a consequence of *those* findings if the

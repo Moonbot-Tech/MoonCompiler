@@ -134,6 +134,67 @@ class DevilRunnerContractsTest(unittest.TestCase):
             }],
         )
 
+    def test_known_checks_absorb_only_their_derived_runtime_exit(self) -> None:
+        build = run_devil_gate.Build("release")
+        build.compiled = True
+        build.run_exit = 2
+        build.digest = "0000000000000001"
+        build.failures = {
+            "dvl-lang-00001-type": ("0000000000000005", "0000000000000006"),
+        }
+        runtime = [{
+            "kind": "runtime-failed", "build": "release", "exit": 2,
+            "detail": ["DEVIL_FAIL seed=1"],
+        }]
+        known = [{
+            "kind": "model-mismatch",
+            "check": "dvl-lang-00001-type",
+            "builds": {"release": "0000000000000005"},
+            "known": "dvl-0014",
+        }]
+
+        findings, known_hits = run_devil_gate.absorb_derived_runtime_failures(
+            runtime, known, [build])
+
+        self.assertEqual(findings, [])
+        self.assertEqual(known_hits[-1]["known"], "derived")
+
+    def test_runtime_exit_stays_fresh_without_named_known_failures(self) -> None:
+        build = run_devil_gate.Build("release")
+        build.compiled = True
+        build.run_exit = 217
+        build.digest = "0000000000000001"
+        runtime = [{"kind": "runtime-failed", "build": "release"}]
+
+        findings, known_hits = run_devil_gate.absorb_derived_runtime_failures(
+            runtime, [], [build])
+
+        self.assertEqual(findings, runtime)
+        self.assertEqual(known_hits, [])
+
+    def test_one_unknown_check_keeps_runtime_exit_fresh(self) -> None:
+        build = run_devil_gate.Build("release")
+        build.compiled = True
+        build.run_exit = 2
+        build.digest = "0000000000000001"
+        build.failures = {
+            "dvl-lang-00001-type": ("0000000000000005", "0000000000000006"),
+            "dvl-lang-00002-new": ("0000000000000001", "0000000000000002"),
+        }
+        runtime = [{"kind": "runtime-failed", "build": "release"}]
+        known = [{
+            "kind": "model-mismatch",
+            "check": "dvl-lang-00001-type",
+            "builds": {"release": "0000000000000005"},
+            "known": "dvl-0014",
+        }]
+
+        findings, known_hits = run_devil_gate.absorb_derived_runtime_failures(
+            runtime, known, [build])
+
+        self.assertEqual(findings, runtime)
+        self.assertEqual(known_hits, known)
+
     def test_main_report_keeps_known_hits(self) -> None:
         def build(_work: Path, profile: str, _defines: list[str],
                   _timeout: int, reuse: bool = False) -> run_devil_gate.Build:
