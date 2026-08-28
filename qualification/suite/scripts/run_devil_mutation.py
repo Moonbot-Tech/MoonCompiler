@@ -32,26 +32,26 @@ SUITE = SCRIPT_ROOT / "qualification" / "suite"
 # whole-commit revert would erase the instrument that is meant to kill the
 # mutant.  The inventory deliberately spans independent Devil families.
 MUTANTS = [
-    ("5d09431ad", "nested", "Isolate expression context in nested routine bodies"),
-    ("834529910", "expr", "Materialize non-encodable x86-64 modulus masks"),
-    ("14f3b1cb2", "capture", "Preserve complex Delphi with lvalue captures"),
-    ("71b8f984c", "unit", "Preserve source context during generic PPU replay"),
-    ("6513e5e84", "flow", "Preserve runtime loop bounds through x86 peephole passes"),
-    ("1520d8009", "exc", "Keep Win64 SEH loops safe and eligible for unrolling"),
-    ("3d09f43f0", "expr", "Match Delphi mixed UInt64 integer semantics"),
-    ("6433f4d0b", "flow", "Normalize ByteBool or expressions in Delphi mode"),
-    ("f7be5b75a", "chk", "Preserve overflow checks when lowering Inc and Dec"),
-    ("ea318b0e6", "codegen", "Preserve required MOVSXD after x86 arithmetic"),
-    ("9d9e8e802", "unary", "Match Delphi Hi and Lo byte semantics"),
-    ("911d70a32", "set", "Match Delphi set storage and field alignment"),
-    ("3c273a696", "float", "Keep inclusive floating selections branch-exact"),
-    ("ddca7b059", "pick", "Rank var/out by pure addressability"),
-    ("fef5b2c9b", "lang", "Materialize resourcestring typed constants"),
-    ("c64038380", "asm", "Match Delphi frames for implicit x64 asm"),
-    ("858f10c27", "opt", "Invalidate loop scalars across opaque effects"),
-    ("a5ba6ebfd", "inl", "Keep inline-local Exit out of caller unwind"),
-    ("b86784a61", "lang", "Dereference custom Variant carriers consistently"),
-    ("4d5a3bfae", "life", "Release open-array carriers through throwing Finalize"),
+    ("5d09431ad", "nested", "lang,capture,inl", "Isolate expression context in nested routine bodies"),
+    ("834529910", "expr", "expr,fold,i128", "Materialize non-encodable x86-64 modulus masks"),
+    ("14f3b1cb2", "capture", "capture,lang", "Preserve complex Delphi with lvalue captures"),
+    ("71b8f984c", "unit", "unit,ppu,gen", "Preserve source context during generic PPU replay"),
+    ("6513e5e84", "flow", "flow,opt", "Preserve runtime loop bounds through x86 peephole passes"),
+    ("1520d8009", "exc", "exc,flow,opt", "Keep Win64 SEH loops safe and eligible for unrolling"),
+    ("3d09f43f0", "expr", "expr,cmp,pick", "Match Delphi mixed UInt64 integer semantics"),
+    ("6433f4d0b", "flow", "flow,abi,expr", "Normalize ByteBool or expressions in Delphi mode"),
+    ("f7be5b75a", "chk", "chk,flow", "Preserve overflow checks when lowering Inc and Dec"),
+    ("ea318b0e6", "codegen", "expr,cmp,opt", "Preserve required MOVSXD after x86 arithmetic"),
+    ("9d9e8e802", "unary", "unary,expr", "Match Delphi Hi and Lo byte semantics"),
+    ("911d70a32", "set", "set,abi", "Match Delphi set storage and field alignment"),
+    ("3c273a696", "float", "float,flow", "Keep inclusive floating selections branch-exact"),
+    ("ddca7b059", "pick", "pick,call,lang", "Rank var/out by pure addressability"),
+    ("fef5b2c9b", "lang", "lang,unit,rtllib", "Materialize resourcestring typed constants"),
+    ("c64038380", "asm", "asm,call", "Match Delphi frames for implicit x64 asm"),
+    ("858f10c27", "opt", "opt,flow", "Invalidate loop scalars across opaque effects"),
+    ("a5ba6ebfd", "inl", "inl,region,exc", "Keep inline-local Exit out of caller unwind"),
+    ("b86784a61", "lang", "lang,rtllib", "Dereference custom Variant carriers consistently"),
+    ("4d5a3bfae", "life", "life,call,abi", "Release open-array carriers through throwing Finalize"),
 ]
 
 PRODUCT_PATHS = ("compiler", "rtl", "packages")
@@ -83,13 +83,14 @@ def rebuild(build_timeout: int) -> tuple[bool, str]:
 
 
 def devil_findings(
-    seeds: str, cases: int, timeout: int
+    seeds: str, cases: int, layers: str, timeout: int
 ) -> tuple[int, dict[str, dict[str, object]], str]:
     """Return the complete structured NEW rows emitted by the Devil gate."""
     gate = ROOT / "qualification" / "suite" / "scripts" / "run_devil_gate.py"
     work = ROOT / ".mutation" / "devil-main"
     code, log = run([sys.executable, str(gate),
                      "--seeds", seeds, "--cases", str(cases),
+                     "--layers", layers,
                      "--work", str(work)],
                     ROOT, timeout)
     findings: dict[str, dict[str, object]] = {}
@@ -145,6 +146,8 @@ def main() -> None:
     p.add_argument("--report", type=Path)
     p.add_argument("--list", action="store_true")
     p.add_argument("--only", default="", help="comma separated commit shas")
+    p.add_argument("--all-layers", action="store_true",
+                   help="stress mode: run every Devil layer for every mutant")
     args = p.parse_args()
 
     if args.repo:
@@ -154,8 +157,8 @@ def main() -> None:
             raise SystemExit(f"not a compiler tree: {ROOT}")
 
     if args.list:
-        for i, (sha, family, subject) in enumerate(MUTANTS):
-            print(f"{i:3d}  {sha}  {family:8s}  {subject}")
+        for i, (sha, family, layers, subject) in enumerate(MUTANTS):
+            print(f"{i:3d}  {sha}  {family:8s}  {layers:20s}  {subject}")
         return
 
     if not args.repo:
@@ -177,10 +180,11 @@ def main() -> None:
     # only what a mutant adds on top of them says Devil saw the defect
     print("checking that every targeted product mutation applies cleanly")
     invalid_inventory = []
-    for sha, family, subject in MUTANTS:
+    for sha, family, layers, subject in MUTANTS:
         valid, detail = reverse_product_patch(sha, check_only=True)
         if not valid:
             invalid_inventory.append({"sha": sha, "family": family,
+                                      "layers": layers,
                                       "subject": subject,
                                       "detail": detail[-300:]})
     if invalid_inventory:
@@ -195,9 +199,21 @@ def main() -> None:
         print(build_log)
         raise SystemExit("clean compiler build failed before mutation")
 
-    print("measuring the clean baseline")
+    if args.only:
+        wanted = [x.strip() for x in args.only.split(",") if x.strip()]
+        selected = [m for m in MUTANTS if m[0] in wanted]
+    else:
+        selected = MUTANTS[args.from_index:args.from_index + args.mutants]
+    if not selected:
+        raise SystemExit("no mutants selected")
+    baseline_layers = "all" if args.all_layers else ",".join(sorted({
+        layer
+        for _, _, layers, _ in selected
+        for layer in layers.split(",")
+    }))
+    print(f"measuring the clean baseline for layers={baseline_layers}")
     baseline_code, baseline, baseline_log = devil_findings(
-        args.seeds, args.cases, args.gate_timeout
+        args.seeds, args.cases, baseline_layers, args.gate_timeout
     )
     if baseline_code != 0:
         print(baseline_log[-4000:])
@@ -205,14 +221,11 @@ def main() -> None:
     print(f"baseline: {len(baseline)} findings")
 
     results = []
-    if args.only:
-        wanted = [x.strip() for x in args.only.split(",") if x.strip()]
-        selected = [m for m in MUTANTS if m[0] in wanted]
-    else:
-        selected = MUTANTS[args.from_index:args.from_index + args.mutants]
-    for sha, family, subject in selected:
+    for sha, family, target_layers, subject in selected:
         started = time.time()
-        row = {"sha": sha, "family": family, "subject": subject}
+        layers = "all" if args.all_layers else target_layers
+        row = {"sha": sha, "family": family, "layers": layers,
+               "subject": subject}
         applied, detail = reverse_product_patch(sha)
         if not applied:
             row.update({"outcome": "invalid-conflict", "detail": detail[-300:]})
@@ -225,7 +238,7 @@ def main() -> None:
             row.update({"outcome": "invalid-build", "detail": build_log[-300:]})
         else:
             gate_code, found, gate_log = devil_findings(
-                args.seeds, args.cases, args.gate_timeout
+                args.seeds, args.cases, layers, args.gate_timeout
             )
             fresh_keys = sorted(set(found) - set(baseline))
             fresh = [found[key] for key in fresh_keys]
