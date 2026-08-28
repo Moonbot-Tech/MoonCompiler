@@ -2301,8 +2301,11 @@ function UTF8Encode(const s : UnicodeString) : RawByteString;
       c:=Word(source^);
       if c>$7f then
         begin
+        processed:=ns-remaining;
         SetLength(utf8string(result),ns*3);
-        SetLength(utf8string(result),UnicodeToUtf8(pointer(result),ns*3+1,pointer(s),ns)-1); { SetLength(-1) is equivalent to SetLength(0). }
+        dest:=PAnsiChar(Pointer(result))+processed;
+        SetLength(utf8string(result),processed+
+          UnicodeToUtf8Buffer(dest,ns*3-processed,source,remaining));
         exit;
         end;
       dest^:=AnsiChar(Byte(c));
@@ -2318,7 +2321,7 @@ function UTF8Encode(const s : UnicodeString) : RawByteString;
 {$define FPC_HAS_UTF8DECODE_UNICODESTRING}
 function UTF8Decode(const s : RawByteString): UnicodeString;
   var
-    ns,remaining : SizeInt;
+    ns,processed,remaining : SizeInt;
     source : PAnsiChar;
     dest : PUnicodeChar;
     c : Cardinal;
@@ -2368,7 +2371,9 @@ function UTF8Decode(const s : RawByteString): UnicodeString;
       c:=Byte(source^);
       if c>$7f then
         begin
-        SetLength(result,Utf8ToUnicode(pointer(result),ns+1,pointer(s),ns)-1);
+        processed:=ns-remaining;
+        SetLength(result,processed+
+          Utf8ToUnicode(dest,remaining+1,source,remaining,True)-1);
         exit;
         end;
       dest^:=UnicodeChar(c);
