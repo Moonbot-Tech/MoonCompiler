@@ -146,8 +146,14 @@ unit optconstprop;
                     CalcDefSum(tfornode(n).t2);
                     { the constant can propagate if is is not the counter variable ... }
                     if not(tassignmentnode(arg).left.isequal(actualtargetnode(@tfornode(n).left)^)) and
-                    { if it is a temprefn or its address is not taken in case of loadn }
-                      ((tassignmentnode(arg).left.nodetype=temprefn) or not(tabstractvarsym(tloadnode(tassignmentnode(arg).left).symtableentry).addr_taken)) and
+                    { A non-registerable scalar lives in memory for a reason
+                      that the node DFA may not model, notably access from a
+                      nested routine through its parent frame.  Do not carry
+                      a constant into the loop merely because no direct write
+                      occurs in the caller's statement tree. }
+                      ((tassignmentnode(arg).left.nodetype=temprefn) or
+                       (tabstractvarsym(tloadnode(tassignmentnode(arg).left).symtableentry).varregable in
+                         [vr_intreg,vr_mmreg,vr_fpureg])) and
                       { and no definition in the loop? }
                       not(DynSetIn(tfornode(n).t2.optinfo^.defsum,tassignmentnode(arg).left.optinfo^.index)) then
                       begin

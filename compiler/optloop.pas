@@ -355,6 +355,63 @@ unit optloop;
       end;
 
 
+    function invalidatesscalarthroughunknownmemory(var n : tnode;arg : pointer) : foreachnoderesult;
+      begin
+        result:=fen_false;
+        case n.nodetype of
+          calln,
+          asmn:
+            { The tree DFA records direct definitions, not the memory effects
+              of an opaque call or assembler block. }
+            result:=fen_norecurse_true;
+          derefn:
+            if n.flags*[nf_write,nf_modify,nf_address_taken]<>[] then
+              { A pointer write may alias global storage. }
+              result:=fen_norecurse_true;
+          else
+            ;
+        end;
+      end;
+
+
+    function scalarloadisloopinvariant(loop : tfornode;expr : tloadnode) : boolean;
+      var
+        vs : tabstractvarsym;
+      begin
+        result:=false;
+        if not(expr.symtableentry is tabstractvarsym) or
+          (expr.flags*[nf_write,nf_modify,nf_address_taken]<>[]) or
+          not assigned(loop.optinfo) or
+          not assigned(loop.t2.optinfo) or
+          not assigned(expr.optinfo) or
+          expr.isequal(actualtargetnode(@loop.left)^) then
+          exit;
+        vs:=tabstractvarsym(expr.symtableentry);
+        if vs.addr_taken or
+          vs.different_scope or
+          (vo_volatile in vs.varoptions) or
+          DynSetIn(loop.t2.optinfo^.defsum,expr.optinfo^.index) then
+          exit;
+        case vs.typ of
+          localvarsym:
+            result:=not tabstractnormalvarsym(vs).is_captured and
+              not tabstractnormalvarsym(vs).inparentfpstruct and
+              (vs.varregable in [vr_intreg,vr_mmreg,vr_fpureg]);
+          paravarsym:
+            result:=(vs.varspez=vs_value) and
+              not tabstractnormalvarsym(vs).is_captured and
+              not tabstractnormalvarsym(vs).inparentfpstruct and
+              (vs.varregable in [vr_intreg,vr_mmreg,vr_fpureg]);
+          staticvarsym:
+            result:=not(vo_is_thread_var in vs.varoptions) and
+              not foreachnodestatic(pm_preprocess,loop.t2,
+                @invalidatesscalarthroughunknownmemory,nil);
+          else
+            ;
+        end;
+      end;
+
+
     function is_loop_invariant(loop : tnode;expr : tnode) : boolean;
       var
         fieldcontext : tinvariantfieldcontext;
@@ -363,21 +420,8 @@ unit optloop;
         result:=is_constnode(expr);
         case expr.nodetype of
           loadn:
-            begin
-              if (pi_dfaavailable in current_procinfo.flags) and
-                assigned(loop.optinfo) and
-                assigned(expr.optinfo) and
-                { The parser may retain an equal conversion around the loop
-                  target (notably for a function Result used as an enum
-                  counter).  Compare the actual storage, otherwise the DFA
-                  body summary cannot see the implicit per-iteration write
-                  and may classify the counter as loop invariant. }
-                not(expr.isequal(actualtargetnode(@tfornode(loop).left)^)) then
-                { no aliasing? }
-                result:=(([nf_write,nf_modify]*expr.flags)=[]) and not(tabstractvarsym(tloadnode(expr).symtableentry).addr_taken) and
-                { no definition in the loop? }
-                  not(DynSetIn(tfornode(loop).t2.optinfo^.defsum,expr.optinfo^.index));
-            end;
+            result:=(pi_dfaavailable in current_procinfo.flags) and
+              scalarloadisloopinvariant(tfornode(loop),tloadnode(expr));
           vecn:
             begin
               vectorcontext.vectornode:=tvecnode(expr);
