@@ -88,6 +88,12 @@ begin
     AContext+' path custom unsafe set');
   Check(TNetEncoding.URL.EncodePath('%2F',[])='/%2F',
     AContext+' path existing escape preservation');
+  Check(TNetEncoding.URL.EncodePath('%2F',[Ord('%')])='/%2F',
+    AContext+' path escaped percent precedes custom unsafe policy');
+  Check(TNetEncoding.URL.EncodePath('%2F',[Ord('2')])='/%2F',
+    AContext+' path escaped hex digit precedes custom unsafe policy');
+  Check(TNetEncoding.URL.EncodePath('%ZZ',[Ord('%')])='/%25ZZ',
+    AContext+' path invalid escape obeys custom unsafe policy');
 end;
 
 var
