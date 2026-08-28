@@ -109,6 +109,26 @@ run_alias_replay() {
   done
 }
 
+run_o3_autoinline_cycle() {
+  local source profile tag out
+  local -a profile_args
+  source="$ROOT/tests/compiler-crash/o3-indysecopenssl-provider"
+  for profile in o2 o2-autoinline o3; do
+    case "$profile" in
+      o2) profile_args=(-O2) ;;
+      o2-autoinline) profile_args=(-O2 -OoAUTOINLINE) ;;
+      o3) profile_args=(-O3) ;;
+    esac
+    out="$RUN/o3-autoinline-cycle-$profile"
+    mkdir -p "$out"
+    "$FPC" -n "@$CFG" -B "${profile_args[@]}" -Fu"$source" \
+      -FU"$out" -FE"$out" -o"$out/O3AutoinlineCycleCrash" \
+      "$source/O3AutoinlineCycleCrash.dpr" >"$out/compile.log" 2>&1
+    timeout 30 "$out/O3AutoinlineCycleCrash" >"$out/run.log" 2>&1
+    grep -qx O3_AUTOINLINE_CYCLE_OK "$out/run.log"
+  done
+}
+
 run_case service_compiler_regressions SERVICE_COMPILER_REGRESSIONS_OK plain
 run_case variant_char_dispatch VARIANT_CHAR_DISPATCH_OK plain
 run_rejected variant_char_dispatch 'Type is not automatable' \
@@ -119,6 +139,7 @@ run_case dotted_unicode_comparer DOTTED_UNICODE_COMPARER_OK dotted-generics
 run_case paszlib_delphi_unicode PASZLIB_DELPHI_UNICODE_OK dotted-paszlib
 run_case delphi_tlist_arrayoft DELPHI_TLIST_ARRAYOFT_OK generic-source
 run_alias_replay
+run_o3_autoinline_cycle
 run_case generic_return_alias GENERIC_RETURN_ALIAS_OK plain
 run_case delphi_with_anonymous DELPHI_WITH_ANONYMOUS_OK plain
 run_rejected anonymous_callback_var_rejected \
@@ -148,6 +169,10 @@ run_rejected inline_const_var_parameter_rejected \
     "$ROOT/tests/smoke/delphi_tlist_arrayoft.pas" \
     "$ROOT/tests/smoke/generic_alias_replay.pas" \
     "$ROOT/tests/smoke/generic_alias_replay_unit.pas" \
+    "$ROOT/tests/compiler-crash/o3-indysecopenssl-provider/README.md" \
+    "$ROOT/tests/compiler-crash/o3-indysecopenssl-provider/O3AutoinlineCycleA.pas" \
+    "$ROOT/tests/compiler-crash/o3-indysecopenssl-provider/O3AutoinlineCycleB.pas" \
+    "$ROOT/tests/compiler-crash/o3-indysecopenssl-provider/O3AutoinlineCycleCrash.dpr" \
     "$ROOT/tests/smoke/generic_return_alias.pas" \
     "$ROOT/tests/smoke/generic_return_distinct_rejected.pas" \
     "$ROOT/tests/smoke/generic_return_mismatch_rejected.pas" \
@@ -164,4 +189,4 @@ run_rejected inline_const_var_parameter_rejected \
   find "$RUN" -type f ! -name SHA256SUMS -print0 |
     sort -z | xargs -0 -r sha256sum
 } >"$RUN/SHA256SUMS"
-echo "SERVICE_REGRESSIONS_GATE_OK positive=8 negative=9 modes=3"
+echo "SERVICE_REGRESSIONS_GATE_OK positive=9 negative=9 modes=3"

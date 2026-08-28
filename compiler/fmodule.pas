@@ -1451,7 +1451,19 @@ implementation
           Internalerror(2026022622);
         end;
 
-        if (sym.SymId>=module.symlist.Count) then
+        { AUTOINLINE can copy a body out of a unit whose implementation is
+          still being compiled through a legal interface/implementation
+          cycle. Private static symbols in that body may not have reached the
+          declaring module's serialisation list yet. Importing one requires a
+          stable module-wide id, so establish that normal symbol invariant
+          before recording the cross-unit reference. }
+        if not tsym(sym).is_registered then
+          begin
+            module.symlist.Add(sym);
+            sym.SymId:=module.symlist.Count-1;
+          end;
+
+        if (sym.SymId<0) or (sym.SymId>=module.symlist.Count) then
           Internalerror(2026022617);
         if sym<>TSymEntry(module.symlist[sym.SymId]) then
         begin

@@ -79,6 +79,33 @@ function Invoke-AliasReplay {
   }
 }
 
+function Invoke-O3AutoinlineCycle {
+  $Source = Join-Path $Root `
+    'tests\compiler-crash\o3-indysecopenssl-provider'
+  $Profiles = @(
+    @{ Name = 'o2'; Args = @('-O2') },
+    @{ Name = 'o2-autoinline'; Args = @('-O2', '-OoAUTOINLINE') },
+    @{ Name = 'o3'; Args = @('-O3') })
+  foreach ($Profile in $Profiles) {
+    $Out = Join-Path $Run "o3-autoinline-cycle-$($Profile.Name)"
+    New-Item -ItemType Directory -Path $Out | Out-Null
+    & $Compiler -n "@$Config" -B @($Profile.Args) "-Fu$Source" `
+      "-FU$Out" "-FE$Out" `
+      "-o$Out\O3AutoinlineCycleCrash.exe" `
+      (Join-Path $Source 'O3AutoinlineCycleCrash.dpr') `
+      *> (Join-Path $Out 'compile.log')
+    If ($LASTEXITCODE -ne 0) {
+      throw "O3 AUTOINLINE unit cycle/$($Profile.Name) did not compile"
+    }
+    & "$Out\O3AutoinlineCycleCrash.exe" *> (Join-Path $Out 'run.log')
+    If (($LASTEXITCODE -ne 0) -or
+        ((Get-Content -Raw (Join-Path $Out 'run.log')).Trim() -ne
+          'O3_AUTOINLINE_CYCLE_OK')) {
+      throw "O3 AUTOINLINE unit cycle/$($Profile.Name) failed"
+    }
+  }
+}
+
 $Generics = Join-Path $CompilerRoot 'packages\rtl-generics'
 $GenericArgs = @(
   "-Fu$Generics\namespaced", "-Fi$Generics\src", "-Fi$Generics\src\inc",
@@ -100,6 +127,7 @@ Invoke-Case dotted_unicode_comparer DOTTED_UNICODE_COMPARER_OK $GenericArgs
 Invoke-Case paszlib_delphi_unicode PASZLIB_DELPHI_UNICODE_OK $PaszlibArgs
 Invoke-Case delphi_tlist_arrayoft DELPHI_TLIST_ARRAYOFT_OK $GenericSourceArgs
 Invoke-AliasReplay
+Invoke-O3AutoinlineCycle
 Invoke-Case generic_return_alias GENERIC_RETURN_ALIAS_OK
 Invoke-Case delphi_with_anonymous DELPHI_WITH_ANONYMOUS_OK
 Invoke-Rejected anonymous_callback_var_rejected
@@ -126,6 +154,10 @@ $Inputs = @(
   (Join-Path $Root 'tests\smoke\delphi_tlist_arrayoft.pas'),
   (Join-Path $Root 'tests\smoke\generic_alias_replay.pas'),
   (Join-Path $Root 'tests\smoke\generic_alias_replay_unit.pas'),
+  (Join-Path $Root 'tests\compiler-crash\o3-indysecopenssl-provider\README.md'),
+  (Join-Path $Root 'tests\compiler-crash\o3-indysecopenssl-provider\O3AutoinlineCycleA.pas'),
+  (Join-Path $Root 'tests\compiler-crash\o3-indysecopenssl-provider\O3AutoinlineCycleB.pas'),
+  (Join-Path $Root 'tests\compiler-crash\o3-indysecopenssl-provider\O3AutoinlineCycleCrash.dpr'),
   (Join-Path $Root 'tests\smoke\generic_return_alias.pas'),
   (Join-Path $Root 'tests\smoke\generic_return_distinct_rejected.pas'),
   (Join-Path $Root 'tests\smoke\generic_return_mismatch_rejected.pas'),
@@ -143,4 +175,4 @@ $Inputs | Sort-Object -Unique | ForEach-Object {
   $Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_).Hash.ToLowerInvariant()
   "$Hash *$([IO.Path]::GetFullPath($_))"
 } | Set-Content -LiteralPath (Join-Path $Run 'SHA256SUMS') -Encoding ascii
-Write-Output 'SERVICE_REGRESSIONS_GATE_OK positive=8 negative=9 modes=3'
+Write-Output 'SERVICE_REGRESSIONS_GATE_OK positive=9 negative=9 modes=3'
