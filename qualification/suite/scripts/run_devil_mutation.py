@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import os
 import subprocess
 import sys
@@ -27,40 +26,46 @@ from pathlib import Path
 SCRIPT_ROOT = Path(__file__).resolve().parents[3]   # tree these scripts live in
 ROOT = SCRIPT_ROOT                                  # tree that gets mutated
 SUITE = SCRIPT_ROOT / "qualification" / "suite"
-GATE = SUITE / "scripts" / "run_devil_gate.py"
-REJECT_GATE = SUITE / "scripts" / "run_devil_reject_gate.py"
 
-# Semantic repairs of this repository, newest first.  Each one is a defect we
-# already fixed; reverting it puts a known bug back into the compiler.
+# Semantic repairs in the rewritten release ancestry.  Only product paths are
+# reversed: the regression and generated tests must stay present, otherwise a
+# whole-commit revert would erase the instrument that is meant to kill the
+# mutant.  The inventory deliberately spans independent Devil families.
 MUTANTS = [
-    ("154129a3", "Isolate expression context in nested routine bodies"),
-    ("50dd8feb", "Materialize non-encodable x86-64 modulus masks"),
-    ("a4c9cf5e", "Match Delphi contextual UInt64 overload selection"),
-    ("9e23ecd3", "Preserve complex Delphi with lvalue captures"),
-    ("d158f58b", "Preserve source context during generic PPU replay"),
-    ("df20d54f", "Keep RawByteString operations byte-preserving"),
-    ("5ce876ee", "Preserve full precision in Win64 Currency multiplication"),
-    ("9b5079f8", "Preserve runtime loop bounds through x86 peephole passes"),
-    ("e8a9dea8", "Keep Win64 SEH loops safe and eligible for unrolling"),
-    ("d60056a7", "Match Delphi mixed UInt64 integer semantics"),
-    ("e11a5c3c", "Preserve Delphi unsigned narrow multiplication widening"),
-    ("c1c34432", "Preserve function-reference load semantics during inlining"),
-    ("5011a80c", "Normalize ByteBool or expressions in Delphi mode"),
-    ("8f717edd", "Preserve overflow checks when lowering Inc and Dec"),
-    ("b9eca32b", "Preserve required MOVSXD after x86 arithmetic"),
-    ("fe7e94d0", "Match Delphi integer expression semantics"),
-    ("416cdbdf", "Match Delphi Hi and Lo byte semantics"),
-    ("aca435b0", "Match Delphi set storage and field alignment"),
-    ("f61f1e48", "Keep inclusive floating selections branch-exact"),
-    ("c4143c7f", "Match Delphi Val integer dialect and error results"),
+    ("5d09431ad", "nested", "Isolate expression context in nested routine bodies"),
+    ("834529910", "expr", "Materialize non-encodable x86-64 modulus masks"),
+    ("14f3b1cb2", "capture", "Preserve complex Delphi with lvalue captures"),
+    ("71b8f984c", "unit", "Preserve source context during generic PPU replay"),
+    ("6513e5e84", "flow", "Preserve runtime loop bounds through x86 peephole passes"),
+    ("1520d8009", "exc", "Keep Win64 SEH loops safe and eligible for unrolling"),
+    ("3d09f43f0", "expr", "Match Delphi mixed UInt64 integer semantics"),
+    ("6433f4d0b", "flow", "Normalize ByteBool or expressions in Delphi mode"),
+    ("f7be5b75a", "chk", "Preserve overflow checks when lowering Inc and Dec"),
+    ("ea318b0e6", "codegen", "Preserve required MOVSXD after x86 arithmetic"),
+    ("9d9e8e802", "unary", "Match Delphi Hi and Lo byte semantics"),
+    ("911d70a32", "set", "Match Delphi set storage and field alignment"),
+    ("3c273a696", "float", "Keep inclusive floating selections branch-exact"),
+    ("ddca7b059", "pick", "Rank var/out by pure addressability"),
+    ("fef5b2c9b", "lang", "Materialize resourcestring typed constants"),
+    ("c64038380", "asm", "Match Delphi frames for implicit x64 asm"),
+    ("858f10c27", "opt", "Invalidate loop scalars across opaque effects"),
+    ("a5ba6ebfd", "inl", "Keep inline-local Exit out of caller unwind"),
+    ("b86784a61", "lang", "Dereference custom Variant carriers consistently"),
+    ("4d5a3bfae", "life", "Release open-array carriers through throwing Finalize"),
 ]
 
+PRODUCT_PATHS = ("compiler", "rtl", "packages")
 
-def run(cmd: list[str], cwd: Path, timeout: int) -> tuple[int, str]:
+
+def run(
+    cmd: list[str], cwd: Path, timeout: int, input_text: str | None = None
+) -> tuple[int, str]:
     env = dict(os.environ, DEVIL_TOOLCHAIN_ROOT=str(ROOT))
     try:
-        proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
-                              timeout=timeout, env=env)
+        proc = subprocess.run(
+            cmd, cwd=cwd, capture_output=True, text=True, input=input_text,
+            timeout=timeout, env=env,
+        )
     except subprocess.TimeoutExpired:
         return 124, "<timeout>"
     return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
@@ -77,24 +82,53 @@ def rebuild(build_timeout: int) -> tuple[bool, str]:
     return code == 0, log[-2000:]
 
 
-FINDING_RE = re.compile(r'"check": "([a-z0-9-]+)"|"note": "([a-z0-9-]+)"')
-
-
-def devil_findings(seeds: str, cases: int, timeout: int) -> set[str]:
-    """Names of everything the gate reports as NEW for the installed compiler."""
-    code, log = run([sys.executable, str(GATE),
-                     "--seeds", seeds, "--cases", str(cases)],
+def devil_findings(
+    seeds: str, cases: int, timeout: int
+) -> tuple[int, dict[str, dict[str, object]], str]:
+    """Return the complete structured NEW rows emitted by the Devil gate."""
+    gate = ROOT / "qualification" / "suite" / "scripts" / "run_devil_gate.py"
+    work = ROOT / ".mutation" / "devil-main"
+    code, log = run([sys.executable, str(gate),
+                     "--seeds", seeds, "--cases", str(cases),
+                     "--work", str(work)],
                     ROOT, timeout)
-    names: set[str] = set()
+    findings: dict[str, dict[str, object]] = {}
     for line in log.splitlines():
         stripped = line.strip()
         if not stripped.startswith("NEW"):
             continue
-        for check, note in FINDING_RE.findall(stripped):
-            names.add(check or note)
-        if "internal-error" in stripped or "compile-failed" in stripped:
-            names.add("build:" + stripped[:70])
-    return names
+        try:
+            row = json.loads(stripped[3:].strip())
+        except json.JSONDecodeError:
+            row = {"kind": "unparsed", "detail": stripped}
+        key = json.dumps(row, sort_keys=True, ensure_ascii=False)
+        findings[key] = row
+    return code, findings, log
+
+
+def reverse_product_patch(sha: str, check_only: bool = False) -> tuple[bool, str]:
+    code, patch = git(["show", "--format=", "--binary", sha, "--", *PRODUCT_PATHS])
+    if code != 0 or not patch.strip():
+        return False, "repair has no product patch"
+    command = ["git", "apply", "--reverse", "--whitespace=nowarn"]
+    if check_only:
+        command.append("--check")
+    command.append("-")
+    code, detail = run(command, ROOT, 300, patch)
+    return code == 0, detail
+
+
+def finding_family(row: dict[str, object]) -> str:
+    layer = row.get("layer")
+    if isinstance(layer, str) and layer:
+        return layer
+    for key in ("check", "note"):
+        name = row.get(key)
+        if isinstance(name, str) and name.startswith("dvl-"):
+            parts = name.split("-", 2)
+            if len(parts) >= 2:
+                return parts[1]
+    return str(row.get("kind", "unknown"))
 
 
 def main() -> None:
@@ -120,8 +154,8 @@ def main() -> None:
             raise SystemExit(f"not a compiler tree: {ROOT}")
 
     if args.list:
-        for i, (sha, subject) in enumerate(MUTANTS):
-            print(f"{i:3d}  {sha}  {subject}")
+        for i, (sha, family, subject) in enumerate(MUTANTS):
+            print(f"{i:3d}  {sha}  {family:8s}  {subject}")
         return
 
     if not args.repo:
@@ -141,8 +175,33 @@ def main() -> None:
 
     # findings the clean compiler already produces are noise for every mutant:
     # only what a mutant adds on top of them says Devil saw the defect
+    print("checking that every targeted product mutation applies cleanly")
+    invalid_inventory = []
+    for sha, family, subject in MUTANTS:
+        valid, detail = reverse_product_patch(sha, check_only=True)
+        if not valid:
+            invalid_inventory.append({"sha": sha, "family": family,
+                                      "subject": subject,
+                                      "detail": detail[-300:]})
+    if invalid_inventory:
+        for row in invalid_inventory:
+            print(json.dumps({"outcome": "invalid-conflict", **row},
+                             ensure_ascii=False))
+        raise SystemExit("mutation inventory contains non-applicable patches")
+
+    print("building the clean compiler in the disposable tree")
+    built, build_log = rebuild(args.build_timeout)
+    if not built:
+        print(build_log)
+        raise SystemExit("clean compiler build failed before mutation")
+
     print("measuring the clean baseline")
-    baseline = devil_findings(args.seeds, args.cases, args.gate_timeout)
+    baseline_code, baseline, baseline_log = devil_findings(
+        args.seeds, args.cases, args.gate_timeout
+    )
+    if baseline_code != 0:
+        print(baseline_log[-4000:])
+        raise SystemExit("clean Devil baseline is not green")
     print(f"baseline: {len(baseline)} findings")
 
     results = []
@@ -151,31 +210,35 @@ def main() -> None:
         selected = [m for m in MUTANTS if m[0] in wanted]
     else:
         selected = MUTANTS[args.from_index:args.from_index + args.mutants]
-    for sha, subject in selected:
+    for sha, family, subject in selected:
         started = time.time()
-        row = {"sha": sha, "subject": subject}
-        code, log = git(["revert", "--no-edit", "--no-commit", sha])
-        if code != 0:
-            # an old repair may conflict with later ones; that is a limit of the
-            # stand, not a verdict about Devil
-            row.update({"outcome": "skipped-conflict", "detail": log[-200:]})
-            git(["revert", "--abort"])
-            git(["reset", "--hard", "HEAD"])
+        row = {"sha": sha, "family": family, "subject": subject}
+        applied, detail = reverse_product_patch(sha)
+        if not applied:
+            row.update({"outcome": "invalid-conflict", "detail": detail[-300:]})
             results.append(row)
             print(json.dumps(row, ensure_ascii=False))
             continue
 
         built, build_log = rebuild(args.build_timeout)
         if not built:
-            # a compiler that no longer builds is also a killed mutant: the
-            # defect is detectable, just at build time
-            row.update({"outcome": "killed-by-build", "detail": build_log[-300:]})
+            row.update({"outcome": "invalid-build", "detail": build_log[-300:]})
         else:
-            found = devil_findings(args.seeds, args.cases, args.gate_timeout)
-            fresh = sorted(found - baseline)
-            row.update({"outcome": "killed" if fresh else "survived",
-                        "new_findings": fresh[:8],
-                        "new_count": len(fresh)})
+            gate_code, found, gate_log = devil_findings(
+                args.seeds, args.cases, args.gate_timeout
+            )
+            fresh_keys = sorted(set(found) - set(baseline))
+            fresh = [found[key] for key in fresh_keys]
+            if gate_code != 0 and not fresh:
+                row.update({"outcome": "invalid-gate",
+                            "detail": gate_log[-500:]})
+            else:
+                row.update({"outcome": "killed" if fresh else "survived",
+                            "new_findings": fresh[:8],
+                            "new_count": len(fresh),
+                            "killed_by_families": sorted({
+                                finding_family(item) for item in fresh
+                            })})
         row["seconds"] = round(time.time() - started, 1)
         results.append(row)
         print(json.dumps(row, ensure_ascii=False))
@@ -188,16 +251,23 @@ def main() -> None:
         # from the restored tree is part of restoring, not an optional step
         rebuild(args.build_timeout)
 
-    usable = [r for r in results if r["outcome"] != "skipped-conflict"]
-    killed = sum(1 for r in usable if r["outcome"].startswith("killed"))
+    usable = [r for r in results if r["outcome"] in ("killed", "survived")]
+    invalid = [r for r in results if r["outcome"].startswith("invalid-")]
+    killed = sum(1 for r in usable if r["outcome"] == "killed")
+    family_kills: dict[str, int] = {}
+    for row in results:
+        for family in row.get("killed_by_families", []):
+            family_kills[family] = family_kills.get(family, 0) + 1
     print(f"DEVIL_MUTATION killed={killed}/{len(usable)} "
-          f"skipped={len(results) - len(usable)}")
+          f"invalid={len(invalid)}")
+    print("DEVIL_MUTATION_FAMILIES " +
+          json.dumps(family_kills, sort_keys=True, ensure_ascii=False))
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(results, indent=2, ensure_ascii=False)
                                + "\n", encoding="utf-8")
     # a surviving mutant is a coverage hole, and that is a failure of Devil
-    sys.exit(0 if killed == len(usable) else 1)
+    sys.exit(0 if not invalid and usable and killed == len(usable) else 1)
 
 
 if __name__ == "__main__":

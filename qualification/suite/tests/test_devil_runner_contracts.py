@@ -19,6 +19,7 @@ sys.path.insert(0, str(SCRIPTS))
 import generate_devil
 import run_devil_env_gate
 import run_devil_gate
+import run_devil_mutation
 import run_devil_resident_gate
 import devil_toolchain
 
@@ -227,6 +228,25 @@ class DevilRunnerContractsTest(unittest.TestCase):
         self.assertEqual(
             run_devil_resident_gate.resolve_run_contract(handoff, layer),
             (4, 8, ["debug", "o1", "o2", "release"], False),
+        )
+
+    def test_mutation_finding_family_keeps_layer_attribution(self) -> None:
+        self.assertEqual(
+            run_devil_mutation.finding_family({
+                "kind": "model-mismatch",
+                "check": "dvl-opt-00001-global-call",
+            }),
+            "opt",
+        )
+        self.assertEqual(
+            run_devil_mutation.finding_family({
+                "kind": "layer-digest-split", "layer": "life",
+            }),
+            "life",
+        )
+        self.assertEqual(
+            run_devil_mutation.finding_family({"kind": "compile-failed"}),
+            "compile-failed",
         )
 
 

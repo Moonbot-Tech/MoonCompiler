@@ -1,0 +1,42 @@
+name: Devil mutation strength
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 2 * * 0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: devil-mutation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  win64-x86-64:
+    runs-on: windows-2022
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install FPC 3.2.2 bootstrap
+        shell: powershell
+        run: choco install freepascal --version=3.2.2 -y --no-progress
+      - name: Create disposable mutation clone
+        shell: powershell
+        run: git clone --no-local . ..\mooncompiler-mutation
+      - name: Measure Devil mutation strength
+        shell: powershell
+        run: |
+          python .\qualification\suite\scripts\run_devil_mutation.py `
+            --repo ..\mooncompiler-mutation `
+            --seeds 1,2,3 --cases 150 `
+            --report .\.qualification\devil-mutation.json
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: devil-mutation-report
+          path: .qualification/devil-mutation.json
+          if-no-files-found: warn
