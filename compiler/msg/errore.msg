@@ -3012,6 +3012,7 @@ cg_f_unknown_internal_procedure_number=06063_F_Unknown internal procedure number
 % The directive \var{internproc} is used with a number not known by the compiler. \var{internproc} should be used only by the
 % supplied RTL or by users really knowing what they are doing.
 cg_e_intrinsic_not_supported_by_instruction_set=06064_E_Intrinsic not supported by the currently selected instruction set
+cg_e_managed_carrier_alignment_unsupported=06065_E_Managed value carrier alignment $1 exceeds the target stack alignment contract
 % The intrinsic translates into an assembler instruction which is not supported by the instruction set
 % selected by \var{-Cp}
 %

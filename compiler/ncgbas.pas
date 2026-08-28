@@ -557,9 +557,21 @@ interface
               begin
                 location_reset_ref(tempinfo^.location,LOC_REFERENCE,def_cgsize(tempinfo^.typedef),0,[]);
                 if tempinfo^.storagealignment<>0 then
-                  tg.gettemp(current_asmdata.CurrAsmList,size,
-                    tempinfo^.storagealignment,tempinfo^.temptype,
-                    tempinfo^.location.reference)
+                  begin
+                    { storagealignment is used by raw byte carriers around
+                      managed values.  Silently clamping it would execute user
+                      management operators on an under-aligned address.  Heap
+                      open-array carriers have their own aligned allocator;
+                      scalar stack carriers fail closed until the target owns
+                      a matching prologue/unwind ABI. }
+                    if tempinfo^.storagealignment>
+                        current_settings.alignment.localalignmax then
+                      CGMessage1(cg_e_managed_carrier_alignment_unsupported,
+                        tostr(tempinfo^.storagealignment));
+                    tg.gettemp(current_asmdata.CurrAsmList,size,
+                      tempinfo^.storagealignment,tempinfo^.temptype,
+                      tempinfo^.location.reference);
+                  end
                 else
                   tg.gethltemp(current_asmdata.CurrAsmList,tempinfo^.typedef,
                     size,tempinfo^.temptype,tempinfo^.location.reference);
