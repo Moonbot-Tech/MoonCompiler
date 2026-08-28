@@ -23,6 +23,8 @@
     Procedure SetC(Index: Integer; AValue: SBChar);
     Function  GetLength: Integer; inline;
     Procedure SetLength(AValue: Integer);
+    Procedure RaiseLengthError(AValue: Int64);
+      {$if FPC_FULLVERSION>=30301}noinline;{$endif}
     Procedure AppendAscii(const Buffer: ShortString);
     Function AppendSignedInteger(AValue: Int64): TGenericStringBuilder;
     Function AppendUnsignedInteger(AValue: UInt64): TGenericStringBuilder;

@@ -118,6 +118,11 @@ begin
     Raise ERangeError.CreateFmt(SParamIsNegative,[AName])
 end;
 
+procedure TGenericStringBuilder.RaiseLengthError(AValue: Int64);
+begin
+  Raise ERangeError.CreateFmt(SListIndexError,[AValue]);
+end;
+
 function TGenericStringBuilder.AliasedDataOffset(const AValue: TSBCharArray;
   StartIndex, SBCharCount: Integer): Integer;
 var
@@ -502,7 +507,11 @@ begin
   SL:=System.Length(AValue);
   if SL=0 then
     Exit(Self);
-  PrepareGap(FLength,SL,OldLength);
+  OldLength:=FLength;
+  if SL>FMaxCapacity-OldLength then
+    RaiseLengthError(Int64(OldLength)+SL);
+  if OldLength+SL>System.Length(FData) then
+    GrowTo(OldLength+SL);
   Move(AValue[1],FData[OldLength],SL*SizeOf(SBChar));
   FLength:=OldLength+SL;
   Result:=Self;

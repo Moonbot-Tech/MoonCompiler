@@ -256,6 +256,15 @@ begin
     Builder.Append(UnicodeString('ab'));
     Raised:=False;
     try
+      Builder.Append(UnicodeString('1234567'));
+    except
+      on ERangeError do
+        Raised:=True;
+    end;
+    Check(Raised,'string Append accepted MaxCapacity overflow');
+    Check(Builder.ToString='ab','failed string Append changed value');
+    Raised:=False;
+    try
       Builder.Insert(1,UnicodeString('xyz'),4);
     except
       on ERangeError do
