@@ -1,9 +1,9 @@
 program openarray_finalize_throw_semantic;
 
-{ A failed open-array value copy owns its raw carrier.  User Finalize may
-  itself raise while the helper unwinds a failed Assign; releasing the raw
-  allocation therefore belongs in a finally.  The bundled MM shutdown census
-  makes every skipped carrier release fail closed. }
+{ Both a failed construction and a successfully transferred open-array value
+  copy own an aligned raw carrier.  User Finalize may itself raise in either
+  cleanup path; releasing the carrier therefore belongs in a finally.  The
+  bundled MM shutdown census makes every skipped release fail closed. }
 
 {$APPTYPE CONSOLE}
 
@@ -15,6 +15,7 @@ uses
   SysUtils;
 
 var
+  AssignBoom: Boolean;
   FinalizeBoom: Boolean;
 
 type
@@ -40,14 +41,16 @@ end;
 
 class operator TValue.Assign(var Dest: TValue; const [ref] Src: TValue);
 begin
-  If Src.Number = 20 then
+  If AssignBoom and (Src.Number = 20) then
     raise Exception.Create('assign boom');
   Dest.Number := Src.Number;
 end;
 
 procedure TakeValues(Values: array of TValue);
 begin
-  Halt(2);
+  If (Length(Values) <> 2) or (Values[0].Number <> 10) or
+     (Values[1].Number <> 20) then
+    Halt(2);
 end;
 
 procedure FailCopy;
@@ -63,6 +66,7 @@ var
   Round: Integer;
 begin
   for Round := 1 to 64 do begin
+    AssignBoom := True;
     FinalizeBoom := True;
     try
       FailCopy;
@@ -71,6 +75,17 @@ begin
       on E: Exception do
         If E.Message <> 'finalize boom' then
           Halt(4);
+    end;
+
+    AssignBoom := False;
+    FinalizeBoom := True;
+    try
+      FailCopy;
+      Halt(5);
+    except
+      on E: Exception do
+        If E.Message <> 'finalize boom' then
+          Halt(6);
     end;
   end;
   WriteLn('OPENARRAY_FINALIZE_THROW_OK');

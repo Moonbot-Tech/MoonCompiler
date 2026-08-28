@@ -5580,7 +5580,13 @@ implementation
                   highloc.loc:=LOC_INVALID;
                 eldef:=tarraydef(tparavarsym(p).vardef).elementdef;
                 g_ptrtypecast_ref(list,cpointerdef.getreusable(tparavarsym(p).vardef),cpointerdef.getreusable(eldef),href);
-                g_array_rtti_helper(list,eldef,href,highloc,'fpc_finalize_array');
+                if is_delphi_assign_record(eldef) then
+                  { Finalize may raise.  The combined helper owns the aligned
+                    carrier release as a finally obligation. }
+                  g_array_rtti_helper(list,eldef,href,highloc,
+                    'fpc_delphi_finalize_free_openarray')
+                else
+                  g_array_rtti_helper(list,eldef,href,highloc,'fpc_finalize_array');
               end
             else if is_delphi_assign_record(tparavarsym(p).vardef) then
               { the caller-made copy carries an ownership flag word: clear
@@ -5598,7 +5604,9 @@ implementation
         begin
           { cdecl functions don't have a high pointer so it is not possible to generate
             a local copy }
-          if not(current_procinfo.procdef.proccalloption in cdecl_pocalls) then
+          if not(current_procinfo.procdef.proccalloption in cdecl_pocalls) and
+             not(is_open_array(tparavarsym(p).vardef) and
+               is_delphi_assign_record(tarraydef(tparavarsym(p).vardef).elementdef)) then
             g_releasevaluepara_openarray(list,tarraydef(tparavarsym(p).vardef),tparavarsym(p).localloc);
         end;
     end;

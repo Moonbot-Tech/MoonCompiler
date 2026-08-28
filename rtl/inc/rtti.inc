@@ -648,6 +648,20 @@ procedure fpc_delphi_free_openarray(data : pointer); [public,alias:'FPC_DELPHI_F
     FreeMemAligned(data);
   end;
 
+
+{ A successful Delphi-Assign open-array copy transfers both its managed
+  contents and its aligned carrier to the callee.  Releasing the carrier is a
+  finally obligation: a user Finalize operator may raise after destroying its
+  value, but must not strand the raw allocation. }
+procedure fpc_delphi_finalize_free_openarray(data,typeinfo : pointer;count : SizeInt); [public,alias:'FPC_DELPHI_FINALIZE_FREE_OPENARRAY']; compilerproc;
+  begin
+    try
+      int_FinalizeArray(data,typeinfo,count);
+    finally
+      FreeMemAligned(data);
+    end;
+  end;
+
 {$ifdef FPC_HAS_FEATURE_HEAP}
 { Replace an initialized static array with a fresh Default(T) value.
 
