@@ -31,6 +31,7 @@ end;
 var
   Bytes,DestinationBytes: TBytes;
   Chars,DestinationChars: TUnicodeCharArray;
+  Ansi: AnsiString;
 begin
   try
     Bytes:=TBytes.Create(Ord('A'));
@@ -59,6 +60,15 @@ begin
       raise Exception.Create('GetChars array slice');
     If TEncoding.UTF8.GetBytes('A',2,0,DestinationBytes,1)<>0 then
       raise Exception.Create('GetBytes string destination zero at end');
+    Ansi:='A';
+    If Length(TEncoding.UTF8.GetAnsiBytes(Ansi,1,1))<>1 then
+      raise Exception.Create('GetAnsiBytes normal span');
+    If Length(TEncoding.UTF8.GetAnsiBytes(Ansi,2,0))<>0 then
+      raise Exception.Create('GetAnsiBytes zero at end');
+    If TEncoding.UTF8.GetAnsiString(Bytes,0,1)<>'A' then
+      raise Exception.Create('GetAnsiString normal span');
+    If TEncoding.UTF8.GetAnsiString(Bytes,1,0)<>'' then
+      raise Exception.Create('GetAnsiString zero at end');
 
     ExpectEncodingError('byte count beyond end',
       procedure begin TEncoding.UTF8.GetCharCount(Bytes,0,3); end);
@@ -96,6 +106,18 @@ begin
       procedure begin TEncoding.UTF8.GetBytes(Chars,1,1,DestinationBytes,0); end);
     ExpectEncodingError('GetBytes string destination too small',
       procedure begin TEncoding.UTF8.GetBytes('A',1,1,DestinationBytes,1); end);
+    ExpectEncodingError('GetAnsiBytes index zero',
+      procedure begin TEncoding.UTF8.GetAnsiBytes(Ansi,0,0); end);
+    ExpectEncodingError('GetAnsiBytes count beyond end',
+      procedure begin TEncoding.UTF8.GetAnsiBytes(Ansi,1,3); end);
+    ExpectEncodingError('GetAnsiBytes overflowing count',
+      procedure begin TEncoding.UTF8.GetAnsiBytes(Ansi,2,High(Integer)); end);
+    ExpectEncodingError('GetAnsiString negative index',
+      procedure begin TEncoding.UTF8.GetAnsiString(Bytes,-1,0); end);
+    ExpectEncodingError('GetAnsiString count beyond end',
+      procedure begin TEncoding.UTF8.GetAnsiString(Bytes,0,3); end);
+    ExpectEncodingError('GetAnsiString overflowing count',
+      procedure begin TEncoding.UTF8.GetAnsiString(Bytes,1,High(Integer)); end);
 
     WriteLn('ENCODING_SPAN_RANGES_OK');
   except

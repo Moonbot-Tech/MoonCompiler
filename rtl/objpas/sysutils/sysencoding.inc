@@ -54,6 +54,24 @@ begin
   Result := GetStandard(seAnsi, @CreateANSI);
 end;
 
+procedure CheckEncodingSourceSpan(Index, Count, SpanLength: Integer;
+  CharacterIndex: Boolean); inline;
+begin
+  if Index<0 then
+    begin
+    if CharacterIndex then
+      raise EEncodingError.CreateFmt(SCharacterIndexOutOfBounds,[Index])
+    else
+      raise EEncodingError.CreateFmt(SInvalidDestinationIndex,[Index]);
+    end;
+  if Count<0 then
+    raise EEncodingError.CreateFmt(SInvalidCount,[Count]);
+  if Index>SpanLength then
+    raise EEncodingError.CreateFmt(SInvalidCount,[Count]);
+  if Count>SpanLength-Index then
+    raise EEncodingError.CreateFmt(SInvalidCount,[Count]);
+end;
+
 function TEncoding.GetAnsiBytes(const S: ansistring): TBytes;
 begin
   if S='' then
@@ -65,7 +83,12 @@ end;
 function TEncoding.GetAnsiBytes(const S: ansistring; CharIndex, CharCount: Integer
   ): TBytes;
 begin
-  Result := GetAnsiBytes(Pointer(@S[CharIndex]), CharCount);
+  if CharIndex<1 then
+    raise EEncodingError.CreateFmt(SCharacterIndexOutOfBounds,[CharIndex]);
+  CheckEncodingSourceSpan(CharIndex-1,CharCount,Length(S),True);
+  if CharCount=0 then
+    exit(nil);
+  Result := GetAnsiBytes(Pointer(@S[CharIndex]),CharCount);
 end;
 
 function TEncoding.GetAnsiString(const Bytes: TBytes): ansistring;
@@ -79,7 +102,11 @@ end;
 function TEncoding.GetAnsiString(const Bytes: TBytes; ByteIndex,
   ByteCount: Integer): ansistring;
 begin
-  Result := GetAnsiString(Pointer(@Bytes[ByteIndex]), ByteCount);
+  CheckEncodingSourceSpan(ByteIndex,ByteCount,Length(Bytes),False);
+  if ByteCount=0 then
+    Result := ''
+  else
+    Result := GetAnsiString(Pointer(@Bytes[ByteIndex]),ByteCount);
   SetCodePage(RawByteString(Result), DefaultSystemCodePage, False);
 end;
 
@@ -264,24 +291,6 @@ begin
     AEncoding := ADefaultEncoding;
     Result := 0;
   end;
-end;
-
-procedure CheckEncodingSourceSpan(Index, Count, SpanLength: Integer;
-  CharacterIndex: Boolean); inline;
-begin
-  if Index<0 then
-    begin
-    if CharacterIndex then
-      raise EEncodingError.CreateFmt(SCharacterIndexOutOfBounds,[Index])
-    else
-      raise EEncodingError.CreateFmt(SInvalidDestinationIndex,[Index]);
-    end;
-  if Count<0 then
-    raise EEncodingError.CreateFmt(SInvalidCount,[Count]);
-  if Index>SpanLength then
-    raise EEncodingError.CreateFmt(SInvalidCount,[Count]);
-  if Count>SpanLength-Index then
-    raise EEncodingError.CreateFmt(SInvalidCount,[Count]);
 end;
 
 procedure CheckEncodingDestinationIndex(Index, SpanLength: Integer); inline;
