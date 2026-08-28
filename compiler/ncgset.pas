@@ -79,6 +79,7 @@ interface
 
           function  blocklabel(id:longint):tasmlabel;
           procedure optimizevalues(var max_linear_list:int64;var max_dist:qword);virtual;
+          function  minjumptreelabels : longint;virtual;
           function  has_jumptable : boolean;virtual;
           procedure genjumptable(hp : pcaselabel;min_,max_ : int64); virtual;
           procedure genlinearlist(hp : pcaselabel); virtual;
@@ -657,6 +658,12 @@ implementation
     procedure tcgcasenode.optimizevalues(var max_linear_list:int64;var max_dist:qword);
       begin
         { no changes by default }
+      end;
+
+
+    function tcgcasenode.minjumptreelabels : longint;
+      begin
+        result:=64;
       end;
 
 
@@ -1318,7 +1325,14 @@ implementation
                         { allow processor specific values }
                         optimizevalues(max_linear_list,max_dist);
 
-                        if (labelcnt<=max_linear_list) then
+                        { A short dense case benefits from the predictable
+                          linear chain on current x86-64 CPUs.  A short but
+                          sparse case can already be dominated by the chain
+                          depth, so let targets lower their jump-tree
+                          crossover without also enabling a jump table. }
+                        if (labelcnt<=max_linear_list) and
+                           ((labelcnt<minjumptreelabels) or
+                            (dist<max_dist)) then
                           genlinearlist(labels)
                         else
                           begin
@@ -1332,7 +1346,7 @@ implementation
 
                               Testing on a Core 2 Duo E6850 as well as on a Raspi3 showed also, that 64 is
                               a good value }
-                            else if labelcnt>=64 then
+                            else if labelcnt>=minjumptreelabels then
                               genjmptree(labels)
                             else
                               genlinearlist(labels);

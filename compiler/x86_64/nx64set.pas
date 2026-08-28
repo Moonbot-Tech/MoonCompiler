@@ -31,9 +31,10 @@ interface
       nset,nx86set;
 
     type
-      tx8664casenode = class(tx86casenode)
-         procedure optimizevalues(var max_linear_list:int64;var max_dist:qword);override;
-         procedure genjumptable(hp : pcaselabel;min_,max_ : int64);override;
+       tx8664casenode = class(tx86casenode)
+          procedure optimizevalues(var max_linear_list:int64;var max_dist:qword);override;
+          function minjumptreelabels : longint;override;
+          procedure genjumptable(hp : pcaselabel;min_,max_ : int64);override;
       end;
 
 
@@ -56,6 +57,15 @@ implementation
     procedure tx8664casenode.optimizevalues(var max_linear_list:int64;var max_dist:qword);
       begin
         inc(max_linear_list,9);
+      end;
+
+
+    function tx8664casenode.minjumptreelabels : longint;
+      begin
+        { Sparse cases become branch-depth bound before 64 labels on modern
+          x86-64.  Seven labels are the measured crossover against the
+          subtract-and-branch chain; denser cases still select a jump table. }
+        result:=7;
       end;
 
 
