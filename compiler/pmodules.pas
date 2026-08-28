@@ -413,6 +413,9 @@ implementation
           isnew : boolean;
 
         begin
+          if (Upper(s)='MORMOT.CORE.FPCX64MM') and
+             (pinnedunitfiles.Find('MORMOT.CORE.FPCX64MM')='') then
+            Message1(unit_f_product_runtime_unit_not_pinned,s);
           hp:=registerunit(curr,s,'',isnew);
           if isnew then
             usedunits.concat(tused_unit.create(hp,curr.in_interface,true,nil));
