@@ -35,10 +35,11 @@ const
 var
   R: TJSONByteReader;
   S, S2: UnicodeString;
-  Big: TBytes;
+  Big,Bad: TBytes;
   I: Integer;
   Offset: Integer;
   V: TJSONValue;
+  Raised: Boolean;
 begin
   { direct reader: first AddChar on the empty buffer, exact growth
     boundary at 16, ASCII/non-ASCII/surrogate pair, double flush }
@@ -144,6 +145,49 @@ begin
   finally
     V.Free;
   end;
+
+  { Failure never publishes a partial scanner position.  This is true for
+    both the nil-returning and raising policies. }
+  Bad := TEncoding.UTF8.GetBytes('{bad');
+  Offset := 0;
+  V := TJSONValue.ParseJSONFragment(Bad,Offset,
+    [TJSONValue.TJSONParseOption.IsUTF8]);
+  Check('fragment-invalid-nil',V = nil);
+  Check('fragment-invalid-offset',Offset = 0);
+  V.Free;
+
+  Offset := 0;
+  Raised := False;
+  try
+    V := TJSONValue.ParseJSONFragment(Bad,Offset,
+      [TJSONValue.TJSONParseOption.IsUTF8,
+       TJSONValue.TJSONParseOption.RaiseExc]);
+    V.Free;
+  except
+    on E: EJSONParseException do
+      Raised := True;
+  end;
+  Check('fragment-invalid-raised',Raised);
+  Check('fragment-invalid-raised-offset',Offset = 0);
+
+  { The Unicode facade reports the byte position in its UTF-8 carrier. }
+  S := '"' + #$0416 + '" tail';
+  Offset := 0;
+  V := TJSONValue.ParseJSONFragment(S,Offset,
+    [TJSONValue.TJSONParseOption.RaiseExc]);
+  try
+    Check('fragment-unicode-byte-offset',(V <> nil) and
+      (V.Value = #$0416) and (Offset = 4));
+  finally
+    V.Free;
+  end;
+
+  S := '{bad';
+  Offset := 0;
+  V := TJSONValue.ParseJSONFragment(S,Offset,[]);
+  Check('fragment-unicode-invalid-nil',V = nil);
+  Check('fragment-unicode-invalid-offset',Offset = 0);
+  V.Free;
 
   if Fails <> 0 then
     Halt(1);

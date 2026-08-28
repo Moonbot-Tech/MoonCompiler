@@ -1004,7 +1004,10 @@ begin
   JP:=CreateParser(aData,aOffset,aLength,aOptions);
   try
     Result:=JP.ParseSingle;
-    aOffset:=StartOffset+JP.Scanner.AbsolutePos;
+    { A failed non-raising parse is transactional: nil identifies failure and
+      the caller may retry or report from the original byte position. }
+    If Result<>Nil then
+      aOffset:=StartOffset+JP.Scanner.AbsolutePos;
   finally
     JP.Free;
   end;
@@ -2810,6 +2813,7 @@ end;
 function TJSONParser.Parse: TJSONValue;
 
 begin
+  Result:=Nil;
   SetLength(FStack,0);
   FStackPos:=0;
   FValue:=Nil;
