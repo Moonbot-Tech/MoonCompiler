@@ -11,6 +11,16 @@ var
   I64: Int64;
   U64: UInt64;
 
+function Pick(Value: Byte): Integer; overload;
+begin
+  Result := 1;
+end;
+
+function Pick(Value: Word): Integer; overload;
+begin
+  Result := 2;
+end;
+
 begin
   W := Word($1234 xor RuntimeZero);
   I := Integer($12345678 xor RuntimeZero);
@@ -31,4 +41,9 @@ begin
 
   If Hi(Integer($12345678)) <> $56 then Halt(11);
   If Lo(UInt64($FEDCBA9876543210)) <> $10 then Halt(12);
+  If SizeOf(Hi(U64)) <> 2 then Halt(13);
+  If SizeOf(Lo(I)) <> 2 then Halt(14);
+  If SizeOf(Hi(UInt64($FEDCBA9876543210))) <> 1 then Halt(15);
+  If Pick(Hi(U64)) <> 2 then Halt(16);
+  If Pick(Lo(UInt64($FEDCBA9876543210))) <> 1 then Halt(17);
 end.

@@ -3574,7 +3574,10 @@ implementation
                   if not is_integer(left.resultdef) then
                     CGMessage1(type_e_integer_expr_expected,left.resultdef.typename);
                   if m_delphi in current_settings.modeswitches then
-                    resultdef:=u8inttype
+                    { DCC gives runtime Hi/Lo expressions a Word result even
+                      though both select one byte.  Constant folding above
+                      deliberately keeps its byte-sized literal result. }
+                    resultdef:=u16inttype
                   else
                     case inlinenumber of
                       in_lo_word,
