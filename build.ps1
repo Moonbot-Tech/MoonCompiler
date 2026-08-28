@@ -85,10 +85,12 @@ function Build-Compiler {
     Get-ChildItem -Path (Join-Path $Root '*build-stamp*') -File |
       Remove-Item -Force
     Invoke-Checked $makePath @(
-      '-C', $Root, '-j1', 'all', "FPC=$bootstrapPath", 'OPT=-O2',
+      '-C', $Root, '-j1', 'all', "FPC=$bootstrapPath",
+      'OPT=-O2 -dMOONCOMPILER_PRODUCT_RUNTIME -dMOONCOMPILER_VANILLA_RUNTIME',
       'CPU_TARGET=x86_64', 'OS_TARGET=win64')
     Invoke-Checked $makePath @(
-      '-C', $Root, 'install', "FPC=$bootstrapPath", 'OPT=-O2',
+      '-C', $Root, 'install', "FPC=$bootstrapPath",
+      'OPT=-O2 -dMOONCOMPILER_PRODUCT_RUNTIME -dMOONCOMPILER_VANILLA_RUNTIME',
       'CPU_TARGET=x86_64', 'OS_TARGET=win64',
       "INSTALL_PREFIX=$newToolchain")
 
@@ -102,7 +104,7 @@ function Build-Compiler {
 
     # Compiler/IDE tools keep their host representation.  The target RTL and
     # application-facing packages use the modern Delphi Unicode ABI.
-    $unicodeOptions = 'OPT=-O2 -dUNICODERTL -dFPC_OS_UNICODE -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES'
+    $unicodeOptions = 'OPT=-O2 -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dFPC_OS_UNICODE -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES'
     Invoke-Checked $makePath @(
       '-C', (Join-Path $Root 'rtl'), 'clean', "FPC=$targetCompiler",
       'CPU_TARGET=x86_64', 'OS_TARGET=win64')
@@ -130,7 +132,12 @@ function Build-Compiler {
       '-d', "basepath=$Toolchain", '-o', $config)
     Add-Content -LiteralPath $config -Encoding Ascii -Value @(
       '# Moon Compiler project ABI: Delphi String and Char are Unicode.',
-      '-dMOONCOMPILER_UNICODE_DEFAULT')
+      '-dMOONCOMPILER_UNICODE_DEFAULT',
+      '# Product programs receive the bundled runtime prefix automatically.',
+      '-dMOONBOT_MM_PROFILE_REQUIRED',
+      '-dFPCMM_BOOSTER',
+      '-dFPCMM_MOONSHARD',
+      "--pinned-unit=$MmUnit=$MmSource")
     foreach ($tool in @('ar', 'as', 'ld', 'nm', 'objcopy', 'objdump', 'strip', 'windres')) {
       $source = Join-Path $bootstrapDir "x86_64-win64-$tool.exe"
       If (-not (Test-Path -LiteralPath $source)) {
@@ -223,8 +230,7 @@ function Build-Project([string]$Project, [string]$BuildProfile) {
     '-Manonymousfunctions', '-Minlinevars', '-Mimplicitgenerics', '-Mautoderef',
     '-Px86_64', '-Twin64', '-Rintel', '-B',
     '-dMOONBOT_MM_PROFILE_REQUIRED', '-dFPCMM_BOOSTER', '-dFPCMM_MOONSHARD',
-    "--pinned-unit=$MmUnit=$MmSource",
-    "--required-first-unit=$MmUnit")
+    "--pinned-unit=$MmUnit=$MmSource")
   $options += $namespaceOptions
   $options += @("-FU$appUnitDir", "-FE$projectDir")
 

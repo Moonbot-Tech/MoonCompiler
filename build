@@ -30,7 +30,7 @@ cleanup_compiler_build() {
 
 build_compiler() {
   local bootstrap target_compiler target_fpcmake version_dir
-  local compiler_options='-O2'
+  local compiler_options='-O2 -dMOONCOMPILER_PRODUCT_RUNTIME -dMOONCOMPILER_VANILLA_RUNTIME'
   bootstrap=${MOONBOT_BOOTSTRAP_FPC:-$(command -v fpc || true)}
   [[ -n "$bootstrap" && -x "$bootstrap" ]] || {
     echo "FPC 3.2.2 is required once; set MOONBOT_BOOTSTRAP_FPC" >&2
@@ -73,16 +73,16 @@ build_compiler() {
   # application-facing packages use the modern Delphi Unicode ABI.
   make -C "$ROOT/rtl" clean FPC="$target_compiler"
   make -C "$ROOT/rtl" -j1 all FPC="$target_compiler" \
-    OPT='-O2 -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES'
+    OPT='-O2 -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES'
   make -C "$ROOT/rtl" install FPC="$target_compiler" \
-    FPCMAKE="$target_fpcmake" OPT='-O2 -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' \
+    FPCMAKE="$target_fpcmake" OPT='-O2 -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' \
     INSTALL_PREFIX="$new_toolchain"
   make -C "$ROOT/packages" clean FPC="$target_compiler" \
     FPMAKEOPT=--NoIDE=1
   make -C "$ROOT/packages" -j1 all FPC="$target_compiler" \
-    OPT='-O2 -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' FPMAKEOPT=--NoIDE=1
+    OPT='-O2 -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' FPMAKEOPT=--NoIDE=1
   make -C "$ROOT/packages" install FPC="$target_compiler" \
-    FPCMAKE="$target_fpcmake" OPT='-O2 -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' FPMAKEOPT=--NoIDE=1 \
+    FPCMAKE="$target_fpcmake" OPT='-O2 -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' FPMAKEOPT=--NoIDE=1 \
     INSTALL_PREFIX="$new_toolchain"
 
   ln -s "../lib/fpc/$version_dir/ppcx64" "$new_toolchain/bin/ppcx64"
@@ -93,6 +93,11 @@ build_compiler() {
   printf '%s\n' \
     '# Moon Compiler project ABI: Delphi String and Char are Unicode.' \
     '-dMOONCOMPILER_UNICODE_DEFAULT' \
+    '# Product programs receive the bundled runtime prefix automatically.' \
+    '-dMOONBOT_MM_PROFILE_REQUIRED' \
+    '-dFPCMM_BOOSTER' \
+    '-dFPCMM_MOONSHARD' \
+    "--pinned-unit=mormot.core.fpcx64mm=$MM_SOURCE" \
     >> "$new_toolchain/etc/fpc.cfg"
 
   publish_toolchain "$new_toolchain" "$TOOLCHAIN" "$old_toolchain"
@@ -163,7 +168,6 @@ options=(
   -Px86_64 -Tlinux -Rintel -dPOSIX -B
   -dMOONBOT_MM_PROFILE_REQUIRED -dFPCMM_BOOSTER -dFPCMM_MOONSHARD
   "--pinned-unit=mormot.core.fpcx64mm=$MM_SOURCE"
-  --required-first-unit=mormot.core.fpcx64mm,cthreads
   "${namespace_options[@]}"
   "-FU$unit_dir/app" "-FE$project_dir"
 )

@@ -231,9 +231,15 @@ def main() -> int:
                     "-dFPCMM_BOOSTER",
                     "-dFPCMM_MOONSHARD",
                     f"--pinned-unit=mormot.core.fpcx64mm={MM}",
-                    "--required-first-unit=mormot.core.fpcx64mm,cthreads"
-                    if os.name != "nt"
-                    else "--required-first-unit=mormot.core.fpcx64mm",
+                    *(
+                        []
+                        if source.stem.startswith("runtime_prefix_")
+                        else [
+                            "--required-first-unit=mormot.core.fpcx64mm,cthreads"
+                            if os.name != "nt"
+                            else "--required-first-unit=mormot.core.fpcx64mm"
+                        ]
+                    ),
                     *NAMESPACES,
                     f"-Fu{SEMANTIC}",
                     f"-Fi{SEMANTIC}",

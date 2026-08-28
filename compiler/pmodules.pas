@@ -376,9 +376,49 @@ implementation
       end;
 
 
+    function productruntimeprefixenabled : boolean;
+      begin
+        {$ifdef MOONCOMPILER_PRODUCT_RUNTIME}
+        result:=not defined_macro('MOONCOMPILER_VANILLA_RUNTIME') and
+        {$else MOONCOMPILER_PRODUCT_RUNTIME}
+        result:=defined_macro('MOONCOMPILER_RUNTIME_PREFIX') and
+        {$endif MOONCOMPILER_PRODUCT_RUNTIME}
+          (target_info.system in [system_x86_64_linux,system_x86_64_win64]);
+      end;
+
+    function isproductruntimeunit(const s : string) : boolean;
+      begin
+        if (s='CMEM') or (s='HEAPTRC') then
+          exit(true);
+        case target_info.system of
+          system_x86_64_linux:
+            result:=(s='MORMOT.CORE.FPCX64MM') or (s='CTHREADS') or
+              (s='CWSTRING') or (s='FPMONITOR');
+          system_x86_64_win64:
+            result:=(s='MORMOT.CORE.FPCX64MM') or (s='FPWINMONITOR');
+          else
+            result:=false;
+        end;
+      end;
+
     { load default units, like language mode units
       Return true if all units were loaded, no recompilation needed. }
     function loaddefaultunits(curr :tmodule) : boolean;
+
+      Procedure QueueProductUnit(s: string);
+
+        var
+          hp : tppumodule;
+          unitsym : tunitsym;
+          isnew : boolean;
+
+        begin
+          hp:=registerunit(curr,s,'',isnew);
+          if isnew then
+            usedunits.concat(tused_unit.create(hp,curr.in_interface,true,nil));
+          unitsym:=cunitsym.create(s,nil);
+          curr.addusedunit(hp,true,unitsym);
+        end;
 
       Procedure CheckAddUnit(s: string);
 
@@ -399,13 +439,41 @@ implementation
         { Units only required for main module }
         if not(curr.is_unit) then
          begin
-           { Heaptrc unit, load heaptrace before any other units especially objpas }
-           if (cs_use_heaptrc in current_settings.globalswitches) then
-             CheckAddUnit('heaptrc');
-           { Valgrind requires c memory manager }
-           if (cs_gdb_valgrind in current_settings.globalswitches) or
-              (([cs_sanitize_address]*current_settings.moduleswitches)<>[]) then
-             CheckAddUnit('cmem');
+           if productruntimeprefixenabled then
+             begin
+               { Valgrind and ASan require the C memory manager.  Otherwise
+                 every Moon Compiler program starts with the bundled MM. }
+               if (cs_gdb_valgrind in current_settings.globalswitches) or
+                  (([cs_sanitize_address]*current_settings.moduleswitches)<>[]) then
+                 QueueProductUnit('cmem')
+               else
+                 QueueProductUnit('mormot.core.fpcx64mm');
+               { Heaptrc wraps whichever manager was installed above. }
+               if (cs_use_heaptrc in current_settings.globalswitches) then
+                 QueueProductUnit('heaptrc');
+               case target_info.system of
+                 system_x86_64_linux:
+                   begin
+                     QueueProductUnit('cthreads');
+                     QueueProductUnit('cwstring');
+                     QueueProductUnit('fpmonitor');
+                   end;
+                 system_x86_64_win64:
+                   QueueProductUnit('fpwinmonitor');
+                 else
+                   ;
+               end;
+             end
+           else
+             begin
+               { Heaptrc unit, load heaptrace before any other units especially objpas }
+               if (cs_use_heaptrc in current_settings.globalswitches) then
+                 CheckAddUnit('heaptrc');
+               { Valgrind requires c memory manager }
+               if (cs_gdb_valgrind in current_settings.globalswitches) or
+                  (([cs_sanitize_address]*current_settings.moduleswitches)<>[]) then
+                 CheckAddUnit('cmem');
+             end;
            { Lineinfo unit }
            if (cs_use_lineinfo in current_settings.globalswitches) then begin
              case target_dbg.id of
@@ -622,7 +690,8 @@ implementation
          hp2     : tmodule;
          unitsym : tunitsym;
          filepos : tfileposinfo;
-         isnew : boolean;
+         isnew,
+         implicitproductunit : boolean;
 
 
       begin
@@ -673,21 +742,29 @@ implementation
                  end;
                 pu:=tused_unit(pu.next);
               end;
+             implicitproductunit:=assigned(hp2) and (fn='') and
+               assigned(pu) and
+               productruntimeprefixenabled and
+               isproductruntimeunit(Upper(lookupname)) and
+               (Upper(sorg)=hp2.modulename^);
              if not assigned(hp2) then
                begin
                hp2:=registerunit(curr,lookupname,fn,isnew);
                if isnew then
                  usedunits.concat(tused_unit.create(hp2,curr.in_interface,true,nil));
                end
-             else
+             else if not implicitproductunit then
                Message1(sym_e_duplicate_id,s);
-             { Create unitsym, we need to use the name as specified, we
-               can not use the modulename because that can be different
-               when -Un is used }
-             current_tokenpos:=filepos;
-             unitsym:=cunitsym.create(sorg,nil);
-             { the current module uses the unit hp2 }
-             curr.addusedunit(hp2,true,unitsym);
+             if not implicitproductunit then
+               begin
+                 { Create unitsym, we need to use the name as specified, we
+                   can not use the modulename because that can be different
+                   when -Un is used }
+                 current_tokenpos:=filepos;
+                 unitsym:=cunitsym.create(sorg,nil);
+                 { the current module uses the unit hp2 }
+                 curr.addusedunit(hp2,true,unitsym);
+               end;
            end
           else
            Message1(sym_e_duplicate_id,s);
@@ -3284,10 +3361,12 @@ type
              load_ok:=loadunits(curr,false) and load_ok;
              curr.consume_semicolon_after_uses:=true;
            end
-         else begin
-           curr.consume_semicolon_after_uses:=false;
-           checkrequiredfirstunit(curr);
-           if tmodule.ctask_fast_backtrack then
+          else begin
+            curr.consume_semicolon_after_uses:=false;
+            checkrequiredfirstunit(curr);
+            if productruntimeprefixenabled then
+              load_ok:=loadunits(curr,false) and load_ok;
+            if tmodule.ctask_fast_backtrack then
              load_ok:=false; { some used units are not fully compiled }
          end;
 

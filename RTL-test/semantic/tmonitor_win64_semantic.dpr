@@ -10,11 +10,10 @@ program tmonitor_win64_semantic;
   callback - EAccessViolation at address 0 on a plain main thread.  Two
   layers repair it: the Win64 thread init installs the inert System
   manager (a clean runtime error 235 instead of the AV when no support
-  unit is present), and the portable-dpr contract gains fpwinmonitor
-  right after the memory manager - like cthreads on Linux - whose SRW/
-  condition-variable manager provides the full Delphi TMonitor contract.
-  An -Fa auto-include was measured and rejected: it initializes SysUtils
-  before the pinned MM and corrupts the heap at shutdown. }
+  unit is present), and the product compiler inserts fpwinmonitor right
+  after the memory manager.  Its SRW/condition-variable manager provides
+  the full Delphi TMonitor contract.  This old explicit prefix stays here
+  as a source-compatibility oracle: repeating an injected unit is a no-op. }
 
 {$mode delphiunicode}{$H+}
 
