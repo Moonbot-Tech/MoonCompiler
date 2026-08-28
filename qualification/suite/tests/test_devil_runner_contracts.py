@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 
@@ -183,6 +184,50 @@ class DevilRunnerContractsTest(unittest.TestCase):
         self.assertTrue(any("missing answer lines" in item for item in findings))
         self.assertTrue(any("stage answers mismatch" in item for item in findings))
         self.assertTrue(any("carrier answers incomplete" in item for item in findings))
+
+    def test_resident_release_shape_cannot_be_silently_weakened(self) -> None:
+        layer = {
+            "profiles": ["debug", "o1", "o2", "release"],
+            "shapes": {
+                "default": {"carriers": 8, "laps": 40},
+                "handoff": {"carriers": 4, "laps": 8},
+            },
+        }
+        full = SimpleNamespace(
+            carriers=None, laps=None, profiles=None, handoff=False,
+            diagnostic_subset=False,
+        )
+        self.assertEqual(
+            run_devil_resident_gate.resolve_run_contract(full, layer),
+            (8, 40, ["debug", "o1", "o2", "release"], True),
+        )
+
+        silent_subset = SimpleNamespace(
+            carriers=1, laps=1, profiles="release", handoff=False,
+            diagnostic_subset=False,
+        )
+        with self.assertRaisesRegex(
+            run_devil_resident_gate.ContractError, "diagnostic overrides"
+        ):
+            run_devil_resident_gate.resolve_run_contract(silent_subset, layer)
+
+        explicit_subset = SimpleNamespace(
+            carriers=1, laps=1, profiles="release", handoff=False,
+            diagnostic_subset=True,
+        )
+        self.assertEqual(
+            run_devil_resident_gate.resolve_run_contract(explicit_subset, layer),
+            (1, 1, ["release"], False),
+        )
+
+        handoff = SimpleNamespace(
+            carriers=None, laps=None, profiles=None, handoff=True,
+            diagnostic_subset=False,
+        )
+        self.assertEqual(
+            run_devil_resident_gate.resolve_run_contract(handoff, layer),
+            (4, 8, ["debug", "o1", "o2", "release"], False),
+        )
 
 
 if __name__ == "__main__":

@@ -217,35 +217,63 @@ def validate_run(
         )
 
 
+def resolve_run_contract(
+    args: argparse.Namespace, layer: dict[str, object]
+) -> tuple[int, int, list[str], bool]:
+    """Resolve release qualification separately from local diagnostics."""
+    profiles_arg = args.profiles
+    custom_shape = args.carriers is not None or args.laps is not None
+    custom_profiles = profiles_arg is not None
+    if args.handoff and custom_shape:
+        raise ContractError("--handoff cannot be combined with --carriers/--laps")
+    if (custom_shape or custom_profiles) and not args.diagnostic_subset:
+        raise ContractError(
+            "--profiles/--carriers/--laps are diagnostic overrides; "
+            "pass --diagnostic-subset explicitly"
+        )
+
+    shape_name = "handoff" if args.handoff else "default"
+    shape = layer["shapes"][shape_name]
+    carriers = args.carriers if args.carriers is not None else shape["carriers"]
+    laps = args.laps if args.laps is not None else shape["laps"]
+    if carriers <= 0 or laps <= 0:
+        raise ContractError("resident carriers/laps must be positive")
+
+    if profiles_arg is None:
+        profiles = list(layer["profiles"])
+    else:
+        profiles = [p.strip() for p in profiles_arg.split(",") if p.strip()]
+    if not profiles or len(profiles) != len(set(profiles)):
+        raise ContractError("profiles must be a non-empty unique list")
+    unknown_profiles = set(profiles) - set(layer["profiles"])
+    if unknown_profiles:
+        raise ContractError(f"unknown resident profiles: {sorted(unknown_profiles)}")
+
+    qualification = not (
+        args.handoff or args.diagnostic_subset or custom_shape or custom_profiles
+    )
+    return carriers, laps, profiles, qualification
+
+
 def main() -> int:
     manifest = load_json(MANIFEST_PATH)
     locks = load_json(LOCKS_PATH)
     layer, inventory_digest = validate_resident_layer(manifest, locks)
-    default_shape = layer["shapes"]["default"]
-    handoff_shape = layer["shapes"]["handoff"]
     program = (SUITE / layer["source"]).resolve()
     work = program.parent
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("--carriers", type=int, default=default_shape["carriers"])
-    ap.add_argument("--laps", type=int, default=default_shape["laps"])
+    ap.add_argument("--carriers", type=int)
+    ap.add_argument("--laps", type=int)
     ap.add_argument("--handoff", action="store_true")
+    ap.add_argument("--diagnostic-subset", action="store_true")
     ap.add_argument("--timeout", type=int, default=900)
-    ap.add_argument("--profiles", default=",".join(layer["profiles"]))
+    ap.add_argument("--profiles")
     ap.add_argument("--work", type=Path,
                     default=SUITE / "results" / "devil-resident")
     ap.add_argument("--report", type=Path)
     args = ap.parse_args()
-    if args.handoff:
-        args.carriers = handoff_shape["carriers"]
-        args.laps = handoff_shape["laps"]
-
-    profiles = [p.strip() for p in args.profiles.split(",") if p.strip()]
-    if not profiles or len(profiles) != len(set(profiles)):
-        ap.error("profiles must be a non-empty unique list")
-    unknown_profiles = set(profiles) - set(layer["profiles"])
-    if unknown_profiles:
-        ap.error(f"unknown resident profiles: {sorted(unknown_profiles)}")
+    carriers, laps, profiles, qualification = resolve_run_contract(args, layer)
     findings: list[str] = []
     results: dict[str, Run] = {}
     stage_names: list[str] | None = None
@@ -264,9 +292,9 @@ def main() -> int:
             raise ContractError(f"resident stage order differs in profile {profile}")
         stage_names = names
         stage_digest = digest
-        got = run(exe, args.carriers, args.laps, 2, args.timeout, work)
+        got = run(exe, carriers, laps, 2, args.timeout, work)
         results[profile] = got
-        validate_run(profile, got, names, args.carriers, findings)
+        validate_run(profile, got, names, carriers, findings)
         print("profile %-8s rc=%d stages=%s root=%s"
               % (profile, got.code, got.answers.get("RESIDENT_STAGES", "?"),
                  got.answers.get("RESIDENT_ROOT", "?")))
@@ -282,9 +310,9 @@ def main() -> int:
     # --- schedule: the answer must not depend on how many threads ran --------
     exe = (root / profiles[-1]) / "resident.exe"
     for workers in (1, 4):
-        got = run(exe, args.carriers, args.laps, workers, args.timeout, work)
+        got = run(exe, carriers, laps, workers, args.timeout, work)
         validate_run(
-            f"workers={workers}", got, stage_names, args.carriers, findings
+            f"workers={workers}", got, stage_names, carriers, findings
         )
         diff = got.differences(results[profiles[-1]])
         if diff:
@@ -294,8 +322,8 @@ def main() -> int:
                                               got.answers.get("RESIDENT_ROOT", "?")))
 
     # --- determinism: same binary, twice ------------------------------------
-    again = run(exe, args.carriers, args.laps, 2, args.timeout, work)
-    validate_run("rerun", again, stage_names, args.carriers, findings)
+    again = run(exe, carriers, laps, 2, args.timeout, work)
+    validate_run("rerun", again, stage_names, carriers, findings)
     diff = again.differences(results[profiles[-1]])
     if diff:
         findings.append("same binary drifts between runs:\n    %s"
@@ -310,8 +338,8 @@ def main() -> int:
     )
     if rebuilt_names != stage_names or rebuilt_digest != stage_digest:
         raise ContractError("resident rebuild changed its stage inventory")
-    got = run(rebuilt, args.carriers, args.laps, 2, args.timeout, work)
-    validate_run("rebuild", got, rebuilt_names, args.carriers, findings)
+    got = run(rebuilt, carriers, laps, 2, args.timeout, work)
+    validate_run("rebuild", got, rebuilt_names, carriers, findings)
     diff = got.differences(results[profiles[-1]])
     if diff:
         findings.append("rebuild changes behaviour:\n    %s"
@@ -320,11 +348,13 @@ def main() -> int:
                                        got.answers.get("RESIDENT_ROOT", "?")))
 
     # --- ladder: the program must stay green as it ages ---------------------
-    for laps in layer["ladder"]:
-        got = run(exe, args.carriers, laps, 3, args.timeout, work)
-        validate_run(f"laps={laps}", got, stage_names, args.carriers, findings)
+    for ladder_laps in layer["ladder"]:
+        got = run(exe, carriers, ladder_laps, 3, args.timeout, work)
+        validate_run(
+            f"laps={ladder_laps}", got, stage_names, carriers, findings
+        )
         print("ladder laps=%-5d rc=%d root=%s handled=%s"
-              % (laps, got.code, got.answers.get("RESIDENT_ROOT", "?"),
+              % (ladder_laps, got.code, got.answers.get("RESIDENT_ROOT", "?"),
                  got.answers.get("RESIDENT_HANDLED", "?")))
 
     if args.report:
@@ -340,8 +370,10 @@ def main() -> int:
                 for name, got in results.items()
             },
             "settings": {
-                "carriers": args.carriers,
-                "laps": args.laps,
+                "mode": "qualification" if qualification else "diagnostic",
+                "qualification": qualification,
+                "carriers": carriers,
+                "laps": laps,
                 "ladder": layer["ladder"],
             },
             "contracts": {
@@ -354,13 +386,15 @@ def main() -> int:
 
     print()
     if findings:
-        print("RESIDENT_GATE FINDINGS %d" % len(findings))
+        prefix = "RESIDENT_GATE" if qualification else "RESIDENT_DIAGNOSTIC"
+        print("%s FINDINGS %d" % (prefix, len(findings)))
         for item in findings:
             print("  - %s" % item)
         return 1
-    print("RESIDENT_GATE OK profiles=%d stages=%s carriers=%d laps=%d"
-          % (len(profiles), base.answers.get("RESIDENT_STAGES", "?"),
-             args.carriers, args.laps))
+    prefix = "RESIDENT_GATE" if qualification else "RESIDENT_DIAGNOSTIC"
+    print("%s OK profiles=%d stages=%s carriers=%d laps=%d"
+          % (prefix, len(profiles), base.answers.get("RESIDENT_STAGES", "?"),
+             carriers, laps))
     return 0
 
 
