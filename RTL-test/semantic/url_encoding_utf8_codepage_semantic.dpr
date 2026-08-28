@@ -74,6 +74,20 @@ begin
     AContext+' existing escape preservation');
   Check(TNetEncoding.URL.EncodeQuery('a+b#c',[])='a+b%23c',
     AContext+' query unsafe set');
+  Check(TNetEncoding.URL.EncodePath(WideChar($0416)+'/'+WideChar($20ac),[])=
+    '/%D0%96/%E2%82%AC',AContext+' Unicode path bytes');
+  Check(TNetEncoding.URL.EncodePath('a//b/',[])='/a/b',
+    AContext+' path normalization');
+  Check(TNetEncoding.URL.EncodePath('',[])='/',AContext+' empty path');
+  Check(TNetEncoding.URL.EncodePath('///',[])='',AContext+' separators-only path');
+  Check(TNetEncoding.URL.EncodePath('a b?c',[])='/a+b%3Fc',
+    AContext+' path unsafe and space policy');
+  Check(TNetEncoding.URL.EncodePath('a'+#0+'b',[])='/a%00b',
+    AContext+' path embedded NUL');
+  Check(TNetEncoding.URL.EncodePath('a@b',[Ord('@')])='/a%40b',
+    AContext+' path custom unsafe set');
+  Check(TNetEncoding.URL.EncodePath('%2F',[])='/%2F',
+    AContext+' path existing escape preservation');
 end;
 
 var

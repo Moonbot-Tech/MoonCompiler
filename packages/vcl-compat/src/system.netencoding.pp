@@ -878,20 +878,36 @@ end;
 
 function TURLEncoding.EncodePath(const aPath: string; const aExtraUnsafeChars: TUnsafeChars): string;
 
+const
+  { Preserve the pre-repair FPC path policy: each non-empty segment used
+    HTTPEncode's Delphi-compatible allow-list and spaces-as-plus mode. }
+  PathUnsafeChars: TUnsafeChars =
+    [Ord('"'),Ord('#'),Ord('&'),Ord('+'),Ord(','),Ord('/'),Ord(':'),Ord(';'),
+     Ord('<'),Ord('='),Ord('>'),Ord('?'),Ord('['),Ord('\'),Ord(']'),Ord('^'),
+     Ord('`'),Ord('{'),Ord('|'),Ord('}'),Ord('~')];
 
 var
-  lPaths: TStringDynArray;
-  I,Last: Integer;
-  LUnsafeChars: TUnsafeChars;
+  I,SegmentStart: Integer;
+  Unsafe: TUnsafeChars;
 
 begin
   if APath = '' then
     Exit('/');
   Result:='';
-  lPaths:=APath.Split(['/'], TStringSplitOptions.ExcludeEmpty);
-  Last:=Length(lPaths)-1;
-  for I:=0 to Last do
-    Result:=Result+'/'+HTTPEncode(LPaths[I],aExtraUnsafeChars,True);
+  Unsafe:=PathUnsafeChars+aExtraUnsafeChars;
+  I:=1;
+  while I<=Length(APath) do
+    begin
+    while (I<=Length(APath)) and (APath[I]='/') do
+      Inc(I);
+    if I>Length(APath) then
+      break;
+    SegmentStart:=I;
+    while (I<=Length(APath)) and (APath[I]<>'/') do
+      Inc(I);
+    Result:=Result+'/'+Encode(Copy(APath,SegmentStart,I-SegmentStart),
+      Unsafe,[TEncodeOption.SpacesAsPlus]);
+    end;
 end;
 
 class function TURLEncoding.URIDecode(const aValue: string; aPlusAsSpaces: Boolean): string;
