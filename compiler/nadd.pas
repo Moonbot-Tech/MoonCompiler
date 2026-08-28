@@ -3207,6 +3207,13 @@ const
                               if not assigned(resultdef) then
                                 resultdef:=rd;
                             end;
+                          { Delphi gives a logical expression over ByteBool,
+                            WordBool or LongBool the ordinary one-byte Boolean
+                            type.  Converting that Boolean when it is assigned
+                            back to a C-style boolean is a separate operation
+                            and produces that destination's ABI true value. }
+                          if m_delphi in current_settings.modeswitches then
+                            resultdef:=pasbool1type;
                           result:=ctypeconvnode.create_explicit(caddnode.create(nodetype,left,right),resultdef);
                           ttypeconvnode(result).convtype:=tc_bool_2_bool;
                           left:=nil;

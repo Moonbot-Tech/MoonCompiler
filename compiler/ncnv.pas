@@ -4240,8 +4240,15 @@ implementation
                       left:=nil;
                       exit;
                     end;
-                  if (convtype=tc_int_2_int) and (left.nodetype=typeconvn) and (ttypeconvnode(left).convtype=tc_bool_2_int) then
+                  if (convtype=tc_int_2_int) and (left.nodetype=typeconvn) and
+                     (ttypeconvnode(left).convtype=tc_bool_2_int) and
+                     not(nf_explicit in ttypeconvnode(left).flags) then
                     begin
+                      { An explicit Byte(ByteBool), Word(WordBool) or
+                        Cardinal(LongBool) reads that exact storage width.
+                        Widening it afterwards must not be folded into one
+                        direct boolean conversion: that would turn $ff/$ffff
+                        into an all-bits-set value of the wider destination. }
                       ttypeconvnode(left).totypedef:=resultdef;
                       ttypeconvnode(left).resultdef:=resultdef;
                       result:=left;
