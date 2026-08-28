@@ -139,10 +139,12 @@ const
   SNoToolserver                 = 'Toolserver is not installed, cannot execute Tool';
 
   SNotValidCodePageName         = '%s is not a valid code page name';
-  SInvalidCount                 = 'invalid count [%d]';
-  SCharacterIndexOutOfBounds    = 'character index out of bounds [%d]';
-  SInvalidDestinationArray      = 'invalid destination array';
-  SInvalidDestinationIndex      = 'invalid destination index [%d]';
+  SInvalidSourceArray           = 'Invalid source array';
+  SInvalidDestinationArray      = 'Invalid destination array';
+  SCharacterIndexOutOfBounds    = 'Character index out of bounds (%d)';
+  SByteIndexOutOfBounds         = 'Start index out of bounds (%d)';
+  SInvalidCount                 = 'Invalid count (%d)';
+  SInvalidDestinationIndex      = 'Invalid destination index (%d)';
 
   SNoArrayMatch                 = 'Can''t match any allowed value at pattern position %d, string position %d.';
   SNoCharMatch                  = 'Mismatch char "%s" <> "%s" at pattern position %d, string position %d.';

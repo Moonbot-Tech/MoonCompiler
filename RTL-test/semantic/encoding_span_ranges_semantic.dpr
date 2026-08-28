@@ -17,13 +17,18 @@ uses
 type
   TAction = reference to procedure;
 
-procedure ExpectEncodingError(const Name: string; const Action: TAction);
+procedure ExpectEncodingError(const Name,ExpectedMessage: string;
+  const Action: TAction);
 begin
   try
     Action();
   except
-    on E: EEncodingError do
+    on E: EEncodingError do begin
+      If E.Message<>ExpectedMessage then
+        raise Exception.Create(Name+' raised "'+E.Message+'", expected "'+
+          ExpectedMessage+'"');
       exit;
+    end;
   end;
   raise Exception.Create(Name+' did not raise EEncodingError');
 end;
@@ -70,54 +75,85 @@ begin
     If TEncoding.UTF8.GetAnsiString(Bytes,1,0)<>'' then
       raise Exception.Create('GetAnsiString zero at end');
 
-    ExpectEncodingError('byte count beyond end',
+    ExpectEncodingError('byte count beyond end','Invalid count (3)',
       procedure begin TEncoding.UTF8.GetCharCount(Bytes,0,3); end);
-    ExpectEncodingError('byte negative index',
+    ExpectEncodingError('byte negative index','Start index out of bounds (-1)',
       procedure begin TEncoding.UTF8.GetCharCount(Bytes,-1,1); end);
-    ExpectEncodingError('byte index beyond end',
+    ExpectEncodingError('byte index beyond end','Invalid count (0)',
       procedure begin TEncoding.UTF8.GetCharCount(Bytes,2,0); end);
-    ExpectEncodingError('byte negative count',
+    ExpectEncodingError('byte negative count','Invalid count (-1)',
       procedure begin TEncoding.UTF8.GetCharCount(Bytes,0,-1); end);
-    ExpectEncodingError('byte low count',
+    ExpectEncodingError('byte low count','Invalid count (-2147483648)',
       procedure begin TEncoding.UTF8.GetCharCount(Bytes,0,Low(Integer)); end);
-    ExpectEncodingError('byte overflowing count',
+    ExpectEncodingError('byte overflowing count','Invalid count (2147483647)',
       procedure begin TEncoding.UTF8.GetCharCount(Bytes,1,High(Integer)); end);
-    ExpectEncodingError('char count beyond end',
+    ExpectEncodingError('byte invalid argument precedence',
+      'Start index out of bounds (-1)',
+      procedure begin TEncoding.UTF8.GetCharCount(Bytes,-1,-1); end);
+    ExpectEncodingError('char count beyond end','Invalid count (3)',
       procedure begin TEncoding.UTF8.GetByteCount(Chars,0,3); end);
     ExpectEncodingError('char negative index',
+      'Character index out of bounds (-1)',
       procedure begin TEncoding.UTF8.GetByteCount(Chars,-1,1); end);
-    ExpectEncodingError('char index beyond end',
+    ExpectEncodingError('char index beyond end','Invalid count (0)',
       procedure begin TEncoding.UTF8.GetByteCount(Chars,2,0); end);
+    ExpectEncodingError('char invalid argument precedence',
+      'Character index out of bounds (-1)',
+      procedure begin TEncoding.UTF8.GetByteCount(Chars,-1,-1); end);
     ExpectEncodingError('string invalid index zero',
+      'Character index out of bounds (0)',
       procedure begin TEncoding.UTF8.GetByteCount('A',0,0); end);
-    ExpectEncodingError('string count beyond end',
+    ExpectEncodingError('string count beyond end','Invalid count (2147483647)',
       procedure begin TEncoding.UTF8.GetByteCount('A',1,High(Integer)); end);
     ExpectEncodingError('GetChars destination too small',
+      'Invalid destination array',
       procedure begin TEncoding.UTF8.GetChars(Bytes,0,1,DestinationChars,1); end);
     ExpectEncodingError('GetChars destination negative',
+      'Invalid destination index (-1)',
       procedure begin TEncoding.UTF8.GetChars(Bytes,0,1,DestinationChars,-1); end);
-    ExpectEncodingError('GetChars source count beyond end',
+    ExpectEncodingError('GetChars source count beyond end','Invalid count (1)',
       procedure begin TEncoding.UTF8.GetChars(Bytes,1,1,DestinationChars,0); end);
     ExpectEncodingError('GetBytes destination too small',
+      'Invalid destination array',
       procedure begin TEncoding.UTF8.GetBytes(Chars,0,1,DestinationBytes,1); end);
     ExpectEncodingError('GetBytes destination beyond end',
+      'Invalid destination index (2)',
       procedure begin TEncoding.UTF8.GetBytes(Chars,0,1,DestinationBytes,2); end);
-    ExpectEncodingError('GetBytes source count beyond end',
+    ExpectEncodingError('GetBytes source count beyond end','Invalid count (1)',
       procedure begin TEncoding.UTF8.GetBytes(Chars,1,1,DestinationBytes,0); end);
     ExpectEncodingError('GetBytes string destination too small',
+      'Invalid destination array',
       procedure begin TEncoding.UTF8.GetBytes('A',1,1,DestinationBytes,1); end);
     ExpectEncodingError('GetAnsiBytes index zero',
+      'Character index out of bounds (0)',
       procedure begin TEncoding.UTF8.GetAnsiBytes(Ansi,0,0); end);
-    ExpectEncodingError('GetAnsiBytes count beyond end',
+    ExpectEncodingError('GetAnsiBytes count beyond end','Invalid count (3)',
       procedure begin TEncoding.UTF8.GetAnsiBytes(Ansi,1,3); end);
     ExpectEncodingError('GetAnsiBytes overflowing count',
+      'Invalid count (2147483647)',
       procedure begin TEncoding.UTF8.GetAnsiBytes(Ansi,2,High(Integer)); end);
     ExpectEncodingError('GetAnsiString negative index',
+      'Start index out of bounds (-1)',
       procedure begin TEncoding.UTF8.GetAnsiString(Bytes,-1,0); end);
-    ExpectEncodingError('GetAnsiString count beyond end',
+    ExpectEncodingError('GetAnsiString count beyond end','Invalid count (3)',
       procedure begin TEncoding.UTF8.GetAnsiString(Bytes,0,3); end);
     ExpectEncodingError('GetAnsiString overflowing count',
+      'Invalid count (2147483647)',
       procedure begin TEncoding.UTF8.GetAnsiString(Bytes,1,High(Integer)); end);
+
+    Bytes:=nil;
+    ExpectEncodingError('nil byte source wins','Invalid source array',
+      procedure begin TEncoding.UTF8.GetCharCount(Bytes,-1,1); end);
+    Bytes:=TBytes.Create(Ord('A'));
+    DestinationBytes:=nil;
+    ExpectEncodingError('nil char destination wins',
+      'Invalid destination array',
+      procedure begin TEncoding.UTF8.GetBytes(Chars,-1,1,
+        DestinationBytes,-1); end);
+    ExpectEncodingError('nil string destination wording',
+      'Invalid source array',
+      procedure begin TEncoding.UTF8.GetBytes('A',1,1,
+        DestinationBytes,0); end);
 
     WriteLn('ENCODING_SPAN_RANGES_OK');
   except

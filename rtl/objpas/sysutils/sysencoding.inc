@@ -62,7 +62,7 @@ begin
     if CharacterIndex then
       raise EEncodingError.CreateFmt(SCharacterIndexOutOfBounds,[Index])
     else
-      raise EEncodingError.CreateFmt(SInvalidDestinationIndex,[Index]);
+      raise EEncodingError.CreateFmt(SByteIndexOutOfBounds,[Index]);
     end;
   if Count<0 then
     raise EEncodingError.CreateFmt(SInvalidCount,[Count]);
@@ -102,6 +102,8 @@ end;
 function TEncoding.GetAnsiString(const Bytes: TBytes; ByteIndex,
   ByteCount: Integer): ansistring;
 begin
+  if (Bytes=nil) and (ByteCount<>0) then
+    raise EEncodingError.Create(SInvalidSourceArray);
   CheckEncodingSourceSpan(ByteIndex,ByteCount,Length(Bytes),False);
   if ByteCount=0 then
     Result := ''
@@ -355,6 +357,10 @@ var
   ByteLen,Required: Integer;
 begin
   ByteLen := Length(Bytes);
+  if (Chars=nil) and (CharCount<>0) then
+    raise EEncodingError.Create(SInvalidSourceArray);
+  if (Bytes=nil) and (CharCount<>0) then
+    raise EEncodingError.Create(SInvalidDestinationArray);
   CheckEncodingSourceSpan(CharIndex,CharCount,Length(Chars),True);
   CheckEncodingDestinationIndex(ByteIndex,ByteLen);
   if CharCount=0 then
@@ -379,6 +385,10 @@ var
   ByteLen,Required: Integer;
 begin
   ByteLen := Length(Bytes);
+  { Keep Delphi's published diagnostic contract, including its historical
+    source-array wording for a nil destination in the string overload. }
+  if (Bytes=nil) and (CharCount<>0) then
+    raise EEncodingError.Create(SInvalidSourceArray);
   if CharIndex<1 then
     raise EEncodingError.CreateFmt(SCharacterIndexOutOfBounds, [CharIndex]);
   CheckEncodingSourceSpan(CharIndex-1,CharCount,Length(S),True);
@@ -403,6 +413,8 @@ end;
 function TEncoding.GetCharCount(const Bytes: TBytes; ByteIndex,
   ByteCount: Integer): Integer;
 begin
+  if (Bytes=nil) and (ByteCount<>0) then
+    raise EEncodingError.Create(SInvalidSourceArray);
   CheckEncodingSourceSpan(ByteIndex,ByteCount,Length(Bytes),False);
   if ByteCount=0 then
     exit(0);
@@ -418,6 +430,8 @@ end;
 
 function TEncoding.GetChars(const Bytes: TBytes; ByteIndex, ByteCount: Integer): TUnicodeCharArray;
 begin
+  if (Bytes=nil) and (ByteCount<>0) then
+    raise EEncodingError.Create(SInvalidSourceArray);
   CheckEncodingSourceSpan(ByteIndex,ByteCount,Length(Bytes),False);
   if ByteCount=0 then
     begin
@@ -434,6 +448,8 @@ function TEncoding.GetChars(const Bytes: TBytes; ByteIndex, ByteCount: Integer;
 var
   CharLen,Required: Integer;
 begin
+  if (Bytes=nil) and (ByteCount<>0) then
+    raise EEncodingError.Create(SInvalidSourceArray);
   CheckEncodingSourceSpan(ByteIndex,ByteCount,Length(Bytes),False);
   CharLen := Length(Chars);
   CheckEncodingDestinationIndex(CharIndex,CharLen);
