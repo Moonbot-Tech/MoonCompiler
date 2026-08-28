@@ -22,6 +22,7 @@ enough to reconstruct the exact form.
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import os
 import random
@@ -6570,6 +6571,530 @@ def layer_init(e: Emitter, rng: random.Random, count: int,
 #
 # Nothing here is arithmetic: the numbers are trivial on purpose, and what is
 # being checked is whether the write happened, in the order it was written.
+OPT_EFFECT_ROUTES = (
+    "global-call",
+    "var-call",
+    "pointer-call",
+    "record-pointer",
+    "array-pointer",
+    "object-method",
+    "virtual-method",
+    "interface-call",
+    "nested-call",
+    "anonymous-call",
+    "procvar-global",
+    "cross-unit",
+)
+
+OPT_EFFECT_CONSUMERS = (
+    "counter-mul",
+    "affine-cse",
+    "array-index",
+    "branch",
+    "division",
+    "shift",
+    "mixed",
+)
+
+OPT_EFFECT_TIMINGS = (
+    "before-each",
+    "between-each",
+    "after-each",
+    "after-first",
+    "after-even",
+    "finally-between",
+)
+
+OPT_EFFECT_LOOPS = ("for", "while", "repeat", "nested")
+OPT_EFFECT_TYPES = tuple(TYPE_BY_SLUG[slug]
+                         for slug in ("i32", "u32", "i64", "u64"))
+
+
+def write_opt_effect_unit(out: Path) -> None:
+    """Opaque cross-PPU mutations used by the optimizer effects matrix."""
+    lines = [
+        "unit devil_opt_effect_unit;",
+        "",
+        "{$ifdef FPC}",
+        "  {$mode delphiunicode}{$H+}",
+        "{$endif}",
+        "{$Q-}{$R-}",
+        "",
+        "interface",
+        "",
+    ]
+    for t in OPT_EFFECT_TYPES:
+        lines.append(f"var DvlEffectExternal{t.slug}: {t.pascal};")
+    lines.append("")
+    for t in OPT_EFFECT_TYPES:
+        lines.append(
+            f"procedure DvlEffectExternalBump{t.slug}(Delta: {t.pascal});")
+    lines += ["", "implementation", ""]
+    for t in OPT_EFFECT_TYPES:
+        lines += [
+            f"procedure DvlEffectExternalBump{t.slug}(Delta: {t.pascal});",
+            "begin",
+            f"  DvlEffectExternal{t.slug} := "
+            f"DvlEffectExternal{t.slug} + Delta;",
+            "end;",
+            "",
+        ]
+    lines.append("end.")
+    (out / "devil_opt_effect_unit.pas").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8")
+
+
+def opt_effect_value(consumer: str, value: int, counter: int,
+                     lane: int) -> int:
+    """Independent arithmetic model for one observable memory-effect use."""
+    if consumer == "counter-mul":
+        return counter * value
+    if consumer == "affine-cse":
+        return (counter + lane) * value + value * 3
+    if consumer == "array-index":
+        index = (counter * value + lane) & 31
+        return index * 7 + 3
+    if consumer == "branch":
+        return counter * (7 if value & 1 == 0 else 11) + lane
+    if consumer == "division":
+        return 100000 // (value + counter + lane + 1)
+    if consumer == "shift":
+        return (counter << (value & 3)) + lane
+    if consumer == "mixed":
+        return (counter * value) ^ ((counter + lane + 1) * value)
+    raise ValueError(consumer)
+
+
+def opt_effect_expected(initial: int, delta: int, consumer: str,
+                        timing: str) -> int:
+    """Model mutation placement without sharing the emitted Pascal lowering."""
+    value = initial
+    total = 0
+    for counter in range(1, 7):
+        if timing == "before-each":
+            value += delta
+        total += opt_effect_value(consumer, value, counter, 0)
+        if timing in ("between-each", "finally-between"):
+            value += delta
+            total += opt_effect_value(consumer, value, counter, 1)
+        elif timing == "after-each":
+            value += delta
+        elif timing == "after-first" and counter == 1:
+            value += delta
+        elif timing == "after-even" and counter & 1 == 0:
+            value += delta
+    return total & 0xFFFFFFFFFFFFFFFF
+
+
+def opt_effect_expression(consumer: str, read: str, counter: str,
+                          lane: int) -> list[str]:
+    """Pascal statements for one use; repeated loads stay visible to CSE/GVN."""
+    value = f"Integer({read})"
+    if consumer == "counter-mul":
+        expression = f"Int64({counter} * {read})"
+    elif consumer == "affine-cse":
+        expression = (f"Int64(({counter} + {lane}) * {read}) + "
+                      f"Int64({read}) * 3")
+    elif consumer == "array-index":
+        expression = f"Table[(({counter} * {value}) + {lane}) and 31]"
+    elif consumer == "division":
+        expression = f"100000 div ({value} + {counter} + {lane} + 1)"
+    elif consumer == "shift":
+        expression = f"({counter} shl ({value} and 3)) + {lane}"
+    elif consumer == "mixed":
+        expression = (f"Int64(({counter} * {value}) xor "
+                      f"(({counter} + {lane + 1}) * {value}))")
+    elif consumer == "branch":
+        return [
+            f"if ({value} and 1) = 0 then",
+            f"  Total := Total + {counter} * 7 + {lane}",
+            "else",
+            f"  Total := Total + {counter} * 11 + {lane};",
+        ]
+    else:
+        raise ValueError(consumer)
+    return [f"Total := Total + {expression};"]
+
+
+def indent_lines(lines: list[str], indent: str) -> list[str]:
+    return [indent + line for line in lines]
+
+
+def emit_opt_effect_case(e: Emitter, index: int, route: str, consumer: str,
+                         timing: str, loop: str, t: IntType, initial: int,
+                         delta: int) -> tuple[CaseRecord, str]:
+    """Emit one adversarial memory-effects case and its independent oracle."""
+    tag = f"{index:05d}"
+    name = f"dvl-opt-effect-{tag}"
+    proc = f"DvlOptEffect{tag}"
+    value_name = f"DvlOptEffectValue{tag}"
+    bump_name = f"DvlOptEffectBump{tag}"
+    read = "Value"
+    mutate = f"{bump_name}(Value);"
+    local_decls: list[str] = []
+    setup: list[str] = []
+    cleanup: list[str] = []
+    nested: list[str] = []
+
+    e.line(f"{{ optimizer effects: {route} x {consumer} x {timing} x "
+           f"{loop} x {t.slug} }}")
+    if route == "global-call":
+        e.line("var")
+        e.line(f"  {value_name}: {t.pascal};")
+        e.line()
+        e.line(f"procedure {bump_name};")
+        e.line("{$ifdef FPC} noinline; {$endif}")
+        e.line("begin")
+        e.line(f"  {value_name} := {value_name} + {t.literal(delta)};")
+        e.line("end;")
+        e.line()
+        read = value_name
+        mutate = f"{bump_name};"
+        setup.append(f"  {value_name} := {t.literal(initial)};")
+    elif route == "var-call":
+        e.line(f"procedure {bump_name}(var Target: {t.pascal});")
+        e.line("{$ifdef FPC} noinline; {$endif}")
+        e.line("begin")
+        e.line(f"  Target := Target + {t.literal(delta)};")
+        e.line("end;")
+        e.line()
+        local_decls.append(f"  Value: {t.pascal};")
+    elif route == "pointer-call":
+        pointer_type = f"PDvlOptEffect{tag}"
+        e.line("type")
+        e.line(f"  {pointer_type} = ^{t.pascal};")
+        e.line()
+        e.line(f"procedure {bump_name}(Target: {pointer_type});")
+        e.line("{$ifdef FPC} noinline; {$endif}")
+        e.line("begin")
+        e.line(f"  Target^ := Target^ + {t.literal(delta)};")
+        e.line("end;")
+        e.line()
+        local_decls += [f"  Value: {t.pascal};", f"  Pointer: {pointer_type};"]
+        setup.append("  Pointer := @Value;")
+        mutate = f"{bump_name}(Pointer);"
+    elif route == "record-pointer":
+        record_type = f"TDvlOptEffectRecord{tag}"
+        pointer_type = f"PDvlOptEffectRecord{tag}"
+        e.line("type")
+        e.line(f"  {record_type} = record")
+        e.line(f"    Value: {t.pascal};")
+        e.line("  end;")
+        e.line(f"  {pointer_type} = ^{record_type};")
+        e.line()
+        e.line(f"procedure {bump_name}(Target: {pointer_type});")
+        e.line("{$ifdef FPC} noinline; {$endif}")
+        e.line("begin")
+        e.line(f"  Target^.Value := Target^.Value + {t.literal(delta)};")
+        e.line("end;")
+        e.line()
+        local_decls.append(f"  Cell: {record_type};")
+        read = "Cell.Value"
+        mutate = f"{bump_name}(@Cell);"
+        setup.append(f"  Cell.Value := {t.literal(initial)};")
+    elif route == "array-pointer":
+        pointer_type = f"PDvlOptEffectElement{tag}"
+        e.line("type")
+        e.line(f"  {pointer_type} = ^{t.pascal};")
+        e.line()
+        e.line(f"procedure {bump_name}(Target: {pointer_type});")
+        e.line("{$ifdef FPC} noinline; {$endif}")
+        e.line("begin")
+        e.line(f"  Target^ := Target^ + {t.literal(delta)};")
+        e.line("end;")
+        e.line()
+        local_decls.append(f"  Values: array[0..3] of {t.pascal};")
+        read = "Values[2]"
+        mutate = f"{bump_name}(@Values[2]);"
+        setup.append(f"  Values[2] := {t.literal(initial)};")
+    elif route == "object-method":
+        object_type = f"TDvlOptEffectObject{tag}"
+        e.line("type")
+        e.line(f"  {object_type} = class")
+        e.line("  public")
+        e.line(f"    Value: {t.pascal};")
+        e.line("    procedure Bump;")
+        e.line("  end;")
+        e.line()
+        e.line(f"procedure {object_type}.Bump;")
+        e.line("begin")
+        e.line(f"  Value := Value + {t.literal(delta)};")
+        e.line("end;")
+        e.line()
+        local_decls.append(f"  Obj: {object_type};")
+        read = "Obj.Value"
+        mutate = "Obj.Bump;"
+        setup += [f"  Obj := {object_type}.Create;",
+                  f"  Obj.Value := {t.literal(initial)};"]
+        cleanup.append("  Obj.Free;")
+    elif route == "virtual-method":
+        base_type = f"TDvlOptEffectBase{tag}"
+        child_type = f"TDvlOptEffectChild{tag}"
+        e.line("type")
+        e.line(f"  {base_type} = class")
+        e.line("  public")
+        e.line(f"    Value: {t.pascal};")
+        e.line("    procedure Bump; virtual;")
+        e.line("  end;")
+        e.line(f"  {child_type} = class({base_type})")
+        e.line("  public")
+        e.line("    procedure Bump; override;")
+        e.line("  end;")
+        e.line()
+        for owner in (base_type, child_type):
+            e.line(f"procedure {owner}.Bump;")
+            e.line("begin")
+            e.line(f"  Value := Value + {t.literal(delta)};")
+            e.line("end;")
+            e.line()
+        local_decls.append(f"  Obj: {base_type};")
+        read = "Obj.Value"
+        mutate = "Obj.Bump;"
+        setup += [f"  Obj := {child_type}.Create;",
+                  f"  Obj.Value := {t.literal(initial)};"]
+        cleanup.append("  Obj.Free;")
+    elif route == "interface-call":
+        intf_type = f"IDvlOptEffect{tag}"
+        object_type = f"TDvlOptEffectInterfaced{tag}"
+        guid = f"{{D0E00000-0000-0000-0000-{index:012X}}}"
+        e.line("type")
+        e.line(f"  {intf_type} = interface")
+        e.line(f"    ['{guid}']")
+        e.line("    procedure Bump;")
+        e.line("  end;")
+        e.line(f"  {object_type} = class(TInterfacedObject, {intf_type})")
+        e.line("  public")
+        e.line(f"    Value: {t.pascal};")
+        e.line("    procedure Bump;")
+        e.line("  end;")
+        e.line()
+        e.line(f"procedure {object_type}.Bump;")
+        e.line("begin")
+        e.line(f"  Value := Value + {t.literal(delta)};")
+        e.line("end;")
+        e.line()
+        local_decls += [f"  Obj: {object_type};", f"  Intf: {intf_type};"]
+        read = "Obj.Value"
+        mutate = "Intf.Bump;"
+        setup += [f"  Obj := {object_type}.Create;", "  Intf := Obj;",
+                  f"  Obj.Value := {t.literal(initial)};"]
+        cleanup.append("  Intf := nil;")
+    elif route == "nested-call":
+        local_decls.append(f"  Value: {t.pascal};")
+        nested = [
+            f"  procedure {bump_name};",
+            "  begin",
+            f"    Value := Value + {t.literal(delta)};",
+            "  end;",
+        ]
+        mutate = f"{bump_name};"
+    elif route == "anonymous-call":
+        proc_type = f"TDvlOptEffectProc{tag}"
+        e.line("type")
+        e.line(f"  {proc_type} = reference to procedure;")
+        e.line()
+        local_decls += [f"  Value: {t.pascal};", f"  Bump: {proc_type};"]
+        setup.append("  Bump := procedure")
+        setup.append("    begin")
+        setup.append(f"      Value := Value + {t.literal(delta)};")
+        setup.append("    end;")
+        setup.append("  ;")
+        mutate = "Bump();"
+        cleanup.append("  Bump := nil;")
+    elif route == "procvar-global":
+        proc_type = f"TDvlOptEffectPlainProc{tag}"
+        e.line("type")
+        e.line(f"  {proc_type} = procedure;")
+        e.line("var")
+        e.line(f"  {value_name}: {t.pascal};")
+        e.line()
+        e.line(f"procedure {bump_name};")
+        e.line("{$ifdef FPC} noinline; {$endif}")
+        e.line("begin")
+        e.line(f"  {value_name} := {value_name} + {t.literal(delta)};")
+        e.line("end;")
+        e.line()
+        local_decls.append(f"  Bump: {proc_type};")
+        read = value_name
+        mutate = "Bump();"
+        setup += [f"  {value_name} := {t.literal(initial)};",
+                  f"  Bump := {bump_name};"]
+    elif route == "cross-unit":
+        read = f"DvlEffectExternal{t.slug}"
+        mutate = f"DvlEffectExternalBump{t.slug}({t.literal(delta)});"
+        setup.append(f"  {read} := {t.literal(initial)};")
+    else:
+        raise ValueError(route)
+
+    if route not in ("global-call", "record-pointer", "array-pointer",
+                     "object-method", "virtual-method", "interface-call",
+                     "procvar-global", "cross-unit"):
+        setup.insert(0, f"  Value := {t.literal(initial)};")
+
+    e.line(f"procedure {proc};")
+    e.line("var")
+    e.line("  I, Inner, Outer, J: Integer;")
+    e.line("  Total: Int64;")
+    if consumer == "array-index":
+        e.line("  Table: array[0..31] of Int64;")
+    for declaration in local_decls:
+        e.line(declaration)
+    for line in nested:
+        e.line(line)
+    e.line("begin")
+    for line in setup:
+        e.line(line)
+    if consumer == "array-index":
+        e.line("  for J := 0 to High(Table) do")
+        e.line("    Table[J] := J * 7 + 3;")
+    e.line("  Total := 0;")
+
+    body: list[str] = []
+    if timing == "before-each":
+        body.append(mutate)
+    body += opt_effect_expression(consumer, read, "I", 0)
+    if timing == "between-each":
+        body.append(mutate)
+        body += opt_effect_expression(consumer, read, "I", 1)
+    elif timing == "finally-between":
+        first = opt_effect_expression(consumer, read, "I", 0)
+        body = (["try"] + indent_lines(first, "  ") + ["finally", "  " + mutate,
+                "end;"] + opt_effect_expression(consumer, read, "I", 1))
+    elif timing == "after-each":
+        body.append(mutate)
+    elif timing == "after-first":
+        body += ["if I = 1 then", "  " + mutate]
+    elif timing == "after-even":
+        body += ["if (I and 1) = 0 then", "  " + mutate]
+
+    if loop == "for":
+        e.line("  for I := 1 to 6 do")
+        e.line("    begin")
+        for line in indent_lines(body, "      "):
+            e.line(line)
+        e.line("    end;")
+    elif loop == "while":
+        e.line("  I := 1;")
+        e.line("  while I <= 6 do")
+        e.line("    begin")
+        for line in indent_lines(body, "      "):
+            e.line(line)
+        e.line("      Inc(I);")
+        e.line("    end;")
+    elif loop == "repeat":
+        e.line("  I := 1;")
+        e.line("  repeat")
+        for line in indent_lines(body, "    "):
+            e.line(line)
+        e.line("    Inc(I);")
+        e.line("  until I > 6;")
+    elif loop == "nested":
+        e.line("  for Outer := 1 to 2 do")
+        e.line("    for Inner := 1 to 3 do")
+        e.line("      begin")
+        e.line("        I := (Outer - 1) * 3 + Inner;")
+        for line in indent_lines(body, "        "):
+            e.line(line)
+        e.line("      end;")
+    else:
+        raise ValueError(loop)
+
+    expected = opt_effect_expected(initial, delta, consumer, timing)
+    e.line(f"  DevilCheckU('{name}', UInt64(Total), "
+           f"UInt64(${expected:016X}));")
+    for line in cleanup:
+        e.line(line)
+    e.line("end;")
+    e.line()
+    return (CaseRecord(name=name, layer="opt", detail={
+        "family": "memory-effects",
+        "route": route,
+        "consumer": consumer,
+        "timing": timing,
+        "loop": loop,
+        "type": t.slug,
+        "initial": initial,
+        "delta": delta,
+    }), proc)
+
+
+def emit_opt_effect_matrix(e: Emitter, rng: random.Random,
+                           start: int) -> tuple[list[CaseRecord], list[str]]:
+    """Cover every route x consumer x mutation timing, not a random sample."""
+    records: list[CaseRecord] = []
+    calls: list[str] = []
+    for offset, (route, consumer, timing) in enumerate(itertools.product(
+            OPT_EFFECT_ROUTES, OPT_EFFECT_CONSUMERS, OPT_EFFECT_TIMINGS)):
+        route_index = OPT_EFFECT_ROUTES.index(route)
+        consumer_index = OPT_EFFECT_CONSUMERS.index(consumer)
+        timing_index = OPT_EFFECT_TIMINGS.index(timing)
+        if (route, consumer, timing) == (
+                "global-call", "counter-mul", "after-first"):
+            loop = "for"
+            t = TYPE_BY_SLUG["i32"]
+        else:
+            loop = OPT_EFFECT_LOOPS[
+                (route_index + 2 * consumer_index + 3 * timing_index) %
+                len(OPT_EFFECT_LOOPS)]
+            t = OPT_EFFECT_TYPES[
+                (route_index + consumer_index + timing_index) %
+                len(OPT_EFFECT_TYPES)]
+        initial = rng.randrange(3, 10)
+        delta = rng.randrange(1, 4)
+        record, call = emit_opt_effect_case(
+            e, start + offset, route, consumer, timing, loop, t,
+            initial, delta)
+        records.append(record)
+        calls.append(call)
+    return records, calls
+
+
+def opt_effect_coverage(records: list[CaseRecord]) -> dict:
+    rows = [record.detail for record in records
+            if record.layer == "opt"
+            and record.detail.get("family") == "memory-effects"]
+    dimensions = {
+        "route": OPT_EFFECT_ROUTES,
+        "consumer": OPT_EFFECT_CONSUMERS,
+        "timing": OPT_EFFECT_TIMINGS,
+        "loop": OPT_EFFECT_LOOPS,
+        "type": tuple(t.slug for t in OPT_EFFECT_TYPES),
+    }
+    triples_wanted = set(itertools.product(
+        OPT_EFFECT_ROUTES, OPT_EFFECT_CONSUMERS, OPT_EFFECT_TIMINGS))
+    triples_seen = {(row["route"], row["consumer"], row["timing"])
+                    for row in rows}
+    pairs_wanted: set[tuple[str, str, str, str]] = set()
+    pairs_seen: set[tuple[str, str, str, str]] = set()
+    names = tuple(dimensions)
+    for left_index, left in enumerate(names):
+        for right in names[left_index + 1:]:
+            pairs_wanted.update((left, a, right, b)
+                                for a in dimensions[left]
+                                for b in dimensions[right])
+            pairs_seen.update((left, row[left], right, row[right])
+                              for row in rows)
+    return {
+        "dimensions": {key: list(values)
+                       for key, values in dimensions.items()},
+        "cases": len(rows),
+        "critical_triples_possible": len(triples_wanted),
+        "critical_triples_covered": len(triples_wanted & triples_seen),
+        "critical_triples_missing": [list(item) for item in
+                                     sorted(triples_wanted - triples_seen)],
+        "pairs_possible": len(pairs_wanted),
+        "pairs_covered": len(pairs_wanted & pairs_seen),
+        "pairs_missing": [list(item) for item in
+                          sorted(pairs_wanted - pairs_seen)],
+        "exact_stale_global_anchor": any(
+            row["route"] == "global-call"
+            and row["consumer"] == "counter-mul"
+            and row["timing"] == "after-first"
+            and row["loop"] == "for"
+            and row["type"] == "i32" for row in rows),
+    }
+
+
 OPT_SHAPES = ("pointer-alias", "var-param-alias", "field-alias",
               "type-punned-alias", "loop-invariant-mutated",
               "side-effect-in-condition", "dead-store-through-pointer",
@@ -6582,8 +7107,8 @@ OPT_SHAPES = ("pointer-alias", "var-param-alias", "field-alias",
 def layer_optimizer(e: Emitter, rng: random.Random, count: int,
                     start: int) -> list[CaseRecord]:
     """Transformations that would be wrong: the value must survive them."""
-    records: list[CaseRecord] = []
-    calls: list[str] = []
+    records, calls = emit_opt_effect_matrix(e, rng, start)
+    start += len(records)
     for index in range(start, start + count):
         name = "dvl-opt-%05d" % index
         proc = "DvlOpt%05d" % index
@@ -17422,6 +17947,8 @@ def main() -> None:
     check_case_names(records)
     if "ppu" in selected:
         write_ppu_unit(out)
+    if "opt" in selected:
+        write_opt_effect_unit(out)
     if "deliver" in selected:
         write_provenance_unit(out)
     if "scope" in selected:
@@ -17447,6 +17974,7 @@ def main() -> None:
                 + ((INIT_UNITS[::-1] + ("devil_cycle_x", "devil_cycle_y"))
                    if "init" in selected else ())
                 + (("devil_ppu_source",) if "ppu" in selected else ())
+                + (("devil_opt_effect_unit",) if "opt" in selected else ())
                 + (("devil_provenance",) if "deliver" in selected else ())
                 + (("devil_scope_a", "devil_scope_b")
                    if "scope" in selected else ())
@@ -17475,6 +18003,13 @@ def main() -> None:
         if a != b and (p, a) not in COMPOSITE_SKIP
         and (p, b) not in COMPOSITE_SKIP])
 
+    optimizer_effects = opt_effect_coverage(records)
+    if "opt" in selected and (
+            optimizer_effects["critical_triples_missing"]
+            or optimizer_effects["pairs_missing"]
+            or not optimizer_effects["exact_stale_global_anchor"]):
+        raise SystemExit("optimizer effects matrix has uncovered contracts")
+
     manifest = {
         "schema": 2,
         "composite": {
@@ -17487,6 +18022,7 @@ def main() -> None:
             "pairs_missing": missing,
             "skipped_by_design": sorted(["%s/%s" % pair for pair in MATRIX_SKIP]),
         },
+        "optimizer_effects": optimizer_effects,
         "generator": "scripts/generate_devil.py",
         "seed": args.seed,
         "cases_per_layer": args.cases,

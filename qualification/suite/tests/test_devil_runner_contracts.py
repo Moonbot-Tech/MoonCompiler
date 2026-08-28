@@ -91,6 +91,32 @@ class DevilRunnerContractsTest(unittest.TestCase):
         self.assertIn("SmallGetmemSleepCount > Waited", source)
         self.assertNotIn("DevilNoteLoose('dvl-load-contended-240-waited'", source)
 
+    def test_optimizer_effects_are_a_closed_matrix_not_random_examples(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            argv = ["generate_devil.py", "--seed", "17", "--cases", "1",
+                    "--layers", "opt", "--out", str(output)]
+            with mock.patch.object(sys, "argv", argv):
+                with redirect_stdout(io.StringIO()):
+                    generate_devil.main()
+            manifest = json.loads(
+                (output / "devil_manifest.json").read_text(encoding="utf-8"))
+            source = (output / "devil_opt.inc").read_text(encoding="utf-8")
+            has_cross_unit = (output / "devil_opt_effect_unit.pas").is_file()
+
+        coverage = manifest["optimizer_effects"]
+        self.assertEqual(coverage["cases"], 504)
+        self.assertEqual(coverage["critical_triples_possible"], 504)
+        self.assertEqual(coverage["critical_triples_covered"], 504)
+        self.assertEqual(coverage["critical_triples_missing"], [])
+        self.assertEqual(coverage["pairs_possible"], 414)
+        self.assertEqual(coverage["pairs_covered"], 414)
+        self.assertEqual(coverage["pairs_missing"], [])
+        self.assertTrue(coverage["exact_stale_global_anchor"])
+        self.assertIn(
+            "global-call x counter-mul x after-first x for x i32", source)
+        self.assertTrue(has_cross_unit)
+
     def test_main_comparison_rejects_runtime_without_terminal_summary(self) -> None:
         build = run_devil_gate.Build("release")
         build.compiled = True
