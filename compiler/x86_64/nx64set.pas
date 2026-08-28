@@ -62,9 +62,10 @@ implementation
 
     function tx8664casenode.minjumptreelabels : longint;
       begin
-        { Sparse cases become branch-depth bound before 64 labels on modern
-          x86-64.  Seven labels are the measured crossover against the
-          subtract-and-branch chain; denser cases still select a jump table. }
+        { Seven labels bound the worst-case depth of a sparse x86-64 case
+          earlier than the generic threshold.  This is a distribution-neutral
+          policy, not a claim that a balanced tree wins for every hot-label
+          distribution; dense cases still keep their separate strategy. }
         result:=7;
       end;
 

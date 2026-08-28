@@ -1,16 +1,17 @@
 {
     Copyright (c) 2026 by the Moon Compiler team
 
-    One pure owner for compile-time text-domain decisions (A-001 stage 1).
+    Shared helpers for repeated compile-time literal and fold decisions.
 
     The string/character provenance of a constant expression is spread
     over several carriers (literalbyte, literalbytes, nf_explicit,
     anf_rawbytestring_concat, tstringdef.encoding) and today every
-    consumer re-derives the domain from its own combination of them at
-    its own moment in the AST's life.  This unit centralizes the
-    DECISIONS; the consumers execute the returned plan and the carriers
-    keep transporting the facts.  Behavior is mirrored 1:1 from the
-    historical decision points - the whole gate series is the oracle.
+    consumer used to re-derive the repeated byte proof and constant-fold
+    policy from its own combination of them.  This unit owns those shared
+    helpers only.  Contextual conversion, common string type and runtime
+    concatenation remain operation-specific decisions in their existing
+    nodes; pretending that they have one global owner would merely add a
+    second abstraction beside the real owners.
 
  ****************************************************************************
 }
