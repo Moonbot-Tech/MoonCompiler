@@ -37,6 +37,7 @@ var
   S, S2: UnicodeString;
   Big: TBytes;
   I: Integer;
+  Offset: Integer;
   V: TJSONValue;
 begin
   { direct reader: first AddChar on the empty buffer, exact growth
@@ -106,6 +107,40 @@ begin
   try
     Check('parse-value', (V <> nil) and
       (V.GetValue<UnicodeString>('name') = #$0416#$0435#$0441#$0442));
+  finally
+    V.Free;
+  end;
+
+  { ParseJSONFragment returns an absolute byte offset, not a position
+    relative to the non-zero starting offset.  The Unicode facade keeps the
+    same byte-oriented contract after its UTF-8 conversion. }
+  S := '  1 {"k":"' + #$0416 + '"} true';
+  Big := TEncoding.UTF8.GetBytes(S);
+  Offset := 2;
+  V := TJSONValue.ParseJSONFragment(Big, Offset,
+    [TJSONValue.TJSONParseOption.IsUTF8,
+     TJSONValue.TJSONParseOption.RaiseExc]);
+  try
+    Check('fragment-first-offset', (V <> nil) and (V.ToJSON = '1') and
+      (Offset = 3));
+  finally
+    V.Free;
+  end;
+  V := TJSONValue.ParseJSONFragment(Big, Offset,
+    [TJSONValue.TJSONParseOption.IsUTF8,
+     TJSONValue.TJSONParseOption.RaiseExc]);
+  try
+    Check('fragment-object-offset', (V <> nil) and
+      (V.GetValue<UnicodeString>('k') = #$0416) and (Offset = 14));
+  finally
+    V.Free;
+  end;
+  V := TJSONValue.ParseJSONFragment(Big, Offset,
+    [TJSONValue.TJSONParseOption.IsUTF8,
+     TJSONValue.TJSONParseOption.RaiseExc]);
+  try
+    Check('fragment-final-offset', (V <> nil) and
+      (V.ToJSON = 'true') and (Offset = 19));
   finally
     V.Free;
   end;

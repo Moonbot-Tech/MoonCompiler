@@ -996,13 +996,15 @@ class function TJSONValue.ParseJSONFragment(const aData: PByte; var aOffset: Int
   aOptions: TJSONParseOptions): TJSONValue;
 
 Var
+  StartOffset : Integer;
   JP : TJSONParser;
 
 begin
+  StartOffset:=aOffset;
   JP:=CreateParser(aData,aOffset,aLength,aOptions);
   try
     Result:=JP.ParseSingle;
-    aOffset:=JP.Scanner.AbsolutePos;
+    aOffset:=StartOffset+JP.Scanner.AbsolutePos;
   finally
     JP.Free;
   end;
