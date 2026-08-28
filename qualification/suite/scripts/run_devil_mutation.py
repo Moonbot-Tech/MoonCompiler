@@ -139,6 +139,13 @@ def finding_family(row: dict[str, object]) -> str:
     return str(row.get("kind", "unknown"))
 
 
+def baseline_layer_sets(
+    selected: list[tuple[str, str, str, str]], all_layers: bool
+) -> list[str]:
+    """A structured baseline must describe the exact generated program."""
+    return ["all"] if all_layers else sorted({item[2] for item in selected})
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--repo", type=Path,
@@ -213,19 +220,17 @@ def main() -> None:
         selected = MUTANTS[args.from_index:args.from_index + args.mutants]
     if not selected:
         raise SystemExit("no mutants selected")
-    baseline_layers = "all" if args.all_layers else ",".join(sorted({
-        layer
-        for _, _, layers, _ in selected
-        for layer in layers.split(",")
-    }))
-    print(f"measuring the clean baseline for layers={baseline_layers}")
-    baseline_code, baseline, baseline_log = devil_findings(
-        args.seeds, args.cases, baseline_layers, args.gate_timeout
-    )
-    if baseline_code != 0:
-        print(baseline_log[-4000:])
-        raise SystemExit("clean Devil baseline is not green")
-    print(f"baseline: {len(baseline)} classified observations")
+    baselines: dict[str, dict[str, dict[str, object]]] = {}
+    for layers in baseline_layer_sets(selected, args.all_layers):
+        print(f"measuring the clean baseline for layers={layers}")
+        baseline_code, baseline, baseline_log = devil_findings(
+            args.seeds, args.cases, layers, args.gate_timeout
+        )
+        if baseline_code != 0:
+            print(baseline_log[-4000:])
+            raise SystemExit("clean Devil baseline is not green")
+        baselines[layers] = baseline
+        print(f"baseline {layers}: {len(baseline)} classified observations")
 
     results = []
     for sha, family, target_layers, subject in selected:
@@ -247,7 +252,7 @@ def main() -> None:
             gate_code, found, gate_log = devil_findings(
                 args.seeds, args.cases, layers, args.gate_timeout
             )
-            fresh_keys = sorted(set(found) - set(baseline))
+            fresh_keys = sorted(set(found) - set(baselines[layers]))
             fresh = [found[key] for key in fresh_keys]
             if gate_code != 0 and not fresh:
                 row.update({"outcome": "invalid-gate",
@@ -267,9 +272,15 @@ def main() -> None:
         # untracked Devil files are left alone by it
         git(["reset", "--hard", "HEAD"])
         git(["clean", "-fdq", "compiler", "rtl", "packages"])
-        # the toolchain still holds the mutant binary at this point; rebuilding
-        # from the restored tree is part of restoring, not an optional step
-        rebuild(args.build_timeout)
+
+    # Every mutant build starts from the external FPC 3.2.2 bootstrap, not the
+    # previously installed product compiler.  Rebuilding a clean toolchain
+    # between mutants therefore adds no isolation; restore it once at the end.
+    print("restoring the clean compiler after the last mutant")
+    restored, restore_log = rebuild(args.build_timeout)
+    if not restored:
+        print(restore_log)
+        raise SystemExit("failed to restore the clean compiler after mutation")
 
     usable = [r for r in results if r["outcome"] in ("killed", "survived")]
     invalid = [r for r in results if r["outcome"].startswith("invalid-")]

@@ -339,6 +339,21 @@ class DevilRunnerContractsTest(unittest.TestCase):
         )
         self.assertFalse(any("known" in row for row in rows))
 
+    def test_mutation_uses_exact_baseline_for_each_generated_layer_set(self) -> None:
+        selected = [
+            ("a", "first", "lang,capture", "one"),
+            ("b", "second", "expr,fold", "two"),
+            ("c", "third", "lang,capture", "three"),
+        ]
+        self.assertEqual(
+            run_devil_mutation.baseline_layer_sets(selected, False),
+            ["expr,fold", "lang,capture"],
+        )
+        self.assertEqual(
+            run_devil_mutation.baseline_layer_sets(selected, True),
+            ["all"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
