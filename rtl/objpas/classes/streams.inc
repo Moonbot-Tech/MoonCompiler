@@ -1523,7 +1523,10 @@ end;
 procedure TMemoryStream.SetCapacity(NewCapacity: TMemoryStreamCapacity);
 
 begin
-  SetCapacityAndSize(NewCapacity,FSize);
+  If FPendingSizeActive then
+    SetCapacityAndSize(NewCapacity,FPendingSize)
+  else
+    SetCapacityAndSize(NewCapacity,FSize);
 end;
 
 
@@ -1543,8 +1546,11 @@ begin
   If NewCapacity<NewSize then
     NewCapacity:=NewSize;
   NewMemory:=Realloc(NewCapacity);
-  If NewCapacity<NewSize then
-    Raise EStreamError.Create(SMemoryStreamError);
+  { Realloc's protected virtual contract guarantees that a successful
+    override never returns less than the requested capacity.  Trying to
+    recover from a broken override here would be unsafe: the returned pointer
+    may alias old or subclass-owned storage, so this layer could not release it
+    without risking a leak or double free. }
   SetPointer(NewMemory,NewSize);
   FCapacity:=NewCapacity;
 end;
@@ -1575,8 +1581,24 @@ end;
 
 procedure TMemoryStream.Clear;
 
+var
+  SavedPendingSize: TMemoryStreamCapacity;
+  SavedPendingSizeActive: Boolean;
+
 begin
-  SetCapacityAndSize(0,0);
+  SavedPendingSize:=FPendingSize;
+  SavedPendingSizeActive:=FPendingSizeActive;
+  FPendingSize:=0;
+  FPendingSizeActive:=True;
+  Try
+    SetCapacity(0);
+    { An old override which owns SetCapacity without calling inherited still
+      participates in the virtual contract. Publish Size only after it returns. }
+    SetPointer(FMemory,0);
+  finally
+    FPendingSize:=SavedPendingSize;
+    FPendingSizeActive:=SavedPendingSizeActive;
+  end;
   FPosition:=0;
 end;
 
@@ -1613,13 +1635,30 @@ end;
 
 procedure TMemoryStream.SetSize(const NewSize: Int64);
 
+var
+  SavedPendingSize: TMemoryStreamCapacity;
+  SavedPendingSizeActive: Boolean;
+
 begin
   { validated before any mutation; DCC64 is self-contradictory here
     (EStreamError via an accidental allocator failure for TMemoryStream,
     ERangeError for TBytesStream) - unified on the argument-error class }
   If (NewSize<0) or (NewSize>High(TMemoryStreamCapacity)) then
     Raise ERangeError.Create(SRangeError);
-  SetCapacityAndSize(NewSize,NewSize);
+  SavedPendingSize:=FPendingSize;
+  SavedPendingSizeActive:=FPendingSizeActive;
+  FPendingSize:=NewSize;
+  FPendingSizeActive:=True;
+  Try
+    SetCapacity(NewSize);
+    { Preserve Delphi's virtual SetCapacity hook.  The inherited path already
+      committed atomically; this also restores the old subclass contract for
+      overrides which implement the storage transition themselves. }
+    SetPointer(FMemory,NewSize);
+  finally
+    FPendingSize:=SavedPendingSize;
+    FPendingSizeActive:=SavedPendingSizeActive;
+  end;
   IF FPosition>FSize then
     FPosition:=FSize;
 end;

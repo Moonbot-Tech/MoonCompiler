@@ -1526,9 +1526,14 @@ type
   TMemoryStream = class(TCustomMemoryStream)
   private
     FCapacity: TMemoryStreamCapacity;
+    FPendingSize: TMemoryStreamCapacity;
+    FPendingSizeActive: Boolean;
     procedure SetCapacityAndSize(NewCapacity, NewSize: TMemoryStreamCapacity);
   protected
     procedure SetCapacity(NewCapacity: TMemoryStreamCapacity); virtual;
+    { On success an override returns stream-owned storage and may round
+      NewCapacity up, but must never reduce it below the requested value.
+      On failure it must raise without changing the stream state. }
     function Realloc(var NewCapacity: TMemoryStreamCapacity): Pointer; virtual;
     property Capacity: TMemoryStreamCapacity read FCapacity write SetCapacity;
   public

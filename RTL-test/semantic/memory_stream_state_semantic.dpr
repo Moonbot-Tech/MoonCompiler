@@ -40,6 +40,25 @@ end;
 type
   TCapHack = class(TMemoryStream); { expose protected Capacity }
 
+  TTrackingMemoryStream = class(TMemoryStream)
+  public
+    CapacityCalls: Integer;
+    procedure Reserve(NewCapacity: TMemoryStreamCapacity);
+  protected
+    procedure SetCapacity(NewCapacity: TMemoryStreamCapacity); override;
+  end;
+
+procedure TTrackingMemoryStream.SetCapacity(NewCapacity: TMemoryStreamCapacity);
+begin
+  Inc(CapacityCalls);
+  inherited SetCapacity(NewCapacity);
+end;
+
+procedure TTrackingMemoryStream.Reserve(NewCapacity: TMemoryStreamCapacity);
+begin
+  SetCapacity(NewCapacity);
+end;
+
 procedure ExpectRange(const Name: AnsiString; Proc: TProc);
 begin
   try
@@ -59,6 +78,7 @@ end;
 var
   M: TMemoryStream;
   B: TBytesStream;
+  T: TTrackingMemoryStream;
   Buf: array[0..15] of Byte;
   Rd: array[0..15] of Byte;
   R: LongInt;
@@ -144,6 +164,27 @@ begin
     Check('write-after-clear', M.Write(Buf, 2) = 2);
   finally
     M.Free;
+  end;
+
+  { SetSize and Clear must retain the protected virtual hook while the base
+    implementation keeps pointer/size/capacity publication transactional. }
+  T := TTrackingMemoryStream.Create;
+  try
+    T.Size := 10;
+    Check('virtual-setsize-grow', (T.CapacityCalls = 1) and (T.Size = 10));
+    T.Size := 2;
+    Check('virtual-setsize-shrink', (T.CapacityCalls = 2) and (T.Size = 2));
+    T.Reserve(10000);
+    Check('virtual-direct-reserve',(T.CapacityCalls = 3) and (T.Size = 2));
+    T.Position := 20000;
+    Check('virtual-write-growth',T.Write(Buf,1) = 1);
+    Check('virtual-write-growth-call',(T.CapacityCalls = 4) and
+      (T.Size = 20001));
+    T.Clear;
+    Check('virtual-clear', (T.CapacityCalls = 5) and (T.Size = 0) and
+      (T.Memory = nil));
+  finally
+    T.Free;
   end;
 
   { the TBytesStream twin goes through the same calculator }
