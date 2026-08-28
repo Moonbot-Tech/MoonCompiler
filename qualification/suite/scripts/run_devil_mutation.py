@@ -85,26 +85,33 @@ def rebuild(build_timeout: int) -> tuple[bool, str]:
 def devil_findings(
     seeds: str, cases: int, layers: str, timeout: int
 ) -> tuple[int, dict[str, dict[str, object]], str]:
-    """Return the complete structured NEW rows emitted by the Devil gate."""
+    """Return every structured observation, before known/new labelling."""
     gate = ROOT / "qualification" / "suite" / "scripts" / "run_devil_gate.py"
     work = ROOT / ".mutation" / "devil-main"
+    report = work / "mutation-gate-report.json"
+    report.unlink(missing_ok=True)
     code, log = run([sys.executable, str(gate),
                      "--seeds", seeds, "--cases", str(cases),
                      "--layers", layers,
-                     "--work", str(work)],
+                     "--work", str(work), "--report", str(report)],
                     ROOT, timeout)
-    findings: dict[str, dict[str, object]] = {}
-    for line in log.splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("NEW"):
-            continue
-        try:
-            row = json.loads(stripped[3:].strip())
-        except json.JSONDecodeError:
-            row = {"kind": "unparsed", "detail": stripped}
-        key = json.dumps(row, sort_keys=True, ensure_ascii=False)
-        findings[key] = row
-    return code, findings, log
+    observations = load_observations(report) if report.is_file() else {}
+    return code, observations, log
+
+
+def load_observations(path: Path) -> dict[str, dict[str, object]]:
+    """Flatten a gate report without allowing the known registry to hide it."""
+    observations: dict[str, dict[str, object]] = {}
+    for seed_row in json.loads(path.read_text(encoding="utf-8")):
+        seed = seed_row["seed"]
+        for collection in ("findings", "known_hits"):
+            for source in seed_row.get(collection, []):
+                row = {key: value for key, value in source.items()
+                       if key != "known"}
+                row["seed"] = seed
+                key = json.dumps(row, sort_keys=True, ensure_ascii=False)
+                observations[key] = row
+    return observations
 
 
 def reverse_product_patch(sha: str, check_only: bool = False) -> tuple[bool, str]:
@@ -218,7 +225,7 @@ def main() -> None:
     if baseline_code != 0:
         print(baseline_log[-4000:])
         raise SystemExit("clean Devil baseline is not green")
-    print(f"baseline: {len(baseline)} findings")
+    print(f"baseline: {len(baseline)} classified observations")
 
     results = []
     for sha, family, target_layers, subject in selected:

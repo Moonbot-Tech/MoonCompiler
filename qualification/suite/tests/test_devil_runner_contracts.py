@@ -310,6 +310,35 @@ class DevilRunnerContractsTest(unittest.TestCase):
             "compile-failed",
         )
 
+    def test_mutation_compares_known_and_new_observations_equally(self) -> None:
+        report = [{
+            "seed": 7,
+            "findings": [{
+                "kind": "model-mismatch",
+                "check": "dvl-opt-00001-fresh",
+                "builds": {"release": "0000000000000002"},
+            }],
+            "known_hits": [{
+                "kind": "model-mismatch",
+                "check": "dvl-opt-00002-known",
+                "builds": {"release": "0000000000000003"},
+                "known": "dvl-9999",
+            }],
+        }]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "gate.json"
+            path.write_text(json.dumps(report), encoding="utf-8")
+            observations = run_devil_mutation.load_observations(path)
+
+        rows = list(observations.values())
+        self.assertEqual(len(rows), 2)
+        self.assertEqual({row["seed"] for row in rows}, {7})
+        self.assertEqual(
+            {row["check"] for row in rows},
+            {"dvl-opt-00001-fresh", "dvl-opt-00002-known"},
+        )
+        self.assertFalse(any("known" in row for row in rows))
+
 
 if __name__ == "__main__":
     unittest.main()
