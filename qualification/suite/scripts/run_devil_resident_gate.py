@@ -232,8 +232,6 @@ def main() -> int:
     ap.add_argument("--handoff", action="store_true")
     ap.add_argument("--timeout", type=int, default=900)
     ap.add_argument("--profiles", default=",".join(layer["profiles"]))
-    ap.add_argument("--ladder", default="10,60,240",
-                    help="lap counts the program must stay green at")
     ap.add_argument("--work", type=Path,
                     default=SUITE / "results" / "devil-resident")
     ap.add_argument("--report", type=Path)
@@ -322,7 +320,7 @@ def main() -> int:
                                        got.answers.get("RESIDENT_ROOT", "?")))
 
     # --- ladder: the program must stay green as it ages ---------------------
-    for laps in [int(x) for x in args.ladder.split(",") if x.strip()]:
+    for laps in layer["ladder"]:
         got = run(exe, args.carriers, laps, 3, args.timeout, work)
         validate_run(f"laps={laps}", got, stage_names, args.carriers, findings)
         print("ladder laps=%-5d rc=%d root=%s handled=%s"
@@ -344,7 +342,7 @@ def main() -> int:
             "settings": {
                 "carriers": args.carriers,
                 "laps": args.laps,
-                "ladder": args.ladder,
+                "ladder": layer["ladder"],
             },
             "contracts": {
                 "manifest": str(MANIFEST_PATH),

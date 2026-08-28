@@ -32,6 +32,22 @@ class QualificationContractsTest(unittest.TestCase):
         self.assertEqual(len(focused_digest), 64)
         self.assertEqual(len(resident_digest), 64)
         self.assertEqual(layer["shapes"]["handoff"], {"carriers": 4, "laps": 8})
+        self.assertEqual(layer["ladder"], [10, 60, 240])
+
+    def test_resident_ladder_is_ordered_positive_unique_and_locked(self) -> None:
+        for ladder in ([], [10, 10], [60, 10], [0, 10], [True, 10]):
+            with self.subTest(ladder=ladder):
+                manifest = copy.deepcopy(self.manifest)
+                manifest["qualification_layers"]["resident"]["ladder"] = ladder
+                with self.assertRaisesRegex(
+                    contracts.ContractError, "positive unique ordered"
+                ):
+                    contracts.validate_resident_layer(manifest, self.locks)
+
+        manifest = copy.deepcopy(self.manifest)
+        manifest["qualification_layers"]["resident"]["ladder"].append(480)
+        with self.assertRaisesRegex(contracts.ContractError, "lock mismatch"):
+            contracts.validate_resident_layer(manifest, self.locks)
 
     def test_manifest_mutation_does_not_update_its_lock(self) -> None:
         manifest = copy.deepcopy(self.manifest)

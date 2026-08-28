@@ -113,6 +113,7 @@ def resident_projection(layer: dict[str, Any]) -> dict[str, Any]:
             "journal",
             "known_issues",
             "profiles",
+            "ladder",
             "shapes",
         )
     }
@@ -304,7 +305,8 @@ def validate_resident_layer(
         raise ContractError("missing resident qualification layer")
     required = {
         "id", "state", "source", "runner", "readme", "journal",
-        "known_issues", "profiles", "shapes", "inventory_lock", "stage_lock",
+        "known_issues", "profiles", "ladder", "shapes", "inventory_lock",
+        "stage_lock",
     }
     missing = sorted(required - set(layer))
     if missing:
@@ -332,6 +334,17 @@ def validate_resident_layer(
         or len(layer["profiles"]) != len(set(layer["profiles"]))
     ):
         raise ContractError("resident profiles must be a non-empty array")
+    ladder = layer["ladder"]
+    if (
+        not isinstance(ladder, list)
+        or not ladder
+        or not all(type(value) is int and value > 0 for value in ladder)
+        or len(ladder) != len(set(ladder))
+        or ladder != sorted(ladder)
+    ):
+        raise ContractError(
+            "resident ladder must be a positive unique ordered array"
+        )
     digest = require_lock(
         locks, layer["inventory_lock"], resident_projection(layer)
     )
