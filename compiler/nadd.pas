@@ -3820,8 +3820,22 @@ const
           begin
             if (nodetype in [addn,equaln,unequaln,lten,gten,ltn,gtn]) then
               begin
+                { String equality with an empty literal only depends on
+                  whether the other string is empty. Keep that operand in its
+                  original string domain instead of e.g. converting a whole
+                  RawByteString to UnicodeString first. }
+                if (nodetype in [equaln,unequaln]) and
+                   (rt=stringconstn) and
+                   (tstringconstnode(right).len=0) and
+                   (ld.typ=stringdef) then
+                  strtype:=tstringdef(ld).stringtype
+                else if (nodetype in [equaln,unequaln]) and
+                        (lt=stringconstn) and
+                        (tstringconstnode(left).len=0) and
+                        (rd.typ=stringdef) then
+                  strtype:=tstringdef(rd).stringtype
                 { Is there a unicodestring? }
-                if (is_unicodestring(rd) and
+                else if (is_unicodestring(rd) and
                     not(is_rawbytestring(ld) and
                         is_literal_byte_string(right))) or
                    (is_unicodestring(ld) and

@@ -37,6 +37,14 @@ REQUIRED_O3_CALL_PATTERNS = {
     ),
 }
 FORBIDDEN_O3_CALL_PATTERNS.update({
+    # Comparing an Ansi/UTF-8/Short/Wide string with an empty literal only
+    # needs its length.  Promoting the non-empty operand to UnicodeString is
+    # both unnecessary and, for a large RawByteString, an O(n) temporary.
+    "string_empty_compare_semantic": (
+        r"^\s*call[^\r\n]*FPC_ANSISTR_TO_UNICODESTR",
+        r"^\s*call[^\r\n]*FPC_SHORTSTR_TO_UNICODESTR",
+        r"^\s*call[^\r\n]*FPC_WIDESTR_TO_UNICODESTR",
+    ),
     # managed by-value parameters must not block inlining: the copy is
     # materialized with the callee's lifetime (journal 6, deep layer).
     # The negative lookahead admits the finally funclet call
