@@ -1526,6 +1526,7 @@ type
   TMemoryStream = class(TCustomMemoryStream)
   private
     FCapacity: TMemoryStreamCapacity;
+    procedure SetCapacityAndSize(NewCapacity, NewSize: TMemoryStreamCapacity);
   protected
     procedure SetCapacity(NewCapacity: TMemoryStreamCapacity); virtual;
     function Realloc(var NewCapacity: TMemoryStreamCapacity): Pointer; virtual;

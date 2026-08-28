@@ -114,8 +114,21 @@ begin
     ExpectRange('setcap-neg', procedure begin TCapHack(M).Capacity := -7; end);
     Check('state-after-setcap-neg', (M.Size = 104) and (M.Memory <> nil));
 
+    { a direct reserve request below the live span must not truncate the
+      allocation while leaving the old Size visible }
+    M.Size := 10000;
+    M.Position := 9999;
+    Check('large-tail-write', M.Write(Buf, 1) = 1);
+    M.Position := 9000;
+    TCapHack(M).Capacity := 1;
+    Check('setcap-below-size', (M.Size = 10000) and
+      (TCapHack(M).Capacity >= M.Size) and (M.Position = 9000));
+    M.Position := 9999;
+    FillChar(Rd, SizeOf(Rd), 0);
+    Check('setcap-tail-preserved', (M.Read(Rd, 1) = 1) and (Rd[0] = Buf[0]));
+
     { shrink keeps the invariant and clamps the position }
-    M.Position := 104;
+    M.Position := M.Size;
     M.Size := 4;
     Check('shrink', (M.Size = 4) and (M.Position = 4));
 
@@ -141,8 +154,13 @@ begin
     ExpectRange('b-setsize-neg', procedure begin B.Size := -5; end);
     Check('b-state-after-neg', (B.Size = 1) and (Length(B.Bytes) >= 1));
     ExpectRange('b-setcap-neg', procedure begin TCapHack(B).Capacity := -7; end);
+    B.Size := 10000;
+    B.Position := 9000;
+    TCapHack(B).Capacity := 1;
+    Check('b-setcap-below-size', (B.Size = 10000) and
+      (Length(B.Bytes) >= B.Size) and (B.Position = 9000));
     Check('b-write-after', B.Write(Buf, 2) = 2);
-    Check('b-final', B.Size = 3);
+    Check('b-final', B.Size = 10000);
     B.Position := 0;
     FillChar(Rd, SizeOf(Rd), 0);
     Check('b-read-back', (B.Read(Rd, 3) = 3) and (Rd[0] = $10));

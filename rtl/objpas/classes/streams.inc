@@ -1523,7 +1523,29 @@ end;
 procedure TMemoryStream.SetCapacity(NewCapacity: TMemoryStreamCapacity);
 
 begin
-  SetPointer (Realloc(NewCapacity),Fsize);
+  SetCapacityAndSize(NewCapacity,FSize);
+end;
+
+
+procedure TMemoryStream.SetCapacityAndSize(NewCapacity,
+  NewSize: TMemoryStreamCapacity);
+
+var
+  NewMemory: Pointer;
+
+begin
+  { Direct capacity changes are reserve operations: they may release spare
+    storage, but never truncate the live logical span.  SetSize calls this
+    same transition with its new logical size, so shrinking does not need to
+    publish a temporarily contradictory FSize. }
+  If NewCapacity<0 then
+    Raise ERangeError.Create(SRangeError);
+  If NewCapacity<NewSize then
+    NewCapacity:=NewSize;
+  NewMemory:=Realloc(NewCapacity);
+  If NewCapacity<NewSize then
+    Raise EStreamError.Create(SMemoryStreamError);
+  SetPointer(NewMemory,NewSize);
   FCapacity:=NewCapacity;
 end;
 
@@ -1554,9 +1576,8 @@ end;
 procedure TMemoryStream.Clear;
 
 begin
-  FSize:=0;
+  SetCapacityAndSize(0,0);
   FPosition:=0;
-  SetCapacity (0);
 end;
 
 
@@ -1598,8 +1619,7 @@ begin
     ERangeError for TBytesStream) - unified on the argument-error class }
   If (NewSize<0) or (NewSize>High(TMemoryStreamCapacity)) then
     Raise ERangeError.Create(SRangeError);
-  SetCapacity (NewSize);
-  FSize:=NewSize;
+  SetCapacityAndSize(NewSize,NewSize);
   IF FPosition>FSize then
     FPosition:=FSize;
 end;
