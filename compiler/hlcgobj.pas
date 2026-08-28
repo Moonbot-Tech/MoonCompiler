@@ -4356,7 +4356,7 @@ implementation
   procedure thlcgobj.g_copyvaluepara_openarray(list: TAsmList; const ref: treference; const lenloc: tlocation; arrdef: tarraydef; destreg: tregister);
     var
       sizereg,sourcereg,lenreg,countreg : tregister;
-      cgpara1,cgpara2,cgpara3 : TCGPara;
+      cgpara1,cgpara2,cgpara3,cgpara4 : TCGPara;
       ptrarrdef : tdef;
       pd : tprocdef;
       getmemres : tcgpara;
@@ -4406,25 +4406,34 @@ implementation
           cgpara1.init;
           cgpara2.init;
           cgpara3.init;
+          cgpara4.init;
           paramanager.getcgtempparaloc(list,pd,1,cgpara1);
           paramanager.getcgtempparaloc(list,pd,2,cgpara2);
           paramanager.getcgtempparaloc(list,pd,3,cgpara3);
+          paramanager.getcgtempparaloc(list,pd,4,cgpara4);
           if pd.is_pushleftright then
             begin
               a_load_reg_cgpara(list,ptrarrdef,sourcereg,cgpara1);
               a_loadaddr_ref_cgpara(list,voidpointertype,hrefrtti,cgpara2);
               a_load_reg_cgpara(list,sinttype,countreg,cgpara3);
+              a_load_const_cgpara(list,sizeuinttype,
+                arrdef.elementdef.alignment,cgpara4);
             end
           else
             begin
+              a_load_const_cgpara(list,sizeuinttype,
+                arrdef.elementdef.alignment,cgpara4);
               a_load_reg_cgpara(list,sinttype,countreg,cgpara3);
               a_loadaddr_ref_cgpara(list,voidpointertype,hrefrtti,cgpara2);
               a_load_reg_cgpara(list,ptrarrdef,sourcereg,cgpara1);
             end;
+          paramanager.freecgpara(list,cgpara4);
           paramanager.freecgpara(list,cgpara3);
           paramanager.freecgpara(list,cgpara2);
           paramanager.freecgpara(list,cgpara1);
-          getmemres:=g_call_system_proc(list,pd,[@cgpara1,@cgpara2,@cgpara3],ptrarrdef);
+          getmemres:=g_call_system_proc(list,pd,
+            [@cgpara1,@cgpara2,@cgpara3,@cgpara4],ptrarrdef);
+          cgpara4.done;
           cgpara3.done;
           cgpara2.done;
           cgpara1.done;
@@ -4491,8 +4500,11 @@ implementation
       cgpara1 : TCGPara;
       pd : tprocdef;
     begin
-      { do freemem call }
-      pd:=search_system_proc('fpc_freemem');
+      { Delphi-Assign open arrays use an explicitly aligned carrier. }
+      if is_delphi_assign_record(arrdef.elementdef) then
+        pd:=search_system_proc('fpc_delphi_free_openarray')
+      else
+        pd:=search_system_proc('fpc_freemem');
       cgpara1.init;
       paramanager.getcgtempparaloc(list,pd,1,cgpara1);
       { load source }

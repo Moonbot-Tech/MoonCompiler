@@ -863,7 +863,8 @@ procedure fpc_initialize_array(data,typeinfo : pointer;count : SizeInt); compile
 procedure fpc_finalize_array(data,typeinfo : pointer;count : SizeInt); compilerproc;
 procedure fpc_addref_array(data,typeinfo: pointer; count: SizeInt); compilerproc;
 procedure fpc_decref_array(data,typeinfo: pointer; count: sizeint); compilerproc;
-function fpc_delphi_copy_openarray(src,typeinfo : pointer;count : SizeInt) : pointer; compilerproc;
+function fpc_delphi_copy_openarray(src,typeinfo : pointer;count : SizeInt;alignment : SizeUInt) : pointer; compilerproc;
+procedure fpc_delphi_free_openarray(data : pointer); compilerproc;
 procedure fpc_delphi_finalize_copy(data,typeinfo : pointer); compilerproc;
 {$ifdef FPC_HAS_FEATURE_HEAP}
 procedure fpc_assign_default_array(dest,typeinfo : pointer;size,alignment : SizeUInt); compilerproc;

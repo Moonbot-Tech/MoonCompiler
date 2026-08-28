@@ -286,6 +286,11 @@ interface
          typedef                    : tdef;
          typedefderef               : tderef;
          temptype                   : ttemptype;
+         { Alignment required by the value that is materialized in this
+           storage.  This may be stricter than typedef.alignment when typedef
+           is only a raw byte carrier around a managed value.  Zero keeps the
+           ordinary typedef-derived alignment. }
+         storagealignment           : shortint;
          owner                      : ttempcreatenode;
          withnode                   : tnode;
          location                   : tlocation;
@@ -1617,6 +1622,7 @@ implementation
         n.tempinfo^.owner:=n;
         n.tempinfo^.typedef := tempinfo^.typedef;
         n.tempinfo^.temptype := tempinfo^.temptype;
+        n.tempinfo^.storagealignment := tempinfo^.storagealignment;
         n.tempflags := tempflags * tempinfostoreflags;
 
         { when the tempinfo has already a hookoncopy then it is not
@@ -1653,6 +1659,7 @@ implementation
         ppufile.getset(tppuset2(tempinfo^.flags));
         ppufile.getderef(tempinfo^.typedefderef);
         tempinfo^.temptype := ttemptype(ppufile.getbyte);
+        tempinfo^.storagealignment:=shortint(ppufile.getbyte);
         tempinfo^.owner:=self;
         tempinfo^.withnode:=ppuloadnode(ppufile);
         ftemplvalue:=ppuloadnode(ppufile);
@@ -1666,6 +1673,7 @@ implementation
         ppufile.putset(tppuset2(tempinfo^.flags));
         ppufile.putderef(tempinfo^.typedefderef);
         ppufile.putbyte(byte(tempinfo^.temptype));
+        ppufile.putbyte(byte(tempinfo^.storagealignment));
         ppuwritenode(ppufile,tempinfo^.withnode);
         ppuwritenode(ppufile,ftemplvalue);
       end;

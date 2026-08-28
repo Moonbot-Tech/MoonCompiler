@@ -556,7 +556,13 @@ interface
             else
               begin
                 location_reset_ref(tempinfo^.location,LOC_REFERENCE,def_cgsize(tempinfo^.typedef),0,[]);
-                tg.gethltemp(current_asmdata.CurrAsmList,tempinfo^.typedef,size,tempinfo^.temptype,tempinfo^.location.reference);
+                if tempinfo^.storagealignment<>0 then
+                  tg.gettemp(current_asmdata.CurrAsmList,size,
+                    tempinfo^.storagealignment,tempinfo^.temptype,
+                    tempinfo^.location.reference)
+                else
+                  tg.gethltemp(current_asmdata.CurrAsmList,tempinfo^.typedef,
+                    size,tempinfo^.temptype,tempinfo^.location.reference);
               end;
           end;
         includetempflag(ti_valid);

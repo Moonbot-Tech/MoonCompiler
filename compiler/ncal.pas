@@ -1101,6 +1101,7 @@ implementation
                 temparraydef:=carraydef.getreusable(u8inttype,
                   delphi_copy_flag_offset(left.resultdef)+sizeof(pint));
                 paratemp:=ctempcreatenode.create(temparraydef,temparraydef.size,tt_persistent,false);
+                paratemp.tempinfo^.storagealignment:=left.resultdef.alignment;
                 addstatement(initstat,paratemp);
                 addstatement(initstat,
                   cnodeutils.initialize_data_node(
@@ -1126,6 +1127,7 @@ implementation
                   for the assignment to the temp }
                 temparraydef:=carraydef.getreusable(u8inttype,left.resultdef.size);
                 paratemp:=ctempcreatenode.create(temparraydef,temparraydef.size,tt_persistent,false);
+                paratemp.tempinfo^.storagealignment:=left.resultdef.alignment;
                 addstatement(initstat,paratemp);
                 addstatement(initstat,
                   cassignmentnode.create(
@@ -6099,6 +6101,7 @@ implementation
                     delphi_copy_flag_offset(tabstractvarsym(p).vardef)+sizeof(pint)),
                   delphi_copy_flag_offset(tabstractvarsym(p).vardef)+sizeof(pint),
                   tt_persistent,false);
+                tempnode.tempinfo^.storagealignment:=tabstractvarsym(p).vardef.alignment;
                 { creation and flag zeroing outside the frame, the user's
                   Initialize inside it: a raise from a later local's or
                   copy's construction reaches the frame's finally, whose
@@ -6480,6 +6483,7 @@ implementation
                     else
                       temparraydef:=carraydef.getreusable(u8inttype,para.parasym.vardef.size);
                     delphitemp:=ctempcreatenode.create(temparraydef,temparraydef.size,tt_persistent,false);
+                    delphitemp.tempinfo^.storagealignment:=para.parasym.vardef.alignment;
                     { the temp creation and the flag zeroing stay OUTSIDE the
                       frame: they cannot raise, and the frame's flag-gated
                       finally must find a defined flag even when an earlier

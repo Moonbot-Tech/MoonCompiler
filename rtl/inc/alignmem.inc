@@ -16,12 +16,15 @@
 function GetMemAligned(size, alignment: PtrUInt): pointer;
   var
     raw: pointer;
-    aligned_addr: PtrUInt;
+    aligned_addr,total_size: PtrUInt;
   begin
     if (alignment < sizeof(pointer)) or
        ((alignment and (alignment - 1)) <> 0) then
       exit(nil);
-    GetMem(raw, size + alignment + sizeof(pointer));
+    total_size:=size+alignment+sizeof(pointer);
+    if total_size<size then
+      exit(nil);
+    GetMem(raw,total_size);
     if raw = nil then
       exit(nil);
     aligned_addr := (PtrUInt(raw) + sizeof(pointer) + alignment - 1) and

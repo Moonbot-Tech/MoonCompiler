@@ -598,9 +598,10 @@ procedure fpc_delphi_finalize_copy(data,typeinfo : pointer); [public,alias:'FPC_
   no resource is left without an owner; ownership transfers to the callee
   only through a successful return. This is a deliberate stronger contract
   than DCC64, which finalizes nothing of the copy. }
-function fpc_delphi_copy_openarray(src,typeinfo : pointer;count : SizeInt) : pointer; [public,alias:'FPC_DELPHI_COPY_OPENARRAY']; compilerproc;
+function fpc_delphi_copy_openarray(src,typeinfo : pointer;count : SizeInt;alignment : SizeUInt) : pointer; [public,alias:'FPC_DELPHI_COPY_OPENARRAY']; compilerproc;
   var
     size,i : SizeInt;
+    allocsize : SizeUInt;
     constructed : boolean;
   begin
     { Only tkArray (a static-array aggregate) and tkRecord/tkObject reach
@@ -609,7 +610,18 @@ function fpc_delphi_copy_openarray(src,typeinfo : pointer;count : SizeInt) : poi
       size:=PArrayInfo(aligntoqword(typeinfo+2+PByte(typeinfo)[1]))^.Size
     else
       size:=PRecordInfoInit(RTTIRecordInfoInit(typeinfo))^.Size;
-    GetMem(result,size*count);
+    if count<=0 then
+      exit(nil);
+    if (size<=0) or (SizeUInt(count)>High(SizeUInt) div SizeUInt(size)) then
+      RunError(203);
+    allocsize:=SizeUInt(size)*SizeUInt(count);
+    if alignment<sizeof(pointer) then
+      alignment:=sizeof(pointer);
+    if (alignment and (alignment-1))<>0 then
+      RunError(203);
+    result:=AllocMemAligned(allocsize,alignment);
+    if not assigned(result) then
+      RunError(203);
     constructed:=false;
     try
       int_InitializeArray(result,typeinfo,count);
@@ -617,11 +629,23 @@ function fpc_delphi_copy_openarray(src,typeinfo : pointer;count : SizeInt) : poi
       for i:=0 to count-1 do
         int_copy(src+size*i,result+size*i,typeinfo);
     except
-      if constructed then
-        int_FinalizeArray(result,typeinfo,count);
-      FreeMem(result);
+      try
+        if constructed then
+          int_FinalizeArray(result,typeinfo,count);
+      finally
+        FreeMemAligned(result);
+      end;
       raise;
     end;
+  end;
+
+
+{ Successful fpc_delphi_copy_openarray calls transfer an explicitly aligned
+  carrier to the callee.  Keep its release paired with the allocator above;
+  ordinary open-array value copies continue to use fpc_freemem. }
+procedure fpc_delphi_free_openarray(data : pointer); [public,alias:'FPC_DELPHI_FREE_OPENARRAY']; compilerproc;
+  begin
+    FreeMemAligned(data);
   end;
 
 {$ifdef FPC_HAS_FEATURE_HEAP}

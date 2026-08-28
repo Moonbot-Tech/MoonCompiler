@@ -66,6 +66,7 @@ FORBIDDEN_O3_CALL_PATTERNS.update({
 SOURCE_OPTIONS = {
     "mm_finalization_lifetime_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
     "mm_finalization_leak_report_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
+    "openarray_finalize_throw_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
 }
 CURRENT_TREE_UNIT_DIRS = {
     # This repair lives in packages/vcl-compat.  An ordinary program build
@@ -106,6 +107,9 @@ REQUIRED_RUNTIME_PATTERNS = {
 }
 FORBIDDEN_RUNTIME_PATTERNS = {
     "mm_finalization_lifetime_semantic": (
+        r"small block leak|medium block leak|large block leak",
+    ),
+    "openarray_finalize_throw_semantic": (
         r"small block leak|medium block leak|large block leak",
     ),
 }
