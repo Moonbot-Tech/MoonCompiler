@@ -68,7 +68,10 @@ SYSTEM_LABELS = {
     "delphi": "Delphi 12.2 + default FastMM4",
     "moon": "Moon Compiler + bundled fpcx64mm",
     "moon-default": "Moon Compiler + FPC default MM",
+    "moon-baseline": "Moon Compiler baseline + bundled fpcx64mm",
+    "moon-candidate": "Moon Compiler candidate + bundled fpcx64mm",
 }
+EXTERNAL_MOON_SYSTEMS = ("moon-baseline", "moon-candidate")
 
 
 def run(command: list[str], *, cwd: Path = ROOT, capture: bool = False) -> subprocess.CompletedProcess[str]:
@@ -126,17 +129,93 @@ def build_delphi(program: str) -> Path:
     return executable(program, "delphi")
 
 
-def build_moon(program: str, default_mm: bool) -> Path:
-    if not MOON_FPC.is_file() or not MOON_CFG.is_file():
+def moon_toolchain_paths(toolchain: Path | None = None) -> tuple[Path, Path]:
+    if toolchain is None:
+        return MOON_FPC, MOON_CFG
+    if IS_WINDOWS:
+        return (
+            toolchain / "bin" / "x86_64-win64" / "fpc.exe",
+            toolchain / "bin" / "x86_64-win64" / "fpc.cfg",
+        )
+    return toolchain / "bin" / "fpc", toolchain / "etc" / "fpc.cfg"
+
+
+def moon_toolchain_backends(toolchain: Path) -> list[Path]:
+    return sorted(
+        {
+            path.resolve()
+            for pattern in ("ppcx64", "ppcx64.exe")
+            for path in toolchain.rglob(pattern)
+            if path.is_file()
+        },
+        key=str,
+    )
+
+
+def moon_toolchain_backend(toolchain: Path) -> Path:
+    backends = moon_toolchain_backends(toolchain)
+    if len(backends) != 1:
+        raise RuntimeError(
+            f"external Moon toolchain must contain exactly one x86-64 backend: "
+            f"{toolchain} has {backends}"
+        )
+    return backends[0]
+
+
+def moon_toolchain_identity(toolchain: Path) -> dict[str, object]:
+    moon_fpc, moon_cfg = moon_toolchain_paths(toolchain)
+    backend = moon_toolchain_backend(toolchain)
+    return {
+        "root": str(toolchain.resolve()),
+        "fpc": str(moon_fpc.resolve()),
+        "fpc_sha256": sha256(moon_fpc),
+        "config": str(moon_cfg.resolve()),
+        "config_sha256": sha256(moon_cfg),
+        "backend": str(backend),
+        "backend_sha256": sha256(backend),
+    }
+
+
+def moon_mm_options(default_mm: bool) -> list[str]:
+    if default_mm:
+        return [
+            "-dPULSE_DEFAULT_MM",
+            "-dMOONCOMPILER_VANILLA_RUNTIME",
+            "-Fafpwinmonitor" if IS_WINDOWS else "-Facthreads,cwstring,fpmonitor",
+            "-uMOONBOT_MM_PROFILE_REQUIRED",
+            "-uFPCMM_BOOSTER",
+            "-uFPCMM_MOONSHARD",
+        ]
+    return [
+        "-uMOONCOMPILER_VANILLA_RUNTIME",
+        "-dFPCMM_BOOSTER",
+        "-dFPCMM_MOONSHARD",
+        "-dMOONBOT_MM_PROFILE_REQUIRED",
+        f"--pinned-unit=mormot.core.fpcx64mm={MM_SOURCE.resolve()}",
+        "--required-first-unit=mormot.core.fpcx64mm",
+        f"-Fu{MM_SOURCE.parent}",
+    ]
+
+
+def build_moon(
+    program: str,
+    default_mm: bool,
+    *,
+    system: str | None = None,
+    toolchain: Path | None = None,
+) -> Path:
+    moon_fpc, moon_cfg = moon_toolchain_paths(toolchain)
+    moon_compiler = moon_toolchain_backend(toolchain) if toolchain else moon_fpc
+    if not moon_compiler.is_file() or not moon_cfg.is_file():
         raise FileNotFoundError("Moon toolchain is not built; run ./build compiler")
-    system = "moon-default" if default_mm else "moon"
+    system = system or ("moon-default" if default_mm else "moon")
     target = output_dir(program, system)
     target.mkdir(parents=True, exist_ok=True)
     unit_paths = [COMMON, *PROGRAM_UNIT_PATHS.get(program, [])]
     args = [
-        str(MOON_FPC),
+        str(moon_compiler),
         "-n",
-        f"@{MOON_CFG}",
+        f"@{moon_cfg}",
         "-Mdelphi",
         "-O3",
         "-B",
@@ -145,24 +224,17 @@ def build_moon(program: str, default_mm: bool) -> Path:
         f"-FE{target}",
         f"-FU{target}",
     ]
-    if default_mm:
-        args.append("-dPULSE_DEFAULT_MM")
-    else:
-        args.extend(
-            [
-                "-dFPCMM_BOOSTER",
-                "-dFPCMM_MOONSHARD",
-                "-dMOONBOT_MM_PROFILE_REQUIRED",
-                f"--pinned-unit=mormot.core.fpcx64mm={MM_SOURCE.resolve()}",
-                "--required-first-unit=mormot.core.fpcx64mm",
-                f"-Fu{MM_SOURCE.parent}",
-            ]
-        )
+    args.extend(moon_mm_options(default_mm))
     run(args + [str(PROGRAMS[program])])
     return executable(program, system)
 
 
-def build(programs: list[str], systems: list[str]) -> dict[str, dict[str, Path]]:
+def build(
+    programs: list[str],
+    systems: list[str],
+    external_toolchains: dict[str, Path] | None = None,
+) -> dict[str, dict[str, Path]]:
+    external_toolchains = external_toolchains or {}
     built: dict[str, dict[str, Path]] = {}
     for system in systems:
         built[system] = {}
@@ -174,6 +246,13 @@ def build(programs: list[str], systems: list[str]) -> dict[str, dict[str, Path]]
                 path = build_moon(program, False)
             elif system == "moon-default":
                 path = build_moon(program, True)
+            elif system in EXTERNAL_MOON_SYSTEMS:
+                path = build_moon(
+                    program,
+                    False,
+                    system=system,
+                    toolchain=external_toolchains[system],
+                )
             else:
                 raise ValueError(f"unknown system: {system}")
             built[system][program] = path
@@ -199,16 +278,28 @@ def machine_metadata() -> dict[str, object]:
     return metadata
 
 
-def qualification_input_hashes() -> dict[str, str]:
+def qualification_input_hashes(
+    external_toolchains: dict[str, Path] | None = None,
+) -> dict[str, str]:
     inputs: dict[str, str] = {}
     fixed = [MOON_FPC, MOON_CFG, MM_SOURCE]
     fixed.extend(sorted((ROOT / ".moonbot" / "toolchain").rglob("ppcx64")))
     fixed.extend(sorted((ROOT / ".moonbot" / "toolchain").rglob("ppcx64.exe")))
     if IS_WINDOWS:
         fixed.append(DCC64)
+    for toolchain in (external_toolchains or {}).values():
+        moon_fpc, moon_cfg = moon_toolchain_paths(toolchain)
+        fixed.extend((moon_fpc, moon_cfg))
+        fixed.extend(sorted(toolchain.rglob("ppcx64")))
+        fixed.extend(sorted(toolchain.rglob("ppcx64.exe")))
     for path in fixed:
         if path.is_file():
-            key = str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
+            resolved = path.resolve()
+            key = (
+                str(resolved.relative_to(ROOT))
+                if resolved.is_relative_to(ROOT)
+                else str(resolved)
+            )
             inputs[key] = sha256(path)
     for path in sorted(PERF_ROOT.rglob("*")):
         if not path.is_file():
@@ -237,8 +328,15 @@ def discover_cases(exe: Path) -> list[str]:
     return cases
 
 
-def run_suite(mode: str, programs: list[str], systems: list[str], tag: str) -> Path:
-    built = build(programs, systems)
+def run_suite(
+    mode: str,
+    programs: list[str],
+    systems: list[str],
+    tag: str,
+    external_toolchains: dict[str, Path] | None = None,
+) -> Path:
+    external_toolchains = external_toolchains or {}
+    built = build(programs, systems, external_toolchains)
     result = RESULTS / tag
     result.mkdir(parents=True, exist_ok=False)
     repeats = {"quick": 2, "medium": 7, "long": 9}[mode]
@@ -308,8 +406,12 @@ def run_suite(mode: str, programs: list[str], systems: list[str], tag: str) -> P
         "git_head": git_text("rev-parse", "HEAD"),
         "git_status": git_text("status", "--porcelain=v1"),
         "machine": machine_metadata(),
-        "input_sha256": qualification_input_hashes(),
+        "input_sha256": qualification_input_hashes(external_toolchains),
         "systems": {system: SYSTEM_LABELS[system] for system in systems},
+        "external_toolchains": {
+            system: moon_toolchain_identity(toolchain)
+            for system, toolchain in external_toolchains.items()
+        },
         "runs": runs,
     }
     (result / "manifest.json").write_text(
@@ -540,17 +642,30 @@ def collect(result: Path) -> tuple[dict[tuple[str, str, str], dict[str, object]]
     return rows, manifest
 
 
-def write_report(result: Path) -> None:
-    rows, manifest = collect(result)
-    systems = list(manifest["systems"])
+def report_system_roles(systems: list[str]) -> tuple[str, str]:
     baseline = (
-        "delphi"
+        "moon-baseline"
+        if "moon-baseline" in systems
+        else "delphi"
         if "delphi" in systems
         else "moon-default"
         if "moon-default" in systems
         else systems[0]
     )
-    candidate = "moon" if "moon" in systems else systems[-1]
+    candidate = (
+        "moon-candidate"
+        if "moon-candidate" in systems
+        else "moon"
+        if "moon" in systems
+        else systems[-1]
+    )
+    return baseline, candidate
+
+
+def write_report(result: Path) -> None:
+    rows, manifest = collect(result)
+    systems = list(manifest["systems"])
+    baseline, candidate = report_system_roles(systems)
     control = (
         "moon-default"
         if "delphi" in systems and "moon-default" in systems
@@ -787,6 +902,8 @@ def main() -> None:
         "--systems",
         default="delphi,moon,moon-default" if IS_WINDOWS else "moon,moon-default",
     )
+    run_parser.add_argument("--moon-baseline-toolchain", type=Path)
+    run_parser.add_argument("--moon-candidate-toolchain", type=Path)
     run_parser.add_argument("--tag")
     report_parser = sub.add_parser("report")
     report_parser.add_argument("result", type=Path)
@@ -800,8 +917,28 @@ def main() -> None:
             unknown_systems.append("delphi (Windows-only)")
         if unknown_programs or unknown_systems:
             raise ValueError(f"unknown programs={unknown_programs} systems={unknown_systems}")
+        external_toolchains = {
+            system: path.resolve()
+            for system, path in (
+                ("moon-baseline", args.moon_baseline_toolchain),
+                ("moon-candidate", args.moon_candidate_toolchain),
+            )
+            if path is not None
+        }
+        selected_external = set(systems) & set(EXTERNAL_MOON_SYSTEMS)
+        if selected_external and selected_external != set(EXTERNAL_MOON_SYSTEMS):
+            raise ValueError(
+                "moon-baseline and moon-candidate must be selected together"
+            )
+        missing_toolchains = sorted(selected_external - external_toolchains.keys())
+        unused_toolchains = sorted(external_toolchains.keys() - selected_external)
+        if missing_toolchains or unused_toolchains:
+            raise ValueError(
+                f"missing external toolchains={missing_toolchains} "
+                f"unused external toolchains={unused_toolchains}"
+            )
         tag = args.tag or time.strftime("%Y%m%d-%H%M%S") + f"-{args.mode}"
-        run_suite(args.mode, programs, systems, tag)
+        run_suite(args.mode, programs, systems, tag, external_toolchains)
     else:
         write_report(args.result.resolve())
 

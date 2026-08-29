@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -76,6 +77,81 @@ class PulseStatisticsTests(unittest.TestCase):
         self.assertTrue(PULSE.use_paired_process_ratios("abi", "tsc"))
         self.assertTrue(PULSE.use_paired_process_ratios("move", "cycles"))
         self.assertFalse(PULSE.use_paired_process_ratios("abi", "cycles"))
+
+    def test_external_moon_toolchain_paths_are_rooted_at_selection(self) -> None:
+        root = Path("/qualification/frozen-toolchain")
+        compiler, config = PULSE.moon_toolchain_paths(root)
+        if PULSE.IS_WINDOWS:
+            self.assertEqual(compiler, root / "bin" / "x86_64-win64" / "fpc.exe")
+            self.assertEqual(config, root / "bin" / "x86_64-win64" / "fpc.cfg")
+        else:
+            self.assertEqual(compiler, root / "bin" / "fpc")
+            self.assertEqual(config, root / "etc" / "fpc.cfg")
+
+    def test_external_moon_invokes_frozen_backend_not_driver(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            backend = root / "lib" / "fpc" / "3.3.1" / "ppcx64"
+            backend.parent.mkdir(parents=True)
+            backend.write_bytes(b"frozen compiler")
+            self.assertEqual(PULSE.moon_toolchain_backend(root), backend.resolve())
+
+    def test_external_moon_rejects_ambiguous_backends(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for version in ("3.3.0", "3.3.1"):
+                backend = root / "lib" / "fpc" / version / "ppcx64"
+                backend.parent.mkdir(parents=True)
+                backend.write_bytes(version.encode())
+            with self.assertRaisesRegex(RuntimeError, "exactly one"):
+                PULSE.moon_toolchain_backend(root)
+
+    def test_external_moon_identity_hashes_driver_config_and_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            driver, config = PULSE.moon_toolchain_paths(root)
+            backend = root / "lib" / "fpc" / "3.3.1" / "ppcx64"
+            for path, contents in (
+                (driver, b"driver"),
+                (config, b"config"),
+                (backend, b"backend"),
+            ):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(contents)
+            identity = PULSE.moon_toolchain_identity(root)
+            self.assertEqual(identity["fpc_sha256"], PULSE.sha256(driver))
+            self.assertEqual(identity["config_sha256"], PULSE.sha256(config))
+            self.assertEqual(identity["backend"], str(backend.resolve()))
+            self.assertEqual(identity["backend_sha256"], PULSE.sha256(backend))
+
+    def test_external_systems_have_unambiguous_report_roles(self) -> None:
+        baseline, candidate = PULSE.report_system_roles(
+            ["moon-baseline", "moon-candidate"]
+        )
+        self.assertEqual(baseline, "moon-baseline")
+        self.assertEqual(candidate, "moon-candidate")
+
+    def test_default_mm_undoes_product_config_profile(self) -> None:
+        options = PULSE.moon_mm_options(True)
+        self.assertIn("-dPULSE_DEFAULT_MM", options)
+        self.assertIn("-dMOONCOMPILER_VANILLA_RUNTIME", options)
+        platform_units = (
+            "-Fafpwinmonitor"
+            if PULSE.IS_WINDOWS
+            else "-Facthreads,cwstring,fpmonitor"
+        )
+        self.assertIn(platform_units, options)
+        self.assertIn("-uMOONBOT_MM_PROFILE_REQUIRED", options)
+        self.assertIn("-uFPCMM_BOOSTER", options)
+        self.assertIn("-uFPCMM_MOONSHARD", options)
+        self.assertFalse(any(option.startswith("--pinned-unit=") for option in options))
+
+    def test_bundled_mm_is_explicitly_pinned_and_required_first(self) -> None:
+        options = PULSE.moon_mm_options(False)
+        self.assertIn("-uMOONCOMPILER_VANILLA_RUNTIME", options)
+        self.assertIn("-dMOONBOT_MM_PROFILE_REQUIRED", options)
+        self.assertTrue(any(option.startswith("--pinned-unit=") for option in options))
+        self.assertIn("--required-first-unit=mormot.core.fpcx64mm", options)
 
 
 if __name__ == "__main__":

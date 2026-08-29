@@ -14,7 +14,7 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
-  {$if defined(FPC) and defined(UNIX)}
+  {$if defined(FPC) and defined(UNIX) and not defined(PULSE_DEFAULT_MM)}
   cthreads,
   {$ifend}
   SysUtils,
