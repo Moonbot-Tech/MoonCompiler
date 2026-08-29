@@ -17,11 +17,25 @@
 
 { $define SYSTEM_DEBUG}
 
-{ use a trampoline which pushes the return address for proper unwinding }
-Procedure SignalToHandleErrorAddrFrame (Errno : longint;addr : CodePointer; frame : Pointer); nostackframe; assembler;
+{ Trampoline between the signal-to-exception conversion and
+  HandleErrorAddrFrame.  The signal handler already stored the faulting RIP
+  on the interrupted stack as this trampoline's return-address slot (so the
+  PSABI unwinder walks tramp -> faulting routine -> its callers over their
+  own CFI), and the interrupted RSP has ARBITRARY 16-byte parity: a routine
+  compiled without a stack frame traps at rsp ≡ 8 (mod 16), a framed one at
+  rsp ≡ 0.  The old `pushq addr; jmp` shape added exactly 8 bytes, which
+  kept ABI alignment only for the framed parity and entered the whole
+  raise/unwind chain misaligned for the frameless one - an aligned SSE
+  spill inside libgcc's _Unwind_RaiseException then dies with SIGSEGV.
+  A REAL frame (compiler prologue, rbp-based CFI) plus an explicit
+  realignment before the call keeps the ABI contract for both parities;
+  the rbp-based CFA still recovers the exact interrupted RSP for the
+  unwinder no matter what the alignment fixup dropped. }
+Procedure SignalToHandleErrorAddrFrame (Errno : longint;addr : CodePointer; frame : Pointer); assembler;
 asm
-  pushq addr
-  jmp HandleErrorAddrFrame
+  andq $-16,%rsp        { restore the ABI stack alignment for any trap parity }
+  call HandleErrorAddrFrame
+  { never returns }
 end;
 
 const
@@ -133,6 +147,19 @@ procedure SignalToRunerror(sig : longint; SigInfo: PSigInfo; SigContext: PSigCon
     reenable_signal(sig);
     if res<>0 then
       begin
+        { store the faulting address as the trampoline's return-address slot
+          BEFORE resuming: the unwinder then sees a regular call chain
+          trampoline -> faulting routine -> its callers, each over its own
+          CFI (the red-zone bytes this overwrites belong to the routine we
+          are turning into a raise anyway).  The slot carries RIP+1, not
+          RIP: a return address semantically points AFTER the call, and the
+          unwinder looks the FDE up at RA-1 - with a fault on the FIRST
+          instruction of a routine (the plain shape of a nil dereference)
+          a raw RIP would land the lookup BEFORE the routine, in a foreign
+          or missing FDE, and the exception escapes every handler.  The
+          reported fault address (rsi below) stays the exact RIP. }
+        SigContext^.rsp := SigContext^.rsp - sizeof(ptruint);
+        PPtrUInt(SigContext^.rsp)^ := SigContext^.rip + 1;
         SigContext^.rdi := res;
         SigContext^.rsi := SigContext^.rip;
         SigContext^.rdx := SigContext^.rbp;
