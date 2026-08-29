@@ -56,6 +56,9 @@ def main() -> None:
     p.add_argument("--seeds", default="1,2,3")
     p.add_argument("--cases", type=int, default=200)
     p.add_argument("--stress-cases", type=int, default=30)
+    p.add_argument("--with-switches", action="store_true",
+                   help="прогнать резидент по каждой оптимизации отдельно "
+                        "(38 сборок, около восьми минут)")
     p.add_argument("--with-mutation", action="store_true")
     p.add_argument("--mutation-repo", type=Path)
     p.add_argument("--timeout", type=int, default=7200)
@@ -108,6 +111,22 @@ def main() -> None:
                       str(SCRIPTS / "run_devil_resident_gate.py"),
                       "--work", str(run_root / "resident"),
                       "--report", str(run_root / "resident.json")]),
+        # Устройство программы, а не её счёт: обёртка над чужой библиотекой,
+        # менеджер с породами, сервисы на интерфейсах, циклы заголовков — и
+        # всё это в матрице ключей и порядков инициализации.
+        ("plant", [sys.executable, str(SCRIPTS / "run_plant_gate.py"),
+                   "--work", str(run_root / "plant"),
+                   "--report", str(run_root / "plant.json")]),
+        # Кодоформы Арбитража и MoonBot: каждая работа несколькими телами
+        # сразу, плюс сверка карты вставок — не исчезла ли ось, которую тест
+        # собирался проверять.
+        ("chimera", [sys.executable, str(SCRIPTS / "run_chimera_gate.py"),
+                     "--work", str(run_root / "chimera"),
+                     "--report", str(run_root / "chimera.json")]),
+        # Топология графа юнитов × вид символа × способ переноса тела.
+        ("topology", [sys.executable, str(SCRIPTS / "run_topology_gate.py"),
+                      "--work", str(run_root / "topology"),
+                      "--report", str(run_root / "topology.json")]),
         ("stress", [sys.executable, str(SCRIPTS / "run_devil_stress_gate.py")]
          + common + ["--cases", str(args.stress_cases),
                      "--work", str(run_root / "stress"),
@@ -117,6 +136,13 @@ def main() -> None:
                               "--ppu-reuse", "--work", str(run_root / "main"),
                               "--report", str(run_root / "main.json")]),
     ]
+    if args.with_switches:
+        # Каждая оптимизация по отдельности на всём кольце резидента: тридцать
+        # восемь сборок, поэтому не в основном наборе.
+        stages.append(("switches",
+                       [sys.executable, str(SCRIPTS / "run_resident_switch_matrix.py"),
+                        "--work", str(run_root / "switches"),
+                        "--report", str(run_root / "switches.json")]))
     if args.with_mutation:
         stages.append(("mutation",
                        [sys.executable, str(SCRIPTS / "run_devil_mutation.py"),
@@ -129,7 +155,8 @@ def main() -> None:
     for name, cmd in stages:
         code, log, seconds = run(cmd, args.timeout)
         verdict = [l for l in log.splitlines()
-                   if l.startswith(("DEVIL_", "RESIDENT_", "  NEW",
+                   if l.startswith(("DEVIL_", "RESIDENT_", "CHIMERA_",
+                                    "PLANT_", "  NEW",
                                     "  known"))][-8:]
         results.append({"stage": name, "code": code,
                         "seconds": round(seconds, 1), "tail": verdict})
