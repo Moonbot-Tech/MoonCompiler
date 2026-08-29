@@ -1002,6 +1002,7 @@ implementation
             { superclass (for compatibility), so also check the classtype (JM) }
             (p.classtype=classtype) and
             (p.nodetype=nodetype) and
+            (p.localswitches=localswitches) and
             (flags*flagsequal=p.flags*flagsequal) and
             (transientflags*transientflagsequal=p.transientflags*transientflagsequal) and
             docompare(p));
@@ -1508,4 +1509,3 @@ begin
   printfileinfo_address:=@dprintfileinfo;
   printnode_address:=@dprintnode;
 end.
-
