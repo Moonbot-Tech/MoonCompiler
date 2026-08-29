@@ -410,8 +410,19 @@ end;
 Function WStrToCardinal(p: Pointer) : Cardinal;
 var
   Error : Word;
+{$ifndef FPUNONE}
+  Value : Extended;
+{$endif}
 begin
+{$ifndef FPUNONE}
+  Val(WideString(p), Value, Error);
+  if Error = 0 then begin
+    Result := Cardinal(Round(Value));
+    Exit;
+  end;
+{$else}
   Val(WideString(p), Result, Error);
+{$endif}
   if Error <> 0 then
     VariantTypeMismatch(varOleStr, varLongWord);
 end;
@@ -419,8 +430,19 @@ end;
 Function LStrToCardinal(p: Pointer) : Cardinal;
 var
   Error : Word;
+{$ifndef FPUNONE}
+  Value : Extended;
+{$endif}
 begin
+{$ifndef FPUNONE}
+  Val(AnsiString(p), Value, Error);
+  if Error = 0 then begin
+    Result := Cardinal(Round(Value));
+    Exit;
+  end;
+{$else}
   Val(AnsiString(p), Result, Error);
+{$endif}
   if Error <> 0 then
     VariantTypeMismatch(varString, varLongWord);
 end;
@@ -428,8 +450,19 @@ end;
 Function UStrToCardinal(p: Pointer) : Cardinal;
 var
   Error : Word;
+{$ifndef FPUNONE}
+  Value : Extended;
+{$endif}
 begin
+{$ifndef FPUNONE}
+  Val(UnicodeString(p), Value, Error);
+  if Error = 0 then begin
+    Result := Cardinal(Round(Value));
+    Exit;
+  end;
+{$else}
   Val(UnicodeString(p), Result, Error);
+{$endif}
   if Error <> 0 then
     VariantTypeMismatch(varUString, varLongWord);
 end;

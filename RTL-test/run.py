@@ -64,11 +64,21 @@ FORBIDDEN_O3_CALL_PATTERNS.update({
     ),
 })
 SOURCE_OPTIONS = {
+    "variant_cardinal_semantic": (
+        f"-Fi{ROOT / 'packages' / 'rtl-objpas' / 'src' / 'win'}",
+    ),
     "mm_finalization_lifetime_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
     "mm_finalization_leak_report_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
     "openarray_finalize_throw_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
 }
 CURRENT_TREE_UNIT_DIRS = {
+    # Cardinal conversion spans the System operator and the rtl-objpas
+    # Variant manager.  Compile the latter from the current tree so a stale
+    # installed Variants PPU cannot hide half of the repair.
+    "variant_cardinal_semantic": (
+        ROOT / "packages" / "rtl-objpas" / "src" / "inc",
+        ROOT / "packages" / "rtl-objpas" / "src" / "win",
+    ),
     # This repair lives in packages/vcl-compat.  An ordinary program build
     # would otherwise silently reuse the already installed PPU and leave the
     # edited System.NetEncoding source untested.

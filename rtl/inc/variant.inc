@@ -390,8 +390,25 @@ operator :=(const source : variant) dest : smallint;{$ifdef SYSTEMINLINE}inline;
 
 
 operator :=(const source : variant) dest : dword;{$ifdef SYSTEMINLINE}inline;{$endif}
+  var
+    converted : variant;
   begin
-    dest:=variantmanager.vartoint(source);
+    case tvardata(source).vtype and vartypemask of
+      varshortint,
+      varbyte,
+      varword,
+      varsmallint,
+      varinteger:
+        { Preserve the allocation-free path for ordinary integer carriers. }
+        dest:=variantmanager.vartoint(source);
+      varlongword:
+        dest:=tvardata(source).vlongword;
+      else
+        begin
+          variantmanager.varcast(converted,source,varlongword);
+          dest:=tvardata(converted).vlongword;
+        end;
+    end;
   end;
 
 
@@ -763,8 +780,26 @@ operator :=(const source : olevariant) dest : smallint;{$ifdef SYSTEMINLINE}inli
 
 
 operator :=(const source : olevariant) dest : dword;{$ifdef SYSTEMINLINE}inline;{$endif}
+  var
+    converted : variant;
   begin
-    dest:=variantmanager.vartoint(variant(tvardata(source)));
+    case tvardata(source).vtype and vartypemask of
+      varshortint,
+      varbyte,
+      varword,
+      varsmallint,
+      varinteger:
+        { Preserve the allocation-free path for ordinary integer carriers. }
+        dest:=variantmanager.vartoint(variant(tvardata(source)));
+      varlongword:
+        dest:=tvardata(source).vlongword;
+      else
+        begin
+          variantmanager.varcastole(converted,
+            variant(tvardata(source)),varlongword);
+          dest:=tvardata(converted).vlongword;
+        end;
+    end;
   end;
 
 
