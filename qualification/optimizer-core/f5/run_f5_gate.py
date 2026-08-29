@@ -54,12 +54,12 @@ def run(exe: Path) -> tuple[int, str, str]:
     return proc.returncode, proc.stdout, proc.stderr
 
 
-def butterfly_asm(asm: str) -> str:
+def routine_asm(asm: str, name: str) -> str:
     marker = re.search(
-        r"(?mi)^P\$ADDRESS_GVN_SEMANTIC_\$\$_BUTTERFLY\$LONGINT\$LONGINT:\s*$",
+        rf"(?mi)^P\$ADDRESS_GVN_SEMANTIC_\$\$_{name}[^:]*:\s*$",
         asm)
     if not marker:
-        raise RuntimeError("cannot find Butterfly assembly")
+        raise RuntimeError(f"cannot find {name} assembly")
     tail = asm[marker.start():]
     end = re.search(r"(?mi)^\s*\.section\s+\.text", tail[1:])
     return tail if not end else tail[:end.start() + 1]
@@ -84,9 +84,9 @@ def main() -> int:
                 default_result != EXPECTED:
             failures.append(f"runtime differs: off={off_result!r} on={on_result!r}")
 
-        off_asm = butterfly_asm(off[1])
-        on_asm = butterfly_asm(on[1])
-        default_asm = butterfly_asm(default[1])
+        off_asm = routine_asm(off[1], "BUTTERFLY\\$")
+        on_asm = routine_asm(on[1], "BUTTERFLY\\$")
+        default_asm = routine_asm(default[1], "BUTTERFLY\\$")
         off_shifts = len(re.findall(r"(?mi)^\s*shlq\s+\$4,", off_asm))
         on_shifts = len(re.findall(r"(?mi)^\s*shlq\s+\$4,", on_asm))
         off_bases = len(re.findall(r"(?mi)^\s*leaq\s+.*DATA.*\(%rip\)", off_asm))
@@ -105,6 +105,41 @@ def main() -> int:
                 "O3 default differs from explicit ADDRESSGVN: "
                 f"default={default_shifts}/{default_bases} "
                 f"explicit={on_shifts}/{on_bases}")
+        off_open = routine_asm(off[1], "BUTTERFLYOPEN")
+        on_open = routine_asm(on[1], "BUTTERFLYOPEN")
+        default_open = routine_asm(default[1], "BUTTERFLYOPEN")
+        off_open_shifts = len(re.findall(
+            r"(?mi)^\s*shlq\s+\$4,", off_open))
+        on_open_shifts = len(re.findall(
+            r"(?mi)^\s*shlq\s+\$4,", on_open))
+        default_open_shifts = len(re.findall(
+            r"(?mi)^\s*shlq\s+\$4,", default_open))
+        if off_open_shifts < 8 or on_open_shifts > 2:
+            failures.append(
+                "open-array index reuse missing: "
+                f"shifts off={off_open_shifts} on={on_open_shifts}")
+        if default_open_shifts != on_open_shifts:
+            failures.append(
+                "O3 default open-array differs from explicit ADDRESSGVN: "
+                f"default={default_open_shifts} explicit={on_open_shifts}")
+        off_float = routine_asm(off[1], "BUTTERFLYFLOATOPEN")
+        on_float = routine_asm(on[1], "BUTTERFLYFLOATOPEN")
+        default_float = routine_asm(default[1], "BUTTERFLYFLOATOPEN")
+        off_float_shifts = len(re.findall(
+            r"(?mi)^\s*shlq\s+\$4,", off_float))
+        on_float_shifts = len(re.findall(
+            r"(?mi)^\s*shlq\s+\$4,", on_float))
+        default_float_shifts = len(re.findall(
+            r"(?mi)^\s*shlq\s+\$4,", default_float))
+        if off_float_shifts < 8 or on_float_shifts > 2:
+            failures.append(
+                "floating open-array index reuse missing: "
+                f"shifts off={off_float_shifts} on={on_float_shifts}")
+        if default_float_shifts != on_float_shifts:
+            failures.append(
+                "O3 default floating open-array differs from explicit "
+                f"ADDRESSGVN: default={default_float_shifts} "
+                f"explicit={on_float_shifts}")
     except Exception as exc:
         failures.append(str(exc))
     finally:
@@ -116,7 +151,10 @@ def main() -> int:
             print(" *", failure)
         return 1
     print("F5 ADDRESS GVN: PASS "
-          f"(shifts {off_shifts}->{on_shifts}, bases {off_bases}->{on_bases})")
+          f"(static shifts {off_shifts}->{on_shifts}, "
+          f"open shifts {off_open_shifts}->{on_open_shifts}, "
+          f"float-open shifts {off_float_shifts}->{on_float_shifts}, "
+          f"bases {off_bases}->{on_bases})")
     return 0
 
 

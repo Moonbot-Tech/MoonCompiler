@@ -32,6 +32,8 @@ const
   minaddressuses = 3;
 
 type
+  taddrkind = (ak_maskshift,ak_signextendshift);
+
   tregstat = record
     usecount,
     defcount : longword;
@@ -41,8 +43,10 @@ type
 
   taddrkey = record
     ebb : longword;
+    kind : taddrkind;
     source : tregister;
     sourceversion : longword;
+    extendopcode : tasmop;
     move0size,
     move1size,
     andsize,
@@ -54,6 +58,9 @@ type
 
   taddroccurrence = record
     chain : array[0..4] of taicpu;
+    chaincount : byte;
+    orphanabledefs : array[0..1] of taicpu;
+    orphanablecount : byte;
     memoryinsn : taicpu;
     memoryop : byte;
     finalreg : tregister;
@@ -64,6 +71,7 @@ type
     occurrences : array of taddroccurrence;
   end;
   taddrgrouparray = array of taddrgroup;
+  taicpuarray = array of taicpu;
 
   tbasekey = record
     ebb : longword;
@@ -215,6 +223,33 @@ function lastdefinitionbefore(insn : taicpu; reg : tregister;
   end;
 
 
+function lastwritebefore(insn : taicpu; reg : tregister;
+  ebb : longword; facts : tx86flowfacts; decoder : tx86asmoptimizer;
+  out definition : taicpu) : boolean;
+  var
+    p : tai;
+    view : tx86insnflowview;
+    access : tx86regaccess;
+  begin
+    p:=insn;
+    while taoptbase.GetLastInstruction(p,p,[ait_label,ait_marker]) do
+      begin
+        if (p.typ<>ait_instruction) or
+           not facts.readfact(p,facts.generation,view) or
+           (view.ebb<>ebb) then
+          break;
+        access:=x86regaccess(decoder,reg,taicpu(p));
+        if access in [xra_def,xra_usedef] then
+          begin
+            definition:=taicpu(p);
+            exit(true);
+          end;
+      end;
+    definition:=nil;
+    result:=false;
+  end;
+
+
 function extractoccurrence(memoryinsn : taicpu; memoryop : byte;
   const stats : tregstatarray; facts : tx86flowfacts;
   decoder : tx86asmoptimizer; out key : taddrkey;
@@ -268,6 +303,8 @@ function extractoccurrence(memoryinsn : taicpu; memoryop : byte;
     if not facts.readfact(p0,facts.generation,view) or
        not factversion(view,source,key.sourceversion) then
       exit;
+    key.kind:=ak_maskshift;
+    key.extendopcode:=A_NONE;
     key.ebb:=view.ebb;
     if not flagsdeadafter(p4,key.ebb,facts,decoder) then
       exit;
@@ -285,6 +322,8 @@ function extractoccurrence(memoryinsn : taicpu; memoryop : byte;
     occurrence.chain[2]:=p2;
     occurrence.chain[3]:=p3;
     occurrence.chain[4]:=p4;
+    occurrence.chaincount:=5;
+    occurrence.orphanablecount:=0;
     occurrence.memoryinsn:=memoryinsn;
     occurrence.memoryop:=memoryop;
     occurrence.finalreg:=r3;
@@ -292,10 +331,123 @@ function extractoccurrence(memoryinsn : taicpu; memoryop : byte;
   end;
 
 
+function extractsignextendoccurrence(memoryinsn : taicpu; memoryop : byte;
+  const stats : tregstatarray; facts : tx86flowfacts;
+  decoder : tx86asmoptimizer; out key : taddrkey;
+  out occurrence : taddroccurrence) : boolean;
+  var
+    definition,extension,move,sharedmove,shift : taicpu;
+    intermediate,extensionresult,source,finalreg : tregister;
+    view : tx86insnflowview;
+  begin
+    result:=false;
+{$ifdef x86_64}
+    finalreg:=memoryinsn.oper[memoryop]^.ref^.index;
+    if (finalreg=NR_NO) or
+       not facts.readfact(memoryinsn,facts.generation,view) or
+       not lastdefinitionbefore(memoryinsn,finalreg,view.ebb,facts,decoder,
+         shift) or
+       (shift.opcode<>A_SHL) or (shift.ops<>2) or
+       (shift.oper[0]^.typ<>top_const) or (shift.oper[1]^.typ<>top_reg) or
+       not samereg(shift.oper[1]^.reg,finalreg) or
+       not lastdefinitionbefore(shift,finalreg,view.ebb,facts,decoder,
+         definition) then
+      exit;
+
+    extension:=definition;
+    move:=nil;
+    sharedmove:=nil;
+    intermediate:=NR_NO;
+    if (definition.opcode=A_MOV) and (definition.ops=2) and
+       (definition.oper[0]^.typ=top_reg) and
+       (definition.oper[1]^.typ=top_reg) and
+       samereg(definition.oper[1]^.reg,finalreg) then
+      begin
+        move:=definition;
+        intermediate:=move.oper[0]^.reg;
+        if not lastwritebefore(move,intermediate,view.ebb,facts,decoder,
+             extension) then
+          exit;
+        if (extension.opcode=A_MOV) and (extension.ops=2) and
+           (extension.oper[0]^.typ=top_reg) and
+           (extension.oper[1]^.typ=top_reg) and
+           samereg(extension.oper[1]^.reg,intermediate) then
+          begin
+            sharedmove:=extension;
+            intermediate:=sharedmove.oper[0]^.reg;
+            if not lastwritebefore(sharedmove,intermediate,view.ebb,
+                 facts,decoder,extension) then
+              exit;
+          end;
+      end;
+
+    if assigned(move) then
+      extensionresult:=intermediate
+    else
+      extensionresult:=finalreg;
+
+    if (extension.opcode<>A_MOVSXD) or (extension.ops<>2) or
+       (extension.oper[0]^.typ<>top_reg) or
+       (extension.oper[1]^.typ<>top_reg) or
+       not samereg(extension.oper[1]^.reg,extensionresult) or
+       (assigned(move) and (move.opsize<>shift.opsize)) or
+       (assigned(sharedmove) and (sharedmove.opsize<>shift.opsize)) or
+       not registerisprivate(stats,finalreg,2,2) then
+      exit;
+    source:=extension.oper[0]^.reg;
+    if not facts.readfact(extension,facts.generation,view) or
+       not factversion(view,source,key.sourceversion) or
+       not flagsdeadafter(shift,view.ebb,facts,decoder) then
+      exit;
+
+    key.ebb:=view.ebb;
+    key.kind:=ak_signextendshift;
+    key.source:=normalizedreg(source);
+    key.extendopcode:=extension.opcode;
+    key.move0size:=extension.opsize;
+    { Register copies between the same sign-extension and scale operation
+      alter neither the address value nor its version.  They are deliberately
+      excluded from the key after their width has been checked above. }
+    key.move1size:=S_NO;
+    key.andsize:=S_NO;
+    key.move2size:=S_NO;
+    key.shiftsize:=shift.opsize;
+    key.andvalue:=0;
+    key.shiftvalue:=shift.oper[0]^.val;
+    occurrence.chaincount:=0;
+    occurrence.orphanablecount:=0;
+    { A sign-extension and its optional shared copy may feed more than one
+      independently shifted address.  Keep both outside the removable leaf
+      chain.  Process the inner copy first after all groups have been
+      rewritten, and delete either definition only when it has no uses left. }
+    if assigned(sharedmove) then
+      begin
+        occurrence.orphanabledefs[occurrence.orphanablecount]:=sharedmove;
+        inc(occurrence.orphanablecount);
+      end;
+    occurrence.orphanabledefs[occurrence.orphanablecount]:=extension;
+    inc(occurrence.orphanablecount);
+    if assigned(move) then
+      begin
+        occurrence.chain[occurrence.chaincount]:=move;
+        inc(occurrence.chaincount);
+      end;
+    occurrence.chain[occurrence.chaincount]:=shift;
+    inc(occurrence.chaincount);
+    occurrence.memoryinsn:=memoryinsn;
+    occurrence.memoryop:=memoryop;
+    occurrence.finalreg:=finalreg;
+    result:=true;
+{$endif x86_64}
+  end;
+
+
 function samekey(const a,b : taddrkey) : boolean;
   begin
-    result:=(a.ebb=b.ebb) and samereg(a.source,b.source) and
+    result:=(a.ebb=b.ebb) and (a.kind=b.kind) and
+      samereg(a.source,b.source) and
       (a.sourceversion=b.sourceversion) and
+      (a.extendopcode=b.extendopcode) and
       (a.move0size=b.move0size) and (a.move1size=b.move1size) and
       (a.andsize=b.andsize) and (a.move2size=b.move2size) and
       (a.shiftsize=b.shiftsize) and (a.andvalue=b.andvalue) and
@@ -455,9 +607,14 @@ procedure collectaffectedregs(var marked : tregmarkarray;
         begin
           markreg(marked,groups[i].occurrences[0].finalreg);
           for j:=1 to high(groups[i].occurrences) do
-            for k:=0 to 4 do
-              markinstructionregs(marked,
-                groups[i].occurrences[j].chain[k],facts);
+            begin
+              for k:=0 to groups[i].occurrences[j].chaincount-1 do
+                markinstructionregs(marked,
+                  groups[i].occurrences[j].chain[k],facts);
+              for k:=0 to groups[i].occurrences[j].orphanablecount-1 do
+                markinstructionregs(marked,
+                  groups[i].occurrences[j].orphanabledefs[k],facts);
+            end;
         end;
     for i:=0 to high(basegroups) do
       if length(basegroups[i].occurrences)>=minaddressuses then
@@ -519,7 +676,7 @@ procedure removechain(asmlist : tasmlist; const occurrence : taddroccurrence);
   var
     i : longint;
   begin
-    for i:=0 to 4 do
+    for i:=0 to occurrence.chaincount-1 do
       begin
         asmlist.remove(occurrence.chain[i]);
         occurrence.chain[i].free;
@@ -556,6 +713,82 @@ procedure applygroups(asmlist : tasmlist; const groups : taddrgrouparray);
                 groups[i].occurrences[j].memoryop]^.ref;
               ref^.index:=keepreg;
               removechain(asmlist,groups[i].occurrences[j]);
+            end;
+        end;
+  end;
+
+
+function registerhasuse(asmlist : tasmlist; reg : tregister;
+  decoder : tx86asmoptimizer) : boolean;
+  var
+    p : tai;
+  begin
+    p:=tai(asmlist.first);
+    while assigned(p) do
+      begin
+        if (p.typ=ait_instruction) and
+           (x86regaccess(decoder,reg,taicpu(p)) in [xra_use,xra_usedef]) then
+          exit(true);
+        p:=tai(p.next);
+      end;
+    result:=false;
+  end;
+
+
+function isaddressroot(definition : taicpu) : boolean;
+  begin
+{$ifdef x86_64}
+    result:=definition.opcode=A_MOVSXD;
+{$else x86_64}
+    result:=false;
+{$endif x86_64}
+  end;
+
+
+procedure removeorphandefs(asmlist : tasmlist; const groups : taddrgrouparray;
+  decoder : tx86asmoptimizer);
+  var
+    i,j,k,l,n,pass : longint;
+    definition : taicpu;
+    seen : boolean;
+    definitions : taicpuarray;
+  begin
+    definitions:=nil;
+    for i:=0 to high(groups) do
+      if length(groups[i].occurrences)>=minaddressuses then
+        for j:=1 to high(groups[i].occurrences) do
+          for l:=0 to groups[i].occurrences[j].orphanablecount-1 do
+            begin
+              definition:=groups[i].occurrences[j].orphanabledefs[l];
+              seen:=false;
+              for k:=0 to high(definitions) do
+                if definitions[k]=definition then
+                  begin
+                    seen:=true;
+                    break;
+                  end;
+              if seen then
+                continue;
+              n:=length(definitions);
+              setlength(definitions,n+1);
+              definitions[n]:=definition;
+            end;
+    { Remove dependency leaves before their common sign-extension roots.  A
+      root may feed copies belonging to several address groups, so deleting
+      roots during collection could keep one alive merely because another
+      copy has not been visited yet. }
+    for pass:=0 to 1 do
+      for k:=0 to high(definitions) do
+        begin
+          definition:=definitions[k];
+          if assigned(definition) and
+             (((pass=0) and (definition.opcode=A_MOV)) or
+              ((pass=1) and isaddressroot(definition))) and
+             not registerhasuse(asmlist,definition.oper[1]^.reg,decoder) then
+            begin
+              asmlist.remove(definition);
+              definition.free;
+              definitions[k]:=nil;
             end;
         end;
   end;
@@ -632,6 +865,9 @@ procedure x86reuseelementaddresses(asmlist : tasmlist);
                   begin
                     if extractoccurrence(insn,i,stats,facts,decoder,key,occurrence) then
                       addoccurrence(groups,key,occurrence);
+                    if extractsignextendoccurrence(insn,i,stats,facts,decoder,
+                        key,occurrence) then
+                      addoccurrence(groups,key,occurrence);
                     if extractbaseoccurrence(insn,i,stats,facts,decoder,
                         basekey,baseoccurrence) then
                       addbaseoccurrence(basegroups,basekey,baseoccurrence);
@@ -643,6 +879,7 @@ procedure x86reuseelementaddresses(asmlist : tasmlist);
       facts.invalidate;
       applygroups(asmlist,groups);
       applybasegroups(asmlist,basegroups);
+      removeorphandefs(asmlist,groups,decoder);
       facts.build(false);
       rebuildliveranges(asmlist,marked,facts);
       facts.invalidate;
