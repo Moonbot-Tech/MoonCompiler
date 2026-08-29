@@ -387,7 +387,10 @@ interface
          { diagnostic only: print the decisions of the tree-layer effect
            model (opteffect) without changing the generated code; never part
            of any -O level }
-         cs_opt_effectobserve
+         cs_opt_effectobserve,
+         { conservative tree-layer loop-invariant code motion; deliberately
+           independent from every -O level until its qualification closes }
+         cs_opt_licm
        );
        toptimizerswitches = set of toptimizerswitch;
 
@@ -462,7 +465,7 @@ interface
          'ORDERFIELDS','FASTMATH','DEADVALUES','REMOVEEMPTYPROCS',
          'CONSTPROP',
          'DEADSTORE','FORCENOSTACKFRAME','USELOADMODIFYSTORE',
-         'UNUSEDPARA','CONSTS','FORLOOP','MEMINLINE','EFFECTOBSERVE'
+         'UNUSEDPARA','CONSTS','FORLOOP','MEMINLINE','EFFECTOBSERVE','LICM'
        );
        WPOptimizerSwitchStr : array [twpoptimizerswitch] of string[14] = (
          'DEVIRTCALLS','OPTVMTS','SYMBOLLIVENESS'

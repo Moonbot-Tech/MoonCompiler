@@ -194,6 +194,14 @@ unit opteffect;
       fact, and does not enter this predicate. }
     function effects_conflict(const a,b : teffect) : boolean;
 
+    { Is candidate a trap-free unmanaged value expression whose only memory
+      inputs are exact local/value-parameter symbols, and are those symbols
+      unchanged by loop?  This is the sole F2 invariance query: LICM must not
+      grow a second mutation/alias scan.  pressure is the number of distinct
+      exact locals read by the loop and is only a profitability hint. }
+    function effect_licm_invariant(candidate : tnode; const loopeffect : teffect;
+      out pressure : longint) : boolean;
+
     { observe-only consumer (-OoEFFECTOBSERVE): walks the final routine tree,
       emits one machine-stable remark per classified reason occurrence and one
       aggregated per-routine summary.  Analyzes only; never touches the tree. }
@@ -325,6 +333,54 @@ unit opteffect;
                                b.wclasses,b.wsyms,b.wunbounded) then
           exit;
         result:=false;
+      end;
+
+
+    function effect_licm_invariant(candidate : tnode; const loopeffect : teffect;
+      out pressure : longint) : boolean;
+      var
+        ce : teffect;
+        i : longint;
+        sym : tabstractvarsym;
+      begin
+        result:=false;
+        pressure:=0;
+        if not assigned(candidate) or not assigned(candidate.resultdef) or
+           is_managed_type(candidate.resultdef) then
+          exit;
+        effect_init(ce);
+        try
+          tree_effect(candidate,ce);
+          if assigned(loopeffect.rsyms) then
+            pressure:=loopeffect.rsyms.count;
+          { The expression itself must be a plain computation over exact
+            current-frame values.  In particular: no compiler temp identity,
+            no implicit helper, no trap, no write, no escaped/global/heap
+            read, and no unenumerated local set. }
+          if ce.hastemps or ce.runbounded or ce.wunbounded or
+             (ce.ieffects<>[]) or (ce.wclasses<>[]) or
+             ((ce.rclasses-[ac_local])<>[]) then
+            exit;
+          if (ac_local in ce.rclasses) and not assigned(ce.rsyms) then
+            exit;
+          if assigned(ce.rsyms) then
+            for i:=0 to ce.rsyms.count-1 do
+              begin
+                sym:=tabstractvarsym(ce.rsyms[i]);
+                if is_managed_type(sym.vardef) or
+                   not((sym.typ=localvarsym) or
+                       ((sym.typ=paravarsym) and
+                        (tparavarsym(sym).varspez=vs_value))) then
+                  exit;
+              end;
+          { The loop effect includes its condition, body and lowered latch.
+            Its writes/barriers are therefore the only mutation authority. }
+          if effects_conflict(ce,loopeffect) then
+            exit;
+          result:=true;
+        finally
+          effect_done(ce);
+        end;
       end;
 
 

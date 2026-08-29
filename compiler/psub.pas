@@ -1413,6 +1413,13 @@ implementation
              optimize_record_writes(code);
          end;
 
+       { F2 LICM is deliberately independent from every -O level while its
+         qualification is open.  It runs on the lowered loop form and before
+         node-CSE, and uses opteffect as its only mutation authority. }
+       if (cs_opt_licm in current_settings.optimizerswitches) and
+          not(pi_has_label in flags) then
+         OptimizeLoopInvariants(code);
+
        { diagnostic effect-model observe point: the future LICM position -
          after ConvertForLoops/record-write transformation, before node-CSE,
          reached by both the DFA and the non-DFA branch.  Analyzes only;

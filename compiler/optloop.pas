@@ -25,6 +25,7 @@ unit optloop;
 
 { $define DEBUG_OPTSTRENGTH}
 { $define DEBUG_OPTFORLOOP}
+{ $define DEBUG_OPTLICM}
 
   interface
 
@@ -35,6 +36,7 @@ unit optloop;
     function OptimizeInductionVariables(node : tnode) : boolean;
     function optimize_record_writes(var n: tnode): boolean;
     function OptimizeForLoop(var node : tnode) : boolean;
+    function OptimizeLoopInvariants(var node : tnode) : boolean;
 
   implementation
 
@@ -45,14 +47,15 @@ unit optloop;
       cpuinfo,
 {$endif i386}
       verbose,
-      symbase,symconst,symdef,symsym,symtype,
+      symbase,symconst,symdef,symsym,symtable,symtype,
       defutil,
       nutils,
       nadd,nbas,nflw,ncon,ninl,ncal,nld,nmem,ncnv,
       ncgmem,
       pass_1,
       optbase,optutils,
-      procinfo;
+      procinfo,
+      opteffect;
 
     function number_unrolls(node : tnode) : cardinal;
       var
@@ -1020,6 +1023,274 @@ unit optloop;
         { can we avoid further searching? }
         if not(ctx^.containsnestedforloop) then
           Result:=fen_norecurse_false;
+      end;
+
+
+{****************************************************************************
+                         Loop-invariant code motion
+
+  F2 deliberately starts with a small, auditable surface.  It moves only
+  trap-free integer/pointer expressions over exact current-frame values.
+  The effect model owns all alias/mutation decisions; this unit owns only
+  tree shape, profitability and placement.
+****************************************************************************}
+
+    const
+      licm_max_hoists_per_loop = 4;
+      licm_max_pressure_for_cheap = 6;
+
+    type
+      tlicmplan = record
+        loopeffect : teffect;
+        exprs : TFPList;
+      end;
+      plicmplan = ^tlicmplan;
+
+      tlicmreplace = record
+        expr : tnode;
+        temp : ttempcreatenode;
+        count : longint;
+      end;
+      plicmreplace = ^tlicmreplace;
+
+    function licm_scalar_def(def : tdef) : boolean;
+      begin
+        result:=assigned(def) and
+          (((is_ordinal(def)) and (def.size<=sizeof(aint))) or
+           (def.typ=pointerdef));
+      end;
+
+
+    function licm_candidate_shape(n : tnode; var score : longint) : boolean;
+      begin
+        result:=false;
+        if not assigned(n) or not licm_scalar_def(n.resultdef) then
+          exit;
+        case n.nodetype of
+          ordconstn,
+          pointerconstn,
+          niln,
+          loadn:
+            result:=true;
+          typeconvn:
+            result:=licm_candidate_shape(ttypeconvnode(n).left,score);
+          unaryminusn,
+          unaryplusn,
+          notn:
+            result:=licm_candidate_shape(tunarynode(n).left,score);
+          addn,
+          subn,
+          muln,
+          andn,
+          orn,
+          xorn,
+          shln,
+          shrn:
+            begin
+              result:=licm_candidate_shape(tbinarynode(n).left,score) and
+                licm_candidate_shape(tbinarynode(n).right,score);
+              if result then
+                case n.nodetype of
+                  muln:
+                    if (tbinarynode(n).left.nodetype=ordconstn) or
+                       (tbinarynode(n).right.nodetype=ordconstn) then
+                      inc(score,2)
+                    else
+                      inc(score,4);
+                  shln,
+                  shrn:
+                    inc(score);
+                  else
+                    ;
+                end;
+            end;
+          else
+            ;
+        end;
+      end;
+
+
+    function licm_find_candidates(var n : tnode; arg : pointer) : foreachnoderesult;
+      var
+        plan : plicmplan;
+        score,pressure,i : longint;
+      begin
+        result:=fen_false;
+        { A nested loop owns its candidates and preheader.  Its effects are
+          nevertheless already part of plan.loopeffect. }
+        if n.nodetype=whilerepeatn then
+          exit(fen_norecurse_false);
+        score:=0;
+        if not licm_candidate_shape(n,score) or (score=0) then
+          exit;
+        plan:=plicmplan(arg);
+        if not effect_licm_invariant(n,plan^.loopeffect,pressure) then
+          exit;
+        if (score<4) and (pressure>licm_max_pressure_for_cheap) then
+          exit;
+        for i:=0 to plan^.exprs.count-1 do
+          if (tnode(plan^.exprs[i]).resultdef=n.resultdef) and
+             (tnode(plan^.exprs[i]).localswitches=n.localswitches) and
+             tnode(plan^.exprs[i]).isequal(n) then
+            { The existing temp will replace this occurrence too. }
+            exit(fen_norecurse_false);
+        if plan^.exprs.count>=licm_max_hoists_per_loop then
+          exit(fen_norecurse_false);
+{$ifdef DEBUG_OPTLICM}
+        writeln('LICM candidate in ',current_procinfo.procdef.procsym.realname,
+          ' score=',score,' pressure=',pressure);
+        printnode(output,n);
+{$endif DEBUG_OPTLICM}
+        plan^.exprs.add(n.getcopy);
+        result:=fen_norecurse_false;
+      end;
+
+
+    function licm_replace_uses(var n : tnode; arg : pointer) : foreachnoderesult;
+      var
+        rep : plicmreplace;
+        pos : tfileposinfo;
+      begin
+        result:=fen_false;
+        if n.nodetype=whilerepeatn then
+          exit(fen_norecurse_false);
+        rep:=plicmreplace(arg);
+        if (n.flags*[nf_write,nf_modify]=[]) and
+           (n.resultdef=rep^.expr.resultdef) and
+           (n.localswitches=rep^.expr.localswitches) and
+           n.isequal(rep^.expr) then
+          begin
+            pos:=n.fileinfo;
+            n.free;
+            n:=ctemprefnode.create(rep^.temp);
+            n.fileinfo:=pos;
+            typecheckpass(n);
+            inc(rep^.count);
+            result:=fen_norecurse_false;
+          end;
+      end;
+
+
+    function optimizeinvariantssingleloop(var n : tnode) : boolean;
+      var
+        plan : tlicmplan;
+        rep : tlicmreplace;
+        initcode,deletecode : tblocknode;
+        initstatements,deletestatements,newstatements : tstatementnode;
+        verifycode : tblocknode;
+        verifystatements : tstatementnode;
+        expr,init,check : tnode;
+        temp : ttempcreatenode;
+        i : longint;
+        verify : boolean;
+      begin
+        result:=false;
+        plan.exprs:=TFPList.create;
+        effect_init(plan.loopeffect);
+        try
+          verify:=defined_macro('OPTCORE_VERIFY');
+          { One model walk for the whole lowered loop: condition, body and
+            for-step latch are all mutation authorities. }
+          tree_effect(n,plan.loopeffect);
+          if assigned(tloopnode(n).left) then
+            foreachnodestatic(pm_preprocess,tloopnode(n).left,
+              @licm_find_candidates,@plan);
+          if assigned(tloopnode(n).right) then
+            foreachnodestatic(pm_preprocess,tloopnode(n).right,
+              @licm_find_candidates,@plan);
+          { The latch is analysed above, but is not a hoist source in v1. }
+          if plan.exprs.count=0 then
+            exit;
+
+          if verify then
+            verifycode:=internalstatements(verifystatements)
+          else
+            verifycode:=nil;
+          initcode:=internalstatements(initstatements);
+          deletecode:=internalstatements(deletestatements);
+          for i:=0 to plan.exprs.count-1 do
+            begin
+              expr:=tnode(plan.exprs[i]);
+              temp:=ctempcreatenode.create(expr.resultdef,expr.resultdef.size,
+                tt_persistent,true);
+              rep.expr:=expr;
+              rep.temp:=temp;
+              rep.count:=0;
+              if assigned(tloopnode(n).left) then
+                foreachnodestatic(pm_preprocess,tloopnode(n).left,
+                  @licm_replace_uses,@rep);
+              if assigned(tloopnode(n).right) then
+                foreachnodestatic(pm_preprocess,tloopnode(n).right,
+                  @licm_replace_uses,@rep);
+              if rep.count=0 then
+                begin
+                  { A previously applied maximal candidate may have consumed
+                    this overlapping subexpression.  Do not emit a dead temp
+                    or turn a harmless stale plan entry into an IE. }
+                  temp.free;
+                  continue;
+                end;
+              addstatement(initstatements,temp);
+              init:=cassignmentnode.create(ctemprefnode.create(temp),expr.getcopy);
+              node_tree_set_filepos(init,expr.fileinfo);
+              addstatement(initstatements,init);
+              if verify then
+                begin
+                  { Diagnostic-only executable proof.  The candidate is
+                    recomputed at the start of every entered iteration and
+                    compared with the preheader value.  Normal builds do not
+                    contain this code. }
+                  check:=cifnode.create_internal(
+                    caddnode.create_internal(unequaln,
+                      ctemprefnode.create(temp),expr.getcopy),
+                    ccallnode.createintern('fpc_rangeerror',nil),nil);
+                  node_tree_set_filepos(check,expr.fileinfo);
+                  do_firstpass(check);
+                  addstatement(verifystatements,check);
+                end;
+              addstatement(deletestatements,ctempdeletenode.create(temp));
+            end;
+          if verify then
+            begin
+              { Both while and repeat store their body in right.  Checks run
+                after the while entry test, or before the first repeat body,
+                and before every entered body thereafter. }
+              addstatement(verifystatements,tloopnode(n).right);
+              tloopnode(n).right:=verifycode;
+            end;
+          do_firstpass(tnode(initcode));
+          do_firstpass(tnode(deletecode));
+          expr:=n;
+          n:=internalstatements(newstatements);
+          addstatement(newstatements,initcode);
+          addstatement(newstatements,expr);
+          addstatement(newstatements,deletecode);
+          result:=true;
+        finally
+          for i:=0 to plan.exprs.count-1 do
+            tnode(plan.exprs[i]).free;
+          plan.exprs.free;
+          effect_done(plan.loopeffect);
+        end;
+      end;
+
+
+    function licm_walk(var n : tnode; arg : pointer) : foreachnoderesult;
+      begin
+        result:=fen_false;
+        if (n.nodetype=whilerepeatn) and
+           optimizeinvariantssingleloop(n) then
+          pboolean(arg)^:=true;
+      end;
+
+
+    function OptimizeLoopInvariants(var node : tnode) : boolean;
+      begin
+        result:=false;
+        { Outer loops are visited first. Candidate collection never crosses
+          a nested-loop boundary, so every occurrence belongs to the nearest
+          structural preheader. }
+        foreachnodestatic(pm_preprocess,node,@licm_walk,@result);
       end;
 
 
