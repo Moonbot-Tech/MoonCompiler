@@ -358,21 +358,23 @@ unit optloop;
       end;
 
 
-    function invalidatesscalarthroughunknownmemory(var n : tnode;arg : pointer) : foreachnoderesult;
+    function staticscalarunchanged(loop : tfornode;expr : tloadnode) : boolean;
+      var
+        candidateeffect,
+        loopeffect : teffect;
       begin
-        result:=fen_false;
-        case n.nodetype of
-          calln,
-          asmn:
-            { The tree DFA records direct definitions, not the memory effects
-              of an opaque call or assembler block. }
-            result:=fen_norecurse_true;
-          derefn:
-            if n.flags*[nf_write,nf_modify,nf_address_taken]<>[] then
-              { A pointer write may alias global storage. }
-              result:=fen_norecurse_true;
-          else
-            ;
+        effect_init(candidateeffect);
+        effect_init(loopeffect);
+        try
+          { AUTOINLINE may replace an opaque call by a direct write after DFA
+            summaries were built.  The shared effect model observes the final
+            tree and is therefore the authority for both forms. }
+          tree_effect(expr,candidateeffect);
+          tree_effect(loop.t2,loopeffect);
+          result:=not effects_conflict(candidateeffect,loopeffect);
+        finally
+          effect_done(loopeffect);
+          effect_done(candidateeffect);
         end;
       end;
 
@@ -407,8 +409,7 @@ unit optloop;
               (vs.varregable in [vr_intreg,vr_mmreg,vr_fpureg]);
           staticvarsym:
             result:=not(vo_is_thread_var in vs.varoptions) and
-              not foreachnodestatic(pm_preprocess,loop.t2,
-                @invalidatesscalarthroughunknownmemory,nil);
+              staticscalarunchanged(loop,expr);
           else
             ;
         end;
