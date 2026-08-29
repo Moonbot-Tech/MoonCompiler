@@ -207,14 +207,22 @@ const
                                  genericlevel3optimizerswitches-
                                  { no need to write info about those }
                                  [cs_opt_level1,cs_opt_level2,cs_opt_level3]+
-                                 [{$ifndef llvm}cs_opt_regvar,{$endif}cs_opt_loopunroll,cs_opt_stackframe,cs_userbp,
+				  [{$ifndef llvm}cs_opt_regvar,{$endif}cs_opt_loopunroll,cs_opt_stackframe,cs_userbp,
 				  cs_opt_tailrecursion,cs_opt_nodecse,cs_opt_reorder_fields,cs_opt_fastmath,
-				  cs_opt_effectobserve,cs_opt_licm];
+				  cs_opt_effectobserve,cs_opt_licm
+{$ifndef llvm}
+				  ,cs_opt_codealign
+{$endif llvm}
+				  ];
 
    level1optimizerswitches = genericlevel1optimizerswitches;
    level2optimizerswitches = genericlevel2optimizerswitches + level1optimizerswitches +
      [{$ifndef llvm}cs_opt_regvar,{$endif}cs_opt_stackframe,cs_opt_tailrecursion,cs_opt_nodecse,cs_opt_consts];
-   level3optimizerswitches = genericlevel3optimizerswitches + level2optimizerswitches;
+   level3optimizerswitches = genericlevel3optimizerswitches + level2optimizerswitches
+{$ifndef llvm}
+     + [cs_opt_codealign]
+{$endif llvm}
+     ;
    level4optimizerswitches = genericlevel4optimizerswitches + level3optimizerswitches + [cs_userbp];
 
 type

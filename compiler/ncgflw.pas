@@ -183,9 +183,21 @@ implementation
            hlcg.a_jmp_always(current_asmdata.CurrAsmList,lcont);
 
          if not(cs_opt_size in current_settings.optimizerswitches) then
-            { align loop target, as an unconditional jump is done before,
-              use jump align which assume that the instructions inserted as alignment are never executed }
-            current_asmdata.CurrAsmList.concat(cai_align.create_max(current_settings.alignment.jumpalign,current_settings.alignment.jumpalignskipmax));
+           begin
+             { Align the natural loop target.  The jump over it means that
+               alignment bytes are not executed on first entry. }
+{$if defined(CPUX86_64)}
+             if cs_opt_codealign in current_settings.optimizerswitches then
+               begin
+                 if current_settings.alignment.loopalign>32 then
+                   current_asmdata.CurrAsmList.concat(cai_align.create(current_settings.alignment.loopalign))
+                 else
+                   current_asmdata.CurrAsmList.concat(cai_align.create(32));
+               end
+             else
+{$endif CPUX86_64}
+               current_asmdata.CurrAsmList.concat(cai_align.create_max(current_settings.alignment.jumpalign,current_settings.alignment.jumpalignskipmax));
+           end;
 
          hlcg.a_label(current_asmdata.CurrAsmList,lloop);
 
@@ -513,7 +525,19 @@ implementation
       begin
          location_reset(location,LOC_VOID,OS_NO);
          if not (nf_internal in flags) then
-           include(flowcontrol,fc_gotolabel);
+           begin
+             include(flowcontrol,fc_gotolabel);
+{$if defined(CPUX86_64)}
+             if (cs_opt_codealign in current_settings.optimizerswitches) and
+                not(cs_opt_size in current_settings.optimizerswitches) then
+               begin
+                 if current_settings.alignment.jumpalign>32 then
+                   current_asmdata.CurrAsmList.concat(cai_align.create(current_settings.alignment.jumpalign))
+                 else
+                   current_asmdata.CurrAsmList.concat(cai_align.create(32));
+               end;
+{$endif CPUX86_64}
+           end;
          hlcg.a_label_pascal_goto_target(current_asmdata.CurrAsmList,getasmlabel);
 
          { Write also extra label if this label was referenced from

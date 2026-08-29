@@ -390,7 +390,10 @@ interface
          cs_opt_effectobserve,
          { conservative tree-layer loop-invariant code motion; deliberately
            independent from every -O level until its qualification closes }
-         cs_opt_licm
+         cs_opt_licm,
+         { x86-64 hot-code placement: keep procedure entries, natural loop
+           headers and explicit Pascal labels on a 32-byte boundary }
+         cs_opt_codealign
        );
        toptimizerswitches = set of toptimizerswitch;
 
@@ -465,7 +468,8 @@ interface
          'ORDERFIELDS','FASTMATH','DEADVALUES','REMOVEEMPTYPROCS',
          'CONSTPROP',
          'DEADSTORE','FORCENOSTACKFRAME','USELOADMODIFYSTORE',
-         'UNUSEDPARA','CONSTS','FORLOOP','MEMINLINE','EFFECTOBSERVE','LICM'
+         'UNUSEDPARA','CONSTS','FORLOOP','MEMINLINE','EFFECTOBSERVE','LICM',
+         'CODEALIGN'
        );
        WPOptimizerSwitchStr : array [twpoptimizerswitch] of string[14] = (
          'DEVIRTCALLS','OPTVMTS','SYMBOLLIVENESS'

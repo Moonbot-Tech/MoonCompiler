@@ -1349,6 +1349,16 @@ implementation
 
     function getprocalign : shortint;
       begin
+{$if defined(CPUX86_64)}
+        if (cs_opt_codealign in current_settings.optimizerswitches) and
+           not(cs_opt_size in current_settings.optimizerswitches) then
+          begin
+            result:=current_settings.alignment.procalign;
+            if result<32 then
+              result:=32;
+            exit;
+          end;
+{$endif CPUX86_64}
         { gprof uses 16 byte granularity }
         if (cs_profile in current_settings.moduleswitches) then
           result:=16
