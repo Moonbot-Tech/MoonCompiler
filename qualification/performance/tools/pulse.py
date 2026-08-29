@@ -203,6 +203,7 @@ def build_moon(
     *,
     system: str | None = None,
     toolchain: Path | None = None,
+    extra_options: list[str] | None = None,
 ) -> Path:
     moon_fpc, moon_cfg = moon_toolchain_paths(toolchain)
     moon_compiler = moon_toolchain_backend(toolchain) if toolchain else moon_fpc
@@ -224,6 +225,7 @@ def build_moon(
         f"-FE{target}",
         f"-FU{target}",
     ]
+    args.extend(extra_options or [])
     args.extend(moon_mm_options(default_mm))
     run(args + [str(PROGRAMS[program])])
     return executable(program, system)
@@ -233,8 +235,10 @@ def build(
     programs: list[str],
     systems: list[str],
     external_toolchains: dict[str, Path] | None = None,
+    external_options: dict[str, list[str]] | None = None,
 ) -> dict[str, dict[str, Path]]:
     external_toolchains = external_toolchains or {}
+    external_options = external_options or {}
     built: dict[str, dict[str, Path]] = {}
     for system in systems:
         built[system] = {}
@@ -252,6 +256,7 @@ def build(
                     False,
                     system=system,
                     toolchain=external_toolchains[system],
+                    extra_options=external_options.get(system),
                 )
             else:
                 raise ValueError(f"unknown system: {system}")
@@ -334,9 +339,11 @@ def run_suite(
     systems: list[str],
     tag: str,
     external_toolchains: dict[str, Path] | None = None,
+    external_options: dict[str, list[str]] | None = None,
 ) -> Path:
     external_toolchains = external_toolchains or {}
-    built = build(programs, systems, external_toolchains)
+    external_options = external_options or {}
+    built = build(programs, systems, external_toolchains, external_options)
     result = RESULTS / tag
     result.mkdir(parents=True, exist_ok=False)
     repeats = {"quick": 2, "medium": 7, "long": 9}[mode]
@@ -412,6 +419,7 @@ def run_suite(
             system: moon_toolchain_identity(toolchain)
             for system, toolchain in external_toolchains.items()
         },
+        "external_options": external_options,
         "runs": runs,
     }
     (result / "manifest.json").write_text(
@@ -904,6 +912,8 @@ def main() -> None:
     )
     run_parser.add_argument("--moon-baseline-toolchain", type=Path)
     run_parser.add_argument("--moon-candidate-toolchain", type=Path)
+    run_parser.add_argument("--moon-baseline-option", action="append", default=[])
+    run_parser.add_argument("--moon-candidate-option", action="append", default=[])
     run_parser.add_argument("--tag")
     report_parser = sub.add_parser("report")
     report_parser.add_argument("result", type=Path)
@@ -925,6 +935,14 @@ def main() -> None:
             )
             if path is not None
         }
+        external_options = {
+            "moon-baseline": args.moon_baseline_option,
+            "moon-candidate": args.moon_candidate_option,
+        }
+        external_options = {
+            system: options for system, options in external_options.items()
+            if options
+        }
         selected_external = set(systems) & set(EXTERNAL_MOON_SYSTEMS)
         if selected_external and selected_external != set(EXTERNAL_MOON_SYSTEMS):
             raise ValueError(
@@ -937,8 +955,13 @@ def main() -> None:
                 f"missing external toolchains={missing_toolchains} "
                 f"unused external toolchains={unused_toolchains}"
             )
+        unused_options = sorted(external_options.keys() - selected_external)
+        if unused_options:
+            raise ValueError(f"unused external options={unused_options}")
         tag = args.tag or time.strftime("%Y%m%d-%H%M%S") + f"-{args.mode}"
-        run_suite(args.mode, programs, systems, tag, external_toolchains)
+        run_suite(
+            args.mode, programs, systems, tag,
+            external_toolchains, external_options)
     else:
         write_report(args.result.resolve())
 
