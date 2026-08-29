@@ -40,11 +40,42 @@ class PulseStatisticsTests(unittest.TestCase):
         self.assertEqual(stats.rejected, 1)
         self.assertLess(stats.maximum / stats.minimum, 1.03)
 
+    def test_ratio_stats_rejects_high_and_low_outliers(self) -> None:
+        stats = PULSE.robust_ratio_stats([0.5, 0.99, 1.0, 1.01, 1.02, 1.6, 2.0])
+        self.assertEqual(stats.kept, 4)
+        self.assertEqual(stats.rejected, 3)
+        self.assertLessEqual(stats.maximum / stats.minimum, 1.25)
+
+    def test_ratio_stats_requires_a_majority_cluster(self) -> None:
+        with self.assertRaisesRegex(ValueError, "at least half"):
+            PULSE.robust_ratio_stats([0.5, 0.7, 1.0, 1.4, 2.0])
+
     def test_parse_fields_keeps_dash_values(self) -> None:
         fields = PULSE.parse_fields(
             "PULSE_CASE program=pulse_codegen case=for-runtime-0-255 layer=codegen"
         )
         self.assertEqual(fields["case"], "for-runtime-0-255")
+
+    def test_primary_metric_uses_cycles_when_every_process_has_them(self) -> None:
+        row = {"run_samples": [[{"cycles": 10.0}], [{"cycles": 11.0}]]}
+        self.assertEqual(PULSE.select_primary_metric("abi", [row, row]), "cycles")
+
+    def test_primary_metric_falls_back_to_tsc_when_cycles_are_unavailable(self) -> None:
+        cycles = {"run_samples": [[{"cycles": 10.0}], [{"cycles": 11.0}]]}
+        no_cycles = {"run_samples": [[{"cycles": 0.0}], [{"cycles": 0.0}]]}
+        self.assertEqual(
+            PULSE.select_primary_metric("abi", [cycles, no_cycles]), "tsc"
+        )
+
+    def test_move_and_threads_always_use_tsc(self) -> None:
+        row = {"run_samples": [[{"cycles": 10.0}]]}
+        self.assertEqual(PULSE.select_primary_metric("move", [row]), "tsc")
+        self.assertEqual(PULSE.select_primary_metric("threads", [row]), "tsc")
+
+    def test_tsc_fallback_uses_adjacent_process_pairs(self) -> None:
+        self.assertTrue(PULSE.use_paired_process_ratios("abi", "tsc"))
+        self.assertTrue(PULSE.use_paired_process_ratios("move", "cycles"))
+        self.assertFalse(PULSE.use_paired_process_ratios("abi", "cycles"))
 
 
 if __name__ == "__main__":

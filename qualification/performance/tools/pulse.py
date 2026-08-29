@@ -188,17 +188,22 @@ def git_text(*args: str) -> str:
 
 
 def machine_metadata() -> dict[str, object]:
-    return {
+    metadata = {
         "platform": platform.platform(),
         "machine": platform.machine(),
         "processor": platform.processor(),
         "logical_cpu_count": os.cpu_count(),
     }
+    if hasattr(os, "sched_getaffinity"):
+        metadata["process_cpu_affinity"] = sorted(os.sched_getaffinity(0))
+    return metadata
 
 
 def qualification_input_hashes() -> dict[str, str]:
     inputs: dict[str, str] = {}
     fixed = [MOON_FPC, MOON_CFG, MM_SOURCE]
+    fixed.extend(sorted((ROOT / ".moonbot" / "toolchain").rglob("ppcx64")))
+    fixed.extend(sorted((ROOT / ".moonbot" / "toolchain").rglob("ppcx64.exe")))
     if IS_WINDOWS:
         fixed.append(DCC64)
     for path in fixed:
@@ -298,6 +303,7 @@ def run_suite(mode: str, programs: list[str], systems: list[str], tag: str) -> P
         "schema": 1,
         "project": "Moon Compiler Pulse",
         "created_unix": time.time(),
+        "command": sys.argv,
         "mode": mode,
         "git_head": git_text("rev-parse", "HEAD"),
         "git_status": git_text("status", "--porcelain=v1"),
@@ -367,6 +373,37 @@ def robust_stats(values: list[float], process_level: bool = False) -> Stats:
     )
 
 
+def robust_ratio_stats(values: list[float], maximum_spread: float = 1.25) -> Stats:
+    """Select the narrowest largest reciprocal-symmetric ratio cluster."""
+    window = sorted(value for value in values if value > 0)
+    minimum_kept = math.ceil(len(values) * 0.5)
+    candidates: list[list[float]] = []
+    for start in range(len(window)):
+        end = start
+        while end < len(window) and window[end] / window[start] <= maximum_spread:
+            end += 1
+        candidates.append(window[start:end])
+    kept = max(
+        candidates,
+        key=lambda candidate: (
+            len(candidate),
+            -(candidate[-1] / candidate[0]) if candidate else float("-inf"),
+        ),
+        default=[],
+    )
+    if len(kept) < minimum_kept:
+        raise ValueError("no stable ratio cluster contains at least half of the pairs")
+    return Stats(
+        mode=half_sample_mode(kept),
+        median=statistics.median(kept),
+        mean=statistics.mean(kept),
+        minimum=min(kept),
+        maximum=max(kept),
+        kept=len(kept),
+        rejected=len(values) - len(kept),
+    )
+
+
 def process_balanced_stats(
     row: dict[str, object], metric: str = "tsc"
 ) -> tuple[Stats, list[Stats]]:
@@ -384,6 +421,28 @@ def process_balanced_cycles(row: dict[str, object]) -> Stats | None:
         if values:
             run_modes.append(robust_stats(values).mode)
     return robust_stats(run_modes, True) if run_modes else None
+
+
+def metric_available(row: dict[str, object], metric: str) -> bool:
+    """Return whether every process has at least one usable metric sample."""
+    run_samples = row["run_samples"]
+    return bool(run_samples) and all(
+        any(sample[metric] > 0 for sample in samples) for samples in run_samples
+    )
+
+
+def select_primary_metric(
+    program: str, rows: list[dict[str, object]]
+) -> str:
+    """Prefer scheduled cycles, with an explicit TSC fallback when unavailable."""
+    if program in ("threads", "move"):
+        return "tsc"
+    return "cycles" if all(metric_available(row, "cycles") for row in rows) else "tsc"
+
+
+def use_paired_process_ratios(program: str, metric: str) -> bool:
+    """Pair frequency-sensitive TSC processes in the palindromic schedule."""
+    return program == "move" or metric == "tsc"
 
 
 def paired_ratio_stats(
@@ -415,7 +474,7 @@ def paired_ratio_stats(
             index += 1
     if not ratios:
         raise ValueError("no adjacent baseline/candidate process pairs")
-    return robust_stats(ratios, True)
+    return robust_ratio_stats(ratios)
 
 
 def effective_core_stats(row: dict[str, object]) -> Stats | None:
@@ -506,6 +565,7 @@ def write_report(result: Path) -> None:
         "",
         "Primary same-machine metric is actual scheduled thread cycles/op for single-thread cases;",
         "TSC ticks/op is used for multi-thread cases where one thread's cycle counter is incomplete.",
+        "TSC is also used explicitly when scheduled thread cycles are unavailable for either system.",
         "",
         f"| Program | Case | Layer | Oracle | Metric | {baseline} stable/mean/max | {candidate} stable/mean/max | Candidate/baseline | Control/op | MM effect |",
         "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
@@ -522,7 +582,11 @@ def write_report(result: Path) -> None:
         cand = rows.get((candidate, program, case))
         if base is None or cand is None:
             continue
-        primary_metric = "tsc" if program in ("threads", "move") else "cycles"
+        control_row = rows.get((control, program, case)) if control else None
+        metric_rows = [base, cand]
+        if control_row is not None:
+            metric_rows.append(control_row)
+        primary_metric = select_primary_metric(program, metric_rows)
         try:
             base_primary, _ = process_balanced_stats(base, primary_metric)
             cand_primary, _ = process_balanced_stats(cand, primary_metric)
@@ -534,11 +598,12 @@ def write_report(result: Path) -> None:
         cand_cycles = process_balanced_cycles(cand)
         base_cores = effective_core_stats(base)
         cand_cores = effective_core_stats(cand)
-        paired_ratio = (
-            paired_ratio_stats(base, cand, primary_metric)
-            if program == "move"
-            else None
-        )
+        paired_ratio = None
+        if use_paired_process_ratios(program, primary_metric):
+            try:
+                paired_ratio = paired_ratio_stats(base, cand, primary_metric)
+            except ValueError as error:
+                raise ValueError(f"{program}/{case}: {error}") from error
         ratio = (
             paired_ratio.mode
             if paired_ratio is not None
@@ -557,9 +622,11 @@ def write_report(result: Path) -> None:
             if paired_ratio.minimum > 0:
                 drift = paired_ratio.maximum / paired_ratio.minimum
                 if drift > 1.25:
-                    drift_notes.append(
-                        f"paired/{program}/{case} ratio drift {drift:.3f}x"
-                    )
+                    message = f"paired/{program}/{case} ratio drift {drift:.3f}x"
+                    if program == "move":
+                        drift_notes.append(message)
+                    else:
+                        drift_failures.append(message)
         else:
             for system, process_stats in (
                 (baseline, base_primary),
@@ -574,7 +641,6 @@ def write_report(result: Path) -> None:
         control_primary = None
         mm_effect = None
         paired_mm_effect = None
-        control_row = rows.get((control, program, case)) if control else None
         if control_row is not None:
             try:
                 control_primary, _ = process_balanced_stats(
@@ -582,10 +648,15 @@ def write_report(result: Path) -> None:
                 )
             except ValueError as error:
                 raise ValueError(f"{control}/{program}/{case}: {error}") from error
-            if program == "move":
-                paired_mm_effect = paired_ratio_stats(
-                    control_row, cand, primary_metric
-                )
+            if use_paired_process_ratios(program, primary_metric):
+                try:
+                    paired_mm_effect = paired_ratio_stats(
+                        control_row, cand, primary_metric
+                    )
+                except ValueError as error:
+                    raise ValueError(
+                        f"{control}/{program}/{case}: {error}"
+                    ) from error
                 if paired_mm_effect.minimum > 0:
                     drift = paired_mm_effect.maximum / paired_mm_effect.minimum
                     if drift > 1.25:
@@ -683,7 +754,7 @@ def write_report(result: Path) -> None:
     )
     if drift_notes:
         summary.extend([
-            "## Диагностический process drift Move",
+        "## Диагностический process drift paired rows",
             "",
             "Эти cases остаются в таблице, но центральное отношение рассчитано "
             "по соседним зеркальным процессам; drift не подменяет semantic failure.",
@@ -691,7 +762,7 @@ def write_report(result: Path) -> None:
         ])
         summary.extend(f"- `{note}`" for note in drift_notes)
     summary.extend(["", "## Все cases", ""])
-    markdown = markdown[:7] + summary + markdown[7:]
+    markdown = markdown[:8] + summary + markdown[8:]
     (result / "REPORT.md").write_text("\n".join(markdown) + "\n", encoding="utf-8")
     (result / "summary.json").write_text(
         json.dumps(details, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"

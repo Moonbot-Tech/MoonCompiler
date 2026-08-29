@@ -122,3 +122,4 @@ packages/fcl-db/tests/database.ini
 .moonbot/
 /.qualification/
 /qualification/suite/tests/devil/run.txt
+/qualification/performance/*/build-*/
