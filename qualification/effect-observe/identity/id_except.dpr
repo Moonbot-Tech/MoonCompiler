@@ -5,6 +5,9 @@ program id_except;
 
 {$mode delphi}
 
+uses
+  SysUtils;
+
 type
   TBase = class
   public

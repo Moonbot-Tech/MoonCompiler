@@ -26,6 +26,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -50,11 +51,19 @@ OBSERVE_LINE = re.compile(r"effect-observe(?:-summary|-algebra)?: (?:reason=|pro
 
 
 def default_compiler() -> Path:
-    return ROOT / ".moonbot" / "toolchain" / "bin" / "x86_64-win64" / "ppcx64.exe"
+    if os.name == "nt":
+        return ROOT / ".moonbot" / "toolchain" / "bin" / "x86_64-win64" / "ppcx64.exe"
+    return ROOT / ".moonbot" / "toolchain" / "bin" / "ppcx64"
 
 
 def default_rtl() -> Path:
-    return ROOT / ".moonbot" / "toolchain" / "units" / "x86_64-win64" / "rtl"
+    if os.name == "nt":
+        return ROOT / ".moonbot" / "toolchain" / "units" / "x86_64-win64" / "rtl"
+    roots = sorted((ROOT / ".moonbot" / "toolchain" / "lib" / "fpc").glob(
+        "*/units/x86_64-linux/rtl"))
+    if len(roots) != 1:
+        raise SystemExit("cannot uniquely locate the installed Linux RTL; pass --rtl")
+    return roots[0]
 
 
 def parse_expectations(path: Path):

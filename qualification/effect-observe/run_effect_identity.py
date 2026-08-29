@@ -5,9 +5,9 @@ Observe mode has no right to change the generated code by a single byte.
 Every identity workload is compiled twice with one toolchain - with and
 without -OoEFFECTOBSERVE -vd - at -O-, -O2 and -O3; the gate then proves:
 
-  1. the raw bytes of every PE section of the two executables are identical
-     (post-assembler code and data, headers with their link timestamp are
-     outside the comparison);
+  1. the canonical contents of every PE/ELF section of the two executables
+     are identical (post-assembler code and data; volatile PE header fields
+     such as the link timestamp are outside the comparison);
   2. both executables run and produce identical stdout and exit code
      (runtime semantic digest);
   3. the PPU of a generic-bearing UNIT is byte-identical off/on: a generic
@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import struct
 import subprocess
 import sys
@@ -40,17 +41,63 @@ IDENTITY = HERE / "identity"
 LEVELS = ("-O-", "-O2", "-O3")
 
 
+def target_link_args() -> list[str]:
+    """Keep -n (no ambient fpc.cfg), but supply the one Linux linker path
+    normally contributed by the installed toolchain configuration."""
+    if os.name == "nt":
+        return []
+    probe = subprocess.run(
+        ["gcc", "-print-file-name=libgcc_s.so"], capture_output=True,
+        text=True, timeout=30)
+    libgcc = Path(probe.stdout.strip())
+    if probe.returncode != 0 or not libgcc.is_absolute() or not libgcc.exists():
+        raise SystemExit("cannot locate libgcc_s for isolated Linux linking")
+    return [f"-Fl{libgcc.parent}"]
+
+
 def default_compiler() -> Path:
-    return ROOT / ".moonbot" / "toolchain" / "bin" / "x86_64-win64" / "ppcx64.exe"
+    if os.name == "nt":
+        return ROOT / ".moonbot" / "toolchain" / "bin" / "x86_64-win64" / "ppcx64.exe"
+    return ROOT / ".moonbot" / "toolchain" / "bin" / "ppcx64"
 
 
 def default_rtl() -> Path:
-    return ROOT / ".moonbot" / "toolchain" / "units" / "x86_64-win64" / "rtl"
+    if os.name == "nt":
+        return ROOT / ".moonbot" / "toolchain" / "units" / "x86_64-win64" / "rtl"
+    roots = sorted((ROOT / ".moonbot" / "toolchain" / "lib" / "fpc").glob(
+        "*/units/x86_64-linux/rtl"))
+    if len(roots) != 1:
+        raise SystemExit("cannot uniquely locate the installed Linux RTL; pass --rtl")
+    return roots[0]
 
 
-def pe_sections(path: Path) -> list[tuple[str, bytes]]:
-    """(name, raw data) of every section of a PE image."""
+def executable_sections(path: Path) -> list[tuple[str, bytes]]:
+    """(name, canonical raw data) of every PE or ELF64 section."""
     data = path.read_bytes()
+    if data[:4] == b"\x7fELF":
+        if data[4:6] != b"\x02\x01":
+            raise SystemExit(f"{path}: only little-endian ELF64 is supported")
+        shoff = struct.unpack_from("<Q", data, 0x28)[0]
+        shentsize, shnum, shstrndx = struct.unpack_from("<HHH", data, 0x3A)
+        if shentsize < 64 or shstrndx >= shnum:
+            raise SystemExit(f"{path}: invalid ELF64 section table")
+        shstr = shoff + shstrndx * shentsize
+        str_off, str_size = struct.unpack_from("<QQ", data, shstr + 24)
+        names = data[str_off:str_off + str_size]
+        out = []
+        for i in range(shnum):
+            off = shoff + i * shentsize
+            name_off, sh_type = struct.unpack_from("<II", data, off)
+            sh_flags = struct.unpack_from("<Q", data, off + 8)[0]
+            raw_off, raw_size = struct.unpack_from("<QQ", data, off + 24)
+            end = names.find(b"\0", name_off)
+            if end < 0:
+                raise SystemExit(f"{path}: unterminated ELF64 section name")
+            name = names[name_off:end].decode("ascii", "replace")
+            raw = b"" if sh_type == 8 else data[raw_off:raw_off + raw_size]
+            metadata = struct.pack("<IQQ", sh_type, sh_flags, raw_size)
+            out.append((name, metadata + raw))
+        return out
     (pe_off,) = struct.unpack_from("<I", data, 0x3C)
     if data[pe_off:pe_off + 4] != b"PE\0\0":
         raise SystemExit(f"{path}: not a PE image")
@@ -71,13 +118,13 @@ def compile_program(compiler: Path, rtl: Path, src: Path, outdir: Path,
     outdir.mkdir(parents=True, exist_ok=True)
     cmd = [str(compiler), "-Mdelphi", level, "-n",
            "-dMOONCOMPILER_VANILLA_RUNTIME", f"-Fu{rtl}",
-           f"-FE{outdir}", f"-FU{outdir}"]
+           f"-FE{outdir}", f"-FU{outdir}"] + target_link_args()
     if observe:
         cmd += ["-OoEFFECTOBSERVE", "-vd"]
     cmd.append(str(src))
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
     return proc.returncode, (proc.stdout or "") + (proc.stderr or ""), \
-        outdir / (src.stem + ".exe")
+        outdir / (src.stem + (".exe" if os.name == "nt" else ""))
 
 
 def run_exe(path: Path) -> tuple[int, str]:
@@ -155,13 +202,14 @@ def check_ppu_replay_observe(compiler: Path, rtl: Path, tmp: Path,
         outdir.mkdir(parents=True, exist_ok=True)
         cmd = [str(compiler), "-Mdelphi", "-O2", "-n", "-Ur",
                "-dMOONCOMPILER_VANILLA_RUNTIME", f"-Fu{rtl}",
-               f"-Fu{unit_dir}", f"-FE{outdir}", f"-FU{outdir}"]
+               f"-Fu{unit_dir}", f"-FE{outdir}", f"-FU{outdir}"] + \
+              target_link_args()
         if observe:
             cmd += ["-OoEFFECTOBSERVE", "-vd"]
         cmd.append(str(source))
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
         output = (proc.stdout or "") + (proc.stderr or "")
-        exe = outdir / "id_generic_replay.exe"
+        exe = outdir / ("id_generic_replay" + (".exe" if os.name == "nt" else ""))
         if proc.returncode != 0 or not exe.exists():
             failures.append("id_generic_replay.pas "
                             f"[observe={observe}]: compile failed\n{output[-1500:]}")
@@ -177,10 +225,10 @@ def check_ppu_replay_observe(compiler: Path, rtl: Path, tmp: Path,
                         f"({summaries} summaries, expected at least 2)")
         return 0
 
-    off_secs = pe_sections(exes[False])
-    on_secs = pe_sections(exes[True])
+    off_secs = executable_sections(exes[False])
+    on_secs = executable_sections(exes[True])
     if off_secs != on_secs:
-        failures.append("id_generic_replay.pas: PE sections differ with "
+        failures.append("id_generic_replay.pas: executable sections differ with "
                         "observe off/on across generic PPU replay")
         return 0
     off_run = run_exe(exes[False])
@@ -228,8 +276,8 @@ def main() -> int:
                     exes[observe] = exe
                 if len(exes) != 2:
                     continue
-                off_secs = pe_sections(exes[False])
-                on_secs = pe_sections(exes[True])
+                off_secs = executable_sections(exes[False])
+                on_secs = executable_sections(exes[True])
                 if [n for n, _ in off_secs] != [n for n, _ in on_secs]:
                     failures.append(f"{tag}: section lists differ: "
                                     f"{[n for n, _ in off_secs]} vs {[n for n, _ in on_secs]}")

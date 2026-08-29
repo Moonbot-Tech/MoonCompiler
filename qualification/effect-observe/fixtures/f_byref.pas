@@ -9,7 +9,7 @@ interface
 
 type
   TBigRec = record
-    A, B, C, D: Integer;
+    A, B, C, D, E, F, G, H: Integer;
   end;
 
 function ReadVia(var p: Integer): Integer;
@@ -33,11 +33,12 @@ begin
   p := 1;
 end;
 
-// a large const record is passed by address: reads alias caller memory
+// larger than both Win64's scalar aggregate limit and SysV's two-eightbyte
+// register limit: the const parameter is passed by address on both targets
 // EXPECT: proc=ConstRecByRef r=EHGTP w=L reason=byref_alias
 function ConstRecByRef(const r: TBigRec): Integer;
 begin
-  Result := r.A + r.D;
+  Result := r.A + r.H;
 end;
 
 // negative pair 3 (by-ref alias): both writes must be wide - the model may
