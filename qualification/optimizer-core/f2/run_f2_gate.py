@@ -57,7 +57,7 @@ def link_args() -> list[str]:
     return [f"-Fl{libgcc.parent}"]
 
 
-def compile_one(compiler: Path, rtl: Path, level: str, licm: bool,
+def compile_one(compiler: Path, rtl: Path, level: str, licm: bool | None,
                 verify: bool, outdir: Path) -> tuple[str, Path, str]:
     outdir.mkdir(parents=True, exist_ok=True)
     cmd = [
@@ -65,8 +65,8 @@ def compile_one(compiler: Path, rtl: Path, level: str, licm: bool,
         "-dMOONCOMPILER_VANILLA_RUNTIME", "-OoEFFECTOBSERVE", "-vd",
         "-al", "-Aas", f"-Fu{rtl}", f"-FE{outdir}", f"-FU{outdir}",
     ] + link_args()
-    if licm:
-        cmd.append("-OoLICM")
+    if licm is not None:
+        cmd.append("-OoLICM" if licm else "-OoNOLICM")
     if verify:
         cmd.append("-dOPTCORE_VERIFY")
     cmd.append(str(SOURCE))
@@ -147,6 +147,21 @@ def main() -> int:
                         failures.append(
                             f"{level} {proc}: forbidden hoist/temp delta "
                             f"(off={off_sum[proc]}, on={on_sum[proc]})")
+                if level == "-O3":
+                    default_text, default_exe, _ = compile_one(
+                        args.compiler, args.rtl, level, None, False,
+                        tmp / f"{level}_default")
+                    default_run = run(default_exe)
+                    default_sum = summaries(default_text)
+                    if default_run != expected:
+                        failures.append(
+                            f"{level}: default runtime={default_run!r}")
+                    for proc in POSITIVE + NEGATIVE:
+                        if default_sum.get(proc) != on_sum.get(proc):
+                            failures.append(
+                                f"{level} {proc}: default LICM differs from "
+                                f"explicit on (default={default_sum.get(proc)}, "
+                                f"on={on_sum.get(proc)})")
             except Exception as exc:
                 failures.append(f"{level}: {exc}")
     finally:

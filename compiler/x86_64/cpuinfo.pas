@@ -220,7 +220,7 @@ const
      [{$ifndef llvm}cs_opt_regvar,{$endif}cs_opt_stackframe,cs_opt_tailrecursion,cs_opt_nodecse,cs_opt_consts];
    level3optimizerswitches = genericlevel3optimizerswitches + level2optimizerswitches
 {$ifndef llvm}
-     + [cs_opt_codealign]
+     + [cs_opt_codealign,cs_opt_licm]
 {$endif llvm}
      ;
    level4optimizerswitches = genericlevel4optimizerswitches + level3optimizerswitches + [cs_userbp];
