@@ -3015,6 +3015,19 @@ cg_e_intrinsic_not_supported_by_instruction_set=06064_E_Intrinsic not supported 
 cg_e_managed_carrier_alignment_unsupported=06065_E_Managed value carrier alignment $1 exceeds the target stack alignment contract
 % The intrinsic translates into an assembler instruction which is not supported by the instruction set
 % selected by \var{-Cp}
+cg_d_effect_observe=06066_DL_effect-observe: $1
+% Machine-stable per-node decision line of the tree-layer effect model in
+% observe mode (\var{-OoEFFECTOBSERVE}): the stable reason id, the node kind
+% and an optional detail.  Diagnostic only; the generated code is unchanged.
+cg_d_effect_observe_summary=06067_DL_effect-observe-summary: $1
+% Aggregated per-routine counters of the effect-model observe mode
+% (\var{-OoEFFECTOBSERVE}): the conservative read/write storage classes,
+% instruction effects and per-reason counts of one routine.
+cg_d_effect_observe_algebra=06068_DL_effect-observe-algebra: $1
+% Per-routine output of the public model queries in observe mode: the exact
+% local symbols read/written, the self-conflict verdict, and the
+% tree_effect/effect_union consistency checks the qualification gate
+% asserts.
 %
 % \end{description}
 # EndOfTeX
