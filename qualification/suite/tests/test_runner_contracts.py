@@ -42,6 +42,31 @@ class RunnerContractsTest(unittest.TestCase):
                 runner.ROOT / "linux/etc/fpc.cfg",
             )
 
+    def test_compiler_identity_hashes_driver_config_and_actual_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bin_dir = root / "toolchain" / "bin"
+            config_dir = root / "toolchain" / "etc"
+            bin_dir.mkdir(parents=True)
+            config_dir.mkdir(parents=True)
+            suffix = ".exe" if runner.os.name == "nt" else ""
+            driver = bin_dir / f"fpc{suffix}"
+            backend = bin_dir / f"ppcx64{suffix}"
+            config = config_dir / "fpc.cfg"
+            driver.write_bytes(b"driver")
+            backend.write_bytes(b"backend")
+            config.write_bytes(b"config")
+            compiler = {
+                "driver": str(driver.relative_to(root)),
+                "config": str(config.relative_to(root)),
+            }
+            with mock.patch.object(runner, "ROOT", root):
+                identity = runner.compiler_identity(compiler)
+            self.assertEqual(identity["driver_sha256"], runner.sha256(driver))
+            self.assertEqual(identity["config_sha256"], runner.sha256(config))
+            self.assertEqual(identity["backend"], str(backend.resolve()))
+            self.assertEqual(identity["backend_sha256"], runner.sha256(backend))
+
     def test_executable_path_uses_the_host_suffix(self) -> None:
         source = Path("fixture.pas")
         with mock.patch.object(runner, "executable_suffix", return_value=".exe"):

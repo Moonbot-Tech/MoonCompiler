@@ -277,6 +277,39 @@ def compiler_provenance(compiler: dict[str, Any]) -> str:
     return actual
 
 
+def compiler_backend_path(compiler: dict[str, Any]) -> Path | None:
+    driver = compiler_path(compiler, "driver")
+    if driver is None:
+        return None
+    if driver.stem.lower().startswith("ppc"):
+        return driver.resolve()
+    names = ("ppcx64.exe", "ppcx64") if os.name == "nt" else ("ppcx64", "ppcx64.exe")
+    candidates = [
+        (driver.parent / name).resolve()
+        for name in names
+        if (driver.parent / name).is_file()
+    ]
+    return candidates[0] if candidates else None
+
+
+def compiler_identity(compiler: dict[str, Any]) -> dict[str, Any]:
+    driver = compiler_path(compiler, "driver")
+    if driver is None or not driver.is_file():
+        raise RuntimeError(f"compiler driver is missing: {driver}")
+    config = compiler_path(compiler, "config")
+    if config is not None and not config.is_file():
+        raise RuntimeError(f"compiler config is missing: {config}")
+    backend = compiler_backend_path(compiler)
+    return {
+        "driver": str(driver.resolve()),
+        "driver_sha256": sha256(driver),
+        "config": str(config.resolve()) if config is not None else None,
+        "config_sha256": sha256(config) if config is not None else None,
+        "backend": str(backend) if backend is not None else None,
+        "backend_sha256": sha256(backend) if backend is not None else None,
+    }
+
+
 def compiler_command(compiler: dict[str, Any]) -> list[str]:
     compiler_provenance(compiler)
     driver = compiler_path(compiler, "driver")
@@ -2915,6 +2948,9 @@ def main() -> int:
     run_id, run_dir = create_run_directory(
         ROOT / "results" / "runs", args.stage, args.run_id,
     )
+    compiler_filter = parse_set(args.compiler)
+    option_filter = parse_set(args.option)
+    test_filter = parse_set(args.test)
     runner_snapshot = run_dir / "runner.py"
     shutil.copy2(ROOT / "runner.py", runner_snapshot)
     run_manifest = dict(manifest)
@@ -2923,14 +2959,17 @@ def main() -> int:
         "input_manifest_sha256": sha256(MANIFEST_PATH),
         "python_version": sys.version,
         "runner_sha256": sha256(runner_snapshot),
+        "compiler_identities": {
+            compiler_id: compiler_identity(manifest["compilers"][compiler_id])
+            for compiler_id in sorted(
+                compiler_filter or set(manifest["primary_compilers"])
+            )
+        },
     }
     with (run_dir / "manifest.json").open("w", encoding="utf-8") as stream:
         json.dump(run_manifest, stream, indent=2, sort_keys=True)
         stream.write("\n")
     writer = ResultWriter(run_dir, run_id)
-    compiler_filter = parse_set(args.compiler)
-    option_filter = parse_set(args.option)
-    test_filter = parse_set(args.test)
     if args.stage in ("fixtures", "all"):
         run_fixtures(writer, manifest, compiler_filter, option_filter, test_filter)
     if args.stage in ("mega", "all"):
