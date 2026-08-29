@@ -2107,6 +2107,162 @@ implementation
       end;
 
 
+    { Win64 SEH funclets execute outside the normal parent control-flow
+      path.  Keep a frame home only for values that the funclet observes or
+      that must survive a returning exception handler.  User-written nested
+      routines remain on the old blanket-safe path until the later CFG stage
+      can model their static chains explicitly. }
+
+    function seh_mark_referenced(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        case n.nodetype of
+          loadn,
+          temprefn:
+            make_not_regable(n,[]);
+          else
+            ;
+        end;
+        result:=fen_false;
+      end;
+
+
+    function seh_assigned_varsym(p: tnode): tabstractvarsym;
+      begin
+        result:=nil;
+        repeat
+          case p.nodetype of
+            typeconvn:
+              p:=ttypeconvnode(p).left;
+            subscriptn:
+              p:=tsubscriptnode(p).left;
+            loadn:
+              begin
+                if tloadnode(p).symtableentry.typ in
+                   [staticvarsym,localvarsym,paravarsym] then
+                  result:=tabstractvarsym(tloadnode(p).symtableentry);
+                exit;
+              end;
+            else
+              exit;
+          end;
+        until false;
+      end;
+
+
+    type
+      tsehexceptscan = record
+        guarded : tnode;
+        syms : tfplist;
+      end;
+      psehexceptscan = ^tsehexceptscan;
+
+    function seh_collect_assigned(var n: tnode; arg: pointer): foreachnoderesult;
+      var
+        scan : psehexceptscan;
+        sym : tabstractvarsym;
+        p : tnode;
+      begin
+        result:=fen_false;
+        sym:=nil;
+        case n.nodetype of
+          assignn:
+            sym:=seh_assigned_varsym(tbinarynode(n).left);
+          inlinen:
+            if tinlinenode(n).inlinenumber in
+               [in_inc_x,in_dec_x,in_include_x_y,in_exclude_x_y] then
+              begin
+                p:=tinlinenode(n).left;
+                if assigned(p) and (p.nodetype=callparan) then
+                  p:=tcallparanode(p).left;
+                if assigned(p) then
+                  sym:=seh_assigned_varsym(p);
+              end;
+          else
+            ;
+        end;
+        if assigned(sym) then
+          begin
+            scan:=psehexceptscan(arg);
+            if scan^.syms.indexof(sym)<0 then
+              scan^.syms.add(sym);
+          end;
+      end;
+
+
+    function seh_scan_outside_uses(var n: tnode; arg: pointer): foreachnoderesult;
+      var
+        scan : psehexceptscan;
+        i : longint;
+      begin
+        scan:=psehexceptscan(arg);
+        if n=scan^.guarded then
+          exit(fen_norecurse_false);
+        result:=fen_false;
+        if n.nodetype=loadn then
+          begin
+            i:=scan^.syms.indexof(tloadnode(n).symtableentry);
+            if i>=0 then
+              begin
+                tabstractvarsym(scan^.syms[i]).varregable:=vr_none;
+                scan^.syms.delete(i);
+              end;
+          end;
+      end;
+
+
+    function seh_mark_exception_nodes(var n: tnode; arg: pointer): foreachnoderesult;
+      var
+        scan : tsehexceptscan;
+        i : longint;
+      begin
+        result:=fen_false;
+        case n.nodetype of
+          tryfinallyn:
+            { Explicit finally bodies are already outlined.  The implicit
+              cleanup inserted by add_entry_exit_code still owns its tree. }
+            if assigned(ttryfinallynode(n).right) then
+              foreachnodestatic(ttryfinallynode(n).right,
+                @seh_mark_referenced,nil);
+          tryexceptn:
+            begin
+              if assigned(ttryexceptnode(n).right) then
+                foreachnodestatic(ttryexceptnode(n).right,
+                  @seh_mark_referenced,nil);
+              if assigned(ttryexceptnode(n).t1) then
+                foreachnodestatic(ttryexceptnode(n).t1,
+                  @seh_mark_referenced,nil);
+              if assigned(ttryexceptnode(n).left) then
+                begin
+                  scan.guarded:=n;
+                  scan.syms:=tfplist.create;
+                  foreachnodestatic(ttryexceptnode(n).left,
+                    @seh_collect_assigned,@scan);
+                  { The implicit return consumes the function result without
+                    a load node in the parent tree. }
+                  i:=scan.syms.indexof(current_procinfo.procdef.funcretsym);
+                  if i>=0 then
+                    begin
+                      tabstractvarsym(scan.syms[i]).varregable:=vr_none;
+                      scan.syms.delete(i);
+                    end;
+                  if scan.syms.count>0 then
+                    foreachnodestatic(tnode(arg),
+                      @seh_scan_outside_uses,@scan);
+                  scan.syms.free;
+                end;
+            end;
+          else
+            ;
+        end;
+      end;
+
+
+    procedure mark_seh_memory_syms(var code: tnode);
+      begin
+        foreachnodestatic(code,@seh_mark_exception_nodes,code);
+      end;
+
+
     procedure tcgprocinfo.generate_code;
 
        procedure check_for_threadvars_in_initfinal;
@@ -2149,6 +2305,9 @@ implementation
         templist : TAsmList;
         headertai : tai;
         blk_i : longint;
+        hpi : tprocinfo;
+        seen_funclet,
+        seen_user_nested : boolean;
 
       procedure delete_marker(anode: tasmnode);
         var
@@ -2300,6 +2459,48 @@ implementation
 
         { add implicit entry and exit code }
         add_entry_exit_code;
+
+        { A Win64 handler does not invalidate every local in its parent.
+          Mark the actual cross-funclet values and let all unrelated locals
+          use the normal allocator.  A user nested routine introduces a
+          parent-frame/static-chain edge that this local analysis does not
+          model, so it deliberately keeps the historical safe fallback. }
+        if (target_info.system in systems_x86_64_seh) and
+           (procdef.proctypeoption<>potype_exceptfilter) and
+           (pi_uses_exceptions in flags) and
+           (cs_opt_regvar in current_settings.optimizerswitches) and
+           (cs_opt_sehregvar in current_settings.optimizerswitches) then
+          begin
+            seen_funclet:=false;
+            seen_user_nested:=false;
+            hpi:=get_first_nestedproc;
+            while assigned(hpi) do
+              begin
+                if hpi.procdef.proctypeoption=potype_exceptfilter then
+                  seen_funclet:=true
+                else
+                  seen_user_nested:=true;
+                hpi:=tprocinfo(hpi.next);
+              end;
+            if not seen_user_nested then
+              begin
+                mark_seh_memory_syms(code);
+                hpi:=get_first_nestedproc;
+                while assigned(hpi) do
+                  begin
+                    if (hpi.procdef.proctypeoption=potype_exceptfilter) and
+                       assigned(tcgprocinfo(hpi).code) then
+                      foreachnodestatic(tcgprocinfo(hpi).code,
+                        @seh_mark_referenced,nil);
+                    hpi:=tprocinfo(hpi.next);
+                  end;
+                if seen_funclet and
+                   (procdef.parast.symtablelevel>normal_function_level) and
+                   assigned(procdef.parentfpsym) then
+                  tabstractvarsym(procdef.parentfpsym).varregable:=vr_none;
+                include(flags,pi_seh_memory_marked);
+              end;
+          end;
 
         { only do secondpass if there are no errors }
         if (ErrorCount<>0) then

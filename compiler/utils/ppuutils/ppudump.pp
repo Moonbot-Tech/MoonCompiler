@@ -1750,7 +1750,9 @@ const
          (mask:pi_no_framepointer_needed;
          str:' set if no frame pointer is needed, the rules when this applies is target specific'),
          (mask:pi_normalized;
-         str:'  has been normalized so no expressions contain block nodes ')
+         str:'  has been normalized so no expressions contain block nodes '),
+         (mask:pi_seh_memory_marked;
+         str:' Win64 SEH cross-funclet variables marked individually ')
   );
 var
   procinfooptions : tprocinfoflags;
@@ -2601,7 +2603,8 @@ const
          'cs_opt_effectobserve',
          'cs_opt_licm',
          'cs_opt_codealign',
-         'cs_opt_addressgvn'
+         'cs_opt_addressgvn',
+         'cs_opt_sehregvar'
        );
     var
          globalswitch  : tglobalswitch;

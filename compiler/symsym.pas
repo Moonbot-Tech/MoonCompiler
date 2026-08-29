@@ -2055,7 +2055,8 @@ implementation
         result:=(cs_opt_regvar in current_settings.optimizerswitches) and
                 not(pi_has_assembler_block in current_procinfo.flags) and
                 (ignoreexceptions or
-                 not(pi_uses_exceptions in current_procinfo.flags)) and
+                 not(pi_uses_exceptions in current_procinfo.flags) or
+                 (pi_seh_memory_marked in current_procinfo.flags)) and
                 not(pi_has_interproclabel in current_procinfo.flags) and
                 ((refpara and
                   (varregable <> vr_none)) or

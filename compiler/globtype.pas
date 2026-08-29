@@ -396,7 +396,11 @@ interface
          cs_opt_codealign,
          { x86 pre-RA reuse of an already materialized element-address
            component within one extended basic block }
-         cs_opt_addressgvn
+         cs_opt_addressgvn,
+         { Win64 SEH: demote only locals that cross a handler/finally
+           boundary instead of disabling register variables for the whole
+           routine }
+         cs_opt_sehregvar
        );
        toptimizerswitches = set of toptimizerswitch;
 
@@ -472,7 +476,7 @@ interface
          'CONSTPROP',
          'DEADSTORE','FORCENOSTACKFRAME','USELOADMODIFYSTORE',
          'UNUSEDPARA','CONSTS','FORLOOP','MEMINLINE','EFFECTOBSERVE','LICM',
-         'CODEALIGN','ADDRESSGVN'
+         'CODEALIGN','ADDRESSGVN','SEHREGVAR'
        );
        WPOptimizerSwitchStr : array [twpoptimizerswitch] of string[14] = (
          'DEVIRTCALLS','OPTVMTS','SYMBOLLIVENESS'
@@ -901,7 +905,10 @@ interface
          { set if no frame pointer is needed, the rules when this applies is target specific }
          pi_no_framepointer_needed,
          { procedure has been normalized so no expressions contain block nodes }
-         pi_normalized
+         pi_normalized,
+         { Win64 SEH locals that require memory homes have been marked
+           individually, so the blanket exception regvar ban can be lifted }
+         pi_seh_memory_marked
        );
        tprocinfoflags=set of tprocinfoflag;
 

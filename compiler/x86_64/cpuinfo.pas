@@ -211,7 +211,7 @@ const
 				  cs_opt_tailrecursion,cs_opt_nodecse,cs_opt_reorder_fields,cs_opt_fastmath,
 				  cs_opt_effectobserve,cs_opt_licm
 {$ifndef llvm}
-				  ,cs_opt_codealign,cs_opt_addressgvn
+				  ,cs_opt_codealign,cs_opt_addressgvn,cs_opt_sehregvar
 {$endif llvm}
 				  ];
 
@@ -220,7 +220,7 @@ const
      [{$ifndef llvm}cs_opt_regvar,{$endif}cs_opt_stackframe,cs_opt_tailrecursion,cs_opt_nodecse,cs_opt_consts];
    level3optimizerswitches = genericlevel3optimizerswitches + level2optimizerswitches
 {$ifndef llvm}
-     + [cs_opt_codealign,cs_opt_licm,cs_opt_addressgvn]
+     + [cs_opt_codealign,cs_opt_licm,cs_opt_addressgvn,cs_opt_sehregvar]
 {$endif llvm}
      ;
    level4optimizerswitches = genericlevel4optimizerswitches + level3optimizerswitches + [cs_userbp];
