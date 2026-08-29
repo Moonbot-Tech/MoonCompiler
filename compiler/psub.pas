@@ -188,7 +188,7 @@ implementation
        ,aopt
        {$endif}
 {$if (defined(i386) or defined(x86_64)) and not defined(llvm) and not defined(NOOPT)}
-       ,aoptx86flow
+       ,aoptx86flow,aoptx86addr
 {$endif}
        ;
 
@@ -2505,6 +2505,9 @@ implementation
 {$endif NoOpt}
 
 {$if (defined(i386) or defined(x86_64)) and not defined(llvm) and not defined(NOOPT)}
+            if cs_opt_addressgvn in current_settings.optimizerswitches then
+              x86reuseelementaddresses(aktproccode);
+
             { F3a diagnostic: decode the final pre-RA instruction stream into
               USE/DEF and EBB-local reaching-definition facts.  This is
               read-only and enabled only by the qualification define. }

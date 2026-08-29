@@ -2600,7 +2600,8 @@ const
          'cs_opt_meminline',
          'cs_opt_effectobserve',
          'cs_opt_licm',
-         'cs_opt_codealign'
+         'cs_opt_codealign',
+         'cs_opt_addressgvn'
        );
     var
          globalswitch  : tglobalswitch;

@@ -393,7 +393,10 @@ interface
          cs_opt_licm,
          { x86-64 hot-code placement: keep procedure entries, natural loop
            headers and explicit Pascal labels on a 32-byte boundary }
-         cs_opt_codealign
+         cs_opt_codealign,
+         { x86 pre-RA reuse of an already materialized element-address
+           component within one extended basic block }
+         cs_opt_addressgvn
        );
        toptimizerswitches = set of toptimizerswitch;
 
@@ -469,7 +472,7 @@ interface
          'CONSTPROP',
          'DEADSTORE','FORCENOSTACKFRAME','USELOADMODIFYSTORE',
          'UNUSEDPARA','CONSTS','FORLOOP','MEMINLINE','EFFECTOBSERVE','LICM',
-         'CODEALIGN'
+         'CODEALIGN','ADDRESSGVN'
        );
        WPOptimizerSwitchStr : array [twpoptimizerswitch] of string[14] = (
          'DEVIRTCALLS','OPTVMTS','SYMBOLLIVENESS'
