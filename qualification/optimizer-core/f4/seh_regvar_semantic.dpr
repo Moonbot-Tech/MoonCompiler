@@ -41,6 +41,20 @@ begin
   Result := Acc;
 end;
 
+function FirstAssignedInsideReadAfter(P: PInteger; Bias: Integer): Integer; noinline;
+var
+  Acc: Integer;
+begin
+  try
+    Acc := Bias * 11;
+    P^ := Acc;
+  except
+    on EAccessViolation do
+      ;
+  end;
+  Result := Acc;
+end;
+
 function FinallySeesLatest(Limit: Integer): Integer; noinline;
 var
   I, Steps, Seen: Integer;
@@ -120,6 +134,8 @@ begin
   Check('live/ok', LiveThroughAV(@Sink), 2063);
   Check('assigned/av', AssignedInsideReadAfter(nil, 2), 110);
   Check('assigned/ok', AssignedInsideReadAfter(@Sink, 2), 110);
+  Check('first-assigned/av', FirstAssignedInsideReadAfter(nil, 3), 33);
+  Check('first-assigned/ok', FirstAssignedInsideReadAfter(@Sink, 3), 33);
   Check('finally/latest', FinallySeesLatest(100), 7);
   Finalized := 0;
   Check('exit/finally', ExitThroughFinally(100), 15);
