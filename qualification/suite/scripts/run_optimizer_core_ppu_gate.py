@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -17,6 +18,7 @@ SOURCE = ROOT / "qualification" / "suite" / "tests" / "optimizer-core" / "ppu"
 UNIT = SOURCE / "optcore_ppu_fixture.pas"
 PROGRAM = SOURCE / "optcore_ppu_consumer.dpr"
 EXPECTED_OUTPUT = "PPU_GATE_OK 877"
+EXECUTABLE_NAME = PROGRAM.stem + (".exe" if os.name == "nt" else "")
 
 
 def sha256(path: Path) -> str:
@@ -95,7 +97,7 @@ def build_artifacts(output: Path) -> dict[str, dict[str, int | str]]:
         "ppu": output / "optcore_ppu_fixture.ppu",
         "unit_object": output / "optcore_ppu_fixture.o",
         "program_object": output / "optcore_ppu_consumer.o",
-        "executable": output / "optcore_ppu_consumer",
+        "executable": output / EXECUTABLE_NAME,
     }
     missing = [str(path) for path in paths.values() if not path.is_file()]
     if missing:
@@ -203,14 +205,14 @@ def main() -> int:
         compiler, config, cold_a, output / "cold-a-compile.log", True
     )
     cold_a_run_seconds = execute(
-        cold_a / "optcore_ppu_consumer", output / "cold-a-run.log"
+        cold_a / EXECUTABLE_NAME, output / "cold-a-run.log"
     )
     cold_a_before_warm = build_artifacts(cold_a)
     warm_seconds = build(
         compiler, config, cold_a, output / "warm-compile.log", False
     )
     warm_run_seconds = execute(
-        cold_a / "optcore_ppu_consumer", output / "warm-run.log"
+        cold_a / EXECUTABLE_NAME, output / "warm-run.log"
     )
     warm_artifacts = build_artifacts(cold_a)
     ppu_not_rebuilt = (
@@ -226,7 +228,7 @@ def main() -> int:
         compiler, config, cold_b, output / "cold-b-compile.log", True
     )
     cold_b_run_seconds = execute(
-        cold_b / "optcore_ppu_consumer", output / "cold-b-run.log"
+        cold_b / EXECUTABLE_NAME, output / "cold-b-run.log"
     )
     cold_b_artifacts = build_artifacts(cold_b)
     cold_deterministic = same_bytes(cold_a_before_warm, cold_b_artifacts)
