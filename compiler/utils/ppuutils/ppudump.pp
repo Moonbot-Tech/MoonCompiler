@@ -2597,7 +2597,8 @@ const
          'cs_opt_unused_para',
          'cs_opt_consts',
          'cs_opt_forloop',
-         'cs_opt_meminline'
+         'cs_opt_meminline',
+         'cs_opt_effectobserve'
        );
     var
          globalswitch  : tglobalswitch;

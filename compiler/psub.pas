@@ -179,6 +179,7 @@ implementation
        optdeadstore,
        optloadmodifystore,
        optcall,
+       opteffect,
        optutils
 {$if defined(arm) or defined(m68k)}
        ,cpuinfo
@@ -1411,6 +1412,13 @@ implementation
            if cs_opt_forloop in current_settings.optimizerswitches then
              optimize_record_writes(code);
          end;
+
+       { diagnostic effect-model observe point: the future LICM position -
+         after ConvertForLoops/record-write transformation, before node-CSE,
+         reached by both the DFA and the non-DFA branch.  Analyzes only;
+         must not change the tree or the generated code. }
+       if cs_opt_effectobserve in current_settings.optimizerswitches then
+         effect_observe_procedure(code,procdef);
 
        if (cs_opt_remove_empty_proc in current_settings.optimizerswitches) and
          (procdef.proctypeoption in [potype_operator,potype_procedure,potype_function]) and

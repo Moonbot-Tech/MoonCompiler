@@ -383,7 +383,11 @@ interface
          cs_opt_forloop,
          { expand FillChar/FillByte/FillWord/FillDWord/FillQWord/Move calls
            with a small constant byte count into direct stores }
-         cs_opt_meminline
+         cs_opt_meminline,
+         { diagnostic only: print the decisions of the tree-layer effect
+           model (opteffect) without changing the generated code; never part
+           of any -O level }
+         cs_opt_effectobserve
        );
        toptimizerswitches = set of toptimizerswitch;
 
@@ -458,7 +462,7 @@ interface
          'ORDERFIELDS','FASTMATH','DEADVALUES','REMOVEEMPTYPROCS',
          'CONSTPROP',
          'DEADSTORE','FORCENOSTACKFRAME','USELOADMODIFYSTORE',
-         'UNUSEDPARA','CONSTS','FORLOOP','MEMINLINE'
+         'UNUSEDPARA','CONSTS','FORLOOP','MEMINLINE','EFFECTOBSERVE'
        );
        WPOptimizerSwitchStr : array [twpoptimizerswitch] of string[14] = (
          'DEVIRTCALLS','OPTVMTS','SYMBOLLIVENESS'

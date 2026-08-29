@@ -4063,6 +4063,7 @@ type
 
        var
          sizepos, startpos, endpos : longword;
+         replayableopt : toptimizerswitches;
       begin
         { WARNING all those fields need to be in the correct
         order otherwise cross_endian PPU reading will fail }
@@ -4092,7 +4093,13 @@ type
             tokenwriteset(moduleswitches,sizeof(moduleswitches));
             tokenwriteset(localswitches,sizeof(localswitches));
             tokenwriteset(modeswitches,sizeof(modeswitches));
-            tokenwriteset(optimizerswitches,sizeof(optimizerswitches));
+            { the effect-observe switch is process diagnostics, not a
+              replayable property of the recorded source: masking it keeps
+              the PPU of a generic-bearing unit byte-identical with the
+              observe flag on and off (the observe contract allows only the
+              diagnostic output to differ) }
+            replayableopt:=optimizerswitches-[cs_opt_effectobserve];
+            tokenwriteset(replayableopt,sizeof(replayableopt));
             tokenwriteset(genwpoptimizerswitches,sizeof(genwpoptimizerswitches));
             tokenwriteset(dowpoptimizerswitches,sizeof(dowpoptimizerswitches));
             tokenwriteset(debugswitches,sizeof(debugswitches));
@@ -4387,7 +4394,9 @@ type
         i : byte;
         pmsg,prevmsg : pmessagestaterecord;
         msgset : thashset;
-        msgfound : boolean;
+        msgfound,
+        effectobserveactive,
+        effectobservedebug : boolean;
       begin
         if not assigned(replaytokenbuf) then
           internalerror(200511177);
@@ -4496,7 +4505,25 @@ type
                         {
                         replaytokenbuf.read(current_settings,copy_size);
                         }
+                        { EFFECTOBSERVE is a process-local diagnostic mode,
+                          not a property of the source recorded in a generic
+                          token buffer.  The writer deliberately omits the
+                          flag, so preserve both the mode and its requested
+                          debug channel while replaying settings from a PPU
+                          produced without observation enabled. }
+                        effectobserveactive:=cs_opt_effectobserve in
+                          init_settings.optimizerswitches;
+                        effectobservedebug:=effectobserveactive and
+                          ((replaystack.verbosity and V_Debug)<>0);
                         tokenreadsettings(current_settings,copy_size);
+                        if effectobserveactive then
+                          begin
+                            include(current_settings.optimizerswitches,
+                              cs_opt_effectobserve);
+                            if effectobservedebug then
+                              current_settings.verbosity:=
+                                current_settings.verbosity or V_Debug;
+                          end;
                         recordpendingverbosityfullswitch(current_settings.verbosity);
                       end;
                     ST_LOADMESSAGES:
