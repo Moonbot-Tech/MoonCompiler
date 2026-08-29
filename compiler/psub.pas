@@ -187,6 +187,9 @@ implementation
        {$ifndef NOOPT}
        ,aopt
        {$endif}
+{$if (defined(i386) or defined(x86_64)) and not defined(llvm) and not defined(NOOPT)}
+       ,aoptx86flow
+{$endif}
        ;
 
     function checknodeinlining(procdef: tprocdef): boolean;
@@ -2500,6 +2503,18 @@ implementation
               preregallocschedule(aktproccode);
 {$endif i386}
 {$endif NoOpt}
+
+{$if (defined(i386) or defined(x86_64)) and not defined(llvm) and not defined(NOOPT)}
+            { F3a diagnostic: decode the final pre-RA instruction stream into
+              USE/DEF and EBB-local reaching-definition facts.  This is
+              read-only and enabled only by the qualification define. }
+            if defined_macro('OPTCORE_MFACTS') then
+              begin
+                x86flowobserve(aktproccode,procdef.mangledname);
+                if defined_macro('OPTCORE_MFACTS_STALE') then
+                  x86flowstaleprobe(aktproccode);
+              end;
+{$endif}
 
             { The procedure body is finished, we can now
               allocate the registers }
