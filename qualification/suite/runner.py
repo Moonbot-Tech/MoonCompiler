@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import gzip
 import hashlib
 import json
 import os
@@ -2389,6 +2390,64 @@ def mormot_compile_command(
     return command
 
 
+def install_mormot_runtime_inputs(
+    source: dict[str, Any], work: Path,
+) -> list[dict[str, Any]]:
+    """Install and validate fixed files consumed by timed suite methods."""
+    records: list[dict[str, Any]] = []
+    for spec in source.get("runtime_inputs", []):
+        source_path = ROOT / spec["path"]
+        if not source_path.is_file():
+            raise RuntimeError(f"mORMot runtime input is missing: {source_path}")
+        actual = sha256(source_path)
+        if actual != spec["sha256"]:
+            raise RuntimeError(
+                f"mORMot runtime input hash mismatch: {source_path}: {actual}"
+            )
+        destination = work / spec["name"]
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if spec.get("compression") == "gzip":
+            with gzip.open(source_path, "rb") as source_stream:
+                with destination.open("wb") as destination_stream:
+                    shutil.copyfileobj(source_stream, destination_stream)
+            content_sha256 = sha256(destination)
+            if (
+                content_sha256 != spec["content_sha256"]
+                or destination.stat().st_size != int(spec["content_bytes"])
+            ):
+                raise RuntimeError(
+                    f"mORMot decompressed input mismatch: {source_path}"
+                )
+        elif spec.get("compression"):
+            raise RuntimeError(
+                f"unsupported mORMot input compression: {spec['compression']}"
+            )
+        else:
+            shutil.copy2(source_path, destination)
+            content_sha256 = actual
+        records.append({
+            "name": spec["name"],
+            "role": "fixed",
+            "source": str(source_path.relative_to(ROOT)),
+            "source_sha256": actual,
+            "sha256": content_sha256,
+            "bytes": destination.stat().st_size,
+        })
+    return records
+
+
+def snapshot_mormot_runtime_inputs(
+    records: list[dict[str, Any]], work: Path, artifacts: Path,
+) -> None:
+    destination = artifacts / "runtime-inputs"
+    destination.mkdir(parents=True, exist_ok=True)
+    for record in records:
+        target = destination / str(record["name"])
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(work / str(record["name"]), target)
+        record["artifact"] = str(target.relative_to(ROOT))
+
+
 def mormot_work_dir(writer: ResultWriter, identity: str) -> Path:
     work_key = hashlib.sha256(
         f"{writer.run_id}\0{identity}".encode()
@@ -2559,6 +2618,9 @@ def _run_mormot_case_in_workspace(
         assert memory_manager_source is not None
         if not memory_manager_source.is_file():
             raise RuntimeError(f"mORMot memory manager is missing: {memory_manager_source}")
+    runtime_inputs = install_mormot_runtime_inputs(source, work)
+    if runtime_inputs:
+        snapshot_mormot_runtime_inputs(runtime_inputs, work, artifacts)
     compile_log = work / "compile.log"
     run_log = work / "run.log"
     compile_rc, compile_timeout, compile_seconds = run_process(
@@ -2582,6 +2644,10 @@ def _run_mormot_case_in_workspace(
     }
     memory_report_count = 0
     memory_leaks: list[str] = []
+    missing_required_report_patterns: list[str] = []
+    executable = work / "mormot2tests"
+    executable_sha256 = sha256(executable) if executable.is_file() else None
+    executable_bytes = executable.stat().st_size if executable.is_file() else None
     if compile_timeout:
         observed = "compile_timeout"
     elif compile_rc != 0:
@@ -2590,15 +2656,16 @@ def _run_mormot_case_in_workspace(
         prefix = work / "report-prefix"
         prefix.touch()
         run_rc, run_timeout, run_seconds = run_process(
-            [str(work / "mormot2tests"), prefix.name, "--nontp"],
+            [str(executable), prefix.name, "--nontp"],
             work, mormot_run_timeout(source, compiler_id, option_id), run_log,
         )
         if run_timeout:
             observed = "run_timeout"
         else:
             reports = [
-                path for path in work.glob("report-prefix*mORMot2 Regression Tests.txt")
-                if path.stat().st_size > 0
+                path for path in work.glob(
+                    "report-prefix*mORMot2 Regression Tests.txt"
+                ) if path.stat().st_size > 0
             ]
             if len(reports) != 1:
                 observed = "run_fail"
@@ -2611,6 +2678,16 @@ def _run_mormot_case_in_workspace(
                     parsed["environment_failed"],
                     parsed["qualification_failed"],
                 )
+                report_text = report.read_text(
+                    encoding="utf-8", errors="replace"
+                )
+                missing_required_report_patterns = [
+                    pattern for pattern in source.get(
+                        "required_report_patterns", []
+                    ) if pattern not in report_text
+                ]
+                if missing_required_report_patterns:
+                    observed = "run_fail"
             memory_report_count, memory_leaks = memory_report_status(run_log)
 
     expected = expected_observed(source, compiler_id, option_id)
@@ -2618,6 +2695,13 @@ def _run_mormot_case_in_workspace(
     for path in (compile_log, run_log):
         if path.is_file() and path.parent != artifacts:
             shutil.copy2(path, artifacts / path.name)
+    executable_artifact: Path | None = None
+    if executable.is_file():
+        executable_artifact = artifacts / executable.name
+        if executable.parent != artifacts:
+            shutil.copy2(executable, executable_artifact)
+        else:
+            executable_artifact = executable
     if report is not None and report.parent != artifacts:
         shutil.copy2(report, artifacts / report.name)
         report = artifacts / report.name
@@ -2694,6 +2778,14 @@ def _run_mormot_case_in_workspace(
         "compile_log": str(compile_log.relative_to(ROOT)),
         "run_log": str(run_log.relative_to(ROOT)) if run_log.exists() else None,
         "report": str(report.relative_to(ROOT)) if report else None,
+        "missing_required_report_patterns": missing_required_report_patterns,
+        "runtime_inputs": runtime_inputs,
+        "executable": (
+            str(executable_artifact.relative_to(ROOT))
+            if executable_artifact else None
+        ),
+        "executable_sha256": executable_sha256,
+        "executable_bytes": executable_bytes,
         "qualification_signature": qualification_signature,
         "expected_qualification_signature": expected_signature,
         "qualification_signature_met": qualification_signature_met,
@@ -2709,7 +2801,9 @@ def collect_mormot_suite_artifacts(work: Path, artifacts: Path) -> None:
     if work == artifacts:
         return
     artifacts.mkdir(parents=True, exist_ok=True)
-    for path in (work / "compile.log", work / "run.log"):
+    for path in (
+        work / "compile.log", work / "run.log", work / "mormot2tests",
+    ):
         if path.is_file():
             shutil.copy2(path, artifacts / path.name)
     for path in work.glob("report-prefix*mORMot2 Regression Tests.txt"):

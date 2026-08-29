@@ -3509,6 +3509,27 @@
         "memory_manager": "../../runtime/mm/mormot.core.fpcx64mm.pas",
         "path": "../../.qualification/deps/mormot2-compiler-corpus",
         "url": "https://github.com/synopse/mORMot2.git",
+        "runtime_inputs": [
+          {
+            "compression": "gzip",
+            "content_bytes": 1028877,
+            "content_sha256": "583a7bc4e54a584e9221d76cdbaadd6287e127845908b9eb9fa3ff85e5170123",
+            "name": "data/People.json",
+            "path": "fixtures/mormot-compiler-corpus-2026/People.json.gz",
+            "sha256": "64d2799dd98dd41264e673dd69adeeecda246df1b709fcdd184226df4e3a1b4a"
+          },
+          {
+            "name": "data/sample.json",
+            "path": "fixtures/mormot-compiler-corpus-2026/sample.json",
+            "sha256": "3541d8423015fbbc1a0bf1b3c9e9df02027dc164eabb9b0dda385515dd5d02fa"
+          }
+        ],
+        "required_report_patterns": [
+          "TOrmPeopleObjArray exp",
+          "TDocVariant sample.json",
+          "2500 mormot crc32c",
+          "TAlgoCompress"
+        ],
         "rtsp_ports": [
           "23999",
           "23998"

@@ -297,6 +297,47 @@ class RunnerContractsTest(unittest.TestCase):
             command,
         )
 
+    def test_mormot_runtime_inputs_are_hashed_and_decompressed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixed = root / "fixed.json.gz"
+            with runner.gzip.open(fixed, "wb") as stream:
+                stream.write(b'{"a": 1}\n')
+            work = root / "work"
+            work.mkdir()
+            source = {
+                "runtime_inputs": [{
+                    "compression": "gzip",
+                    "content_bytes": 9,
+                    "content_sha256": runner.hashlib.sha256(
+                        b'{"a": 1}\n'
+                    ).hexdigest(),
+                    "name": "data/sample.json",
+                    "path": "fixed.json.gz",
+                    "sha256": runner.sha256(fixed),
+                }],
+            }
+            with mock.patch.object(runner, "ROOT", root):
+                records = runner.install_mormot_runtime_inputs(source, work)
+                self.assertEqual(records[0]["role"], "fixed")
+            self.assertEqual(
+                (work / "data/sample.json").read_bytes(), b'{"a": 1}\n'
+            )
+            self.assertEqual(records[0]["bytes"], 9)
+
+    def test_mormot_real_corpus_requires_all_named_benchmark_markers(self) -> None:
+        manifest = runner.load_manifest()
+        source = manifest["mormot"]["sources"]["compiler-corpus-2026"]
+        self.assertEqual(
+            source["required_report_patterns"],
+            [
+                "TOrmPeopleObjArray exp",
+                "TDocVariant sample.json",
+                "2500 mormot crc32c",
+                "TAlgoCompress",
+            ],
+        )
+
     def test_mormot_environment_methods_are_explicit(self) -> None:
         expected_methods = {
             "ip dns ldap",
