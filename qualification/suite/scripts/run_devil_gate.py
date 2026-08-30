@@ -35,7 +35,8 @@ FAILURE_RE = re.compile(
     r"expected=(?P<expected>[0-9A-F]{16})$")
 SUMMARY_RE = re.compile(
     r"^DEVIL_(?P<verdict>PASS|FAIL) seed=(?P<seed>\d+) .*?"
-    r"checks=(?P<checks>\d+) digest=(?P<digest>[0-9A-F]{16})$")
+    r"(?:failures=(?P<failures>\d+) )?checks=(?P<checks>\d+) "
+    r"digest=(?P<digest>[0-9A-F]{16})$")
 NOTE_RE = re.compile(r"^DEVIL_NOTE (?P<name>[a-z0-9-]+)=(?P<value>[0-9A-F]{16})$")
 LAYERS_RE = re.compile(r"^DEVIL_LAYERS (?P<layers>[a-z0-9,]+)$")
 COUNTER_RE = re.compile(r"^DEVIL_(?P<what>FEEDS|STEPS) (?P<value>\d+)$")
@@ -62,9 +63,11 @@ class Build:
         self.compile_log = ""
         self.output = ""
         self.failures: dict[str, tuple[str, str]] = {}
+        self.failure_occurrences: dict[str, int] = {}
         self.notes: dict[str, str] = {}
         self.digest = ""
         self.checks = 0
+        self.reported_failures: int | None = None
         self.timed_out = False
         self.run_exit: int | None = None
         self.layers: set[str] = set()
@@ -80,8 +83,10 @@ class Build:
         for line in output.splitlines():
             m = FAILURE_RE.match(line.strip())
             if m:
-                self.failures[m.group("name")] = (m.group("actual"),
-                                                  m.group("expected"))
+                name = m.group("name")
+                self.failures[name] = (m.group("actual"), m.group("expected"))
+                self.failure_occurrences[name] = \
+                    self.failure_occurrences.get(name, 0) + 1
                 continue
             m = NOTE_RE.match(line.strip())
             if m:
@@ -107,6 +112,8 @@ class Build:
             if m:
                 self.digest = m.group("digest")
                 self.checks = int(m.group("checks"))
+                failures = m.group("failures")
+                self.reported_failures = int(failures) if failures else 0
 
 
 def build_fpc(work: Path, profile: str, defines: list[str], timeout: int,
@@ -359,6 +366,8 @@ def absorb_derived_runtime_failures(
         build = by_label.get(finding.get("build"))
         if (build is None or not build.compiled or build.timed_out
                 or not build.digest or not build.failures
+                or build.reported_failures != sum(
+                    build.failure_occurrences.values())
                 or not set(build.failures) <= known_by_build.get(build.label, set())):
             fresh.append(finding)
             continue
@@ -423,6 +432,11 @@ def compare(builds: list[Build]) -> list[dict]:
             "check": name,
             "builds": {k: (v[0] if v else "ok") for k, v in rows.items()},
         })
+        occurrences = {b.label: b.failure_occurrences.get(name, 0)
+                       for b in alive if carries(b, name)}
+        if len(set(occurrences.values())) > 1:
+            findings.append({"kind": "failure-count-split", "check": name,
+                             "builds": occurrences})
     note_names: set[str] = set()
     for b in alive:
         note_names |= set(b.notes)

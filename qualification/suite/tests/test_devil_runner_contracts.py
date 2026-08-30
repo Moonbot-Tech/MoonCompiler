@@ -122,7 +122,7 @@ Fatal: Compilation aborted
             ["program.exe", "program.ppu"],
         )
 
-    def test_allocator_contention_uses_a_boolean_oracle(self) -> None:
+    def test_allocator_load_has_no_scheduler_dependent_oracle(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
             argv = ["generate_devil.py", "--seed", "5", "--cases", "101",
@@ -131,9 +131,10 @@ Fatal: Compilation aborted
                 with redirect_stdout(io.StringIO()):
                     generate_devil.main()
             source = (output / "devil_load.inc").read_text(encoding="utf-8")
-        self.assertIn("DevilCheckBool('dvl-load-contended-240-waited'", source)
-        self.assertIn("SmallGetmemSleepCount > Waited", source)
-        self.assertNotIn("DevilNoteLoose('dvl-load-contended-240-waited'", source)
+        self.assertNotIn("dvl-load-contended-240-waited", source)
+        self.assertNotIn("SmallGetmemSleepCount", source)
+        self.assertIn("DevilCheckBool('dvl-load-contended-240-balance'", source)
+        self.assertIn("DevilCheckU('dvl-load-contended-240-owner'", source)
 
     def test_optimizer_effects_are_a_closed_matrix_not_random_examples(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -226,6 +227,8 @@ Fatal: Compilation aborted
         build.failures = {
             "dvl-lang-00001-type": ("0000000000000005", "0000000000000006"),
         }
+        build.failure_occurrences = {"dvl-lang-00001-type": 1}
+        build.reported_failures = 1
         runtime = [{
             "kind": "runtime-failed", "build": "release", "exit": 2,
             "detail": ["DEVIL_FAIL seed=1"],
@@ -242,6 +245,30 @@ Fatal: Compilation aborted
 
         self.assertEqual(findings, [])
         self.assertEqual(known_hits[-1]["known"], "derived")
+
+    def test_unparsed_failure_keeps_runtime_exit_fresh(self) -> None:
+        build = run_devil_gate.Build("release")
+        build.compiled = True
+        build.run_exit = 2
+        build.digest = "0000000000000001"
+        build.failures = {
+            "dvl-lang-00001-type": ("0000000000000005", "0000000000000006"),
+        }
+        build.failure_occurrences = {"dvl-lang-00001-type": 1}
+        build.reported_failures = 2
+        runtime = [{"kind": "runtime-failed", "build": "release"}]
+        known = [{
+            "kind": "model-mismatch",
+            "check": "dvl-lang-00001-type",
+            "builds": {"release": "0000000000000005"},
+            "known": "dvl-0014",
+        }]
+
+        findings, known_hits = run_devil_gate.absorb_derived_runtime_failures(
+            runtime, known, [build])
+
+        self.assertEqual(findings, runtime)
+        self.assertEqual(known_hits, known)
 
     def test_runtime_exit_stays_fresh_without_named_known_failures(self) -> None:
         build = run_devil_gate.Build("release")

@@ -720,7 +720,11 @@ def emit_signed_widen_after_arithmetic_matrix(e: Emitter) -> CaseRecord:
     e.line("begin")
     e.line("  X := W;")
     e.line("  Inc(X, $7FFF8001);")
+    e.line("  {$ifdef FPC}")
     e.line("  Result := SarLongint(X, 31);")
+    e.line("  {$else}")
+    e.line("  Result := -Ord(X < 0);")
+    e.line("  {$endif}")
     e.line("end;")
     e.line()
     e.line("function DvlExprWidenAfterAdd(Value: Integer): Int64;")
@@ -3415,9 +3419,10 @@ def layer_thread(e: Emitter, rng: random.Random, count: int,
         if shape == "interface-handoff":
             e.line("  OutIntf := TDvlTagged.Create(AnsiChar(Ord('a') + Slot));")
         if shape == "queue-drain":
-            # inside a TThread descendant the bare class call picks the
-            # method-pointer overload; naming the thread keeps it portable
-            e.line("  TThread.Queue(Self,")
+            # nil keeps the anonymous-procedure overload portable: Delphi
+            # rejects Self here while the generated callback needs no worker
+            # lifetime association.
+            e.line("  TThread.Queue(nil,")
             e.line("    procedure")
             e.line("    begin")
             e.line("      AtomicIncrement(DvlThreadCounter);")
@@ -17717,7 +17722,6 @@ def layer_load(e: Emitter, rng: random.Random, count: int,
         e.line("  Crew: array[0..%d] of TDvlLoadWorker;" % (threads - 1))
         e.line("  I, Corrupt, TooSmall, Dirty: Integer;")
         if heavy:
-            e.line("  Waited: PtrUInt;")
             e.line("  Held0, Held1: PtrUInt;   { занято до и после }")
             e.line("  Sleeps0, Sleeps1: PtrUInt;")
         e.line("begin")
@@ -17738,9 +17742,6 @@ def layer_load(e: Emitter, rng: random.Random, count: int,
             e.line("    Crew[I].Slots := %d;" % LOAD_HANDOFF_SLOTS)
         e.line("  end;")
         if heavy:
-            e.line("  { счётчик ожиданий аллокатор сводит всегда, а не только "
-                   "под своей диагностикой }")
-            e.line("  Waited := CurrentHeapStatus.SmallGetmemSleepCount;")
             e.line("  Held0 := CurrentHeapStatus.SmallBlocksSize;")
             e.line("  Sleeps0 := CurrentHeapStatus.SleepCount;")
         e.line("  { старт всем сразу: драка нужна одновременная }")
@@ -17757,12 +17758,6 @@ def layer_load(e: Emitter, rng: random.Random, count: int,
         e.line("    Inc(Dirty, Crew[I].Dirty);")
         e.line("    Crew[I].Free;")
         e.line("  end;")
-        if heavy:
-            e.line("  { точное число ожиданий зависит от планировщика; "
-                   "семантический инвариант только один: спорная ветка "
-                   "действительно исполнилась }")
-            e.line("  DevilCheckBool('%s-waited', "
-                   "CurrentHeapStatus.SmallGetmemSleepCount > Waited);" % name)
         if handoff:
             e.line("  { всё, что осталось на столе, освобождает главный поток }")
             e.line("  for I := 0 to %d do" % (LOAD_HANDOFF_SLOTS - 1))

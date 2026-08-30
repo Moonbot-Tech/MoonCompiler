@@ -49,7 +49,7 @@ uses
 
 
 def nested_expression(depth: int, rng: random.Random) -> str:
-    expr = "1"
+    expr = "R"
     for k in range(depth):
         op = rng.choice(("+", "-", "*", "or", "xor"))
         expr = f"({expr} {op} {k % 7 + 1})"
@@ -61,6 +61,7 @@ def shape_deep_expression(rng: random.Random) -> str:
 var
   R: Integer;
 begin
+  R := 1;
   R := {nested_expression(rng.randrange(120, 400), rng)};
   WriteLn(R);
 end."""

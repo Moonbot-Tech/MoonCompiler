@@ -88,8 +88,11 @@ begin
   if Byte(Byte(255) + Byte(1)) <> 0 then Inc(Bad);
   if Byte(Byte(0) - Byte(1)) <> 255 then Inc(Bad);
   if Word(Word(65535) + Word(1)) <> 0 then Inc(Bad);
-  if Cardinal(Cardinal($FFFFFFFF) + 1) <> 0 then Inc(Bad);
-  if Cardinal(Cardinal(0) - 1) <> $FFFFFFFF then Inc(Bad);
+  A32 := High(Cardinal);
+  B32 := 1;
+  if Cardinal(A32 + B32) <> 0 then Inc(Bad);
+  A32 := 0;
+  if Cardinal(A32 - B32) <> High(Cardinal) then Inc(Bad);
 
   Carrier.Feed(UInt64(Cardinal(Bad)));
   Carrier.Claim(Bad = 0, 'overflow: narrow addition disagrees with the wide one truncated');
@@ -126,7 +129,9 @@ begin
 
   if Byte(Byte(16) * Byte(16)) <> 0 then Inc(Bad);
   if Word(Word(256) * Word(256)) <> 0 then Inc(Bad);
-  if Cardinal(Cardinal($10000) * Cardinal($10000)) <> 0 then Inc(Bad);
+  A32 := $10000;
+  B32 := $10000;
+  if Cardinal(A32 * B32) <> 0 then Inc(Bad);
 
   Carrier.Feed(UInt64(Cardinal(Bad)));
   Carrier.Claim(Bad = 0, 'overflow: narrow multiplication disagrees with the wide one truncated');
