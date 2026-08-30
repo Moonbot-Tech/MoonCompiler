@@ -4132,6 +4132,22 @@ begin
     Position := -1;
     Check(not GL.BinarySearch(4, Position, TComparer<Integer>.Default) and
       (Position = 2), 'coll-generic-binarysearch-integer-insert');
+
+    { A run of equal keys is a different algorithmic form: Delphi narrows
+      to its lower bound instead of returning the first midpoint hit. }
+    GL.Clear;
+    GL.Add(0);
+    GL.Add(0);
+    GL.Add(1);
+    GL.Add(1);
+    GL.Add(1);
+    GL.Add(2);
+    Position := -1;
+    Check(GL.BinarySearch(0, Position) and (Position = 0),
+      'coll-generic-binarysearch-first-equal-zero');
+    Position := -1;
+    Check(GL.BinarySearch(1, Position) and (Position = 2),
+      'coll-generic-binarysearch-first-equal-one');
   finally
     GL.Free;
   end;

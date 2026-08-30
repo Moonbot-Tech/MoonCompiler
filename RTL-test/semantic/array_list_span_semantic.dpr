@@ -176,6 +176,22 @@ begin
   ExpectRange('bsr-invalid', procedure begin TArrayHelper<Integer>.BinarySearch(A, 5, SR, Cmp, 4, 2); end, '');
   Check('bsr-found', TArrayHelper<Integer>.BinarySearch(A, 9, SR, Cmp, 0, 5) and (SR.FoundIndex = 4));
 
+  { DCC64 returns the lower bound, not an arbitrary equal slot. This matters
+    to callers which continue a range scan from FoundIdx. }
+  SetLength(A, 8);
+  A[0] := 0; A[1] := 0; A[2] := 1; A[3] := 1;
+  A[4] := 1; A[5] := 2; A[6] := 3; A[7] := 3;
+  Check('bs-first-equal-zero',
+    TArray.BinarySearch<Integer>(A, 0, FoundIdx, Cmp) and (FoundIdx = 0));
+  Check('bs-first-equal-one',
+    TArray.BinarySearch<Integer>(A, 1, FoundIdx, Cmp) and (FoundIdx = 2));
+  Check('bs-first-equal-ranged',
+    TArray.BinarySearch<Integer>(A, 1, FoundIdx, Cmp, 2, 3) and
+      (FoundIdx = 2));
+  Check('bsr-first-equal',
+    TArrayHelper<Integer>.BinarySearch(A, 1, SR, Cmp, 0, Length(A)) and
+      (SR.FoundIndex = 2) and (SR.CandidateIndex = 2));
+
   { TSortedList consumes the SearchResult fields: the old -1 sentinel made
     the empty-list insertion point 0 by accident (-1+1); under the
     insertion-point contract the first Add must land at 0 with the value

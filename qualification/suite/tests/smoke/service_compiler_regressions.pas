@@ -79,6 +79,12 @@ begin
   Check((not TArray.BinarySearch<Integer>(Values, 6, Index,
     TComparer<Integer>.Default, 1, 2)) and (Index = 2),
     'tarray-search-range-insert');
+
+  Values := TArray<Integer>.Create(0, 0, 1, 1, 1, 2, 3, 3);
+  Check(TArray.BinarySearch<Integer>(Values, 0, Index) and (Index = 0),
+    'tarray-search-first-equal-zero');
+  Check(TArray.BinarySearch<Integer>(Values, 1, Index) and (Index = 2),
+    'tarray-search-first-equal-one');
 end;
 
 procedure CheckUnsignedFormatting;

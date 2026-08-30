@@ -1422,12 +1422,8 @@ begin
         else
         begin
           imax := imid;
-          if ASearchResult.CompareResult = 0 then
-          begin
-            ASearchResult.FoundIndex := imid;
-            ASearchResult.CandidateIndex := imid;
-            Exit(True);
-          end;
+          { Equality is not an exit: Delphi's BinarySearch is a lower-bound
+            search and returns the first item from a run of equals. }
         end;
   end;
     // At exit of while:
@@ -1654,11 +1650,8 @@ begin
         else
         begin
           imax := imid;
-          if LCompare = 0 then
-          begin
-            AFoundIndex := imid;
-            Exit(True);
-          end;
+          { Keep narrowing left after equality, matching Delphi's
+            first-equal result rather than returning an arbitrary match. }
         end;
   end;
     // At exit of while:
