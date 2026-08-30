@@ -3720,10 +3720,12 @@
     "note": "Run the upstream compiler test suite from the current editable worktree.",
     "path": "../..",
     "host_support_options": [
-      "-Facwstring"
+      "-Facwstring",
+      "-dMOONCOMPILER_VANILLA_RUNTIME"
     ],
     "test_support_options": [
-      "-Fl/usr/lib/gcc/x86_64-linux-gnu/13"
+      "-Fl/usr/lib/gcc/x86_64-linux-gnu/13",
+      "-dMOONCOMPILER_VANILLA_RUNTIME"
     ],
     "timeout_seconds": 1800
   }
