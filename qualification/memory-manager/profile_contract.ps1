@@ -16,6 +16,8 @@ New-Item -ItemType Directory -Force -Path "$Output\negative", `
 $Base = @(
   '-n', "@$Config", '-Mdelphi', '-Twin64', '-Px86_64', '-B',
   '-dMOONBOT_MM_PROFILE_REQUIRED',
+  '-uFPCMM_BOOSTER', '-uFPCMM_MOONSHARD',
+  '-uFPCMM_DISABLE', '-uFPCMM_STANDALONE',
   "--pinned-unit=mormot.core.fpcx64mm=$Mm",
   '--required-first-unit=mormot.core.fpcx64mm')
 

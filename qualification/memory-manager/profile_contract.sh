@@ -15,6 +15,8 @@ mkdir -p "$OUTPUT/negative" "$OUTPUT/disable" "$OUTPUT/standalone" \
 base=(
   -n "@$CONFIG" -Mdelphi -Tlinux -Px86_64 -B
   -dMOONBOT_MM_PROFILE_REQUIRED
+  -uFPCMM_BOOSTER -uFPCMM_MOONSHARD
+  -uFPCMM_DISABLE -uFPCMM_STANDALONE
   "--pinned-unit=mormot.core.fpcx64mm=$MM"
   --required-first-unit=mormot.core.fpcx64mm
 )
