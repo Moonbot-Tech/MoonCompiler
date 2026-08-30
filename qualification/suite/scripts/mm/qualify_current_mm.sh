@@ -41,6 +41,10 @@ compile_test() {
       )
       ;;
     standalone)
+      profile_args=(
+        -dMOONCOMPILER_VANILLA_RUNTIME
+        -uMOONBOT_MM_PROFILE_REQUIRED -uFPCMM_BOOSTER -uFPCMM_MOONSHARD
+      )
       ;;
     *)
       echo "invalid MM test profile: $profile" >&2
