@@ -1160,6 +1160,9 @@
         ],
         "trace": [
           "-gt"
+        ],
+        "vanilla-runtime": [
+          "-dMOONCOMPILER_VANILLA_RUNTIME"
         ]
       },
       "cases": [
@@ -1582,7 +1585,9 @@
             "O2",
             "O3"
           ],
-          "args": [],
+          "args": [
+            "vanilla-runtime"
+          ],
           "expectation": {
             "compile": "pass",
             "run": "pass"
