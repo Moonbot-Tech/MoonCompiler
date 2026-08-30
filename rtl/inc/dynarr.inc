@@ -86,7 +86,13 @@ procedure fpc_dynarray_clear(var p : pointer;ti : pointer); [Public,Alias:'FPC_D
     if not assigned(pv) then
       exit;
     p:=nil;
-    if (pv[-1].refcount=1) or (pv[-1].refcount>0) and declocked(pv[-1].refcount) then
+    if (pv[-1].refcount=1) or (pv[-1].refcount>0) and
+{$ifdef VER3_2}
+      declocked(pv[-1].refcount)
+{$else}
+      (AtomicDecrement(pv[-1].refcount)=0)
+{$endif}
+      then
       begin
         ti:=pdynarraytypedata(aligntoqword(ti+2+PByte(ti)[1]))^.elType;
         if assigned(ti) then
@@ -102,7 +108,11 @@ Procedure fpc_dynarray_clear (var p : pointer;ti : pointer);[external name 'FPC_
 procedure fpc_dynarray_incr_ref(p : pointer);[Public,Alias:'FPC_DYNARRAY_INCR_REF']; compilerproc;
   begin
      if assigned(p) and (pdynarray(p)[-1].refcount>0) then
+{$ifdef VER3_2}
        inclocked(pdynarray(p)[-1].refcount);
+{$else}
+       AtomicIncrement(pdynarray(p)[-1].refcount);
+{$endif}
   end;
 
 { provide local access to dynarr_decr_ref for dynarr_setlength }
@@ -116,11 +126,21 @@ procedure fpc_dynarray_assign(var dest: Pointer; src: Pointer; ti: pointer);[pub
     { flattened incr_ref + clear: an assignment is one call deep instead of
       relaying through two helper frames on every managed-array store }
     if assigned(src) and (pdynarray(src)[-1].refcount>0) then
+{$ifdef VER3_2}
       inclocked(pdynarray(src)[-1].refcount);
+{$else}
+      AtomicIncrement(pdynarray(src)[-1].refcount);
+{$endif}
     pv:=dest;
     dest:=src;
     if assigned(pv) then
-      if (pv[-1].refcount=1) or (pv[-1].refcount>0) and declocked(pv[-1].refcount) then
+      if (pv[-1].refcount=1) or (pv[-1].refcount>0) and
+{$ifdef VER3_2}
+        declocked(pv[-1].refcount)
+{$else}
+        (AtomicDecrement(pv[-1].refcount)=0)
+{$endif}
+        then
         begin
           ti:=pdynarraytypedata(aligntoqword(ti+2+PByte(ti)[1]))^.elType;
           if assigned(ti) then
@@ -366,7 +386,13 @@ function fpc_array_to_dynarray_copy_unmanaged(psrc : pointer;
        begin
          oldheader:=pdynarray(olddata)-1;
          if (oldheader^.refcount=1) or
-            (oldheader^.refcount>0) and declocked(oldheader^.refcount) then
+            (oldheader^.refcount>0) and
+{$ifdef VER3_2}
+            declocked(oldheader^.refcount)
+{$else}
+            (AtomicDecrement(oldheader^.refcount)=0)
+{$endif}
+            then
            freemem(oldheader);
        end;
      pointer(result):=newdata;
