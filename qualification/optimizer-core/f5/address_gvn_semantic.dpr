@@ -15,8 +15,74 @@ type
     Im: Double;
   end;
 
+  TMarketPoint = record
+    Price: Double;
+    Qty: Single;
+  end;
+
+  TIndexKeeper = function(I: Integer): Integer;
+
 var
+  BarrierSink: Int64;
   Data: array[0..127] of TPair;
+
+function ReadPair(const OpenData: array of TPair; I: Integer): Int64; noinline;
+var
+  X,
+  Y: Int64;
+begin
+  X := OpenData[I].X;
+  Y := OpenData[I].Y;
+  Result := X + Y;
+end;
+
+function ReadPairRedefined(const OpenData: array of TPair;
+  I: Integer): Int64; noinline;
+begin
+  Result := OpenData[I].X;
+  Inc(I);
+  Result := Result + OpenData[I].Y;
+end;
+
+function KeepIndex(I: Integer): Integer; noinline;
+begin
+  Result := I;
+end;
+
+function ReadPairAcrossCall(const OpenData: array of TPair;
+  I: Integer): Int64; noinline;
+begin
+  Result := OpenData[I].X;
+  I := KeepIndex(I);
+  Result := Result + OpenData[I].Y;
+end;
+
+function ReadPairAcrossIndirectCall(const OpenData: array of TPair;
+  I: Integer; Keeper: TIndexKeeper): Int64; noinline;
+begin
+  Result := OpenData[I].X;
+  Keeper(I);
+  Result := Result + OpenData[I].Y;
+end;
+
+function ReadPairAcrossMemory(const OpenData: array of TPair;
+  I: Integer): Int64; noinline;
+begin
+  Result := OpenData[I].X;
+  BarrierSink := Result;
+  Result := Result + OpenData[I].Y;
+end;
+
+function ReadMarketPoint(const Points: array of TMarketPoint;
+  I: Integer): Double; noinline;
+var
+  Price,
+  Qty: Double;
+begin
+  Price := Points[I].Price;
+  Qty := Points[I].Qty;
+  Result := Price * Qty;
+end;
 
 procedure ButterflyOpen(var OpenData: array of TPair; I, J: Integer); noinline;
 var
@@ -73,6 +139,7 @@ end;
 var
   Digest: QWord;
   FloatData: array of TFloatPair;
+  Points: array of TMarketPoint;
   OpenData: array of TPair;
   I: Integer;
 begin
@@ -86,6 +153,33 @@ begin
   for I := 0 to High(OpenData) do begin
     OpenData[I].X := Int64(I) * 3 + 1;
     OpenData[I].Y := Int64(I) * 5 - 2;
+  end;
+  if ReadPair(OpenData,2)<>15 then begin
+    WriteLn('ADDRESSGVN:FAIL:TWO-USE');
+    Halt(1);
+  end;
+  if ReadPairRedefined(OpenData,1)<>12 then begin
+    WriteLn('ADDRESSGVN:FAIL:REDEFINED');
+    Halt(1);
+  end;
+  if ReadPairAcrossCall(OpenData,2)<>15 then begin
+    WriteLn('ADDRESSGVN:FAIL:CALL');
+    Halt(1);
+  end;
+  if ReadPairAcrossIndirectCall(OpenData,2,@KeepIndex)<>15 then begin
+    WriteLn('ADDRESSGVN:FAIL:INDIRECT-CALL');
+    Halt(1);
+  end;
+  if (ReadPairAcrossMemory(OpenData,2)<>15) or (BarrierSink<>7) then begin
+    WriteLn('ADDRESSGVN:FAIL:MEMORY');
+    Halt(1);
+  end;
+  SetLength(Points,4);
+  Points[2].Price := 12.5;
+  Points[2].Qty := 4.0;
+  if Abs(ReadMarketPoint(Points,2)-50.0)>1e-12 then begin
+    WriteLn('ADDRESSGVN:FAIL:MARKET-POINT');
+    Halt(1);
   end;
   ButterflyOpen(OpenData,1,3);
   if (OpenData[1].X<>1) or (OpenData[1].Y<>26) or

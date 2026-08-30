@@ -29,7 +29,9 @@ uses
   aoptx86,aoptx86flow;
 
 const
-  minaddressuses = 3;
+  minlocaladdressuses = 2;
+  minunrestrictedaddressuses = 3;
+  minbaseuses = 3;
 
 type
   taddrkind = (ak_maskshift,ak_signextendshift);
@@ -569,6 +571,49 @@ procedure addbaseoccurrence(var groups : tbasegrouparray;
   end;
 
 
+function instructionhasmemoryoperand(insn : taicpu) : boolean;
+  var
+    i : longint;
+  begin
+    for i:=0 to insn.ops-1 do
+      if insn.oper[i]^.typ=top_ref then
+        exit(true);
+    result:=false;
+  end;
+
+
+function localtwousegroup(const group : taddrgroup) : boolean;
+  var
+    p,stop : tai;
+  begin
+    result:=false;
+    if length(group.occurrences)<>minlocaladdressuses then
+      exit;
+    p:=tai(group.occurrences[0].memoryinsn.next);
+    stop:=group.occurrences[1].memoryinsn;
+    while assigned(p) and (p<>stop) do
+      begin
+        { A two-use group saves only one duplicate address chain.  Extend the
+          kept address through register-only work, but not through another
+          memory operation that can make the marginal live range compete with
+          spills, base reloads, or an unrelated memory stream. }
+        if (p.typ=ait_instruction) and
+           ((taicpu(p).opcode=A_CALL) or
+            instructionhasmemoryoperand(taicpu(p))) then
+          exit;
+        p:=tai(p.next);
+      end;
+    result:=p=stop;
+  end;
+
+
+function addressgroupaccepted(const group : taddrgroup) : boolean; inline;
+  begin
+    result:=(length(group.occurrences)>=minunrestrictedaddressuses) or
+      localtwousegroup(group);
+  end;
+
+
 procedure markreg(var marked : tregmarkarray; reg : tregister);
   var
     n : longword;
@@ -603,7 +648,7 @@ procedure collectaffectedregs(var marked : tregmarkarray;
     i,j,k : longint;
   begin
     for i:=0 to high(groups) do
-      if length(groups[i].occurrences)>=minaddressuses then
+      if addressgroupaccepted(groups[i]) then
         begin
           markreg(marked,groups[i].occurrences[0].finalreg);
           for j:=1 to high(groups[i].occurrences) do
@@ -617,7 +662,7 @@ procedure collectaffectedregs(var marked : tregmarkarray;
             end;
         end;
     for i:=0 to high(basegroups) do
-      if length(basegroups[i].occurrences)>=minaddressuses then
+      if length(basegroups[i].occurrences)>=minbaseuses then
         begin
           markreg(marked,basegroups[i].occurrences[0].finalreg);
           for j:=1 to high(basegroups[i].occurrences) do
@@ -704,7 +749,7 @@ procedure applygroups(asmlist : tasmlist; const groups : taddrgrouparray);
     ref : preference;
   begin
     for i:=0 to high(groups) do
-      if length(groups[i].occurrences)>=minaddressuses then
+      if addressgroupaccepted(groups[i]) then
         begin
           keepreg:=groups[i].occurrences[0].finalreg;
           for j:=1 to high(groups[i].occurrences) do
@@ -755,7 +800,7 @@ procedure removeorphandefs(asmlist : tasmlist; const groups : taddrgrouparray;
   begin
     definitions:=nil;
     for i:=0 to high(groups) do
-      if length(groups[i].occurrences)>=minaddressuses then
+      if addressgroupaccepted(groups[i]) then
         for j:=1 to high(groups[i].occurrences) do
           for l:=0 to groups[i].occurrences[j].orphanablecount-1 do
             begin
@@ -801,7 +846,7 @@ procedure applybasegroups(asmlist : tasmlist; const groups : tbasegrouparray);
     ref : preference;
   begin
     for i:=0 to high(groups) do
-      if length(groups[i].occurrences)>=minaddressuses then
+      if length(groups[i].occurrences)>=minbaseuses then
         begin
           keepreg:=groups[i].occurrences[0].finalreg;
           for j:=1 to high(groups[i].occurrences) do
