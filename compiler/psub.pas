@@ -2107,11 +2107,11 @@ implementation
       end;
 
 
-    { Win64 SEH funclets execute outside the normal parent control-flow
-      path.  Keep a frame home only for values that the funclet observes or
-      that must survive a returning exception handler.  User-written nested
-      routines remain on the old blanket-safe path until the later CFG stage
-      can model their static chains explicitly. }
+    { Win64 SEH funclets and Linux landing-pad cleanups execute outside the
+      normal parent control-flow path.  Keep a frame home only for values that
+      they observe or that must survive a returning exception handler.
+      User-written nested routines remain on the old blanket-safe path until
+      the later CFG stage can model their static chains explicitly. }
 
     function seh_mark_referenced(var n: tnode; arg: pointer): foreachnoderesult;
       begin
@@ -2460,12 +2460,13 @@ implementation
         { add implicit entry and exit code }
         add_entry_exit_code;
 
-        { A Win64 handler does not invalidate every local in its parent.
-          Mark the actual cross-funclet values and let all unrelated locals
-          use the normal allocator.  A user nested routine introduces a
-          parent-frame/static-chain edge that this local analysis does not
-          model, so it deliberately keeps the historical safe fallback. }
-        if (target_info.system in systems_x86_64_seh) and
+        { An x86-64 exception region does not invalidate every local in its
+          parent.  Mark the values observed on exceptional paths and let all
+          unrelated locals use the normal allocator.  A user nested routine
+          introduces a parent-frame/static-chain edge that this local analysis
+          does not model, so it deliberately keeps the historical fallback. }
+        if ((target_info.system in systems_x86_64_seh) or
+            (target_info.system=system_x86_64_linux)) and
            (procdef.proctypeoption<>potype_exceptfilter) and
            (pi_uses_exceptions in flags) and
            (cs_opt_regvar in current_settings.optimizerswitches) and

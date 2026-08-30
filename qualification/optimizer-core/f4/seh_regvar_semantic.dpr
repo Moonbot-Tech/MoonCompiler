@@ -9,6 +9,49 @@ uses
 var
   Finalized: Integer;
 
+type
+  TCountedEnumerator = class
+  private
+    FCurrent, FLast: Integer;
+  public
+    class var Alive, Destroyed: Integer;
+    constructor Create(ALast: Integer);
+    destructor Destroy; override;
+    function MoveNext: Boolean;
+    property Current: Integer read FCurrent;
+  end;
+
+  TCountedRange = record
+    Last: Integer;
+    function GetEnumerator: TCountedEnumerator;
+  end;
+
+constructor TCountedEnumerator.Create(ALast: Integer);
+begin
+  inherited Create;
+  Inc(Alive);
+  FCurrent := 0;
+  FLast := ALast;
+end;
+
+destructor TCountedEnumerator.Destroy;
+begin
+  Dec(Alive);
+  Inc(Destroyed);
+  inherited;
+end;
+
+function TCountedEnumerator.MoveNext: Boolean;
+begin
+  Inc(FCurrent);
+  Result := FCurrent <= FLast;
+end;
+
+function TCountedRange.GetEnumerator: TCountedEnumerator;
+begin
+  Result := TCountedEnumerator.Create(Last);
+end;
+
 function LiveThroughAV(P: PInteger): Integer; noinline;
 var
   X, Y, Z: Integer;
@@ -119,6 +162,77 @@ begin
   Result := Pair.A + Pair.B;
 end;
 
+function NestedHandlerStaticChain(Seed: Integer; RaiseIt: Boolean): Integer; noinline;
+type
+  TPair = record
+    A, B: Integer;
+  end;
+var
+  Pair: TPair;
+
+  procedure Execute;
+  begin
+    try
+      Inc(Pair.A, 5);
+      If RaiseIt then
+        raise EAbort.Create('nested-handler');
+      Inc(Pair.B, 7);
+    except
+      on EAbort do
+        Pair.B := Pair.B + Pair.A * 2;
+    end;
+  end;
+
+begin
+  Pair.A := Seed;
+  Pair.B := Seed * 3;
+  Execute;
+  Result := Pair.A + Pair.B;
+end;
+
+function GeneratedCleanupComplete(Limit: Integer): Integer; noinline;
+var
+  Range: TCountedRange;
+  Value, Sum: Integer;
+begin
+  Range.Last := Limit;
+  Sum := 0;
+  for Value in Range do
+    Inc(Sum, Value * 3);
+  Result := Sum;
+end;
+
+function GeneratedCleanupBreak(Limit: Integer): Integer; noinline;
+var
+  Range: TCountedRange;
+  Value, Sum: Integer;
+begin
+  Range.Last := Limit;
+  Sum := 0;
+  for Value in Range do begin
+    Inc(Sum, Value);
+    If Value = 4 then
+      Break;
+  end;
+  Result := Sum;
+end;
+
+procedure GeneratedCleanupRaise(Limit: Integer); noinline;
+var
+  Range: TCountedRange;
+  Value, Sum: Integer;
+begin
+  Range.Last := Limit;
+  Sum := 0;
+  for Value in Range do begin
+    Inc(Sum, Value);
+    If Value = 3 then
+      raise EAbort.Create('generated-cleanup');
+  end;
+  If Sum = -1 then
+    Halt(2);
+end;
+
 procedure Check(const Name: string; Got, Want: Integer);
 begin
   If Got <> Want then begin
@@ -141,5 +255,25 @@ begin
   Check('exit/finally', ExitThroughFinally(100), 15);
   Check('exit/count', Finalized, 4);
   Check('nested-record-fallback', NestedRecordFallback(11), 45);
+  Check('nested-handler/static-chain/normal',
+    NestedHandlerStaticChain(11, False), 56);
+  Check('nested-handler/static-chain/raise',
+    NestedHandlerStaticChain(11, True), 81);
+  TCountedEnumerator.Alive := 0;
+  TCountedEnumerator.Destroyed := 0;
+  Check('generated/complete', GeneratedCleanupComplete(5), 45);
+  Check('generated/complete-alive', TCountedEnumerator.Alive, 0);
+  Check('generated/complete-destroyed', TCountedEnumerator.Destroyed, 1);
+  Check('generated/break', GeneratedCleanupBreak(20), 10);
+  Check('generated/break-alive', TCountedEnumerator.Alive, 0);
+  Check('generated/break-destroyed', TCountedEnumerator.Destroyed, 2);
+  try
+    GeneratedCleanupRaise(20);
+  except
+    on EAbort do
+      ;
+  end;
+  Check('generated/raise-alive', TCountedEnumerator.Alive, 0);
+  Check('generated/raise-destroyed', TCountedEnumerator.Destroyed, 3);
   WriteLn('SEHREGVAR:PASS');
 end.

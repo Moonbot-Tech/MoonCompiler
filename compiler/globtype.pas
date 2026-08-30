@@ -397,9 +397,9 @@ interface
          { x86 pre-RA reuse of an already materialized element-address
            component within one extended basic block }
          cs_opt_addressgvn,
-         { Win64 SEH: demote only locals that cross a handler/finally
-           boundary instead of disabling register variables for the whole
-           routine }
+         { x86-64 EH: demote only locals that cross a handler/finally or
+           cleanup boundary instead of disabling register variables for the
+           whole routine }
          cs_opt_sehregvar
        );
        toptimizerswitches = set of toptimizerswitch;
@@ -906,7 +906,7 @@ interface
          pi_no_framepointer_needed,
          { procedure has been normalized so no expressions contain block nodes }
          pi_normalized,
-         { Win64 SEH locals that require memory homes have been marked
+         { x86-64 EH locals that require memory homes have been marked
            individually, so the blanket exception regvar ban can be lifted }
          pi_seh_memory_marked
        );

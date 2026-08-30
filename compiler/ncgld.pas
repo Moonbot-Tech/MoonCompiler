@@ -246,6 +246,14 @@ implementation
         lvs: tabstractnormalvarsym absolute vs;
       begin
         secondpass(left);
+        { A hidden parent frame pointer can have a memory home when it must be
+          observable from an exception handler.  Nested access still needs a
+          register as the base of the final reference, so materialize the
+          computed static link here just like tcgloadparentfpnode does while
+          walking a memory-resident parent chain. }
+        if not(left.location.loc in [LOC_REGISTER,LOC_CREGISTER]) then
+          hlcg.location_force_reg(current_asmdata.CurrAsmList,left.location,
+            left.resultdef,left.resultdef,false);
         if not(left.location.loc in [LOC_REGISTER,LOC_CREGISTER]) then
           internalerror(200309286);
         if lvs.localloc.loc<>LOC_REFERENCE then

@@ -2048,8 +2048,8 @@ implementation
       begin
         { Register variables are not allowed in the following cases:
            - regvars are disabled
-           - exceptions are used (after an exception is raised the contents of the
-               registers is not valid anymore)
+           - exceptions are used, unless the target's early EH analysis has
+               already marked every value that needs a memory home
            - it has a local copy
            - the value needs to be in memory (i.e. reference counted) }
         result:=(cs_opt_regvar in current_settings.optimizerswitches) and
