@@ -7170,7 +7170,23 @@ unit aoptx86;
                         ) or (
                           { lea (reg1,reg1), reg1 variant }
                           (taicpu(hp1).oper[0]^.ref^.base = taicpu(p).oper[1]^.reg) and
-                          (taicpu(hp1).oper[0]^.ref^.scalefactor <= 1)
+                          (taicpu(hp1).oper[0]^.ref^.scalefactor <= 1) and
+                          { Doubling the intermediate value can only be folded
+                            when the first LEA has a single independent input
+                            register.  A base plus a distinct scaled index would
+                            need three terms in the resulting LEA. }
+                          (
+                            (taicpu(p).oper[0]^.ref^.base = NR_NO) or
+                            (taicpu(p).oper[0]^.ref^.index = NR_NO) or
+                            (taicpu(p).oper[0]^.ref^.base = taicpu(p).oper[0]^.ref^.index)
+                          ) and
+                          { The doubling below multiplies an index-only scale by
+                            two.  x86 effective addresses cannot encode a scale
+                            greater than 8. }
+                          (
+                            (taicpu(p).oper[0]^.ref^.base <> NR_NO) or
+                            (taicpu(p).oper[0]^.ref^.scalefactor <= 4)
+                          )
                         )
                       ) then
                       begin
@@ -7262,6 +7278,12 @@ unit aoptx86;
                           (taicpu(p).oper[0]^.ref^.index = NR_NO)
                         ) or (
                           (taicpu(hp1).oper[0]^.ref^.base = taicpu(p).oper[1]^.reg) and
+                          { A reference that uses the intermediate register as
+                            both base and index doubles its value.  It belongs
+                            to the specialised, scale-aware transformation
+                            above; this fallback would silently lose the
+                            doubling. }
+                          (taicpu(hp1).oper[0]^.ref^.index <> taicpu(p).oper[1]^.reg) and
                           (taicpu(hp1).oper[0]^.ref^.scalefactor <= 1) and
                           (
                             (
