@@ -190,6 +190,28 @@ begin
   Result := Pair.A + Pair.B;
 end;
 
+function NestedHardwareTrapStaticChain(Seed: Integer): Integer; noinline;
+var
+  Captured, Calls, First, Second: Integer;
+
+  function DivideOrAdd(X: Integer): Integer;
+  begin
+    Inc(Calls);
+    try
+      Result := Captured div (X and 3);
+    except
+      Result := Captured + X;
+    end;
+  end;
+
+begin
+  Captured := Seed;
+  Calls := 0;
+  First := DivideOrAdd(4);
+  Second := DivideOrAdd(3);
+  Result := First + Second * 1000 + Captured * 100000 + Calls * 10000000;
+end;
+
 function GeneratedCleanupComplete(Limit: Integer): Integer; noinline;
 var
   Range: TCountedRange;
@@ -259,6 +281,8 @@ begin
     NestedHandlerStaticChain(11, False), 56);
   Check('nested-handler/static-chain/raise',
     NestedHandlerStaticChain(11, True), 81);
+  Check('nested-hardware-trap/static-chain',
+    NestedHardwareTrapStaticChain(215), 41571219);
   TCountedEnumerator.Alive := 0;
   TCountedEnumerator.Destroyed := 0;
   Check('generated/complete', GeneratedCleanupComplete(5), 45);

@@ -2322,7 +2322,6 @@ implementation
         headertai : tai;
         blk_i : longint;
         hpi : tprocinfo;
-        seen_funclet,
         seen_user_nested : boolean;
 
       procedure delete_marker(anode: tasmnode);
@@ -2488,14 +2487,11 @@ implementation
            (cs_opt_regvar in current_settings.optimizerswitches) and
            (cs_opt_sehregvar in current_settings.optimizerswitches) then
           begin
-            seen_funclet:=false;
             seen_user_nested:=false;
             hpi:=get_first_nestedproc;
             while assigned(hpi) do
               begin
-                if hpi.procdef.proctypeoption=potype_exceptfilter then
-                  seen_funclet:=true
-                else
+                if hpi.procdef.proctypeoption<>potype_exceptfilter then
                   seen_user_nested:=true;
                 hpi:=tprocinfo(hpi.next);
               end;
@@ -2511,8 +2507,14 @@ implementation
                         @seh_mark_referenced,nil);
                     hpi:=tprocinfo(hpi.next);
                   end;
-                if seen_funclet and
-                   (procdef.parast.symtablelevel>normal_function_level) and
+                { The hidden static link is an ordinary volatile argument
+                  register before allocation.  Any exception edge may resume
+                  in a handler after that register was clobbered (hardware
+                  traps are the smallest example), while the handler still
+                  needs it to reach captured parent state.  Keep the link in
+                  the frame for every nested routine with EH; looking only
+                  for an outlined funclet misses handlers kept in this tree. }
+                if (procdef.parast.symtablelevel>normal_function_level) and
                    assigned(procdef.parentfpsym) then
                   tabstractvarsym(procdef.parentfpsym).varregable:=vr_none;
                 include(flags,pi_seh_memory_marked);
