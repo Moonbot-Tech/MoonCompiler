@@ -31,9 +31,17 @@ SUITE = SCRIPT_ROOT / "qualification" / "suite"
 # reversed: the regression and generated tests must stay present, otherwise a
 # whole-commit revert would erase the instrument that is meant to kill the
 # mutant.  The inventory deliberately spans independent Devil families.
+MUTANT_EXCLUSIONS = [
+    ("834529910", "subsumed",
+     "the current deterministic 2^32/33/47/63 matrix stays correct after the "
+     "old reverse diff, so that diff no longer revives an observable defect"),
+    ("a5ba6ebfd", "code-shape",
+     "the repair removes a spurious local-unwind call without changing runtime "
+     "semantics; its witness is the Win64 assembly gate, not Devil"),
+]
+
 MUTANTS = [
     ("5d09431ad", "nested", "lang,capture,inl", "Isolate expression context in nested routine bodies"),
-    ("834529910", "expr", "expr,fold,i128", "Materialize non-encodable x86-64 modulus masks"),
     ("14f3b1cb2", "capture", "capture,lang", "Preserve complex Delphi with lvalue captures"),
     ("71b8f984c", "unit", "unit,ppu,gen", "Preserve source context during generic PPU replay"),
     ("6513e5e84", "flow", "flow,opt", "Preserve runtime loop bounds through x86 peephole passes"),
@@ -46,10 +54,9 @@ MUTANTS = [
     ("911d70a32", "set", "set,abi", "Match Delphi set storage and field alignment"),
     ("3c273a696", "float", "float,flow", "Keep inclusive floating selections branch-exact"),
     ("ddca7b059", "pick", "pick,call,lang", "Rank var/out by pure addressability"),
-    ("fef5b2c9b", "lang", "lang,unit,rtllib", "Materialize resourcestring typed constants"),
+    ("fef5b2c9b", "lang", "lang,lit,unit,rtllib", "Materialize resourcestring typed constants"),
     ("c64038380", "asm", "asm,call", "Match Delphi frames for implicit x64 asm"),
     ("858f10c27", "opt", "opt,flow", "Invalidate loop scalars across opaque effects"),
-    ("a5ba6ebfd", "inl", "inl,region,exc", "Keep inline-local Exit out of caller unwind"),
     ("b86784a61", "lang", "lang,rtllib", "Dereference custom Variant carriers consistently"),
     ("4d5a3bfae", "life", "life,call,abi", "Release open-array carriers through throwing Finalize"),
 ]
@@ -69,7 +76,6 @@ MUTANT_GATE_ARGS = {
 MUTANT_PATCH_FILES = {
     "9d9e8e802": "hilo-delphi-semantics.diff",
     "858f10c27": "opaque-loop-scalar-effects.diff",
-    "a5ba6ebfd": "inline-exit-unwind.diff",
     "b86784a61": "custom-variant-carrier.diff",
     "4d5a3bfae": "openarray-finalize-throw.diff",
 }
@@ -200,8 +206,7 @@ def baseline_configs(
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--repo", type=Path,
-                   help="tree to mutate; defaults to the tree of these scripts."
-                        " Point it at a worktree to leave the working copy alone")
+                   help="explicitly disposable clone to mutate")
     p.add_argument("--seeds", default="1,2,3")
     p.add_argument("--cases", type=int, default=150)
     p.add_argument("--mutants", type=int, default=len(MUTANTS))
@@ -224,12 +229,14 @@ def main() -> None:
     if args.list:
         for i, (sha, family, layers, subject) in enumerate(MUTANTS):
             print(f"{i:3d}  {sha}  {family:8s}  {layers:20s}  {subject}")
+        for sha, kind, reason in MUTANT_EXCLUSIONS:
+            print(f"  -  {sha}  excluded:{kind:10s}  {reason}")
         return
 
     if not args.repo:
         raise SystemExit(
             "--repo is required: mutation uses git revert/reset and must run "
-            "in an explicitly disposable worktree"
+            "in an explicitly disposable clone"
         )
 
     # untracked Devil files are fine; only modified tracked files would be

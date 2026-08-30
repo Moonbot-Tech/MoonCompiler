@@ -705,11 +705,79 @@ def emit_u64_mod_mask_matrix(e: Emitter) -> CaseRecord:
     })
 
 
+def emit_signed_widen_after_arithmetic_matrix(e: Emitter) -> CaseRecord:
+    """Keep a signed 32-bit result signed when it enters a 64-bit consumer.
+
+    A value-range peephole once removed MOVSXD after arithmetic because it
+    reasoned about the mathematical inputs, not the wrapped 32-bit producer.
+    Exercise the transition with several producers and consumers so this is a
+    code-generation class rather than a copy of the original reproducer.
+    """
+    name = "dvl-expr-signed-widen-after-arithmetic-matrix"
+    e.line("function DvlExprWidenAfterSar(W: Word): Int64;")
+    e.line("var")
+    e.line("  X: LongInt;")
+    e.line("begin")
+    e.line("  X := W;")
+    e.line("  Inc(X, $7FFF8001);")
+    e.line("  Result := SarLongint(X, 31);")
+    e.line("end;")
+    e.line()
+    e.line("function DvlExprWidenAfterAdd(Value: Integer): Int64;")
+    e.line("var")
+    e.line("  X: Integer;")
+    e.line("begin")
+    e.line("  X := Value;")
+    e.line("  Inc(X);")
+    e.line("  Result := X;")
+    e.line("end;")
+    e.line()
+    e.line("function DvlExprWidenAfterMul(Value: Integer): Int64;")
+    e.line("var")
+    e.line("  X: Integer;")
+    e.line("begin")
+    e.line("  X := Value * 3;")
+    e.line("  Result := X;")
+    e.line("end;")
+    e.line()
+    e.line("procedure DvlExprSignedWidenAfterArithmeticMatrix;")
+    e.line("var")
+    e.line("  Box: TDvlBox;")
+    e.line("  Got: Int64;")
+    e.line("begin")
+    e.line("  DevilStep('%s');" % name)
+    for value, expected in ((0, 0), (32766, 0), (32767, -1),
+                            (32768, -1), (65535, -1)):
+        e.line("  DevilCheckBool('%s-sar-%d', "
+               "DvlExprWidenAfterSar(%d) = %d);"
+               % (name, value, value, expected))
+    e.line("  Got := DvlExprWidenAfterAdd(Integer(OpaqueI(High(Integer))));")
+    e.line("  DevilCheckBool('%s-add-return', Got = Low(Integer));" % name)
+    e.line("  Box.Fi64 := DvlExprWidenAfterMul(Integer(OpaqueI(715827883)));")
+    e.line("  DevilCheckBool('%s-mul-field', Box.Fi64 = Int64(-2147483647));"
+           % name)
+    e.line("  Got := DvlEchoi64(DvlExprWidenAfterMul("
+           "Integer(OpaqueI(-715827883))));")
+    e.line("  DevilCheckBool('%s-mul-argument', Got = High(Integer));" % name)
+    e.line("end;")
+    e.line()
+    return CaseRecord(name, "expr", {
+        "class": "signed-32-bit-producer-to-64-bit-consumer",
+        "producers": ["add", "multiply", "arithmetic-shift"],
+        "consumers": ["return", "field", "argument"],
+        "boundaries": ["sign-bit-clear", "sign-bit-set", "wrapped"],
+    })
+
+
 def layer_expr(e: Emitter, rng: random.Random, count: int,
                start: int) -> list[CaseRecord]:
     """Same-type binary arithmetic: model oracle plus in-program second path."""
-    records: list[CaseRecord] = [emit_u64_mod_mask_matrix(e)]
-    calls: list[str] = ["DvlExprU64ModMaskMatrix"]
+    records: list[CaseRecord] = [
+        emit_u64_mod_mask_matrix(e),
+        emit_signed_widen_after_arithmetic_matrix(e),
+    ]
+    calls: list[str] = ["DvlExprU64ModMaskMatrix",
+                        "DvlExprSignedWidenAfterArithmeticMatrix"]
     for index in range(start, start + count):
         t = rng.choice(TYPES)
         op = rng.choice(BINARY_OPS)
@@ -1131,15 +1199,15 @@ def emit_openarray_finalize_throw_matrix(e: Emitter) -> CaseRecord:
     e.line("{$ifdef FPC}")
     e.line("var")
     e.line("  BeforeHeap, AfterHeap: NativeUInt;")
-    e.line("  HeapStatus: THeapStatus;")
+    e.line("  HeapStatus: TMMStatus;")
     e.line("{$endif}")
     e.line("begin")
     e.line("  { Warm up exception and message allocation before the exact heap delta. }")
     e.line("  DevilCheckU('%s-warmup', "
            "UInt64(Ord(DvlRunOpenArrayThrow(True))), 1);" % name)
     e.line("{$ifdef FPC}")
-    e.line("  HeapStatus := System.GetHeapStatus;")
-    e.line("  BeforeHeap := HeapStatus.TotalAllocated;")
+    e.line("  HeapStatus := CurrentHeapStatus;")
+    e.line("  BeforeHeap := HeapStatus.SmallBlocksSize;")
     e.line("{$endif}")
     e.line("  for var Round := 1 to 32 do begin")
     e.line("    DevilCheckU('%s-copy-failure', "
@@ -1148,8 +1216,8 @@ def emit_openarray_finalize_throw_matrix(e: Emitter) -> CaseRecord:
            "UInt64(Ord(DvlRunOpenArrayThrow(False))), 1);" % name)
     e.line("  end;")
     e.line("{$ifdef FPC}")
-    e.line("  HeapStatus := System.GetHeapStatus;")
-    e.line("  AfterHeap := HeapStatus.TotalAllocated;")
+    e.line("  HeapStatus := CurrentHeapStatus;")
+    e.line("  AfterHeap := HeapStatus.SmallBlocksSize;")
     e.line("  DevilCheckU('%s-carrier-balance', UInt64(AfterHeap), "
            "UInt64(BeforeHeap));" % name)
     e.line("{$endif}")
@@ -3833,6 +3901,21 @@ def emit_runtime_loop_bound_matrix(e: Emitter) -> CaseRecord:
     e.line("  for S := SHi downto SLo do")
     e.line("    Inc(Count);")
     e.line("  DevilCheckU('%s-shortint-equal-down', UInt64(Count), 1);" % name)
+    e.line("  Count := 0;")
+    e.line("  Sum := 0;")
+    e.line("  for S := ShortInt(OpaqueI(0)) to ShortInt(OpaqueI(0)) do")
+    e.line("  begin")
+    e.line("    Inc(Count);")
+    e.line("    Inc(Sum, S);")
+    e.line("  end;")
+    e.line("  DevilCheckU('%s-shortint-direct-equal-up-count', "
+           "UInt64(Count), 1);" % name)
+    e.line("  DevilCheckU('%s-shortint-direct-equal-up-sum', "
+           "UInt64(Cardinal(Sum)), 0);" % name)
+    e.line("  Count := 0;")
+    e.line("  for S := ShortInt(OpaqueI(4)) downto ShortInt(OpaqueI(-1)) do")
+    e.line("    Inc(Count);")
+    e.line("  DevilCheckU('%s-shortint-direct-down', UInt64(Count), 6);" % name)
     e.line("  BLo := Byte(OpaqueI(0));")
     e.line("  BHi := Byte(OpaqueI(255));")
     e.line("  Count := 0;")
@@ -3844,6 +3927,10 @@ def emit_runtime_loop_bound_matrix(e: Emitter) -> CaseRecord:
     e.line("  end;")
     e.line("  DevilCheckU('%s-byte-full-count', UInt64(Count), 256);" % name)
     e.line("  DevilCheckU('%s-byte-full-sum', UInt64(Sum), 32640);" % name)
+    e.line("  Count := 0;")
+    e.line("  for B := Byte(OpaqueI(0)) to Byte(OpaqueI(0)) do")
+    e.line("    Inc(Count);")
+    e.line("  DevilCheckU('%s-byte-direct-equal', UInt64(Count), 1);" % name)
     e.line("  ILo := Integer(OpaqueI(-3));")
     e.line("  IHi := Integer(OpaqueI(2));")
     e.line("  Count := 0;")
@@ -3867,7 +3954,8 @@ def emit_runtime_loop_bound_matrix(e: Emitter) -> CaseRecord:
     return CaseRecord(name, "flow", {
         "shape": "runtime-bound-matrix",
         "types": ["shortint", "byte", "integer"],
-        "relations": ["equal", "full-domain", "nonzero", "empty"],
+        "relations": ["equal-variable", "equal-direct", "full-domain",
+                      "nonzero", "empty"],
         "directions": ["to", "downto"],
     })
 

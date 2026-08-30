@@ -180,6 +180,7 @@ Fatal: Compilation aborted
 
         for anchor in (
             "dvl-expr-u64-mod-mask-matrix",
+            "dvl-expr-signed-widen-after-arithmetic-matrix",
             "dvl-unary-delphi-hilo-matrix",
             "dvl-abi-delphi-set-layout-matrix",
             "dvl-float-branch-selection-matrix",
@@ -452,7 +453,7 @@ Fatal: Compilation aborted
         mutation_dir = DEVIL / "mutations"
         self.assertEqual(
             set(run_devil_mutation.MUTANT_PATCH_FILES),
-            {"9d9e8e802", "858f10c27", "a5ba6ebfd", "b86784a61",
+            {"9d9e8e802", "858f10c27", "b86784a61",
              "4d5a3bfae"},
         )
         for patch_name in run_devil_mutation.MUTANT_PATCH_FILES.values():
@@ -464,6 +465,13 @@ Fatal: Compilation aborted
                 for path in run_devil_mutation.PRODUCT_PATHS
             ))
             self.assertNotIn("diff --git a/tests/", text)
+
+    def test_mutation_inventory_separates_semantics_from_other_evidence(self) -> None:
+        mutants = {row[0]: row for row in run_devil_mutation.MUTANTS}
+        exclusions = {row[0]: row for row in run_devil_mutation.MUTANT_EXCLUSIONS}
+        self.assertFalse(mutants.keys() & exclusions.keys())
+        self.assertIn("lit", mutants["fef5b2c9b"][2].split(","))
+        self.assertEqual(exclusions["a5ba6ebfd"][1], "code-shape")
 
 
 if __name__ == "__main__":
