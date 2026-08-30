@@ -1151,10 +1151,10 @@ end;
 
 {   IntToHex returns a string representing the hexadecimal value of Value   }
 
-{ Renders into a local buffer and builds the string once: an indexed
-  write into a managed string costs a uniqueness check per character,
-  which dominated the old per-digit loop (7x against the Delphi
-  buffer-based implementation). }
+{ Allocate the exact result once and fill it through a raw pointer.  Writing
+  Result[I] would ask the managed-string machinery to prove uniqueness for
+  every digit; the pointer is safe here because Result has just been created
+  and never escapes while it is filled. }
 function HexToStrBuf(Value: QWord; Digits: integer): string;
 const
   { a Char table: the sysconst HexDigits table holds AnsiChar, and on a
@@ -1163,36 +1163,55 @@ const
   HD: array[0..15] of Char =
     ('0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F');
 var
-  Buf: array[0..63] of Char;
-  I, K, Pad, Cnt: integer;
+  P: PChar;
+  I, K, Significant, Remaining: integer;
 begin
   If Digits<=0 then
     Digits:=1;
+  { A full QWord width needs no leading-bit scan.  Sixteen digits are common
+    for hashes, identifiers and diagnostics; rendering all eight bytes is
+    also correct for a wider padded result. }
+  if Digits>=16 then
+    begin
+      SetLength(Result,Digits);
+      P:=PChar(Result);
+      for K:=0 to Digits-17 do
+        P[K]:='0';
+      I:=Digits;
+      for K:=1 to 8 do
+        begin
+          Dec(I,2);
+          P[I]:=HD[(Value shr 4) and 15];
+          P[I+1]:=HD[Value and 15];
+          Value:=Value shr 8;
+        end;
+      exit;
+    end;
+  if Value=0 then
+    Significant:=1
+  else
+    Significant:=1+(BsrQWord(Value) shr 2);
+  if Digits<Significant then
+    Digits:=Significant;
+  SetLength(Result,Digits);
+  P:=PChar(Result);
+  for K:=0 to Digits-Significant-1 do
+    P[K]:='0';
+  I:=Digits;
+  Remaining:=Significant;
   { two nibbles per step halves the loop overhead }
-  I:=High(Buf)+1;
-  while Value>$F do
+  while Remaining>=2 do
     begin
       Dec(I,2);
-      Buf[I]:=HD[(Value shr 4) and 15];
-      Buf[I+1]:=HD[Value and 15];
+      P[I]:=HD[(Value shr 4) and 15];
+      P[I+1]:=HD[Value and 15];
       Value:=Value shr 8;
+      Dec(Remaining,2);
     end;
-  if (Value<>0) or (I=High(Buf)+1) then
+  if Remaining<>0 then
     begin
       Dec(I);
-      Buf[I]:=HD[Value];
-    end;
-  Cnt:=High(Buf)+1-I;
-  Pad:=Digits-Cnt;
-  if Pad<=0 then
-    SetString(Result,PChar(@Buf[I]),Cnt)
-  else
-    begin
-      { rare: more requested digits than significant ones }
-      SetLength(Result,Digits);
-      for K:=1 to Pad do
-        Result[K]:='0';
-      Move(Buf[I],Result[Pad+1],Cnt*SizeOf(Char));
+      P[I]:=HD[Value and 15];
     end;
 end;
 
