@@ -24,6 +24,7 @@ type
 
 var
   BarrierSink: Int64;
+  BarrierPrice: Double;
   Data: array[0..127] of TPair;
 
 function ReadPair(const OpenData: array of TPair; I: Integer): Int64; noinline;
@@ -80,6 +81,7 @@ var
   Qty: Double;
 begin
   Price := Points[I].Price;
+  BarrierPrice := Price;
   Qty := Points[I].Qty;
   Result := Price * Qty;
 end;
@@ -177,7 +179,8 @@ begin
   SetLength(Points,4);
   Points[2].Price := 12.5;
   Points[2].Qty := 4.0;
-  if Abs(ReadMarketPoint(Points,2)-50.0)>1e-12 then begin
+  if (Abs(ReadMarketPoint(Points,2)-50.0)>1e-12) or
+     (Abs(BarrierPrice-12.5)>1e-12) then begin
     WriteLn('ADDRESSGVN:FAIL:MARKET-POINT');
     Halt(1);
   end;

@@ -61,10 +61,10 @@ def routine_asm(asm: str, name: str) -> str:
     if not marker:
         raise RuntimeError(f"cannot find {name} assembly")
     tail = asm[marker.start():]
-    end = re.search(rf"(?mi)^\s*\.size\s+[^\n]*{name}[^\n]*$", tail)
+    end = re.search(r"(?mi)^\s*\.section\s+\.text", tail[1:])
     if not end:
         raise RuntimeError(f"cannot find end of {name} assembly")
-    return tail[:end.end()]
+    return tail[:end.start() + 1]
 
 
 def normalize(asm: str) -> str:

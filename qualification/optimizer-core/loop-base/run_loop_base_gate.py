@@ -94,19 +94,20 @@ def routine(asm: str, name: str) -> str:
     if symbol is None:
         raise RuntimeError(f"assembly routine not found: {name}")
     start = asm.find("\n" + symbol + ":")
-    end = asm.find("\n\t.size\t" + symbol, start)
+    end = asm.find("\n.section .text", start + 1)
     if start < 0 or end < 0:
         raise RuntimeError(f"assembly routine is incomplete: {name}")
     return asm[start:end]
 
 
 def stack_descriptor_loads(body: str) -> int:
-    return sum(bool(re.search(r"\bmovq\s+[-+]?\d*\(%rsp\)", line))
+    return sum(bool(re.search(r"\bmovq\s+[-+]?\d*\(%r[bs]p\)", line))
                for line in body.splitlines())
 
 
 def normalized_routine(body: str) -> str:
-    return re.sub(r"\.L([A-Za-z]+)\d+", r".L\1#", body)
+    body = re.sub(r"\.L([A-Za-z]+)\d+", r".L\1#", body)
+    return re.sub(r"(?i)_\$\$_fin\$[0-9a-f]+", "_$$_fin$#", body)
 
 
 def main() -> int:
