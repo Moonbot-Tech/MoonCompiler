@@ -191,9 +191,14 @@ begin
     Values.Free;
   end;
 {$if ProfileProtection}
-  Writeln('MOONCOMPILER_PROJECT_PROFILE_OK profile=release protection=1');
+  Write('MOONCOMPILER_PROJECT_PROFILE_OK profile=release protection=1');
 {$else}
-  Writeln('MOONCOMPILER_PROJECT_PROFILE_OK profile=debug protection=0');
+  Write('MOONCOMPILER_PROJECT_PROFILE_OK profile=debug protection=0');
+{$endif}
+{$ifdef FPCX64MM_DIAGNOSTIC}
+  Writeln(' diagnostic-mm=1');
+{$else}
+  Writeln(' diagnostic-mm=0');
 {$endif}
 end.
 """,
@@ -244,10 +249,16 @@ def create_invocation_view(project: Path) -> Path:
     return view
 
 
-def build_command(project: Path, profile: str, name: str = "driver_profile_smoke.dpr") -> list[str]:
+def build_command(
+    project: Path,
+    profile: str,
+    name: str = "driver_profile_smoke.dpr",
+    *,
+    diagnostic_mm: bool = False,
+) -> list[str]:
     source = project / name
     if os.name == "nt":
-        return [
+        command = [
             "powershell",
             "-NoProfile",
             "-ExecutionPolicy",
@@ -257,7 +268,13 @@ def build_command(project: Path, profile: str, name: str = "driver_profile_smoke
             str(source),
             profile,
         ]
-    return [str(ROOT / "build"), str(source), profile]
+        if diagnostic_mm:
+            command.append("-DiagnosticMM")
+        return command
+    command = [str(ROOT / "build"), str(source), profile]
+    if diagnostic_mm:
+        command.append("--diagnostic-mm")
+    return command
 
 
 def main() -> int:
@@ -291,10 +308,30 @@ def main() -> int:
             protection = 0 if profile == "debug" else 1
             expected = (
                 "MOONCOMPILER_PROJECT_PROFILE_OK "
-                f"profile={profile} protection={protection}"
+                f"profile={profile} protection={protection} diagnostic-mm=0"
             )
             if runtime.stdout.strip() != expected:
                 raise RuntimeError(f"unexpected project output: {runtime.stdout!r}")
+
+            if profile == "debug":
+                diagnostic = run(build_command(
+                    project, profile, diagnostic_mm=True
+                ))
+                if "diagnostic-mm" not in diagnostic.stdout:
+                    raise RuntimeError(
+                        "build driver did not report the diagnostic MM mode\n"
+                        + diagnostic.stdout
+                    )
+                diagnostic_runtime = run([str(executable)], cwd=project)
+                diagnostic_expected = (
+                    "MOONCOMPILER_PROJECT_PROFILE_OK "
+                    "profile=debug protection=0 diagnostic-mm=1"
+                )
+                if diagnostic_expected not in diagnostic_runtime.stdout:
+                    raise RuntimeError(
+                        "diagnostic MM define did not reach the application\n"
+                        + diagnostic_runtime.stdout
+                    )
 
         if os.name != "nt":
             missing_threads = run(
@@ -316,7 +353,7 @@ def main() -> int:
         if "cached dependency is not clean" not in rejected.stdout:
             raise RuntimeError(f"dirty dependency was rejected for the wrong reason\n{rejected.stdout}")
 
-        print("MOONCOMPILER_PROJECT_PROFILE_GATE_PASS profiles=2 dependency=clean-pinned string=unicode")
+        print("MOONCOMPILER_PROJECT_PROFILE_GATE_PASS profiles=2 diagnostic-mm=1 dependency=clean-pinned string=unicode")
         return 0
     finally:
         shutil.rmtree(cache, ignore_errors=True)

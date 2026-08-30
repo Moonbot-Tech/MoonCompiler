@@ -7,7 +7,8 @@ param(
   [string]$Profile,
 
   [string]$Bootstrap,
-  [string]$Make
+  [string]$Make,
+  [switch]$DiagnosticMM
 )
 
 $ErrorActionPreference = 'Stop'
@@ -177,7 +178,11 @@ function Get-ProjectId([string]$Project) {
   }
 }
 
-function Build-Project([string]$Project, [string]$BuildProfile) {
+function Build-Project(
+  [string]$Project,
+  [string]$BuildProfile,
+  [bool]$UseDiagnosticMM
+) {
   If ($BuildProfile -notin @('debug', 'release')) {
     throw 'project profile must be debug or release'
   }
@@ -197,7 +202,13 @@ function Build-Project([string]$Project, [string]$BuildProfile) {
 
   $projectDir = Split-Path -Parent $projectPath
   $projectId = Get-ProjectId $projectPath
-  $unitDir = Join-Path $State "units\win64\$projectId\$BuildProfile"
+  $runtimeMode = 'normal'
+  $diagnosticOptions = @()
+  If ($UseDiagnosticMM) {
+    $runtimeMode = 'diagnostic-mm'
+    $diagnosticOptions = @('-dFPCX64MM_DIAGNOSTIC')
+  }
+  $unitDir = Join-Path $State "units\win64\$projectId\$BuildProfile\$runtimeMode"
   $appUnitDir = Join-Path $unitDir 'app'
   New-Item -ItemType Directory -Force -Path $appUnitDir | Out-Null
   $namespaceOptions = @(
@@ -237,16 +248,17 @@ function Build-Project([string]$Project, [string]$BuildProfile) {
   $projectProfile = Resolve-ProjectProfile $projectPath $projectDir $State
   $options += $projectProfile.Options
   $options += $profileOptions
+  $options += $diagnosticOptions
 
-  Write-Output "building $projectPath ($BuildProfile, Win64 x86-64)"
+  Write-Output "building $projectPath ($BuildProfile, $runtimeMode, Win64 x86-64)"
   Invoke-Checked $fpc ($options + @($projectPath))
 }
 
 If ($Target -eq 'compiler') {
-  If ($Profile) {
+  If ($Profile -or $DiagnosticMM) {
     throw 'usage: .\build.ps1 compiler'
   }
   Build-Compiler
 } else {
-  Build-Project $Target $Profile
+  Build-Project $Target $Profile $DiagnosticMM.IsPresent
 }

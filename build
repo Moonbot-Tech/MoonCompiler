@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   echo "usage: ./build compiler" >&2
-  echo "       ./build project.dpr debug|release" >&2
+  echo "       ./build project.dpr debug|release [--diagnostic-mm]" >&2
   exit 2
 }
 
@@ -110,14 +110,16 @@ if [[ $# -eq 1 && "$1" == compiler ]]; then
   exit 0
 fi
 
-[[ $# -eq 2 ]] || usage
+[[ $# -ge 2 && $# -le 3 ]] || usage
 project=$1
 profile=$2
+diagnostic_mm=${3:-}
 [[ -f "$project" && "$project" == *.dpr ]] || usage
 case "$profile" in
   debug|release) ;;
   *) usage ;;
 esac
+[[ -z "$diagnostic_mm" || "$diagnostic_mm" == --diagnostic-mm ]] || usage
 [[ -x "$TOOLCHAIN/bin/fpc" && -f "$TOOLCHAIN/etc/fpc.cfg" ]] || {
   echo "MoonBot Compiler is not built; run ./build compiler" >&2
   exit 1
@@ -132,7 +134,13 @@ project_dir=${project%/*}
 project_dir=$(cd -L -- "$project_dir" && pwd -L)
 project="$project_dir/$project_name"
 project_id=$(printf '%s' "$project" | sha256sum | cut -d' ' -f1)
-unit_dir="$STATE/units/linux/$project_id/$profile"
+runtime_mode=normal
+diagnostic_options=()
+if [[ "$diagnostic_mm" == --diagnostic-mm ]]; then
+  runtime_mode=diagnostic-mm
+  diagnostic_options=(-dFPCX64MM_DIAGNOSTIC)
+fi
+unit_dir="$STATE/units/linux/$project_id/$profile/$runtime_mode"
 mkdir -p "$unit_dir"
 
 namespace_options=(
@@ -175,6 +183,7 @@ mkdir -p "$unit_dir/app"
 source "$ROOT/scripts/project_profile.sh"
 configure_project_profile
 options+=("${profile_options[@]}")
+options+=("${diagnostic_options[@]}")
 
-echo "building $project ($profile, Linux x86-64)"
+echo "building $project ($profile, $runtime_mode, Linux x86-64)"
 "$TOOLCHAIN/bin/fpc" "${options[@]}" "$project"
