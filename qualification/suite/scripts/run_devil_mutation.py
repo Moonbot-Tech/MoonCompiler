@@ -54,6 +54,14 @@ MUTANTS = [
     ("4d5a3bfae", "life", "life,call,abi", "Release open-array carriers through throwing Finalize"),
 ]
 
+# Some defects only exist in a particular compilation topology.  Layers name
+# the semantic surface; these switches name the topology which makes that
+# surface real.  A generic PPU-replay mutant cannot be measured by compiling
+# all units from source in one compiler process.
+MUTANT_GATE_ARGS = {
+    "71b8f984c": ("--separate-units", "--ppu-reuse"),
+}
+
 PRODUCT_PATHS = ("compiler", "rtl", "packages")
 
 
@@ -83,7 +91,8 @@ def rebuild(build_timeout: int) -> tuple[bool, str]:
 
 
 def devil_findings(
-    seeds: str, cases: int, layers: str, timeout: int
+    seeds: str, cases: int, layers: str, timeout: int,
+    extra: tuple[str, ...] = (),
 ) -> tuple[int, dict[str, dict[str, object]], str]:
     """Return every structured observation, before known/new labelling."""
     gate = ROOT / "qualification" / "suite" / "scripts" / "run_devil_gate.py"
@@ -93,7 +102,7 @@ def devil_findings(
     code, log = run([sys.executable, str(gate),
                      "--seeds", seeds, "--cases", str(cases),
                      "--layers", layers,
-                     "--work", str(work), "--report", str(report)],
+                     "--work", str(work), "--report", str(report), *extra],
                     ROOT, timeout)
     observations = load_observations(report) if report.is_file() else {}
     return code, observations, log
@@ -144,6 +153,17 @@ def baseline_layer_sets(
 ) -> list[str]:
     """A structured baseline must describe the exact generated program."""
     return ["all"] if all_layers else sorted({item[2] for item in selected})
+
+
+def baseline_configs(
+    selected: list[tuple[str, str, str, str]], all_layers: bool
+) -> list[tuple[str, tuple[str, ...]]]:
+    """Every baseline matches both the generated source and build topology."""
+    configs = {
+        ("all" if all_layers else layers, MUTANT_GATE_ARGS.get(sha, ()))
+        for sha, _family, layers, _subject in selected
+    }
+    return sorted(configs)
 
 
 def main() -> None:
@@ -220,24 +240,29 @@ def main() -> None:
         selected = MUTANTS[args.from_index:args.from_index + args.mutants]
     if not selected:
         raise SystemExit("no mutants selected")
-    baselines: dict[str, dict[str, dict[str, object]]] = {}
-    for layers in baseline_layer_sets(selected, args.all_layers):
-        print(f"measuring the clean baseline for layers={layers}")
+    baselines: dict[tuple[str, tuple[str, ...]],
+                    dict[str, dict[str, object]]] = {}
+    for layers, extra in baseline_configs(selected, args.all_layers):
+        topology = ",".join(extra) or "single-process"
+        print(f"measuring the clean baseline for layers={layers} "
+              f"topology={topology}")
         baseline_code, baseline, baseline_log = devil_findings(
-            args.seeds, args.cases, layers, args.gate_timeout
+            args.seeds, args.cases, layers, args.gate_timeout, extra
         )
         if baseline_code != 0:
             print(baseline_log[-4000:])
             raise SystemExit("clean Devil baseline is not green")
-        baselines[layers] = baseline
-        print(f"baseline {layers}: {len(baseline)} classified observations")
+        baselines[(layers, extra)] = baseline
+        print(f"baseline {layers} topology={topology}: "
+              f"{len(baseline)} classified observations")
 
     results = []
     for sha, family, target_layers, subject in selected:
         started = time.time()
         layers = "all" if args.all_layers else target_layers
+        extra = MUTANT_GATE_ARGS.get(sha, ())
         row = {"sha": sha, "family": family, "layers": layers,
-               "subject": subject}
+               "subject": subject, "gate_args": list(extra)}
         applied, detail = reverse_product_patch(sha)
         if not applied:
             row.update({"outcome": "invalid-conflict", "detail": detail[-300:]})
@@ -250,9 +275,9 @@ def main() -> None:
             row.update({"outcome": "invalid-build", "detail": build_log[-300:]})
         else:
             gate_code, found, gate_log = devil_findings(
-                args.seeds, args.cases, layers, args.gate_timeout
+                args.seeds, args.cases, layers, args.gate_timeout, extra
             )
-            fresh_keys = sorted(set(found) - set(baselines[layers]))
+            fresh_keys = sorted(set(found) - set(baselines[(layers, extra)]))
             fresh = [found[key] for key in fresh_keys]
             if gate_code != 0 and not fresh:
                 row.update({"outcome": "invalid-gate",

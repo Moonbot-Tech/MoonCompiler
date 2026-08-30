@@ -119,6 +119,47 @@ class DevilRunnerContractsTest(unittest.TestCase):
             "global-call x counter-mul x after-first x for x i32", source)
         self.assertTrue(has_cross_unit)
 
+    def test_repair_boundaries_are_mandatory_not_random_luck(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            layers = ("expr,unary,flow,pick,capture,unit,chk,abi,float,lit,"
+                      "asm,inl,lang,life")
+            argv = ["generate_devil.py", "--seed", "1", "--cases", "1",
+                    "--layers", layers,
+                    "--out", str(output)]
+            with mock.patch.object(sys, "argv", argv):
+                with redirect_stdout(io.StringIO()):
+                    generate_devil.main()
+            sources = "\n".join(
+                path.read_text(encoding="utf-8")
+                for path in sorted(output.glob("devil_*.inc")))
+            unit_source = (output / "devil_gen_unit.pas").read_text(
+                encoding="utf-8")
+
+        for anchor in (
+            "dvl-expr-u64-mod-mask-matrix",
+            "dvl-unary-delphi-hilo-matrix",
+            "dvl-abi-delphi-set-layout-matrix",
+            "dvl-float-branch-selection-matrix",
+            "dvl-lit-resourcestring-typed-constants",
+            "dvl-flow-runtime-bound-matrix",
+            "dvl-flow-seh-loop-matrix",
+            "dvl-flow-cbool-operator-matrix",
+            "dvl-pick-mixed-uint64",
+            "dvl-pick-var-addressability-matrix",
+            "dvl-capture-with-composite-lvalue",
+            "dvl-capture-nested-expression-new",
+            "dvl-unit-generic-alias-replay",
+            "dvl-chk-incdec-boundary-matrix",
+            "dvl-asm-implicit-frame-matrix",
+            "dvl-inl-exit-unwind-matrix",
+            "dvl-lang-custom-variant-carrier-matrix",
+            "dvl-life-openarray-finalize-throw-matrix",
+        ):
+            self.assertIn(anchor, sources)
+        self.assertIn("System.Generics.Collections.TEnumerator<T>",
+                      unit_source)
+
     def test_main_comparison_rejects_runtime_without_terminal_summary(self) -> None:
         build = run_devil_gate.Build("release")
         build.compiled = True
@@ -352,6 +393,17 @@ class DevilRunnerContractsTest(unittest.TestCase):
         self.assertEqual(
             run_devil_mutation.baseline_layer_sets(selected, True),
             ["all"],
+        )
+
+    def test_mutation_baseline_includes_compilation_topology(self) -> None:
+        selected = [
+            ("71b8f984c", "unit", "unit,ppu,gen", "ppu replay"),
+            ("6513e5e84", "flow", "flow,opt", "runtime bounds"),
+        ]
+        self.assertEqual(
+            run_devil_mutation.baseline_configs(selected, False),
+            [("flow,opt", ()),
+             ("unit,ppu,gen", ("--separate-units", "--ppu-reuse"))],
         )
 
 

@@ -666,11 +666,50 @@ def pick_contexts(rng: random.Random, depth: int) -> list[str]:
     return contexts
 
 
+def emit_u64_mod_mask_matrix(e: Emitter) -> CaseRecord:
+    """Pin the x86-64 immediate-encoding boundary as a semantic matrix.
+
+    Random arithmetic does exercise ``mod``, but it is very unlikely to pick
+    both a UInt64 power-of-two divisor and a mask which cannot be represented
+    by x86-64's sign-extended 32-bit immediate.  Keep several powers and
+    consumers together so the class does not collapse back to one reproducer.
+    """
+    name = "dvl-expr-u64-mod-mask-matrix"
+    e.line("procedure DvlExprU64ModMaskMatrix;")
+    e.line("var")
+    e.line("  Value, Got: UInt64;")
+    e.line("  Box: TDvlBox;")
+    e.line("  I: Integer;")
+    e.line("begin")
+    e.line("  DevilStep('%s');" % name)
+    e.line("  Value := OpaqueU(UInt64($FEDCBA9876543210));")
+    e.line("  Got := Value mod UInt64($0000000100000000);")
+    e.line("  DevilCheckU('%s-2p32-assign', Got, UInt64($76543210));" % name)
+    e.line("  Box.Fu64 := Value mod UInt64($0000000200000000);")
+    e.line("  DevilCheckU('%s-2p33-field', Box.Fu64, "
+           "UInt64($0000000076543210));" % name)
+    e.line("  Got := DvlEchoU64(Value mod UInt64($0000800000000000));")
+    e.line("  DevilCheckU('%s-2p47-argument', Got, "
+           "UInt64($00003A9876543210));" % name)
+    e.line("  Got := 0;")
+    e.line("  for I := 0 to Integer(OpaqueI(0)) do")
+    e.line("    Got := Value mod UInt64($8000000000000000);")
+    e.line("  DevilCheckU('%s-2p63-loop', Got, "
+           "UInt64($7EDCBA9876543210));" % name)
+    e.line("end;")
+    e.line()
+    return CaseRecord(name, "expr", {
+        "class": "u64-power-of-two-modulus-mask",
+        "powers": [32, 33, 47, 63],
+        "consumers": ["assign", "field", "argument", "loop"],
+    })
+
+
 def layer_expr(e: Emitter, rng: random.Random, count: int,
                start: int) -> list[CaseRecord]:
     """Same-type binary arithmetic: model oracle plus in-program second path."""
-    records: list[CaseRecord] = []
-    calls: list[str] = []
+    records: list[CaseRecord] = [emit_u64_mod_mask_matrix(e)]
+    calls: list[str] = ["DvlExprU64ModMaskMatrix"]
     for index in range(start, start + count):
         t = rng.choice(TYPES)
         op = rng.choice(BINARY_OPS)
@@ -724,11 +763,55 @@ def layer_expr(e: Emitter, rng: random.Random, count: int,
     return records
 
 
+def emit_delphi_hilo_matrix(e: Emitter) -> CaseRecord:
+    """Delphi Hi/Lo always selects the low two bytes of an ordinal value."""
+    name = "dvl-unary-delphi-hilo-matrix"
+    e.line("procedure DvlUnaryDelphiHiLoMatrix;")
+    e.line("const")
+    e.line("  NamedU64: UInt64 = $FEDCBA9876543210;")
+    e.line("var")
+    e.line("  W: Word;")
+    e.line("  I: Integer;")
+    e.line("  C: Cardinal;")
+    e.line("  S: Int64;")
+    e.line("  U: UInt64;")
+    e.line("begin")
+    e.line("  DevilStep('%s');" % name)
+    e.line("  W := Word(OpaqueU($1234));")
+    e.line("  I := Integer(OpaqueU($12345678));")
+    e.line("  C := Cardinal(OpaqueU($89ABCDEF));")
+    e.line("  S := Int64(OpaqueU($0123456789ABCDEF));")
+    e.line("  U := OpaqueU($FEDCBA9876543210);")
+    e.line("  DevilCheckU('%s-word-hi', UInt64(Hi(W)), $12);" % name)
+    e.line("  DevilCheckU('%s-word-lo', UInt64(Lo(W)), $34);" % name)
+    e.line("  DevilCheckU('%s-integer-hi', UInt64(Hi(I)), $56);" % name)
+    e.line("  DevilCheckU('%s-integer-lo', UInt64(Lo(I)), $78);" % name)
+    e.line("  DevilCheckU('%s-cardinal-hi', UInt64(Hi(C)), $CD);" % name)
+    e.line("  DevilCheckU('%s-cardinal-lo', UInt64(Lo(C)), $EF);" % name)
+    e.line("  DevilCheckU('%s-int64-hi', UInt64(Hi(S)), $CD);" % name)
+    e.line("  DevilCheckU('%s-int64-lo', UInt64(Lo(S)), $EF);" % name)
+    e.line("  DevilCheckU('%s-uint64-hi', UInt64(Hi(U)), $32);" % name)
+    e.line("  DevilCheckU('%s-uint64-lo', UInt64(Lo(U)), $10);" % name)
+    e.line("  DevilCheckU('%s-constant-hi',"
+           " UInt64(Hi(UInt64($FEDCBA9876543210))), $32);" % name)
+    e.line("  DevilCheckU('%s-named-lo', UInt64(Lo(NamedU64)), $10);" % name)
+    e.line("  DevilCheckU('%s-runtime-result-size', UInt64(SizeOf(Hi(U))), 2);" % name)
+    e.line("  DevilCheckU('%s-constant-result-size',"
+           " UInt64(SizeOf(Hi(UInt64($FEDCBA9876543210)))), 1);" % name)
+    e.line("end;")
+    e.line()
+    return CaseRecord(name, "unary", {
+        "shape": "delphi-hi-lo-byte-selection",
+        "types": ["word", "integer", "cardinal", "int64", "uint64"],
+        "sources": ["opaque", "literal", "typed-constant"],
+    })
+
+
 def layer_unary(e: Emitter, rng: random.Random, count: int,
                 start: int) -> list[CaseRecord]:
     """Unary operators: model oracle."""
-    records: list[CaseRecord] = []
-    calls: list[str] = []
+    records: list[CaseRecord] = [emit_delphi_hilo_matrix(e)]
+    calls: list[str] = ["DvlUnaryDelphiHiLoMatrix"]
     for index in range(start, start + count):
         t = rng.choice(TYPES)
         op = rng.choice(UNARY_OPS)
@@ -979,6 +1062,103 @@ LIFE_SHAPES = (
 )
 
 
+def emit_openarray_finalize_throw_matrix(e: Emitter) -> CaseRecord:
+    """Cover carrier ownership after both failed and successful value copies."""
+    name = "dvl-life-openarray-finalize-throw-matrix"
+    e.line("var")
+    e.line("  DvlOpenArrayAssignBoom: Boolean;")
+    e.line("  DvlOpenArrayFinalizeBoom: Boolean;")
+    e.line()
+    e.line("type")
+    e.line("  TDvlOpenArrayThrowValue = record")
+    e.line("    Number: Integer;")
+    e.line("    class operator Initialize(out Dest: TDvlOpenArrayThrowValue);")
+    e.line("    class operator Finalize(var Dest: TDvlOpenArrayThrowValue);")
+    e.line("    class operator Assign(var Dest: TDvlOpenArrayThrowValue;")
+    e.line("      const [ref] Source: TDvlOpenArrayThrowValue);")
+    e.line("  end;")
+    e.line()
+    e.line("class operator TDvlOpenArrayThrowValue.Initialize(")
+    e.line("  out Dest: TDvlOpenArrayThrowValue);")
+    e.line("begin")
+    e.line("  Dest.Number := 100;")
+    e.line("end;")
+    e.line()
+    e.line("class operator TDvlOpenArrayThrowValue.Finalize(")
+    e.line("  var Dest: TDvlOpenArrayThrowValue);")
+    e.line("begin")
+    e.line("  If DvlOpenArrayFinalizeBoom then begin")
+    e.line("    DvlOpenArrayFinalizeBoom := False;")
+    e.line("    raise Exception.Create('finalize boom');")
+    e.line("  end;")
+    e.line("end;")
+    e.line()
+    e.line("class operator TDvlOpenArrayThrowValue.Assign(")
+    e.line("  var Dest: TDvlOpenArrayThrowValue;")
+    e.line("  const [ref] Source: TDvlOpenArrayThrowValue);")
+    e.line("begin")
+    e.line("  If DvlOpenArrayAssignBoom and (Source.Number = 20) then")
+    e.line("    raise Exception.Create('assign boom');")
+    e.line("  Dest.Number := Source.Number;")
+    e.line("end;")
+    e.line()
+    e.line("procedure DvlTakeOpenArrayThrow(")
+    e.line("  Values: array of TDvlOpenArrayThrowValue);")
+    e.line("begin")
+    e.line("  If (Length(Values) <> 2) or (Values[0].Number <> 10) or")
+    e.line("     (Values[1].Number <> 20) then")
+    e.line("    raise Exception.Create('bad values');")
+    e.line("end;")
+    e.line()
+    e.line("function DvlRunOpenArrayThrow(AssignFails: Boolean): Boolean;")
+    e.line("var")
+    e.line("  Values: array[0..1] of TDvlOpenArrayThrowValue;")
+    e.line("begin")
+    e.line("  Result := False;")
+    e.line("  Values[0].Number := 10;")
+    e.line("  Values[1].Number := 20;")
+    e.line("  DvlOpenArrayAssignBoom := AssignFails;")
+    e.line("  DvlOpenArrayFinalizeBoom := True;")
+    e.line("  try")
+    e.line("    DvlTakeOpenArrayThrow(Values);")
+    e.line("  except")
+    e.line("    on E: Exception do")
+    e.line("      Result := E.Message = 'finalize boom';")
+    e.line("  end;")
+    e.line("end;")
+    e.line()
+    e.line("procedure DvlOpenArrayFinalizeThrowMatrix;")
+    e.line("{$ifdef FPC}")
+    e.line("var")
+    e.line("  BeforeHeap, AfterHeap: NativeUInt;")
+    e.line("  HeapStatus: THeapStatus;")
+    e.line("{$endif}")
+    e.line("begin")
+    e.line("  { Warm up exception and message allocation before the exact heap delta. }")
+    e.line("  DevilCheckU('%s-warmup', "
+           "UInt64(Ord(DvlRunOpenArrayThrow(True))), 1);" % name)
+    e.line("{$ifdef FPC}")
+    e.line("  HeapStatus := System.GetHeapStatus;")
+    e.line("  BeforeHeap := HeapStatus.TotalAllocated;")
+    e.line("{$endif}")
+    e.line("  for var Round := 1 to 32 do begin")
+    e.line("    DevilCheckU('%s-copy-failure', "
+           "UInt64(Ord(DvlRunOpenArrayThrow(True))), 1);" % name)
+    e.line("    DevilCheckU('%s-success-cleanup', "
+           "UInt64(Ord(DvlRunOpenArrayThrow(False))), 1);" % name)
+    e.line("  end;")
+    e.line("{$ifdef FPC}")
+    e.line("  HeapStatus := System.GetHeapStatus;")
+    e.line("  AfterHeap := HeapStatus.TotalAllocated;")
+    e.line("  DevilCheckU('%s-carrier-balance', UInt64(AfterHeap), "
+           "UInt64(BeforeHeap));" % name)
+    e.line("{$endif}")
+    e.line("end;")
+    e.line()
+    return CaseRecord(name=name, layer="life",
+                      detail={"shape": "open-array-finalize-throws"})
+
+
 def layer_life(e: Emitter, rng: random.Random, count: int,
                start: int) -> list[CaseRecord]:
     """Managed lifetime.
@@ -989,8 +1169,8 @@ def layer_life(e: Emitter, rng: random.Random, count: int,
     FPC.  Whatever the language does not fix - the order of destruction, the
     exact moment a temporary dies - is reported as an observation and compared
     across compilers instead of being asserted."""
-    records: list[CaseRecord] = []
-    calls: list[str] = []
+    records: list[CaseRecord] = [emit_openarray_finalize_throw_matrix(e)]
+    calls: list[str] = ["DvlOpenArrayFinalizeThrowMatrix"]
     for index in range(start, start + count):
         shape = rng.choice(LIFE_SHAPES)
         n = rng.choice((2, 3, 4))
@@ -1294,6 +1474,67 @@ ABI_FIELD_TYPES = (
 ABI_LAYOUTS = ("plain", "packed", "align1", "align2", "align4", "align8", "align16")
 
 
+def emit_delphi_set_layout_matrix(e: Emitter) -> CaseRecord:
+    """Pin Delphi set buckets and byte-aligned record/class placement."""
+    name = "dvl-abi-delphi-set-layout-matrix"
+    e.line("type")
+    e.line("  TDvlSet0 = set of 0..0;")
+    e.line("  TDvlSet8 = set of 0..8;")
+    e.line("  TDvlSet16 = set of 0..16;")
+    e.line("  TDvlSet24 = set of 0..24;")
+    e.line("  TDvlSet32 = set of 0..32;")
+    e.line("  TDvlSet33 = set of 0..33;")
+    e.line("  TDvlSet64 = set of 0..64;")
+    e.line("  TDvlSet1To32 = set of 1..32;")
+    e.line("  TDvlSetLayoutRec = record")
+    e.line("    Prefix: Byte;")
+    e.line("    Value: TDvlSet32;")
+    e.line("    Suffix: Byte;")
+    e.line("  end;")
+    e.line("  TDvlSetLayoutClass = class")
+    e.line("  public")
+    e.line("    Prefix: Byte;")
+    e.line("    Value: TDvlSet64;")
+    e.line("    Suffix: Byte;")
+    e.line("  end;")
+    e.line()
+    e.line("procedure DvlAbiDelphiSetLayoutMatrix;")
+    e.line("var")
+    e.line("  Rec: TDvlSetLayoutRec;")
+    e.line("  Obj: TDvlSetLayoutClass;")
+    e.line("begin")
+    e.line("  DevilStep('%s');" % name)
+    for suffix, typename, expected in (
+        ("set0", "TDvlSet0", 1), ("set8", "TDvlSet8", 2),
+        ("set16", "TDvlSet16", 4), ("set24", "TDvlSet24", 4),
+        ("set32", "TDvlSet32", 8), ("set33", "TDvlSet33", 8),
+        ("set64", "TDvlSet64", 9), ("set1to32", "TDvlSet1To32", 8),
+    ):
+        e.line("  DevilCheckU('%s-%s-size', UInt64(SizeOf(%s)), %d);" %
+               (name, suffix, typename, expected))
+    e.line("  DevilCheckU('%s-record-value-offset'," % name)
+    e.line("    UInt64(NativeUInt(@Rec.Value) - NativeUInt(@Rec)), 1);")
+    e.line("  DevilCheckU('%s-record-suffix-offset'," % name)
+    e.line("    UInt64(NativeUInt(@Rec.Suffix) - NativeUInt(@Rec)), 9);")
+    e.line("  DevilCheckU('%s-record-size', UInt64(SizeOf(Rec)), 10);" % name)
+    e.line("  Obj := TDvlSetLayoutClass.Create;")
+    e.line("  try")
+    e.line("    DevilCheckU('%s-class-value-offset'," % name)
+    e.line("      UInt64(NativeUInt(@Obj.Value) - NativeUInt(@Obj.Prefix)), 1);")
+    e.line("    DevilCheckU('%s-class-suffix-offset'," % name)
+    e.line("      UInt64(NativeUInt(@Obj.Suffix) - NativeUInt(@Obj.Value)), 9);")
+    e.line("  finally")
+    e.line("    Obj.Free;")
+    e.line("  end;")
+    e.line("end;")
+    e.line()
+    return CaseRecord(name, "abi", {
+        "shape": "delphi-set-storage-and-alignment",
+        "buckets": [1, 2, 4, 8, 9],
+        "containers": ["record", "class"],
+    })
+
+
 def layer_abi(e: Emitter, rng: random.Random, count: int,
               start: int) -> list[CaseRecord]:
     """Record layout and calling convention.
@@ -1303,8 +1544,8 @@ def layer_abi(e: Emitter, rng: random.Random, count: int,
     verifies by comparing builds.  Everything about behaviour - by-value
     isolation, managed fields surviving a copy, a record returned from a
     function - is a hard check against the model."""
-    records: list[CaseRecord] = []
-    calls: list[str] = []
+    records: list[CaseRecord] = [emit_delphi_set_layout_matrix(e)]
+    calls: list[str] = ["DvlAbiDelphiSetLayoutMatrix"]
     for index in range(start, start + count):
         name = "dvl-abi-%05d" % index
         proc = "DvlAbi%05d" % index
@@ -1505,6 +1746,46 @@ def pascal_float_literal(value: float) -> str:
     return repr(value)
 
 
+def emit_float_branch_selection_matrix(e: Emitter) -> CaseRecord:
+    """Inclusive float selections must preserve the chosen operand's bits."""
+    name = "dvl-float-branch-selection-matrix"
+    e.line("procedure DvlFloatBranchSelectionMatrix;")
+    e.line("var")
+    e.line("  PlusZero, MinusZero, NanValue, Chosen: Double;")
+    e.line("  Bits: UInt64;")
+    e.line("begin")
+    e.line("  DevilStep('%s');" % name)
+    e.line("  PlusZero := 0.0;")
+    e.line("  Bits := UInt64($8000000000000000);")
+    e.line("  Move(Bits, MinusZero, SizeOf(MinusZero));")
+    e.line("  Bits := UInt64($7FF8000000000001);")
+    e.line("  Move(Bits, NanValue, SizeOf(NanValue));")
+    e.line("  If MinusZero <= PlusZero then Chosen := MinusZero")
+    e.line("  else Chosen := PlusZero;")
+    e.line("  DevilCheckU('%s-le-zero', DoubleBits(Chosen),"
+           " UInt64($8000000000000000));" % name)
+    e.line("  If MinusZero < PlusZero then Chosen := MinusZero")
+    e.line("  else Chosen := PlusZero;")
+    e.line("  DevilCheckU('%s-lt-zero', DoubleBits(Chosen), 0);" % name)
+    e.line("  If PlusZero >= MinusZero then Chosen := PlusZero")
+    e.line("  else Chosen := MinusZero;")
+    e.line("  DevilCheckU('%s-ge-zero', DoubleBits(Chosen), 0);" % name)
+    e.line("  If PlusZero > MinusZero then Chosen := PlusZero")
+    e.line("  else Chosen := MinusZero;")
+    e.line("  DevilCheckU('%s-gt-zero', DoubleBits(Chosen),"
+           " UInt64($8000000000000000));" % name)
+    e.line("  If NanValue <= PlusZero then Chosen := NanValue")
+    e.line("  else Chosen := PlusZero;")
+    e.line("  DevilCheckU('%s-nan-unordered', DoubleBits(Chosen), 0);" % name)
+    e.line("end;")
+    e.line()
+    return CaseRecord(name, "float", {
+        "shape": "branch-exact-inclusive-selection",
+        "relations": ["lt", "le", "gt", "ge"],
+        "values": ["positive-zero", "negative-zero", "nan"],
+    })
+
+
 def layer_float(e: Emitter, rng: random.Random, count: int,
                 start: int) -> list[CaseRecord]:
     """Floating point and Currency.
@@ -1513,8 +1794,8 @@ def layer_float(e: Emitter, rng: random.Random, count: int,
     is computed by the model with no rounding guesswork.  Single results are
     additionally rounded through the 32-bit format by the model, which is where
     an unwanted wider intermediate shows up."""
-    records: list[CaseRecord] = []
-    calls: list[str] = []
+    records: list[CaseRecord] = [emit_float_branch_selection_matrix(e)]
+    calls: list[str] = ["DvlFloatBranchSelectionMatrix"]
     for index in range(start, start + count):
         name = "dvl-float-%05d" % index
         proc = "DvlFloat%05d" % index
@@ -2535,7 +2816,7 @@ def layer_unitcross(e: Emitter, rng: random.Random, count: int,
         "interface",
         "",
         "uses",
-        "  SysUtils, devil_runtime, devil_gen_second;",
+        "  SysUtils, System.Generics.Collections, devil_runtime, devil_gen_second;",
         "",
         "type",
         "  TDvlUnitRec = record",
@@ -2551,6 +2832,14 @@ def layer_unitcross(e: Emitter, rng: random.Random, count: int,
         "",
         "  TDvlUnitAlias = TDvlUnitRec;",
         "",
+        "  TDvlAliasEnumerable<T> = class(TEnumerable<T>)",
+        "  public type",
+        "    TEnumerator = class(TEnumerator<T>);",
+        "  protected",
+        "    function DoGetEnumerator: "
+        "System.Generics.Collections.TEnumerator<T>; override;",
+        "  end;",
+        "",
     ]
     impl_lines = [
         "implementation",
@@ -2560,7 +2849,34 @@ def layer_unitcross(e: Emitter, rng: random.Random, count: int,
         "  Result := Value;",
         "end;",
         "",
+        "function TDvlAliasEnumerable<T>.DoGetEnumerator: "
+        "System.Generics.Collections.TEnumerator<T>;",
+        "begin",
+        "  Result := nil;",
+        "end;",
+        "",
     ]
+
+    # This must be deterministic and must be built by --separate-units or
+    # --ppu-reuse.  The producer spells the namespace-qualified unit while the
+    # consumer sees the same unit through the compiler's Delphi alias; generic
+    # token replay has to preserve both that identity and the outer token/file
+    # position after the specialization ends.
+    e.line("type")
+    e.line("  TDvlAliasReplayInt = TDvlAliasEnumerable<Integer>;")
+    e.line()
+    e.line("procedure DvlUnitAliasReplay;")
+    e.line("begin")
+    e.line("  DevilStep('dvl-unit-generic-alias-replay');")
+    e.line("  DevilCheckBool('dvl-unit-generic-alias-replay-inherits',")
+    e.line("    TDvlAliasReplayInt.InheritsFrom(TObject));")
+    e.line("end;")
+    e.line()
+    calls.append("DvlUnitAliasReplay")
+    records.append(CaseRecord("dvl-unit-generic-alias-replay", "unit", {
+        "shape": "generic-alias-replay",
+        "requires": ["separate-units", "ppu-reuse"],
+    }))
 
     for index in range(start, start + count):
         name = "dvl-unit-%05d" % index
@@ -2704,6 +3020,89 @@ def layer_unitcross(e: Emitter, rng: random.Random, count: int,
     return records
 
 
+def emit_checked_incdec_matrix(e: Emitter) -> CaseRecord:
+    """Inc/Dec must retain Q/R checks through their inline lowering."""
+    name = "dvl-chk-incdec-boundary-matrix"
+    e.line("{$ifdef FPC}")
+    e.line("{$Q+}{$R+}")
+    e.line("procedure DvlChkIncDecBoundaryMatrix;")
+    e.line("var")
+    e.line("  B: Byte;")
+    e.line("  S: ShortInt;")
+    e.line("  I: Integer;")
+    e.line("  Caught: Integer;")
+    e.line("begin")
+    e.line("  DevilStep('%s');" % name)
+    e.line("  Caught := 0;")
+    e.line("  B := Byte(OpaqueU(High(Byte)));")
+    e.line("  try")
+    e.line("    Inc(B);")
+    e.line("  except")
+    e.line("    on EIntOverflow do Inc(Caught);")
+    e.line("    on ERangeError do Inc(Caught);")
+    e.line("  end;")
+    e.line("  DevilCheckU('%s-byte-inc-overflow', UInt64(Caught), 1);" % name)
+    e.line("  Caught := 0;")
+    e.line("  B := Byte(OpaqueU(0));")
+    e.line("  try")
+    e.line("    Dec(B);")
+    e.line("  except")
+    e.line("    on EIntOverflow do Inc(Caught);")
+    e.line("    on ERangeError do Inc(Caught);")
+    e.line("  end;")
+    e.line("  DevilCheckU('%s-byte-dec-underflow', UInt64(Caught), 1);" % name)
+    e.line("  Caught := 0;")
+    e.line("  S := ShortInt(OpaqueI(High(ShortInt) - 1));")
+    e.line("  try")
+    e.line("    Inc(S, 2);")
+    e.line("  except")
+    e.line("    on EIntOverflow do Inc(Caught);")
+    e.line("    on ERangeError do Inc(Caught);")
+    e.line("  end;")
+    e.line("  DevilCheckU('%s-shortint-inc-delta', UInt64(Caught), 1);" % name)
+    e.line("  Caught := 0;")
+    e.line("  I := Integer(OpaqueI(Low(Integer)));")
+    e.line("  try")
+    e.line("    Dec(I);")
+    e.line("  except")
+    e.line("    on EIntOverflow do Inc(Caught);")
+    e.line("    on ERangeError do Inc(Caught);")
+    e.line("  end;")
+    e.line("  DevilCheckU('%s-integer-dec-underflow', UInt64(Caught), 1);" % name)
+    e.line("  Caught := 0;")
+    e.line("  B := Byte(OpaqueU(254));")
+    e.line("  try")
+    e.line("    Inc(B);")
+    e.line("  except")
+    e.line("    Inc(Caught);")
+    e.line("  end;")
+    e.line("  DevilCheckU('%s-safe-no-exception', UInt64(Caught), 0);" % name)
+    e.line("  DevilCheckU('%s-safe-value', UInt64(B), 255);" % name)
+    e.line("end;")
+    e.line("{$Q-}{$R-}")
+    e.line("{$else}")
+    e.line("procedure DvlChkIncDecBoundaryMatrix;")
+    e.line("begin")
+    e.line("  { Delphi does not check Inc/Dec here even under Q+/R+; this is")
+    e.line("    an FPC checks contract, so keep only the identical digest feed. }")
+    e.line("  DevilStep('%s');" % name)
+    e.line("  DevilCheckU('%s-byte-inc-overflow', 1, 1);" % name)
+    e.line("  DevilCheckU('%s-byte-dec-underflow', 1, 1);" % name)
+    e.line("  DevilCheckU('%s-shortint-inc-delta', 1, 1);" % name)
+    e.line("  DevilCheckU('%s-integer-dec-underflow', 1, 1);" % name)
+    e.line("  DevilCheckU('%s-safe-no-exception', 0, 0);" % name)
+    e.line("  DevilCheckU('%s-safe-value', 255, 255);" % name)
+    e.line("end;")
+    e.line("{$endif}")
+    e.line()
+    return CaseRecord(name, "chk", {
+        "mode": "incdec-boundary-matrix",
+        "types": ["byte", "shortint", "integer"],
+        "directions": ["inc", "dec"],
+        "outcomes": ["overflow", "underflow", "safe"],
+    })
+
+
 def layer_checked(e: Emitter, rng: random.Random, count: int,
                   start: int) -> list[CaseRecord]:
     """Checked arithmetic and range checking are behaviour, not decoration.
@@ -2711,8 +3110,8 @@ def layer_checked(e: Emitter, rng: random.Random, count: int,
     Every case knows from the model whether the operation leaves the type, so
     the expectation "raises" or "does not raise" is derived, and both directions
     are checked: a missing exception and a spurious one are equally defects."""
-    records: list[CaseRecord] = []
-    calls: list[str] = []
+    records: list[CaseRecord] = [emit_checked_incdec_matrix(e)]
+    calls: list[str] = ["DvlChkIncDecBoundaryMatrix"]
     for index in range(start, start + count):
         name = "dvl-chk-%05d" % index
         proc = "DvlChk%05d" % index
@@ -3413,12 +3812,162 @@ FLOW_SHAPES = ("case-ranges", "case-int64", "case-negative", "goto-forward",
                "full-boolean")
 
 
+def emit_runtime_loop_bound_matrix(e: Emitter) -> CaseRecord:
+    """Runtime lower/upper bounds, including equal-register peephole shapes."""
+    name = "dvl-flow-runtime-bound-matrix"
+    e.line("procedure DvlFlowRuntimeBoundMatrix;")
+    e.line("var")
+    e.line("  S, SLo, SHi: ShortInt;")
+    e.line("  B, BLo, BHi: Byte;")
+    e.line("  I, ILo, IHi: Integer;")
+    e.line("  Count, Sum: Integer;")
+    e.line("begin")
+    e.line("  DevilStep('%s');" % name)
+    e.line("  SLo := ShortInt(OpaqueI(0));")
+    e.line("  SHi := ShortInt(OpaqueI(0));")
+    e.line("  Count := 0;")
+    e.line("  for S := SLo to SHi do")
+    e.line("    Inc(Count);")
+    e.line("  DevilCheckU('%s-shortint-equal-up', UInt64(Count), 1);" % name)
+    e.line("  Count := 0;")
+    e.line("  for S := SHi downto SLo do")
+    e.line("    Inc(Count);")
+    e.line("  DevilCheckU('%s-shortint-equal-down', UInt64(Count), 1);" % name)
+    e.line("  BLo := Byte(OpaqueI(0));")
+    e.line("  BHi := Byte(OpaqueI(255));")
+    e.line("  Count := 0;")
+    e.line("  Sum := 0;")
+    e.line("  for B := BLo to BHi do")
+    e.line("  begin")
+    e.line("    Inc(Count);")
+    e.line("    Inc(Sum, B);")
+    e.line("  end;")
+    e.line("  DevilCheckU('%s-byte-full-count', UInt64(Count), 256);" % name)
+    e.line("  DevilCheckU('%s-byte-full-sum', UInt64(Sum), 32640);" % name)
+    e.line("  ILo := Integer(OpaqueI(-3));")
+    e.line("  IHi := Integer(OpaqueI(2));")
+    e.line("  Count := 0;")
+    e.line("  Sum := 0;")
+    e.line("  for I := ILo to IHi do")
+    e.line("  begin")
+    e.line("    Inc(Count);")
+    e.line("    Inc(Sum, I);")
+    e.line("  end;")
+    e.line("  DevilCheckU('%s-integer-range-count', UInt64(Count), 6);" % name)
+    e.line("  DevilCheckU('%s-integer-range-sum', "
+           "UInt64(Cardinal(Sum)), UInt64(Cardinal(-3)));" % name)
+    e.line("  ILo := Integer(OpaqueI(2));")
+    e.line("  IHi := Integer(OpaqueI(-3));")
+    e.line("  Count := 0;")
+    e.line("  for I := ILo to IHi do")
+    e.line("    Inc(Count);")
+    e.line("  DevilCheckU('%s-runtime-empty', UInt64(Count), 0);" % name)
+    e.line("end;")
+    e.line()
+    return CaseRecord(name, "flow", {
+        "shape": "runtime-bound-matrix",
+        "types": ["shortint", "byte", "integer"],
+        "relations": ["equal", "full-domain", "nonzero", "empty"],
+        "directions": ["to", "downto"],
+    })
+
+
+def emit_seh_loop_matrix(e: Emitter) -> CaseRecord:
+    """Loops whose unroll prepass crosses Win64 exception-frame lowering."""
+    name = "dvl-flow-seh-loop-matrix"
+    e.line("function DvlFlowSehLoop(Seed: Integer; "
+           "var Trail: UnicodeString): Integer;")
+    e.line("begin")
+    e.line("  Result := Seed;")
+    e.line("  for var K := 0 to 9 do")
+    e.line("    try")
+    e.line("      var Text := UnicodeString(IntToStr(K));")
+    e.line("      If (K + Seed) mod 4 = 0 then")
+    e.line("        Continue;")
+    e.line("      If K = 8 then")
+    e.line("        Break;")
+    e.line("      Inc(Result, K * 3 + Length(Text) - 1);")
+    e.line("    finally")
+    e.line("      Trail := Trail + UnicodeString(Char(65 + K));")
+    e.line("    end;")
+    e.line("end;")
+    e.line()
+    e.line("procedure DvlFlowSehLoopMatrix;")
+    e.line("var")
+    e.line("  Trail: UnicodeString;")
+    e.line("  Got: Integer;")
+    e.line("begin")
+    e.line("  DevilStep('%s');" % name)
+    e.line("  Trail := '';")
+    e.line("  Got := DvlFlowSehLoop(107, Trail);")
+    e.line("  DevilCheckU('%s-result', UInt64(Cardinal(Got)), 173);" % name)
+    e.line("  DevilCheckU('%s-finally-count', UInt64(Length(Trail)), 9);" % name)
+    e.line("  DevilCheckBool('%s-finally-order', Trail = 'ABCDEFGHI');" % name)
+    e.line("end;")
+    e.line()
+    return CaseRecord(name, "flow", {
+        "shape": "seh-unroll-managed-loop",
+        "transfers": ["continue", "break"],
+        "managed": ["try-local", "finally-expression"],
+    })
+
+
+def emit_cbool_operator_matrix(e: Emitter) -> CaseRecord:
+    """Delphi logical operators normalize noncanonical C-style booleans."""
+    name = "dvl-flow-cbool-operator-matrix"
+    e.line("procedure DvlFlowCBoolOperatorMatrix;")
+    e.line("var")
+    e.line("  BL, BR: ByteBool;")
+    e.line("  WL, WR: WordBool;")
+    e.line("  LL, LR: LongBool;")
+    e.line("begin")
+    e.line("  DevilStep('%s');" % name)
+    e.line("  Byte(BL) := Byte(OpaqueU($C8));")
+    e.line("  Byte(BR) := Byte(OpaqueU($37));")
+    e.line("  DevilCheckU('%s-byte-or', UInt64(Byte(BL or BR)), 1);" % name)
+    e.line("  DevilCheckU('%s-byte-and', UInt64(Byte(BL and BR)), 1);" % name)
+    e.line("  DevilCheckU('%s-byte-xor', UInt64(Byte(BL xor BR)), 0);" % name)
+    e.line("  Byte(BR) := Byte(OpaqueU(0));")
+    e.line("  DevilCheckU('%s-byte-or-false', UInt64(Byte(BR or BL)), 1);" % name)
+    e.line("  DevilCheckU('%s-byte-and-false', UInt64(Byte(BL and BR)), 0);" % name)
+    e.line("  DevilCheckU('%s-byte-xor-false', UInt64(Byte(BR xor BL)), 1);" % name)
+    e.line("  Word(WL) := Word(OpaqueU($C800));")
+    e.line("  Word(WR) := Word(OpaqueU($3700));")
+    e.line("  DevilCheckU('%s-word-or', UInt64(Word(WL or WR)), 1);" % name)
+    e.line("  DevilCheckU('%s-word-and', UInt64(Word(WL and WR)), 1);" % name)
+    e.line("  DevilCheckU('%s-word-xor', UInt64(Word(WL xor WR)), 0);" % name)
+    e.line("  LongInt(LL) := LongInt(OpaqueI($12340000));")
+    e.line("  LongInt(LR) := LongInt(OpaqueI($00005678));")
+    e.line("  DevilCheckU('%s-long-or', UInt64(Cardinal(LL or LR)), 1);" % name)
+    e.line("  DevilCheckU('%s-long-and', UInt64(Cardinal(LL and LR)), 1);" % name)
+    e.line("  BL := BL or BR;")
+    e.line("  WL := WL or WR;")
+    e.line("  LL := LL or LR;")
+    e.line("  DevilCheckU('%s-byte-assigned', UInt64(Byte(BL)), $FF);" % name)
+    e.line("  DevilCheckU('%s-word-assigned', UInt64(Word(WL)), $FFFF);" % name)
+    e.line("  DevilCheckU('%s-long-assigned', "
+           "UInt64(Cardinal(LL)), UInt64(Cardinal(-1)));" % name)
+    e.line("end;")
+    e.line()
+    return CaseRecord(name, "flow", {
+        "shape": "cbool-operator-matrix",
+        "types": ["bytebool", "wordbool", "longbool"],
+        "operators": ["and", "or", "xor"],
+        "representations": ["noncanonical-true", "false"],
+    })
+
+
 def layer_flow(e: Emitter, rng: random.Random, count: int,
                start: int) -> list[CaseRecord]:
     """Control flow: every branch, jump and early exit has a counted trail, so
     the model knows exactly how many times each point was reached."""
-    records: list[CaseRecord] = []
-    calls: list[str] = []
+    records: list[CaseRecord] = [
+        emit_runtime_loop_bound_matrix(e),
+        emit_seh_loop_matrix(e),
+        emit_cbool_operator_matrix(e),
+    ]
+    calls: list[str] = ["DvlFlowRuntimeBoundMatrix", "DvlFlowSehLoopMatrix",
+                        "DvlFlowCBoolOperatorMatrix"]
     for index in range(start, start + count):
         name = "dvl-flow-%05d" % index
         proc = "DvlFlow%05d" % index
@@ -3750,14 +4299,129 @@ def variant_literal_tag(value: int) -> int:
     return 20                           # varInt64
 
 
+def emit_custom_variant_carrier_matrix(e: Emitter) -> CaseRecord:
+    """Exercise custom Variants after two nested varVariant/by-ref carriers."""
+    name = "dvl-lang-custom-variant-carrier-matrix"
+    e.line("type")
+    e.line("  TDvlCarrierVariantType = class(TCustomVariantType)")
+    e.line("  public")
+    e.line("    procedure Clear(var V: TVarData); override;")
+    e.line("    procedure Copy(var Dest: TVarData; const Source: TVarData;")
+    e.line("      const Indirect: Boolean); override;")
+    e.line("    procedure CastTo(var Dest: TVarData; const Source: TVarData;")
+    e.line("      const AVarType: TVarType); override;")
+    e.line("    procedure BinaryOp(var Left: TVarData; const Right: TVarData;")
+    e.line("      const Operation: TVarOp); override;")
+    e.line("    function CompareOp(const Left, Right: TVarData;")
+    e.line("      const Operation: TVarOp): Boolean; override;")
+    e.line("  end;")
+    e.line()
+    e.line("procedure TDvlCarrierVariantType.Clear(var V: TVarData);")
+    e.line("begin")
+    e.line("  V.VType := varEmpty;")
+    e.line("end;")
+    e.line()
+    e.line("procedure TDvlCarrierVariantType.Copy(var Dest: TVarData;")
+    e.line("  const Source: TVarData; const Indirect: Boolean);")
+    e.line("begin")
+    e.line("  Dest.VType := Source.VType;")
+    e.line("end;")
+    e.line()
+    e.line("procedure TDvlCarrierVariantType.CastTo(var Dest: TVarData;")
+    e.line("  const Source: TVarData; const AVarType: TVarType);")
+    e.line("begin")
+    e.line("  case AVarType of")
+    e.line("    varInteger: Variant(Dest) := Integer(42);")
+    e.line("    varBoolean: Variant(Dest) := True;")
+    e.line("    varString: Variant(Dest) := AnsiString('carrier-ok');")
+    e.line("    varOleStr: Variant(Dest) := WideString('carrier-ok');")
+    e.line("    varUString: Variant(Dest) := UnicodeString('carrier-ok');")
+    e.line("  else")
+    e.line("    inherited CastTo(Dest, Source, AVarType);")
+    e.line("  end;")
+    e.line("end;")
+    e.line()
+    e.line("procedure TDvlCarrierVariantType.BinaryOp(var Left: TVarData;")
+    e.line("  const Right: TVarData; const Operation: TVarOp);")
+    e.line("begin")
+    e.line("  If Operation <> opAdd then")
+    e.line("    RaiseInvalidOp;")
+    e.line("  Variant(Left) := 42 + Integer(Variant(Right));")
+    e.line("end;")
+    e.line()
+    e.line("function TDvlCarrierVariantType.CompareOp(const Left, Right: TVarData;")
+    e.line("  const Operation: TVarOp): Boolean;")
+    e.line("begin")
+    e.line("  If Operation <> opCmpEq then")
+    e.line("    RaiseInvalidOp;")
+    e.line("  Result := Integer(Variant(Right)) = 42;")
+    e.line("end;")
+    e.line()
+    e.line("procedure DvlSetVariantCarrier(const Source: Variant;")
+    e.line("  var Dest: Variant);")
+    e.line("begin")
+    e.line("  VarClear(Dest);")
+    e.line("  TVarData(Dest).VType := varVariant or varByRef;")
+    e.line("  TVarData(Dest).VPointer := @TVarData(Source);")
+    e.line("end;")
+    e.line()
+    e.line("function DvlAcceptCarrierText(const Text: UnicodeString): Boolean;")
+    e.line("begin")
+    e.line("  Result := Text = 'carrier-ok';")
+    e.line("end;")
+    e.line()
+    e.line("procedure DvlCustomVariantCarrierMatrix;")
+    e.line("var")
+    e.line("  Handler: TDvlCarrierVariantType;")
+    e.line("  Value, Reference1, Reference2, CastValue: Variant;")
+    e.line("  Text: UnicodeString;")
+    e.line("  Number: Integer;")
+    e.line("begin")
+    e.line("  Handler := TDvlCarrierVariantType.Create;")
+    e.line("  try")
+    e.line("    TVarData(Value).VType := Handler.VarType;")
+    e.line("    DvlSetVariantCarrier(Value, Reference1);")
+    e.line("    DvlSetVariantCarrier(Reference1, Reference2);")
+    e.line("    try")
+    e.line("      Text := Reference2;")
+    e.line("      DevilCheckU('%s-text', UInt64(Ord(Text = 'carrier-ok')), 1);"
+           % name)
+    e.line("      DevilCheckU('%s-argument', "
+           "UInt64(Ord(DvlAcceptCarrierText(Reference2))), 1);" % name)
+    e.line("      Number := Reference2;")
+    e.line("      DevilCheckU('%s-integer', UInt64(Cardinal(Number)), 42);"
+           % name)
+    e.line("      CastValue := VarAsType(Reference2, varUString);")
+    e.line("      DevilCheckU('%s-cast', "
+           "UInt64(Ord(UnicodeString(CastValue) = 'carrier-ok')), 1);" % name)
+    e.line("      DevilCheckU('%s-compare', UInt64(Ord(Reference2 = 42)), 1);"
+           % name)
+    e.line("      CastValue := Reference2 + 8;")
+    e.line("      DevilCheckU('%s-binary', UInt64(Cardinal(Integer(CastValue))), 50);"
+           % name)
+    e.line("    finally")
+    e.line("      VarClear(CastValue);")
+    e.line("      VarClear(Reference2);")
+    e.line("      VarClear(Reference1);")
+    e.line("      VarClear(Value);")
+    e.line("    end;")
+    e.line("  finally")
+    e.line("    Handler.Free;")
+    e.line("  end;")
+    e.line("end;")
+    e.line()
+    return CaseRecord(name=name, layer="lang",
+                      detail={"shape": "nested-custom-variant-carriers"})
+
+
 def layer_lang(e: Emitter, rng: random.Random, count: int,
                start: int) -> list[CaseRecord]:
     """Delphi language surface: the constructs application code actually uses.
 
     Each shape declares its own types with a unique index, so cases never
     collide, and every value is derived from the declaration itself."""
-    records: list[CaseRecord] = []
-    calls: list[str] = []
+    records: list[CaseRecord] = [emit_custom_variant_carrier_matrix(e)]
+    calls: list[str] = ["DvlCustomVariantCarrierMatrix"]
     for index in range(start, start + count):
         name = "dvl-lang-%05d" % index
         proc = "DvlLang%05d" % index
@@ -7848,11 +8512,78 @@ INL_SHAPES = ("managed-result", "var-parameter", "out-parameter",
               "inline-result-used-twice", "inline-recursive-candidate")
 
 
+def emit_inline_exit_unwind_matrix(e: Emitter) -> CaseRecord:
+    """Pin the caller/callee unwind boundary, not merely a local Exit."""
+    name = "dvl-inl-exit-unwind-matrix"
+    e.line("var")
+    e.line("  DvlInlExitCallerFinally: Integer;")
+    e.line("  DvlInlExitInnerFinally: Integer;")
+    e.line()
+    e.line("function DvlInlExitPlain(Value: Integer): Integer; inline;")
+    e.line("begin")
+    e.line("  If Value = 0 then")
+    e.line("    Exit(37);")
+    e.line("  Result := Value + 1;")
+    e.line("end;")
+    e.line()
+    e.line("function DvlInlExitNested(Value: Integer): Integer; inline;")
+    e.line("begin")
+    e.line("  try")
+    e.line("    If Value = 0 then")
+    e.line("      Exit(41);")
+    e.line("    Result := Value + 2;")
+    e.line("  finally")
+    e.line("    Inc(DvlInlExitInnerFinally);")
+    e.line("  end;")
+    e.line("end;")
+    e.line()
+    e.line("function DvlInlExitCaller(Value: Integer): Integer;")
+    e.line("begin")
+    e.line("  try")
+    e.line("    Result := DvlInlExitPlain(Value) + 5;")
+    e.line("  finally")
+    e.line("    Inc(DvlInlExitCallerFinally);")
+    e.line("  end;")
+    e.line("end;")
+    e.line()
+    e.line("function DvlInlExitNestedCaller(Value: Integer): Integer;")
+    e.line("begin")
+    e.line("  try")
+    e.line("    Result := DvlInlExitNested(Value) + 5;")
+    e.line("  finally")
+    e.line("    Inc(DvlInlExitCallerFinally);")
+    e.line("  end;")
+    e.line("end;")
+    e.line()
+    e.line("procedure DvlInlExitUnwindMatrix;")
+    e.line("begin")
+    e.line("  DvlInlExitCallerFinally := 0;")
+    e.line("  DvlInlExitInnerFinally := 0;")
+    e.line("  DevilCheckU('%s-plain-exit', "
+           "UInt64(Cardinal(DvlInlExitCaller(0))), 42);" % name)
+    e.line("  DevilCheckU('%s-plain-fallthrough', "
+           "UInt64(Cardinal(DvlInlExitCaller(9))), 15);" % name)
+    e.line("  DevilCheckU('%s-caller-after-plain', "
+           "UInt64(Cardinal(DvlInlExitCallerFinally)), 2);" % name)
+    e.line("  DevilCheckU('%s-nested-exit', "
+           "UInt64(Cardinal(DvlInlExitNestedCaller(0))), 46);" % name)
+    e.line("  DevilCheckU('%s-nested-fallthrough', "
+           "UInt64(Cardinal(DvlInlExitNestedCaller(9))), 16);" % name)
+    e.line("  DevilCheckU('%s-inner-finally', "
+           "UInt64(Cardinal(DvlInlExitInnerFinally)), 2);" % name)
+    e.line("  DevilCheckU('%s-caller-finally', "
+           "UInt64(Cardinal(DvlInlExitCallerFinally)), 4);" % name)
+    e.line("end;")
+    e.line()
+    return CaseRecord(name=name, layer="inl",
+                      detail={"shape": "caller-finally-around-inline-exit"})
+
+
 def layer_inline(e: Emitter, rng: random.Random, count: int,
                  start: int) -> list[CaseRecord]:
     """Inlining: the call site is rewritten, the meaning is not."""
-    records: list[CaseRecord] = []
-    calls: list[str] = []
+    records: list[CaseRecord] = [emit_inline_exit_unwind_matrix(e)]
+    calls: list[str] = ["DvlInlExitUnwindMatrix"]
     for index in range(start, start + count):
         name = "dvl-inl-%05d" % index
         proc = "DvlInl%05d" % index
@@ -9041,11 +9772,66 @@ ASM_SHAPES = ("identity", "sum-four", "callee-saved", "result-in-rax",
               "asm-between-pascal")
 
 
+def emit_implicit_asm_frame_matrix(e: Emitter) -> CaseRecord:
+    """Exercise Delphi's headerless x86-64 ASM frame contract as one class."""
+    name = "dvl-asm-implicit-frame-matrix"
+    e.line("function DvlAsmImplicitEarly(A, B: NativeInt): NativeInt;")
+    e.line("asm")
+    e.line("  {$ifdef MSWINDOWS}")
+    e.line("  CMP RCX, RDX")
+    e.line("  {$else}")
+    e.line("  CMP RDI, RSI")
+    e.line("  {$endif}")
+    e.line("  JNE @Different")
+    e.line("  MOV RAX, 1")
+    e.line("  RET")
+    e.line("@Different:")
+    e.line("  XOR RAX, RAX")
+    e.line("  RET")
+    e.line("end;")
+    e.line()
+    e.line("function DvlAsmImplicitLocal(Value: Byte): NativeInt;")
+    e.line("var")
+    e.line("  Buffer: array[0..31] of Byte;")
+    e.line("asm")
+    e.line("  {$ifdef MSWINDOWS}")
+    e.line("  MOV byte ptr [Buffer], CL")
+    e.line("  {$else}")
+    e.line("  MOV byte ptr [Buffer], DIL")
+    e.line("  {$endif}")
+    e.line("  MOVZX EAX, byte ptr [Buffer]")
+    e.line("end;")
+    e.line()
+    e.line("function DvlAsmImplicitStackParam(A1, A2, A3, A4, A5, A6, A7: "
+           "NativeInt): NativeInt;")
+    e.line("asm")
+    e.line("  MOV RAX, A7")
+    e.line("end;")
+    e.line()
+    e.line("procedure DvlAsmImplicitFrameMatrix;")
+    e.line("begin")
+    e.line("  DevilStep('%s');" % name)
+    e.line("  DevilCheckU('%s-equal', UInt64(DvlAsmImplicitEarly(7, 7)), 1);"
+           % name)
+    e.line("  DevilCheckU('%s-different', UInt64(DvlAsmImplicitEarly(7, 8)), 0);"
+           % name)
+    e.line("  DevilCheckU('%s-local', UInt64(DvlAsmImplicitLocal(37)), 37);"
+           % name)
+    e.line("  DevilCheckU('%s-stack-param', UInt64(DvlAsmImplicitStackParam("
+           "1, 2, 3, 4, 5, 6, 7)), 7);" % name)
+    e.line("end;")
+    e.line()
+    return CaseRecord(name, "asm", {
+        "shape": "delphi-implicit-asm-frame",
+        "paths": ["early-ret", "local-frame", "stack-parameter"],
+    })
+
+
 def layer_assembler(e: Emitter, rng: random.Random, count: int,
                     start: int) -> list[CaseRecord]:
     """Assembler routines: the boundary between hand-written and generated."""
-    records: list[CaseRecord] = []
-    calls: list[str] = []
+    records: list[CaseRecord] = [emit_implicit_asm_frame_matrix(e)]
+    calls: list[str] = ["DvlAsmImplicitFrameMatrix"]
     for index in range(start, start + count):
         name = "dvl-asm-%05d" % index
         proc = "DvlAsm%05d" % index
@@ -14784,6 +15570,126 @@ def layer_pick(e: Emitter, rng: random.Random, count: int,
     pairs = pick_pairs()
     records: list[CaseRecord] = []
     calls: list[str] = []
+
+    e.line("type")
+    e.line("  TDvlPickBytePtr = ^Byte;")
+    e.line("  TDvlPickIntPtr = ^Integer;")
+    e.line("  TDvlPickByteSet = set of Byte;")
+    e.line("  TDvlPickWordSet = set of 1..100;")
+    e.line("var")
+    e.line("  DvlPickVarMarker: Integer;")
+    e.line("  DvlPickBytePtrSlot: TDvlPickBytePtr;")
+    e.line("  DvlPickIntPtrSlot: TDvlPickIntPtr;")
+    e.line("  DvlPickSetSlot: TDvlPickByteSet;")
+    e.line("function DvlPickPointerResult: TDvlPickBytePtr;")
+    e.line("begin Result := DvlPickBytePtrSlot; end;")
+    e.line("procedure DvlPickVarFirst(var V: TDvlPickIntPtr); overload;")
+    e.line("begin DvlPickVarMarker := 1; end;")
+    e.line("procedure DvlPickVarFirst(V: Pointer); overload;")
+    e.line("begin DvlPickVarMarker := 2; end;")
+    e.line("procedure DvlPickValueFirst(V: Pointer); overload;")
+    e.line("begin DvlPickVarMarker := 2; end;")
+    e.line("procedure DvlPickValueFirst(var V: TDvlPickIntPtr); overload;")
+    e.line("begin DvlPickVarMarker := 1; end;")
+    e.line("procedure DvlPickSet(var V: TDvlPickByteSet); overload;")
+    e.line("begin DvlPickVarMarker := 1; end;")
+    e.line("procedure DvlPickSet(V: TDvlPickWordSet); overload;")
+    e.line("begin DvlPickVarMarker := 2; end;")
+    e.line("procedure DvlPickVarAddressabilityMatrix;")
+    e.line("begin")
+    e.line("  DevilStep('dvl-pick-var-addressability-matrix');")
+    e.line("  DvlPickBytePtrSlot := nil;")
+    e.line("  DvlPickIntPtrSlot := nil;")
+    e.line("  DvlPickSetSlot := [];")
+    e.line("  DvlPickVarFirst(DvlPickPointerResult);")
+    e.line("  DevilCheckU('dvl-pick-var-addressability-matrix-rvalue-first',")
+    e.line("    UInt64(DvlPickVarMarker), 2);")
+    e.line("  DvlPickValueFirst(DvlPickPointerResult);")
+    e.line("  DevilCheckU('dvl-pick-var-addressability-matrix-rvalue-second',")
+    e.line("    UInt64(DvlPickVarMarker), 2);")
+    e.line("  DvlPickVarFirst(nil);")
+    e.line("  DevilCheckU('dvl-pick-var-addressability-matrix-nil-first',")
+    e.line("    UInt64(DvlPickVarMarker), 2);")
+    e.line("  DvlPickValueFirst(nil);")
+    e.line("  DevilCheckU('dvl-pick-var-addressability-matrix-nil-second',")
+    e.line("    UInt64(DvlPickVarMarker), 2);")
+    e.line("  DvlPickVarFirst(DvlPickIntPtrSlot);")
+    e.line("  DevilCheckU('dvl-pick-var-addressability-matrix-storage-first',")
+    e.line("    UInt64(DvlPickVarMarker), 1);")
+    e.line("  DvlPickValueFirst(DvlPickIntPtrSlot);")
+    e.line("  DevilCheckU('dvl-pick-var-addressability-matrix-storage-second',")
+    e.line("    UInt64(DvlPickVarMarker), 1);")
+    e.line("  DvlPickSet([1, 2]);")
+    e.line("  DevilCheckU('dvl-pick-var-addressability-matrix-set-rvalue',")
+    e.line("    UInt64(DvlPickVarMarker), 2);")
+    e.line("  DvlPickSet(DvlPickSetSlot);")
+    e.line("  DevilCheckU('dvl-pick-var-addressability-matrix-set-storage',")
+    e.line("    UInt64(DvlPickVarMarker), 1);")
+    e.line("end;")
+    e.line()
+    calls.append("DvlPickVarAddressabilityMatrix")
+    records.append(CaseRecord("dvl-pick-var-addressability-matrix", "pick", {
+        "family": "var-out-addressability",
+        "arguments": ["function-result", "nil", "variable", "set-literal"],
+        "declaration_orders": ["var-first", "value-first"],
+    }))
+
+    # Mixed UInt64 arithmetic has two observable contracts at once: the
+    # mathematical operation and the expression type subsequently seen by
+    # overload resolution.  Keep typed variables/constants apart from untyped
+    # literals and pin the 32/64-bit literal boundary.
+    e.line("function DvlPkUInt64Kind(V: Integer): Integer; overload;")
+    e.line("begin Result := 3; end;")
+    e.line("function DvlPkUInt64Kind(V: Cardinal): Integer; overload;")
+    e.line("begin Result := 4; end;")
+    e.line("function DvlPkUInt64Kind(V: Int64): Integer; overload;")
+    e.line("begin Result := 1; end;")
+    e.line("function DvlPkUInt64Kind(V: UInt64): Integer; overload;")
+    e.line("begin Result := 2; end;")
+    e.line()
+    e.line("procedure DvlPkMixedUInt64Matrix;")
+    e.line("const")
+    e.line("  TypedIntegerOne: Integer = 1;")
+    e.line("  TypedInt64One: Int64 = 1;")
+    e.line("var")
+    e.line("  I: Integer;")
+    e.line("  S: Int64;")
+    e.line("  U: UInt64;")
+    e.line("begin")
+    e.line("  DevilStep('dvl-pick-mixed-uint64');")
+    e.line("  I := Integer(OpaqueI(1));")
+    e.line("  S := Int64(OpaqueI(-1));")
+    e.line("  U := OpaqueU(41);")
+    e.line("  DevilCheckU('dvl-pick-mixed-uint64-u-plus-literal',")
+    e.line("    UInt64(DvlPkUInt64Kind(U + 1)), 2);")
+    e.line("  DevilCheckU('dvl-pick-mixed-uint64-literal-plus-u',")
+    e.line("    UInt64(DvlPkUInt64Kind(1 + U)), 2);")
+    e.line("  DevilCheckU('dvl-pick-mixed-uint64-typed-integer',")
+    e.line("    UInt64(DvlPkUInt64Kind(U + TypedIntegerOne)), 1);")
+    e.line("  DevilCheckU('dvl-pick-mixed-uint64-typed-int64',")
+    e.line("    UInt64(DvlPkUInt64Kind(U + TypedInt64One)), 1);")
+    e.line("  DevilCheckU('dvl-pick-mixed-uint64-variable',")
+    e.line("    UInt64(DvlPkUInt64Kind(U + I)), 1);")
+    e.line("  DevilCheckU('dvl-pick-mixed-uint64-signed-variable',")
+    e.line("    UInt64(DvlPkUInt64Kind(S + U)), 1);")
+    e.line("  DevilCheckU('dvl-pick-mixed-uint64-div-literal',")
+    e.line("    UInt64(DvlPkUInt64Kind(U div 2)), 2);")
+    e.line("  DevilCheckU('dvl-pick-mixed-uint64-div-signed',")
+    e.line("    UInt64(DvlPkUInt64Kind(S div U)), 1);")
+    e.line("  DevilCheckU('dvl-pick-mixed-uint64-literal-u32-high',")
+    e.line("    UInt64(DvlPkUInt64Kind(U + 4294967295)), 2);")
+    e.line("  DevilCheckU('dvl-pick-mixed-uint64-literal-i64-low',")
+    e.line("    UInt64(DvlPkUInt64Kind(U + 4294967296)), 1);")
+    e.line("  DevilCheckU('dvl-pick-mixed-uint64-max-form',")
+    e.line("    UInt64(Max(U, U + 1)), 42);")
+    e.line("end;")
+    e.line()
+    calls.append("DvlPkMixedUInt64Matrix")
+    records.append(CaseRecord("dvl-pick-mixed-uint64", "pick", {
+        "family": "mixed-uint64",
+        "axes": ["typedness", "literal-width", "operand-order",
+                 "operator", "overload-consumer"],
+    }))
     for offset in range(len(pairs)):
         family, arg = pairs[offset]
         index = start + offset
@@ -15453,6 +16359,18 @@ def emit_lit_observation(e: Emitter, observation: str, held: str,
 def layer_lit(e: Emitter, rng: random.Random, count: int,
               start: int) -> list[CaseRecord]:
     """What a value carries when it came from a literal, by where it is kept."""
+    e.line("type")
+    e.line("  TDvlResourceState = (dvlStateFirst, dvlStateSecond);")
+    e.line("resourcestring")
+    e.line("  DvlResourceTextFirst = 'first %s';")
+    e.line("  DvlResourceTextSecond = 'second';")
+    e.line("const")
+    e.line("  DvlResourceStates: array[TDvlResourceState] of string = (")
+    e.line("    DvlResourceTextFirst, DvlResourceTextSecond);")
+    e.line("  DvlResourceUnicode: UnicodeString = DvlResourceTextFirst;")
+    e.line("  DvlResourceAnsi: AnsiString = DvlResourceTextSecond;")
+    e.line("  DvlResourceWide: WideString = DvlResourceTextSecond;")
+    e.line()
     e.line("var")
     e.line("  DvlLitTwin: AnsiString;")
     e.line()
@@ -15471,8 +16389,30 @@ def layer_lit(e: Emitter, rng: random.Random, count: int,
     e.line("end;")
     e.line()
 
-    records: list[CaseRecord] = []
-    calls: list[str] = []
+    e.line("procedure DvlLitResourceTypedConstants;")
+    e.line("begin")
+    e.line("  DevilStep('dvl-lit-resourcestring-typed-constants');")
+    e.line("  DevilCheckBool('dvl-lit-resourcestring-array-first',")
+    e.line("    DvlResourceStates[dvlStateFirst] = 'first %s');")
+    e.line("  DevilCheckBool('dvl-lit-resourcestring-array-second',")
+    e.line("    DvlResourceStates[dvlStateSecond] = 'second');")
+    e.line("  DevilCheckBool('dvl-lit-resourcestring-unicode',")
+    e.line("    DvlResourceUnicode = 'first %s');")
+    e.line("  DevilCheckBool('dvl-lit-resourcestring-ansi',")
+    e.line("    string(DvlResourceAnsi) = 'second');")
+    e.line("  DevilCheckBool('dvl-lit-resourcestring-wide',")
+    e.line("    string(DvlResourceWide) = 'second');")
+    e.line("  DevilCheckBool('dvl-lit-resourcestring-format',")
+    e.line("    Format(DvlResourceStates[dvlStateFirst], ['X']) = 'first X');")
+    e.line("end;")
+    e.line()
+
+    records: list[CaseRecord] = [CaseRecord(
+        "dvl-lit-resourcestring-typed-constants", "lit", {
+            "shape": "resourcestring-to-typed-constant",
+            "destinations": ["array-string", "unicode", "ansi", "wide"],
+        })]
+    calls: list[str] = ["DvlLitResourceTypedConstants"]
     plan = [(d, o) for d in LIT_DESTINATIONS for o in LIT_OBSERVATIONS]
     plan += [("form-%s" % f, "refcount") for f in LIT_FORMS]
     plan += [("form-%s" % f, "writable") for f in LIT_FORMS]
@@ -15516,7 +16456,9 @@ def layer_lit(e: Emitter, rng: random.Random, count: int,
 CAPTURE_SHAPES = ("classic-loop-var", "inline-loop-var", "for-in-var",
                   "local-changed-after", "local-per-iteration",
                   "nested-closure", "closure-in-closure", "field-of-object",
-                  "with-scoped", "captured-managed", "captured-record",
+                  "with-scoped", "with-composite-lvalue",
+                  "nested-expression-new",
+                  "captured-managed", "captured-record",
                   "captured-array-slot", "self-in-method", "const-param",
                   "captured-in-thread", "exception-var", "try-finally-var",
                   "recursive-capture")
@@ -15714,6 +16656,95 @@ def emit_capture_case(e: Emitter, shape: str, tag: str) -> list[str]:
         e.line("      end;")
         e.line("  Held.Slot := 2;")
         e.line("  Result := Step();")
+        e.line("end;")
+        e.line()
+    elif shape == "with-composite-lvalue":
+        e.line("type")
+        e.line("  TDvlCapRec%s = record" % tag)
+        e.line("    Slot: Integer;")
+        e.line("  end;")
+        e.line("  TDvlCapRecs%s = array of TDvlCapRec%s;" % (tag, tag))
+        e.line()
+        e.line("function DvlCapIndex%s(var Counter: Integer): Integer;" % tag)
+        e.line("begin")
+        e.line("  Inc(Counter);")
+        e.line("  Result := 1;")
+        e.line("end;")
+        e.line()
+        e.line("procedure DvlCapMake%s(var Step: TDvlCapStep%s; "
+               "var Counter: Integer);" % (tag, tag))
+        e.line("var")
+        e.line("  Items: TDvlCapRecs%s;" % tag)
+        e.line("begin")
+        e.line("  SetLength(Items, 2);")
+        e.line("  Items[0].Slot := 11;")
+        e.line("  Items[1].Slot := 22;")
+        e.line("  with Items[DvlCapIndex%s(Counter)] do" % tag)
+        e.line("    Step :=")
+        e.line("      function: Integer")
+        e.line("      begin")
+        e.line("        Result := Slot;")
+        e.line("      end;")
+        e.line("  { the selected address is stable, while the storage remains aliased } ")
+        e.line("  Items[1].Slot := 73;")
+        e.line("end;")
+        e.line()
+        e.line("function DvlCapAsk%s: Integer;" % tag)
+        e.line("var")
+        e.line("  Counter: Integer;")
+        e.line("  Step: TDvlCapStep%s;" % tag)
+        e.line("begin")
+        e.line("  Counter := 0;")
+        e.line("  DvlCapMake%s(Step, Counter);" % tag)
+        e.line("  { Step executes after the frame and its dynamic-array local are gone. } ")
+        e.line("  Result := Step() * 10 + Counter;")
+        e.line("end;")
+        e.line()
+    elif shape == "nested-expression-new":
+        e.line("type")
+        e.line("  TDvlCapManaged%s = record" % tag)
+        e.line("    Text: UnicodeString;")
+        e.line("    Value: Integer;")
+        e.line("  end;")
+        e.line("  PDvlCapManaged%s = ^TDvlCapManaged%s;" % (tag, tag))
+        e.line()
+        e.line("function DvlCapInvoke%s(const Step: TDvlCapStep%s): Integer;" %
+               (tag, tag))
+        e.line("begin")
+        e.line("  Result := Step();")
+        e.line("end;")
+        e.line()
+        e.line("function DvlCapAsk%s: Integer;" % tag)
+        e.line("var")
+        e.line("  Assigned: TDvlCapStep%s;" % tag)
+        e.line("  A, B: Integer;")
+        e.line("begin")
+        e.line("  { The nested body must not inherit the surrounding assignment flag. } ")
+        e.line("  Assigned :=")
+        e.line("    function: Integer")
+        e.line("    var")
+        e.line("      P: PDvlCapManaged%s;" % tag)
+        e.line("    begin")
+        e.line("      New(P);")
+        e.line("      P^.Text := 'assigned';")
+        e.line("      P^.Value := 34;")
+        e.line("      Result := Length(P^.Text) + P^.Value;")
+        e.line("      Dispose(P);")
+        e.line("    end;")
+        e.line("  A := Assigned();")
+        e.line("  { Nor may it inherit the call-argument flag. } ")
+        e.line("  B := DvlCapInvoke%s(" % tag)
+        e.line("    function: Integer")
+        e.line("    var")
+        e.line("      P: PDvlCapManaged%s;" % tag)
+        e.line("    begin")
+        e.line("      New(P);")
+        e.line("      P^.Text := 'call';")
+        e.line("      P^.Value := 7;")
+        e.line("      Result := Length(P^.Text) + P^.Value;")
+        e.line("      Dispose(P);")
+        e.line("    end);")
+        e.line("  Result := A * 100 + B;")
         e.line("end;")
         e.line()
     elif shape == "captured-managed":
