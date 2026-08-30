@@ -492,6 +492,10 @@ procedure x86flowobserve(asmlist : tasmlist; const procname : ansistring);
   var
     facts : tx86flowfacts;
     s : tx86flowsummary;
+    i,j,division : longint;
+    fact : tx86insnflowfact;
+    raxaccess,
+    rdxaccess : tx86regaccess;
   begin
     facts:=tx86flowfacts.create(asmlist);
     try
@@ -504,6 +508,28 @@ procedure x86flowobserve(asmlist : tasmlist; const procname : ansistring);
         ' def=',s.defcount,
         ' usedef=',s.usedefcount,
         ' reaching=',s.reachinguses);
+      division:=0;
+      for i:=0 to facts.ffacts.count-1 do
+        begin
+          fact:=tx86insnflowfact(facts.ffacts[i]);
+          if taicpu(fact.instruction).opcode in [A_DIV,A_IDIV] then
+            begin
+              inc(division);
+              raxaccess:=xra_none;
+              rdxaccess:=xra_none;
+              for j:=0 to length(fact.regs)-1 do
+                begin
+                  if samereg(fact.regs[j].reg,NR_EAX) then
+                    raxaccess:=fact.regs[j].access;
+                  if samereg(fact.regs[j].reg,NR_EDX) then
+                    rdxaccess:=fact.regs[j].access;
+                end;
+              writeln(stderr,'m-facts-div: proc=',procname,
+                ' index=',division,
+                ' rax-usedef=',ord(raxaccess=xra_usedef),
+                ' rdx-usedef=',ord(rdxaccess=xra_usedef));
+            end;
+        end;
     finally
       facts.free;
     end;

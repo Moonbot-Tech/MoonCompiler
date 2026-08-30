@@ -18,6 +18,10 @@ SUMMARY = re.compile(
     r"m-facts-summary: proc=(\S+) blocks=(\d+) insns=(\d+) use=(\d+) "
     r"def=(\d+) usedef=(\d+) reaching=(\d+)"
 )
+DIV_FACT = re.compile(
+    r"m-facts-div: proc=(\S+) index=(\d+) "
+    r"rax-usedef=(\d+) rdx-usedef=(\d+)"
+)
 
 
 def default_compiler() -> Path:
@@ -96,6 +100,14 @@ def parse(output: str) -> dict[str, tuple[int, ...]]:
     return result
 
 
+def parse_divisions(output: str, short: str) -> list[tuple[int, int, int]]:
+    result: list[tuple[int, int, int]] = []
+    for name, index, rax, rdx in DIV_FACT.findall(output):
+        if f"_$$_{short.upper()}" in name:
+            result.append((int(index), int(rax), int(rdx)))
+    return result
+
+
 def find_routine(rows: dict[str, tuple[int, ...]], short: str) -> tuple[int, ...]:
     matches = [value for name, value in rows.items()
                if f"_$$_{short.upper()}" in name]
@@ -144,6 +156,14 @@ def main() -> int:
         _, _, _, _, div_usedefs, _ = find_routine(rows1, "DividePair")
         if div_usedefs <= 0:
             failures.append("DividePair: implicit/two-address operands not decoded")
+        divisions1 = parse_divisions(diag1_text, "DividePair")
+        divisions2 = parse_divisions(diag2_text, "DividePair")
+        expected_divisions = [(1, 1, 1), (2, 1, 1)]
+        if divisions1 != expected_divisions:
+            failures.append("DividePair: DIV must USE+DEF both RAX and RDX, "
+                            f"got {divisions1!r}")
+        if divisions2 != divisions1:
+            failures.append("DividePair: exact implicit facts are not deterministic")
         stale_text = compile_stale(args.compiler, args.rtl, tmp / "stale")
         if ("stale x86 machine facts" not in stale_text or
                 "2026082901" not in stale_text):
