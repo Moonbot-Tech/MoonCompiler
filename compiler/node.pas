@@ -271,6 +271,10 @@ interface
 
          tnf_processing,
 
+         { constant operands made adjacent by an internal reassociation still
+           belong to an already typechecked runtime expression }
+         tnf_runtime_const_reassociation,
+
          { internal flag to indicate that this node has been removed from the tree or must otherwise not be
            execute.  Running it through firstpass etc. will raise an internal error }
          tnf_do_not_execute

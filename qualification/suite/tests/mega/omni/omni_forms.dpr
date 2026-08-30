@@ -14586,6 +14586,68 @@ begin
   Result := Base + Index;
 end;
 
+const
+  OmniCardinalAdd1 = Cardinal(2654435761);
+  OmniCardinalAdd2 = Cardinal(2246822519);
+  OmniCardinalMul1 = Cardinal(3000000000);
+  OmniCardinalMul2 = Cardinal(3);
+
+{$push}{$Q-}
+function OmniUncheckedCardinalAdd(Seed: Cardinal): Cardinal;
+{$ifdef FPC}noinline;{$endif}
+begin
+  Result := Seed + OmniCardinalAdd1 + OmniCardinalAdd2;
+end;
+
+function OmniUncheckedCardinalMultiply(Seed: Cardinal): Cardinal;
+{$ifdef FPC}noinline;{$endif}
+begin
+  Result := Seed * OmniCardinalMul1 * OmniCardinalMul2;
+end;
+{$pop}
+
+{$push}{$Q+}
+function OmniCheckedCardinalAdd(Seed: Cardinal): Cardinal;
+{$ifdef FPC}noinline;{$endif}
+begin
+  Result := Seed + OmniCardinalAdd1 + OmniCardinalAdd2;
+end;
+
+function OmniCheckedCardinalMultiply(Seed: Cardinal): Cardinal;
+{$ifdef FPC}noinline;{$endif}
+begin
+  Result := Seed * OmniCardinalMul1 * OmniCardinalMul2;
+end;
+{$pop}
+
+procedure RunRuntimeConstantReassociationForms;
+var
+  Trapped: Boolean;
+begin
+  Check(OmniUncheckedCardinalAdd(Cardinal(OpaqueU(7))) =
+    Cardinal(606290991), 'runtime-constant-reassociation-add-wrap');
+  Check(OmniUncheckedCardinalMultiply(Cardinal(OpaqueU(2))) =
+    Cardinal(820130816), 'runtime-constant-reassociation-mul-wrap');
+
+  Trapped := False;
+  try
+    OmniCheckedCardinalAdd(Cardinal(OpaqueU(7)));
+  except
+    on EIntOverflow do
+      Trapped := True;
+  end;
+  Check(Trapped, 'runtime-constant-reassociation-add-checked');
+
+  Trapped := False;
+  try
+    OmniCheckedCardinalMultiply(Cardinal(OpaqueU(2)));
+  except
+    on EIntOverflow do
+      Trapped := True;
+  end;
+  Check(Trapped, 'runtime-constant-reassociation-mul-checked');
+end;
+
 procedure RunPointerIndexOffsetForms;
 var
   Buffer: array[0..511] of Byte;
@@ -14977,6 +15039,7 @@ begin
   RunDelphiCharacterOverloadForms;
   RunRawByteConstantForms;
   RunByteStringConcatDomainForms;
+  RunRuntimeConstantReassociationForms;
   RunPointerIndexOffsetForms;
   RunFunctionResultCounterForms;
   RunNilVarOverloadForms;

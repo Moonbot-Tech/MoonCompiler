@@ -813,13 +813,18 @@ const
         end;
 
 
-      function SwapRightWithLeftRight : tnode;
+      function SwapRightWithLeftRight(foldruntimeconstants: boolean) : tnode;
         var
           hp : tnode;
         begin
           hp:=right;
           right:=taddnode(left).right;
           taddnode(left).right:=hp;
+          { The reassociation itself may have put two source constants next to
+            each other.  Such a fold belongs to the already typechecked runtime
+            expression, not to a constant subexpression written by the user. }
+          if foldruntimeconstants then
+            include(left.transientflags,tnf_runtime_const_reassociation);
           left:=left.simplify(forinline);
           if resultdef.typ<>pointerdef then
             begin
@@ -832,7 +837,7 @@ const
         end;
 
 
-      function SwapRightWithLeftLeft : tnode;
+      function SwapRightWithLeftLeft(foldruntimeconstants: boolean) : tnode;
         var
           hp,hp2 : tnode;
         begin
@@ -840,6 +845,10 @@ const
           hp:=taddnode(left).left;
           taddnode(left).left:=taddnode(left).right;
           taddnode(left).right:=right;
+          { See SwapRightWithLeftRight: this may be an optimizer-created
+            constant pair inside an otherwise non-constant expression. }
+          if foldruntimeconstants then
+            include(left.transientflags,tnf_runtime_const_reassociation);
           left.resultdef:=nil;
           do_typecheckpass(left);
           hp2:=left.simplify(forinline);
@@ -958,19 +967,23 @@ const
 
       function constantarithmeticoverflow(var value: Tconstexprint;
         forinline: boolean; out wrapped: boolean): boolean;
+        var
+          runtimefold: boolean;
         begin
+          runtimefold:=forinline or
+            (tnf_runtime_const_reassociation in transientflags);
           wrapped:=value.overflow or
             (not(m_int128 in current_settings.modeswitches) and not value.representable64);
           { Delphi diagnoses a source constant expression in the arithmetic
             type selected from its operands.  Merely fitting the mathematical
             result in the opposite-signed 64-bit type is not sufficient. }
-          if not wrapped and not forinline and
+          if not wrapped and not runtimefold and
              (m_delphi in current_settings.modeswitches) and
              is_integer(resultdef) then
             wrapped:=(value<torddef(resultdef).low) or
               (value>torddef(resultdef).high);
           result:=wrapped;
-          if wrapped and forinline and
+          if wrapped and runtimefold and
              not(cs_check_overflow in localswitches) and
              is_integer(resultdef) then
             begin
@@ -1244,6 +1257,10 @@ const
                   const2 val                   val const2
             }
             else if (left.nodetype=nodetype) and
+              { Checked add/multiply must keep the source association: moving
+                the constants can move or remove the runtime overflow. }
+              (not(nodetype in [addn,muln]) or
+               not(cs_check_overflow in localswitches)) and
               { there might be a mul operation e.g. longint*longint => int64 in this case
                 we cannot do this optimization, see e.g. tests/webtbs/tw36587.pp on arm }
               (compare_defs(resultdef,ld,nothingn)=te_exact) then
@@ -1256,7 +1273,7 @@ const
                       andn,
                       orn,
                       muln:
-                        Result:=SwapRightWithLeftRight;
+                        Result:=SwapRightWithLeftRight(left.nodetype in [addn,muln]);
                       else
                         ;
                     end;
@@ -1269,7 +1286,7 @@ const
                       andn,
                       orn,
                       muln:
-                        Result:=SwapRightWithLeftLeft;
+                        Result:=SwapRightWithLeftLeft(left.nodetype in [addn,muln]);
                       else
                         ;
                     end;
@@ -1944,7 +1961,7 @@ const
                         taddnode(left).right:=cunaryminusnode.create(taddnode(left).right);
                         do_typecheckpass(taddnode(left).right);
                       end;
-                    Result:=SwapRightWithLeftLeft;
+                    Result:=SwapRightWithLeftLeft(false);
                     if nodetype=subn then
                       begin
                         Result.nodetype:=addn;
