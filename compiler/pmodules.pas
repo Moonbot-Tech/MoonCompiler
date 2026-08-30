@@ -386,6 +386,12 @@ implementation
           (target_info.system in [system_x86_64_linux,system_x86_64_win64]);
       end;
 
+    function productruntimeusescmem : boolean;
+      begin
+        result:=(cs_gdb_valgrind in current_settings.globalswitches) or
+          (([cs_sanitize_address]*current_settings.moduleswitches)<>[]);
+      end;
+
     function isproductruntimeunit(const s : string) : boolean;
       begin
         if (s='CMEM') or (s='HEAPTRC') then
@@ -446,8 +452,7 @@ implementation
              begin
                { Valgrind and ASan require the C memory manager.  Otherwise
                  every Moon Compiler program starts with the bundled MM. }
-               if (cs_gdb_valgrind in current_settings.globalswitches) or
-                  (([cs_sanitize_address]*current_settings.moduleswitches)<>[]) then
+               if productruntimeusescmem then
                  QueueProductUnit('cmem')
                else
                  QueueProductUnit('mormot.core.fpcx64mm');
@@ -719,6 +724,10 @@ implementation
           lookupname:=sorg;
           if fn='' then
             lookupname:=getunitalias(lookupname);
+          if productruntimeprefixenabled and
+             not productruntimeusescmem and
+             (Upper(lookupname)='CMEM') then
+            Message1(unit_f_product_runtime_memory_manager_conflict,sorg);
           { Give a warning if lineinfo is loaded }
           if s='LINEINFO' then
             begin

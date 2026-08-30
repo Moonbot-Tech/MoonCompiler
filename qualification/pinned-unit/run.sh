@@ -92,4 +92,8 @@ compile no_uses_rejected.dpr product_runtime_missing_pin fail \
   'requires an exact --pinned-unit mapping' --without-product-mm-pin
 compile no_uses_rejected.dpr product_runtime_vanilla pass '' \
   --without-product-mm-pin "$vanilla"
+compile cmem_override.dpr product_runtime_cmem_override fail \
+  'would replace the bundled product memory manager'
+compile cmem_override.dpr product_runtime_cmem_vanilla pass '' "$vanilla"
+compile cmem_override.dpr product_runtime_cmem_valgrind pass '' -gv
 echo 'pinned-unit: PASS'

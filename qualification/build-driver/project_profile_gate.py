@@ -152,18 +152,19 @@ end.
 {$endif}
 
 uses
-  mormot.core.fpcx64mm,
-  {$ifdef UNIX}
-  cthreads,
-  {$endif UNIX}
   System.SysUtils,
+  System.Classes,
   System.Generics.Collections,
+  System.Threading,
   BuildProfileFlags,
   CustomAlias,
   PinnedDep;
 
 var
   Values: TList<Integer>;
+  Task: ITask;
+  LockObject: TObject;
+  ThreadValue: Integer;
   Text: String;
 
 function Kind(const Value: AnsiString): Integer; overload;
@@ -190,6 +191,29 @@ begin
   finally
     Values.Free;
   end;
+  ThreadValue := 0;
+  Task := TTask.Run(
+    procedure
+    begin
+      ThreadValue := 17;
+    end);
+  If not TTask.WaitForAll([Task], 2000) then
+    Halt(4);
+  If ThreadValue <> 17 then
+    Halt(5);
+  LockObject := TObject.Create;
+  try
+    TMonitor.Enter(LockObject);
+    try
+      Inc(ThreadValue);
+    finally
+      TMonitor.Exit(LockObject);
+    end;
+  finally
+    LockObject.Free;
+  end;
+  If ThreadValue <> 18 then
+    Halt(6);
 {$if ProfileProtection}
   Write('MOONCOMPILER_PROJECT_PROFILE_OK profile=release protection=1');
 {$else}
@@ -204,12 +228,11 @@ end.
 """,
     )
     write(
-        project / "driver_profile_missing_threads.dpr",
-        """program driver_profile_missing_threads;
+        project / "driver_profile_cmem_override.dpr",
+        """program driver_profile_cmem_override;
 
 uses
-  mormot.core.fpcx64mm,
-  System.SysUtils;
+  cmem;
 
 begin
 end.
@@ -239,8 +262,8 @@ def create_invocation_view(project: Path) -> Path:
     (view / "driver_profile_smoke.dpr").symlink_to(
         project / "driver_profile_smoke.dpr"
     )
-    (view / "driver_profile_missing_threads.dpr").symlink_to(
-        project / "driver_profile_missing_threads.dpr"
+    (view / "driver_profile_cmem_override.dpr").symlink_to(
+        project / "driver_profile_cmem_override.dpr"
     )
     (view / "src").symlink_to(project / "src", target_is_directory=True)
     (project / "driver_profile_smoke.mooncompiler").replace(
@@ -278,6 +301,7 @@ def build_command(
 
 
 def main() -> int:
+    os.environ["MOONCOMPILER_PYTHON"] = sys.executable
     shutil.rmtree(WORK, ignore_errors=True)
     WORK.mkdir(parents=True)
     dependency_name = f"profile-gate-{os.getpid()}"
@@ -333,18 +357,20 @@ def main() -> int:
                         + diagnostic_runtime.stdout
                     )
 
-        if os.name != "nt":
-            missing_threads = run(
-                build_command(project, "debug", "driver_profile_missing_threads.dpr"),
+        for diagnostic_mm in (False, True):
+            cmem_override = run(
+                build_command(
+                    project,
+                    "debug",
+                    "driver_profile_cmem_override.dpr",
+                    diagnostic_mm=diagnostic_mm,
+                ),
                 expect=1,
             )
-            if (
-                "--required-first-unit=MORMOT.CORE.FPCX64MM,CTHREADS" not in missing_threads.stdout
-                or "explicit unit 2 is" not in missing_threads.stdout
-            ):
+            if "would replace the bundled product memory manager" not in cmem_override.stdout:
                 raise RuntimeError(
-                    "missing Linux cthreads was rejected for the wrong reason\n"
-                    + missing_threads.stdout
+                    "explicit cmem was rejected for the wrong reason\n"
+                    + cmem_override.stdout
                 )
 
         cached_source = cache / commit.lower() / "src" / "PinnedDep.pas"
@@ -353,7 +379,7 @@ def main() -> int:
         if "cached dependency is not clean" not in rejected.stdout:
             raise RuntimeError(f"dirty dependency was rejected for the wrong reason\n{rejected.stdout}")
 
-        print("MOONCOMPILER_PROJECT_PROFILE_GATE_PASS profiles=2 diagnostic-mm=1 dependency=clean-pinned string=unicode")
+        print("MOONCOMPILER_PROJECT_PROFILE_GATE_PASS profiles=2 diagnostic-mm=1 dependency=clean-pinned string=unicode runtime-prefix=automatic cmem-override=rejected")
         return 0
     finally:
         shutil.rmtree(cache, ignore_errors=True)

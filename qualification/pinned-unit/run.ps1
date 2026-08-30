@@ -102,5 +102,9 @@ Invoke-Compile 'no_uses_rejected.dpr' 'product_runtime_missing_pin' `
   -ExpectedDiagnostic 'requires an exact --pinned-unit mapping'
 Invoke-Compile 'no_uses_rejected.dpr' 'product_runtime_vanilla' `
   @($Vanilla) -WithoutProductMmPin
+Invoke-Compile 'cmem_override.dpr' 'product_runtime_cmem_override' `
+  -MustFail -ExpectedDiagnostic 'would replace the bundled product memory manager'
+Invoke-Compile 'cmem_override.dpr' 'product_runtime_cmem_vanilla' @($Vanilla)
+Invoke-Compile 'cmem_override.dpr' 'product_runtime_cmem_valgrind' @('-gv')
 
 Write-Host 'pinned-unit: PASS'

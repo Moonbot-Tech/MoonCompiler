@@ -3664,7 +3664,7 @@ link_f_executable_too_big_exceeds_X_by_Y_bytes=09224_F_Executable image size is 
 #
 # Unit loading
 #
-# 10075 is the last used one
+# 10076 is the last used one
 #
 # BeginOfTeX
 % \section{Unit loading messages.}
@@ -3906,6 +3906,7 @@ unit_w_unsupported_esp_idf_version=10071_W_Unsupported esp-idf version
 unit_f_pinned_unit_explicit_source=10073_F_Pinned unit $1 cannot use explicit source file $2
 unit_f_pinned_unit_already_loaded=10074_F_Pinned unit $1 was already loaded from another source
 unit_f_product_runtime_unit_not_pinned=10075_F_Product runtime unit $1 requires an exact --pinned-unit mapping; define MOONCOMPILER_VANILLA_RUNTIME to disable the product runtime prefix
+unit_f_product_runtime_memory_manager_conflict=10076_F_Unit $1 would replace the bundled product memory manager; define MOONCOMPILER_VANILLA_RUNTIME or use the Valgrind/ASan compiler mode
 % \end{description}
 # EndOfTeX
 
