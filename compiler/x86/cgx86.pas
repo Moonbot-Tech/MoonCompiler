@@ -1033,6 +1033,13 @@ unit cgx86;
       begin
         tmpref:=ref;
         make_simple_ref(list,tmpref,isdirect);
+        { Loading a narrower integer result only needs the low bytes of the
+          memory value.  The register-to-register and register-to-reference
+          paths already apply the same truncation before sizes2load.  This is
+          also required for SysV aggregate chunks whose ABI carrier is wider
+          than the meaningful record payload. }
+        if TCGSize2Size[fromsize]>TCGSize2Size[tosize] then
+          fromsize:=tosize;
         check_register_size(tosize,reg);
         sizes2load(fromsize,tosize,op,s);
  {$ifdef x86_64}
