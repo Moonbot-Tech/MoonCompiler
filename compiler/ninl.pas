@@ -4597,6 +4597,7 @@ implementation
           in_lo_word,
           in_hi_word:
             begin
+              hdef:=left.resultdef;
               shiftconst := 0;
               if (m_delphi in current_settings.modeswitches) and
                  (inlinenumber in [in_hi_word,in_hi_long,in_hi_qword]) then
@@ -4613,11 +4614,19 @@ implementation
                     ;
                 end;
               if shiftconst <> 0 then
-                result := ctypeconvnode.create_internal(cshlshrnode.create(shrn,left,
-                    cordconstnode.create(shiftconst,sinttype,false)),resultdef)
+                hp:=cshlshrnode.create(shrn,left,
+                  cordconstnode.create(shiftconst,sinttype,false))
               else
-                result := ctypeconvnode.create_internal(left,resultdef);
+                hp:=left;
               left := nil;
+              { Delphi gives a runtime Hi/Lo expression a Word type, but its
+                value is still exactly one selected byte.  The old Byte result
+                truncated implicitly; keep that semantic truncation explicit
+                now that the observable result type is wider. }
+              if m_delphi in current_settings.modeswitches then
+                hp:=caddnode.create(andn,hp,
+                  cordconstnode.create($ff,hdef,false));
+              result:=ctypeconvnode.create_internal(hp,resultdef);
               firstpass(result);
             end;
 
