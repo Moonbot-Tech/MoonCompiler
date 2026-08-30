@@ -452,6 +452,29 @@ $Stages = @(
     files = @('evidence\system-move-20260824\summary.json')
     tracked = $true
     unstable = @()
+  },
+  [ordered]@{
+    id = 'release_final_20260830'
+    label = 'Финальный Pulse: compiler + RTL + MM'
+    short = 'Release 2026-08-30'
+    note = 'Точный Win64 O3 medium на 64067c99: 757/757 semantic oracles MATCH. Без 13 нестабильных process cases geomean Moon/Delphi 0.8310; Heartbeat 0.8185, 18 выигрышей, 2 паритета, 0 проигрышей; bundled MM/default FPC MM в allocator-группе 0.6069. Полная Move-матрица включена в этот финальный срез, но дальше живёт отдельным qualification gate.'
+    tracked = $true
+    files = @('evidence\release-final-20260830\summary.json')
+    unstable = @(
+      'calibration/asm-memory-write-64m',
+      'codegen/concrete-reverse-rec',
+      'json/builder-growth-64k',
+      'loops/histogram-random',
+      'mm/alloc-free-1m',
+      'mm/fragmented-mixed',
+      'workloads/stream-add',
+      'workloads/stream-scale',
+      'move/hot-a0-a0-n8388608',
+      'threads/cross-thread-free-4',
+      'threads/parallel-alloc-free-4',
+      'threads/parallel-alloc-free-96-4',
+      'threads/parallel-alloc-free-96-8'
+    )
   }
 )
 
