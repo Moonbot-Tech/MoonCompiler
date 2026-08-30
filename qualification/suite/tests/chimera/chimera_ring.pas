@@ -291,7 +291,7 @@ begin
 
   Result := -1;
   Found := TArray.BinarySearch<TChiTrade>(Batch, Probe, Result, Comparer, 0, K);
-  if Found and (Result > 0) then
+  if Found then
     while (Result < K) and (Batch[Result].Time <= Probe.Time + ChiJoinEps) do
       Inc(Result);
   if Result < 0 then Result := 0;
