@@ -1450,7 +1450,11 @@ implementation
        if cs_opt_use_load_modify_store in current_settings.optimizerswitches then
          do_optloadmodifystore(code);
 
+       { do_consttovar deliberately creates persistent register temps.  With
+         REGVAR disabled, the backend may reuse the same physical register
+         inside a loop and silently overwrite a hoisted constant. }
        if (cs_opt_consts in current_settings.optimizerswitches) and
+          (cs_opt_regvar in current_settings.optimizerswitches) and
           { non-local gotos can cause an fpc_setjmp call to be generated before
             this block, which means the loaded value won't be loaded when the
              longjmp is performed }
