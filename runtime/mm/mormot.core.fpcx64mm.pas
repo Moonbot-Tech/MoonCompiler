@@ -263,6 +263,7 @@ type
   /// heap information as returned by CurrentHeapStatus
   TMMStatus = record
     /// how many tiny/small memory blocks (<=2600 bytes) are currently allocated
+    // - excludes blocks already accepted by FreeMem and awaiting deferred reuse
     SmallBlocks: PtrUInt;
     /// how many bytes of tiny/small memory blocks are currently allocated
     // - this size is included in Medium.CurrentBytes value, even if
@@ -4924,7 +4925,7 @@ end;
 function CurrentHeapStatus: TMMStatus;
 var
   i: PtrInt;
-  small: PtrUInt;
+  small, pending: PtrUInt;
   p: PSmallBlockType;
 begin
   result := HeapStatus;
@@ -4936,6 +4937,15 @@ begin
   for i := 1 to NumSmallInfoBlock do
   begin
     small := p^.GetmemCount - p^.FreememCount;
+    // A contended FreeMem has already released ownership, even if the block
+    // still waits in SmallLastFree for the allocator to recycle it.  Sample
+    // the pending count once and saturate because this is a lock-free status
+    // snapshot and the three counters may move between reads.
+    pending := p^.LastFreeCount;
+    if pending < small then
+      dec(small, pending)
+    else
+      small := 0;
     if small <> 0 then
     begin
       inc(result.SmallBlocks, small);

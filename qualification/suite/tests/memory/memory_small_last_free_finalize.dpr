@@ -3,7 +3,9 @@ program memory_small_last_free_finalize;
 {$mode delphi}
 
 uses
+  {$ifdef unix}
   cthreads,
+  {$endif}
   Classes,
   SysUtils,
   mormot.core.fpcx64mm;
@@ -35,11 +37,17 @@ var
   P: pointer;
   Worker: TFreeThread;
   Pending: cardinal;
+  BeforeAlloc, AfterAlloc, AfterFree: TMMStatus;
 begin
   InitializeMemoryManager;
+  BeforeAlloc := CurrentHeapStatus;
   P := _GetMem(128);
   If P = nil then
     raise Exception.Create('custom allocation failed');
+  AfterAlloc := CurrentHeapStatus;
+  If AfterAlloc.SmallBlocks <> BeforeAlloc.SmallBlocks + 1 then
+    raise Exception.CreateFmt('allocated small block count mismatch: %d -> %d',
+      [BeforeAlloc.SmallBlocks, AfterAlloc.SmallBlocks]);
   Worker := TFreeThread.Create(P);
   try
     Fpcx64mmTestLockSmallBlockType(P, true);
@@ -54,6 +62,13 @@ begin
     If Pending <> 1 then
       raise Exception.CreateFmt('expected one pending small free, got %d',
         [Pending]);
+    AfterFree := CurrentHeapStatus;
+    If AfterFree.SmallBlocks <> BeforeAlloc.SmallBlocks then
+      raise Exception.CreateFmt('deferred free still reported live: %d -> %d',
+        [BeforeAlloc.SmallBlocks, AfterFree.SmallBlocks]);
+    If AfterFree.SmallBlocksSize <> BeforeAlloc.SmallBlocksSize then
+      raise Exception.CreateFmt('deferred free bytes still reported live: %d -> %d',
+        [BeforeAlloc.SmallBlocksSize, AfterFree.SmallBlocksSize]);
   finally
     Worker.Free;
   end;
