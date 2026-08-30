@@ -956,18 +956,28 @@ const
         end;
 
 
-      function constantarithmeticoverflow(var value: Tconstexprint; out wrapped: boolean): boolean;
+      function constantarithmeticoverflow(var value: Tconstexprint;
+        forinline: boolean; out wrapped: boolean): boolean;
         begin
           wrapped:=value.overflow or
             (not(m_int128 in current_settings.modeswitches) and not value.representable64);
+          { Delphi diagnoses a source constant expression in the arithmetic
+            type selected from its operands.  Merely fitting the mathematical
+            result in the opposite-signed 64-bit type is not sufficient. }
+          if not wrapped and not forinline and
+             (m_delphi in current_settings.modeswitches) and
+             is_integer(resultdef) then
+            wrapped:=(value<torddef(resultdef).low) or
+              (value>torddef(resultdef).high);
           result:=wrapped;
-          if wrapped and
+          if wrapped and forinline and
              not(cs_check_overflow in localswitches) and
              is_integer(resultdef) then
             begin
-              { Runtime integer arithmetic wraps when overflow checking is off;
-                keep the low bits when constant propagation performs the same
-                operation at compile time. }
+              { Once inlining exposes constant operands, preserve the unchecked
+                runtime arithmetic semantics of the already typechecked
+                expression.  A constant expression present in the source must
+                still report overflow even when overflow checks are disabled. }
               value.overflow:=false;
               result:=false;
             end;
@@ -1073,7 +1083,7 @@ const
                addn :
                  begin
                    v:=lv+rv;
-                    if constantarithmeticoverflow(v,wrapped) then
+                    if constantarithmeticoverflow(v,forinline,wrapped) then
                      begin
                        Message(parser_e_arithmetic_operation_overflow);
                        { Recover }
@@ -1090,7 +1100,7 @@ const
                subn :
                  begin
                    v:=lv-rv;
-                    if constantarithmeticoverflow(v,wrapped) then
+                    if constantarithmeticoverflow(v,forinline,wrapped) then
                      begin
                        Message(parser_e_arithmetic_operation_overflow);
                        { Recover }
@@ -1117,7 +1127,7 @@ const
                muln :
                  begin
                    v:=lv*rv;
-                    if constantarithmeticoverflow(v,wrapped) then
+                    if constantarithmeticoverflow(v,forinline,wrapped) then
                      begin
                        message(parser_e_arithmetic_operation_overflow);
                        { Recover }
