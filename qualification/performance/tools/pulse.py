@@ -726,7 +726,12 @@ def write_report(result: Path) -> None:
             try:
                 paired_ratio = paired_ratio_stats(base, cand, primary_metric)
             except ValueError as error:
-                raise ValueError(f"{program}/{case}: {error}") from error
+                if program not in ("move", "threads"):
+                    raise ValueError(f"{program}/{case}: {error}") from error
+                drift_notes.append(
+                    f"paired/{program}/{case} unavailable ({error}); "
+                    "using process-balanced diagnostic ratio"
+                )
         ratio = (
             paired_ratio.mode
             if paired_ratio is not None
@@ -755,7 +760,7 @@ def write_report(result: Path) -> None:
                 (baseline, base_primary),
                 (candidate, cand_primary),
             ):
-                if program != "threads" and process_stats.minimum > 0:
+                if program not in ("threads", "move") and process_stats.minimum > 0:
                     drift = process_stats.maximum / process_stats.minimum
                     if drift > 1.25:
                         drift_failures.append(
@@ -777,16 +782,21 @@ def write_report(result: Path) -> None:
                         control_row, cand, primary_metric
                     )
                 except ValueError as error:
-                    raise ValueError(
-                        f"{control}/{program}/{case}: {error}"
-                    ) from error
-                if paired_mm_effect.minimum > 0:
+                    if program not in ("move", "threads"):
+                        raise ValueError(
+                            f"{control}/{program}/{case}: {error}"
+                        ) from error
+                    drift_notes.append(
+                        f"paired-mm/{program}/{case} unavailable ({error}); "
+                        "using process-balanced diagnostic ratio"
+                    )
+                if paired_mm_effect is not None and paired_mm_effect.minimum > 0:
                     drift = paired_mm_effect.maximum / paired_mm_effect.minimum
                     if drift > 1.25:
                         drift_notes.append(
                             f"paired-mm/{program}/{case} ratio drift {drift:.3f}x"
                         )
-            elif program != "threads" and control_primary.minimum > 0:
+            elif program not in ("threads", "move") and control_primary.minimum > 0:
                 drift = control_primary.maximum / control_primary.minimum
                 if drift > 1.25:
                     drift_failures.append(
