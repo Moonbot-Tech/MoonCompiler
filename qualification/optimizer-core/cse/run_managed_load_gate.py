@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from functools import lru_cache
 import os
 import re
 import shutil
@@ -27,6 +28,19 @@ def default_rtl() -> Path:
     return ROOT / "rtl" / "units" / target
 
 
+@lru_cache(maxsize=1)
+def link_args() -> list[str]:
+    if os.name == "nt":
+        return []
+    probe = subprocess.run(
+        ["gcc", "-print-file-name=libgcc_s.so"], capture_output=True,
+        text=True, timeout=30)
+    libgcc = Path(probe.stdout.strip())
+    if probe.returncode != 0 or not libgcc.is_absolute() or not libgcc.exists():
+        raise RuntimeError("cannot locate libgcc_s")
+    return [f"-Fl{libgcc.parent}"]
+
+
 def compile_one(compiler: Path, rtl: Path, name: str, option: str,
                 compiler_options: list[str], outdir: Path) -> tuple[Path, str]:
     target = outdir / name
@@ -35,7 +49,7 @@ def compile_one(compiler: Path, rtl: Path, name: str, option: str,
         str(compiler), "-Mdelphi", "-n", "-O3", "-al", "-Aas",
         "-dMOONCOMPILER_VANILLA_RUNTIME", f"-Fu{rtl}",
         f"-FE{target}", f"-FU{target}",
-    ]
+    ] + link_args()
     if option:
         cmd.insert(4, option)
     cmd.extend(compiler_options)
