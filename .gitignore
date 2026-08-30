@@ -19,6 +19,9 @@
 *.elg
 *.log
 *.obj
+!qualification/vendor/mormot-product/static/delphi/
+!qualification/vendor/mormot-product/static/delphi/sha512-x64sse4.obj
+!qualification/vendor/mormot-product/static/delphi/crc32c64.obj
 *.dcu
 *.asm
 *.rsj

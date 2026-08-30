@@ -1,0 +1,1247 @@
+{
+  "rows": [
+    {
+      "id": "CHI-MB-TRADE-001",
+      "product": "MoonBot",
+      "source": "TradeTypes.pas :: TTrade",
+      "organ": "chimera_body",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "sign-bit",
+        "compare",
+        "size-16"
+      ]
+    },
+    {
+      "id": "CHI-MB-TAPE-001",
+      "product": "MoonBot",
+      "source": "MarketsU.pas :: TMarket.JoinHOrders (window fold)",
+      "organ": "chimera_tape",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "split",
+        "inline",
+        "noinline",
+        "oracle"
+      ],
+      "branches": [
+        "whole",
+        "split",
+        "inline-leaf",
+        "noinline-cycle",
+        "oracle",
+        "scan",
+        "bucket",
+        "minute-ring",
+        "window-5s",
+        "window-15s",
+        "sparse-second",
+        "price-up",
+        "price-down",
+        "break-early"
+      ]
+    },
+    {
+      "id": "CHI-MB-RING-001",
+      "product": "MoonBot",
+      "source": "EngineBase.pas :: TMarketEngine.AddTmpHOrder + MarketsU ring/splice",
+      "organ": "chimera_ring",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle",
+        "threaded"
+      ],
+      "branches": [
+        "feed-store",
+        "feed-merge",
+        "drain",
+        "drain-wrap",
+        "splice-drop",
+        "splice-keep",
+        "oracle-flat",
+        "threaded-overlap",
+        "threaded-ring-full"
+      ]
+    },
+    {
+      "id": "CHI-MB-TRADE-002",
+      "product": "MoonBot",
+      "source": "TradeTypes.pas :: TTrade.TryAggregate",
+      "organ": "chimera_agg",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "hit-first",
+        "hit-second",
+        "miss",
+        "aliased-slots",
+        "negative-zero",
+        "repeat-into-first"
+      ]
+    },
+    {
+      "id": "CHI-MB-SORT-001",
+      "product": "MoonBot",
+      "source": "MarketsU.pas :: TMarket.QuickSortOrders",
+      "organ": "chimera_sort",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "swap",
+        "swap-skipped",
+        "recurse-left",
+        "tail-right",
+        "nested",
+        "exact-order",
+        "eps-order",
+        "bailout",
+        "bailout-permutation"
+      ]
+    },
+    {
+      "id": "CHI-MB-BOOK-001",
+      "product": "MoonBot",
+      "source": "обновление стакана в движках бирж",
+      "organ": "chimera_book",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "extend",
+        "first-level-trimmed",
+        "originals-intact",
+        "order-kept",
+        "trimmed-length",
+        "volume-bounded",
+        "too-short"
+      ]
+    },
+    {
+      "id": "CHI-MB-BOOK-002",
+      "product": "MoonBot",
+      "source": "там же, полная пересборка снимка",
+      "organ": "chimera_book",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "snapshot",
+        "fold",
+        "nested-buckets",
+        "empty-snapshot"
+      ]
+    },
+    {
+      "id": "CHI-MB-STRAT-001",
+      "product": "MoonBot",
+      "source": "расчёты стратегий и ордеров",
+      "organ": "chimera_strat",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "exit-no-minimum",
+        "detected",
+        "flat-or-no-minimum",
+        "exit-low-volume",
+        "exit-low-reduced",
+        "reduce-off",
+        "window-widened",
+        "singles-path",
+        "pairs-path",
+        "fallback-high"
+      ]
+    },
+    {
+      "id": "CHI-MB-BUF-001",
+      "product": "MoonBot",
+      "source": "MoonProtoTradesStream.TReusableMemStream",
+      "organ": "chimera_buf",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "grow",
+        "clear-keeps",
+        "smaller-keeps",
+        "no-stale",
+        "trim-closes-period",
+        "trim",
+        "regrow-after-trim"
+      ]
+    },
+    {
+      "id": "CHI-MB-BUF-002",
+      "product": "MoonBot",
+      "source": "MoonProtoTradesStream.TPacketCache",
+      "organ": "chimera_buf",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "wrap",
+        "evict",
+        "grow-indices",
+        "hit",
+        "miss",
+        "too-big",
+        "empty"
+      ]
+    },
+    {
+      "id": "CHI-MB-PROTO-001",
+      "product": "MoonBot",
+      "source": "MoonProto/*` упаковка сообщений",
+      "organ": "chimera_proto",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "roundtrip",
+        "canonical-size"
+      ]
+    },
+    {
+      "id": "CHI-MB-PROTO-002",
+      "product": "MoonBot",
+      "source": "там же",
+      "organ": "chimera_proto",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "utf8-length",
+        "empty-string",
+        "short-length",
+        "short-overflow"
+      ]
+    },
+    {
+      "id": "CHI-MB-PROTO-003",
+      "product": "MoonBot",
+      "source": "там же",
+      "organ": "chimera_proto",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "every-cut",
+        "cut-inside-char"
+      ]
+    },
+    {
+      "id": "CHI-MB-PROTO-004",
+      "product": "MoonBot",
+      "source": "там же",
+      "organ": "chimera_proto",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "big-then-small",
+        "throw-midway"
+      ]
+    },
+    {
+      "id": "CHI-MB-SIGN-001",
+      "product": "MoonBot",
+      "source": "ByBitEngine.BuildHMAC`, `BitGetEngine.BuildHMAC",
+      "organ": "chimera_sign",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "rfc-vectors",
+        "base64-vector",
+        "flat",
+        "flat-empty",
+        "path-combinations",
+        "exact-strings",
+        "all-verbs",
+        "long-params",
+        "long-key"
+      ]
+    },
+    {
+      "id": "CHI-MB-CODE-001",
+      "product": "MoonBot",
+      "source": "Common/nethelpers.pas",
+      "organ": "chimera_code",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "vectors",
+        "roundtrip",
+        "canonical-padding",
+        "independent-decode",
+        "skip-foreign",
+        "embedded-zero",
+        "regrow"
+      ]
+    },
+    {
+      "id": "CHI-MB-CODE-002",
+      "product": "MoonBot",
+      "source": "там же, `EncodeTriplet",
+      "organ": "chimera_code",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "plain",
+        "escaped",
+        "separators",
+        "empty",
+        "high-bytes",
+        "all-special"
+      ]
+    },
+    {
+      "id": "CHI-MB-STR-001",
+      "product": "MoonBot",
+      "source": "строковые пути движков",
+      "organ": "chimera_code",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "embedded-zero",
+        "all-bytes",
+        "narrow-wide",
+        "empty",
+        "regrow-by-one",
+        "copy-on-write"
+      ]
+    },
+    {
+      "id": "CHI-MB-JSON-001",
+      "product": "MoonBot",
+      "source": "Common/JsonHelpers.pas` и разборщики движков",
+      "organ": "chimera_json",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "price-as-string",
+        "price-as-number",
+        "independent-scan",
+        "case-insensitive-default",
+        "case-sensitive",
+        "missing-field",
+        "unknown-keys",
+        "nested-array",
+        "filter-by-kind",
+        "rebuild-roundtrip",
+        "to-string-search",
+        "reject-broken",
+        "empty-object"
+      ]
+    },
+    {
+      "id": "CHI-MB-HL-001",
+      "product": "MoonBot",
+      "source": "HyperL/HLSigs.pas`, `HLCrypto.pas",
+      "organ": "chimera_hl",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "digest-vector",
+        "flat-body",
+        "backwards-build",
+        "precomputed-index",
+        "no-special-fields",
+        "copy-keeps-index",
+        "container-object",
+        "container-array",
+        "order-matters",
+        "empty-schema",
+        "long-schema"
+      ]
+    },
+    {
+      "id": "CHI-MB-CLOS-001",
+      "product": "MoonBot",
+      "source": "AssetTransferU",
+      "organ": "chimera_hands",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "threaded",
+        "oracle"
+      ],
+      "branches": [
+        "nested-capture",
+        "thread-capture"
+      ]
+    },
+    {
+      "id": "CHI-MB-CLOS-002",
+      "product": "MoonBot",
+      "source": "там же и соседние",
+      "organ": "chimera_hands",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "managed-capture",
+        "lifetime-balanced",
+        "params"
+      ]
+    },
+    {
+      "id": "CHI-MB-CLOS-003",
+      "product": "MoonBot",
+      "source": "циклы с постановкой задач",
+      "organ": "chimera_hands",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "shared-variable",
+        "per-iteration-copy"
+      ]
+    },
+    {
+      "id": "CHI-MB-CLOS-004",
+      "product": "MoonBot",
+      "source": "—",
+      "organ": "chimera_hands",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "escaped"
+      ]
+    },
+    {
+      "id": "CHI-MB-TASK-001",
+      "product": "MoonBot",
+      "source": "Bworks`, `TaskWorkers",
+      "organ": "chimera_task",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "threaded",
+        "oracle"
+      ],
+      "branches": [
+        "sizes",
+        "offsets",
+        "unaligned-field",
+        "patch-exec",
+        "patch-place",
+        "fill-complete",
+        "transitions",
+        "full-path",
+        "cancel-anywhere",
+        "atomic-numbers",
+        "byte-copy",
+        "threads-overlapped"
+      ]
+    },
+    {
+      "id": "CHI-ARB-WIRE-001",
+      "product": "Arbitrage",
+      "source": "Arb/ArbProto.pas",
+      "organ": "chimera_wire",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "record-sizes",
+        "untyped-wrapper",
+        "length-mismatch"
+      ]
+    },
+    {
+      "id": "CHI-ARB-WIRE-002",
+      "product": "Arbitrage",
+      "source": "там же",
+      "organ": "chimera_wire",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "edges",
+        "full-block-adds-block"
+      ]
+    },
+    {
+      "id": "CHI-ARB-WIRE-003",
+      "product": "Arbitrage",
+      "source": "там же",
+      "organ": "chimera_wire",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "encrypt-in-place",
+        "grow-only-buffer",
+        "no-stale-bytes"
+      ]
+    },
+    {
+      "id": "CHI-ARB-WIRE-004",
+      "product": "Arbitrage",
+      "source": "там же",
+      "organ": "chimera_wire",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "roundtrip",
+        "two-parsers",
+        "reject-overrun",
+        "empty"
+      ]
+    },
+    {
+      "id": "CHI-ARB-CRYPT-001",
+      "product": "Arbitrage",
+      "source": "там же",
+      "organ": "chimera_wire",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "nist-vector",
+        "reject-tampered",
+        "reject-bad-tag",
+        "reject-wrong-key",
+        "reject-truncated",
+        "aad"
+      ]
+    },
+    {
+      "id": "CHI-ARB-CRYPT-002",
+      "product": "Arbitrage",
+      "source": "там же",
+      "organ": "chimera_wire",
+      "status": "covered",
+      "forms": [
+        "whole"
+      ],
+      "branches": [
+        "iv-tail-ignored",
+        "counter-monotonic"
+      ]
+    },
+    {
+      "id": "CHI-ARB-PAIR-001",
+      "product": "Arbitrage",
+      "source": "ArbServer.BuildComboPairs",
+      "organ": "chimera_pairs",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "single-engine",
+        "engine-family",
+        "skipped",
+        "loading-skipped",
+        "nobody-wanted",
+        "price-scale",
+        "denomination"
+      ]
+    },
+    {
+      "id": "CHI-ARB-PAIR-002",
+      "product": "Arbitrage",
+      "source": "там же",
+      "organ": "chimera_pairs",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "table"
+      ]
+    },
+    {
+      "id": "CHI-ARB-NAME-001",
+      "product": "Arbitrage",
+      "source": "ArbServer.TaggedName",
+      "organ": "chimera_name",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "crc-vector",
+        "crc-empty",
+        "single-byte-tag",
+        "grown-tag",
+        "unresolved",
+        "wire-roundtrip",
+        "zero-bytes",
+        "empty-name"
+      ]
+    },
+    {
+      "id": "CHI-ARB-DICT-001",
+      "product": "Arbitrage",
+      "source": "Common/SafeDict.pas",
+      "organ": "chimera_hands",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "threaded",
+        "oracle"
+      ],
+      "branches": [
+        "add-get",
+        "remove",
+        "keys",
+        "for-read",
+        "for-write",
+        "exception-releases-lock",
+        "threaded-readers",
+        "readers-saw-progress"
+      ]
+    },
+    {
+      "id": "CHI-ARB-BUF-001",
+      "product": "Arbitrage",
+      "source": "Common/HelpClasses.pas`, кольцевой буфер",
+      "organ": "chimera_hold",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "empty-refuses",
+        "wrap",
+        "read-back",
+        "clamped-index",
+        "clear",
+        "managed-content",
+        "direct-add",
+        "copy-on-write",
+        "old-body-alive",
+        "delayed-trash",
+        "object-content"
+      ]
+    },
+    {
+      "id": "CHI-ARB-STREAM-001",
+      "product": "Arbitrage",
+      "source": "StreamServer",
+      "organ": "chimera_stream",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "header-layout",
+        "checksum-two-ways",
+        "roundtrip",
+        "canonical-size",
+        "reject-tampered",
+        "checksum-collision",
+        "reject-truncated",
+        "out-of-order",
+        "repeats",
+        "empty-block",
+        "flags",
+        "blocknum-wrap"
+      ]
+    },
+    {
+      "id": "CHI-ARB-GROUP-001",
+      "product": "Arbitrage",
+      "source": "Common/GroupManager.pas",
+      "organ": "chimera_group",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "steady-growth",
+        "too-soon",
+        "stale-revision",
+        "one-side-only",
+        "verdict-flip",
+        "gap-breaks",
+        "clock-back",
+        "dead-data-breaks"
+      ]
+    },
+    {
+      "id": "CHI-ARB-CANON-001",
+      "product": "Arbitrage",
+      "source": "Common/CanonMapper.pas",
+      "organ": "chimera_group",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "same-name-two-assets",
+        "chain-aliases",
+        "native-address",
+        "address-case",
+        "lookup",
+        "per-record-lists"
+      ]
+    },
+    {
+      "id": "CHI-MOR-MAP-001",
+      "product": "mORMot",
+      "source": "ручная карта того, какие крупные связки mORMot реально достижимы из обоих продуктов — до переноса чего-либо",
+      "organ": "chimera_json",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "doc-variant-chain"
+      ]
+    },
+    {
+      "id": "CHI-MB-SIGN-002",
+      "product": "MoonBot",
+      "source": "GateEngine.pas :: BuildHMAC",
+      "organ": "chimera_sign",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "sha512-vector",
+        "hmac512-vector",
+        "line-joined",
+        "empty-body-still-hashed",
+        "body-affects-signature"
+      ]
+    },
+    {
+      "id": "CHI-MB-SIGN-003",
+      "product": "MoonBot",
+      "source": "HuobiEngine.pas :: BuildHMAC",
+      "organ": "chimera_sign",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "comparer",
+        "params-in-out",
+        "sorted-order",
+        "encoded-unsafe",
+        "signature",
+        "empty-params"
+      ]
+    },
+    {
+      "id": "CHI-MB-SIGN-004",
+      "product": "MoonBot",
+      "source": "OKXEngine.pas :: BuildHMAC",
+      "organ": null,
+      "status": "merged-with CHI-MB-SIGN-001",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-ARB-USERS-001",
+      "product": "Arbitrage",
+      "source": "Users/MoonBotUsers.pas :: TryGetUsersList, MaskAddr",
+      "organ": "chimera_users",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "md5-vector",
+        "hmac-md5-vector",
+        "zero-padding",
+        "aligned-gets-nothing",
+        "zero-tail-ambiguous",
+        "cbc-roundtrip",
+        "iv-affects-first-block",
+        "salt-long-enough",
+        "request-body",
+        "two-stage-signature",
+        "url-encoded",
+        "mask-edges"
+      ]
+    },
+    {
+      "id": "CHI-MB-PACK-001",
+      "product": "MoonBot",
+      "source": "MarketsU.pas :: StoreCandlesToZip, BuildCandlesZlibLocked, GetCandlesStream, ApplyRecvdStream",
+      "organ": "chimera_pack",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "record-sizes",
+        "build-matches-oracle",
+        "destlen-covers",
+        "len-lives-in-header",
+        "synlz-roundtrip",
+        "nothing-before-publish",
+        "repack-on-publish",
+        "repack-once",
+        "zlib-roundtrip",
+        "skip-unknown-market",
+        "parse-matches-source",
+        "time-shift-applied",
+        "failure-restores-dirty",
+        "retry-after-failure",
+        "build-old-version",
+        "read-old-version",
+        "future-version-refused",
+        "empty-stream"
+      ]
+    },
+    {
+      "id": "CHI-ARB-TEXT-001",
+      "product": "Arbitrage",
+      "source": "ArbServer/ArbServer.pas :: DumpFilterAnalysis (та же форма — GroupManager.pas, AIClient.pas)",
+      "organ": "chimera_text",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "overflows-stack-buffer",
+        "matches-oracle",
+        "both-decisions",
+        "spread-cut-fires",
+        "stale-and-mismatch",
+        "zero-age",
+        "empty-group-skipped",
+        "single-roundtrip"
+      ]
+    },
+    {
+      "id": "CHI-MB-REUSE-001",
+      "product": "MoonBot",
+      "source": "websocket/WebSocket.Thread.pas :: TWSThread.EmitText; Arbitrage Engines/BinanceEngine.pas (scratch-буфер)",
+      "organ": "chimera_text",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "first-allocates",
+        "shrink-keeps-capacity",
+        "regrow-within-capacity",
+        "short-after-long",
+        "held-survives",
+        "length-based-realloc",
+        "empty-has-no-body"
+      ]
+    },
+    {
+      "id": "CHI-MB-SCAN-001",
+      "product": "MoonBot",
+      "source": "ByBitParser.pas :: TByBitParser.FastParseTradesWS",
+      "organ": "chimera_json",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "two-trades-both-sides",
+        "price-improvement",
+        "nested-object",
+        "alien-body",
+        "too-short",
+        "known-values"
+      ]
+    },
+    {
+      "id": "CHI-MB-SHAKE-001",
+      "product": "MoonBot",
+      "source": "websocket/WebSocket.Thread.pas :: DoHandshake, HttpHeaderIs, HttpHeaderContains",
+      "organ": "chimera_shake",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "base64-vectors",
+        "base64-matches-oracle",
+        "sha1-vector",
+        "path-three-ways",
+        "optional-headers",
+        "accepts-valid",
+        "split-anywhere",
+        "refuse-status",
+        "refuse-upgrade",
+        "refuse-connection",
+        "refuse-accept",
+        "refuse-protocol",
+        "case-insensitive-headers",
+        "deflate-without-takeover",
+        "utf8-table",
+        "utf8-cut-mid-letter"
+      ]
+    },
+    {
+      "id": "CHI-ARB-NAMEHASH-001",
+      "product": "Arbitrage",
+      "source": "Arb/ArbClientU.pas (разрез имени + сумма), Common/GroupManager.pas (приведение имён), движки (сторона сделки)",
+      "organ": "chimera_shake",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "crc32c-vector",
+        "split-and-hash",
+        "non-latin-name",
+        "case-folding",
+        "lowercase-keeps-bytes"
+      ]
+    },
+    {
+      "id": "CHI-MOR-JSON-001",
+      "product": "mORMot",
+      "source": "core.variants/_Safe,_Json,GetAsArray,GetAsDocVariant,GetDocVariantByPath,JSON_FAST_FLOAT + core.base/GetExtended",
+      "organ": "chimera_json",
+      "status": "merged-with CHI-MB-JSON-001",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MOR-CRYPT-001",
+      "product": "mORMot",
+      "source": "crypt.core/TAesGcm,TAesCbc,TSha1,TSha3,TSha256,TSha512,HmacSha256,HmacSha512,Keccak256Full,TAesPrng",
+      "organ": "chimera_wire",
+      "status": "merged-with CHI-ARB-WIRE-001",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MOR-PACK-001",
+      "product": "mORMot",
+      "source": "core.buffers/AlgoSynLZ + RTL zlib — двойное сжатие свечного пакета",
+      "organ": "chimera_pack",
+      "status": "merged-with CHI-MB-PACK-001",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MOR-TEXT-001",
+      "product": "mORMot",
+      "source": "core.text/TTextWriter+TTextWriterStackBuffer,AddDirect,AddU,AddSingle,AddNoJsonEscapeUtf8",
+      "organ": "chimera_text",
+      "status": "merged-with CHI-ARB-TEXT-001",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MOR-STR-001",
+      "product": "mORMot",
+      "source": "core.base/FastSetString,FakeLength,MoveFast,GetRefCount — буфер-строка под ручным управлением",
+      "organ": "chimera_text",
+      "status": "merged-with CHI-MB-REUSE-001",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MOR-UNICODE-001",
+      "product": "mORMot",
+      "source": "core.unicode/StringToUtf8,Utf8DecodeToString,LowerCaseU,SameTextU,IdemPChar,PosExI,IsValidUtf8Buffer + core.data/FindIniNameValue + core.buffers/BinToBase64 + core.base/crc32c",
+      "organ": "chimera_shake",
+      "status": "merged-with CHI-MB-SHAKE-001",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MOR-OS-001",
+      "product": "mORMot",
+      "source": "core.os/FileFromString,StringFromFile,MilliSecsPerHour",
+      "organ": null,
+      "status": "excluded",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MOR-UNUSED-001",
+      "product": "mORMot",
+      "source": "crypt.rsa, core.collections, core.zip/UnZip, lib.lizard, crypt.secure, crypt.openssl",
+      "organ": null,
+      "status": "excluded",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MOR-SOCK-001",
+      "product": "mORMot",
+      "source": "net.sock/TNetAddr и транспорт",
+      "organ": null,
+      "status": "excluded",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MB-STATE-001",
+      "product": "MoonBot",
+      "source": "MoonProto/MoonProtoOrderState.pas :: канон 342/13, ULEB128, посекционная маска, пруф, времена",
+      "organ": "chimera_state",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "offsets-are-cumulative",
+        "uleb-boundaries",
+        "uleb-sizes",
+        "uleb-truncated",
+        "uleb-too-long",
+        "empty-mask",
+        "copy-has-no-diff",
+        "diff-per-section",
+        "nonzero-mask",
+        "partial-roundtrip",
+        "full-roundtrip",
+        "read-runs-out",
+        "desc-roundtrip",
+        "desc-name-limit",
+        "desc-empty-name",
+        "hash-matches-blob",
+        "hash-ignores-name-tail",
+        "hash-covers-everything",
+        "time-roundtrip",
+        "time-empty-is-empty",
+        "time-tz-shift",
+        "crc-vector"
+      ]
+    },
+    {
+      "id": "CHI-MB-FIELD-001",
+      "product": "MoonBot",
+      "source": "MoonProto/StrategySerializer.pas :: коды типов, признак нуля, пропуск поля, словарь имён",
+      "organ": "chimera_field",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "every-type-roundtrip",
+        "zero-flag",
+        "tiny-becomes-zero",
+        "empty-string-is-zero",
+        "skip-unknown-field",
+        "skip-string-and-zero",
+        "unknown-typeid-guess",
+        "name-dictionary"
+      ]
+    },
+    {
+      "id": "CHI-MB-PROTO-005",
+      "product": "MoonBot",
+      "source": "MoonProto/MoonProtoSerialization.pas :: WriteMarketToStream / ReadMarketFromStream",
+      "organ": "chimera_field",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "wire-size-by-rule",
+        "roundtrip",
+        "zero-funding-stays-zero",
+        "zero-across-timezones",
+        "unwanted-still-consumed"
+      ]
+    },
+    {
+      "id": "CHI-MB-BOOK-003",
+      "product": "MoonBot",
+      "source": "EngineBase.pas :: TMarketEngine.ApplyOrderBookDiffKeepZero (зовётся из BitGetEngine.HandleBookUpdate_Site)",
+      "organ": "chimera_book",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "replace-insert-delete",
+        "head-trimmed",
+        "trim-everything",
+        "empty-diff-untouched",
+        "diff-below-all",
+        "delete-all",
+        "order-preserved"
+      ]
+    },
+    {
+      "id": "CHI-MB-BOOK-004",
+      "product": "MoonBot",
+      "source": "MoonProto/MoonProtoOrderBook.pas :: CompareSeq, PackDiffIntoChunks, TOrderBookCache",
+      "organ": "chimera_book",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "oracle"
+      ],
+      "branches": [
+        "seq-wraps",
+        "chunks-complete",
+        "chunks-edge-counts",
+        "chunks-empty",
+        "chunks-uneven-sides",
+        "cache-ordered",
+        "cache-drop-oldest",
+        "cache-expiry-abs",
+        "cache-throttle",
+        "cache-wrap-order"
+      ]
+    },
+    {
+      "id": "CHI-MB-MPSTRUCT-001",
+      "product": "MoonBot",
+      "source": "MoonProto/MoonProto{Int,Trade,UI,Balance,Engine,Strat,Base,Data}Struct.pas — описания сообщений",
+      "organ": "chimera_field",
+      "status": "merged-with CHI-MB-PROTO-005",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MB-MPTRANS-001",
+      "product": "MoonBot",
+      "source": "MoonProto/MoonProto{Engine,Server,Client,UDPServer,UDPClient,EngineServer}.pas, IndyUDPHelper.pas",
+      "organ": null,
+      "status": "excluded",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MB-MPSCHEMA-001",
+      "product": "MoonBot",
+      "source": "MoonProto/StrategySchemaBuilder.pas — сборка описания стратегий из живых описаний типов",
+      "organ": null,
+      "status": "excluded",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MB-MPNODE-001",
+      "product": "MoonBot",
+      "source": "MoonProto/MoonProtoOrderNode.pas — серверная нода ордера",
+      "organ": "chimera_state",
+      "status": "merged-with CHI-MB-STATE-001",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MB-MPFUNC-001",
+      "product": "MoonBot",
+      "source": "MoonProto/MoonProtoFunc.pas — контрольная сумма пакета и постоянные размера датаграммы",
+      "organ": "chimera_shake",
+      "status": "merged-with CHI-ARB-NAMEHASH-001",
+      "forms": [],
+      "branches": []
+    },
+    {
+      "id": "CHI-MB-LIFE-001",
+      "product": "MoonBot",
+      "source": "MyListHelper.pas (обмен элемента с запасанием прежнего), Bworks.pas (116 защит и 99 перехватов) — время жизни управляемых значений и раскрутка кадров",
+      "organ": "chimera_life",
+      "status": "covered",
+      "forms": [
+        "whole",
+        "threaded",
+        "oracle"
+      ],
+      "branches": [
+        "deep-unwind",
+        "deep-normal",
+        "slot-replace",
+        "self-assign",
+        "finally-runs",
+        "raise-in-finally",
+        "reraise",
+        "managed-record",
+        "managed-array",
+        "thread-unwind",
+        "passing"
+      ]
+    }
+  ]
+}

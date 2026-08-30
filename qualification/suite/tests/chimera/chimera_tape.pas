@@ -735,12 +735,19 @@ end;
 
 { ═══ Прогон органа ═══════════════════════════════════════════════════════ }
 
+const
+  { Идентификаторы строк переписи, которые закрывает этот орган. }
+  IdTape  = 'CHI-MB-TAPE-001';
+  IdTrade = 'CHI-MB-TRADE-001';
+
 function ChiTapeRun(const Tape: TChiTape): Int64;
 var
   Mono, Split, V3, V4, Flat: TChiSum;
   BuyMin, SellMin: TChiMinuteRing;
   Steps, Bucketed, Minuted: Int64;
 begin
+  ChiCovered(IdTape);
+  ChiCovered(IdTrade);
   ChiClaim(SizeOf(TChiTrade) = 16, 'лента: запись не шестнадцать байт');
   if Length(Tape) < 2 then
   begin
@@ -770,6 +777,32 @@ begin
   ChiClaim(Steps = Mono.Exact[0], 'лента: счёт шагов разошёлся с формой');
   ChiClaim(Bucketed = Mono.Exact[1], 'лента: счёт корзин разошёлся с формой');
   ChiClaim(Minuted = Mono.Exact[2], 'лента: счёт минут разошёлся с формой');
+
+  { Отметки ветвей. Считаются не отдельными счётчиками, а теми, что орган и
+    так ведёт: лишний счётчик в горячем цикле изменил бы предмет проверки. }
+  ChiBranch(IdTape, 'whole');
+  ChiBranch(IdTape, 'split');
+  ChiBranch(IdTape, 'inline-leaf');
+  ChiBranch(IdTape, 'noinline-cycle');
+  ChiBranch(IdTape, 'oracle');
+  if Mono.Exact[0] > 0 then ChiBranch(IdTape, 'scan');
+  if Mono.Exact[1] > 0 then ChiBranch(IdTape, 'bucket');
+  if Mono.Exact[2] > 0 then ChiBranch(IdTape, 'minute-ring');
+  if Mono.Exact[3] > 0 then ChiBranch(IdTape, 'window-15s');
+  if Mono.Exact[4] > 0 then ChiBranch(IdTape, 'window-5s');
+  if Mono.Exact[5] > 0 then ChiBranch(IdTape, 'sparse-second');
+  if Mono.Exact[6] <> 0 then ChiBranch(IdTape, 'price-down');
+  if Mono.Exact[7] <> 0 then ChiBranch(IdTape, 'price-up');
+  { Досрочный выход по времени: обход обязан оборваться, а не дойти до нуля. }
+  if Mono.Exact[0] < Length(Tape) then ChiBranch(IdTape, 'break-early');
+  ChiClaim(Mono.Exact[0] < Length(Tape),
+    'лента: досрочный выход не сработал — ветка не проверена');
+
+  { Запись ленты: оба способа спросить направление предъявлены — монолит
+    читает бит знака, оракул сравнивает с нулём, и они сошлись выше. }
+  ChiBranch(IdTrade, 'sign-bit');
+  ChiBranch(IdTrade, 'compare');
+  ChiBranch(IdTrade, 'size-16');
 
   Result := ChiFold(Mono);
 end;

@@ -149,6 +149,29 @@ function ChiNear(const A, B: Double; Tol: Double = 1E-9): Boolean;
 { Свёртка итога органа в одно число для печати. }
 function ChiFold(const S: TChiSum): Int64;
 
+{ ═══ Покрытие ═══════════════════════════════════════════════════════════
+
+  Строка переписи считается закрытой не тогда, когда для неё написан код, а
+  тогда, когда этот код ИСПОЛНИЛСЯ. Разница не теоретическая: за время
+  постройки химеры дважды случалось, что перенесённая форма молча работала
+  вхолостую — партия ни разу не перекрывалась с историей, и весь двоичный
+  поиск на стыке не исполнялся ни разу. Программа при этом печатала OK.
+
+  Поэтому каждый орган отмечает и себя, и каждую ветку, ради которой форма
+  переносилась. Отметки печатаются машиночитаемо, и гейт сверяет их с
+  переписью: строка без отметки — незакрытая строка, отметка без строки —
+  неизвестный идентификатор. И то и другое останавливает прогон.
+
+  Счётчики ветвей в многопоточных прогонах плавают от расписания, поэтому
+  предъявляется только факт «больше нуля», а не точное число. }
+
+{ Орган отработал по строке переписи. }
+procedure ChiCovered(const AId: string);
+{ Ветка внутри строки исполнилась ещё раз. }
+procedure ChiBranch(const AId, ABranch: string);
+{ Машиночитаемый отчёт: по строке на идентификатор, ветви отсортированы. }
+function ChiCoverageReport: string;
+
 { Лента: восходящее время, ненулевые количества обоих знаков, цена гуляет
   вокруг единицы. Нулевое количество запрещено намеренно — у нуля два знака, и
   направление такой сделки было бы свойством представления, а не данных. }
@@ -234,11 +257,19 @@ end;
 
 { Наблюдение }
 
+type
+  TChiMark = record
+    Id:     string;
+    Branch: string;
+    Count:  Int64;
+  end;
+
 var
   ClaimLock:  TCriticalSection;
   ClaimBad:   Integer;
   ClaimFirst: string;
   ClaimSeen:  array of string;
+  Marks:      array of TChiMark;
 
 procedure ChiClaim(Condition: Boolean; const What: string);
 begin
@@ -305,6 +336,86 @@ begin
   ChiClaim(A.Digest = B.Digest, Who + ': разошлась дорога');
 end;
 
+{ Отметка ветви. Пустая ветвь означает сам орган: «строка отработала». }
+procedure Mark(const AId, ABranch: string);
+var
+  I: Integer;
+begin
+  ClaimLock.Acquire;
+  try
+    for I := 0 to High(Marks) do
+      if (Marks[I].Id = AId) and (Marks[I].Branch = ABranch) then
+      begin
+        Inc(Marks[I].Count);
+        Exit;
+      end;
+    SetLength(Marks, Length(Marks) + 1);
+    Marks[High(Marks)].Id := AId;
+    Marks[High(Marks)].Branch := ABranch;
+    Marks[High(Marks)].Count := 1;
+  finally
+    ClaimLock.Release;
+  end;
+end;
+
+procedure ChiCovered(const AId: string);
+begin
+  Mark(AId, '');
+end;
+
+procedure ChiBranch(const AId, ABranch: string);
+begin
+  Mark(AId, ABranch);
+end;
+
+function ChiCoverageReport: string;
+var
+  I, J, K: Integer;
+  Ids: array of string;
+  Line: string;
+  Order: array of Integer;
+  Tmp: Integer;
+begin
+  Result := '';
+  ClaimLock.Acquire;
+  try
+    { Порядок отметок задан тем, какой поток успел первым, поэтому вывод
+      сортируется — иначе он не сравнивался бы между сборками. }
+    SetLength(Order, Length(Marks));
+    for I := 0 to High(Marks) do Order[I] := I;
+    for I := 0 to High(Order) - 1 do
+      for J := 0 to High(Order) - 1 - I do
+        if (Marks[Order[J]].Id > Marks[Order[J + 1]].Id)
+           or ((Marks[Order[J]].Id = Marks[Order[J + 1]].Id)
+               and (Marks[Order[J]].Branch > Marks[Order[J + 1]].Branch)) then
+        begin
+          Tmp := Order[J];
+          Order[J] := Order[J + 1];
+          Order[J + 1] := Tmp;
+        end;
+
+    Ids := nil;
+    for I := 0 to High(Order) do
+    begin
+      if Marks[Order[I]].Branch <> '' then Continue;
+      SetLength(Ids, Length(Ids) + 1);
+      Ids[High(Ids)] := Marks[Order[I]].Id;
+    end;
+
+    for K := 0 to High(Ids) do
+    begin
+      Line := 'CHI_COVER ' + Ids[K];
+      for I := 0 to High(Order) do
+        if (Marks[Order[I]].Id = Ids[K]) and (Marks[Order[I]].Branch <> '') then
+          Line := Line + ' ' + Marks[Order[I]].Branch + '='
+                  + IntToStr(Marks[Order[I]].Count);
+      Result := Result + Line + sLineBreak;
+    end;
+  finally
+    ClaimLock.Release;
+  end;
+end;
+
 function ChiFailureList: string;
 var
   I: Integer;
@@ -365,9 +476,11 @@ begin
   Price := 1.0;
   for I := 0 to Count - 1 do
   begin
-    { Шаг времени от нуля до полусекунды: соседние сделки то склеиваются по
-      порогу, то нет, и обе ветки склейки живые. }
-    Step := Src.NextUnit * 0.5 / ChiSecsPerDay;
+    { Шаг времени от нуля до полутора секунд. Верхняя граница выбрана так,
+      чтобы лента заведомо ПЕРЕКРЫЛА самое дальнее окно свёртки: иначе обход
+      доходил бы до начала ленты и досрочный выход по времени — отдельная и
+      вполне ломающаяся ветка — не исполнялся бы ни разу. }
+    Step := Src.NextUnit * 1.5 / ChiSecsPerDay;
     T := T + Step;
     Price := Price * (1.0 + (Src.NextUnit - 0.5) * 0.002);
     Qty := 0.5 + Src.NextUnit * 40.0;

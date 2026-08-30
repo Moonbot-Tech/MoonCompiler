@@ -87,6 +87,8 @@ type
     Spliced:    Int64;   { отброшено стыком как не новее истории }
     Stored:     Int64;   { занято слотов кольца }
     Drains:     Int64;   { сколько раз дренаж дал непустую партию }
+    Wraps:      Int64;   { партия лежала двумя кусками — заворот кольца }
+    Overlaps:   Int64;   { дренаж случился, пока продюсер ещё работал }
     FedQty:     Double;
     MergedQty:  Double;
     DroppedQty: Double;
@@ -125,6 +127,10 @@ function ChiRingDrain(var M: TChiMarket): Integer;
 function ChiRingRun: Int64;
 
 implementation
+
+const
+  { Строка переписи, которую закрывает этот орган. }
+  IdRing = 'CHI-MB-RING-001';
 
 function TChiSchedule.Tick: Boolean;
 begin
@@ -320,6 +326,7 @@ begin
     begin
       Move(M.Ring[LR], Batch[0], First * SizeOf(TChiTrade));
       Move(M.Ring[0], Batch[First], (K - First) * SizeOf(TChiTrade));
+      Inc(M.Wraps);
     end;
   end;
 
@@ -343,6 +350,10 @@ begin
   end;
 
   Inc(M.Drains);
+  { Пересечение потоков: продюсер ещё не объявил, что закончил, а партия уже
+    разбирается. Это прямое доказательство, что многопоточный прогон не
+    выродился в «сначала один, потом другой». }
+  if not M.Done then Inc(M.Overlaps);
   { Публикация прочитанного — последним действием. }
   M.ReadPos := (LR + K) mod ChiRingSize;
   Result := K;
@@ -493,6 +504,7 @@ var
   Books: array of TChiMarket;
   I: Integer;
   Kept: Double;
+  Overlapped, Full, Raced: Integer;
 begin
   SetLength(Books, Markets);
   for I := 0 to Markets - 1 do ChiMarketInit(Books[I]);
@@ -569,6 +581,27 @@ begin
       'кольцо в потоках: время в истории пошло назад');
     ChiClaim(Books[I].MaxSeen > 0, 'кольцо в потоках: наибольшее не заметили');
   end;
+
+  { Доказательство, что потоки действительно пересеклись, а не отработали по
+    очереди. Без него многопоточный прогон был бы дорогой имитацией. }
+  Overlapped := 0;
+  Full := 0;
+  Raced := 0;
+  for I := 0 to Markets - 1 do
+  begin
+    if Books[I].Overlaps > 0 then Inc(Overlapped);
+    if Books[I].Dropped > 0 then Inc(Full);
+    Kept := HistQty(Books[I].Hist, Books[I].HistCount) + RingQty(Books[I])
+            + Books[I].DroppedQty + Books[I].SplicedQty;
+    if Kept < Books[I].FedQty then Inc(Raced);
+  end;
+  ChiClaim(Overlapped > 0,
+    'кольцо в потоках: ни один дренаж не пришёлся на работающего продюсера');
+  ChiBranch(IdRing, 'threaded-overlap');
+  if Full > 0 then ChiBranch(IdRing, 'threaded-ring-full');
+  { Потеря дописанного количества — не дефект, а цена отказа от блокировок.
+    Она случается не в каждом прогоне, поэтому отмечается, но не требуется. }
+  if Raced > 0 then ChiBranch(IdRing, 'threaded-lost-merge');
 end;
 
 { ═══ Орган ═══════════════════════════════════════════════════════════════ }
@@ -582,6 +615,7 @@ var
   I: Integer;
   Bad: Boolean;
 begin
+  ChiCovered(IdRing);
   Sparse := ChiMakeSparseTape(9000, 20260831);
   Dense := ChiMakeDenseTape(9000, 20260901);
 
@@ -615,6 +649,17 @@ begin
 
   { ── Многопоточно: только то, что верно при любом порядке ── }
   RunThreaded(Dense, 12);
+
+  { Отметки ветвей — по счётчикам, которые орган и так ведёт. }
+  ChiBranch(IdRing, 'oracle-flat');
+  if Ms.Stored > 0 then ChiBranch(IdRing, 'feed-store');
+  if Ms.Merged > 0 then ChiBranch(IdRing, 'feed-merge');
+  if Ms.Drains > 0 then ChiBranch(IdRing, 'drain');
+  if Ms.Wraps > 0 then ChiBranch(IdRing, 'drain-wrap');
+  if Md.Spliced > 0 then ChiBranch(IdRing, 'splice-drop');
+  if Md.Spliced < Md.Stored then ChiBranch(IdRing, 'splice-keep');
+  ChiClaim(Ms.Wraps > 0,
+    'кольцо: разрыв кольца ни разу не понадобился — ветка двух Move не проверена');
 
   Result := Int64(DigSparse and $7FFFFFFF) * 1000003
             + Int64(DigDense and $7FFFFFFF)
