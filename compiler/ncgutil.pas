@@ -78,6 +78,7 @@ interface
     procedure gen_restore_used_regs(list:TAsmList);
 
     procedure get_used_regvars(n: tnode; var rv: tusedregvars);
+    procedure get_live_regvars(n: tnode; var rv: tusedregvars);
     { adds the regvars used in n and its children to rv.allregvars,
       those which were already in rv.allregvars to rv.commonregvars and
       uses rv.myregvars as scratch (so that two uses of the same regvar
@@ -102,12 +103,12 @@ interface
 implementation
 
   uses
-    cutils,cclasses,
+    cutils,cclasses,cdynset,
     globals,systems,verbose,
     defutil,symtable,
     procinfo,paramgr,
     dbgbase,
-    nadd,nbas,ncon,nld,nmem,nutils,
+    nadd,nbas,ncon,nld,nmem,nutils,optbase,
     tgobj,cgobj,hlcgobj,hlcgcpu
 {$ifdef powerpc}
     , cpupi
@@ -1179,6 +1180,128 @@ implementation
     procedure get_used_regvars(n: tnode; var rv: tusedregvars);
       begin
         foreachnodestatic(n,@do_get_used_regvars,@rv);
+      end;
+
+
+    type
+      pliveregvarscontext = ^tliveregvarscontext;
+      tliveregvarscontext = record
+        rv: pusedregvars;
+        life: PDFASet;
+        filterfp: boolean;
+      end;
+
+
+    function detect_mixed_fp_conversion(var n: tnode; arg: pointer): foreachnoderesult;
+      var
+        found: pboolean absolute arg;
+      begin
+        if (n.nodetype=typeconvn) and
+           assigned(tunarynode(n).left) and
+           (((is_single(tunarynode(n).left.resultdef)) and
+             (is_double(n.resultdef))) or
+            ((is_double(tunarynode(n).left.resultdef)) and
+             (is_single(n.resultdef)))) then
+          found^:=true;
+        result:=fen_true;
+      end;
+
+
+    function do_get_live_regvars(var n: tnode; arg: pointer): foreachnoderesult;
+      var
+        ctx: pliveregvarscontext absolute arg;
+        highsym: tabstractvarsym;
+      begin
+        case n.nodetype of
+          temprefn:
+            begin
+              { A post-DFA transform must not make loop synchronisation less
+                conservative. The final DFA refresh normally guarantees
+                optinfo here; retain the old rule if it does not. Integer and
+                address regvars also keep the old boundary: splitting their
+                live ranges at loop boundaries can select cheaper-looking but
+                slower caller-saved allocations. }
+              if (ti_valid in ttemprefnode(n).tempflags) and
+                 (not ctx^.filterfp or
+                  not(ttemprefnode(n).tempinfo^.location.loc in
+                      [LOC_CFPUREGISTER,LOC_CMMREGISTER]) or
+                  not assigned(n.optinfo) or
+                  DynSetIn(ctx^.life^,n.optinfo^.index)) then
+                add_regvars(ctx^.rv^,ttemprefnode(n).tempinfo^.location);
+            end;
+          loadn:
+            if (tloadnode(n).symtableentry.typ in
+                [staticvarsym,localvarsym,paravarsym]) and
+               (not ctx^.filterfp or
+                not(tabstractnormalvarsym(
+                      tloadnode(n).symtableentry).localloc.loc in
+                    [LOC_CFPUREGISTER,LOC_CMMREGISTER]) or
+                not assigned(n.optinfo) or
+                DynSetIn(ctx^.life^,n.optinfo^.index)) then
+              add_regvars(ctx^.rv^,
+                tabstractnormalvarsym(tloadnode(n).symtableentry).localloc);
+          loadparentfpn:
+            if current_procinfo.procdef.parast.symtablelevel>
+               tloadparentfpnode(n).parentpd.parast.symtablelevel then
+              add_regvars(ctx^.rv^,
+                tparavarsym(current_procinfo.procdef.parentfpsym).localloc);
+          vecn:
+            begin
+              { The high parameter is an implicit read which node DFA cannot
+                index because no explicit load node exists. }
+              if (cs_check_range in current_settings.localswitches) and
+                 (is_open_array(tvecnode(n).left.resultdef) or
+                  is_array_of_const(tvecnode(n).left.resultdef)) and
+                 not(current_procinfo.procdef.proccalloption in cdecl_pocalls) then
+                begin
+                  highsym:=get_high_value_sym(
+                    tparavarsym(tloadnode(tvecnode(n).left).symtableentry));
+                  add_regvars(ctx^.rv^,
+                    tabstractnormalvarsym(highsym).localloc);
+                end;
+            end;
+          else
+            ;
+        end;
+        result:=fen_true;
+      end;
+
+
+    procedure get_live_regvars(n: tnode; var rv: tusedregvars);
+      var
+        ctx: tliveregvarscontext;
+        mixedfp: boolean;
+      begin
+        { Node DFA models the loop backedge. For Double/wider FP and MM
+          regvars its live-in set therefore omits scratch locals which are
+          definitely written before every read in an iteration, while
+          retaining true loop-carried and read-only values. Integer/address
+          regvars stay conservative because shortening them at loop boundaries
+          can make the global allocator prefer materially slower caller-saved
+          assignments. A loop containing mixed-width scalar FP conversions
+          stays conservative because its values can otherwise be coalesced
+          into dependency chains which cost more than the eliminated moves.
+          An empty set is also the representation left on control flow hidden
+          inside an inline value expression, which procedure DFA treats as an
+          atomic operation. Absence of a calculated set is not proof of an
+          empty backedge: keep the former conservative rule in that case. }
+        if (pi_dfaavailable in current_procinfo.flags) and
+           assigned(n.optinfo) and
+           assigned(n.optinfo^.life) then
+          begin
+            ctx.rv:=@rv;
+            ctx.life:=@n.optinfo^.life;
+            mixedfp:=false;
+            foreachnodestatic(n,@detect_mixed_fp_conversion,@mixedfp);
+            { Legacy scalar FP conversions read part of their destination.
+              Until register allocation models that dependency, shortening
+              the surrounding FP live ranges may coalesce a move-free but
+              slower conversion chain. }
+            ctx.filterfp:=not mixedfp;
+            foreachnodestatic(n,@do_get_live_regvars,@ctx);
+          end
+        else
+          get_used_regvars(n,rv);
       end;
 
 (*

@@ -140,9 +140,13 @@ implementation
                  usedregvars.fpuregvars.init;
                  usedregvars.mmregvars.init;
 
-                 { we have to synchronise both the regvars used in the loop }
-                 { and the ones in the while/until condition                }
-                 get_used_regvars(self,usedregvars);
+                 { Keep integer/address regvars conservative. For FP/MM
+                   regvars, keep only values which node DFA proves live over
+                   the backedge, so per-iteration scratch needs no outer-loop
+                   lifetime. Mixed Single/Double conversion loops keep the
+                   conservative boundary until the allocator models their
+                   partial-register dependency. }
+                 get_live_regvars(self,usedregvars);
                  gen_sync_regvars(current_asmdata.CurrAsmList,usedregvars);
                end
              else
@@ -1209,4 +1213,3 @@ begin
    connode:=tcgonnode;
    cexceptionstatehandler:=tcgexceptionstatehandler;
 end.
-

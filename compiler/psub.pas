@@ -1447,6 +1447,13 @@ implementation
              longjmp is performed }
           not(m_non_local_goto in current_settings.modeswitches) then
          do_consttovar(code);
+
+       { LICM, node CSE and load/modify/store run after the first DFA build.
+         Loop register synchronisation consumes backedge liveness during code
+         generation, so refresh once after the final tree mutation instead of
+         trusting stale or copied live-in sets. }
+       if assigned(dfabuilder) then
+         dfabuilder.redodfainfo(code);
       end;
 
 
