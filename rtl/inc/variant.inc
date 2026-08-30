@@ -393,7 +393,7 @@ operator :=(const source : variant) dest : dword;{$ifdef SYSTEMINLINE}inline;{$e
   var
     converted : variant;
   begin
-    case tvardata(source).vtype and vartypemask of
+    case tvardata(source).vtype of
       varshortint,
       varbyte,
       varword,
@@ -783,7 +783,7 @@ operator :=(const source : olevariant) dest : dword;{$ifdef SYSTEMINLINE}inline;
   var
     converted : variant;
   begin
-    case tvardata(source).vtype and vartypemask of
+    case tvardata(source).vtype of
       varshortint,
       varbyte,
       varword,
@@ -811,13 +811,13 @@ operator :=(const source : olevariant) dest : longint;{$ifdef SYSTEMINLINE}inlin
 
 operator :=(const source : olevariant) dest : qword;{$ifdef SYSTEMINLINE}inline;{$endif}
   begin
-    dest:=variantmanager.vartoint64(variant(tvardata(source)));
+    dest:=variantmanager.vartoword64(variant(tvardata(source)));
   end;
 
 
 operator :=(const source : olevariant) dest : int64;{$ifdef SYSTEMINLINE}inline;{$endif}
   begin
-    dest:=variantmanager.vartoword64(variant(tvardata(source)));
+    dest:=variantmanager.vartoint64(variant(tvardata(source)));
   end;
 
 
