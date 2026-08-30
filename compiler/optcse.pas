@@ -116,6 +116,35 @@ unit optcse;
       end;
 
 
+    function managed_value_cse_is_profitable(n:tnode;
+      additionalrefs:ptruint):boolean;
+      var
+        def : tstoreddef;
+        expressioncost,
+        originalcost,
+        tempcost,
+        usecount : qword;
+      begin
+        result:=true;
+        def:=tstoreddef(n.resultdef);
+        if not def.needs_inittable then
+          exit;
+        { Records, static arrays and objects use a registerable address
+          carrier rather than a managed value temp. }
+        if ((def.typ in [arraydef,recorddef]) or is_object(def)) and
+           not is_dynamic_array(def) then
+          exit;
+
+        usecount:=qword(additionalrefs)+1;
+        expressioncost:=node_complexity(n);
+        originalcost:=usecount*expressioncost;
+        { A managed value temp is memory-backed: calculate the value once,
+          store it once, then load it at every use. }
+        tempcost:=expressioncost+1+usecount;
+        result:=originalcost>tempcost;
+      end;
+
+
     function collectnodes(var n:tnode; arg: pointer) : foreachnoderesult;
 
       { when compiling a tree like
@@ -467,6 +496,17 @@ unit optcse;
                     { current node used more than once? }
                     if assigned(lists.refs[i]) then
                       begin
+                        { Immutable managed value temps currently require a
+                          memory location. Admit them only when eliminating the
+                          repeated expression pays for both the defining store
+                          and every temp reload. }
+                        if not managed_value_cse_is_profitable(
+                            tnode(lists.nodelist[i]),
+                            ptruint(lists.refs[i])) then
+                          begin
+                            templist[i]:=nil;
+                            continue;
+                          end;
                         if not(assigned(statements)) then
                           begin
                             nodes:=internalstatements(statements);
@@ -524,6 +564,14 @@ unit optcse;
                     { current node reference to another node? }
                     else if lists.equalto[i]<>pointer(-1) then
                       begin
+                        if not assigned(templist[ptrint(lists.equalto[i])]) then
+                          begin
+                            { The representative was rejected by the
+                              profitability policy above, so this occurrence
+                              was not replaced and must not be freed below. }
+                            lists.equalto[i]:=pointer(-1);
+                            continue;
+                          end;
                         def:=tstoreddef(tnode(lists.nodelist[i]).resultdef);
                         { we cannot handle register stored records or array in CSE yet
                           but we can store their reference }
