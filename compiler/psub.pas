@@ -1423,6 +1423,15 @@ implementation
           not(pi_has_label in flags) then
          OptimizeLoopInvariants(code);
 
+       { Cache stable dynamic-array descriptor values only after LICM.  The
+         v1 effect model deliberately refuses loops that already contain
+         compiler temps, so introducing the address temp any earlier would
+         hide otherwise profitable invariant index arithmetic from LICM. }
+       if (cs_opt_loopstrength in current_settings.optimizerswitches) and
+          (pi_dfaavailable in flags) and
+          not(pi_has_label in flags) then
+         OptimizeLoopVectorBases(code);
+
        { diagnostic effect-model observe point: the future LICM position -
          after ConvertForLoops/record-write transformation, before node-CSE,
          reached by both the DFA and the non-DFA branch.  Analyzes only;

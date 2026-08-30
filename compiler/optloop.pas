@@ -37,6 +37,7 @@ unit optloop;
     function optimize_record_writes(var n: tnode): boolean;
     function OptimizeForLoop(var node : tnode) : boolean;
     function OptimizeLoopInvariants(var node : tnode) : boolean;
+    function OptimizeLoopVectorBases(var node : tnode) : boolean;
 
   implementation
 
@@ -567,12 +568,14 @@ unit optloop;
       begin
         result:=false;
         if (base.nodetype<>loadn) or
-          not(tloadnode(base).symtableentry.typ in [localvarsym,paravarsym,staticvarsym]) then
+          not(tloadnode(base).symtableentry.typ in [localvarsym,paravarsym]) then
           exit;
-        if tabstractvarsym(tloadnode(base).symtableentry).addr_taken then
+        if (tloadnode(base).symtableentry.typ=paravarsym) and
+           (tparavarsym(tloadnode(base).symtableentry).varspez<>vs_value) then
           exit;
-        if (tloadnode(base).symtableentry.typ=staticvarsym) and
-          (vo_is_thread_var in tstaticvarsym(tloadnode(base).symtableentry).varoptions) then
+        if tabstractvarsym(tloadnode(base).symtableentry).addr_taken or
+          (vo_volatile in
+           tabstractvarsym(tloadnode(base).symtableentry).varoptions) then
           exit;
         result:=not foreachnodestatic(pm_preprocess,loop.t2,@invalidatesimplicitarraybase,
           tloadnode(base).symtableentry);
@@ -1295,6 +1298,264 @@ unit optloop;
       end;
 
 
+{****************************************************************************
+                 Stable dynamic-array base reuse after LICM
+
+  A dynamic-array descriptor already is the element-storage pointer.  When a
+  lowered loop uses the same stable descriptor in at least two read-only direct
+  element expressions, load it once in that loop's preheader and share a typed
+  pointer temp.  At most two bases are selected to bound register pressure.
+  This pass deliberately runs after LICM: opteffect v1 treats compiler temps as
+  an unanalyzable identity, so inserting this temp earlier would hide otherwise
+  profitable invariant index arithmetic from LICM.
+****************************************************************************}
+
+    const
+      loopvectorbase_max_bases = 2;
+
+    type
+      tloopvectorbaseentry = record
+        sym : tabstractvarsym;
+        base : tnode;
+        count : longint;
+        written : boolean;
+        eligible : boolean;
+        temp : ttempcreatenode;
+      end;
+      tloopvectorbaseentries = array of tloopvectorbaseentry;
+      ploopvectorbaseplan = ^tloopvectorbaseplan;
+      tloopvectorbaseplan = record
+        loop : tloopnode;
+        entries : tloopvectorbaseentries;
+      end;
+
+
+    function loopvectorbasecandidate(n : tnode;
+      out sym : tabstractvarsym) : boolean;
+      begin
+        result:=false;
+        sym:=nil;
+{$ifdef cpu64bitaddr}
+        if (n.nodetype<>vecn) or
+           (tvecnode(n).left.nodetype<>loadn) or
+           not(tloadnode(tvecnode(n).left).symtableentry is tabstractvarsym) or
+           not(is_dynamic_array(tvecnode(n).left.resultdef)) or
+           is_packed_array(tvecnode(n).left.resultdef) or
+           (([cs_check_overflow,cs_check_range]*n.localswitches)<>[]) then
+          exit;
+        sym:=tabstractvarsym(tloadnode(tvecnode(n).left).symtableentry);
+        result:=true;
+{$endif cpu64bitaddr}
+      end;
+
+
+    function countloopvectorbases(var n : tnode;arg : pointer) : foreachnoderesult;
+      var
+        plan : ploopvectorbaseplan;
+        sym : tabstractvarsym;
+        i : sizeint;
+      begin
+        result:=fen_false;
+        if n.nodetype=whilerepeatn then
+          exit(fen_norecurse_false);
+        if not loopvectorbasecandidate(n,sym) then
+          exit;
+        plan:=ploopvectorbaseplan(arg);
+        for i:=0 to length(plan^.entries)-1 do
+          if plan^.entries[i].sym=sym then
+            begin
+              inc(plan^.entries[i].count);
+              if n.flags*[nf_write,nf_modify]<>[] then
+                plan^.entries[i].written:=true;
+              exit;
+            end;
+        i:=length(plan^.entries);
+        setlength(plan^.entries,i+1);
+        plan^.entries[i].sym:=sym;
+        plan^.entries[i].base:=tvecnode(n).left.getcopy;
+        plan^.entries[i].count:=1;
+        plan^.entries[i].written:=n.flags*[nf_write,nf_modify]<>[];
+        plan^.entries[i].eligible:=false;
+        plan^.entries[i].temp:=nil;
+      end;
+
+
+    function invalidatesloweredloopbase(var n : tnode;
+      arg : pointer) : foreachnoderesult;
+      begin
+        if n.nodetype=calln then
+          result:=fen_norecurse_true
+        else
+          result:=invalidatesimplicitarraybase(n,arg);
+      end;
+
+
+    function loweredloopbaseisstable(loop : tloopnode;
+      sym : tabstractvarsym) : boolean;
+
+      begin
+        result:=false;
+        if not(sym.typ in [localvarsym,paravarsym]) or
+           sym.addr_taken or
+           (vo_volatile in sym.varoptions) then
+          exit;
+        if (sym.typ=paravarsym) and
+           (tparavarsym(sym).varspez<>vs_value) then
+          exit;
+        if assigned(loop.left) and
+           foreachnodestatic(pm_preprocess,loop.left,
+             @invalidatesloweredloopbase,sym) then
+          exit;
+        result:=not assigned(loop.right) or
+          not foreachnodestatic(pm_preprocess,loop.right,
+            @invalidatesloweredloopbase,sym);
+      end;
+
+
+    function replaceloopvectorbase(var n : tnode;arg : pointer) : foreachnoderesult;
+      var
+        plan : ploopvectorbaseplan;
+        sym : tabstractvarsym;
+        newnode : tnode;
+        i : sizeint;
+      begin
+        result:=fen_false;
+        if n.nodetype=whilerepeatn then
+          exit(fen_norecurse_false);
+        if not loopvectorbasecandidate(n,sym) then
+          exit;
+        plan:=ploopvectorbaseplan(arg);
+        for i:=0 to length(plan^.entries)-1 do
+          if (plan^.entries[i].sym=sym) and
+             assigned(plan^.entries[i].temp) then
+            begin
+              { Keep the pointer as the vector base until type checking.
+                Pointer indexing inserts tc_pointer_2_array only after the
+                regability check; pre-inserting an array type would force the
+                otherwise registerable pointer temp to memory. }
+              newnode:=cvecnode.create(
+                ctemprefnode.create(plan^.entries[i].temp),
+                tvecnode(n).right);
+              tvecnode(n).right:=nil;
+              tvecnode(newnode).vecnodeflags:=
+                tvecnode(n).vecnodeflags+[vnf_internal_address_index];
+              newnode.flags:=n.flags;
+              newnode.fileinfo:=n.fileinfo;
+              newnode.localswitches:=n.localswitches;
+              n.free;
+              n:=newnode;
+              do_firstpass(n);
+              exit(fen_norecurse_false);
+            end;
+      end;
+
+
+    function optimizeloopvectorbasessingle(var n : tnode) : boolean;
+      var
+        plan : tloopvectorbaseplan;
+        initcode,deletecode : tblocknode;
+        initstatements,deletestatements,newstatements : tstatementnode;
+        ptrdef : tpointerdef;
+        oldn : tnode;
+        i,best : sizeint;
+        selected : longint;
+      begin
+        result:=false;
+        plan.loop:=tloopnode(n);
+        setlength(plan.entries,0);
+        if assigned(plan.loop.left) then
+          foreachnodestatic(pm_postprocess,plan.loop.left,
+            @countloopvectorbases,@plan);
+        if assigned(plan.loop.right) then
+          foreachnodestatic(pm_postprocess,plan.loop.right,
+            @countloopvectorbases,@plan);
+        initcode:=nil;
+        deletecode:=nil;
+        try
+          for i:=0 to length(plan.entries)-1 do
+            plan.entries[i].eligible:=
+              (plan.entries[i].count>=2) and
+              not plan.entries[i].written and
+              loweredloopbaseisstable(plan.loop,plan.entries[i].sym);
+          for selected:=1 to loopvectorbase_max_bases do
+            begin
+              best:=-1;
+              for i:=0 to length(plan.entries)-1 do
+                if plan.entries[i].eligible and
+                   not assigned(plan.entries[i].temp) then
+                  begin
+                    if best<0 then
+                      best:=i
+                    else if plan.entries[i].count>
+                            plan.entries[best].count then
+                      best:=i;
+                  end;
+              if best<0 then
+                break;
+              if not assigned(initcode) then
+                begin
+                  initcode:=internalstatements(initstatements);
+                  deletecode:=internalstatements(deletestatements);
+                end;
+              { Generated pointer indexing is an internal address form, not
+                a source-mode permission.  Keep its pointer definition
+                private rather than mutating a reusable source type. }
+              ptrdef:=cpointerdef.create(
+                tarraydef(plan.entries[best].base.resultdef).elementdef);
+              ptrdef.has_pointer_math:=true;
+              plan.entries[best].temp:=ctempcreatenode.create(ptrdef,
+                ptrdef.size,tt_persistent,true);
+              addstatement(initstatements,plan.entries[best].temp);
+              addstatement(initstatements,cassignmentnode.create(
+                ctemprefnode.create(plan.entries[best].temp),
+                { The descriptor value is already the payload pointer;
+                  @array[0] would manufacture another vector access. }
+                ctypeconvnode.create_internal(
+                  plan.entries[best].base,ptrdef)));
+              plan.entries[best].base:=nil;
+              addstatement(deletestatements,
+                ctempdeletenode.create(plan.entries[best].temp));
+            end;
+          if not assigned(initcode) then
+            exit;
+          if assigned(plan.loop.left) then
+            foreachnodestatic(pm_postprocess,plan.loop.left,
+              @replaceloopvectorbase,@plan);
+          if assigned(plan.loop.right) then
+            foreachnodestatic(pm_postprocess,plan.loop.right,
+              @replaceloopvectorbase,@plan);
+          do_firstpass(tnode(initcode));
+          do_firstpass(tnode(deletecode));
+          oldn:=n;
+          n:=internalstatements(newstatements);
+          addstatement(newstatements,initcode);
+          addstatement(newstatements,oldn);
+          addstatement(newstatements,deletecode);
+          result:=true;
+        finally
+          for i:=0 to length(plan.entries)-1 do
+            plan.entries[i].base.free;
+          setlength(plan.entries,0);
+        end;
+      end;
+
+
+    function loopvectorbasewalk(var n : tnode;arg : pointer) : foreachnoderesult;
+      begin
+        result:=fen_false;
+        if (n.nodetype=whilerepeatn) and
+           optimizeloopvectorbasessingle(n) then
+          pboolean(arg)^:=true;
+      end;
+
+
+    function OptimizeLoopVectorBases(var node : tnode) : boolean;
+      begin
+        result:=false;
+        foreachnodestatic(pm_preprocess,node,@loopvectorbasewalk,@result);
+      end;
+
+
     function OptimizeInductionVariables(node : tnode) : boolean;
       var
         ctx : toptimizeinductionvariablescontext;
@@ -1906,4 +2167,3 @@ unit optloop;
       end;
 
 end.
-
