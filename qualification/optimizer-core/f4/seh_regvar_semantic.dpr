@@ -90,20 +90,26 @@ begin
   Result := False;
 end;
 
-function LiveThroughAV(P: PInteger): Integer; noinline;
+function LiveThroughAV(P: PInteger; Seed: Integer): Integer; noinline;
 var
-  X, Y, Z: Integer;
+  A, B, C, D, E, F: Integer;
 begin
-  X := 42;
-  Y := 1000;
-  Z := 7;
+  { Keep several values computed from an opaque caller input live across the
+    hardware exception.  Literal initializers let constant folding replace the
+    entire post-handler digest and cannot prove the RA/unwind contract. }
+  A := Seed * 3 + 1;
+  B := Seed * 5 + 2;
+  C := Seed * 7 + 7;
+  D := Seed * 10 + 7;
+  E := Seed * 14;
+  F := Seed * 18 + 1;
   try
     P^ := 1;
   except
     on EAccessViolation do
       ;
   end;
-  Result := X + Y * 2 + Z * 3;
+  Result := A + B * 3 + C * 5 + D * 7 + E * 11 + F * 13;
 end;
 
 function AssignedInsideReadAfter(P: PInteger; Bias: Integer): Integer; noinline;
@@ -306,8 +312,8 @@ var
   ResultCarrier: TResultCarrier;
   Taken: Pointer;
 begin
-  Check('live/av', LiveThroughAV(nil), 2063);
-  Check('live/ok', LiveThroughAV(@Sink), 2063);
+  Check('live/av', LiveThroughAV(nil, ParamCount + 11), 5725);
+  Check('live/ok', LiveThroughAV(@Sink, ParamCount + 11), 5725);
   Check('assigned/av', AssignedInsideReadAfter(nil, 2), 110);
   Check('assigned/ok', AssignedInsideReadAfter(@Sink, 2), 110);
   Check('first-assigned/av', FirstAssignedInsideReadAfter(nil, 3), 33);

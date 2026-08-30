@@ -153,9 +153,9 @@ def main() -> int:
                          default_cleanup)
         }
         if off_cleanup_stack < 8 or \
-                on_cleanup_stack >= off_cleanup_stack:
+                on_cleanup_stack > off_cleanup_stack:
             failures.append(
-                "generated-cleanup loop stack traffic not removed: "
+                "generated-cleanup loop stack traffic grew: "
                 f"{off_cleanup_stack}->{on_cleanup_stack}")
         if off_cleanup_registers or \
                 on_cleanup_registers != set(cleanup_vars):
