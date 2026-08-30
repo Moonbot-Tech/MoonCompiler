@@ -32,6 +32,8 @@ type
   end;
 
   tx86regfactarray = array of tx86regfact;
+  tx86pointerarray = array of pointer;
+  tx86versionindex = array[tregistertype] of tx86pointerarray;
 
   tx86insnflowview = record
     ebb : longword;
@@ -56,10 +58,17 @@ type
     fdecoder : tx86asmoptimizer;
     ffacts,
     fversions : tfplist;
+    ffactindex : array of pointer;
+    ffactindexcount : sizeint;
+    fversionindex : tx86versionindex;
     febb : longword;
     fgeneration : longword;
     fsummary : tx86flowsummary;
     procedure clearfacts;
+    procedure clearversions;
+    procedure rehashfactindex(newcapacity : sizeint);
+    procedure indexfact(fact : pointer);
+    function indexedfact(insn : tai) : pointer;
     procedure resetblock;
     function versionentry(reg : tregister) : pointer;
     function currentversion(reg : tregister) : longword;
@@ -166,12 +175,98 @@ procedure tx86flowfacts.clearfacts;
   var
     i : longint;
   begin
+    setlength(ffactindex,0);
+    ffactindexcount:=0;
     for i:=0 to ffacts.count-1 do
       tx86insnflowfact(ffacts[i]).free;
     ffacts.clear;
+    clearversions;
+  end;
+
+
+procedure tx86flowfacts.clearversions;
+  var
+    i : longint;
+    regtype : tregistertype;
+  begin
     for i:=0 to fversions.count-1 do
       dispose(pregversion(fversions[i]));
     fversions.clear;
+    for regtype:=low(tregistertype) to high(tregistertype) do
+      setlength(fversionindex[regtype],0);
+  end;
+
+
+function factindexslot(insn : tai; mask : sizeint) : sizeint; inline;
+  var
+    key : ptruint;
+  begin
+    { Assembler nodes are aligned pointers.  Remove the alignment bits and mix
+      the arena/page part before applying the power-of-two table mask. }
+    key:=ptruint(insn) shr 4;
+    key:=key xor (key shr 9);
+    result:=sizeint(key and ptruint(mask));
+  end;
+
+
+procedure tx86flowfacts.rehashfactindex(newcapacity : sizeint);
+  var
+    oldindex : array of pointer;
+    i,slot,mask : sizeint;
+    fact : tx86insnflowfact;
+  begin
+    oldindex:=ffactindex;
+    setlength(ffactindex,newcapacity);
+    fillchar(ffactindex[0],newcapacity*sizeof(pointer),0);
+    ffactindexcount:=0;
+    mask:=newcapacity-1;
+    for i:=0 to length(oldindex)-1 do
+      if assigned(oldindex[i]) then
+        begin
+          fact:=tx86insnflowfact(oldindex[i]);
+          slot:=factindexslot(fact.instruction,mask);
+          while assigned(ffactindex[slot]) do
+            slot:=(slot+1) and mask;
+          ffactindex[slot]:=fact;
+          inc(ffactindexcount);
+        end;
+  end;
+
+
+procedure tx86flowfacts.indexfact(fact : pointer);
+  var
+    slot,mask : sizeint;
+  begin
+    if length(ffactindex)=0 then
+      rehashfactindex(64)
+    else if (ffactindexcount+1)*2>length(ffactindex) then
+      rehashfactindex(length(ffactindex)*2);
+    mask:=length(ffactindex)-1;
+    slot:=factindexslot(tx86insnflowfact(fact).instruction,mask);
+    while assigned(ffactindex[slot]) do
+      slot:=(slot+1) and mask;
+    ffactindex[slot]:=fact;
+    inc(ffactindexcount);
+  end;
+
+
+function tx86flowfacts.indexedfact(insn : tai) : pointer;
+  var
+    slot,mask : sizeint;
+    fact : tx86insnflowfact;
+  begin
+    if length(ffactindex)=0 then
+      exit(nil);
+    mask:=length(ffactindex)-1;
+    slot:=factindexslot(insn,mask);
+    while assigned(ffactindex[slot]) do
+      begin
+        fact:=tx86insnflowfact(ffactindex[slot]);
+        if fact.instruction=insn then
+          exit(fact);
+        slot:=(slot+1) and mask;
+      end;
+    result:=nil;
   end;
 
 
@@ -185,33 +280,40 @@ procedure tx86flowfacts.invalidate;
 
 
 procedure tx86flowfacts.resetblock;
-  var
-    i : longint;
   begin
-    for i:=0 to fversions.count-1 do
-      dispose(pregversion(fversions[i]));
-    fversions.clear;
+    clearversions;
     inc(febb);
   end;
 
 
 function tx86flowfacts.versionentry(reg : tregister) : pointer;
   var
-    i : longint;
     key : tregister;
+    regtype : tregistertype;
+    regnumber : tsuperregister;
+    newlength : sizeint;
     entry : pregversion;
   begin
     key:=normalizedreg(reg);
-    for i:=0 to fversions.count-1 do
+    regtype:=getregtype(key);
+    regnumber:=getsupreg(key);
+    if regnumber>=length(fversionindex[regtype]) then
       begin
-        entry:=pregversion(fversions[i]);
-        if samereg(entry^.reg,key) then
-          exit(entry);
+        newlength:=length(fversionindex[regtype]);
+        if newlength=0 then
+          newlength:=64;
+        while newlength<=regnumber do
+          newlength:=newlength*2;
+        setlength(fversionindex[regtype],newlength);
       end;
+    entry:=pregversion(fversionindex[regtype][regnumber]);
+    if assigned(entry) then
+      exit(entry);
     new(entry);
     entry^.reg:=key;
     entry^.version:=0;
     fversions.add(entry);
+    fversionindex[regtype][regnumber]:=entry;
     result:=entry;
   end;
 
@@ -316,6 +418,7 @@ procedure tx86flowfacts.buildinstruction(insn : taicpu;
       end;
     setlength(fact.regs,n);
     ffacts.add(fact);
+    indexfact(fact);
     inc(fsummary.instructions);
   end;
 
@@ -364,7 +467,7 @@ procedure tx86flowfacts.build(fullimplicit : boolean);
 function tx86flowfacts.readfact(insn : tai;
   expectedgeneration : longword; out view : tx86insnflowview) : boolean;
   var
-    i : longint;
+    fact : tx86insnflowfact;
   begin
     if expectedgeneration<>fgeneration then
       begin
@@ -372,13 +475,13 @@ function tx86flowfacts.readfact(insn : tai;
           expectedgeneration,' but current generation is ',fgeneration);
         internalerror(2026082901);
       end;
-    for i:=0 to ffacts.count-1 do
-      if tx86insnflowfact(ffacts[i]).instruction=insn then
-        begin
-          view.ebb:=tx86insnflowfact(ffacts[i]).ebb;
-          view.regs:=tx86insnflowfact(ffacts[i]).regs;
-          exit(true);
-        end;
+    fact:=tx86insnflowfact(indexedfact(insn));
+    if assigned(fact) then
+      begin
+        view.ebb:=fact.ebb;
+        view.regs:=fact.regs;
+        exit(true);
+      end;
     view.ebb:=0;
     setlength(view.regs,0);
     result:=false;
