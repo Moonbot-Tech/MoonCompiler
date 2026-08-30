@@ -3509,11 +3509,19 @@ begin
   Result:=True;
   ExceptionCount:=0;
   CancelCount:=0;
+  NeedSync:=False;
   if aTimeout<>INFINITE then
     Watch:=TStopWatch.StartNew;
   for TaskI in aTasks do
-    if (TaskI as TTask)=Nil then
+    begin
+    Task:=TaskI as TTask;
+    if Task=Nil then
       raise EArgumentNilException.Create(SErrWaitNilTask);
+    if not Task.IsComplete and Task.FParams.Pool.FInteractive then
+      NeedSync:=True;
+    end;
+  NeedSync:=NeedSync and
+    (TThread.CurrentThread.ThreadID=MainThreadID);
   for TaskI in aTasks do
     begin
     Task:=TaskI as TTask;
@@ -3521,8 +3529,6 @@ begin
       begin
       if (aTimeout=INFINITE) and Task.InternalExecuteNow and Task.IsComplete then
         Continue;
-      NeedSync:=(TThread.CurrentThread.ThreadID=MainThreadID) and
-        Task.FParams.Pool.FInteractive;
       if NeedSync then
         begin
         Repeat
@@ -3570,6 +3576,7 @@ end;
 class function TTask.DoWaitForAny(const aTasks: array of ITask; aTimeout: Cardinal): Integer;
 var
   CompleteTask: ITask;
+  Task: TTask;
   Lock : TSpinLock;
   Event : TEvent;
   CompleteProc: TITaskProc;
@@ -3581,12 +3588,16 @@ var
 
 begin
   Result:=-1;
+  NeedSync:=False;
   for I:=Low(aTasks) to High(aTasks) do
     begin
-    if (aTasks[I] as TTask)=Nil then
+    Task:=aTasks[I] as TTask;
+    if Task=Nil then
       raise EArgumentNilException.Create(SErrWaitNilTask);
-    if (Result=-1) and (aTasks[I] as TTask).IsComplete then
+    if (Result=-1) and Task.IsComplete then
       Result:=I;
+    if not Task.IsComplete and Task.FParams.Pool.FInteractive then
+      NeedSync:=True;
     end;
   if Result<>-1 then
     begin
@@ -3595,8 +3606,8 @@ begin
     end;
   if Length(aTasks)=0 then
     Exit;
-  NeedSync:=(TThread.CurrentThread.ThreadID=MainThreadID) and
-    (aTasks[0] as TTask).FParams.Pool.FInteractive;
+  NeedSync:=NeedSync and
+    (TThread.CurrentThread.ThreadID=MainThreadID);
   Lock:=TSpinLock.Create(False);
   Waiting:=True;
   CompleteTask:=Nil;

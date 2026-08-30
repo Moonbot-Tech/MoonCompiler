@@ -248,6 +248,84 @@ begin
   end;
 end;
 
+procedure CheckMixedInteractiveOrder(AWaitAll, AInteractiveFirst: Boolean);
+var
+  NonInteractivePool, InteractivePool: TThreadPool;
+  NonInteractiveTask, InteractiveTask: ITask;
+  Gate: TEvent;
+  WaitResult: Boolean;
+  WaitIndex: Integer;
+  Value: Integer;
+begin
+  NonInteractivePool:=TThreadPool.Create;
+  InteractivePool:=TThreadPool.Create;
+  Gate:=TEvent.Create(Nil,True,False,'');
+  try
+    InteractivePool.Interactive:=True;
+    Value:=0;
+    WaitResult:=False;
+    NonInteractiveTask:=TTask.Run(
+      procedure
+      begin
+        if Gate.WaitFor(2000)<>wrSignaled then
+          raise Exception.Create('mixed-pool gate timeout');
+      end,NonInteractivePool);
+    InteractiveTask:=TTask.Run(
+      procedure
+      begin
+        TThread.Synchronize(Nil,
+          procedure
+          begin
+            Value:=42;
+            Gate.SetEvent;
+          end);
+      end,InteractivePool);
+    if AWaitAll then
+      begin
+      if AInteractiveFirst then
+        WaitResult:=TTask.WaitForAll(
+          [InteractiveTask,NonInteractiveTask],1000)
+      else
+        WaitResult:=TTask.WaitForAll(
+          [NonInteractiveTask,InteractiveTask],1000);
+      end
+    else
+      begin
+      if AInteractiveFirst then
+        WaitIndex:=TTask.WaitForAny(
+          [InteractiveTask,NonInteractiveTask],1000)
+      else
+        WaitIndex:=TTask.WaitForAny(
+          [NonInteractiveTask,InteractiveTask],1000);
+      WaitResult:=WaitIndex>=0;
+      end;
+  finally
+    Gate.SetEvent;
+    if (InteractiveTask<>Nil) and
+       (InteractiveTask.Status in
+         [TTaskStatus.Created,TTaskStatus.WaitingToRun,TTaskStatus.Running,
+          TTaskStatus.WaitingForChildren]) then
+      CheckSynchronize(2000);
+    if NonInteractiveTask<>Nil then
+      NonInteractiveTask.Wait(2000);
+    if InteractiveTask<>Nil then
+      InteractiveTask.Wait(2000);
+    Gate.Free;
+    NonInteractivePool.Free;
+    InteractivePool.Free;
+  end;
+  Check(WaitResult,'mixed-pool wait result');
+  Check(Value=42,'mixed-pool synchronized callback');
+end;
+
+procedure CheckMixedInteractive;
+begin
+  CheckMixedInteractiveOrder(False,False);
+  CheckMixedInteractiveOrder(False,True);
+  CheckMixedInteractiveOrder(True,False);
+  CheckMixedInteractiveOrder(True,True);
+end;
+
 procedure CheckTimespan(APool: TThreadPool);
 var
   Task: ITask;
@@ -287,5 +365,7 @@ begin
   CheckTimespan(Pool);
   WriteLn('task-wait: interactive');
   CheckInteractive;
+  WriteLn('task-wait: mixed interactive pools');
+  CheckMixedInteractive;
   WriteLn('TASK_WAIT_SEMANTIC_PASS');
 end.
