@@ -2234,11 +2234,24 @@ implementation
         result:=fen_false;
         case n.nodetype of
           tryfinallyn:
-            { Explicit finally bodies are already outlined.  The implicit
-              cleanup inserted by add_entry_exit_code still owns its tree. }
-            if assigned(ttryfinallynode(n).right) then
-              foreachnodestatic(ttryfinallynode(n).right,
-                @seh_mark_referenced,nil);
+            begin
+              { A local Exit/Break/Continue reaches an outlined finally via
+                _FPC_local_unwind.  A scalar function result otherwise may
+                live directly in the volatile ABI return register, which the
+                cleanup is free to clobber before control reaches the common
+                function exit.  Keep the result in the frame whenever a
+                finally exists; distinguishing every control-flow edge here
+                would require the later CFG that this early scan does not
+                own. }
+              if assigned(current_procinfo.procdef.funcretsym) then
+                tabstractvarsym(current_procinfo.procdef.funcretsym).varregable:=
+                  vr_none;
+              { Explicit finally bodies are already outlined.  The implicit
+                cleanup inserted by add_entry_exit_code still owns its tree. }
+              if assigned(ttryfinallynode(n).right) then
+                foreachnodestatic(ttryfinallynode(n).right,
+                  @seh_mark_referenced,nil);
+            end;
           tryexceptn:
             begin
               if assigned(ttryexceptnode(n).right) then

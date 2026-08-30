@@ -26,6 +26,17 @@ type
     function GetEnumerator: TCountedEnumerator;
   end;
 
+  TResultCarrier = class
+  private
+    FHeld: Pointer;
+    FCleanups: Integer;
+    procedure Leave; noinline;
+  public
+    constructor Create;
+    function Take(out Value: Pointer): Boolean; noinline;
+    property Cleanups: Integer read FCleanups;
+  end;
+
 constructor TCountedEnumerator.Create(ALast: Integer);
 begin
   inherited Create;
@@ -50,6 +61,33 @@ end;
 function TCountedRange.GetEnumerator: TCountedEnumerator;
 begin
   Result := TCountedEnumerator.Create(Last);
+end;
+
+constructor TResultCarrier.Create;
+begin
+  inherited Create;
+  FHeld := Pointer(1234);
+end;
+
+procedure TResultCarrier.Leave;
+begin
+  Inc(FCleanups);
+end;
+
+function TResultCarrier.Take(out Value: Pointer): Boolean;
+begin
+  Value := nil;
+  try
+    if FHeld <> nil then
+    begin
+      Value := FHeld;
+      FHeld := nil;
+      Exit(True);
+    end;
+  finally
+    Leave;
+  end;
+  Result := False;
 end;
 
 function LiveThroughAV(P: PInteger): Integer; noinline;
@@ -265,6 +303,8 @@ end;
 
 var
   Sink: Integer;
+  ResultCarrier: TResultCarrier;
+  Taken: Pointer;
 begin
   Check('live/av', LiveThroughAV(nil), 2063);
   Check('live/ok', LiveThroughAV(@Sink), 2063);
@@ -276,6 +316,14 @@ begin
   Finalized := 0;
   Check('exit/finally', ExitThroughFinally(100), 15);
   Check('exit/count', Finalized, 4);
+  ResultCarrier := TResultCarrier.Create;
+  try
+    Check('exit-result/value', Ord(ResultCarrier.Take(Taken)), 1);
+    Check('exit-result/payload', Integer(PtrUInt(Taken)), 1234);
+    Check('exit-result/cleanup', ResultCarrier.Cleanups, 1);
+  finally
+    ResultCarrier.Free;
+  end;
   Check('nested-record-fallback', NestedRecordFallback(11), 45);
   Check('nested-handler/static-chain/normal',
     NestedHandlerStaticChain(11, False), 56);
