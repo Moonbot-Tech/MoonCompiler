@@ -51,6 +51,20 @@ def say(*parts: object) -> None:
     print("[%s]" % time.strftime("%H:%M:%S"), *parts, flush=True)
 
 
+def build_failure_detail(log: str) -> str:
+    """Keep the linker/compiler cause, not only FPC's final wrapper error."""
+    selected: list[str] = []
+    for line in log.splitlines():
+        stripped = line.strip()
+        if ("Error" in stripped or "Fatal" in stripped or
+                "cannot find" in stripped or "undefined reference" in stripped):
+            if stripped not in selected:
+                selected.append(stripped)
+        if len(selected) == 4:
+            break
+    return " | ".join(selected)[:500] if selected else "?"
+
+
 def behaviour(work: Path, label: str, extra: list[str], profile: str,
               timeout: int, rebuild: bool = True) -> tuple[Build | None, str]:
     """Собрать с добавленными ключами и снять поведение программы."""
@@ -64,9 +78,7 @@ def behaviour(work: Path, label: str, extra: list[str], profile: str,
         cmd = [c for c in cmd if c != "-B"]
     code, log = run(cmd, work, timeout)
     if code != 0:
-        bad = [l.strip() for l in log.splitlines()
-               if "Error" in l or "Fatal" in l][:1]
-        return None, "REJECTED: " + (bad[0][:70] if bad else "?")
+        return None, "REJECTED: " + build_failure_detail(log)
     exe = tc.executable(out, "devil")
     if not exe.exists():
         return None, "REJECTED: no executable"

@@ -19,8 +19,10 @@ sys.path.insert(0, str(SCRIPTS))
 import generate_devil
 import run_devil_env_gate
 import run_devil_gate
+import run_devil_modes_gate
 import run_devil_mutation
 import run_devil_resident_gate
+import run_topology_gate
 import devil_toolchain
 
 
@@ -29,6 +31,46 @@ def sha256(path: Path) -> str:
 
 
 class DevilRunnerContractsTest(unittest.TestCase):
+    def test_mode_failure_keeps_the_underlying_linker_cause(self) -> None:
+        log = """Error: Error while linking
+Fatal: Compilation aborted
+/usr/bin/ld.bfd: cannot find -lkernel32.dll: No such file or directory
+"""
+        detail = run_devil_modes_gate.build_failure_detail(log)
+        self.assertIn("Error while linking", detail)
+        self.assertIn("cannot find -lkernel32.dll", detail)
+
+    def test_topology_accepts_only_the_exact_dvl_0066_boundary(self) -> None:
+        known = {
+            "topology": "cycle-iface-impl",
+            "symbol": "generic-holder",
+            "carrier": "plain",
+            "profile": "release",
+            "extra": [],
+            "errors": [
+                "Error: Symbol T from module U1 registered with current module U0"
+            ],
+        }
+        self.assertTrue(run_topology_gate.accepted_build_failure(known))
+        self.assertFalse(run_topology_gate.accepted_build_failure({
+            **known, "symbol": "private-class-var",
+        }))
+        self.assertFalse(run_topology_gate.accepted_build_failure({
+            **known, "topology": "acyclic",
+        }))
+        self.assertFalse(run_topology_gate.accepted_build_failure({
+            **known, "profile": "debug",
+        }))
+        self.assertFalse(run_topology_gate.accepted_build_failure({
+            **known, "errors": ["Fatal: Internal error 123"],
+        }))
+        self.assertTrue(run_topology_gate.accepted_build_failure({
+            **known, "profile": "o1", "extra": ["-OoAUTOINLINE"],
+        }))
+        self.assertTrue(run_topology_gate.accepted_build_failure({
+            **known, "carrier": "explicit-inline", "profile": "debug",
+        }))
+
     def test_product_profiles_keep_range_checks_disabled(self) -> None:
         debug = ["-O-", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa"]
         release = ["-O3", "-gl", "-gw3", "-Ci", "-Co-", "-Cr-", "-Ct-", "-Sa-"]

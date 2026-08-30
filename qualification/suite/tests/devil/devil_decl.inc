@@ -344,7 +344,11 @@ begin
   DevilCheckU('dvl-decl-00014-still-points', UInt64(Cardinal(P^)), 15);
 end;
 
+{$ifdef MSWINDOWS}
 function DvlTicks00015: UInt64; stdcall; external 'kernel32.dll' name 'GetTickCount64';
+{$else MSWINDOWS}
+function DvlTicks00015: LongInt; cdecl; external 'c' name 'getpid';
+{$endif MSWINDOWS}
 
 procedure DvlDecl00015;
 var

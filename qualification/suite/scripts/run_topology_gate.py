@@ -214,6 +214,26 @@ TOPOLOGIES = {
     "acyclic": {"units": 2, "edges": [(0, 1, "m")]},
 }
 
+KNOWN_GENERIC_CYCLE_TOPOLOGIES = {
+    "cycle-iface-impl", "cycle-impl-impl", "triangle-impl",
+    "triangle-mixed", "ring-four",
+}
+
+
+def accepted_build_failure(row: dict) -> bool:
+    """Exact dvl-0066 boundary, without hiding other build failures."""
+    if row.get("symbol") != "generic-holder" or \
+            row.get("topology") not in KNOWN_GENERIC_CYCLE_TOPOLOGIES:
+        return False
+    errors = [line for line in row.get("errors", []) if "Error:" in line]
+    if not errors or not all("registered with current module" in line
+                             for line in errors):
+        return False
+    if row.get("carrier") == "explicit-inline":
+        return True
+    return row.get("profile") == "release" or \
+        row.get("extra") == ["-OoAUTOINLINE"]
+
 
 def emit_unit(prefix: str, index: int, total: int, topo: dict, symbol: dict,
               carrier: dict, donor: int) -> str:
@@ -366,6 +386,7 @@ def main() -> int:
 
     rows: list[dict] = []
     findings: list[dict] = []
+    known_findings: list[dict] = []
     started = time.time()
     counter = 0
 
@@ -389,11 +410,20 @@ def main() -> int:
                     rows.append(row)
 
                     if not result["built"]:
-                        findings.append({"kind": "build-failed", "label": label,
-                                         "profile": profile, "extra": extra,
-                                         "case": prefix,
-                                         "errors": result["errors"]})
-                        print(f"BUILD FAILED  {label}  {profile} {' '.join(extra)}")
+                        finding = {"kind": "build-failed", "label": label,
+                                   "profile": profile, "extra": extra,
+                                   "case": prefix, "topology": topo_name,
+                                   "symbol": symbol_name,
+                                   "carrier": carrier_name,
+                                   "errors": result["errors"]}
+                        if accepted_build_failure(finding):
+                            finding["known"] = "dvl-0066"
+                            known_findings.append(finding)
+                            prefix_text = "KNOWN dvl-0066"
+                        else:
+                            findings.append(finding)
+                            prefix_text = "BUILD FAILED"
+                        print(f"{prefix_text}  {label}  {profile} {' '.join(extra)}")
                         for line in result["errors"][:2]:
                             print("    ", line[:150])
                     elif result["output"] != "TOPO_OK":
@@ -405,6 +435,7 @@ def main() -> int:
                               f"{result['output']}")
 
     report = {"rows": rows, "findings": findings,
+              "known_findings": known_findings,
               "seconds": round(time.time() - started, 1)}
     if args.report:
         args.report.write_text(json.dumps(report, indent=2, ensure_ascii=False),
@@ -415,7 +446,8 @@ def main() -> int:
     if findings:
         print(f"TOPOLOGY FINDINGS findings={len(findings)}")
         return 1
-    print(f"TOPOLOGY OK cases={counter} builds={len(rows)}")
+    print(f"TOPOLOGY OK cases={counter} builds={len(rows)} "
+          f"known={len(known_findings)}")
     return 0
 
 

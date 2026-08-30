@@ -10437,8 +10437,13 @@ def layer_declarations(e: Emitter, rng: random.Random, count: int,
             e.line("end;")
 
         elif shape == "external-import":
+            e.line("{$ifdef MSWINDOWS}")
             e.line("function DvlTicks%s: UInt64; stdcall; "
                    "external 'kernel32.dll' name 'GetTickCount64';" % tag)
+            e.line("{$else MSWINDOWS}")
+            e.line("function DvlTicks%s: LongInt; cdecl; "
+                   "external 'c' name 'getpid';" % tag)
+            e.line("{$endif MSWINDOWS}")
             e.line()
             e.line("procedure %s;" % proc)
             e.line("var")
@@ -10456,8 +10461,12 @@ def layer_declarations(e: Emitter, rng: random.Random, count: int,
 
         elif shape == "external-varargs":
             e.line("function DvlFormat%s(Buffer: PAnsiChar; const Fmt: PAnsiChar): "
-                   "Integer; cdecl; varargs; external 'msvcrt.dll' name 'sprintf';"
-                   % tag)
+                   "Integer; cdecl; varargs;" % tag)
+            e.line("{$ifdef MSWINDOWS}")
+            e.line("  external 'msvcrt.dll' name 'sprintf';")
+            e.line("{$else MSWINDOWS}")
+            e.line("  external 'c' name 'sprintf';")
+            e.line("{$endif MSWINDOWS}")
             e.line()
             e.line("procedure %s;" % proc)
             e.line("var")
