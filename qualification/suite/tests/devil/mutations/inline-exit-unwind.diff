@@ -1,0 +1,14 @@
+diff --git a/compiler/ncgbas.pas b/compiler/ncgbas.pas
+index 627e0c8d..29ee0631 100644
+--- a/compiler/ncgbas.pas
++++ b/compiler/ncgbas.pas
+@@ -463,9 +463,6 @@
+               include(flowcontrol,fc_inherited_exit);
+             { the nested block will not span an exit statement of the parent }
+             exclude(flowcontrol,fc_exit);
+-            { exits to this block's local label do not unwind a surrounding
+-              try/finally; a try/finally inside the block sets this flag anew }
+-            exclude(flowcontrol,fc_unwind_exit);
+             include(flowcontrol,fc_no_direct_exit);
+           end;
+ 

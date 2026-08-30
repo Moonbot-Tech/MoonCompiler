@@ -62,6 +62,18 @@ MUTANT_GATE_ARGS = {
     "71b8f984c": ("--separate-units", "--ppu-reuse"),
 }
 
+# Later causal repairs may legitimately rewrite the same source hunk, so the
+# old commit's reverse diff no longer describes an applicable mutant.  Keep a
+# current-tree semantic mutation for those cases instead of silently dropping
+# them or counting a patch conflict as a kill.
+MUTANT_PATCH_FILES = {
+    "9d9e8e802": "hilo-delphi-semantics.diff",
+    "858f10c27": "opaque-loop-scalar-effects.diff",
+    "a5ba6ebfd": "inline-exit-unwind.diff",
+    "b86784a61": "custom-variant-carrier.diff",
+    "4d5a3bfae": "openarray-finalize-throw.diff",
+}
+
 PRODUCT_PATHS = ("compiler", "rtl", "packages")
 
 
@@ -123,11 +135,30 @@ def load_observations(path: Path) -> dict[str, dict[str, object]]:
     return observations
 
 
-def reverse_product_patch(sha: str, check_only: bool = False) -> tuple[bool, str]:
-    code, patch = git(["show", "--format=", "--binary", sha, "--", *PRODUCT_PATHS])
-    if code != 0 or not patch.strip():
-        return False, "repair has no product patch"
-    command = ["git", "apply", "--reverse", "--whitespace=nowarn"]
+def apply_product_mutation(sha: str, check_only: bool = False) -> tuple[bool, str]:
+    patch_name = MUTANT_PATCH_FILES.get(sha)
+    if patch_name:
+        patch_path = (SUITE / "tests" / "devil" / "mutations" / patch_name)
+        if not patch_path.is_file():
+            return False, f"missing semantic mutation patch: {patch_path}"
+        command = ["git", "apply", "--whitespace=nowarn"]
+        if check_only:
+            command.append("--check")
+        try:
+            proc = subprocess.run(command + ["-"], cwd=ROOT,
+                                  capture_output=True,
+                                  input=patch_path.read_bytes(), timeout=300)
+        except subprocess.TimeoutExpired:
+            return False, "semantic mutation apply timed out"
+        detail = ((proc.stdout or b"") + (proc.stderr or b"")).decode(
+            "utf-8", errors="replace")
+        return proc.returncode == 0, detail
+    else:
+        code, patch = git(["show", "--format=", "--binary", sha, "--",
+                           *PRODUCT_PATHS])
+        if code != 0 or not patch.strip():
+            return False, "repair has no product patch"
+        command = ["git", "apply", "--reverse", "--whitespace=nowarn"]
     if check_only:
         command.append("--check")
     command.append("-")
@@ -215,7 +246,7 @@ def main() -> None:
     print("checking that every targeted product mutation applies cleanly")
     invalid_inventory = []
     for sha, family, layers, subject in MUTANTS:
-        valid, detail = reverse_product_patch(sha, check_only=True)
+        valid, detail = apply_product_mutation(sha, check_only=True)
         if not valid:
             invalid_inventory.append({"sha": sha, "family": family,
                                       "layers": layers,
@@ -263,7 +294,7 @@ def main() -> None:
         extra = MUTANT_GATE_ARGS.get(sha, ())
         row = {"sha": sha, "family": family, "layers": layers,
                "subject": subject, "gate_args": list(extra)}
-        applied, detail = reverse_product_patch(sha)
+        applied, detail = apply_product_mutation(sha)
         if not applied:
             row.update({"outcome": "invalid-conflict", "detail": detail[-300:]})
             results.append(row)

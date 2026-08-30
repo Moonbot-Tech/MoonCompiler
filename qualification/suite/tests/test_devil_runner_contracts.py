@@ -448,6 +448,23 @@ Fatal: Compilation aborted
              ("unit,ppu,gen", ("--separate-units", "--ppu-reuse"))],
         )
 
+    def test_current_tree_semantic_mutations_are_tracked(self) -> None:
+        mutation_dir = DEVIL / "mutations"
+        self.assertEqual(
+            set(run_devil_mutation.MUTANT_PATCH_FILES),
+            {"9d9e8e802", "858f10c27", "a5ba6ebfd", "b86784a61",
+             "4d5a3bfae"},
+        )
+        for patch_name in run_devil_mutation.MUTANT_PATCH_FILES.values():
+            patch = mutation_dir / patch_name
+            self.assertTrue(patch.is_file(), patch)
+            text = patch.read_text(encoding="utf-8")
+            self.assertTrue(any(
+                f"diff --git a/{path}/" in text
+                for path in run_devil_mutation.PRODUCT_PATHS
+            ))
+            self.assertNotIn("diff --git a/tests/", text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,37 @@
+diff --git a/compiler/optconstprop.pas b/compiler/optconstprop.pas
+index 9d9a3ee2..00aaf89a 100644
+--- a/compiler/optconstprop.pas
++++ b/compiler/optconstprop.pas
+@@ -146,14 +146,9 @@
+                     CalcDefSum(tfornode(n).t2);
+                     { the constant can propagate if is is not the counter variable ... }
+                     if not(tassignmentnode(arg).left.isequal(actualtargetnode(@tfornode(n).left)^)) and
+-                    { A non-registerable scalar lives in memory for a reason
+-                      that the node DFA may not model, notably access from a
+-                      nested routine through its parent frame.  Do not carry
+-                      a constant into the loop merely because no direct write
+-                      occurs in the caller's statement tree. }
+-                      ((tassignmentnode(arg).left.nodetype=temprefn) or
+-                       (tabstractvarsym(tloadnode(tassignmentnode(arg).left).symtableentry).varregable in
+-                         [vr_intreg,vr_mmreg,vr_fpureg])) and
++                    { defective pre-repair mutation: address-not-taken does not
++                      mean that a nested routine cannot reach parent storage }
++                      ((tassignmentnode(arg).left.nodetype=temprefn) or not(tabstractvarsym(tloadnode(tassignmentnode(arg).left).symtableentry).addr_taken)) and
+                       { and no definition in the loop? }
+                       not(DynSetIn(tfornode(n).t2.optinfo^.defsum,tassignmentnode(arg).left.optinfo^.index)) then
+                       begin
+diff --git a/compiler/optloop.pas b/compiler/optloop.pas
+index 2256a398..56e330dc 100644
+--- a/compiler/optloop.pas
++++ b/compiler/optloop.pas
+@@ -409,8 +409,8 @@
+               not tabstractnormalvarsym(vs).inparentfpstruct and
+               (vs.varregable in [vr_intreg,vr_mmreg,vr_fpureg]);
+           staticvarsym:
+-            result:=not(vo_is_thread_var in vs.varoptions) and
+-              staticscalarunchanged(loop,expr);
++            { defective pre-repair mutation: ignore opaque writes to globals }
++            result:=not(vo_is_thread_var in vs.varoptions);
+           else
+             ;
+         end;

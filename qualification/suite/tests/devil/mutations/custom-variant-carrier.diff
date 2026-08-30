@@ -1,0 +1,18 @@
+diff --git a/packages/rtl-objpas/src/inc/variants.pp b/packages/rtl-objpas/src/inc/variants.pp
+index 80d3cf55..46e0a23b 100644
+--- a/packages/rtl-objpas/src/inc/variants.pp
++++ b/packages/rtl-objpas/src/inc/variants.pp
+@@ -634,13 +634,6 @@
+   out Handler: TCustomVariantType): Boolean;
+ begin
+   Source := @V;
+-  while (Source^.vType = varVariant) or
+-      (Source^.vType = (varVariant or varByRef)) do
+-  begin
+-    Source := PVarData(Source^.vPointer);
+-    if not Assigned(Source) then
+-      Exit(False);
+-  end;
+   Result := FindCustomVariantType(Source^.vType, Handler);
+ end;
+ 

@@ -30,6 +30,7 @@
 *.rej
 *.patch
 *.diff
+!qualification/suite/tests/devil/mutations/*.diff
 *.lst
 *.app
 *.ttp

@@ -1,0 +1,18 @@
+diff --git a/rtl/inc/rtti.inc b/rtl/inc/rtti.inc
+index d2331e00..2a95e838 100644
+--- a/rtl/inc/rtti.inc
++++ b/rtl/inc/rtti.inc
+@@ -655,11 +655,8 @@
+   value, but must not strand the raw allocation. }
+ procedure fpc_delphi_finalize_free_openarray(data,typeinfo : pointer;count : SizeInt); [public,alias:'FPC_DELPHI_FINALIZE_FREE_OPENARRAY']; compilerproc;
+   begin
+-    try
+-      int_FinalizeArray(data,typeinfo,count);
+-    finally
+-      FreeMemAligned(data);
+-    end;
++    int_FinalizeArray(data,typeinfo,count);
++    FreeMemAligned(data);
+   end;
+ 
+ {$ifdef FPC_HAS_FEATURE_HEAP}

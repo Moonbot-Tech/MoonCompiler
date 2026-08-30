@@ -1,0 +1,86 @@
+diff --git a/compiler/ninl.pas b/compiler/ninl.pas
+index 4905d1dc..6f3612c7 100644
+--- a/compiler/ninl.pas
++++ b/compiler/ninl.pas
+@@ -2575,15 +2575,7 @@
+                 begin
+                   if left.nodetype=ordconstn then
+                     begin
+-                      if m_delphi in current_settings.modeswitches then
+-                        begin
+-                          if inlinenumber in [in_lo_word,in_lo_long,in_lo_qword] then
+-                            result:=cordconstnode.create(tordconstnode(left).value and $ff,u8inttype,true)
+-                          else
+-                            result:=cordconstnode.create((tordconstnode(left).value shr 8) and $ff,u8inttype,true);
+-                        end
+-                      else
+-                        case inlinenumber of
++                      case inlinenumber of
+                           in_lo_word :
+                             result:=cordconstnode.create(tordconstnode(left).value and $ff,u8inttype,true);
+                           in_hi_word :
+@@ -2598,7 +2590,7 @@
+                             result:=cordconstnode.create(tordconstnode(left).value shr 32,u32inttype,true);
+                           else
+                             internalerror(2019050514);
+-                        end;
++                      end;
+                     end;
+                 end;
+               in_ord_x:
+@@ -3573,13 +3565,7 @@
+                   set_varstate(left,vs_read,[vsf_must_be_valid]);
+                   if not is_integer(left.resultdef) then
+                     CGMessage1(type_e_integer_expr_expected,left.resultdef.typename);
+-                  if m_delphi in current_settings.modeswitches then
+-                    { DCC gives runtime Hi/Lo expressions a Word result even
+-                      though both select one byte.  Constant folding above
+-                      deliberately keeps its byte-sized literal result. }
+-                    resultdef:=u16inttype
+-                  else
+-                    case inlinenumber of
++                  case inlinenumber of
+                       in_lo_word,
+                       in_hi_word :
+                         resultdef:=u8inttype;
+@@ -3591,7 +3577,7 @@
+                         resultdef:=u32inttype;
+                       else
+                         ;
+-                    end;
++                  end;
+                 end;
+ 
+               in_sizeof_x:
+@@ -4599,11 +4585,7 @@
+             begin
+               hdef:=left.resultdef;
+               shiftconst := 0;
+-              if (m_delphi in current_settings.modeswitches) and
+-                 (inlinenumber in [in_hi_word,in_hi_long,in_hi_qword]) then
+-                shiftconst := 8
+-              else
+-                case inlinenumber of
++              case inlinenumber of
+                   in_hi_qword:
+                     shiftconst := 32;
+                   in_hi_long:
+@@ -4612,7 +4594,7 @@
+                     shiftconst := 8;
+                   else
+                     ;
+-                end;
++              end;
+               if shiftconst <> 0 then
+                 hp:=cshlshrnode.create(shrn,left,
+                   cordconstnode.create(shiftconst,sinttype,false))
+@@ -4623,9 +4605,6 @@
+                 value is still exactly one selected byte.  The old Byte result
+                 truncated implicitly; keep that semantic truncation explicit
+                 now that the observable result type is wider. }
+-              if m_delphi in current_settings.modeswitches then
+-                hp:=caddnode.create(andn,hp,
+-                  cordconstnode.create($ff,hdef,false));
+               result:=ctypeconvnode.create_internal(hp,resultdef);
+               firstpass(result);
+             end;
