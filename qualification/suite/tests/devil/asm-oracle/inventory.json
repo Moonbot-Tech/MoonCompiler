@@ -1,0 +1,32 @@
+{
+  "rows": [
+    {
+      "id": "CHI-ASM-INT-001",
+      "branches": ["sum-max-min", "bit-ops", "bit-ops-random", "hamming", "mul-div-gcd", "isqrt", "powmod", "varint", "add-saturating"]
+    },
+    {
+      "id": "CHI-ASM-MEM-001",
+      "branches": ["compare", "compare-empty", "find-count", "move-overlap", "fill-iszero", "reverse", "xor-block", "sum-bytes", "find-substring"]
+    },
+    {
+      "id": "CHI-ASM-HASH-001",
+      "branches": ["crc32c-vector", "crc32c-table-vs-opcode", "crc32-table-vs-bits", "fnv", "adler", "fletcher", "shift-rotate", "mix"]
+    },
+    {
+      "id": "CHI-ASM-FLOAT-001",
+      "branches": ["sum-dot-max", "catastrophic-order", "kahan", "smooth", "convolution", "complex", "matvec", "trunc"]
+    },
+    {
+      "id": "CHI-ASM-STR-001",
+      "branches": ["case-bounds", "case-random", "sametext", "hex-roundtrip", "hex-bad-input", "base64", "utf8"]
+    },
+    {
+      "id": "CHI-ASM-CRYPT-001",
+      "branches": ["xtime", "aes-known-vector", "aes-random", "aes-round", "quarter-round", "sponge-step"]
+    },
+    {
+      "id": "CHI-ASM-ROAD-001",
+      "branches": ["divide-four-roads", "divide-any-divisor", "crc-four-roads", "crc-tails", "find-three-roads", "popcount-three-roads", "sqrt-three-roads", "wide-mul-three-roads", "summation-order", "summation-exact"]
+    }
+  ]
+}

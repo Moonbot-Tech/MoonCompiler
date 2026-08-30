@@ -111,6 +111,13 @@ def main() -> None:
                       str(SCRIPTS / "run_devil_resident_gate.py"),
                       "--work", str(run_root / "resident"),
                       "--report", str(run_root / "resident.json")]),
+        # Pascal bodies are checked against independent handwritten x86-64
+        # implementations.  This is a codegen/ABI oracle, not a claim that
+        # these synthetic Pascal bodies are the product mORMot path.
+        ("asm-oracle", [sys.executable,
+                        str(SCRIPTS / "run_asm_oracle_gate.py"),
+                        "--work", str(run_root / "asm-oracle"),
+                        "--report", str(run_root / "asm-oracle.json")]),
         # Устройство программы, а не её счёт: обёртка над чужой библиотекой,
         # менеджер с породами, сервисы на интерфейсах, циклы заголовков — и
         # всё это в матрице ключей и порядков инициализации.
@@ -156,7 +163,7 @@ def main() -> None:
         code, log, seconds = run(cmd, args.timeout)
         verdict = [l for l in log.splitlines()
                    if l.startswith(("DEVIL_", "RESIDENT_", "CHIMERA_",
-                                    "PLANT_", "  NEW",
+                                    "PLANT_", "ASM_ORACLE_", "  NEW",
                                     "  known"))][-8:]
         results.append({"stage": name, "code": code,
                         "seconds": round(seconds, 1), "tail": verdict})
