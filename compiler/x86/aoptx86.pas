@@ -4121,7 +4121,9 @@ unit aoptx86;
                                (Taicpu(hp1).oper[0]^.ref^.index<>Taicpu(p).oper[1]^.reg)
                               )
                              ) and
-                            not RegModifiedBetween(Taicpu(hp1).oper[1]^.reg, p, hp1) then
+                            not RegModifiedBetween(Taicpu(hp1).oper[1]^.reg, p, hp1) and
+                            not RefModifiedBetween(taicpu(p).oper[0]^.ref^,
+                              topsize2memsize[taicpu(p).opsize] shr 3, p, hp1) then
                              { mov ref,reg1
                                lea (reg1,reg2),reg2
 
