@@ -2253,6 +2253,20 @@ implementation
          accessorcallflags : tcallnodeflags;
          propaccesslist : tpropaccesslist;
          sym: tsym;
+
+      function accessor_inherited_flags:tcallnodeflags;
+        begin
+          { A helper's inherited property deliberately binds to the property
+            of the extended type.  In an ordinary class, however, the
+            property symbol may have been declared by an abstract ancestor:
+            the accessor must remain a normal virtual call so an intermediate
+            override is dispatched, just like a non-inlined property access. }
+          if assigned(current_structdef) and
+             is_objectpascal_helper(current_structdef) then
+            result:=callflags*[cnf_inherited,cnf_anon_inherited]
+          else
+            result:=[];
+        end;
       begin
          { property parameters? read them only if the property really }
          { has parameters                                             }
@@ -2324,7 +2338,7 @@ implementation
                    case sym.typ of
                      procsym :
                        begin
-                         accessorcallflags:=callflags*[cnf_inherited,cnf_anon_inherited];
+                         accessorcallflags:=accessor_inherited_flags;
                          { generate the method call }
                          membercall:=maybe_load_methodpointer(st,p1);
                          if membercall then
@@ -2403,7 +2417,7 @@ implementation
                        end;
                      procsym :
                        begin
-                          accessorcallflags:=callflags*[cnf_inherited,cnf_anon_inherited];
+                          accessorcallflags:=accessor_inherited_flags;
                           { generate the method call }
                           membercall:=maybe_load_methodpointer(st,p1);
                           if membercall then
