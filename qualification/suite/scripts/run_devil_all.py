@@ -62,6 +62,10 @@ def main() -> None:
     p.add_argument("--with-mutation", action="store_true")
     p.add_argument("--mutation-repo", type=Path)
     p.add_argument("--timeout", type=int, default=7200)
+    p.add_argument(
+        "--program-timeout", type=int, default=300,
+        help="runtime bound for each full generated Devil executable",
+    )
     p.add_argument("--run-id")
     p.add_argument("--report", type=Path)
     args = p.parse_args()
@@ -140,6 +144,7 @@ def main() -> None:
                      "--report", str(run_root / "stress.json")]),
         ("main", [sys.executable, str(SCRIPTS / "run_devil_gate.py")]
          + common + delphi + ["--seeds", args.seeds, "--cases", str(args.cases),
+                              "--program-timeout", str(args.program_timeout),
                               "--ppu-reuse", "--work", str(run_root / "main"),
                               "--report", str(run_root / "main.json")]),
     ]

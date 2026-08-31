@@ -1040,7 +1040,11 @@ end;
 
 function DvlEchoA00001_10(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00001_10(X: Int64): Int64;
@@ -1786,7 +1790,11 @@ end;
 
 function DvlEchoA00002_3(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00002_3(X: Int64): Int64;
@@ -2134,7 +2142,17 @@ begin
   DevilTrailAdd('y');
   Mine := DvlLink00003_25(X);
   { hands the value to the whole chain of the previous case: the layer stops being a set of independent passes and becomes one graph }
-  Theirs := DvlLink00002_0(Mine);
+  { A predecessor is itself a graph: without the shared budget, sibling edges compose with branch/retry stages into an unbounded generated workload rather than one cross-chain transfer. }
+  Theirs := Mine;
+  If DvlChainBudget > 0 then
+  begin
+    Dec(DvlChainBudget);
+    try
+      Theirs := DvlLink00002_0(Mine);
+    finally
+      Inc(DvlChainBudget);
+    end;
+  end;
   If Theirs = Mine then
     Result := Mine
   else
@@ -2161,7 +2179,11 @@ end;
 
 function DvlEchoA00003_22(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00003_22(X: Int64): Int64;
@@ -2237,9 +2259,12 @@ begin
   If DvlChainBudget > 0 then
   begin
     Dec(DvlChainBudget);
-    If DvlLink00002_0(Mine) <> Mine then
-      Mine := not Mine;
-    Inc(DvlChainBudget);
+    try
+      If DvlLink00002_0(Mine) <> Mine then
+        Mine := not Mine;
+    finally
+      Inc(DvlChainBudget);
+    end;
   end;
   Result := Mine;
 end;
@@ -2264,7 +2289,11 @@ end;
 
 function DvlEchoA00003_17(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00003_17(X: Int64): Int64;
@@ -2736,7 +2765,11 @@ end;
 
 function DvlEchoA00004_28(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00004_28(X: Int64): Int64;
@@ -3453,7 +3486,11 @@ end;
 
 function DvlEchoA00005_36(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00005_36(X: Int64): Int64;
@@ -4582,7 +4619,11 @@ end;
 
 function DvlEchoA00006_20(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00006_20(X: Int64): Int64;
@@ -5535,7 +5576,11 @@ end;
 
 function DvlEchoA00007_10(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00007_10(X: Int64): Int64;
@@ -6789,7 +6834,17 @@ begin
   DevilTrailAdd('f');
   Mine := DvlLink00009_6(X);
   { hands the value to the whole chain of the previous case: the layer stops being a set of independent passes and becomes one graph }
-  Theirs := DvlLink00008_0(Mine);
+  { A predecessor is itself a graph: without the shared budget, sibling edges compose with branch/retry stages into an unbounded generated workload rather than one cross-chain transfer. }
+  Theirs := Mine;
+  If DvlChainBudget > 0 then
+  begin
+    Dec(DvlChainBudget);
+    try
+      Theirs := DvlLink00008_0(Mine);
+    finally
+      Inc(DvlChainBudget);
+    end;
+  end;
   If Theirs = Mine then
     Result := Mine
   else
@@ -7282,7 +7337,11 @@ end;
 
 function DvlEchoA00010_16(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00010_16(X: Int64): Int64;
@@ -7497,7 +7556,11 @@ end;
 
 function DvlEchoA00010_7(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00010_7(X: Int64): Int64;
@@ -9391,7 +9454,11 @@ end;
 
 function DvlEchoA00014_10(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00014_10(X: Int64): Int64;
@@ -9925,7 +9992,11 @@ end;
 
 function DvlEchoA00016_26(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00016_26(X: Int64): Int64;
@@ -10165,7 +10236,11 @@ end;
 
 function DvlEchoA00016_15(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00016_15(X: Int64): Int64;
@@ -10367,7 +10442,17 @@ begin
   DevilTrailAdd('f');
   Mine := DvlLink00016_6(X);
   { hands the value to the whole chain of the previous case: the layer stops being a set of independent passes and becomes one graph }
-  Theirs := DvlLink00015_0(Mine);
+  { A predecessor is itself a graph: without the shared budget, sibling edges compose with branch/retry stages into an unbounded generated workload rather than one cross-chain transfer. }
+  Theirs := Mine;
+  If DvlChainBudget > 0 then
+  begin
+    Dec(DvlChainBudget);
+    try
+      Theirs := DvlLink00015_0(Mine);
+    finally
+      Inc(DvlChainBudget);
+    end;
+  end;
   If Theirs = Mine then
     Result := Mine
   else
@@ -10744,7 +10829,11 @@ end;
 
 function DvlEchoA00017_15(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00017_15(X: Int64): Int64;
@@ -10830,7 +10919,17 @@ begin
   DevilTrailAdd('k');
   Mine := DvlLink00017_11(X);
   { hands the value to the whole chain of the previous case: the layer stops being a set of independent passes and becomes one graph }
-  Theirs := DvlLink00016_0(Mine);
+  { A predecessor is itself a graph: without the shared budget, sibling edges compose with branch/retry stages into an unbounded generated workload rather than one cross-chain transfer. }
+  Theirs := Mine;
+  If DvlChainBudget > 0 then
+  begin
+    Dec(DvlChainBudget);
+    try
+      Theirs := DvlLink00016_0(Mine);
+    finally
+      Inc(DvlChainBudget);
+    end;
+  end;
   If Theirs = Mine then
     Result := Mine
   else
@@ -10867,9 +10966,12 @@ begin
   If DvlChainBudget > 0 then
   begin
     Dec(DvlChainBudget);
-    If DvlLink00016_0(Mine) <> Mine then
-      Mine := not Mine;
-    Inc(DvlChainBudget);
+    try
+      If DvlLink00016_0(Mine) <> Mine then
+        Mine := not Mine;
+    finally
+      Inc(DvlChainBudget);
+    end;
   end;
   Result := Mine;
 end;
@@ -11664,7 +11766,11 @@ end;
 
 function DvlEchoA00019_30(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00019_30(X: Int64): Int64;
@@ -11855,7 +11961,11 @@ end;
 
 function DvlEchoA00019_20(X: Int64): Int64; assembler;
 asm
+  {$ifdef MSWINDOWS}
   MOV RAX, RCX
+  {$else}
+  MOV RAX, RDI
+  {$endif}
 end;
 
 function DvlLink00019_20(X: Int64): Int64;

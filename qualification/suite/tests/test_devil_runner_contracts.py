@@ -113,6 +113,34 @@ Fatal: Compilation aborted
             )
         self.assertEqual(before, {path: sha256(path) for path in tracked})
 
+    def test_chain_reentry_is_bounded_and_exception_safe(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            argv = ["generate_devil.py", "--seed", "3", "--cases", "200",
+                    "--layers", "chain", "--out", str(output)]
+            with mock.patch.object(sys, "argv", argv):
+                with redirect_stdout(io.StringIO()):
+                    generate_devil.main()
+            manifest = json.loads((output / "devil_manifest.json").read_text())
+            sibling_count = sum(
+                stage == "sibling-chain"
+                for case in manifest["cases"]
+                for stage in case["stages"]
+            )
+            source = (output / "devil_chain.inc").read_text()
+        self.assertGreater(sibling_count, 0)
+        self.assertEqual(source.count("  Theirs := Mine;"), sibling_count)
+        self.assertEqual(source.count("      Theirs := DvlLink"), sibling_count)
+        self.assertGreaterEqual(source.count("    try\n"), sibling_count)
+        self.assertGreaterEqual(source.count("    finally\n"), sibling_count)
+
+    def test_generated_program_timeout_preserves_hang_bound(self) -> None:
+        self.assertEqual(run_devil_gate.generated_program_timeout(90, 300), 90)
+        self.assertEqual(run_devil_gate.generated_program_timeout(7200, 300), 300)
+        self.assertEqual(run_devil_gate.generated_program_timeout(7200, 120), 120)
+        with self.assertRaisesRegex(ValueError, "must be positive"):
+            run_devil_gate.generated_program_timeout(7200, 0)
+
     def test_environment_comparison_fails_on_missing_artefact(self) -> None:
         self.assertEqual(
             run_devil_env_gate.changed_artefacts(

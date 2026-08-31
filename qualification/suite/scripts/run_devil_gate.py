@@ -45,6 +45,7 @@ LAYER_DIGEST_RE = re.compile(
     r"(?: checks=(?P<checks>\d+))?$")
 CHECK_LAYER_RE = re.compile(r"^dvl-([a-z0-9]+)-")
 TRAIL_RE = re.compile(r"^DEVIL_TRAIL (?P<name>[a-z0-9-]+)=(?P<value>\S*)$")
+DEFAULT_GENERATED_PROGRAM_TIMEOUT = 120
 
 
 def run(cmd: list[str], cwd: Path, timeout: int) -> tuple[int, str]:
@@ -54,6 +55,13 @@ def run(cmd: list[str], cwd: Path, timeout: int) -> tuple[int, str]:
     except subprocess.TimeoutExpired:
         return 124, "<timeout>"
     return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+
+
+def generated_program_timeout(timeout: int, requested: int) -> int:
+    """Keep runtime below both the outer command and explicit program bounds."""
+    if requested <= 0:
+        raise ValueError("generated program timeout must be positive")
+    return min(timeout, requested)
 
 
 class Build:
@@ -117,7 +125,7 @@ class Build:
 
 
 def build_fpc(work: Path, profile: str, defines: list[str], timeout: int,
-              reuse: bool = False) -> Build:
+              program_timeout: int, reuse: bool = False) -> Build:
     """Build the program the way the driver builds a real project."""
     build = Build(f"{profile}{'+reuse' if reuse else ''}")
     out = work / f"out-{profile}"
@@ -132,8 +140,9 @@ def build_fpc(work: Path, profile: str, defines: list[str], timeout: int,
     if code != 0 or not exe.exists():
         return build
     build.compiled = True
-    # a generated program must never run long; anything slower is a hang
-    code, output = run([str(exe)], work, min(timeout, 120))
+    code, output = run(
+        [str(exe)], work, generated_program_timeout(timeout, program_timeout)
+    )
     build.run_exit = code
     build.timed_out = code == 124
     build.parse(output)
@@ -246,7 +255,7 @@ def build_twice(work: Path, profile: str, defines: list[str],
 
 
 def build_separate(work: Path, profile: str, defines: list[str],
-                   timeout: int) -> Build:
+                   timeout: int, program_timeout: int) -> Build:
     """Each unit in its own compiler process, then the program."""
     build = Build("separate")
     out = work / "out-separate"
@@ -268,7 +277,9 @@ def build_separate(work: Path, profile: str, defines: list[str],
     if code != 0 or not exe.exists():
         return build
     build.compiled = True
-    code, output = run([str(exe)], work, min(timeout, 120))
+    code, output = run(
+        [str(exe)], work, generated_program_timeout(timeout, program_timeout)
+    )
     build.run_exit = code
     build.timed_out = code == 124
     build.parse(output)
@@ -496,6 +507,11 @@ def main() -> None:
     p.add_argument("--profiles", default=tc.DEFAULT_PROFILES)
     p.add_argument("--defines", default="")
     p.add_argument("--timeout", type=int, default=600)
+    p.add_argument(
+        "--program-timeout", type=int,
+        default=DEFAULT_GENERATED_PROGRAM_TIMEOUT,
+        help="finite runtime bound for each generated executable",
+    )
     p.add_argument("--work", type=Path,
                    default=ROOT / "results" / "runs" / "devil-main")
     p.add_argument("--report", type=Path)
@@ -513,6 +529,8 @@ def main() -> None:
     p.add_argument("--ppu-reuse", action="store_true",
                    help="also rebuild reusing the PPUs of the first build")
     args = p.parse_args()
+    if args.program_timeout <= 0:
+        p.error("--program-timeout must be positive")
 
     tc.preflight()
     # every build runs inside the work directory, so tool paths must be
@@ -544,7 +562,7 @@ def main() -> None:
         separate: Build | None = None
         if args.separate_units:
             separate = build_separate(args.work, profiles[-1], defines,
-                                      args.timeout)
+                                      args.timeout, args.program_timeout)
 
         second: Build | None = None
         if args.second_program:
@@ -556,7 +574,7 @@ def main() -> None:
                             ROOT, args.timeout)
             if code == 0:
                 second = build_fpc(args.work, profiles[-1], defines,
-                                   args.timeout)
+                                   args.timeout, args.program_timeout)
                 second.label = "second"
             run(gen, ROOT, args.timeout)
 
@@ -567,7 +585,7 @@ def main() -> None:
             code, log = run(gen + ["--shuffle-order"], ROOT, args.timeout)
             if code == 0:
                 shuffled = build_fpc(args.work, profiles[-1], defines,
-                                     args.timeout)
+                                     args.timeout, args.program_timeout)
                 shuffled.label = "shuffled"
             run(gen, ROOT, args.timeout)
 
@@ -575,12 +593,15 @@ def main() -> None:
         if separate is not None:
             builds.append(separate)
         for profile in profiles:
-            builds.append(build_fpc(args.work, profile, defines, args.timeout))
+            builds.append(build_fpc(
+                args.work, profile, defines, args.timeout, args.program_timeout
+            ))
             if args.ppu_reuse:
                 # second build over the units left behind by the first one:
                 # this is the path where generic replay and alias identity break
                 builds.append(build_fpc(args.work, profile, defines,
-                                        args.timeout, reuse=True))
+                                        args.timeout, args.program_timeout,
+                                        reuse=True))
         if args.dcc and args.dcc_lib:
             builds.append(build_delphi(args.work, args.dcc, args.dcc_lib,
                                        args.timeout))

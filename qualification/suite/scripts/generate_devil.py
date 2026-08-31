@@ -11970,9 +11970,12 @@ def layer_chain(e: Emitter, rng: random.Random, count: int,
                 e.line("  If DvlChainBudget > 0 then")
                 e.line("  begin")
                 e.line("    Dec(DvlChainBudget);")
-                e.line("    If %s(Mine) <> Mine then" % sibling)
-                e.line("      Mine := not Mine;")
-                e.line("    Inc(DvlChainBudget);")
+                e.line("    try")
+                e.line("      If %s(Mine) <> Mine then" % sibling)
+                e.line("        Mine := not Mine;")
+                e.line("    finally")
+                e.line("      Inc(DvlChainBudget);")
+                e.line("    end;")
                 e.line("  end;")
                 e.line("  Result := Mine;")
                 e.line("end;")
@@ -12422,7 +12425,20 @@ def layer_chain(e: Emitter, rng: random.Random, count: int,
                 e.line("  { hands the value to the whole chain of the previous "
                        "case: the layer stops being a set of independent passes "
                        "and becomes one graph }")
-                e.line("  Theirs := %s(Mine);" % sibling)
+                e.line("  { A predecessor is itself a graph: without the shared "
+                       "budget, sibling edges compose with branch/retry stages "
+                       "into an unbounded generated workload rather than one "
+                       "cross-chain transfer. }")
+                e.line("  Theirs := Mine;")
+                e.line("  If DvlChainBudget > 0 then")
+                e.line("  begin")
+                e.line("    Dec(DvlChainBudget);")
+                e.line("    try")
+                e.line("      Theirs := %s(Mine);" % sibling)
+                e.line("    finally")
+                e.line("      Inc(DvlChainBudget);")
+                e.line("    end;")
+                e.line("  end;")
                 e.line("  If Theirs = Mine then")
                 e.line("    Result := Mine")
                 e.line("  else")
