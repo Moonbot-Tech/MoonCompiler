@@ -2936,6 +2936,53 @@ def parse_set(values: list[str] | None) -> set[str] | None:
     return set(values) if values else None
 
 
+def validate_filters(
+    manifest: dict[str, Any], stage: str,
+    compiler_filter: set[str] | None,
+    option_filter: set[str] | None,
+    test_filter: set[str] | None,
+) -> None:
+    """Reject typos and selections that a stage cannot interpret."""
+    if compiler_filter:
+        unknown = compiler_filter - set(manifest["compilers"])
+        if unknown:
+            raise RuntimeError(f"unknown compiler filter: {sorted(unknown)}")
+
+    option_sets = set(manifest["option_sets"])
+    option_sets.update(manifest["mega"].get("option_sets", {}))
+    option_sets.update(manifest["benchmark"].get("option_sets", {}))
+    for probe in manifest["mormot"].get("probes", {}).values():
+        option_sets.update(probe.get("option_sets", {}))
+    if option_filter:
+        unknown = option_filter - option_sets
+        if unknown:
+            raise RuntimeError(f"unknown option filter: {sorted(unknown)}")
+
+    if not test_filter:
+        return
+    if stage == "mega":
+        raise RuntimeError("--test is not supported by the mega stage")
+    test_ids = {
+        "fixtures": {test["id"] for test in manifest["fixtures"]},
+        "benchmark": {
+            f"benchmark-{name}" for name in manifest["benchmark"]["workloads"]
+        },
+        "upstream": {"upstream-suite"},
+        "mormot": {
+            *(f"mormot-{name}" for name in manifest["mormot"]["sources"]),
+            *(f"mormot-probe-{name}"
+              for name in manifest["mormot"].get("probes", {})),
+        },
+    }
+    allowed = (set().union(*test_ids.values())
+               if stage == "all" else test_ids.get(stage, set()))
+    unknown = test_filter - allowed
+    if unknown:
+        raise RuntimeError(
+            f"test filter is not valid for {stage}: {sorted(unknown)}"
+        )
+
+
 def create_run_directory(
     runs_root: Path,
     stage: str,
@@ -2943,6 +2990,10 @@ def create_run_directory(
 ) -> tuple[str, Path]:
     runs_root.mkdir(parents=True, exist_ok=True)
     if requested_run_id:
+        if not re.fullmatch(r"[A-Za-z0-9._-]+", requested_run_id):
+            raise RuntimeError(
+                "run-id may contain only letters, digits, dot, underscore and dash"
+            )
         run_dir = runs_root / requested_run_id
         run_dir.mkdir(exist_ok=False)
     else:
@@ -2969,12 +3020,15 @@ def main() -> int:
     if args.stage == "prepare":
         prepare_mormot_dependencies(manifest)
         return 0
-    run_id, run_dir = create_run_directory(
-        ROOT / "results" / "runs", args.stage, args.run_id,
-    )
     compiler_filter = parse_set(args.compiler)
     option_filter = parse_set(args.option)
     test_filter = parse_set(args.test)
+    validate_filters(
+        manifest, args.stage, compiler_filter, option_filter, test_filter,
+    )
+    run_id, run_dir = create_run_directory(
+        ROOT / "results" / "runs", args.stage, args.run_id,
+    )
     runner_snapshot = run_dir / "runner.py"
     shutil.copy2(ROOT / "runner.py", runner_snapshot)
     run_manifest = dict(manifest)
@@ -3007,6 +3061,8 @@ def main() -> int:
     if args.stage in ("mormot", "all"):
         run_mormot(writer, manifest, compiler_filter, option_filter, test_filter)
     writer.finish()
+    if not writer.rows:
+        raise RuntimeError("qualification selection produced no result rows")
     return 1 if any(
         not row["expectation_met"]
         or (row["semantic_result"] == "defect" and not row.get("known_deviation"))

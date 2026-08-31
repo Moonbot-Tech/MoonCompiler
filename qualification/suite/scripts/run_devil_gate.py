@@ -25,10 +25,11 @@ import sys
 from pathlib import Path
 
 import devil_toolchain as tc
+import generate_devil
 
 ROOT = Path(__file__).resolve().parents[1]
 DEVIL = ROOT / "tests" / "devil"
-GENERATOR = ROOT / "scripts" / "generate_devil.py"
+GENERATOR = Path(generate_devil.__file__).resolve()
 
 FAILURE_RE = re.compile(
     r"^DEVIL_FAILURE (?P<name>[a-z0-9-]+) actual=(?P<actual>[0-9A-F]{16}) "
@@ -85,6 +86,10 @@ class Build:
         # счётчики самого прибора: сборка, которая влила в поток меньше или
         # прошла меньше шагов, где-то перестала измерять
         self.counters: dict[str, int] = {}
+        self.summary_occurrences = 0
+        self.layers_occurrences = 0
+        self.counter_occurrences: dict[str, int] = {}
+        self.layer_digest_occurrences: dict[str, int] = {}
 
     def parse(self, output: str) -> None:
         self.output = output
@@ -106,18 +111,26 @@ class Build:
                 continue
             m = COUNTER_RE.match(line.strip())
             if m:
-                self.counters[m.group("what")] = int(m.group("value"))
+                what = m.group("what")
+                self.counters[what] = int(m.group("value"))
+                self.counter_occurrences[what] = \
+                    self.counter_occurrences.get(what, 0) + 1
                 continue
             m = LAYER_DIGEST_RE.match(line.strip())
             if m:
-                self.layer_digests[m.group("layer")] = m.group("digest")
+                layer = m.group("layer")
+                self.layer_digests[layer] = m.group("digest")
+                self.layer_digest_occurrences[layer] = \
+                    self.layer_digest_occurrences.get(layer, 0) + 1
                 continue
             m = LAYERS_RE.match(line.strip())
             if m:
+                self.layers_occurrences += 1
                 self.layers = set(m.group("layers").split(","))
                 continue
             m = SUMMARY_RE.match(line.strip())
             if m:
+                self.summary_occurrences += 1
                 self.digest = m.group("digest")
                 self.checks = int(m.group("checks"))
                 failures = m.group("failures")
@@ -415,6 +428,28 @@ def compare(builds: list[Build]) -> list[dict]:
                 "exit": b.run_exit,
                 "detail": b.output.strip().splitlines()[-6:],
             })
+        if b.compiled and not b.timed_out and b.digest:
+            invalid: list[str] = []
+            if b.summary_occurrences != 1:
+                invalid.append(f"terminal summaries={b.summary_occurrences}")
+            if b.layers_occurrences != 1 or not b.layers:
+                invalid.append(f"layer inventories={b.layers_occurrences}")
+            if (set(b.counters) != {"FEEDS", "STEPS"}
+                    or any(b.counter_occurrences.get(name) != 1
+                           for name in ("FEEDS", "STEPS"))):
+                invalid.append("FEEDS/STEPS counters are missing or repeated")
+            digest_layers = b.layers - generate_devil.FPC_ONLY_LAYERS
+            if (set(b.layer_digests) != digest_layers
+                    or any(b.layer_digest_occurrences.get(layer) != 1
+                           for layer in digest_layers)):
+                invalid.append("layer digests do not match the layer inventory")
+            if (b.checks <= 0 or b.reported_failures is None
+                    or b.reported_failures != sum(
+                        b.failure_occurrences.values())):
+                invalid.append("terminal check/failure counts are incomplete")
+            if invalid:
+                findings.append({"kind": "instrument-invalid",
+                                 "build": b.label, "detail": invalid})
     # a check whose prefix is not a layer would be silently excluded from
     # every comparison by the rule below, and the divergence would survive only
     # as a digest with no name attached: refuse to pretend that is a pass
@@ -536,8 +571,24 @@ def main() -> None:
     p.add_argument("--ppu-reuse", action="store_true",
                    help="also rebuild reusing the PPUs of the first build")
     args = p.parse_args()
-    if args.program_timeout <= 0:
-        p.error("--program-timeout must be positive")
+    if bool(args.dcc) != bool(args.dcc_lib):
+        p.error("--dcc and --dcc-lib must be supplied together")
+    if args.cases <= 0:
+        p.error("--cases must be positive")
+    if args.timeout <= 0 or args.program_timeout <= 0:
+        p.error("timeouts must be positive")
+    try:
+        seeds = [int(value.strip()) for value in args.seeds.split(",")
+                 if value.strip()]
+    except ValueError:
+        p.error("--seeds must be a comma-separated list of integers")
+    if not seeds or len(seeds) != len(set(seeds)):
+        p.error("--seeds must be non-empty and unique")
+    profiles = [value.strip() for value in args.profiles.split(",")
+                if value.strip()]
+    if (not profiles or len(profiles) != len(set(profiles))
+            or any(profile not in tc.PROFILES for profile in profiles)):
+        p.error("--profiles must contain unique known profiles")
 
     tc.preflight()
     # every build runs inside the work directory, so tool paths must be
@@ -548,9 +599,9 @@ def main() -> None:
         args.dcc_lib = args.dcc_lib.resolve()
     args.work = args.work.resolve()
     args.work.mkdir(parents=True, exist_ok=True)
+    if args.report:
+        args.report = args.report.resolve()
 
-    seeds = [int(s) for s in args.seeds.split(",") if s]
-    profiles = [p for p in args.profiles.split(",") if p]
     defines = [d for d in args.defines.split(",") if d]
     report: list[dict] = []
     total_findings = 0
@@ -564,7 +615,12 @@ def main() -> None:
         if code != 0:
             print(f"seed {seed}: generator failed\n{log}")
             total_findings += 1
+            report.append({"seed": seed, "summary": {}, "findings": [{
+                "kind": "generator-failed", "detail": log.splitlines()[-6:],
+            }], "known_hits": []})
             continue
+
+        generation_findings: list[dict] = []
 
         separate: Build | None = None
         if args.separate_units:
@@ -583,7 +639,17 @@ def main() -> None:
                 second = build_fpc(args.work, profiles[-1], defines,
                                    args.timeout, args.program_timeout)
                 second.label = "second"
-            run(gen, ROOT, args.timeout)
+            else:
+                generation_findings.append({
+                    "kind": "second-program-generator-failed",
+                    "detail": log.splitlines()[-6:],
+                })
+            restore_code, restore_log = run(gen, ROOT, args.timeout)
+            if restore_code != 0:
+                generation_findings.append({
+                    "kind": "base-program-restore-failed",
+                    "detail": restore_log.splitlines()[-6:],
+                })
 
         shuffled: Build | None = None
         if args.shuffle_order:
@@ -594,7 +660,17 @@ def main() -> None:
                 shuffled = build_fpc(args.work, profiles[-1], defines,
                                      args.timeout, args.program_timeout)
                 shuffled.label = "shuffled"
-            run(gen, ROOT, args.timeout)
+            else:
+                generation_findings.append({
+                    "kind": "shuffle-generator-failed",
+                    "detail": log.splitlines()[-6:],
+                })
+            restore_code, restore_log = run(gen, ROOT, args.timeout)
+            if restore_code != 0:
+                generation_findings.append({
+                    "kind": "base-program-restore-failed",
+                    "detail": restore_log.splitlines()[-6:],
+                })
 
         builds = []
         if separate is not None:
@@ -619,7 +695,7 @@ def main() -> None:
             mirror_findings = build_twice(args.work, profiles[-1], defines,
                                           args.timeout)
 
-        findings = compare(builds) + mirror_findings
+        findings = generation_findings + compare(builds) + mirror_findings
         if second is not None:
             reference = next((b for b in builds if b.label == profiles[-1]), None)
             if reference and reference.compiled and second.compiled:

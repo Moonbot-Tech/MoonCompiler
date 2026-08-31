@@ -371,15 +371,23 @@ def main() -> int:
     parser.add_argument("--work", type=Path,
                         default=ROOT / "results" / "runs" / "topology")
     parser.add_argument("--report", type=Path)
-    parser.add_argument("--topology")
-    parser.add_argument("--symbol")
+    parser.add_argument("--topology", choices=tuple(TOPOLOGIES))
+    parser.add_argument("--symbol", choices=tuple(SYMBOLS))
     args = parser.parse_args()
 
+    if args.timeout <= 0:
+        parser.error("--timeout must be positive")
     tc.preflight()
+    args.work = args.work.resolve()
+    if args.report:
+        args.report = args.report.resolve()
     args.work.mkdir(parents=True, exist_ok=True)
 
     profiles = [p.strip() for p in args.profiles.split(",") if p.strip()]
     switches = [s.strip().upper() for s in args.switches.split(",") if s.strip()]
+    if (not profiles or len(profiles) != len(set(profiles))
+            or any(profile not in tc.PROFILES for profile in profiles)):
+        parser.error("--profiles must contain unique known profiles")
 
     topologies = [args.topology] if args.topology else list(TOPOLOGIES)
     symbols = [args.symbol] if args.symbol else list(SYMBOLS)
@@ -438,6 +446,7 @@ def main() -> int:
               "known_findings": known_findings,
               "seconds": round(time.time() - started, 1)}
     if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, indent=2, ensure_ascii=False),
                                encoding="utf-8")
 

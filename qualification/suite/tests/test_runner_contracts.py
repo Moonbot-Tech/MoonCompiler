@@ -123,6 +123,31 @@ class RunnerContractsTest(unittest.TestCase):
             runner.create_run_directory(root, "fixtures", "named-run")
             with self.assertRaises(FileExistsError):
                 runner.create_run_directory(root, "fixtures", "named-run")
+            with self.assertRaisesRegex(RuntimeError, "run-id may contain"):
+                runner.create_run_directory(root, "fixtures", "../escape")
+
+    def test_filters_reject_typos_and_unsupported_mega_test_selection(self) -> None:
+        manifest = runner.load_manifest()
+        with self.assertRaisesRegex(RuntimeError, "unknown compiler"):
+            runner.validate_filters(
+                manifest, "fixtures", {"missing-compiler"}, None, None,
+            )
+        with self.assertRaisesRegex(RuntimeError, "unknown option"):
+            runner.validate_filters(
+                manifest, "fixtures", None, {"O9"}, None,
+            )
+        with self.assertRaisesRegex(RuntimeError, "not valid for mormot"):
+            runner.validate_filters(
+                manifest, "mormot", None, None, {"mormot-typo"},
+            )
+        with self.assertRaisesRegex(RuntimeError, "not supported"):
+            runner.validate_filters(
+                manifest, "mega", None, None, {"any-test"},
+            )
+        runner.validate_filters(
+            manifest, "mormot", {"moonbot-compiler-beta"}, {"O2"},
+            {"mormot-current"},
+        )
 
     def test_versioned_mormot_source_must_be_clean_exact_commit(self) -> None:
         completed = SimpleNamespace(stdout="expected\n")

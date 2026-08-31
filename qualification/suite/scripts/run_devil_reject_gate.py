@@ -87,12 +87,23 @@ def main() -> None:
     p.add_argument("--report", type=Path)
     args = p.parse_args()
 
+    if bool(args.dcc) != bool(args.dcc_lib):
+        p.error("--dcc and --dcc-lib must be supplied together")
+    if args.timeout <= 0:
+        p.error("--timeout must be positive")
+    options = [value.strip() for value in args.options.split(",")
+               if value.strip()]
+    if (not options or len(options) != len(set(options))
+            or any(option not in tc.PROFILES for option in options)):
+        p.error("--options must contain unique known profiles")
     tc.preflight()
     if args.dcc:
         args.dcc = args.dcc.resolve()
     if args.dcc_lib:
         args.dcc_lib = args.dcc_lib.resolve()
     args.work = args.work.resolve()
+    if args.report:
+        args.report = args.report.resolve()
 
     code, log = run([sys.executable, str(GENERATOR), "--seed", str(args.seed),
                      "--out", str(args.work)], ROOT, args.timeout)
@@ -108,7 +119,7 @@ def main() -> None:
         source = args.work / (case["program"] + ".dpr")
         want = case["verdict"]
         row = {"case": case["case"], "verdict": want, "builds": {}}
-        for option in args.options.split(","):
+        for option in options:
             ok, diag, ice = compile_fpc(args.work,
                                         option, source, args.timeout)
             row["builds"][f"fpc{option}"] = {"compiled": ok, "diag": diag}
@@ -125,7 +136,7 @@ def main() -> None:
             ok, diag, _ = compile_delphi(args.work, args.dcc, args.dcc_lib,
                                          source, args.timeout)
             row["builds"]["delphi"] = {"compiled": ok, "diag": diag}
-            ours = row["builds"][f"fpc{args.options.split(',')[0]}"]["compiled"]
+            ours = row["builds"][f"fpc{options[0]}"]["compiled"]
             if ok != ours:
                 findings.append({
                     "kind": "verdict-split", "case": case["case"],

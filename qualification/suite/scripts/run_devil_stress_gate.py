@@ -382,8 +382,17 @@ def main() -> None:
     p.add_argument("--report", type=Path)
     args = p.parse_args()
 
+    if args.cases <= 0 or args.timeout <= 0:
+        p.error("--cases and --timeout must be positive")
+    options = [value.strip() for value in args.options.split(",")
+               if value.strip()]
+    if (not options or len(options) != len(set(options))
+            or any(option not in tc.PROFILES for option in options)):
+        p.error("--options must contain unique known profiles")
     tc.preflight()
     work = args.work.resolve()
+    if args.report:
+        args.report = args.report.resolve()
     if work.exists():
         shutil.rmtree(work)
     work.mkdir(parents=True)
@@ -397,7 +406,7 @@ def main() -> None:
         source = work / f"{name}.dpr"
         source.write_text(HEADER.format(name=name) + SHAPES[shape](rng).lstrip("\n")
                           + "\n", encoding="utf-8")
-        for option in args.options.split(","):
+        for option in options:
             out = work / f"out-{name}-{option}"
             out.mkdir()
             code, log, seconds = run(

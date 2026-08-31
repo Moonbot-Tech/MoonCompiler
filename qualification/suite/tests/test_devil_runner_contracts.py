@@ -315,6 +315,38 @@ Fatal: Compilation aborted
             }],
         )
 
+    def test_main_comparison_requires_one_complete_instrument_summary(self) -> None:
+        build = run_devil_gate.Build("release")
+        build.compiled = True
+        build.run_exit = 0
+        build.parse(
+            "DEVIL_LAYERS gen\n"
+            "DEVIL_FEEDS 1\n"
+            "DEVIL_STEPS 1\n"
+            "DEVIL_LAYER gen=0000000000000001 checks=1\n"
+            "DEVIL_PASS seed=1 failures=0 checks=1 "
+            "digest=0000000000000001\n"
+        )
+        self.assertEqual(run_devil_gate.compare([build]), [])
+
+        build.counter_occurrences.pop("STEPS")
+        findings = run_devil_gate.compare([build])
+        self.assertEqual(findings[0]["kind"], "instrument-invalid")
+
+    def test_fpc_only_layers_do_not_claim_portable_layer_digests(self) -> None:
+        build = run_devil_gate.Build("release")
+        build.compiled = True
+        build.run_exit = 0
+        build.parse(
+            "DEVIL_LAYERS gen,i128,load\n"
+            "DEVIL_FEEDS 1\n"
+            "DEVIL_STEPS 1\n"
+            "DEVIL_LAYER gen=0000000000000001 checks=1\n"
+            "DEVIL_PASS seed=1 failures=0 checks=1 "
+            "digest=0000000000000001\n"
+        )
+        self.assertEqual(run_devil_gate.compare([build]), [])
+
     def test_known_checks_absorb_only_their_derived_runtime_exit(self) -> None:
         build = run_devil_gate.Build("release")
         build.compiled = True
@@ -434,14 +466,21 @@ Fatal: Compilation aborted
             result = run_devil_gate.Build(profile + ("+reuse" if reuse else ""))
             result.compiled = True
             result.layers = {"gen"}
+            result.layers_occurrences = 1
             result.checks = 1
             result.digest = "0000000000000001"
+            result.summary_occurrences = 1
+            result.reported_failures = 0
             result.layer_digests = {"gen": result.digest}
+            result.layer_digest_occurrences = {"gen": 1}
             result.counters = {"FEEDS": 1, "STEPS": 1}
+            result.counter_occurrences = {"FEEDS": 1, "STEPS": 1}
             if profile == "release":
                 result.failures["dvl-gen-00109-nested"] = (
                     "00000000FFFF8001", "0000000000008001"
                 )
+                result.failure_occurrences["dvl-gen-00109-nested"] = 1
+                result.reported_failures = 1
                 result.digest = "0000000000000002"
                 result.layer_digests["gen"] = result.digest
             return result

@@ -38,6 +38,8 @@ jobs:
           ./qualification/suite/scripts/run_extra_corpus.sh
           python3 qualification/suite/tests/test_runner_contracts.py
           python3 qualification/suite/tests/test_issue_tracker_runner.py
+          python3 qualification/suite/tests/test_qualification_contracts.py
+          python3 qualification/suite/tests/test_devil_runner_contracts.py
       - name: Run issue-tracker contract
         run: |
           python3 qualification/suite/scripts/run_issue_tracker_corpus.py \
@@ -105,6 +107,8 @@ jobs:
           .\qualification\suite\scripts\run_extra_corpus.ps1
           python .\qualification\suite\tests\test_runner_contracts.py
           python .\qualification\suite\tests\test_issue_tracker_runner.py
+          python .\qualification\suite\tests\test_qualification_contracts.py
+          python .\qualification\suite\tests\test_devil_runner_contracts.py
       - name: Run issue-tracker contract
         shell: powershell
         run: |

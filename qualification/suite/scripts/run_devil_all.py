@@ -30,8 +30,12 @@ def run(cmd: list[str], timeout: int) -> tuple[int, str, float]:
     try:
         p = subprocess.run(cmd, cwd=ROOT.parent.parent, capture_output=True,
                            text=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        return 124, "<timeout>", time.time() - started
+    except subprocess.TimeoutExpired as error:
+        stdout = error.stdout.decode(errors="replace") if isinstance(
+            error.stdout, bytes) else (error.stdout or "")
+        stderr = error.stderr.decode(errors="replace") if isinstance(
+            error.stderr, bytes) else (error.stderr or "")
+        return 124, stdout + stderr + "\n<TIMEOUT>\n", time.time() - started
     return p.returncode, (p.stdout or "") + (p.stderr or ""), time.time() - started
 
 
@@ -68,13 +72,31 @@ def main() -> None:
     )
     p.add_argument("--run-id")
     p.add_argument("--report", type=Path)
+    p.add_argument("--keep-going", action="store_true",
+                   help="run later stages after a failed stage")
     args = p.parse_args()
 
-    tc.preflight()
     if bool(args.dcc) != bool(args.dcc_lib):
         p.error("--dcc and --dcc-lib must be supplied together")
     if args.with_mutation and not args.mutation_repo:
         p.error("--with-mutation requires an explicitly disposable --mutation-repo")
+    if args.cases <= 0 or args.stress_cases <= 0:
+        p.error("case counts must be positive")
+    if args.timeout <= 0 or args.program_timeout <= 0:
+        p.error("timeouts must be positive")
+    try:
+        seeds = [int(value.strip()) for value in args.seeds.split(",")
+                 if value.strip()]
+    except ValueError:
+        p.error("--seeds must be a comma-separated list of integers")
+    if not seeds or len(seeds) != len(set(seeds)):
+        p.error("--seeds must be non-empty and unique")
+    tc.preflight()
+    if args.dcc:
+        args.dcc = args.dcc.resolve()
+        args.dcc_lib = args.dcc_lib.resolve()
+    if args.report:
+        args.report = args.report.resolve()
     run_id = args.run_id or (
         "devil-all-" + time.strftime("%Y%m%d-%H%M%S")
         + "-%07x" % (time.time_ns() & 0x0FFFFFFF)
@@ -87,7 +109,6 @@ def main() -> None:
     except FileExistsError:
         p.error(f"run already exists: {run_root}")
 
-    common: list[str] = []
     delphi = []
     if args.dcc and args.dcc_lib:
         delphi = ["--dcc", str(args.dcc), "--dcc-lib", str(args.dcc_lib)]
@@ -98,18 +119,18 @@ def main() -> None:
         ("registry", [sys.executable, str(SCRIPTS / "check_devil_registry.py")]),
         ("codegen", [sys.executable, str(SCRIPTS / "run_devil_codegen_gate.py"),
                      "--work", str(run_root / "codegen"),
-                     "--report", str(run_root / "codegen.json")] + common),
+                     "--report", str(run_root / "codegen.json")]),
         ("reject", [sys.executable, str(SCRIPTS / "run_devil_reject_gate.py")]
-         + common + delphi + ["--work", str(run_root / "reject"),
+         + delphi + ["--work", str(run_root / "reject"),
                               "--report", str(run_root / "reject.json")]),
         # ловушка на весь класс dvl-0041: код не должен зависеть ни от чего,
         # кроме исходника
         ("env", [sys.executable, str(SCRIPTS / "run_devil_env_gate.py")]
-         + common + ["--work", str(run_root / "env"),
+         + ["--work", str(run_root / "env"),
                      "--report", str(run_root / "env.json")]),
         # ключи сборки не имеют права менять поведение программы
         ("modes", [sys.executable, str(SCRIPTS / "run_devil_modes_gate.py")]
-         + common + ["--work", str(run_root / "modes"),
+         + ["--work", str(run_root / "modes"),
                      "--report", str(run_root / "modes.json")]),
         ("resident", [sys.executable,
                       str(SCRIPTS / "run_devil_resident_gate.py"),
@@ -139,11 +160,11 @@ def main() -> None:
                       "--work", str(run_root / "topology"),
                       "--report", str(run_root / "topology.json")]),
         ("stress", [sys.executable, str(SCRIPTS / "run_devil_stress_gate.py")]
-         + common + ["--cases", str(args.stress_cases),
+         + ["--cases", str(args.stress_cases),
                      "--work", str(run_root / "stress"),
                      "--report", str(run_root / "stress.json")]),
         ("main", [sys.executable, str(SCRIPTS / "run_devil_gate.py")]
-         + common + delphi + ["--seeds", args.seeds, "--cases", str(args.cases),
+         + delphi + ["--seeds", args.seeds, "--cases", str(args.cases),
                               "--program-timeout", str(args.program_timeout),
                               "--ppu-reuse", "--work", str(run_root / "main"),
                               "--report", str(run_root / "main.json")]),
@@ -166,17 +187,20 @@ def main() -> None:
     failed = []
     for name, cmd in stages:
         code, log, seconds = run(cmd, args.timeout)
+        (run_root / f"{name}.log").write_text(log, encoding="utf-8")
         verdict = [l for l in log.splitlines()
                    if l.startswith(("DEVIL_", "RESIDENT_", "CHIMERA_",
                                     "PLANT_", "ASM_ORACLE_", "  NEW",
                                     "  known"))][-8:]
-        results.append({"stage": name, "code": code,
+        results.append({"stage": name, "command": cmd, "code": code,
                         "seconds": round(seconds, 1), "tail": verdict})
         print(f"=== {name}: exit {code} in {seconds:.0f}s")
         for line in verdict:
             print("   " + line)
         if code != 0:
             failed.append(name)
+            if not args.keep_going:
+                break
 
     report_path = args.report or run_root / "report.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -195,6 +219,10 @@ def main() -> None:
     }
     report_path.write_text(json.dumps({"run_id": run_id,
                                        "provenance": provenance,
+                                       "planned_stages": [name for name, _ in stages],
+                                       "not_run": [name for name, _ in stages
+                                                   if name not in {row["stage"]
+                                                                   for row in results}],
                                        "stages": results},
                                       indent=2, ensure_ascii=False)
                            + "\n", encoding="utf-8")

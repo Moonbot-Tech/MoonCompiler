@@ -172,8 +172,14 @@ def main() -> None:
     p.add_argument("--report", type=Path)
     args = p.parse_args()
 
+    if args.cases <= 0 or args.timeout <= 0:
+        p.error("--cases and --timeout must be positive")
+    if args.profile not in tc.PROFILES:
+        p.error("--profile must name a known profile")
     tc.preflight()
     work = args.work.resolve()
+    if args.report:
+        args.report = args.report.resolve()
     if work.exists():
         shutil.rmtree(work)
     work.mkdir(parents=True)

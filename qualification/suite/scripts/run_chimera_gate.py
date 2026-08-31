@@ -275,6 +275,8 @@ def main() -> int:
                              "(только для промежуточной работы)")
     args = parser.parse_args()
 
+    if args.timeout <= 0:
+        parser.error("--timeout must be positive")
     # Compilation runs with the Chimera source directory as cwd.  Resolve a
     # caller-supplied relative work path before handing -FU/-FE to the
     # compiler, otherwise a perfectly valid path is looked up below CHIMERA.

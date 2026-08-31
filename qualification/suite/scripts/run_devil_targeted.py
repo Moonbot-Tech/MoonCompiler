@@ -252,6 +252,22 @@ def main() -> int:
         raise SystemExit("--dcc and --dcc-lib must be supplied together")
     if args.timeout <= 0 or args.program_timeout <= 0:
         raise SystemExit("timeouts must be positive")
+    if args.cases <= 0 or args.stress_cases <= 0:
+        raise SystemExit("case counts must be positive")
+    try:
+        seeds = [int(value.strip()) for value in args.seeds.split(",")
+                 if value.strip()]
+    except ValueError as error:
+        raise SystemExit(
+            "--seeds must be a comma-separated list of integers"
+        ) from error
+    if not seeds or len(seeds) != len(set(seeds)):
+        raise SystemExit("--seeds must be non-empty and unique")
+    profiles = [value.strip() for value in args.profiles.split(",")
+                if value.strip()]
+    if (not profiles or len(profiles) != len(set(profiles))
+            or any(profile not in tc.PROFILES for profile in profiles)):
+        raise SystemExit("--profiles must contain unique known profiles")
     tc.preflight()
     if args.dcc:
         args.dcc = args.dcc.resolve()

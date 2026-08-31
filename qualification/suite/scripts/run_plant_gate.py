@@ -113,7 +113,12 @@ def main() -> int:
                         help="только профили и порядки, без перебора ключей")
     args = parser.parse_args()
 
+    if args.timeout <= 0:
+        parser.error("--timeout must be positive")
     tc.preflight()
+    args.work = args.work.resolve()
+    if args.report:
+        args.report = args.report.resolve()
     args.work.mkdir(parents=True, exist_ok=True)
     started = time.time()
 
@@ -165,6 +170,7 @@ def main() -> int:
     report = {"expected": expected, "rows": rows, "findings": findings,
               "seconds": round(time.time() - started, 1)}
     if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, indent=2, ensure_ascii=False),
                                encoding="utf-8")
 

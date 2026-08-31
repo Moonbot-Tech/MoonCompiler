@@ -90,6 +90,8 @@ def main() -> int:
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
 
+    if args.timeout <= 0:
+        parser.error("--timeout must be positive")
     tc.preflight()
     args.work = args.work.resolve()
     if args.report:
