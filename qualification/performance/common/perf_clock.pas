@@ -12,6 +12,7 @@ type
     WallNs: UInt64;
     ThreadCpuNs: UInt64;
     Tsc: UInt64;
+    Cpu: Integer;
   end;
 
   TPerfDelta = record
@@ -48,6 +49,99 @@ uses
 {$ifdef MSWINDOWS}
 var
   TimerFrequency: Int64;
+{$endif}
+
+{$ifdef LINUX}
+type
+  { glibc cpu_set_t is 1024 bits on Linux x86-64.  Keep the ABI-shaped type
+    local: the RTL's internal cpu_set_t is not part of the public unit API. }
+  TLinuxCpuSet = record
+    Bits: array[0..15] of QWord;
+  end;
+  PLinuxCpuSet = ^TLinuxCpuSet;
+
+var
+  LinuxReservedCpuSet: TLinuxCpuSet;
+  LinuxReservedCpuSetReady: Boolean;
+
+function LinuxSchedGetAffinity(Pid: LongInt; CpuSetSize: SizeUInt;
+  Mask: PLinuxCpuSet): LongInt; cdecl; external 'c' name 'sched_getaffinity';
+function LinuxSchedSetAffinity(Pid: LongInt; CpuSetSize: SizeUInt;
+  Mask: PLinuxCpuSet): LongInt; cdecl; external 'c' name 'sched_setaffinity';
+function LinuxSchedGetCpu: LongInt; cdecl; external 'c' name 'sched_getcpu';
+
+function LinuxCurrentCpu: Integer;
+begin
+  Result := LinuxSchedGetCpu;
+  If Result < 0 then
+    RaiseLastOSError;
+end;
+
+function LinuxCpuSetContains(const CpuSet: TLinuxCpuSet; Cpu: Integer): Boolean;
+begin
+  Result := (Cpu >= 0) and (Cpu < SizeOf(CpuSet) * 8) and
+    ((CpuSet.Bits[Cpu div 64] and (QWord(1) shl (Cpu mod 64))) <> 0);
+end;
+
+function LinuxReservedCpuCount: Integer;
+var
+  Cpu: Integer;
+begin
+  Result := 0;
+  for Cpu := 0 to SizeOf(LinuxReservedCpuSet) * 8 - 1 do
+    If LinuxCpuSetContains(LinuxReservedCpuSet, Cpu) then
+      Inc(Result);
+end;
+
+procedure EnsureLinuxReservedCpuSet;
+begin
+  If LinuxReservedCpuSetReady then
+    Exit;
+  FillChar(LinuxReservedCpuSet, SizeOf(LinuxReservedCpuSet), 0);
+  If LinuxSchedGetAffinity(0, SizeOf(LinuxReservedCpuSet),
+    @LinuxReservedCpuSet) <> 0 then
+    RaiseLastOSError;
+  If LinuxReservedCpuCount = 0 then
+    raise EAbort.Create('Linux Pulse affinity set is empty');
+  LinuxReservedCpuSetReady := True;
+end;
+
+function LinuxReservedCpuAt(Ordinal: Integer): Integer;
+var
+  Cpu, Seen: Integer;
+begin
+  If Ordinal < 0 then
+    raise EArgumentOutOfRangeException.Create('worker CPU ordinal is negative');
+  EnsureLinuxReservedCpuSet;
+  Seen := 0;
+  for Cpu := 0 to SizeOf(LinuxReservedCpuSet) * 8 - 1 do
+  begin
+    If not LinuxCpuSetContains(LinuxReservedCpuSet, Cpu) then
+      Continue;
+    If Seen = Ordinal then
+    begin
+      Result := Cpu;
+      Exit;
+    end;
+    Inc(Seen);
+  end;
+  raise EAbort.CreateFmt('worker CPU %d is unavailable', [Ordinal]);
+end;
+
+procedure LinuxPinCurrentThread(Cpu: Integer);
+var
+  CpuSet: TLinuxCpuSet;
+begin
+  If not LinuxCpuSetContains(LinuxReservedCpuSet, Cpu) then
+    raise EAbort.CreateFmt('CPU %d is outside the reserved Pulse set', [Cpu]);
+  FillChar(CpuSet, SizeOf(CpuSet), 0);
+  CpuSet.Bits[Cpu div 64] := QWord(1) shl (Cpu mod 64);
+  If LinuxSchedSetAffinity(0, SizeOf(CpuSet), @CpuSet) <> 0 then
+    RaiseLastOSError;
+  If LinuxCurrentCpu <> Cpu then
+    raise EAbort.CreateFmt('Linux affinity did not pin current thread to CPU %d',
+      [Cpu]);
+end;
 {$endif}
 
 function ReadWallNs: UInt64;
@@ -146,10 +240,19 @@ begin
     RaiseLastOSError;
 end;
 {$else}
+  {$ifdef LINUX}
 begin
-  { Linux qualification pins the process with taskset before program start. }
+  { Capture taskset's process reservation before narrowing the main thread;
+    child workers inherit the narrow mask but restore their own reserved CPU. }
+  EnsureLinuxReservedCpuSet;
+  Result := LinuxReservedCpuAt(LinuxReservedCpuCount - 1);
+  LinuxPinCurrentThread(Result);
+end;
+  {$else}
+begin
   Result := -1;
 end;
+  {$endif}
 {$endif}
 
 function PinWorkerThread(Ordinal: Integer): Integer;
@@ -180,10 +283,16 @@ begin
   raise EAbort.CreateFmt('worker CPU %d is unavailable', [Ordinal]);
 end;
 {$else}
+  {$ifdef LINUX}
 begin
-  { Linux qualification pins worker placement outside the process. }
+  Result := LinuxReservedCpuAt(Ordinal);
+  LinuxPinCurrentThread(Result);
+end;
+  {$else}
+begin
   Result := -1;
 end;
+  {$endif}
 {$endif}
 
 function CanPinWorkerThreads(Count: Integer): Boolean;
@@ -206,10 +315,18 @@ begin
   Result := Available >= Count;
 end;
 {$else}
+  {$ifdef LINUX}
 begin
-  { Linux placement is controlled by the qualification runner. }
+  If Count < 0 then
+    Exit(False);
+  EnsureLinuxReservedCpuSet;
+  Result := LinuxReservedCpuCount >= Count;
+end;
+  {$else}
+begin
   Result := Count >= 0;
 end;
+  {$endif}
 {$endif}
 
 function BeginPerfStamp: TPerfStamp;
@@ -217,13 +334,26 @@ begin
   Result.WallNs := ReadWallNs;
   Result.ThreadCpuNs := ReadThreadCpuNs;
   Result.Tsc := ReadTscStart;
+  Result.Cpu := -1;
+  {$ifdef LINUX}
+  Result.Cpu := LinuxCurrentCpu;
+  {$endif}
 end;
 
 function EndPerfStamp(const Started: TPerfStamp): TPerfDelta;
 var
   StoppedTsc, StoppedCpu, StoppedWall: UInt64;
+  {$ifdef LINUX}
+  StoppedCpuId: Integer;
+  {$endif}
 begin
   StoppedTsc := ReadTscStop;
+  {$ifdef LINUX}
+  StoppedCpuId := LinuxCurrentCpu;
+  If StoppedCpuId <> Started.Cpu then
+    raise EAbort.CreateFmt('benchmark CPU migration detected: %d -> %d',
+      [Started.Cpu, StoppedCpuId]);
+  {$endif}
   StoppedCpu := ReadThreadCpuNs;
   StoppedWall := ReadWallNs;
   Result.TscTicks := StoppedTsc - Started.Tsc;

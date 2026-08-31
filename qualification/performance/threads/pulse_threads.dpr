@@ -123,6 +123,7 @@ end;
 
 procedure TPulseWorker.Execute;
 begin
+  PinWorkerThread(FIndex);
   StartEvent.WaitFor(INFINITE);
   RunWork;
 end;
@@ -316,6 +317,7 @@ var
   Value: UInt64;
   Done: Boolean;
 begin
+  PinWorkerThread(Ord(FRole));
   StartEvent.WaitFor(INFINITE);
   Digest := 0;
   Value := 0;
@@ -595,8 +597,9 @@ begin
   SharedLock := TCriticalSection.Create;
   QueueLock := TCriticalSection.Create;
   ActiveThreadCount := 4;
-  If not CanPinWorkerThreads(Length(PersistentWorkers)) then
-    raise EAbort.Create('thread workload requires eight available logical CPUs');
+  { Eight workers and the measuring main thread must not share a CPU. }
+  If not CanPinWorkerThreads(Length(PersistentWorkers) + 1) then
+    raise EAbort.Create('thread workload requires nine available logical CPUs');
   PersistentStop := False;
   for I := 0 to High(PersistentWorkers) do
   begin

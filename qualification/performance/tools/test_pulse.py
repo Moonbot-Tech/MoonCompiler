@@ -73,6 +73,40 @@ class PulseStatisticsTests(unittest.TestCase):
         self.assertEqual(PULSE.select_primary_metric("move", [row]), "tsc")
         self.assertEqual(PULSE.select_primary_metric("threads", [row]), "tsc")
 
+    def test_linux_pulse_reserves_main_and_eight_worker_cpus(self) -> None:
+        available = {1, 2, 3, 4, 5, 7, 8, 9, 12, 13}
+        topology = {cpu: (0, cpu) for cpu in available}
+        topology[13] = topology[1]  # SMT sibling: never reserve both threads.
+        reservation = PULSE.select_pulse_physical_cpus(available, topology)
+        self.assertEqual(reservation, (1, 2, 3, 4, 5, 7, 8, 9, 12))
+
+    def test_linux_pulse_rejects_short_thread_reservation(self) -> None:
+        available = set(range(9))
+        topology = {cpu: (0, cpu) for cpu in available}
+        topology[8] = topology[0]
+        with self.assertRaisesRegex(RuntimeError, "requires 9 distinct physical cores"):
+            PULSE.select_pulse_physical_cpus(available, topology)
+
+    def test_pulse_result_path_stays_below_selected_root(self) -> None:
+        root = Path("selected-results")
+        self.assertEqual(
+            PULSE.pulse_result_path(root, "exact-head/long"),
+            root.resolve() / "exact-head/long",
+        )
+        with self.assertRaisesRegex(ValueError, "relative child path"):
+            PULSE.pulse_result_path(root, "../escape")
+
+    def test_linux_pulse_command_uses_taskset_cpu_list(self) -> None:
+        command = PULSE.pulse_command(
+            Path("/tmp/pulse_threads"), "long", "independent-cpu-8",
+            (2, 3, 5), taskset="/usr/bin/taskset"
+        )
+        self.assertEqual(
+            command,
+            ["/usr/bin/taskset", "--cpu-list", "2,3,5", str(Path("/tmp/pulse_threads")),
+             "long", "independent-cpu-8"],
+        )
+
     def test_tsc_fallback_uses_adjacent_process_pairs(self) -> None:
         self.assertTrue(PULSE.use_paired_process_ratios("abi", "tsc"))
         self.assertTrue(PULSE.use_paired_process_ratios("move", "cycles"))

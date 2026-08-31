@@ -24,6 +24,7 @@ ROOT = PERF_ROOT.parents[1]
 COMMON = PERF_ROOT / "common"
 RESULTS = PERF_ROOT / "results" / "pulse"
 IS_WINDOWS = os.name == "nt"
+PULSE_THREAD_WORKER_CPUS = 8
 DCC64 = Path(r"C:\Program Files (x86)\Embarcadero\Studio\23.0\bin\dcc64.exe")
 if IS_WINDOWS:
     MOON_FPC = ROOT / ".moonbot" / "toolchain" / "bin" / "x86_64-win64" / "fpc.exe"
@@ -85,6 +86,91 @@ def run(command: list[str], *, cwd: Path = ROOT, capture: bool = False) -> subpr
         stdout=subprocess.PIPE if capture else None,
         stderr=subprocess.STDOUT if capture else None,
     )
+
+
+def linux_cpu_topology(cpus: set[int]) -> dict[int, tuple[int, int]]:
+    """Map Linux logical CPUs to physical package/core identities."""
+    topology: dict[int, tuple[int, int]] = {}
+    root = Path("/sys/devices/system/cpu")
+    for cpu in sorted(cpus):
+        cpu_root = root / f"cpu{cpu}" / "topology"
+        try:
+            package = int((cpu_root / "physical_package_id").read_text().strip())
+            core = int((cpu_root / "core_id").read_text().strip())
+        except (OSError, ValueError) as error:
+            raise RuntimeError(
+                f"Linux Pulse cannot resolve physical topology for CPU {cpu}"
+            ) from error
+        topology[cpu] = (package, core)
+    return topology
+
+
+def select_pulse_physical_cpus(
+    available: set[int], topology: dict[int, tuple[int, int]]
+) -> tuple[int, ...]:
+    """Select one main and eight workers on distinct physical cores."""
+    cpus: list[int] = []
+    physical: set[tuple[int, int]] = set()
+    for cpu in sorted(available):
+        identity = topology.get(cpu)
+        if identity is None:
+            raise RuntimeError(f"Linux Pulse topology is missing CPU {cpu}")
+        if identity in physical:
+            continue
+        physical.add(identity)
+        cpus.append(cpu)
+    required = PULSE_THREAD_WORKER_CPUS + 1
+    if len(cpus) < required:
+        raise RuntimeError(
+            f"Linux Pulse requires {required} distinct physical cores for its "
+            f"eight-worker thread matrix; only {len(cpus)} are available"
+        )
+    return tuple(cpus[:required])
+
+
+def linux_pulse_cpu_reservation() -> tuple[int, ...]:
+    """Resolve the fixed physical-core reservation used by Linux Pulse."""
+    if IS_WINDOWS:
+        return ()
+    if not hasattr(os, "sched_getaffinity"):
+        raise RuntimeError("Linux Pulse requires sched_getaffinity")
+    available = os.sched_getaffinity(0)
+    return select_pulse_physical_cpus(available, linux_cpu_topology(available))
+
+
+def pulse_command(
+    exe: Path, mode: str, selected_case: str, reserved_cpus: tuple[int, ...],
+    *, taskset: str | None = None,
+) -> list[str]:
+    command = [str(exe), mode, selected_case]
+    if not reserved_cpus:
+        return command
+    taskset = taskset or shutil.which("taskset")
+    if taskset is None:
+        raise RuntimeError("Linux Pulse requires taskset for fixed process affinity")
+    return [taskset, "--cpu-list", ",".join(str(cpu) for cpu in reserved_cpus), *command]
+
+
+def pulse_execution_metadata(reserved_cpus: tuple[int, ...]) -> dict[str, object]:
+    if not reserved_cpus:
+        return {"method": "native thread affinity"}
+    return {
+        "method": "taskset process reservation + sched_setaffinity threads",
+        "reserved_cpus": list(reserved_cpus),
+        "physical_cores": {
+            str(cpu): list(identity)
+            for cpu, identity in linux_cpu_topology(set(reserved_cpus)).items()
+        },
+        "taskset": shutil.which("taskset"),
+    }
+
+
+def pulse_result_path(result_root: Path | None, tag: str) -> Path:
+    """Resolve one result directory below the selected result root."""
+    tag_path = Path(tag)
+    if tag_path.is_absolute() or ".." in tag_path.parts:
+        raise ValueError(f"tag must be a relative child path: {tag}")
+    return (result_root or RESULTS).resolve() / tag_path
 
 
 def sha256(path: Path) -> str:
@@ -340,11 +426,13 @@ def run_suite(
     tag: str,
     external_toolchains: dict[str, Path] | None = None,
     external_options: dict[str, list[str]] | None = None,
+    result_root: Path | None = None,
 ) -> Path:
     external_toolchains = external_toolchains or {}
     external_options = external_options or {}
+    reserved_cpus = linux_pulse_cpu_reservation()
     built = build(programs, systems, external_toolchains, external_options)
-    result = RESULTS / tag
+    result = pulse_result_path(result_root, tag)
     result.mkdir(parents=True, exist_ok=False)
     repeats = {"quick": 2, "medium": 7, "long": 9}[mode]
     palindrome = systems + list(reversed(systems))
@@ -385,7 +473,8 @@ def run_suite(
             flush=True,
         )
         try:
-            completed = run([str(exe), mode, selected_case], capture=True)
+            command = pulse_command(exe, mode, selected_case, reserved_cpus)
+            completed = run(command, capture=True)
         except subprocess.CalledProcessError as error:
             log.write_text(error.stdout or "", encoding="utf-8", newline="\n")
             raise RuntimeError(f"benchmark failed; complete output is in {log}") from error
@@ -400,6 +489,7 @@ def run_suite(
                 "case": selected_case,
                 "executable": str(exe.relative_to(ROOT)),
                 "executable_sha256": sha256(exe),
+                "command": command,
                 "log": log.name,
                 "log_sha256": sha256(log),
             }
@@ -413,6 +503,7 @@ def run_suite(
         "git_head": git_text("rev-parse", "HEAD"),
         "git_status": git_text("status", "--porcelain=v1"),
         "machine": machine_metadata(),
+        "execution_affinity": pulse_execution_metadata(reserved_cpus),
         "input_sha256": qualification_input_hashes(external_toolchains),
         "systems": {system: SYSTEM_LABELS[system] for system in systems},
         "external_toolchains": {
@@ -925,6 +1016,7 @@ def main() -> None:
     run_parser.add_argument("--moon-baseline-option", action="append", default=[])
     run_parser.add_argument("--moon-candidate-option", action="append", default=[])
     run_parser.add_argument("--tag")
+    run_parser.add_argument("--result-root", type=Path)
     report_parser = sub.add_parser("report")
     report_parser.add_argument("result", type=Path)
     args = parser.parse_args()
@@ -971,7 +1063,8 @@ def main() -> None:
         tag = args.tag or time.strftime("%Y%m%d-%H%M%S") + f"-{args.mode}"
         run_suite(
             args.mode, programs, systems, tag,
-            external_toolchains, external_options)
+            external_toolchains, external_options,
+            args.result_root.resolve() if args.result_root is not None else None)
     else:
         write_report(args.result.resolve())
 
