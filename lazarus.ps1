@@ -22,10 +22,12 @@ If (-not (Test-Path -LiteralPath $LazarusExe)) {
 
 $oldPath = $env:Path
 $oldPP = $env:PP
+$oldPpcConfigPath = $env:PPC_CONFIG_PATH
 $oldFpcDir = $env:FPCDIR
 $oldLazarusDir = $env:LAZARUSDIR
 $env:Path = "$(Split-Path -Parent $IdeFpc);$oldPath"
 $env:PP = $IdeFpc
+$env:PPC_CONFIG_PATH = Split-Path -Parent $IdeFpc
 Remove-Item Env:FPCDIR -ErrorAction SilentlyContinue
 $env:LAZARUSDIR = $LazarusSource
 try {
@@ -34,6 +36,7 @@ try {
 } finally {
   $env:Path = $oldPath
   $env:PP = $oldPP
+  $env:PPC_CONFIG_PATH = $oldPpcConfigPath
   $env:FPCDIR = $oldFpcDir
   $env:LAZARUSDIR = $oldLazarusDir
 }

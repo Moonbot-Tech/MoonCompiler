@@ -14,6 +14,7 @@ PRIMARY_CONFIG="$STATE/lazarus-config"
 
 export PATH="$IDE_TOOLCHAIN/bin:$PATH"
 export PP="$IDE_FPC"
+export PPC_CONFIG_PATH="$IDE_TOOLCHAIN/etc"
 export LAZARUSDIR="$LAZARUS_SOURCE"
 unset FPCDIR
 exec "$LAZARUS_EXE" "--pcp=$PRIMARY_CONFIG" "$@"

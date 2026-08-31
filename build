@@ -161,9 +161,11 @@ build_lazarus() {
   lazbuild_options='--lazarusdir=. --compiler=$(PP) --cpu=$(CPU_TARGET) --os=$(OS_TARGET) --opt="$(OPT)" --pcp="$(MOON_LAZARUS_PCP)"'
 
   env -u FPCDIR PATH="$IDE_TOOLCHAIN/bin:$PATH" PP="$ide_fpc" \
+    PPC_CONFIG_PATH="$IDE_TOOLCHAIN/etc" \
     LAZARUSDIR="$source" \
     make -C "$source" clean FPC="$ide_fpc"
   env -u FPCDIR PATH="$IDE_TOOLCHAIN/bin:$PATH" PP="$ide_fpc" \
+    PPC_CONFIG_PATH="$IDE_TOOLCHAIN/etc" \
     LAZARUSDIR="$source" \
     make -C "$source" -j1 bigide FPC="$ide_fpc" OPT=-O3 \
       MOON_LAZARUS_PCP="$pcp" "LAZBUILDOPTS=$lazbuild_options"

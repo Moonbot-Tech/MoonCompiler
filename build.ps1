@@ -223,10 +223,12 @@ function Build-Lazarus {
   $ideBin = Split-Path -Parent $ideFpc
   $oldPath = $env:Path
   $oldPP = $env:PP
+  $oldPpcConfigPath = $env:PPC_CONFIG_PATH
   $oldFpcDir = $env:FPCDIR
   $oldLazarusDir = $env:LAZARUSDIR
   $env:Path = "$ideBin;$oldPath"
   $env:PP = $ideFpc
+  $env:PPC_CONFIG_PATH = $ideBin
   Remove-Item Env:FPCDIR -ErrorAction SilentlyContinue
   $env:LAZARUSDIR = $source
   try {
@@ -236,6 +238,7 @@ function Build-Lazarus {
   } finally {
     $env:Path = $oldPath
     $env:PP = $oldPP
+    $env:PPC_CONFIG_PATH = $oldPpcConfigPath
     $env:FPCDIR = $oldFpcDir
     $env:LAZARUSDIR = $oldLazarusDir
   }
