@@ -158,11 +158,19 @@ def mormot_source_patch(source: dict[str, Any]) -> Path | None:
     return patch
 
 
-def stage_mormot_source_tree(
-    source_root: Path, staged_root: Path, patch: Path,
-) -> None:
-    """Copy exact mORMot sources and patch only the disposable copy."""
-    shutil.copytree(source_root / "src", staged_root / "src")
+def mormot_test_patch(source: dict[str, Any]) -> Path | None:
+    """Return an optional contract patch for the disposable test copy."""
+    configured = source.get("test_patch")
+    if configured is None:
+        return None
+    patch = ROOT / configured
+    if not patch.is_file():
+        raise RuntimeError(f"mORMot test patch is missing: {patch}")
+    return patch
+
+
+def apply_mormot_staged_patch(staged_root: Path, patch: Path) -> None:
+    """Apply a versioned patch only inside a disposable staged tree."""
     command = [
         "git", "apply", "--no-index", "--ignore-space-change",
         "--ignore-whitespace", str(patch.resolve()),
@@ -179,8 +187,16 @@ def stage_mormot_source_tree(
     except subprocess.CalledProcessError as error:
         detail = error.stderr.strip() or error.stdout.strip()
         raise RuntimeError(
-            f"cannot apply mORMot source patch {patch}: {detail}"
+            f"cannot apply mORMot staged patch {patch}: {detail}"
         ) from error
+
+
+def stage_mormot_source_tree(
+    source_root: Path, staged_root: Path, patch: Path,
+) -> None:
+    """Copy exact mORMot sources and patch only the disposable copy."""
+    shutil.copytree(source_root / "src", staged_root / "src")
+    apply_mormot_staged_patch(staged_root, patch)
 
 
 def mormot_static_inputs(
@@ -204,23 +220,26 @@ def mormot_static_inputs(
 
 def mormot_test_inputs(
     source_root: Path, source: dict[str, Any], work: Path,
-) -> tuple[Path, Path, Path, Path | None]:
+) -> tuple[Path, Path, Path, Path | None, Path | None]:
     """Stage the matching test tree beside the exact product source tree."""
     configured = source.get("test_path")
     test_root = ROOT / configured if configured else source_root / "test"
     rtsp_ports = source.get("rtsp_ports")
     source_patch = mormot_source_patch(source)
+    test_patch = mormot_test_patch(source)
     provenance_source = test_root / "mormot2tests.dpr"
     if not provenance_source.is_file():
         raise RuntimeError(f"mORMot test program is missing: {provenance_source}")
-    if not configured and not rtsp_ports and source_patch is None:
-        return provenance_source, provenance_source, source_root, None
+    if not configured and not rtsp_ports and source_patch is None and test_patch is None:
+        return provenance_source, provenance_source, source_root, None, None
 
     staged_root = work / "source"
     if staged_root.exists():
         shutil.rmtree(staged_root)
     staged_root.mkdir(parents=True)
     shutil.copytree(test_root, staged_root / "test")
+    if test_patch is not None:
+        apply_mormot_staged_patch(staged_root, test_patch)
     if source_patch is None:
         (staged_root / "src").symlink_to(
             source_root / "src", target_is_directory=True,
@@ -244,7 +263,7 @@ def mormot_test_inputs(
         )
     return (
         staged_root / "test/mormot2tests.dpr", provenance_source,
-        compile_source_root, source_patch,
+        compile_source_root, source_patch, test_patch,
     )
 
 
@@ -2644,6 +2663,7 @@ def _run_mormot_case_in_workspace(
     (work / "lib").mkdir(parents=True, exist_ok=True)
     (
         program_source, provenance_source, compile_source_root, source_patch,
+        test_patch,
     ) = mormot_test_inputs(source_root, source, work)
     memory_manager = source.get("memory_manager")
     memory_manager_source = ROOT / memory_manager if memory_manager else None
@@ -2782,6 +2802,10 @@ def _run_mormot_case_in_workspace(
             str(source_patch.relative_to(ROOT)) if source_patch else None
         ),
         "source_patch_sha256": sha256(source_patch) if source_patch else None,
+        "test_patch": (
+            str(test_patch.relative_to(ROOT)) if test_patch else None
+        ),
+        "test_patch_sha256": sha256(test_patch) if test_patch else None,
         "test_source_commit": source.get("test_commit"),
         "memory_manager": memory_manager,
         "memory_manager_sha256": (

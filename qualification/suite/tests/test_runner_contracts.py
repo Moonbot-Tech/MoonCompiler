@@ -1,3 +1,4 @@
+import shutil
 import sys
 import subprocess
 import tempfile
@@ -218,6 +219,34 @@ class RunnerContractsTest(unittest.TestCase):
             self.assertEqual(unit.read_text(encoding="utf-8"), "before\n")
             self.assertEqual(
                 (staged / "src/core/unit.pas").read_text(encoding="utf-8"),
+                "after\n",
+            )
+
+    def test_mormot_test_patch_changes_only_the_staged_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            staged = root / "staged"
+            unit = source / "test/unit.pas"
+            unit.parent.mkdir(parents=True)
+            unit.write_bytes(b"before\r\n")
+            shutil.copytree(source, staged)
+            patch = root / "test.patch"
+            patch.write_text(
+                "diff --git a/test/unit.pas b/test/unit.pas\n"
+                "--- a/test/unit.pas\n"
+                "+++ b/test/unit.pas\n"
+                "@@ -1 +1 @@\n"
+                "-before\n"
+                "+after\n",
+                encoding="utf-8",
+            )
+
+            runner.apply_mormot_staged_patch(staged, patch)
+
+            self.assertEqual(unit.read_text(encoding="utf-8"), "before\n")
+            self.assertEqual(
+                (staged / "test/unit.pas").read_text(encoding="utf-8"),
                 "after\n",
             )
 

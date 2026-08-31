@@ -5016,7 +5016,9 @@ begin
     modMongoStrict) = BSONAWESOME);
   Check(VariantSaveJson(o) = u);
   Check(VariantSaveJson('test') = '"test"');
-  u1 := VariantSaveJson(1.12345);
+  // Keep the JSON input Double: a bare decimal literal has a compiler-specific
+  // Variant carrier (Currency in the Delphi-compatible contract).
+  u1 := VariantSaveJson(Double(1.12345));
   CheckEqual(u1, '1.12345');
   Check(VariantSaveJson(_Json('{BSON:["awesome",5.05,1986]}',
     [dvoReturnNullForUnknownProperty, dvoAllowDoubleValue])) = BSONAWESOME);
@@ -7702,4 +7704,3 @@ end;
 
 
 end.
-
