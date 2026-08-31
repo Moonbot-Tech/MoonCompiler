@@ -84,6 +84,11 @@ def build_and_run(work: Path, out: Path, extra: list[str], profile: str,
             "answers": answers, "failure": failure[:1]}
 
 
+def normalize_paths(work: Path, report: Path | None) -> tuple[Path, Path | None]:
+    """Resolve caller paths before compilation changes its working directory."""
+    return work.resolve(), report.resolve() if report else None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--carriers", type=int, default=4)
@@ -95,6 +100,7 @@ def main() -> int:
     parser.add_argument("--only", help="проверить один ключ")
     args = parser.parse_args()
 
+    args.work, args.report = normalize_paths(args.work, args.report)
     tc.preflight()
     args.work.mkdir(parents=True, exist_ok=True)
 

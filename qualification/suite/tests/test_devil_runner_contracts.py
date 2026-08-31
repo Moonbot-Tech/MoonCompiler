@@ -22,6 +22,7 @@ import run_devil_gate
 import run_devil_modes_gate
 import run_devil_mutation
 import run_devil_resident_gate
+import run_resident_switch_matrix
 import run_topology_gate
 import devil_toolchain
 
@@ -161,6 +162,12 @@ Fatal: Compilation aborted
         self.assertEqual(run_devil_gate.generated_program_timeout(7200, 120), 120)
         with self.assertRaisesRegex(ValueError, "must be positive"):
             run_devil_gate.generated_program_timeout(7200, 0)
+
+    def test_resident_switch_paths_are_resolved_before_cwd_changes(self) -> None:
+        work, report = run_resident_switch_matrix.normalize_paths(
+            Path("relative-resident-switch-work"), Path("relative-report.json"))
+        self.assertEqual(work, Path.cwd() / "relative-resident-switch-work")
+        self.assertEqual(report, Path.cwd() / "relative-report.json")
 
     def test_environment_comparison_fails_on_missing_artefact(self) -> None:
         self.assertEqual(
