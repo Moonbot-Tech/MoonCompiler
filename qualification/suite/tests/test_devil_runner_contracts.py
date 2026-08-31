@@ -336,11 +336,37 @@ Fatal: Compilation aborted
             "known": "dvl-0014",
         }]
 
-        findings, known_hits = run_devil_gate.absorb_derived_runtime_failures(
+        findings, known_hits = run_devil_gate.absorb_derived_known_effects(
             runtime, known, [build])
 
         self.assertEqual(findings, [])
         self.assertEqual(known_hits[-1]["known"], "derived")
+
+    def test_known_check_absorbs_only_its_derived_failure_count_split(self) -> None:
+        findings = [
+            {
+                "kind": "failure-count-split",
+                "check": "dvl-lang-00001-known",
+                "builds": {"dcc": 1, "release": 0},
+            },
+            {
+                "kind": "failure-count-split",
+                "check": "dvl-lang-00002-new",
+                "builds": {"dcc": 1, "release": 0},
+            },
+        ]
+        known = [{
+            "kind": "model-mismatch",
+            "check": "dvl-lang-00001-known",
+            "builds": {"dcc": "0000000000000005", "release": "ok"},
+            "known": "dvl-0014",
+        }]
+
+        fresh, known_hits = run_devil_gate.absorb_derived_known_effects(
+            findings, known, [])
+
+        self.assertEqual(fresh, [findings[1]])
+        self.assertEqual(known_hits[-1], {**findings[0], "known": "derived"})
 
     def test_unparsed_failure_keeps_runtime_exit_fresh(self) -> None:
         build = run_devil_gate.Build("release")
@@ -360,7 +386,7 @@ Fatal: Compilation aborted
             "known": "dvl-0014",
         }]
 
-        findings, known_hits = run_devil_gate.absorb_derived_runtime_failures(
+        findings, known_hits = run_devil_gate.absorb_derived_known_effects(
             runtime, known, [build])
 
         self.assertEqual(findings, runtime)
@@ -373,7 +399,7 @@ Fatal: Compilation aborted
         build.digest = "0000000000000001"
         runtime = [{"kind": "runtime-failed", "build": "release"}]
 
-        findings, known_hits = run_devil_gate.absorb_derived_runtime_failures(
+        findings, known_hits = run_devil_gate.absorb_derived_known_effects(
             runtime, [], [build])
 
         self.assertEqual(findings, runtime)
@@ -396,7 +422,7 @@ Fatal: Compilation aborted
             "known": "dvl-0014",
         }]
 
-        findings, known_hits = run_devil_gate.absorb_derived_runtime_failures(
+        findings, known_hits = run_devil_gate.absorb_derived_known_effects(
             runtime, known, [build])
 
         self.assertEqual(findings, runtime)

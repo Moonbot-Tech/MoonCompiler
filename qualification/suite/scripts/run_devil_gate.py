@@ -346,16 +346,18 @@ def classify(findings: list[dict], known: list[dict]) -> tuple[list[dict], list[
     return fresh, old
 
 
-def absorb_derived_runtime_failures(
+def absorb_derived_known_effects(
         findings: list[dict], known_hits: list[dict],
         builds: list[Build]) -> tuple[list[dict], list[dict]]:
-    """Do not report a known failed check twice as a new process failure.
+    """Do not report consequences of a known failed check as new failures.
 
-    A non-zero exit is only a derived consequence when the program reached its
-    terminal summary and every named failure from that exact binary is already
-    classified.  A crash, truncated run, or even one unclassified check stays
-    fresh.
+    A count split for the same check is a direct consequence of its classified
+    model mismatch.  A non-zero exit is only a derived consequence when the
+    program reached its terminal summary and every named failure from that
+    exact binary is already classified.  A crash, truncated run, or even one
+    unclassified check stays fresh.
     """
+    known_checks: set[str] = set()
     known_by_build: dict[str, set[str]] = {}
     for hit in known_hits:
         if hit.get("kind") != "model-mismatch":
@@ -363,6 +365,7 @@ def absorb_derived_runtime_failures(
         check = hit.get("check")
         if not check:
             continue
+        known_checks.add(check)
         for label, value in hit.get("builds", {}).items():
             if value != "ok":
                 known_by_build.setdefault(label, set()).add(check)
@@ -371,6 +374,10 @@ def absorb_derived_runtime_failures(
     fresh: list[dict] = []
     derived: list[dict] = []
     for finding in findings:
+        if (finding.get("kind") == "failure-count-split"
+                and finding.get("check") in known_checks):
+            derived.append({**finding, "known": "derived"})
+            continue
         if finding.get("kind") != "runtime-failed":
             fresh.append(finding)
             continue
@@ -655,7 +662,7 @@ def main() -> None:
                                      "check": name})
         findings, known_hits = classify(
             findings, load_known(DEVIL / "known_findings.json"))
-        findings, known_hits = absorb_derived_runtime_failures(
+        findings, known_hits = absorb_derived_known_effects(
             findings, known_hits, builds)
         # a digest split is a consequence, not a cause: when every underlying
         # disagreement is already analysed, the split carries no new
