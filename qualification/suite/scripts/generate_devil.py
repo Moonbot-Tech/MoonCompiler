@@ -7179,6 +7179,11 @@ def layer_init(e: Emitter, rng: random.Random, count: int,
                    "class constructor runs just before its own unit body }")
             e.line("  DevilCheckU('%s-order', "
                    "UInt64(Ord(DevilUnitTrail = 'CcBbAayx')), 1);" % name)
+            e.line("  { Keep all three class constructors live even when this "
+                   "is the only generated init case. }")
+            e.line("  DevilCheckU('%s-class-stamps', UInt64(Cardinal("
+                   "TDvlCHolder.Stamp + TDvlBHolder.Stamp + "
+                   "TDvlAHolder.Stamp)), 6);" % name)
             e.line("end;")
 
         elif shape == "global-from-unit":

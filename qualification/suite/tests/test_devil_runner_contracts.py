@@ -256,7 +256,7 @@ Fatal: Compilation aborted
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
             layers = ("expr,unary,flow,pick,capture,unit,chk,abi,float,lit,"
-                      "asm,inl,lang,life")
+                      "asm,inl,lang,life,init")
             argv = ["generate_devil.py", "--seed", "1", "--cases", "1",
                     "--layers", layers,
                     "--out", str(output)]
@@ -296,6 +296,7 @@ Fatal: Compilation aborted
         self.assertIn("Ord(Value < 43)", sources)
         self.assertIn("Ord(Value > 41)", sources)
         self.assertIn("CastValue := Value + 8", sources)
+        self.assertIn("dvl-init-00000-class-stamps", sources)
         self.assertIn("System.Generics.Collections.TEnumerator<T>",
                       unit_source)
 
