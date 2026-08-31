@@ -3678,7 +3678,7 @@
       "test/cg/tdelphivariantcardinalbyref1.pp": "product-profile regression requires the separately installed Unicode Variants package; its exact decorated-carrier contract is covered by RTL-test/semantic/variant_cardinal_semantic.dpr",
       "test/cg/tdelphivariantstring1.pp": "product-profile regression requires the separately installed Variants package; the upstream core harness deliberately compiles with -n and only its base RTL",
       "test/cg/tmoonattributemarker1.pp": "product-profile regression requires the separately installed Rtti package; the upstream core harness deliberately compiles with -n and only its base RTL",
-      "test/cg/tmoondelphicallbacktypes1.pp": "product-profile regression requires the Moon Compiler SysUtils callback aliases, which are intentionally absent from the separately built upstream core RTL",
+      "test/cg/tmoondelphicallbacktypes1.pp": "product-profile regression requires the MoonCompiler SysUtils callback aliases, which are intentionally absent from the separately built upstream core RTL",
       "test/cg/tmoonnamespacequalified1.pp": "product-profile namespace regression requires the installed unit aliases and -FNSystem configuration; the upstream core harness deliberately compiles with -n",
       "test/units/classes/tmoonunicodestringlist1.pp": "product-profile Unicode TStringList regression; the upstream core harness deliberately builds the base ANSI RTL without MOONCOMPILER_UNICODE_DEFAULT",
       "test/units/sysutils/tencodingtest.pp": "legacy ANSI RTL oracle passes only because both typed AnsiString assignment and the old TEncoding.Convert leave bytes unchanged; the product Unicode profile follows the independently measured Delphi transcoding contract in tdelphibytestringcast1",

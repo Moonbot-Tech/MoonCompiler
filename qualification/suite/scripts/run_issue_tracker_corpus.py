@@ -2,7 +2,7 @@
 """Compile every issue-tracker fixture independently and record observations.
 
 This is a discovery runner: the manifest describes the intended oracle, while
-the result file records what Delphi 12.2 and MoonBot Compiler actually do.  A
+the result file records what Delphi 12.2 and MoonCompiler actually do.  A
 single compiler crash, hang, or unsupported construct cannot hide other cases.
 """
 
@@ -134,7 +134,7 @@ def main() -> None:
     parser.add_argument(
         "--enforce",
         action="store_true",
-        help="fail unless every MoonBot Compiler observation matches the manifest",
+        help="fail unless every MoonCompiler observation matches the manifest",
     )
     args = parser.parse_args()
     args.fpc = absolute_cli_path(args.fpc)

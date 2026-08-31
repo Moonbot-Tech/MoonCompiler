@@ -652,7 +652,7 @@ foreach ($Stage in $Stages) {
 
 $Data = [ordered]@{
   generated = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss K')
-  ratio = 'Moon Compiler + bundled MM / Delphi 12.2 + FastMM4'
+  ratio = 'MoonCompiler + bundled MM / Delphi 12.2 + FastMM4'
   stages = @($Stages | ForEach-Object {
     [ordered]@{ id = $_.id; label = $_.label; short = $_.short; note = $_.note }
   })
@@ -666,15 +666,15 @@ $Html = @'
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Moon Compiler Pulse — история производительности</title>
+<title>MoonCompiler Pulse — история производительности</title>
 <style>
 :root{color-scheme:dark;--bg:#101317;--panel:#171b21;--line:#303741;--text:#e8edf3;--muted:#9ba8b5;--good:#164b32;--bad:#66252b;--same:#343a43;--accent:#72b7ff}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.42 Segoe UI,Arial,sans-serif}.wrap{max-width:1800px;margin:auto;padding:22px}h1{margin:0 0 6px;font-size:25px}.lead{color:var(--muted);margin-bottom:16px}.cards{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 13px;min-width:155px}.card b{display:block;font-size:20px}.controls{display:grid;grid-template-columns:minmax(260px,2fr) minmax(170px,1fr) minmax(170px,1fr);gap:8px;margin:14px 0}input,select{width:100%;background:#11161c;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:9px}.table-wrap{border:1px solid var(--line);border-radius:8px;overflow:auto;max-height:76vh}table{border-collapse:separate;border-spacing:0;width:100%;min-width:1150px}th,td{padding:7px 9px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);vertical-align:top}th{position:sticky;top:0;background:#222831;z-index:2;text-align:left;cursor:pointer;white-space:nowrap}tr:hover td{filter:brightness(1.13)}td.case{font-family:Consolas,monospace;white-space:nowrap}td.desc{min-width:330px;color:#d1d9e2}.ratio{text-align:right;font-variant-numeric:tabular-nums;font-weight:650;white-space:nowrap}.good{background:var(--good)}.bad{background:var(--bad)}.same{background:var(--same)}.missing{color:#697582;text-align:center}.delta{white-space:nowrap}.unstable::after{content:' †';color:#ffd166}.legend{color:var(--muted);font-size:13px;margin:10px 0}.stage-note{margin:5px 0;color:var(--muted)}a{color:var(--accent)}@media(max-width:800px){.controls{grid-template-columns:1fr}.wrap{padding:12px}}
 </style>
 </head>
 <body><div class="wrap">
-<h1>Moon Compiler Pulse — история производительности</h1>
-<div class="lead">Все значения: Moon Compiler + bundled MM / Delphi 12.2 + FastMM4. 1.00× — равная скорость; 0.75× — Moon на 25% быстрее; 1.50× — Moon на 50% медленнее. В таблице есть и выигрыши, и проигрыши.</div>
+<h1>MoonCompiler Pulse — история производительности</h1>
+<div class="lead">Все значения: MoonCompiler + bundled MM / Delphi 12.2 + FastMM4. 1.00× — равная скорость; 0.75× — Moon на 25% быстрее; 1.50× — Moon на 50% медленнее. В таблице есть и выигрыши, и проигрыши.</div>
 <div class="stage-note"><b>Отдельная ось MM:</b> исходный прогон содержит «наш MM / standard FPC MM», но текущий standard-MM не запускался. Поэтому несравнимые цифры в эту историю не подмешаны.</div>
 <div id="stageNotes"></div><div class="cards" id="cards"></div>
 <div class="controls"><input id="search" placeholder="Поиск case или смысла"><select id="group"><option value="">Все группы</option></select><select id="status"><option value="">Все результаты</option><option value="win">Moon быстрее (&lt;0.95)</option><option value="same">Паритет (0.95–1.05)</option><option value="loss">Moon медленнее (&gt;1.05)</option><option value="missing">Нет текущего замера</option></select></div>

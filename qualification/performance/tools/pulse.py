@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build, pair-run and compare the Moon Compiler Pulse qualification suite."""
+"""Build, pair-run and compare the MoonCompiler Pulse qualification suite."""
 
 from __future__ import annotations
 
@@ -67,10 +67,10 @@ PROGRAM_UNIT_PATHS = {
 }
 SYSTEM_LABELS = {
     "delphi": "Delphi 12.2 + default FastMM4",
-    "moon": "Moon Compiler + bundled fpcx64mm",
-    "moon-default": "Moon Compiler + FPC default MM",
-    "moon-baseline": "Moon Compiler baseline + bundled fpcx64mm",
-    "moon-candidate": "Moon Compiler candidate + bundled fpcx64mm",
+    "moon": "MoonCompiler + bundled fpcx64mm",
+    "moon-default": "MoonCompiler + FPC default MM",
+    "moon-baseline": "MoonCompiler baseline + bundled fpcx64mm",
+    "moon-candidate": "MoonCompiler candidate + bundled fpcx64mm",
 }
 EXTERNAL_MOON_SYSTEMS = ("moon-baseline", "moon-candidate")
 
@@ -496,7 +496,7 @@ def run_suite(
         )
     manifest = {
         "schema": 1,
-        "project": "Moon Compiler Pulse",
+        "project": "MoonCompiler Pulse",
         "created_unix": time.time(),
         "command": sys.argv,
         "mode": mode,
@@ -773,7 +773,7 @@ def write_report(result: Path) -> None:
     cases = sorted({(program, case) for _, program, case in rows})
     details: dict[str, object] = {}
     markdown = [
-        "# Moon Compiler Pulse result",
+        "# MoonCompiler Pulse result",
         "",
         f"Mode: `{manifest['mode']}`. Baseline: `{baseline}`. Candidate: `{candidate}`.",
         "",

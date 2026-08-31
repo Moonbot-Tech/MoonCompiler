@@ -451,7 +451,7 @@ implementation
            if productruntimeprefixenabled then
              begin
                { Valgrind and ASan require the C memory manager.  Otherwise
-                 every Moon Compiler program starts with the bundled MM. }
+                 every MoonCompiler program starts with the bundled MM. }
                if productruntimeusescmem then
                  QueueProductUnit('cmem')
                else

@@ -102,7 +102,7 @@ build_compiler() {
     -d "basepath=$TOOLCHAIN/lib/fpc/$version_dir" \
     -o "$new_toolchain/etc/fpc.cfg"
   printf '%s\n' \
-    '# Moon Compiler project ABI: Delphi String and Char are Unicode.' \
+    '# MoonCompiler project ABI: Delphi String and Char are Unicode.' \
     '-dMOONCOMPILER_UNICODE_DEFAULT' \
     '# Product programs receive the bundled runtime prefix automatically.' \
     '-dMOONBOT_MM_PROFILE_REQUIRED' \
@@ -117,7 +117,7 @@ build_compiler() {
     -d "basepath=$IDE_TOOLCHAIN/lib/fpc/$version_dir" \
     -o "$ide_profile/etc/fpc.cfg"
   printf '%s\n' \
-    '# Moon Compiler IDE ABI: ordinary FPC String and Char representation.' \
+    '# MoonCompiler IDE ABI: ordinary FPC String and Char representation.' \
     '# Do not inject the product memory manager or runtime prefix.' \
     '-dMOONCOMPILER_VANILLA_RUNTIME' \
     >> "$ide_profile/etc/fpc.cfg"
@@ -127,7 +127,7 @@ build_compiler() {
 
   publish_toolchain "$new_toolchain" "$TOOLCHAIN" "$old_toolchain"
   trap - EXIT
-  echo "MoonBot Compiler installed in $TOOLCHAIN"
+  echo "MoonCompiler installed in $TOOLCHAIN"
 }
 
 build_lazarus() {
@@ -222,7 +222,7 @@ case "$profile" in
 esac
 [[ -z "$diagnostic_mm" || "$diagnostic_mm" == --diagnostic-mm ]] || usage
 [[ -x "$TOOLCHAIN/bin/fpc" && -f "$TOOLCHAIN/etc/fpc.cfg" ]] || {
-  echo "MoonBot Compiler is not built; run ./build compiler" >&2
+  echo "MoonCompiler is not built; run ./build compiler" >&2
   exit 1
 }
 

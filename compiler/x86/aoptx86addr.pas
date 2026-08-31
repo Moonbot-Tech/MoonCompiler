@@ -1,7 +1,7 @@
 {
     x86 pre-register-allocation element-address reuse
 
-    Copyright (c) 2026 by the MoonBot Compiler development team
+    Copyright (c) 2026 by the MoonCompiler development team
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

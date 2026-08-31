@@ -1717,7 +1717,7 @@ implementation
       if binary_signature_override_set then
         s:=binary_signature_override
       else
-        s:='Unleashed Pascal '+full_version_string+' ['+date_string+'] for '+target_cpu_string+' - '+target_info.shortname;
+        s:='MoonCompiler '+full_version_string+' ['+date_string+'] for '+target_cpu_string+' - '+target_info.shortname;
       if s<>'' then
         begin
           tcb:=ctai_typedconstbuilder.create([tcalo_no_dead_strip]);

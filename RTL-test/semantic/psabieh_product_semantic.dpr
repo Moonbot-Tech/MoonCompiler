@@ -4,7 +4,7 @@ program psabieh_product_semantic;
 
 {$ifdef linux}
   {$ifndef FPC_USE_PSABIEH}
-    {$fatal Moon Compiler Linux product must use PSABI exception handling}
+    {$fatal MoonCompiler Linux product must use PSABI exception handling}
   {$endif}
 {$endif}
 

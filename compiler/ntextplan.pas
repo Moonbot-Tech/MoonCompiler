@@ -1,5 +1,5 @@
 {
-    Copyright (c) 2026 by the Moon Compiler team
+    Copyright (c) 2026 by the MoonCompiler team
 
     Shared helpers for repeated compile-time literal and fold decisions.
 

@@ -3,7 +3,7 @@ program runtime_prefix_semantic;
 {$mode delphi}
 
 { The product runtime units are intentionally absent from this uses clause.
-  The installed Moon Compiler profile must inject them before SysUtils and
+  The installed MoonCompiler profile must inject them before SysUtils and
   Classes. }
 uses
   SysUtils,

@@ -1,6 +1,6 @@
 program rtti_public_method_code_address;
 
-{ Delphi 12.2 Win64 and MoonBot Compiler: METHOD=1, CODE=1, CALLED=1.
+{ Delphi 12.2 Win64 and MoonCompiler: METHOD=1, CODE=1, CALLED=1.
   Published methods are covered separately in Omni; this repro isolates
   extended RTTI requested explicitly for a public method. }
 

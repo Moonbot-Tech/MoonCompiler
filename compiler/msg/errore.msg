@@ -4267,15 +4267,15 @@ package_u_ppl_filename=13029_U_PPL filename $1
 # Logo (option -l)
 #
 option_logo=11023_[
-Unleashed Pascal Compiler version $FPCFULLVERSION [$FPCDATE] for $FPCCPU
-Copyright (c) 2025-2026 Unleashed Pascal contributors, based on Free Pascal (c) 1993-2026 by Florian Klaempfl and others
+MoonCompiler version $FPCFULLVERSION [$FPCDATE] for $FPCCPU
+Based on Unleashed Pascal Compiler (c) 2025-2026 contributors and Free Pascal (c) 1993-2026 by Florian Klaempfl and others
 ]
 
 #
 # Info (option -i)
 #
 option_info=11024_[
-Unleashed Pascal Compiler version $FPCVERSION
+MoonCompiler version $FPCVERSION
 
 Compiler date      : $FPCDATE
 Compiler CPU target: $FPCCPU

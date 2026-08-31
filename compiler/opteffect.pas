@@ -1,7 +1,7 @@
 {
     Conservative effect model of the tree layer
 
-    Copyright (c) 2026 by the MoonBot Compiler development team
+    Copyright (c) 2026 by the MoonCompiler development team
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 }
 unit opteffect;
 
-{ The single owner of the tree-layer effect model (OPTIMIZER_CORE_ARCHITECTURE
-  paragraph 2).  Every future tree optimization asks THIS unit what a tree
+{ The single owner of the tree-layer effect model documented in
+  doc/OPTIMIZER.md.  Every future tree optimization asks THIS unit what a tree
   reads and writes, whether it may trap or synchronize, and why the model
   refused a narrower answer.  No pass is allowed to grow its own memory
   analysis.

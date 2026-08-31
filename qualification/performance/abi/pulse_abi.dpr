@@ -335,7 +335,7 @@ procedure InitializeData;
 var
   I: Integer;
 begin
-  TextValue := 'Moon Compiler ABI qualification text';
+  TextValue := 'MoonCompiler ABI qualification text';
   SetLength(ArrayValue, 128);
   for I := 0 to High(ArrayValue) do
     ArrayValue[I] := I * 17 + 3;

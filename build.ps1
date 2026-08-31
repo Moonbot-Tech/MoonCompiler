@@ -142,7 +142,7 @@ function Build-Compiler {
     Invoke-Checked $fpcmkcfg @(
       '-d', "basepath=$Toolchain", '-o', $config)
     Add-Content -LiteralPath $config -Encoding Ascii -Value @(
-      '# Moon Compiler project ABI: Delphi String and Char are Unicode.',
+      '# MoonCompiler project ABI: Delphi String and Char are Unicode.',
       '-dMOONCOMPILER_UNICODE_DEFAULT',
       '# Product programs receive the bundled runtime prefix automatically.',
       '-dMOONBOT_MM_PROFILE_REQUIRED',
@@ -152,7 +152,7 @@ function Build-Compiler {
     Invoke-Checked $fpcmkcfg @(
       '-d', "basepath=$IdeToolchain", '-o', $ideConfig)
     Add-Content -LiteralPath $ideConfig -Encoding Ascii -Value @(
-      '# Moon Compiler IDE ABI: ordinary FPC String and Char representation.',
+      '# MoonCompiler IDE ABI: ordinary FPC String and Char representation.',
       '# Do not inject the product memory manager or runtime prefix.',
       '-dMOONCOMPILER_VANILLA_RUNTIME')
     foreach ($tool in @('ar', 'as', 'ld', 'nm', 'objcopy', 'objdump', 'strip', 'windres')) {
@@ -186,7 +186,7 @@ function Build-Compiler {
         -ErrorAction SilentlyContinue
     }
   }
-  Write-Output "MoonBot Compiler installed in $Toolchain"
+  Write-Output "MoonCompiler installed in $Toolchain"
 }
 
 function Build-Lazarus {
@@ -297,7 +297,7 @@ function Build-Project(
   $config = Join-Path $Toolchain 'bin\x86_64-win64\fpc.cfg'
   If (-not (Test-Path -LiteralPath $fpc) -or
       -not (Test-Path -LiteralPath $config)) {
-    throw 'MoonBot Compiler is not built. Run .\build.ps1 compiler first.'
+    throw 'MoonCompiler is not built. Run .\build.ps1 compiler first.'
   }
 
   $projectDir = Split-Path -Parent $projectPath
