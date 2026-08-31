@@ -954,7 +954,7 @@ var
   phdr_size : ptruint;
   phdr :  ^telfproghdr;
   found_addr, pagesize : ptruint;
-  pelf : pchar;
+  pelf : pansichar;
   is_elf_start : boolean;
   SavedExitProc : pointer;
 begin
@@ -968,7 +968,7 @@ begin
   phdr:=nil;
   pagesize:=ptruint(-1);
   found_addr:=ptruint(-1);
-  pelf:=pchar(-1);
+  pelf:=pansichar(-1);
   { Try, avoided in order to remove exception installation }
   if SetJmp(LocalJmpBuf)=0 then
   begin
@@ -1014,14 +1014,14 @@ begin
     { Set pagesize to a default small value }
     if (pagesize=ptruint(-1)) then
       pagesize:=$100;
-    pelf := pchar(found_addr and ptruint(not (pagesize-1)));
+    pelf := pansichar(found_addr and ptruint(not (pagesize-1)));
     is_elf_start:=false;
     repeat
       if (pelf[0]=#127) and (pelf[1]='E') and
          (pelf[2]='L') and (pelf[3]='F') then
         is_elf_start:=true
       else
-        pelf:=pchar(ptruint(pelf) - pagesize);
+        pelf:=pansichar(ptruint(pelf) - pagesize);
       inc(elf_attempt);
     until is_elf_start or (elf_attempt > max_elf_attempt);
     if is_elf_start then
