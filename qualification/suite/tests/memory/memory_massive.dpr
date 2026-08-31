@@ -1295,7 +1295,7 @@ var
   Delta: TPerfDelta;
   ProcessCpu: UInt64;
 begin
-  Delta := EndPerfStamp(Started);
+  Delta := EndDiagnosticPerfStamp(Started);
   ProcessCpu := PulseReadProcessCpuNs - ProcessCpuStarted;
   WriteLn('MM_MASSIVE_PHASE name=', Name,
     ' operations=', Operations,

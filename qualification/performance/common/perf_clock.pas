@@ -27,6 +27,7 @@ function CanPinWorkerThreads(Count: Integer): Boolean;
 function PinWorkerThread(Ordinal: Integer): Integer;
 function BeginPerfStamp: TPerfStamp;
 function EndPerfStamp(const Started: TPerfStamp): TPerfDelta;
+function EndDiagnosticPerfStamp(const Started: TPerfStamp): TPerfDelta;
 function MeasureTscOverhead(Iterations: Integer): UInt64;
 
 implementation
@@ -357,6 +358,33 @@ begin
   StoppedCpu := ReadThreadCpuNs;
   StoppedWall := ReadWallNs;
   Result.TscTicks := StoppedTsc - Started.Tsc;
+  Result.ThreadCpuNs := StoppedCpu - Started.ThreadCpuNs;
+  Result.WallNs := StoppedWall - Started.WallNs;
+end;
+
+function EndDiagnosticPerfStamp(const Started: TPerfStamp): TPerfDelta;
+var
+  StoppedTsc, StoppedCpu, StoppedWall: UInt64;
+  {$ifdef LINUX}
+  StoppedCpuId: Integer;
+  {$endif}
+begin
+  { Correctness workloads report timing only as provenance.  Scheduler
+    migration must not turn a valid semantic run into a benchmark failure. }
+  StoppedTsc := ReadTscStop;
+  {$ifdef LINUX}
+  StoppedCpuId := LinuxCurrentCpu;
+  {$endif}
+  StoppedCpu := ReadThreadCpuNs;
+  StoppedWall := ReadWallNs;
+  Result.TscTicks := StoppedTsc - Started.Tsc;
+  {$ifdef LINUX}
+  { A cross-CPU TSC delta is not a trustworthy diagnostic value on every
+    supported x86-64 machine.  Zero marks it unavailable without hiding the
+    wall and thread-CPU measurements. }
+  If StoppedCpuId <> Started.Cpu then
+    Result.TscTicks := 0;
+  {$endif}
   Result.ThreadCpuNs := StoppedCpu - Started.ThreadCpuNs;
   Result.WallNs := StoppedWall - Started.WallNs;
 end;
