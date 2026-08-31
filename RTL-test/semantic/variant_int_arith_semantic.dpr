@@ -51,6 +51,7 @@ end;
 
 var
   A, B, R: Variant;
+  O: OleVariant;
   I64: Int64;
   U64: UInt64;
   RefI64: Int64;
@@ -295,6 +296,23 @@ begin
   U64 := A;
   If U64 <> High(UInt64) then
     Fail('maximum numeric string->UInt64');
+
+  O := '18446744073709551615';
+  U64 := O;
+  If U64 <> High(UInt64) then
+    Fail('ole maximum numeric string->UInt64');
+  O := '-9223372036854775808';
+  I64 := O;
+  If I64 <> Low(Int64) then
+    Fail('ole minimum numeric string->Int64');
+  O := '42';
+  U64 := O;
+  If U64 <> 42 then
+    Fail('ole ordinary numeric string->UInt64');
+  O := '-42';
+  I64 := O;
+  If I64 <> -42 then
+    Fail('ole ordinary numeric string->Int64');
 
   VarClear(A);
   RefI64 := -1;

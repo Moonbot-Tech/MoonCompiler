@@ -99,10 +99,64 @@ begin
   V := '4294967295';            CheckOleVariant('ole string max', V, $ffffffff);
 end;
 
+procedure CheckDecoratedCarriers;
+var
+  A, V: Variant;
+  O: OleVariant;
+  Actual, Raw: Cardinal;
+  Rejected: Boolean;
+begin
+  Raw := $f1234567;
+  TVarData(V).VType := varLongWord or varByRef;
+  TVarData(V).VPointer := @Raw;
+  Actual := V;
+  If Actual <> Raw then
+    raise Exception.Create('variant byref cardinal');
+  Raw := $89abcdef;
+  Actual := V;
+  If Actual <> Raw then
+    raise Exception.Create('variant changing byref cardinal');
+  TVarData(V).VType := varEmpty;
+
+  Raw := $fedcba98;
+  TVarData(O).VType := varLongWord or varByRef;
+  TVarData(O).VPointer := @Raw;
+  Actual := O;
+  If Actual <> Raw then
+    raise Exception.Create('olevariant byref cardinal');
+  TVarData(O).VType := varEmpty;
+
+  A := VarArrayCreate([0, 0], varLongWord);
+  A[0] := Cardinal(7);
+  Rejected := False;
+  try
+    Actual := A;
+  except
+    on EVariantError do
+      Rejected := True;
+  end;
+  If not Rejected then
+    raise Exception.Create('variant array accepted as cardinal');
+
+  O := A;
+  Rejected := False;
+  try
+    Actual := O;
+  except
+    on EVariantError do
+      Rejected := True;
+  end;
+  If not Rejected then
+    raise Exception.Create('olevariant array accepted as cardinal');
+  VarClear(O);
+  VarClear(A);
+end;
+
 begin
   try
     CheckVariantMatrix;
     CheckOleVariantMatrix;
+    CheckDecoratedCarriers;
     WriteLn('VARIANT_CARDINAL_OK');
   except
     on E: Exception do begin
