@@ -133,6 +133,27 @@ Fatal: Compilation aborted
         self.assertEqual(source.count("      Theirs := DvlLink"), sibling_count)
         self.assertGreaterEqual(source.count("    try\n"), sibling_count)
         self.assertGreaterEqual(source.count("    finally\n"), sibling_count)
+    def test_unicode_concat_keeps_its_explicit_byte_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            argv = ["generate_devil.py", "--seed", "3", "--cases", "200",
+                    "--layers", "uni", "--out", str(output)]
+            with mock.patch.object(sys, "argv", argv):
+                with redirect_stdout(io.StringIO()):
+                    generate_devil.main()
+            manifest = json.loads((output / "devil_manifest.json").read_text())
+            source = (output / "devil_uni.inc").read_text()
+        concat_cases = [case["name"] for case in manifest["cases"]
+                        if case.get("shape") == "concat-codepage"]
+        self.assertGreater(len(concat_cases), 0)
+        self.assertNotIn("  R := A + AnsiString('z');", source)
+        for name in concat_cases:
+            tag = name.rsplit("-", 1)[1]
+            self.assertIn("  C: TDvlCp%s;" % tag, source)
+            self.assertIn("  C := A + AnsiString('z');", source)
+            self.assertIn("'%s-concat-length'" % name, source)
+            self.assertIn("'%s-concat-codepage', " % name, source)
+            self.assertIn("UInt64(StringCodePage(C)), 1251", source)
 
     def test_generated_program_timeout_preserves_hang_bound(self) -> None:
         self.assertEqual(run_devil_gate.generated_program_timeout(90, 300), 90)

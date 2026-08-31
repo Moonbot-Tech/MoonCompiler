@@ -6465,7 +6465,7 @@ def layer_unicode(e: Emitter, rng: random.Random, count: int,
             e.line("var")
             e.line("  A: TDvlCp%s;" % tag)
             e.line("  U: UTF8String;")
-            e.line("  R: RawByteString;")
+            e.line("  C: TDvlCp%s;" % tag)
             e.line("begin")
             e.line("  A := TDvlCp%s(string(%s));" % (tag, escaped_literal(text)))
             e.line("  U := UTF8String(A);")
@@ -6481,11 +6481,15 @@ def layer_unicode(e: Emitter, rng: random.Random, count: int,
                    % (name, len(utf8)))
             e.line("  DevilCheckU('%s-utf8-byte', UInt64(Ord(U[1])), %d);"
                    % (name, utf8[0]))
-            e.line("  R := A + AnsiString('z');")
-            e.line("  DevilCheckU('%s-concat-length', UInt64(Length(R)), %d);"
+            e.line("  { The destination type is part of a byte-string concat: "
+                   "a typed cp1251 result keeps that domain. Assigning the "
+                   "same two typed values to RawByteString deliberately uses "
+                   "the system-codepage path instead (covered separately). }")
+            e.line("  C := A + AnsiString('z');")
+            e.line("  DevilCheckU('%s-concat-length', UInt64(Length(C)), %d);"
                    % (name, len(cp1251) + 1))
-            e.line("  DevilNoteLoose('%s-concat-codepage', UInt64(StringCodePage(R)));"
-                   % name)
+            e.line("  DevilCheckU('%s-concat-codepage', "
+                   "UInt64(StringCodePage(C)), 1251);" % name)
             e.line("end;")
 
         e.line()
