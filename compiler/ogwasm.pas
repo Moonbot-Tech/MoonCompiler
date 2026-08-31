@@ -2130,7 +2130,8 @@ implementation
         WriteName(FWasmCustomSections[wcstProducers],'processed-by');
         WriteUleb(FWasmCustomSections[wcstProducers],1);
         WriteName(FWasmCustomSections[wcstProducers],'Free Pascal Compiler (FPC)');
-        WriteName(FWasmCustomSections[wcstProducers],full_version_string+' ['+date_string+'] for '+target_cpu_string+' - '+target_info.shortname);
+        WriteName(FWasmCustomSections[wcstProducers],mooncompiler_identity_string+
+          ' ['+date_string+'] for '+target_cpu_string+' - '+target_info.shortname);
 
         code_section_nr:=-1;
         data_section_nr:=-1;

@@ -1612,7 +1612,7 @@ implementation
         { write translator COMENT header }
         Translator_COMENT:=TOmfRecord_COMENT.Create;
         Translator_COMENT.CommentClass:=CC_Translator;
-        Translator_COMENT.CommentString:='FPC '+full_version_string+
+        Translator_COMENT.CommentString:=mooncompiler_identity_string+
         ' ['+date_string+'] for '+target_cpu_string+' - '+target_info.shortname;
         Translator_COMENT.EncodeTo(RawRecord);
         RawRecord.WriteTo(FWriter);

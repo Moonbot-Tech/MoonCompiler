@@ -2692,7 +2692,7 @@ implementation
         else
           fcunode.addenum('language','DW_LANG_Pascal83');
         fcunode.addmetadatarefto('file',file_getmetanode(current_filepos.moduleindex,current_filepos.fileindex));
-        fcunode.addstring('producer','Free Pascal Compiler '+full_version_string);
+        fcunode.addstring('producer',mooncompiler_identity_string);
         fcunode.addboolean('isOptimized',cs_opt_level2 in current_settings.optimizerswitches);
         if target_info.system in systems_objc_supported then
           begin

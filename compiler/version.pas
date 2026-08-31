@@ -32,6 +32,10 @@ interface
        patch_nr   = '1';
        minorpatch = '';
 
+       { MoonCompiler release version.  Keep the FPC base version above
+         unchanged: it is part of the PPU, tool and installation ABI. }
+       mooncompiler_version = '1.0.0';
+
        { word version for ppu file }
        wordversion = ((ord(version_nr)-ord('0')) shl 14)+
                      ((ord(release_nr)-ord('0')) shl 7)+
@@ -92,6 +96,7 @@ interface
 
 function version_string:string;
 function full_version_string:string;
+function mooncompiler_identity_string:string;
 
 
 implementation
@@ -109,6 +114,13 @@ begin
   +'-'+{$i revision.inc}
 {$endif REVINC}
   ;
+end;
+
+
+function mooncompiler_identity_string:string;
+begin
+  mooncompiler_identity_string := 'MoonCompiler '+mooncompiler_version+
+    ' (Free Pascal base '+full_version_string+')';
 end;
 
 end.
