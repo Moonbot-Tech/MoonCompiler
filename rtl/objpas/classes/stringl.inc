@@ -1110,7 +1110,16 @@ begin
   inherited Create;
   FDefaultEncoding:=TEncoding.Default;
   FEncoding:=nil;
+{$ifdef UNICODERTL}
+  { Product code follows Delphi: explicitly encoded text is emitted with its
+    preamble unless the caller opts out. }
   FOptions := [soWriteBOM,soTrailingLineBreak,soUseLocale];
+{$else UNICODERTL}
+  { Compiler and IDE tooling keep the established FPC text-file contract.
+    In particular, Lazarus generates Pascal include files through TStringList
+    and these must not unexpectedly acquire a UTF-8 BOM. }
+  FOptions := [soTrailingLineBreak,soUseLocale,soPreserveBOM];
+{$endif UNICODERTL}
   FAlwaysQuote:=False;
 end;
 
