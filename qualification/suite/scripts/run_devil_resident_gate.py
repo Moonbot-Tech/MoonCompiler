@@ -151,7 +151,7 @@ def build(profile: str, out_dir: Path, program: Path, work: Path) -> Path:
         bad = [l.strip() for l in done.stdout.splitlines()
                if "Error" in l or "Fatal" in l]
         raise SystemExit("build failed (%s):\n%s" % (profile, "\n".join(bad[:12])))
-    return out_dir / "resident.exe"
+    return tc.executable(out_dir, "resident")
 
 
 def run(
@@ -308,7 +308,7 @@ def main() -> int:
                             % (profile, base_name, "\n    ".join(diff[:10])))
 
     # --- schedule: the answer must not depend on how many threads ran --------
-    exe = (root / profiles[-1]) / "resident.exe"
+    exe = tc.executable(root / profiles[-1], "resident")
     for workers in (1, 4):
         got = run(exe, carriers, laps, workers, args.timeout, work)
         validate_run(
