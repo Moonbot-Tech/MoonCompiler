@@ -2992,7 +2992,12 @@ implementation
           result:=crealconstnode.create(d,pbestrealtype^);
         val(current_scanner.pattern,cur,code);
         if code=0 then
-          trealconstnode(result).value_currency:=cur;
+          begin
+            trealconstnode(result).value_currency:=cur;
+            if (m_delphi in current_settings.modeswitches) and
+               (pos('e',s)=0) and (pos('E',s)=0) then
+              trealconstnode(result).delphi_currency_literal:=true;
+          end;
       end;
 
 {---------------------------------------------

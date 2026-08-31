@@ -3237,6 +3237,8 @@ implementation
 {$endif llvm}
                        begin
                          left.resultdef:=resultdef;
+                         if nf_explicit in flags then
+                           include(left.flags,nf_explicit);
                          if (nf_explicit in flags) and (left.nodetype = addrn) then
                            include(taddrnode(left).addrnodeflags,anf_typedaddr);
                          result:=left;
@@ -3288,6 +3290,23 @@ implementation
                                   inserttypeconv(left,carrierdef);
                                 end;
                             end;
+                        end;
+                    end;
+                  { A Delphi real literal without an exponent is carried by
+                    Currency in a Variant.  Exponent literals and explicitly
+                    typed floating-point values keep their floating carrier. }
+                  if (m_delphi in current_settings.modeswitches) and
+                     (resultdef.typ=variantdef) and
+                     (left.nodetype=realconstn) and
+                     trealconstnode(left).delphi_currency_literal and
+                     not(nf_explicit in left.flags) then
+                    begin
+                      carrierpd:=search_assignment_operator(s64currencytype,
+                        resultdef,realconstn,false);
+                      if assigned(carrierpd) then
+                        begin
+                          aprocdef:=carrierpd;
+                          inserttypeconv(left,s64currencytype);
                         end;
                     end;
                   include(current_procinfo.flags,pi_do_call);

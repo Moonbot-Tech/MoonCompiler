@@ -15,7 +15,8 @@ uses
   {$endif UNIX}
   {$endif FPC}
   SysUtils,
-  Variants;
+  Variants,
+  variant_literal_type_unit;
 
 procedure Check(Condition: Boolean; const MessageText: string);
 begin
@@ -48,6 +49,36 @@ begin
   Check(VarIsNull(V), 'null');
   V := Unassigned;
   Check(VarIsEmpty(V), 'unassigned');
+
+  { Delphi uses Currency for an untyped decimal literal without an exponent.
+    The provenance survives +/- folding and a PPU, but not multiplication,
+    division, an exponent, or an explicit floating-point type. }
+  V := 1.5;
+  Check(VarType(V) = varCurrency, 'plain real literal carrier');
+  V := 1.5e0;
+  Check(VarType(V) = varDouble, 'exponent real literal carrier');
+  V := 1.0 + 0.5;
+  Check(VarType(V) = varCurrency, 'plain addition carrier');
+  V := 2.0 - 0.5;
+  Check(VarType(V) = varCurrency, 'plain subtraction carrier');
+  V := 3.0 * 0.5;
+  Check(VarType(V) = varDouble, 'plain product carrier');
+  V := 3.0 / 2.0;
+  Check(VarType(V) = varDouble, 'plain division carrier');
+  V := 1.0e0 + 0.5;
+  Check(VarType(V) = varDouble, 'mixed exponent carrier');
+  V := -1.5;
+  Check(VarType(V) = varCurrency, 'negative plain carrier');
+  V := Double(1.5);
+  Check(VarType(V) = varDouble, 'explicit Double carrier');
+  V := PpuPlainReal;
+  Check(VarType(V) = varCurrency, 'PPU plain carrier');
+  V := PpuExponentReal;
+  Check(VarType(V) = varDouble, 'PPU exponent carrier');
+  V := PpuFoldedReal;
+  Check(VarType(V) = varCurrency, 'PPU folded carrier');
+  V := PpuTypedDouble;
+  Check(VarType(V) = varDouble, 'PPU typed Double carrier');
 
   V := 'managed';
   W := V;

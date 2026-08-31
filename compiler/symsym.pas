@@ -463,6 +463,7 @@ interface
           consttyp    : tconsttyp;
           explicitdef : boolean;
           delphiplus  : boolean;
+          delphi_currency_literal : boolean;
           value       : tconstvalue;
           literalbytes : TAnsiCharDynArray;
           hasliteralbytes : boolean;
@@ -2814,6 +2815,7 @@ implementation
          constdefderef.reset;
          literalbytes:=nil;
          hasliteralbytes:=false;
+         delphi_currency_literal:=false;
       end;
 
 
@@ -2827,6 +2829,7 @@ implementation
          constdefderef.reset;
          literalbytes:=nil;
          hasliteralbytes:=false;
+         delphi_currency_literal:=false;
       end;
 
 
@@ -2840,6 +2843,7 @@ implementation
          constdefderef.reset;
          literalbytes:=nil;
          hasliteralbytes:=false;
+         delphi_currency_literal:=false;
       end;
 
 
@@ -2857,6 +2861,7 @@ implementation
          value.len:=l;
          literalbytes:=nil;
          hasliteralbytes:=false;
+         delphi_currency_literal:=false;
       end;
 
 
@@ -2871,6 +2876,7 @@ implementation
          value.len:=getlengthwidestring(pw);
          literalbytes:=nil;
          hasliteralbytes:=false;
+         delphi_currency_literal:=false;
       end;
 
 
@@ -2882,6 +2888,7 @@ implementation
         constdef:=def;
         literalbytes:=nil;
         hasliteralbytes:=false;
+        delphi_currency_literal:=false;
       end;
 
 
@@ -2936,6 +2943,7 @@ implementation
          consttyp:=tconsttyp(ppufile.getbyte);
          explicitdef:=ppufile.getbyte<>0;
          delphiplus:=ppufile.getbyte<>0;
+         delphi_currency_literal:=ppufile.getboolean;
          hasliteralbytes:=ppufile.getliteralbytes(literalbytes);
          fillchar(value, sizeof(value), #0);
          case consttyp of
@@ -3069,6 +3077,7 @@ implementation
          ppufile.putbyte(byte(consttyp));
          ppufile.putbyte(byte(explicitdef));
          ppufile.putbyte(byte(delphiplus));
+         ppufile.putboolean(delphi_currency_literal);
          ppufile.putliteralbytes(hasliteralbytes,literalbytes);
          case consttyp of
            constnil :

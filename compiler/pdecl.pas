@@ -147,6 +147,8 @@ implementation
                 new(pd);
                 pd^:=trealconstnode(p).value_real;
                 hp:=cconstsym.create_ptr(orgname,constreal,pd,p.resultdef);
+                hp.delphi_currency_literal:=
+                  trealconstnode(p).delphi_currency_literal;
              end;
            setconstn :
              begin

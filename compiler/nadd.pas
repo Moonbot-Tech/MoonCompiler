@@ -1391,6 +1391,10 @@ const
              result:=t;
              if nf_is_currency in flags then
                include(result.flags,nf_is_currency);
+             if (nodetype in [addn,subn]) and
+                trealconstnode(left).delphi_currency_literal and
+                trealconstnode(right).delphi_currency_literal then
+               trealconstnode(result).delphi_currency_literal:=true;
              exit;
           end;
 

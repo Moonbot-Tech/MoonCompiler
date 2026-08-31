@@ -43,6 +43,7 @@ interface
           typedefderef : tderef;
           value_real : bestreal;
           value_currency : currency;
+          delphi_currency_literal : boolean;
           lab_real : tasmlabel;
           constructor create(v : bestreal;def:tdef);virtual;
           constructor ppuload(t:tnodetype;ppufile:tcompilerppufile);override;
@@ -419,6 +420,8 @@ implementation
                 p1:=crealconstnode.create(default(bestreal),p.constdef)
               else
                 p1:=crealconstnode.create(pbestreal(p.value.valueptr)^,p.constdef);
+              trealconstnode(p1).delphi_currency_literal:=
+                p.delphi_currency_literal;
             end;
           constset :
             begin
@@ -507,6 +510,7 @@ implementation
          end;
          value_real:=v;
          value_currency:=v;
+         delphi_currency_literal:=false;
          lab_real:=nil;
       end;
 
@@ -519,6 +523,7 @@ implementation
         value_real:=ppufile.getreal;
         i:=ppufile.getint64;
         value_currency:=PCurrency(@i)^;
+        delphi_currency_literal:=ppufile.getboolean;
         lab_real:=tasmlabel(ppufile.getasmsymbol);
       end;
 
@@ -529,6 +534,7 @@ implementation
         ppufile.putderef(typedefderef);
         ppufile.putreal(value_real);
         ppufile.putint64(PInt64(@value_currency)^);
+        ppufile.putboolean(delphi_currency_literal);
         ppufile.putasmsymbol(lab_real);
       end;
 
@@ -555,6 +561,7 @@ implementation
          n.typedef:=typedef;
          n.value_real:=value_real;
          n.value_currency:=value_currency;
+         n.delphi_currency_literal:=delphi_currency_literal;
          n.lab_real:=lab_real;
          dogetcopy:=n;
       end;
