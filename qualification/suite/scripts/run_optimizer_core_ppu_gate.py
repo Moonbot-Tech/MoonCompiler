@@ -21,6 +21,18 @@ EXPECTED_OUTPUT = "PPU_GATE_OK 877"
 EXECUTABLE_NAME = PROGRAM.stem + (".exe" if os.name == "nt" else "")
 
 
+def default_compiler() -> Path:
+    if os.name == "nt":
+        return ROOT / ".moonbot/toolchain/bin/x86_64-win64/fpc.exe"
+    return ROOT / ".moonbot/toolchain/bin/fpc"
+
+
+def default_config() -> Path:
+    if os.name == "nt":
+        return ROOT / ".moonbot/toolchain/bin/x86_64-win64/fpc.cfg"
+    return ROOT / ".moonbot/toolchain/etc/fpc.cfg"
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -180,16 +192,18 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument(
-        "--compiler", type=Path, default=ROOT / ".moonbot/toolchain/bin/fpc"
+        "--compiler", type=Path, default=default_compiler()
     )
     parser.add_argument(
-        "--config", type=Path,
-        default=ROOT / ".moonbot/toolchain/etc/fpc.cfg",
+        "--config", type=Path, default=default_config()
     )
     parser.add_argument(
-        "--legacy-compiler", type=Path, default=Path("/usr/bin/fpc")
+        "--legacy-compiler", type=Path,
+        default=None if os.name == "nt" else Path("/usr/bin/fpc"),
     )
     args = parser.parse_args()
+    if args.legacy_compiler is None:
+        parser.error("--legacy-compiler is required on Windows")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     compiler = args.compiler.resolve()

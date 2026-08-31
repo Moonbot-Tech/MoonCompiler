@@ -19,8 +19,9 @@ EXPECTED = (0, "CSE-MANAGED-LOAD:PASS:2537984\n", "")
 
 
 def default_compiler() -> Path:
-    suffix = ".exe" if os.name == "nt" else ""
-    return ROOT / "compiler" / f"ppcx64{suffix}"
+    if os.name == "nt":
+        return ROOT / ".moonbot/toolchain/bin/x86_64-win64/ppcx64.exe"
+    return ROOT / ".moonbot/toolchain/bin/ppcx64"
 
 
 def default_rtl() -> Path:

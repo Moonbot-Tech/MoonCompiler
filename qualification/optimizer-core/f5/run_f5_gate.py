@@ -19,8 +19,8 @@ EXPECTED = (0, "ADDRESSGVN:PASS:18446744073707293280\n", "")
 
 def default_compiler() -> Path:
     if os.name == "nt":
-        return ROOT / "compiler/ppcx64.exe"
-    return ROOT / "compiler/ppcx64"
+        return ROOT / ".moonbot/toolchain/bin/x86_64-win64/ppcx64.exe"
+    return ROOT / ".moonbot/toolchain/bin/ppcx64"
 
 
 def default_rtl() -> Path:

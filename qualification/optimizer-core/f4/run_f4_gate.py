@@ -18,7 +18,9 @@ CODEGEN = HERE / "seh_regvar_codegen.dpr"
 
 
 def default_compiler() -> Path:
-    return ROOT / "compiler" / ("ppcx64.exe" if os.name == "nt" else "ppcx64")
+    if os.name == "nt":
+        return ROOT / ".moonbot/toolchain/bin/x86_64-win64/ppcx64.exe"
+    return ROOT / ".moonbot/toolchain/bin/ppcx64"
 
 
 def default_rtl() -> Path:
