@@ -207,7 +207,23 @@ unit optconstprop;
 
             if result then
               begin
-                if assigned(tifnode(n).t1) then
+                { Re-typechecking a dead arm after the condition has folded
+                  can manufacture diagnostics that the original program did
+                  not have.  A common case is an inlined enum argument: the
+                  live condition proves that a narrowed array index is valid,
+                  while substituting the same constant into the dead arm first
+                  reports a false compile-time range error.  Follow only the
+                  reachable arm once constant propagation has proved it. }
+                if is_constboolnode(tifnode(n).left) then
+                  begin
+                    tree_modified2:=false;
+                    if get_int_value(tifnode(n).left).uvalue<>0 then
+                      result:=replaceBasicAssign(tifnode(n).right, arg, tree_modified2)
+                    else if assigned(tifnode(n).t1) then
+                      result:=replaceBasicAssign(tifnode(n).t1, arg, tree_modified2);
+                    tree_modified:=tree_modified or tree_modified2;
+                  end
+                else if assigned(tifnode(n).t1) then
                   begin
                     { we can propagate the constant in both branches of an if statement
                       because even if the the branch writes to it, the else branch gets the
