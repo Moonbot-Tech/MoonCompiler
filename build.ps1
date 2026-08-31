@@ -155,6 +155,18 @@ function Build-Compiler {
       '# MoonCompiler IDE ABI: ordinary FPC String and Char representation.',
       '# Do not inject the product memory manager or runtime prefix.',
       '-dMOONCOMPILER_VANILLA_RUNTIME')
+    $licenseDir = Join-Path $newToolchain 'share\doc\mooncompiler'
+    New-Item -ItemType Directory -Force -Path $licenseDir | Out-Null
+    Copy-Item -LiteralPath (Join-Path $Root 'compiler\COPYING.txt') `
+      -Destination (Join-Path $licenseDir 'COMPILER-GPL-2.0.txt')
+    Copy-Item -LiteralPath (Join-Path $Root 'rtl\COPYING.txt') `
+      -Destination (Join-Path $licenseDir 'RTL-LGPL-2.1.txt')
+    Copy-Item -LiteralPath (Join-Path $Root 'rtl\COPYING.FPC') `
+      -Destination (Join-Path $licenseDir 'RTL-EXCEPTION.txt')
+    Copy-Item -LiteralPath (Join-Path $Root 'runtime\mm\LICENSE.md') `
+      -Destination (Join-Path $licenseDir 'MM-LICENSE.md')
+    Copy-Item -LiteralPath (Join-Path $Root 'doc\LICENSING.md') `
+      -Destination (Join-Path $licenseDir 'LICENSING.md')
     foreach ($tool in @('ar', 'as', 'ld', 'nm', 'objcopy', 'objdump', 'strip', 'windres')) {
       $source = Join-Path $bootstrapDir "x86_64-win64-$tool.exe"
       If (-not (Test-Path -LiteralPath $source)) {
@@ -165,6 +177,10 @@ function Build-Compiler {
       Copy-Item -LiteralPath $source `
         -Destination (Join-Path $ideProfile "bin\x86_64-win64\$tool.exe")
     }
+    Copy-Item -LiteralPath $fpcmkcfg `
+      -Destination (Join-Path $newToolchain 'bin\x86_64-win64\fpcmkcfg.exe')
+    Copy-Item -LiteralPath $fpcmkcfg `
+      -Destination (Join-Path $ideProfile 'bin\x86_64-win64\fpcmkcfg.exe')
     If (-not (Test-Path -LiteralPath $config)) {
       throw 'the installed Win64 toolchain has no fpc.cfg'
     }
@@ -187,6 +203,99 @@ function Build-Compiler {
     }
   }
   Write-Output "MoonCompiler installed in $Toolchain"
+}
+
+function Install-Toolchain([string]$Archive) {
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $archivePath = [IO.Path]::GetFullPath($Archive)
+  If (-not (Test-Path -LiteralPath $archivePath -PathType Leaf)) {
+    throw "toolchain archive does not exist: $archivePath"
+  }
+  If ([IO.Path]::GetExtension($archivePath) -ine '.zip') {
+    throw 'Win64 toolchain archive must be a .zip file'
+  }
+
+  $zip = [IO.Compression.ZipFile]::OpenRead($archivePath)
+  try {
+    foreach ($entry in $zip.Entries) {
+      $entryPath = $entry.FullName.Replace('\', '/')
+      $parts = $entryPath.Split('/', [StringSplitOptions]::RemoveEmptyEntries)
+      If ([IO.Path]::IsPathRooted($entryPath) -or $parts -contains '..') {
+        throw "unsafe path in toolchain archive: $entryPath"
+      }
+    }
+  } finally {
+    $zip.Dispose()
+  }
+
+  New-Item -ItemType Directory -Force -Path $State | Out-Null
+  $newToolchain = Join-Path $State "toolchain.new.$PID"
+  $oldToolchain = Join-Path $State "toolchain.old.$PID"
+  Remove-Item -LiteralPath $newToolchain, $oldToolchain -Recurse -Force `
+    -ErrorAction SilentlyContinue
+  try {
+    [IO.Compression.ZipFile]::ExtractToDirectory($archivePath, $newToolchain)
+    $bin = Join-Path $newToolchain 'bin\x86_64-win64'
+    $ideBin = Join-Path $newToolchain 'ide\bin\x86_64-win64'
+    $fpc = Join-Path $bin 'fpc.exe'
+    $fpcmkcfg = Join-Path $bin 'fpcmkcfg.exe'
+    $ideFpc = Join-Path $ideBin 'fpc.exe'
+    $compilerLicense = Join-Path $newToolchain 'share\doc\mooncompiler\COMPILER-GPL-2.0.txt'
+    $rtlLicense = Join-Path $newToolchain 'share\doc\mooncompiler\RTL-LGPL-2.1.txt'
+    $rtlException = Join-Path $newToolchain 'share\doc\mooncompiler\RTL-EXCEPTION.txt'
+    $mmLicense = Join-Path $newToolchain 'share\doc\mooncompiler\MM-LICENSE.md'
+    $licenseGuide = Join-Path $newToolchain 'share\doc\mooncompiler\LICENSING.md'
+    If (-not (Test-Path -LiteralPath $fpc) -or
+        -not (Test-Path -LiteralPath $fpcmkcfg) -or
+        -not (Test-Path -LiteralPath $ideFpc) -or
+        -not (Test-Path -LiteralPath $compilerLicense) -or
+        -not (Test-Path -LiteralPath $rtlLicense) -or
+        -not (Test-Path -LiteralPath $rtlException) -or
+        -not (Test-Path -LiteralPath $mmLicense) -or
+        -not (Test-Path -LiteralPath $licenseGuide)) {
+      throw 'the archive is not a complete Win64 x86-64 MoonCompiler toolchain'
+    }
+    $targetCpu = (& $fpc -iTP).Trim()
+    $targetOs = (& $fpc -iTO).Trim()
+    $version = (& $fpc -iV).Trim()
+    $ideVersion = (& $ideFpc -iV).Trim()
+    If ($targetCpu -ne 'x86_64' -or $targetOs -ne 'win64' -or
+        $version -ne $ideVersion) {
+      throw 'the archive compiler target or IDE profile version is invalid'
+    }
+
+    $config = Join-Path $bin 'fpc.cfg'
+    $ideConfig = Join-Path $ideBin 'fpc.cfg'
+    Invoke-Checked $fpcmkcfg @('-d', "basepath=$Toolchain", '-o', $config)
+    Add-Content -LiteralPath $config -Encoding Ascii -Value @(
+      '# MoonCompiler project ABI: Delphi String and Char are Unicode.',
+      '-dMOONCOMPILER_UNICODE_DEFAULT',
+      '# Product programs receive the bundled runtime prefix automatically.',
+      '-dMOONBOT_MM_PROFILE_REQUIRED',
+      '-dFPCMM_BOOSTER',
+      '-dFPCMM_MOONSHARD',
+      "--pinned-unit=$MmUnit=$MmSource")
+    Invoke-Checked $fpcmkcfg @('-d', "basepath=$IdeToolchain", '-o', $ideConfig)
+    Add-Content -LiteralPath $ideConfig -Encoding Ascii -Value @(
+      '# MoonCompiler IDE ABI: ordinary FPC String and Char representation.',
+      '# Do not inject the product memory manager or runtime prefix.',
+      '-dMOONCOMPILER_VANILLA_RUNTIME')
+
+    Publish-Toolchain -NewToolchain $newToolchain -Toolchain $Toolchain `
+      -OldToolchain $oldToolchain
+  } finally {
+    If ((Test-Path -LiteralPath $oldToolchain) -and
+        -not (Test-Path -LiteralPath $Toolchain)) {
+      Move-Item -LiteralPath $oldToolchain -Destination $Toolchain
+    }
+    Remove-Item -LiteralPath $newToolchain -Recurse -Force `
+      -ErrorAction SilentlyContinue
+    If (Test-Path -LiteralPath $Toolchain) {
+      Remove-Item -LiteralPath $oldToolchain -Recurse -Force `
+        -ErrorAction SilentlyContinue
+    }
+  }
+  Write-Output "MoonCompiler toolchain installed in $Toolchain"
 }
 
 function Build-Lazarus {
@@ -359,6 +468,11 @@ If ($Target -eq 'compiler') {
     throw 'usage: .\build.ps1 compiler'
   }
   Build-Compiler
+} elseif ($Target -eq 'toolchain') {
+  If (-not $Profile -or $Bootstrap -or $Make -or $DiagnosticMM) {
+    throw 'usage: .\build.ps1 toolchain ARCHIVE'
+  }
+  Install-Toolchain $Profile
 } elseif ($Target -eq 'lazarus') {
   If ($Profile -or $DiagnosticMM) {
     throw 'usage: .\build.ps1 lazarus'

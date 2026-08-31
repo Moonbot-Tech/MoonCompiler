@@ -3,6 +3,7 @@ set -euo pipefail
 
 usage() {
   echo "usage: ./build compiler" >&2
+  echo "       ./build toolchain ARCHIVE" >&2
   echo "       ./build lazarus" >&2
   echo "       ./build project.dpr debug|release [--diagnostic-mm]" >&2
   exit 2
@@ -122,12 +123,125 @@ build_compiler() {
     '-dMOONCOMPILER_VANILLA_RUNTIME' \
     >> "$ide_profile/etc/fpc.cfg"
 
+  mkdir -p "$new_toolchain/share/doc/mooncompiler"
+  cp "$ROOT/compiler/COPYING.txt" \
+    "$new_toolchain/share/doc/mooncompiler/COMPILER-GPL-2.0.txt"
+  cp "$ROOT/rtl/COPYING.txt" \
+    "$new_toolchain/share/doc/mooncompiler/RTL-LGPL-2.1.txt"
+  cp "$ROOT/rtl/COPYING.FPC" \
+    "$new_toolchain/share/doc/mooncompiler/RTL-EXCEPTION.txt"
+  cp "$ROOT/runtime/mm/LICENSE.md" \
+    "$new_toolchain/share/doc/mooncompiler/MM-LICENSE.md"
+  cp "$ROOT/doc/LICENSING.md" \
+    "$new_toolchain/share/doc/mooncompiler/LICENSING.md"
+
   mv "$ide_profile" "$new_toolchain/ide"
   ide_profile=
 
   publish_toolchain "$new_toolchain" "$TOOLCHAIN" "$old_toolchain"
   trap - EXIT
   echo "MoonCompiler installed in $TOOLCHAIN"
+}
+
+install_toolchain() {
+  local archive member link target version_dir target_cpu target_os
+  local product_version ide_version
+  archive=$(realpath -- "$1")
+  [[ -f "$archive" ]] || {
+    echo "toolchain archive does not exist: $archive" >&2
+    exit 1
+  }
+  case "$archive" in
+    *.tar.gz|*.tgz) ;;
+    *)
+      echo 'Linux toolchain archive must be a .tar.gz or .tgz file' >&2
+      exit 1
+      ;;
+  esac
+
+  # Reject archive entries that could escape the transactional staging tree.
+  while IFS= read -r member; do
+    member=${member#./}
+    [[ -z "$member" || "$member" == /* ||
+       "$member" == .. || "$member" == ../* || "$member" == */../* ||
+       "$member" == */.. ]] && {
+      echo "unsafe path in toolchain archive: $member" >&2
+      exit 1
+    }
+  done < <(tar -tzf "$archive")
+
+  mkdir -p "$STATE"
+  new_toolchain="$STATE/toolchain.new.$$"
+  old_toolchain="$STATE/toolchain.old.$$"
+  trap cleanup_compiler_build EXIT
+  rm -rf "$new_toolchain" "$old_toolchain"
+  mkdir "$new_toolchain"
+  tar -xzf "$archive" --no-same-owner --no-same-permissions \
+    -C "$new_toolchain"
+
+  [[ -x "$new_toolchain/bin/fpc" &&
+     -x "$new_toolchain/bin/fpcmkcfg" &&
+     -x "$new_toolchain/ide/bin/fpc" &&
+     -d "$new_toolchain/lib/fpc" &&
+     -d "$new_toolchain/ide/lib/fpc" &&
+     -f "$new_toolchain/share/doc/mooncompiler/COMPILER-GPL-2.0.txt" &&
+     -f "$new_toolchain/share/doc/mooncompiler/RTL-LGPL-2.1.txt" &&
+     -f "$new_toolchain/share/doc/mooncompiler/RTL-EXCEPTION.txt" &&
+     -f "$new_toolchain/share/doc/mooncompiler/MM-LICENSE.md" &&
+     -f "$new_toolchain/share/doc/mooncompiler/LICENSING.md" ]] || {
+    echo 'the archive is not a complete Linux x86-64 MoonCompiler toolchain' >&2
+    exit 1
+  }
+  target_cpu=$($new_toolchain/bin/fpc -iTP)
+  target_os=$($new_toolchain/bin/fpc -iTO)
+  product_version=$($new_toolchain/bin/fpc -iV)
+  ide_version=$($new_toolchain/ide/bin/fpc -iV)
+  [[ "$target_cpu" == x86_64 && "$target_os" == linux &&
+     "$product_version" == "$ide_version" ]] || {
+    echo 'the archive compiler target or IDE profile version is invalid' >&2
+    exit 1
+  }
+  while IFS= read -r -d '' link; do
+    target=$(readlink -m -- "$(dirname "$link")/$(readlink "$link")")
+    [[ "$target" == "$new_toolchain"/* ]] || {
+      echo "unsafe symbolic link in toolchain archive: $link" >&2
+      exit 1
+    }
+  done < <(find "$new_toolchain" -type l -print0)
+
+  version_dir=$(find "$new_toolchain/lib/fpc" -mindepth 1 -maxdepth 1 \
+    -type d -name '[0-9]*' -printf '%f\n')
+  [[ -n "$version_dir" && "$version_dir" != *$'\n'* &&
+     -d "$new_toolchain/ide/lib/fpc/$version_dir" ]] || {
+    echo 'could not identify one matching compiler version in the archive' >&2
+    exit 1
+  }
+
+  mkdir -p "$new_toolchain/etc" "$new_toolchain/ide/etc"
+  "$new_toolchain/bin/fpcmkcfg" \
+    -d "basepath=$TOOLCHAIN/lib/fpc/$version_dir" \
+    -o "$new_toolchain/etc/fpc.cfg"
+  printf '%s\n' \
+    '# MoonCompiler project ABI: Delphi String and Char are Unicode.' \
+    '-dMOONCOMPILER_UNICODE_DEFAULT' \
+    '# Product programs receive the bundled runtime prefix automatically.' \
+    '-dMOONBOT_MM_PROFILE_REQUIRED' \
+    '-dFPCMM_BOOSTER' \
+    '-dFPCMM_MOONSHARD' \
+    "--pinned-unit=mormot.core.fpcx64mm=$MM_SOURCE" \
+    >> "$new_toolchain/etc/fpc.cfg"
+  "$new_toolchain/bin/fpcmkcfg" \
+    -d "basepath=$IDE_TOOLCHAIN/lib/fpc/$version_dir" \
+    -o "$new_toolchain/ide/etc/fpc.cfg"
+  printf '%s\n' \
+    '# MoonCompiler IDE ABI: ordinary FPC String and Char representation.' \
+    '# Do not inject the product memory manager or runtime prefix.' \
+    '-dMOONCOMPILER_VANILLA_RUNTIME' \
+    >> "$new_toolchain/ide/etc/fpc.cfg"
+
+  publish_toolchain "$new_toolchain" "$TOOLCHAIN" "$old_toolchain"
+  trap - EXIT
+  echo "MoonCompiler toolchain installed in $TOOLCHAIN"
 }
 
 build_lazarus() {
@@ -203,6 +317,11 @@ EOF
 
 if [[ $# -eq 1 && "$1" == compiler ]]; then
   build_compiler
+  exit 0
+fi
+
+if [[ $# -eq 2 && "$1" == toolchain ]]; then
+  install_toolchain "$2"
   exit 0
 fi
 

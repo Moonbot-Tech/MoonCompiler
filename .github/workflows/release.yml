@@ -1,0 +1,178 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Version used in dry-run artifact names
+        required: true
+        default: v1.0.0
+
+permissions:
+  contents: read
+
+jobs:
+  validate-tag:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.tag.outputs.value }}
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
+            echo "release tag must use vMAJOR.MINOR.PATCH[-PRERELEASE]" >&2
+            exit 1
+          }
+          product_version=$(sed -n \
+            "s/^[[:space:]]*mooncompiler_version[[:space:]]*=[[:space:]]*'\([^']*\)';/\1/p" \
+            compiler/version.pas)
+          [[ -n "$product_version" && "$RELEASE_TAG" == "v$product_version" ]] || {
+            echo "tag $RELEASE_TAG does not match MoonCompiler $product_version" >&2
+            exit 1
+          }
+          echo "value=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$product_version" >> "$GITHUB_OUTPUT"
+
+  linux-x86-64:
+    needs: validate-tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      RELEASE_TAG: ${{ needs.validate-tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bootstrap
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends \
+            make binutils fp-compiler-3.2.2
+          test "$(fpc -iV)" = 3.2.2
+      - name: Build toolchain
+        run: ./build compiler
+      - name: Pack toolchain
+        run: |
+          mkdir -p dist
+          asset="mooncompiler-toolchain-${RELEASE_TAG}-linux-x86-64.tar.gz"
+          tar -czf "dist/$asset" -C .moonbot/toolchain .
+      - name: Install and smoke-test the archive
+        run: |
+          asset="dist/mooncompiler-toolchain-${RELEASE_TAG}-linux-x86-64.tar.gz"
+          mv .moonbot/toolchain .moonbot/toolchain.built
+          ./build toolchain "$asset"
+          ! grep -q 'toolchain\.new\.' .moonbot/toolchain/etc/fpc.cfg
+          ! grep -q 'toolchain\.new\.' .moonbot/toolchain/ide/etc/fpc.cfg
+          python3 qualification/build-driver/version_contract.py
+          ./build examples/hello.dpr release
+          [[ "$(./examples/hello)" == '3 prices, sum = '* ]]
+      - uses: actions/upload-artifact@v4
+        with:
+          name: toolchain-linux-x86-64
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+
+  win64-x86-64:
+    needs: validate-tag
+    runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      RELEASE_TAG: ${{ needs.validate-tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FPC 3.2.2 bootstrap
+        shell: powershell
+        run: choco install freepascal --version=3.2.2 -y --no-progress
+      - name: Build toolchain
+        shell: powershell
+        run: |
+          .\build.ps1 compiler `
+            -Bootstrap C:\tools\freepascal\bin\i386-win32\fpc.exe
+      - name: Pack toolchain
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $Asset = "mooncompiler-toolchain-$env:RELEASE_TAG-win64.zip"
+          [IO.Compression.ZipFile]::CreateFromDirectory(
+            (Resolve-Path '.moonbot\toolchain').Path,
+            (Join-Path (Resolve-Path dist).Path $Asset),
+            [IO.Compression.CompressionLevel]::Optimal,
+            $false)
+      - name: Install and smoke-test the archive
+        shell: powershell
+        run: |
+          $Asset = "dist\mooncompiler-toolchain-$env:RELEASE_TAG-win64.zip"
+          Move-Item .moonbot\toolchain .moonbot\toolchain.built
+          .\build.ps1 toolchain $Asset
+          If (Select-String -Quiet -Pattern 'toolchain\.new\.' `
+              -Path .moonbot\toolchain\bin\x86_64-win64\fpc.cfg,
+                    .moonbot\toolchain\ide\bin\x86_64-win64\fpc.cfg) {
+            throw 'installed configs still reference the staging path'
+          }
+          python .\qualification\build-driver\version_contract.py
+          .\build.ps1 .\examples\hello.dpr release
+          $Output = & .\examples\hello.exe
+          If ($Output -notlike '3 prices, sum = *') {
+            throw "archive smoke returned: $Output"
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: toolchain-win64-x86-64
+          path: dist/*.zip
+          if-no-files-found: error
+          compression-level: 0
+
+  publish:
+    needs: [validate-tag, linux-x86-64, win64-x86-64]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.validate-tag.outputs.tag }}
+      RELEASE_VERSION: ${{ needs.validate-tag.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: toolchain-*
+          path: dist
+          merge-multiple: true
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum mooncompiler-toolchain-* > SHA256SUMS
+      - name: Attest release assets
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/SHA256SUMS
+      - name: Publish GitHub Release
+        if: github.event_name == 'push'
+        run: |
+          release_options=(
+            "$RELEASE_TAG"
+            dist/mooncompiler-toolchain-*
+            dist/SHA256SUMS
+            --verify-tag
+            --title "MoonCompiler $RELEASE_VERSION"
+            --notes "Ready-to-install Win64 and Linux x86-64 toolchains. Clone the repository, download the matching archive, and follow the Quick Start in README.md. SHA256SUMS and GitHub artifact attestations are published with the binaries."
+            --generate-notes
+          )
+          [[ "$RELEASE_TAG" != *-* ]] || release_options+=(--prerelease)
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" \
+              dist/mooncompiler-toolchain-* dist/SHA256SUMS --clobber
+          else
+            gh release create "${release_options[@]}"
+          fi
