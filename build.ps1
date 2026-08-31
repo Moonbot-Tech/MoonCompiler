@@ -17,8 +17,11 @@ Set-StrictMode -Version Latest
 $Root = $PSScriptRoot
 $State = Join-Path $Root '.moonbot'
 $Toolchain = Join-Path $State 'toolchain'
+$IdeToolchain = Join-Path $Toolchain 'ide'
 $MmSource = Join-Path $Root 'runtime\mm\mormot.core.fpcx64mm.pas'
 $MmUnit = 'mormot.core.fpcx64mm'
+$LazarusRepository = 'https://gitlab.com/freepascal.org/lazarus/lazarus.git'
+$LazarusCommit = 'ce01e71c34866d83f69ea7cd855ae7eabea49f38'
 . (Join-Path $Root 'scripts\Publish-Toolchain.ps1')
 . (Join-Path $Root 'scripts\Project-Profile.ps1')
 
@@ -75,7 +78,8 @@ function Build-Compiler {
   New-Item -ItemType Directory -Force -Path $State | Out-Null
   $newToolchain = Join-Path $State "toolchain.new.$PID"
   $oldToolchain = Join-Path $State "toolchain.old.$PID"
-  Remove-Item -LiteralPath $newToolchain, $oldToolchain -Recurse -Force `
+  $ideProfile = Join-Path $State "ide-profile.new.$PID"
+  Remove-Item -LiteralPath $newToolchain, $oldToolchain, $ideProfile -Recurse -Force `
     -ErrorAction SilentlyContinue
   try {
     foreach ($part in @('compiler', 'rtl', 'packages', 'utils')) {
@@ -95,9 +99,15 @@ function Build-Compiler {
       'CPU_TARGET=x86_64', 'OS_TARGET=win64',
       "INSTALL_PREFIX=$newToolchain")
 
+    # Preserve the ordinary FPC ABI before the product Unicode RTL replaces
+    # the installed units.  Lazarus, LCL and compiler tools are built against
+    # this profile; product applications continue to use the default profile.
+    Copy-Item -LiteralPath $newToolchain -Destination $ideProfile -Recurse
+
     $fpc = Join-Path $newToolchain 'bin\x86_64-win64\fpc.exe'
     $targetCompiler = Join-Path $newToolchain 'bin\x86_64-win64\ppcx64.exe'
     $config = Join-Path $newToolchain 'bin\x86_64-win64\fpc.cfg'
+    $ideConfig = Join-Path $ideProfile 'bin\x86_64-win64\fpc.cfg'
     If (-not (Test-Path -LiteralPath $fpc) -or
         -not (Test-Path -LiteralPath $targetCompiler)) {
       throw 'the installed Win64 toolchain is incomplete'
@@ -139,6 +149,12 @@ function Build-Compiler {
       '-dFPCMM_BOOSTER',
       '-dFPCMM_MOONSHARD',
       "--pinned-unit=$MmUnit=$MmSource")
+    Invoke-Checked $fpcmkcfg @(
+      '-d', "basepath=$IdeToolchain", '-o', $ideConfig)
+    Add-Content -LiteralPath $ideConfig -Encoding Ascii -Value @(
+      '# Moon Compiler IDE ABI: ordinary FPC String and Char representation.',
+      '# Do not inject the product memory manager or runtime prefix.',
+      '-dMOONCOMPILER_VANILLA_RUNTIME')
     foreach ($tool in @('ar', 'as', 'ld', 'nm', 'objcopy', 'objdump', 'strip', 'windres')) {
       $source = Join-Path $bootstrapDir "x86_64-win64-$tool.exe"
       If (-not (Test-Path -LiteralPath $source)) {
@@ -146,10 +162,13 @@ function Build-Compiler {
       }
       Copy-Item -LiteralPath $source `
         -Destination (Join-Path $newToolchain "bin\x86_64-win64\$tool.exe")
+      Copy-Item -LiteralPath $source `
+        -Destination (Join-Path $ideProfile "bin\x86_64-win64\$tool.exe")
     }
     If (-not (Test-Path -LiteralPath $config)) {
       throw 'the installed Win64 toolchain has no fpc.cfg'
     }
+    Move-Item -LiteralPath $ideProfile -Destination (Join-Path $newToolchain 'ide')
     Publish-Toolchain -NewToolchain $newToolchain -Toolchain $Toolchain `
       -OldToolchain $oldToolchain
   } finally {
@@ -160,12 +179,90 @@ function Build-Compiler {
     }
     Remove-Item -LiteralPath $newToolchain -Recurse -Force `
       -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $ideProfile -Recurse -Force `
+      -ErrorAction SilentlyContinue
     If (Test-Path -LiteralPath $Toolchain) {
       Remove-Item -LiteralPath $oldToolchain -Recurse -Force `
         -ErrorAction SilentlyContinue
     }
   }
   Write-Output "MoonBot Compiler installed in $Toolchain"
+}
+
+function Build-Lazarus {
+  $ideFpc = Join-Path $IdeToolchain 'bin\x86_64-win64\fpc.exe'
+  If (-not (Test-Path -LiteralPath $ideFpc)) {
+    throw 'the IDE profile is missing; run .\build.ps1 compiler first'
+  }
+  $git = Get-Command git.exe -ErrorAction SilentlyContinue
+  If (-not $git) {
+    throw 'Git is required to fetch the pinned Lazarus source'
+  }
+  $source = Join-Path $State 'lazarus'
+  If (-not (Test-Path -LiteralPath (Join-Path $source '.git'))) {
+    If (Test-Path -LiteralPath $source) {
+      throw "the managed Lazarus directory exists but is not a Git checkout: $source"
+    }
+    Invoke-Checked $git.Source @(
+      'clone', '--filter=blob:none', '--no-checkout',
+      $LazarusRepository, $source)
+    Invoke-Checked $git.Source @('-C', $source, 'checkout', '--detach', $LazarusCommit)
+  }
+  $head = (& $git.Source -C $source rev-parse HEAD).Trim()
+  If ($LASTEXITCODE -ne 0 -or $head -ne $LazarusCommit) {
+    throw "managed Lazarus checkout is not at the supported commit $LazarusCommit"
+  }
+
+  $bootstrapPath = Find-Bootstrap
+  $makePath = Find-Make $bootstrapPath
+  $pcp = Join-Path $State 'lazarus-config'
+  New-Item -ItemType Directory -Force -Path $pcp | Out-Null
+  $lazbuildOptions = 'LAZBUILDOPTS=--lazarusdir=. --compiler=$(PP) ' +
+    '--cpu=$(CPU_TARGET) --os=$(OS_TARGET) --opt="$(OPT)" ' +
+    '--pcp="$(MOON_LAZARUS_PCP)"'
+  $ideBin = Split-Path -Parent $ideFpc
+  $oldPath = $env:Path
+  $oldPP = $env:PP
+  $oldFpcDir = $env:FPCDIR
+  $oldLazarusDir = $env:LAZARUSDIR
+  $env:Path = "$ideBin;$oldPath"
+  $env:PP = $ideFpc
+  Remove-Item Env:FPCDIR -ErrorAction SilentlyContinue
+  $env:LAZARUSDIR = $source
+  try {
+    Invoke-Checked $makePath @('-C', $source, 'clean', "FPC=$ideFpc")
+    Invoke-Checked $makePath @('-C', $source, '-j1', 'bigide',
+      "FPC=$ideFpc", 'OPT=-O3', "MOON_LAZARUS_PCP=$pcp", $lazbuildOptions)
+  } finally {
+    $env:Path = $oldPath
+    $env:PP = $oldPP
+    $env:FPCDIR = $oldFpcDir
+    $env:LAZARUSDIR = $oldLazarusDir
+  }
+
+  $lazarusExe = Join-Path $source 'lazarus.exe'
+  If (-not (Test-Path -LiteralPath $lazarusExe)) {
+    throw 'the Lazarus build finished without lazarus.exe'
+  }
+  $compilerXml = [Security.SecurityElement]::Escape($ideFpc)
+  $sourceXml = [Security.SecurityElement]::Escape($source)
+  $fpcSourceXml = [Security.SecurityElement]::Escape($Root)
+  $makeXml = [Security.SecurityElement]::Escape($makePath)
+  Set-Content -LiteralPath (Join-Path $pcp 'environmentoptions.xml') `
+    -Encoding UTF8 -Value @"
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <EnvironmentOptions>
+    <LazarusDirectory Value="$sourceXml"/>
+    <CompilerFilename Value="$compilerXml"/>
+    <FPCSourceDirectory Value="$fpcSourceXml"/>
+    <MakeFilename Value="$makeXml"/>
+    <Version Value="112" Lazarus="4.99"/>
+  </EnvironmentOptions>
+</CONFIG>
+"@
+  Write-Output "Lazarus $LazarusCommit built in $source"
+  Write-Output 'Launch it with .\lazarus.ps1'
 }
 
 function Get-ProjectId([string]$Project) {
@@ -259,6 +356,11 @@ If ($Target -eq 'compiler') {
     throw 'usage: .\build.ps1 compiler'
   }
   Build-Compiler
+} elseif ($Target -eq 'lazarus') {
+  If ($Profile -or $DiagnosticMM) {
+    throw 'usage: .\build.ps1 lazarus'
+  }
+  Build-Lazarus
 } else {
   Build-Project $Target $Profile $DiagnosticMM.IsPresent
 }

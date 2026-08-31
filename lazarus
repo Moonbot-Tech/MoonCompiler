@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$0")" && pwd)
+STATE="$ROOT/.moonbot"
+IDE_TOOLCHAIN="$STATE/toolchain/ide"
+IDE_FPC="$IDE_TOOLCHAIN/bin/fpc"
+LAZARUS_SOURCE="$STATE/lazarus"
+LAZARUS_EXE="$LAZARUS_SOURCE/lazarus"
+PRIMARY_CONFIG="$STATE/lazarus-config"
+
+[[ -x "$IDE_FPC" ]] || "$ROOT/build" compiler
+[[ -x "$LAZARUS_EXE" ]] || "$ROOT/build" lazarus
+
+export PATH="$IDE_TOOLCHAIN/bin:$PATH"
+export PP="$IDE_FPC"
+export LAZARUSDIR="$LAZARUS_SOURCE"
+unset FPCDIR
+exec "$LAZARUS_EXE" "--pcp=$PRIMARY_CONFIG" "$@"

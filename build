@@ -3,6 +3,7 @@ set -euo pipefail
 
 usage() {
   echo "usage: ./build compiler" >&2
+  echo "       ./build lazarus" >&2
   echo "       ./build project.dpr debug|release [--diagnostic-mm]" >&2
   exit 2
 }
@@ -10,14 +11,19 @@ usage() {
 ROOT=$(cd "$(dirname "$0")" && pwd)
 STATE="$ROOT/.moonbot"
 TOOLCHAIN="$STATE/toolchain"
+IDE_TOOLCHAIN="$TOOLCHAIN/ide"
 MM_SOURCE="$ROOT/runtime/mm/mormot.core.fpcx64mm.pas"
+LAZARUS_REPOSITORY=https://gitlab.com/freepascal.org/lazarus/lazarus.git
+LAZARUS_COMMIT=ce01e71c34866d83f69ea7cd855ae7eabea49f38
 new_toolchain=
 old_toolchain=
+ide_profile=
 
 source "$ROOT/scripts/publish_toolchain.sh"
 
 cleanup_compiler_build() {
   [[ -z "$new_toolchain" ]] || rm -rf "$new_toolchain"
+  [[ -z "$ide_profile" ]] || rm -rf "$ide_profile"
   if [[ -n "$old_toolchain" && -e "$TOOLCHAIN" ]]; then
     rm -rf "$old_toolchain"
   fi
@@ -44,13 +50,18 @@ build_compiler() {
   mkdir -p "$STATE"
   new_toolchain="$STATE/toolchain.new.$$"
   old_toolchain="$STATE/toolchain.old.$$"
+  ide_profile="$STATE/ide-profile.new.$$"
   trap cleanup_compiler_build EXIT
-  rm -rf "$new_toolchain" "$old_toolchain"
+  rm -rf "$new_toolchain" "$old_toolchain" "$ide_profile"
 
   make -C "$ROOT" clean
   make -C "$ROOT" -j1 all FPC="$bootstrap" OPT="$compiler_options"
   make -C "$ROOT" install FPC="$bootstrap" OPT="$compiler_options" \
     INSTALL_PREFIX="$new_toolchain"
+
+  # Preserve the ordinary FPC ABI before the product Unicode RTL replaces
+  # the installed units. Lazarus, LCL and compiler tools use this profile.
+  cp -a "$new_toolchain" "$ide_profile"
 
   version_dir=$(find "$new_toolchain/lib/fpc" -mindepth 1 -maxdepth 1 \
     -type d -name '[0-9]*' -printf '%f\n')
@@ -100,13 +111,95 @@ build_compiler() {
     "--pinned-unit=mormot.core.fpcx64mm=$MM_SOURCE" \
     >> "$new_toolchain/etc/fpc.cfg"
 
+  ln -sf "../lib/fpc/$version_dir/ppcx64" "$ide_profile/bin/ppcx64"
+  mkdir -p "$ide_profile/etc"
+  "$new_toolchain/bin/fpcmkcfg" \
+    -d "basepath=$IDE_TOOLCHAIN/lib/fpc/$version_dir" \
+    -o "$ide_profile/etc/fpc.cfg"
+  printf '%s\n' \
+    '# Moon Compiler IDE ABI: ordinary FPC String and Char representation.' \
+    '# Do not inject the product memory manager or runtime prefix.' \
+    '-dMOONCOMPILER_VANILLA_RUNTIME' \
+    >> "$ide_profile/etc/fpc.cfg"
+
+  mv "$ide_profile" "$new_toolchain/ide"
+  ide_profile=
+
   publish_toolchain "$new_toolchain" "$TOOLCHAIN" "$old_toolchain"
   trap - EXIT
   echo "MoonBot Compiler installed in $TOOLCHAIN"
 }
 
+build_lazarus() {
+  local ide_fpc source head pcp lazbuild_options
+  ide_fpc="$IDE_TOOLCHAIN/bin/fpc"
+  [[ -x "$ide_fpc" ]] || {
+    echo 'the IDE profile is missing; run ./build compiler first' >&2
+    exit 1
+  }
+  command -v git >/dev/null || {
+    echo 'Git is required to fetch the pinned Lazarus source' >&2
+    exit 1
+  }
+  source="$STATE/lazarus"
+  if [[ ! -d "$source/.git" ]]; then
+    [[ ! -e "$source" ]] || {
+      echo "the managed Lazarus directory exists but is not a Git checkout: $source" >&2
+      exit 1
+    }
+    git clone --filter=blob:none --no-checkout "$LAZARUS_REPOSITORY" "$source"
+    git -C "$source" checkout --detach "$LAZARUS_COMMIT"
+  fi
+  head=$(git -C "$source" rev-parse HEAD)
+  [[ "$head" == "$LAZARUS_COMMIT" ]] || {
+    echo "managed Lazarus checkout is not at the supported commit $LAZARUS_COMMIT" >&2
+    exit 1
+  }
+
+  pcp="$STATE/lazarus-config"
+  mkdir -p "$pcp"
+  lazbuild_options='--lazarusdir=. --compiler=$(PP) --cpu=$(CPU_TARGET) --os=$(OS_TARGET) --opt="$(OPT)" --pcp="$(MOON_LAZARUS_PCP)"'
+
+  env -u FPCDIR PATH="$IDE_TOOLCHAIN/bin:$PATH" PP="$ide_fpc" \
+    LAZARUSDIR="$source" \
+    make -C "$source" clean FPC="$ide_fpc"
+  env -u FPCDIR PATH="$IDE_TOOLCHAIN/bin:$PATH" PP="$ide_fpc" \
+    LAZARUSDIR="$source" \
+    make -C "$source" -j1 bigide FPC="$ide_fpc" OPT=-O3 \
+      MOON_LAZARUS_PCP="$pcp" "LAZBUILDOPTS=$lazbuild_options"
+  [[ -x "$source/lazarus" ]] || {
+    echo 'the Lazarus build finished without the lazarus executable' >&2
+    exit 1
+  }
+
+  xml_escape() {
+    printf '%s' "$1" |
+      sed -e 's/&/\&amp;/g' -e 's/"/\&quot;/g' \
+        -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+  }
+  cat > "$pcp/environmentoptions.xml" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <EnvironmentOptions>
+    <LazarusDirectory Value="$(xml_escape "$source")"/>
+    <CompilerFilename Value="$(xml_escape "$ide_fpc")"/>
+    <FPCSourceDirectory Value="$(xml_escape "$ROOT")"/>
+    <MakeFilename Value="$(xml_escape "$(command -v make)")"/>
+    <Version Value="112" Lazarus="4.99"/>
+  </EnvironmentOptions>
+</CONFIG>
+EOF
+  echo "Lazarus $LAZARUS_COMMIT built in $source"
+  echo 'Launch it with ./lazarus'
+}
+
 if [[ $# -eq 1 && "$1" == compiler ]]; then
   build_compiler
+  exit 0
+fi
+
+if [[ $# -eq 1 && "$1" == lazarus ]]; then
+  build_lazarus
   exit 0
 fi
 
