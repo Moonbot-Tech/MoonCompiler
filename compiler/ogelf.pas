@@ -41,8 +41,10 @@ interface
     type
 {$ifdef cpu64bitaddr}
       TElfsechdr = TElf64sechdr;
+      TElfsymbol = TElf64symbol;
 {$else cpu64bitaddr}
       TElfsechdr = TElf32sechdr;
+      TElfsymbol = TElf32symbol;
 {$endif cpu64bitaddr}
 
        TElfObjSection = class(TObjSection)
@@ -65,11 +67,16 @@ interface
        public
          kind: TElfSymtabKind;
          fstrsec: TObjSection;
+         fshndxsec: TElfObjSection;
          symidx: longint;
          tlsbase: aword;
          constructor create(aObjData:TObjData;aKind:TElfSymtabKind);reintroduce;
+         procedure enableextendedsectionindexes(aObjData:TObjData);
          procedure writeSymbol(objsym:TObjSymbol;nameidx:longword=0);
-         procedure writeInternalSymbol(avalue:aword;astridx:longword;ainfo:byte;ashndx:word);
+         procedure writeInternalSymbol(avalue:aword;astridx:longword;ainfo:byte;ashndx:longword);
+       private
+         procedure setsectionindex(var elfsym:TElfSymbol;asectionindex:longword;out axindex:longword);
+         procedure writesectionindex(aindex:longword);
        end;
 
        TElfObjData = class(TObjData)
@@ -135,6 +142,7 @@ interface
          symtaboffset: aword;
          syms: longword;
          localsyms: longword;
+         symshndx: array of longword;
          symversions: TWordDynArray;
          dynobj: boolean;
          CObjSymbol: TObjSymbolClass;
@@ -355,7 +363,6 @@ implementation
       type
         telfheader = telf64header;
         telfreloc = telf64reloc;
-        telfsymbol = telf64symbol;
         telfproghdr = telf64proghdr;
         telfdyn = telf64dyn;
 
@@ -370,7 +377,6 @@ implementation
       type
         telfheader = telf32header;
         telfreloc = telf32reloc;
-        telfsymbol = telf32symbol;
         telfproghdr = telf32proghdr;
         telfdyn = telf32dyn;
 
@@ -774,28 +780,74 @@ implementation
         symidx:=1;
         shinfo:=1;
         kind:=aKind;
+        fshndxsec:=nil;
       end;
 
-    procedure TElfSymtab.writeInternalSymbol(avalue:aword;astridx:longword;ainfo:byte;ashndx:word);
+    procedure TElfSymtab.enableextendedsectionindexes(aObjData:TObjData);
+      begin
+        if assigned(fshndxsec) then
+          exit;
+        fshndxsec:=TElfObjSection.create_ext(aObjData,'.symtab_shndx',
+          SHT_SYMTAB_SHNDX,0,sizeof(longword),sizeof(longword));
+        { The null and file symbols have already been written.  Every symbol
+          needs a parallel word, even when its normal st_shndx is sufficient. }
+        fshndxsec.writezeros(symidx*sizeof(longword));
+      end;
+
+    procedure TElfSymtab.setsectionindex(var elfsym:TElfSymbol;
+      asectionindex:longword;out axindex:longword);
+      begin
+        axindex:=0;
+        if asectionindex>=SHN_LORESERVE then
+          begin
+            if not assigned(fshndxsec) then
+              InternalError(2026083101);
+            elfsym.st_shndx:=SHN_XINDEX;
+            axindex:=asectionindex;
+          end
+        else
+          elfsym.st_shndx:=asectionindex;
+      end;
+
+    procedure TElfSymtab.writesectionindex(aindex:longword);
+      begin
+        if not assigned(fshndxsec) then
+          exit;
+        if target_info.endian=endian_big then
+          fshndxsec.writeUInt32BE(aindex)
+        else
+          fshndxsec.writeUInt32LE(aindex);
+      end;
+
+    procedure TElfSymtab.writeInternalSymbol(avalue:aword;astridx:longword;
+      ainfo:byte;ashndx:longword);
       var
         elfsym:TElfSymbol;
+        xindex:longword;
       begin
         fillchar(elfsym,sizeof(elfsym),0);
         elfsym.st_value:=avalue;
         elfsym.st_name:=astridx;
         elfsym.st_info:=ainfo;
-        elfsym.st_shndx:=ashndx;
+        xindex:=0;
+        if (ainfo and $0f)=STT_SECTION then
+          setsectionindex(elfsym,ashndx,xindex)
+        else
+          elfsym.st_shndx:=ashndx;
         inc(symidx);
         inc(shinfo);
         MaybeSwapElfSymbol(elfsym);
         write(elfsym,sizeof(elfsym));
+        writesectionindex(xindex);
       end;
 
     procedure TElfSymtab.writeSymbol(objsym:TObjSymbol;nameidx:longword);
       var
         elfsym:TElfSymbol;
+        xindex:longword;
       begin
         fillchar(elfsym,sizeof(elfsym),0);
+        xindex:=0;
         if nameidx=0 then
           elfsym.st_name:=fstrsec.writestr(objsym.name)
         else
@@ -866,13 +918,15 @@ implementation
                     else if (oso_plt in objsym.objsection.SecOptions) then
                       elfsym.st_value:=0
                     else
-                      elfsym.st_shndx:=TElfExeSection(objsym.objsection.ExeSection).secshidx;
+                      setsectionindex(elfsym,
+                        TElfExeSection(objsym.objsection.ExeSection).secshidx,
+                        xindex);
                   end;
               end
             else
               begin
                 if assigned(objsym.objsection) then
-                  elfsym.st_shndx:=objsym.objsection.index
+                  setsectionindex(elfsym,objsym.objsection.index,xindex)
                 else
                   elfsym.st_shndx:=SHN_UNDEF;
                 objsym.symidx:=symidx;
@@ -881,6 +935,7 @@ implementation
         inc(symidx);
         MaybeSwapElfSymbol(elfsym);
         write(elfsym,sizeof(TElfSymbol));
+        writesectionindex(xindex);
       end;
 
 {****************************************************************************
@@ -947,7 +1002,8 @@ implementation
       begin
         { Must not write symbols for internal sections like .symtab }
         { TODO: maybe use inclusive list of section types instead }
-        if (TElfObjSection(p).shtype in [SHT_SYMTAB,SHT_STRTAB,SHT_REL,SHT_RELA]) then
+        if (TElfObjSection(p).shtype in
+            [SHT_SYMTAB,SHT_STRTAB,SHT_REL,SHT_RELA,SHT_SYMTAB_SHNDX]) then
           exit;
         TObjSection(p).secsymidx:=symtabsect.symidx;
         symtabsect.writeInternalSymbol(0,0,STT_SECTION,TObjSection(p).index);
@@ -1036,8 +1092,8 @@ implementation
 
     procedure TElfObjectOutput.section_count_sections(p:TObject;arg:pointer);
       begin
-        TElfObjSection(p).index:=pword(arg)^;
-        inc(pword(arg)^);
+        TElfObjSection(p).index:=plongword(arg)^;
+        inc(plongword(arg)^);
       end;
 
 
@@ -1057,9 +1113,10 @@ implementation
     function TElfObjectOutput.writedata(data:TObjData):boolean;
       var
         header : telfheader;
+        nullsechdr : telfsechdr;
         shoffset,
         datapos   : aword;
-        nsections : word;
+        nsections : longword;
       begin
         result:=false;
         with data do
@@ -1079,6 +1136,16 @@ implementation
            nsections:=1;
            { also create the index in the section header table }
            ObjSectionList.ForEachCall(@section_count_sections,@nsections);
+           { Section indexes in symbols are 16 bit unless ELF provides the
+             parallel SHT_SYMTAB_SHNDX table.  Create it before symbols are
+             emitted whenever an ordinary section has crossed that boundary. }
+           if nsections>SHN_LORESERVE then
+             begin
+               symtabsect.enableextendedsectionindexes(data);
+               nsections:=1;
+               ObjSectionList.ForEachCall(@section_count_sections,@nsections);
+               symtabsect.fshndxsec.shlink:=symtabsect.index;
+             end;
            { create .symtab and .strtab }
            createsymtab(data);
            { Create the relocation sections, this needs valid secidx and symidx }
@@ -1120,9 +1187,15 @@ implementation
            header.e_machine:=ElfTarget.machine_code;
            header.e_version:=1;
            header.e_shoff:=shoffset;
-           header.e_shstrndx:=shstrtabsect.index;
+           if shstrtabsect.index>=SHN_LORESERVE then
+             header.e_shstrndx:=SHN_XINDEX
+           else
+             header.e_shstrndx:=shstrtabsect.index;
 
-           header.e_shnum:=nsections;
+           if nsections>=SHN_LORESERVE then
+             header.e_shnum:=0
+           else
+             header.e_shnum:=nsections;
            header.e_ehsize:=sizeof(telfheader);
            header.e_shentsize:=sizeof(telfsechdr);
            if assigned(ElfTarget.encodeflags) then
@@ -1135,8 +1208,15 @@ implementation
 
            { Align header }
            Writer.Writezeros(Align(Writer.Size,Sizeof(AInt))-Writer.Size);
-           { section headers, start with an empty header for sh_undef }
-           writer.writezeros(sizeof(telfsechdr));
+           { Section zero carries the extended section count/string-table
+             index when they no longer fit in the ELF header. }
+           fillchar(nullsechdr,sizeof(nullsechdr),0);
+           if nsections>=SHN_LORESERVE then
+             nullsechdr.sh_size:=nsections;
+           if shstrtabsect.index>=SHN_LORESERVE then
+             nullsechdr.sh_link:=shstrtabsect.index;
+           MaybeSwapSecHeader(nullsechdr);
+           writer.write(nullsechdr,sizeof(nullsechdr));
            ObjSectionList.ForEachCall(@section_write_sechdr,nil);
          end;
         result:=true;
@@ -1231,6 +1311,7 @@ implementation
       var
         i: longint;
         sym: TElfSymbol;
+        shndx: longword;
         bind: TAsmSymBind;
         typ: TAsmSymType;
         objsym: TObjSymbol;
@@ -1244,18 +1325,26 @@ implementation
             if sym.st_name>=strtablen then
               InternalError(2012060205);
 
-            if sym.st_shndx=SHN_ABS then    { ignore absolute symbols (should we really do it???) }
+            shndx:=sym.st_shndx;
+            if shndx=SHN_XINDEX then
+              begin
+                if i>=length(symshndx) then
+                  InternalError(2026083102);
+                shndx:=symshndx[i];
+              end;
+
+            if shndx=SHN_ABS then    { ignore absolute symbols (should we really do it???) }
               Continue
-            else if sym.st_shndx=SHN_COMMON then
+            else if shndx=SHN_COMMON then
               bind:=AB_COMMON
-            else if (sym.st_shndx>=nsects) then
+            else if (shndx>=nsects) then
               InternalError(2012060206)
             else
               case (sym.st_info shr 4) of
                 STB_LOCAL:
                   bind:=AB_LOCAL;
                 STB_GLOBAL:
-                  if sym.st_shndx=SHN_UNDEF then
+                  if shndx=SHN_UNDEF then
                     bind:=AB_EXTERNAL
                   else if GetElfSymbolVisibility(sym.st_other)=STV_HIDDEN then
                     bind:=AB_PRIVATE_EXTERN
@@ -1269,8 +1358,8 @@ implementation
 
             { Ignore section symbol if we didn't create the corresponding objsection
               (examples are SHT_GROUP or .note.GNU-stack sections). }
-            if (sym.st_shndx>0) and (sym.st_shndx<SHN_LORESERVE) and
-              (FSecTbl[sym.st_shndx].sec=nil) and
+            if (shndx>0) and (shndx<nsects) and
+              (FSecTbl[shndx].sec=nil) and
               (not dynobj) then
               if ((sym.st_info and $0F)=STT_SECTION) then
                 Continue
@@ -1310,7 +1399,7 @@ implementation
                     if (ver=VER_NDX_LOCAL) or (ver>VERSYM_VERSION) then
                       continue;
                   end;
-                if (bind=AB_LOCAL) or (sym.st_shndx=SHN_UNDEF) then
+                if (bind=AB_LOCAL) or (shndx=SHN_UNDEF) then
                   continue;
                 if ver>=verdefs.count then
                   InternalError(2012120505);
@@ -1322,7 +1411,7 @@ implementation
             objsym.bind:=bind;
             objsym.typ:=typ;
             if bind<>AB_COMMON then
-              objsym.objsection:=FSecTbl[sym.st_shndx].sec;
+              objsym.objsection:=FSecTbl[shndx].sec;
             objsym.offset:=sym.st_value;
             objsym.size:=sym.st_size;
             FSymTbl[i]:=objsym;
@@ -1359,6 +1448,7 @@ implementation
       var
         sec: TElfObjSection;
         sym: TElfSymbol;
+        symsectionindex: longword;
         secname: string;
       begin
         if shdr.sh_name>=shstrtablen then
@@ -1433,7 +1523,15 @@ implementation
                 MaybeSwapElfSymbol(sym);
                 if sym.st_name>=strtablen then
                   InternalError(2012110705);
-                if (sym.st_shndx=index) and (sym.st_info=((STB_LOCAL shl 4) or STT_SECTION)) then
+                symsectionindex:=sym.st_shndx;
+                if symsectionindex=SHN_XINDEX then
+                  begin
+                    if shdr.sh_info>=longword(length(symshndx)) then
+                      InternalError(2026083103);
+                    symsectionindex:=symshndx[shdr.sh_info];
+                  end;
+                if (symsectionindex=longword(index)) and
+                  (sym.st_info=((STB_LOCAL shl 4) or STT_SECTION)) then
                   secname:=string(PChar(@shstrtab[shdr.sh_name]))
                 else
                   secname:=string(PChar(@strtab[sym.st_name]));
@@ -1453,6 +1551,9 @@ implementation
 
           SHT_GNU_ATTRIBUTES:
             { TODO: must not be ignored };
+
+          SHT_SYMTAB_SHNDX:
+            { Loaded before symbols; no object section is needed. };
         else
           if not (assigned(ElfTarget.loadsection) and
             ElfTarget.loadsection(self,objdata,shdr,index)) then
@@ -1465,6 +1566,7 @@ implementation
     function TElfObjInput.LoadHeader(out objdata:TObjData):boolean;
       var
         header:TElfHeader;
+        nullsechdr:TElfsechdr;
       begin
         result:=false;
         if not FReader.read(header,sizeof(header)) then
@@ -1512,10 +1614,36 @@ implementation
         if header.e_shentsize<>sizeof(TElfsechdr) then
           InternalError(2012062701);
 
-        nsects:=header.e_shnum;
         dynobj:=(header.e_type=ET_DYN);
         shoffset:=header.e_shoff;
+        nsects:=header.e_shnum;
         shstrndx:=header.e_shstrndx;
+        if (nsects=0) or (shstrndx=SHN_XINDEX) then
+          begin
+            if shoffset=0 then
+              begin
+                InputError('ELF extended section indexes require a section table');
+                exit;
+              end;
+            FReader.Seek(shoffset);
+            if not FReader.Read(nullsechdr,sizeof(nullsechdr)) then
+              begin
+                InputError('Can''t read ELF null section header');
+                exit;
+              end;
+            MaybeSwapSecHeader(nullsechdr);
+            if nsects=0 then
+              begin
+                if nullsechdr.sh_size>high(longword) then
+                  begin
+                    InputError('ELF section table is too large');
+                    exit;
+                  end;
+                nsects:=nullsechdr.sh_size;
+              end;
+            if shstrndx=SHN_XINDEX then
+              shstrndx:=nullsechdr.sh_link;
+          end;
 
         if dynobj then
           begin
@@ -1560,7 +1688,7 @@ implementation
     function TElfObjInput.ReadObjData(AReader:TObjectreader;out objdata:TObjData):boolean;
       var
         i,j,strndx,dynndx,
-        versymndx,verdefndx,verneedndx: longint;
+        versymndx,verdefndx,verneedndx,symshndxndx: longint;
         objsec: TObjSection;
         grp: TObjSectionGroup;
         tmp: longword;
@@ -1573,6 +1701,7 @@ implementation
         InputFileName:=AReader.FileName;
         result:=false;
         strndx:=0;
+        SetLength(symshndx,0);
 
         if not LoadHeader(objData) then
           exit;
@@ -1632,6 +1761,34 @@ implementation
             symtabndx:=i;
             break;
           end;
+
+        { A symbol whose section number does not fit in st_shndx stores it in
+          the parallel SHT_SYMTAB_SHNDX table.  Load that table before any
+          section/group or symbol consumes the index. }
+        symshndxndx:=0;
+        if symtabndx<>0 then
+          for i:=nsects-1 downto 1 do
+            if (shdrs[i].sh_type=SHT_SYMTAB_SHNDX) and
+               (shdrs[i].sh_link=symtabndx) then
+              begin
+                if symshndxndx<>0 then
+                  InternalError(2026083104);
+                if (shdrs[i].sh_entsize<>sizeof(longword)) or
+                   (shdrs[i].sh_size<>syms*sizeof(longword)) then
+                  InternalError(2026083105);
+                symshndxndx:=i;
+                SetLength(symshndx,syms);
+                FReader.Seek(shdrs[i].sh_offset);
+                if not FReader.Read(symshndx[0],shdrs[i].sh_size) then
+                  begin
+                    InputError('Can''t read ELF extended symbol section indexes');
+                    exit;
+                  end;
+                if source_info.endian<>target_info.endian then
+                  for j:=0 to syms-1 do
+                    symshndx[j]:=SwapEndian(symshndx[j]);
+                FLoaded[i]:=True;
+              end;
 
         if dynobj then
           begin

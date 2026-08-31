@@ -89,6 +89,7 @@ interface
     SHN_LORESERVE = $FF00;
     SHN_ABS       = $fff1;
     SHN_COMMON    = $fff2;
+    SHN_XINDEX    = $ffff;
 
     { ElfSechdr.sh_type }
     SHT_NULL     = 0;
