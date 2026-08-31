@@ -141,6 +141,12 @@ build_lazarus() {
     echo 'Git is required to fetch the pinned Lazarus source' >&2
     exit 1
   }
+  if ! command -v pkg-config >/dev/null ||
+     ! pkg-config --exists gtk+-3.0; then
+    echo 'GTK3 development files are required to build Lazarus' >&2
+    echo 'Debian/Ubuntu: sudo apt install libgtk-3-dev' >&2
+    exit 1
+  fi
   source="$STATE/lazarus"
   if [[ ! -d "$source/.git" ]]; then
     [[ ! -e "$source" ]] || {
