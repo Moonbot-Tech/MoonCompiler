@@ -22,6 +22,7 @@ import run_devil_gate
 import run_devil_modes_gate
 import run_devil_mutation
 import run_devil_resident_gate
+import run_devil_targeted
 import run_resident_switch_matrix
 import run_topology_gate
 import devil_toolchain
@@ -32,6 +33,39 @@ def sha256(path: Path) -> str:
 
 
 class DevilRunnerContractsTest(unittest.TestCase):
+    def test_targeted_devil_impact_union_is_canonical(self) -> None:
+        layers = run_devil_targeted.canonical_layers(
+            ["strings-unicode", "exceptions"]
+        )
+        self.assertEqual(
+            layers,
+            tuple(layer for layer in run_devil_targeted.ALL_LAYERS
+                  if layer in {"str", "uni", "lit", "pick", "io", "rtllib",
+                               "lang", "exc", "region", "flow", "call", "inl",
+                               "life", "capture"}),
+        )
+        self.assertEqual(len(layers), len(set(layers)))
+
+    def test_targeted_devil_rejects_unknown_impact(self) -> None:
+        with self.assertRaisesRegex(ValueError, "unknown impact area"):
+            run_devil_targeted.canonical_layers(["made-up-repair"])
+
+    def test_targeted_optimizer_enables_only_provenance_checks(self) -> None:
+        self.assertEqual(
+            run_devil_targeted.adjacent_stages(["optimizer-codegen"]),
+            ("codegen", "asm-oracle"),
+        )
+        self.assertEqual(
+            run_devil_targeted.main_switches(["optimizer-codegen"]),
+            ("--determinism",),
+        )
+
+    def test_targeted_ppu_area_keeps_all_cross_build_checks(self) -> None:
+        self.assertEqual(
+            run_devil_targeted.main_switches(["generics-ppu"]),
+            ("--separate-units", "--second-program", "--ppu-reuse"),
+        )
+
     def test_mode_failure_keeps_the_underlying_linker_cause(self) -> None:
         log = """Error: Error while linking
 Fatal: Compilation aborted
