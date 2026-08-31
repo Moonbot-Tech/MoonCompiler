@@ -1134,103 +1134,6 @@ LIFE_SHAPES = (
 )
 
 
-def emit_openarray_finalize_throw_matrix(e: Emitter) -> CaseRecord:
-    """Cover carrier ownership after both failed and successful value copies."""
-    name = "dvl-life-openarray-finalize-throw-matrix"
-    e.line("var")
-    e.line("  DvlOpenArrayAssignBoom: Boolean;")
-    e.line("  DvlOpenArrayFinalizeBoom: Boolean;")
-    e.line()
-    e.line("type")
-    e.line("  TDvlOpenArrayThrowValue = record")
-    e.line("    Number: Integer;")
-    e.line("    class operator Initialize(out Dest: TDvlOpenArrayThrowValue);")
-    e.line("    class operator Finalize(var Dest: TDvlOpenArrayThrowValue);")
-    e.line("    class operator Assign(var Dest: TDvlOpenArrayThrowValue;")
-    e.line("      const [ref] Source: TDvlOpenArrayThrowValue);")
-    e.line("  end;")
-    e.line()
-    e.line("class operator TDvlOpenArrayThrowValue.Initialize(")
-    e.line("  out Dest: TDvlOpenArrayThrowValue);")
-    e.line("begin")
-    e.line("  Dest.Number := 100;")
-    e.line("end;")
-    e.line()
-    e.line("class operator TDvlOpenArrayThrowValue.Finalize(")
-    e.line("  var Dest: TDvlOpenArrayThrowValue);")
-    e.line("begin")
-    e.line("  If DvlOpenArrayFinalizeBoom then begin")
-    e.line("    DvlOpenArrayFinalizeBoom := False;")
-    e.line("    raise Exception.Create('finalize boom');")
-    e.line("  end;")
-    e.line("end;")
-    e.line()
-    e.line("class operator TDvlOpenArrayThrowValue.Assign(")
-    e.line("  var Dest: TDvlOpenArrayThrowValue;")
-    e.line("  const [ref] Source: TDvlOpenArrayThrowValue);")
-    e.line("begin")
-    e.line("  If DvlOpenArrayAssignBoom and (Source.Number = 20) then")
-    e.line("    raise Exception.Create('assign boom');")
-    e.line("  Dest.Number := Source.Number;")
-    e.line("end;")
-    e.line()
-    e.line("procedure DvlTakeOpenArrayThrow(")
-    e.line("  Values: array of TDvlOpenArrayThrowValue);")
-    e.line("begin")
-    e.line("  If (Length(Values) <> 2) or (Values[0].Number <> 10) or")
-    e.line("     (Values[1].Number <> 20) then")
-    e.line("    raise Exception.Create('bad values');")
-    e.line("end;")
-    e.line()
-    e.line("function DvlRunOpenArrayThrow(AssignFails: Boolean): Boolean;")
-    e.line("var")
-    e.line("  Values: array[0..1] of TDvlOpenArrayThrowValue;")
-    e.line("begin")
-    e.line("  Result := False;")
-    e.line("  Values[0].Number := 10;")
-    e.line("  Values[1].Number := 20;")
-    e.line("  DvlOpenArrayAssignBoom := AssignFails;")
-    e.line("  DvlOpenArrayFinalizeBoom := True;")
-    e.line("  try")
-    e.line("    DvlTakeOpenArrayThrow(Values);")
-    e.line("  except")
-    e.line("    on E: Exception do")
-    e.line("      Result := E.Message = 'finalize boom';")
-    e.line("  end;")
-    e.line("end;")
-    e.line()
-    e.line("procedure DvlOpenArrayFinalizeThrowMatrix;")
-    e.line("{$ifdef FPC}")
-    e.line("var")
-    e.line("  BeforeHeap, AfterHeap: NativeUInt;")
-    e.line("  HeapStatus: TMMStatus;")
-    e.line("{$endif}")
-    e.line("begin")
-    e.line("  { Warm up exception and message allocation before the exact heap delta. }")
-    e.line("  DevilCheckU('%s-warmup', "
-           "UInt64(Ord(DvlRunOpenArrayThrow(True))), 1);" % name)
-    e.line("{$ifdef FPC}")
-    e.line("  HeapStatus := CurrentHeapStatus;")
-    e.line("  BeforeHeap := HeapStatus.SmallBlocksSize;")
-    e.line("{$endif}")
-    e.line("  for var Round := 1 to 32 do begin")
-    e.line("    DevilCheckU('%s-copy-failure', "
-           "UInt64(Ord(DvlRunOpenArrayThrow(True))), 1);" % name)
-    e.line("    DevilCheckU('%s-success-cleanup', "
-           "UInt64(Ord(DvlRunOpenArrayThrow(False))), 1);" % name)
-    e.line("  end;")
-    e.line("{$ifdef FPC}")
-    e.line("  HeapStatus := CurrentHeapStatus;")
-    e.line("  AfterHeap := HeapStatus.SmallBlocksSize;")
-    e.line("  DevilCheckU('%s-carrier-balance', UInt64(AfterHeap), "
-           "UInt64(BeforeHeap));" % name)
-    e.line("{$endif}")
-    e.line("end;")
-    e.line()
-    return CaseRecord(name=name, layer="life",
-                      detail={"shape": "open-array-finalize-throws"})
-
-
 def layer_life(e: Emitter, rng: random.Random, count: int,
                start: int) -> list[CaseRecord]:
     """Managed lifetime.
@@ -1241,8 +1144,12 @@ def layer_life(e: Emitter, rng: random.Random, count: int,
     FPC.  Whatever the language does not fix - the order of destruction, the
     exact moment a temporary dies - is reported as an observation and compared
     across compilers instead of being asserted."""
-    records: list[CaseRecord] = [emit_openarray_finalize_throw_matrix(e)]
-    calls: list[str] = ["DvlOpenArrayFinalizeThrowMatrix"]
+    # The finalizer-throw open-array repair is FPC-specific and its exact
+    # regression lives in RTL-test/semantic/openarray_finalize_throw_semantic.dpr.
+    # Running it inside the cross-compiler monolith aborts DCC during implicit
+    # local finalization and destroys all later Delphi oracles.
+    records: list[CaseRecord] = []
+    calls: list[str] = []
     for index in range(start, start + count):
         shape = rng.choice(LIFE_SHAPES)
         n = rng.choice((2, 3, 4))

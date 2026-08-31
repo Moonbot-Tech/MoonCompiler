@@ -61,8 +61,10 @@ type
     FCensus: TResidentCensus;
     FTally: PResidentTally;
   protected
-    function _AddRef: Integer; stdcall;
-    function _Release: Integer; stdcall;
+    function _AddRef: Integer;
+      {$ifdef MSWINDOWS}stdcall{$else}cdecl{$endif};
+    function _Release: Integer;
+      {$ifdef MSWINDOWS}stdcall{$else}cdecl{$endif};
   public
     constructor Create(AValue: Int64; ACensus: TResidentCensus;
       ATally: PResidentTally);

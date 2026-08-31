@@ -17,6 +17,11 @@ MORMOT="$ROOT/../vendor/mormot-product"
   exit 2
 }
 mkdir -p "$RESULTS"
+# mORMot's source uses paths relative to each program directory, e.g.
+# ../static/x86_64-linux.  Keep the required platform objects in that exact
+# location without copying unrelated Windows, SQLite or QuickJS inputs.
+mkdir -p "$RESULTS/static"
+cp -a --reflink=auto "$MORMOT/static/x86_64-linux" "$RESULTS/static/"
 
 for profile in debug release; do
   profile_dir="$RESULTS/$profile"

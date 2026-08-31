@@ -198,7 +198,6 @@ Fatal: Compilation aborted
             "dvl-asm-implicit-frame-matrix",
             "dvl-inl-exit-unwind-matrix",
             "dvl-lang-custom-variant-carrier-matrix",
-            "dvl-life-openarray-finalize-throw-matrix",
         ):
             self.assertIn(anchor, sources)
         self.assertIn("System.Generics.Collections.TEnumerator<T>",
