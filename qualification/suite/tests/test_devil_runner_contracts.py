@@ -290,6 +290,12 @@ Fatal: Compilation aborted
             "dvl-lang-custom-variant-carrier-matrix",
         ):
             self.assertIn(anchor, sources)
+        self.assertIn("function TDvlCarrierVariantType.RightPromotion", sources)
+        self.assertIn("procedure TDvlCarrierVariantType.Compare", sources)
+        self.assertIn("Ord(Value = 42)", sources)
+        self.assertIn("Ord(Value < 43)", sources)
+        self.assertIn("Ord(Value > 41)", sources)
+        self.assertIn("CastValue := Value + 8", sources)
         self.assertIn("System.Generics.Collections.TEnumerator<T>",
                       unit_source)
 
