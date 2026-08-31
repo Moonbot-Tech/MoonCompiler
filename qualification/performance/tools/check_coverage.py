@@ -5,11 +5,28 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "coverage_manifest.json"
+PULSE_CASE_PATTERN = re.compile(
+    r"PulseRunCase\s*\(\s*'[^']+'\s*,\s*'([^']+)'", re.DOTALL
+)
+PULSE_ADD_PATTERN = re.compile(r"\bAdd\s*\(\s*'([^']+)'", re.DOTALL)
+CASE_CONTRACTS = {
+    "PulseRunCase/v1": PULSE_CASE_PATTERN,
+    "PulseAdd/v1": PULSE_ADD_PATTERN,
+}
+
+
+def declared_pulse_cases(source: Path, contract: str) -> list[str]:
+    """Return the ordered literal case matrix registered by a Pulse program."""
+    pattern = CASE_CONTRACTS.get(contract)
+    if pattern is None:
+        raise ValueError(f"unknown Pulse case contract: {contract}")
+    return pattern.findall(source.read_text(encoding="utf-8"))
 
 
 def main() -> None:
@@ -51,6 +68,22 @@ def main() -> None:
             cases = family.get("cases", [])
             if not cases or len(cases) != len(set(cases)):
                 errors.append(f"{family['id']}: cases are empty or duplicated")
+            contract = family.get("case_contract")
+            if contract not in CASE_CONTRACTS:
+                errors.append(
+                    f"{family['id']}: missing or unknown case contract {contract!r}"
+                )
+            else:
+                source = ROOT / family["source"]
+                declared = declared_pulse_cases(source, contract)
+                if not declared:
+                    errors.append(
+                        f"{family['id']}: no literal case matrix in {source}"
+                    )
+                elif cases != declared:
+                    errors.append(
+                        f"{family['id']}: manifest cases differ from {source}"
+                    )
 
     required_axes = data["required_axis_values"]
     for axis, required_values in required_axes.items():

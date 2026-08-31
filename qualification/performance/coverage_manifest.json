@@ -98,7 +98,15 @@
   "families": [
     {
       "id": "calibration",
-      "status": "planned",
+      "status": "implemented",
+      "source": "calibration/pulse_calibration.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "asm-dependent-add",
+        "asm-mixed-integer",
+        "asm-memory-read-64m",
+        "asm-memory-write-64m"
+      ],
       "coverage": {
         "target": ["win64", "linux-x86_64"],
         "memory": ["register", "l1", "l2", "llc", "dram", "sequential", "strided", "random"],
@@ -108,8 +116,9 @@
     {
       "id": "local-pressure",
       "status": "implemented",
-      "source": "local-pressure/local_pressure.dpr",
+      "source": "local-pressure/pulse_local_pressure.dpr",
       "generated_source": "local-pressure/local_pressure_cases.inc",
+      "case_contract": "PulseRunCase/v1",
       "cases": [
         "empty",
         "unused-plain-100",
@@ -133,7 +142,17 @@
     },
     {
       "id": "calls-abi",
-      "status": "planned",
+      "status": "implemented",
+      "source": "abi/pulse_abi.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "no-args", "one-arg", "four-args", "eight-args", "mixed-args",
+        "record8-value", "record16-value", "record24-value", "record32-value",
+        "record32-const", "record32-var", "return-record8", "return-record16",
+        "return-record24", "return-record32", "string-value", "string-const",
+        "dynamic-array-value", "dynamic-array-const", "open-array-const",
+        "function-pointer", "method-pointer", "virtual-method", "interface-method"
+      ],
       "coverage": {
         "target": ["win64", "linux-x86_64"],
         "optimization": ["inlining", "register-allocation", "exception-cleanup"],
@@ -144,7 +163,17 @@
     },
     {
       "id": "arithmetic",
-      "status": "planned",
+      "status": "implemented",
+      "source": "numeric/pulse_numeric.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "int32-add-mul", "int64-add-mul", "uint32-div-constant", "int32-div-runtime",
+        "uint64-div-constant", "int64-div-runtime", "shift-constant", "shift-variable",
+        "rotate-mix", "bit-boolean", "double-arithmetic", "single-arithmetic",
+        "int-double-convert", "single-double-convert", "min-max-mixed", "small-set-ops",
+        "wide-set-ops", "range-checked-index", "unchecked-index", "overflow-checked",
+        "overflow-unchecked"
+      ],
       "coverage": {
         "target": ["win64", "linux-x86_64"],
         "optimization": ["constant-folding", "copy-propagation", "cse", "branch-lowering", "arithmetic-lowering", "peephole"],
@@ -153,7 +182,16 @@
     },
     {
       "id": "loops-control",
-      "status": "planned",
+      "status": "implemented",
+      "source": "loops/pulse_loops.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "for-up", "for-down", "while-runtime", "repeat-runtime", "nested-row-major",
+        "nested-column-major", "invariant-expression", "strength-multiply-index",
+        "reduction-sum", "reduction-four-lanes", "vector-add-8192", "vector-dot-8192",
+        "aliased-update", "nonaliased-update", "break-continue", "loop-with-call",
+        "loop-try-finally", "prefix-dependency", "histogram-random", "manual-copy-8192"
+      ],
       "coverage": {
         "target": ["win64", "linux-x86_64"],
         "optimization": ["copy-propagation", "cse", "dead-code-store", "loop-transform", "branch-lowering", "address-alias", "peephole"],
@@ -163,7 +201,16 @@
     },
     {
       "id": "memory-layout",
-      "status": "planned",
+      "status": "implemented",
+      "source": "layout/pulse_layout.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "aligned-read", "unaligned-read", "aos-one-field", "aos-all-fields",
+        "soa-one-field", "soa-all-fields", "packed-record", "variant-record",
+        "static-array", "dynamic-array", "pointer-walk", "indexed-walk", "move-16",
+        "move-64", "move-256", "move-1024", "fill-16", "fill-64", "fill-256",
+        "fill-1024"
+      ],
       "coverage": {
         "target": ["win64", "linux-x86_64"],
         "optimization": ["register-allocation", "address-alias", "rtl-intrinsic", "peephole"],
@@ -173,7 +220,16 @@
     },
     {
       "id": "json-text",
-      "status": "planned",
+      "status": "implemented",
+      "source": "json/pulse_json.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "generate-64", "builder-growth-64k", "builder-append-prepared-floats-64",
+        "byte-scan-small-16", "byte-scan-medium-256", "byte-scan-large-4096",
+        "parse-small-custom-double", "parse-medium-custom-double",
+        "parse-large-custom-double", "parse-medium-strtofloat",
+        "pipeline-parse-vwap-format"
+      ],
       "coverage": {
         "target": ["win64", "linux-x86_64"],
         "optimization": ["inlining", "register-allocation", "branch-lowering", "address-alias", "rtl-intrinsic"],
@@ -184,7 +240,26 @@
     },
     {
       "id": "collections",
-      "status": "planned",
+      "status": "implemented",
+      "source": "rtl-collections/pulse_rtl-collections.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "list-string-add-reserved", "list-string-read", "list-string-enumerate",
+        "list-string-insert-delete", "list-string-toarray", "list-exchange-reverse",
+        "list-integer-copy-construct", "list-integer-empty-create", "array-integer-copy",
+        "list-integer-exchange", "list-integer-reverse", "list-integer-addrange-4096",
+        "list-integer-insertrange-list-4096", "list-integer-pack-alternating-4096",
+        "list-integer-delete-insert-range-4096", "list-string-addrange-4096",
+        "list-string-insertrange-2048", "list-integer-clear-4096", "list-string-clear-4096",
+        "list-integer-indexof", "list-string-indexof", "list-integer-sort", "list-string-sort",
+        "objectlist-owned-clear", "array-integer-sort", "array-string-sort", "array-binarysearch",
+        "dictionary-contains-key", "dictionary-contains-value", "dictionary-tryadd",
+        "dictionary-addorset", "dictionary-pairs", "dictionary-keys", "dictionary-values",
+        "dictionary-string-add", "dictionary-string-contains", "dictionary-collision-churn",
+        "dictionary-string-clear", "queue-string-roundtrip", "queue-string-steady",
+        "queue-enumerate", "queue-record128-steady", "queue-string-clear", "queue-integer-steady",
+        "stack-string-roundtrip", "stack-enumerate", "stack-string-clear", "stack-integer-roundtrip"
+      ],
       "coverage": {
         "target": ["win64", "linux-x86_64"],
         "optimization": ["inlining", "register-allocation", "branch-lowering", "address-alias"],
@@ -195,7 +270,17 @@
     },
     {
       "id": "managed-lifetime",
-      "status": "planned",
+      "status": "implemented",
+      "source": "managed/pulse_managed.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "ignored-string-result", "ignored-interface-result", "out-string-forwarding",
+        "unicode-assign", "unicode-assign-mt", "rawbytestring-assign-mt",
+        "unicode-return-ppu", "unicode-concat", "rawbytestring-assign",
+        "dynamic-array-assign", "dynamic-array-deep-copy", "interface-copy-call",
+        "variant-numeric", "managed-record-return", "managed-early-exit",
+        "managed-exception-cleanup", "closure-create-invoke"
+      ],
       "coverage": {
         "target": ["win64", "linux-x86_64"],
         "optimization": ["dead-code-store", "inlining", "stack-init-final", "exception-cleanup"],
@@ -206,7 +291,14 @@
     },
     {
       "id": "algorithms",
-      "status": "planned",
+      "status": "implemented",
+      "source": "algorithms/pulse_algorithms.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "crc32-bitwise-4k", "sha256-4k", "chacha20-block", "lz-compress-4k",
+        "lz-roundtrip-4k", "quicksort-4096", "binary-search-256", "open-hash-4096",
+        "generic-list-512"
+      ],
       "coverage": {
         "target": ["win64", "linux-x86_64"],
         "optimization": ["constant-folding", "copy-propagation", "cse", "inlining", "register-allocation", "loop-transform", "branch-lowering", "arithmetic-lowering", "address-alias", "peephole"],
@@ -216,7 +308,15 @@
     },
     {
       "id": "memory-manager",
-      "status": "planned",
+      "status": "implemented",
+      "source": "mm/pulse_mm.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "alloc-free-16", "alloc-free-64", "alloc-free-256", "alloc-free-1024",
+        "alloc-free-16k", "alloc-free-17408", "alloc-free-17409", "alloc-free-100500",
+        "alloc-free-1m", "alloc-free-2m", "ring-same-class-96", "ring-mixed-16-to-1m",
+        "realloc-grow", "realloc-shrink", "fragmented-mixed"
+      ],
       "coverage": {
         "target": ["win64", "linux-x86_64"],
         "type": ["pointer", "unicode-string", "raw-byte-string", "dynamic-array", "interface", "managed-record", "closure"],
@@ -227,7 +327,17 @@
     },
     {
       "id": "multithread",
-      "status": "planned",
+      "status": "implemented",
+      "source": "threads/pulse_threads.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "thread-start-join-4", "independent-cpu-1", "independent-cpu-2",
+        "independent-cpu-4", "independent-cpu-8", "shared-read-4", "locked-increment-4",
+        "false-sharing-4", "padded-counters-4", "parallel-alloc-free-1",
+        "parallel-alloc-free-2", "parallel-alloc-free-4", "parallel-alloc-free-8",
+        "parallel-alloc-free-96-4", "parallel-alloc-free-96-8", "cross-thread-free-4",
+        "producer-consumer"
+      ],
       "coverage": {
         "target": ["win64", "linux-x86_64"],
         "optimization": ["inlining", "register-allocation", "address-alias", "rtl-intrinsic"],
@@ -240,6 +350,7 @@
       "id": "application-pipeline",
       "status": "implemented",
       "source": "heartbeat/pulse_heartbeat.dpr",
+      "case_contract": "PulseAdd/v1",
       "cases": [
         "generate-info-format-100",
         "generate-info-format-1000",
@@ -255,6 +366,11 @@
         "correlation-32x256",
         "rank-1000",
         "report-top20",
+        "orderbook-delta-4096",
+        "orderbook-sweep-4096",
+        "sort-int64-4x8192",
+        "binary-session-pipeline",
+        "timer-heap-8192",
         "end-to-end-100"
       ],
       "coverage": {
