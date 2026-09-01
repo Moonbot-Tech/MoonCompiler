@@ -26,7 +26,8 @@ class IssueTrackerRunnerContractsTest(unittest.TestCase):
                 os.chdir(previous)
 
         self.assertTrue(resolved.is_absolute())
-        self.assertEqual(resolved, invocation / "toolchain" / "bin" / "fpc")
+        expected = (invocation / "toolchain" / "bin" / "fpc").resolve()
+        self.assertEqual(resolved, expected)
 
 
 if __name__ == "__main__":

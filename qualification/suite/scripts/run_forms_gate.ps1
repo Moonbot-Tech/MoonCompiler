@@ -86,7 +86,9 @@ function Invoke-FormsProgram([string]$Name, [string]$Source) {
       }
       $Lines = @(Get-Content -LiteralPath $Log)
       If ($Lines[-1] -cne $Terminal["$Name/$Seed"]) {
-        throw "$Name/$Option seed=$Seed has a different terminal summary"
+        throw "$Name/$Option seed=$Seed has a different terminal summary`n" +
+          "expected: $($Terminal["$Name/$Seed"])`n" +
+          "observed: $($Lines[-1])"
       }
     }
   }
