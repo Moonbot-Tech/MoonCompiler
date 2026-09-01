@@ -50,10 +50,16 @@ function CaseAlloc16(Iterations: Integer): UInt64;
 begin Result := AllocateTouchFree(16, Iterations); end;
 function CaseAlloc64(Iterations: Integer): UInt64;
 begin Result := AllocateTouchFree(64, Iterations); end;
+function CaseAlloc128(Iterations: Integer): UInt64;
+begin Result := AllocateTouchFree(128, Iterations); end;
 function CaseAlloc256(Iterations: Integer): UInt64;
 begin Result := AllocateTouchFree(256, Iterations); end;
+function CaseAlloc512(Iterations: Integer): UInt64;
+begin Result := AllocateTouchFree(512, Iterations); end;
 function CaseAlloc1024(Iterations: Integer): UInt64;
 begin Result := AllocateTouchFree(1024, Iterations); end;
+function CaseAlloc2048(Iterations: Integer): UInt64;
+begin Result := AllocateTouchFree(2048, Iterations); end;
 function CaseAlloc16K(Iterations: Integer): UInt64;
 begin Result := AllocateTouchFree(16384, Iterations); end;
 function CaseAlloc17408(Iterations: Integer): UInt64;
@@ -99,6 +105,16 @@ function CaseRingSameClass64(Iterations: Integer): UInt64;
 begin Result := RingSameClass(64, Iterations); end;
 function CaseRingSameClass96(Iterations: Integer): UInt64;
 begin Result := RingSameClass(96, Iterations); end;
+function CaseRingSameClass128(Iterations: Integer): UInt64;
+begin Result := RingSameClass(128, Iterations); end;
+function CaseRingSameClass256(Iterations: Integer): UInt64;
+begin Result := RingSameClass(256, Iterations); end;
+function CaseRingSameClass512(Iterations: Integer): UInt64;
+begin Result := RingSameClass(512, Iterations); end;
+function CaseRingSameClass1024(Iterations: Integer): UInt64;
+begin Result := RingSameClass(1024, Iterations); end;
+function CaseRingSameClass2048(Iterations: Integer): UInt64;
+begin Result := RingSameClass(2048, Iterations); end;
 
 function CaseRingMixed(Iterations: Integer): UInt64;
 var
@@ -245,9 +261,15 @@ begin
     Profile, SelectedCase, Found);
   PulseRunCase('pulse_mm', 'alloc-free-64', 'mm', UnitName, @CaseAlloc64, 1,
     Profile, SelectedCase, Found);
+  PulseRunCase('pulse_mm', 'alloc-free-128', 'mm', UnitName, @CaseAlloc128, 1,
+    Profile, SelectedCase, Found);
   PulseRunCase('pulse_mm', 'alloc-free-256', 'mm', UnitName, @CaseAlloc256, 1,
     Profile, SelectedCase, Found);
+  PulseRunCase('pulse_mm', 'alloc-free-512', 'mm', UnitName, @CaseAlloc512, 1,
+    Profile, SelectedCase, Found);
   PulseRunCase('pulse_mm', 'alloc-free-1024', 'mm', UnitName, @CaseAlloc1024, 1,
+    Profile, SelectedCase, Found);
+  PulseRunCase('pulse_mm', 'alloc-free-2048', 'mm', UnitName, @CaseAlloc2048, 1,
     Profile, SelectedCase, Found);
   PulseRunCase('pulse_mm', 'alloc-free-16k', 'mm', UnitName, @CaseAlloc16K, 1,
     Profile, SelectedCase, Found);
@@ -267,6 +289,16 @@ begin
     @CaseRingSameClass64, RingCount * 2, Profile, SelectedCase, Found);
   PulseRunCase('pulse_mm', 'ring-same-class-96', 'mm', UnitName,
     @CaseRingSameClass96, RingCount * 2, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_mm', 'ring-same-class-128', 'mm', UnitName,
+    @CaseRingSameClass128, RingCount * 2, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_mm', 'ring-same-class-256', 'mm', UnitName,
+    @CaseRingSameClass256, RingCount * 2, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_mm', 'ring-same-class-512', 'mm', UnitName,
+    @CaseRingSameClass512, RingCount * 2, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_mm', 'ring-same-class-1024', 'mm', UnitName,
+    @CaseRingSameClass1024, RingCount * 2, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_mm', 'ring-same-class-2048', 'mm', UnitName,
+    @CaseRingSameClass2048, RingCount * 2, Profile, SelectedCase, Found);
   PulseRunCase('pulse_mm', 'ring-mixed-16-to-1m', 'mm', UnitName,
     @CaseRingMixed, RingCount * 2, Profile, SelectedCase, Found);
   PulseRunCase('pulse_mm', 'realloc-grow', 'mm', UnitName, @CaseReallocGrow, 13,
