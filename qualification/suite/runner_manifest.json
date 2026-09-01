@@ -3629,8 +3629,8 @@
       "source": "tests/resident/resident.dpr",
       "runner": "scripts/run_devil_resident_gate.py",
       "readme": "tests/resident/README.md",
-      "journal": "tests/devil/ЖУРНАЛ-НАХОДОК.md",
-      "known_issues": "../../KNOWN_ISSUES.md",
+      "journal": "tests/devil/FINDINGS_JOURNAL.md",
+      "known_issues": "../../doc/KNOWN_ISSUES.md",
       "profiles": [
         "debug",
         "o1",

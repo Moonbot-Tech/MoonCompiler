@@ -3295,13 +3295,10 @@ def layer_thread(e: Emitter, rng: random.Random, count: int,
         workers = rng.choice((2, 4))
         rounds = rng.choice((25, 50, 100))
         seed = rng.randrange(1, 10 ** 6)
-        # monitor-counter is disabled while dvl-0007 stands: TMonitor.Enter
-        # crashes with an SEH access violation that no Pascal handler can catch,
-        # so it takes the whole run down instead of reporting a failure
         shape = rng.choice(("pure-kernel", "managed-handoff",
                             "interface-handoff", "atomic-counter",
                             "threadvar-isolation", "fatal-exception",
-                            "queue-drain"))
+                            "queue-drain", "monitor-counter"))
 
         e.line("type")
         e.line("  TDvlWorker%05d = class(TThread)" % index)

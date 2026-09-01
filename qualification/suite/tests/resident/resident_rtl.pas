@@ -454,13 +454,7 @@ begin
   end;
 end;
 
-{ Монитор объекта: тот же договор, но встроенный в сам объект.
-
-  Стадия НЕ зарегистрирована в кольце и это осознанно: на этом компиляторе
-  `TMonitor.Enter` падает с обращением по нулевому адресу (известная находка про
-  монитор на Win64), поэтому в кольце она отказывала бы каждый оборот и
-  заслоняла новое. Код оставлен готовым: как только монитор починят, довольно
-  вернуть одну строку регистрации. }
+{ Монитор объекта: тот же договор, но встроенный в сам объект. }
 procedure StageMonitor(Carrier: TResidentCarrier);
 var
   Subject: TResidentSubject;
@@ -619,6 +613,7 @@ initialization
   ResidentRegisterStage('rtl-guid', @StageGuid);
   ResidentRegisterStage('rtl-interlocked', @StageInterlocked);
   ResidentRegisterStage('rtl-memory-stream', @StageMemoryStream);
+  ResidentRegisterStage('rtl-monitor', @StageMonitor);
   ResidentRegisterStage('rtl-persist', @StagePersist);
   ResidentRegisterStage('rtl-properties', @StageProperties);
   ResidentRegisterStage('rtl-stream-across-laps', @StageStreamAcrossLaps);

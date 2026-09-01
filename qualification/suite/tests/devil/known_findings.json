@@ -1,130 +1,124 @@
 {
   "schema": 1,
-  "note": "Каждая запись привязана к разобранной находке в findings/. Гейт не прячет их, а считает отдельно, чтобы новое не тонуло в уже известном.",
+  "note": "Every entry is tied to an analyzed finding in findings/. The gate accounts for accepted differences separately so a new failure is not drowned by known output.",
   "known": [
     {
       "id": "dvl-0004",
       "kind": "model-mismatch",
       "check": "^dvl-abi-[0-9]+-value-[0-9]+$",
-      "note": "сравнение с C-style Boolean не нормализуется в 0/1"
+      "note": "comparison with a C-style Boolean is not normalized to 0/1"
     },
     {
       "id": "dvl-0004",
       "kind": "observation-split",
       "note_name": "^dvl-abi-[0-9]+-boolraw-[0-9]+$",
-      "note": "Ord(WordBool/ByteBool) расширяется не в домене типа"
+      "note": "Ord(WordBool/ByteBool) is extended outside the logical domain of the type"
     },
     {
       "id": "dvl-0006",
       "kind": "model-mismatch",
       "check": "^dvl-cmp-[0-9]+-fold-vs-runtime$",
-      "note": "Delphi расходится сам с собой на mixed signed/unsigned сравнении констант"
-    },
-    {
-      "id": "dvl-0007",
-      "kind": "model-mismatch",
-      "check": "^dvl-thr-[0-9]+-counter$",
-      "note": "TMonitor.Enter на Win64 падает с AV: тело блокировки не выполняется"
+      "note": "Delphi contradicts itself when folding a mixed signed/unsigned constant comparison"
     },
     {
       "id": "dvl-0008",
       "kind": "model-mismatch",
       "check": "^dvl-rtti-[0-9]+-finds-self$",
-      "note": "Delphi GetTypes не перечисляет тип без явного RTTI; наш статический каталог полнее — расхождение в нашу пользу"
+      "note": "Delphi GetTypes omits a type without explicit RTTI; MoonCompiler's static catalog is deliberately more complete"
     },
     {
       "id": "dvl-0009",
       "kind": "model-mismatch",
       "check": "^dvl-float-[0-9]+-inf-minus-inf-nan$",
-      "note": "Delphi сворачивает Inf-Inf в ноль вместо NaN; наш компилятор даёт IEEE-верный результат"
+      "note": "Delphi folds Inf-Inf to zero instead of NaN; MoonCompiler preserves the IEEE result"
     },
     {
       "id": "dvl-0008",
       "kind": "observation-split",
       "note_name": "^dvl-rtti-[0-9]+-gettypes$",
-      "note": "размер каталога GetTypes: наш статический каталог полнее Delphi"
+      "note": "GetTypes catalog size: MoonCompiler's static catalog is deliberately more complete than Delphi's"
     },
     {
       "id": "dvl-0010",
       "kind": "model-mismatch",
       "check": "^dvl-flow-[0-9]+-case$",
-      "note": "Delphi усекает Int64-селектор case до 32 бит; наш компилятор корректен"
+      "note": "Delphi truncates an Int64 case selector to 32 bits; MoonCompiler preserves the full value"
     },
     {
       "id": "dvl-0027",
       "case": "double-currency-float-literal",
-      "note": "вещественный литерал против Double/Currency: Delphi отвергает как неоднозначный, мы выбираем Double"
+      "note": "real literal against Double/Currency: Delphi rejects the ambiguity, MoonCompiler selects Double"
     },
     {
       "id": "dvl-0034",
       "case": "bare-method-into-reference",
-      "note": "имя метода без скобок перед reference to: мы вызываем, Delphi берёт адрес"
+      "note": "bare method name before reference to: MoonCompiler invokes it, Delphi takes its address"
     },
     {
       "id": "dvl-0038",
       "case": "helper-name-as-type",
-      "note": "имя хелпера в позиции типа: мы принимаем, Delphi отвергает"
+      "note": "helper name in type position: MoonCompiler accepts it, Delphi rejects it"
     },
     {
       "id": "dvl-0020",
       "case": "inline-open-array",
-      "note": "inline с открытым массивом: Delphi отвергает, мы принимаем (запись реестра пересобрана после потери каталога)"
+      "note": "inline with an open array: Delphi rejects it, MoonCompiler accepts it; registry entry reconstructed after directory loss"
     },
     {
       "id": "dvl-0021",
       "case": "varargs-without-external",
-      "note": "varargs без external: Delphi принимает, мы отвергаем (запись реестра пересобрана после потери каталога)"
+      "note": "varargs without external: Delphi accepts it, MoonCompiler rejects it; registry entry reconstructed after directory loss"
     },
     {
       "id": "dvl-0022",
       "case": "set-element-out-of-range",
-      "note": "элемент вне диапазона множества: Delphi принимает, мы падаем (запись реестра пересобрана после потери каталога)"
+      "note": "set element outside the declared range: Delphi accepts it, MoonCompiler fails; registry entry reconstructed after directory loss"
     },
     {
       "id": "dvl-0024",
       "case": "anonymous-reference-var",
-      "note": "анонимный reference to в объявлении переменной (запись реестра пересобрана после потери каталога)"
+      "note": "anonymous reference to in a variable declaration; registry entry reconstructed after directory loss"
     },
     {
       "id": "dvl-0025",
       "case": "shift-count-past-width",
-      "note": "константный сдвиг шире типа (запись реестра пересобрана после потери каталога)"
+      "note": "constant shift wider than its type; registry entry reconstructed after directory loss"
     },
     {
       "id": "dvl-0016",
       "kind": "observation-split",
       "note_name": "^dvl-chain-[0-9]+-variant-real$",
-      "note": "вещественный литерал в Variant кладётся Double вместо Currency (запись реестра пересобрана после потери каталога)"
+      "note": "a real literal in Variant is stored as Double instead of Currency; registry entry reconstructed after directory loss"
     },
     {
       "id": "dvl-0056",
       "kind": "observation-split",
       "note_name": "^dvl-inl-[0-9]+-total$",
-      "note": "две инлайн-вставки в одном выражении: DCC хойстит side-effect'ы до вычисления, мы вычисляем последовательно как невставленный вызов — расхождение в нашу пользу"
+      "note": "two inlined side-effecting calls in one expression: DCC hoists both effects, MoonCompiler preserves the sequential non-inlined behavior"
     },
     {
       "id": "dvl-0014",
       "kind": "observation-split",
       "note_name": "^dvl-uni-[0-9]+-(typename|char-kind|wide-kind)$",
-      "note": "имена и виды строковых типов в RTTI отличаются от Delphi (запись реестра пересобрана после потери каталога)"
+      "note": "RTTI names and kinds of string types differ from Delphi; registry entry reconstructed after directory loss"
     },
     {
       "id": "dvl-0014",
       "kind": "observation-split",
       "note_name": "^dvl-lang-[0-9]+-(type|real-type|real-element-type)$",
-      "note": "то же для имён типов, видимых через RTTI (запись реестра пересобрана после потери каталога)"
+      "note": "the same boundary for type names visible through RTTI; registry entry reconstructed after directory loss"
     },
     {
       "id": "dvl-0014",
       "kind": "model-mismatch",
       "check": "^dvl-lang-[0-9]+-(type|real-type|real-element-type)$",
-      "note": "имя типа, видимое через RTTI, отличается от Delphi (запись реестра пересобрана после потери каталога)"
+      "note": "a type name visible through RTTI differs from Delphi; registry entry reconstructed after directory loss"
     },
     {
       "id": "dvl-0014",
       "kind": "model-mismatch",
       "check": "^dvl-uni-[0-9]+-(typename|char-kind|wide-kind)$",
-      "note": "то же для строковых типов (запись реестра пересобрана после потери каталога)"
+      "note": "the same boundary for string types; registry entry reconstructed after directory loss"
     }
   ]
 }

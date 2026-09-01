@@ -4,10 +4,10 @@
       "sha256": "acdce9bb7a32a989ee337166a5313a05d8df764a7a06ab166032c200fe4e8aee"
     },
     "qualification-resident/v1": {
-      "sha256": "08541fdf849bdcc4ee1d30f7e0f391c7e7625beebf41ce7fa3d776fe8fb4862c"
+      "sha256": "d444036f64d84f1e0748f16ec80f6319fd32e8b7bc4d5b31d77bd2c419b34801"
     },
     "resident-stage-order/v1": {
-      "sha256": "c268a1cadc6a2d6ff3656c2e1d477300010fb54e590953f03031cf514c0a134f"
+      "sha256": "c9eb9f2704ab881ea841d4d69f646ed0b2dad674cf82c99b8bacce025e4a4a17"
     }
   },
   "schema": 1

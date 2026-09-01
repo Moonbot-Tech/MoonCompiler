@@ -632,15 +632,8 @@ end;
 initialization
   for var I := 0 to 255 do
     InvSBox[SBox[I]] := Byte(I);
-  { Стадии AES с кольца сняты, и это вынужденно: на боевом профиле компилятор
-    выбрасывает цикл табличной подстановки (см. находку про release и таблицы),
-    поэтому шифрование считается неверно, а шифрование и расшифрование ломаются
-    по-разному — не держится даже обратимость. В кольце они отказывали бы каждый
-    оборот и заслоняли всё новое. Код оставлен готовым: как только дефект
-    починят, довольно вернуть две строки регистрации.
-
-    Сам дефект от этого не теряется — он предъявлен отдельным пробником в
-    находке, где ему и место. }
+  ResidentRegisterStage('cipher-aes-vector', @StageAesVector);
+  ResidentRegisterStage('cipher-aes-handoff', @StageAesHandoff);
   ResidentRegisterStage('cipher-chacha', @StageChaCha);
   ResidentRegisterStage('cipher-running', @StageRunningCipher);
 
