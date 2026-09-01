@@ -937,9 +937,9 @@ def write_report(result: Path) -> None:
         return faster, parity, slower
 
     summary = [
-        "## Сводка по программам",
+        "## Summary by Program",
         "",
-        "`< 0.95` — Moon быстрее, `0.95..1.05` — паритет, `> 1.05` — Moon медленнее.",
+        "`< 0.95` means Moon is faster, `0.95..1.05` is parity, and `> 1.05` means Moon is slower.",
         "",
         "| Program | Cases | Geomean Moon/baseline | Faster | Parity | Slower | MM geomean |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
@@ -955,7 +955,7 @@ def write_report(result: Path) -> None:
         )
     summary.extend([
         "",
-        "## Сводка по физическим слоям",
+        "## Summary by Physical Layer",
         "",
         "| Layer | Cases | Geomean Moon/baseline | Faster | Parity | Slower |",
         "| --- | ---: | ---: | ---: | ---: | ---: |",
@@ -967,25 +967,26 @@ def write_report(result: Path) -> None:
             f"| {layer} | {len(values)} | {geometric_mean(values):.3f} | "
             f"{faster} | {parity} | {slower} |"
         )
-    summary.extend(["", "## Крайние результаты", "", "### 15 самых быстрых", ""])
+    summary.extend(["", "## Extreme Results", "", "### 15 Fastest", ""])
     summary.extend(
         f"- `{name}`: `{ratio:.3f}x`" for ratio, name in sorted(ranked_ratios)[:15]
     )
-    summary.extend(["", "### 15 самых медленных", ""])
+    summary.extend(["", "### 15 Slowest", ""])
     summary.extend(
         f"- `{name}`: `{ratio:.3f}x`"
         for ratio, name in sorted(ranked_ratios, reverse=True)[:15]
     )
     if drift_notes:
         summary.extend([
-        "## Диагностический process drift paired rows",
+            "## Diagnostic Process-Drift Paired Rows",
             "",
-            "Эти cases остаются в таблице, но центральное отношение рассчитано "
-            "по соседним зеркальным процессам; drift не подменяет semantic failure.",
+            "These cases remain in the table, but their central ratio is "
+            "calculated from adjacent mirrored processes; drift never replaces "
+            "a semantic failure.",
             "",
         ])
         summary.extend(f"- `{note}`" for note in drift_notes)
-    summary.extend(["", "## Все cases", ""])
+    summary.extend(["", "## All Cases", ""])
     markdown = markdown[:8] + summary + markdown[8:]
     (result / "REPORT.md").write_text("\n".join(markdown) + "\n", encoding="utf-8")
     (result / "summary.json").write_text(
