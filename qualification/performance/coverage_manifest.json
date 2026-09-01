@@ -314,7 +314,8 @@
       "cases": [
         "alloc-free-16", "alloc-free-64", "alloc-free-256", "alloc-free-1024",
         "alloc-free-16k", "alloc-free-17408", "alloc-free-17409", "alloc-free-100500",
-        "alloc-free-1m", "alloc-free-2m", "ring-same-class-96", "ring-mixed-16-to-1m",
+        "alloc-free-1m", "alloc-free-2m", "ring-same-class-16", "ring-same-class-64",
+        "ring-same-class-96", "ring-mixed-16-to-1m",
         "realloc-grow", "realloc-shrink", "fragmented-mixed"
       ],
       "coverage": {

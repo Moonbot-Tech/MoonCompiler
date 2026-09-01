@@ -67,7 +67,7 @@ begin Result := AllocateTouchFree(1048576, Iterations); end;
 function CaseAlloc2M(Iterations: Integer): UInt64;
 begin Result := AllocateTouchFree(2097152, Iterations); end;
 
-function CaseRingSameClass(Iterations: Integer): UInt64;
+function RingSameClass(Size, Iterations: Integer): UInt64;
 var
   I, J: Integer;
   Pointers: array[0..RingCount - 1] of Pointer;
@@ -79,7 +79,7 @@ begin
   begin
     for J := 0 to RingCount - 1 do
     begin
-      GetMem(Pointers[J], 96);
+      GetMem(Pointers[J], Size);
       P := Pointers[J];
       P[0] := Byte(I + J);
     end;
@@ -92,6 +92,13 @@ begin
   end;
   Result := Digest;
 end;
+
+function CaseRingSameClass16(Iterations: Integer): UInt64;
+begin Result := RingSameClass(16, Iterations); end;
+function CaseRingSameClass64(Iterations: Integer): UInt64;
+begin Result := RingSameClass(64, Iterations); end;
+function CaseRingSameClass96(Iterations: Integer): UInt64;
+begin Result := RingSameClass(96, Iterations); end;
 
 function CaseRingMixed(Iterations: Integer): UInt64;
 var
@@ -254,8 +261,12 @@ begin
     Profile, SelectedCase, Found);
   PulseRunCase('pulse_mm', 'alloc-free-2m', 'mm', UnitName, @CaseAlloc2M, 1,
     Profile, SelectedCase, Found);
+  PulseRunCase('pulse_mm', 'ring-same-class-16', 'mm', UnitName,
+    @CaseRingSameClass16, RingCount * 2, Profile, SelectedCase, Found);
+  PulseRunCase('pulse_mm', 'ring-same-class-64', 'mm', UnitName,
+    @CaseRingSameClass64, RingCount * 2, Profile, SelectedCase, Found);
   PulseRunCase('pulse_mm', 'ring-same-class-96', 'mm', UnitName,
-    @CaseRingSameClass, RingCount * 2, Profile, SelectedCase, Found);
+    @CaseRingSameClass96, RingCount * 2, Profile, SelectedCase, Found);
   PulseRunCase('pulse_mm', 'ring-mixed-16-to-1m', 'mm', UnitName,
     @CaseRingMixed, RingCount * 2, Profile, SelectedCase, Found);
   PulseRunCase('pulse_mm', 'realloc-grow', 'mm', UnitName, @CaseReallocGrow, 13,
