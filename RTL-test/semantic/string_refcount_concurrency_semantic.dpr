@@ -37,7 +37,7 @@ end;
 procedure SpinUntil(var Value: LongInt; Expected: LongInt); inline;
 begin
   while AtomicRead(Value) < Expected do
-    ;
+    TThread.Yield;
 end;
 
 procedure TCopyThread.Execute;
