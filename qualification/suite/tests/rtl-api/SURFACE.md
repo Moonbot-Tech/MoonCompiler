@@ -60,3 +60,9 @@ three environments:
 rest of the matrix. Delphi 12.2 executes both overloads, including a managed
 destination. Moon RTL exports the same two overloads through one existing
 generic helper; Win64/Linux Debug/Release pass the same oracle.
+
+`rtl_api_fphttp_nodelay.dpr` creates a real loopback TCP connection and applies
+`TFPHTTPConnection.SetupSocket` to its accepted keep-alive socket. It then
+reads `TCP_NODELAY` back from the kernel. This pins the latency contract which
+prevents Nagle/delayed-ACK stalls on persistent FCL HTTP connections on both
+Win64 and Linux.

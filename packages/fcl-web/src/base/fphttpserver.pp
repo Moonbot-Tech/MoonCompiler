@@ -1898,10 +1898,21 @@ begin
 end;
 
 procedure TFPHTTPConnection.SetupSocket;
+{$if defined(FreeBSD) or defined(Linux) or defined(Windows)}
+var
+  NoDelay: LongInt;
+{$endif}
 begin
 {$if defined(FreeBSD) or defined(Linux)}
   FSocket.ReadFlags:=MSG_NOSIGNAL;
   FSocket.WriteFlags:=MSG_NOSIGNAL;
+{$endif}
+{$if defined(FreeBSD) or defined(Linux) or defined(Windows)}
+  if KeepConnections then
+    begin
+    NoDelay:=1;
+    fpSetSockOpt(FSocket.Handle,IPPROTO_TCP,TCP_NODELAY,@NoDelay,SizeOf(NoDelay));
+    end;
 {$endif}
   // Reap connections that stall mid-request so they cannot hold a slot indefinitely.
   if Assigned(FServer) and (FServer.RequestReadTimeout>0) then
