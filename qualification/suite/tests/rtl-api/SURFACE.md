@@ -66,3 +66,8 @@ generic helper; Win64/Linux Debug/Release pass the same oracle.
 reads `TCP_NODELAY` back from the kernel. This pins the latency contract which
 prevents Nagle/delayed-ACK stalls on persistent FCL HTTP connections on both
 Win64 and Linux.
+
+`rtl_api_fphttp_overload_response.dpr` fills a real loopback server's live
+connection limit, opens one more connection and compares the complete overload
+response byte for byte. This pins an ASCII HTTP 503 wire response even when the
+product RTL makes Delphi `string` a UTF-16 `UnicodeString`.

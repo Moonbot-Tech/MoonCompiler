@@ -11,7 +11,8 @@ $Run = Join-Path $SuiteRoot "results\runs\$RunId\rtl-api-surface"
 $Cases = @(
   @{ Name = 'rtl_api_surface'; Expected = 'RTL_API_SURFACE_OK' },
   @{ Name = 'rtl_api_array_copy'; Expected = 'RTL_API_ARRAY_COPY_OK' },
-  @{ Name = 'rtl_api_fphttp_nodelay'; Expected = 'RTL_API_FPHTTP_NODELAY_OK' }
+  @{ Name = 'rtl_api_fphttp_nodelay'; Expected = 'RTL_API_FPHTTP_NODELAY_OK' },
+  @{ Name = 'rtl_api_fphttp_overload_response'; Expected = 'RTL_API_FPHTTP_OVERLOAD_RESPONSE_OK' }
 )
 
 If (Test-Path -LiteralPath $Run) { throw "run already exists: $Run" }
@@ -43,6 +44,7 @@ $Inputs = @(
   (Join-Path $SourceRoot 'rtl_api_surface.dpr'),
   (Join-Path $SourceRoot 'rtl_api_array_copy.dpr'),
   (Join-Path $SourceRoot 'rtl_api_fphttp_nodelay.dpr'),
+  (Join-Path $SourceRoot 'rtl_api_fphttp_overload_response.dpr'),
   (Join-Path $CompilerRoot 'build.ps1'),
   (Join-Path $CompilerRoot 'runtime\mm\mormot.core.fpcx64mm.pas'),
   (Join-Path $CompilerRoot '.moonbot\toolchain\bin\x86_64-win64\fpc.exe'),
@@ -54,4 +56,4 @@ $Inputs | Sort-Object -Unique | ForEach-Object {
   "$Hash *$([IO.Path]::GetFullPath($_))"
 } | Set-Content -LiteralPath (Join-Path $Run 'SHA256SUMS') -Encoding ascii
 
-Write-Output 'RTL_API_SURFACE_GATE_OK cases=3 profiles=2'
+Write-Output 'RTL_API_SURFACE_GATE_OK cases=4 profiles=2'

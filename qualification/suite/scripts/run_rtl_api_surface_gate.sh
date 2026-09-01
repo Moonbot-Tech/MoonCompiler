@@ -17,13 +17,16 @@ run="$suite_root/results/runs/$1/rtl-api-surface"
 }
 mkdir -p "$run"
 
-for case_name in rtl_api_surface rtl_api_array_copy rtl_api_fphttp_nodelay; do
+for case_name in rtl_api_surface rtl_api_array_copy rtl_api_fphttp_nodelay \
+    rtl_api_fphttp_overload_response; do
   if [[ "$case_name" == rtl_api_surface ]]; then
     expected=RTL_API_SURFACE_OK
   elif [[ "$case_name" == rtl_api_array_copy ]]; then
     expected=RTL_API_ARRAY_COPY_OK
-  else
+  elif [[ "$case_name" == rtl_api_fphttp_nodelay ]]; then
     expected=RTL_API_FPHTTP_NODELAY_OK
+  else
+    expected=RTL_API_FPHTTP_OVERLOAD_RESPONSE_OK
   fi
   for profile in debug release; do
     profile_dir="$run/$case_name/$profile"
@@ -44,7 +47,9 @@ done
 {
   sha256sum "$source_root/rtl_api_surface.dpr" \
     "$source_root/rtl_api_array_copy.dpr" \
-    "$source_root/rtl_api_fphttp_nodelay.dpr" "$compiler_root/build" \
+    "$source_root/rtl_api_fphttp_nodelay.dpr" \
+    "$source_root/rtl_api_fphttp_overload_response.dpr" \
+    "$compiler_root/build" \
     "$compiler_root/runtime/mm/mormot.core.fpcx64mm.pas" \
     "$compiler_root/.moonbot/toolchain/bin/fpc" \
     "$compiler_root/.moonbot/toolchain/etc/fpc.cfg"
@@ -52,4 +57,4 @@ done
     sort -z | xargs -0 -r sha256sum
 } >"$run/SHA256SUMS"
 
-echo "RTL_API_SURFACE_GATE_OK cases=3 profiles=2"
+echo "RTL_API_SURFACE_GATE_OK cases=4 profiles=2"

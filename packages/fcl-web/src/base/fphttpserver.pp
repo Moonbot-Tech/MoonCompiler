@@ -1281,7 +1281,7 @@ procedure TFPCustomHttpServer.DoOnAllowConnect(Sender: TObject; ASocket: TFPSock
 const
   CRLF = #13#10;
 
-  Error503 =
+  Error503: RawByteString =
   'HTTP/1.1 503 Service Unavailable'+CRLF+
   'Content-Type: text/plain'+CRLF+
   'Retry-After: 30'+CRLF+
