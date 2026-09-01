@@ -52,25 +52,29 @@ A literal `step 1` is dropped during `simplify`, so the loop reverts to the regu
 
 ## Generated code
 
-A surviving step lowers the for-loop to a while-loop with the increment at the **start** of each pass, guarded by a first-iteration flag:
+A surviving step lowers the for-loop to a rotated loop measured by physical distance. Step and the remaining distance live in a wide unsigned domain (64-bit, or 128-bit for 128-bit counters/steps), so no combination of counter and step widths can truncate, and the counter is advanced modulo its own width - the loop can neither wrap into an endless run nor trip `$Q`/`$R` on its own arithmetic:
 
 ```
-steptemp := step;  totemp := to;  i := from;  first := true;
-while true do begin
-  if first then first := false
-  else i := i + steptemp;          // - steptemp for downto
-  if i > totemp then break;        // < totemp for downto
-  body;                            // continue lands on the next pass
-end;
+steptemp := step;                     // evaluated once, own signedness
+if steptemp <= 0 then RangeError;     // runtime contract, see Errors
+totemp := to;  i := from;
+if i <= totemp then                   // >= for downto
+  repeat
+    body;                             // continue lands on the latch
+  latch:
+    dist := bits(totemp) - bits(i);   // reversed for downto
+    i := low_bits(i + steptemp);      // modular; exact while in range
+    if steptemp > dist then break;    // i now holds the first-past value
+  until false;
 ```
 
 This shape lets every control-flow construct behave as in a regular for-loop:
 
-- `continue` jumps to the always-true while-condition; the next pass runs the increment, the range check, then the body. No infinite loop.
+- `continue` jumps to the latch: increment, distance check, then the next body pass. No infinite loop, also not from a `try/finally` inside the body.
 - `break` exits cleanly; the counter holds the value at break time.
 - `exit` and `raise` propagate normally; no temporaries to clean up.
 
-Cost: one boolean temp plus one branch per iteration.
+Steady-state cost: one compare, one subtraction and one addition per iteration - no first-iteration flag, no wrap detection.
 
 ## Counter value after the loop
 
@@ -109,6 +113,7 @@ Note the inline-var inference gotcha: `for var ch := 'a' to 'z' do` infers a **s
 | `Step value must be a positive integer` | constant `step 0` or `step -N` |
 | `Step expression must be of ordinal type` | step is a real / string / pointer expression |
 | `Step is not allowed in for-in loops` | `step` after a `for ... in` collection |
+| runtime error 201 (range check) | a runtime step value `<= 0`, raised after the single step evaluation, before the bound and counter are touched and before the first body pass |
 
 With the modeswitch off (`{$modeswitch forstep-}`), `step` in a for-header is not recognized at all and the parser reports `Syntax error, "DO" expected but "identifier STEP" found`.
 
@@ -116,10 +121,11 @@ With the modeswitch off (`{$modeswitch forstep-}`), `step` in a for-header is no
 
 | Case | Behavior |
 |---|---|
-| `for i := 1 to 5 step 100 do` | body runs once (`i = 1`), then `1 + 100 > 5` exits |
-| `for i := 10 to 1 step 2 do` | empty range, body never runs |
+| `for i := 1 to 5 step 100 do` | body runs once (`i = 1`), then the remaining distance is exceeded and the loop exits |
+| `for b := 0 to 10 step 256 do` (Byte counter) | body runs once (`b = 0`); the step is *not* truncated to the counter's width |
+| `for i := 10 to 1 step 2 do` | empty range, body never runs, counter holds `from` |
 | `for i := 5 to 5 step 3 do` | single iteration (`i = 5`) |
-| step from a runtime variable holding `0` | the counter never advances - infinite loop; no compile-time check is possible, prefer constants |
+| step from a runtime variable holding `0` or a negative value | runtime error 201 before the first iteration |
 | nested for-step loops | each level keeps its own step and counter |
 
 `step` also composes with `for parallel` loops - see [parallelfor.md](parallelfor.md).

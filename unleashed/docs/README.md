@@ -63,7 +63,9 @@ The compiler always defines `UNLEASHED`, in every mode and on every target. It i
 
 `{$mode unleashed}` has its own mode marker, `FPC_UNLEASHED`, following the `FPC_*` naming convention of `FPC_OBJFPC` and `FPC_DELPHI`; the CLI form `-Munleashed` sets it the same way. The mode markers are mutually exclusive: even though the mode is based on `objfpc`, switching to it does not define `FPC_OBJFPC`. Code that wants "objfpc or any superset of it" checks `{$if defined(FPC_OBJFPC) or defined(FPC_UNLEASHED)}`.
 
-The build kind is exposed as a define too: `DEBUG` when the compiler options enable debug info (`-g` and friends on the command line or in `fpc.cfg`, or "Generate info for the debugger" checked in the IDE's Project Options), `RELEASE` otherwise. Source can react to a debug build without a separate `-dDEBUG`:
+`DEBUG` and `RELEASE` are explicit build-kind conditionals. Debug information is
+independent: enabling `-g`, line information, or IDE debugger metadata does not
+change program semantics. Define the selected build kind explicitly:
 
 ```pascal
 {$ifdef DEBUG}
@@ -71,7 +73,8 @@ writeln('debug build with call traces');
 {$endif}
 ```
 
-An explicit `-dDEBUG` / `-dRELEASE` keeps working as before; the automatic define just makes it unnecessary in the common case.
+MoonCompiler's product build drivers do this automatically for their `debug`
+and `release` profiles.
 
 ---
 
