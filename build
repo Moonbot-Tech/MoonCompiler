@@ -162,7 +162,8 @@ install_toolchain() {
   # Reject archive entries that could escape the transactional staging tree.
   while IFS= read -r member; do
     member=${member#./}
-    [[ -z "$member" || "$member" == /* ||
+    [[ -z "$member" ]] && continue
+    [[ "$member" == /* ||
        "$member" == .. || "$member" == ../* || "$member" == */../* ||
        "$member" == */.. ]] && {
       echo "unsafe path in toolchain archive: $member" >&2

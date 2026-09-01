@@ -22,12 +22,16 @@ jobs:
           fetch-depth: 0
       - name: Install FPC 3.2.2 bootstrap
         shell: powershell
-        run: choco install freepascal --version=3.2.2 -y --no-progress
+        run: |
+          .\scripts\Install-FpcBootstrap.ps1 `
+            -Destination "$env:RUNNER_TEMP\fpc-3.2.2"
       - name: Create disposable mutation clone
         shell: powershell
         run: git clone --no-local . ..\mooncompiler-mutation
       - name: Measure Devil mutation strength
         shell: powershell
+        env:
+          MOONBOT_BOOTSTRAP_FPC: ${{ runner.temp }}\fpc-3.2.2\bin\i386-win32\fpc.exe
         run: |
           python .\qualification\suite\scripts\run_devil_mutation.py `
             --repo ..\mooncompiler-mutation `

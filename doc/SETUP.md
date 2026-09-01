@@ -78,13 +78,18 @@ If `fpc.exe` is already on `PATH`, `-Bootstrap` is unnecessary. If `make.exe`
 is installed separately, pass its path with `-Make` or the `MOONBOT_MAKE`
 environment variable.
 
-On a clean GitHub Windows runner, install the bootstrap compiler with
-Chocolatey:
+The repository includes a helper that downloads the official combined Win32
+and Win64 FPC distribution, verifies its checksum, and installs a complete
+bootstrap into an isolated directory:
 
 ```powershell
-choco install freepascal --version=3.2.2 -y --no-progress
-.\build.ps1 compiler -Bootstrap C:\tools\freepascal\bin\i386-win32\fpc.exe
+$Bootstrap = .\scripts\Install-FpcBootstrap.ps1
+.\build.ps1 compiler -Bootstrap $Bootstrap
 ```
+
+The combined distribution matters: a Win32-only installation can compile the
+bootstrap stages but does not contain the Win64 target binutils needed by the
+published toolchain.
 
 Python 3 is needed only for qualification. If it is not on `PATH`, set its full
 path in `$env:PYTHON`.

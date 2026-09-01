@@ -88,12 +88,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install FPC 3.2.2 bootstrap
         shell: powershell
-        run: choco install freepascal --version=3.2.2 -y --no-progress
+        run: |
+          .\scripts\Install-FpcBootstrap.ps1 `
+            -Destination "$env:RUNNER_TEMP\fpc-3.2.2"
       - name: Build toolchain
         shell: powershell
         run: |
           .\build.ps1 compiler `
-            -Bootstrap C:\tools\freepascal\bin\i386-win32\fpc.exe
+            -Bootstrap "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\fpc.exe"
       - name: Pack toolchain
         shell: powershell
         run: |
@@ -139,6 +141,7 @@ jobs:
       artifact-metadata: write
     env:
       GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
       RELEASE_TAG: ${{ needs.validate-tag.outputs.tag }}
       RELEASE_VERSION: ${{ needs.validate-tag.outputs.version }}
     steps:
