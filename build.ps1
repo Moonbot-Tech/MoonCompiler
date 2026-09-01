@@ -99,19 +99,39 @@ function Build-Compiler {
       'CPU_TARGET=x86_64', 'OS_TARGET=win64',
       "INSTALL_PREFIX=$newToolchain")
 
-    # Preserve the ordinary FPC ABI before the product Unicode RTL replaces
-    # the installed units.  Lazarus, LCL and compiler tools are built against
-    # this profile; product applications continue to use the default profile.
-    Copy-Item -LiteralPath $newToolchain -Destination $ideProfile -Recurse
-
     $fpc = Join-Path $newToolchain 'bin\x86_64-win64\fpc.exe'
     $targetCompiler = Join-Path $newToolchain 'bin\x86_64-win64\ppcx64.exe'
     $config = Join-Path $newToolchain 'bin\x86_64-win64\fpc.cfg'
-    $ideConfig = Join-Path $ideProfile 'bin\x86_64-win64\fpc.cfg'
     If (-not (Test-Path -LiteralPath $fpc) -or
         -not (Test-Path -LiteralPath $targetCompiler)) {
       throw 'the installed Win64 toolchain is incomplete'
     }
+
+    # fpcres is a compiler tool, so build it against the ordinary host ABI
+    # before the product Unicode RTL replaces the installed units.
+    Invoke-Checked $fpcmkcfg @(
+      '-d', "basepath=$newToolchain", '-o', $config)
+    $fpcresOptions = 'OPT=-O2 -dMOONCOMPILER_VANILLA_RUNTIME'
+    Invoke-Checked $makePath @(
+      '-C', (Join-Path $Root 'utils\fpcres'), 'clean', "FPC=$fpc",
+      'CPU_TARGET=x86_64', 'OS_TARGET=win64')
+    Invoke-Checked $makePath @(
+      '-C', (Join-Path $Root 'utils\fpcres'), 'all', "FPC=$fpc",
+      $fpcresOptions, 'CPU_TARGET=x86_64', 'OS_TARGET=win64')
+    Invoke-Checked $makePath @(
+      '-C', (Join-Path $Root 'utils\fpcres'), 'install', "FPC=$fpc",
+      $fpcresOptions, 'CPU_TARGET=x86_64', 'OS_TARGET=win64',
+      "INSTALL_PREFIX=$newToolchain")
+    $fpcres = Join-Path $newToolchain 'bin\x86_64-win64\fpcres.exe'
+    If (-not (Test-Path -LiteralPath $fpcres)) {
+      throw 'the Win64 resource compiler was not installed'
+    }
+
+    # Preserve the ordinary FPC ABI before the product Unicode RTL replaces
+    # the installed units.  Lazarus, LCL and compiler tools are built against
+    # this profile; product applications continue to use the default profile.
+    Copy-Item -LiteralPath $newToolchain -Destination $ideProfile -Recurse
+    $ideConfig = Join-Path $ideProfile 'bin\x86_64-win64\fpc.cfg'
 
     # Compiler/IDE tools keep their host representation.  The target RTL and
     # application-facing packages use the modern Delphi Unicode ABI.
@@ -239,7 +259,9 @@ function Install-Toolchain([string]$Archive) {
     $ideBin = Join-Path $newToolchain 'ide\bin\x86_64-win64'
     $fpc = Join-Path $bin 'fpc.exe'
     $fpcmkcfg = Join-Path $bin 'fpcmkcfg.exe'
+    $fpcres = Join-Path $bin 'fpcres.exe'
     $ideFpc = Join-Path $ideBin 'fpc.exe'
+    $ideFpcres = Join-Path $ideBin 'fpcres.exe'
     $compilerLicense = Join-Path $newToolchain 'share\doc\mooncompiler\COMPILER-GPL-2.0.txt'
     $rtlLicense = Join-Path $newToolchain 'share\doc\mooncompiler\RTL-LGPL-2.1.txt'
     $rtlException = Join-Path $newToolchain 'share\doc\mooncompiler\RTL-EXCEPTION.txt'
@@ -247,7 +269,9 @@ function Install-Toolchain([string]$Archive) {
     $licenseGuide = Join-Path $newToolchain 'share\doc\mooncompiler\LICENSING.md'
     If (-not (Test-Path -LiteralPath $fpc) -or
         -not (Test-Path -LiteralPath $fpcmkcfg) -or
+        -not (Test-Path -LiteralPath $fpcres) -or
         -not (Test-Path -LiteralPath $ideFpc) -or
+        -not (Test-Path -LiteralPath $ideFpcres) -or
         -not (Test-Path -LiteralPath $compilerLicense) -or
         -not (Test-Path -LiteralPath $rtlLicense) -or
         -not (Test-Path -LiteralPath $rtlException) -or

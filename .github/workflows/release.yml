@@ -68,9 +68,13 @@ jobs:
           ./build toolchain "$asset"
           ! grep -q 'toolchain\.new\.' .moonbot/toolchain/etc/fpc.cfg
           ! grep -q 'toolchain\.new\.' .moonbot/toolchain/ide/etc/fpc.cfg
+          test -x .moonbot/toolchain/bin/fpcres
+          test -x .moonbot/toolchain/ide/bin/fpcres
           python3 qualification/build-driver/version_contract.py
           ./build examples/hello.dpr release
           [[ "$(./examples/hello)" == '3 prices, sum = '* ]]
+          ./build RTL-test/semantic/file_resource_semantic.dpr release
+          [[ "$(./RTL-test/semantic/file_resource_semantic)" == 'FILE_RESOURCE_PASS' ]]
       - uses: actions/upload-artifact@v4
         with:
           name: toolchain-linux-x86-64
@@ -118,11 +122,20 @@ jobs:
                     .moonbot\toolchain\ide\bin\x86_64-win64\fpc.cfg) {
             throw 'installed configs still reference the staging path'
           }
+          If (-not (Test-Path .moonbot\toolchain\bin\x86_64-win64\fpcres.exe) -or
+              -not (Test-Path .moonbot\toolchain\ide\bin\x86_64-win64\fpcres.exe)) {
+            throw 'the archive does not contain the resource compiler'
+          }
           python .\qualification\build-driver\version_contract.py
           .\build.ps1 .\examples\hello.dpr release
           $Output = & .\examples\hello.exe
           If ($Output -notlike '3 prices, sum = *') {
             throw "archive smoke returned: $Output"
+          }
+          .\build.ps1 .\RTL-test\semantic\file_resource_semantic.dpr release
+          $Output = & .\RTL-test\semantic\file_resource_semantic.exe
+          If ($Output -ne 'FILE_RESOURCE_PASS') {
+            throw "resource smoke returned: $Output"
           }
       - uses: actions/upload-artifact@v4
         with:
