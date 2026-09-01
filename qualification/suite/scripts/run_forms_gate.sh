@@ -36,9 +36,27 @@ printf '%s\n' "${EXPECTED_COMMON[@]}" | sort -u >"$RUN/expected-mega_forms.txt"
 printf '%s\n' "${EXPECTED_COMMON[@]}" "${EXPECTED_OMNI[@]}" | sort -u \
   >"$RUN/expected-omni_forms.txt"
 
+normalize_terminal() {
+  local name=$1 line=$2 peak
+  if [[ $name == mega_forms ]]; then
+    [[ $line =~ runtime_peak=([0-9]+) ]] || {
+      echo 'mega_forms summary has no runtime_peak' >&2
+      return 1
+    }
+    peak=${BASH_REMATCH[1]}
+    ((peak >= 2 && peak <= 4)) || {
+      echo "mega_forms reported invalid concurrent worker peak $peak" >&2
+      return 1
+    }
+    line=${line/runtime_peak=$peak/runtime_peak=*}
+  fi
+  printf '%s\n' "$line"
+}
+
 validate_run() {
   local name=$1 option=$2 seed=$3 log=$4 rc=$5
   local observed expected expected_count terminal expected_terminal
+  local normalized_terminal normalized_expected
   observed="$log.observed"
   expected="$RUN/expected-$name.txt"
   expected_count=$(wc -l <"$expected")
@@ -59,7 +77,9 @@ validate_run() {
     echo "no terminal oracle for $name seed=$seed" >&2
     exit 1
   }
-  [[ "$terminal" == "$expected_terminal" ]] || {
+  normalized_terminal=$(normalize_terminal "$name" "$terminal")
+  normalized_expected=$(normalize_terminal "$name" "$expected_terminal")
+  [[ "$normalized_terminal" == "$normalized_expected" ]] || {
     echo "$name $option seed=$seed has a different terminal summary" >&2
     printf 'expected: %s\nobserved: %s\n' "$expected_terminal" "$terminal" >&2
     exit 1

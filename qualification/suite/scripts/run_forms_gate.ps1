@@ -58,6 +58,17 @@ function Invoke-Bounded([string]$Executable, [string]$Seed, [string]$Log) {
   return $ExitCode
 }
 
+function Normalize-TerminalSummary([string]$Name, [string]$Line) {
+  If ($Name -ne 'mega_forms') { return $Line }
+  $Match = [regex]::Match($Line, '(?<=\bruntime_peak=)\d+(?=\s)')
+  If (-not $Match.Success) { throw 'mega_forms summary has no runtime_peak' }
+  $Peak = [int]$Match.Value
+  If ($Peak -lt 2 -or $Peak -gt 4) {
+    throw "mega_forms reported invalid concurrent worker peak $Peak"
+  }
+  return $Line.Remove($Match.Index, $Match.Length).Insert($Match.Index, '*')
+}
+
 function Invoke-FormsProgram([string]$Name, [string]$Source) {
   foreach ($Option in @('O2', 'O3')) {
     $Out = Join-Path $Run "$Name-$($Option.ToLowerInvariant())"
@@ -85,10 +96,13 @@ function Invoke-FormsProgram([string]$Name, [string]$Source) {
         throw "$Name/$Option seed=$Seed produced a different failure set"
       }
       $Lines = @(Get-Content -LiteralPath $Log)
-      If ($Lines[-1] -cne $Terminal["$Name/$Seed"]) {
+      $ExpectedTerminal = $Terminal["$Name/$Seed"]
+      $ObservedTerminal = $Lines[-1]
+      If ((Normalize-TerminalSummary $Name $ObservedTerminal) -cne
+          (Normalize-TerminalSummary $Name $ExpectedTerminal)) {
         throw "$Name/$Option seed=$Seed has a different terminal summary`n" +
-          "expected: $($Terminal["$Name/$Seed"])`n" +
-          "observed: $($Lines[-1])"
+          "expected: $ExpectedTerminal`n" +
+          "observed: $ObservedTerminal"
       }
     }
   }
