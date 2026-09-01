@@ -36,7 +36,7 @@ cleanup_compiler_build() {
 }
 
 build_compiler() {
-  local bootstrap target_compiler target_fpc target_fpcmake version_dir
+  local bootstrap target_compiler target_fpcmake version_dir
   local compiler_options='-O2 -dMOONCOMPILER_PRODUCT_RUNTIME -dMOONCOMPILER_VANILLA_RUNTIME'
   bootstrap=${MOONBOT_BOOTSTRAP_FPC:-$(command -v fpc || true)}
   [[ -n "$bootstrap" && -x "$bootstrap" ]] || {
@@ -67,8 +67,7 @@ build_compiler() {
     exit 1
   }
   target_compiler="$new_toolchain/lib/fpc/$version_dir/ppcx64"
-  target_fpc="$new_toolchain/bin/fpc"
-  [[ -x "$target_compiler" && -x "$target_fpc" ]] || {
+  [[ -x "$target_compiler" ]] || {
     echo "the installed Linux compiler is incomplete" >&2
     exit 1
   }
@@ -77,22 +76,6 @@ build_compiler() {
     echo "the built Linux fpcmake utility is missing" >&2
     exit 1
   }
-
-  # fpcres is a compiler tool, so build it against the ordinary host ABI
-  # before the product Unicode RTL replaces the installed units.
-  mkdir -p "$new_toolchain/etc"
-  "$new_toolchain/bin/fpcmkcfg" \
-    -d "basepath=$new_toolchain/lib/fpc/$version_dir" \
-    -o "$new_toolchain/etc/fpc.cfg"
-  PPC_CONFIG_PATH="$new_toolchain/etc" \
-    make -C "$ROOT/utils/fpcres" clean FPC="$target_fpc"
-  PPC_CONFIG_PATH="$new_toolchain/etc" \
-    make -C "$ROOT/utils/fpcres" all FPC="$target_fpc" \
-      OPT='-O2 -dMOONCOMPILER_VANILLA_RUNTIME'
-  PPC_CONFIG_PATH="$new_toolchain/etc" \
-    make -C "$ROOT/utils/fpcres" install FPC="$target_fpc" \
-      OPT='-O2 -dMOONCOMPILER_VANILLA_RUNTIME' \
-      INSTALL_PREFIX="$new_toolchain"
   [[ -x "$new_toolchain/bin/fpcres" ]] || {
     echo 'the Linux resource compiler was not installed' >&2
     exit 1
