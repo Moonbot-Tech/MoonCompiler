@@ -343,6 +343,12 @@ function Fpcx64mmTestSmallLastFreeCount(P: pointer): cardinal;
 procedure Fpcx64mmTestCorruptSmallLastFreeHead(P: pointer);
 {$endif FPCMM_SMALLLASTFREE_TEST}
 
+{$ifdef FPCMM_SMALLPOOL_REUSE_TEST}
+function Fpcx64mmTestSmallBlockType(P: pointer): pointer;
+function Fpcx64mmTestSmallEmptyPoolReuseScore(BlockType: pointer): cardinal;
+function Fpcx64mmTestSmallRetainedPool(BlockType: pointer): pointer;
+{$endif FPCMM_SMALLPOOL_REUSE_TEST}
+
 {$ifdef FPCMM_MEDIUMLASTFREE_TEST}
 procedure Fpcx64mmTestLockMedium(P: pointer; Locked: boolean);
 function Fpcx64mmTestMediumLastFree(P: pointer): pointer;
@@ -1075,6 +1081,7 @@ const
   SmallBlockDownsizeCheckAdder = 64;
   SmallBlockUpsizeAdder        = 32;
   SmallBlockTypePO2            = 6;  // SizeOf(TSmallBlockType)=64
+  SmallBlockHotPoolThreshold   = 8;
 
   MediumBlockPoolSizeMem       = 20 * 64 * 1024;
   MediumBlockPoolSize          = MediumBlockPoolSizeMem - 16;
@@ -1162,7 +1169,8 @@ type
     GetmemCount: cardinal;
     FreememCount: cardinal;
     LastFreeLocked: boolean;
-    Padding: array[1 .. 3] of byte;
+    EmptyPoolReuseScore: byte;
+    Padding: array[1 .. 2] of byte;
     LastFreeCount: cardinal;
   end;
   PSmallBlockType = ^TSmallBlockType;
@@ -3997,13 +4005,23 @@ asm     // P = rcx on Windows, P = rdi on SystemV
         {$endif NOSFRAME}
         {$ifdef FPCMM_MOONSHARD}
 @EmptySequentialFeedPool:
-        // Keep one reusable first block for the hottest tiny size classes
+        // Keep one empty pool after repeated single-block churn. Tiny classes
+        // retain it immediately; larger small classes first prove reuse.
+        // Those larger classes are global, not per-thread/per-arena: retaining
+        // every one is bounded to about 1.2 MiB with the current pool table.
         {$ifdef MSWINDOWS}
         cmp     word ptr [rbx].TSmallBlockType.BlockSize, 256
+        jbe     @StoreFreeBlock
+        cmp     byte ptr [rbx].TSmallBlockType.EmptyPoolReuseScore, SmallBlockHotPoolThreshold
+        jae     @StoreFreeBlock
+        inc     byte ptr [rbx].TSmallBlockType.EmptyPoolReuseScore
         {$else}
         cmp     word ptr [rsi].TSmallBlockType.BlockSize, 256
-        {$endif MSWINDOWS}
         jbe     @StoreFreeBlock
+        cmp     byte ptr [rsi].TSmallBlockType.EmptyPoolReuseScore, SmallBlockHotPoolThreshold
+        jae     @StoreFreeBlock
+        inc     byte ptr [rsi].TSmallBlockType.EmptyPoolReuseScore
+        {$endif MSWINDOWS}
         jmp     @IsSequentialFeedPool
         {$endif FPCMM_MOONSHARD}
 @ProcessPendingBin:
@@ -5377,6 +5395,27 @@ begin
   SmallBlockInfo.SmallLastFree[index] := Pointer(1);
 end;
 {$endif FPCMM_SMALLLASTFREE_TEST}
+
+{$ifdef FPCMM_SMALLPOOL_REUSE_TEST}
+function Fpcx64mmTestSmallBlockType(P: pointer): pointer;
+begin
+  result := PSmallBlockPoolHeader(
+    PPtrUInt(PByte(P) - BlockHeaderSize)^ and DropSmallFlagsMask)^.BlockType;
+end;
+
+function Fpcx64mmTestSmallEmptyPoolReuseScore(BlockType: pointer): cardinal;
+begin
+  result := PSmallBlockType(BlockType)^.EmptyPoolReuseScore;
+end;
+
+function Fpcx64mmTestSmallRetainedPool(BlockType: pointer): pointer;
+begin
+  if PSmallBlockType(BlockType)^.MaxSequentialFeedBlockAddress <> nil then
+    result := PSmallBlockType(BlockType)^.CurrentSequentialFeedPool
+  else
+    result := nil;
+end;
+{$endif FPCMM_SMALLPOOL_REUSE_TEST}
 
 {$ifdef FPCMM_MEDIUMLASTFREE_TEST}
 function TestMediumInfo(P: pointer): PMediumBlockInfo;
