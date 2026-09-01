@@ -3,7 +3,7 @@
 { dvl-0029 (non-ASCII part): with a UTF-8 source file under the Delphi
   Unicode ABI, DCC64 36.0 types a quoted non-ASCII character literal
   through the system ANSI codepage: a representable character becomes
-  AnsiChar carrying the ANSI byte (Ord('я') = 255 under CP1251), a
+  AnsiChar carrying the ANSI byte (Ord('™') = 153 under CP1251), a
   non-representable one stays Char.  #-escapes keep the width their
   written form selects (#$FF is a byte, #$044F and #1103 are wide), and
   widening a byte literal back decodes through the same codepage, so the
@@ -57,8 +57,8 @@ var
   AS8: AnsiString;
 begin
   { quoted non-ASCII: representable in CP1251 -> AnsiChar with ANSI byte }
-  Check('quoted ya', Pick('я'), 'ansi:255');
-  Check('quoted yo', Pick('ё'), 'ansi:184');
+  Check('quoted trademark', Pick('™'), 'ansi:153');
+  Check('quoted numero', Pick('№'), 'ansi:185');
   Check('quoted euro', Pick('€'), 'ansi:136');
   { not representable -> stays wide }
   Check('quoted cjk', Pick('中'), 'wide:20013');
@@ -69,18 +69,18 @@ begin
   Check('esc $FF', Pick(#$FF), 'ansi:255');
   Check('chr 1103', Pick(Chr(1103)), 'wide:1103');
   { two characters make a string }
-  Check('concat', Pick('яя'), 'str:2');
+  Check('concat', Pick('™™'), 'str:2');
 
   { widening decodes through the codepage - the character survives }
-  AC := 'я';
-  Check('ansichar var', IntToStr(Ord(AC)), '255');
-  WC := 'я';
-  Check('widechar var', IntToStr(Ord(WC)), '1103');
-  S := 'я';
-  Check('string var', IntToStr(Ord(S[1])), '1103');
-  AS8 := 'я';
-  Check('ansistring var', IntToStr(Ord(AS8[1])), '255');
-  Check('ord quoted', IntToStr(Ord('я')), '255');
+  AC := '™';
+  Check('ansichar var', IntToStr(Ord(AC)), '153');
+  WC := '™';
+  Check('widechar var', IntToStr(Ord(WC)), '8482');
+  S := '™';
+  Check('string var', IntToStr(Ord(S[1])), '8482');
+  AS8 := '™';
+  Check('ansistring var', IntToStr(Ord(AS8[1])), '153');
+  Check('ord quoted', IntToStr(Ord('™')), '153');
   Check('ord cjk', IntToStr(Ord('中')), '20013');
 end;
 

@@ -51,12 +51,12 @@ begin
 
     for I := 1 to 16 do
       R.AddChar(WideChar(Ord('a') + I - 1)); { crosses the 16 boundary }
-    R.AddChar(#$0416);                        { Ж }
+    R.AddChar(#$00A9);                        { copyright sign }
     R.AddChar(#$D83D);                        { surrogate pair D83D DE00 }
     R.AddChar(#$DE00);
     R.FlushString(S, False);
     Check('growth-and-width', (Length(S) = 19) and (S[1] = 'a') and (S[16] = 'p') and
-      (S[17] = #$0416) and (S[18] = #$D83D) and (S[19] = #$DE00));
+      (S[17] = #$00A9) and (S[18] = #$D83D) and (S[19] = #$DE00));
 
     { flush resets: the second flush is empty (DCC canvas) }
     R.FlushString(S2, False);
@@ -104,10 +104,10 @@ begin
     scanner in UTF-8 mode, so a \u escape above $7F survives (it used to
     decay to U+FFFD because the facade encoded UTF-8 but never told the
     scanner) }
-  V := TJSONValue.ParseJSONValue(UnicodeString('{"name":"\u0416\u0435\u0441\u0442"}'));
+  V := TJSONValue.ParseJSONValue(UnicodeString('{"name":"\u00A9\u00AE\u00B5\u00A3"}'));
   try
     Check('parse-value', (V <> nil) and
-      (V.GetValue<UnicodeString>('name') = #$0416#$0435#$0441#$0442));
+      (V.GetValue<UnicodeString>('name') = #$00A9#$00AE#$00B5#$00A3));
   finally
     V.Free;
   end;
@@ -115,7 +115,7 @@ begin
   { ParseJSONFragment returns an absolute byte offset, not a position
     relative to the non-zero starting offset.  The Unicode facade keeps the
     same byte-oriented contract after its UTF-8 conversion. }
-  S := '  1 {"k":"' + #$0416 + '"} true';
+  S := '  1 {"k":"' + #$00A9 + '"} true';
   Big := TEncoding.UTF8.GetBytes(S);
   Offset := 2;
   V := TJSONValue.ParseJSONFragment(Big, Offset,
@@ -132,7 +132,7 @@ begin
      TJSONValue.TJSONParseOption.RaiseExc]);
   try
     Check('fragment-object-offset', (V <> nil) and
-      (V.GetValue<UnicodeString>('k') = #$0416) and (Offset = 14));
+      (V.GetValue<UnicodeString>('k') = #$00A9) and (Offset = 14));
   finally
     V.Free;
   end;
@@ -171,13 +171,13 @@ begin
   Check('fragment-invalid-raised-offset',Offset = 0);
 
   { The Unicode facade reports the byte position in its UTF-8 carrier. }
-  S := '"' + #$0416 + '" tail';
+  S := '"' + #$00A9 + '" tail';
   Offset := 0;
   V := TJSONValue.ParseJSONFragment(S,Offset,
     [TJSONValue.TJSONParseOption.RaiseExc]);
   try
     Check('fragment-unicode-byte-offset',(V <> nil) and
-      (V.Value = #$0416) and (Offset = 4));
+      (V.Value = #$00A9) and (Offset = 4));
   finally
     V.Free;
   end;

@@ -61,9 +61,9 @@ var
   Utf8: TEncoding;
 begin
   Utf8 := TEncoding.UTF8;
-  Stream := TStringStream.Create(UnicodeString('Ж€'), Utf8, False);
+  Stream := TStringStream.Create(UnicodeString('©€'), Utf8, False);
   try
-    Check(Stream.ReadUnicodeString(Stream.Size) = 'Ж€', 'UTF-8 Unicode read');
+    Check(Stream.ReadUnicodeString(Stream.Size) = '©€', 'UTF-8 Unicode read');
     Check(Stream.Position = Stream.Size, 'UTF-8 position');
   finally
     Stream.Free;

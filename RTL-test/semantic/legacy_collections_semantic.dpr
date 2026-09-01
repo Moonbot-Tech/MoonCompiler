@@ -141,13 +141,13 @@ begin
     List.Clear;
     CustomSortCalls := 0;
     List.CustomSort(@CompareLengthThenOrdinal);
-    List.Add('единственный');
+    List.Add('singleton');
     List.CustomSort(@CompareLengthThenOrdinal);
     Check((List.Count = 1) and (CustomSortCalls = 0),
       'TStringList CustomSort empty and singleton');
-    List.Add('ёж');
+    List.Add('zeta');
     List.Add('alpha');
-    List.Add('Бета');
+    List.Add('Beta');
     List.Add('alpha');
     List.CustomSort(@CompareLengthThenOrdinal);
     Check((List.Count = 5) and (CustomSortCalls > 0),

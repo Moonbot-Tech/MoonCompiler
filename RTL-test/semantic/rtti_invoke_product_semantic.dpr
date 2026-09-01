@@ -79,7 +79,7 @@ begin
       ['Moon',7]).AsObject);
     try
       Check(RttiType.GetMethod('Join').Invoke(Instance,
-        [UnicodeString('-Ж-'),9]).AsString='Moon7-Ж-9',
+        [UnicodeString('-©-'),9]).AsString='Moon7-©-9',
         'class constructor/method with managed arguments');
       try
         RttiType.GetMethod('RaiseProbe').Invoke(Instance,[]);

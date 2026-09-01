@@ -272,10 +272,10 @@ var
   I: Integer;
   OverflowRaised: Boolean;
 begin
-  Source := 'Alpha-Ж-€-😀';
+  Source := 'Alpha-©-€-😀';
   AliasValue := Source;
   AliasValue[1] := 'a';
-  Check((Source = 'Alpha-Ж-€-😀') and (AliasValue = 'alpha-Ж-€-😀'),
+  Check((Source = 'Alpha-©-€-😀') and (AliasValue = 'alpha-©-€-😀'),
     'Unicode shared COW');
   UniqueValue := Copy(Source, 1, MaxInt);
   UniqueValue[2] := 'L';
@@ -283,7 +283,7 @@ begin
   Check((ReturnUnicode('') = '') and (ReturnUnicode(Source) = Source),
     'Unicode parameter/result');
   Check(('' + Source = Source) and (Source + '' = Source) and
-    ('x' + Source + 'y' = 'xAlpha-Ж-€-😀y'), 'Unicode concat 0/1/N');
+    ('x' + Source + 'y' = 'xAlpha-©-€-😀y'), 'Unicode concat 0/1/N');
   Check((Copy(Source, 1, 0) = '') and (Copy(Source, Length(Source) + 1, 5) = '') and
     (Copy(Source, -5, 2) = 'Al') and (Copy(Source, 1, MaxInt) = Source),
     'Unicode Copy boundaries');
@@ -301,7 +301,7 @@ begin
   Insert('head-', Value, -3);
   Check(Value = 'head-tail', 'Unicode Insert negative index normalization');
   Check((Pos(UnicodeString(''), Source) = 0) and
-    (Pos(UnicodeString('Ж-€'), Source) = 7) and
+    (Pos(UnicodeString('©-€'), Source) = 7) and
     (Pos(UnicodeString('missing'), Source) = 0), 'Unicode Pos forms');
   Check((CompareStr('', '') = 0) and (CompareStr('a', 'b') < 0) and
     (CompareText('AbC', 'aBc') = 0), 'Unicode compare forms');
@@ -352,7 +352,7 @@ begin
       Threads[I].WaitFor;
       Check(Threads[I].Digest <> 0, 'Unicode shared threaded read');
     end;
-    Check(Source = 'Alpha-Ж-€-😀', 'Unicode shared lifetime after threads');
+    Check(Source = 'Alpha-©-€-😀', 'Unicode shared lifetime after threads');
   finally
     for I := 0 to High(Threads) do
       Threads[I].Free;
@@ -392,9 +392,9 @@ begin
   Check((StaticSource[0] = 1) and (SumOpenIntegers(StaticCopy) = 19),
     'static array by-value/result and open-array ABI');
   StaticStrings[0] := 'a';
-  StaticStrings[1] := 'Ж';
+  StaticStrings[1] := '©';
   StaticStrings[2] := 'c';
-  Check(JoinOpenStrings(StaticStrings) = 'aЖc', 'managed open/static array');
+  Check(JoinOpenStrings(StaticStrings) = 'a©c', 'managed open/static array');
 
   LiveProbes := 0;
   PlainSource.Text := 'plain';
@@ -558,10 +558,10 @@ begin
   Value := Value + 1;
   Value := Value + 5;
   Check(Int64(Value) = Int64(High(Integer)) + 6, 'Variant Int64 arithmetic');
-  Value := UnicodeString('variant-Ж');
+  Value := UnicodeString('variant-©');
   CopyValue := Value;
   Value := Unassigned;
-  Check(VarToWideStr(CopyValue) = 'variant-Ж', 'Variant string copy/clear');
+  Check(VarToWideStr(CopyValue) = 'variant-©', 'Variant string copy/clear');
   ArrayValue := VarArrayCreate([1, 2], varVariant);
   ArrayValue[1] := 'x';
   ArrayValue[2] := 9;
@@ -682,7 +682,7 @@ begin
     (FormatDateTime('yyyy-mm-dd hh:nn:ss', DateValue + EncodeTime(1, 2, 3, 0),
       Settings) = '2024-02-29 01:02:03'), 'date parse/format explicit settings');
   Check(not TryStrToDate('2023-02-29', DateValue, Settings), 'invalid date parse');
-  Check(ContainsText('Alpha-Ж', 'ALPHA'), 'StrUtils ContainsText');
+  Check(ContainsText('Alpha-©', 'ALPHA'), 'StrUtils ContainsText');
   Check(ReplaceText('a-B-a', 'A', 'x') = 'x-B-x', 'StrUtils ReplaceText');
   Check(ReverseString('abc') = 'cba', 'StrUtils ReverseString');
 end;

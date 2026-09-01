@@ -76,13 +76,13 @@ var
   Encoded: UTF8String;
   FixedValue: TFixedString;
 begin
-  Source := 'Abc-Ж-€-😀';
+  Source := 'Abc-©-€-😀';
   AliasValue := Source;
   AliasValue[1] := 'a';
-  Check(Source = 'Abc-Ж-€-😀', 'UnicodeString source COW');
-  Check(AliasValue = 'abc-Ж-€-😀', 'UnicodeString alias mutation');
+  Check(Source = 'Abc-©-€-😀', 'UnicodeString source COW');
+  Check(AliasValue = 'abc-©-€-😀', 'UnicodeString alias mutation');
   Check(Source + '' = Source, 'concat empty');
-  Check('prefix-' + Source = 'prefix-Abc-Ж-€-😀', 'concat value');
+  Check('prefix-' + Source = 'prefix-Abc-©-€-😀', 'concat value');
 
   CopyValue := Copy(Source, 1, 3);
   Check(CopyValue = 'Abc', 'Copy regular');
@@ -90,11 +90,11 @@ begin
   Check(Copy(Source, 1, 0) = '', 'Copy zero count');
   Value := Source;
   Delete(Value, 1, 4);
-  Check(Value = 'Ж-€-😀', 'Delete prefix');
+  Check(Value = '©-€-😀', 'Delete prefix');
   Insert('new-', Value, 1);
-  Check(Value = 'new-Ж-€-😀', 'Insert prefix');
-  Check(Pos(UnicodeString('Ж-€'), Source) = 5,
-    'Pos non-ASCII result='+IntToStr(Pos(UnicodeString('Ж-€'),Source)));
+  Check(Value = 'new-©-€-😀', 'Insert prefix');
+  Check(Pos(UnicodeString('©-€'), Source) = 5,
+    'Pos non-ASCII result='+IntToStr(Pos(UnicodeString('©-€'),Source)));
   Check(Pos('missing', Source) = 0, 'Pos miss');
   Check(CompareStr('abc', 'abc') = 0, 'CompareStr equal');
   Check(CompareStr('abc', 'abd') < 0, 'CompareStr order');
@@ -359,9 +359,9 @@ begin
     Memory.Free;
   end;
 
-  StringStream := TStringStream.Create('stream-text-Ж');
+  StringStream := TStringStream.Create('stream-text-©');
   try
-    Check(StringStream.DataString = 'stream-text-Ж', 'TStringStream data');
+    Check(StringStream.DataString = 'stream-text-©', 'TStringStream data');
     StringStream.Position := 0;
     Check(StringStream.ReadString(6) = 'stream', 'TStringStream read');
   finally

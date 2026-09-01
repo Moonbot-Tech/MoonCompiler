@@ -599,7 +599,7 @@ begin
     begin
       Start := P;
       Inc(P, 2);
-      // UNC: \\server\share, \\?\UNC\server\share, \\.\UNC\server\share. Devices: \\.\devicе, \\?\device.
+      // UNC: \\server\share, \\?\UNC\server\share, \\.\UNC\server\share. Devices: \\.\device, \\?\device.
       if (P[0] in ['.', '?']) and (P[1] in AllowDirectorySeparators) and
         (P[2] in ['u', 'U']) and (P[3] in ['n', 'N']) and (P[4] in ['c', 'C']) and (P[5] in AllowDirectorySeparators) then
         Inc(P, 6);

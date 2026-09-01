@@ -96,9 +96,9 @@ procedure TestStringStream;
 var
   Stream: TStringStream;
 begin
-  Stream:=TStringStream.Create(UnicodeString('Ж€'),TEncoding.UTF8,False);
+  Stream:=TStringStream.Create(UnicodeString('©€'),TEncoding.UTF8,False);
   try
-    Check('tstringstream-native',Stream.ReadString(Stream.Size)='Ж€');
+    Check('tstringstream-native',Stream.ReadString(Stream.Size)='©€');
     Stream.Position:=-1;
     Check('tstringstream-negative',(Stream.ReadString(4)='') and
       (Stream.Position=-1));
@@ -119,21 +119,21 @@ begin
   Lines:=TStringList.Create;
   Stream:=TMemoryStream.Create;
   try
-    Lines.Text:='Ж€'+LineEnding+'x'+#0+'y';
+    Lines.Text:='©€'+LineEnding+'x'+#0+'y';
     Lines.WriteBOM:=True;
     Lines.SaveToStream(Stream,TEncoding.UTF8);
     Bytes:=StreamBytes(Stream);
     Stream.Position:=0;
     Lines.Clear;
     Lines.LoadFromStream(Stream,TEncoding.UTF8);
-    Check('strings-utf8-roundtrip',Lines.Text='Ж€'+LineEnding+'x'+#0+'y'+LineEnding);
+    Check('strings-utf8-roundtrip',Lines.Text='©€'+LineEnding+'x'+#0+'y'+LineEnding);
     Check('strings-utf8-bom',(Length(Bytes)>=3) and (Bytes[0]=$ef) and
       (Bytes[1]=$bb) and (Bytes[2]=$bf));
 
-    PutBytes(Stream,WithPreamble(TEncoding.BigEndianUnicode,'Ж€'+LineEnding));
+    PutBytes(Stream,WithPreamble(TEncoding.BigEndianUnicode,'©€'+LineEnding));
     Lines.Clear;
     Lines.LoadFromStream(Stream,nil);
-    Check('strings-utf16be',Lines.Text='Ж€'+LineEnding);
+    Check('strings-utf16be',Lines.Text='©€'+LineEnding);
   finally
     Stream.Free;
     Lines.Free;
@@ -193,10 +193,10 @@ begin
   end;
 
   Stream:=TOneByteReadStream.Create;
-  PutBytes(Stream,WithPreamble(TEncoding.Unicode,'Ж'+#10));
+  PutBytes(Stream,WithPreamble(TEncoding.Unicode,'©'+#10));
   Reader:=TStreamReader.Create(Stream,TEncoding.Unicode,False,128);
   try
-    Check('reader-utf16le',Reader.ReadLine='Ж');
+    Check('reader-utf16le',Reader.ReadLine='©');
   finally
     Reader.Free;
     Stream.Free;
@@ -222,9 +222,9 @@ procedure TestStringReader;
 var
   Reader: TStringReader;
 begin
-  Reader:=TStringReader.Create('Ж€'+#10+'next');
+  Reader:=TStringReader.Create('©€'+#10+'next');
   try
-    Check('string-reader-unicode',Reader.ReadLine='Ж€');
+    Check('string-reader-unicode',Reader.ReadLine='©€');
     Check('string-reader-next',Reader.ReadLine='next');
   finally
     Reader.Free;
@@ -246,9 +246,9 @@ begin
   Stream:=TMemoryStream.Create;
   Writer:=TStreamWriter.Create(Stream,TEncoding.UTF8,128);
   try
-    Writer.Write(UnicodeString('Ж€'));
+    Writer.Write(UnicodeString('©€'));
     Bytes:=StreamBytes(Stream);
-    Expected:=WithPreamble(TEncoding.UTF8,'Ж€');
+    Expected:=WithPreamble(TEncoding.UTF8,'©€');
     CheckBytes('writer-unicode-bytes',Bytes,Expected);
   finally
     Writer.Free;
@@ -256,7 +256,7 @@ begin
   end;
 
   Text:=StringOfChar('a',127)+UnicodeString(#$d83d#$de00)+
-    StringOfChar('Ж',130);
+    StringOfChar('©',130);
   Stream:=TMemoryStream.Create;
   Writer:=TStreamWriter.Create(Stream,TEncoding.UTF8,128);
   try
@@ -271,7 +271,7 @@ begin
 
   SetLength(Chars,5);
   Chars[0]:='x';
-  Chars[1]:='Ж';
+  Chars[1]:='©';
   Chars[2]:=WideChar($d83d);
   Chars[3]:=WideChar($de00);
   Chars[4]:='y';
@@ -281,7 +281,7 @@ begin
     Writer.Write(Chars,1,3);
     Bytes:=StreamBytes(Stream);
     Expected:=WithPreamble(TEncoding.UTF8,
-      UnicodeString('Ж')+UnicodeString(#$d83d#$de00));
+      UnicodeString('©')+UnicodeString(#$d83d#$de00));
     CheckBytes('writer-direct-array-span',Bytes,Expected);
   finally
     Writer.Free;
@@ -291,9 +291,9 @@ begin
   Stream:=TMemoryStream.Create;
   Writer:=TStreamWriter.Create(Stream);
   try
-    Writer.Write(UnicodeString('Ж'));
+    Writer.Write(UnicodeString('©'));
     Bytes:=StreamBytes(Stream);
-    Expected:=TEncoding.UTF8.GetBytes(UnicodeString('Ж'));
+    Expected:=TEncoding.UTF8.GetBytes(UnicodeString('©'));
     CheckBytes('writer-default-unicode',Bytes,Expected);
   finally
     Writer.Free;
@@ -305,9 +305,9 @@ begin
   Stream.WriteBuffer(X,1);
   Writer:=TStreamWriter.Create(Stream,TEncoding.UTF8,128);
   try
-    Writer.Write(UnicodeString('Ж'));
+    Writer.Write(UnicodeString('©'));
     Bytes:=StreamBytes(Stream);
-    Expected:=TEncoding.UTF8.GetBytes(UnicodeString('xЖ'));
+    Expected:=TEncoding.UTF8.GetBytes(UnicodeString('x©'));
     CheckBytes('writer-nonzero-no-preamble',Bytes,Expected);
   finally
     Writer.Free;
@@ -317,9 +317,9 @@ begin
   Stream:=TMemoryStream.Create;
   Writer:=TStreamWriter.Create(Stream,TEncoding.BigEndianUnicode,128);
   try
-    Writer.Write(UnicodeString('Ж€'));
+    Writer.Write(UnicodeString('©€'));
     Bytes:=StreamBytes(Stream);
-    Expected:=WithPreamble(TEncoding.BigEndianUnicode,'Ж€');
+    Expected:=WithPreamble(TEncoding.BigEndianUnicode,'©€');
     CheckBytes('writer-utf16be',Bytes,Expected);
   finally
     Writer.Free;
@@ -347,22 +347,22 @@ begin
   try
     Writer:=TStreamWriter.Create(Name,False);
     try
-      Writer.Write(UnicodeString('Ж'));
+      Writer.Write(UnicodeString('©'));
     finally
       Writer.Free;
     end;
     Bytes:=TFile.ReadAllBytes(Name);
-    Expected:=TEncoding.UTF8.GetBytes(UnicodeString('Ж'));
+    Expected:=TEncoding.UTF8.GetBytes(UnicodeString('©'));
     CheckBytes('writer-default-file-no-preamble',Bytes,Expected);
 
     Writer:=TStreamWriter.Create(Name,False,TEncoding.UTF8,128);
     try
-      Writer.Write(UnicodeString('Ж'));
+      Writer.Write(UnicodeString('©'));
     finally
       Writer.Free;
     end;
     Bytes:=TFile.ReadAllBytes(Name);
-    Expected:=WithPreamble(TEncoding.UTF8,'Ж');
+    Expected:=WithPreamble(TEncoding.UTF8,'©');
     CheckBytes('writer-explicit-file-preamble',Bytes,Expected);
   finally
     If TFile.Exists(Name) then
@@ -378,16 +378,16 @@ begin
   Name:=TPath.Combine(TPath.GetTempPath,'mooncompiler-text-stream-'+
     IntToHex(GetTickCount64,16)+'.txt');
   try
-    Bytes:=WithPreamble(TEncoding.BigEndianUnicode,'Ж€'+#0+'z');
+    Bytes:=WithPreamble(TEncoding.BigEndianUnicode,'©€'+#0+'z');
     TFile.WriteAllBytes(Name,Bytes);
-    Check('ioutils-detect-bom',TFile.ReadAllText(Name)='Ж€'+#0+'z');
+    Check('ioutils-detect-bom',TFile.ReadAllText(Name)='©€'+#0+'z');
     Check('ioutils-explicit-own-bom',
-      TFile.ReadAllText(Name,TEncoding.BigEndianUnicode)='Ж€'+#0+'z');
+      TFile.ReadAllText(Name,TEncoding.BigEndianUnicode)='©€'+#0+'z');
 
-    Bytes:=TEncoding.UTF8.GetBytes(UnicodeString('Ж€'));
+    Bytes:=TEncoding.UTF8.GetBytes(UnicodeString('©€'));
     TFile.WriteAllBytes(Name,Bytes);
     Check('ioutils-explicit-no-bom',
-      TFile.ReadAllText(Name,TEncoding.UTF8)='Ж€');
+      TFile.ReadAllText(Name,TEncoding.UTF8)='©€');
 
     SetLength(Bytes,1);
     Bytes[0]:=$ff;

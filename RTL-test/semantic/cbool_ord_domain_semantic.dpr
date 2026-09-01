@@ -2,7 +2,7 @@ program cbool_ord_domain_semantic;
 
 { Ord and equality over boolean types follow the measured DCC64 36.0 domain.
 
-  Red forms (audit "C-bool comparisons и Ord"):
+  Red forms (audit "C-bool comparisons and Ord"):
   - Ord of a boolean constant lost the Delphi constant domain:
     Ord(Pred(False)) gave 255 instead of -1, Ord(ByteBool/WordBool(True))
     gave -1 instead of the unsigned storage 255/65535 (ninl constant path
