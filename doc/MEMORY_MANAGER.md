@@ -62,8 +62,8 @@ libc.
 
 ## What MoonCompiler adds over current upstream
 
-This section was checked against `mORMot2/master` `951b4afd` from
-1 September 2026. Fixes already accepted upstream are not listed here as
+This section was checked against `mORMot2/master` `a333a689` from
+2 September 2026. Fixes already accepted upstream are not listed here as
 MoonCompiler changes.
 
 ### Sharding all small classes
@@ -81,6 +81,9 @@ logical small classes up to 2608 bytes:
   no division or extra hot-path branch;
 - the first two tail entries of the primary arena retain a cold same-size
   fallback after the arenas are exhausted;
+- larger small classes retain an empty pool only after repeated single-block
+  churn. Draining a later multi-block workload clears that history and releases
+  the pool; the reset runs on the cold pool-release path, not on every `GetMem`;
 - Linux uses a shortened fast-get path; on both Win64 and Linux, the profile is
   chosen at compile time, with no runtime dispatch between implementations.
 

@@ -3958,6 +3958,15 @@ asm     // P = rcx on Windows, P = rdi on SystemV
         cmp     [rsi].TSmallBlockType.CurrentSequentialFeedPool, rdx
         {$endif MSWINDOWS}
         jne     @NotSequentialFeedPool
+        {$ifdef FPCMM_MOONSHARD}
+        // A drained multi-block sequential pool ends single-block churn.
+        // Reset on this cold release path, not on every sequential GetMem.
+        {$ifdef MSWINDOWS}
+        mov     byte ptr [rbx].TSmallBlockType.EmptyPoolReuseScore, 0
+        {$else}
+        mov     byte ptr [rsi].TSmallBlockType.EmptyPoolReuseScore, 0
+        {$endif MSWINDOWS}
+        {$endif FPCMM_MOONSHARD}
 @IsSequentialFeedPool:
         {$ifdef MSWINDOWS}
         mov     [rbx].TSmallBlockType.MaxSequentialFeedBlockAddress, rax

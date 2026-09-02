@@ -592,6 +592,10 @@ scripts/mm/qualify_current_mm.sh \
 It includes boundaries, three 100-process finalizer regressions, MM mega, short
 structure-array `memory_massive` runs in release and diagnostic modes,
 release/diagnostic chaos, large allocations, and expected negative diagnostics.
+The small-pool lifecycle regression is built four times: default, SERVER,
+BOOSTER, and the product BOOSTER+MOONSHARD profile. Only the product profile may
+retain a repeatedly reused empty pool, and it must release that pool again after
+the same size class changes to a drained multi-block workload.
 `memory_massive` passes managed/raw ownership through five threads, performs
 remote realloc/free at exact small/medium/large boundaries up to 2 MiB,
 saturates every MoonShard arena with forced GetMem contention, and checks both

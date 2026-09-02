@@ -46,6 +46,18 @@ compile_test() {
         -uMOONBOT_MM_PROFILE_REQUIRED -uFPCMM_BOOSTER -uFPCMM_MOONSHARD
       )
       ;;
+    server)
+      profile_args=(
+        -dMOONCOMPILER_VANILLA_RUNTIME -dFPCMM_SERVER
+        -uMOONBOT_MM_PROFILE_REQUIRED -uFPCMM_BOOSTER -uFPCMM_MOONSHARD
+      )
+      ;;
+    booster)
+      profile_args=(
+        -dMOONCOMPILER_VANILLA_RUNTIME -dFPCMM_BOOSTER
+        -uMOONBOT_MM_PROFILE_REQUIRED -uFPCMM_MOONSHARD
+      )
+      ;;
     *)
       echo "invalid MM test profile: $profile" >&2
       exit 2
@@ -95,7 +107,13 @@ compile_test standalone small-finalize memory_small_last_free_finalize.dpr \
 compile_test product small-pool-leak-report memory_small_pool_last_free_finalize.dpr \
   -dFPCMM_REPORTMEMORYLEAKS -dFPCMM_MEDIUMLASTFREE_TEST
 compile_test product memory-large-boundary memory_large_boundary.dpr
-compile_test product memory-hot-small-pool memory_hot_small_pool.dpr \
+compile_test standalone memory-small-pool-default memory_hot_small_pool.dpr \
+  -dFPCMM_SMALLPOOL_REUSE_TEST
+compile_test server memory-small-pool-server memory_hot_small_pool.dpr \
+  -dFPCMM_SMALLPOOL_REUSE_TEST
+compile_test booster memory-small-pool-booster memory_hot_small_pool.dpr \
+  -dFPCMM_SMALLPOOL_REUSE_TEST
+compile_test product memory-small-pool-product memory_hot_small_pool.dpr \
   -dFPCMM_SMALLPOOL_REUSE_TEST
 compile_test product memory-mega memory_mega.dpr
 compile_test product memory-massive memory_massive.dpr \
@@ -129,10 +147,12 @@ run_one memory-large-boundary \
   "$build/memory-large-boundary/memory-large-boundary"
 grep -q 'MEMORY_LARGE_BOUNDARY_PASS' \
   "$results/memory-large-boundary/run.log"
-run_one memory-hot-small-pool \
-  "$build/memory-hot-small-pool/memory-hot-small-pool"
-grep -q 'MEMORY_HOT_SMALL_POOL_PASS' \
-  "$results/memory-hot-small-pool/run.log"
+for profile in default server booster product; do
+  run_one "memory-small-pool-$profile" \
+    "$build/memory-small-pool-$profile/memory-small-pool-$profile"
+  grep -q 'MEMORY_HOT_SMALL_POOL_PASS' \
+    "$results/memory-small-pool-$profile/run.log"
+done
 run_one memory-mega-full "$build/memory-mega/memory-mega" full "$seed"
 grep -q 'MEMORY_MEGA_PASS' "$results/memory-mega-full/run.log"
 run_one memory-massive-quick \
