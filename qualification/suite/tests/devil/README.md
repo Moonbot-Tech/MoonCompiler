@@ -187,7 +187,19 @@ old reverse diff no longer applies, the bench retains a minimal current-tree
 semantic mutation in `mutations/`; a conflicting application of that patch is
 also an invalid experiment, not a kill. `killed/total` counts only actually
 built mutants; a separate aggregation reports Devil families that emitted a new
-signal. The full matrix also runs in a dedicated weekly/manual GitHub workflow.
+signal. The full matrix is available through the manually triggered
+**Devil mutation strength** GitHub workflow; it has no scheduled runs.
+
+Check all mutation patches without building or modifying the checkout:
+
+```bash
+python qualification/suite/scripts/run_devil_mutation.py --check-only
+```
+
+This quick check requires full Git history and verifies that commit-derived
+mutations belong to the current ancestry, not just to leftover local objects
+from a history rewrite. It checks applicability, not Devil's ability to kill
+the mutants. The manual workflow runs it before installing the bootstrap.
 
 Comparison uses the gate's complete JSON report before splitting it into `NEW`
 and `known`. A broad known-deviation registry entry therefore cannot hide a

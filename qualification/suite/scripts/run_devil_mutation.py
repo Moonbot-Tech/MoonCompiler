@@ -10,7 +10,8 @@ That number - killed / total - is the honest measure of the complex.
 
 Usage:
     run_devil_mutation.py --list
-    run_devil_mutation.py --mutants 3 --seeds 1,2,3 --cases 150
+    run_devil_mutation.py --check-only
+    run_devil_mutation.py --repo ../mooncompiler-mutation --mutants 3 --seeds 1,2,3 --cases 150
 """
 
 from __future__ import annotations
@@ -32,33 +33,33 @@ SUITE = SCRIPT_ROOT / "qualification" / "suite"
 # whole-commit revert would erase the instrument that is meant to kill the
 # mutant.  The inventory deliberately spans independent Devil families.
 MUTANT_EXCLUSIONS = [
-    ("834529910", "subsumed",
+    ("d260ca1d7", "subsumed",
      "the current deterministic 2^32/33/47/63 matrix stays correct after the "
      "old reverse diff, so that diff no longer revives an observable defect"),
-    ("a5ba6ebfd", "code-shape",
+    ("532371a00", "code-shape",
      "the repair removes a spurious local-unwind call without changing runtime "
      "semantics; its witness is the Win64 assembly gate, not Devil"),
 ]
 
 MUTANTS = [
-    ("5d09431ad", "nested", "lang,capture,inl", "Isolate expression context in nested routine bodies"),
-    ("14f3b1cb2", "capture", "capture,lang", "Preserve complex Delphi with lvalue captures"),
-    ("71b8f984c", "unit", "unit,ppu,gen", "Preserve source context during generic PPU replay"),
-    ("6513e5e84", "flow", "flow,opt", "Preserve runtime loop bounds through x86 peephole passes"),
-    ("1520d8009", "exc", "exc,flow,opt", "Keep Win64 SEH loops safe and eligible for unrolling"),
-    ("3d09f43f0", "expr", "expr,cmp,pick", "Match Delphi mixed UInt64 integer semantics"),
-    ("6433f4d0b", "flow", "flow,abi,expr", "Normalize ByteBool or expressions in Delphi mode"),
-    ("f7be5b75a", "chk", "chk,flow", "Preserve overflow checks when lowering Inc and Dec"),
-    ("ea318b0e6", "codegen", "expr,cmp,opt", "Preserve required MOVSXD after x86 arithmetic"),
-    ("9d9e8e802", "unary", "unary,expr", "Match Delphi Hi and Lo byte semantics"),
-    ("911d70a32", "set", "set,abi", "Match Delphi set storage and field alignment"),
-    ("3c273a696", "float", "float,flow", "Keep inclusive floating selections branch-exact"),
-    ("ddca7b059", "pick", "pick,call,lang", "Rank var/out by pure addressability"),
-    ("fef5b2c9b", "lang", "lang,lit,unit,rtllib", "Materialize resourcestring typed constants"),
-    ("c64038380", "asm", "asm,call", "Match Delphi frames for implicit x64 asm"),
-    ("858f10c27", "opt", "opt,flow", "Invalidate loop scalars across opaque effects"),
-    ("b86784a61", "lang", "lang,rtllib", "Dereference custom Variant carriers consistently"),
-    ("4d5a3bfae", "life", "life,call,abi", "Release open-array carriers through throwing Finalize"),
+    ("3ebc40ec6", "nested", "lang,capture,inl", "Isolate expression context in nested routine bodies"),
+    ("bd31b2215", "capture", "capture,lang", "Preserve complex Delphi with lvalue captures"),
+    ("fdc3fe589", "unit", "unit,ppu,gen", "Preserve source context during generic PPU replay"),
+    ("97d756c49", "flow", "flow,opt", "Preserve runtime loop bounds through x86 peephole passes"),
+    ("1887103ad", "exc", "exc,flow,opt", "Keep Win64 SEH loops safe and eligible for unrolling"),
+    ("73c271de3", "expr", "expr,cmp,pick", "Match Delphi mixed UInt64 integer semantics"),
+    ("8d7b8f843", "flow", "flow,abi,expr", "Normalize ByteBool or expressions in Delphi mode"),
+    ("a09e12215", "chk", "chk,flow", "Preserve overflow checks when lowering Inc and Dec"),
+    ("6ba97ecf5", "codegen", "expr,cmp,opt", "Preserve required MOVSXD after x86 arithmetic"),
+    ("0443351d9", "unary", "unary,expr", "Match Delphi Hi and Lo byte semantics"),
+    ("cf67d55ec", "set", "set,abi", "Match Delphi set storage and field alignment"),
+    ("ee72ec733", "float", "float,flow", "Keep inclusive floating selections branch-exact"),
+    ("cc0a6ebff", "pick", "pick,call,lang", "Rank var/out by pure addressability"),
+    ("68b22a332", "lang", "lang,lit,unit,rtllib", "Materialize resourcestring typed constants"),
+    ("6ad9b1bf2", "asm", "asm,call", "Match Delphi frames for implicit x64 asm"),
+    ("1dc18026c", "opt", "opt,flow", "Invalidate loop scalars across opaque effects"),
+    ("46517131a", "lang", "lang,rtllib", "Dereference custom Variant carriers consistently"),
+    ("97971e5ab", "life", "life,call,abi", "Release open-array carriers through throwing Finalize"),
 ]
 
 # Some defects only exist in a particular compilation topology.  Layers name
@@ -66,7 +67,7 @@ MUTANTS = [
 # surface real.  A generic PPU-replay mutant cannot be measured by compiling
 # all units from source in one compiler process.
 MUTANT_GATE_ARGS = {
-    "71b8f984c": ("--separate-units", "--ppu-reuse"),
+    "fdc3fe589": ("--separate-units", "--ppu-reuse"),
 }
 
 # Later causal repairs may legitimately rewrite the same source hunk, so the
@@ -74,10 +75,10 @@ MUTANT_GATE_ARGS = {
 # current-tree semantic mutation for those cases instead of silently dropping
 # them or counting a patch conflict as a kill.
 MUTANT_PATCH_FILES = {
-    "9d9e8e802": "hilo-delphi-semantics.diff",
-    "858f10c27": "opaque-loop-scalar-effects.diff",
-    "b86784a61": "custom-variant-carrier.diff",
-    "4d5a3bfae": "openarray-finalize-throw.diff",
+    "0443351d9": "hilo-delphi-semantics.diff",
+    "1dc18026c": "opaque-loop-scalar-effects.diff",
+    "46517131a": "custom-variant-carrier.diff",
+    "97971e5ab": "openarray-finalize-throw.diff",
 }
 
 PRODUCT_PATHS = ("compiler", "rtl", "packages")
@@ -160,9 +161,16 @@ def apply_product_mutation(sha: str, check_only: bool = False) -> tuple[bool, st
             "utf-8", errors="replace")
         return proc.returncode == 0, detail
     else:
+        # A dangling pre-rewrite object may exist locally but not in a fresh
+        # clone. Commit-derived mutations must belong to the tested ancestry.
+        code, detail = git(["merge-base", "--is-ancestor", sha, "HEAD"])
+        if code != 0:
+            return False, f"repair {sha} is unavailable in HEAD ancestry: {detail.strip()}"
         code, patch = git(["show", "--format=", "--binary", sha, "--",
                            *PRODUCT_PATHS])
-        if code != 0 or not patch.strip():
+        if code != 0:
+            return False, f"cannot read repair {sha}: {patch.strip()}"
+        if not patch.strip():
             return False, "repair has no product patch"
         command = ["git", "apply", "--reverse", "--whitespace=nowarn"]
     if check_only:
@@ -215,6 +223,8 @@ def main() -> None:
     p.add_argument("--gate-timeout", type=int, default=1800)
     p.add_argument("--report", type=Path)
     p.add_argument("--list", action="store_true")
+    p.add_argument("--check-only", action="store_true",
+                   help="check ancestry and patch applicability without modifying files or building")
     p.add_argument("--only", default="", help="comma separated commit shas")
     p.add_argument("--all-layers", action="store_true",
                    help="stress mode: run every Devil layer for every mutant")
@@ -233,7 +243,7 @@ def main() -> None:
             print(f"  -  {sha}  excluded:{kind:10s}  {reason}")
         return
 
-    if not args.repo:
+    if not args.repo and not args.check_only:
         raise SystemExit(
             "--repo is required: mutation uses git revert/reset and must run "
             "in an explicitly disposable clone"
@@ -241,12 +251,12 @@ def main() -> None:
 
     # untracked Devil files are fine; only modified tracked files would be
     # swallowed by the revert/restore cycle
-    code, status = git(["status", "--porcelain", "--untracked-files=no"])
-    if status.strip():
-        print("working tree is dirty; mutation reverts and hard-resets the tree,"
-              " which would destroy uncommitted work")
-        print(status)
-        sys.exit(2)
+    if not args.check_only:
+        code, status = git(["status", "--porcelain", "--untracked-files=no"])
+        if code != 0 or status.strip():
+            print("mutation requires a clean tracked working tree for its hard-reset cycle")
+            print(status)
+            sys.exit(2)
 
     # findings the clean compiler already produces are noise for every mutant:
     # only what a mutant adds on top of them says Devil saw the defect
@@ -264,6 +274,10 @@ def main() -> None:
             print(json.dumps({"outcome": "invalid-conflict", **row},
                              ensure_ascii=False))
         raise SystemExit("mutation inventory contains non-applicable patches")
+
+    if args.check_only:
+        print(f"DEVIL_MUTATION_CHECK applicable={len(MUTANTS)}/{len(MUTANTS)}; no builds or mutations performed")
+        return
 
     print("building the clean compiler in the disposable tree")
     built, build_log = rebuild(args.build_timeout)

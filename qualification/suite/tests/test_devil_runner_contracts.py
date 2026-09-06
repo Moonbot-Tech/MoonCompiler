@@ -628,8 +628,8 @@ Fatal: Compilation aborted
 
     def test_mutation_baseline_includes_compilation_topology(self) -> None:
         selected = [
-            ("71b8f984c", "unit", "unit,ppu,gen", "ppu replay"),
-            ("6513e5e84", "flow", "flow,opt", "runtime bounds"),
+            ("fdc3fe589", "unit", "unit,ppu,gen", "ppu replay"),
+            ("97d756c49", "flow", "flow,opt", "runtime bounds"),
         ]
         self.assertEqual(
             run_devil_mutation.baseline_configs(selected, False),
@@ -641,8 +641,7 @@ Fatal: Compilation aborted
         mutation_dir = DEVIL / "mutations"
         self.assertEqual(
             set(run_devil_mutation.MUTANT_PATCH_FILES),
-            {"9d9e8e802", "858f10c27", "b86784a61",
-             "4d5a3bfae"},
+            {"0443351d9", "1dc18026c", "46517131a", "97971e5ab"},
         )
         for patch_name in run_devil_mutation.MUTANT_PATCH_FILES.values():
             patch = mutation_dir / patch_name
@@ -658,8 +657,43 @@ Fatal: Compilation aborted
         mutants = {row[0]: row for row in run_devil_mutation.MUTANTS}
         exclusions = {row[0]: row for row in run_devil_mutation.MUTANT_EXCLUSIONS}
         self.assertFalse(mutants.keys() & exclusions.keys())
-        self.assertIn("lit", mutants["fef5b2c9b"][2].split(","))
-        self.assertEqual(exclusions["a5ba6ebfd"][1], "code-shape")
+        self.assertIn("lit", mutants["68b22a332"][2].split(","))
+        self.assertEqual(exclusions["532371a00"][1], "code-shape")
+
+    def test_mutation_rejects_missing_or_dangling_repair_before_apply(self) -> None:
+        for code, log in ((1, ""), (128, "fatal: Not a valid commit name")):
+            with self.subTest(code=code), mock.patch.object(
+                    run_devil_mutation, "git", return_value=(code, log)) as git:
+                valid, detail = run_devil_mutation.apply_product_mutation("old-repair", check_only=True)
+                self.assertFalse(valid)
+                self.assertIn("old-repair is unavailable in HEAD ancestry", detail)
+                git.assert_called_once_with(["merge-base", "--is-ancestor", "old-repair", "HEAD"])
+
+    def test_mutation_check_only_never_builds_or_changes_files(self) -> None:
+        with (mock.patch.object(sys, "argv", ["mutation", "--check-only"]),
+              mock.patch.object(run_devil_mutation, "git") as git,
+              mock.patch.object(run_devil_mutation, "rebuild") as rebuild,
+              mock.patch.object(run_devil_mutation, "apply_product_mutation",
+                                return_value=(True, "")) as apply,
+              redirect_stdout(io.StringIO()) as output):
+            run_devil_mutation.main()
+        self.assertIn("applicable=18/18", output.getvalue())
+        self.assertEqual(apply.call_args_list, [
+            mock.call(row[0], check_only=True) for row in run_devil_mutation.MUTANTS
+        ])
+        git.assert_not_called()
+        rebuild.assert_not_called()
+
+    def test_mutation_check_only_reports_invalid_inventory_without_building(self) -> None:
+        with (mock.patch.object(sys, "argv", ["mutation", "--check-only"]),
+              mock.patch.object(run_devil_mutation, "rebuild") as rebuild,
+              mock.patch.object(run_devil_mutation, "apply_product_mutation",
+                                return_value=(False, "missing repair")),
+              redirect_stdout(io.StringIO()) as output):
+            with self.assertRaisesRegex(SystemExit, "non-applicable patches"):
+                run_devil_mutation.main()
+        self.assertIn("missing repair", output.getvalue())
+        rebuild.assert_not_called()
 
 
 if __name__ == "__main__":
