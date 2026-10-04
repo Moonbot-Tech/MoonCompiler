@@ -15,6 +15,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SEMANTIC = ROOT / "RTL-test" / "semantic"
+SURFACE_GATE = ROOT / "RTL-test" / "surface" / "check_surface.py"
+PROFILE_GATE = ROOT / "qualification" / "build-driver" / "rtl_profile_gate.py"
+# The byte side of a runtime oracle: the linked executable of the source
+# must also pass the gate (every return address as the Win64 unwinder reads it).
+EXECUTABLE_GATES = {
+    "win64_trailing_call_semantic": ROOT / "qualification" / "build-driver" / "pdata_tail_gate.py",
+}
 MM = ROOT / "runtime" / "mm" / "mormot.core.fpcx64mm.pas"
 MARKER = re.compile(r"WriteLn\(\s*'([A-Z0-9_]*(?:PASS|OK))'")
 TARGET = re.compile(r"\{\s*%TARGET=(win64|linux)\s*\}", re.IGNORECASE)
@@ -35,8 +42,29 @@ REQUIRED_O3_CALL_PATTERNS = {
     "inline_managed_locals_semantic": (
         r"^\s*call[^\r\n]*_\$\$_APPENDGLOBAL\$ANSICHAR\s*$",
     ),
+    "unicode_equality_codegen": (
+        r"^\s*call[^\r\n]*FPC_UNICODESTR_COMPARE_EQUAL_CONTENT",
+    ),
+    # The unconditional post-call checker also passes the semantic oracle;
+    # require the buffered entries so qualification covers the accepted path.
+    "text_io_predicate_equivalence_semantic": (
+        r"^\s*call[^\r\n]*fpc_text_eof_checked\b",
+        r"^\s*call[^\r\n]*fpc_text_eoln_checked\b",
+        r"^\s*call[^\r\n]*fpc_text_seekeof_checked\b",
+        r"^\s*call[^\r\n]*fpc_text_seekeoln_checked\b",
+    ),
 }
 FORBIDDEN_O3_CALL_PATTERNS.update({
+    # Forwarding a fresh managed function result transfers an existing owner;
+    # the borrowed-source safety gate must not restore a redundant assignment.
+    "inline_fresh_managed_result_codegen": (
+        r"^\s*call[^\r\n]*FPC_DYNARRAY_ASSIGN",
+    ),
+    # x86-64 lowers the pointer and length fast paths into the caller; only
+    # equal-length, distinct payloads reach the content-only helper.
+    "unicode_equality_codegen": (
+        r"^\s*call[^\r\n]*FPC_UNICODESTR_COMPARE_EQUAL(?:\s|$)",
+    ),
     # Comparing an Ansi/UTF-8/Short/Wide string with an empty literal only
     # needs its length.  Promoting the non-empty operand to UnicodeString is
     # both unnecessary and, for a large RawByteString, an O(n) temporary.
@@ -64,14 +92,26 @@ FORBIDDEN_O3_CALL_PATTERNS.update({
     ),
 })
 SOURCE_OPTIONS = {
+    "dictionary_factory_cache_semantic": ("-dENABLE_METHODS_WITH_TEnumerableWithPointers",),
     "variant_cardinal_semantic": (
         f"-Fi{ROOT / 'packages' / 'rtl-objpas' / 'src' / 'win'}",
     ),
     "mm_finalization_lifetime_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
     "mm_finalization_leak_report_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
     "openarray_finalize_throw_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
+    "mm_hotpath_stress_semantic": ("-dFPCMM_REPORTMEMORYLEAKS",),
 }
 CURRENT_TREE_UNIT_DIRS = {
+    "conversion_api_semantic": (
+        ROOT / "packages" / "rtl-objpas" / "src" / "inc",
+        ROOT / "packages" / "rtl-objpas" / "src" / ("win" if os.name == "nt" else "unix"),
+        ROOT / "packages" / "rtl-objpas" / "src" / "x86_64",
+    ),
+    "variant_unicode_semantic": (
+        ROOT / "packages" / "rtl-objpas" / "src" / "inc",
+        ROOT / "packages" / "rtl-objpas" / "src" / ("win" if os.name == "nt" else "unix"),
+        ROOT / "packages" / "rtl-objpas" / "src" / "x86_64",
+    ),
     # Cardinal conversion spans the System operator and the rtl-objpas
     # Variant manager.  Compile the latter from the current tree so a stale
     # installed Variants PPU cannot hide half of the repair.
@@ -89,20 +129,67 @@ CURRENT_TREE_UNIT_DIRS = {
     # WaitForAll/WaitForAny and the completion callback race live in the
     # imported Delphi-compatible threading unit, not in an installed RTL PPU.
     "task_wait_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    "task_running_cancel_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    "parallel_contracts_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    "aggregate_exception_enumerator_semantic": ROOT / "packages" / "vcl-compat" / "src",
     "ioutils_api_semantic": ROOT / "packages" / "vcl-compat" / "src",
     "rtl_api_product_semantic": ROOT / "packages" / "vcl-compat" / "src",
     "rtti_invoke_product_semantic": ROOT / "packages" / "vcl-compat" / "src",
     "thread_pool_lifecycle_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    "thread_pool_idle_worker_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    "thread_pool_delivery_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    "sync_handle_lifetime_semantic": (
+        ROOT / "packages" / "fcl-base" / "src",
+        ROOT / "packages" / "vcl-compat" / "src",
+    ),
+    "thread_pool_limits_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    "thread_pool_blocked_growth_semantic": ROOT / "packages" / "vcl-compat" / "src",
     # TJSONByteReader lives in packages/vcl-compat System.JSON; without this
     # the pin would silently reuse the installed PPU.
     "json_byte_reader_semantic": ROOT / "packages" / "vcl-compat" / "src",
     # TNetEncoding stream/byte repairs live in packages/vcl-compat.
     "net_encoding_streams_semantic": ROOT / "packages" / "vcl-compat" / "src",
+    # The flat TDictionary path and the notification flag live in
+    # packages/rtl-generics; compile Generics.Collections from the tree so
+    # an installed PPU of an older dictionary cannot pass for it.
+    "dictionary_flat_semantic": ROOT / "packages" / "rtl-generics" / "src",
+    "dictionary_sparse_ordinal_semantic": ROOT / "packages" / "rtl-generics" / "src",
+    "dictionary_rehash_ownership_semantic": ROOT / "packages" / "rtl-generics" / "src",
+    "list_insert_reserved_semantic": ROOT / "packages" / "rtl-generics" / "src",
+    "dictionary_factory_cache_semantic": ROOT / "packages" / "rtl-generics" / "src",
     "html_encoding_spans_semantic": ROOT / "packages" / "vcl-compat" / "src",
     "text_stream_encoding_semantic": (
         ROOT / "packages" / "fcl-base" / "src",
         ROOT / "packages" / "vcl-compat" / "src",
     ),
+}
+CURRENT_TREE_UNIT_FILES = {
+    "monitor_data_publication_semantic": (
+        ROOT / "packages" / "rtl-objpas" / "src" / "inc" / "fpmonitor.pp",
+        ROOT / "packages" / "rtl-objpas" / "src" / "win" / "fpwinmonitor.pp",
+    ),
+    # The zero-timeout overloads live in SyncObjs itself.  Test that source
+    # without shadowing the rest of fcl-base with unbuilt units.
+    "lightweight_mrew_semantic": (
+        ROOT / "packages" / "fcl-base" / "src" / "syncobjs.pp",
+    ),
+    "spin_overloads_semantic": (
+        ROOT / "packages" / "fcl-base" / "src" / "syncobjs.pp",
+    ),
+    # Stage only StrUtils itself.  Exposing its whole source directory would
+    # also shadow unrelated installed units such as Variants.
+    "strutils_surface_semantic": (
+        ROOT / "packages" / "rtl-objpas" / "src" / "inc" / "strutils.pp",
+    ),
+    # StartsText / EndsText / ContainsText / ReplaceText of the product
+    # String live in StrUtils; the SysUtils and Classes parts of the same
+    # test come from the installed toolchain.
+    "text_search_locale_semantic": (
+        ROOT / "packages" / "rtl-objpas" / "src" / "inc" / "strutils.pp",
+    ),
+}
+PPU_ONLY_UNITS = {
+    "managed_result_ppu_semantic": ("semtrack", "semmopreload"),
 }
 REQUIRED_RUNTIME_PATTERNS = {
     "mm_finalization_lifetime_semantic": (
@@ -114,12 +201,21 @@ REQUIRED_RUNTIME_PATTERNS = {
         r"^ small block leak x1 of size=",
         r"^FPCMM_REPORTMEMORYLEAKS_DONE$",
     ),
+    "mm_hotpath_stress_semantic": (
+        r"^FPCMM_REPORTMEMORYLEAKS_BEGIN$",
+        r"^FPCMM_REPORTMEMORYLEAKS_DONE$",
+    ),
 }
 FORBIDDEN_RUNTIME_PATTERNS = {
     "mm_finalization_lifetime_semantic": (
         r"small block leak|medium block leak|large block leak",
     ),
     "openarray_finalize_throw_semantic": (
+        r"small block leak|medium block leak|large block leak",
+    ),
+    # the cross-thread stress hands every block to another thread for the
+    # free: a block lost on a foreign-thread path shows up in the census
+    "mm_hotpath_stress_semantic": (
         r"small block leak|medium block leak|large block leak",
     ),
 }
@@ -160,18 +256,23 @@ NAMESPACES = [
     "-UaSystem.IniFiles=IniFiles",
     "-UaSystem.SysConst=SysConst",
     "-UaSystem.RTLConsts=RTLConsts",
+    "-UaZLib=System.ZLib",
+    "-UaZip=System.Zip",
 ]
 
 
 def toolchain() -> tuple[Path, Path, list[str], str]:
+    # RTL profile stand: MOONBOT_TOOLCHAIN selects an alternative installed
+    # toolchain directory (same layout as toolchain).
+    stand = Path(os.environ["MOONBOT_TOOLCHAIN"]) if os.environ.get("MOONBOT_TOOLCHAIN") else None
     if os.name == "nt":
-        base = ROOT / ".moonbot" / "toolchain" / "bin" / "x86_64-win64"
-        return base / "fpc.exe", base / "fpc.cfg", ["-Px86_64", "-Twin64"], ".exe"
+        base = (stand or ROOT / "toolchain") / "bin" / "x86_64-win64"
+        return base / "fpc.exe", base / "moon-base.cfg", ["-Px86_64", "-Twin64"], ".exe"
     if sys.platform == "linux" and os.uname().machine == "x86_64":
-        base = ROOT / ".moonbot" / "toolchain"
+        base = stand or ROOT / "toolchain"
         return (
             base / "bin" / "fpc",
-            base / "etc" / "fpc.cfg",
+            base / "etc" / "moon-base.cfg",
             ["-Px86_64", "-Tlinux", "-dPOSIX"],
             "",
         )
@@ -201,10 +302,34 @@ def main() -> int:
     parser.add_argument("--only", help="regular expression for source stem")
     args = parser.parse_args()
 
+    surface = execute([sys.executable, str(SURFACE_GATE)])
+    if surface.returncode != 0:
+        print(surface.stdout, file=sys.stderr)
+        raise RuntimeError("RTL source surface gate failed")
+    print(surface.stdout, end="")
+
     compiler, config, target, executable_suffix = toolchain()
     for required in (compiler, config, MM):
         if not required.is_file():
             raise RuntimeError(f"required product file is missing: {required}")
+    if os.name != "nt":
+        # RTTI Invoke links libffi on Linux (System.JSON.Serializers uses
+        # ffi.manager); ld needs the unversioned libffi.so of libffi-dev.
+        libffi = execute(["gcc", "-print-file-name=libffi.so"]).stdout.strip()
+        if not Path(libffi).is_file():
+            raise RuntimeError(
+                "libffi development linker input is missing "
+                "(Debian/Ubuntu: apt-get install libffi-dev)"
+            )
+
+    profile_command = [sys.executable, str(PROFILE_GATE)]
+    if selected_toolchain := os.environ.get("MOONBOT_TOOLCHAIN"):
+        profile_command += ["--toolchain", selected_toolchain]
+    profile = execute(profile_command)
+    if profile.returncode != 0:
+        print(profile.stdout, file=sys.stderr)
+        raise RuntimeError("RTL profile gate failed")
+    print(profile.stdout, end="")
 
     sources = sorted(SEMANTIC.glob("*.dpr"))
     if args.only:
@@ -222,9 +347,7 @@ def main() -> int:
     if not sources:
         raise RuntimeError("no RTL semantic sources selected")
 
-    state = ROOT / ".moonbot"
-    state.mkdir(exist_ok=True)
-    work = Path(tempfile.mkdtemp(prefix="rtl-test-", dir=state))
+    work = Path(tempfile.mkdtemp(prefix="rtl-test-"))
     passed = 0
     try:
         for source in sources:
@@ -240,6 +363,30 @@ def main() -> int:
                 unit_dirs = CURRENT_TREE_UNIT_DIRS.get(source.stem, ())
                 if isinstance(unit_dirs, Path):
                     unit_dirs = (unit_dirs,)
+                unit_files = CURRENT_TREE_UNIT_FILES.get(source.stem, ())
+                if unit_files:
+                    unit_stage = output / "current-units"
+                    unit_stage.mkdir()
+                    for unit_file in unit_files:
+                        shutil.copy2(unit_file, unit_stage / unit_file.name)
+                    unit_dirs = (*unit_dirs, unit_stage)
+                ppu_units = PPU_ONLY_UNITS.get(source.stem, ())
+                if ppu_units:
+                    unit_stage = output / "ppu-only"
+                    unit_stage.mkdir()
+                    for name in ppu_units:
+                        shutil.copy2(SEMANTIC / "support" / (name + ".pas"), unit_stage)
+                    producer = execute([
+                        str(compiler), "-n", f"@{config}", *LANGUAGE, *target, *NAMESPACES,
+                        *MODES[mode], "-B", f"-Fu{unit_stage}", f"-FU{unit_stage}",
+                        str(unit_stage / (ppu_units[-1] + ".pas")),
+                    ], unit_stage)
+                    if producer.returncode != 0:
+                        print(producer.stdout, file=sys.stderr)
+                        raise RuntimeError(f"PPU producer failed: {source.name} {mode}")
+                    for name in ppu_units:
+                        (unit_stage / (name + ".pas")).rename(unit_stage / (name + ".hidden"))
+                    unit_dirs = (*unit_dirs, unit_stage)
                 rebuild = [] if unit_dirs else ["-B"]
                 command = [
                     str(compiler),
@@ -265,9 +412,8 @@ def main() -> int:
                     *NAMESPACES,
                     f"-Fu{SEMANTIC}",
                     f"-Fi{SEMANTIC}",
-                    f"-Fu{SEMANTIC / 'support'}",
-                    f"-Fi{SEMANTIC / 'support'}",
-                    *(f"-Fu{unit_dir}" for unit_dir in unit_dirs),
+                    *([] if ppu_units else [f"-Fu{SEMANTIC / 'support'}", f"-Fi{SEMANTIC / 'support'}"]),
+                    *(option for unit_dir in unit_dirs for option in (f"-Fu{unit_dir}", f"-Fi{unit_dir}")),
                     f"-FU{output}",
                     f"-FE{output}",
                     *MODES[mode],
@@ -310,6 +456,11 @@ def main() -> int:
                         f"runtime lifecycle oracle failed: {source.name} {mode} "
                         f"missing={missing_runtime} forbidden={forbidden_runtime}"
                     )
+                if gate := EXECUTABLE_GATES.get(source.stem):
+                    checked = execute([sys.executable, str(gate), str(executable)])
+                    if checked.returncode != 0:
+                        print(checked.stdout, file=sys.stderr)
+                        raise RuntimeError(f"executable gate failed: {source.name} {mode}")
                 if mode == "o3" and source.stem in (
                     FORBIDDEN_O3_ASM.keys()
                     | FORBIDDEN_O3_CALL_PATTERNS.keys()
@@ -351,6 +502,9 @@ def main() -> int:
                         )
                 passed += 1
                 print(f"PASS {source.name} {mode} {marker}", flush=True)
+                # nothing reads a passed row's build again: the free space
+                # a run needs is one row, not the whole matrix
+                shutil.rmtree(output, ignore_errors=True)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 

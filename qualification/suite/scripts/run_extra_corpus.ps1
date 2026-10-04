@@ -1,6 +1,6 @@
 param(
-  [string]$Compiler = "$PSScriptRoot\..\..\..\.moonbot\toolchain\bin\x86_64-win64\fpc.exe",
-  [string]$Config = "$PSScriptRoot\..\..\..\.moonbot\toolchain\bin\x86_64-win64\fpc.cfg"
+  [string]$Compiler = "$PSScriptRoot\..\..\..\toolchain\bin\x86_64-win64\fpc.exe",
+  [string]$Config = "$PSScriptRoot\..\..\..\toolchain\bin\x86_64-win64\moon-base.cfg"
 )
 
 $ErrorActionPreference = 'Stop'

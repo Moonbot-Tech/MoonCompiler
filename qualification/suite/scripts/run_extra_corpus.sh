@@ -3,8 +3,8 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 REPO=$(cd "$ROOT/../.." && pwd)
-FPC=${1:-$REPO/.moonbot/toolchain/bin/fpc}
-CFG=${2:-$REPO/.moonbot/toolchain/etc/fpc.cfg}
+FPC=${1:-$REPO/toolchain/bin/fpc}
+CFG=${2:-$REPO/toolchain/etc/moon-base.cfg}
 OUT=$REPO/.qualification/extra-corpus
 
 rm -rf "$OUT"

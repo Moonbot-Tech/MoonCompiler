@@ -416,6 +416,46 @@ class RunnerContractsTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             runner.require_same_upstream_test_set(reference, current, "compiler")
 
+    def test_upstream_jobs_are_capped_by_available_cpus(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ("fpc", "host-fpc", "host.cfg"):
+                (root / name).write_bytes(b"")
+            (root / "expected.json").write_text(
+                runner.json.dumps({"schema": 2, "outcomes": {"O2": {}}}),
+                encoding="utf-8",
+            )
+            upstream = {
+                "path": ".", "expected_outcomes": "expected.json",
+                "host_driver": "host-fpc", "host_config": "host.cfg",
+            }
+            manifest = {"compilers": {"c": {"driver": "fpc"}}, "upstream": upstream}
+            for jobs, cpus, expected in ((27, 12, "-j12"), (27, 36, "-j27")):
+                commands: list[list[str]] = []
+
+                def process(command: list[str], *_args: object) -> tuple:
+                    # the source cleanup passes, the suite run ends the case
+                    commands.append(command)
+                    return (0 if len(commands) == 1 else 2), False, 0.0
+
+                upstream["jobs"] = jobs
+                writer = SimpleNamespace(run_dir=root / f"run-{cpus}")
+                with self.subTest(cpus=cpus):
+                    with mock.patch.object(runner, "ROOT", root), mock.patch.object(
+                        runner.os, "sched_getaffinity", create=True,
+                        return_value=set(range(cpus)),
+                    ), mock.patch.object(
+                        runner, "run_process", side_effect=process,
+                    ), self.assertRaisesRegex(RuntimeError, "core suite failed"):
+                        runner.run_upstream_case(writer, manifest, "c", "O2", [])
+                    self.assertIn(expected, commands[1])
+            upstream["jobs"] = 0
+            writer = SimpleNamespace(run_dir=root / "run-0")
+            with mock.patch.object(runner, "ROOT", root), self.assertRaisesRegex(
+                RuntimeError, "invalid upstream job count: 0",
+            ):
+                runner.run_upstream_case(writer, manifest, "c", "O2", [])
+
     def test_upstream_policy_failure_requires_exact_detail(self) -> None:
         detail = {
             "failure_class": "missing_unit",
@@ -478,13 +518,75 @@ class RunnerContractsTest(unittest.TestCase):
         self.assertFalse(is_known)
 
     def test_mormot_accepts_only_proven_environment_exit(self) -> None:
-        self.assertEqual(runner.mormot_suite_result(0, 0, 0, 0), "pass")
-        self.assertEqual(runner.mormot_suite_result(1, 1, 1, 0), "pass")
-        self.assertEqual(runner.mormot_suite_result(1, 0, 0, 0), "run_fail")
-        self.assertEqual(runner.mormot_suite_result(217, 0, 0, 0), "run_fail")
-        self.assertEqual(runner.mormot_suite_result(217, 1, 1, 0), "run_fail")
-        self.assertEqual(runner.mormot_suite_result(0, 1, 0, 1), "run_fail")
-        self.assertEqual(runner.mormot_suite_result(1, 2, 1, 1), "run_fail")
+        self.assertEqual(runner.mormot_suite_result(0, 0, 0, 0, []), "pass")
+        self.assertEqual(runner.mormot_suite_result(1, 1, 1, 0, []), "pass")
+        self.assertEqual(runner.mormot_suite_result(1, 0, 0, 0, []), "run_fail")
+        self.assertEqual(runner.mormot_suite_result(217, 0, 0, 0, []), "run_fail")
+        self.assertEqual(runner.mormot_suite_result(217, 1, 1, 0, []), "run_fail")
+        # an exception nobody handled also exits with 1 (as in Delphi); its
+        # report in the run log keeps it a failure
+        self.assertEqual(runner.mormot_suite_result(1, 1, 1, 0, [], True), "run_fail")
+        self.assertEqual(runner.mormot_suite_result(1, 0, 0, 0, [], True), "run_fail")
+        self.assertEqual(runner.mormot_suite_result(0, 1, 0, 1, []), "run_fail")
+        self.assertEqual(runner.mormot_suite_result(1, 2, 1, 1, []), "run_fail")
+        raised = ["Core base - Debugging", "ExceptionOS EAccessViolation at 5f43ca"]
+        self.assertEqual(runner.mormot_suite_result(1, 1, 1, 0, raised), "run_fail")
+        self.assertEqual(runner.mormot_suite_result(0, 0, 0, 0, raised), "run_fail")
+
+    def test_mormot_method_exception_is_a_failure(self) -> None:
+        # Excerpts of real reports: the corpus-2026 O3 run of No. 53 and the
+        # 2023 framework, whose methods raised without a failed assertion.
+        reports = {
+            "2026": (
+                "  - TSynValidate: 879 assertions passed  163us\n"
+                "! Core base - Debugging\n"
+                "! ExceptionOS EAccessViolation at 5f43ca mormot.core.log.pas "
+                "SYSLOGMESSAGE (8493): 2026-09-25 13:08:51 []\n"
+                "  Total failed: 0 / 119,300,595 - Core base PASSED  3.90s\n"
+                "!  - DNS and LDAP: 1 / 3,963 FAILED  750.62ms\n"
+                "Total assertions failed for all test suits:  1 / 201,286,795\n"
+                "! Some tests FAILED: please correct the code.\n",
+                [
+                    "Core base - Debugging",
+                    "ExceptionOS EAccessViolation at 5f43ca mormot.core.log.pas "
+                    "SYSLOGMESSAGE (8493): 2026-09-25 13:08:51 []",
+                ],
+            ),
+            "2023": (
+                "! Core base - Debugging\n"
+                "! Exception EAccessViolation raised with messsage:\n"
+                "!  Access violation\n"
+                "  Total failed: 0 / 1,731  - Core base PASSED  174us\n"
+                "Total assertions failed for all test suits:  0 / 1,731\n"
+                "! Some tests FAILED: please correct the code.\n",
+                [
+                    "Core base - Debugging",
+                    "Exception EAccessViolation raised with messsage:",
+                    "Access violation",
+                ],
+            ),
+            "clean": (
+                "  Total failed: 0 / 1,800 - Core base PASSED  32us\n"
+                "Total assertions failed for all test suits:  0 / 1,800\n"
+                "! All tests passed successfully.\n",
+                [],
+            ),
+        }
+        for name, (text, expected) in reports.items():
+            with self.subTest(report=name), tempfile.TemporaryDirectory() as directory:
+                report = Path(directory) / "report.txt"
+                report.write_text(text, encoding="utf-8")
+                result = runner.parse_mormot_report(report)
+                self.assertEqual(result["exceptions"], expected)
+                self.assertEqual(result["qualification_failed"], 0)
+                verdict = runner.mormot_suite_result(
+                    0 if not expected else 1,
+                    result["total_failed"],
+                    result["environment_failed"],
+                    result["qualification_failed"],
+                    result["exceptions"],
+                )
+                self.assertEqual(verdict, "run_fail" if expected else "pass")
 
     def test_mormot_product_prefix_requires_mm_then_cthreads(self) -> None:
         compiler = {"driver": "fpc", "config": "moon-base.cfg"}
@@ -541,6 +643,34 @@ class RunnerContractsTest(unittest.TestCase):
             )
             self.assertEqual(records[0]["bytes"], 9)
 
+    def test_mormot_text_runtime_input_is_its_lf_content(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixed = root / "sample.json"
+            work = root / "work"
+            work.mkdir()
+            content = b'{\n  "a": 1\n}\n'
+            spec = {
+                "name": "data/sample.json",
+                "path": "sample.json",
+                "sha256": runner.hashlib.sha256(content).hexdigest(),
+            }
+            source = {"runtime_inputs": [spec]}
+            with mock.patch.object(runner, "ROOT", root):
+                # a Linux clone and a CRLF checkout of the same blob
+                for stored in (content, content.replace(b"\n", b"\r\n")):
+                    fixed.write_bytes(stored)
+                    records = runner.install_mormot_runtime_inputs(source, work)
+                    self.assertEqual(
+                        (work / "data/sample.json").read_bytes(), content,
+                    )
+                    self.assertEqual(records[0]["sha256"], spec["sha256"])
+                fixed.write_bytes(b'{\r\n  "a": 2\r\n}\r\n')
+                with self.assertRaisesRegex(
+                    RuntimeError, f"expected {spec['sha256']}, actual [0-9a-f]{{64}}",
+                ):
+                    runner.install_mormot_runtime_inputs(source, work)
+
     def test_mormot_real_corpus_requires_all_named_benchmark_markers(self) -> None:
         manifest = runner.load_manifest()
         source = manifest["mormot"]["sources"]["compiler-corpus-2026"]
@@ -595,6 +725,19 @@ class RunnerContractsTest(unittest.TestCase):
             self.assertNotEqual(runtime, artifacts)
         finally:
             runtime.rmdir()
+
+    def test_mormot_suite_temporary_files_live_in_its_work_folder(self) -> None:
+        # The corpus TFTP test serves the folder of its temporary file and lists every file under it on
+        # its first request: that folder is the run's own, not the machine's /tmp.
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory)
+            with mock.patch.dict(runner.os.environ, {"TMPDIR": "/tmp", "QUALIFICATION_PROBE": "1"}):
+                environment = runner.mormot_run_environment(work)
+            self.assertEqual(environment["TMPDIR"], str(work / "tmp"))
+            self.assertTrue((work / "tmp").is_dir())
+            self.assertEqual(list((work / "tmp").iterdir()), [])
+            self.assertEqual(environment["QUALIFICATION_PROBE"], "1")
+            self.assertEqual(runner.mormot_run_environment(work)["TMPDIR"], str(work / "tmp"))
 
     @unittest.skipUnless(sys.platform.startswith("linux"), "Linux socket contract")
     def test_mormot_suite_runtime_is_collected_after_failure(self) -> None:

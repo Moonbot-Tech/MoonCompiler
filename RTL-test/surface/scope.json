@@ -1,0 +1,71 @@
+{
+  "schema": "mooncompiler-rtl-product-scope/v1",
+  "packages": [
+    {
+      "id": "rtl",
+      "units": [
+        "character", "charset", "classes", "cmem", "cp1250", "cp1251", "cp1252", "cp1253",
+        "cp1254", "cp1255", "cp1256", "cp1257", "cp1258", "cp3021", "cp437", "cp646",
+        "cp737", "cp775", "cp850", "cp852", "cp855", "cp856", "cp857", "cp860", "cp861",
+        "cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874", "cp8859_1",
+        "cp8859_10", "cp8859_11", "cp8859_13", "cp8859_14", "cp8859_15", "cp8859_16",
+        "cp8859_2", "cp8859_3", "cp8859_4", "cp8859_5", "cp8859_6", "cp8859_7", "cp8859_8",
+        "cp8859_9", "cpall", "cpkoi8_r", "cpkoi8_u", "cpu", "ctypes", "dos", "dynlibs",
+        "exeinfo", "extpas", "fgl", "fpintres", "fpwidestring", "getopts", "heaptrc",
+        "intrinsics", "iso7185", "lineinfo", "lnfodwrf", "macpas", "math", "messages",
+        "objpas", "rtlconsts", "sfpu128", "sfpux80", "sharemem", "signals", "softfpu",
+        "sortbase", "strings", "sysconst", "sysinit", "system", "sysutils", "types", "typinfo",
+        "ufloat128", "ufloatx80", "unicodedata", "uuchar", "windirs", "windows"
+      ]
+    },
+    {
+      "id": "rtl-objpas",
+      "units": [
+        "convutils", "dateutils", "fmtbcd", "fpmonitor", "fpwinmonitor", "nullable", "rtti",
+        "stdconvs", "strutils", "syshelpers", "system.actions", "system.math.vectors",
+        "system.timespan", "system.uiconsts", "system.uitypes", "tuples", "variants", "varutils",
+        "widestrutils"
+      ]
+    },
+    {
+      "id": "rtl-generics",
+      "units": [
+        "generics.collections", "generics.defaults", "generics.hashes", "generics.helpers",
+        "generics.memoryexpanders", "generics.strings"
+      ]
+    },
+    {
+      "id": "fcl-base",
+      "units": [
+        "advancedipc", "advancedsingleinstance", "ascii85", "avl_tree", "base64", "basenenc",
+        "blowfish", "blowfish2", "bufstream", "cachecls", "chainstream", "contnrs", "csvdocument",
+        "csvreadwrite", "custapp", "dirwatch", "eventlog", "fpexprpars", "fpobserver", "fppromise",
+        "fptemplate", "fpthreadpool", "fptimer", "gettext", "idea", "inicol", "inifiles",
+        "iostream", "lzwstream", "maskutils", "nullstream", "pascodegen", "pooledmm", "rtfpars",
+        "rttiutils", "singleinstance", "streamcoll", "streamex", "streamio", "syncobjs",
+        "uriparser", "wformat", "whtml", "wmarkdown", "wtex", "wtext"
+      ]
+    },
+    {
+      "id": "fcl-stl",
+      "units": [
+        "garrayutils", "gdeque", "ghashmap", "ghashset", "glinkedlist", "gmap", "gpriorityqueue",
+        "gqueue", "gset", "gstack", "gtree", "gutil", "gvector"
+      ]
+    },
+    {
+      "id": "vcl-compat",
+      "units": [
+        "system.analytics", "system.ansistrings", "system.credentials", "system.devices",
+        "system.diagnostics", "system.hash", "system.imagelist", "system.ioutils",
+        "system.json.builders", "system.json.converters", "system.json", "system.json.readers",
+        "system.json.serializers", "system.json.types", "system.json.utils", "system.json.writers",
+        "system.jsonconsts", "system.masks", "system.messaging",
+        "system.net.urlclient", "system.netencoding", "system.notification",
+        "system.permissions", "system.pushnotifications", "system.regularexpressions",
+        "system.regularexpressionsconsts", "system.regularexpressionscore", "system.threading",
+        "system.zlib"
+      ]
+    }
+  ]
+}

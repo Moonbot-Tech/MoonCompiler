@@ -20,6 +20,7 @@ jobs:
     outputs:
       tag: ${{ steps.tag.outputs.value }}
       version: ${{ steps.tag.outputs.version }}
+      source_sha: ${{ steps.tag.outputs.source_sha }}
     steps:
       - uses: actions/checkout@v4
       - id: tag
@@ -39,9 +40,26 @@ jobs:
           }
           echo "value=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "version=$product_version" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  qualification-proof:
+    needs: validate-tag
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require successful exact-SHA qualification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.validate-tag.outputs.source_sha }}
+        run: |
+          python3 qualification/release/verify_qualification_run.py \
+            --repository "$GITHUB_REPOSITORY" --sha "$SOURCE_SHA"
 
   linux-x86-64:
-    needs: validate-tag
+    needs: [validate-tag, qualification-proof]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
@@ -52,29 +70,75 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends \
-            make binutils fp-compiler-3.2.2
+            make binutils gcc fp-compiler-3.2.2
           test "$(fpc -iV)" = 3.2.2
       - name: Build toolchain
         run: ./build compiler
+      - name: Verify toolchain configuration, assembler and RTL profile
+        run: |
+          python3 qualification/build-driver/config_contract_gate.py
+          python3 qualification/build-driver/rtl_profile_gate.py
+      - name: Run memory-manager failure contracts
+        run: |
+          python3 qualification/memory-manager/mm_failure_gate.py \
+            --compiler toolchain/bin/ppcx64 \
+            --config toolchain/etc/moon-base.cfg \
+            --mm runtime/mm/mormot.core.fpcx64mm.pas \
+            --out .qualification/release-linux-mm-failure --group all
       - name: Pack toolchain
         run: |
           mkdir -p dist
           asset="mooncompiler-toolchain-${RELEASE_TAG}-linux-x86-64.tar.gz"
-          tar -czf "dist/$asset" -C .moonbot/toolchain .
-      - name: Install and smoke-test the archive
+          tar -czf "dist/$asset" -C toolchain .
+      - name: Smoke-test the archive as a user installs it
+        # The archive alone, outside the clone: unpack, clone MoonORMot next
+        # to it, build with plain fpc from the program's directory (the Quick
+        # Start of README.md).  No driver takes part.
+        run: |
+          asset="$PWD/dist/mooncompiler-toolchain-${RELEASE_TAG}-linux-x86-64.tar.gz"
+          smoke="$RUNNER_TEMP/smoke"
+          mkdir -p "$smoke/toolchain" "$smoke/app"
+          tar -xzf "$asset" -C "$smoke/toolchain"
+          git clone --quiet --depth 1 https://github.com/Moonbot-Tech/MoonORMot "$smoke/mormot"
+          cp examples/hello.dpr examples/zip.dpr "$smoke/app/"
+          cp RTL-test/semantic/file_resource_semantic.dpr "$smoke/app/"
+          cp tests/test/units/system/tres4.res "$smoke/app/"
+          sed -i 's|{\$R \.\./\.\./tests/test/units/system/tres4\.res}|{$R tres4.res}|' \
+            "$smoke/app/file_resource_semantic.dpr"
+          grep -q '{\$R tres4\.res}' "$smoke/app/file_resource_semantic.dpr"
+          cd "$smoke/app"
+          fpc="$smoke/toolchain/bin/fpc"
+          for profile in '' -dRELEASE; do
+            "$fpc" $profile hello.dpr
+            output=$(./hello)
+            [[ "$output" == '3 prices, sum = '* ]]
+            "$fpc" $profile zip.dpr
+            output=$(./zip)
+            [[ "$(printf '%s\n' "$output" | tail -n 1)" == ZIP_EXAMPLE_OK ]]
+            "$fpc" $profile file_resource_semantic.dpr
+            output=$(./file_resource_semantic)
+            [[ "$output" == FILE_RESOURCE_PASS ]]
+          done
+          test -d units/x86_64-linux/debug
+          test -d units/x86_64-linux/release
+      - name: Install the archive with the driver
+        # ./build toolchain ARCHIVE: the driver's own install path (archive
+        # checks, the IDE configuration for this clone, atomic swap), then the
+        # contracts over the installed copy.
         run: |
           asset="dist/mooncompiler-toolchain-${RELEASE_TAG}-linux-x86-64.tar.gz"
-          mv .moonbot/toolchain .moonbot/toolchain.built
+          mv toolchain toolchain.built
           ./build toolchain "$asset"
-          ! grep -q 'toolchain\.new\.' .moonbot/toolchain/etc/fpc.cfg
-          ! grep -q 'toolchain\.new\.' .moonbot/toolchain/ide/etc/fpc.cfg
-          test -x .moonbot/toolchain/bin/fpcres
-          test -x .moonbot/toolchain/ide/bin/fpcres
+          ! grep -q 'toolchain\.new\.' toolchain/etc/moon-base.cfg
+          ! grep -q 'toolchain\.new\.' toolchain/etc/fpc.cfg
+          test -x toolchain/bin/fpcres
+          test -x toolchain/ide/bin/fpcres
+          python3 qualification/build-driver/config_contract_gate.py
+          python3 qualification/build-driver/product_config_gate.py
+          python3 qualification/build-driver/unit_scope_gate.py
+          python3 qualification/build-driver/zlib_objects_gate.py
+          python3 qualification/build-driver/rtl_profile_gate.py
           python3 qualification/build-driver/version_contract.py
-          ./build examples/hello.dpr release
-          [[ "$(./examples/hello)" == '3 prices, sum = '* ]]
-          ./build RTL-test/semantic/file_resource_semantic.dpr release
-          [[ "$(./RTL-test/semantic/file_resource_semantic)" == 'FILE_RESOURCE_PASS' ]]
       - uses: actions/upload-artifact@v4
         with:
           name: toolchain-linux-x86-64
@@ -83,7 +147,7 @@ jobs:
           compression-level: 0
 
   win64-x86-64:
-    needs: validate-tag
+    needs: [validate-tag, qualification-proof]
     runs-on: windows-2022
     timeout-minutes: 90
     env:
@@ -100,6 +164,23 @@ jobs:
         run: |
           .\build.ps1 compiler `
             -Bootstrap "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\fpc.exe"
+      - name: Verify toolchain configuration, assembler and RTL profile
+        shell: powershell
+        run: |
+          python .\qualification\build-driver\config_contract_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'Configuration contract failed' }
+          python .\qualification\build-driver\rtl_profile_gate.py `
+            --make "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\make.exe"
+          If ($LASTEXITCODE -ne 0) { throw 'RTL profile contract failed' }
+      - name: Run memory-manager failure contracts
+        shell: powershell
+        run: |
+          python .\qualification\memory-manager\mm_failure_gate.py `
+            --compiler .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --config .\toolchain\bin\x86_64-win64\moon-base.cfg `
+            --mm .\runtime\mm\mormot.core.fpcx64mm.pas `
+            --out .\.qualification\release-win64-mm-failure --group all
+          If ($LASTEXITCODE -ne 0) { throw 'MM failure contracts failed' }
       - name: Pack toolchain
         shell: powershell
         run: |
@@ -107,36 +188,91 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           $Asset = "mooncompiler-toolchain-$env:RELEASE_TAG-win64.zip"
           [IO.Compression.ZipFile]::CreateFromDirectory(
-            (Resolve-Path '.moonbot\toolchain').Path,
+            (Resolve-Path 'toolchain').Path,
             (Join-Path (Resolve-Path dist).Path $Asset),
             [IO.Compression.CompressionLevel]::Optimal,
             $false)
-      - name: Install and smoke-test the archive
+      - name: Smoke-test the archive as a user installs it
+        # The archive alone, outside the clone: unpack, clone MoonORMot next
+        # to it, build with plain fpc from the program's directory (the Quick
+        # Start of README.md).  No driver takes part.
+        shell: powershell
+        run: |
+          $Asset = (Resolve-Path "dist\mooncompiler-toolchain-$env:RELEASE_TAG-win64.zip").Path
+          $Smoke = Join-Path $env:RUNNER_TEMP 'smoke'
+          New-Item -ItemType Directory -Force -Path "$Smoke\app" | Out-Null
+          Expand-Archive -LiteralPath $Asset -DestinationPath "$Smoke\toolchain"
+          git clone --quiet --depth 1 https://github.com/Moonbot-Tech/MoonORMot "$Smoke\mormot"
+          If ($LASTEXITCODE -ne 0) { throw 'MoonORMot clone failed' }
+          Copy-Item examples\hello.dpr, examples\zip.dpr, `
+            RTL-test\semantic\file_resource_semantic.dpr, `
+            tests\test\units\system\tres4.res "$Smoke\app"
+          $Resource = "$Smoke\app\file_resource_semantic.dpr"
+          $Text = Get-Content -Raw $Resource
+          $Patched = $Text.Replace('{$R ../../tests/test/units/system/tres4.res}', '{$R tres4.res}')
+          If ($Patched -eq $Text) { throw 'the resource smoke source no longer names tres4.res as expected' }
+          Set-Content -LiteralPath $Resource -Value $Patched -Encoding Ascii -NoNewline
+          $Fpc = "$Smoke\toolchain\bin\x86_64-win64\fpc.exe"
+          Push-Location "$Smoke\app"
+          try {
+            foreach ($Profile in @(@(), @('-dRELEASE'))) {
+              & $Fpc @Profile hello.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'hello did not compile' }
+              $Output = & .\hello.exe
+              If ($LASTEXITCODE -ne 0 -or $Output -notlike '3 prices, sum = *') {
+                throw "hello returned: $Output"
+              }
+              & $Fpc @Profile zip.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'zip did not compile' }
+              $Output = @(& .\zip.exe)
+              If ($LASTEXITCODE -ne 0 -or $Output[-1] -ne 'ZIP_EXAMPLE_OK') {
+                throw "zip returned: $Output"
+              }
+              & $Fpc @Profile file_resource_semantic.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'the resource smoke did not compile' }
+              $Output = & .\file_resource_semantic.exe
+              If ($LASTEXITCODE -ne 0 -or $Output -ne 'FILE_RESOURCE_PASS') {
+                throw "resource smoke returned: $Output"
+              }
+            }
+            If (-not (Test-Path units\x86_64-win64\debug) -or
+                -not (Test-Path units\x86_64-win64\release)) {
+              throw 'the profile unit directories are missing'
+            }
+          } finally {
+            Pop-Location
+          }
+      - name: Install the archive with the driver
+        # .\build.ps1 toolchain ARCHIVE: the driver's own install path
+        # (archive checks, atomic swap), then the contracts over the installed
+        # copy.
         shell: powershell
         run: |
           $Asset = "dist\mooncompiler-toolchain-$env:RELEASE_TAG-win64.zip"
-          Move-Item .moonbot\toolchain .moonbot\toolchain.built
+          Move-Item toolchain toolchain.built
           .\build.ps1 toolchain $Asset
           If (Select-String -Quiet -Pattern 'toolchain\.new\.' `
-              -Path .moonbot\toolchain\bin\x86_64-win64\fpc.cfg,
-                    .moonbot\toolchain\ide\bin\x86_64-win64\fpc.cfg) {
+              -Path toolchain\bin\x86_64-win64\moon-base.cfg,
+                    toolchain\bin\x86_64-win64\fpc.cfg) {
             throw 'installed configs still reference the staging path'
           }
-          If (-not (Test-Path .moonbot\toolchain\bin\x86_64-win64\fpcres.exe) -or
-              -not (Test-Path .moonbot\toolchain\ide\bin\x86_64-win64\fpcres.exe)) {
+          If (-not (Test-Path toolchain\bin\x86_64-win64\fpcres.exe) -or
+              -not (Test-Path toolchain\ide\bin\x86_64-win64\fpcres.exe)) {
             throw 'the archive does not contain the resource compiler'
           }
+          python .\qualification\build-driver\config_contract_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'Installed configuration contract failed' }
+          python .\qualification\build-driver\product_config_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'Installed product configuration gate failed' }
+          python .\qualification\build-driver\unit_scope_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'Installed unit scope gate failed' }
+          python .\qualification\build-driver\zlib_objects_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'Installed zlib objects gate failed' }
+          python .\qualification\build-driver\rtl_profile_gate.py `
+            --make "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\make.exe"
+          If ($LASTEXITCODE -ne 0) { throw 'Installed RTL profile contract failed' }
           python .\qualification\build-driver\version_contract.py
-          .\build.ps1 .\examples\hello.dpr release
-          $Output = & .\examples\hello.exe
-          If ($Output -notlike '3 prices, sum = *') {
-            throw "archive smoke returned: $Output"
-          }
-          .\build.ps1 .\RTL-test\semantic\file_resource_semantic.dpr release
-          $Output = & .\RTL-test\semantic\file_resource_semantic.exe
-          If ($Output -ne 'FILE_RESOURCE_PASS') {
-            throw "resource smoke returned: $Output"
-          }
+          If ($LASTEXITCODE -ne 0) { throw 'Installed version contract failed' }
       - uses: actions/upload-artifact@v4
         with:
           name: toolchain-win64-x86-64
@@ -145,7 +281,7 @@ jobs:
           compression-level: 0
 
   publish:
-    needs: [validate-tag, linux-x86-64, win64-x86-64]
+    needs: [validate-tag, qualification-proof, linux-x86-64, win64-x86-64]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

@@ -1,0 +1,3247 @@
+{
+  "version": 1,
+  "source_inputs": {
+    "sync": ["scripts/sync-moonormot.py", "qualification/suite/runner_manifest.json", "runtime/mm", "runtime/moonormot.need.inc"],
+    "layout_parser": ["qualification/performance/tools"],
+    "build": ["build", "build.ps1", "Makefile", "Makefile.fpc", "fpmake.pp", "fpmake_add1.inc", "fpmake_proc1.inc", "compiler", "rtl", "runtime", "packages", "installer", "scripts", "utils"],
+    "config": ["qualification/build-driver"],
+    "mm_layout": ["qualification/memory-manager", "qualification/performance/tools"],
+    "devil_light": ["qualification/suite", "tests", "qualification/release/inputs.py"],
+    "ptop_contract": ["qualification/build-driver"],
+    "version_contract": ["qualification/build-driver"],
+    "ppu_format_contract": ["qualification/build-driver"],
+    "product_config_gate": ["qualification/build-driver"],
+    "unit_scope": ["qualification/build-driver"],
+    "zlib_objects": ["qualification/build-driver", "qualification/performance/tools"],
+    "rtl_profile": ["qualification/build-driver"],
+    "compiler_selfbuild": ["qualification/build-driver"],
+    "atomic_swap": ["qualification/build-driver"],
+    "pinned_unit": ["qualification/pinned-unit"],
+    "mm_profile_contract": ["qualification/memory-manager"],
+    "medium_arenas": ["qualification/memory-manager"],
+    "extra_corpus": ["qualification/suite"],
+    "test_runner_contracts": ["qualification/suite"],
+    "test_sync_moonormot": ["qualification/suite", "scripts/sync-moonormot.py"],
+    "test_issue_tracker_runner": ["qualification/suite"],
+    "test_qualification_contracts": ["qualification/suite"],
+    "test_devil_runner_contracts": ["qualification/suite"],
+    "test_workflow_exit_codes": ["qualification/suite", ".github/workflows"],
+    "argument_transport": ["qualification/suite"],
+    "compiler_diagnostics": ["qualification/suite"],
+    "dwarf_interop": ["qualification/suite"],
+    "mm_failure": ["qualification/memory-manager"],
+    "managed_array": ["qualification/managed-array-copy"],
+    "private_ppu": ["qualification/compiler-private-ppu"],
+    "alias_lifetime": ["qualification/compiler-alias-lifetime"],
+    "consttemp": ["qualification/optimizer-core/consttemp-lifetime"],
+    "alias_reload": ["qualification/compiler-alias-lifetime"],
+    "placement": ["qualification/optimizer-core/placement", "qualification/performance/tools"],
+    "code_alignment": ["qualification/optimizer-core/placement"],
+    "rtl_asm_layout": ["qualification/build-driver", "qualification/performance/tools"],
+    "branch_pad": ["qualification/optimizer-core/placement", "qualification/performance/tools"],
+    "shl_lea": ["qualification/optimizer-core/shl-lea"],
+    "constructors": ["qualification/optimizer-core/constructors"],
+    "imm64": ["qualification/optimizer-core/imm64"],
+    "asm_numbers": ["qualification/compiler-asm-numbers"],
+    "register_width": ["qualification/optimizer-core/register-width"],
+    "loop_address": ["qualification/optimizer-core/loop-address"],
+    "loop_regvar": ["qualification/optimizer-core/loop-regvar", "tests/test/cg/tloopregvarpromote1.pp", "tests/test/cg/tloopcompareorient1.pp"],
+    "real_folds": ["qualification/optimizer-core/real-folds", "qualification/performance/tools", "tests/test/cg/tfoldruntimereal1.pp", "tests/test/cg/tobservableintrinsics1.pp", "tests/test/cg/tfloatminselect1.pp", "tests/test/cg/tdelphinegativezero1.pp", "tests/test/cg/tifminmaxtarget1.pp"],
+    "fold_guards": ["qualification/optimizer-core/fold-guards", "qualification/performance/tools", "tests/test/cg/tobservablesimplify1.pp", "tests/test/cg/trangefoldobservable1.pp", "tests/test/cg/trotatefold1.pp", "tests/test/cg/tshortboolprune1.pp", "tests/test/cg/tinlinecheckedruntime1.pp"],
+    "sqr_fold": ["qualification/optimizer-core/sqr-fold", "qualification/performance/tools"],
+    "const_register": ["qualification/optimizer-core/const-register", "qualification/performance/tools"],
+    "getter_borrow": ["qualification/optimizer-core/getter-borrow", "qualification/performance/tools"],
+    "value_in_register": ["qualification/optimizer-core/value-in-register", "qualification/performance/tools"],
+    "try_nested": ["qualification/optimizer-core/try-nested", "qualification/performance/tools"],
+    "nested_local": ["qualification/optimizer-core/nested-local", "qualification/performance/tools"],
+    "record_fields": ["qualification/optimizer-core/record-fields", "qualification/performance/tools"],
+    "block_locals": ["qualification/optimizer-core/block-locals", "qualification/performance/tools"],
+    "operand_forms": ["qualification/optimizer-core/operand-forms", "qualification/performance/tools"],
+    "pool_delivery": ["qualification/thread-pool", "RTL-test/run.py", "packages/vcl-compat/src/system.threading.pp"],
+    "pool_monitor": ["qualification/thread-pool", "RTL-test/run.py", "packages/vcl-compat/src/system.threading.pp"],
+    "divmod_pair": ["qualification/optimizer-core/divmod", "tests/test/cg/tdivmodpair1.pp"],
+    "range_loop": ["qualification/optimizer-core/range-loop", "tests/test/cg/trangeprovenloop1.pp"],
+    "memory_order": ["qualification/optimizer-core/memory-order", "qualification/performance/tools"],
+    "jump_resources": ["qualification/optimizer-core/resources"],
+    "pulse_contracts": ["qualification/performance"],
+    "tracker": ["qualification/suite"],
+    "mm_profiles": ["qualification/memory-manager"],
+    "rtl_test": ["RTL-test", "tests"],
+    "forms": ["qualification/suite"],
+    "service": ["qualification/suite"],
+    "rtl_api": ["qualification/suite"],
+    "rtti": ["qualification/suite"],
+    "win_repairs": ["qualification/suite", "tests"],
+    "namespace": ["qualification/suite"],
+    "monitor": ["qualification/suite"],
+    "exception": ["qualification/suite"],
+    "psabieh": ["qualification/suite"],
+    "linker_transport": ["qualification/suite"],
+    "prepare": ["qualification/suite"],
+    "fixtures": ["qualification/suite"],
+    "mega": ["qualification/suite"],
+    "archive_smoke": ["qualification/release/archive_smoke.py", "qualification/build-driver", "examples", "RTL-test", "tests/test/units/system/tres4.res"],
+    "devil_full": ["qualification/suite", "tests", "qualification/release/inputs.py"],
+    "mormot_current": ["qualification/suite"],
+    "upstream": ["qualification/suite", "tests"],
+    "mm_current": ["qualification/suite", "qualification/memory-manager"],
+    "mormot_mm": ["qualification/suite", "qualification/memory-manager"],
+    "lazarus": ["build", "build.ps1", "lazarus", "lazarus.ps1"],
+    "reporting": ["qualification/suite"],
+    "runtime_mormot": ["qualification/suite"],
+    "tftp": ["qualification/suite"],
+    "keccak256": ["qualification/suite"],
+    "history_audit": ["qualification/release/history_audit.py"],
+    "pulse_report": ["qualification/release/pulse_release.py", "qualification/performance"],
+    "zlib_delphi": ["qualification/performance"],
+    "controller_contracts": ["qualification/release", "qualification/suite/scripts", "qualification/effect-observe", "qualification/optimizer-core", ".github/workflows"],
+    "effect_model": ["qualification/effect-observe"],
+    "effect_identity": ["qualification/effect-observe"],
+    "licm": ["qualification/optimizer-core/f2"],
+    "exact_licm": ["qualification/optimizer-core/f2"],
+    "setcc_compare": ["qualification/optimizer-core/setcc-compare"],
+    "tail_forwarding": ["qualification/optimizer-core/tail-forwarding"],
+    "setcc_ir": ["qualification/optimizer-core/setcc-compare", "compiler"],
+    "value_forward_ir": ["qualification/optimizer-core/value-in-register", "compiler"],
+    "value_relations": ["qualification/optimizer-core/value-relations", "qualification/performance/tools"],
+    "value_relations_ir": ["qualification/optimizer-core/value-relations", "compiler"],
+    "licm_ppu": ["qualification/optimizer-core/f2"],
+    "machine_facts": ["qualification/optimizer-core/f3"],
+    "seh_regvar": ["qualification/optimizer-core/f4"],
+    "address_gvn": ["qualification/optimizer-core/f5"],
+    "managed_load_cse": ["qualification/optimizer-core/cse", "tests/test/opt/tcsemanagedload1.pp"],
+    "loop_base": ["qualification/optimizer-core/loop-base", "tests/test/cg/tloopdynarraybase1.pp"],
+    "optimizer_ppu": ["qualification/suite/scripts/run_optimizer_core_ppu_gate.py", "qualification/suite/tests/optimizer-core/ppu"],
+    "zeroext": ["qualification/suite"],
+    "win_bigobj": ["qualification/suite/scripts/run_win64_bigobj_unwind_gate.py"],
+    "linux_large_elf": ["qualification/suite/scripts/run_linux_large_elf_gate.py"],
+    "win_stack": ["qualification/win-stack-default"]
+  },
+  "jobs": [
+    {
+      "id": "sync",
+      "mode": "light",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/scripts/sync-moonormot.py",
+          "--check"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/scripts/sync-moonormot.py",
+          "--check"
+        ]
+      },
+      "needs": [],
+      "resource": "sync",
+      "estimated_seconds_by_platform": {"win64": 12, "linux": 3},
+      "timeout": 300,
+      "always_run": true,
+      "head_bound": true
+    },
+    {
+      "id": "controller_contracts",
+      "mode": "light",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "qualification/release",
+          "-p",
+          "test_*.py"
+        ],
+        "linux": [
+          "{python}",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "qualification/release",
+          "-p",
+          "test_*.py"
+        ]
+      },
+      "needs": [],
+      "resource": "controller_contracts",
+      "timeout": 120,
+      "estimated_seconds_by_platform": {"win64": 20, "linux": 20}
+    },
+    {
+      "id": "layout_parser",
+      "mode": "light",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/performance/tools/test_code_placement.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/performance/tools/test_code_placement.py"
+        ]
+      },
+      "needs": [],
+      "resource": "layout_parser",
+      "timeout": 60,
+      "expected": "OK"
+    },
+    {
+      "id": "build",
+      "mode": "light",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/build.ps1",
+          "compiler"
+        ],
+        "linux": [
+          "bash",
+          "{root}/build",
+          "compiler"
+        ]
+      },
+      "needs": [
+        "sync"
+      ],
+      "resource": "build",
+      "timeout": 3600,
+      "head_bound": false,
+      "estimated_seconds_by_platform": {"win64": 419, "linux": 369},
+      "exclusive": true
+    },
+    {
+      "id": "config",
+      "mode": "light",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/build-driver/config_contract_gate.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/build-driver/config_contract_gate.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "config",
+      "estimated_seconds_by_platform": {"win64": 8, "linux": 1},
+      "timeout": 3600,
+      "expected": "CONFIG_CONTRACT"
+    },
+    {
+      "id": "mm_layout",
+      "mode": "light",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/memory-manager/mm_layout_gate.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/memory-manager/mm_layout_gate.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "mm_layout",
+      "estimated_seconds_by_platform": {"win64": 2, "linux": 1},
+      "timeout": 3600,
+      "expected": "MM LAYOUT GATE: PASS"
+    },
+    {
+      "id": "devil_light",
+      "mode": "light",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_devil_targeted.py",
+          "light"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_devil_targeted.py",
+          "light"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "devil_light",
+      "estimated_seconds_by_platform": {"win64": 43, "linux": 55},
+      "timeout": 7200
+    },
+    {
+      "id": "ptop_contract",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/build-driver/ptop_contract.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/build-driver/ptop_contract.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "ptop_contract",
+      "estimated_seconds_by_platform": {"win64": 2, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "version_contract",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/build-driver/version_contract.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/build-driver/version_contract.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "version_contract",
+      "estimated_seconds_by_platform": {"win64": 2, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "ppu_format_contract",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/build-driver/ppu_format_contract.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/build-driver/ppu_format_contract.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "ppu_format_contract",
+      "estimated_seconds_by_platform": {"win64": 2, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "product_config_gate",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/build-driver/product_config_gate.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/build-driver/product_config_gate.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "product_config_gate",
+      "estimated_seconds_by_platform": {"win64": 24, "linux": 5},
+      "timeout": 3600
+    },
+    {
+      "id": "unit_scope",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/build-driver/unit_scope_gate.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/build-driver/unit_scope_gate.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "unit_scope",
+      "estimated_seconds_by_platform": {"win64": 3, "linux": 3},
+      "timeout": 1800,
+      "expected": "UNIT SCOPE GATE: PASS"
+    },
+    {
+      "id": "zlib_objects",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/build-driver/zlib_objects_gate.py",
+          "--objdump",
+          "{objdump}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/build-driver/zlib_objects_gate.py",
+          "--objdump",
+          "{objdump}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "zlib_objects",
+      "estimated_seconds_by_platform": {"win64": 3, "linux": 2},
+      "timeout": 600,
+      "expected": "ZLIB OBJECTS GATE: PASS"
+    },
+    {
+      "id": "rtl_profile",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/build-driver/rtl_profile_gate.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/build-driver/rtl_profile_gate.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "rtl_profile",
+      "estimated_seconds_by_platform": {"win64": 6, "linux": 4},
+      "timeout": 3600
+    },
+    {
+      "id": "compiler_selfbuild",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/build-driver/compiler_selfbuild_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{ide_cfg}",
+          "--product-config",
+          "{cfg}",
+          "--msg2inc",
+          "{msg2inc}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/build-driver/compiler_selfbuild_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{ide_cfg}",
+          "--product-config",
+          "{cfg}",
+          "--msg2inc",
+          "{msg2inc}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "compiler_selfbuild",
+      "estimated_seconds_by_platform": {"win64": 327, "linux": 97},
+      "timeout": 3600
+    },
+    {
+      "id": "atomic_swap",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/qualification/build-driver/atomic_swap.ps1"
+        ],
+        "linux": [
+          "bash",
+          "{root}/qualification/build-driver/atomic_swap.sh"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "atomic_swap",
+      "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "pinned_unit",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/qualification/pinned-unit/run.ps1"
+        ],
+        "linux": [
+          "bash",
+          "{root}/qualification/pinned-unit/run.sh"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "pinned_unit",
+      "estimated_seconds_by_platform": {"win64": 3, "linux": 2},
+      "timeout": 3600
+    },
+    {
+      "id": "mm_profile_contract",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/qualification/memory-manager/profile_contract.ps1"
+        ],
+        "linux": [
+          "bash",
+          "{root}/qualification/memory-manager/profile_contract.sh"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "mm_profile_contract",
+      "estimated_seconds_by_platform": {"win64": 3, "linux": 3},
+      "timeout": 3600
+    },
+    {
+      "id": "medium_arenas",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/qualification/memory-manager/medium_arenas.ps1"
+        ],
+        "linux": [
+          "bash",
+          "{root}/qualification/memory-manager/medium_arenas.sh"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "medium_arenas",
+      "estimated_seconds_by_platform": {"win64": 2, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "extra_corpus",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/qualification/suite/scripts/run_extra_corpus.ps1"
+        ],
+        "linux": [
+          "bash",
+          "{root}/qualification/suite/scripts/run_extra_corpus.sh"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "extra_corpus",
+      "estimated_seconds_by_platform": {"win64": 2, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "test_runner_contracts",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/tests/test_runner_contracts.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/tests/test_runner_contracts.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "test_runner_contracts",
+      "estimated_seconds_by_platform": {"win64": 5, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "test_sync_moonormot",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/tests/test_sync_moonormot.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/tests/test_sync_moonormot.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "test_sync_moonormot",
+      "estimated_seconds_by_platform": {"win64": 9, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "test_issue_tracker_runner",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/tests/test_issue_tracker_runner.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/tests/test_issue_tracker_runner.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "test_issue_tracker_runner",
+      "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "test_qualification_contracts",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/tests/test_qualification_contracts.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/tests/test_qualification_contracts.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "test_qualification_contracts",
+      "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "test_devil_runner_contracts",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/tests/test_devil_runner_contracts.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/tests/test_devil_runner_contracts.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "test_devil_runner_contracts",
+      "estimated_seconds_by_platform": {"win64": 2, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "test_workflow_exit_codes",
+      "mode": "medium",
+      "platforms": [
+        "win64"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/tests/test_workflow_exit_codes.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "test_workflow_exit_codes",
+      "estimated_seconds_by_platform": {"win64": 23},
+      "timeout": 3600
+    },
+    {
+      "id": "argument_transport",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_compiler_argument_transport_gate.py",
+          "{pp}",
+          "{cfg}",
+          "{root}",
+          "{run_id}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_compiler_argument_transport_gate.py",
+          "{fpc}",
+          "{cfg}",
+          "{root}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "argument_transport",
+      "estimated_seconds_by_platform": {"win64": 12, "linux": 10},
+      "timeout": 3600
+    },
+    {
+      "id": "compiler_diagnostics",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_compiler_diagnostic_gate.py",
+          "{pp}",
+          "{cfg}",
+          "{root}",
+          "{run_id}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_compiler_diagnostic_gate.py",
+          "{fpc}",
+          "{cfg}",
+          "{root}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "compiler_diagnostics",
+      "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "dwarf_interop",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_dwarf_format_interop_gate.py",
+          "{pp}",
+          "{cfg}",
+          "{root}",
+          "{run_id}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_dwarf_format_interop_gate.py",
+          "{fpc}",
+          "{cfg}",
+          "{root}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "dwarf_interop",
+      "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "mm_failure",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/memory-manager/mm_failure_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--mm",
+          "{root}/runtime/mm/mormot.core.fpcx64mm.pas",
+          "--out",
+          "{job_dir}/out",
+          "--group",
+          "all"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/memory-manager/mm_failure_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--mm",
+          "{root}/runtime/mm/mormot.core.fpcx64mm.pas",
+          "--out",
+          "{job_dir}/out",
+          "--group",
+          "all"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "mm_failure",
+      "estimated_seconds_by_platform": {"win64": 8, "linux": 5},
+      "timeout": 3600
+    },
+    {
+      "id": "managed_array",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/managed-array-copy/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/managed-array-copy/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "managed_array",
+      "estimated_seconds_by_platform": {"win64": 3, "linux": 2},
+      "timeout": 3600
+    },
+    {
+      "id": "private_ppu",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/compiler-private-ppu/run_ppu_private_crc_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/compiler-private-ppu/run_ppu_private_crc_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "private_ppu",
+      "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "alias_lifetime",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/compiler-alias-lifetime/run_alias_lifetime_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/compiler-alias-lifetime/run_alias_lifetime_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "alias_lifetime",
+      "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "consttemp",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/consttemp-lifetime/run_consttemp_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/consttemp-lifetime/run_consttemp_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "consttemp",
+      "estimated_seconds_by_platform": {"win64": 2, "linux": 3},
+      "timeout": 3600
+    },
+    {
+      "id": "alias_reload",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/compiler-alias-lifetime/run_alias_reload_gate.py",
+          "--source",
+          "{root}/compiler",
+          "--compiler",
+          "{pp}",
+          "--build-config",
+          "{ide_cfg}",
+          "--msg2inc",
+          "{msg2inc}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/compiler-alias-lifetime/run_alias_reload_gate.py",
+          "--source",
+          "{root}/compiler",
+          "--compiler",
+          "{pp}",
+          "--build-config",
+          "{ide_cfg}",
+          "--msg2inc",
+          "{msg2inc}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "alias_reload",
+      "estimated_seconds_by_platform": {"win64": 56, "linux": 50},
+      "timeout": 3600
+    },
+    {
+      "id": "placement",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/placement/run_placement_fixture_gate.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/placement/run_placement_fixture_gate.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "placement",
+      "estimated_seconds_by_platform": {"win64": 3, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "rtl_asm_layout",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/build-driver/rtl_asm_layout_gate.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/build-driver/rtl_asm_layout_gate.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "rtl_asm_layout",
+      "estimated_seconds_by_platform": {"win64": 126, "linux": 30},
+      "timeout": 3600
+    },
+    {
+      "id": "code_alignment",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/placement/run_code_alignment_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/placement/run_code_alignment_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "code_alignment",
+      "timeout": 3600,
+      "expected": "CODE ALIGNMENT GATE: PASS"
+    },
+    {
+      "id": "branch_pad",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/placement/run_branch_pad_gate.py",
+          "--compiler",
+          "{pp}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/placement/run_branch_pad_gate.py",
+          "--compiler",
+          "{pp}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "branch_pad",
+      "estimated_seconds_by_platform": {"win64": 6, "linux": 3},
+      "timeout": 3600
+    },
+    {
+      "id": "shl_lea",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/shl-lea/run_shl_lea_gate.py",
+          "--compiler",
+          "{pp}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/shl-lea/run_shl_lea_gate.py",
+          "--compiler",
+          "{pp}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "shl_lea",
+      "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "constructors",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/constructors/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/constructors/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "constructors",
+      "estimated_seconds_by_platform": {"win64": 11, "linux": 5},
+      "timeout": 3600
+    },
+    {
+      "id": "register_width",
+      "mode": "light",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/register-width/run_gate.py", "--compiler", "{pp}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/register-width/run_gate.py", "--compiler", "{pp}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "register_width",
+      "estimated_seconds_by_platform": {"win64": 43, "linux": 59},
+      "timeout": 300
+    },
+    {
+      "id": "imm64",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/imm64/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/imm64/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "imm64",
+      "estimated_seconds_by_platform": {"win64": 11, "linux": 4},
+      "timeout": 3600
+    },
+    {
+      "id": "asm_numbers",
+      "mode": "light",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/compiler-asm-numbers/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/compiler-asm-numbers/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "asm_numbers",
+      "estimated_seconds_by_platform": {"win64": 60, "linux": 60},
+      "timeout": 900
+    },
+    {
+      "id": "loop_address",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/loop-address/run_loop_address_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--objdump",
+          "{objdump}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/loop-address/run_loop_address_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--objdump",
+          "{objdump}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "loop_address",
+      "estimated_seconds_by_platform": {"win64": 5, "linux": 3},
+      "timeout": 3600
+    },
+    {
+      "id": "loop_regvar",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/loop-regvar/run_loop_regvar_gate.py",
+          "--compiler",
+          "{pp}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/loop-regvar/run_loop_regvar_gate.py",
+          "--compiler",
+          "{pp}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "loop_regvar",
+      "estimated_seconds_by_platform": {"win64": 30, "linux": 15},
+      "timeout": 3600
+    },
+    {
+      "id": "real_folds",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/real-folds/run_real_folds_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/real-folds/run_real_folds_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "real_folds",
+      "estimated_seconds_by_platform": {"win64": 2, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "fold_guards",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/fold-guards/run_fold_guards_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/fold-guards/run_fold_guards_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "fold_guards",
+      "estimated_seconds_by_platform": {"win64": 2, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "sqr_fold",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/sqr-fold/run_sqr_fold_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/sqr-fold/run_sqr_fold_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "sqr_fold",
+      "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "const_register",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/const-register/run_const_register_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/const-register/run_const_register_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "const_register",
+      "estimated_seconds_by_platform": {"win64": 2, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "getter_borrow",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/getter-borrow/run_getter_borrow_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/getter-borrow/run_getter_borrow_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "getter_borrow",
+      "estimated_seconds_by_platform": {"win64": 3, "linux": 2},
+      "timeout": 3600
+    },
+    {
+      "id": "value_in_register",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/value-in-register/run_value_in_register_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/value-in-register/run_value_in_register_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "value_in_register",
+      "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "try_nested",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/try-nested/run_try_nested_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/try-nested/run_try_nested_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "try_nested",
+      "estimated_seconds_by_platform": {"win64": 6, "linux": 4},
+      "timeout": 3600
+    },
+    {
+      "id": "nested_local",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/nested-local/run_nested_local_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/nested-local/run_nested_local_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "nested_local",
+      "estimated_seconds_by_platform": {"win64": 6, "linux": 4},
+      "timeout": 3600
+    },
+    {
+      "id": "record_fields",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/record-fields/run_record_fields_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/record-fields/run_record_fields_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "record_fields",
+      "estimated_seconds_by_platform": {"win64": 6, "linux": 4},
+      "timeout": 3600
+    },
+    {
+      "id": "block_locals",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/block-locals/run_block_locals_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/block-locals/run_block_locals_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "block_locals",
+      "estimated_seconds_by_platform": {"win64": 6, "linux": 4},
+      "timeout": 3600
+    },
+    {
+      "id": "operand_forms",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/operand-forms/run_operand_forms_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/operand-forms/run_operand_forms_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "operand_forms",
+      "estimated_seconds_by_platform": {"win64": 6, "linux": 4},
+      "timeout": 3600
+    },
+    {
+      "id": "pool_delivery",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/thread-pool/run_gate.py", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/thread-pool/run_gate.py", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "pool_delivery",
+      "estimated_seconds_by_platform": {"win64": 17, "linux": 5},
+      "timeout": 3600
+    },
+    {
+      "id": "pool_monitor",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/thread-pool/monitor_exit_gate.py", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/thread-pool/monitor_exit_gate.py", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "pool_monitor",
+      "estimated_seconds_by_platform": {"win64": 26, "linux": 25},
+      "timeout": 3600
+    },
+    {
+      "id": "divmod_pair",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/divmod/run_divmod_pair_gate.py", "--compiler", "{pp}", "--config", "{cfg}"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/divmod/run_divmod_pair_gate.py", "--compiler", "{pp}", "--config", "{cfg}"]
+      },
+      "needs": ["build"],
+      "resource": "divmod_pair",
+      "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "range_loop",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/range-loop/run_range_loop_gate.py", "--compiler", "{pp}", "--config", "{cfg}"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/range-loop/run_range_loop_gate.py", "--compiler", "{pp}", "--config", "{cfg}"]
+      },
+      "needs": ["build"],
+      "resource": "range_loop",
+      "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "memory_order",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/memory-order/run_memory_order_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/memory-order/run_memory_order_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "memory_order",
+      "estimated_seconds_by_platform": {"win64": 15, "linux": 10},
+      "timeout": 3600
+    },
+    {
+      "id": "jump_resources",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/resources/run_jump_tracking_gate.py", "--bootstrap", "{pp}", "--config", "{ide_cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/resources/run_jump_tracking_gate.py", "--bootstrap", "{pp}", "--config", "{ide_cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "jump_resources",
+      "estimated_seconds_by_platform": {"win64": 24, "linux": 20},
+      "timeout": 3600
+    },
+    {
+      "id": "pulse_contracts",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/performance/tools/run_contracts.py"],
+        "linux": ["{python}", "{root}/qualification/performance/tools/run_contracts.py"]
+      },
+      "needs": ["build"],
+      "resource": "pulse_contracts",
+      "estimated_seconds_by_platform": {"win64": 76, "linux": 62},
+      "timeout": 3600
+    },
+    {
+      "id": "tracker",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_issue_tracker_corpus.py",
+          "--fpc",
+          "{fpc}",
+          "--fpc-config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out",
+          "--jobs",
+          "{job_slots}",
+          "--enforce"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_issue_tracker_corpus.py",
+          "--fpc",
+          "{fpc}",
+          "--fpc-config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out",
+          "--jobs",
+          "{job_slots}",
+          "--enforce"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "tracker",
+      "estimated_seconds_by_platform": {"win64": 43, "linux": 38},
+      "timeout": 7200,
+      "slots": 4
+    },
+    {
+      "id": "mm_profiles",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/memory-manager/mm_profile_matrix.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/memory-manager/mm_profile_matrix.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "mm_profiles",
+      "estimated_seconds_by_platform": {"win64": 28, "linux": 12},
+      "timeout": 7200
+    },
+    {
+      "id": "rtl_test",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/RTL-test/run.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/RTL-test/run.py"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "rtl_test",
+      "estimated_seconds_by_platform": {"win64": 314, "linux": 357},
+      "timeout": 7200
+    },
+    {
+      "id": "forms",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/qualification/suite/scripts/run_forms_gate.ps1",
+          "{pp}",
+          "{cfg}",
+          "{run_id}"
+        ],
+        "linux": [
+          "bash",
+          "{root}/qualification/suite/scripts/run_forms_gate.sh",
+          "{fpc}",
+          "{cfg}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "forms",
+      "estimated_seconds_by_platform": {"win64": 39, "linux": 83},
+      "timeout": 7200,
+      "cwd": "{root}/qualification/suite"
+    },
+    {
+      "id": "service",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/qualification/suite/scripts/run_service_regressions_gate.ps1",
+          "{pp}",
+          "{cfg}",
+          "{run_id}"
+        ],
+        "linux": [
+          "bash",
+          "{root}/qualification/suite/scripts/run_service_regressions_gate.sh",
+          "{fpc}",
+          "{cfg}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "service",
+      "estimated_seconds_by_platform": {"win64": 52, "linux": 52},
+      "timeout": 3600,
+      "cwd": "{root}/qualification/suite"
+    },
+    {
+      "id": "rtl_api",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/qualification/suite/scripts/run_rtl_api_surface_gate.ps1",
+          "{run_id}"
+        ],
+        "linux": [
+          "bash",
+          "{root}/qualification/suite/scripts/run_rtl_api_surface_gate.sh",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "rtl_api",
+      "estimated_seconds_by_platform": {"win64": 16, "linux": 16},
+      "timeout": 3600,
+      "cwd": "{root}/qualification/suite"
+    },
+    {
+      "id": "rtti",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/qualification/suite/scripts/run_rtti_gettypes_gate.ps1",
+          "{pp}",
+          "{cfg}",
+          "{run_id}"
+        ],
+        "linux": [
+          "bash",
+          "{root}/qualification/suite/scripts/run_rtti_gettypes_gate.sh",
+          "{fpc}",
+          "{cfg}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "rtti",
+      "estimated_seconds_by_platform": {"win64": 42, "linux": 32},
+      "timeout": 3600,
+      "cwd": "{root}/qualification/suite"
+    },
+    {
+      "id": "win_repairs",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_win64_repair_gate.py",
+          "{pp}",
+          "{cfg}",
+          "{root}",
+          "{run_id}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_win64_repair_gate.py",
+          "{pp}",
+          "{cfg}",
+          "{root}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "win_repairs",
+      "estimated_seconds_by_platform": {"win64": 105, "linux": 80},
+      "timeout": 3600
+    },
+    {
+      "id": "namespace",
+      "mode": "medium",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "bash",
+          "{root}/qualification/suite/scripts/run_namespace_scope_gate.sh",
+          "{fpc}",
+          "{cfg}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "namespace",
+      "estimated_seconds_by_platform": {"linux": 5},
+      "timeout": 3600,
+      "cwd": "{root}/qualification/suite"
+    },
+    {
+      "id": "monitor",
+      "mode": "medium",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "bash",
+          "{root}/qualification/suite/scripts/run_monitor_gate.sh",
+          "{fpc}",
+          "{cfg}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "monitor",
+      "estimated_seconds_by_platform": {"linux": 1},
+      "timeout": 3600,
+      "cwd": "{root}/qualification/suite"
+    },
+    {
+      "id": "exception",
+      "mode": "medium",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "bash",
+          "{root}/qualification/suite/scripts/run_exception_capture_gate.sh",
+          "{fpc}",
+          "{cfg}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "exception",
+      "estimated_seconds_by_platform": {"linux": 3},
+      "timeout": 3600,
+      "cwd": "{root}/qualification/suite"
+    },
+    {
+      "id": "psabieh",
+      "mode": "medium",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "bash",
+          "{root}/qualification/suite/scripts/run_linux_psabieh_gate.sh",
+          "{fpc}",
+          "{cfg}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "psabieh",
+      "estimated_seconds_by_platform": {"linux": 1},
+      "timeout": 3600,
+      "cwd": "{root}/qualification/suite"
+    },
+    {
+      "id": "linker_transport",
+      "mode": "medium",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_linux_linker_transport_gate.py",
+          "{fpc}",
+          "{cfg}",
+          "{root}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "linker_transport",
+      "estimated_seconds_by_platform": {"linux": 1},
+      "timeout": 3600
+    },
+    {
+      "id": "prepare",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/runner.py",
+          "prepare"
+        ],
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/runner.py",
+          "prepare"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "suite",
+      "estimated_seconds_by_platform": {"win64": 9, "linux": 4},
+      "timeout": 1800
+    },
+    {
+      "id": "fixtures",
+      "mode": "medium",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/runner.py",
+          "fixtures",
+          "--compiler",
+          "moonbot-compiler-beta",
+          "--option",
+          "O2",
+          "--option",
+          "O3"
+        ]
+      },
+      "needs": [
+        "build",
+        "prepare"
+      ],
+      "resource": "suite",
+      "estimated_seconds_by_platform": {"win64": 32, "linux": 29},
+      "timeout": 7200
+    },
+    {
+      "id": "mega",
+      "mode": "medium",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/runner.py",
+          "mega",
+          "--compiler",
+          "moonbot-compiler-beta",
+          "--option",
+          "O2",
+          "--option",
+          "O3"
+        ]
+      },
+      "needs": [
+        "build",
+        "prepare"
+      ],
+      "resource": "suite",
+      "estimated_seconds_by_platform": {"win64": 9, "linux": 9},
+      "timeout": 7200
+    },
+    {
+      "id": "effect_model",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/effect-observe/run_effect_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/effect-observe/run_effect_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "effect_model",
+      "timeout": 600,
+      "expected": "EFFECT GATE: PASS"
+    },
+    {
+      "id": "effect_identity",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/effect-observe/run_effect_identity.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/effect-observe/run_effect_identity.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "effect_identity",
+      "timeout": 600,
+      "expected": "EFFECT IDENTITY: PASS"
+    },
+    {
+      "id": "licm",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/f2/run_f2_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/f2/run_f2_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "licm",
+      "timeout": 600,
+      "expected": "F2 GATE: PASS"
+    },
+    {
+      "id": "exact_licm",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/f2/run_exact_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/f2/run_exact_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "exact_licm",
+      "timeout": 600,
+      "expected": "EXACT LICM GATE: PASS"
+    },
+    {
+      "id": "setcc_compare",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/setcc-compare/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/setcc-compare/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "setcc_compare",
+      "timeout": 600,
+      "expected": "SETCC GATE: PASS (runtime and Pascal code shape)"
+    },
+    {
+      "id": "tail_forwarding",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/tail-forwarding/run_gate.py",
+          "--toolchain",
+          "{root}/toolchain",
+          "--compiler",
+          "{pp}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/tail-forwarding/run_gate.py",
+          "--toolchain",
+          "{root}/toolchain",
+          "--compiler",
+          "{pp}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "tail_forwarding",
+      "timeout": 600,
+      "expected": "TAIL FORWARDING GATE: PASS"
+    },
+    {
+      "id": "setcc_ir",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/setcc-compare/run_ir_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{ide_cfg}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/setcc-compare/run_ir_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{ide_cfg}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "setcc_ir",
+      "timeout": 600,
+      "expected": "SETCC IR GATE: PASS"
+    },
+    {
+      "id": "value_forward_ir",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/value-in-register/run_ir_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{ide_cfg}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/value-in-register/run_ir_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{ide_cfg}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "value_forward_ir",
+      "timeout": 600,
+      "expected": "VALUE FORWARD IR GATE: PASS"
+    },
+    {
+      "id": "value_relations",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/value-relations/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/value-relations/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "value_relations",
+      "timeout": 600,
+      "expected": "VALUE RELATION GATE: PASS"
+    },
+    {
+      "id": "value_relations_ir",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/value-relations/run_ir_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{ide_cfg}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/value-relations/run_ir_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{ide_cfg}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "value_relations_ir",
+      "timeout": 600,
+      "expected": "VALUE RELATION IR GATE: PASS"
+    },
+    {
+      "id": "licm_ppu",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/f2/run_f2_ppu.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/f2/run_f2_ppu.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "licm_ppu",
+      "timeout": 600,
+      "expected": "F2 PPU: PASS"
+    },
+    {
+      "id": "machine_facts",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/f3/run_f3_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/f3/run_f3_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "machine_facts",
+      "timeout": 600,
+      "expected": "F3a GATE: PASS"
+    },
+    {
+      "id": "seh_regvar",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/f4/run_f4_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/f4/run_f4_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "seh_regvar",
+      "timeout": 600,
+      "expected": "F4 SEH REGVAR: PASS"
+    },
+    {
+      "id": "address_gvn",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/f5/run_f5_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/f5/run_f5_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "address_gvn",
+      "timeout": 600,
+      "expected": "F5 ADDRESS GVN: PASS"
+    },
+    {
+      "id": "managed_load_cse",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/cse/run_managed_load_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/cse/run_managed_load_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "managed_load_cse",
+      "timeout": 600,
+      "expected": "MANAGED LOAD CSE: PASS"
+    },
+    {
+      "id": "loop_base",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/optimizer-core/loop-base/run_loop_base_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/optimizer-core/loop-base/run_loop_base_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "loop_base",
+      "timeout": 600,
+      "expected": "LOOP BASE GATE: PASS"
+    },
+    {
+      "id": "optimizer_ppu",
+      "mode": "light",
+      "always_run": true,
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_optimizer_core_ppu_gate.py",
+          "--compiler",
+          "{fpc}",
+          "--config",
+          "{cfg}",
+          "--legacy-compiler",
+          "{legacy_fpc}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_optimizer_core_ppu_gate.py",
+          "--compiler",
+          "{fpc}",
+          "--config",
+          "{cfg}",
+          "--legacy-compiler",
+          "{legacy_fpc}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "optimizer_ppu",
+      "timeout": 600,
+      "expected": "PPU_GATE_PASS"
+    },
+    {
+      "id": "zeroext",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_devil_zeroext_gate.py",
+          "--toolchain",
+          "{root}/toolchain",
+          "--work",
+          "{job_dir}/out",
+          "--timeout",
+          "600"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_devil_zeroext_gate.py",
+          "--toolchain",
+          "{root}/toolchain",
+          "--work",
+          "{job_dir}/out",
+          "--timeout",
+          "600"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "zeroext",
+      "timeout": 660,
+      "expected": "DEVIL_ZEROEXT OK"
+    },
+    {
+      "id": "win_bigobj",
+      "mode": "medium",
+      "platforms": [
+        "win64"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_win64_bigobj_unwind_gate.py",
+          "{pp}",
+          "{cfg}",
+          "{root}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "win_bigobj",
+      "timeout": 1000,
+      "expected": "WIN64_BIGOBJ_UNWIND_PASS"
+    },
+    {
+      "id": "linux_large_elf",
+      "mode": "medium",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_linux_large_elf_gate.py",
+          "{pp}",
+          "{cfg}",
+          "{root}",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "linux_large_elf",
+      "timeout": 1300,
+      "expected": "LINUX_LARGE_ELF_PASS"
+    },
+    {
+      "id": "win_stack",
+      "mode": "medium",
+      "platforms": [
+        "win64"
+      ],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/qualification/win-stack-default/run.ps1",
+          "-RunId",
+          "{run_id}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "win_stack",
+      "timeout": 600,
+      "expected": "WIN_STACK_DEFAULT_GATE_OK"
+    },
+    {
+      "id": "archive_smoke",
+      "mode": "full",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/release/archive_smoke.py",
+          "--output",
+          "{job_dir}/archive"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/release/archive_smoke.py",
+          "--output",
+          "{job_dir}/archive"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "archive_smoke",
+      "timeout": 5400,
+      "expected": "ARCHIVE_SMOKE_PASS",
+      "head_bound": true,
+      "estimated_seconds_by_platform": {"win64": 116, "linux": 303},
+      "stage": 3
+    },
+    {
+      "id": "devil_full",
+      "mode": "full",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_devil_all.py",
+          "--dcc",
+          "{dcc}",
+          "--dcc-lib",
+          "{dcc_lib}",
+          "--with-switches",
+          "--keep-going",
+          "--main-timeout",
+          "21600",
+          "--run-id",
+          "{run_id}",
+          "--jobs",
+          "{job_slots}",
+          "--work",
+          "{checkpoint_dir}",
+          "--resume"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_devil_all.py",
+          "--with-switches",
+          "--keep-going",
+          "--main-timeout",
+          "21600",
+          "--run-id",
+          "{run_id}",
+          "--jobs",
+          "{job_slots}",
+          "--work",
+          "{checkpoint_dir}",
+          "--resume"
+        ]
+      },
+      "needs": [
+        "build",
+        "devil_light"
+      ],
+      "resource": "devil_full",
+      "timeout": 28800,
+      "expected": "DEVIL_ALL OK",
+      "slots": 8,
+      "memory_mb_per_slot": 2048
+    },
+    {
+      "id": "mormot_current",
+      "mode": "full",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/runner.py",
+          "mormot",
+          "--compiler",
+          "moonbot-compiler-beta",
+          "--option",
+          "O2",
+          "--option",
+          "O3"
+        ]
+      },
+      "needs": [
+        "build",
+        "prepare"
+      ],
+      "resource": "suite",
+      "timeout": 14400,
+      "memory_mb_per_slot": 2048
+    },
+    {
+      "id": "upstream",
+      "mode": "full",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/runner.py",
+          "upstream",
+          "--compiler",
+          "moonbot-compiler-beta",
+          "--option",
+          "O2",
+          "--option",
+          "O3"
+        ]
+      },
+      "needs": [
+        "build",
+        "prepare"
+      ],
+      "resource": "suite",
+      "timeout": 14400,
+      "memory_mb_per_slot": 2048
+    },
+    {
+      "id": "mm_current",
+      "mode": "full",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "bash",
+          "{root}/qualification/suite/scripts/mm/qualify_current_mm.sh",
+          "{job_dir}/out",
+          "{fpc}",
+          "{cfg}",
+          "{root}/runtime/mm/mormot.core.fpcx64mm.pas"
+        ]
+      },
+      "needs": [
+        "build",
+        "prepare"
+      ],
+      "resource": "mm_current",
+      "estimated_seconds_by_platform": {"linux": 97},
+      "timeout": 10800,
+      "cwd": "{root}/qualification/suite",
+      "memory_mb_per_slot": 2048
+    },
+    {
+      "id": "mormot_mm",
+      "mode": "full",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "bash",
+          "{root}/qualification/suite/scripts/mm/run_mormot_mm_gate.sh",
+          "{root}/.qualification/deps/moonormot",
+          "{root}/runtime/mm/mormot.core.fpcx64mm.pas",
+          "{job_dir}/out",
+          "{fpc}",
+          "{cfg}"
+        ]
+      },
+      "needs": [
+        "build",
+        "prepare"
+      ],
+      "resource": "suite",
+      "estimated_seconds_by_platform": {"linux": 73},
+      "timeout": 14400,
+      "cwd": "{root}/qualification/suite",
+      "memory_mb_per_slot": 2048
+    },
+    {
+      "id": "lazarus",
+      "mode": "full",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/build.ps1",
+          "lazarus"
+        ],
+        "linux": [
+          "bash",
+          "{root}/build",
+          "lazarus"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "lazarus",
+      "estimated_seconds_by_platform": {"win64": 178, "linux": 133},
+      "timeout": 7200,
+      "stage": 3
+    },
+    {
+      "id": "reporting",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_reporting_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}",
+          "--root",
+          "{root}",
+          "--results",
+          "{job_dir}/out",
+          "--product-mm"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_reporting_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}",
+          "--root",
+          "{root}",
+          "--results",
+          "{job_dir}/out",
+          "--product-mm"
+        ]
+      },
+      "needs": [
+        "build",
+        "prepare"
+      ],
+      "resource": "suite",
+      "timeout": 7200,
+      "expected": "REPORTING_GATE_PASS"
+    },
+    {
+      "id": "runtime_mormot",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_runtime_mormot_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}",
+          "--root",
+          "{root}",
+          "--results",
+          "{job_dir}/out",
+          "--modes",
+          "O-",
+          "O2",
+          "O3",
+          "--product-mm"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_runtime_mormot_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}",
+          "--root",
+          "{root}",
+          "--results",
+          "{job_dir}/out",
+          "--modes",
+          "O-",
+          "O2",
+          "O3",
+          "--product-mm"
+        ]
+      },
+      "needs": [
+        "build",
+        "prepare"
+      ],
+      "resource": "suite",
+      "timeout": 7200,
+      "expected": "RUNTIME_MORMOT_GATE_PASS"
+    },
+    {
+      "id": "tftp",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_tftp_shutdown_gate.py"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_tftp_shutdown_gate.py"
+        ]
+      },
+      "needs": [
+        "build",
+        "prepare"
+      ],
+      "resource": "suite",
+      "estimated_seconds_by_platform": {"win64": 32, "linux": 28},
+      "timeout": 3600
+    },
+    {
+      "id": "keccak256",
+      "mode": "medium",
+      "platforms": [
+        "linux"
+      ],
+      "commands": {
+        "linux": [
+          "bash",
+          "{root}/qualification/suite/scripts/run_keccak256_gate.sh",
+          "{root}",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build",
+        "prepare"
+      ],
+      "resource": "suite",
+      "estimated_seconds_by_platform": {"linux": 20},
+      "timeout": 3600,
+      "cwd": "{root}/qualification/suite",
+      "expected": "KECCAK256_GATE_OK"
+    },
+    {
+      "id": "history_audit",
+      "mode": "light",
+      "final_only": true,
+      "platforms": [
+        "win64"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/release/history_audit.py"
+        ]
+      },
+      "needs": [
+        "devil_light"
+      ],
+      "resource": "history",
+      "timeout": 600,
+      "expected": "HISTORY_AUDIT_PASS"
+    },
+    {
+      "id": "pulse_report",
+      "mode": "full",
+      "stage": 4,
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/release/pulse_release.py",
+          "--baseline-toolchain",
+          "{baseline}",
+          "--baseline-mm-source",
+          "{baseline_mm}",
+          "--output",
+          "{job_dir}/out",
+          "--jobs",
+          "{job_slots}"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/release/pulse_release.py",
+          "--baseline-toolchain",
+          "{baseline}",
+          "--baseline-mm-source",
+          "{baseline_mm}",
+          "--output",
+          "{job_dir}/out",
+          "--jobs",
+          "{job_slots}"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "baseline_input": true,
+      "exclusive": true,
+      "slots": 4,
+      "resource": "pulse",
+      "timeout": 3600,
+      "estimated_seconds_by_platform": {"win64": 650, "linux": 600},
+      "expected": "PULSE_RELEASE_REPORT_READY"
+    },
+    {
+      "id": "zlib_delphi",
+      "mode": "full",
+      "stage": 4,
+      "platforms": ["win64"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/performance/tools/zlib_delphi_gate.py", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "exclusive": true,
+      "resource": "pulse",
+      "timeout": 3600,
+      "estimated_seconds_by_platform": {"win64": 300},
+      "expected": "ZLIB_DELPHI_GATE_PASS"
+    }
+  ]
+}

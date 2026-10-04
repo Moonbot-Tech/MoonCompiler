@@ -517,6 +517,7 @@ begin
     var
       Book: PChiMarket;
       K, Spins: Integer;
+      Deadline: UInt64;
     begin
       Book := @Books[Index shr 1];
       if (Index and 1) = 0 then
@@ -529,15 +530,34 @@ begin
             в переполнение, и совместной работы, ради которой прогон и
             заведён, просто не происходит. В бою эту паузу даёт сокет. }
           if (K and 63) = 63 then TThread.Yield;
+          { Потребитель сначала даёт кольцу переполниться. После первого
+            отказа ждём его дренажа, чтобы оба обязательных исхода случились
+            до свободной гонки, независимо от планировщика. }
+          if (Book^.Dropped = 1) and (Book^.Overlaps = 0) then
+          begin
+            Deadline := TThread.GetTickCount64 + 10000;
+            while (Book^.Overlaps = 0) and (TThread.GetTickCount64 < Deadline) do
+              TThread.Yield;
+            ChiClaim(Book^.Overlaps > 0, 'кольцо: потребитель не начал дренаж');
+          end;
         end;
         Book^.Done := True;
       end
       else
       begin
+        { Быстрый потребитель иначе дренирует каждую пачку из 64 сделок,
+          и ветка полного кольца ни разу не исполняется. Ждём настоящий
+          отказ записи, а не фиксированную задержку. }
+        Deadline := TThread.GetTickCount64 + 10000;
+        while (Book^.Dropped = 0) and not Book^.Done and (TThread.GetTickCount64 < Deadline) do
+          TThread.Yield;
+        ChiClaim(Book^.Dropped > 0, 'кольцо: продюсер не заполнил кольцо');
         Spins := 0;
         while not Book^.Done do
         begin
-          ChiRingDrain(Book^);
+          { Пустое кольцо — уступка, как у потребителя в бою: холостой
+            оборот без неё отнимает процессор у своего же продюсера. }
+          if ChiRingDrain(Book^) = 0 then TThread.Yield;
           Inc(Spins);
           { Потолок оборотов: зависший тест хуже упавшего. }
           if Spins > 200000000 then

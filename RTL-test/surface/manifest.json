@@ -1,0 +1,48 @@
+{
+  "schema": "mooncompiler-rtl-surface/v1",
+  "units": [
+    {
+      "id": "System.Math",
+      "ppu": "math",
+      "source": "rtl/objpas/math.pp",
+      "include_dirs": [
+        "rtl/x86_64"
+      ],
+      "tests": [
+        "RTL-test/semantic/math_api_surface_semantic.dpr",
+        "RTL-test/semantic/math_extreme_contracts_semantic.dpr",
+        "RTL-test/semantic/math_random_overloads_semantic.dpr",
+        "RTL-test/semantic/fpu_default_mask_semantic.dpr",
+        "RTL-test/semantic/trig_argument_reduction_semantic.dpr"
+      ],
+      "public_count": 289,
+      "public_sha256": "4d8e053c1bbbc5cf6de2c12da124d7cb7f4d9f502c652fc4e1adb47bfbdd21b1",
+      "implementation_count": 354,
+      "implementation_sha256": "958aed9df378069c7647b70e64afb96e64a85b42168c903e1d29d4a7fa271a79"
+    },
+    {
+      "id": "System.Generics.Hashes",
+      "ppu": "generics.hashes",
+      "source": "packages/rtl-generics/src/generics.hashes.pas",
+      "tests": [
+        "RTL-test/semantic/hash_semantic.dpr"
+      ],
+      "public_count": 11,
+      "public_sha256": "9c148b3069bbcb783ee95842b98aedb93a4a096c5e5a01fbb2eaba6d4d3ca079",
+      "implementation_count": 35,
+      "implementation_sha256": "f6ddb3981dc1311a69147652bdc3e8251c8490fed104e42bc91a52e114621fd0"
+    },
+    {
+      "id": "System.Generics.MemoryExpanders",
+      "ppu": "generics.memoryexpanders",
+      "source": "packages/rtl-generics/src/generics.memoryexpanders.pas",
+      "tests": [
+        "RTL-test/semantic/collections_semantic.dpr"
+      ],
+      "public_count": 6,
+      "public_sha256": "362158bc882d34199f8bb77136183bdd45af9c7fd4b73779b343281839c63acd",
+      "implementation_count": 6,
+      "implementation_sha256": "6d9294908c67fdc0555224d5da7da2a78402781021eff417dd84ac2f70ee09c1"
+    }
+  ]
+}

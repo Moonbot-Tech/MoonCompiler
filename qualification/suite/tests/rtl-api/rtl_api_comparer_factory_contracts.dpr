@@ -5,6 +5,7 @@ program rtl_api_comparer_factory_contracts;
 uses
   SysUtils,
   Generics.Defaults,
+  Generics.Collections,
   TypInfo;
 
 type
@@ -99,8 +100,22 @@ end;
 
 var
   Comparer: IEqualityComparer<Integer>;
+  DefaultComparer: IEqualityComparer<Integer>;
+  Dictionary: TDictionary<Integer, Integer>;
   Left, Same, Different: TBinaryValue;
 begin
+  DefaultComparer := TEqualityComparer<Integer>.Default;
+  Comparer := TEqualityComparer<Integer>.Default(TDefaultHashFactory);
+  Check(DefaultComparer = Comparer, 'factory-owned default comparer cache');
+  Dictionary := TDictionary<Integer, Integer>.Create(DefaultComparer);
+  try
+    Check(Dictionary.Flat, 'explicit default comparer keeps the builtin ordinal dictionary path');
+    Dictionary.Add(17, 23);
+    Check(Dictionary[17] = 23, 'explicit default dictionary lookup');
+  finally
+    Dictionary.Free;
+  end;
+
   TProbe<Integer>.Run(-27, -27, 13);
   TProbe<Cardinal>.Run($80000000, $80000000, $ffffffff);
   TProbe<Int64>.Run(-$100000001, -$100000001, $100000001);

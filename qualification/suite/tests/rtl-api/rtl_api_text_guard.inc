@@ -56,6 +56,9 @@ begin
           Require(CompareSign(SysUtils.CompareText(A,B))=ReferenceCompare(A,B),'guard equal/fold/length');
           Require(CompareSign(SysUtils.CompareText(B,A))=ReferenceCompare(B,A),'guard reverse length');
           Require(SysUtils.CompareText(A,A)=0,'guard identity');
+          Require(SysUtils.SameText(A,B)=(ReferenceCompare(A,B)=0),'guard SameText equal/fold/length');
+          Require(SysUtils.SameText(B,A)=(ReferenceCompare(B,A)=0),'guard reverse SameText');
+          Require(SysUtils.SameText(A,A),'guard SameText identity');
           If N=0 then Continue;
           for Test := 0 to 2 do begin
             case Test of
@@ -66,6 +69,8 @@ begin
             PWord(PB+Position*2)^ := $ffff;
             Require(CompareSign(SysUtils.CompareText(A,B))=ReferenceCompare(A,B),'guard first differing UTF16');
             Require(CompareSign(SysUtils.CompareText(B,A))=ReferenceCompare(B,A),'guard reverse difference');
+            Require(SysUtils.SameText(A,B)=(ReferenceCompare(A,B)=0),'guard SameText difference');
+            Require(SysUtils.SameText(B,A)=(ReferenceCompare(B,A)=0),'guard reverse SameText difference');
             PWord(PB+Position*2)^ := PWord(PA+Position*2)^;
           end;
         end;

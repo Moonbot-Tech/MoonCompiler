@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
 import gzip
 import hashlib
@@ -26,6 +27,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent
 MANIFEST_PATH = ROOT / "runner_manifest.json"
 COMPILER_PROVENANCE: dict[str, str] = {}
+REMOTE_BRANCH_TIPS: dict[tuple[str, str], str] = {}
 MM_LEAK_PATTERN = re.compile(
     r"small block leak|medium block leak|large block leak", re.IGNORECASE,
 )
@@ -45,6 +47,75 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def normalized_source_bytes(path: Path) -> bytes:
+    """Read a text source with repository line endings removed from identity."""
+    return path.read_bytes().replace(b"\r\n", b"\n")
+
+
+def mormot_source_tree(source_root: Path, source: dict[str, Any]) -> Path:
+    """Return the directory containing mORMot's app/core/net source trees."""
+    return source_root / source.get("source_dir", "src")
+
+
+def verify_embedded_mormot_memory_manager(
+    source_root: Path, source: dict[str, Any],
+) -> None:
+    """Prove the bundled MM from pinned MoonORMot plus its declared delta."""
+    reference_name = source.get("memory_manager_reference")
+    embedded_name = source.get("memory_manager")
+    if reference_name is None:
+        return
+    if embedded_name is None:
+        raise RuntimeError("mORMot MM reference has no embedded memory manager")
+    reference = source_root / reference_name
+    embedded = ROOT / embedded_name
+    for role, path in (("MoonORMot", reference), ("embedded", embedded)):
+        if not path.is_file():
+            raise RuntimeError(f"{role} memory manager is missing: {path}")
+    if normalized_source_bytes(reference) != normalized_source_bytes(embedded):
+        raise RuntimeError(
+            "embedded memory manager differs from pinned MoonORMot: "
+            f"{embedded} != {reference}"
+        )
+
+
+def read_mormot_version(path: Path, role: str) -> int:
+    """Read a MoonORMot version file: one decimal number, nothing else."""
+    if not path.is_file():
+        raise RuntimeError(f"{role} MoonORMot version file is missing: {path}")
+    text = path.read_text(encoding="utf-8").strip()
+    if not text.isdecimal():
+        raise RuntimeError(
+            f"{role} MoonORMot version file is not a number: {path} ({text!r})"
+        )
+    return int(text)
+
+
+def verify_runtime_mormot_version(
+    source_root: Path, source: dict[str, Any],
+) -> None:
+    """Prove runtime/moonormot.need.inc names the version of pinned MoonORMot.
+
+    The runtime units built over mORMot refuse an older MoonORMot at compile
+    time through that number, so the number must be the version on the
+    pinned commit: lower would accept a MoonORMot the units were not
+    qualified with, higher would refuse the one they were."""
+    reference_name = source.get("version_reference")
+    runtime_name = source.get("runtime_version")
+    if reference_name is None:
+        return
+    if runtime_name is None:
+        raise RuntimeError("mORMot version reference has no runtime version file")
+    expected = read_mormot_version(source_root / reference_name, "MoonORMot")
+    runtime = ROOT / runtime_name
+    actual = read_mormot_version(runtime, "runtime")
+    if actual != expected:
+        raise RuntimeError(
+            f"runtime MoonORMot version {actual} differs from pinned MoonORMot "
+            f"{expected}: set {runtime} to {expected}"
+        )
+
+
 def memory_report_status(path: Path) -> tuple[int, list[str]]:
     """Return completed-census count and exact leak-report lines."""
     if not path.is_file():
@@ -57,10 +128,8 @@ def memory_report_status(path: Path) -> tuple[int, list[str]]:
     return completed, leaks
 
 
-def require_clean_git_source(source_root: Path, expected_commit: str | None) -> None:
-    """Reject a versioned source checkout whose tree no longer matches HEAD."""
-    if expected_commit is None:
-        return
+def git_source_state(source_root: Path) -> tuple[str, str]:
+    """Return the exact HEAD and porcelain status of a source checkout."""
     try:
         actual = subprocess.run(
             ["git", "-C", str(source_root), "rev-parse", "HEAD"],
@@ -74,19 +143,100 @@ def require_clean_git_source(source_root: Path, expected_commit: str | None) -> 
         raise RuntimeError(
             f"mORMot source is not a readable Git checkout: {source_root}"
         ) from error
+    return actual, dirty
+
+
+def require_clean_git_source(source_root: Path, expected_commit: str | None) -> None:
+    """Reject a versioned source checkout whose tree no longer matches HEAD."""
+    if expected_commit is None:
+        return
+    actual, dirty = git_source_state(source_root)
     if actual != expected_commit or dirty:
         raise RuntimeError(
             f"mORMot source is not clean commit {expected_commit}: {source_root}"
         )
 
 
+def require_remote_branch_tip(
+    expected_commit: str | None, repository_url: str | None,
+    branch: str | None,
+) -> None:
+    """Reject a stale product pin before qualification starts."""
+    if expected_commit is None or repository_url is None or branch is None:
+        return
+    key = (repository_url, branch)
+    actual = REMOTE_BRANCH_TIPS.get(key)
+    if actual is None:
+        try:
+            output = subprocess.run(
+                ["git", "ls-remote", "--exit-code", repository_url,
+                 f"refs/heads/{branch}"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+        except (OSError, subprocess.CalledProcessError) as error:
+            detail = (
+                (error.stderr or error.stdout or "").strip()
+                if isinstance(error, subprocess.CalledProcessError)
+                else str(error)
+            )
+            raise RuntimeError(
+                f"cannot read mORMot branch {repository_url} {branch}: {detail}"
+            ) from error
+        fields = output.split()
+        if len(fields) != 2 or fields[1] != f"refs/heads/{branch}":
+            raise RuntimeError(
+                f"unexpected mORMot branch response for {repository_url} {branch}"
+            )
+        actual = fields[0]
+        REMOTE_BRANCH_TIPS[key] = actual
+    if actual != expected_commit:
+        raise RuntimeError(
+            f"stale mORMot pin: {expected_commit} != {repository_url} "
+            f"{branch} ({actual})"
+        )
+
+
 def ensure_clean_git_source(
     source_root: Path, expected_commit: str | None, repository_url: str | None,
 ) -> None:
-    """Fetch a missing public checkout, but never modify an existing one."""
+    """Fetch or advance a clean managed checkout to the exact pinned commit."""
     if expected_commit is None:
         return
     if source_root.exists() or source_root.is_symlink():
+        actual, dirty = git_source_state(source_root)
+        if dirty:
+            raise RuntimeError(
+                f"mORMot source has local changes and cannot be updated: {source_root}"
+            )
+        if actual != expected_commit:
+            if repository_url is None:
+                raise RuntimeError(
+                    f"mORMot source is not clean commit {expected_commit}: {source_root}"
+                )
+            try:
+                actual_url = subprocess.run(
+                    ["git", "-C", str(source_root), "remote", "get-url", "origin"],
+                    check=True, capture_output=True, text=True,
+                ).stdout.strip()
+                if actual_url != repository_url:
+                    raise RuntimeError(
+                        f"mORMot origin mismatch: {actual_url} != {repository_url}"
+                    )
+                subprocess.run(
+                    ["git", "-C", str(source_root), "fetch", "--quiet", "--depth=1",
+                     "origin", expected_commit],
+                    check=True, capture_output=True, text=True,
+                )
+                subprocess.run(
+                    ["git", "-C", str(source_root), "checkout", "--quiet", "--detach",
+                     "FETCH_HEAD"],
+                    check=True, capture_output=True, text=True,
+                )
+            except subprocess.CalledProcessError as error:
+                detail = error.stderr.strip() or error.stdout.strip()
+                raise RuntimeError(
+                    f"could not update mORMot source {expected_commit}: {detail}"
+                ) from error
         require_clean_git_source(source_root, expected_commit)
         return
     if repository_url is None:
@@ -142,10 +292,16 @@ def prepare_mormot_dependencies(manifest: dict[str, Any]) -> None:
         repository_url = source.get("url")
         if repository_url is None:
             continue
+        require_remote_branch_tip(
+            source.get("commit"), repository_url,
+            source.get("require_branch_tip"),
+        )
         ensure_clean_git_source(
             ROOT / source["path"], source.get("commit"), repository_url,
         )
-        print(f"mORMot compiler corpus is ready: {source['commit']}")
+        verify_embedded_mormot_memory_manager(ROOT / source["path"], source)
+        verify_runtime_mormot_version(ROOT / source["path"], source)
+        print(f"mORMot dependency is ready: {source['commit']}")
 
 
 def mormot_source_patch(source: dict[str, Any]) -> Path | None:
@@ -202,7 +358,7 @@ def stage_mormot_source_tree(
 def mormot_static_inputs(
     source_root: Path, source: dict[str, Any],
 ) -> tuple[Path, Path, str]:
-    """Resolve the current vendored or historical mORMot static inputs."""
+    """Resolve the current pinned or historical mORMot static inputs."""
     static_dir = ROOT / source["static_dir"]
     manifest_name = source.get("static_manifest")
     if manifest_name:
@@ -223,6 +379,7 @@ def mormot_test_inputs(
 ) -> tuple[Path, Path, Path, Path | None, Path | None]:
     """Stage the matching test tree beside the exact product source tree."""
     configured = source.get("test_path")
+    source_tree = mormot_source_tree(source_root, source)
     test_root = ROOT / configured if configured else source_root / "test"
     rtsp_ports = source.get("rtsp_ports")
     source_patch = mormot_source_patch(source)
@@ -242,9 +399,9 @@ def mormot_test_inputs(
         apply_mormot_staged_patch(staged_root, test_patch)
     if source_patch is None:
         (staged_root / "src").symlink_to(
-            source_root / "src", target_is_directory=True,
+            source_tree, target_is_directory=True,
         )
-        compile_source_root = source_root
+        compile_source_root = staged_root
     else:
         stage_mormot_source_tree(source_root, staged_root, source_patch)
         compile_source_root = staged_root
@@ -893,7 +1050,9 @@ def run_process(
         command if is_windows
         else ["nice", "-n", "15", "ionice", "-c2", "-n7", *command]
     )
-    with log_path.open("w", encoding="utf-8") as log:
+    with log_path.open("w", encoding="utf-8") as log, (
+        tempfile.TemporaryFile() if is_windows else contextlib.nullcontext()
+    ) as stderr_log:
         log.write("COMMAND " + shlex.join(full_command) + "\n")
         log.flush()
         process = subprocess.Popen(
@@ -901,7 +1060,7 @@ def run_process(
             cwd=cwd,
             env=env,
             stdout=log,
-            stderr=subprocess.STDOUT,
+            stderr=stderr_log if is_windows else subprocess.STDOUT,
             start_new_session=not is_windows,
         )
         try:
@@ -932,6 +1091,11 @@ def run_process(
                 process.wait()
             log.write(f"TIMEOUT after {timeout}s\n")
             return None, True, time.monotonic() - start
+        finally:
+            if stderr_log is not None:
+                stderr_log.seek(0)
+                log.seek(0, os.SEEK_END)
+                log.write(stderr_log.read().decode("utf-8", errors="replace"))
 
 
 def executable_suffix() -> str:
@@ -2031,17 +2195,30 @@ def run_upstream_case(
     clean_log = snapshot / "source-clean.log"
     full_log = snapshot / "full.log"
     driver = str(ROOT / compiler["driver"])
+    host_driver = (ROOT / upstream["host_driver"]).resolve()
+    host_config = (ROOT / upstream["host_config"]).resolve()
+    if not host_driver.is_file() or not host_config.is_file():
+        raise RuntimeError("the FPC-ABI host toolchain is missing")
+    host_wrapper = snapshot / "host-fpc"
+    host_wrapper.write_text(
+        "#!/bin/sh\nunset PPC_CONFIG_PATH\nexec " + shlex.quote(str(host_driver)) + ' "$@"\n',
+        encoding="utf-8",
+    )
+    host_wrapper.chmod(0o755)
     test_options = [*options, *upstream.get("test_support_options", [])]
     jobs = int(upstream.get("jobs", 1))
-    if jobs < 1 or jobs > len(os.sched_getaffinity(0)):
+    if jobs < 1:
         raise RuntimeError(f"invalid upstream job count: {jobs}")
+    # The manifest value is an upper bound: a host with fewer CPUs runs the
+    # same suite on the CPUs it has.
+    jobs = min(jobs, len(os.sched_getaffinity(0)))
     clean_command = [
-        "make", "-C", str(source_root), "-j1", "clean", f"FPC={driver}",
+        "make", "-C", str(source_root), "-j1", "clean", f"FPC={host_wrapper}",
     ]
     command = [
         "make", "-C", str(source_root / "tests"), f"-j{jobs}", "full",
-        f"FPC={driver}", f"TEST_FPC={driver}",
-        f"NATIVE_FPC={driver}", "TEST_OPT=" + " ".join(test_options),
+        f"FPC={host_wrapper}", f"TEST_FPC={driver}",
+        f"NATIVE_FPC={host_wrapper}", "TEST_OPT=" + " ".join(test_options),
         "OPT=" + " ".join(upstream.get("host_support_options", [])),
         "TEST_DELTEMP=1",
     ]
@@ -2103,6 +2280,8 @@ def run_upstream_case(
         "compiler_id": compiler_id,
         "compiler_commit": compiler.get("commit", "worktree"),
         "compiler_artifact_sha256": compiler_artifact_sha256,
+        "host_driver_sha256": sha256(host_driver),
+        "host_config_sha256": sha256(host_config),
         "compiler_kind": compiler["kind"],
         "compiler_info": compiler_version,
         "options_id": option_id,
@@ -2224,7 +2403,7 @@ def run_upstream_case(
         }, announce=False)
     print(
         f"upstream-suite: {compiler_id} {option_id} tests={len(tests)} "
-        f"mode=core exit={make_rc} "
+        f"mode=core jobs={jobs} exit={make_rc} "
         f"phase-records={phase_records} "
         f"counts={json.dumps(dict(sorted(counts.items())), sort_keys=True)} "
         f"mismatches={mismatches}"
@@ -2264,6 +2443,15 @@ MORMOT_ENVIRONMENT_METHODS = {
     "rtsp over http buffered write",
 }
 
+MORMOT_VERDICT_LINES = {
+    "! All tests passed successfully.",
+    "! Some tests FAILED: please correct the code.",
+}
+
+# The first line the handler of SysUtils writes when an exception nobody
+# handled ends the program (CatchUnhandledException in sysutils.inc).
+UNHANDLED_EXCEPTION_REPORT = "An unhandled exception occurred at "
+
 
 def parse_mormot_report(report: Path) -> dict[str, Any]:
     text = report.read_text(encoding="utf-8", errors="replace")
@@ -2281,11 +2469,16 @@ def parse_mormot_report(report: Path) -> dict[str, Any]:
         r"!\s+-\s+(.+?):\s+([0-9,]+)\s*/\s*([0-9,]+)\s+FAILED",
         re.IGNORECASE,
     )
+    exceptions: list[str] = []
     for line in text.splitlines():
         # Some mORMot revisions emit a socket diagnostic before the failure
         # marker on the same line (e.g. "#1 ENetSock ! - RTSP ...").
         match = leaf_pattern.search(line)
         if not match:
+            # A method that raised adds no failed assertion: the framework
+            # marks it only with "! <suite> - <method>" and the exception text.
+            if line.startswith("!") and line.strip() not in MORMOT_VERDICT_LINES:
+                exceptions.append(line[1:].strip())
             continue
         method = match.group(1).strip()
         failed = int(match.group(2).replace(",", ""))
@@ -2319,6 +2512,7 @@ def parse_mormot_report(report: Path) -> dict[str, Any]:
         "environment_failed": environment_failed,
         "qualification_failed": qualification_failed,
         "failed_methods": failures,
+        "exceptions": exceptions,
     }
 
 
@@ -2327,15 +2521,22 @@ def mormot_suite_result(
     total_failed: int,
     environment_failed: int,
     qualification_failed: int,
+    exceptions: list[str],
+    unhandled: bool = False,
 ) -> str:
+    # Exit code 1 is also what an exception nobody handled gives (the handler
+    # of SysUtils ends the program with 1, as in Delphi): only the report the
+    # handler wrote into the run log tells it from failed environment tests.
     environment_only_exit = (
         run_rc == 1
+        and not unhandled
         and environment_failed > 0
         and total_failed == environment_failed
     )
     return (
         "pass"
-        if qualification_failed == 0 and (run_rc == 0 or environment_only_exit)
+        if qualification_failed == 0 and not exceptions
+        and (run_rc == 0 or environment_only_exit)
         else "run_fail"
     )
 
@@ -2402,14 +2603,15 @@ def mormot_compile_command(
     compiler: dict[str, Any], options: list[str], source_root: Path,
     static_dir: Path, work: Path, program_source: Path | None = None,
     output_name: str = "mormot2tests", unit_override: Path | None = None,
-    pinned_memory_manager: Path | None = None,
+    pinned_memory_manager: Path | None = None, source_dir: str = "src",
 ) -> list[str]:
     source_dirs = [
         "app", "core", "crypt", "db", "lib", "net", "orm", "rest",
         "soa", "script", "misc", "tools/mget", "tools/ecc",
     ]
-    include_dirs = [source_root / "src", source_root / "src/core", source_root / "src/net"]
-    unit_dirs = [source_root / "src" / name for name in source_dirs]
+    source_tree = source_root / source_dir
+    include_dirs = [source_tree, source_tree / "core", source_tree / "net"]
+    unit_dirs = [source_tree / name for name in source_dirs]
     if unit_override is not None:
         unit_dirs.insert(0, unit_override)
     suppress = (
@@ -2451,10 +2653,15 @@ def install_mormot_runtime_inputs(
         source_path = ROOT / spec["path"]
         if not source_path.is_file():
             raise RuntimeError(f"mORMot runtime input is missing: {source_path}")
-        actual = sha256(source_path)
+        # A text input is its LF content: a checkout or git archive with
+        # core.autocrlf delivers the pinned LF blob with CRLF line endings.
+        text = None if spec.get("compression") else normalized_source_bytes(source_path)
+        actual = sha256(source_path) if text is None else hashlib.sha256(text).hexdigest()
         if actual != spec["sha256"]:
             raise RuntimeError(
-                f"mORMot runtime input hash mismatch: {source_path}: {actual}"
+                f"mORMot runtime input hash mismatch: {source_path}: "
+                f"expected {spec['sha256']}, actual {actual}"
+                + ("" if text is None else " (CRLF line endings read as LF)")
             )
         destination = work / spec["name"]
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -2475,7 +2682,7 @@ def install_mormot_runtime_inputs(
                 f"unsupported mORMot input compression: {spec['compression']}"
             )
         else:
-            shutil.copy2(source_path, destination)
+            destination.write_bytes(text)
             content_sha256 = actual
         records.append({
             "name": spec["name"],
@@ -2507,6 +2714,17 @@ def mormot_work_dir(writer: ResultWriter, identity: str) -> Path:
     return ROOT / ".m" / work_key
 
 
+def mormot_run_environment(work: Path) -> dict[str, str]:
+    """The suite's temporary files in a folder of its own, inside the run's work
+    folder.  The corpus TFTP test serves the folder of its temporary file, and
+    its first request lists and sorts every file under it: a machine's /tmp
+    made that first answer late enough for a resent request, or for the test's
+    own 5 s timeout."""
+    temporary = work / "tmp"
+    temporary.mkdir(exist_ok=True)
+    return dict(os.environ, TMPDIR=str(temporary))
+
+
 def mormot_suite_work_dirs(
     writer: ResultWriter, identity: str,
 ) -> tuple[Path, Path]:
@@ -2530,6 +2748,8 @@ def run_mormot_probe_case(
     ensure_clean_git_source(
         source_root, source.get("commit"), source.get("url"),
     )
+    verify_embedded_mormot_memory_manager(source_root, source)
+    verify_runtime_mormot_version(source_root, source)
     static_dir, static_input, static_input_sha256 = mormot_static_inputs(
         source_root, source,
     )
@@ -2555,6 +2775,7 @@ def run_mormot_probe_case(
             compiler, options, source_root, static_dir, work,
             program_source, "probe",
             pinned_memory_manager=memory_manager_source,
+            source_dir=source.get("source_dir", "src"),
         ),
         ROOT, probe.get("compile_timeout_seconds", 300), compile_log,
     )
@@ -2655,6 +2876,8 @@ def _run_mormot_case_in_workspace(
     ensure_clean_git_source(
         source_root, source.get("commit"), source.get("url"),
     )
+    verify_embedded_mormot_memory_manager(source_root, source)
+    verify_runtime_mormot_version(source_root, source)
     static_dir, static_input, static_input_sha256 = mormot_static_inputs(
         source_root, source,
     )
@@ -2694,6 +2917,7 @@ def _run_mormot_case_in_workspace(
         "environment_failed": None,
         "qualification_failed": None,
         "failed_methods": [],
+        "exceptions": [],
     }
     memory_report_count = 0
     memory_leaks: list[str] = []
@@ -2711,6 +2935,7 @@ def _run_mormot_case_in_workspace(
         run_rc, run_timeout, run_seconds = run_process(
             [str(executable), prefix.name, "--nontp"],
             work, mormot_run_timeout(source, compiler_id, option_id), run_log,
+            mormot_run_environment(work),
         )
         if run_timeout:
             observed = "run_timeout"
@@ -2730,6 +2955,10 @@ def _run_mormot_case_in_workspace(
                     parsed["total_failed"],
                     parsed["environment_failed"],
                     parsed["qualification_failed"],
+                    parsed["exceptions"],
+                    UNHANDLED_EXCEPTION_REPORT in run_log.read_text(
+                        encoding="utf-8", errors="replace"
+                    ),
                 )
                 report_text = report.read_text(
                     encoding="utf-8", errors="replace"
@@ -3026,6 +3255,8 @@ def main() -> int:
     validate_filters(
         manifest, args.stage, compiler_filter, option_filter, test_filter,
     )
+    if args.stage in ("mormot", "all"):
+        prepare_mormot_dependencies(manifest)
     run_id, run_dir = create_run_directory(
         ROOT / "results" / "runs", args.stage, args.run_id,
     )

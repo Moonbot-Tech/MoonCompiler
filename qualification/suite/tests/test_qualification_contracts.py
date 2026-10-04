@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import importlib.util
 import sys
 import unittest
 from pathlib import Path
@@ -11,6 +12,12 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import qualification_contracts as contracts
+
+VERIFY_PATH = Path(__file__).resolve().parents[2] / "release" / "verify_qualification_run.py"
+VERIFY_SPEC = importlib.util.spec_from_file_location("verify_qualification_run", VERIFY_PATH)
+assert VERIFY_SPEC is not None and VERIFY_SPEC.loader is not None
+verify_qualification_run = importlib.util.module_from_spec(VERIFY_SPEC)
+VERIFY_SPEC.loader.exec_module(verify_qualification_run)
 
 
 class QualificationContractsTest(unittest.TestCase):
@@ -83,6 +90,32 @@ class QualificationContractsTest(unittest.TestCase):
         with self.assertRaisesRegex(contracts.ContractError, "missing=.*two"):
             contracts.require_exact_actual(planned, [("one", "O2")])
 
+    def test_case_targets_are_known_and_filter_the_plan(self) -> None:
+        for targets in ([], ["win32"], ["linux", "linux"], "linux"):
+            with self.subTest(targets=targets):
+                manifest = copy.deepcopy(self.manifest)
+                manifest["focused_gates"]["win64-repairs"]["cases"][0]["targets"] = targets
+                with self.assertRaisesRegex(contracts.ContractError, "invalid targets"):
+                    contracts.validate_focused_gate(manifest, self.locks, "win64-repairs")
+        gate = copy.deepcopy(self.manifest["focused_gates"]["win64-repairs"])
+        bound = next(case for case in gate["cases"] if case["asm"])
+        bound["targets"] = ["linux"]
+        with self.assertRaisesRegex(contracts.ContractError, "Win64 listings"):
+            contracts.validate_focused_gate(
+                {"focused_gates": {"win64-repairs": gate}}, self.locks, "win64-repairs"
+            )
+        gate = copy.deepcopy(self.manifest["focused_gates"]["win64-repairs"])
+        active = [case for case in gate["cases"] if case["state"] == "active"]
+        active[0]["targets"] = ["win64"]
+        active[1]["targets"] = ["linux"]
+        win64 = contracts.planned_pairs(gate, "win64")
+        linux = contracts.planned_pairs(gate, "linux")
+        for case, present, absent in ((active[0], win64, linux), (active[1], linux, win64)):
+            pairs = [(case["id"], profile) for profile in case["profiles"]]
+            self.assertTrue(set(pairs) <= set(present))
+            self.assertFalse(set(pairs) & set(absent))
+        self.assertEqual(set(win64) | set(linux), set(contracts.planned_pairs(gate)))
+
     def test_case_can_only_disappear_via_explicit_retirement(self) -> None:
         baseline = copy.deepcopy(self.manifest)
         current = copy.deepcopy(self.manifest)
@@ -122,6 +155,76 @@ class QualificationContractsTest(unittest.TestCase):
             contracts.require_resident_stage_lock(
                 self.locks, layer["stage_lock"], names
             )
+
+
+class ReleaseQualificationEvidenceTest(unittest.TestCase):
+    SHA = "a" * 40
+
+    def artifacts(self, *, expired: bool = False) -> list[dict]:
+        return [
+            {"name": name, "expired": expired}
+            for name in verify_qualification_run.evidence_names(self.SHA)
+        ]
+
+    def test_exact_successful_run_with_both_platforms_is_selected(self) -> None:
+        runs = [
+            {
+                "id": 7,
+                "head_sha": self.SHA,
+                "status": "completed",
+                "conclusion": "success",
+            }
+        ]
+        self.assertEqual(
+            verify_qualification_run.select_run(runs, {7: self.artifacts()}, self.SHA),
+            (7, verify_qualification_run.evidence_names(self.SHA)),
+        )
+
+    def test_wrong_sha_failure_or_incomplete_evidence_is_rejected(self) -> None:
+        for run, artifacts in (
+            (
+                {
+                    "id": 1,
+                    "head_sha": "b" * 40,
+                    "status": "completed",
+                    "conclusion": "success",
+                },
+                self.artifacts(),
+            ),
+            (
+                {
+                    "id": 2,
+                    "head_sha": self.SHA,
+                    "status": "completed",
+                    "conclusion": "failure",
+                },
+                self.artifacts(),
+            ),
+            (
+                {
+                    "id": 3,
+                    "head_sha": self.SHA,
+                    "status": "completed",
+                    "conclusion": "success",
+                },
+                self.artifacts()[:1],
+            ),
+            (
+                {
+                    "id": 4,
+                    "head_sha": self.SHA,
+                    "status": "completed",
+                    "conclusion": "success",
+                },
+                self.artifacts(expired=True),
+            ),
+        ):
+            with self.subTest(run=run):
+                self.assertIsNone(
+                    verify_qualification_run.select_run(
+                        [run], {run["id"]: artifacts}, self.SHA
+                    )
+                )
 
 
 if __name__ == "__main__":

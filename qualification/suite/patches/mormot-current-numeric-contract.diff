@@ -1,0 +1,33 @@
+diff --git a/test/test.core.base.pas b/test/test.core.base.pas
+--- a/test/test.core.base.pas
++++ b/test/test.core.base.pas
+@@ -4345,9 +4345,13 @@ begin
+   e := 40640.5028819444;
+   CheckSame(d, e, 1e-11);
+   s := '40640e400';
+   d := GetExtended(pointer(s), err);
+-  CheckSame(d, 40640.0, DOUBLE_SAME, 'e400=e0');
++  // An exponent outside the supported range is invalid; check the error.
+   Check(err > 0, 'e400');
++  s := '40640e0';
++  d := GetExtended(pointer(s), err);
++  Check(err = 0, 'e0');
++  CheckSame(d, 40640.0, DOUBLE_SAME, 'e0');
+   Check(IsAnsiCompatible('t'));
+   Check(IsAnsiCompatible('te'));
+   Check(IsAnsiCompatible('tes'));
+diff --git a/test/test.core.data.pas b/test/test.core.data.pas
+--- a/test/test.core.data.pas
++++ b/test/test.core.data.pas
+@@ -418,8 +418,11 @@ begin
+   Check(VarIsStr(v));
+   TextToVariant('1e-324', true, v);
+   Check(VarIsStr(v));
+   TextToVariant('1e308', true, v);
++  Check(vd.VType = varDouble);
++  CheckSame(vd.VDouble, 1e308);
++  TextToVariant('1e309', true, v);
+   Check(VarIsStr(v));
+   t := nil; // makes the compiler happy
+   ValueVarToVariant(nil, 0, oftBoolean, vd, false, t);
+   Check(not boolean(v));

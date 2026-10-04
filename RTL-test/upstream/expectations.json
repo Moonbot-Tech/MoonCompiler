@@ -1,0 +1,17 @@
+{
+  "schema": "mooncompiler-upstream-rtl-expectations/v1",
+  "excluded": [
+    {
+      "source": "math/tmask.pp",
+      "reason": "expects unmasked FP exceptions at startup; MoonCompiler pins the Delphi-compatible masked product default"
+    },
+    {
+      "source": "math/tmask2.pp",
+      "reason": "expects unmasked FP exceptions at startup; MoonCompiler pins the Delphi-compatible masked product default"
+    },
+    {
+      "source": "math/ttrig1.pp",
+      "reason": "uses a fixed tan(Pi/2) value; the result is ill-conditioned and conflicts with the Delphi-checked argument-reduction oracle"
+    }
+  ]
+}

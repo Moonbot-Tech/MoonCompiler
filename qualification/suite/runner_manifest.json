@@ -86,7 +86,7 @@
       ],
       "artifact_sha256": "9c5b8865f304eec8a11af4477e4d2da665d05339a59e02af532ceaff58ff6614",
       "commit": "0d122c49534b480be9284c21bd60b53d99904346",
-      "config": "toolchains/fpc-3.2.2/etc/fpc.cfg",
+      "config": "toolchains/fpc-3.2.2/etc/moon-base.cfg",
       "driver": "toolchains/fpc-3.2.2/bin/fpc",
       "kind": "installed",
       "source_path": "checkouts/fpc-3.2.2"
@@ -97,7 +97,7 @@
       ],
       "artifact_sha256": "cb78d5d9b48a8be79b34719db07ae745b6073713e1626c62389227b7aaf43a80",
       "commit": "d78e2897014a69f56a1cfb53c75335c4cc37ba0e",
-      "config": "toolchains/fpc-3.2.4-rc1/etc/fpc.cfg",
+      "config": "toolchains/fpc-3.2.4-rc1/etc/moon-base.cfg",
       "driver": "toolchains/fpc-3.2.4-rc1/bin/fpc",
       "kind": "pinned-stable-reference",
       "source_path": "checkouts/fpc-3.2.4-rc1"
@@ -108,16 +108,16 @@
       ],
       "artifact_sha256": "9494ee22330961725019e90f93524d9c86722c666371ed9dce8e78d8fd997305",
       "commit": "3095698a96498400a0eedffc26f10ab23007f65e",
-      "config": "toolchains/fpc-current/etc/fpc.cfg",
+      "config": "toolchains/fpc-current/etc/moon-base.cfg",
       "driver": "toolchains/fpc-current/bin/fpc",
       "kind": "installed-upstream-comparison",
       "source_path": "checkouts/fpc-current"
     },
     "moonbot-compiler-beta": {
-      "config": "../../.moonbot/toolchain/etc/fpc.cfg",
-      "config_win64": "../../.moonbot/toolchain/bin/x86_64-win64/fpc.cfg",
-      "driver": "../../.moonbot/toolchain/bin/fpc",
-      "driver_win64": "../../.moonbot/toolchain/bin/x86_64-win64/fpc.exe",
+      "config": "../../toolchain/etc/moon-base.cfg",
+      "config_win64": "../../toolchain/bin/x86_64-win64/moon-base.cfg",
+      "driver": "../../toolchain/bin/fpc",
+      "driver_win64": "../../toolchain/bin/x86_64-win64/fpc.exe",
       "fixture_compatibility_alias": "unleashed-latest",
       "fixture_exact_expectation_alias_win64": "moonbot-compiler-beta-win64",
       "kind": "current-worktree"
@@ -143,7 +143,7 @@
       ],
       "artifact_sha256": "78e1412d6b9f930d694f44240826922a2b2c48e981b8046627783e5738725c24",
       "commit": "483299735faef392a746646bb3d5f5737a9e53a5",
-      "config": "toolchains/fpc-fixes-3.2/etc/fpc.cfg",
+      "config": "toolchains/fpc-fixes-3.2/etc/moon-base.cfg",
       "driver": "toolchains/fpc-fixes-3.2/bin/fpc",
       "kind": "installed",
       "source_path": "checkouts/fpc-fixes-3.2"
@@ -185,7 +185,7 @@
       ],
       "artifact_sha256": "b1a31ed555b0ef0a57f0dd94b57585564154c9b018a6bfb95a3cf987fd27e74f",
       "commit": "0e0f064ba22622111ff06567d46040c9c2cfd74d",
-      "config": "toolchains/unleashed-latest/etc/fpc.cfg",
+      "config": "toolchains/unleashed-latest/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-latest/bin/fpc",
       "kind": "installed",
       "source_path": "checkouts/unleashed-latest"
@@ -196,7 +196,7 @@
       ],
       "artifact_sha256": "dc0ce06e38c1e794ceb81b1c345a163a01a592bac35b3acfc716eb377e540a36",
       "commit": "46968177e78c343f242c7b6c8c20f623b9a30b10",
-      "config": "toolchains/unleashed-o3-safe-absfix-001/etc/fpc.cfg",
+      "config": "toolchains/unleashed-o3-safe-absfix-001/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-o3-safe-absfix-001/bin/fpc",
       "kind": "candidate-absolute-fix",
       "source_path": "checkouts/unleashed-o3-safe-base"
@@ -207,7 +207,7 @@
       ],
       "artifact_sha256": "ec46030e1e674ae9a311776c805cb74188846dd0848437ca4a2b722e546d77c5",
       "commit": "872907d95f301fcc90f07b011ee97341a9dc8448",
-      "config": "toolchains/unleashed-o3-safe-audited-001/etc/fpc.cfg",
+      "config": "toolchains/unleashed-o3-safe-audited-001/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-o3-safe-audited-001/bin/fpc",
       "fixture_compatibility_alias": "unleashed-latest",
       "fixture_exact_expectation_alias": "unleashed-o3-safe-audited-001",
@@ -220,7 +220,7 @@
       ],
       "artifact_sha256": "d2500615ca81511eada96b2511d69ff825c4cccf0c5301e1a47f3c51fffc1c2c",
       "commit": "342327ddfbfe6f4a6c4298a20c1973c051b17e70",
-      "config": "toolchains/unleashed-o3-safe-base/etc/fpc.cfg",
+      "config": "toolchains/unleashed-o3-safe-base/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-o3-safe-base/bin/fpc",
       "kind": "candidate-safe-o3-base",
       "source_path": "checkouts/unleashed-o3-safe-base"
@@ -231,7 +231,7 @@
       ],
       "artifact_sha256": "0de14a433a7685e4ef98ad33092beae3c29339b113befee97758afb3a82bd5ad",
       "commit": "b22dc5667b68c3bcf5367dc1f50bd1ecaa2edbd7",
-      "config": "toolchains/unleashed-o3-safe-bsxfix-001/etc/fpc.cfg",
+      "config": "toolchains/unleashed-o3-safe-bsxfix-001/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-o3-safe-bsxfix-001/bin/fpc",
       "fixture_compatibility_alias": "unleashed-latest",
       "fixture_exact_expectation_alias": "unleashed-o3-safe-floatfix-001",
@@ -244,7 +244,7 @@
       ],
       "artifact_sha256": "38dd36d10c0ba5e05cbc6aa538fee39562bb2f7a732896810885600207bfc347",
       "commit": "4823b17665935ab18b0b29b153dd389ca3f6f872",
-      "config": "toolchains/unleashed-o3-safe-divfix-002/etc/fpc.cfg",
+      "config": "toolchains/unleashed-o3-safe-divfix-002/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-o3-safe-divfix-002/bin/fpc",
       "kind": "candidate-divfix",
       "source_path": "checkouts/unleashed-o3-safe-base"
@@ -255,7 +255,7 @@
       ],
       "artifact_sha256": "d4f3aa6eba5487c9aa02eba8b994fc9d460defdc73ea267e1380fdf08e8e0408",
       "commit": "9a263c9eb81d7d0629f4cddeb9538c79519127c9",
-      "config": "toolchains/unleashed-o3-safe-exitfix-001/etc/fpc.cfg",
+      "config": "toolchains/unleashed-o3-safe-exitfix-001/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-o3-safe-exitfix-001/bin/fpc",
       "fixture_compatibility_alias": "unleashed-latest",
       "fixture_exact_expectation_alias": "unleashed-o3-safe-floatfix-001",
@@ -268,7 +268,7 @@
       ],
       "artifact_sha256": "0698185ad942b4f0be55ce75877c2fd7b522ca71901cd8b5d87e559f75e3b4a3",
       "commit": "b66d3886dff0e6c9a808c6b6290d904ccef14705",
-      "config": "toolchains/unleashed-o3-safe-floatfix-001/etc/fpc.cfg",
+      "config": "toolchains/unleashed-o3-safe-floatfix-001/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-o3-safe-floatfix-001/bin/fpc",
       "fixture_compatibility_alias": "unleashed-latest",
       "kind": "candidate-float-fix",
@@ -280,7 +280,7 @@
       ],
       "artifact_sha256": "dfcb08efd56357b1f6e0f88664a49cc0c51d8d5aa06618bd93ab2348ddb5e39f",
       "commit": "56b11f50e55c6c27b73efd3f489a195ba0b303fa",
-      "config": "toolchains/unleashed-o3-safe-movssfix-001/etc/fpc.cfg",
+      "config": "toolchains/unleashed-o3-safe-movssfix-001/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-o3-safe-movssfix-001/bin/fpc",
       "fixture_compatibility_alias": "unleashed-latest",
       "fixture_exact_expectation_alias": "unleashed-o3-safe-floatfix-001",
@@ -293,7 +293,7 @@
       ],
       "artifact_sha256": "e449b73328d3c0be7b09b3b9ee282809559b0002ee7780a46e14074801ff25b1",
       "commit": "7bca1928161161b9a946b294a4106f6259511dcd",
-      "config": "toolchains/unleashed-o3-safe-promofix-001/etc/fpc.cfg",
+      "config": "toolchains/unleashed-o3-safe-promofix-001/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-o3-safe-promofix-001/bin/fpc",
       "fixture_compatibility_alias": "unleashed-latest",
       "fixture_exact_expectation_alias": "unleashed-o3-safe-floatfix-001",
@@ -306,7 +306,7 @@
       ],
       "artifact_sha256": "42015fe90123f78c4eefd1a88bdddffa32d091a621eba5f8c872b6089e732728",
       "commit": "216aa3595ba5d642a5cb9e986041363c0a1164e3",
-      "config": "toolchains/unleashed-o3-safe-rangefix-002/etc/fpc.cfg",
+      "config": "toolchains/unleashed-o3-safe-rangefix-002/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-o3-safe-rangefix-002/bin/fpc",
       "fixture_compatibility_alias": "unleashed-latest",
       "fixture_exact_expectation_alias": "unleashed-o3-safe-floatfix-001",
@@ -319,7 +319,7 @@
       ],
       "artifact_sha256": "aaae5ea0ba32eda7d58e3d792c4db2e23b9adb85eb7a89141afafe1b023dde2f",
       "commit": "343733b1022bf604ddb0f6dd1961c5d3e8df3311",
-      "config": "toolchains/unleashed-o3-safe-u64fix-001/etc/fpc.cfg",
+      "config": "toolchains/unleashed-o3-safe-u64fix-001/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-o3-safe-u64fix-001/bin/fpc",
       "fixture_compatibility_alias": "unleashed-latest",
       "fixture_exact_expectation_alias": "unleashed-o3-safe-floatfix-001",
@@ -332,7 +332,7 @@
       ],
       "artifact_sha256": "8522f9ef65cd4e6a853dae3cb2668f5d4c7aa117dce42d41dbd17e719b962cd4",
       "commit": "2de8b00ff736306f26b9443e550f6e0791c452b9",
-      "config": "toolchains/unleashed-o3-safe-varfix-001/etc/fpc.cfg",
+      "config": "toolchains/unleashed-o3-safe-varfix-001/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-o3-safe-varfix-001/bin/fpc",
       "kind": "candidate-record-var-fix",
       "source_path": "checkouts/unleashed-o3-safe-base"
@@ -343,7 +343,7 @@
       ],
       "artifact_sha256": "bc8c72a4e062e7df732465c972e30ba87d43376000a3e40a39ab70fba506a26a",
       "commit": "8e665b20fc222fab3ccbfd8f558ca4321d9833e9",
-      "config": "toolchains/unleashed-pre-experimental/etc/fpc.cfg",
+      "config": "toolchains/unleashed-pre-experimental/etc/moon-base.cfg",
       "driver": "toolchains/unleashed-pre-experimental/bin/fpc",
       "kind": "candidate-under-evaluation",
       "source_path": "checkouts/unleashed-pre-experimental"
@@ -1135,14 +1135,28 @@
       "runner": "scripts/run_win64_repair_gate.py",
       "inventory_lock": "focused-win64-repairs/v1",
       "profiles": {
+        "O0": [
+          "-O-"
+        ],
         "O2": [
           "-O2"
         ],
         "O3": [
           "-O3"
+        ],
+        "O3_NO_LOOPUNROLL": [
+          "-O3",
+          "-OoNOLOOPUNROLL"
         ]
       },
       "argument_sets": {
+        "vcl": [
+          "--pinned-unit=System.Messaging={compiler_root}/packages/vcl-compat/src/system.messaging.pp",
+          "--pinned-unit=System.IOUtils={compiler_root}/packages/vcl-compat/src/system.ioutils.pp",
+          "-Fu{compiler_root}/packages/vcl-compat/src",
+          "-Fu{compiler_root}/packages/fcl-base/namespaced",
+          "-Fu{compiler_root}/packages/fcl-base/src"
+        ],
         "generic": [
           "-Fu{compiler_root}/packages/rtl-generics/namespaced",
           "-Fi{compiler_root}/packages/rtl-generics/src",
@@ -1166,6 +1180,290 @@
         ]
       },
       "cases": [
+        {
+          "id": "tlooppreheadersemantics1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tlooppreheadersemantics1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tinlinecheckedruntime1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tinlinecheckedruntime1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "checked-inline-constants"
+            }
+          ]
+        },
+        {
+          "id": "tobservableintrinsics1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tobservableintrinsics1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "observable-intrinsics"
+            }
+          ]
+        },
+        {
+          "id": "tfoldruntimereal1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tfoldruntimereal1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tshortboolprune1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tshortboolprune1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "short-bool-prune"
+            }
+          ]
+        },
+        {
+          "id": "tdynarraysetlengthroute1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdynarraysetlengthroute1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "dynarray-setlength-route"
+            }
+          ]
+        },
+        {
+          "id": "twithinterfacecapture1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twithinterfacecapture1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tinlinefallbackbyref1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tinlinefallbackbyref1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "inline-managed-forwarding"
+            }
+          ]
+        },
+        {
+          "id": "tinlineoutreg1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tinlineoutreg1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "inline-out-registers"
+            }
+          ]
+        },
+        {
+          "id": "tgenerictypeforkinline1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tgenerictypeforkinline1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O2",
+              "verifier": "generic-type-fork-inline"
+            },
+            {
+              "profile": "O3",
+              "verifier": "generic-type-fork-inline"
+            }
+          ]
+        },
+        {
+          "id": "fmtbcd-variant-cast",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/fmtbcd_variant_cast.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "generics-reorder-contracts",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/generics_reorder_contracts.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [
+            "generic"
+          ],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "message-manager-shutdown-contract",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/message_manager_shutdown_contract.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [
+            "vcl"
+          ],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "rtl-edge-contracts",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/rtl_edge_contracts.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "numeric-range-contracts",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/smoke/numeric_range_contracts.pas",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
         {
           "id": "tdelphimixeduint641",
           "state": "active",
@@ -1261,6 +1559,118 @@
             "run": "pass"
           },
           "asm": []
+        },
+        {
+          "id": "tunsignednarrowdivmod1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tunsignednarrowdivmod1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "unsigned-narrow-divmod"
+            }
+          ]
+        },
+        {
+          "id": "tunicodecharliteralcmp1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tunicodecharliteralcmp1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "unicode-char-literal-compare"
+            }
+          ]
+        },
+        {
+          "id": "tswapendianintrinsic1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tswapendianintrinsic1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "swapendian-intrinsic"
+            }
+          ],
+          "setup": {
+            "source_root": "compiler",
+            "source": "tests/test/cg/uswapendianname1.pp"
+          }
+        },
+        {
+          "id": "tordinalinterval1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tordinalinterval1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "ordinal-intervals"
+            }
+          ]
+        },
+        {
+          "id": "tcallobligation1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tcallobligation1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "call-obligations"
+            }
+          ]
         },
         {
           "id": "tdelphix86shiftfold1",
@@ -1412,6 +1822,205 @@
           ]
         },
         {
+          "id": "tforunrollexceptioncounter1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforunrollexceptioncounter1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3",
+            "O3_NO_LOOPUNROLL"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "loop-counter-observability"
+            }
+          ]
+        },
+        {
+          "id": "tforunrolldefercounter1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforunrolldefercounter1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforunrollnonlocalgoto1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforunrollnonlocalgoto1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3",
+            "O3_NO_LOOPUNROLL"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "loop-counter-nonlocal-goto"
+            }
+          ]
+        },
+        {
+          "id": "tforunrolllocalabrupt1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforunrolllocalabrupt1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3",
+            "O3_NO_LOOPUNROLL"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "loop-counter-local-abrupt"
+            }
+          ]
+        },
+        {
+          "id": "tforunrollunleashedcounter1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforunrollunleashedcounter1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3",
+            "O3_NO_LOOPUNROLL"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforcounteraggregateliveness1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforcounteraggregateliveness1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3",
+            "O3_NO_LOOPUNROLL"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforcounterdfaliveness1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforcounterdfaliveness1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3",
+            "O3_NO_LOOPUNROLL"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforunrolllatephase1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforunrolllatephase1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "late-phase-unrolling"
+            }
+          ]
+        },
+        {
+          "id": "tforunrollnestedfinally1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforunrollnestedfinally1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "compile_timeout_seconds": 5,
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforunrollppu1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforunrollppu1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [],
+          "setup": {
+            "source_root": "compiler",
+            "source": "tests/test/cg/uforunrollppu1.pp"
+          }
+        },
+        {
           "id": "tdelphisparseenumtypeinfo1",
           "state": "active",
           "source_root": "compiler",
@@ -1537,7 +2146,9 @@
             "O2",
             "O3"
           ],
-          "args": [],
+          "args": [
+            "vcl"
+          ],
           "expectation": {
             "compile": "pass",
             "run": "pass"
@@ -2064,6 +2675,27 @@
             "run": "pass"
           },
           "asm": []
+        },
+        {
+          "id": "tstringcowfastpath1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tstringcowfastpath1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": [
+            {
+              "profile": "O3",
+              "verifier": "string-cow-fastpath"
+            }
+          ]
         },
         {
           "id": "tlooplocaldynarraycall1",
@@ -2760,6 +3392,892 @@
           "expectation": {
             "compile": "fail",
             "diagnostic": "Step value must be a positive integer"
+          },
+          "asm": []
+        },
+        {
+          "id": "tforunrollobservablecounter1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tforunrollobservablecounter1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "ttailframe1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/ttailframe1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdivmodpair1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdivmodpair1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "trangeprovenloop1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/trangeprovenloop1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tu64floatrounding1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tu64floatrounding1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabi1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabi1.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabidelegatedinterface1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabidelegatedinterface1.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabidelegatedinterface2",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabidelegatedinterface2.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabiinterface1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabiinterface1.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabiinterface2",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabiinterface2.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabiinterfaceancestor1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabiinterfaceancestor1.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabilegacy1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabilegacy1.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabioverride1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabioverride1.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabippu1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabippu1.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabippu2",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabippu2.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tx8664aggregateabiexplicitcc1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tx8664aggregateabiexplicitcc1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tx8664aggregateabiexplicitcc2",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tx8664aggregateabiexplicitcc2.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64varargsabi1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64varargsabi1.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64arrayconstforward1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64arrayconstforward1.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64cdeclopenarray1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64cdeclopenarray1.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tvariantdistinct1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tvariantdistinct1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tincludeutf8bom1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tincludeutf8bom1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tchlp60",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tchlp60.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tgenericrecursivegrowth2",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tgenericrecursivegrowth2.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmoddivreassociate1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmoddivreassociate1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "ttupleoperandonce1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/ttupleoperandonce1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "trangecombineorientation1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/trangecombineorientation1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tfpchilo1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tfpchilo1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmoontextpointer1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmoontextpointer1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmoonwithobjectcapture1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmoonwithobjectcapture1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tdelphiinlineinclude1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tdelphiinlineinclude1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmooncaptureshadow1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmooncaptureshadow1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmoonwithcapturemapping1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmoonwithcapturemapping1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tgeneric131",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tgeneric131.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tstreamoverride1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tstreamoverride1.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tw41766",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/webtbs/tw41766.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "tw41766a",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/webtbs/tw41766a.pp",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabiinterfaceancestorconflict1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabiinterfaceancestorconflict1.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "No matching implementation for interface method \"Read8(const TRec8):System.QWord;\" found"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabiinterfaceancestorconflict2",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabiinterfaceancestorconflict2.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "No matching implementation for interface method \"Read8(const TDelphiRec8):System.QWord;\" found"
+          },
+          "asm": []
+        },
+        {
+          "id": "twin64aggregateabiinterfaceconflict1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/twin64aggregateabiinterfaceconflict1.pp",
+          "targets": [
+            "win64"
+          ],
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "No matching implementation for interface method \"Read8(const TRec8):System.QWord;\" found"
+          },
+          "asm": []
+        },
+        {
+          "id": "tgenericrecursivegrowth1",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/tgenericrecursivegrowth1.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Type parameters of specializations of generics cannot reference the currently specialized type"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmoontextpointer2",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmoontextpointer2.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Can't read or write variables of this type"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmoontextpointer3",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmoontextpointer3.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Can't read or write variables of this type"
+          },
+          "asm": []
+        },
+        {
+          "id": "tmoontextpointer4",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/test/cg/tmoontextpointer4.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Illegal use of ':'"
+          },
+          "asm": []
+        },
+        {
+          "id": "tw41766b",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/webtbs/tw41766b.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Variable identifier expected"
+          },
+          "asm": []
+        },
+        {
+          "id": "tw41766c",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/webtbs/tw41766c.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Can't assign values to const variable"
+          },
+          "asm": []
+        },
+        {
+          "id": "tw41770b",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/webtbs/tw41770b.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Incompatible types: got \"TObject\" expected \"TBase\""
+          },
+          "asm": []
+        },
+        {
+          "id": "tw41770c",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/webtbs/tw41770c.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Incompatible types: got \"TObject\" expected \"TBase\""
+          },
+          "asm": []
+        },
+        {
+          "id": "tw41770d",
+          "state": "active",
+          "source_root": "compiler",
+          "source": "tests/webtbs/tw41770d.pp",
+          "profiles": [
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "fail",
+            "diagnostic": "Overloaded functions have the same parameter list"
+          },
+          "asm": []
+        },
+        {
+          "id": "memory-status",
+          "state": "active",
+          "source_root": "suite",
+          "source": "tests/memory/memory_status.dpr",
+          "profiles": [
+            "O0",
+            "O2",
+            "O3"
+          ],
+          "args": [],
+          "expectation": {
+            "compile": "pass",
+            "run": "pass"
           },
           "asm": []
         }
@@ -3490,6 +5008,7 @@
     },
     "sources": {
       "current": {
+        "commit": "dfc81572f122bf18698c285e5e75a7a0e4326412",
         "compiler_allow": [
           "moonbot-compiler-beta"
         ],
@@ -3497,11 +5016,23 @@
           "*/*": []
         },
         "memory_manager": "../../runtime/mm/mormot.core.fpcx64mm.pas",
-        "path": "../vendor/mormot-product",
-        "static_dir": "../vendor/mormot-product/static/x86_64-linux",
+        "memory_manager_reference": "core/mormot.core.fpcx64mm.pas",
+        "path": "../../.qualification/deps/moonormot",
+        "require_branch_tip": "main",
+        "required_report_patterns": [
+          "Client side REST:",
+          "Security:",
+          "Service oriented architecture PASSED"
+        ],
+        "runtime_version": "../../runtime/moonormot.need.inc",
+        "source_dir": ".",
+        "static_dir": "../../.qualification/deps/moonormot/static/x86_64-linux",
         "static_manifest": "fixtures/mormot-static/x86_64-linux.SHA256SUMS",
         "test_commit": "38874e16c03373a5275b959fdb1cc38d5597f67f",
-        "test_path": "fixtures/mormot-2.3.8832/test"
+        "test_patch": "patches/mormot-current-numeric-contract.diff",
+        "test_path": "fixtures/mormot-2.3.8832/test",
+        "url": "https://github.com/Moonbot-Tech/MoonORMot.git",
+        "version_reference": "moonormot.version.inc"
       },
       "compiler-corpus-2026": {
         "commit": "bc189414f1b9ea163d24029cc8e814405e8e0cb5",
@@ -3669,17 +5200,22 @@
     "compiler_allow": [
       "moonbot-compiler-beta"
     ],
+    "host_driver": "../../toolchain/ide/bin/fpc",
+    "host_config": "../../toolchain/ide/etc/fpc.cfg",
     "core_profile_exclusions": {
       "test/cg/tdelphicustomvariantbyref1.pp": "product-profile regression requires StrUtils and the installed Unicode Variants package; the upstream core harness deliberately compiles with -n and only its base RTL",
       "test/cg/tdelphifilegetsize1.pp": "product-profile System.IOUtils regression requires the separately installed vcl-compat package; the upstream core harness deliberately compiles with -n and only its base RTL",
       "test/cg/tdelphimemorystreamcapacity1.pp": "product-profile NativeInt TMemoryStream capacity regression requires the installed Moon RTL; the upstream core harness deliberately builds its base Classes unit",
       "test/cg/tdelphiolevariantint641.pp": "product-profile regression requires the separately installed Unicode Variants package; its exact runtime contract is covered by RTL-test/semantic/variant_int_arith_semantic.dpr",
+      "test/cg/tdelphistringlistbom1.pp": "product-profile Unicode TStringList regression; the upstream core harness deliberately builds the base ANSI RTL without MOONCOMPILER_UNICODE_DEFAULT",
       "test/cg/tdelphivariantrawbytestring1.pp": "product-profile regression requires the separately installed Variants package; the upstream core harness deliberately compiles with -n and only its base RTL",
       "test/cg/tdelphivariantcardinalbyref1.pp": "product-profile regression requires the separately installed Unicode Variants package; its exact decorated-carrier contract is covered by RTL-test/semantic/variant_cardinal_semantic.dpr",
       "test/cg/tdelphivariantstring1.pp": "product-profile regression requires the separately installed Variants package; the upstream core harness deliberately compiles with -n and only its base RTL",
+      "test/cg/tinlinefallbackbyref1.pp": "product-profile inline regression includes a Variant neighbour and requires the separately installed Unicode Variants package; the upstream core harness deliberately compiles with -n and only its base RTL",
       "test/cg/tmoonattributemarker1.pp": "product-profile regression requires the separately installed Rtti package; the upstream core harness deliberately compiles with -n and only its base RTL",
       "test/cg/tmoondelphicallbacktypes1.pp": "product-profile regression requires the MoonCompiler SysUtils callback aliases, which are intentionally absent from the separately built upstream core RTL",
       "test/cg/tmoonnamespacequalified1.pp": "product-profile namespace regression requires the installed unit aliases and -FNSystem configuration; the upstream core harness deliberately compiles with -n",
+      "test/cg/tvariantdistinct1.pp": "product-profile distinct-Variant regression requires the separately installed Unicode Variants package; the upstream core harness deliberately compiles with -n and only its base RTL",
       "test/units/classes/tmoonunicodestringlist1.pp": "product-profile Unicode TStringList regression; the upstream core harness deliberately builds the base ANSI RTL without MOONCOMPILER_UNICODE_DEFAULT",
       "test/units/sysutils/tencodingtest.pp": "legacy ANSI RTL oracle passes only because both typed AnsiString assignment and the old TEncoding.Convert leave bytes unchanged; the product Unicode profile follows the independently measured Delphi transcoding contract in tdelphibytestringcast1",
       "test/units/sysutils/tmoonunicodeansisysutils1.pp": "product-profile Unicode SysUtils regression; the upstream core harness deliberately builds the base ANSI RTL without MOONCOMPILER_UNICODE_DEFAULT",
@@ -3691,7 +5227,9 @@
       "test/units/math/tmask2.pp": "the test assumes the legacy FPC x86 floating-exception defaults; the Moon product profile deliberately uses Delphi 12.2 masked defaults and explicit SetExceptionMask remains the opt-in trap control",
       "test/tcpstrconcat4.pp": "the FPC-specific RawByteString destination oracle conflicts with Delphi 12.2, which converts both same- and mixed-codepage typed AnsiString expressions through DefaultSystemCodePage",
       "test/cg/tint128constfold1.pp": "FPC UInt128 and Int128 extensions are outside the Delphi application contract",
+      "test/tmoperator8.pp": "the test uses FPC-specific AddRef/Copy managed-record operators and expects dynamic-array Copy to bypass Copy; the product RTL follows Delphi managed-array copy construction and invokes the element copy operator",
       "test/tsetsize.pp": "legacy FPC set-size oracle conflicts with the measured Delphi record ABI",
+      "test/tfuncref47.pp": "the test asserts FPC's snapshot of a procedure variable given to a function reference in mode Delphi; Delphi 12.2 reads the variable at every call (the same program under dcc64 prints 2 and halts with 1), and the product follows Delphi in mode Delphi (tests/smoke/funcref_value_sources.pas)",
       "webtbs/tw41827.pp": "TypeInfo(expression) is rejected by Delphi 12.2 and is outside the Delphi application contract"
     },
     "known_deviations": {

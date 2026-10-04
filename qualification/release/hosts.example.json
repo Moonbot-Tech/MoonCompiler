@@ -1,0 +1,21 @@
+{
+  "windows": {
+    "repo": "R:/test/MoonCompiler",
+    "python": "python",
+    "run_dir": "R:/test/MoonCompiler/.qualification/release-candidate-win",
+    "baseline_toolchain": "R:/release-baseline/toolchain",
+    "baseline_mm_source": "R:/release-baseline/runtime/mm/mormot.core.fpcx64mm.pas",
+    "jobs": 8,
+    "memory_mb": 16384
+  },
+  "linux": {
+    "repo": "/home/user/MoonCompiler",
+    "python": "python3",
+    "run_dir": "/home/user/release-candidate-linux",
+    "baseline_toolchain": "/home/user/release-baseline/toolchain",
+    "baseline_mm_source": "/home/user/release-baseline/runtime/mm/mormot.core.fpcx64mm.pas",
+    "jobs": 12,
+    "memory_mb": 32768,
+    "ssh": ["C:/path/to/plink.exe", "-batch", "-hostkey", "ssh-ed25519 255 SHA256:replace-me", "-i", "C:/path/to/key.ppk", "user@hel1"]
+  }
+}

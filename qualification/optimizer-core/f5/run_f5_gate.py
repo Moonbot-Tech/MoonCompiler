@@ -19,8 +19,8 @@ EXPECTED = (0, "ADDRESSGVN:PASS:18446744073707293280\n", "")
 
 def default_compiler() -> Path:
     if os.name == "nt":
-        return ROOT / ".moonbot/toolchain/bin/x86_64-win64/ppcx64.exe"
-    return ROOT / ".moonbot/toolchain/bin/ppcx64"
+        return ROOT / "toolchain/bin/x86_64-win64/ppcx64.exe"
+    return ROOT / "toolchain/bin/ppcx64"
 
 
 def default_rtl() -> Path:
@@ -83,12 +83,13 @@ def routine_asm(asm: str, name: str) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--compiler", type=Path, default=default_compiler())
-    ap.add_argument("--rtl", type=Path, default=default_rtl())
+    ap.add_argument("--rtl", type=Path)
     ap.add_argument(
         "--compiler-option", action="append", default=[],
         help="extra compiler option; repeat for multiple options",
     )
     args = ap.parse_args()
+    args.rtl = args.rtl or default_rtl()
 
     tmp = Path(tempfile.mkdtemp(prefix="optimizer_f5_"))
     failures: list[str] = []

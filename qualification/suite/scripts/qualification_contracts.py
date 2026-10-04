@@ -15,6 +15,8 @@ SUITE = Path(__file__).resolve().parent.parent
 REPOSITORY = SUITE.parents[1]
 MANIFEST_PATH = SUITE / "runner_manifest.json"
 LOCKS_PATH = SUITE / "contract_locks.json"
+# The targets a focused case runs on; a case that names none runs on both.
+TARGETS = ("win64", "linux")
 
 
 class ContractError(RuntimeError):
@@ -188,6 +190,18 @@ def _case_map(gate: dict[str, Any]) -> dict[str, dict[str, Any]]:
             raise ContractError(f"focused case args/asm must be arrays: {case_id}")
         if not all(isinstance(value, str) and value for value in case["args"]):
             raise ContractError(f"focused case has an invalid argument set: {case_id}")
+        targets = case.get("targets", list(TARGETS))
+        if (
+            not isinstance(targets, list)
+            or not targets
+            or len(targets) != len(set(targets))
+            or any(value not in TARGETS for value in targets)
+        ):
+            raise ContractError(f"invalid targets for focused case {case_id}")
+        if case["asm"] and "win64" not in targets:
+            raise ContractError(
+                f"ASM bindings read Win64 listings, the case does not run there: {case_id}"
+            )
         setup = case.get("setup")
         if setup is not None:
             if not isinstance(setup, dict) or set(setup) != {"source_root", "source"}:
@@ -265,11 +279,16 @@ def validate_focused_gate(
     return gate, digest
 
 
-def planned_pairs(gate: dict[str, Any]) -> list[tuple[str, str]]:
+def case_targets(case: dict[str, Any]) -> tuple[str, ...]:
+    return tuple(case.get("targets", TARGETS))
+
+
+def planned_pairs(gate: dict[str, Any], target: str | None = None) -> list[tuple[str, str]]:
     return [
         (case["id"], profile)
         for case in gate["cases"]
         if case["state"] == "active"
+        and (target is None or target in case_targets(case))
         for profile in case["profiles"]
     ]
 

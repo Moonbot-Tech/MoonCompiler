@@ -110,6 +110,9 @@ function ChiTaskRun: Int64;
 
 implementation
 
+uses
+  Classes;
+
 const
   IdTask = 'CHI-MB-TASK-001';
 
@@ -347,13 +350,27 @@ begin
   ChiParallel(Length(Nums), ChiThreadCount,
     procedure(Index: Integer)
     var
-      Now1: Integer;
+      Now1, Seen: Integer;
+      Deadline: UInt64;
     begin
       { Наблюдаемый след пересечения: сколько работников было внутри
         одновременно. Без него уникальность номеров прошла бы и при
-        исполнении по очереди, а тогда атомарность не проверена вовсе. }
+        исполнении по очереди, а тогда атомарность не проверена вовсе.
+        Наибольшее — сравнением с обменом: «сравнить, потом записать»
+        теряет большее, если сосед запишет меньшее позже. }
       Now1 := AtomicIncrement(Inside);
-      if Now1 > MaxInside then AtomicExchange(MaxInside, Now1);
+      repeat
+        Seen := MaxInside;
+      until (Now1 <= Seen) or (AtomicCmpExchange(MaxInside, Now1, Seen) = Seen);
+      { Первые два работника ждут друг друга внутри: пересечение — условие
+        прогона, а не удача планировщика.  Ждут оба: взявший номер 0 может
+        войти последним, когда остальные номера уже разобраны. }
+      if Index <= 1 then
+      begin
+        Deadline := TThread.GetTickCount64 + 10000;
+        while (MaxInside < 2) and (TThread.GetTickCount64 < Deadline) do
+          TThread.Yield;
+      end;
       Nums[Index] := NextTaskNum;
       { Работа внутри: без неё работник выходит раньше, чем войдёт соседний. }
       for var Spin := 1 to 200 do

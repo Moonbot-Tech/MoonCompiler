@@ -1624,11 +1624,12 @@ var
 begin
   fClient.ServicesRouting := TRestServerRoutingJsonRpc.ClientRouting;
   fClient.Server.ServicesRouting := TRestServerRoutingJsonRpc;
-  GroupID := fClient.Orm.MainFieldID(TAuthGroup, 'User');
+  GroupID := fClient.Server.Orm.MainFieldID(TAuthGroup, 'User');
   Check(GroupID <> 0);
-  Check(fClient.Orm.MainFieldIDs(TAuthGroup, ['User', 'Admin'], g));
+  Check(fClient.Server.Orm.MainFieldIDs(TAuthGroup, ['User', 'Admin'], g));
   Check(length(g) = 2);
-  Check((g[0] = GroupID) or (g[1] = GroupID));
+  if length(g) = 2 then
+    Check((g[0] = GroupID) or (g[1] = GroupID));
   S := fClient.Server.Services['Calculator'] as TServiceFactoryServer;
   Test([1, 2, 3, 4, 5], 'by default, all methods are allowed');
   S.AllowAll;

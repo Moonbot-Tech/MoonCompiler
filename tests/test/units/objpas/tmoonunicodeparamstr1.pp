@@ -1,4 +1,5 @@
 { %OPT=-Mdelphi -O2 -dMOONCOMPILER_UNICODE_DEFAULT }
+{ %ARGS=Привет }
 program tmoonunicodeparamstr1;
 
 var

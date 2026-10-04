@@ -73,6 +73,8 @@ begin
           B[Position] := Ch;
           Require(CompareSign(CompareText(A,B))=ReferenceCompare(A,B),'ASCII fold/UTF16 ordinal ordering');
           Require(CompareSign(CompareText(B,A))=ReferenceCompare(B,A),'reverse UTF16 ordering');
+          Require(SameText(A,B)=(ReferenceCompare(A,B)=0),'SameText ASCII fold/UTF16 equality');
+          Require(SameText(B,A)=(ReferenceCompare(B,A)=0),'reverse SameText equality');
         end;
       end;
       A[Position] := 'X';
@@ -83,9 +85,13 @@ begin
       B := A+StringOfChar('x',C*7);
       Require(CompareSign(CompareText(A,B))=ReferenceCompare(A,B),'prefix length ordering');
       Require(CompareSign(CompareText(B,A))=ReferenceCompare(B,A),'reverse prefix length ordering');
+      Require(SameText(A,B)=(ReferenceCompare(A,B)=0),'SameText unequal lengths');
     end;
   end;
   GuardCompare;
+  Require(SameText('',''),'SameText empty identity');
+  Require(not SameText('','a'),'SameText nil and nonempty');
+  Require(not SameText('a',''),'SameText nonempty and nil');
 end;
 
 function ReferenceEncode(const S: UnicodeString): RawByteString;

@@ -23,29 +23,193 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends \
-            make binutils fp-compiler-3.2.2 python3 coreutils util-linux
+            make binutils gcc fp-compiler-3.2.2 python3 coreutils util-linux \
+            libffi-dev
           test "$(fpc -iV)" = 3.2.2
       - name: Build product toolchain
-        run: ./build compiler
+        env:
+          PPC_CONFIG_PATH: ${{ runner.temp }}/mooncompiler-hostile-config
+        run: |
+          mkdir -p "$PPC_CONFIG_PATH"
+          printf '%s\n' '-A__MOONCOMPILER_HOST_CONFIG_LEAK__' > "$PPC_CONFIG_PATH/fpc.cfg"
+          ./build compiler
       - name: Run platform contracts
         run: |
           python3 qualification/build-driver/ptop_contract.py
           python3 qualification/build-driver/version_contract.py
-          python3 qualification/build-driver/project_profile_gate.py
+          python3 qualification/build-driver/ppu_format_contract.py
+          python3 qualification/build-driver/config_contract_gate.py
+          python3 qualification/build-driver/product_config_gate.py
+          python3 qualification/build-driver/unit_scope_gate.py
+          python3 qualification/build-driver/zlib_objects_gate.py
+          python3 qualification/build-driver/rtl_profile_gate.py
+          python3 qualification/build-driver/compiler_selfbuild_gate.py \
+            --compiler toolchain/bin/ppcx64 \
+            --config toolchain/ide/etc/fpc.cfg \
+            --product-config toolchain/etc/moon-base.cfg \
+            --msg2inc toolchain/ide/bin/msg2inc
           ./qualification/build-driver/atomic_swap.sh
           ./qualification/pinned-unit/run.sh
           ./qualification/memory-manager/profile_contract.sh
           ./qualification/memory-manager/medium_arenas.sh
           ./qualification/suite/scripts/run_extra_corpus.sh
           python3 qualification/suite/tests/test_runner_contracts.py
+          python3 qualification/suite/tests/test_sync_moonormot.py
           python3 qualification/suite/tests/test_issue_tracker_runner.py
           python3 qualification/suite/tests/test_qualification_contracts.py
           python3 qualification/suite/tests/test_devil_runner_contracts.py
+          python3 -m unittest discover -s qualification/release -p 'test_*.py'
+          python3 qualification/suite/scripts/run_compiler_argument_transport_gate.py \
+            toolchain/bin/fpc toolchain/etc/moon-base.cfg \
+            . ci-linux-argument-transport
+          python3 qualification/suite/scripts/run_compiler_diagnostic_gate.py \
+            toolchain/bin/fpc toolchain/etc/moon-base.cfg \
+            . ci-linux-compiler-diagnostics
+          python3 qualification/suite/scripts/run_dwarf_format_interop_gate.py \
+            toolchain/bin/fpc toolchain/etc/moon-base.cfg \
+            . ci-linux-dwarf-format-interop
+      - name: Run memory-manager failure contracts
+        run: |
+          python3 qualification/memory-manager/mm_failure_gate.py \
+            --compiler toolchain/bin/ppcx64 \
+            --config toolchain/etc/moon-base.cfg \
+            --mm runtime/mm/mormot.core.fpcx64mm.pas \
+            --out .qualification/ci-linux-mm-failure --group all
+          python3 qualification/memory-manager/mm_profile_matrix.py
+      - name: Run Stage 2 focused contracts
+        run: |
+          pp=toolchain/bin/ppcx64
+          cfg=toolchain/etc/moon-base.cfg
+          python3 qualification/managed-array-copy/run_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-managed-array
+          python3 qualification/compiler-private-ppu/run_ppu_private_crc_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-private-ppu
+          python3 qualification/compiler-alias-lifetime/run_alias_lifetime_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-alias-lifetime
+          python3 qualification/compiler-alias-lifetime/run_alias_reload_gate.py \
+            --source compiler --compiler "$pp" \
+            --build-config toolchain/ide/etc/fpc.cfg \
+            --msg2inc toolchain/ide/bin/msg2inc --config "$cfg" \
+            --output .qualification/ci-linux-alias-reload
+          python3 qualification/optimizer-core/real-folds/run_real_folds_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-real-folds
+          python3 qualification/optimizer-core/consttemp-lifetime/run_consttemp_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-consttemp
+          python3 qualification/compiler-asm-numbers/run_gate.py \
+            --compiler "$pp" --output .qualification/ci-linux-asm-numbers
+          python3 qualification/optimizer-core/getter-borrow/run_getter_borrow_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-getter-borrow
+          python3 qualification/optimizer-core/value-in-register/run_value_in_register_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-value-in-register
+          python3 qualification/optimizer-core/try-nested/run_try_nested_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-try-nested
+          python3 qualification/optimizer-core/record-fields/run_record_fields_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-record-fields
+          python3 qualification/optimizer-core/block-locals/run_block_locals_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-block-locals
+          python3 qualification/optimizer-core/operand-forms/run_operand_forms_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-operand-forms
+          python3 qualification/optimizer-core/nested-local/run_nested_local_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-nested-local
+          python3 qualification/optimizer-core/sqr-fold/run_sqr_fold_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-sqr-fold
+          python3 qualification/optimizer-core/const-register/run_const_register_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-const-register
+          python3 qualification/optimizer-core/fold-guards/run_fold_guards_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-fold-guards
+          python3 qualification/optimizer-core/memory-order/run_memory_order_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-memory-order
+          python3 qualification/optimizer-core/loop-regvar/run_loop_regvar_gate.py \
+            --compiler "$pp"
+          python3 qualification/thread-pool/run_gate.py \
+            --output .qualification/ci-linux-pool-delivery
+          python3 qualification/thread-pool/monitor_exit_gate.py \
+            --output .qualification/ci-linux-pool-monitor
+          python3 qualification/optimizer-core/divmod/run_divmod_pair_gate.py \
+            --compiler "$pp" --config "$cfg"
+          python3 qualification/optimizer-core/range-loop/run_range_loop_gate.py \
+            --compiler "$pp" --config "$cfg"
+          python3 qualification/optimizer-core/resources/run_jump_tracking_gate.py \
+            --bootstrap "$pp" --config toolchain/ide/etc/fpc.cfg \
+            --output .qualification/ci-linux-jump-resources
+      - name: Run optimizer model and transformation contracts
+        run: |
+          pp=toolchain/bin/ppcx64
+          rtl=(toolchain/lib/fpc/*/units/x86_64-linux/rtl)
+          test "${#rtl[@]}" = 1
+          for gate in \
+            qualification/effect-observe/run_effect_gate.py \
+            qualification/effect-observe/run_effect_identity.py \
+            qualification/optimizer-core/f2/run_f2_gate.py \
+            qualification/optimizer-core/f2/run_f2_ppu.py \
+            qualification/optimizer-core/f2/run_exact_gate.py \
+            qualification/optimizer-core/setcc-compare/run_gate.py \
+            qualification/optimizer-core/f3/run_f3_gate.py \
+            qualification/optimizer-core/f4/run_f4_gate.py \
+            qualification/optimizer-core/f5/run_f5_gate.py \
+            qualification/optimizer-core/cse/run_managed_load_gate.py \
+            qualification/optimizer-core/loop-base/run_loop_base_gate.py; do
+            python3 "$gate" --compiler "$pp" --rtl "${rtl[0]}"
+          done
+          python3 qualification/optimizer-core/tail-forwarding/run_gate.py \
+            --toolchain toolchain --compiler "$pp" --output .qualification/ci-linux-tail-forwarding
+          python3 qualification/optimizer-core/setcc-compare/run_ir_gate.py \
+            --compiler "$pp" --config toolchain/ide/etc/fpc.cfg \
+            --output .qualification/ci-linux-setcc-ir
+          python3 qualification/optimizer-core/value-in-register/run_ir_gate.py \
+            --compiler "$pp" --config toolchain/ide/etc/fpc.cfg \
+            --output .qualification/ci-linux-value-forward-ir
+          python3 qualification/optimizer-core/value-relations/run_gate.py \
+            --compiler "$pp" --config toolchain/etc/moon-base.cfg \
+            --output .qualification/ci-linux-value-relations
+          python3 qualification/optimizer-core/value-relations/run_ir_gate.py \
+            --compiler "$pp" --config toolchain/ide/etc/fpc.cfg \
+            --output .qualification/ci-linux-value-relations-ir
+          python3 qualification/suite/scripts/run_optimizer_core_ppu_gate.py \
+            --compiler toolchain/bin/fpc --config toolchain/etc/moon-base.cfg \
+            --legacy-compiler /usr/bin/fpc --output .qualification/ci-linux-optimizer-ppu
+          python3 qualification/suite/scripts/run_devil_zeroext_gate.py \
+            --toolchain toolchain --work .qualification/ci-linux-zeroext
+          python3 qualification/suite/scripts/run_linux_large_elf_gate.py \
+            "$pp" toolchain/etc/moon-base.cfg . ci-linux-large-elf
+      - name: Run code placement gates
+        run: |
+          pp=$(ls toolchain/lib/fpc/*/ppcx64)
+          python3 qualification/performance/tools/test_code_placement.py
+          python3 qualification/optimizer-core/placement/run_placement_fixture_gate.py
+          python3 qualification/optimizer-core/placement/run_branch_pad_gate.py --compiler "$pp"
+          python3 qualification/optimizer-core/shl-lea/run_shl_lea_gate.py --compiler "$pp"
+          python3 qualification/optimizer-core/constructors/run_gate.py --compiler "$pp"
+          python3 qualification/optimizer-core/imm64/run_gate.py --compiler "$pp"
+          python3 qualification/optimizer-core/register-width/run_gate.py \
+            --compiler "$pp" --output .qualification/ci-linux-register-width
+          python3 qualification/optimizer-core/loop-address/run_loop_address_gate.py \
+            --compiler "$pp" --config toolchain/etc/moon-base.cfg \
+            --objdump "$(command -v objdump)" \
+            --output .qualification/ci-linux-loop-address
+          python3 qualification/memory-manager/mm_layout_gate.py
+          python3 qualification/build-driver/rtl_asm_layout_gate.py
       - name: Run issue-tracker contract
         run: |
           python3 qualification/suite/scripts/run_issue_tracker_corpus.py \
-            --fpc .moonbot/toolchain/bin/fpc \
-            --fpc-config .moonbot/toolchain/etc/fpc.cfg \
+            --fpc toolchain/bin/fpc \
+            --fpc-config toolchain/etc/moon-base.cfg \
             --output .qualification/ci-linux-tracker --jobs 4 --enforce
       - name: Run Linux language and integration gates
         working-directory: qualification/suite
@@ -53,35 +217,64 @@ jobs:
           python3 runner.py fixtures --compiler moonbot-compiler-beta --option O2 --option O3
           python3 runner.py mega --compiler moonbot-compiler-beta --option O2 --option O3
           scripts/run_forms_gate.sh \
-            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg \
             ci-linux-forms
           scripts/run_service_regressions_gate.sh \
-            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg \
             ci-linux-service
           scripts/run_rtl_api_surface_gate.sh ci-linux-rtl-api
           scripts/run_namespace_scope_gate.sh \
-            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg \
             ci-linux-namespace
           scripts/run_monitor_gate.sh \
-            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg \
             ci-linux-monitor
           scripts/run_exception_capture_gate.sh \
-            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg \
             ci-linux-exception
           scripts/run_linux_psabieh_gate.sh \
-            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg \
             ci-linux-psabieh
+          python3 scripts/run_linux_linker_transport_gate.py \
+            ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg \
+            ../.. ci-linux-linker-transport
           scripts/run_rtti_gettypes_gate.sh \
-            ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+            ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg \
             ci-linux-rtti
+          python3 scripts/run_win64_repair_gate.py \
+            ../../toolchain/bin/ppcx64 ../../toolchain/etc/moon-base.cfg \
+            ../.. ci-linux-repairs
       - name: Run RTL semantic matrix
         run: python3 RTL-test/run.py
       - name: Run product smoke
         run: |
-          ./build qualification/suite/tests/smoke/build_smoke.dpr debug
-          test "$(./qualification/suite/tests/smoke/build_smoke)" = MOONBOT_BUILD_OK
-          ./build qualification/suite/tests/smoke/build_smoke.dpr release
-          test "$(./qualification/suite/tests/smoke/build_smoke)" = MOONBOT_BUILD_OK
+          # The product profile comes from the toolchain's own fpc.cfg: plain
+          # fpc, no driver, from the program's directory.
+          fpc=$PWD/toolchain/bin/fpc
+          (cd qualification/suite/tests/smoke && "$fpc" -B build_smoke.dpr)
+          output=$(./qualification/suite/tests/smoke/build_smoke)
+          test "$output" = MOONBOT_BUILD_OK
+          (cd qualification/suite/tests/smoke && "$fpc" -B -dRELEASE build_smoke.dpr)
+          output=$(./qualification/suite/tests/smoke/build_smoke)
+          test "$output" = MOONBOT_BUILD_OK
+          # System.Zip over the mormot directory the build cloned: the runtime
+          # units over mORMot and their MoonORMot version floor, as a project
+          # builds them
+          (cd examples && "$fpc" -B zip.dpr)
+          output=$(./examples/zip)
+          test "$(printf '%s\n' "$output" | tail -n 1)" = ZIP_EXAMPLE_OK
+      - name: Record exact-SHA qualification evidence
+        run: |
+          mkdir -p .qualification/evidence
+          printf '{"sha":"%s","platform":"linux-x86-64","run_id":"%s"}\n' \
+            "$GITHUB_SHA" "$GITHUB_RUN_ID" \
+            > .qualification/evidence/linux-x86-64.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qualification-linux-x86-64-${{ github.sha }}
+          path: .qualification/evidence/linux-x86-64.json
+          if-no-files-found: error
+          retention-days: 30
 
   win64-x86-64:
     runs-on: windows-2022
@@ -96,54 +289,346 @@ jobs:
       - name: Build product toolchain
         shell: powershell
         run: |
+          $env:PPC_CONFIG_PATH = "$env:RUNNER_TEMP\mooncompiler-hostile-config"
+          New-Item -ItemType Directory -Force -Path $env:PPC_CONFIG_PATH | Out-Null
+          Set-Content -LiteralPath "$env:PPC_CONFIG_PATH\fpc.cfg" -Encoding Ascii `
+            -Value '-A__MOONCOMPILER_HOST_CONFIG_LEAK__'
           .\build.ps1 compiler `
             -Bootstrap "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\fpc.exe"
       - name: Run platform contracts
         shell: powershell
         run: |
           python .\qualification\build-driver\ptop_contract.py
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           python .\qualification\build-driver\version_contract.py
-          python .\qualification\build-driver\project_profile_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\build-driver\ppu_format_contract.py
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\build-driver\config_contract_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\build-driver\product_config_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\build-driver\unit_scope_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\build-driver\zlib_objects_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\build-driver\rtl_profile_gate.py `
+            --make "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\make.exe"
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\build-driver\compiler_selfbuild_gate.py `
+            --compiler .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --config .\toolchain\ide\bin\x86_64-win64\fpc.cfg `
+            --product-config .\toolchain\bin\x86_64-win64\moon-base.cfg `
+            --msg2inc .\toolchain\ide\bin\x86_64-win64\msg2inc.exe
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           .\qualification\build-driver\atomic_swap.ps1
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           .\qualification\pinned-unit\run.ps1
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           .\qualification\memory-manager\profile_contract.ps1
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           .\qualification\memory-manager\medium_arenas.ps1
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           .\qualification\suite\scripts\run_extra_corpus.ps1
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\suite\tests\test_workflow_exit_codes.py
+          If ($LASTEXITCODE -ne 0) { throw 'Workflow exit-code contract failed' }
           python .\qualification\suite\tests\test_runner_contracts.py
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\suite\tests\test_sync_moonormot.py
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           python .\qualification\suite\tests\test_issue_tracker_runner.py
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           python .\qualification\suite\tests\test_qualification_contracts.py
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           python .\qualification\suite\tests\test_devil_runner_contracts.py
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python -m unittest discover -s qualification/release -p 'test_*.py'
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification controller contract failed' }
+          python .\qualification\suite\scripts\run_compiler_argument_transport_gate.py `
+            .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            .\toolchain\bin\x86_64-win64\moon-base.cfg `
+            . ci-win64-argument-transport
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\suite\scripts\run_compiler_diagnostic_gate.py `
+            .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            .\toolchain\bin\x86_64-win64\moon-base.cfg `
+            . ci-win64-compiler-diagnostics
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\suite\scripts\run_dwarf_format_interop_gate.py `
+            .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            .\toolchain\bin\x86_64-win64\moon-base.cfg `
+            . ci-win64-dwarf-format-interop
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+      - name: Run memory-manager failure contracts
+        shell: powershell
+        run: |
+          python .\qualification\memory-manager\mm_failure_gate.py `
+            --compiler .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --config .\toolchain\bin\x86_64-win64\moon-base.cfg `
+            --mm .\runtime\mm\mormot.core.fpcx64mm.pas `
+            --out .\.qualification\ci-win64-mm-failure --group all
+          If ($LASTEXITCODE -ne 0) { throw 'MM failure contracts failed' }
+          $env:MOON_OBJDUMP = "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\x86_64-win64-objdump.exe"
+          python .\qualification\memory-manager\mm_profile_matrix.py
+          If ($LASTEXITCODE -ne 0) { throw 'MM profile matrix failed' }
+      - name: Run Stage 2 focused contracts
+        shell: powershell
+        run: |
+          $Compiler = '.\toolchain\bin\x86_64-win64\ppcx64.exe'
+          $Config = '.\toolchain\bin\x86_64-win64\moon-base.cfg'
+          python .\qualification\managed-array-copy\run_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-managed-array
+          If ($LASTEXITCODE -ne 0) { throw 'Managed-array gate failed' }
+          python .\qualification\compiler-private-ppu\run_ppu_private_crc_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-private-ppu
+          If ($LASTEXITCODE -ne 0) { throw 'Private-PPU gate failed' }
+          python .\qualification\compiler-alias-lifetime\run_alias_lifetime_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-alias-lifetime
+          If ($LASTEXITCODE -ne 0) { throw 'Alias-lifetime gate failed' }
+          python .\qualification\compiler-alias-lifetime\run_alias_reload_gate.py `
+            --source .\compiler --compiler $Compiler `
+            --build-config .\toolchain\ide\bin\x86_64-win64\fpc.cfg `
+            --msg2inc .\toolchain\ide\bin\x86_64-win64\msg2inc.exe `
+            --config $Config --output .\.qualification\ci-win64-alias-reload
+          If ($LASTEXITCODE -ne 0) { throw 'Alias-reload gate failed' }
+          python .\qualification\optimizer-core\real-folds\run_real_folds_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-real-folds
+          If ($LASTEXITCODE -ne 0) { throw 'Real-folds gate failed' }
+          python .\qualification\optimizer-core\consttemp-lifetime\run_consttemp_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-consttemp
+          If ($LASTEXITCODE -ne 0) { throw 'Const-temp gate failed' }
+          python .\qualification\compiler-asm-numbers\run_gate.py `
+            --compiler $Compiler --output .\.qualification\ci-win64-asm-numbers
+          If ($LASTEXITCODE -ne 0) { throw 'Asm-numbers gate failed' }
+          python .\qualification\optimizer-core\getter-borrow\run_getter_borrow_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-getter-borrow
+          If ($LASTEXITCODE -ne 0) { throw 'Getter-borrow gate failed' }
+          python .\qualification\optimizer-core\value-in-register\run_value_in_register_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-value-in-register
+          If ($LASTEXITCODE -ne 0) { throw 'Value-in-register gate failed' }
+          python .\qualification\optimizer-core\try-nested\run_try_nested_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-try-nested
+          If ($LASTEXITCODE -ne 0) { throw 'Try-nested gate failed' }
+          python .\qualification\optimizer-core\record-fields\run_record_fields_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-record-fields
+          If ($LASTEXITCODE -ne 0) { throw 'Record-fields gate failed' }
+          python .\qualification\optimizer-core\block-locals\run_block_locals_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-block-locals
+          If ($LASTEXITCODE -ne 0) { throw 'Block-locals gate failed' }
+          python .\qualification\optimizer-core\operand-forms\run_operand_forms_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-operand-forms
+          If ($LASTEXITCODE -ne 0) { throw 'Operand-forms gate failed' }
+          python .\qualification\optimizer-core\nested-local\run_nested_local_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-nested-local
+          If ($LASTEXITCODE -ne 0) { throw 'Nested-local gate failed' }
+          python .\qualification\optimizer-core\sqr-fold\run_sqr_fold_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-sqr-fold
+          If ($LASTEXITCODE -ne 0) { throw 'Sqr-fold gate failed' }
+          python .\qualification\optimizer-core\const-register\run_const_register_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-const-register
+          If ($LASTEXITCODE -ne 0) { throw 'Const-register gate failed' }
+          python .\qualification\optimizer-core\fold-guards\run_fold_guards_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-fold-guards
+          If ($LASTEXITCODE -ne 0) { throw 'Fold-guards gate failed' }
+          python .\qualification\optimizer-core\memory-order\run_memory_order_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-memory-order
+          If ($LASTEXITCODE -ne 0) { throw 'Memory-order gate failed' }
+          python .\qualification\optimizer-core\loop-regvar\run_loop_regvar_gate.py `
+            --compiler $Compiler
+          If ($LASTEXITCODE -ne 0) { throw 'Loop-regvar gate failed' }
+          python .\qualification\thread-pool\run_gate.py `
+            --output .\.qualification\ci-win64-pool-delivery
+          If ($LASTEXITCODE -ne 0) { throw 'Thread-pool delivery gate failed' }
+          python .\qualification\thread-pool\monitor_exit_gate.py `
+            --output .\.qualification\ci-win64-pool-monitor
+          If ($LASTEXITCODE -ne 0) { throw 'Thread-pool monitor gate failed' }
+          python .\qualification\optimizer-core\divmod\run_divmod_pair_gate.py `
+            --compiler $Compiler --config $Config
+          If ($LASTEXITCODE -ne 0) { throw 'Divmod-pair gate failed' }
+          python .\qualification\optimizer-core\range-loop\run_range_loop_gate.py `
+            --compiler $Compiler --config $Config
+          If ($LASTEXITCODE -ne 0) { throw 'Range-loop gate failed' }
+          python .\qualification\optimizer-core\resources\run_jump_tracking_gate.py `
+            --bootstrap $Compiler --config .\toolchain\ide\bin\x86_64-win64\fpc.cfg `
+            --output .\.qualification\ci-win64-jump-resources
+          If ($LASTEXITCODE -ne 0) { throw 'Jump-resources gate failed' }
+      - name: Run optimizer model and transformation contracts
+        shell: powershell
+        run: |
+          $Compiler = '.\toolchain\bin\x86_64-win64\ppcx64.exe'
+          $Rtl = '.\toolchain\units\x86_64-win64\rtl'
+          $Config = '.\toolchain\bin\x86_64-win64\moon-base.cfg'
+          $gates = @(
+            'qualification\effect-observe\run_effect_gate.py',
+            'qualification\effect-observe\run_effect_identity.py',
+            'qualification\optimizer-core\f2\run_f2_gate.py',
+            'qualification\optimizer-core\f2\run_f2_ppu.py',
+            'qualification\optimizer-core\f2\run_exact_gate.py',
+            'qualification\optimizer-core\setcc-compare\run_gate.py',
+            'qualification\optimizer-core\f3\run_f3_gate.py',
+            'qualification\optimizer-core\f4\run_f4_gate.py',
+            'qualification\optimizer-core\f5\run_f5_gate.py',
+            'qualification\optimizer-core\cse\run_managed_load_gate.py',
+            'qualification\optimizer-core\loop-base\run_loop_base_gate.py')
+          foreach ($gate in $gates) {
+            python ".\$gate" --compiler $Compiler --rtl $Rtl
+            If ($LASTEXITCODE -ne 0) { throw "$gate failed" }
+          }
+          python .\qualification\optimizer-core\tail-forwarding\run_gate.py `
+            --toolchain .\toolchain --compiler $Compiler --output .\.qualification\ci-win64-tail-forwarding
+          If ($LASTEXITCODE -ne 0) { throw 'Tail forwarding gate failed' }
+          python .\qualification\optimizer-core\setcc-compare\run_ir_gate.py `
+            --compiler $Compiler --config .\toolchain\ide\bin\x86_64-win64\fpc.cfg `
+            --output .\.qualification\ci-win64-setcc-ir
+          If ($LASTEXITCODE -ne 0) { throw 'SETcc IR gate failed' }
+          python .\qualification\optimizer-core\value-in-register\run_ir_gate.py `
+            --compiler $Compiler --config .\toolchain\ide\bin\x86_64-win64\fpc.cfg `
+            --output .\.qualification\ci-win64-value-forward-ir
+          If ($LASTEXITCODE -ne 0) { throw 'Value forwarding IR gate failed' }
+          python .\qualification\optimizer-core\value-relations\run_gate.py `
+            --compiler $Compiler --config $Config --output .\.qualification\ci-win64-value-relations
+          If ($LASTEXITCODE -ne 0) { throw 'Value relation gate failed' }
+          python .\qualification\optimizer-core\value-relations\run_ir_gate.py `
+            --compiler $Compiler --config .\toolchain\ide\bin\x86_64-win64\fpc.cfg `
+            --output .\.qualification\ci-win64-value-relations-ir
+          If ($LASTEXITCODE -ne 0) { throw 'Value relation IR gate failed' }
+          python .\qualification\suite\scripts\run_optimizer_core_ppu_gate.py `
+            --compiler .\toolchain\bin\x86_64-win64\fpc.exe --config $Config `
+            --legacy-compiler "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\fpc.exe" `
+            --output .\.qualification\ci-win64-optimizer-ppu
+          If ($LASTEXITCODE -ne 0) { throw 'Optimizer PPU gate failed' }
+          python .\qualification\suite\scripts\run_devil_zeroext_gate.py `
+            --toolchain .\toolchain --work .\.qualification\ci-win64-zeroext
+          If ($LASTEXITCODE -ne 0) { throw 'Zeroext gate failed' }
+          python .\qualification\suite\scripts\run_win64_bigobj_unwind_gate.py `
+            $Compiler $Config . ci-win64-bigobj
+          If ($LASTEXITCODE -ne 0) { throw 'Bigobj gate failed' }
+          .\qualification\win-stack-default\run.ps1 -RunId ci-win64-stack
+          If ($LASTEXITCODE -ne 0) { throw 'Stack gate failed' }
+      - name: Run code placement gates
+        shell: powershell
+        run: |
+          $binutils = "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32"
+          $env:MOON_OBJDUMP = "$binutils\x86_64-win64-objdump.exe"
+          $env:MOON_NM = "$binutils\x86_64-win64-nm.exe"
+          # rtl_asm_layout_gate.py rebuilds units with the RTL make's own command lines
+          $env:MOONBOT_MAKE = "$binutils\make.exe"
+          foreach ($tool in @($env:MOON_OBJDUMP, $env:MOON_NM, $env:MOONBOT_MAKE)) {
+            If (-not (Test-Path -LiteralPath $tool -PathType Leaf)) {
+              throw "required bootstrap binutil is missing: $tool"
+            }
+          }
+          $gates = @(
+            'qualification\performance\tools\test_code_placement.py',
+            'qualification\optimizer-core\placement\run_placement_fixture_gate.py',
+            'qualification\optimizer-core\placement\run_branch_pad_gate.py',
+            'qualification\optimizer-core\shl-lea\run_shl_lea_gate.py',
+            'qualification\optimizer-core\constructors\run_gate.py',
+            'qualification\optimizer-core\imm64\run_gate.py',
+            'qualification\optimizer-core\register-width\run_gate.py',
+            'qualification\memory-manager\mm_layout_gate.py',
+            'qualification\build-driver\rtl_asm_layout_gate.py')
+          foreach ($gate in $gates) {
+            python ".\$gate"
+            If ($LASTEXITCODE -ne 0) { throw "$gate failed" }
+          }
+          python .\qualification\optimizer-core\loop-address\run_loop_address_gate.py `
+            --compiler .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --config .\toolchain\bin\x86_64-win64\moon-base.cfg `
+            --objdump $env:MOON_OBJDUMP `
+            --output .\.qualification\ci-win64-loop-address
+          If ($LASTEXITCODE -ne 0) { throw 'Loop-address gate failed' }
       - name: Run issue-tracker contract
         shell: powershell
         run: |
           python .\qualification\suite\scripts\run_issue_tracker_corpus.py `
-            --fpc .\.moonbot\toolchain\bin\x86_64-win64\ppcx64.exe `
-            --fpc-config .\.moonbot\toolchain\bin\x86_64-win64\fpc.cfg `
+            --fpc .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --fpc-config .\toolchain\bin\x86_64-win64\moon-base.cfg `
             --output .\.qualification\ci-win64-tracker --jobs 4 --enforce
       - name: Run Win64 language and integration gates
         shell: powershell
         run: |
-          $Compiler = '.\.moonbot\toolchain\bin\x86_64-win64\ppcx64.exe'
-          $Config = '.\.moonbot\toolchain\bin\x86_64-win64\fpc.cfg'
+          $Compiler = '.\toolchain\bin\x86_64-win64\ppcx64.exe'
+          $Config = '.\toolchain\bin\x86_64-win64\moon-base.cfg'
           python .\qualification\suite\scripts\run_win64_repair_gate.py `
             $Compiler $Config . ci-win64-repairs
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           .\qualification\suite\scripts\run_service_regressions_gate.ps1 `
             $Compiler $Config ci-win64-service
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           .\qualification\suite\scripts\run_rtl_api_surface_gate.ps1 `
             ci-win64-rtl-api
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           .\qualification\suite\scripts\run_rtti_gettypes_gate.ps1 `
             $Compiler $Config ci-win64-rtti
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           .\qualification\suite\scripts\run_forms_gate.ps1 `
             $Compiler $Config ci-win64-forms
+          If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
       - name: Run RTL semantic matrix
         shell: powershell
         run: python .\RTL-test\run.py
       - name: Run product smoke
         shell: powershell
         run: |
-          .\build.ps1 .\qualification\suite\tests\smoke\build_smoke.dpr debug
-          If ((& .\qualification\suite\tests\smoke\build_smoke.exe) -ne `
-              'MOONBOT_BUILD_OK') { throw 'Debug product smoke failed' }
-          .\build.ps1 .\qualification\suite\tests\smoke\build_smoke.dpr release
-          If ((& .\qualification\suite\tests\smoke\build_smoke.exe) -ne `
-              'MOONBOT_BUILD_OK') { throw 'Release product smoke failed' }
+          # The product profile comes from the toolchain's own fpc.cfg: plain
+          # fpc, no driver, from the program's directory.
+          $Fpc = (Resolve-Path .\toolchain\bin\x86_64-win64\fpc.exe).Path
+          Push-Location .\qualification\suite\tests\smoke
+          try {
+            & $Fpc -B build_smoke.dpr
+            If ($LASTEXITCODE -ne 0) { throw 'Debug product smoke did not compile' }
+            $Output = & .\build_smoke.exe
+            If ($LASTEXITCODE -ne 0 -or $Output -ne 'MOONBOT_BUILD_OK') { throw 'Debug product smoke failed' }
+            & $Fpc -B -dRELEASE build_smoke.dpr
+            If ($LASTEXITCODE -ne 0) { throw 'Release product smoke did not compile' }
+            $Output = & .\build_smoke.exe
+            If ($LASTEXITCODE -ne 0 -or $Output -ne 'MOONBOT_BUILD_OK') { throw 'Release product smoke failed' }
+          } finally {
+            Pop-Location
+          }
+          # System.Zip over the mormot directory the build cloned: the runtime
+          # units over mORMot and their MoonORMot version floor, as a project
+          # builds them
+          Push-Location .\examples
+          try {
+            & $Fpc -B zip.dpr
+            If ($LASTEXITCODE -ne 0) { throw 'System.Zip smoke did not compile' }
+            $Output = @(& .\zip.exe)
+            If ($LASTEXITCODE -ne 0 -or $Output[-1] -ne 'ZIP_EXAMPLE_OK') { throw "System.Zip smoke failed: $Output" }
+          } finally {
+            Pop-Location
+          }
+      - name: Record exact-SHA qualification evidence
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force .\.qualification\evidence | Out-Null
+          @{
+            sha = $env:GITHUB_SHA
+            platform = 'win64-x86-64'
+            run_id = $env:GITHUB_RUN_ID
+          } | ConvertTo-Json -Compress |
+            Set-Content -Encoding Ascii .\.qualification\evidence\win64-x86-64.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qualification-win64-x86-64-${{ github.sha }}
+          path: .qualification/evidence/win64-x86-64.json
+          if-no-files-found: error
+          retention-days: 30

@@ -15,7 +15,7 @@ $Seeds = @('1', '2', '3', '7885642623054963745',
   '11400714819323198485', '18446744073709551615')
 $ExpectedCommon = @(
   'fb1-nan-not-ge', 'fb1-nan-not-lt', 'fb3-braid-demorgan',
-  'fb3-neg-zero-plus-zero', 'fb3-ord-complement-sum', 'fb3-ord-mux-nan',
+  'fb3-ord-complement-sum', 'fb3-ord-mux-nan',
   'fty-anon-varpart-arm-hi', 'fty-anon-varpart-arm-lo',
   'zoo-stoned-cur-litfloat')
 $ExpectedOmni = @()
@@ -92,8 +92,12 @@ function Invoke-FormsProgram([string]$Name, [string]$Source) {
         Where-Object { $_ -like 'FORMS_FAILURE *' } |
         ForEach-Object { $_.Substring(14) } | Sort-Object)
       $Expected = @(Get-Content -LiteralPath (Join-Path $Run "expected-$Name.txt"))
-      If ((Compare-Object $Expected $Observed -CaseSensitive).Count -ne 0) {
-        throw "$Name/$Option seed=$Seed produced a different failure set"
+      $Difference = @(Compare-Object $Expected $Observed -CaseSensitive)
+      If ($Difference.Count -ne 0) {
+        $Gone = @($Difference | Where-Object SideIndicator -eq '<=' | ForEach-Object InputObject)
+        $New = @($Difference | Where-Object SideIndicator -eq '=>' | ForEach-Object InputObject)
+        throw "$Name/$Option seed=$Seed produced a different failure set: " +
+          "expected failures that passed: $($Gone -join ', '); new failures: $($New -join ', ')"
       }
       $Lines = @(Get-Content -LiteralPath $Log)
       $ExpectedTerminal = $Terminal["$Name/$Seed"]

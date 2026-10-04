@@ -426,6 +426,22 @@ begin
   end;
 end;
 
+procedure TestMemoryExpanderSurface;
+begin
+  Check(TLinearProbing.Probe(3, 10) = 13,
+    'linear probe sequence');
+  Check(TQuadraticProbing.Probe(3, 10) = 19,
+    'quadratic probe sequence');
+  Check(TDoubleHashing.Probe(3, 10, 7) = 31,
+    'double-hash probe sequence');
+  Check(TCuckooHashingCfg.LoadFactor(100) = 49,
+    'base cuckoo load factor');
+  Check(TDeamortizedCuckooHashingCfg_D4.LoadFactor(100) = 89,
+    'D4 cuckoo load factor');
+  Check(TDeamortizedCuckooHashingCfg_D6.LoadFactor(100) = 98,
+    'D6 cuckoo load factor');
+end;
+
 procedure TestQueueAndStack;
 var
   I, Value: Integer;
@@ -695,6 +711,7 @@ begin
     TestDictionaryOperationsAndCollisions;
     TestDictionaryNotificationsAndManagedLifetime;
     TestCustomProbeSequenceLookup;
+    TestMemoryExpanderSurface;
     TestQueueAndStack;
     TestArrayAlgorithms;
     TestOwningCollections;

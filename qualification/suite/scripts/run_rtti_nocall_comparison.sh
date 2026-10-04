@@ -34,7 +34,7 @@ for test in "${sources[@]}"; do
       [[ "$variant" == patched ]] && toolchain=$patched
       out="$result/$test/$linkmode/$variant"
       mkdir -p "$out/units"
-      "$toolchain/bin/fpc" -n "@$toolchain/etc/fpc.cfg" -Mdelphi -B \
+      "$toolchain/bin/fpc" -n "@$toolchain/etc/moon-base.cfg" -Mdelphi -B \
         -O3 -gl -gw3 "${linkargs[@]}" "-Fu$source_dir" \
         "-FU$out/units" "-FE$out" "$source_dir/$test.dpr" \
         >"$out/compile.log" 2>&1

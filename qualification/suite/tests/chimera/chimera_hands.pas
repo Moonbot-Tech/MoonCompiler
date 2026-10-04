@@ -606,12 +606,23 @@ begin
         K: Integer;
         V: Int64;
         Spins: Integer;
+        Deadline: UInt64;
       begin
         if Index = 0 then
         begin
           for K := 1 to 200 do
           begin
             Dict.AddOrSetValue('shared', K);
+            { После первой записи писатель ждёт читателя: пересечение
+              потоков — условие проверки, а не удача планировщика. На
+              занятой машине писатель иначе успевает всё до старта
+              читателей. }
+            if K = 1 then
+            begin
+              Deadline := TThread.GetTickCount64 + 10000;
+              while (SeenLow = 0) and (TThread.GetTickCount64 < Deadline) do
+                TThread.Yield;
+            end;
             for var Pause := 1 to 400 do AtomicIncrement(WriterSpin);
           end;
           AtomicExchange(WriterDone, 1);
