@@ -86,7 +86,7 @@ def make_variant(work: Path, name: str, order: list[str]) -> Path:
 def build_and_run(case: Path, out: Path, profile: str, extra: list[str],
                   timeout: int) -> dict:
     out.mkdir(parents=True, exist_ok=True)
-    build = subprocess.run(
+    build = tc.run_process(
         tc.compile_command(case / "plant.dpr", out, profile, search=[case],
                            extra=extra),
         cwd=case, capture_output=True, text=True, errors="replace",
@@ -95,7 +95,7 @@ def build_and_run(case: Path, out: Path, profile: str, extra: list[str],
         text = (build.stdout or "") + (build.stderr or "")
         errors = [l for l in text.splitlines() if "Error" in l or "Fatal" in l]
         return {"built": False, "errors": errors[:4]}
-    run = subprocess.run([str(tc.executable(out, "plant"))], cwd=case,
+    run = tc.run_process([str(tc.executable(out, "plant"))], cwd=case,
                          capture_output=True, text=True, errors="replace",
                          timeout=timeout)
     line = (run.stdout or "").strip().splitlines()

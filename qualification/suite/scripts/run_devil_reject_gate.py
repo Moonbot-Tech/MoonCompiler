@@ -32,7 +32,7 @@ DIAG_RE = re.compile(r"(?:Error|Fatal):\s*(?:\((?P<code>\w+)\)\s*)?(?P<text>.+)"
 
 def run(cmd: list[str], cwd: Path, timeout: int) -> tuple[int, str]:
     try:
-        proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
+        proc = tc.run_process(cmd, cwd=cwd, capture_output=True, text=True,
                               timeout=timeout)
     except subprocess.TimeoutExpired:
         return 124, "<timeout>"

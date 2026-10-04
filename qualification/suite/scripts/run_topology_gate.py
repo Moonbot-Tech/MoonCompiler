@@ -33,6 +33,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import shutil
 import subprocess
@@ -345,7 +346,7 @@ def run_case(case_dir: Path, prefix: str, profile: str, extra: list[str],
              timeout: int) -> dict:
     out = case_dir / ("out-" + profile + ("-" + "".join(extra) if extra else ""))
     out.mkdir(parents=True, exist_ok=True)
-    build = subprocess.run(
+    build = tc.run_process(
         tc.compile_command(case_dir / f"{prefix}_Main.dpr", out, profile,
                            search=[case_dir], extra=extra),
         cwd=case_dir, capture_output=True, text=True, errors="replace",
@@ -355,7 +356,7 @@ def run_case(case_dir: Path, prefix: str, profile: str, extra: list[str],
         errors = [l for l in text.splitlines() if "Error" in l or "Fatal" in l]
         return {"built": False, "errors": errors[:4]}
 
-    run = subprocess.run([str(tc.executable(out, f"{prefix}_Main"))], cwd=case_dir,
+    run = tc.run_process([str(tc.executable(out, f"{prefix}_Main"))], cwd=case_dir,
                          capture_output=True, text=True, errors="replace",
                          timeout=timeout)
     return {"built": True, "exit": run.returncode,
@@ -373,7 +374,10 @@ def main() -> int:
     parser.add_argument("--report", type=Path)
     parser.add_argument("--topology", choices=tuple(TOPOLOGIES))
     parser.add_argument("--symbol", choices=tuple(SYMBOLS))
+    parser.add_argument("--jobs", type=int, default=1)
     args = parser.parse_args()
+    if args.jobs < 1:
+        parser.error("--jobs must be positive")
 
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
@@ -398,49 +402,55 @@ def main() -> int:
     started = time.time()
     counter = 0
 
+    plan = [(p, []) for p in profiles] + [("o1", ["-Oo" + s]) for s in switches]
+    tasks = []
     for topo_name in topologies:
         for symbol_name in symbols:
             for carrier_name in CARRIERS:
                 counter += 1
                 prefix = f"T{counter:03d}"
-                case_dir = build_case(args.work, prefix, topo_name, symbol_name,
-                                      carrier_name)
-                label = f"{topo_name} / {symbol_name} / {carrier_name}"
-
-                plan = [(p, []) for p in profiles]
-                plan += [("o1", ["-Oo" + s]) for s in switches]
-
+                case_dir = build_case(args.work, prefix, topo_name, symbol_name, carrier_name)
                 for profile, extra in plan:
-                    result = run_case(case_dir, prefix, profile, extra, args.timeout)
-                    row = {"case": prefix, "topology": topo_name,
-                           "symbol": symbol_name, "carrier": carrier_name,
-                           "profile": profile, "extra": extra, **result}
-                    rows.append(row)
+                    tasks.append((case_dir, prefix, topo_name, symbol_name, carrier_name, profile, extra))
 
-                    if not result["built"]:
-                        finding = {"kind": "build-failed", "label": label,
-                                   "profile": profile, "extra": extra,
-                                   "case": prefix, "topology": topo_name,
-                                   "symbol": symbol_name,
-                                   "carrier": carrier_name,
-                                   "errors": result["errors"]}
-                        if accepted_build_failure(finding):
-                            finding["known"] = "dvl-0066"
-                            known_findings.append(finding)
-                            prefix_text = "KNOWN dvl-0066"
-                        else:
-                            findings.append(finding)
-                            prefix_text = "BUILD FAILED"
-                        print(f"{prefix_text}  {label}  {profile} {' '.join(extra)}")
-                        for line in result["errors"][:2]:
-                            print("    ", line[:150])
-                    elif result["output"] != "TOPO_OK":
-                        findings.append({"kind": "wrong-answer", "label": label,
-                                         "profile": profile, "extra": extra,
-                                         "case": prefix,
-                                         "output": result["output"]})
-                        print(f"WRONG ANSWER  {label}  {profile} {' '.join(extra)}  "
-                              f"{result['output']}")
+    def execute(task):
+        case_dir, prefix, _, _, _, profile, extra = task
+        return run_case(case_dir, prefix, profile, extra, args.timeout)
+
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        results = list(pool.map(execute, tasks))
+    for task, result in zip(tasks, results):
+        case_dir, prefix, topo_name, symbol_name, carrier_name, profile, extra = task
+        label = f"{topo_name} / {symbol_name} / {carrier_name}"
+        row = {"case": prefix, "topology": topo_name,
+               "symbol": symbol_name, "carrier": carrier_name,
+               "profile": profile, "extra": extra, **result}
+        rows.append(row)
+
+        if not result["built"]:
+            finding = {"kind": "build-failed", "label": label,
+                       "profile": profile, "extra": extra,
+                       "case": prefix, "topology": topo_name,
+                       "symbol": symbol_name,
+                       "carrier": carrier_name,
+                       "errors": result["errors"]}
+            if accepted_build_failure(finding):
+                finding["known"] = "dvl-0066"
+                known_findings.append(finding)
+                prefix_text = "KNOWN dvl-0066"
+            else:
+                findings.append(finding)
+                prefix_text = "BUILD FAILED"
+            print(f"{prefix_text}  {label}  {profile} {' '.join(extra)}")
+            for line in result["errors"][:2]:
+                print("    ", line[:150])
+        elif result["output"] != "TOPO_OK":
+            findings.append({"kind": "wrong-answer", "label": label,
+                             "profile": profile, "extra": extra,
+                             "case": prefix,
+                             "output": result["output"]})
+            print(f"WRONG ANSWER  {label}  {profile} {' '.join(extra)}  "
+                  f"{result['output']}")
 
     report = {"rows": rows, "findings": findings,
               "known_findings": known_findings,

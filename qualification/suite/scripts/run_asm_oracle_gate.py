@@ -58,7 +58,7 @@ def build_and_run(work: Path, profile: str, timeout: int) -> dict:
     out = work / profile
     out.mkdir(parents=True, exist_ok=True)
     source = TEST / "asm_oracle.dpr"
-    build = subprocess.run(
+    build = tc.run_process(
         tc.compile_command(source, out, profile,
                            search=[TEST, CHIMERA_SUPPORT]),
         cwd=TEST, capture_output=True, text=True, errors="replace",
@@ -69,7 +69,7 @@ def build_and_run(work: Path, profile: str, timeout: int) -> dict:
         return {"built": False, "exit": build.returncode,
                 "terminal": "", "coverage": {}}
 
-    run = subprocess.run([str(tc.executable(out, "asm_oracle"))], cwd=TEST,
+    run = tc.run_process([str(tc.executable(out, "asm_oracle"))], cwd=TEST,
                          capture_output=True, text=True, errors="replace",
                          timeout=timeout)
     run_text = (run.stdout or "") + (run.stderr or "")

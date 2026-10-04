@@ -34,6 +34,7 @@ ASCII output only - the console this runs on is not UTF-8.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import shutil
 import subprocess
@@ -141,7 +142,7 @@ def build(profile: str, out_dir: Path, program: Path, work: Path) -> Path:
     if out_dir.exists():
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True)
-    done = subprocess.run(
+    done = tc.run_process(
         tc.compile_command(program, out_dir, profile),
         capture_output=True,
         text=True,
@@ -158,7 +159,7 @@ def run(
     exe: Path, carriers: int, laps: int, workers: int, timeout: int, work: Path
 ) -> Run:
     try:
-        done = subprocess.run(
+        done = tc.run_process(
             [str(exe), "--seed", "1", "--carriers", str(carriers),
              "--laps", str(laps), "--workers", str(workers)],
             capture_output=True, text=True, cwd=work, timeout=timeout,
@@ -174,7 +175,7 @@ def run(
 def verify_stage_inventory(
     exe: Path, work: Path, timeout: int, locks: dict[str, object], lock_id: str
 ) -> tuple[list[str], str]:
-    done = subprocess.run(
+    done = tc.run_process(
         [str(exe), "--list-stages"],
         capture_output=True,
         text=True,
@@ -272,7 +273,10 @@ def main() -> int:
     ap.add_argument("--work", type=Path,
                     default=SUITE / "results" / "devil-resident")
     ap.add_argument("--report", type=Path)
+    ap.add_argument("--jobs", type=int, default=1)
     args = ap.parse_args()
+    if args.jobs < 1:
+        ap.error("--jobs must be positive")
     carriers, laps, profiles, qualification = resolve_run_contract(args, layer)
     findings: list[str] = []
     results: dict[str, Run] = {}
@@ -283,16 +287,18 @@ def main() -> int:
     root.mkdir(parents=True, exist_ok=True)
 
     # --- profiles: every optimisation level must give the same answers -------
-    for profile in profiles:
+    def profile_run(profile):
         exe = build(profile, root / profile, program, work)
-        names, digest = verify_stage_inventory(
-            exe, work, args.timeout, locks, layer["stage_lock"]
-        )
+        names, digest = verify_stage_inventory(exe, work, args.timeout, locks, layer["stage_lock"])
+        return names, digest, run(exe, carriers, laps, 2, args.timeout, work)
+
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        profile_results = list(pool.map(profile_run, profiles))
+    for profile, (names, digest, got) in zip(profiles, profile_results):
         if stage_names is not None and names != stage_names:
             raise ContractError(f"resident stage order differs in profile {profile}")
         stage_names = names
         stage_digest = digest
-        got = run(exe, carriers, laps, 2, args.timeout, work)
         results[profile] = got
         validate_run(profile, got, names, carriers, findings)
         print("profile %-8s rc=%d stages=%s root=%s"
@@ -348,8 +354,10 @@ def main() -> int:
                                        got.answers.get("RESIDENT_ROOT", "?")))
 
     # --- ladder: the program must stay green as it ages ---------------------
-    for ladder_laps in layer["ladder"]:
-        got = run(exe, carriers, ladder_laps, 3, args.timeout, work)
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        ladder_results = list(pool.map(
+            lambda count: run(exe, carriers, count, 3, args.timeout, work), layer["ladder"]))
+    for ladder_laps, got in zip(layer["ladder"], ladder_results):
         validate_run(
             f"laps={ladder_laps}", got, stage_names, carriers, findings
         )

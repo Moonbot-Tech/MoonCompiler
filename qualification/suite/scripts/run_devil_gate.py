@@ -63,7 +63,7 @@ DEFAULT_GENERATED_PROGRAM_TIMEOUT = 120
 
 def run(cmd: list[str], cwd: Path, timeout: int) -> tuple[int, str]:
     try:
-        proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
+        proc = tc.run_process(cmd, cwd=cwd, capture_output=True, text=True,
                               timeout=timeout)
     except subprocess.TimeoutExpired:
         return 124, "<timeout>"
@@ -82,6 +82,8 @@ class Build:
         self.label = label
         self.compiled = False
         self.compile_log = ""
+        self.compile_seconds = 0.0
+        self.run_seconds = 0.0
         self.output = ""
         self.failures: dict[str, tuple[str, str]] = {}
         self.failure_values: dict[str, set[tuple[str, str]]] = {}
@@ -318,15 +320,19 @@ def build_fpc(work: Path, profile: str, defines: list[str], timeout: int,
     cmd = tc.compile_command(work / "devil.dpr", out, profile, defines=defines)
     if reuse:
         cmd.remove("-B")
+    started = time.monotonic()
     code, log = run(cmd, work, timeout)
+    build.compile_seconds = time.monotonic() - started
     build.compile_log = log
     exe = tc.executable(out, "devil")
     if code != 0 or not exe.exists():
         return build
     build.compiled = True
+    started = time.monotonic()
     code, output = run(
         [str(exe)], out, generated_program_timeout(timeout, program_timeout)
     )
+    build.run_seconds = time.monotonic() - started
     build.run_exit = code
     build.timed_out = code == 124
     build.parse(output)
@@ -925,7 +931,8 @@ def write_json(path: Path, value: object) -> None:
 
 def checkpoint_key(args) -> str:
     product = Path(os.environ.get("MOONBOT_TOOLCHAIN", str(tc.ROOT / "toolchain")))
-    paths = [product, tc.MM_SOURCE, ROOT / "scripts", DEVIL, ROOT.parent / "release/inputs.py"]
+    paths = [product, tc.MM_SOURCE, ROOT / "scripts", ROOT / "tests", ROOT / "runner_manifest.json",
+             ROOT / "contract_locks.json", ROOT.parent / "release/inputs.py"]
     if args.dcc:
         paths.extend([args.dcc, args.dcc_lib])
     options = {key: value for key, value in vars(args).items()
@@ -1072,7 +1079,9 @@ def run_seed(args, seed: int) -> dict:
         print("  known: %d hits (%s)" % (len(known_hits), ", ".join(seen)))
     return {"seed": seed, "summary": summary, "findings": findings, "known_hits": known_hits,
             "evidence": {build.label: {"compile_log": build.compile_log, "output": build.output,
-                                       "run_exit": build.run_exit} for build in builds}}
+                                       "run_exit": build.run_exit,
+                                       "compile_seconds_including_queue": build.compile_seconds,
+                                       "run_seconds_including_queue": build.run_seconds} for build in builds}}
 
 
 def main() -> None:
@@ -1168,6 +1177,11 @@ def main() -> None:
 
     seed_jobs = min(len(seeds), max(1, args.jobs // len(profiles)))
     args.profile_jobs = max(1, args.jobs // seed_jobs)
+    if os.environ.get("DEVIL_PROCESS_SLOTS"):
+        # The full runner bounds actual subprocesses across all gates. Queue
+        # every seed so an idle slot can serve it instead of awaiting a wave.
+        seed_jobs = len(seeds)
+        args.profile_jobs = min(args.jobs, len(profiles))
     # Submit only one wave at a time: a measured timeout forecast can stop
     # before another wave starts, and completed seeds survive interruption.
     with ThreadPoolExecutor(max_workers=seed_jobs) as pool:

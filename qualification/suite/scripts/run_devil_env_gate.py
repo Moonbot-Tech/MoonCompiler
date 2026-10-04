@@ -81,7 +81,7 @@ def code_artefacts(out: Path) -> dict[str, str]:
                 result[source.name] = hashlib.sha256(source.read_bytes()).hexdigest()
             elif suffix in (".o", ".exe"):
                 target = normalized / source.name
-                proc = subprocess.run(
+                proc = tc.run_process(
                     [str(strip), "--strip-debug", "-o", str(target), str(source)],
                     capture_output=True,
                     text=True,
@@ -148,7 +148,7 @@ def build(work: Path, profile: str, timeout: int, *,
         env = dict(os.environ)
         env.update(env_extra)
     try:
-        proc = subprocess.run(cmd, cwd=str(cwd or work), capture_output=True,
+        proc = tc.run_process(cmd, cwd=str(cwd or work), capture_output=True,
                               text=True, timeout=timeout, env=env)
     except subprocess.TimeoutExpired:
         return {}, {}, "REJECTED: timeout"

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import os
 import re
 import shutil
@@ -304,7 +305,10 @@ def main() -> int:
         default=list(MODES),
     )
     parser.add_argument("--only", help="regular expression for source stem")
+    parser.add_argument("--jobs", type=int, default=1)
     args = parser.parse_args()
+    if args.jobs < 1:
+        parser.error("--jobs must be positive")
 
     surface = execute([sys.executable, str(SURFACE_GATE)])
     if surface.returncode != 0:
@@ -352,165 +356,169 @@ def main() -> int:
         raise RuntimeError("no RTL semantic sources selected")
 
     work = Path(tempfile.mkdtemp(prefix="rtl-test-"))
-    passed = 0
-    try:
-        for source in sources:
-            markers = MARKER.findall(source.read_text(encoding="utf-8"))
-            if len(markers) != 1:
-                raise RuntimeError(
-                    f"{source.name}: expected one unique PASS/OK marker, got {markers}"
-                )
-            marker = markers[0]
-            for mode in args.modes:
-                output = work / source.stem / mode
-                output.mkdir(parents=True)
-                unit_dirs = CURRENT_TREE_UNIT_DIRS.get(source.stem, ())
-                if isinstance(unit_dirs, Path):
-                    unit_dirs = (unit_dirs,)
-                unit_files = CURRENT_TREE_UNIT_FILES.get(source.stem, ())
-                if unit_files:
-                    unit_stage = output / "current-units"
-                    unit_stage.mkdir()
-                    for unit_file in unit_files:
-                        shutil.copy2(unit_file, unit_stage / unit_file.name)
-                    unit_dirs = (*unit_dirs, unit_stage)
-                source_unit_abi = bool(unit_dirs)
-                ppu_units = PPU_ONLY_UNITS.get(source.stem, ())
-                if ppu_units:
-                    unit_stage = output / "ppu-only"
-                    unit_stage.mkdir()
-                    for name in ppu_units:
-                        shutil.copy2(SEMANTIC / "support" / (name + ".pas"), unit_stage)
-                    producer = execute([
-                        str(compiler), "-n", f"@{config}", *LANGUAGE, *target, *NAMESPACES,
-                        *MODES[mode], "-B", f"-Fu{unit_stage}", f"-FU{unit_stage}",
-                        str(unit_stage / (ppu_units[-1] + ".pas")),
-                    ], unit_stage)
-                    if producer.returncode != 0:
-                        print(producer.stdout, file=sys.stderr)
-                        raise RuntimeError(f"PPU producer failed: {source.name} {mode}")
-                    for name in ppu_units:
-                        (unit_stage / (name + ".pas")).rename(unit_stage / (name + ".hidden"))
-                    unit_dirs = (*unit_dirs, unit_stage)
-                rebuild = [] if unit_dirs else ["-B"]
-                command = [
-                    str(compiler),
-                    "-n",
-                    f"@{config}",
-                    *LANGUAGE,
-                    *target,
-                    "-Rintel",
-                    *rebuild,
-                    "-dMOONBOT_MM_PROFILE_REQUIRED",
-                    "-dFPCMM_BOOSTER",
-                    "-dFPCMM_MOONSHARD",
-                    f"--pinned-unit=mormot.core.fpcx64mm={MM}",
-                    *(
-                        []
-                        if source.stem.startswith("runtime_prefix_")
-                        else [
-                            "--required-first-unit=mormot.core.fpcx64mm,cthreads"
-                            if os.name != "nt"
-                            else "--required-first-unit=mormot.core.fpcx64mm"
-                        ]
-                    ),
-                    *NAMESPACES,
-                    f"-Fu{SEMANTIC}",
-                    f"-Fi{SEMANTIC}",
-                    *([] if ppu_units else [f"-Fu{SEMANTIC / 'support'}", f"-Fi{SEMANTIC / 'support'}"]),
-                    *(option for unit_dir in unit_dirs for option in (f"-Fu{unit_dir}", f"-Fi{unit_dir}")),
-                    *(SOURCE_UNIT_ABI if source_unit_abi else ()),
-                    f"-FU{output}",
-                    f"-FE{output}",
-                    *MODES[mode],
-                    *SOURCE_OPTIONS.get(source.stem, ()),
-                    *(
-                        ["-al"]
-                        if mode == "o3"
-                        and source.stem
-                        in (
-                            FORBIDDEN_O3_ASM.keys()
-                            | FORBIDDEN_O3_CALL_PATTERNS.keys()
-                            | REQUIRED_O3_CALL_PATTERNS.keys()
-                        )
-                        else []
-                    ),
-                    str(source),
-                ]
-                compiled = execute(command, unit_dirs[0] if unit_dirs else ROOT)
-                if compiled.returncode != 0:
-                    print(compiled.stdout, file=sys.stderr)
-                    raise RuntimeError(f"compile failed: {source.name} {mode}")
-                executable = output / f"{source.stem}{executable_suffix}"
-                run = execute([str(executable)])
-                if run.returncode != 0 or marker not in run.stdout:
-                    print(run.stdout, file=sys.stderr)
-                    raise RuntimeError(f"runtime oracle failed: {source.name} {mode}")
-                missing_runtime = [
-                    pattern
-                    for pattern in REQUIRED_RUNTIME_PATTERNS.get(source.stem, ())
-                    if not re.search(pattern, run.stdout, re.MULTILINE)
-                ]
-                forbidden_runtime = [
-                    pattern
-                    for pattern in FORBIDDEN_RUNTIME_PATTERNS.get(source.stem, ())
-                    if re.search(pattern, run.stdout, re.MULTILINE)
-                ]
-                if missing_runtime or forbidden_runtime:
-                    print(run.stdout, file=sys.stderr)
-                    raise RuntimeError(
-                        f"runtime lifecycle oracle failed: {source.name} {mode} "
-                        f"missing={missing_runtime} forbidden={forbidden_runtime}"
+    def run_source(source):
+        completed = 0
+        markers = MARKER.findall(source.read_text(encoding="utf-8"))
+        if len(markers) != 1:
+            raise RuntimeError(
+                f"{source.name}: expected one unique PASS/OK marker, got {markers}"
+            )
+        marker = markers[0]
+        for mode in args.modes:
+            output = work / source.stem / mode
+            output.mkdir(parents=True)
+            unit_dirs = CURRENT_TREE_UNIT_DIRS.get(source.stem, ())
+            if isinstance(unit_dirs, Path):
+                unit_dirs = (unit_dirs,)
+            unit_files = CURRENT_TREE_UNIT_FILES.get(source.stem, ())
+            if unit_files:
+                unit_stage = output / "current-units"
+                unit_stage.mkdir()
+                for unit_file in unit_files:
+                    shutil.copy2(unit_file, unit_stage / unit_file.name)
+                unit_dirs = (*unit_dirs, unit_stage)
+            source_unit_abi = bool(unit_dirs)
+            ppu_units = PPU_ONLY_UNITS.get(source.stem, ())
+            if ppu_units:
+                unit_stage = output / "ppu-only"
+                unit_stage.mkdir()
+                for name in ppu_units:
+                    shutil.copy2(SEMANTIC / "support" / (name + ".pas"), unit_stage)
+                producer = execute([
+                    str(compiler), "-n", f"@{config}", *LANGUAGE, *target, *NAMESPACES,
+                    *MODES[mode], "-B", f"-Fu{unit_stage}", f"-FU{unit_stage}",
+                    str(unit_stage / (ppu_units[-1] + ".pas")),
+                ], unit_stage)
+                if producer.returncode != 0:
+                    print(producer.stdout, file=sys.stderr)
+                    raise RuntimeError(f"PPU producer failed: {source.name} {mode}")
+                for name in ppu_units:
+                    (unit_stage / (name + ".pas")).rename(unit_stage / (name + ".hidden"))
+                unit_dirs = (*unit_dirs, unit_stage)
+            rebuild = [] if unit_dirs else ["-B"]
+            command = [
+                str(compiler),
+                "-n",
+                f"@{config}",
+                *LANGUAGE,
+                *target,
+                "-Rintel",
+                *rebuild,
+                "-dMOONBOT_MM_PROFILE_REQUIRED",
+                "-dFPCMM_BOOSTER",
+                "-dFPCMM_MOONSHARD",
+                f"--pinned-unit=mormot.core.fpcx64mm={MM}",
+                *(
+                    []
+                    if source.stem.startswith("runtime_prefix_")
+                    else [
+                        "--required-first-unit=mormot.core.fpcx64mm,cthreads"
+                        if os.name != "nt"
+                        else "--required-first-unit=mormot.core.fpcx64mm"
+                    ]
+                ),
+                *NAMESPACES,
+                f"-Fu{SEMANTIC}",
+                f"-Fi{SEMANTIC}",
+                *([] if ppu_units else [f"-Fu{SEMANTIC / 'support'}", f"-Fi{SEMANTIC / 'support'}"]),
+                *(option for unit_dir in unit_dirs for option in (f"-Fu{unit_dir}", f"-Fi{unit_dir}")),
+                *(SOURCE_UNIT_ABI if source_unit_abi else ()),
+                f"-FU{output}",
+                f"-FE{output}",
+                *MODES[mode],
+                *SOURCE_OPTIONS.get(source.stem, ()),
+                *(
+                    ["-al"]
+                    if mode == "o3"
+                    and source.stem
+                    in (
+                        FORBIDDEN_O3_ASM.keys()
+                        | FORBIDDEN_O3_CALL_PATTERNS.keys()
+                        | REQUIRED_O3_CALL_PATTERNS.keys()
                     )
-                if gate := EXECUTABLE_GATES.get(source.stem):
-                    checked = execute([sys.executable, str(gate), str(executable)])
-                    if checked.returncode != 0:
-                        print(checked.stdout, file=sys.stderr)
-                        raise RuntimeError(f"executable gate failed: {source.name} {mode}")
-                if mode == "o3" and source.stem in (
-                    FORBIDDEN_O3_ASM.keys()
-                    | FORBIDDEN_O3_CALL_PATTERNS.keys()
-                    | REQUIRED_O3_CALL_PATTERNS.keys()
-                ):
-                    assembly = output / f"{source.stem}.s"
-                    if not assembly.is_file():
-                        raise RuntimeError(f"assembly output is missing: {assembly}")
-                    asm_text = assembly.read_text(encoding="utf-8", errors="replace")
-                    leftovers = [
-                        name for name in FORBIDDEN_O3_ASM.get(source.stem, ())
-                        if re.search(
-                            rf"^\s*call[^\r\n]*{name}",
-                            asm_text,
-                            re.IGNORECASE | re.MULTILINE,
-                        )
-                    ]
-                    if leftovers:
-                        raise RuntimeError(
-                            f"O3 hot loop retains enumerator calls: {source.name} {leftovers}"
-                        )
-                    forbidden_calls = [
-                        pattern
-                        for pattern in FORBIDDEN_O3_CALL_PATTERNS.get(source.stem, ())
-                        if re.search(pattern, asm_text, re.IGNORECASE | re.MULTILINE)
-                    ]
-                    if forbidden_calls:
-                        raise RuntimeError(
-                            f"O3 retains calls that must inline: {source.name} {forbidden_calls}"
-                        )
-                    missing_calls = [
-                        pattern
-                        for pattern in REQUIRED_O3_CALL_PATTERNS.get(source.stem, ())
-                        if not re.search(pattern, asm_text, re.IGNORECASE | re.MULTILINE)
-                    ]
-                    if missing_calls:
-                        raise RuntimeError(
-                            f"O3 lost required call boundaries: {source.name} {missing_calls}"
-                        )
-                passed += 1
-                print(f"PASS {source.name} {mode} {marker}", flush=True)
-                # nothing reads a passed row's build again: the free space
-                # a run needs is one row, not the whole matrix
-                shutil.rmtree(output, ignore_errors=True)
+                    else []
+                ),
+                str(source),
+            ]
+            compiled = execute(command, unit_dirs[0] if unit_dirs else ROOT)
+            if compiled.returncode != 0:
+                print(compiled.stdout, file=sys.stderr)
+                raise RuntimeError(f"compile failed: {source.name} {mode}")
+            executable = output / f"{source.stem}{executable_suffix}"
+            run = execute([str(executable)], output)
+            if run.returncode != 0 or marker not in run.stdout:
+                print(run.stdout, file=sys.stderr)
+                raise RuntimeError(f"runtime oracle failed: {source.name} {mode}")
+            missing_runtime = [
+                pattern
+                for pattern in REQUIRED_RUNTIME_PATTERNS.get(source.stem, ())
+                if not re.search(pattern, run.stdout, re.MULTILINE)
+            ]
+            forbidden_runtime = [
+                pattern
+                for pattern in FORBIDDEN_RUNTIME_PATTERNS.get(source.stem, ())
+                if re.search(pattern, run.stdout, re.MULTILINE)
+            ]
+            if missing_runtime or forbidden_runtime:
+                print(run.stdout, file=sys.stderr)
+                raise RuntimeError(
+                    f"runtime lifecycle oracle failed: {source.name} {mode} "
+                    f"missing={missing_runtime} forbidden={forbidden_runtime}"
+                )
+            if gate := EXECUTABLE_GATES.get(source.stem):
+                checked = execute([sys.executable, str(gate), str(executable)])
+                if checked.returncode != 0:
+                    print(checked.stdout, file=sys.stderr)
+                    raise RuntimeError(f"executable gate failed: {source.name} {mode}")
+            if mode == "o3" and source.stem in (
+                FORBIDDEN_O3_ASM.keys()
+                | FORBIDDEN_O3_CALL_PATTERNS.keys()
+                | REQUIRED_O3_CALL_PATTERNS.keys()
+            ):
+                assembly = output / f"{source.stem}.s"
+                if not assembly.is_file():
+                    raise RuntimeError(f"assembly output is missing: {assembly}")
+                asm_text = assembly.read_text(encoding="utf-8", errors="replace")
+                leftovers = [
+                    name for name in FORBIDDEN_O3_ASM.get(source.stem, ())
+                    if re.search(
+                        rf"^\s*call[^\r\n]*{name}",
+                        asm_text,
+                        re.IGNORECASE | re.MULTILINE,
+                    )
+                ]
+                if leftovers:
+                    raise RuntimeError(
+                        f"O3 hot loop retains enumerator calls: {source.name} {leftovers}"
+                    )
+                forbidden_calls = [
+                    pattern
+                    for pattern in FORBIDDEN_O3_CALL_PATTERNS.get(source.stem, ())
+                    if re.search(pattern, asm_text, re.IGNORECASE | re.MULTILINE)
+                ]
+                if forbidden_calls:
+                    raise RuntimeError(
+                        f"O3 retains calls that must inline: {source.name} {forbidden_calls}"
+                    )
+                missing_calls = [
+                    pattern
+                    for pattern in REQUIRED_O3_CALL_PATTERNS.get(source.stem, ())
+                    if not re.search(pattern, asm_text, re.IGNORECASE | re.MULTILINE)
+                ]
+                if missing_calls:
+                    raise RuntimeError(
+                        f"O3 lost required call boundaries: {source.name} {missing_calls}"
+                    )
+            completed += 1
+            print(f"PASS {source.name} {mode} {marker}", flush=True)
+            # nothing reads a passed row's build again: the free space
+            # a run needs is one row, not the whole matrix
+            shutil.rmtree(output, ignore_errors=True)
+        return completed
+
+    try:
+        with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+            passed = sum(pool.map(run_source, sources))
     finally:
         shutil.rmtree(work, ignore_errors=True)
 

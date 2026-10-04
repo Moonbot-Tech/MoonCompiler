@@ -1,7 +1,10 @@
 from contextlib import redirect_stdout
 import io
+import json
+import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import threading
 from types import SimpleNamespace
@@ -12,9 +15,71 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "suite/scripts"
 sys.path.insert(0, str(SCRIPTS))
 import run_devil_all as all_gates
 import run_devil_gate as gate
+import run_devil_modes_gate as modes
 
 
 class DevilParallelTests(unittest.TestCase):
+    def test_process_budget_is_shared_by_independent_runners(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for index in range(2):
+                (Path(directory) / f"{index}.slot").write_bytes(b"0")
+            env = dict(os.environ, DEVIL_PROCESS_SLOTS=directory)
+            worker = (
+                "import sys,time,json;sys.path.insert(0," + repr(str(SCRIPTS)) + ");"
+                "import devil_toolchain as tc;"
+                "\nwith tc.process_slot():\n"
+                " start=time.monotonic();time.sleep(0.15);"
+                "print(json.dumps([start,time.monotonic()]))\n"
+            )
+            processes = [subprocess.Popen([sys.executable, "-c", worker], env=env,
+                                          stdout=subprocess.PIPE, text=True) for _ in range(6)]
+            events = []
+            for process in processes:
+                output, _ = process.communicate(timeout=10)
+                self.assertEqual(process.returncode, 0)
+                start, end = json.loads(output)
+                events.extend([(start, 1), (end, -1)])
+            active = peak = 0
+            for _, delta in sorted(events):
+                active += delta
+                peak = max(peak, active)
+            self.assertEqual(peak, 2)
+
+    def test_no_rebuild_reuses_baseline_ppus_and_isolates_runtime(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory)
+            out = work / "out-mode-baseline"
+            out.mkdir()
+            (out / "dependency.ppu").write_bytes(b"compiled producer")
+            executable = out / "devil.exe"
+            executable.write_bytes(b"fixture")
+            calls = []
+            def run(command, cwd, timeout):
+                calls.append((command, cwd))
+                self.assertTrue((out / "dependency.ppu").exists())
+                return 0, ""
+            with patch.object(modes.tc, "compile_command", return_value=["fpc", "-B"]), \
+                    patch.object(modes.tc, "executable", return_value=executable), \
+                    patch.object(modes, "runtime_failure", return_value=""), \
+                    patch.object(modes, "run", side_effect=run):
+                result, failure = modes.behaviour(work, "no-rebuild", [], "release", 10, 17, False)
+            self.assertEqual(failure, "")
+            self.assertTrue(result.compiled)
+            self.assertNotIn("-B", calls[0][0])
+            self.assertEqual(calls[1][1], out)
+
+    def test_main_overlaps_independent_gates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args = SimpleNamespace(jobs=2, timeout=10, main_timeout=10, resume=False, keep_going=True)
+            barrier = threading.Barrier(2)
+            def run(command, timeout, name):
+                barrier.wait(timeout=3)
+                return 0, "OK", 0.1
+            with patch.object(all_gates, "run", side_effect=run), redirect_stdout(io.StringIO()):
+                results = all_gates.run_stages([("main", ["fake"]), ("topology", ["fake"])],
+                                              args, Path(directory))
+            self.assertEqual(len(results), 2)
+
     def test_determinism_compares_runs_only_for_the_same_product_inputs(self):
         with tempfile.TemporaryDirectory() as directory:
             args = SimpleNamespace(work=Path(directory), profiles="release", defines="", cases=1,

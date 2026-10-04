@@ -234,7 +234,7 @@ def check_inventory(rows: list[dict], seen: dict[str, dict[str, int]],
 def build_and_run(out: Path, profile: str, extra: list[str], focus: str | None,
                   timeout: int) -> dict:
     out.mkdir(parents=True, exist_ok=True)
-    build = subprocess.run(
+    build = tc.run_process(
         tc.compile_command(CHIMERA / "chimera.dpr", out, profile,
                            search=[CHIMERA], extra=extra + mormot_options()),
         cwd=CHIMERA, capture_output=True, text=True, errors="replace",
@@ -248,7 +248,7 @@ def build_and_run(out: Path, profile: str, extra: list[str], focus: str | None,
     command = [str(tc.executable(out, "chimera"))]
     if focus:
         command += ["--focus", focus]
-    run = subprocess.run(command, cwd=CHIMERA, capture_output=True, text=True,
+    run = tc.run_process(command, cwd=CHIMERA, capture_output=True, text=True,
                          errors="replace", timeout=timeout)
     output = (run.stdout or "") + (run.stderr or "")
     (out / "run.log").write_text(output, encoding="utf-8")

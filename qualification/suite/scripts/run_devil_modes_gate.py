@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import shutil
 import subprocess
@@ -81,7 +82,7 @@ def behaviour(work: Path, label: str, extra: list[str], profile: str,
               rebuild: bool = True) -> tuple[Build | None, str]:
     """Собрать с добавленными ключами и снять поведение программы."""
     build = Build(label)
-    out = work / ("out-mode-" + label)
+    out = work / ("out-mode-" + (label if rebuild else "baseline"))
     if rebuild and out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
@@ -94,7 +95,7 @@ def behaviour(work: Path, label: str, extra: list[str], profile: str,
     exe = tc.executable(out, "devil")
     if not exe.exists():
         return None, "REJECTED: no executable"
-    code, output = run([str(exe)], work, min(timeout, 300))
+    code, output = run([str(exe)], out, min(timeout, 300))
     if code == 124:
         return None, "REJECTED: timeout while running"
     build.compiled = True
@@ -151,7 +152,10 @@ def main() -> None:
     p.add_argument("--timeout", type=int, default=900)
     p.add_argument("--work", type=Path, default=ROOT / "work-modes")
     p.add_argument("--report", type=Path)
+    p.add_argument("--jobs", type=int, default=1)
     args = p.parse_args()
+    if args.jobs < 1:
+        p.error("--jobs must be positive")
 
     if args.cases <= 0 or args.timeout <= 0:
         p.error("--cases and --timeout must be positive")
@@ -176,10 +180,16 @@ def main() -> None:
 
     findings: list[dict] = []
     reference: Build | None = None
-    for label, extra in MODES:
-        rebuild = label != "no-rebuild"
-        got, failure = behaviour(work, label, extra, args.profile,
-                                 args.timeout, args.seed, rebuild)
+    def execute(item):
+        label, extra = item
+        return behaviour(work, label, extra, args.profile, args.timeout,
+                         args.seed, label != "no-rebuild")
+
+    # Finish the baseline before the warm-PPU check can touch its directory.
+    baseline = execute(MODES[0])
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        results = [baseline, *pool.map(execute, MODES[1:])]
+    for (label, extra), (got, failure) in zip(MODES, results):
         if got is None:
             say("%-16s %s" % (label, failure))
             findings.append({"kind": "build-failed-in-mode", "mode": label,

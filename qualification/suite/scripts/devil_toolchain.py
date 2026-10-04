@@ -18,8 +18,63 @@ moved.
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
+import subprocess
 import sys
+import time
 from pathlib import Path
+
+
+@contextmanager
+def process_slot():
+    """Share the caller's process budget across independent Devil gates.
+
+    OS locks are released even if a runner dies. Controllers do not hold a
+    slot while waiting for children; only a compiler or test process does.
+    """
+    directory = os.environ.get("DEVIL_PROCESS_SLOTS")
+    if not directory:
+        yield
+        return
+    if os.name == "nt":
+        import msvcrt
+    else:
+        import fcntl
+    paths = sorted(Path(directory).glob("*.slot"))
+    if not paths:
+        raise RuntimeError("Devil process budget contains no slots")
+    while True:
+        for path in paths:
+            stream = path.open("r+b")
+            try:
+                if os.name == "nt":
+                    msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                stream.close()
+                continue
+            except OSError as error:
+                stream.close()
+                if error.errno == 13:  # Windows reports a held byte lock as EACCES.
+                    continue
+                raise
+            try:
+                yield
+            finally:
+                if os.name == "nt":
+                    stream.seek(0)
+                    msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl.flock(stream, fcntl.LOCK_UN)
+                stream.close()
+            return
+        time.sleep(0.02)
+
+
+def run_process(*args, **kwargs):
+    with process_slot():
+        return subprocess.run(*args, **kwargs)
 
 # The compiler being tested does not have to live in the tree these scripts
 # came from: the mutation stand reverts repairs inside a separate worktree and

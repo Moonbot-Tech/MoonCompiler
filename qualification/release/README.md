@@ -156,19 +156,33 @@ cases within a stateful profile keep their order. Its timing samples start only
 after all correctness workers finish. The matrix reserves four worker slots
 for this gate. No shared PPU cache is introduced.
 
-Full Devil reserves its worker slots from the outer controller. Its independent
-stages have separate work directories. Its main sweep divides the same budget
-between seeds and optimization profiles. Every seed has its own generated
+Full Devil reserves its worker slots from the outer controller. After the cheap
+prerequisite gates, independent stages overlap instead of waiting for a whole
+group to finish. OS-backed process slots enforce one shared budget across all
+gate runners; a Python controller waiting for children does not consume a slot.
+Topology, build modes, resident profiles/ladder runs and optimization switches
+use bounded parallel queues. Seeds and optimization profiles share those slots
+without waiting for a complete seed wave. The standalone main runner still
+divides its own worker budget between seeds and profiles. Every seed has its own generated
 sources; each profile executes in its own output directory, isolating the
 `dvl_io_*.tmp` files. A cold build precedes its PPU-reuse build; the latter
 actually omits `-B`. Cross-profile and Delphi comparisons still see all builds.
 Determinism compares two cold builds before PPU reuse changes their artifacts.
+The modes gate's `no-rebuild` variant consumes the completed baseline's PPU
+directory. RTL-test also accepts `--jobs`; each source keeps its modes in order
+and executes in a private directory, including file-I/O fixtures.
+
+Concurrency changes neither the corpus nor its oracles: all seeds, profiles,
+cold/warm builds, switches, resident lifetime checks and finalization checks
+remain mandatory. Main evidence records build and runtime wall times including
+any wait for a process slot. Use a fresh work directory without `--resume` when
+measuring a full-run duration; resumed passes are not full-run speed evidence.
 
 Successful Devil stages and seeds have persistent checkpoints. Stage log hashes
 and input identities guard reuse; failed stages/seeds repeat. Main checkpoints
 retain compiler/runtime output used by the oracle. Reports are written as seeds
 finish, so an interrupted sweep keeps its completed evidence. Wall-budget
-forecasting happens between waves; a partial wave set cannot report success.
+forecasting happens between standalone waves; a partial seed set cannot report success.
 
 A discovery pass carries only while the test command, test sources, parameters
 and dependency inputs match. Dependencies on the product build use the actual

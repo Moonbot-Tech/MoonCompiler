@@ -29,6 +29,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import subprocess
 import sys
@@ -56,7 +57,7 @@ def build_and_run(work: Path, out: Path, extra: list[str], profile: str,
                   carriers: int, laps: int, timeout: int) -> dict:
     out.mkdir(parents=True, exist_ok=True)
     started = time.time()
-    build = subprocess.run(
+    build = tc.run_process(
         tc.compile_command(RESIDENT, out, profile, extra=extra),
         cwd=RESIDENT.parent, capture_output=True, text=True,
         errors="replace", timeout=timeout)
@@ -66,7 +67,7 @@ def build_and_run(work: Path, out: Path, extra: list[str], profile: str,
         return {"built": False, "seconds": round(time.time() - started, 1),
                 "errors": errors[:6]}
 
-    run = subprocess.run(
+    run = tc.run_process(
         [str(tc.executable(out, "resident")), "--carriers", str(carriers),
          "--laps", str(laps)],
         cwd=RESIDENT.parent, capture_output=True, text=True,
@@ -98,7 +99,10 @@ def main() -> int:
                         default=ROOT / "results" / "runs" / "resident-switches")
     parser.add_argument("--report", type=Path)
     parser.add_argument("--only", help="проверить один ключ")
+    parser.add_argument("--jobs", type=int, default=1)
     args = parser.parse_args()
+    if args.jobs < 1:
+        parser.error("--jobs must be positive")
 
     args.work, args.report = normalize_paths(args.work, args.report)
     tc.preflight()
@@ -134,9 +138,14 @@ def main() -> int:
             plan.append(("o1+" + switch, "o1", ["-Oo" + switch], switch))
             plan.append(("release-" + switch, "release", ["-OoNO" + switch], switch))
 
-    for name, profile, extra, switch in plan:
-        result = build_and_run(args.work, args.work / name, extra, profile,
-                               args.carriers, args.laps, args.timeout)
+    def execute(item):
+        name, profile, extra, switch = item
+        return build_and_run(args.work, args.work / name, extra, profile,
+                             args.carriers, args.laps, args.timeout)
+
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        results = list(pool.map(execute, plan))
+    for (name, profile, extra, switch), result in zip(plan, results):
         row = {"case": name, "switch": switch, "profile": profile,
                "extra": extra, **result}
         rows.append(row)

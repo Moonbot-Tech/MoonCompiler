@@ -133,7 +133,7 @@ SCENARIOS = {
 
 
 def run(command: list[str], cwd: Path, timeout: int = 120) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, cwd=cwd, capture_output=True, text=True,
+    return tc.run_process(command, cwd=cwd, capture_output=True, text=True,
                           errors="replace", timeout=timeout, check=False)
 
 

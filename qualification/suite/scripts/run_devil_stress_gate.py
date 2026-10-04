@@ -356,7 +356,7 @@ SHAPES = {
 def run(cmd: list[str], cwd: Path, timeout: int) -> tuple[int, str, float]:
     started = time.time()
     try:
-        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
+        p = tc.run_process(cmd, cwd=cwd, capture_output=True, text=True,
                            timeout=timeout)
     except subprocess.TimeoutExpired:
         return 124, "<timeout>", time.time() - started

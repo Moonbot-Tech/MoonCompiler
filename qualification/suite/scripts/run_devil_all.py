@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Run every Devil gate in one go and report a single verdict.
 
-Order matters: the cheap gates run first so an obvious break is reported in
-seconds, and the expensive sweep runs last.
+The cheap prerequisite gates run first. Independent sweeps then overlap under
+one shared compiler/test process budget.
 
     run_devil_all.py [--dcc ... --dcc-lib ...] [--seeds 1,2,3] [--cases 200]
                      [--with-mutation]
@@ -20,6 +20,7 @@ import re
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -114,8 +115,10 @@ def run_stages(stages: list[tuple[str, list[str]]], args, run_root: Path) -> lis
         name, command = item
         command = list(command)
         timeout = args.main_timeout if name == "main" else args.timeout
+        if name in {"main", "modes", "topology", "switches", "resident"}:
+            command += ["--jobs", str(args.jobs)]
         if name == "main":
-            command += ["--wall-budget", str(timeout), "--jobs", str(args.jobs)]
+            command += ["--wall-budget", str(timeout)]
             if args.resume:
                 command.append("--resume")
         signature = hashlib.sha256((key + json.dumps(command)).encode()).hexdigest()
@@ -139,18 +142,29 @@ def run_stages(stages: list[tuple[str, list[str]]], args, run_root: Path) -> lis
         return result
 
     results = []
-    # Gates have separate work directories. The main stage gets all reserved
-    # slots for its seed/profile workers; it never nests another full-size pool.
-    groups = ([item for item in stages if item[0] in {"registry", "finalization", "codegen", "reject"}],
-              [item for item in stages if item[0] not in {"registry", "finalization", "codegen", "reject", "main", "mutation"}],
-              [item for item in stages if item[0] == "main"],
+    # Validate the registry and exit channel first. All remaining gates have
+    # isolated outputs and can overlap; process slots are shared, not nested.
+    early = {"registry", "finalization", "codegen", "reject"}
+    groups = ([item for item in stages if item[0] in early],
+              [item for item in stages if item[0] not in early | {"mutation"}],
               [item for item in stages if item[0] == "mutation"])
-    for group in groups:
-        with ThreadPoolExecutor(max_workers=args.jobs) as pool:
-            futures = [pool.submit(execute_stage, item) for item in group]
-            results.extend(future.result() for future in as_completed(futures))
-        if any(row["code"] for row in results) and not args.keep_going:
-            break
+    with tempfile.TemporaryDirectory(prefix="devil-slots-", dir=run_root) as directory:
+        for index in range(args.jobs):
+            (Path(directory) / f"{index}.slot").write_bytes(b"0")
+        previous = os.environ.get("DEVIL_PROCESS_SLOTS")
+        os.environ["DEVIL_PROCESS_SLOTS"] = directory
+        try:
+            for group in groups:
+                with ThreadPoolExecutor(max_workers=max(1, len(group))) as pool:
+                    futures = [pool.submit(execute_stage, item) for item in group]
+                    results.extend(future.result() for future in as_completed(futures))
+                if any(row["code"] for row in results) and not args.keep_going:
+                    break
+        finally:
+            if previous is None:
+                os.environ.pop("DEVIL_PROCESS_SLOTS", None)
+            else:
+                os.environ["DEVIL_PROCESS_SLOTS"] = previous
     order = {name: index for index, (name, _) in enumerate(stages)}
     return sorted(results, key=lambda row: order[row["stage"]])
 

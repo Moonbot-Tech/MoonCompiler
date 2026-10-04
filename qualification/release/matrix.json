@@ -6,7 +6,7 @@
     "build": ["build", "build.ps1", "Makefile", "Makefile.fpc", "fpmake.pp", "fpmake_add1.inc", "fpmake_proc1.inc", "compiler", "rtl", "runtime", "packages", "installer", "scripts", "utils"],
     "config": ["qualification/build-driver"],
     "mm_layout": ["qualification/memory-manager", "qualification/performance/tools"],
-    "devil_light": ["qualification/suite", "tests", "qualification/release/inputs.py"],
+    "devil_light": ["qualification/suite", "qualification/release/inputs.py"],
     "ptop_contract": ["qualification/build-driver"],
     "version_contract": ["qualification/build-driver"],
     "ppu_format_contract": ["qualification/build-driver"],
@@ -81,7 +81,7 @@
     "fixtures": ["qualification/suite"],
     "mega": ["qualification/suite"],
     "archive_smoke": ["qualification/release/archive_smoke.py", "qualification/build-driver", "examples", "RTL-test", "tests/test/units/system/tres4.res"],
-    "devil_full": ["qualification/suite", "tests", "qualification/release/inputs.py"],
+    "devil_full": ["qualification/suite", "qualification/release/inputs.py"],
     "mormot_current": ["qualification/suite"],
     "upstream": ["qualification/suite", "tests"],
     "mm_current": ["qualification/suite", "qualification/memory-manager"],
@@ -1745,17 +1745,21 @@
       "commands": {
         "win64": [
           "{python}",
-          "{root}/RTL-test/run.py"
+          "{root}/RTL-test/run.py",
+          "--jobs", "{job_slots}"
         ],
         "linux": [
           "{python}",
-          "{root}/RTL-test/run.py"
+          "{root}/RTL-test/run.py",
+          "--jobs", "{job_slots}"
         ]
       },
       "needs": [
         "build"
       ],
       "resource": "rtl_test",
+      "slots": 8,
+      "memory_mb_per_slot": 1024,
       "estimated_seconds_by_platform": {"win64": 314, "linux": 357},
       "timeout": 7200
     },
