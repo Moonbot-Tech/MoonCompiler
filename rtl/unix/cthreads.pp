@@ -445,7 +445,7 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
       //pthread_attr_setdetachstate(@thread_attr, PTHREAD_CREATE_DETACHED);
 
       // set the stack size
-      if (pthread_attr_setstacksize(@thread_attr, stacksize)<>0) or
+      if ((stacksize<>0) and (pthread_attr_setstacksize(@thread_attr, stacksize)<>0)) or
          // and create the thread
          (pthread_create(ppthread_t(@threadid), @thread_attr, @ThreadMain,ti) <> 0) then
 

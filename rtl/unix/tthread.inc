@@ -253,6 +253,12 @@ end;
 function TThread.WaitFor: Integer;
 begin
   WRITE_DEBUG('waiting for thread ',ptruint(FHandle));
+  { A joined pthread is gone and its id may already belong to a thread
+    created since; a second pthread_join would then wait for that stranger
+    (or is undefined).  Delphi lets WaitFor be called again on a finished
+    thread, so answer the recorded result instead. }
+  if FThreadReaped then
+    exit(FReturnValue);
   If (MainThreadID=GetCurrentThreadID) then
     {
      FFinished is set after DoTerminate, which does a synchronize of OnTerminate,
