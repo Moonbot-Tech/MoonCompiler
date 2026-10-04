@@ -308,6 +308,9 @@ type
   private
     function GetItem(AIndex: SizeInt): T; inline;
     procedure SetItem(AIndex: SizeInt; const AValue: T); inline;
+    class procedure SwapUnmanaged(var Left, Right: T); static; inline;
+    class procedure SwapManaged(var Left, Right: T); static; inline;
+    class procedure SwapOwned(var Left, Right: T); static; inline;
     { the one gate for every storage fast path: an exact TList<T> cannot
       have Notify overridden in a descendant, and without a subscriber
       the virtual Notify is an empty call - the elements may then be
@@ -2212,7 +2215,7 @@ procedure TList<T>.Pack;
 var
   I, LOldLength, LWriteIndex: SizeInt;
 begin
-  if DirectStorage and FUseDefaultComparer and not IsManagedType(T) then
+  if not IsManagedType(T) and DirectStorage and FUseDefaultComparer then
   begin
     LOldLength := FLength;
     LWriteIndex := 0;
@@ -2401,9 +2404,36 @@ begin
   Result := DoRemove(LIndex, cnExtracted);
 end;
 
-procedure TList<T>.Exchange(AIndex1, AIndex2: SizeInt);
+class procedure TList<T>.SwapUnmanaged(var Left, Right: T);
 var
-  LTemp: T;
+  Temp: T;
+begin
+  Temp := Left;
+  Left := Right;
+  Right := Temp;
+end;
+
+class procedure TList<T>.SwapManaged(var Left, Right: T);
+var
+  Temp: array[0..SizeOf(T)] of Byte;
+begin
+  { Move ownership without invoking Initialize, Finalize or a managed-record
+    Assign operator.  The spare byte keeps zero-sized specializations legal;
+    no move includes it. }
+  System.Move(Left, Temp, SizeOf(T));
+  System.Move(Right, Left, SizeOf(T));
+  System.Move(Temp, Right, SizeOf(T));
+end;
+
+class procedure TList<T>.SwapOwned(var Left, Right: T);
+begin
+  if IsManagedType(T) then
+    SwapManaged(Left, Right)
+  else
+    SwapUnmanaged(Left, Right);
+end;
+
+procedure TList<T>.Exchange(AIndex1, AIndex2: SizeInt);
 begin
   { DCC64 runs no checks here and corrupts the heap on an invalid index;
     that is a defect, not a contract - both indices are proven before the
@@ -2412,9 +2442,7 @@ begin
     ErrorArgumentOutOfRange(AIndex1,Count-1,Self);
   if SizeUInt(AIndex2)>=SizeUInt(Count) then
     ErrorArgumentOutOfRange(AIndex2,Count-1,Self);
-  LTemp:=FItems[AIndex1];
-  FItems[AIndex1]:=FItems[AIndex2];
-  FItems[AIndex2]:=LTemp;
+  SwapOwned(FItems[AIndex1], FItems[AIndex2]);
 end;
 
 procedure TList<T>.Move(AIndex, ANewIndex: SizeInt);
@@ -2483,6 +2511,11 @@ begin
   Result := IndexOf(AValue) >= 0;
 end;
 
+{ The kind of T is a constant of the specialization, the comparer flag is a field.
+  The constant goes first: with short boolean evaluation a false constant on the
+  left removes the whole arm from the specialization, while behind the field read
+  it cannot (the read of Self.FUseDefaultComparer has to stay, and with it the
+  arm, a test and a jump in every call of IndexOf for the other kinds). }
 function TList<T>.IndexOf(const AValue: T): SizeInt;
 var
   i: SizeInt;
@@ -2491,7 +2524,7 @@ var
   LUnicodeLength: SizeInt;
   LUnicodeValue: PUnicodeString;
 begin
-  if FUseDefaultComparer and (GetTypeKind(T) = tkUString) then
+  if (GetTypeKind(T) = tkUString) and FUseDefaultComparer then
     begin
       if FLength=0 then
         Exit(-1);
@@ -2508,10 +2541,10 @@ begin
           Exit(i);
       Exit(-1);
     end;
-  if FUseDefaultComparer and
-      (GetTypeKind(T) in [tkInteger,tkChar,tkEnumeration,tkSet,tkClass,
+  if (GetTypeKind(T) in [tkInteger,tkChar,tkEnumeration,tkSet,tkClass,
         tkWChar,tkBool,tkInt64,tkQWord,tkUChar,tkClassRef,tkPointer]) and
-      (SizeOf(T) in [1,2,4,8]) then
+      (SizeOf(T) in [1,2,4,8]) and
+      FUseDefaultComparer then
     begin
       if FLength=0 then
         Exit(-1);
@@ -2538,7 +2571,7 @@ var
   LUnicodeLength: SizeInt;
   LUnicodeValue: PUnicodeString;
 begin
-  if FUseDefaultComparer and (GetTypeKind(T) = tkUString) then
+  if (GetTypeKind(T) = tkUString) and FUseDefaultComparer then
     begin
       if FLength=0 then
         Exit(-1);
@@ -2555,10 +2588,10 @@ begin
           Exit(i);
       Exit(-1);
     end;
-  if FUseDefaultComparer and
-      (GetTypeKind(T) in [tkInteger,tkChar,tkEnumeration,tkSet,tkClass,
+  if (GetTypeKind(T) in [tkInteger,tkChar,tkEnumeration,tkSet,tkClass,
         tkWChar,tkBool,tkInt64,tkQWord,tkUChar,tkClassRef,tkPointer]) and
-      (SizeOf(T) in [1,2,4,8]) then
+      (SizeOf(T) in [1,2,4,8]) and
+      FUseDefaultComparer then
     begin
       if FLength=0 then
         Exit(-1);
@@ -2592,15 +2625,12 @@ end;
 procedure TList<T>.Reverse;
 var
   a, b: SizeInt;
-  LTemp: T;
 begin
   a := 0;
   b := Count - 1;
   while a < b do
   begin
-    LTemp:=FItems[a];
-    FItems[a]:=FItems[b];
-    FItems[b]:=LTemp;
+    SwapOwned(FItems[a], FItems[b]);
     Inc(a);
     Dec(b);
   end;
