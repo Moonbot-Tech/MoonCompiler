@@ -480,25 +480,33 @@ begin
   Result:=_monitor.DoSetMonitorObjectData(aObject,aData,aComparand);
 end;
 
-function SyncEnsureData(aObject : TObject) : PMonitorData;
+function SyncCreateData(aObject : TObject) : PMonitorData;
 
 begin
   repeat
-    Result:=GetMonitorData(aObject);
-    if Result<>Nil then
-      begin
-      ReadDependencyBarrier; // Read Result fields after Result pointer.
-      exit;
-      end;
-
     // At some point we could cache this.
     New(Result);
     Result^.Init;
     WriteBarrier; // Write pointer with SetMonitorData only after Result fields have been written.
     if SetMonitorData(aObject,Result,nil)=nil then
       break;
-    Dispose(Result); // And retry GetMonitorData + ReadDependencyBarrier from the beginning of the loop, which will guaranteedly succeed.
+    Dispose(Result);
+    Result:=GetMonitorData(aObject);
+    if Result<>Nil then
+      begin
+      ReadDependencyBarrier;
+      exit;
+      end;
   until false;
+end;
+
+function SyncEnsureData(aObject : TObject) : PMonitorData; inline;
+begin
+  Result:=GetMonitorData(aObject);
+  if Result<>Nil then
+    ReadDependencyBarrier
+  else
+    Result:=SyncCreateData(aObject);
 end;
 
 procedure SyncFreeData(aData : PMonitorData);

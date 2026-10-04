@@ -56,7 +56,8 @@ type
       function TryEnter: boolean;
     end;
 
-    class function EnsureMonitorData(obj: TObject): PMonitorData; static;
+    class function CreateMonitorData(obj: TObject): PMonitorData; static;
+    class function EnsureMonitorData(obj: TObject): PMonitorData; static; inline;
     class function Wait(condm, lockm: PMonitorData; timeout: cardinal): boolean; static;
 
     class procedure DoEnter(const obj: TObject); static;
@@ -110,23 +111,31 @@ begin
   end;
 end;
 
-class function WinViVer.EnsureMonitorData(obj: TObject): PMonitorData;
+class function WinViVer.CreateMonitorData(obj: TObject): PMonitorData;
 begin
   repeat
-    result := NewMonitor.DoGetMonitorObjectData(obj);
-    if Assigned(result) then
-    begin
-      ReadDependencyBarrier;
-      exit;
-    end;
-
     new(result);
     FillChar(result^, sizeof(result^), 0);
     WriteBarrier;
     if NewMonitor.DoSetMonitorObjectData(obj, result, nil) = nil then
       break;
     dispose(result);
+    result := NewMonitor.DoGetMonitorObjectData(obj);
+    if Assigned(result) then
+    begin
+      ReadDependencyBarrier;
+      exit;
+    end;
   until false;
+end;
+
+class function WinViVer.EnsureMonitorData(obj: TObject): PMonitorData;
+begin
+  result := NewMonitor.DoGetMonitorObjectData(obj);
+  if Assigned(result) then
+    ReadDependencyBarrier
+  else
+    result := CreateMonitorData(obj);
 end;
 
 class function WinViVer.Wait(condm, lockm: PMonitorData; timeout: cardinal): boolean;
