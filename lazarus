@@ -2,12 +2,11 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
-STATE="$ROOT/.moonbot"
-IDE_TOOLCHAIN="$STATE/toolchain/ide"
+IDE_TOOLCHAIN="$ROOT/toolchain/ide"
 IDE_FPC="$IDE_TOOLCHAIN/bin/fpc"
-LAZARUS_SOURCE="$STATE/lazarus"
+LAZARUS_SOURCE="$ROOT/lazarus-src"
 LAZARUS_EXE="$LAZARUS_SOURCE/lazarus"
-PRIMARY_CONFIG="$STATE/lazarus-config"
+PRIMARY_CONFIG="$ROOT/lazarus-config"
 
 [[ -x "$IDE_FPC" ]] || "$ROOT/build" compiler
 [[ -x "$LAZARUS_EXE" ]] || "$ROOT/build" lazarus

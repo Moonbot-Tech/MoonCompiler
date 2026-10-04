@@ -27,12 +27,12 @@ esac
 mkdir -p "$result/old" "$result/new"
 cp "$source_dir/rtti_ppu_version_consumer.dpr" "$result/old/consumer.dpr"
 cp "$source_dir/rtti_ppu_version_consumer.dpr" "$result/new/consumer.dpr"
-"$baseline/bin/fpc" -n "@$baseline/etc/fpc.cfg" -Mdelphi -B -Cn \
+"$baseline/bin/fpc" -n "@$baseline/etc/moon-base.cfg" -Mdelphi -B -Cn \
   "-FU$result/old" "$source_dir/rtti_ppu_version_unit.pas" \
   >"$result/old/build.log" 2>&1
 
 set +e
-"$patched/bin/fpc" -n "@$patched/etc/fpc.cfg" -Mdelphi \
+"$patched/bin/fpc" -n "@$patched/etc/moon-base.cfg" -Mdelphi \
   "-Fu$result/old" "-FU$result/old" "-FE$result/old" \
   "$result/old/consumer.dpr" \
   >"$result/old/consume.log" 2>&1
@@ -43,10 +43,10 @@ if [[ $status -eq 0 ]] || ! grep -Eqi 'ppu.*(version|invalid)|invalid.*ppu' "$re
   exit 1
 fi
 
-"$patched/bin/fpc" -n "@$patched/etc/fpc.cfg" -Mdelphi -B -Cn \
+"$patched/bin/fpc" -n "@$patched/etc/moon-base.cfg" -Mdelphi -B -Cn \
   "-FU$result/new" "$source_dir/rtti_ppu_version_unit.pas" \
   >"$result/new/build.log" 2>&1
-"$patched/bin/fpc" -n "@$patched/etc/fpc.cfg" -Mdelphi \
+"$patched/bin/fpc" -n "@$patched/etc/moon-base.cfg" -Mdelphi \
   "-Fu$result/new" "-FU$result/new" "-FE$result/new" \
   "$result/new/consumer.dpr" \
   >"$result/new/consume.log" 2>&1
@@ -54,8 +54,8 @@ fi
 grep -qx 'TPpuCatalogType' "$result/new/run.log"
 
 {
-  sha256sum "$baseline/bin/fpc" "$baseline/etc/fpc.cfg" \
-    "$patched/bin/fpc" "$patched/etc/fpc.cfg"
+  sha256sum "$baseline/bin/fpc" "$baseline/etc/moon-base.cfg" \
+    "$patched/bin/fpc" "$patched/etc/moon-base.cfg"
   find "$source_dir" -type f \
     \( -name '*.pas' -o -name '*.pp' -o -name '*.inc' -o -name '*.dpr' \) \
     -print0 | sort -z | xargs -0 -r sha256sum

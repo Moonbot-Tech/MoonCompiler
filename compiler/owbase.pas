@@ -43,7 +43,7 @@ type
     fobjsize  : longword;
   public
     constructor create;
-    constructor createAr(const Aarfn:string);virtual;
+    constructor createAr(const Aarfn:TPathStr);virtual;
     destructor  destroy;override;
     function  createfile(const fn:TPathStr):boolean;virtual;
     procedure closefile;virtual;
@@ -64,25 +64,25 @@ type
     f      : TCCustomFileStream;
     opened : boolean;
     buf    : TAnsiCharDynArray;
-    ffilename : string;
+    ffilename : TPathStr;
     bufidx,
     bufmax : longint;
     function readbuf:boolean;
   protected
-    function getfilename : string;virtual;
+    function getfilename : TPathStr;virtual;
     function GetSize: longint;virtual;
     function GetPos: longint;virtual;
     function GetIsArchive: boolean;virtual;
   public
     constructor create;
-    constructor createAr(const Aarfn:string;allow_nonar:boolean=false);virtual;
+    constructor createAr(const Aarfn:TPathStr;allow_nonar:boolean=false);virtual;
     destructor  destroy;override;
-    function  openfile(const fn:string):boolean;virtual;
+    function  openfile(const fn:TPathStr):boolean;virtual;
     procedure closefile;virtual;
     procedure seek(len:longint);virtual;
     function  read(out b;len:longint):boolean;virtual;
     function  readarray(a:TDynamicArray;len:longint):boolean;
-    property filename : string read getfilename;
+    property filename : TPathStr read getfilename;
     property size:longint read GetSize;
     property Pos:longint read GetPos;
     property IsArchive: boolean read GetIsArchive;
@@ -120,7 +120,7 @@ begin
   buf:=nil;
 end;
 
-constructor tobjectwriter.createAr(const Aarfn:string);
+constructor tobjectwriter.createAr(const Aarfn:TPathStr);
 begin
   InternalError(2015041901);
 end;
@@ -263,13 +263,13 @@ begin
 end;
 
 
-constructor tobjectreader.createAr(const Aarfn:string;allow_nonar:boolean=false);
+constructor tobjectreader.createAr(const Aarfn:TPathStr;allow_nonar:boolean=false);
 begin
   InternalError(2015081401);
 end;
 
 
-function tobjectreader.openfile(const fn:string):boolean;
+function tobjectreader.openfile(const fn:TPathStr):boolean;
 begin
   openfile:=false;
   f:=CFileStreamClass.Create(fn,fmOpenRead);
@@ -336,7 +336,7 @@ begin
   inc(bufidx,len);
 end;
 
-function tobjectreader.getfilename : string;
+function tobjectreader.getfilename : TPathStr;
   begin
     result:=ffilename;
   end;

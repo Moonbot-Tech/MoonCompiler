@@ -150,6 +150,7 @@ interface
        end;
 
     function registerunit(callermodule:tmodule;const s : TIDString;const fn:string; out is_new:boolean) : tppumodule;
+    function programunitexists(callermodule:tmodule;const s : TIDString) : boolean;
 
 
 implementation
@@ -581,13 +582,13 @@ var
            SourceSearchPath:=Found;
          end;
 
-         Function SearchPath(const s,prefix:TCmdStr):TAvailableUnitFiles;
+         Function SearchPath(const s,prefix:TCmdStr;sourceonly:boolean):TAvailableUnitFiles;
          var
            found : TAvailableUnitFiles;
          begin
            { First check for a ppu, then for the source }
            found:=[];
-           if not onlysource then
+           if not (onlysource or sourceonly) then
              if PPUSearchPath(s,prefix) then
                Include(found,auPPU);
            if found=[] then
@@ -605,9 +606,13 @@ var
            hp:=TCmdStrListItem(list.First);
            while assigned(hp) do
             begin
-              found:=SearchPath(hp.Str,prefix);
-              if found<>[] then
-               break;
+              if not ((hp is TSearchPathItem) and (TSearchPathItem(hp).UnitSearch=usNone)) then
+                begin
+                  found:=SearchPath(hp.Str,prefix,
+                    (hp is TSearchPathItem) and (TSearchPathItem(hp).UnitSearch=usSources));
+                  if found<>[] then
+                   break;
+                end;
               hp:=TCmdStrListItem(hp.next);
             end;
            SearchPathList:=found;
@@ -2791,6 +2796,62 @@ var
 *****************************************************************************}
 
 
+    { A unit of the program itself named s: a ppu or a source in the current
+      directory, the unit output directory, the directory of the main source,
+      a unit path of the using unit or one the command line or the project
+      options file gives (programunitsearchpath) - not one of the paths of the
+      toolchain's configuration.  A unit alias of the configuration steps over
+      the toolchain's own unit of a short name (-UaZLib=System.ZLib: FPC's
+      zlib binding); a unit of the program by that name still wins, as Delphi
+      takes a project's unit by the name as written before its unit scopes. }
+    function programunitexists(callermodule:tmodule;const s : TIDString) : boolean;
+      var
+        filename,
+        foundfile : TCmdStr;
+
+        function PPUIn(const path:TCmdStr):boolean;
+          begin
+            result:=FindFile(filename+target_info.unitext,path,true,foundfile);
+          end;
+
+        function SourceIn(const path:TCmdStr):boolean;
+          begin
+            result:=FindFile(filename+sourceext,path,true,foundfile) or
+                    FindFile(filename+pasext,path,true,foundfile);
+            if not result and
+               ((m_mac in current_settings.modeswitches) or
+                (tf_p_ext_support in target_info.flags)) then
+              result:=FindFile(filename+pext,path,true,foundfile);
+          end;
+
+        { a unit of the name in a directory of the list, as the search of the
+          unit finds it there (TSearchPathList.FindFile): a directory of a **
+          tree gives its sources and not a PPU another build left in it, one
+          without units gives nothing - else such a PPU would take the name
+          from the alias, and the search, passing it by, would find the
+          toolchain's unit the alias steps over }
+        function InList(list:TSearchPathList):boolean;
+          begin
+            result:=list.FindFile(filename+target_info.unitext,true,foundfile) or
+                    list.FindFile(filename+sourceext,true,foundfile) or
+                    list.FindFile(filename+pasext,true,foundfile) or
+                    (((m_mac in current_settings.modeswitches) or
+                      (tf_p_ext_support in target_info.flags)) and
+                     list.FindFile(filename+pext,true,foundfile));
+          end;
+
+      begin
+        filename:=FixFileName(s);
+        result:=PPUIn('.') or SourceIn('.') or
+                (assigned(callermodule) and (callermodule.outputpath<>'') and
+                 PPUIn(callermodule.outputpath)) or
+                (assigned(main_module) and (main_module.Path<>'') and
+                 (PPUIn(main_module.Path) or SourceIn(main_module.Path))) or
+                (assigned(callermodule) and InList(callermodule.LocalUnitSearchPath)) or
+                InList(programunitsearchpath);
+      end;
+
+
     function registerunit(callermodule:tmodule;const s : TIDString;const fn:string; out is_new:boolean) : tppumodule;
 
           function FindCycle(aFile, SearchFor: tppumodule; var Cycle: TFPList): boolean;
@@ -2881,8 +2942,10 @@ var
                   Item:=TCmdStrListItem(List.First);
                   while assigned(Item) do
                     begin
-                      if PPUExistsInPath(Item.Str) or
-                         SourceExistsInPath(Item.Str) then
+                      if not ((Item is TSearchPathItem) and (TSearchPathItem(Item).UnitSearch=usNone)) and
+                         (((not (Item is TSearchPathItem)) or
+                           (TSearchPathItem(Item).UnitSearch=usBoth)) and
+                          PPUExistsInPath(Item.Str) or SourceExistsInPath(Item.Str)) then
                         exit(true);
                       Item:=TCmdStrListItem(Item.Next);
                     end;

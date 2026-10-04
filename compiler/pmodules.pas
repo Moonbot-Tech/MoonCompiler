@@ -722,8 +722,17 @@ implementation
              try_to_consume(_OP_IN) then
             fn:=FixFileName(get_stringconst);
           lookupname:=sorg;
+          { an alias of the toolchain's configuration steps over the
+            toolchain's own unit of the name (-UaZLib=System.ZLib: FPC's zlib
+            binding), not over a unit of the program (fppu.programunitexists),
+            which Delphi finds by the name as written before its unit scopes }
           if fn='' then
-            lookupname:=getunitalias(lookupname);
+            begin
+              lookupname:=getunitalias(sorg);
+              if (lookupname<>sorg) and unitaliasconfigured(sorg) and
+                 programunitexists(curr,sorg) then
+                lookupname:=sorg;
+            end;
           if productruntimeprefixenabled and
              not productruntimeusescmem and
              (Upper(lookupname)='CMEM') then

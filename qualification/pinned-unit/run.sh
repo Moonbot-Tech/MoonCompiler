@@ -3,9 +3,9 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 FIXTURES=$ROOT/qualification/pinned-unit
-COMPILER=${1:-$ROOT/.moonbot/toolchain/bin/fpc}
-CONFIG=${2:-$ROOT/.moonbot/toolchain/etc/fpc.cfg}
-RTL=$ROOT/rtl/units/x86_64-linux
+COMPILER=${1:-$ROOT/toolchain/bin/fpc}
+CONFIG=${2:-$ROOT/toolchain/etc/moon-base.cfg}
+RTL=$(ls -d "$ROOT"/toolchain/lib/fpc/*/units/x86_64-linux/rtl)
 OUTPUT=$ROOT/.qualification/pinned-unit
 PINNED=$FIXTURES/pinned/PinFixture.pas
 FOREIGN=$FIXTURES/foreign

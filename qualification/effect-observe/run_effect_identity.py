@@ -42,7 +42,7 @@ LEVELS = ("-O-", "-O2", "-O3")
 
 
 def target_link_args() -> list[str]:
-    """Keep -n (no ambient fpc.cfg), but supply the one Linux linker path
+    """Keep -n (no ambient moon-base.cfg), but supply the one Linux linker path
     normally contributed by the installed toolchain configuration."""
     if os.name == "nt":
         return []
@@ -57,14 +57,14 @@ def target_link_args() -> list[str]:
 
 def default_compiler() -> Path:
     if os.name == "nt":
-        return ROOT / ".moonbot" / "toolchain" / "bin" / "x86_64-win64" / "ppcx64.exe"
-    return ROOT / ".moonbot" / "toolchain" / "bin" / "ppcx64"
+        return ROOT / "toolchain" / "bin" / "x86_64-win64" / "ppcx64.exe"
+    return ROOT / "toolchain" / "bin" / "ppcx64"
 
 
 def default_rtl() -> Path:
     if os.name == "nt":
-        return ROOT / ".moonbot" / "toolchain" / "units" / "x86_64-win64" / "rtl"
-    roots = sorted((ROOT / ".moonbot" / "toolchain" / "lib" / "fpc").glob(
+        return ROOT / "toolchain" / "units" / "x86_64-win64" / "rtl"
+    roots = sorted((ROOT / "toolchain" / "lib" / "fpc").glob(
         "*/units/x86_64-linux/rtl"))
     if len(roots) != 1:
         raise SystemExit("cannot uniquely locate the installed Linux RTL; pass --rtl")

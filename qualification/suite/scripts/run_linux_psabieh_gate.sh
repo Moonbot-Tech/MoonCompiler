@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: scripts/run_linux_psabieh_gate.sh /path/to/fpc /path/to/fpc.cfg run-id" >&2
+  echo "usage: scripts/run_linux_psabieh_gate.sh /path/to/fpc /path/to/moon-base.cfg run-id" >&2
   exit 2
 }
 

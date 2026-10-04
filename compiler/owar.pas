@@ -42,23 +42,23 @@ type
   end;
 
   tarobjectwriter=class(tobjectwriter)
-    constructor createAr(const Aarfn:string);override;
+    constructor createAr(const Aarfn:TPathStr);override;
     destructor  destroy;override;
     function  createfile(const fn:TPathStr):boolean;override;
     procedure closefile;override;
     procedure writesym(const sym:string);override;
     procedure write(const b;len:longword);override;
   private
-    arfn        : string;
+    arfn        : TPathStr;
     arhdr       : tarhdr;
     symreloc,
     symstr,
     lfnstr,
     ardata      : TDynamicArray;
     objpos      : longint;
-    objfn       : string;
+    objfn       : TPathStr;
     timestamp   : string[12];
-    procedure createarhdr(fn:string;asize:longint;const gid,uid,mode:string);
+    procedure createarhdr(fn:TPathStr;asize:longint;const gid,uid,mode:string);
     procedure writear;
   end;
 
@@ -75,14 +75,14 @@ type
     function  DecodeMemberSize(ahdr:TArHdr):longint;
     procedure ReadArchive;
   protected
-    function getfilename:string;override;
+    function getfilename:TPathStr;override;
     function GetSize: longint;override;
     function GetPos: longint;override;
     function GetIsArchive: boolean; override;
   public
-    constructor createAr(const Aarfn:string;allow_nonar:boolean=false);override;
+    constructor createAr(const Aarfn:TPathStr;allow_nonar:boolean=false);override;
     destructor  destroy;override;
-    function  openfile(const fn:string):boolean;override;
+    function  openfile(const fn:TPathStr):boolean;override;
     procedure closefile;override;
     procedure seek(len:longint);override;
   end;
@@ -162,7 +162,7 @@ implementation
                                 TArObjectWriter
 *****************************************************************************}
 
-    constructor tarobjectwriter.createAr(const Aarfn:string);
+    constructor tarobjectwriter.createAr(const Aarfn:TPathStr);
       var
         time  : TSystemTime;
       begin
@@ -192,10 +192,10 @@ implementation
       end;
 
 
-    procedure tarobjectwriter.createarhdr(fn:string;asize:longint;const gid,uid,mode:string);
+    procedure tarobjectwriter.createarhdr(fn:TPathStr;asize:longint;const gid,uid,mode:string);
       var
         tmp : string[9];
-        hfn : string;
+        hfn : TPathStr;
       begin
         { create ar header }
         fillchar(arhdr,sizeof(tarhdr),' ');
@@ -333,7 +333,7 @@ implementation
 *****************************************************************************}
 
 
-    constructor tarobjectreader.createAr(const Aarfn:string;allow_nonar:boolean);
+    constructor tarobjectreader.createAr(const Aarfn:TPathStr;allow_nonar:boolean);
       var
         magic:array[0..sizeof(armagic)-1] of char;
       begin
@@ -365,7 +365,7 @@ implementation
       end;
 
 
-    function tarobjectreader.getfilename : string;
+    function tarobjectreader.getfilename : TPathStr;
       begin
         result:=inherited getfilename;
         if CurrMemberName<>'' then
@@ -527,7 +527,7 @@ implementation
       end;
 
 
-    function  tarobjectreader.openfile(const fn:string):boolean;
+    function  tarobjectreader.openfile(const fn:TPathStr):boolean;
       var
         arsym : TArSymbol;
         arhdr : TArHdr;

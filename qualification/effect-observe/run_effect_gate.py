@@ -54,14 +54,14 @@ OBSERVE_LINE = re.compile(r"effect-observe(?:-summary|-algebra)?: (?:reason=|pro
 
 def default_compiler() -> Path:
     if os.name == "nt":
-        return ROOT / ".moonbot" / "toolchain" / "bin" / "x86_64-win64" / "ppcx64.exe"
-    return ROOT / ".moonbot" / "toolchain" / "bin" / "ppcx64"
+        return ROOT / "toolchain" / "bin" / "x86_64-win64" / "ppcx64.exe"
+    return ROOT / "toolchain" / "bin" / "ppcx64"
 
 
 def default_rtl() -> Path:
     if os.name == "nt":
-        return ROOT / ".moonbot" / "toolchain" / "units" / "x86_64-win64" / "rtl"
-    roots = sorted((ROOT / ".moonbot" / "toolchain" / "lib" / "fpc").glob(
+        return ROOT / "toolchain" / "units" / "x86_64-win64" / "rtl"
+    roots = sorted((ROOT / "toolchain" / "lib" / "fpc").glob(
         "*/units/x86_64-linux/rtl"))
     if len(roots) != 1:
         raise SystemExit("cannot uniquely locate the installed Linux RTL; pass --rtl")

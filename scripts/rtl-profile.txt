@@ -1,0 +1,15 @@
+# The optimisation and debug-information profile of the product Unicode RTL
+# and the application-facing packages: one definition for both drivers
+# (build.ps1 and ./build read it and put it in front of the ABI defines of
+# every RTL and package compile), recorded by them in <toolchain>/profile.txt
+# and proved by qualification/build-driver/rtl_profile_gate.py, which
+# rebuilds witness units with the recorded options and requires the
+# installed objects byte for byte.
+#
+# -O3 (CODEALIGN; the code placement draft of the internal assembler is off by
+# default, doc/OPTIMIZER.md, "Code placement"): chosen on the
+# RTL profile stand (doc/PERFORMANCE_QUALIFICATION.md, "Product RTL profile")
+# against -O2 on Win64 (Ryzen) and Linux (Xeon) with placement-controlled
+# Pulse, RTL-test and Light.  -gw3 keeps the line information every product
+# build carries; it changes no code.
+-O3 -gw3

@@ -52,9 +52,9 @@ fi
 ln -s "../lib/fpc/$VERSION_DIR/ppcx64" "$PREFIX/bin/ppcx64"
 mkdir -p "$PREFIX/etc"
 "$PREFIX/bin/fpcmkcfg" -d "basepath=$PREFIX/lib/fpc/$VERSION_DIR" \
-  -o "$PREFIX/etc/fpc.cfg" >"$LOG_DIR/fpcmkcfg.log" 2>&1
+  -o "$PREFIX/etc/moon-base.cfg" >"$LOG_DIR/fpcmkcfg.log" 2>&1
 
-PATH="$PREFIX/bin:$PATH" "$PREFIX/bin/fpc" -n "@$PREFIX/etc/fpc.cfg" -iVSPTPSOTODW \
+PATH="$PREFIX/bin:$PATH" "$PREFIX/bin/fpc" -n "@$PREFIX/etc/moon-base.cfg" -iVSPTPSOTODW \
   >"$LOG_DIR/compiler-info.txt"
 printf '%s\n' "$COMMIT" >"$LOG_DIR/commit.txt"
 printf 'built %s at %s\n' "$LABEL" "$COMMIT"

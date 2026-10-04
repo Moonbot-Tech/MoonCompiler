@@ -6,12 +6,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $Root = $PSScriptRoot
-$State = Join-Path $Root '.moonbot'
-$IdeToolchain = Join-Path $State 'toolchain\ide'
+$IdeToolchain = Join-Path $Root 'toolchain\ide'
 $IdeFpc = Join-Path $IdeToolchain 'bin\x86_64-win64\fpc.exe'
-$LazarusSource = Join-Path $State 'lazarus'
+$LazarusSource = Join-Path $Root 'lazarus-src'
 $LazarusExe = Join-Path $LazarusSource 'lazarus.exe'
-$PrimaryConfig = Join-Path $State 'lazarus-config'
+$PrimaryConfig = Join-Path $Root 'lazarus-config'
 
 If (-not (Test-Path -LiteralPath $IdeFpc)) {
   & (Join-Path $Root 'build.ps1') compiler

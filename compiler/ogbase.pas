@@ -523,7 +523,7 @@ interface
         constructor create(AWriter:TObjectWriter);virtual;
         destructor  destroy;override;
         function  newObjData(const n:string):TObjData;
-        function  startObjectfile(const fn:string):boolean;
+        function  startObjectfile(const fn:TPathStr):boolean;
         function  writeobjectfile(Data:TObjData):boolean;
         procedure exportsymbol(p:TObjSymbol);
         property Writer:TObjectWriter read FWriter;
@@ -2084,7 +2084,7 @@ implementation
       end;
 
 
-    function TObjOutput.startObjectfile(const fn:string):boolean;
+    function TObjOutput.startObjectfile(const fn:TPathStr):boolean;
       begin
         result:=false;
         { start the writer already, so the .a generation can initialize

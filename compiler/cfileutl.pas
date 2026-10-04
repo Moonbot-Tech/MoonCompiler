@@ -31,9 +31,9 @@ interface
 {$ifdef hasunix}
       Baseunix,unix,
 {$endif hasunix}
-{$ifdef win32}
+{$ifdef mswindows}
       Windows,
-{$endif win32}
+{$endif mswindows}
 {$if defined(go32v2) or defined(watcom)}
       Dos,
 {$endif}
@@ -50,22 +50,25 @@ interface
       Systems;
 
     type
-      TCachedDirectory = class(TFPHashObject)
+      TCachedDirectory = class(TObject)
       private
+        FName : TPathStr;
         FDirectoryEntries : TFPHashList;
         FCached : Boolean;
+        FHasLongNames : Boolean;
         procedure FreeDirectoryEntries;
         function GetItemAttr(const AName: TCmdStr): longint;
         function TryUseCache: boolean;
         procedure ForceUseCache;
         procedure Reload;
       public
-        constructor Create(AList:TFPHashObjectList;const AName:TCmdStr);
+        constructor Create(const AName:TPathStr);
         destructor  destroy;override;
         function FileExists(const AName:TCmdStr):boolean;
         function FileExistsCaseAware(const path, fn: TCmdStr; out FoundName: TCmdStr):boolean;
         function DirectoryExists(const AName:TCmdStr):boolean;
         property DirectoryEntries:TFPHashList read FDirectoryEntries;
+        property Name:TPathStr read FName;
       end;
 
       TCachedSearchRec = record
@@ -84,7 +87,7 @@ interface
 
       TDirectoryCache = class
       private
-        FDirectories : TFPHashObjectList;
+        FDirectories : THashSet;
         function GetDirectory(const ADir:TCmdStr):TCachedDirectory;
       public
         constructor Create;
@@ -97,7 +100,19 @@ interface
         function FindClose(var Res:TCachedSearchRec):boolean;
       end;
 
+      { A ** tree supplies sources, never PPUs left by another build.  A
+        directory without sources supplies no units.  Other files (objects,
+        libraries, includes) are searched regardless of this setting. }
+      TUnitSearch = (usBoth, usSources, usNone);
+      TSearchPathItem = class(TCmdStrListItem)
+        UnitSearch : TUnitSearch;
+      end;
+
       TSearchPathList = class(TCmdStrList)
+      private
+        function NewPathSet:THashSet;
+        function AddDir(const dir:TCmdStr;addfirst:boolean;present:THashSet):TSearchPathItem;
+      public
         procedure AddPath(s:TCmdStr;addfirst:boolean);overload;
         procedure AddLibraryPath(const sysroot: TCmdStr; s:TCmdStr;addfirst:boolean);overload;
         procedure AddList(list:TSearchPathList;addfirst:boolean);
@@ -207,9 +222,10 @@ end;
                            TCachedDirectory
 ****************************************************************************}
 
-    constructor TCachedDirectory.create(AList:TFPHashObjectList;const AName:TCmdStr);
+    constructor TCachedDirectory.create(const AName:TPathStr);
       begin
-        inherited create(AList,AName);
+        inherited create;
+        FName:=AName;
         FDirectoryEntries:=TFPHashList.Create;
         FCached:=False;
       end;
@@ -226,11 +242,14 @@ end;
 
     function TCachedDirectory.TryUseCache:boolean;
       begin
-        Result:=True;
+        Result:=not FHasLongNames;
         if FCached then
           exit;
         if not current_settings.disabledircache then
-          ForceUseCache
+          begin
+            ForceUseCache;
+            Result:=not FHasLongNames;
+          end
         else
           Result:=False;
       end;
@@ -284,6 +303,7 @@ end;
       begin
         FreeDirectoryEntries;
         DirectoryEntries.Clear;
+        FHasLongNames:=False;
         if findfirst(IncludeTrailingPathDelimiter(Name)+AllFilesMask,faAnyFile or faDirectory,dir) = 0 then
           begin
             repeat
@@ -295,6 +315,9 @@ end;
                     to be able to see the difference in the directoryentries lookup if a file
                     exists or not }
                   Dir.Attr:=Dir.Attr or faArchive;
+                  { A truncated key can also collide with a shorter name.
+                    Such a directory uses OS lookup; enumeration stays cached. }
+                  FHasLongNames:=FHasLongNames or (Length(Dir.Name)>255);
                   if not(tf_files_case_sensitive in source_info.flags) then
                     if (tf_files_case_aware in source_info.flags) then
                       begin
@@ -318,7 +341,7 @@ end;
       var
         Attr : Longint;
       begin
-        if not TryUseCache then
+        if (Length(AName)>255) or not TryUseCache then
           begin
             { prepend directory name again }
             result:=cfileutl.FileExists(Name+AName,false);
@@ -338,7 +361,9 @@ end;
       begin
         if (tf_files_case_aware in source_info.flags) then
           begin
-            if not TryUseCache then
+            { The short-key entry cache remains cheap for ordinary names.
+              Long UTF-8 names use the same OS lookup as disabled caching. }
+            if (Length(ExtractFileName(fn))>255) or not TryUseCache then
               begin
                 Result:=FileExistsNonCase(path,fn,false,FoundName);
                 exit;
@@ -364,7 +389,7 @@ end;
       var
         Attr : Longint;
       begin
-        if not TryUseCache then
+        if (Length(AName)>255) or not TryUseCache then
           begin
             Result:=PathExists(Name+AName,false);
             exit;
@@ -384,7 +409,7 @@ end;
     constructor TDirectoryCache.create;
       begin
         inherited create;
-        FDirectories:=TFPHashObjectList.Create(true);
+        FDirectories:=THashSet.Create(64,true,true);
       end;
 
 
@@ -398,17 +423,17 @@ end;
 
     function TDirectoryCache.GetDirectory(const ADir:TCmdStr):TCachedDirectory;
       var
-        CachedDir : TCachedDirectory;
         DirName   : TCmdStr;
+        Entry     : PHashSetItem;
       begin
         if ADir='' then
           DirName:='.'+source_info.DirSep
         else
           DirName:=ADir;
-        CachedDir:=TCachedDirectory(FDirectories.Find(DirName));
-        if not assigned(CachedDir) then
-          CachedDir:=TCachedDirectory.Create(FDirectories,DirName);
-        Result:=CachedDir;
+        Entry:=FDirectories.FindOrAdd(pointer(DirName),Length(DirName));
+        if not assigned(Entry^.Data) then
+          Entry^.Data:=TCachedDirectory.Create(DirName);
+        Result:=TCachedDirectory(Entry^.Data);
       end;
 
 
@@ -934,6 +959,81 @@ end;
      end;
 
 
+    { The name under which the file system knows a directory: two entries of
+      a search path are the same directory when their keys are equal. }
+    function PathKey(const path:TCmdStr):TCmdStr;
+      begin
+        result:=ExpandFileName(path);
+        If not (tf_files_case_sensitive in source_info.flags) then
+          result:=lower(result);
+      end;
+
+
+    { The keys of the directories in the list, so that adding a directory
+      does not compare it with every one already there: a tree of thousands
+      of directories would otherwise cost millions of comparisons each time
+      it is added to a list. }
+    function TSearchPathList.NewPathSet:THashSet;
+      var
+        hp : TCmdStrListItem;
+        key : TCmdStr;
+      begin
+        result:=THashSet.Create(Count,true,false);
+        hp:=TCmdStrListItem(First);
+        while assigned(hp) do
+          begin
+            key:=PathKey(hp.Str);
+            result.FindOrAdd(pointer(key),length(key));
+            hp:=TCmdStrListItem(hp.Next);
+          end;
+      end;
+
+
+    { dir in front of the list (moved there when it is in the list) or at its
+      end (left where it is when it is in the list); the new entry, nil when
+      the directory stayed where it was }
+    function TSearchPathList.AddDir(const dir:TCmdStr;addfirst:boolean;present:THashSet):TSearchPathItem;
+      var
+        key : TCmdStr;
+        known : boolean;
+        previous : TCmdStrListItem;
+      begin
+        result:=nil;
+        key:=PathKey(dir);
+        present.FindOrAdd(pointer(key),length(key),known);
+        if addfirst then
+          begin
+            if known then
+              begin
+                previous:=TCmdStrListItem(First);
+                while PathKey(previous.Str)<>key do
+                  previous:=TCmdStrListItem(previous.Next);
+                TLinkedList(Self).Remove(previous);
+                previous.Free;
+              end;
+            result:=TSearchPathItem.Create(dir);
+            InsertItem(result);
+          end
+        else if not known then
+          begin
+            result:=TSearchPathItem.Create(dir);
+            ConcatItem(result);
+          end;
+      end;
+
+
+    { the name of a unit source or a compiled unit, without a directory part }
+    function IsUnitFileName(const fn:TCmdStr):boolean;
+      var
+        ext : TCmdStr;
+      begin
+        if ExtractFilePath(fn)<>'' then
+          exit(false);
+        ext:=lower(ExtractFileExt(fn));
+        result:=(ext=pasext) or (ext=sourceext) or (ext=pext) or (ext=target_info.unitext);
+      end;
+
+
     procedure TSearchPathList.AddPath(s:TCmdStr;addfirst:boolean);
       begin
         AddLibraryPath('',s,AddFirst);
@@ -941,6 +1041,16 @@ end;
 
 
    procedure TSearchPathList.AddLibraryPath(const sysroot: TCmdStr; s:TCmdStr;addfirst:boolean);
+
+     type
+       TDirList = array of TCmdStr;
+       { a directory on disk: two paths name the same directory exactly when
+         both fields are equal }
+       TDirIdentity = record
+         volume,
+         index : qword;
+       end;
+
      var
        staridx,
        i,j      : longint;
@@ -954,7 +1064,18 @@ end;
 {$else usedircache}
        dir      : TSearchRec;
 {$endif usedircache}
-       hp       : TCmdStrListItem;
+       present  : THashSet;
+       { recursive ** support }
+       recdirs,
+       chain,
+       unitmap_names,
+       unitmap_dirs : TDirList;
+       recsearch : array of TUnitSearch;
+       recdircount,
+       chaincount,
+       unitmap_count,
+       ri, di : longint;
+       item : TSearchPathItem;
 
        procedure WarnNonExistingPath(const path : TCmdStr);
        begin
@@ -962,20 +1083,218 @@ end;
            do_comment(V_Tried,'Path "'+path+'" not found');
        end;
 
+       function PathSet:THashSet;
+       begin
+         if not assigned(present) then
+           present:=NewPathSet;
+         result:=present;
+       end;
+
        procedure AddCurrPath;
        begin
-         if addfirst then
-          begin
-            Remove(currPath);
-            Insert(currPath);
-          end
-         else
-          begin
-            { Check if already in path, then we don't add it }
-            hp:=Find(currPath);
-            if not assigned(hp) then
-             Concat(currPath);
-          end;
+         AddDir(currPath,addfirst,PathSet);
+       end;
+
+       function InList(const path:TCmdStr):boolean;
+       var
+         key : TCmdStr;
+       begin
+         key:=PathKey(path);
+         result:=assigned(PathSet.Find(pointer(key),length(key)));
+       end;
+
+       { The directory a path leads to, links followed; false when the file
+         system does not tell. }
+       function GetDirIdentity(const dir: TCmdStr; out id: TDirIdentity): boolean;
+{$if defined(hasunix)}
+       var
+         info : baseunix.stat;
+       begin
+         result:=fpstat(dir,info)=0;
+         id.volume:=info.st_dev;
+         id.index:=info.st_ino;
+       end;
+{$elseif defined(mswindows)}
+       var
+         handle : THandle;
+         info : BY_HANDLE_FILE_INFORMATION;
+       begin
+         result:=false;
+         id.volume:=0;
+         id.index:=0;
+         handle:=CreateFileW(PWideChar(UnicodeString(dir)),0,
+           FILE_SHARE_READ or FILE_SHARE_WRITE or FILE_SHARE_DELETE,nil,OPEN_EXISTING,
+           FILE_FLAG_BACKUP_SEMANTICS,0);
+         if handle=INVALID_HANDLE_VALUE then
+           exit;
+         if GetFileInformationByHandle(handle,@info) then
+           begin
+             id.volume:=info.dwVolumeSerialNumber;
+             id.index:=(qword(info.nFileIndexHigh) shl 32) or info.nFileIndexLow;
+             { a file system without file indices reports zero for every file }
+             result:=id.index<>0;
+           end;
+         CloseHandle(handle);
+       end;
+{$else}
+       begin
+         id.volume:=0;
+         id.index:=0;
+         result:=false;
+       end;
+{$endif}
+
+       { A directory link to a directory of the chain being walked would walk
+         that tree again inside itself, as deep as the OS allows a path. }
+       function LinksBackIntoChain(const link: TCmdStr): boolean;
+       var
+         target,
+         id : TDirIdentity;
+         k : longint;
+       begin
+         result:=false;
+         if not GetDirIdentity(link,target) then
+           exit;
+         for k:=0 to chaincount-1 do
+           if GetDirIdentity(chain[k],id) and
+              (id.volume=target.volume) and (id.index=target.index) then
+             exit(true);
+       end;
+
+       { Appends dir to the ** tree and warns about each of its unit sources
+         whose name an earlier directory of the tree holds: the earlier one is
+         the one the compiler finds. }
+       procedure AddRecursiveDir(const dir: TCmdStr; const sources: TDirList; sourcecount: longint;
+         search: TUnitSearch);
+       var
+         si,
+         umi : longint;
+         uname : TCmdStr;
+         known : boolean;
+       begin
+         if recdircount>=Length(recdirs) then
+           begin
+             SetLength(recdirs,recdircount*2+16);
+             SetLength(recsearch,Length(recdirs));
+           end;
+         recdirs[recdircount]:=dir;
+         recsearch[recdircount]:=search;
+         Inc(recdircount);
+         for si:=0 to sourcecount-1 do
+           begin
+             uname:=lower(ChangeFileExt(sources[si],''));
+             known:=false;
+             for umi:=0 to unitmap_count-1 do
+               if unitmap_names[umi]=uname then
+                 begin
+                   do_comment(V_Warning,
+                     'Duplicate unit "'+sources[si]+'" found in "'+
+                     unitmap_dirs[umi]+'" and "'+dir+'" under recursive search');
+                   known:=true;
+                   break;
+                 end;
+             if not known then
+               begin
+                 if unitmap_count>=Length(unitmap_names) then
+                   begin
+                     SetLength(unitmap_names,unitmap_count+256);
+                     SetLength(unitmap_dirs,unitmap_count+256);
+                   end;
+                 unitmap_names[unitmap_count]:=uname;
+                 unitmap_dirs[unitmap_count]:=dir;
+                 Inc(unitmap_count);
+               end;
+           end;
+       end;
+
+       { dir and, depth first, every directory below it: a directory comes
+         before its subdirectories, and they follow in sorted order, so the
+         order is the same on every OS and for a path from any source.  Only
+         two kinds of directories stay out.  A hidden one (the name starts
+         with a dot: version control, IDE and tool state; a shell's ** does
+         not enter it either) is not entered.  A directory that holds
+         compiled units and no unit source is build output
+         (units/<target>/<profile>, lib/<cpu>-<os>, ...): a PPU found there
+         instead of its source was compiled with other options and would be
+         linked silently, so the directory is not added, and the walk goes
+         on below it.  A directory without any unit file is added as usNone.
+         A directory link is followed unless it leads back into the chain
+         being walked. }
+       procedure CollectRecursiveDirs(const dir: TCmdStr);
+       var
+         rdir : TSearchRec;
+         children,
+         sources : TDirList;
+         childcount,
+         sourcecount,
+         ci, cj : longint;
+         hascompiled,
+         hasothersource : boolean;
+         ext,
+         tmp : TCmdStr;
+       begin
+         children:=nil;
+         sources:=nil;
+         childcount:=0;
+         sourcecount:=0;
+         hascompiled:=false;
+         hasothersource:=false;
+         if chaincount>=Length(chain) then
+           SetLength(chain,chaincount+16);
+         chain[chaincount]:=dir;
+         Inc(chaincount);
+{$push}{$warn symbol_platform off}
+         if FindFirst(dir+AllFilesMask,faAnyFile or faSymLink,rdir)=0 then
+           begin
+             repeat
+               if (rdir.attr and faDirectory)<>0 then
+                 begin
+                   { '.' and '..' start with a dot as well }
+                   if (rdir.name[1]<>'.') and
+                      (((rdir.attr and faSymLink)=0) or
+                       not LinksBackIntoChain(dir+rdir.name)) then
+                     begin
+                       if childcount>=Length(children) then
+                         SetLength(children,childcount+32);
+                       children[childcount]:=rdir.name;
+                       Inc(childcount);
+                     end;
+                 end
+               else
+                 begin
+                   ext:=lower(ExtractFileExt(rdir.name));
+                   if (ext=pasext) or (ext=sourceext) then
+                     begin
+                       if sourcecount>=Length(sources) then
+                         SetLength(sources,sourcecount+32);
+                       sources[sourcecount]:=rdir.name;
+                       Inc(sourcecount);
+                     end
+                   else if ext=pext then
+                     hasothersource:=true
+                   else if ext=target_info.unitext then
+                     hascompiled:=true;
+                 end;
+             until FindNext(rdir)<>0;
+             SysUtils.FindClose(rdir);
+           end;
+{$pop}
+         if (sourcecount>0) or hasothersource then
+           AddRecursiveDir(dir,sources,sourcecount,usSources)
+         else if not hascompiled then
+           AddRecursiveDir(dir,sources,sourcecount,usNone);
+         { Sort children alphabetically for deterministic order }
+         for ci:=0 to childcount-2 do
+           for cj:=ci+1 to childcount-1 do
+             if children[cj]<children[ci] then
+               begin
+                 tmp:=children[ci];
+                 children[ci]:=children[cj];
+                 children[cj]:=tmp;
+               end;
+         for ci:=0 to childcount-1 do
+           CollectRecursiveDirs(dir+children[ci]+DirectorySeparator);
+         Dec(chaincount);
        end;
 
      begin
@@ -991,6 +1310,8 @@ end;
 {$warnings on}
      { get current dir }
        CurrentDir:=GetCurrentDir;
+       present:=nil;
+       try
        repeat
          { get currpath }
          if addfirst then
@@ -1024,7 +1345,8 @@ end;
          else
           begin
             currPath:=FixPath(ExpandFileName(currpath),false);
-            if (CurrentDir<>'') and (Copy(currPath,1,length(CurrentDir))=CurrentDir) then
+            if (not forcefullpaths) and
+               (CurrentDir<>'') and (Copy(currPath,1,length(CurrentDir))=CurrentDir) then
              begin
 {$ifdef hasamiga}
                currPath:= CurrentDir+Copy(currPath,length(CurrentDir)+1,length(currPath));
@@ -1033,7 +1355,42 @@ end;
 {$endif}
              end;
           end;
-         { wildcard adding ? }
+         { Recursive search: -Fu<dir>/** adds the directory and all
+           subdirectories (any depth) except hidden ones and build output,
+           see CollectRecursiveDirs.  Duplicate unit names across the tree
+           produce a warning. }
+         staridx:=pos('**',currpath);
+         if (staridx>1) and
+            (currpath[staridx-1] in ['/','\']) and
+            ((staridx+1=length(currpath)) or
+             ((staridx+2=length(currpath)) and (currpath[staridx+2] in ['/','\']))) then
+          begin
+            prefix:=Copy(currpath,1,staridx-1); { base dir with trailing sep }
+            if PathExists(prefix,true) then
+              begin
+                recdircount:=0;
+                chaincount:=0;
+                unitmap_count:=0;
+                CollectRecursiveDirs(prefix);
+                { in the order of the tree: a path added first goes to the
+                  front one directory at a time, so from the last one back }
+                for ri:=0 to recdircount-1 do
+                  begin
+                    if addfirst then
+                      di:=recdircount-1-ri
+                    else
+                      di:=ri;
+                    item:=AddDir(recdirs[di],addfirst,PathSet);
+                    if assigned(item) then
+                      item.UnitSearch:=recsearch[di];
+                  end;
+              end
+            else
+              WarnNonExistingPath(prefix);
+          end
+         else
+          begin
+         { Single-level wildcard: -Fu<dir>/* }
          staridx:=pos('*',currpath);
          if staridx>0 then
           begin
@@ -1050,8 +1407,7 @@ end;
                       currpath:=prefix+dir.name+suffix;
                       if (suffix='') or PathExists(currpath,true) then
                         begin
-                          hp:=Find(currPath);
-                          if not assigned(hp) then
+                          if not InList(currPath) then
                             AddCurrPath;
                         end;
                     end;
@@ -1070,8 +1426,7 @@ end;
                       currpath:=prefix+dir.name+suffix;
                       if (suffix='') or PathExists(currpath,false) then
                         begin
-                          hp:=Find(currPath);
-                          if not assigned(hp) then
+                          if not InList(currPath) then
                             AddCurrPath;
                         end;
                     end;
@@ -1089,63 +1444,76 @@ end;
             else
              WarnNonExistingPath(currpath);
           end;
+          end; { else of ** check }
        until (s='');
+       finally
+         present.Free;
+       end;
      end;
 
 
    procedure TSearchPathList.AddList(list:TSearchPathList;addfirst:boolean);
      var
-       s : TCmdStr;
-       hl : TSearchPathList;
-       hp,hp2 : TCmdStrListItem;
+       hp : TCmdStrListItem;
+       item : TSearchPathItem;
+       present : THashSet;
+
+       procedure AddItem(hp:TCmdStrListItem);
+         begin
+           item:=AddDir(hp.Str,addfirst,present);
+           if assigned(item) and (hp is TSearchPathItem) then
+             item.UnitSearch:=TSearchPathItem(hp).UnitSearch;
+         end;
+
      begin
        if list.empty then
         exit;
-       { create temp and reverse the list }
-       if addfirst then
-        begin
-          hl:=TSearchPathList.Create;
-          hp:=TCmdStrListItem(list.first);
-          while assigned(hp) do
-           begin
-             hl.insert(hp.Str);
-             hp:=TCmdStrListItem(hp.next);
-           end;
-          while not hl.empty do
-           begin
-             s:=hl.GetFirst;
-             Remove(s);
-             Insert(s);
-           end;
-          hl.Free;
-          hl := nil;
-        end
-       else
-        begin
-          hp:=TCmdStrListItem(list.first);
-          while assigned(hp) do
-           begin
-             hp2:=Find(hp.Str);
-             { Check if already in path, then we don't add it }
-             if not assigned(hp2) then
-              Concat(hp.Str);
-             hp:=TCmdStrListItem(hp.next);
-           end;
-        end;
+       present:=NewPathSet;
+       try
+         { in front, in the order of list: from its last entry back }
+         if addfirst then
+          begin
+            hp:=TCmdStrListItem(list.last);
+            while assigned(hp) do
+             begin
+               AddItem(hp);
+               hp:=TCmdStrListItem(hp.previous);
+             end;
+          end
+         else
+          begin
+            hp:=TCmdStrListItem(list.first);
+            while assigned(hp) do
+             begin
+               AddItem(hp);
+               hp:=TCmdStrListItem(hp.next);
+             end;
+          end;
+       finally
+         present.Free;
+       end;
      end;
 
 
    function TSearchPathList.FindFile(const f :TCmdStr;allowcache:boolean;var foundfile:TCmdStr):boolean;
      Var
        p : TCmdStrListItem;
+       unitfile, compiledunit : boolean;
      begin
        FindFile:=false;
+       unitfile:=IsUnitFileName(f);
+       compiledunit:=unitfile and (lower(ExtractFileExt(f))=target_info.unitext);
        p:=TCmdStrListItem(first);
        while assigned(p) do
         begin
-          result:=FileExistsNonCase(p.Str,f,allowcache,FoundFile);
-          if result then
-            exit;
+          if not (unitfile and (p is TSearchPathItem) and
+                  ((TSearchPathItem(p).UnitSearch=usNone) or
+                   (compiledunit and (TSearchPathItem(p).UnitSearch=usSources)))) then
+            begin
+              result:=FileExistsNonCase(p.Str,f,allowcache,FoundFile);
+              if result then
+                exit;
+            end;
           p:=TCmdStrListItem(p.next);
         end;
        { Return original filename if not found }

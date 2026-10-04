@@ -18,7 +18,7 @@ program memspeed;
   loEnableMMDebugMode=1 multiplied exactly these workloads).
 
   Build (Delphi): dcc64 -B -CC -NSSystem -U<lib\win64\release> memspeed.dpr
-  Build (FPC):    fpc -n @<toolchain>/etc/fpc.cfg -Mdelphi -O2 memspeed.dpr
+  Build (FPC):    fpc -n @<toolchain>/etc/moon-base.cfg -Mdelphi -O2 memspeed.dpr
   Optional arg: scale percent (default 100), e.g. "memspeed 25" for 1/4. }
 
 {$ifdef FPC}

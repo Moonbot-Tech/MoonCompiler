@@ -70,6 +70,7 @@ interface
       constructor Create;override;
       procedure DefaultLinkScript;override;
       procedure InitSysInitUnitName;override;
+      function MakeExecutable:boolean;override;
     end;
 
 implementation
@@ -77,7 +78,7 @@ implementation
   uses
     SysUtils,
     cutils,cfileutl,cclasses,
-    verbose,systems,globtype,globals,
+    verbose,systems,globtype,globals,symtable,
     cscript,
     fmodule,
     aasmbase,aasmtai,aasmcpu,cpubase,
@@ -122,6 +123,90 @@ implementation
                                   TLINKERLINUX
 *****************************************************************************}
 
+{ MoonCompiler: every Linux program links libgcc_s - the RTL's PSABI unwinder
+  (rtl/inc/psabieh.inc) lives on it - and ld finds the unversioned
+  libgcc_s.so only in gcc's own directory, <root>/gcc/<triplet>/<version>
+  (/usr/lib/gcc/x86_64-linux-gnu/13 on Debian and Ubuntu,
+  /usr/lib/gcc/x86_64-redhat-linux/14 on Fedora, /usr/lib64/gcc/... on
+  SUSE).  Stock FPC writes that directory into fpc.cfg when the toolchain is
+  installed (fpcmkcfg with gcc -print-libgcc-file-name); a MoonCompiler
+  toolchain is unpacked anywhere with no install step and its configuration
+  names only paths inside the toolchain, so the compiler finds the directory
+  itself: every gcc version directory under the known roots that holds
+  libgcc_s.so, newest version first, appended after the user's -Fl paths. }
+procedure AddGccLibraryDirs;
+  const
+    roots : array[0..1] of string = ('/usr/lib/gcc','/usr/lib64/gcc');
+  var
+    found : array of TCmdStr;
+    foundcount : longint;
+
+  function versionof(const dir: TCmdStr): longint;
+    var
+      name : TCmdStr;
+      i : longint;
+    begin
+      { the numeric head of the last path element: 13, 14.2.1, 9 }
+      name:=ExtractFileName(ExcludeTrailingPathDelimiter(dir));
+      result:=0;
+      for i:=1 to length(name) do
+        if name[i] in ['0'..'9'] then
+          result:=result*10+(ord(name[i])-ord('0'))
+        else
+          break;
+    end;
+
+  procedure collect(const root: TCmdStr);
+    var
+      triplet, version : TSearchRec;
+      dir : TCmdStr;
+    begin
+      if FindFirst(root+'/*',faDirectory,triplet)=0 then
+        begin
+          repeat
+            if (triplet.name<>'.') and (triplet.name<>'..') and
+               ((triplet.attr and faDirectory)<>0) and
+               (FindFirst(root+'/'+triplet.name+'/*',faDirectory,version)=0) then
+              begin
+                repeat
+                  dir:=root+'/'+triplet.name+'/'+version.name;
+                  if (version.name<>'.') and (version.name<>'..') and
+                     ((version.attr and faDirectory)<>0) and
+                     FileExists(dir+'/libgcc_s.so',false) then
+                    begin
+                      SetLength(found,foundcount+1);
+                      found[foundcount]:=dir;
+                      inc(foundcount);
+                    end;
+                until FindNext(version)<>0;
+                SysUtils.FindClose(version);
+              end;
+          until FindNext(triplet)<>0;
+          SysUtils.FindClose(triplet);
+        end;
+    end;
+
+  var
+    i, j : longint;
+    tmp : TCmdStr;
+  begin
+    found:=nil;
+    foundcount:=0;
+    for i:=low(roots) to high(roots) do
+      collect(sysrootpath+roots[i]);
+    { newest version first; equal versions keep the root order }
+    for i:=0 to foundcount-2 do
+      for j:=i+1 to foundcount-1 do
+        if versionof(found[j])>versionof(found[i]) then
+          begin
+            tmp:=found[i];
+            found[i]:=found[j];
+            found[j]:=tmp;
+          end;
+    for i:=0 to foundcount-1 do
+      LibrarySearchPath.AddLibraryPath('',found[i],false);
+  end;
+
 procedure SetupLibrarySearchPath;
 begin
   if not Dontlinkstdlibpath Then
@@ -137,6 +222,7 @@ begin
       { /lib64 should be the really first, so add it before everything else }
       LibrarySearchPath.AddLibraryPath(sysrootpath,'=/lib',true);
       LibrarySearchPath.AddLibraryPath(sysrootpath,'=/lib64',true);
+      AddGccLibraryDirs;
 {$else}
 {$ifdef powerpc64}
       if target_info.abi<>abi_powerpc_elfv2 then
@@ -849,6 +935,20 @@ begin
 end;
 
 
+function UnsupportedProductStaticRuntime:boolean;
+begin
+  Result:=False;
+{$ifdef MOONCOMPILER_PRODUCT_RUNTIME}
+  if not defined_macro('MOONCOMPILER_VANILLA_RUNTIME') and
+     (cs_link_staticflag in current_settings.globalswitches) and
+     not(cs_link_nolink in current_settings.globalswitches) then
+    begin
+      Comment(V_Error,'Static linking (-Xt) is unsupported by the product Linux RTL: shared unwinder and dynamically loaded pthreads');
+      Result:=True;
+    end;
+{$endif}
+end;
+
 function TLinkerLinux.MakeExecutable:boolean;
 var
   i : longint;
@@ -864,6 +964,7 @@ var
   StaticStr,
   StripStr   : string[40];
 begin
+  if UnsupportedProductStaticRuntime then Exit(False);
   if not(cs_link_nolink in current_settings.globalswitches) then
    Message1(exec_i_linking,current_module.exefilename);
 
@@ -974,6 +1075,12 @@ begin
   MakeExecutable:=success;   { otherwise a recursive call to link method }
 end;
 
+
+function TInternalLinkerLinux.MakeExecutable:boolean;
+begin
+  if UnsupportedProductStaticRuntime then Exit(False);
+  Result:=inherited MakeExecutable;
+end;
 
 Function TLinkerLinux.MakeSharedLibrary:boolean;
 var
@@ -1494,4 +1601,3 @@ initialization
 {$endif loongarch64}
   RegisterRes(res_elf_info,TWinLikeResourceFile);
 end.
-

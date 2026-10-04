@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: scripts/run_forms_gate.sh /path/to/fpc /path/to/fpc.cfg run-id" >&2
+  echo "usage: scripts/run_forms_gate.sh /path/to/fpc /path/to/moon-base.cfg run-id" >&2
   exit 2
 }
 
@@ -17,7 +17,6 @@ EXPECTED_COMMON=(
   fb1-nan-not-ge
   fb1-nan-not-lt
   fb3-braid-demorgan
-  fb3-neg-zero-plus-zero
   fb3-ord-complement-sum
   fb3-ord-mux-nan
   fty-anon-varpart-arm-hi

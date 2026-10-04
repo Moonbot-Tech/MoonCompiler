@@ -16,9 +16,9 @@ class RunnerContractsTest(unittest.TestCase):
     def test_current_compiler_paths_follow_the_host_platform(self) -> None:
         compiler = {
             "driver": "linux/bin/fpc",
-            "config": "linux/etc/fpc.cfg",
+            "config": "linux/etc/moon-base.cfg",
             "driver_win64": "win64/fpc.exe",
-            "config_win64": "win64/fpc.cfg",
+            "config_win64": "win64/moon-base.cfg",
         }
         with mock.patch.object(
             runner, "compiler_platform_name", return_value="win64",
@@ -29,7 +29,7 @@ class RunnerContractsTest(unittest.TestCase):
             )
             self.assertEqual(
                 runner.compiler_path(compiler, "config"),
-                runner.ROOT / "win64/fpc.cfg",
+                runner.ROOT / "win64/moon-base.cfg",
             )
         with mock.patch.object(
             runner, "compiler_platform_name", return_value="linux",
@@ -40,7 +40,7 @@ class RunnerContractsTest(unittest.TestCase):
             )
             self.assertEqual(
                 runner.compiler_path(compiler, "config"),
-                runner.ROOT / "linux/etc/fpc.cfg",
+                runner.ROOT / "linux/etc/moon-base.cfg",
             )
 
     def test_compiler_identity_hashes_driver_config_and_actual_backend(self) -> None:
@@ -53,7 +53,7 @@ class RunnerContractsTest(unittest.TestCase):
             suffix = ".exe" if runner.os.name == "nt" else ""
             driver = bin_dir / f"fpc{suffix}"
             backend = bin_dir / f"ppcx64{suffix}"
-            config = config_dir / "fpc.cfg"
+            config = config_dir / "moon-base.cfg"
             driver.write_bytes(b"driver")
             backend.write_bytes(b"backend")
             config.write_bytes(b"config")
@@ -487,7 +487,7 @@ class RunnerContractsTest(unittest.TestCase):
         self.assertEqual(runner.mormot_suite_result(1, 2, 1, 1), "run_fail")
 
     def test_mormot_product_prefix_requires_mm_then_cthreads(self) -> None:
-        compiler = {"driver": "fpc", "config": "fpc.cfg"}
+        compiler = {"driver": "fpc", "config": "moon-base.cfg"}
         with mock.patch.object(runner, "compiler_provenance", return_value="hash"):
             command = runner.mormot_compile_command(
                 compiler,

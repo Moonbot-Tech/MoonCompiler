@@ -23,14 +23,14 @@ EXECUTABLE_NAME = PROGRAM.stem + (".exe" if os.name == "nt" else "")
 
 def default_compiler() -> Path:
     if os.name == "nt":
-        return ROOT / ".moonbot/toolchain/bin/x86_64-win64/fpc.exe"
-    return ROOT / ".moonbot/toolchain/bin/fpc"
+        return ROOT / "toolchain/bin/x86_64-win64/fpc.exe"
+    return ROOT / "toolchain/bin/fpc"
 
 
 def default_config() -> Path:
     if os.name == "nt":
-        return ROOT / ".moonbot/toolchain/bin/x86_64-win64/fpc.cfg"
-    return ROOT / ".moonbot/toolchain/etc/fpc.cfg"
+        return ROOT / "toolchain/bin/x86_64-win64/moon-base.cfg"
+    return ROOT / "toolchain/etc/moon-base.cfg"
 
 
 def sha256(path: Path) -> str:

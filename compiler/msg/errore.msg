@@ -4101,6 +4101,13 @@ option_w_external_assembler_no_placement=11072_W_Using the external assembler "$
 % An external assembler was selected with \var{-a} (assembler source
 % options) or \var{-A}, so the produced object can differ from the
 % product's.  Gates that inspect assembler listings use this mode on purpose.
+option_w_duplicate_unit_in_recursive_path=11073_W_Duplicate unit "$1" found in "$2" and "$3" under recursive search
+% A \var{-Fu} path with \var{/**} suffix (recursive) found two
+% directories containing source files with the same unit name.  The
+% compiler will use the one found first (a directory comes before its
+% subdirectories, siblings in sorted order); the other is shadowed.  Rename
+% one of the units, or give the directories one by one instead of
+% \var{/**}: a hidden directory (its name starts with a dot) is not searched.
 %
 % \end{description}
 # EndOfTeX

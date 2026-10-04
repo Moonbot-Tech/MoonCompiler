@@ -51,6 +51,14 @@ Type
     ParaLibraryPath,
     ParaFrameworkPath,
     parapackagepath : TSearchPathList;
+    { the search paths of <Project>.mooncompiler while it is read, in the
+      order of its lines; see ProjectPaths }
+    ProjectIncludePath,
+    ProjectUnitPath,
+    ProjectObjectPath,
+    ProjectLibraryPath,
+    ProjectFrameworkPath,
+    projectpackagepath : TSearchPathList;
     paranamespaces : TCmdStrList;
     ParaAlignment   : TAlignmentInfo;
     parapackages : tfphashobjectlist;
@@ -74,6 +82,7 @@ Type
     procedure interpret_option(const opt :TCmdStr;ispara:boolean);
     procedure Interpret_envvar(const envname : TCmdStr);
     procedure Interpret_file(const filename : TPathStr);
+    procedure ProjectPaths(start:boolean);
     procedure Read_Parameters;
     procedure parsecmd(cmd:TCmdStr);
     procedure TargetOptions(def:boolean);
@@ -113,7 +122,7 @@ Type
     procedure Interpret_T_l(opt, more: TCmdStr);
     procedure Interpret_T_U(opt, more: TCmdStr);
     procedure Interpret_U_l(opt, more: TCmdStr);
-    procedure Interpret_U_U(opt, more: TCmdStr);
+    procedure Interpret_U_U(opt, more: TCmdStr; ispara: boolean);
     procedure Interpret_V_l(opt, more: TCmdStr);
     procedure Interpret_V_U(opt, more: TCmdStr);
     procedure Interpret_W_U(opt, more: TCmdStr);
@@ -175,8 +184,8 @@ var
   disable_configfile : boolean;
   subcfg,
   fpcdir,
-  ppccfg,
-  param_file    : string;   { file to compile specified on the commandline }
+  ppccfg        : string;
+  param_file    : TPathStr; { file to compile specified on the commandline }
   rtl_path_override : string;{ source dir for an `--rtl=<path>` build; the
                                compiler pre-builds every .pas in that dir
                                into <path>/lib/<target_full>/ before the
@@ -1618,17 +1627,34 @@ begin
     exit;
   end;
   if opt.StartsWith('--pinned-unit=') then begin
+    if firstpass then exit;
     more:=Copy(opt,Length('--pinned-unit=')+1);
     separator:=Pos('=',more);
     if (separator<=1) or (separator=Length(more)) then
       IllegalPara(opt);
     pinnedname:=Upper(Copy(more,1,separator-1));
-    pinnedfile:=ExpandFileName(FixFileName(Copy(more,separator+1,MaxInt)));
+    pinnedfile:=Copy(more,separator+1,MaxInt);
+    DefaultReplacements(pinnedfile);
+    pinnedfile:=ExpandFileName(FixFileName(pinnedfile));
+    { The weight records where a pin came from: 1 = the command line,
+      0 = a configuration file (fpc.cfg, @file, the project file). }
     previous:=pinnedunitfiles.Find(pinnedname);
     if previous='' then
-      pinnedunitfiles.Add(pinnedname,pinnedfile)
-    else if previous<>pinnedfile then
-      IllegalPara(opt);
+      pinnedunitfiles.Add(pinnedname,pinnedfile,ord(ispara))
+    else if ispara or (previous<>pinnedfile) then
+      begin
+        { An explicit command-line pin replaces a configuration's pin, even
+          if both name the same file. A configuration read after it is ignored
+          (the qualification gates pin the repository MM source over the
+          toolchain's copy named by moon-base.cfg). One
+          configuration file never replaces another's pin: the product
+          fpc.cfg pins the toolchain's memory manager, and a project's own
+          configuration or a response file must not swap it. }
+        if ispara then
+          pinnedunitfiles.Replace(pinnedname,pinnedfile,1)
+        else if pinnedunitfiles.FindWeight(pinnedname)<>1 then
+          IllegalPara(opt);
+      end;
     exit;
   end;
   if opt.StartsWith('--required-first-unit=') then begin
@@ -1663,16 +1689,15 @@ begin
 
   { only parse define,undef,target,verbosity,link etc options the firsttime
     -Us must now also be first-passed to avoid rejection of -Sf options
-    earlier in command line }
+    earlier in command line.  Source filenames (not starting with '-')
+    pass through to set param_file, needed for .mooncompiler lookup. }
   if firstpass and
+     (opt[1]='-') and
      not(
-         (opt[1]='-') and
-         (
           ((length(opt)>1) and (opt[2] in ['i','d','v','T','t','u','n','x','X','l','U'])) or
           ((length(opt)>3) and (opt[2]='F') and (opt[3] in ['e','f'])) or
           ((length(opt)>2) and (opt[2]='C') and (opt[3] in ['a','b','f','p'])) or
           ((length(opt)>3) and (opt[2]='W') and (opt[3] in ['m','p']))
-         )
         ) then
     exit;
 
@@ -1717,7 +1742,7 @@ begin
            'T' : Interpret_T_U(opt,more);
            't' : Interpret_T_l(opt,more);
            'u' : Interpret_U_l(opt,more);
-           'U' : Interpret_U_U(opt,more);
+           'U' : Interpret_U_U(opt,more,ispara);
            'v' : Interpret_V_l(opt,more);
            'V' : Interpret_V_U(opt,more);
            'W' : Interpret_W_U(opt,more);
@@ -1944,7 +1969,7 @@ begin
               Option_read:=true;
             end
            else
-             Message1(option_illegal_para,opts);
+             Message1(option_illegal_para,filename+'('+tostr(line)+'): '+opts);
          end;
       end;
    end;
@@ -1956,6 +1981,48 @@ begin
     Message1(option_end_reading_configfile,filename);
   Close(f);
   Dec(FileLevel);
+end;
+
+
+{ A configuration file puts each path in front of the ones before it, so its
+  later lines are searched first.  The project file is written as the command
+  line is, and its lines keep their order: while it is read (start) its paths
+  go to lists of their own, in order, and afterwards (not start) the lists go
+  in front of the configuration's paths as they are. }
+procedure TOption.ProjectPaths(start:boolean);
+begin
+  if start then
+    begin
+      ProjectIncludePath:=TSearchPathList.Create;
+      ProjectUnitPath:=TSearchPathList.Create;
+      ProjectObjectPath:=TSearchPathList.Create;
+      ProjectLibraryPath:=TSearchPathList.Create;
+      ProjectFrameworkPath:=TSearchPathList.Create;
+      projectpackagepath:=TSearchPathList.Create;
+    end
+  else
+    begin
+      IncludeSearchPath.AddList(ProjectIncludePath,true);
+      UnitSearchPath.AddList(ProjectUnitPath,true);
+      { the program's own unit paths (fppu.programunitexists) }
+      programunitsearchpath.AddList(ProjectUnitPath,true);
+      ObjectSearchPath.AddList(ProjectObjectPath,true);
+      LibrarySearchPath.AddList(ProjectLibraryPath,true);
+      FrameworkSearchPath.AddList(ProjectFrameworkPath,true);
+      packagesearchpath.AddList(projectpackagepath,true);
+      ProjectIncludePath.Free;
+      ProjectIncludePath:=nil;
+      ProjectUnitPath.Free;
+      ProjectUnitPath:=nil;
+      ProjectObjectPath.Free;
+      ProjectObjectPath:=nil;
+      ProjectLibraryPath.Free;
+      ProjectLibraryPath:=nil;
+      ProjectFrameworkPath.Free;
+      ProjectFrameworkPath:=nil;
+      projectpackagepath.Free;
+      projectpackagepath:=nil;
+    end;
 end;
 
 
@@ -2000,9 +2067,6 @@ begin
         inc(pc);
      { create argument }
        arglen:=pc-argstart;
-{ TODO: FIXME: silent truncation of environment parameters }
-       if (arglen > 255) then
-         arglen := 255;
        setlength(hs,arglen);
        move(argstart^,hs[1],arglen);
        interpret_option(hs,true);
@@ -3192,6 +3256,8 @@ begin
         if (target_info.system in systems_darwin) then
           if ispara then
             ParaFrameworkPath.AddPath(More,false)
+          else if assigned(ProjectFrameworkPath) then
+            ProjectFrameworkPath.AddPath(More,false)
           else
             frameworksearchpath.AddPath(More,true)
 {$if defined(XTENSA) or defined(RISCV32)}
@@ -3206,6 +3272,8 @@ begin
       begin
         if ispara then
           ParaIncludePath.AddPath(More,false)
+        else if assigned(ProjectIncludePath) then
+          ProjectIncludePath.AddPath(More,false)
         else
           includesearchpath.AddPath(More,true);
       end;
@@ -3230,6 +3298,8 @@ begin
       begin
         if ispara then
           ParaLibraryPath.AddLibraryPath(sysrootpath,More,false)
+        else if assigned(ProjectLibraryPath) then
+          ProjectLibraryPath.AddLibraryPath(sysrootpath,More,false)
         else
           LibrarySearchPath.AddLibraryPath(sysrootpath,More,true)
       end;
@@ -3251,6 +3321,8 @@ begin
       begin
         if ispara then
           ParaObjectPath.AddPath(More,false)
+        else if assigned(ProjectObjectPath) then
+          ProjectObjectPath.AddPath(More,false)
         else
           ObjectSearchPath.AddPath(More,true);
       end;
@@ -3265,6 +3337,8 @@ begin
       begin
         if ispara then
           parapackagepath.AddPath(More,false)
+        else if assigned(projectpackagepath) then
+          projectpackagepath.AddPath(More,false)
         else
           packagesearchpath.AddPath(More,true);
       end;
@@ -3281,6 +3355,8 @@ begin
       begin
         if ispara then
           ParaUnitPath.AddPath(More,false)
+        else if assigned(ProjectUnitPath) then
+          ProjectUnitPath.AddPath(More,false)
         else
           unitsearchpath.AddPath(More,true);
       end;
@@ -3479,6 +3555,8 @@ procedure TOption.Interpret_I_U(more: TCmdStr; ispara: boolean);
 begin
   if ispara then
     ParaIncludePath.AddPath(More,false)
+  else if assigned(ProjectIncludePath) then
+    ProjectIncludePath.AddPath(More,false)
   else
    includesearchpath.AddPath(More,false);
 end;
@@ -3913,7 +3991,7 @@ begin
 end;
 
 
-procedure TOption.Interpret_U_U(opt, more: TCmdStr);
+procedure TOption.Interpret_U_U(opt, more: TCmdStr; ispara: boolean);
 
 var
   j,aliassep : integer;
@@ -3932,7 +4010,11 @@ begin
             if (aliassep<=1) or (aliassep=length(aliasespec)) then
               IllegalPara(opt)
             else
-              AddUnitAlias(aliasespec);
+              { an alias of a configuration file gives way to a unit of the
+                program of that name; one of the command line or the project
+                options file (read while ProjectUnitPath collects its paths)
+                holds, as Delphi's -A does }
+              AddUnitAlias(aliasespec,not ispara and not assigned(ProjectUnitPath));
             break;
           end;
 {$endif UNITALIASES}
@@ -4590,6 +4672,24 @@ begin
   if configpath='' then
    configpath:=ExpandFileName(FixPath(exepath+'../etc/',false));
 {$endif}
+
+{$ifdef MOONCOMPILER_PRODUCT_RUNTIME}
+  { Product compiler: search only the toolchain's own config directory
+    and PPC_CONFIG_PATH.  User configs in current dir, HOME, USERPROFILE,
+    ALLUSERSPROFILE, /etc are ignored so that a stray fpc.cfg never
+    silently overrides the product profile.
+    -n, @file and PPC_CONFIG_PATH remain available. }
+  Comment(V_Tried,'Configfile search: '+fn+' (product: skipping cwd/home/etc)');
+  if (configpath<>'') and CfgFileExists(configpath+fn) then
+    foundfn:=configpath+fn
+  else
+{$ifndef Unix}
+  if CfgFileExists(exepath+fn) then
+    foundfn:=exepath+fn
+  else
+{$endif}
+    check_configfile:=false;
+{$else MOONCOMPILER_PRODUCT_RUNTIME}
   {
     Order to read configuration file :
     try reading fpc.cfg in :
@@ -4627,6 +4727,7 @@ begin
 {$endif}
       check_configfile:=false;
    end;
+{$endif MOONCOMPILER_PRODUCT_RUNTIME}
 end;
 
 
@@ -5179,6 +5280,17 @@ var
 {$if defined(cpucapabilities) or defined(fpucapabilities)}
   hs : string;
 {$endif defined(cpucapabilities) or defined(fpucapabilities)}
+  firstpass_param_file : TCmdStr;
+  explicit_configfile : boolean;
+  projectcfg : TPathStr;
+  saveddir : ansistring;
+  saved_outputunitdir,
+  saved_outputexedir : TPathStr;
+  mc_major, mc_minor, mc_patch, mc_err : longint;
+  mc_rest : string;
+{$ifdef MOONCOMPILER_PRODUCT_RUNTIME}
+  profile_suffix : string;
+{$endif MOONCOMPILER_PRODUCT_RUNTIME}
 begin
   option:=coption.create;
   disable_configfile:=false;
@@ -5193,11 +5305,15 @@ begin
    remove it first }
   if (cmd<>'') and (cmd[1]='[') then
     begin
+      explicit_configfile:=true;
       ppccfg:=Copy(cmd,2,pos(']',cmd)-2);
       Delete(cmd,1,pos(']',cmd));
     end
   else
-    ppccfg:='fpc.cfg';
+    begin
+      explicit_configfile:=false;
+      ppccfg:='fpc.cfg';
+    end;
 
 { first pass reading of parameters, only -i -v -T etc.}
   option.firstpass:=true;
@@ -5212,6 +5328,36 @@ begin
     end;
   option.firstpass:=false;
 
+  { Save param_file from first pass — needed to find .mooncompiler
+    project options before the second pass. }
+  firstpass_param_file:=param_file;
+
+  { First pass of the project options file (<Project>.mooncompiler): its
+    defines must be known before the configuration is read, so that the
+    #IFDEF blocks of the toolchain's fpc.cfg (the RELEASE profile) see them
+    exactly as they see command-line defines.  Without this a -dRELEASE in
+    the project file reached only the second pass: the Debug branch of the
+    configuration had already been taken, and the program was compiled with
+    DEBUG and RELEASE both defined into the release unit directory.  The
+    command line is first-passed once more afterwards, so that a
+    command-line -d/-u still wins over the project file (the first-pass
+    options are idempotent).  The full read of the project file stays after
+    the configuration: config < project < command line. }
+  if firstpass_param_file<>'' then
+    begin
+      projectcfg:=ChangeFileExt(ExpandFileName(firstpass_param_file),'.mooncompiler');
+      if FileExists(projectcfg) then
+        begin
+          option.firstpass:=true;
+          option.interpret_file(projectcfg);
+          if cmd<>'' then
+            option.parsecmd(cmd)
+          else
+            option.read_parameters;
+          option.firstpass:=false;
+        end;
+    end;
+
   { redefine target options so all defines are written even if no -Txxx is passed on the command line }
   Option.TargetOptions(true);
 
@@ -5224,6 +5370,28 @@ begin
 { default defines }
   def_system_macro(target_info.shortname);
   def_system_macro('FPC');
+  if target_info.system=system_x86_64_linux then
+    def_system_macro('FPC_HAS_ASM_CFI_OFFSET');
+{$ifdef x86_64}
+  { MoonCompiler: mORMot must not patch the runtime.  Its RedirectRtl
+    copies replacement string routines over the RTL's by lengths measured
+    on stock FPC and fixes a jmp it searches for in the copy; the
+    MoonCompiler RTL has its own routines (other lengths, other tails), so
+    a stock mORMot compiled without NOPATCHRTL crashes on the first string
+    free.  Defined here, before the configuration file and the command
+    line are read, so that every mORMot copy compiled by this compiler
+    skips the patch, and an explicit -uNOPATCHRTL (measurements against
+    the patch) still switches it back on. }
+  def_system_macro('NOPATCHRTL');
+  { MoonCompiler: the program has one zlib, the one of System.ZLib (zlib
+    1.3.1 objects of the toolchain on Win64 and Linux).  MoonORMot's
+    mormot.lib.z takes it instead of its static zlib 1.2.11 (Win64) or the
+    system libz (Linux); an older toolchain or an upstream mORMot, which do
+    not know the symbol, keep their own choice, and -uMOONCOMPILER_SYSTEM_ZLIB
+    gives MoonORMot's own choice back for measurements against it. }
+  if target_info.system in [system_x86_64_win64,system_x86_64_linux] then
+    def_system_macro('MOONCOMPILER_SYSTEM_ZLIB');
+{$endif x86_64}
   def_system_macro('VER'+version_nr);
   def_system_macro('VER'+version_nr+'_'+release_nr);
   def_system_macro('VER'+version_nr+'_'+release_nr+'_'+patch_nr);
@@ -5323,7 +5491,12 @@ begin
   { read configuration file }
   if (not disable_configfile) and
      (ppccfg<>'') then
-    read_configfile:=check_configfile(ppccfg,ppccfg)
+    begin
+      if explicit_configfile and FileExists(ppccfg) then
+        read_configfile:=true
+      else
+        read_configfile:=check_configfile(ppccfg,ppccfg);
+    end
   else
     read_configfile := false;
   if (option.parasubtarget<>'') then
@@ -5343,6 +5516,49 @@ begin
     option.interpret_file(ppccfg);
   if read_subfile then
     option.interpret_file(subcfg);
+
+  { Set projectdir from first-pass param_file; available as $PROJECTDIR
+    in DefaultReplacements (config macros, project options). }
+  if firstpass_param_file<>'' then
+    begin
+      projectdir:=ExtractFilePath(ExpandFileName(firstpass_param_file));
+      if projectdir<>'' then
+        projectdir:=FixPath(projectdir,false);
+    end;
+
+  { Read project options file (<Project>.mooncompiler).
+    Placed after the toolchain config and before the second command-line
+    pass so that: config < project < cmdline in override order.
+    Relative paths in the project file resolve against the project
+    directory.  Seed the cached original cwd before temporarily switching
+    directories, and keep project paths absolute.  Merge after restoring cwd
+    so that existing relative search paths retain their original meaning. }
+  if (firstpass_param_file<>'') then
+    begin
+      projectcfg:=ChangeFileExt(ExpandFileName(firstpass_param_file),'.mooncompiler');
+      if FileExists(projectcfg) then
+        begin
+          Message1(option_using_file,projectcfg);
+          saved_outputunitdir:=OutputUnitDir;
+          saved_outputexedir:=OutputExeDir;
+          saveddir:=cfileutl.GetCurrentDir;
+          SetCurrentDir(ExtractFilePath(projectcfg));
+          forcefullpaths:=true;
+          option.ProjectPaths(true);
+          try
+            option.interpret_file(projectcfg);
+            { Expand OutputUnitDir/OutputExeDir while cwd is the project dir }
+            if (OutputUnitDir<>saved_outputunitdir) and (OutputUnitDir<>'') then
+              OutputUnitDir:=FixPath(ExpandFileName(OutputUnitDir),true);
+            if (OutputExeDir<>saved_outputexedir) and (OutputExeDir<>'') then
+              OutputExeDir:=FixPath(ExpandFileName(OutputExeDir),true);
+          finally
+            forcefullpaths:=false;
+            SetCurrentDir(saveddir);
+            option.ProjectPaths(false);
+          end;
+        end;
+    end;
 
   { read parameters again to override config file }
   if cmd<>'' then
@@ -5398,6 +5614,47 @@ begin
         inputfilename:=ChangeFileExt(inputfilename,pext);
     end;
 
+{$ifdef MOONCOMPILER_PRODUCT_RUNTIME}
+  { Product defaults for PPU and exe output directories.
+    Applied only when compiling a program (.dpr/.lpr) and -n is not active
+    (RTL/package builds use -n and pass -FU/-FE explicitly). }
+  if (not disable_configfile) and
+     ((lower(ExtractFileExt(inputfilename)) = '.dpr') or
+      (lower(ExtractFileExt(inputfilename)) = '.lpr')) then
+    begin
+      if OutputUnitDir='' then
+        begin
+          if defined_macro('FPCX64MM_DIAGNOSTIC') then
+            begin
+              if defined_macro('RELEASE') then
+                profile_suffix:='release-diagnostic'
+              else
+                profile_suffix:='debug-diagnostic';
+            end
+          else begin
+            if defined_macro('RELEASE') then
+              profile_suffix:='release'
+            else
+              profile_suffix:='debug';
+          end;
+          OutputUnitDir:=FixPath(inputfilepath+'units'+DirectorySeparator+
+            target_full_string+DirectorySeparator+profile_suffix,true);
+        end;
+      if OutputExeDir='' then
+        OutputExeDir:=FixPath(inputfilepath,true);
+    end;
+{$endif MOONCOMPILER_PRODUCT_RUNTIME}
+
+  { Create OutputUnitDir if it doesn't exist — like Delphi. }
+  if (OutputUnitDir<>'') and not PathExists(OutputUnitDir,false) then
+    begin
+      if not ForceDirectories(OutputUnitDir) then
+        begin
+          Message1(general_e_path_does_not_exist,OutputUnitDir);
+          StopOptions(1);
+        end;
+    end;
+
   { Check output dir }
   if (OutputExeDir<>'') and
      not PathExists(OutputExeDir,false) then
@@ -5421,6 +5678,7 @@ begin
 
   { Add paths specified with parameters to the searchpaths }
   UnitSearchPath.AddList(option.ParaUnitPath,true);
+  programunitsearchpath.AddList(option.ParaUnitPath,true);
   ObjectSearchPath.AddList(option.ParaObjectPath,true);
   IncludeSearchPath.AddList(option.ParaIncludePath,true);
   LibrarySearchPath.AddList(option.ParaLibraryPath,true);
@@ -6271,6 +6529,30 @@ begin
   set_system_macro('FPC_RELEASE',release_nr);
   set_system_macro('FPC_PATCH',patch_nr);
   set_system_macro('FPC_FULLVERSION',Format('%d%.02d%.02d',[StrToInt(version_nr),StrToInt(release_nr),StrToInt(patch_nr)]));
+
+  { MoonCompiler version macros, usable in conditional expressions. }
+  set_system_macro('MOONCOMPILER_VERSION',mooncompiler_version);
+  begin
+    mc_rest:=mooncompiler_version;
+    j:=Pos('.',mc_rest);
+    If j>0 then begin
+      Val(Copy(mc_rest,1,j-1),mc_major,mc_err);
+      Delete(mc_rest,1,j);
+      j:=Pos('.',mc_rest);
+      If j>0 then begin
+        Val(Copy(mc_rest,1,j-1),mc_minor,mc_err);
+        Val(Copy(mc_rest,j+1,Length(mc_rest)),mc_patch,mc_err);
+      end else begin
+        Val(mc_rest,mc_minor,mc_err);
+        mc_patch:=0;
+      end;
+    end else begin
+      Val(mc_rest,mc_major,mc_err);
+      mc_minor:=0;
+      mc_patch:=0;
+    end;
+    set_system_macro('MOONCOMPILER_FULLVERSION',tostr(mc_major*10000+mc_minor*100+mc_patch));
+  end;
 
   if target_info.system in systems_indirect_entry_information then
     def_system_macro('FPC_HAS_INDIRECT_ENTRY_INFORMATION');

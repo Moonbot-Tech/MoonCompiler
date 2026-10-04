@@ -39,13 +39,13 @@ LANGUAGE = [
 
 def toolchain() -> tuple[Path, Path, list[str], str]:
     if os.name == "nt":
-        base = REPO / ".moonbot" / "toolchain" / "bin" / "x86_64-win64"
-        return base / "fpc.exe", base / "fpc.cfg", ["-Px86_64", "-Twin64"], ".exe"
+        base = REPO / "toolchain" / "bin" / "x86_64-win64"
+        return base / "fpc.exe", base / "moon-base.cfg", ["-Px86_64", "-Twin64"], ".exe"
     if sys.platform == "linux" and os.uname().machine == "x86_64":
-        base = REPO / ".moonbot" / "toolchain"
+        base = REPO / "toolchain"
         return (
             base / "bin" / "fpc",
-            base / "etc" / "fpc.cfg",
+            base / "etc" / "moon-base.cfg",
             ["-Px86_64", "-Tlinux", "-dPOSIX"],
             "",
         )
@@ -57,13 +57,13 @@ def main() -> int:
     parser.add_argument(
         "--mormot",
         type=Path,
-        default=REPO / "qualification" / "vendor" / "mormot-product",
+        default=REPO / ".qualification" / "deps" / "moonormot",
     )
     parser.add_argument("--modes", nargs="+", choices=tuple(MODES), default=list(MODES))
     args = parser.parse_args()
 
     mormot = args.mormot.resolve()
-    src = mormot / "src"
+    src = mormot
     static = mormot / "static" / (
         "x86_64-win64" if os.name == "nt" else "x86_64-linux"
     )
@@ -73,9 +73,7 @@ def main() -> int:
             raise RuntimeError(f"required input is missing: {required}")
 
     unit_dirs = sorted({path.parent for path in src.rglob("*.pas")})
-    state = REPO / ".moonbot"
-    state.mkdir(exist_ok=True)
-    work = Path(tempfile.mkdtemp(prefix="tftp-shutdown-", dir=state))
+    work = Path(tempfile.mkdtemp(prefix="tftp-shutdown-"))
     try:
         for mode in args.modes:
             output = work / mode
@@ -90,6 +88,7 @@ def main() -> int:
                 "-dMOONBOT_MM_PROFILE_REQUIRED",
                 "-dFPCMM_BOOSTER",
                 "-dFPCMM_MOONSHARD",
+                "-dNOPATCHRTL",
                 f"--pinned-unit=mormot.core.fpcx64mm={MM}",
                 "--required-first-unit=mormot.core.fpcx64mm,cthreads"
                 if os.name != "nt"

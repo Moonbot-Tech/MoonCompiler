@@ -1,8 +1,8 @@
 param(
   [string]$Compiler = (Join-Path $PSScriptRoot `
-    '..\..\.moonbot\toolchain\bin\x86_64-win64\ppcx64.exe'),
+    '..\..\toolchain\bin\x86_64-win64\ppcx64.exe'),
   [string]$Config = (Join-Path $PSScriptRoot `
-    '..\..\.moonbot\toolchain\bin\x86_64-win64\fpc.cfg'),
+    '..\..\toolchain\bin\x86_64-win64\moon-base.cfg'),
   [Parameter(Mandatory = $true)]
   [ValidatePattern('^[A-Za-z0-9._-]+$')][string]$RunId
 )

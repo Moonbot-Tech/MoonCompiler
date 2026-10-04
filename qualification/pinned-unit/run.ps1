@@ -1,6 +1,6 @@
 param(
   [string]$Compiler = (Join-Path $PSScriptRoot `
-    '..\..\.moonbot\toolchain\bin\x86_64-win64\ppcx64.exe')
+    '..\..\toolchain\bin\x86_64-win64\ppcx64.exe')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -9,8 +9,10 @@ $FixtureRoot = (Resolve-Path $PSScriptRoot).Path
 $Pinned = (Resolve-Path (Join-Path $PSScriptRoot 'pinned\PinFixture.pas')).Path
 $Foreign = (Resolve-Path (Join-Path $PSScriptRoot 'foreign')).Path
 $Mm = (Resolve-Path (Join-Path $Root 'runtime\mm\mormot.core.fpcx64mm.pas')).Path
-$Rtl = Join-Path $Root 'rtl\units\x86_64-win64'
-$MonitorUnits = Join-Path $Root '.moonbot\toolchain\units\x86_64-win64\rtl-objpas'
+# The installed product RTL: the in-tree rtl\units is a build scratch area
+# that other gates rebuild with other options.
+$Rtl = Join-Path $Root 'toolchain\units\x86_64-win64\rtl'
+$MonitorUnits = Join-Path $Root 'toolchain\units\x86_64-win64\rtl-objpas'
 $Output = Join-Path $Root '.qualification\pinned-unit'
 $StalePpu = Join-Path $Output 'stale-ppu'
 

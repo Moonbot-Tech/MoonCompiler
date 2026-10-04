@@ -225,7 +225,7 @@ interface
           interp_mode : (im_none, im_string, im_expr, im_returning_end);
           interp_stack : array of byte;
 
-          constructor Create(const fn:string; is_macro: boolean = false);
+          constructor Create(const fn:TPathStr; is_macro: boolean = false);
           destructor Destroy;override;
         { File buffer things }
           function  openinputfile:boolean;
@@ -595,6 +595,38 @@ implementation
         b : boolean;
         oldmodeswitches : tmodeswitches;
       begin
+        { The product profile compiles every unit in Delphi mode with the
+          Unicode String ABI (build drivers pass -Mdelphi -Municodestrings and
+          the further Delphi mode switches).  A unit that repeats
+          $MODE DELPHI or $MODE DELPHIUNICODE - Indy's
+          IdCompilerDefines.inc, mORMot's mormot.defines.inc - must compile
+          exactly as it would without the directive: the reset below would
+          replace the driver's switch set by the bare delphimodeswitches and
+          silently drop everything not in it (inline variables, ...).  There
+          is only one Delphi dialect in this profile, so the directive is a
+          no-op while that dialect is already active.  The one thing
+          $MODE DELPHIUNICODE adds on top of it is the system code page for
+          the source text (Delphi 2009+ reads a file without a BOM in the
+          ANSI code page), and that part still applies.  Compiler bootstrap,
+          host tools and any source that starts in another mode are not
+          affected: for them the directive still switches the mode. }
+        if ((s='DELPHI') or (s='DELPHIUNICODE')) and
+           (m_delphi in current_settings.modeswitches) and
+           (m_default_unicodestring in current_settings.modeswitches) and
+           (defined_macro('UNICODERTL') or
+            defined_macro('MOONCOMPILER_UNICODE_DEFAULT')) then
+          begin
+            if s='DELPHIUNICODE' then
+              begin
+                include(current_settings.modeswitches,m_systemcodepage);
+                if changeInit then
+                  include(init_settings.modeswitches,m_systemcodepage);
+                HandleModeSwitches(m_systemcodepage,changeInit);
+              end;
+            SetCompileMode:=true;
+            exit;
+          end;
+
         oldmodeswitches:=current_settings.modeswitches;
 
         b:=true;
@@ -3035,14 +3067,14 @@ type
         path,
         name,
         hs    : tpathstr;
-        args  : string;
+        args  : ansistring;
         hp    : tinputfile;
         found : boolean;
         macroIsString : boolean;
         fileext: string;
       begin
         current_scanner.skipspace;
-        args:=current_scanner.readcomment;
+        args:=current_scanner.readlongcomment;
         hs:=GetToken(args,' ');
         if hs='' then
          exit;
@@ -3532,7 +3564,7 @@ type
                                 TSCANNERFILE
  ****************************************************************************}
 
-    constructor tscannerfile.Create(const fn: string; is_macro: boolean);
+    constructor tscannerfile.Create(const fn: TPathStr; is_macro: boolean);
       begin
         inputfile:=do_openinputfile(fn);
         if is_macro then

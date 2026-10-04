@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -ne 3 ]]; then
-  echo "usage: $0 <fpc> <fpc.cfg> <run-id>" >&2
+  echo "usage: $0 <fpc> <moon-base.cfg> <run-id>" >&2
   exit 2
 fi
 

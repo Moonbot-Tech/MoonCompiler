@@ -24,6 +24,21 @@ unit globtype;
 
 interface
 
+{ The compiler sources are written for the classic FPC string ABI: Char is
+  AnsiChar, PChar is PAnsiChar, string is ShortString and TCmdStr below is
+  AnsiString.  Built against a Unicode system unit with
+  MOONCOMPILER_UNICODE_DEFAULT (the MoonCompiler product configuration:
+  Char = WideChar, PChar = PWideChar) they still compile, with hundreds of
+  implicit conversion warnings, into a compiler that corrupts its heap
+  while parsing its options (2026-09-16).  The compiler is built against
+  the vanilla RTL with -dMOONCOMPILER_VANILLA_RUNTIME, as build, build.ps1
+  and the stand scripts do; refuse anything else here, in the unit every
+  compiler unit uses (fpcdefs.inc is included before the system unit is
+  loaded, so sizeof(char) is not known there yet). }
+{$if sizeof(char)<>1}
+  {$error The compiler sources need the AnsiChar ABI: build them against the vanilla RTL (-dMOONCOMPILER_VANILLA_RUNTIME, not the product fpc.cfg)}
+{$endif}
+
     const
        maxidlen = 127;
 

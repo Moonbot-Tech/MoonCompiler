@@ -50,14 +50,13 @@ def main() -> int:
     if os.name == "nt":
         compiler = (
             ROOT
-            / ".moonbot"
             / "toolchain"
             / "bin"
             / "x86_64-win64"
             / "ppcx64.exe"
         )
     else:
-        compiler = ROOT / ".moonbot" / "toolchain" / "bin" / "ppcx64"
+        compiler = ROOT / "toolchain" / "bin" / "ppcx64"
     if not compiler.is_file():
         raise RuntimeError(f"built compiler is missing: {compiler}")
 

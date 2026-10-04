@@ -272,8 +272,10 @@ Const
         function  AddDep(const keyvalue:String):boolean;
         function  AddWeight(const keyvalue:String):boolean;
         procedure SetValue(const key:AnsiString;Weight:Integer);
+        procedure Replace(const key,value:AnsiString;weight:longint=LinkMapWeightDefault);
         procedure SortonWeight;
         function Find(const key:AnsiString):AnsiString;
+        function FindWeight(const key:AnsiString):longint;
         procedure Expand(src:TCmdStrList;dest: TLinkStrMap);
         procedure UpdateWeights(Weightmap:TLinkStrMap);
         constructor Create;
@@ -311,8 +313,15 @@ Const
 
     var
        { specified inputfile }
-       inputfilepath     : string;
-       inputfilename     : string;
+       inputfilepath     : TPathStr;
+       inputfilename     : TPathStr;
+       { project directory — set from first-pass param_file, available
+         in DefaultReplacements as $PROJECTDIR }
+       projectdir        : TPathStr;
+       { when true, AddLibraryPath keeps paths absolute (no cwd-relative
+         shortening); set while reading a project options file whose
+         directory differs from the process cwd }
+       forcefullpaths    : boolean;
        { specified outputfile with -o parameter }
        outputfilename    : string;
        outputprefix      : pshortstring;
@@ -377,6 +386,11 @@ Const
        includesearchpath,
        frameworksearchpath  : TSearchPathList;
        packagesearchpath     : TSearchPathList;
+       { the unit paths of the program itself - the command line and the
+         project options file - also in unitsearchpath; a unit found as
+         written there wins over a unit alias of the toolchain's
+         configuration (fppu.programunitexists) }
+       programunitsearchpath : TSearchPathList;
 
        { list of default namespaces }
        namespacelist : TCmdStrList;
@@ -907,6 +921,33 @@ implementation
       end;
 
 
+    procedure TLinkStrMap.Replace(const key,value:AnsiString;weight:longint=LinkMapWeightDefault);
+      var
+        j : longint;
+      begin
+         j:=lookup(key);
+         if j=-1 then
+           Add(key,value,weight)
+         else
+           begin
+             fmap[j].value:=value;
+             fmap[j].weight:=weight;
+           end;
+      end;
+
+
+    function TLinkStrMap.FindWeight(const key:AnsiString):longint;
+      var
+        j : longint;
+      begin
+         j:=lookup(key);
+         if j=-1 then
+           FindWeight:=-1
+         else
+           FindWeight:=fmap[j].weight;
+      end;
+
+
     function TLinkStrMap.find(const key:Ansistring):Ansistring;
       var
         j : longint;
@@ -1133,6 +1174,8 @@ implementation
          Replace(s,'$FPCCPU',target_cpu_string);
          Replace(s,'$FPCOS',target_os_string);
          Replace(s,'$FPCBINDIR',exepath);
+         if projectdir<>'' then
+           Replace(s,'$PROJECTDIR',projectdir);
          if (tf_use_8_3 in Source_Info.Flags) or
             (tf_use_8_3 in Target_Info.Flags) then
            Replace(s,'$FPCTARGET',target_os_string)
@@ -1762,6 +1805,8 @@ implementation
        librarysearchpath := nil;
        unitsearchpath.Free;
        unitsearchpath := nil;
+       programunitsearchpath.Free;
+       programunitsearchpath := nil;
        objectsearchpath.Free;
        objectsearchpath := nil;
        includesearchpath.Free;
@@ -1803,6 +1848,8 @@ implementation
 
         OutputExeDir:='';
         OutputUnitDir:='';
+        projectdir:='';
+        forcefullpaths:=false;
 
         { Utils directory }
         utilsdirectory:='';
@@ -1819,6 +1866,7 @@ implementation
         unicodepath:='';
         librarysearchpath:=TSearchPathList.Create;
         unitsearchpath:=TSearchPathList.Create;
+        programunitsearchpath:=TSearchPathList.Create;
         includesearchpath:=TSearchPathList.Create;
         objectsearchpath:=TSearchPathList.Create;
         frameworksearchpath:=TSearchPathList.Create;

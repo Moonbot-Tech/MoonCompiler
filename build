@@ -3,22 +3,163 @@ set -euo pipefail
 
 usage() {
   echo "usage: ./build compiler" >&2
+  echo "       ./build backend-dev" >&2
   echo "       ./build toolchain ARCHIVE" >&2
   echo "       ./build lazarus" >&2
-  echo "       ./build project.dpr debug|release [--diagnostic-mm]" >&2
   exit 2
 }
 
+# scripts/rtl-profile.txt: the option lines (comments start with #) of the
+# product RTL/package profile, one definition for both drivers.
+read_rtl_profile() {
+  local profile
+  profile=$(grep -v '^[[:space:]]*#' "$ROOT/scripts/rtl-profile.txt" | tr -d '\r' | xargs)
+  [[ -n "$profile" ]] || {
+    echo 'scripts/rtl-profile.txt declares no option' >&2
+    exit 1
+  }
+  printf '%s' "$profile"
+}
+
+# The IDE profile's fpc.cfg: the template with the installed IDE toolchain as
+# basepath (an absolute path: the qualification gates run the product
+# compiler with this configuration, so $FPCBINDIR would point elsewhere) plus
+# the vanilla-runtime define.  Written by the compiler build and again when
+# an archive is installed, because the archive carries the build machine's
+# path.  Arguments: FPCMKCFG VERSION_DIR CONFIG
+write_ide_config() {
+  local fpcmkcfg=$1 version_dir=$2 config=$3
+  "$fpcmkcfg" -t "$CONFIG_TEMPLATE" \
+    -d "basepath=$IDE_TOOLCHAIN/lib/fpc/$version_dir" -o "$config"
+  printf '%s\n' \
+    '# MoonCompiler IDE ABI: ordinary FPC String and Char representation.' \
+    '# Do not inject the product memory manager or runtime prefix.' \
+    '-dMOONCOMPILER_VANILLA_RUNTIME' \
+    >> "$config"
+}
+
+build_developer_backend() {
+  local parent config msg2inc make_path make_version head status source_fingerprint
+  local backend new_backend old_backend source_root source_compiler
+  local candidate smoke_dir published
+  parent="$IDE_TOOLCHAIN/bin/ppcx64"
+  config="$IDE_TOOLCHAIN/etc/fpc.cfg"
+  msg2inc="$IDE_TOOLCHAIN/bin/msg2inc"
+  [[ -x "$parent" && -f "$config" && -x "$msg2inc" ]] || {
+    echo 'the IDE profile is incomplete; run ./build compiler first' >&2
+    exit 1
+  }
+  [[ "$($parent -iTP)" == x86_64 && "$($parent -iTO)" == linux ]] || {
+    echo 'the IDE profile is not a Linux x86-64 compiler' >&2
+    exit 1
+  }
+  grep -q MOONCOMPILER_VANILLA_RUNTIME "$config" &&
+    ! grep -Eq 'MOONCOMPILER_UNICODE_DEFAULT|MOONBOT_MM_PROFILE_REQUIRED|--pinned-unit' "$config" || {
+      echo 'the IDE profile configuration contains product-ABI options' >&2
+      exit 1
+  }
+  make_path=$(command -v make || true)
+  make_version=
+  if [[ -n "$make_path" ]]; then
+    make_version=$("$make_path" --version 2>/dev/null || true)
+  fi
+  [[ -n "$make_path" && "${make_version%%$'\n'*}" == GNU\ Make* ]] || {
+    echo 'GNU make is required to build a developer backend' >&2
+    exit 1
+  }
+
+  head=$(git -C "$ROOT" rev-parse HEAD)
+  status=$(git -C "$ROOT" status --short -- compiler)
+  source_fingerprint=$({
+    while IFS= read -r -d '' relative; do
+      printf '%s\n' "$relative"
+      if [[ -f "$ROOT/$relative" ]]; then
+        sha256sum "$ROOT/$relative" | cut -d' ' -f1
+      else
+        printf '%s\n' missing
+      fi
+    done < <(git -C "$ROOT" ls-files -co --exclude-standard -z -- compiler)
+  } | sha256sum | cut -d' ' -f1)
+
+  backend="$ROOT/dev-backend"
+  new_backend="$ROOT/dev-backend.new.$$"
+  old_backend="$ROOT/dev-backend.old.$$"
+  dev_backend="$backend"
+  new_dev_backend="$new_backend"
+  old_dev_backend="$old_backend"
+  trap cleanup_developer_backend EXIT
+  rm -rf "$new_backend" "$old_backend"
+  source_root="$new_backend/source"
+  mkdir -p "$source_root/compiler"
+  while IFS= read -r -d '' relative; do
+    # `git ls-files -c` also reports tracked paths deleted in the working tree.
+    # Keep those missing entries in the provenance fingerprint above, but do
+    # not try to copy a file that intentionally no longer exists.
+    [[ -f "$ROOT/$relative" ]] || continue
+    mkdir -p "$source_root/$(dirname "$relative")"
+    cp -a "$ROOT/$relative" "$source_root/$relative"
+  done < <(git -C "$ROOT" ls-files -co --exclude-standard -z -- compiler)
+  mkdir -p "$source_root/rtl"
+  source_compiler="$source_root/compiler"
+  (
+    cd "$source_compiler"
+    "$msg2inc" msg/errore.msg msg msg
+  )
+  "$make_path" -C "$source_compiler" compiler FPC="$parent" \
+    FPCDIR="$source_root" CPU_TARGET=x86_64 OS_TARGET=linux \
+    "OPT=-n @$config -O2 -dMOONCOMPILER_PRODUCT_RUNTIME -dMOONCOMPILER_VANILLA_RUNTIME"
+
+  candidate="$source_compiler/ppcx64"
+  [[ -x "$candidate" && "$($candidate -iV)" == "$($parent -iV)" &&
+     "$($candidate -iTP)" == x86_64 && "$($candidate -iTO)" == linux ]] || {
+    rm -rf "$new_backend"
+    echo 'the developer backend failed its identity check' >&2
+    exit 1
+  }
+  smoke_dir="$new_backend/smoke"
+  mkdir -p "$smoke_dir/units"
+  printf '%s\n' 'program backend_smoke;' 'begin' '  Halt(0);' 'end.' \
+    > "$smoke_dir/backend_smoke.pas"
+  "$candidate" -n "@$config" -B "-FU$smoke_dir/units" \
+    "-FE$smoke_dir" "$smoke_dir/backend_smoke.pas"
+  "$smoke_dir/backend_smoke"
+
+  mkdir -p "$new_backend/bin/x86_64-linux"
+  published="$new_backend/bin/x86_64-linux/ppcx64"
+  cp "$candidate" "$published"
+  {
+    echo 'format=1'
+    echo 'platform=x86_64-linux'
+    echo 'profile=ide-fpc-abi'
+    echo "git_head=$head"
+    [[ -z "$status" ]] && echo 'compiler_dirty=false' || echo 'compiler_dirty=true'
+    echo "compiler_source_sha256=$source_fingerprint"
+    echo "parent_backend_sha256=$(sha256sum "$parent" | cut -d' ' -f1)"
+    echo "parent_config_sha256=$(sha256sum "$config" | cut -d' ' -f1)"
+    echo "backend_sha256=$(sha256sum "$published" | cut -d' ' -f1)"
+    echo "built_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "$new_backend/provenance.txt"
+  printf '%s\n' "$status" > "$new_backend/git-status.txt"
+  rm -rf "$source_root" "$smoke_dir"
+  publish_toolchain "$new_backend" "$backend" "$old_backend"
+  trap - EXIT
+  echo "Developer backend: $backend/bin/x86_64-linux/ppcx64"
+  echo "Provenance: $backend/provenance.txt"
+}
+
 ROOT=$(cd "$(dirname "$0")" && pwd)
-STATE="$ROOT/.moonbot"
-TOOLCHAIN="$STATE/toolchain"
+TOOLCHAIN="$ROOT/toolchain"
 IDE_TOOLCHAIN="$TOOLCHAIN/ide"
 MM_SOURCE="$ROOT/runtime/mm/mormot.core.fpcx64mm.pas"
+CONFIG_TEMPLATE="$ROOT/scripts/fpc.cfg.linux.template"
 LAZARUS_REPOSITORY=https://gitlab.com/freepascal.org/lazarus/lazarus.git
 LAZARUS_COMMIT=ce01e71c34866d83f69ea7cd855ae7eabea49f38
 new_toolchain=
 old_toolchain=
 ide_profile=
+dev_backend=
+new_dev_backend=
+old_dev_backend=
 
 source "$ROOT/scripts/publish_toolchain.sh"
 
@@ -30,14 +171,44 @@ cleanup_compiler_build() {
   fi
 }
 
+cleanup_developer_backend() {
+  if [[ -n "$old_dev_backend" && -e "$old_dev_backend" &&
+        ! -e "$dev_backend" ]]; then
+    mv "$old_dev_backend" "$dev_backend"
+  fi
+  [[ -z "$new_dev_backend" ]] || rm -rf "$new_dev_backend"
+  if [[ -n "$old_dev_backend" && -e "$dev_backend" ]]; then
+    rm -rf "$old_dev_backend"
+  fi
+}
+
 [[ "$(uname -s)" == Linux && "$(uname -m)" == x86_64 ]] || {
   echo "this driver runs only on Linux x86-64; use build.ps1 on Win64" >&2
   exit 1
 }
 
+# The mormot directory next to the toolchain: the MoonORMot the runtime units
+# over mORMot (System.Zip, System.Net.HttpClient, Moon.Diagnostics) compile
+# against.  Cloned once when missing; an existing directory or link is the
+# user's own and is never touched.  No git or no network is a warning: the
+# toolchain works, those units do not until mormot is there.
+ensure_moonormot() {
+  local mormot_dir="$ROOT/mormot"
+  [[ -e "$mormot_dir" ]] && return 0
+  if ! command -v git >/dev/null; then
+    echo "warning: git not found; MoonORMot not cloned" >&2
+    echo "Clone https://github.com/Moonbot-Tech/MoonORMot into $mormot_dir for System.Zip/HttpClient." >&2
+    return 0
+  fi
+  echo 'Cloning MoonORMot...'
+  git clone 'https://github.com/Moonbot-Tech/MoonORMot' "$mormot_dir" ||
+    echo "warning: MoonORMot clone failed; clone https://github.com/Moonbot-Tech/MoonORMot into $mormot_dir" >&2
+  return 0
+}
+
 build_compiler() {
   local bootstrap target_compiler target_fpcmake version_dir
-  local compiler_options='-O2 -dMOONCOMPILER_PRODUCT_RUNTIME -dMOONCOMPILER_VANILLA_RUNTIME'
+  local compiler_options='-n -O2 -dMOONCOMPILER_PRODUCT_RUNTIME -dMOONCOMPILER_VANILLA_RUNTIME'
   bootstrap=${MOONBOT_BOOTSTRAP_FPC:-$(command -v fpc || true)}
   [[ -n "$bootstrap" && -x "$bootstrap" ]] || {
     echo "FPC 3.2.2 is required once; set MOONBOT_BOOTSTRAP_FPC" >&2
@@ -48,14 +219,13 @@ build_compiler() {
     exit 1
   }
 
-  mkdir -p "$STATE"
-  new_toolchain="$STATE/toolchain.new.$$"
-  old_toolchain="$STATE/toolchain.old.$$"
-  ide_profile="$STATE/ide-profile.new.$$"
+  new_toolchain="$ROOT/toolchain.new.$$"
+  old_toolchain="$ROOT/toolchain.old.$$"
+  ide_profile="$ROOT/ide-profile.new.$$"
   trap cleanup_compiler_build EXIT
   rm -rf "$new_toolchain" "$old_toolchain" "$ide_profile"
 
-  make -C "$ROOT" clean
+  make -C "$ROOT" clean FPC="$bootstrap"
   make -C "$ROOT" -j1 all FPC="$bootstrap" OPT="$compiler_options"
   make -C "$ROOT" install FPC="$bootstrap" OPT="$compiler_options" \
     INSTALL_PREFIX="$new_toolchain"
@@ -86,46 +256,151 @@ build_compiler() {
   cp -a "$new_toolchain" "$ide_profile"
 
   # Compiler/IDE tools keep their host representation.  The target RTL and
-  # application-facing packages use the modern Delphi Unicode ABI.
+  # application-facing packages use the modern Delphi Unicode ABI, with the
+  # optimisation profile declared once in scripts/rtl-profile.txt (-O3 with
+  # the code placement rules, line information); the exact string is
+  # recorded in <toolchain>/profile.txt and rtl_profile_gate.py proves the
+  # installed objects against it.
+  unicode_opt="$(read_rtl_profile) -n -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES"
   make -C "$ROOT/rtl" clean FPC="$target_compiler"
-  make -C "$ROOT/rtl" -j1 all FPC="$target_compiler" \
-    OPT='-O2 -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES'
+  make -C "$ROOT/rtl" -j1 all FPC="$target_compiler" OPT="$unicode_opt"
   make -C "$ROOT/rtl" install FPC="$target_compiler" \
-    FPCMAKE="$target_fpcmake" OPT='-O2 -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' \
-    INSTALL_PREFIX="$new_toolchain"
+    FPCMAKE="$target_fpcmake" OPT="$unicode_opt" INSTALL_PREFIX="$new_toolchain"
   make -C "$ROOT/packages" clean FPC="$target_compiler" \
     FPMAKEOPT=--NoIDE=1
-  make -C "$ROOT/packages" -j1 all FPC="$target_compiler" \
-    OPT='-O2 -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' FPMAKEOPT=--NoIDE=1
+  make -C "$ROOT/packages" -j1 all FPC="$target_compiler" OPT="$unicode_opt" FPMAKEOPT=--NoIDE=1
   make -C "$ROOT/packages" install FPC="$target_compiler" \
-    FPCMAKE="$target_fpcmake" OPT='-O2 -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES' FPMAKEOPT=--NoIDE=1 \
+    FPCMAKE="$target_fpcmake" OPT="$unicode_opt" FPMAKEOPT=--NoIDE=1 \
     INSTALL_PREFIX="$new_toolchain"
+  {
+    echo "rtl_packages_opt=OPT=$unicode_opt"
+    if [[ "${MOONCOMPILER_PLACEMENT:-}" == 1 && -z "${MOONCOMPILER_NO_PLACEMENT:-}" ]]; then
+      echo 'placement_draft=1'
+    else
+      echo 'placement_draft=0'
+    fi
+    echo "compiler_sha256=$(sha256sum "$target_compiler" | cut -d' ' -f1)"
+    echo "sysutils_o_sha256=$(sha256sum "$new_toolchain/lib/fpc/$version_dir/units/x86_64-linux/rtl/sysutils.o" | cut -d' ' -f1)"
+    echo "generics_hashes_o_sha256=$(sha256sum "$new_toolchain/lib/fpc/$version_dir/units/x86_64-linux/rtl-generics/generics.hashes.o" | cut -d' ' -f1)"
+    echo "rtl_asm_x86_64_sha256=$(sha256sum "$ROOT/rtl/x86_64/x86_64.inc" | cut -d' ' -f1)"
+    echo "rtl_asm_strings_sha256=$(sha256sum "$ROOT/rtl/x86_64/strings.inc" | cut -d' ' -f1)"
+    echo "rtl_asm_sets_sha256=$(sha256sum "$ROOT/rtl/x86_64/set.inc" | cut -d' ' -f1)"
+    echo "rtl_asm_threadvar_sha256=$(sha256sum "$ROOT/rtl/win/systhrd.inc" | cut -d' ' -f1)"
+    echo "rtl_asm_math_sha256=$(sha256sum "$ROOT/rtl/objpas/math.pp" | cut -d' ' -f1)"
+    echo "rtl_asm_sysstrings_sha256=$(sha256sum "$ROOT/rtl/objpas/sysutils/sysstr.inc" | cut -d' ' -f1)"
+    echo "rtl_asm_hashes_sha256=$(sha256sum "$ROOT/packages/rtl-generics/src/generics.hashes.pas" | cut -d' ' -f1)"
+    echo "rtl_asm_astrings_sha256=$(sha256sum "$ROOT/rtl/inc/astrings.inc" | cut -d' ' -f1)"
+    echo "rtl_asm_ustrings_sha256=$(sha256sum "$ROOT/rtl/inc/ustrings.inc" | cut -d' ' -f1)"
+    echo "built_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "$new_toolchain/profile.txt"
 
-  ln -s "../lib/fpc/$version_dir/ppcx64" "$new_toolchain/bin/ppcx64"
+  # The real compiler lives in bin/, and lib/fpc/<version>/ppcx64 (where
+  # make install put it and where some gates look for it) becomes the
+  # symlink -- the reverse of stock FPC.  The Linux RTL takes ParamStr(0)
+  # from /proc/self/exe, so whichever path starts the compiler, $FPCBINDIR
+  # is bin/, the automatic <bin>/../etc/fpc.cfg lookup works and every
+  # relative path in the configurations resolves.
+  mv "$new_toolchain/lib/fpc/$version_dir/ppcx64" "$new_toolchain/bin/ppcx64"
+  ln -s "../../../bin/ppcx64" "$new_toolchain/lib/fpc/$version_dir/ppcx64"
+
+  # Copy runtime into the toolchain so it is self-contained.
+  cp -a "$ROOT/runtime" "$new_toolchain/runtime"
+  [[ -f "$new_toolchain/runtime/mm/mormot.core.fpcx64mm.pas" ]] || {
+    echo "the runtime MM source was not copied into the toolchain" >&2
+    exit 1
+  }
+  # The configuration names the MM by its published path ($TOOLCHAIN), not
+  # by the temporary directory the toolchain is assembled in.
+  toolchain_mm="$TOOLCHAIN/runtime/mm/mormot.core.fpcx64mm.pas"
+
+  # moon-base.cfg: toolchain paths (from $FPCBINDIR), ABI defines, pinned MM.
   mkdir -p "$new_toolchain/etc"
-  "$new_toolchain/bin/fpcmkcfg" \
-    -d "basepath=$TOOLCHAIN/lib/fpc/$version_dir" \
-    -o "$new_toolchain/etc/fpc.cfg"
-  printf '%s\n' \
-    '# MoonCompiler project ABI: Delphi String and Char are Unicode.' \
-    '-dMOONCOMPILER_UNICODE_DEFAULT' \
-    '# Product programs receive the bundled runtime prefix automatically.' \
-    '-dMOONBOT_MM_PROFILE_REQUIRED' \
-    '-dFPCMM_BOOSTER' \
-    '-dFPCMM_MOONSHARD' \
-    "--pinned-unit=mormot.core.fpcx64mm=$MM_SOURCE" \
-    >> "$new_toolchain/etc/fpc.cfg"
+  {
+    printf '%s\n' \
+      '# MoonCompiler base configuration (moon-base.cfg)' \
+      '# Paths, parser switches, ABI defines and pinned MM.' \
+      '# Qualification gates read this file; no directives allowed.' \
+      '' \
+      "-Fu\$FPCBINDIR/../lib/fpc/$version_dir/units/\$fpctarget" \
+      "-Fu\$FPCBINDIR/../lib/fpc/$version_dir/units/\$fpctarget/*" \
+      "-Fu\$FPCBINDIR/../lib/fpc/$version_dir/units/\$fpctarget/rtl" \
+      '-Sgic' \
+      '-viwn' \
+      '-dPOSIX' \
+      '-dMOONCOMPILER_UNICODE_DEFAULT' \
+      '-dMOONBOT_MM_PROFILE_REQUIRED' \
+      '-dFPCMM_BOOSTER' \
+      '-dFPCMM_MOONSHARD' \
+      '-dNOPATCHRTL' \
+      '--pinned-unit=mormot.core.fpcx64mm=$FPCBINDIR/../runtime/mm/mormot.core.fpcx64mm.pas'
+  } > "$new_toolchain/etc/moon-base.cfg"
 
-  ln -sf "../lib/fpc/$version_dir/ppcx64" "$ide_profile/bin/ppcx64"
+  # fpc.cfg: full product profile (Delphi mode, runtime paths, debug/release).
+  {
+    printf '%s\n' \
+      '# MoonCompiler product configuration' \
+      '#INCLUDE $FPCBINDIR/../etc/moon-base.cfg' \
+      '-Mdelphi' \
+      '-Municodestrings' \
+      '-MduplicateLocals' \
+      '-Madvancedrecords' \
+      '-Marrayoperators' \
+      '-Munderscoreisseparator' \
+      '-Mfunctionreferences' \
+      '-Manonymousfunctions' \
+      '-Minlinevars' \
+      '-Mimplicitgenerics' \
+      '-Mautoderef' \
+      '-Rintel' \
+      '-FNSystem' \
+      '-UaSystem.SysUtils=SysUtils' \
+      '-UaSystem.Variants=Variants' \
+      '-UaSystem.Classes=Classes' \
+      '-UaSystem.DateUtils=DateUtils' \
+      '-UaSystem.Math=Math' \
+      '-UaSystem.Types=Types' \
+      '-UaSystem.TypInfo=TypInfo' \
+      '-UaSystem.Rtti=Rtti' \
+      '-UaSystem.StrUtils=StrUtils' \
+      '-UaSystem.Character=Character' \
+      '-UaSystem.SyncObjs=SyncObjs' \
+      '-UaSystem.Generics.Defaults=Generics.Defaults' \
+      '-UaSystem.Generics.Collections=Generics.Collections' \
+      '-UaSystem.IniFiles=IniFiles' \
+      '-UaSystem.SysConst=SysConst' \
+      '-UaSystem.RTLConsts=RTLConsts' \
+      '-UaZLib=System.ZLib' \
+      '-UaZip=System.Zip' \
+      '-Fu$FPCBINDIR/../runtime/reporting' \
+      '-Fl$FPCBINDIR/../runtime/reporting/native' \
+      '-Fu$FPCBINDIR/../runtime/mormot' \
+      '-Fu$FPCBINDIR/../../mormot/*' \
+      '-Fl$FPCBINDIR/../../mormot/static/$FPCTARGET' \
+      '-gl' \
+      '-gw3' \
+      '-Ci' \
+      '-Co-' \
+      '-Cr-' \
+      '-Ct-' \
+      '#IFDEF RELEASE' \
+      '-uDEBUG' \
+      '-O3' \
+      '-Sa-' \
+      '#ELSE' \
+      '-dDEBUG' \
+      '-O-' \
+      '-Sa' \
+      '#ENDIF'
+  } > "$new_toolchain/etc/fpc.cfg"
+
+  # IDE profile: rendered from template with vanilla-runtime define.
+  # same layout for the IDE profile (copied above with the real file in lib/)
+  rm -f "$ide_profile/bin/ppcx64"
+  mv "$ide_profile/lib/fpc/$version_dir/ppcx64" "$ide_profile/bin/ppcx64"
+  ln -s "../../../bin/ppcx64" "$ide_profile/lib/fpc/$version_dir/ppcx64"
   mkdir -p "$ide_profile/etc"
-  "$new_toolchain/bin/fpcmkcfg" \
-    -d "basepath=$IDE_TOOLCHAIN/lib/fpc/$version_dir" \
-    -o "$ide_profile/etc/fpc.cfg"
-  printf '%s\n' \
-    '# MoonCompiler IDE ABI: ordinary FPC String and Char representation.' \
-    '# Do not inject the product memory manager or runtime prefix.' \
-    '-dMOONCOMPILER_VANILLA_RUNTIME' \
-    >> "$ide_profile/etc/fpc.cfg"
+  write_ide_config "$new_toolchain/bin/fpcmkcfg" "$version_dir" \
+    "$ide_profile/etc/fpc.cfg"
 
   mkdir -p "$new_toolchain/share/doc/mooncompiler"
   cp "$ROOT/compiler/COPYING.txt" \
@@ -145,6 +420,12 @@ build_compiler() {
   publish_toolchain "$new_toolchain" "$TOOLCHAIN" "$old_toolchain"
   trap - EXIT
   echo "MoonCompiler installed in $TOOLCHAIN"
+  ensure_moonormot
+
+  echo ''
+  echo 'Build a project:'
+  echo "  $TOOLCHAIN/bin/fpc Project.dpr"
+  echo "  $TOOLCHAIN/bin/fpc -dRELEASE Project.dpr"
 }
 
 install_toolchain() {
@@ -175,9 +456,8 @@ install_toolchain() {
     }
   done < <(tar -tzf "$archive")
 
-  mkdir -p "$STATE"
-  new_toolchain="$STATE/toolchain.new.$$"
-  old_toolchain="$STATE/toolchain.old.$$"
+  new_toolchain="$ROOT/toolchain.new.$$"
+  old_toolchain="$ROOT/toolchain.old.$$"
   trap cleanup_compiler_build EXIT
   rm -rf "$new_toolchain" "$old_toolchain"
   mkdir "$new_toolchain"
@@ -224,31 +504,25 @@ install_toolchain() {
     exit 1
   }
 
-  mkdir -p "$new_toolchain/etc" "$new_toolchain/ide/etc"
-  "$new_toolchain/bin/fpcmkcfg" \
-    -d "basepath=$TOOLCHAIN/lib/fpc/$version_dir" \
-    -o "$new_toolchain/etc/fpc.cfg"
-  printf '%s\n' \
-    '# MoonCompiler project ABI: Delphi String and Char are Unicode.' \
-    '-dMOONCOMPILER_UNICODE_DEFAULT' \
-    '# Product programs receive the bundled runtime prefix automatically.' \
-    '-dMOONBOT_MM_PROFILE_REQUIRED' \
-    '-dFPCMM_BOOSTER' \
-    '-dFPCMM_MOONSHARD' \
-    "--pinned-unit=mormot.core.fpcx64mm=$MM_SOURCE" \
-    >> "$new_toolchain/etc/fpc.cfg"
-  "$new_toolchain/bin/fpcmkcfg" \
-    -d "basepath=$IDE_TOOLCHAIN/lib/fpc/$version_dir" \
-    -o "$new_toolchain/ide/etc/fpc.cfg"
-  printf '%s\n' \
-    '# MoonCompiler IDE ABI: ordinary FPC String and Char representation.' \
-    '# Do not inject the product memory manager or runtime prefix.' \
-    '-dMOONCOMPILER_VANILLA_RUNTIME' \
-    >> "$new_toolchain/ide/etc/fpc.cfg"
+  # The archive carries moon-base.cfg and fpc.cfg with $FPCBINDIR-relative
+  # paths.  Pinned-unit uses $FPCBINDIR macro — no rewriting needed; the
+  # compiler finds the host's libgcc directory itself at link time.
+  [[ -f "$new_toolchain/etc/moon-base.cfg" &&
+     -f "$new_toolchain/etc/fpc.cfg" &&
+     -f "$new_toolchain/runtime/mm/mormot.core.fpcx64mm.pas" ]] || {
+    echo 'the archive is missing moon-base.cfg, fpc.cfg or the runtime MM source' >&2
+    exit 1
+  }
+  # The IDE profile's fpc.cfg names its toolchain by an absolute path (the
+  # gates run the product compiler with this configuration, so it cannot be
+  # relative to the compiler's own directory): render it for this clone.
+  write_ide_config "$new_toolchain/bin/fpcmkcfg" "$version_dir" \
+    "$new_toolchain/ide/etc/fpc.cfg"
 
   publish_toolchain "$new_toolchain" "$TOOLCHAIN" "$old_toolchain"
   trap - EXIT
   echo "MoonCompiler toolchain installed in $TOOLCHAIN"
+  ensure_moonormot
 }
 
 build_lazarus() {
@@ -268,7 +542,7 @@ build_lazarus() {
     echo 'Debian/Ubuntu: sudo apt install libgtk-3-dev' >&2
     exit 1
   fi
-  source="$STATE/lazarus"
+  source="$ROOT/lazarus-src"
   if [[ ! -d "$source/.git" ]]; then
     [[ ! -e "$source" ]] || {
       echo "the managed Lazarus directory exists but is not a Git checkout: $source" >&2
@@ -283,7 +557,7 @@ build_lazarus() {
     exit 1
   }
 
-  pcp="$STATE/lazarus-config"
+  pcp="$ROOT/lazarus-config"
   mkdir -p "$pcp"
   lazbuild_options='--lazarusdir=. --compiler=$(PP) --cpu=$(CPU_TARGET) --os=$(OS_TARGET) --opt="$(OPT)" --pcp="$(MOON_LAZARUS_PCP)"'
 
@@ -327,6 +601,11 @@ if [[ $# -eq 1 && "$1" == compiler ]]; then
   exit 0
 fi
 
+if [[ $# -eq 1 && "$1" == backend-dev ]]; then
+  build_developer_backend
+  exit 0
+fi
+
 if [[ $# -eq 2 && "$1" == toolchain ]]; then
   install_toolchain "$2"
   exit 0
@@ -337,80 +616,4 @@ if [[ $# -eq 1 && "$1" == lazarus ]]; then
   exit 0
 fi
 
-[[ $# -ge 2 && $# -le 3 ]] || usage
-project=$1
-profile=$2
-diagnostic_mm=${3:-}
-[[ -f "$project" && "$project" == *.dpr ]] || usage
-case "$profile" in
-  debug|release) ;;
-  *) usage ;;
-esac
-[[ -z "$diagnostic_mm" || "$diagnostic_mm" == --diagnostic-mm ]] || usage
-[[ -x "$TOOLCHAIN/bin/fpc" && -f "$TOOLCHAIN/etc/fpc.cfg" ]] || {
-  echo "MoonCompiler is not built; run ./build compiler" >&2
-  exit 1
-}
-
-case "$project" in
-  /*) ;;
-  *) project="$PWD/$project" ;;
-esac
-project_name=${project##*/}
-project_dir=${project%/*}
-project_dir=$(cd -L -- "$project_dir" && pwd -L)
-project="$project_dir/$project_name"
-project_id=$(printf '%s' "$project" | sha256sum | cut -d' ' -f1)
-runtime_mode=normal
-diagnostic_options=()
-if [[ "$diagnostic_mm" == --diagnostic-mm ]]; then
-  runtime_mode=diagnostic-mm
-  diagnostic_options=(-dFPCX64MM_DIAGNOSTIC)
-fi
-unit_dir="$STATE/units/linux/$project_id/$profile/$runtime_mode"
-mkdir -p "$unit_dir"
-
-namespace_options=(
-  -FNSystem
-  -UaSystem.SysUtils=SysUtils
-  -UaSystem.Variants=Variants
-  -UaSystem.Classes=Classes
-  -UaSystem.DateUtils=DateUtils
-  -UaSystem.Math=Math
-  -UaSystem.Types=Types
-  -UaSystem.TypInfo=TypInfo
-  -UaSystem.Rtti=Rtti
-  -UaSystem.StrUtils=StrUtils
-  -UaSystem.Character=Character
-  -UaSystem.SyncObjs=SyncObjs
-  -UaSystem.Generics.Defaults=Generics.Defaults
-  -UaSystem.Generics.Collections=Generics.Collections
-  -UaSystem.IniFiles=IniFiles
-  -UaSystem.SysConst=SysConst
-  -UaSystem.RTLConsts=RTLConsts
-)
-if [[ "$profile" == debug ]]; then
-  profile_options=(-dDEBUG -uRELEASE -O- -gl -gw3 -Ci -Co- -Cr- -Ct- -Sa)
-else
-  profile_options=(-dRELEASE -uDEBUG -O3 -gl -gw3 -Ci -Co- -Cr- -Ct- -Sa-)
-fi
-
-options=(
-  -n "@$TOOLCHAIN/etc/fpc.cfg" -Mdelphi
-  -Municodestrings -MduplicateLocals -Madvancedrecords -Marrayoperators
-  -Munderscoreisseparator -Mfunctionreferences -Manonymousfunctions
-  -Minlinevars -Mimplicitgenerics -Mautoderef
-  -Px86_64 -Tlinux -Rintel -dPOSIX -B
-  -dMOONBOT_MM_PROFILE_REQUIRED -dFPCMM_BOOSTER -dFPCMM_MOONSHARD
-  "--pinned-unit=mormot.core.fpcx64mm=$MM_SOURCE"
-  "${namespace_options[@]}"
-  "-FU$unit_dir/app" "-FE$project_dir"
-)
-mkdir -p "$unit_dir/app"
-source "$ROOT/scripts/project_profile.sh"
-configure_project_profile
-options+=("${profile_options[@]}")
-options+=("${diagnostic_options[@]}")
-
-echo "building $project ($profile, $runtime_mode, Linux x86-64)"
-"$TOOLCHAIN/bin/fpc" "${options[@]}" "$project"
+usage

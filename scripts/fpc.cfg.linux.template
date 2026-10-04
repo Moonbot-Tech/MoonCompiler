@@ -1,0 +1,48 @@
+# MoonCompiler fpc.cfg for Linux, rendered from scripts/fpc.cfg.linux.template
+# (scripts/fpc.cfg.win64.template is the Win64 twin).
+#
+# One template per target produces every fpc.cfg the drivers install: the
+# product profile and the IDE profile.  ./build and the stand script hand it
+# to fpcmkcfg with -t and append the profile lines (the product ABI defines
+# and the pinned memory manager, or the IDE define).
+#
+# The rule for this file: paths into the installed toolchain plus the parser
+# switches every source in the repository has always been built with, and
+# nothing else.  Optimisation, debug information, run-time checks, assembler,
+# linker, target and the DEBUG/RELEASE defines are decided by the drivers,
+# the Makefiles and the gates on the command line, never here.  The rendered
+# file is checked line by line by qualification/build-driver/
+# config_contract_gate.py, which also rejects every directive (#IFDEF,
+# #IFNDEF, #ELSE, #ENDIF, #DEFINE, #UNDEF, #WRITE, #INCLUDE, #SECTION,
+# #CFGDIR): a block that fires only under some define is exactly the silent
+# switch this template exists to keep out.
+#
+# Left out of the stock FPC template on purpose: -O2 and -Xs under RELEASE,
+# -gl and -Crtoi under DEBUG, -Xs whenever DEBUG is not defined, -ap,
+# -Cp/-Op processor targets, -CX/-XX smart linking, the -XP cross prefix,
+# the per-user fppkg unit path, the httpd unit path, the -FM unicode path,
+# the toolchain lib path (nothing is shipped there) and the -l logo.
+#
+# %basepath% is <toolchain>/lib/fpc/<version>, which owns the installed
+# units.
+
+# Installed units: the RTL and the packages of this toolchain, in the stock
+# FPC search order.
+-Fu%basepath%/units/$fpctarget
+-Fu%basepath%/units/$fpctarget/*
+-Fu%basepath%/units/$fpctarget/rtl
+
+# GNU binutils are host packages on Linux and are resolved through PATH.
+# fpcres is invoked by the driver from <toolchain>/bin, not through -FD.
+
+# Every Linux program links libgcc_s (the RTL's PSABI exception handling,
+# rtl/inc/psabieh.inc), and ld finds the unversioned libgcc_s.so only in the
+# gcc directory.  The compiler locates that directory itself at link time
+# (compiler/systems/t_linux.pas, AddGccLibraryDirs), so no configuration
+# line names a host path and the toolchain works wherever it is unpacked.
+
+# Parser switches: g = goto and label, i = inline, c = C-style operators.
+-Sgic
+
+# Verbosity: errors plus info, warnings and notes.
+-viwn

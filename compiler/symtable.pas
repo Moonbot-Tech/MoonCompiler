@@ -464,12 +464,18 @@ interface
     type
        tunit_alias = class
           newname : TIDString;
+          { from a configuration file (the toolchain's): the alias names the
+            unit Delphi code means by a short name the toolchain also gives a
+            unit of its own, and gives way to a unit of the program of that
+            name; else (command line, project options file) Delphi's -A }
+          configured : boolean;
         end;
     var
        unitaliases : TFPHashObjectList;
 
-    procedure addunitalias(const n:string);
+    procedure addunitalias(const n:string;configured:boolean);
     function getunitalias(const n:string):string;
+    function unitaliasconfigured(const n:string):boolean;
 {$endif UNITALIASES}
 
 {*** Init / Done ***}
@@ -2904,6 +2910,7 @@ implementation
         i : Integer;
         alias : tunit_alias;
         aliasname : string;
+        aliassym : tsym;
 {$endif UNITALIASES}
 
         procedure InsertUnitName(UnitSym:TSymEntry);
@@ -2933,19 +2940,24 @@ implementation
       begin
         InsertUnitName(sym);
 {$ifdef UNITALIASES}
-        { A default namespace alias maps the fully qualified Delphi unit name
-          to the physical short unit.  When source imports that short name,
-          Delphi keeps both source and fully qualified names available. }
+        { Keep the qualified names of the bound physical unit available even
+          when the spelling in uses is itself an alias. An explicit unit
+          binding, including a project's own unit, wins over a reverse alias. }
         if (sym.typ=unitsym) and assigned(unitaliases) then
           for i:=0 to unitaliases.Count-1 do
             begin
               alias:=tunit_alias(unitaliases[i]);
               aliasname:=unitaliases.NameOfIndex(i);
               if (pos('.',aliasname)>0) and
-                 (upper(alias.newname)=upper(sym.realname)) and
+                 (upper(alias.newname)=tmodule(tunitsym(sym).module).modulename^) and
                  (upper(aliasname)<>upper(sym.realname)) then
-                InsertUnitName(cunitsym.create(aliasname,
-                  tunitsym(sym).module));
+                begin
+                  aliassym:=tsym(find(upper(aliasname)));
+                  if assigned(aliassym) and (aliassym.typ=namespacesym) then
+                    aliassym:=tnamespacesym(aliassym).unitsym;
+                  if not assigned(aliassym) or (aliassym.typ<>unitsym) then
+                    InsertUnitName(cunitsym.create(aliasname,tunitsym(sym).module));
+                end;
             end;
 {$endif UNITALIASES}
       end;
@@ -5511,7 +5523,7 @@ implementation
                               TUNIT_ALIAS
  ****************************************************************************}
 
-    procedure addunitalias(const n:string);
+    procedure addunitalias(const n:string;configured:boolean);
       var
         i : longint;
         alias : tunit_alias;
@@ -5524,6 +5536,16 @@ implementation
             unitaliases.Add(Upper(Copy(n,1,i-1)),alias);
           end;
         alias.newname:=Copy(n,i+1,255);
+        alias.configured:=configured;
+      end;
+
+
+    function unitaliasconfigured(const n:string):boolean;
+      var
+        alias : tunit_alias;
+      begin
+        alias:=tunit_alias(unitaliases.Find(Upper(n)));
+        result:=assigned(alias) and alias.configured;
       end;
 
 
