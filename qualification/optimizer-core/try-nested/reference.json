@@ -1,0 +1,46 @@
+{
+ "linux": {
+  "JOIN": [
+   141,
+   12,
+   55
+  ],
+  "SHAPEANONYMOUSLOOP": [
+   74,
+   10,
+   9
+  ],
+  "SHAPENESTEDLOOP": [
+   36,
+   5,
+   9
+  ],
+  "SHAPEPLAINLOOP": [
+   28,
+   4,
+   9
+  ]
+ },
+ "win64": {
+  "JOIN": [
+   134,
+   10,
+   49
+  ],
+  "SHAPEANONYMOUSLOOP": [
+   72,
+   8,
+   9
+  ],
+  "SHAPENESTEDLOOP": [
+   35,
+   3,
+   9
+  ],
+  "SHAPEPLAINLOOP": [
+   27,
+   2,
+   9
+  ]
+ }
+}

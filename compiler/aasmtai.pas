@@ -407,6 +407,9 @@ interface
           a pop of the flags when assembler post processing is carried out }
         ,mark_may_restore_flags_with_r26
 {$endif avr}
+        { an outermost call-free loop: the register allocator keeps a spilled
+          value it accesses in a register across the loop }
+        ,mark_LoopRegionStart,mark_LoopRegionEnd
       );
 
       TRegAllocType = (ra_alloc,ra_dealloc,ra_sync,ra_resize,ra_markused);

@@ -26,6 +26,7 @@ unit ncgutil;
 interface
 
     uses
+      cclasses,
       node,
       globtype,
       cpubase,cgbase,parabase,cgutils,
@@ -79,6 +80,10 @@ interface
 
     procedure get_used_regvars(n: tnode; var rv: tusedregvars);
     procedure get_live_regvars(n: tnode; var rv: tusedregvars);
+    { adds every variable written in n to writes, once }
+    procedure get_written_vars(n: tnode; writes: TFPList);
+    { true if n reads a variable written by the innermost loop being generated }
+    function reads_loop_writes(n: tnode): boolean;
     { adds the regvars used in n and its children to rv.allregvars,
       those which were already in rv.allregvars to rv.commonregvars and
       uses rv.myregvars as scratch (so that two uses of the same regvar
@@ -103,7 +108,7 @@ interface
 implementation
 
   uses
-    cutils,cclasses,cdynset,
+    cutils,cdynset,
     globals,systems,verbose,
     defutil,symtable,
     procinfo,paramgr,
@@ -1302,6 +1307,40 @@ implementation
           end
         else
           get_used_regvars(n,rv);
+      end;
+
+
+    function do_get_written_vars(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        if (n.nodetype=loadn) and
+           (n.flags*[nf_write,nf_modify]<>[]) and
+           (tloadnode(n).symtableentry.typ in [staticvarsym,localvarsym,paravarsym]) and
+           (TFPList(arg).indexof(tloadnode(n).symtableentry)<0) then
+          TFPList(arg).add(tloadnode(n).symtableentry);
+        result:=fen_false;
+      end;
+
+
+    procedure get_written_vars(n: tnode; writes: TFPList);
+      begin
+        foreachnodestatic(n,@do_get_written_vars,writes);
+      end;
+
+
+    function do_reads_loop_writes(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        if (n.nodetype=loadn) and
+           (current_procinfo.CurrLoopWrites.indexof(tloadnode(n).symtableentry)>=0) then
+          result:=fen_norecurse_true
+        else
+          result:=fen_false;
+      end;
+
+
+    function reads_loop_writes(n: tnode): boolean;
+      begin
+        result:=assigned(current_procinfo.CurrLoopWrites) and
+          foreachnodestatic(n,@do_reads_loop_writes,nil);
       end;
 
 (*

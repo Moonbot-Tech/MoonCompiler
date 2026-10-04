@@ -1,0 +1,66 @@
+{
+ "linux": {
+  "LEVELS": [
+   40,
+   0,
+   14
+  ],
+  "SHAPEBLOCKDOUBLE": [
+   17,
+   0,
+   7
+  ],
+  "SHAPEBLOCKLOOP": [
+   21,
+   0,
+   9
+  ],
+  "SHAPETOPDOUBLE": [
+   17,
+   0,
+   7
+  ],
+  "SHAPETOPLOOP": [
+   21,
+   0,
+   9
+  ],
+  "SUM": [
+   54,
+   0,
+   33
+  ]
+ },
+ "win64": {
+  "LEVELS": [
+   44,
+   0,
+   14
+  ],
+  "SHAPEBLOCKDOUBLE": [
+   17,
+   0,
+   7
+  ],
+  "SHAPEBLOCKLOOP": [
+   21,
+   0,
+   9
+  ],
+  "SHAPETOPDOUBLE": [
+   17,
+   0,
+   7
+  ],
+  "SHAPETOPLOOP": [
+   21,
+   0,
+   9
+  ],
+  "SUM": [
+   60,
+   0,
+   33
+  ]
+ }
+}

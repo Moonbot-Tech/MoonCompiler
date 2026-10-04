@@ -112,7 +112,7 @@ interface
 implementation
 
     uses
-      cutils,
+      cutils,cclasses,
       verbose,globals,systems,
       symconst,symsym,symtable,aasmtai,aasmcpu,defutil,
       procinfo,parabase,
@@ -167,6 +167,10 @@ implementation
          oldclabel,oldblabel : tasmlabel;
          truelabel,falselabel : tasmlabel;
          oldflowcontrol : tflowcontrol;
+         loopalign : tai_align_abstract;
+         oldloopwrites : TFPList;
+         oldloopregion,
+         region : boolean;
       begin
          location_reset(location,LOC_VOID,OS_NO);
 
@@ -177,8 +181,35 @@ implementation
          oldflowcontrol:=flowcontrol;
          oldclabel:=current_procinfo.CurrContinueLabel;
          oldblabel:=current_procinfo.CurrBreakLabel;
+         oldloopwrites:=current_procinfo.CurrLoopWrites;
+         oldloopregion:=current_procinfo.CurrLoopRegion;
          include(flowcontrol,fc_inflowcontrol);
          exclude(flowcontrol,fc_unwind_loop);
+
+         region:=false;
+         if (cs_opt_regvar in current_settings.optimizerswitches) and
+            not(pi_has_label in current_procinfo.flags) then
+           begin
+             current_procinfo.CurrLoopWrites:=TFPList.create;
+             get_written_vars(self,current_procinfo.CurrLoopWrites);
+             { The outermost call-free loop is a loop region: when the
+               register allocator spills a value this loop accesses, it
+               loads the value into a register before the region and stores
+               it after the region instead of accessing memory at every use
+               (rgobj.spill_registers).  The marks enclose the synchronisation
+               of the regvars and the jump to a condition at the end, and
+               every exit passes the break label before the end mark: Exit
+               would leave without it, and ASM is opaque.  A loop inside a
+               region is part of it. }
+             region:=not oldloopregion and
+               not tree_may_emit_call(self) and
+               not has_node_of_type(self,[exitn,asmn]);
+           end;
+         if region then
+           begin
+             current_procinfo.CurrLoopRegion:=true;
+             current_asmdata.CurrAsmList.concat(tai_marker.create(mark_LoopRegionStart));
+           end;
 
          sync_regvars(true);
          { handling code at the end as it is much more efficient, and makes
@@ -232,8 +263,15 @@ implementation
 
          sync_regvars(false);
 
+         if region then
+           current_asmdata.CurrAsmList.concat(tai_marker.create(mark_LoopRegionEnd));
+         if current_procinfo.CurrLoopWrites<>oldloopwrites then
+           current_procinfo.CurrLoopWrites.free;
+
          current_procinfo.CurrContinueLabel:=oldclabel;
          current_procinfo.CurrBreakLabel:=oldblabel;
+         current_procinfo.CurrLoopWrites:=oldloopwrites;
+         current_procinfo.CurrLoopRegion:=oldloopregion;
          { a break/continue in a while/repeat block can't be seen outside }
          flowcontrol:=oldflowcontrol+(flowcontrol-[fc_break,fc_continue,fc_inflowcontrol]);
       end;

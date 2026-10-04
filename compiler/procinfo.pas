@@ -110,6 +110,12 @@ unit procinfo;
           CurrBreakLabel,
           CurrContinueLabel : tasmlabel;
 
+          { Variables written by the innermost loop whose code is being
+            generated (nil outside loops), and whether it lies in a loop
+            region of the register allocator }
+          CurrLoopWrites : TFPList;
+          CurrLoopRegion : boolean;
+
           { label to leave the sub routine }
           CurrExitLabel : tasmlabel;
 
@@ -269,6 +275,8 @@ implementation
         current_asmdata.getjumplabel(CurrGOTLabel);
         CurrBreakLabel:=nil;
         CurrContinueLabel:=nil;
+        CurrLoopWrites:=nil;
+        CurrLoopRegion:=false;
         parsing_main_block:=false;
         threadstatic_initcode:=nil;
         if Assigned(parent) and (parent.procdef.parast.symtablelevel>=normal_function_level) then

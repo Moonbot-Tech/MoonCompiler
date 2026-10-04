@@ -2340,6 +2340,21 @@ unit nx86add;
            end
          else
            begin
+             { Both operands in memory inside a loop: load the one which does
+               not depend on a variable the loop writes, and keep the one
+               which does, and whose address is known last, as the memory
+               operand of the compare.  nf_swapped mirrors the condition. }
+             if (left.location.loc in [LOC_REFERENCE,LOC_CREFERENCE]) and
+                (right.location.loc in [LOC_REFERENCE,LOC_CREFERENCE]) and
+                (left.location.size=right.location.size) and
+                (left.location.reference.volatility=[]) and
+                (right.location.reference.volatility=[]) and
+                reads_loop_writes(left) and
+                not reads_loop_writes(right) then
+               begin
+                 location_swap(left.location,right.location);
+                 toggleflag(nf_swapped);
+               end;
              left_must_be_reg(opdef,opsize,false);
              emit_generic_code(A_CMP,opsize,unsigned,false,false);
              location_freetemp(current_asmdata.CurrAsmList,right.location);

@@ -2129,6 +2129,9 @@ implementation
          { can we load the value into a register ? }
         if not assigned(owner) or
            (owner.symtabletype in [localsymtable, parasymtable]) or
+           { a local declared in a block of a routine (for var I, var X := ...)
+             is a local of that routine }
+           ((owner.symtabletype=blocksymtable) and (typ=localvarsym)) or
            (
             (owner.symtabletype=staticsymtable) and
             not(cs_create_pic in current_settings.moduleswitches)

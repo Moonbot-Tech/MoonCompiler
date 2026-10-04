@@ -852,7 +852,7 @@ implementation
        enumerator_get, enumerator_move: tprocdef; enumerator_current: tpropertysym): tnode;
       var
         loopstatement, loopbodystatement: tstatementnode;
-        enumvar: ttempcreatenode;
+        enumvar, loopvar: ttempcreatenode;
         loopbody, whileloopnode,
         enum_get, enum_move, enum_current, enum_get_params: tnode;
         propaccesslist: tpropaccesslist;
@@ -888,6 +888,19 @@ implementation
             enum_get
           ));
 
+        loopvar:=enumvar;
+        if enumerator_is_class then
+          begin
+            { The immutable class handle needs a memory home for exceptional
+              cleanup. Give the loop its own copy so that this requirement
+              does not force every MoveNext/Current access through memory. }
+            loopvar:=ctempcreatenode.create(enumerator_get.returndef,
+              enumerator_get.returndef.size,tt_persistent,true);
+            addstatement(loopstatement,loopvar);
+            addstatement(loopstatement,cassignmentnode.create(
+              ctemprefnode.create(loopvar),ctemprefnode.create(enumvar)));
+          end;
+
         loopbody:=internalstatements(loopbodystatement);
         { for-in loop variable := enumerator.current }
         if enumerator_current.getpropaccesslist(palt_read,propaccesslist) then
@@ -896,14 +909,14 @@ implementation
                fieldvarsym :
                  begin
                    { generate access code }
-                   enum_current:=ctemprefnode.create(enumvar);
+                   enum_current:=ctemprefnode.create(loopvar);
                    propaccesslist_to_node(enum_current,enumerator_current.owner,propaccesslist);
                    include(enum_current.flags,nf_isproperty);
                  end;
                procsym :
                  begin
                    { generate the method call }
-                   enum_current:=ccallnode.create(nil,tprocsym(propaccesslist.firstsym^.sym),enumerator_current.owner,ctemprefnode.create(enumvar),[],nil);
+                   enum_current:=ccallnode.create(nil,tprocsym(propaccesslist.firstsym^.sym),enumerator_current.owner,ctemprefnode.create(loopvar),[],nil);
                    include(enum_current.flags,nf_isproperty);
                  end
                else
@@ -922,7 +935,7 @@ implementation
         { add the actual statement to the loop }
         addstatement(loopbodystatement,hloopbody);
 
-        enum_move:=ccallnode.create(nil, tprocsym(enumerator_move.procsym), enumerator_move.owner, ctemprefnode.create(enumvar), [],nil);
+        enum_move:=ccallnode.create(nil, tprocsym(enumerator_move.procsym), enumerator_move.owner, ctemprefnode.create(loopvar), [],nil);
         whileloopnode:=cwhilerepeatnode.create(enum_move,loopbody,true,false);
 
         if enumerator_is_class then
@@ -958,6 +971,8 @@ implementation
           end;
 
         { free the temp variable for enumerator }
+        if loopvar<>enumvar then
+          addstatement(loopstatement,ctempdeletenode.create(loopvar));
         addstatement(loopstatement,ctempdeletenode.create(enumvar));
       end;
 

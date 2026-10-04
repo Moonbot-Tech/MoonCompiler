@@ -2212,9 +2212,7 @@ implementation
 
     { Win64 SEH funclets and Linux landing-pad cleanups execute outside the
       normal parent control-flow path.  Keep a frame home only for values that
-      they observe or that must survive a returning exception handler.
-      User-written nested routines remain on the old blanket-safe path until
-      the later CFG stage can model their static chains explicitly. }
+      they observe or that must survive a returning exception handler. }
 
     function seh_mark_referenced(var n: tnode; arg: pointer): foreachnoderesult;
       begin
@@ -2461,7 +2459,6 @@ implementation
         headertai : tai;
         blk_i : longint;
         hpi : tprocinfo;
-        seen_user_nested : boolean;
 
       procedure delete_marker(anode: tasmnode);
         var
@@ -2618,9 +2615,14 @@ implementation
 
         { An x86-64 exception region does not invalidate every local in its
           parent.  Mark the values observed on exceptional paths and let all
-          unrelated locals use the normal allocator.  A user nested routine
-          introduces a parent-frame/static-chain edge that this local analysis
-          does not model, so it deliberately keeps the historical fallback. }
+          unrelated locals use the normal allocator.
+
+          A nested routine of the user, an anonymous function among them,
+          changes nothing in that: what it reads or writes of this routine
+          is known when it is parsed and has its home in the frame
+          (ra_different_scope) or in the capturer before this routine gets
+          its locations; what it raises reaches the handlers of this routine
+          as the exception of any other callee does. }
         if ((target_info.system in systems_x86_64_seh) or
             (target_info.system=system_x86_64_linux)) and
            (procdef.proctypeoption<>potype_exceptfilter) and
@@ -2628,38 +2630,27 @@ implementation
            (cs_opt_regvar in current_settings.optimizerswitches) and
            (cs_opt_sehregvar in current_settings.optimizerswitches) then
           begin
-            seen_user_nested:=false;
+            mark_seh_memory_syms(code);
             hpi:=get_first_nestedproc;
             while assigned(hpi) do
               begin
-                if hpi.procdef.proctypeoption<>potype_exceptfilter then
-                  seen_user_nested:=true;
+                if (hpi.procdef.proctypeoption=potype_exceptfilter) and
+                   assigned(tcgprocinfo(hpi).code) then
+                  foreachnodestatic(tcgprocinfo(hpi).code,
+                    @seh_mark_referenced,nil);
                 hpi:=tprocinfo(hpi.next);
               end;
-            if not seen_user_nested then
-              begin
-                mark_seh_memory_syms(code);
-                hpi:=get_first_nestedproc;
-                while assigned(hpi) do
-                  begin
-                    if (hpi.procdef.proctypeoption=potype_exceptfilter) and
-                       assigned(tcgprocinfo(hpi).code) then
-                      foreachnodestatic(tcgprocinfo(hpi).code,
-                        @seh_mark_referenced,nil);
-                    hpi:=tprocinfo(hpi.next);
-                  end;
-                { The hidden static link is an ordinary volatile argument
-                  register before allocation.  Any exception edge may resume
-                  in a handler after that register was clobbered (hardware
-                  traps are the smallest example), while the handler still
-                  needs it to reach captured parent state.  Keep the link in
-                  the frame for every nested routine with EH; looking only
-                  for an outlined funclet misses handlers kept in this tree. }
-                if (procdef.parast.symtablelevel>normal_function_level) and
-                   assigned(procdef.parentfpsym) then
-                  tabstractvarsym(procdef.parentfpsym).varregable:=vr_none;
-                include(flags,pi_seh_memory_marked);
-              end;
+            { The hidden static link is an ordinary volatile argument
+              register before allocation.  Any exception edge may resume
+              in a handler after that register was clobbered (hardware
+              traps are the smallest example), while the handler still
+              needs it to reach captured parent state.  Keep the link in
+              the frame for every nested routine with EH; looking only
+              for an outlined funclet misses handlers kept in this tree. }
+            if (procdef.parast.symtablelevel>normal_function_level) and
+               assigned(procdef.parentfpsym) then
+              tabstractvarsym(procdef.parentfpsym).varregable:=vr_none;
+            include(flags,pi_seh_memory_marked);
           end;
 
         { only do secondpass if there are no errors }

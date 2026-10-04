@@ -274,6 +274,26 @@ unit rgobj;
         has_directalloc: boolean;
         spillinfo : array of tspillinfo;
         moveins_id_counter: longint;
+        { loop regions (ncgflw) of the procedure; the helpers their spilled
+          values got, the values refused one for the register pressure, and
+          the regions whose spilled values got none (WP4_LOOPSPILL_STATS) }
+        loopregions,
+        loophelpers,
+        looprefused,
+        loopnobudget : longint;
+        { the spilled values accessed by a loop region only on the way out of
+          the loop, which get no helper (WP4_LOOPSPILL_STATS) }
+        loopexitonly : longint;
+        { the spilling after the first colouring gives the loop regions
+          their helpers; a value spilled later was spilled for the pressure
+          left, and a helper would bring that pressure back }
+        loopregionround : boolean;
+        { the weight of each instruction of the register type, for rwweight
+          (mm registers only, where constant loads are) }
+        occweights : THashSet;
+        { the instructions added now are spill code, whose registers come
+          with weights of their own }
+        spillcode : boolean;
 
         { Disposes of the reginfo array.}
         procedure dispose_reginfo;
@@ -658,10 +678,29 @@ unit rgobj;
     var
       rtindex : longint = 0;
     procedure trgobj.do_register_allocation(list:TAsmList;headertai:tai);
+
+      { The loop region marks of pass 2 are only read by the spilling of the
+        integer registers, which are allocated last. }
+      procedure remove_loop_region_marks;
+        var
+          p : tai;
+        begin
+          if (regtype<>R_INTREGISTER) or (loopregions=0) then
+            exit;
+          p:=tai(list.first);
+          while assigned(p) do
+            if (p.typ=ait_marker) and
+               (tai_marker(p).Kind in [mark_LoopRegionStart,mark_LoopRegionEnd]) then
+              remove_ai(list,p)
+            else
+              p:=tai(p.next);
+        end;
+
       var
         spillingcounter:longint;
         endspill:boolean;
         i : Longint;
+        s : ansistring;
       begin
         { Insert regalloc info for imaginary registers }
         insert_regalloc_info_all(list);
@@ -679,7 +718,10 @@ unit rgobj;
         inc(rtindex);
         { Don't do the real allocation when -sr is passed }
         if (cs_no_regalloc in current_settings.globalswitches) then
-          exit;
+          begin
+            remove_loop_region_marks;
+            exit;
+          end;
         { Spill registers which interfere with all usable real registers.
           It is pointless to keep them for further processing. Also it may
           cause endless spilling.
@@ -748,6 +790,7 @@ unit rgobj;
         ibitmap := nil;
 
         translate_registers(list);
+        remove_loop_region_marks;
 
 {$ifdef DEBUG_SPILLCOALESCE}
         write_spill_stats;
@@ -756,6 +799,29 @@ unit rgobj;
         { we need the translation table for debugging info and verbose assembler output,
           so not dispose them yet (FK)
         }
+
+        { the loop regions and the spilled source registers, for the loop
+          region gate and the comparison of builds }
+        if (regtype=R_INTREGISTER) and
+           defined_macro('WP4_LOOPSPILL_STATS') then
+          begin
+            writeln(stderr,'LOOPSPILL proc=',current_procinfo.procdef.mangledname,
+              ' regions=',loopregions,' helpers=',loophelpers,
+              ' refused=',looprefused,' nobudget=',loopnobudget,
+              ' exitonly=',loopexitonly);
+            s:='';
+            for i:=first_imaginary to maxreg-1 do
+              if (i<length(spillinfo)) and
+                 spillinfo[i].spilled and
+                 not(ri_spill_helper in reginfo[i].flags) then
+                begin
+                  if s<>'' then
+                    s:=s+',';
+                  s:=s+tostr(i);
+                end;
+            writeln(stderr,'SPILLSET proc=',current_procinfo.procdef.mangledname,
+              ' spilled=',s);
+          end;
 
         for i:=0 to High(spillinfo) do
           FreeAndNil(spillinfo[i].interferences);
@@ -2842,6 +2908,9 @@ unit rgobj;
                         add_constraints(reg);
                       end;
                   end;
+              ait_marker:
+                if tai_marker(p).Kind=mark_LoopRegionStart then
+                  inc(loopregions);
               else
                 ;
             end;
@@ -3130,6 +3199,355 @@ unit rgobj;
         templist : TAsmList;
         j : Longint;
         getnewspillloc : Boolean;
+        { helpers of the loop region being walked }
+        regionhelpers : tsuperregisterworklist;
+
+      { A loop region (ncgflw) is an outermost call-free loop.  A spilled
+        value it accesses gets a helper register for the whole region: one
+        load of the spill slot before the region, the accesses of the region
+        through the helper, and one store after it when the region writes
+        the value and the value is live there.  The helpers take the usable
+        registers the region leaves free at its most crowded point but two:
+        the colouring does not always manage a region at full pressure, and
+        a helper lives over the whole region: when the temporaries of the
+        region use every volatile register at some point, it gets a
+        callee-saved one, which a value living across calls may need.
+        Spilling another value would undo the gain.
+        The load and the store are paid on every entry into the region, and
+        only accesses which may run again pay them back.  An access whose
+        path jumps unconditionally past the last backward jump of the region,
+        like a flag written before break, runs at most once per entry: a
+        value accessed only on such paths gets no helper. }
+      function spill_loop_region(startmarker:tai):boolean;
+        type
+          tregionvalue=record
+            orgreg : tsuperregister;
+            { accesses on paths which may return to the loop head, and
+              accesses on the way out of the loop }
+            refs,
+            exitrefs : longint;
+            written,
+            liveatend : boolean;
+            constraints : tsubregisterset;
+            helper : tregister;
+          end;
+        var
+          endmarker,q : tai;
+          values : array of tregionvalue;
+          order : array of longint;
+          { the labels of the region in the order of the list, and how many
+            of them stand before its last backward jump }
+          labels : array of tasmsymbol;
+          lastback : longint;
+          spregs : tspillregsinfo;
+          r : tsuperregister;
+          target : tasmsymbol;
+          live,maxlive,ncand,budget,v,c,k : longint;
+          uncond,exitknown,exitonly : boolean;
+
+        function valueof(reg:tsuperregister):longint;
+          var
+            n : longint;
+          begin
+            for n:=0 to high(values) do
+              if values[n].orgreg=reg then
+                exit(n);
+            n:=length(values);
+            setlength(values,n+1);
+            fillchar(values[n],sizeof(values[n]),0);
+            values[n].orgreg:=reg;
+            values[n].liveatend:=true;
+            values[n].helper:=NR_NO;
+            result:=n;
+          end;
+
+        { the spilled values the instruction accesses, as instr_spill_register }
+        procedure get_spilled_values(instr:tai_cpu_abstract_sym);
+          var
+            n : longint;
+          begin
+            fillchar(spregs,sizeof(spregs),0);
+            for n:=low(spregs.spillreginfo) to high(spregs.spillreginfo) do
+              begin
+                spregs.spillreginfo[n].orgreg:=RS_INVALID;
+                spregs.spillreginfo[n].loadreg:=NR_INVALID;
+                spregs.spillreginfo[n].storereg:=NR_INVALID;
+              end;
+            for n:=0 to instr.ops-1 do
+              instr_get_oper_spilling_info(spregs,regs_to_spill_set,instr,n);
+          end;
+
+        function labelindex(sym:tasmsymbol):longint;
+          begin
+            result:=high(labels);
+            while (result>=0) and (labels[result]<>sym) do
+              dec(result);
+          end;
+
+        { whether the instruction ends the straight code, and the symbol a
+          direct jump goes to, unconditionally or not.  The operands of a
+          jump are only known here for x86, where the jump through the table
+          of a case statement has no is_jmp; elsewhere no jump is known to
+          leave the loop }
+        function isjump(instr:tai_cpu_abstract_sym;out sym:tasmsymbol;out always:boolean):boolean;
+          begin
+            sym:=nil;
+            always:=false;
+{$if defined(x86)}
+            result:=instr.is_jmp or (instr.opcode=A_JMP);
+            if result and
+               (instr.ops=1) and
+               (instr.oper[0]^.typ=top_ref) and
+               (instr.oper[0]^.ref^.base=NR_NO) and
+               (instr.oper[0]^.ref^.index=NR_NO) then
+              begin
+                sym:=instr.oper[0]^.ref^.symbol;
+                always:=instr.opcode=A_JMP;
+              end;
+{$else defined(x86)}
+            result:=instr.is_jmp;
+{$endif defined(x86)}
+          end;
+
+        { whether the path from p leaves the loop at its first jump: an
+          unconditional one to a label after the last backward jump of the
+          region or out of it, whence no path returns to the loop head;
+          labels on the way are joins of other paths }
+        function leavesloop(p:tai):boolean;
+          var
+            sym : tasmsymbol;
+            always : boolean;
+            n : longint;
+          begin
+            result:=false;
+            while p<>endmarker do
+              begin
+                if (p.typ=ait_instruction) and
+                   isjump(tai_cpu_abstract_sym(p),sym,always) then
+                  begin
+                    if always then
+                      begin
+                        n:=labelindex(sym);
+                        result:=(n<0) or (n>=lastback);
+                      end;
+                    exit;
+                  end;
+                p:=tai(p.next);
+              end;
+          end;
+
+        begin
+          result:=false;
+          endmarker:=tai(startmarker.next);
+          while assigned(endmarker) and
+                not((endmarker.typ=ait_marker) and
+                    (tai_marker(endmarker).Kind=mark_LoopRegionEnd)) do
+            endmarker:=tai(endmarker.next);
+          if not assigned(endmarker) then
+            internalerror(2026092601);
+
+          { a backward jump goes to a label which stands before it }
+          labels:=nil;
+          lastback:=0;
+          q:=tai(startmarker.next);
+          while q<>endmarker do
+            begin
+              case q.typ of
+                ait_label:
+                  begin
+                    setlength(labels,length(labels)+1);
+                    labels[high(labels)]:=tai_label(q).labsym;
+                  end;
+                ait_instruction:
+                  if isjump(tai_cpu_abstract_sym(q),target,uncond) and
+                     (labelindex(target)>=0) then
+                    lastback:=length(labels);
+                else
+                  ;
+              end;
+              q:=tai(q.next);
+            end;
+
+          { the register pressure over the region, from the registers live at
+            its start which take a colour }
+          values:=nil;
+          live:=0;
+          for k:=0 to live_registers.length-1 do
+            begin
+              r:=live_registers.buf[k];
+              if (r>=first_imaginary) or (r in usable_register_set) then
+                inc(live);
+            end;
+          maxlive:=live;
+          exitknown:=false;
+          q:=tai(startmarker.next);
+          while q<>endmarker do
+            begin
+              case q.typ of
+                ait_regalloc:
+                  if getregtype(tai_regalloc(q).reg)=regtype then
+                    begin
+                      r:=get_alias(getsupreg(tai_regalloc(q).reg));
+                      if supregset_in(regs_to_spill_set,r) then
+                        begin
+                          { the last allocation or release of a spilled value
+                            in the region tells whether it is live after it }
+                          if tai_regalloc(q).ratype in [ra_alloc,ra_dealloc] then
+                            begin
+                              v:=valueof(r);
+                              values[v].liveatend:=tai_regalloc(q).ratype=ra_alloc;
+                            end;
+                        end
+                      else if (r>=first_imaginary) or (r in usable_register_set) then
+                        case tai_regalloc(q).ratype of
+                          ra_alloc:
+                            begin
+                              inc(live);
+                              if live>maxlive then
+                                maxlive:=live;
+                            end;
+                          ra_dealloc:
+                            dec(live);
+                          else
+                            ;
+                        end;
+                    end;
+                ait_instruction:
+                  begin
+                    get_spilled_values(tai_cpu_abstract_sym(q));
+                    for k:=0 to spregs.spillreginfocount-1 do
+                      with spregs.spillreginfo[k] do
+                        if mustbespilled then
+                          begin
+                            { the accesses up to the next jump share its path }
+                            if not exitknown then
+                              begin
+                                exitonly:=leavesloop(q);
+                                exitknown:=true;
+                              end;
+                            v:=valueof(orgreg);
+                            if exitonly then
+                              inc(values[v].exitrefs)
+                            else
+                              inc(values[v].refs);
+                            values[v].written:=values[v].written or regwritten;
+                            values[v].constraints:=values[v].constraints+spillregconstraints;
+                          end;
+                    if isjump(tai_cpu_abstract_sym(q),target,uncond) then
+                      exitknown:=false;
+                  end;
+                else
+                  ;
+              end;
+              q:=tai(q.next);
+            end;
+
+          { the candidates: the most accessed value first, the lower register
+            first on a tie; a spilled helper gets no other, a value accessed
+            only on the way out of the loop none }
+          setlength(order,length(values));
+          ncand:=0;
+          for v:=0 to high(values) do
+            if (values[v].refs>0) and
+               not(ri_spill_helper in reginfo[values[v].orgreg].flags) then
+              begin
+                c:=ncand;
+                while (c>0) and
+                      ((values[order[c-1]].refs<values[v].refs) or
+                       ((values[order[c-1]].refs=values[v].refs) and
+                        (values[order[c-1]].orgreg>values[v].orgreg))) do
+                  begin
+                    order[c]:=order[c-1];
+                    dec(c);
+                  end;
+                order[c]:=v;
+                inc(ncand);
+              end
+            else if (values[v].exitrefs>0) and
+               not(ri_spill_helper in reginfo[values[v].orgreg].flags) then
+              inc(loopexitonly);
+          if ncand=0 then
+            exit;
+
+          { WP4_LOOPSPILL_NOBUDGET (laboratory) gives every candidate one, to
+            measure what the budget keeps }
+          if defined_macro('WP4_LOOPSPILL_NOBUDGET') then
+            budget:=ncand
+          else
+            budget:=min(ncand,max(0,usable_registers_cnt-maxlive-2));
+          inc(looprefused,ncand-budget);
+          if budget=0 then
+            begin
+              inc(loopnobudget);
+              exit;
+            end;
+          inc(loophelpers,budget);
+
+          { the loads before the region, then the accesses in the order of the
+            list: the first reference of a new register starts its range }
+          for c:=0 to budget-1 do
+            begin
+              v:=order[c];
+              r:=values[v].orgreg;
+              values[v].helper:=getregisterinline(list,values[v].constraints);
+              include(reginfo[getsupreg(values[v].helper)].flags,ri_spill_helper);
+              do_spill_read(list,tai(startmarker.previous),spill_temps[r],values[v].helper,r);
+              add_reg_instruction(tai(startmarker.previous),values[v].helper,
+                min(high(reginfo[r].weight)-1,reginfo[r].weight)+1);
+              regionhelpers.add(getsupreg(values[v].helper));
+            end;
+          q:=tai(startmarker.next);
+          while q<>endmarker do
+            begin
+              if q.typ=ait_instruction then
+                begin
+                  get_spilled_values(tai_cpu_abstract_sym(q));
+                  c:=0;
+                  for k:=0 to spregs.spillreginfocount-1 do
+                    with spregs.spillreginfo[k] do
+                      if mustbespilled then
+                        begin
+                          v:=valueof(orgreg);
+                          if values[v].helper<>NR_NO then
+                            begin
+                              loadreg:=values[v].helper;
+                              storereg:=loadreg;
+                              add_reg_instruction(q,loadreg,
+                                min(high(reginfo[orgreg].weight)-1,reginfo[orgreg].weight)+1);
+                              inc(c);
+                            end
+                          else
+                            mustbespilled:=false;
+                        end;
+                  if c>0 then
+                    begin
+                      for k:=0 to tai_cpu_abstract_sym(q).ops-1 do
+                        substitute_spilled_registers(spregs,tai_cpu_abstract_sym(q),k);
+                      add_cpu_interferences(q);
+                    end;
+                end;
+              q:=tai(q.next);
+            end;
+
+          { after the region a store where the region writes a value live
+            there; otherwise the helper lives up to the end mark, over the
+            backward jump }
+          for c:=0 to budget-1 do
+            begin
+              v:=order[c];
+              r:=values[v].orgreg;
+              if values[v].written and values[v].liveatend then
+                begin
+                  do_spill_written(list,endmarker,spill_temps[r],values[v].helper,r);
+                  add_reg_instruction(tai(endmarker.next),values[v].helper,
+                    min(high(reginfo[r].weight)-1,reginfo[r].weight)+1);
+                end
+              else
+                add_reg_instruction(endmarker,values[v].helper,0);
+            end;
+          result:=true;
+        end;
+
       begin
         spill_registers:=false;
         spillcode:=true;
@@ -3231,6 +3649,7 @@ unit rgobj;
         templist := nil;
         { Walk through all instructions, we can start with the headertai,
           because before the header tai is only symbols }
+        regionhelpers.init;
         p:=headertai;
         while assigned(p) do
           begin
@@ -3263,7 +3682,14 @@ unit rgobj;
                           begin
                             case ratype of
                               ra_alloc :
-                               live_registers.add(supreg);
+                                begin
+                                  live_registers.add(supreg);
+                                  { the interference graph is not rebuilt:
+                                    a helper of the loop region conflicts
+                                    with every register born in the region }
+                                  for j:=0 to regionhelpers.length-1 do
+                                    add_edge(regionhelpers.buf[j],supreg);
+                                end;
                               ra_dealloc :
                                live_registers.delete(supreg);
                               else
@@ -3271,6 +3697,21 @@ unit rgobj;
                             end;
                           end;
                       end;
+                  end;
+              ait_marker:
+                if (regtype=R_INTREGISTER) and loopregionround then
+                  case tai_marker(p).Kind of
+                    mark_LoopRegionStart:
+                      if spill_loop_region(p) then
+                        spill_registers:=true;
+                    mark_LoopRegionEnd:
+                      begin
+                        for j:=0 to regionhelpers.length-1 do
+                          ungetregisterinline(list,newreg(regtype,regionhelpers.buf[j],defaultsub));
+                        regionhelpers.clear;
+                      end;
+                    else
+                      ;
                   end;
 {$ifdef llvm}
               ait_llvmins,
@@ -3288,6 +3729,8 @@ unit rgobj;
             end;
             p:=Tai(p.next);
           end;
+        regionhelpers.done;
+        spillcode:=false;
         current_filepos:=current_procinfo.exitpos;
         {Safe: this procedure is only called if there are spilled nodes.}
         with spillednodes do
