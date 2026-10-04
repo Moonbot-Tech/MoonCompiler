@@ -38,13 +38,17 @@ def invoke(config: dict, host: str, arguments: list[str], *, capture: bool = Fal
     return process.wait(), "".join(output)
 
 
-def arguments(settings: dict, host: str, action: str, mode: str, final: bool, head: str = "") -> list[str]:
+def arguments(settings: dict, host: str, action: str, mode: str, final: bool, head: str = "",
+              skip_pulse: bool = False) -> list[str]:
     result = [settings.get("python", sys.executable if host == "windows" else "python3"),
               "qualification/release/qualify.py", action, "--platform", "win64" if host == "windows" else "linux",
               "--run-dir", settings["run_dir"], "--mode", mode,
-              "--jobs", str(settings["jobs"]), "--memory-mb", str(settings["memory_mb"]),
-              "--baseline-toolchain", settings["baseline_toolchain"]]
-    if settings.get("baseline_mm_source"):
+              "--jobs", str(settings["jobs"]), "--memory-mb", str(settings["memory_mb"])]
+    if skip_pulse:
+        result.append("--skip-pulse")
+    elif settings.get("baseline_toolchain"):
+        result += ["--baseline-toolchain", settings["baseline_toolchain"]]
+    if not skip_pulse and settings.get("baseline_mm_source"):
         result += ["--baseline-mm-source", settings["baseline_mm_source"]]
     if head:
         result += ["--expect-head", head]
@@ -53,7 +57,7 @@ def arguments(settings: dict, host: str, action: str, mode: str, final: bool, he
     return result
 
 
-def run_route(config: dict) -> int:
+def run_route(config: dict, skip_pulse: bool = False) -> int:
     heads = {}
     for host in HOSTS:
         code, head = invoke(config, host, ["git", "rev-parse", "HEAD"], capture=True)
@@ -71,7 +75,7 @@ def run_route(config: dict) -> int:
         print(f"QUALIFICATION_STAGE {label} head={head}", flush=True)
         with ThreadPoolExecutor(max_workers=2) as pool:
             futures = {host: pool.submit(invoke, config, host,
-                       arguments(config[host], host, "run", mode, final, head)) for host in HOSTS}
+                       arguments(config[host], host, "run", mode, final, head, skip_pulse)) for host in HOSTS}
             results = {host: future.result() for host, future in futures.items()}
         failed = []
         for host, (code, output) in results.items():
@@ -81,7 +85,10 @@ def run_route(config: dict) -> int:
         if failed:
             print(f"QUALIFICATION_STOP stage={label} hosts={','.join(failed)}; later stages were not started")
             return 1
-    print(f"QUALIFICATION_COMPLETE {head}; read both Pulse reports before deciding to publish")
+    if skip_pulse:
+        print(f"QUALIFICATION_COMPLETE {head} scope=correctness-without-pulse; Pulse was not run")
+    else:
+        print(f"QUALIFICATION_COMPLETE {head}; read both Pulse reports before deciding to publish")
     return 0
 
 
@@ -89,6 +96,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("plan", "run"))
     parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--skip-pulse", action="store_true",
+                        help="run all correctness and delivery stages without Pulse")
     args = parser.parse_args()
     config = json.loads(args.config.read_text(encoding="utf-8"))
     for host in HOSTS:
@@ -99,10 +108,11 @@ def main() -> int:
         for mode, final in PHASES:
             print("final Light" if final else mode)
             for host in HOSTS:
-                print(host, json.dumps(command(config, host, arguments(config[host], host, "run", mode, final))))
+                print(host, json.dumps(command(config, host, arguments(config[host], host, "run", mode, final,
+                                                                      skip_pulse=args.skip_pulse))))
         print("PLAN_ONLY: no host commands, builds, or tests were executed")
         return 0
-    return run_route(config)
+    return run_route(config, args.skip_pulse)
 
 
 if __name__ == "__main__":

@@ -54,7 +54,7 @@ def save(path: Path, state: dict) -> None:
 
 
 def load_matrix(path: Path, platform: str, mode: str,
-                final: bool = False) -> list[dict]:
+                final: bool = False, skip_pulse: bool = False) -> list[dict]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("version") != 1:
         raise ValueError("matrix version must be 1")
@@ -63,6 +63,7 @@ def load_matrix(path: Path, platform: str, mode: str,
         raise ValueError("source_inputs must name every matrix job exactly once")
     jobs = [row for row in data["jobs"] if platform in row["platforms"]
             and LEVELS[row["mode"]] <= LEVELS[mode]
+            and (not skip_pulse or row["id"] != "pulse_report")
             and (final or not row.get("final_only", False))]
     names = [row["id"] for row in jobs]
     if len(names) != len(set(names)):
@@ -268,6 +269,8 @@ def main() -> int:
     parser.add_argument("--mode", choices=tuple(LEVELS), default="full")
     parser.add_argument("--final", action="store_true",
                         help="rerun Light and audit history on one frozen exact HEAD")
+    parser.add_argument("--skip-pulse", action="store_true",
+                        help="qualify all correctness and delivery jobs without the Pulse comparison")
     parser.add_argument("--jobs", type=int, default=4, help="shared worker slots, including nested runners")
     parser.add_argument("--memory-mb", type=int, default=8192, help="budget for declared concurrent working sets")
     parser.add_argument("--expect-head", help="refuse a different candidate, including between host stages")
@@ -285,7 +288,7 @@ def main() -> int:
     if args.action in ("init", "run") and git("status", "--porcelain", "--untracked-files=no"):
         parser.error("commit tracked changes before qualifying")
     run_dir = args.run_dir.resolve()
-    jobs = load_matrix(args.matrix, args.platform, args.mode, args.final)
+    jobs = load_matrix(args.matrix, args.platform, args.mode, args.final, args.skip_pulse)
     if any(allocation(job, args.jobs, args.memory_mb) < 1 for job in jobs):
         parser.error("memory budget cannot fit one worker of every selected job")
     if args.action == "plan":
@@ -308,7 +311,7 @@ def main() -> int:
                           "baseline_toolchain": str(args.baseline_toolchain.resolve())
                           if args.baseline_toolchain else "",
                           "baseline_mm_source": str(args.baseline_mm_source.resolve()) if args.baseline_mm_source else "",
-                          "results": {}, "final_results": {}, "final_head": None})
+                          "results": {}, "final_results": {}, "final_head": None, "skip_pulse": args.skip_pulse})
         print(f"MATRIX_READY {run_dir} jobs={len(jobs)} head={head}")
         return 0
     if not state_path.exists():
@@ -319,10 +322,12 @@ def main() -> int:
                           "baseline_toolchain": str(args.baseline_toolchain.resolve())
                           if args.baseline_toolchain else "",
                           "baseline_mm_source": str(args.baseline_mm_source.resolve()) if args.baseline_mm_source else "",
-                          "results": {}, "final_results": {}, "final_head": None})
+                          "results": {}, "final_results": {}, "final_head": None, "skip_pulse": args.skip_pulse})
     state = json.loads(state_path.read_text(encoding="utf-8"))
     if state["platform"] != args.platform:
         parser.error("run state belongs to another platform")
+    if state.get("skip_pulse", False) != args.skip_pulse:
+        parser.error("Pulse scope changed; use a new run directory")
     location = {"host": host_platform.node(), "root": str(ROOT.resolve())}
     if state.get("location", location) != location:
         parser.error("run state belongs to another host or checkout")
@@ -343,7 +348,7 @@ def main() -> int:
     if baseline and not baseline_mm:
         baseline_mm = str(Path(baseline) / "runtime/mm/mormot.core.fpcx64mm.pas")
     state["baseline_mm_source"] = baseline_mm
-    if args.action == "run" and args.mode == "full" and not baseline:
+    if args.action == "run" and args.mode == "full" and not args.skip_pulse and not baseline:
         parser.error("full mode requires --baseline-toolchain for Pulse")
     if baseline and not Path(baseline).is_dir():
         parser.error("baseline toolchain directory does not exist")
@@ -360,7 +365,7 @@ def main() -> int:
         state["results"].pop("build", None)
         state["final_results"].pop("build", None)
     if args.final:
-        discovery = load_matrix(args.matrix, args.platform, "full")
+        discovery = load_matrix(args.matrix, args.platform, "full", skip_pulse=args.skip_pulse)
         discovery_signatures = input_signatures(discovery, args.platform, head, product, baseline_id)
         incomplete = [job["id"] for job in discovery
                       if state["results"].get(job["id"], {}).get("status") != "pass"
@@ -533,7 +538,8 @@ def main() -> int:
         verdict = ("FINAL_EXACT_HEAD_PASS" if args.final else
                    "DISCOVERY_PROVISIONAL" if carried else "DISCOVERY_PASS")
         print(verdict
-              + f" {head} platform={args.platform} mode={args.mode}")
+              + f" {head} platform={args.platform} mode={args.mode}"
+              + (" scope=correctness-without-pulse" if args.skip_pulse else " scope=full"))
     else:
         print(f"QUALIFICATION_FINDINGS {head} platform={args.platform} mode={args.mode}")
     return 0 if passed else 1

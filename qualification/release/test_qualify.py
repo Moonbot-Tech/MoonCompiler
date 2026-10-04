@@ -37,6 +37,34 @@ else:
 
 
 class MatrixRunTests(unittest.TestCase):
+    def test_without_pulse_final_checks_correctness_and_cannot_reuse_full_scope(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            (root / "source.txt").write_text("source\n")
+            subprocess.run(["git", "-C", str(root), "add", "source.txt"], check=True)
+            subprocess.run(["git", "-C", str(root), "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+                            "commit", "-qm", "input"], check=True)
+            matrix = root / "matrix.json"
+            matrix.write_text(json.dumps({"version": 1,
+                "source_inputs": {name: ["source.txt"] for name in ("core", "pulse_report")},
+                "jobs": [{"id": name, "mode": mode, "platforms": ["linux"], "timeout": 10,
+                          "commands": {"linux": ["{python}", "-c", f"raise SystemExit({code})"]}}
+                         for name, mode, code in (("core", "light", 0), ("pulse_report", "full", 7))]}))
+            argv = ["qualify.py", "run", "--run-dir", str(root / "run"), "--matrix", str(matrix),
+                    "--platform", "linux", "--mode", "full", "--skip-pulse"]
+            with patch.object(qualify, "ROOT", root), patch.object(sys, "argv", argv):
+                self.assertEqual(qualify.main(), 0)
+                state = json.loads((root / "run/state.json").read_text())
+                self.assertTrue(state["skip_pulse"])
+                self.assertNotIn("pulse_report", state["results"])
+                argv[argv.index("full")] = "light"
+                argv.append("--final")
+                self.assertEqual(qualify.main(), 0)
+                argv.remove("--skip-pulse")
+                with self.assertRaises(SystemExit):
+                    qualify.main()
+
     def test_final_rebuild_changes_time_only(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -343,6 +371,15 @@ class SchedulingTests(unittest.TestCase):
 
 
 class MatrixCommandTests(unittest.TestCase):
+    def test_skip_pulse_keeps_every_other_full_job(self):
+        for platform in ("win64", "linux"):
+            complete = {j["id"] for j in qualify.load_matrix(qualify.MATRIX, platform, "full")}
+            correctness = {j["id"] for j in qualify.load_matrix(qualify.MATRIX, platform, "full", skip_pulse=True)}
+            self.assertEqual(complete - correctness, {"pulse_report"})
+            self.assertTrue({"devil_full", "archive_smoke", "lazarus"} <= correctness)
+            if platform == "win64":
+                self.assertIn("zlib_delphi", correctness)
+
     def values(self, base: Path, platform: str, name: str) -> dict[str, str]:
         job_dir = base / "run/discovery/jobs" / name / "attempt-0001"
         values = qualify.context(qualify.ROOT, base / "run", platform, "0" * 40, job_dir, str(base))

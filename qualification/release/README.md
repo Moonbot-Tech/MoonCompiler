@@ -46,6 +46,13 @@ When the owner asks to start qualification:
 python qualification/release/qualify_both.py run --config .qualification/release-hosts.json
 ```
 
+When only performance measurement is excluded, add `--skip-pulse`. This omits
+only `pulse_report`; all functional corpora, delivery/archive/Lazarus checks,
+the separate zlib/Delphi gate and final Light remain mandatory. No baseline
+toolchain is needed for this route. Its ledger and final verdict explicitly
+record `correctness-without-pulse`; changing this scope requires a new run
+directory. The one-host runner accepts the same flag on every invocation.
+
 The coordinator checks clean tracked sources and equal HEADs, then runs each
 stage on Windows and Linux concurrently. Both must succeed before advancing:
 

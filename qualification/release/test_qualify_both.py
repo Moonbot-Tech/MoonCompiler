@@ -61,6 +61,25 @@ class HostBarrierTests(unittest.TestCase):
             self.assertEqual(both.run_route(self.config()), 0)
         self.assertEqual(len(called), 8)
 
+    def test_skip_pulse_reaches_every_phase_without_a_baseline(self):
+        config = self.config()
+        for settings in config.values():
+            del settings["baseline_toolchain"]
+        head = "a" * 40
+        called = []
+        def invoke(config, host, command, capture=False):
+            if capture:
+                return 0, head if command[1] == "rev-parse" else ""
+            self.assertIn("--skip-pulse", command)
+            self.assertNotIn("--baseline-toolchain", command)
+            called.append((host, command[command.index("--mode") + 1], "--final" in command))
+            marker = "FINAL_EXACT_HEAD_PASS" if "--final" in command else "DISCOVERY_PASS"
+            return 0, f"{marker} {head} platform={host} scope=correctness-without-pulse"
+        with patch.object(both, "invoke", side_effect=invoke), redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(both.run_route(config, skip_pulse=True), 0)
+        self.assertEqual(len(called), 8)
+        self.assertIn("scope=correctness-without-pulse", output.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
