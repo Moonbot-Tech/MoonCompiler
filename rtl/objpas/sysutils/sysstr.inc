@@ -479,12 +479,145 @@ begin
   end;
 end;
 
-function SameText(const s1,s2:String):Boolean; overload;{$ifdef SYSUTILSINLINE}inline;{$endif}
+{$if defined(UNICODERTL) and defined(CPUX86_64)}
+{$push}{$asmmode intel}
+{ The inline caller checks equal lengths and identity. This equality-only
+  leaf receives the count once and needs no string headers or ordering. }
+function SameTextContents(A, B: Pointer; Count: SizeInt): Boolean; assembler; nostackframe;
+asm
+  {$ifndef FPC_ABI_WIN64}
+  mov r8,rdx
+  mov rcx,rdi
+  mov rdx,rsi
+  {$endif}
+  test r8,r8
+  jz @@SameTrue
+  cmp r8,8
+  jb @@SamePairCount
+  { Ordinary early mismatches need only the first UTF16 code unit. }
+  movzx eax,word ptr [rcx]
+  movzx r9d,word ptr [rdx]
+  xor r9d,eax
+  jz @@SameVectorPrepare
+  cmp r9d,32
+  jne @@SameFalse
+  or eax,32
+  sub eax,97
+  cmp eax,25
+  ja @@SameFalse
+@@SameVectorPrepare:
+  movdqu xmm4,[rip+@@SameLower]
+  movdqu xmm5,[rip+@@SameUpper]
+@@SameVector:
+  movdqu xmm0,[rcx]
+  movdqu xmm1,[rdx]
+  movdqa xmm2,xmm0
+  pcmpeqw xmm2,xmm1
+  pmovmskb eax,xmm2
+  cmp eax,65535
+  je @@SameAdvanceVector
+  movdqa xmm2,xmm0
+  pcmpgtw xmm2,xmm4
+  movdqa xmm3,xmm5
+  pcmpgtw xmm3,xmm0
+  pand xmm2,xmm3
+  psrlw xmm2,15
+  psllw xmm2,5
+  pxor xmm0,xmm2
+  movdqa xmm2,xmm1
+  pcmpgtw xmm2,xmm4
+  movdqa xmm3,xmm5
+  pcmpgtw xmm3,xmm1
+  pand xmm2,xmm3
+  psrlw xmm2,15
+  psllw xmm2,5
+  pxor xmm1,xmm2
+  pcmpeqw xmm0,xmm1
+  pmovmskb eax,xmm0
+  cmp eax,65535
+  jne @@SameFalse
+@@SameAdvanceVector:
+  add rcx,16
+  add rdx,16
+  sub r8,8
+  cmp r8,8
+  jae @@SameVector
+  test r8,r8
+  jz @@SameTrue
+@@SamePairCount:
+  cmp r8,2
+  jb @@SameTail
+@@SamePair:
+  mov eax,dword ptr [rcx]
+  mov r9d,dword ptr [rdx]
+  cmp eax,r9d
+  je @@SameAdvancePair
+  xor r9d,eax
+  test r9w,r9w
+  jz @@SameHigh
+  cmp r9w,32
+  jne @@SameFalse
+  movzx r10d,ax
+  or r10d,32
+  sub r10d,97
+  cmp r10d,25
+  ja @@SameFalse
+@@SameHigh:
+  shr r9d,16
+  jz @@SameAdvancePair
+  cmp r9d,32
+  jne @@SameFalse
+  shr eax,16
+  or eax,32
+  sub eax,97
+  cmp eax,25
+  ja @@SameFalse
+@@SameAdvancePair:
+  add rcx,4
+  add rdx,4
+  sub r8,2
+  cmp r8,2
+  jae @@SamePair
+  test r8,r8
+  jz @@SameTrue
+@@SameTail:
+  movzx eax,word ptr [rcx]
+  movzx r9d,word ptr [rdx]
+  xor r9d,eax
+  jz @@SameTrue
+  cmp r9d,32
+  jne @@SameFalse
+  or eax,32
+  sub eax,97
+  cmp eax,25
+  ja @@SameFalse
+@@SameTrue:
+  mov eax,1
+  ret
+@@SameFalse:
+  xor eax,eax
+  ret
+  align 32
+@@SameLower:
+  dq $0060006000600060,$0060006000600060
+@@SameUpper:
+  dq $007B007B007B007B,$007B007B007B007B
+end;
+{$pop}
+{$endif}
 
+function SameText(const s1,s2:String):Boolean; overload;{$ifdef SYSUTILSINLINE}inline;{$endif}
+{$if defined(UNICODERTL) and defined(CPUX86_64)}
+var Count: SizeInt;
+{$endif}
 begin
- { the pointer-equal shortcut sits in the inline part: the common
-   same-instance comparison never pays the CompareText call }
- Result:=(Length(s1)=Length(s2)) and ((Pointer(s1)=Pointer(s2)) or (CompareText(S1,S2)=0));
+{$if defined(UNICODERTL) and defined(CPUX86_64)}
+  Count:=Length(s1);
+  Result:=(Count=Length(s2)) and ((Pointer(s1)=Pointer(s2)) or
+    SameTextContents(Pointer(s1),Pointer(s2),Count));
+{$else}
+  Result:=(Length(s1)=Length(s2)) and ((Pointer(s1)=Pointer(s2)) or (CompareText(s1,s2)=0));
+{$endif}
 end;
 
 function SameText(const s1,s2:String; LocaleOptions: TLocaleOptions):Boolean; overload;{$ifdef SYSUTILSINLINE}inline;{$endif}
@@ -3876,5 +4009,4 @@ function sscanf(const s: string; const fmt : string;const Pointers : array of Po
 {$undef SBRAWString}
 {$undef TGenericStringBuilder}
 {$undef SBUNICODE}
-
 
