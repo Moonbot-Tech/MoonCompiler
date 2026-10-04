@@ -414,6 +414,8 @@ begin
   args[0]:=PtrUint(AnAddr);
   args[1]:=PtrUint(Obj);
   args[2]:=GetBacktrace(ctx,AFrame,PPointer(args[3]));
+  if assigned(ExceptionContextProc) then
+    ExceptionContextProc(Obj,AnAddr,AFrame,Longint(args[2]),PCodePointer(args[3]),@ctx,false);
   RaiseException(FPC_EXCEPTION_CODE,EXCEPTION_NONCONTINUABLE,4,@args[0]);
 end;
 
@@ -478,6 +480,8 @@ begin
       Exit;
     adr:=rec.ExceptionAddress;
     FrameCount:=GetBacktrace(context,nil,Frames);
+    if assigned(ExceptionContextProc) and assigned(Obj) then
+      ExceptionContextProc(Obj,adr,nil,FrameCount,PCodePointer(Frames),@context,true);
     if code<0 then
       SysResetFPU;
   end;

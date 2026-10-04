@@ -243,6 +243,8 @@ function ThreadProc(ThreadObjPtr: Pointer): PtrInt;
       end;
     except
       Thread.FFatalException := TObject(AcquireExceptionObject);
+      if assigned(UnhandledThreadExceptionProc) then
+        UnhandledThreadExceptionProc(Thread.FFatalException,ExceptAddr,ExceptFrameCount,ExceptFrames);
     end;
     FreeThread := Thread.FFreeOnTerminate;
     Result := Thread.FReturnValue;

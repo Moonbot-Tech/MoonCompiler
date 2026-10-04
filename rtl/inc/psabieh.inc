@@ -1118,6 +1118,9 @@ begin
     causing halt upon entering this routine recursively. }
   ExceptTryLevel:=0;
   _ExceptObjectStack:=ExceptObjectStack;
+  if assigned(ExceptionContextProc) then
+    with _ExceptObjectStack^ do
+      ExceptionContextProc(FObject,Addr,AFrame,FrameCount,Frames,nil,false);
   if (RaiseProc <> nil) and (_ExceptObjectStack <> nil) then
     with _ExceptObjectStack^ do
       RaiseProc(FObject,Addr,FrameCount,Frames);

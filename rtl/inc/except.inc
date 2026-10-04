@@ -108,6 +108,9 @@ begin
 
   NewObj^.FObject:=Obj;
   NewObj^.Addr:=AnAddr;
+  if assigned(ExceptionBacktraceProc) and
+     ExceptionBacktraceProc(AnAddr,AFrame,NewObj^.FrameCount,NewObj^.Frames) then
+    exit(NewObj);
   if assigned(get_frame) then
     begin
 	  NewObj^.refcount:=0;

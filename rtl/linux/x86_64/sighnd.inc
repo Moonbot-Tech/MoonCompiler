@@ -70,6 +70,9 @@ procedure SignalToRunerror(sig : longint; SigInfo: PSigInfo; SigContext: PSigCon
   var
     res,fpustate,MMState : word;
   begin
+    if assigned(ExceptionContextProc) and
+       ((sig=SIGSEGV) or (sig=SIGBUS) or (sig=SIGILL) or (sig=SIGFPE)) then
+      ExceptionContextProc(nil,CodePointer(SigContext^.rip),nil,0,nil,SigContext,true);
     res:=0;
     case sig of
       SIGFPE :

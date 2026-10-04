@@ -195,6 +195,24 @@ end;
   { Interfaces support }
   {$i sysuintf.inc}
 
+    destructor Exception.Destroy;
+    begin
+      { EHeapMemoryError instances can survive Destroy and be raised again. }
+      FreeAndNil(fdiagnosticcontext);
+      inherited Destroy;
+    end;
+
+    procedure Exception.SetDiagnosticContext(Value: TObject);
+    var
+      Previous: TObject;
+    begin
+      if fdiagnosticcontext=Value then
+        exit;
+      Previous:=fdiagnosticcontext;
+      fdiagnosticcontext:=Value;
+      Previous.Free;
+    end;
+
     constructor Exception.Create(const msg : string);
 
       begin

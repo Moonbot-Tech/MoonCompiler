@@ -518,6 +518,14 @@
 {$endif FPC_USE_PSABIEH}
 
        TExceptProc = Procedure (Obj : TObject; Addr : CodePointer; FrameCount:Longint; Frame: PCodePointer);
+       { Optional diagnostics. A nil Obj with Context <> nil is an early OS
+         context notification; it must not allocate, raise, or take locks. }
+       TExceptionContextProc = Procedure (Obj: TObject; Addr: CodePointer; Frame: Pointer;
+         FrameCount: Longint; Frames: PCodePointer; Context: Pointer; Hardware: Boolean);
+       { True replaces the normal trace with an RTL-heap array owned by the
+         exception stack entry. False must leave no allocated output behind. }
+       TExceptionBacktraceProc = Function (Addr: CodePointer; Frame: Pointer;
+         var FrameCount: Longint; var Frames: PCodePointer): Boolean;
 
        { Exception object stack }
        PExceptObject = ^TExceptObject;
@@ -556,6 +564,9 @@
     Const
        ExceptProc : TExceptProc = Nil;
        RaiseProc : TExceptProc = Nil;
+       ExceptionContextProc: TExceptionContextProc = Nil;
+       ExceptionBacktraceProc: TExceptionBacktraceProc = Nil;
+       UnhandledThreadExceptionProc: TExceptProc = Nil;
        RaiseMaxFrameCount : Longint = 16;
 
     Function RaiseList : PExceptObject;

@@ -132,7 +132,10 @@ type
     private
       fmessage : string;
       fhelpcontext : longint;
+      fdiagnosticcontext: TObject;
+      procedure SetDiagnosticContext(Value: TObject);
     public
+      destructor Destroy; override;
       constructor Create(const msg : string);
       constructor CreateFmt(const msg : string; const args : array of const);
       constructor CreateRes(ResString: PResStringRec);
@@ -149,6 +152,8 @@ type
 
       property HelpContext : longint read fhelpcontext write fhelpcontext;
       property Message : string read fmessage write fmessage;
+      { Owned by the exception, including after AcquireExceptionObject. }
+      property DiagnosticContext: TObject read fdiagnosticcontext write SetDiagnosticContext;
    end;
 
    ExceptClass = class of Exception;

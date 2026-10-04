@@ -111,6 +111,8 @@ begin
   except
     on e: exception do begin
       LThread.FFatalException := TObject(AcquireExceptionObject);
+      if assigned(UnhandledThreadExceptionProc) then
+        UnhandledThreadExceptionProc(LThread.FFatalException,ExceptAddr,ExceptFrameCount,ExceptFrames);
 {$ifdef DEBUG_MT}
       lErrorAddr:=ExceptAddr;
       lErrorBase:=ExceptFrames^;
