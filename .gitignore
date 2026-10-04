@@ -9,6 +9,7 @@
 *.a
 !/runtime/reporting/native/libmoon_decode_linux.a
 !/runtime/reporting/native/libmoon_decode_win64.a
+!/packages/vcl-compat/native/zlib/*/moonzlib_*.o
 *.hex
 *.elf
 *.bin

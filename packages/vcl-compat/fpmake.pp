@@ -41,6 +41,27 @@ begin
     P.Dependencies.Add('wasm-utils',[wasip1,wasip1threads]);
     P.SourcePath.Add('src');
     P.IncludePath.Add('src');
+    { System.ZLib: the native zlib objects of the target live beside the unit
+      in the installed package directory, where the linker of an application
+      looks for a unit's $L objects }
+    P.ObjectPath.Add('native/zlib/x86_64-win64',[Win64]);
+    P.ObjectPath.Add('native/zlib/x86_64-linux',[Linux]);
+    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_adler32.o',[Win64],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_crc32.o',[Win64],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_deflate.o',[Win64],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_inffast.o',[Win64],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_inflate.o',[Win64],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_inftrees.o',[Win64],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_trees.o',[Win64],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_zutil.o',[Win64],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_adler32.o',[Linux],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_crc32.o',[Linux],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_deflate.o',[Linux],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_inffast.o',[Linux],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_inflate.o',[Linux],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_inftrees.o',[Linux],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_trees.o',[Linux],'$(unitinstalldir)');
+    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_zutil.o',[Linux],'$(unitinstalldir)');
 
 
     T:=P.Targets.AddUnit('system.permissions.pp');
@@ -53,6 +74,7 @@ begin
     T:=P.Targets.AddUnit('system.ansistrings.pp');
     T:=P.Targets.AddUnit('system.masks.pp');
     T.ResourceStrings := True;
+    T:=P.Targets.AddUnit('system.zlib.pp',[Win64,Linux]);
     T:=P.Targets.AddUnit('system.net.urlclient.pp');
     T:=P.Targets.AddUnit('system.imagelist.pp');
     T:=P.Targets.AddUnit('system.diagnostics.pp');
