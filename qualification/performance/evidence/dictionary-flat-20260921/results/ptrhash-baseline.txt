@@ -1,0 +1,11 @@
+              stride 8 lookup cyc/op  33.61
+             stride 16 lookup cyc/op  33.61
+             stride 24 lookup cyc/op  34.58
+             stride 32 lookup cyc/op  67.27
+             stride 48 lookup cyc/op  38.02
+             stride 64 lookup cyc/op  68.01
+             stride 96 lookup cyc/op  43.90
+            stride 128 lookup cyc/op  33.61
+TObject.Create stride: 256 / 32
+         real TObjects lookup cyc/op  68.67
+           ints 0..511 lookup cyc/op  38.08

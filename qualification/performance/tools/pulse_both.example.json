@@ -1,0 +1,21 @@
+{
+  "windows": {
+    "baseline_toolchain": "C:/pulse/baseline/.moonbot/toolchain",
+    "candidate_toolchain": "C:/pulse/current/toolchain",
+    "baseline_mm_source": "C:/pulse/baseline/runtime/mm/mormot.core.fpcx64mm.pas",
+    "candidate_mm_source": "C:/pulse/current/runtime/mm/mormot.core.fpcx64mm.pas"
+  },
+  "linux": {
+    "plink": "C:/path/to/plink.exe",
+    "pscp": "C:/path/to/pscp.exe",
+    "key": "C:/path/to/key.ppk",
+    "hostkey": "ssh-ed25519 255 SHA256:replace-me",
+    "target": "user@host",
+    "repo": "/home/user/pulse-source-main",
+    "output_root": "/home/user/pulse-results",
+    "baseline_toolchain": "/home/user/pulse-source-remote/.moonbot/toolchain",
+    "candidate_toolchain": "/home/user/pulse-source-main/toolchain",
+    "baseline_mm_source": "/home/user/pulse-source-remote/runtime/mm/mormot.core.fpcx64mm.pas",
+    "candidate_mm_source": "/home/user/pulse-source-main/runtime/mm/mormot.core.fpcx64mm.pas"
+  }
+}

@@ -1,0 +1,10 @@
+== size sweep int keys (min of 3 process medians, taskset -c 5)
+lookup 1024 50 int default      base=36.54  cand=25.27
+lookup 4096 50 int default      base=36.08  cand=34.63
+lookup 16384 50 int default     base=35.87  cand=38.87
+lookup 65536 50 int default     base=37.62  cand=41.98
+miss 1024 50 int default        base=31.39  cand=28.73
+miss 4096 50 int default        base=46.92  cand=52.19
+miss 16384 50 int default       base=46.88  cand=59.86
+lookup 4096 50 i64 default      base=53.15  cand=37.16
+lookup 16384 50 i64 default     base=55.66  cand=41.8

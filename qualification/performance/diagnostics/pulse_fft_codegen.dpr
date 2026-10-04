@@ -14,6 +14,7 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   Math,
   perf_clock in '..\common\perf_clock.pas',

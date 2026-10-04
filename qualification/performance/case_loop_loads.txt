@@ -1,0 +1,383 @@
+# Loads from .data/.bss that stay in a case loop (check_case_loads.py), one per (program, body procedure,
+# global), each with its class and what a store trace of one steady call saw (WP6 r8, 26.09.2026: the
+# loads of that global in that body / the ones a store of the case to the same page offset preceded
+# among the last 64 stores); the lines without a trace came 29.09, when the judge began to follow a
+# register that holds a global's address.  Loads only one target's code has are in
+# case_loop_loads_win64.txt and case_loop_loads_linux.txt.  A new load in a case loop, or a line no
+# load matches, fails the judge.
+
+name-lookup P$PULSE_NAME_LOOKUP_$$_CASELOOKUP$LONGINT$$QWORD U_$P$PULSE_NAME_LOOKUP_$$_QUERIES  # prepared incoming query: compared with each dictionary name; indexed by the outer request loop
+abi P$PULSE_ABI_$$_CASEARRAYCONST$LONGINT$$QWORD U_$P$PULSE_ABI_$$_ARRAYVALUE  # case input: prepared before the case; trace: not executed in the traced call
+abi P$PULSE_ABI_$$_CASEARRAYVALUE$LONGINT$$QWORD U_$P$PULSE_ABI_$$_ARRAYVALUE  # case input: prepared before the case; trace: not executed in the traced call
+abi P$PULSE_ABI_$$_CASEFUNCTIONPOINTER$LONGINT$$QWORD U_$P$PULSE_ABI_$$_PLAINCALLBACK  # case input: prepared before the case; trace 0/128 in flight
+abi P$PULSE_ABI_$$_CASEINTERFACEMETHOD$LONGINT$$QWORD U_$P$PULSE_ABI_$$_ABIINTERFACE  # case input: prepared before the case; trace 0/128 in flight
+abi P$PULSE_ABI_$$_CASEMETHODPOINTER$LONGINT$$QWORD U_$P$PULSE_ABI_$$_METHODCALLBACK  # case input: prepared before the case; trace 0/256 in flight
+abi P$PULSE_ABI_$$_CASEMIXEDARGS$LONGINT$$QWORD U_$P$PULSE_ABI_$$_ARRAYVALUE  # case input: prepared before the case; trace 0/128 in flight
+abi P$PULSE_ABI_$$_CASEOPENARRAY$LONGINT$$QWORD U_$P$PULSE_ABI_$$_ARRAYVALUE  # case input: prepared before the case; trace 0/128 in flight
+abi P$PULSE_ABI_$$_CASESTRINGCONST$LONGINT$$QWORD U_$P$PULSE_ABI_$$_TEXTVALUE  # case input: prepared before the case; trace 0/512 in flight
+abi P$PULSE_ABI_$$_CASESTRINGVALUE$LONGINT$$QWORD U_$P$PULSE_ABI_$$_TEXTVALUE  # case input: prepared before the case; trace 0/512 in flight
+abi P$PULSE_ABI_$$_CASEVIRTUALMETHOD$LONGINT$$QWORD U_$P$PULSE_ABI_$$_ABIOBJECT  # case input: prepared before the case; trace 0/128 in flight
+
+algorithms P$PULSE_ALGORITHMS_$$_CASEBINARYSEARCH$LONGINT$$QWORD U_$P$PULSE_ALGORITHMS_$$_SORTEDSOURCE  # workload data: the kernel reads its global inputs as written; trace 0/1024 in flight
+algorithms P$PULSE_ALGORITHMS_$$_CASECRC32$LONGINT$$QWORD U_$P$PULSE_ALGORITHMS_$$_DATA4K  # workload data: the kernel reads its global inputs as written; trace 0/2 in flight
+algorithms P$PULSE_ALGORITHMS_$$_CASEGENERICLIST$LONGINT$$QWORD U_$P$PULSE_ALGORITHMS_$$_SORTSOURCE  # workload data: the kernel reads its global inputs as written; trace 0/1024 in flight
+algorithms P$PULSE_ALGORITHMS_$$_CASELZCOMPRESS$LONGINT$$QWORD U_$P$PULSE_ALGORITHMS_$$_REPETITIVE4K  # workload data: the kernel reads its global inputs as written; trace: not executed in the traced call
+algorithms P$PULSE_ALGORITHMS_$$_CASELZROUNDTRIP$LONGINT$$QWORD U_$P$PULSE_ALGORITHMS_$$_REPETITIVE4K  # workload data: the kernel reads its global inputs as written; trace: not executed in the traced call
+algorithms P$PULSE_ALGORITHMS_$$_CASEOPENHASH$LONGINT$$QWORD U_$P$PULSE_ALGORITHMS_$$_SORTSOURCE  # workload data: the kernel reads its global inputs as written; trace 890/16384 in flight
+algorithms P$PULSE_ALGORITHMS_$$_CASEQUICKSORT$LONGINT$$QWORD U_$P$PULSE_ALGORITHMS_$$_SORTSOURCE  # workload data: the kernel reads its global inputs as written; trace 0/4 in flight
+algorithms P$PULSE_ALGORITHMS_$$_CASESHA256$LONGINT$$QWORD U_$P$PULSE_ALGORITHMS_$$_DATA4K  # workload data: the kernel reads its global inputs as written; trace 0/2 in flight
+
+calibration P$PULSE_CALIBRATION_$$_CASEMEMORYREAD$LONGINT$$QWORD U_$P$PULSE_CALIBRATION_$$_READDATA  # case input: prepared before the case; trace: not executed in the traced call
+calibration P$PULSE_CALIBRATION_$$_CASEMEMORYWRITE$LONGINT$$QWORD U_$P$PULSE_CALIBRATION_$$_WRITEDATA  # case input: prepared before the case; trace 0/1 in flight
+
+codegen P$PULSE_CODEGEN_$$_CASECONCRETEREVERSEINT$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_REVINTSCONCRETE  # case input: prepared before the case; trace 0/4 in flight
+codegen P$PULSE_CODEGEN_$$_CASECONCRETEREVERSEREC$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_REVRECSCONCRETE  # case input: prepared before the case; trace 0/4 in flight
+codegen P$PULSE_CODEGEN_$$_CASEFORDOWNTO$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_LATCHBYTES  # case input: prepared before the case; trace 0/1026 in flight
+codegen P$PULSE_CODEGEN_$$_CASEFORLENGTHARRAY$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_LATCHBYTES  # case input: prepared before the case; trace 0/1026 in flight
+codegen P$PULSE_CODEGEN_$$_CASEFORLENGTHSTRING$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_LATCHTEXT  # case input: prepared before the case; trace 0/1026 in flight
+codegen P$PULSE_CODEGEN_$$_CASEGENERICREVERSEINT$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_REVINTS  # kept: Reverse sweeps the array with its stores, a stack copy of this managed array is swept the same way; trace 4/4 in flight
+codegen P$PULSE_CODEGEN_$$_CASEGENERICREVERSEREC$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_REVRECS  # kept: Reverse sweeps the array with its stores, a stack copy of this managed array is swept the same way; trace 4/4 in flight
+codegen P$PULSE_CODEGEN_$$_CASEINDIRECTCALL$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_DIRECTFUNC  # case input: prepared before the case; trace 0/128 in flight
+codegen P$PULSE_CODEGEN_$$_CASEINTERFACECALL$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_INTERFACEADDER  # case input: prepared before the case; trace 0/256 in flight
+codegen P$PULSE_CODEGEN_$$_CASEPOINTERCHASE$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_NEXTINDEX  # case input: prepared before the case; trace 0/8192 in flight
+codegen P$PULSE_CODEGEN_$$_CASERANDOMREAD$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_LLCDATA  # case input: prepared before the case; trace 0/8192 in flight
+codegen P$PULSE_CODEGEN_$$_CASERANDOMREAD$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_RANDOMINDEX  # case input: prepared before the case; trace 0/8194 in flight
+codegen P$PULSE_CODEGEN_$$_CASESTRIDED$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_LLCDATA  # case input: prepared before the case; trace 0/131074 in flight
+codegen P$PULSE_CODEGEN_$$_CASEVIRTUALCALL$LONGINT$$QWORD U_$P$PULSE_CODEGEN_$$_VIRTUALADDER  # case input: prepared before the case; trace 0/256 in flight
+
+dispatch P$PULSE_DISPATCH_$$_CASEFUNCTIONPOINTER$LONGINT$$QWORD U_$P$PULSE_DISPATCH_$$_PLAINFUNC  # case input: prepared before the case; trace 0/128 in flight
+dispatch P$PULSE_DISPATCH_$$_CASEINTERFACEMONO$LONGINT$$QWORD U_$P$PULSE_DISPATCH_$$_MONOINTERFACE  # case input: prepared before the case; trace 0/128 in flight
+dispatch P$PULSE_DISPATCH_$$_CASELISTENUMERATOR$LONGINT$$QWORD U_$P$PULSE_DISPATCH_$$_INTEGERLIST  # case input: prepared before the case; trace 0/2 in flight
+dispatch P$PULSE_DISPATCH_$$_CASELISTINDEX$LONGINT$$QWORD U_$P$PULSE_DISPATCH_$$_INTEGERLIST  # case input: prepared before the case; trace 0/2050 in flight
+dispatch P$PULSE_DISPATCH_$$_CASESTATICMETHOD$LONGINT$$QWORD U_$P$PULSE_DISPATCH_$$_MONOOBJECT  # case input: prepared before the case; trace 0/128 in flight
+dispatch P$PULSE_DISPATCH_$$_CASEVIRTUALMONO$LONGINT$$QWORD U_$P$PULSE_DISPATCH_$$_MONOOBJECT  # case input: prepared before the case; trace 0/128 in flight
+
+heartbeat P$PULSE_HEARTBEAT_$$_CASEAGGREGATELARGE$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_PREPAREDLARGE  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASEAGGREGATESMALL$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_PREPAREDSMALL  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASEBOOKSWEEP$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_ASKBOOK  # workload data: the kernel reads its global inputs as written; trace 0/1771 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASEBOOKSWEEP$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_BIDBOOK  # workload data: the kernel reads its global inputs as written; trace 0/1771 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASEBOOKSWEEP$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_SWEEPQUANTITIES  # workload data: the kernel reads its global inputs as written; trace 0/3542 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASECORRELATION$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_PREPAREDSMALL  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASEENDTOEND$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_INFOJSONSMALL  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASEENDTOEND$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_TRADEBUFFERSMALL  # workload data: the kernel reads its global inputs as written; trace: not executed in the traced call
+heartbeat P$PULSE_HEARTBEAT_$$_CASEGENERATEFORMATLARGE$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_LARGEDESCRIPTORS  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASEGENERATEFORMATSMALL$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_SMALLDESCRIPTORS  # workload data: the kernel reads its global inputs as written; trace 0/2 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASEGENERATEMORMOTLARGE$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_LARGEDESCRIPTORS  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASEGENERATEMORMOTSMALL$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_SMALLDESCRIPTORS  # workload data: the kernel reads its global inputs as written; trace 0/2 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASERANKLARGE$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_COMPARERLARGE  # workload data: the kernel reads its global inputs as written; trace 0/2 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASERANKLARGE$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_UNSORTEDORDERLARGE  # workload data: the kernel reads its global inputs as written; trace: not executed in the traced call
+heartbeat P$PULSE_HEARTBEAT_$$_CASEREPORT$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_PREPAREDSMALL  # workload data: the kernel reads its global inputs as written; trace 0/2 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASEREPORT$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_TOPSMALL  # workload data: the kernel reads its global inputs as written; trace 0/4 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASESCANLARGE$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_INDEXLARGE  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASESCANLARGE$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_TRADEBUFFERLARGE  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASESCANSMALL$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_INDEXSMALL  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASESCANSMALL$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_TRADEBUFFERSMALL  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASESORTMIXED$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_SORTASCENDING  # workload data: the kernel reads its global inputs as written; trace: not executed in the traced call
+heartbeat P$PULSE_HEARTBEAT_$$_CASESORTMIXED$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_SORTDESCENDING  # workload data: the kernel reads its global inputs as written; trace: not executed in the traced call
+heartbeat P$PULSE_HEARTBEAT_$$_CASESORTMIXED$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_SORTDUPLICATES  # workload data: the kernel reads its global inputs as written; trace: not executed in the traced call
+heartbeat P$PULSE_HEARTBEAT_$$_CASESORTMIXED$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_SORTRANDOM  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_CASESPECTRUM$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_PREPAREDSMALL  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_PROCESSREQUESTS$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_REQUESTBUFFER  # workload data: the kernel reads its global inputs as written; trace 1/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_PROCESSREQUESTS$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_RESPONSES  # workload data: the kernel reads its global inputs as written; trace 59/1978 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_PROCESSREQUESTS$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_SESSIONINDEX  # workload data: the kernel reads its global inputs as written; trace 189/5934 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_PROCESSREQUESTS$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_SESSIONSTEMPLATE  # workload data: the kernel reads its global inputs as written; trace 1/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_PROCESSTIMERS$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_TIMERTEMPLATE  # workload data: the kernel reads its global inputs as written; trace 1/1 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_RUNBOOKDELTAS$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_BOOKDELTAS  # workload data: the kernel reads its global inputs as written; trace 159/3243 in flight
+heartbeat P$PULSE_HEARTBEAT_$$_RUNBOOKDELTAS$LONGINT$$QWORD U_$P$PULSE_HEARTBEAT_$$_BOOKTEMPLATE  # workload data: the kernel reads its global inputs as written; trace: not executed in the traced call
+
+hot-rtl P$PULSE_HOT_RTL_$$_CASEANSISAMETEXTEQUAL12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MIXED12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEANSISAMETEXTEQUAL12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MIXEDLOWER12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASTRCOMPARELESS12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ASTRA  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASTRCOMPARELESS12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ASTRLAST  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASTREQUALDISTINCT12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ASTRA  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASTREQUALDISTINCT12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ASTRB  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASTREQUALMISMATCHFIRST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ASTRA  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASTREQUALMISMATCHFIRST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ASTRFIRST  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASTREQUALMISMATCHLAST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ASTRA  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASTREQUALMISMATCHLAST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ASTRLAST  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASTRPOSCHARHIT32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ANSIPOSCHAR  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASTRPOSCHARHIT32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ANSITEXT32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEBOOLTOSTRTRUE$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEBOOL  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASECOMPARETEXTEQUAL12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASECOMPARETEXTEQUAL12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12B  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASECOMPARETEXTFOLD12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASECOMPARETEXTFOLD12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FOLD12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASECONTAINSTEXTHIT32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_NEEDLEUPPER  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASECONTAINSTEXTHIT32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_REPLACE32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASECONTAINSTEXTMISS32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_NEEDLEMISS  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASECONTAINSTEXTMISS32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_REPLACE32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASECRITICALSECTIONENTERLEAVE$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_CRITICALSECTION  # case input: prepared before the case; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEDATETIMETOUNIX$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FIXEDDATETIME  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEDICTINTADDORSETEXISTING$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_INTDICT  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEDICTINTTRYGETVALUEHIT$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_INTDICT  # case input: prepared before the case; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEDICTINTTRYGETVALUEMISS$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_INTDICT  # case input: prepared before the case; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEDICTSTRCONTAINSKEYMISS$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_STRDICT  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEDICTSTRTRYGETVALUEHIT$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_STRDICT  # case input: prepared before the case; trace 0/384 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEDYNARRAYASSIGNSHARE$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DOUBLE64  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEDYNARRAYSETLENGTHSTRING16$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SHORT8A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEENCODINGGETBYTES32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ASCII32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEENCODINGGETSTRING32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ASCII32BYTES  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEENCODINGGETSTRING32CYRILLIC$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_CYRILLIC32BYTES  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEENDSTEXTHIT12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SUFFIX12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEENDSTEXTHIT12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_TEXT32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEFILLCHAR4K$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DST4K  # case input: prepared before the case; trace 0/4 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEFILLCHAR64$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DST4K  # case input: prepared before the case; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEFLOATTOSTR8$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEDOUBLE  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEFLOATTOSTRFFIXED2$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEDOUBLE  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEFORMAT3MIXED$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEINT3  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEFORMAT3MIXED$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SHORT8B  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEFORMATDATETIMEFULL$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FIXEDDATETIME  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEFORMATDATETIMESHORT$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FIXEDDATETIME  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEFORMATF2$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEDOUBLE  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEFORMATSD$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEINT10  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEFORMATSD$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SHORT8A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEGETMEMFREEMEM256$LONGINT$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEGETMEMFREEMEM32$LONGINT$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEINTTOHEX16$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEINT64  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEINTTOHEX8$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEINT10  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEINTTOSTRINT32SMALL$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEINT3  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEINTTOSTRINT32TEN$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEINT10  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEINTTOSTRINT64NINETEEN$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEINT64  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASELISTINTCONTAINSMISS$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_INTLIST  # case input: prepared before the case; trace 0/2 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASELISTINTFORIN1K$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_INTLIST  # case input: prepared before the case; trace 0/2 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASELISTINTINDEXOFHITMID$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_INTDATA  # case input: prepared before the case, the value IndexOf searches
+hot-rtl P$PULSE_HOT_RTL_$$_CASELISTINTINDEXOFHITMID$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_INTLIST  # case input: prepared before the case; trace 0/2 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASELISTINTITEMSSUM1K$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_INTLIST  # case input: prepared before the case; trace 0/2048 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASELISTOBJFORIN256$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_OBJLIST  # case input: prepared before the case; trace 0/2 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASELOWERCASE12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MIXED12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMEMSTREAMCOPYFROM4K$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MEMSTREAM  # case input: prepared before the case; trace 0/4 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMEMSTREAMCOPYFROM4K$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SOURCESTREAM  # case input: prepared before the case; trace 0/6 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMEMSTREAMREAD16$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MEMSTREAM  # case input: prepared before the case; trace 0/260 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMEMSTREAMSEEKPOSITION$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MEMSTREAM  # case input: prepared before the case; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMEMSTREAMSETSIZEREUSE$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MEMSTREAM  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMONITORENTEREXIT$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MONITOROBJECT  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMONITORENTEREXIT$LONGINT$$QWORD U_$SYSTEM_$$__MONITORMANAGER  # product: System.MonitorManager: TMonitor.Enter/Exit inline call through it; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMOVE16$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DST4K  # case input: prepared before the case; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMOVE16$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SRC4K  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMOVE256$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DST4K  # case input: prepared before the case; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMOVE256$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SRC4K  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMOVE4K$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DST4K  # case input: prepared before the case; trace 0/4 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEMOVE4K$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SRC4K  # case input: prepared before the case; trace 0/2 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEREALLOCMEMGROW$LONGINT$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace 0/384 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEREPLACETEXTCYRILLIC32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_CYRNEEDLE6  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEREPLACETEXTCYRILLIC32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_CYRTEXT32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEREPLACETEXTCYRILLIC32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SHORT8A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEREPLACETEXTNONE32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_NEEDLEMISS  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEREPLACETEXTNONE32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_REPLACE32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEREPLACETEXTNONE32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SHORT8A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEREPLACETEXTONE32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_NEEDLEUPPER  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEREPLACETEXTONE32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_REPLACE32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEREPLACETEXTONE32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SHORT8A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTEQUAL128$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_EQUAL128A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTEQUAL128$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_EQUAL128B  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTEQUALDISTINCT12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTEQUALDISTINCT12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12B  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTFOLD1$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FOLD1A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTFOLD1$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FOLD1B  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTFOLD12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTFOLD12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FOLD12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTFOLD128$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FOLD128A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTFOLD128$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FOLD128B  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTLENGTHDIFFER$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTLENGTHDIFFER$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_LENGTH13  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTMISMATCHFIRST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTMISMATCHFIRST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MISMATCHFIRST12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTMISMATCHLAST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESAMETEXTMISMATCHLAST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MISMATCHLAST12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTARTSTEXTHIT12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_PREFIX12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTARTSTEXTHIT12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_TEXT32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTARTSTEXTHITCYRILLIC12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_CYRPREFIX12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTARTSTEXTHITCYRILLIC12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_CYRTEXT32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTRINGLISTINDEXOFHIT$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_PLAINNAMES  # case input: prepared before the case; trace: not executed in the traced call
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTRINGLISTINDEXOFMISS128$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_PLAINNAMES  # case input: prepared before the case; trace 0/2 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTRINGLISTINDEXOFNAMEHIT$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_NAMES  # case input: prepared before the case; trace: not executed in the traced call
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTRINGLISTSORTEDFIND$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SORTEDNAMES  # case input: prepared before the case; trace 0/75 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTRINGLISTVALUESHIT$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_NAMES  # case input: prepared before the case; trace: not executed in the traced call
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTRINGREPLACENONE32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_NEEDLEMISS  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTRINGREPLACENONE32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_REPLACE32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTRINGREPLACENONE32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SHORT8A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTRINGREPLACEONE32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_REPLACE32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTRINGREPLACEONE32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SHORT8A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTRTOFLOAT8$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FLOATTEXT8  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESTRTOINTDEFHIT$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_INTTEXT7  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASESUPPORTSHIT$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_INTERFACED  # case input: prepared before the case; trace: not executed in the traced call
+hot-rtl P$PULSE_HOT_RTL_$$_CASESUPPORTSMISS$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_PLAIN  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASETRIMBOTH16$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_PADDED16  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASETRIMNONE16$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_NOPAD16  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASETRYSTRTOFLOAT8$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FLOATTEXT8  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASETRYSTRTOFLOATCOMMA8$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FLOATTEXT8COMMA  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASETRYSTRTOINT64NINETEEN$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_INT64TEXT19  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASETRYSTRTOINT7$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_INTTEXT7  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUINTTOSTRINT64$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEINT64  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUNIXTODATETIME$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FIXEDUNIX  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUPPERCASE12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MIXED12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUPPERCASE64$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MIXED64  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTRCONCAT2SHORT$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SHORT8A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTRCONCAT2SHORT$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SHORT8B  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTRCONCAT3$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SHORT8A  # case input: prepared before the case; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTRCONCAT3$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_SHORT8B  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTRCOPYMID16$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_TEXT64  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTREQUALDISTINCT12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTREQUALDISTINCT12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12B  # case input: prepared before the case; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTREQUALMISMATCHLAST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTREQUALMISMATCHLAST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MISMATCHLAST12  # case input: prepared before the case; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTRPOSCHARHIT32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_POSCHAR  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTRPOSCHARHIT32$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_TEXT32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTRPOSSTRHIT64$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_NEEDLE  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTRPOSSTRHIT64$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_TEXT64  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUSTRUNIQUECOW16$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_TEXT16  # case input: prepared before the case; trace: not executed in the traced call
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUTF8ENCODE32ASCII$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ASCII32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUTF8ENCODE32CYRILLIC$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_CYRILLIC32  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUTF8TOSTRING32ASCII$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_ASCII32UTF8  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEUTF8TOSTRING32CYRILLIC$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_CYRILLIC32UTF8  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEVARIANTASSIGNINT$LONGINT$$QWORD U_$SYSTEM_$$_VARIANTMANAGER  # product: System.VariantManager: variant operations inline call through it; trace 0/256 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEVARIANTASSIGNSTRING$LONGINT$$QWORD U_$SYSTEM_$$_VARIANTMANAGER  # product: System.VariantManager: variant operations inline call through it; trace 0/128 in flight
+
+json P$PULSE_JSON_$$_CASEAPPLICATIONPIPELINE$LONGINT$$QWORD U_$P$PULSE_JSON_$$_JSONMEDIUM  # workload data: the kernel reads its global inputs as written; trace 0/2 in flight
+json P$PULSE_JSON_$$_CASEBUILDERGROWTH$LONGINT$$QWORD U_$P$PULSE_JSON_$$_BUILDERCHUNK  # workload data: the kernel reads its global inputs as written; trace 322/2048 in flight
+
+kernels P$PULSE_KERNELS_$$_CASEBASE64ENCODE$LONGINT$$QWORD TC_$P$PULSE_KERNELS_$$_BASE64TABLE  # table: the case's own constant table, read by its algorithm; trace 142/10920 in flight
+kernels P$PULSE_KERNELS_$$_CASELUDECOMPOSITION$LONGINT$$QWORD U_$P$PULSE_KERNELS_$$_MATRIXINITIAL  # workload data: the kernel restores its matrix from the initial one on every pass, as written
+kernels P$PULSE_KERNELS_$$_CASESPARSEMATRIXVECTOR$LONGINT$$QWORD U_$P$PULSE_KERNELS_$$_SPARSEOUTPUT  # workload data: the kernel adds three elements of its output to the digest on every pass, as written
+
+layout P$PULSE_LAYOUT_$$_CASEAOSALLFIELDS$LONGINT$$QWORD U_$P$PULSE_LAYOUT_$$_ALIGNEDITEMS  # case input: prepared before the case; trace 0/98304 in flight
+layout P$PULSE_LAYOUT_$$_CASEAOSONEFIELD$LONGINT$$QWORD U_$P$PULSE_LAYOUT_$$_ALIGNEDITEMS  # case input: prepared before the case; trace 0/16384 in flight
+layout P$PULSE_LAYOUT_$$_CASEDYNAMICARRAY$LONGINT$$QWORD U_$P$PULSE_LAYOUT_$$_DYNAMICINTS  # case input: prepared before the case; trace 0/16386 in flight
+layout P$PULSE_LAYOUT_$$_CASEMOVE16$LONGINT$$QWORD U_$P$PULSE_LAYOUT_$$_SOURCE16  # case input: prepared before the case; trace 0/2 in flight
+layout P$PULSE_LAYOUT_$$_CASEMOVE64$LONGINT$$QWORD U_$P$PULSE_LAYOUT_$$_SOURCE64  # case input: prepared before the case, the record Move copies
+layout P$PULSE_LAYOUT_$$_CASEPACKEDRECORD$LONGINT$$QWORD U_$P$PULSE_LAYOUT_$$_PACKEDITEMS  # case input: prepared before the case; trace 0/65536 in flight
+layout P$PULSE_LAYOUT_$$_CASESOAALLFIELDS$LONGINT$$QWORD U_$P$PULSE_LAYOUT_$$_SOAA  # case input: prepared before the case; trace 0/16384 in flight
+layout P$PULSE_LAYOUT_$$_CASESOAALLFIELDS$LONGINT$$QWORD U_$P$PULSE_LAYOUT_$$_SOAB  # case input: prepared before the case; trace 0/16384 in flight
+layout P$PULSE_LAYOUT_$$_CASESOAALLFIELDS$LONGINT$$QWORD U_$P$PULSE_LAYOUT_$$_SOAX  # case input: prepared before the case; trace 0/16384 in flight
+layout P$PULSE_LAYOUT_$$_CASESOAALLFIELDS$LONGINT$$QWORD U_$P$PULSE_LAYOUT_$$_SOAY  # case input: prepared before the case; trace 0/16384 in flight
+layout P$PULSE_LAYOUT_$$_CASESOAONEFIELD$LONGINT$$QWORD U_$P$PULSE_LAYOUT_$$_SOAA  # case input: prepared before the case; trace 0/16384 in flight
+layout P$PULSE_LAYOUT_$$_CASEVARIANTRECORD$LONGINT$$QWORD U_$P$PULSE_LAYOUT_$$_VARIANTITEMS  # case input: prepared before the case; trace 0/38228 in flight
+
+loops P$PULSE_LOOPS_$$_CASEBREAKCONTINUE$LONGINT$$QWORD U_$P$PULSE_LOOPS_$$_RUNTIMECOUNT  # case input: prepared before the case; trace 0/448 in flight
+loops P$PULSE_LOOPS_$$_CASEREPEATLOOP$LONGINT$$QWORD U_$P$PULSE_LOOPS_$$_RUNTIMECOUNT  # case input: prepared before the case; trace 0/512 in flight
+loops P$PULSE_LOOPS_$$_CASEWHILELOOP$LONGINT$$QWORD U_$P$PULSE_LOOPS_$$_RUNTIMECOUNT  # case input: prepared before the case; trace 0/514 in flight
+
+managed P$PULSE_MANAGED_$$_CASEIGNOREDSTRINGRESULT$LONGINT$$QWORD U_$P$PULSE_MANAGED_$$_FETCHTEXTPROC  # case input: prepared before the case; trace 0/64 in flight
+managed P$PULSE_MANAGED_$$_CASEOUTSTRINGFORWARDING$LONGINT$$QWORD U_$P$PULSE_MANAGED_$$_GETFORWARDPROC  # case input: prepared before the case; trace 0/64 in flight
+managed P$PULSE_MANAGED_$$_CASEVARIANTNUMERIC$LONGINT$$QWORD U_$SYSTEM_$$_VARIANTMANAGER  # product: System.VariantManager: variant operations inline call through it; trace 0/256 in flight
+
+mm P$PULSE_MM_$$_CASEFRAGMENTED$LONGINT$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace 120/3072 in flight
+mm P$PULSE_MM_$$_CASEREALLOCGROW$LONGINT$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace 0/28 in flight
+mm P$PULSE_MM_$$_CASEREALLOCSHRINK$LONGINT$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace 0/28 in flight
+mm P$PULSE_MM_$$_CASERINGMIXED$LONGINT$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace 54/1024 in flight
+
+numeric P$PULSE_NUMERIC_$$_CASEINT32DIVRUNTIME$LONGINT$$QWORD U_$P$PULSE_NUMERIC_$$_RUNTIMEDIVISOR32  # case input: prepared before the case; trace 0/256 in flight
+numeric P$PULSE_NUMERIC_$$_CASEINT64DIVRUNTIME$LONGINT$$QWORD U_$P$PULSE_NUMERIC_$$_RUNTIMEDIVISOR64  # case input: prepared before the case; trace 0/256 in flight
+numeric P$PULSE_NUMERIC_$$_CASESHIFTVARIABLE$LONGINT$$QWORD U_$P$PULSE_NUMERIC_$$_RUNTIMESHIFT  # case input: prepared before the case; trace 0/256 in flight
+
+repairs P$PULSE_REPAIRS_$$_CASEGETTERLISTFIND$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_GETTERKEYS  # case input: prepared before the case, the key of the pass, GetterKeys[I and 15] in the loop over the names
+repairs P$PULSE_REPAIRS_$$_CASEGETTERPROPERTYCOMPARE$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_GETTERKEYS  # case input: prepared before the case, the key of the pass, GetterKeys[I and 15] in the loop over the books
+repairs P$PULSE_REPAIRS_$$_CASEGETTERRECORDFIELD$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_GETTERDESK  # case input: prepared before the case, the object whose Volume the loop calls; trace: not taken
+repairs P$PULSE_REPAIRS_$$_CASEINTERFACECALL$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_ADDER  # case input: prepared before the case; trace 0/256 in flight
+repairs P$PULSE_REPAIRS_$$_CASELDEXPDOUBLENORMAL$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_DOUBLES256  # case input: prepared before the case; trace 0/128 in flight
+repairs P$PULSE_REPAIRS_$$_CASELDEXPSINGLENORMAL$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_SINGLES256  # case input: prepared before the case; trace 0/128 in flight
+repairs P$PULSE_REPAIRS_$$_CASELISTEXCHANGE$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_INTEGERLIST  # case input: prepared before the case; trace 0/160 in flight
+repairs P$PULSE_REPAIRS_$$_CASELOOPINVARIANTFIELD$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_HOLDER  # case input: prepared before the case; trace 0/512 in flight
+repairs P$PULSE_REPAIRS_$$_CASEMEAN256$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_DOUBLES256  # case input: prepared before the case; trace 0/4 in flight
+repairs P$PULSE_REPAIRS_$$_CASEMEAN4$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_DOUBLES4  # case input: prepared before the case; trace 0/256 in flight
+repairs P$PULSE_REPAIRS_$$_CASEMEANINT64_256$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_INT64S256  # case input: prepared before the case; trace 0/4 in flight
+repairs P$PULSE_REPAIRS_$$_CASEMEANINT64_4$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_INT64S4  # case input: prepared before the case; trace 0/256 in flight
+repairs P$PULSE_REPAIRS_$$_CASESTDDEV256$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_DOUBLES256  # case input: prepared before the case; trace 0/4 in flight
+repairs P$PULSE_REPAIRS_$$_CASESTDDEV4$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_DOUBLES4  # case input: prepared before the case; trace 0/256 in flight
+repairs P$PULSE_REPAIRS_$$_CASEVARIANCE256$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_DOUBLES256  # case input: prepared before the case; trace 0/4 in flight
+repairs P$PULSE_REPAIRS_$$_CASEVARIANCE4$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_DOUBLES4  # case input: prepared before the case; trace 0/256 in flight
+repairs P$PULSE_REPAIRS_$$_CASEVARIANTDICTIONARY$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_VARIANTDICTIONARY  # case input: prepared before the case; trace 0/512 in flight
+repairs P$PULSE_REPAIRS_$$_CASEVARIANTDICTIONARY$LONGINT$$QWORD U_$SYSTEM_$$_VARIANTMANAGER  # product: System.VariantManager: variant operations inline call through it; trace 0/128 in flight
+
+rtl P$PULSE_RTL_$$_CASEDYNAMICARRAYCOPY$LONGINT$$QWORD U_$P$PULSE_RTL_$$_INTEGERDATA  # case input: prepared before the case; trace 0/4 in flight
+rtl P$PULSE_RTL_$$_CASEHELPERINDEXOFSTRING$LONGINT$$QWORD U_$P$PULSE_RTL_$$_SEARCHTEXT  # case input: prepared before the case; trace 0/2 in flight
+rtl P$PULSE_RTL_$$_CASEMEMORYSTREAM$LONGINT$$QWORD U_$P$PULSE_RTL_$$_BYTEDATA  # case input: prepared before the case; trace 0/6 in flight
+rtl P$PULSE_RTL_$$_CASEOBJECTALLOCZEROFREE$LONGINT$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace 0/4 in flight
+rtl P$PULSE_RTL_$$_CASEUNICODECOPY$LONGINT$$QWORD U_$P$PULSE_RTL_$$_SEARCHTEXT  # case input: prepared before the case; trace 0/2 in flight
+rtl P$PULSE_RTL_$$_CASEUNICODELOWERCASE$LONGINT$$QWORD U_$P$PULSE_RTL_$$_SEARCHTEXT  # case input: prepared before the case; trace 0/2 in flight
+rtl P$PULSE_RTL_$$_CASEUNICODEPOS$LONGINT$$QWORD U_$P$PULSE_RTL_$$_SEARCHTEXT  # case input: prepared before the case; trace 0/2 in flight
+rtl P$PULSE_RTL_$$_CASEUNICODEUPPERCASE$LONGINT$$QWORD U_$P$PULSE_RTL_$$_SEARCHTEXT  # case input: prepared before the case; trace 0/2 in flight
+rtl P$PULSE_RTL_$$_CASEUTF8DECODE$LONGINT$$QWORD U_$P$PULSE_RTL_$$_SEARCHUTF8  # case input: prepared before the case; trace 0/2 in flight
+rtl P$PULSE_RTL_$$_CASEUTF8ENCODE$LONGINT$$QWORD U_$P$PULSE_RTL_$$_SEARCHTEXT  # case input: prepared before the case; trace 0/2 in flight
+rtl P$PULSE_RTL_$$_CASEUTF8ENCODEDECODE$LONGINT$$QWORD U_$P$PULSE_RTL_$$_SEARCHTEXT  # case input: prepared before the case; trace 0/2 in flight
+
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEARRAYBINARYSEARCH$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_INTEGERS  # case input: prepared before the case; trace 0/512 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEARRAYINTEGERCOPY$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_INTEGERS  # case input: prepared before the case; trace 0/4 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEARRAYINTEGERSORT$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_INTEGERS  # case input: prepared before the case; trace 0/4 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEARRAYSTRINGSORT$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # case input: prepared before the case; trace 0/2 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEDICTIONARYADDORSET$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_INTEGERS  # kept: 2-4 aliased loads of ~1000 per call; trace 2/770 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEDICTIONARYCONTAINSKEY$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_INTEGERS  # case input: prepared before the case; trace 0/512 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEDICTIONARYCONTAINSKEY$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDINTEGERDICTIONARY  # case input: prepared before the case; trace 0/1536 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEDICTIONARYCONTAINSVALUE$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDINTEGERDICTIONARY  # case input: prepared before the case; trace 0/128 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEDICTIONARYKEYS$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDINTEGERDICTIONARY  # case input: prepared before the case; trace 0/2 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEDICTIONARYPAIRS$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDINTEGERDICTIONARY  # case input: prepared before the case; trace 0/2 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEDICTIONARYSTRINGADD$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # kept: the collection the case fills sweeps every page offset with its stores, a stack copy of this managed array is swept the same way; trace 18/512 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEDICTIONARYSTRINGCLEAR$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # kept: the collection the case fills sweeps every page offset with its stores, a stack copy of this managed array is swept the same way; trace 8/512 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEDICTIONARYSTRINGCONTAINS$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDSTRINGDICTIONARY  # case input: prepared before the case; trace 0/1024 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEDICTIONARYSTRINGCONTAINS$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # case input: prepared before the case; trace 0/512 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEDICTIONARYTRYADD$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_INTEGERS  # kept: 2-4 aliased loads of ~1000 per call; trace 4/1024 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEDICTIONARYVALUES$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDINTEGERDICTIONARY  # case input: prepared before the case; trace 0/2 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTEXCHANGEREVERSE$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDINTEGERLIST  # case input: prepared before the case; trace 0/2 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTINTEGERADDRANGE$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_BULKINTEGERS  # case input: prepared before the case; trace 0/4 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTINTEGERCLEAR$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_BULKINTEGERS  # case input: prepared before the case; trace 0/4 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTINTEGERCOPYCONSTRUCT$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDINTEGERLIST  # case input: prepared before the case; trace 0/2 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTINTEGERDELETEINSERTRANGE$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_BULKMIDDLE  # case input: prepared before the case; trace 0/2 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTINTEGERINDEXOF$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_INTEGERS  # case input: prepared before the case; trace 0/512 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTINTEGERINDEXOF$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDINTEGERLIST  # case input: prepared before the case; trace 0/1024 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTINTEGERINSERTRANGELIST$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_BULKINTEGERS  # kept: a local copy of this managed array adds a finally frame that moves the RTL and MM behind the program by 0x80, for 2 aliased loads a call; trace 2/4 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTINTEGERPACKALTERNATING$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PACKEDINTEGERS  # case input: prepared before the case; trace 0/4 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTINTEGERSORT$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_INTEGERS  # case input: prepared before the case; trace 0/4 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTSTRINGADDRANGE$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_BULKSTRINGS  # case input: prepared before the case; trace 0/4 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTSTRINGADDRESERVED$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # kept: the collection the case fills sweeps every page offset with its stores, a stack copy of this managed array is swept the same way; trace 16/512 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTSTRINGCLEAR$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_BULKSTRINGS  # case input: prepared before the case; trace 0/4 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTSTRINGENUMERATE$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDSTRINGLIST  # case input: prepared before the case; trace 0/2 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTSTRINGINDEXOF$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDSTRINGLIST  # case input: prepared before the case; trace 0/261 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTSTRINGINDEXOF$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # case input: prepared before the case; trace 0/261 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTSTRINGINSERTDELETE$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # kept: the collection the case fills sweeps every page offset with its stores, a stack copy of this managed array is swept the same way; trace 6/512 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTSTRINGINSERTRANGE$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_BULKMIDDLESTRINGS  # case input: prepared before the case; trace 0/4 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTSTRINGINSERTRANGE$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_BULKSTRINGS  # case input: prepared before the case; trace 0/4 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTSTRINGREAD$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDSTRINGLIST  # case input: prepared before the case; trace 0/1026 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTSTRINGSORT$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # case input: prepared before the case; trace 0/4 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASELISTSTRINGTOARRAY$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_PREPAREDSTRINGLIST  # case input: prepared before the case; trace 0/2 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEQUEUEENUMERATE$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_INTEGERS  # case input: prepared before the case; trace 0/256 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEQUEUEINTEGERSTEADY$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_INTEGERS  # case input: prepared before the case; trace 0/256 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEQUEUESTRINGCLEAR$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # kept: the collection the case fills sweeps every page offset with its stores, a stack copy of this managed array is swept the same way; trace 14/512 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEQUEUESTRINGROUNDTRIP$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # kept: the collection the case fills sweeps every page offset with its stores, a stack copy of this managed array is swept the same way; trace 14/512 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASEQUEUESTRINGSTEADY$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # kept: the collection the case fills sweeps every page offset with its stores, a stack copy of this managed array is swept the same way; trace 7/256 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASESTACKENUMERATE$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_INTEGERS  # case input: prepared before the case; trace 0/256 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASESTACKINTEGERROUNDTRIP$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_INTEGERS  # case input: prepared before the case; trace 0/512 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASESTACKSTRINGCLEAR$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # kept: the collection the case fills sweeps every page offset with its stores, a stack copy of this managed array is swept the same way; trace 10/512 in flight
+rtl-collections P$PULSE_RTL_COLLECTIONS_$$_CASESTACKSTRINGROUNDTRIP$LONGINT$$QWORD U_$P$PULSE_RTL_COLLECTIONS_$$_STRINGS  # kept: the collection the case fills sweeps every page offset with its stores, a stack copy of this managed array is swept the same way; trace 10/512 in flight
+
+threads P$PULSE_THREADS$_$TPULSEWORKERBASE_$__$$_RUNALLOCFREE$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace: not executed in the traced call
+threads P$PULSE_THREADS$_$TPULSEWORKERBASE_$__$$_RUNALLOCFREE96$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace: not executed in the traced call
+threads P$PULSE_THREADS$_$TPULSEWORKERBASE_$__$$_RUNCROSSFREE$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace: not executed in the traced call
+threads P$PULSE_THREADS$_$TPULSEWORKERBASE_$__$$_RUNCROSSFREE$$QWORD U_$P$PULSE_THREADS_$$_CROSSPOINTERS  # case input: prepared before the case; trace: not executed in the traced call
+threads P$PULSE_THREADS$_$TPULSEWORKERBASE_$__$$_RUNLOCKEDWRITE$$QWORD U_$P$PULSE_THREADS_$$_SHAREDLOCK  # case input: prepared before the case; trace: not executed in the traced call
+threads P$PULSE_THREADS$_$TPULSEWORKERBASE_$__$$_RUNLOCKEDWRITE$$QWORD U_$P$PULSE_THREADS_$$_SHAREDVALUE  # case input: prepared before the case; trace: not executed in the traced call
+threads P$PULSE_THREADS_$$_CASECROSSTHREADFREE$LONGINT$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace 709/12095 in flight
+threads P$PULSE_THREADS_$$_CASECROSSTHREADFREE$LONGINT$$QWORD U_$P$PULSE_THREADS_$$_CROSSPOINTERS  # kept: the case sweeps the pointer array with its stores, a stack copy of this managed array is swept the same way; trace 1066/24190 in flight
+
+workloads P$PULSE_WORKLOADS_$$_CASECONVOLUTION$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_IMAGEINPUT  # workload data: the kernel reads its global inputs as written; trace 4680/78245 in flight
+workloads P$PULSE_WORKLOADS_$$_CASECONVOLUTION$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_IMAGEOUTPUT  # workload data: the kernel reads its global inputs as written; trace 520/8693 in flight
+workloads P$PULSE_WORKLOADS_$$_CASEFFT1024$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_FFTINPUT  # workload data: the kernel reads its global inputs as written; trace 1/2 in flight
+workloads P$PULSE_WORKLOADS_$$_CASEFLOYDWARSHALL$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_FLOYDBASE  # workload data: the kernel reads its global inputs as written; trace 1/1 in flight
+workloads P$PULSE_WORKLOADS_$$_CASEJACOBI2D$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_GRIDA  # workload data: the kernel reads its global inputs as written; trace 21039/165861 in flight
+workloads P$PULSE_WORKLOADS_$$_CASEJACOBI2D$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_GRIDB  # workload data: the kernel reads its global inputs as written; trace 5797/45874 in flight
+workloads P$PULSE_WORKLOADS_$$_CASEJACOBI2D$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_GRIDINITIAL  # workload data: the kernel reads its global inputs as written; trace 1/2 in flight
+workloads P$PULSE_WORKLOADS_$$_CASELINKEDLIST$LONGINT$$QWORD TC_$SYSTEM_$$_MEMORYMANAGER  # product: System.MemoryManager: GetMem/FreeMem inline call through it; trace 48/1532 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESPECTRALNORM$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_SPECTRALTMP  # workload data: the kernel reads its global inputs as written; trace 2/7 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESPECTRALNORM$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_SPECTRALU  # workload data: the kernel reads its global inputs as written; trace 0/132 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESPECTRALNORM$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_SPECTRALV  # workload data: the kernel reads its global inputs as written; trace 2/4 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESTATEMACHINE$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_STATEINPUT  # workload data: the kernel reads its global inputs as written; trace 0/12944 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESTREAMADD$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_STREAMA  # workload data: the kernel reads its global inputs as written; trace 11392/90909 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESTREAMADD$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_STREAMB  # workload data: the kernel reads its global inputs as written; trace 11392/90908 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESTREAMADD$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_STREAMC  # workload data: the kernel reads its global inputs as written; trace 11392/90908 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESTREAMCOPY$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_STREAMA  # workload data: the kernel reads its global inputs as written; trace 0/111111 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESTREAMCOPY$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_STREAMC  # workload data: the kernel reads its global inputs as written; trace 0/111110 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESTREAMSCALE$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_STREAMA  # workload data: the kernel reads its global inputs as written; trace 0/1 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESTREAMSCALE$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_STREAMB  # workload data: the kernel reads its global inputs as written; trace 12544/99999 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESTREAMSCALE$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_STREAMC  # workload data: the kernel reads its global inputs as written; trace 12544/99999 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESTREAMTRIAD$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_STREAMA  # workload data: the kernel reads its global inputs as written; trace 10432/83333 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESTREAMTRIAD$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_STREAMB  # workload data: the kernel reads its global inputs as written; trace 10432/83332 in flight
+workloads P$PULSE_WORKLOADS_$$_CASESTREAMTRIAD$LONGINT$$QWORD U_$P$PULSE_WORKLOADS_$$_STREAMC  # workload data: the kernel reads its global inputs as written; trace 10432/83332 in flight

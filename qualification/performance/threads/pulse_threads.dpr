@@ -14,12 +14,15 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   Classes,
   SyncObjs,
   perf_clock in '..\common\perf_clock.pas',
   pulse_process_metrics in '..\common\pulse_process_metrics.pas',
   pulse_harness in '..\common\pulse_harness.pas';
+
+{$I ../common/pulse_program_prefix.inc}
 
 const
   MaxThreadCount = 8;
@@ -30,10 +33,13 @@ const
   SharedReadMultiplier = 64;
   ContentionMultiplier = 32;
   AllocWorkMultiplier = 16;
+  { One complete period of the size generator, independent of calibration. }
+  AllocBlock = 16384;
+  CrossBlockPerThread = AllocBlock div 4;
 
 type
   TWorkKind = (wkEmpty, wkIndependent, wkSharedRead, wkLockedWrite,
-    wkFalseSharing, wkPadded, wkAllocFree, wkAllocFree96, wkCrossFree);
+    wkFalseSharing, wkPadded, wkAllocFree, wkAllocFree96, wkCrossFree, wkArenaProbe);
 
   TCounter = record
     Value: UInt64;
@@ -58,9 +64,11 @@ type
     function RunAllocFree: UInt64;
     function RunAllocFree96: UInt64;
     function RunCrossFree: UInt64;
+    procedure ProbeArenas;
     procedure RunWork;
   public
     Digest: UInt64;
+    ArenaClass, ArenaOwner: array[0..2] of Pointer;
   end;
 
   TPulseWorker = class(TPulseWorkerBase)
@@ -73,6 +81,7 @@ type
   TPersistentWorker = class(TPulseWorkerBase)
   private
     FFailureMessage: string;
+    FDiscard: Boolean;
   protected
     procedure Execute; override;
   public
@@ -87,6 +96,7 @@ type
   private
     FRole: TQueueRole;
     FCount: Integer;
+    procedure RunWork;
   protected
     procedure Execute; override;
   public
@@ -124,8 +134,13 @@ end;
 procedure TPulseWorker.Execute;
 begin
   PinWorkerThread(FIndex);
-  StartEvent.WaitFor(INFINITE);
-  RunWork;
+  PulseInitializeThreadCoreCounter;
+  try
+    StartEvent.WaitFor(INFINITE);
+    RunWork;
+  finally
+    PulseShutdownThreadCoreCounter;
+  end;
 end;
 
 function TPulseWorkerBase.InitialDigest: UInt64;
@@ -193,19 +208,22 @@ end;
 
 function TPulseWorkerBase.RunAllocFree: UInt64;
 var
-  I, Size: Integer;
+  I, J, Size: Integer;
   X: UInt64;
   P: PByte;
 begin
   X := InitialDigest;
-  for I := 1 to FIterations * 64 do
-  begin
-    Size := 16 + ((I * 37 + FIndex * 101) and 16383);
-    GetMem(P, Size);
-    P[0] := Byte(I);
-    X := X + P[0];
-    FreeMem(P);
-  end;
+  for I := 1 to FIterations do
+    for J := 1 to AllocBlock do
+    begin
+      Size := 16 + ((J * 37 + FIndex * 101) and (AllocBlock - 1));
+      GetMem(P, Size);
+      P[0] := Byte(J);
+      X := X + P[0];
+      FreeMem(P);
+    end;
+  If X <> InitialDigest + UInt64(FIterations) * AllocBlock * 255 div 2 then
+    raise EAbort.Create('parallel-alloc input/digest mismatch');
   Result := X;
 end;
 
@@ -242,29 +260,60 @@ begin
     FreeMem(P);
   end;
   Result := X;
+  If X <> InitialDigest + UInt64(CrossPerThread) * 255 div 2 then
+    raise EAbort.Create('cross-free input/digest mismatch');
+end;
+
+procedure TPulseWorkerBase.ProbeArenas;
+{$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
+const
+  Sizes: array[0..2] of Integer = (96, 232, 1500);
+var
+  I: Integer;
+  P: Pointer;
+{$ifend}
+begin
+  {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
+  for I := 0 to High(Sizes) do
+  begin
+    GetMem(P, Sizes[I]);
+    ArenaClass[I] := Fpcx64mmTestSmallBlockType(P);
+    ArenaOwner[I] := Fpcx64mmTestSmallMediumInfo(P);
+    FreeMem(P);
+  end;
+  {$ifend}
 end;
 
 procedure TPulseWorkerBase.RunWork;
+var
+  CoreStarted: TPulseCoreCounter;
 begin
-  case FKind of
-    wkEmpty:
-      Digest := UInt64(FIndex);
-    wkIndependent:
-      Digest := RunIndependent;
-    wkSharedRead:
-      Digest := RunSharedRead;
-    wkLockedWrite:
-      Digest := RunLockedWrite;
-    wkFalseSharing:
-      Digest := RunFalseSharing;
-    wkPadded:
-      Digest := RunPadded;
-    wkAllocFree:
-      Digest := RunAllocFree;
-    wkAllocFree96:
-      Digest := RunAllocFree96;
-    wkCrossFree:
-      Digest := RunCrossFree;
+  PulseStartThreadCoreCounter(CoreStarted);
+  try
+    case FKind of
+      wkEmpty:
+        Digest := UInt64(FIndex);
+      wkIndependent:
+        Digest := RunIndependent;
+      wkSharedRead:
+        Digest := RunSharedRead;
+      wkLockedWrite:
+        Digest := RunLockedWrite;
+      wkFalseSharing:
+        Digest := RunFalseSharing;
+      wkPadded:
+        Digest := RunPadded;
+      wkAllocFree:
+        Digest := RunAllocFree;
+      wkAllocFree96:
+        Digest := RunAllocFree96;
+      wkCrossFree:
+        Digest := RunCrossFree;
+      wkArenaProbe:
+        ProbeArenas;
+    end;
+  finally
+    PulseStopThreadCoreCounter(CoreStarted);
   end;
 end;
 
@@ -284,22 +333,29 @@ end;
 
 procedure TPersistentWorker.Execute;
 begin
+  If FDiscard then
+    Exit;
   PinWorkerThread(FIndex);
-  while True do
-  begin
-    PersistentStartEvents[FIndex].WaitFor(INFINITE);
-    PersistentStartEvents[FIndex].ResetEvent;
-    If PersistentStop then
-      Exit;
-    try
-      RunWork;
-    except
-      on E: Exception do
-        FFailureMessage := E.ClassName + ': ' + E.Message;
-      else
-        FFailureMessage := 'non-Exception object';
+  PulseInitializeThreadCoreCounter;
+  try
+    while True do
+    begin
+      PersistentStartEvents[FIndex].WaitFor(INFINITE);
+      PersistentStartEvents[FIndex].ResetEvent;
+      If PersistentStop then
+        Exit;
+      try
+        RunWork;
+      except
+        on E: Exception do
+          FFailureMessage := E.ClassName + ': ' + E.Message;
+        else
+          FFailureMessage := 'non-Exception object';
+      end;
+      PersistentDoneEvents[FIndex].SetEvent;
     end;
-    PersistentDoneEvents[FIndex].SetEvent;
+  finally
+    PulseShutdownThreadCoreCounter;
   end;
 end;
 
@@ -312,61 +368,77 @@ begin
 end;
 
 procedure TQueueWorker.Execute;
+begin
+  PinWorkerThread(Ord(FRole));
+  PulseInitializeThreadCoreCounter;
+  try
+    StartEvent.WaitFor(INFINITE);
+    RunWork;
+  finally
+    PulseShutdownThreadCoreCounter;
+  end;
+end;
+
+procedure TQueueWorker.RunWork;
 var
   I: Integer;
   Value: UInt64;
   Done: Boolean;
+  CoreStarted: TPulseCoreCounter;
 begin
-  PinWorkerThread(Ord(FRole));
-  StartEvent.WaitFor(INFINITE);
-  Digest := 0;
-  Value := 0;
-  If FRole = qrProducer then
-  begin
-    for I := 1 to FCount do
+  PulseStartThreadCoreCounter(CoreStarted);
+  try
+    Digest := 0;
+    Value := 0;
+    If FRole = qrProducer then
     begin
-      repeat
-        Done := False;
-        QueueLock.Acquire;
-        try
-          If QueueUsed < Length(QueueData) then
-          begin
-            QueueData[QueueTail] := UInt64(I);
-            QueueTail := (QueueTail + 1) and High(QueueData);
-            Inc(QueueUsed);
-            Done := True;
+      for I := 1 to FCount do
+      begin
+        repeat
+          Done := False;
+          QueueLock.Acquire;
+          try
+            If QueueUsed < Length(QueueData) then
+            begin
+              QueueData[QueueTail] := UInt64(I);
+              QueueTail := (QueueTail + 1) and High(QueueData);
+              Inc(QueueUsed);
+              Done := True;
+            end;
+          finally
+            QueueLock.Release;
           end;
-        finally
-          QueueLock.Release;
-        end;
-        If not Done then
-          Sleep(0);
-      until Done;
-    end;
-    Digest := UInt64(FCount);
-  end
-  else
-    for I := 1 to FCount do
-    begin
-      repeat
-        Done := False;
-        QueueLock.Acquire;
-        try
-          If QueueUsed > 0 then
-          begin
-            Value := QueueData[QueueHead];
-            QueueHead := (QueueHead + 1) and High(QueueData);
-            Dec(QueueUsed);
-            Done := True;
+          If not Done then
+            Sleep(0);
+        until Done;
+      end;
+      Digest := UInt64(FCount);
+    end
+    else
+      for I := 1 to FCount do
+      begin
+        repeat
+          Done := False;
+          QueueLock.Acquire;
+          try
+            If QueueUsed > 0 then
+            begin
+              Value := QueueData[QueueHead];
+              QueueHead := (QueueHead + 1) and High(QueueData);
+              Dec(QueueUsed);
+              Done := True;
+            end;
+          finally
+            QueueLock.Release;
           end;
-        finally
-          QueueLock.Release;
-        end;
-        If not Done then
-          Sleep(0);
-      until Done;
-      Digest := Digest + Value;
-    end;
+          If not Done then
+            Sleep(0);
+        until Done;
+        Digest := Digest + Value;
+      end;
+  finally
+    PulseStopThreadCoreCounter(CoreStarted);
+  end;
 end;
 
 function RunOneShotWorkers(Kind: TWorkKind; Iterations: Integer): UInt64;
@@ -508,13 +580,13 @@ function CaseParallelAlloc96(Iterations: Integer): UInt64;
 begin Result := RunPersistentWorkers(wkAllocFree96, Iterations); end;
 
 function CaseParallelAlloc1(Iterations: Integer): UInt64;
-begin ActiveThreadCount := 1; Result := CaseParallelAlloc(Iterations * AllocWorkMultiplier); end;
+begin ActiveThreadCount := 1; Result := CaseParallelAlloc(Iterations); end;
 function CaseParallelAlloc2(Iterations: Integer): UInt64;
-begin ActiveThreadCount := 2; Result := CaseParallelAlloc(Iterations * AllocWorkMultiplier); end;
+begin ActiveThreadCount := 2; Result := CaseParallelAlloc(Iterations); end;
 function CaseParallelAlloc4(Iterations: Integer): UInt64;
-begin ActiveThreadCount := 4; Result := CaseParallelAlloc(Iterations * AllocWorkMultiplier); end;
+begin ActiveThreadCount := 4; Result := CaseParallelAlloc(Iterations); end;
 function CaseParallelAlloc8(Iterations: Integer): UInt64;
-begin ActiveThreadCount := 8; Result := CaseParallelAlloc(Iterations * AllocWorkMultiplier); end;
+begin ActiveThreadCount := 8; Result := CaseParallelAlloc(Iterations); end;
 
 function CaseParallelAlloc96_4(Iterations: Integer): UInt64;
 begin ActiveThreadCount := 4; Result := CaseParallelAlloc96(Iterations * AllocWorkMultiplier); end;
@@ -524,21 +596,24 @@ begin ActiveThreadCount := 8; Result := CaseParallelAlloc96(Iterations * AllocWo
 
 function CaseCrossThreadFree(Iterations: Integer): UInt64;
 var
-  I, Size: Integer;
+  I, J, Size: Integer;
   P: PByte;
 begin
   ActiveThreadCount := 4;
-  Iterations := Iterations * AllocWorkMultiplier;
-  CrossPerThread := Iterations * 64;
+  CrossPerThread := CrossBlockPerThread;
   SetLength(CrossPointers, CrossPerThread * ActiveThreadCount);
-  for I := 0 to High(CrossPointers) do
+  Result := 0;
+  for J := 1 to Iterations do
   begin
-    Size := 16 + ((I * 37) and 16383);
-    GetMem(CrossPointers[I], Size);
-    P := CrossPointers[I];
-    P[0] := Byte(I);
+    for I := 0 to High(CrossPointers) do
+    begin
+      Size := 16 + ((I * 37) and (AllocBlock - 1));
+      GetMem(CrossPointers[I], Size);
+      P := CrossPointers[I];
+      P[0] := Byte(I);
+    end;
+    Result := Result + RunPersistentWorkers(wkCrossFree, 1);
   end;
-  Result := RunPersistentWorkers(wkCrossFree, Iterations);
   SetLength(CrossPointers, 0);
 end;
 
@@ -582,10 +657,12 @@ begin
   {$endif}
 end;
 
-procedure InitializeData;
+procedure InitializeData(SelectAllocatorRows, ReportAllocatorRows: Boolean);
 var
-  I: Integer;
+  I, J, Row, Selected, RejectedCount, Attempts: Integer;
   X: UInt64;
+  Worker: TPersistentWorker;
+  Rejected: array[0..511] of TPersistentWorker;
 begin
   X := UInt64($D1B54A32D192ED03);
   for I := 0 to High(SharedData) do
@@ -597,16 +674,85 @@ begin
   SharedLock := TCriticalSection.Create;
   QueueLock := TCriticalSection.Create;
   ActiveThreadCount := 4;
-  { Eight workers and the measuring main thread must not share a CPU. }
-  If not CanPinWorkerThreads(Length(PersistentWorkers) + 1) then
-    raise EAbort.Create('thread workload requires nine available logical CPUs');
+  { An eight-core stand shares the last worker logical CPU with the mostly
+    waiting coordinator.  This keeps every worker's SMT sibling free.  With
+    nine physical CPUs the affinity reservation gives the coordinator its own. }
+  If not CanPinWorkerThreads(Length(PersistentWorkers)) then
+    raise EAbort.Create('thread workload requires eight available logical CPUs');
   PersistentStop := False;
   for I := 0 to High(PersistentWorkers) do
   begin
     PersistentStartEvents[I] := TEvent.Create(nil, True, False, '');
     PersistentDoneEvents[I] := TEvent.Create(nil, True, False, '');
-    PersistentWorkers[I] := TPersistentWorker.Create(I);
+  end;
+  If SelectAllocatorRows then begin
+    { Fix preferred small rows, not just the number of distinct rows: different
+      row sets can share different medium owners across request classes. Keep
+      rejected threads alive until selection finishes so pthread ids cannot
+      immediately be recycled into the same rejected row. }
+    Selected := 0;
+    RejectedCount := 0;
+    try
+      for Attempts := 1 to Length(Rejected) do
+      begin
+        Worker := TPersistentWorker.Create(-1);
+        Row := Cardinal(Cardinal(Worker.ThreadID) * Cardinal($9E3779B1)) shr 27;
+        If (Row < MaxThreadCount) and not Assigned(PersistentWorkers[Row]) then
+        begin
+          Worker.FIndex := Row;
+          PersistentWorkers[Row] := Worker;
+          Inc(Selected);
+        end
+        else
+        begin
+          Rejected[RejectedCount] := Worker;
+          Inc(RejectedCount);
+        end;
+        If Selected = MaxThreadCount then
+          Break;
+      end;
+    finally
+      for I := 0 to RejectedCount - 1 do
+      begin
+        Rejected[I].FDiscard := True;
+        Rejected[I].Start;
+        Rejected[I].WaitFor;
+        Rejected[I].Free;
+      end;
+    end;
+    If Selected <> MaxThreadCount then
+      raise EAbort.Create('could not select allocator rows 0..7');
+  end
+  else
+    for I := 0 to High(PersistentWorkers) do
+    begin
+      PersistentWorkers[I] := TPersistentWorker.Create(I);
+      Attempts := MaxThreadCount;
+    end;
+  for I := 0 to High(PersistentWorkers) do
     PersistentWorkers[I].Start;
+  If ReportAllocatorRows then begin
+    WriteLn('PULSE_THREADSET candidates=', Attempts,
+      ' controlled=', Ord(SelectAllocatorRows));
+    { Only one live worker probes at a time; concurrent probes could observe
+      transient fallback classes instead of the preferred allocation class. }
+    for I := 0 to High(PersistentWorkers) do
+    begin
+      Worker := PersistentWorkers[I];
+      Worker.Configure(wkArenaProbe, 1);
+      PersistentDoneEvents[I].ResetEvent;
+      PersistentStartEvents[I].SetEvent;
+      PersistentDoneEvents[I].WaitFor(INFINITE);
+      If Worker.FailureMessage <> '' then
+        raise EAbort.Create(Worker.FailureMessage);
+      Row := Cardinal(Cardinal(Worker.ThreadID) * Cardinal($9E3779B1)) shr 27;
+      Write('PULSE_WORKER worker=', I, ' row=', Row, ' tid=',
+        IntToHex(NativeUInt(Worker.ThreadID), 16));
+      for J := 0 to 2 do
+        Write(' class', J, '=', IntToHex(NativeUInt(Worker.ArenaClass[J]), 16),
+          ' owner', J, '=', IntToHex(NativeUInt(Worker.ArenaOwner[J]), 16));
+      WriteLn;
+    end;
   end;
 end;
 
@@ -633,69 +779,77 @@ procedure Run;
 var
   Profile: TPulseProfile;
   SelectedCase, UnitName: string;
-  Found: Boolean;
+  Found, RuntimeInitialized, AllocatorCase: Boolean;
 begin
+  {$ifdef PULSE_PROGRAM_PREFIX}PulseProgramPrefix;{$endif}
   PulseInitialize('pulse_threads', Profile, SelectedCase);
-  InitializeData;
+  RuntimeInitialized := Profile.Name <> 'list';
+  AllocatorCase := (Pos('parallel-alloc-free-', SelectedCase) > 0) or
+    (Pos('cross-thread-free-4', SelectedCase) > 0);
+  If RuntimeInitialized then
+    InitializeData(AllocatorCase and
+      (GetEnvironmentVariable('PULSE_FIXED_ALLOCATOR_ROWS') <> ''),
+      AllocatorCase);
   UnitName := ManagerName;
   Found := False;
   try
     PulseRunCase('pulse_threads', 'thread-start-join-4', 'os+rtl', 'TThread',
-      @CaseThreadStartJoin, 4, Profile, SelectedCase, Found);
+      @CaseThreadStartJoin, 4, Profile, SelectedCase, Found, Pointer(@TPulseWorkerBase.RunWork));
     PulseRunCase('pulse_threads', 'independent-cpu-1', 'compiler+os', 'TThread',
       @CaseIndependent1, WorkerInner * CpuWorkMultiplier, Profile,
-      SelectedCase, Found);
+      SelectedCase, Found, Pointer(@TPulseWorkerBase.RunIndependent));
     PulseRunCase('pulse_threads', 'independent-cpu-2', 'compiler+os', 'TThread',
       @CaseIndependent2, 2 * WorkerInner * CpuWorkMultiplier, Profile,
-      SelectedCase, Found);
+      SelectedCase, Found, Pointer(@TPulseWorkerBase.RunIndependent));
     PulseRunCase('pulse_threads', 'independent-cpu-4', 'compiler+os', 'TThread',
       @CaseIndependent4, 4 * WorkerInner * CpuWorkMultiplier, Profile,
-      SelectedCase, Found);
+      SelectedCase, Found, Pointer(@TPulseWorkerBase.RunIndependent));
     PulseRunCase('pulse_threads', 'independent-cpu-8', 'compiler+os', 'TThread',
       @CaseIndependent8, 8 * WorkerInner * CpuWorkMultiplier, Profile,
-      SelectedCase, Found);
+      SelectedCase, Found, Pointer(@TPulseWorkerBase.RunIndependent));
     PulseRunCase('pulse_threads', 'shared-read-4', 'compiler+memory', 'TThread',
       @CaseSharedRead, 4 * 1024 * SharedReadMultiplier, Profile,
-      SelectedCase, Found);
+      SelectedCase, Found, Pointer(@TPulseWorkerBase.RunSharedRead));
     PulseRunCase('pulse_threads', 'locked-increment-4', 'rtl+os',
       'TCriticalSection', @CaseLockedWrite,
       4 * WorkerInner * ContentionMultiplier, Profile,
-      SelectedCase, Found);
+      SelectedCase, Found, Pointer(@TPulseWorkerBase.RunLockedWrite));
     PulseRunCase('pulse_threads', 'false-sharing-4', 'memory', 'cache-line',
       @CaseFalseSharing, 4 * WorkerInner * ContentionMultiplier, Profile,
       SelectedCase,
-      Found);
+      Found, Pointer(@TPulseWorkerBase.RunFalseSharing));
     PulseRunCase('pulse_threads', 'padded-counters-4', 'memory', 'cache-line',
       @CasePaddedCounters, 4 * WorkerInner * ContentionMultiplier, Profile,
       SelectedCase,
-      Found);
+      Found, Pointer(@TPulseWorkerBase.RunPadded));
     PulseRunCase('pulse_threads', 'parallel-alloc-free-1', 'mm', UnitName,
-      @CaseParallelAlloc1, 64 * AllocWorkMultiplier, Profile, SelectedCase,
-      Found);
+      @CaseParallelAlloc1, AllocBlock, Profile, SelectedCase,
+      Found, Pointer(@TPulseWorkerBase.RunAllocFree));
     PulseRunCase('pulse_threads', 'parallel-alloc-free-2', 'mm', UnitName,
-      @CaseParallelAlloc2, 2 * 64 * AllocWorkMultiplier, Profile,
-      SelectedCase, Found);
+      @CaseParallelAlloc2, 2 * AllocBlock, Profile,
+      SelectedCase, Found, Pointer(@TPulseWorkerBase.RunAllocFree));
     PulseRunCase('pulse_threads', 'parallel-alloc-free-4', 'mm', UnitName,
-      @CaseParallelAlloc4, 4 * 64 * AllocWorkMultiplier, Profile,
-      SelectedCase, Found);
+      @CaseParallelAlloc4, 4 * AllocBlock, Profile,
+      SelectedCase, Found, Pointer(@TPulseWorkerBase.RunAllocFree));
     PulseRunCase('pulse_threads', 'parallel-alloc-free-8', 'mm', UnitName,
-      @CaseParallelAlloc8, 8 * 64 * AllocWorkMultiplier, Profile,
-      SelectedCase, Found);
+      @CaseParallelAlloc8, 8 * AllocBlock, Profile,
+      SelectedCase, Found, Pointer(@TPulseWorkerBase.RunAllocFree));
     PulseRunCase('pulse_threads', 'parallel-alloc-free-96-4', 'mm', UnitName,
       @CaseParallelAlloc96_4, 4 * 64 * AllocWorkMultiplier, Profile,
-      SelectedCase, Found);
+      SelectedCase, Found, Pointer(@TPulseWorkerBase.RunAllocFree96));
     PulseRunCase('pulse_threads', 'parallel-alloc-free-96-8', 'mm', UnitName,
       @CaseParallelAlloc96_8, 8 * 64 * AllocWorkMultiplier, Profile,
-      SelectedCase, Found);
+      SelectedCase, Found, Pointer(@TPulseWorkerBase.RunAllocFree96));
     PulseRunCase('pulse_threads', 'cross-thread-free-4', 'mm', UnitName,
-      @CaseCrossThreadFree, 4 * 64 * AllocWorkMultiplier, Profile,
-      SelectedCase, Found);
+      @CaseCrossThreadFree, AllocBlock, Profile,
+      SelectedCase, Found, Pointer(@TPulseWorkerBase.RunCrossFree));
     PulseRunCase('pulse_threads', 'producer-consumer', 'rtl+os',
       'TCriticalSection', @CaseProducerConsumer,
       WorkerInner * AllocWorkMultiplier, Profile,
-      SelectedCase, Found);
+      SelectedCase, Found, Pointer(@TQueueWorker.Execute));
   finally
-    FinalizeData;
+    If RuntimeInitialized then
+      FinalizeData;
   end;
   PulseFinish('pulse_threads', SelectedCase, Found);
 end;

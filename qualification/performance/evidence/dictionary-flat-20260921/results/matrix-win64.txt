@@ -1,0 +1,17 @@
+update-c256-f25-int-default       baseline   44.61 [ 44.61.. 44.63]  candidate   32.93 [ 32.83.. 32.96]  -26.2%  delphi   99.72 [ 99.72.. 99.72] +123.5%  digest same
+update-c4096-f50-int-default      baseline   44.67 [ 44.66.. 44.69]  candidate   34.08 [ 34.07.. 34.09]  -23.7%  delphi  100.71 [100.71..100.71] +125.5%  digest same
+lookup-c256-f25-int-default       baseline   33.65 [ 33.65.. 33.66]  candidate   14.94 [ 14.94.. 14.95]  -55.6%  delphi   38.22 [ 38.22.. 38.22]  +13.6%  digest same
+lookup-c4096-f50-int-default      baseline   33.66 [ 33.65.. 33.67]  candidate   16.53 [ 16.51.. 16.55]  -50.9%  delphi   37.61 [ 37.61.. 37.61]  +11.7%  digest same
+miss-c4096-f50-int-default        baseline   37.60 [ 37.57.. 37.61]  candidate   16.30 [ 16.26.. 16.33]  -56.6%  delphi   38.67 [ 38.67.. 38.67]   +2.9%  digest same
+insert-c1048576-f25-int-default   baseline  122.22 [120.75..122.74]  candidate  101.79 [ 99.91..102.73]  -16.7%  delphi  159.99 [159.99..159.99]  +30.9%  digest same
+mixed-c1048576-f25-int-default    baseline   84.54 [ 84.26.. 85.09]  candidate   68.97 [ 68.89.. 71.51]  -18.4%  delphi  151.25 [151.25..151.25]  +78.9%  digest same
+update-c64-f25-int-collision      baseline   89.36 [ 89.34.. 89.44]  candidate   83.46 [ 83.45.. 83.49]   -6.6%  delphi   89.66 [ 89.66.. 89.66]   +0.3%  digest same
+lookup-c256-f50-str-default       baseline   41.03 [ 41.00.. 41.07]  candidate   28.89 [ 28.88.. 28.95]  -29.6%  delphi   81.01 [ 81.01.. 81.01]  +97.4%  digest same
+lookup-c4096-f50-str-default      baseline   45.76 [ 45.65.. 45.81]  candidate   33.26 [ 33.19.. 33.34]  -27.3%  delphi   87.82 [ 87.82.. 87.82]  +91.9%  digest same
+update-c256-f50-str-default       baseline   53.59 [ 53.54.. 53.73]  candidate   44.98 [ 44.96.. 45.01]  -16.1%  delphi  108.10 [108.10..108.10] +101.7%  digest same
+miss-c256-f50-str-default         baseline   41.87 [ 41.83.. 41.95]  candidate   30.37 [ 30.35.. 30.40]  -27.5%  delphi   79.00 [ 79.00.. 79.00]  +88.7%  digest same
+insert-c262144-f25-str-default    baseline  636.83 [531.96..770.49]  candidate  531.35 [486.52..631.53]  -16.6%  delphi  327.25 [327.25..327.25]  -48.6%  digest same
+lookup-c4096-f50-i64-default      baseline   41.25 [ 41.20.. 41.26]  candidate   17.58 [ 17.54.. 17.61]  -57.4%  delphi   60.30 [ 60.30.. 60.30]  +46.2%  digest same
+update-c4096-f50-i64-default      baseline   57.96 [ 57.94.. 58.06]  candidate   37.84 [ 37.79.. 37.86]  -34.7%  delphi   74.35 [ 74.35.. 74.35]  +28.3%  digest same
+lookup-c1024-f50-obj-default      baseline   68.98 [ 65.12.. 69.61]  candidate   17.74 [ 17.54.. 17.75]  -74.3%  delphi   30.32 [ 30.32.. 30.32]  -56.0%  digest same
+update-c1024-f50-obj-default      baseline   81.45 [ 79.49.. 83.38]  candidate   38.86 [ 38.75.. 39.05]  -52.3%  delphi   41.46 [ 41.46.. 41.46]  -49.1%  digest same

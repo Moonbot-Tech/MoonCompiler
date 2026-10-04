@@ -1,0 +1,76 @@
+==== 512 keys in 1024 slots (hit probes / miss probes)
+int seq 0..n          crc32c  1.00/ 1.00  fmix  1.50/ 2.50  fib_hi  1.07/ 1.24  mul_fold  1.24/ 1.79  mul_fold2  1.47/ 2.54
+int seq 1000000+      crc32c  1.39/ 7.64  fmix  1.55/ 2.42  fib_hi  1.03/ 1.27  mul_fold  1.24/ 1.83  mul_fold2  1.51/ 2.68
+int *7919             crc32c  1.37/ 2.27  fmix  1.44/ 2.47  fib_hi  1.37/ 1.44  mul_fold  1.40/ 2.58  mul_fold2  1.42/ 2.27
+int *1024             crc32c  2.00/ 2.98  fmix  1.44/ 2.42  fib_hi  1.00/ 1.58  mul_fold  1.00/ 1.58  mul_fold2  1.41/ 2.54
+int random            crc32c  1.48/ 2.47  fmix  1.51/ 2.41  fib_hi  1.49/ 2.44  mul_fold  1.69/ 2.54  mul_fold2  1.47/ 2.43
+i64 seq               crc32c  1.65/ 3.71  fmix  1.54/ 2.43  fib_hi  1.07/ 1.24  mul_fold  1.24/ 1.79  mul_fold2  1.47/ 2.54
+i64 *1000003          crc32c  1.47/ 2.33  fmix  1.42/ 2.37  fib_hi  1.00/ 1.53  mul_fold  1.38/ 1.74  mul_fold2  1.48/ 2.45
+i64 high half only    crc32c  1.00/ 1.00  fmix  1.49/ 2.36  fib_hi  1.00/ 1.00  mul_fold  1.00/ 1.00  mul_fold2  1.52/ 1.88
+ptr stride 32         crc32c 10.00/28.50  fmix  1.62/ 2.60  fib_hi  1.38/ 1.43  mul_fold  1.33/ 2.04  mul_fold2  1.45/ 2.34
+ptr stride 64         crc32c 10.00/ 6.25  fmix  1.45/ 2.40  fib_hi  1.00/ 1.22  mul_fold  1.37/ 2.01  mul_fold2  1.53/ 2.63
+ptr stride 32 b2      crc32c  2.26/ 3.18  fmix  1.58/ 2.59  fib_hi  1.39/ 1.41  mul_fold  1.33/ 2.06  mul_fold2  1.47/ 2.50
+ptr allocator-like    crc32c  8.82/ 4.55  fmix  1.40/ 2.27  fib_hi  1.26/ 1.92  mul_fold  1.37/ 1.89  mul_fold2  1.44/ 2.53
+i64 random            crc32c  1.53/ 2.44  fmix  1.41/ 2.39  fib_hi  1.48/ 2.71  mul_fold  1.48/ 2.74  mul_fold2  1.43/ 2.39
+==== 2048 keys in 4096 slots (hit probes / miss probes)
+int seq 0..n          crc32c  1.00/ 3.23  fmix  1.63/ 2.69  fib_hi  1.20/ 1.52  mul_fold  1.52/ 2.42  mul_fold2  1.50/ 2.47
+int seq 1000000+      crc32c  1.57/ 3.40  fmix  1.49/ 2.58  fib_hi  1.21/ 1.53  mul_fold  1.73/ 3.09  mul_fold2  1.52/ 2.47
+int *7919             crc32c  1.42/ 2.50  fmix  1.48/ 2.44  fib_hi  1.16/ 2.46  mul_fold  1.50/ 2.35  mul_fold2  1.55/ 2.55
+int *1024             crc32c  1.00/ 1.00  fmix  1.52/ 2.64  fib_hi  1.00/ 1.14  mul_fold  1.02/ 1.42  mul_fold2  1.48/ 2.34
+int random            crc32c  1.49/ 2.37  fmix  1.51/ 2.51  fib_hi  1.45/ 2.55  mul_fold  1.51/ 2.48  mul_fold2  1.50/ 2.54
+i64 seq               crc32c  1.00/ 1.00  fmix  1.53/ 2.53  fib_hi  1.20/ 1.52  mul_fold  1.52/ 2.42  mul_fold2  1.50/ 2.47
+i64 *1000003          crc32c  1.52/ 2.52  fmix  1.53/ 2.49  fib_hi  1.00/ 1.68  mul_fold  1.49/ 1.94  mul_fold2  1.43/ 2.41
+i64 high half only    crc32c  1.00/ 3.23  fmix  1.56/ 2.56  fib_hi  1.00/ 1.00  mul_fold  1.00/ 1.00  mul_fold2  1.37/ 1.99
+ptr stride 32         crc32c  1.00/ 1.00  fmix  1.47/ 2.37  fib_hi  3.12/ 1.42  mul_fold  1.85/ 3.19  mul_fold2  1.53/ 2.54
+ptr stride 64         crc32c  1.00/ 1.00  fmix  1.53/ 2.59  fib_hi  1.00/ 1.37  mul_fold  1.94/ 2.64  mul_fold2  1.49/ 2.51
+ptr stride 32 b2      crc32c  1.00/ 1.17  fmix  1.47/ 2.25  fib_hi  3.13/ 1.41  mul_fold  1.81/ 3.04  mul_fold2  1.50/ 2.53
+ptr allocator-like    crc32c  1.13/ 2.14  fmix  1.49/ 2.45  fib_hi  1.32/ 1.83  mul_fold  1.83/ 2.75  mul_fold2  1.48/ 2.47
+i64 random            crc32c  1.46/ 2.43  fmix  1.52/ 2.58  fib_hi  1.48/ 2.41  mul_fold  1.45/ 2.45  mul_fold2  1.51/ 2.49
+==== 8192 keys in 16384 slots (hit probes / miss probes)
+int seq 0..n          crc32c  1.00/ 3.23  fmix  1.51/ 2.47  fib_hi  1.14/ 2.22  mul_fold  1.55/ 2.35  mul_fold2  1.51/ 2.51
+int seq 1000000+      crc32c  1.17/ 3.16  fmix  1.48/ 2.47  fib_hi  1.14/ 2.22  mul_fold  1.59/ 2.55  mul_fold2  1.50/ 2.50
+int *7919             crc32c  1.49/ 2.37  fmix  1.48/ 2.53  fib_hi  1.22/ 1.30  mul_fold  1.53/ 2.56  mul_fold2  1.49/ 2.58
+int *1024             crc32c  1.00/ 1.00  fmix  1.51/ 2.51  fib_hi  1.00/ 1.15  mul_fold  1.12/ 1.66  mul_fold2  1.50/ 2.58
+int random            crc32c  1.51/ 2.52  fmix  1.47/ 2.43  fib_hi  1.48/ 2.51  mul_fold  1.48/ 2.53  mul_fold2  1.49/ 2.44
+i64 seq               crc32c  1.00/ 2.41  fmix  1.50/ 2.47  fib_hi  1.14/ 2.22  mul_fold  1.55/ 2.35  mul_fold2  1.51/ 2.51
+i64 *1000003          crc32c  1.53/ 2.63  fmix  1.46/ 2.41  fib_hi  1.00/ 1.45  mul_fold  1.40/ 2.24  mul_fold2  1.53/ 2.63
+i64 high half only    crc32c  1.00/ 3.23  fmix  1.48/ 2.48  fib_hi  1.00/ 1.00  mul_fold  1.00/ 1.00  mul_fold2  1.38/ 2.23
+ptr stride 32         crc32c  1.00/ 2.81  fmix  1.49/ 2.49  fib_hi  1.10/ 1.86  mul_fold  2.29/ 3.04  mul_fold2  1.50/ 2.50
+ptr stride 64         crc32c  2.03/ 3.26  fmix  1.52/ 2.51  fib_hi  1.05/ 1.57  mul_fold  2.97/ 3.44  mul_fold2  1.48/ 2.44
+ptr stride 32 b2      crc32c  1.07/ 2.75  fmix  1.48/ 2.44  fib_hi  1.10/ 1.86  mul_fold  2.40/ 3.47  mul_fold2  1.50/ 2.53
+ptr allocator-like    crc32c  1.31/ 3.08  fmix  1.49/ 2.42  fib_hi  1.42/ 1.82  mul_fold  2.04/ 2.37  mul_fold2  1.50/ 2.49
+i64 random            crc32c  1.45/ 2.39  fmix  1.51/ 2.51  fib_hi  1.50/ 2.54  mul_fold  1.48/ 2.48  mul_fold2  1.49/ 2.49
+==== 32768 keys in 65536 slots (hit probes / miss probes)
+int seq 0..n          crc32c  1.00/ 2.77  fmix  1.51/ 2.54  fib_hi  2.83/ 5.57  mul_fold  1.57/ 2.84  mul_fold2  1.50/ 2.46
+int seq 1000000+      crc32c  1.97/ 1.38  fmix  1.49/ 2.48  fib_hi  2.83/ 5.57  mul_fold  1.52/ 2.41  mul_fold2  1.49/ 2.45
+int *7919             crc32c  1.51/ 2.52  fmix  1.48/ 2.48  fib_hi  1.00/ 1.49  mul_fold  1.57/ 2.64  mul_fold2  1.50/ 2.50
+int *1024             crc32c  1.00/ 2.09  fmix  1.49/ 2.46  fib_hi  1.00/ 1.57  mul_fold  1.19/ 1.86  mul_fold2  1.51/ 2.49
+int random            crc32c  1.48/ 2.47  fmix  1.48/ 2.49  fib_hi  1.50/ 2.48  mul_fold  1.52/ 2.53  mul_fold2  1.50/ 2.49
+i64 seq               crc32c  1.64/ 1.15  fmix  1.49/ 2.47  fib_hi  2.83/ 5.57  mul_fold  1.57/ 2.84  mul_fold2  1.50/ 2.46
+i64 *1000003          crc32c  1.51/ 2.48  fmix  1.49/ 2.46  fib_hi  1.20/ 1.18  mul_fold  1.46/ 2.45  mul_fold2  1.51/ 2.51
+i64 high half only    crc32c  1.00/ 2.77  fmix  1.49/ 2.50  fib_hi  1.00/ 1.00  mul_fold  1.00/ 1.00  mul_fold2  1.46/ 2.42
+ptr stride 32         crc32c  1.00/ 1.27  fmix  1.52/ 2.53  fib_hi  2.28/ 3.64  mul_fold  1.98/ 2.90  mul_fold2  1.50/ 2.50
+ptr stride 64         crc32c  1.21/ 3.47  fmix  1.51/ 2.52  fib_hi  1.71/ 1.77  mul_fold  2.32/ 3.41  mul_fold2  1.49/ 2.49
+ptr stride 32 b2      crc32c  1.02/ 2.79  fmix  1.50/ 2.50  fib_hi  2.28/ 3.64  mul_fold  1.95/ 2.88  mul_fold2  1.50/ 2.48
+ptr allocator-like    crc32c  1.44/ 2.40  fmix  1.51/ 2.54  fib_hi  1.90/ 1.67  mul_fold  1.46/ 2.30  mul_fold2  1.51/ 2.51
+i64 random            crc32c  1.51/ 2.52  fmix  1.49/ 2.50  fib_hi  1.51/ 2.53  mul_fold  1.50/ 2.49  mul_fold2  1.49/ 2.47
+==== 131072 keys in 262144 slots (hit probes / miss probes)
+int seq 0..n          crc32c  1.00/ 2.16  fmix  1.51/ 2.51  fib_hi  2.78/ 5.38  mul_fold  1.87/ 4.31  mul_fold2  1.50/ 2.50
+int seq 1000000+      crc32c  1.14/ 2.08  fmix  1.50/ 2.51  fib_hi  2.78/ 5.38  mul_fold  1.62/ 2.61  mul_fold2  1.50/ 2.50
+int *7919             crc32c  1.53/ 2.66  fmix  1.50/ 2.50  fib_hi  1.00/ 1.63  mul_fold  1.48/ 2.30  mul_fold2  1.49/ 2.48
+int *1024             crc32c  1.00/ 1.00  fmix  1.50/ 2.50  fib_hi  1.10/ 1.64  mul_fold  1.30/ 1.92  mul_fold2  1.49/ 2.49
+int random            crc32c  1.50/ 2.50  fmix  1.50/ 2.49  fib_hi  1.50/ 2.51  mul_fold  1.50/ 2.49  mul_fold2  1.51/ 2.52
+i64 seq               crc32c  1.00/ 1.00  fmix  1.50/ 2.51  fib_hi  2.78/ 5.38  mul_fold  1.87/ 4.31  mul_fold2  1.50/ 2.50
+i64 *1000003          crc32c  1.50/ 2.48  fmix  1.50/ 2.52  fib_hi  2.06/ 1.35  mul_fold  1.48/ 2.63  mul_fold2  1.50/ 2.49
+i64 high half only    crc32c  1.00/ 2.16  fmix  1.50/ 2.48  fib_hi  1.00/ 1.00  mul_fold  1.00/ 1.00  mul_fold2  1.54/ 2.82
+ptr stride 32         crc32c  1.00/ 2.34  fmix  1.50/ 2.51  fib_hi  7.11/11.19  mul_fold  1.52/ 2.46  mul_fold2  1.50/ 2.51
+ptr stride 64         crc32c  1.81/ 4.62  fmix  1.49/ 2.49  fib_hi  4.40/ 3.46  mul_fold  1.45/ 2.23  mul_fold2  1.50/ 2.51
+ptr stride 32 b2      crc32c  1.00/ 1.21  fmix  1.49/ 2.48  fib_hi  7.11/11.19  mul_fold  1.49/ 2.29  mul_fold2  1.50/ 2.53
+ptr allocator-like    crc32c  1.10/ 2.15  fmix  1.51/ 2.50  fib_hi  3.99/ 2.52  mul_fold  1.40/ 2.28  mul_fold2  1.50/ 2.50
+i64 random            crc32c  1.49/ 2.49  fmix  1.50/ 2.50  fib_hi  1.50/ 2.47  mul_fold  1.49/ 2.50  mul_fold2  1.51/ 2.51
+==== worst cases
+crc32c     worst ptr stride 32@1024 10.00/28.50; ptr stride 64@1024 10.00/6.25; ptr allocator-like@1024 8.82/4.55   mean hit 1.68 miss 2.91
+fmix       worst int seq 0..n@4096 1.63/2.69; int *1024@4096 1.52/2.64; ptr stride 32@1024 1.62/2.60   mean hit 1.50 miss 2.48
+fib_hi     worst ptr stride 32 b2@262144 7.11/11.19; ptr stride 32@262144 7.11/11.19; int seq 1000000+@65536 2.83/5.57   mean hit 1.74 miss 2.44
+mul_fold   worst int seq 0..n@262144 1.87/4.31; i64 seq@262144 1.87/4.31; ptr stride 32 b2@16384 2.40/3.47   mean hit 1.53 miss 2.38
+mul_fold2  worst i64 high half only@262144 1.54/2.82; int seq 1000000+@1024 1.51/2.68; ptr stride 64@1024 1.53/2.63   mean hit 1.49 miss 2.48

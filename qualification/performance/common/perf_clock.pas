@@ -29,6 +29,11 @@ function BeginPerfStamp: TPerfStamp;
 function EndPerfStamp(const Started: TPerfStamp): TPerfDelta;
 function EndDiagnosticPerfStamp(const Started: TPerfStamp): TPerfDelta;
 function MeasureTscOverhead(Iterations: Integer): UInt64;
+function ReadChainTicks: UInt64;
+
+const
+  { Dependent adds in ReadChainTicks: that many core cycles at any clock. }
+  PerfChainCycles = 65536;
 
 implementation
 
@@ -210,6 +215,92 @@ function ReadTscStop: UInt64;
         shl     rdx, 32
         or      rax, rdx
         lfence
+end;
+
+{ TSC ticks of PerfChainCycles dependent adds: the core clock against the TSC
+  at the moment of reading, whatever the boost, power state or throttling. }
+function ReadChainTicks: UInt64;
+{$ifdef FPC}nostackframe; assembler; asm{$else}asm .noframe{$endif}
+        mov     r8d, 1024
+        mov     r10d, 1
+        lfence
+        rdtsc
+        shl     rdx, 32
+        or      rax, rdx
+        mov     r9, rax
+        xor     eax, eax
+@@round:
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        add     rax, r10
+        dec     r8
+        jnz     @@round
+        rdtscp
+        shl     rdx, 32
+        or      rax, rdx
+        lfence
+        sub     rax, r9
 end;
 
 procedure InitializePerfClock;

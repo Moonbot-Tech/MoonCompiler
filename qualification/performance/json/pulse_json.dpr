@@ -14,11 +14,14 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   Classes,
   perf_clock in '..\common\perf_clock.pas',
   pulse_process_metrics in '..\common\pulse_process_metrics.pas',
   pulse_harness in '..\common\pulse_harness.pas';
+
+{$I ../common/pulse_program_prefix.inc}
 
 type
   TLevelArray = array of Double;
@@ -479,6 +482,7 @@ begin
   for I := 0 to High(PreparedFloats) do
     PreparedFloats[I] := FloatText(100.0 + I * 0.03125);
   VerifyJson;
+  {$ifdef PULSE_PROGRAM_PREFIX}PulseProgramPrefix;{$endif}
   PulseInitialize('pulse_json', Profile, SelectedCase);
   Found := False;
   PulseRunCase('pulse_json', 'generate-64', 'rtl', 'TStringBuilder',

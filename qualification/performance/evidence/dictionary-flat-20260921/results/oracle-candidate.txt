@@ -1,0 +1,21 @@
+int digest=A6783A04294F3C0C
+i64 digest=484C51E9B425F9E6
+cardinal digest=37E08D430B82DC4A
+word digest=80A52688D5B96174
+byte digest=62CD901EFF7D420F
+enum digest=EC48D0B3BFC7D5CB
+string digest=D76CEBE12E7AE442
+string-string-cap digest=28C544BCCE81267F
+ansistring digest=4BD7A5DF9A494ACD
+pointer digest=05FD527E28D18313
+object digest=D751310DF0E00CEA
+classref digest=9C7174E7E4687213
+record digest=F97634346F65829F
+double digest=031093BFDBEA6F87
+string-ci digest=96147F869001BF32
+int-cap4096 digest=99D8FAED3EC2A8D6
+notify-handlers count=12 digest=88C54C6F00F1E7D7
+notify-override key=34 value=102 digest=471D715D1FB604BB
+ownership destroyed-before-free=14 digest=AF63C34C8601C211
+ownership destroyed-after-free=20 digest=CBF29CE484222325
+ORACLE_END lines=20 digest=CBF29CE484222325

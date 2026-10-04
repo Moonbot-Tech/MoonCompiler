@@ -1,0 +1,10 @@
+update-c256-f25-int-default       baseline   44.68 [ 44.68.. 44.68]  flatcrc   31.69 [ 31.69.. 31.69]  -29.1%  candidate   32.94 [ 32.94.. 32.94]  -26.3%  digest same
+update-c4096-f50-int-default      baseline   44.67 [ 44.67.. 44.67]  flatcrc   30.29 [ 30.29.. 30.29]  -32.2%  candidate   34.06 [ 34.06.. 34.06]  -23.7%  digest same
+lookup-c256-f25-int-default       baseline   33.67 [ 33.67.. 33.67]  flatcrc   19.38 [ 19.38.. 19.38]  -42.4%  candidate   14.95 [ 14.95.. 14.95]  -55.6%  digest same
+lookup-c4096-f50-int-default      baseline   33.68 [ 33.68.. 33.68]  flatcrc   19.38 [ 19.38.. 19.38]  -42.4%  candidate   16.55 [ 16.55.. 16.55]  -50.9%  digest same
+miss-c4096-f50-int-default        baseline   37.66 [ 37.66.. 37.66]  flatcrc   28.72 [ 28.72.. 28.72]  -23.7%  candidate   16.32 [ 16.32.. 16.32]  -56.7%  digest same
+insert-c1048576-f25-int-default   baseline  279.24 [279.24..279.24]  flatcrc  233.72 [233.72..233.72]  -16.3%  candidate  146.15 [146.15..146.15]  -47.7%  digest same
+mixed-c1048576-f25-int-default    baseline  173.73 [173.73..173.73]  flatcrc  122.44 [122.44..122.44]  -29.5%  candidate  103.48 [103.48..103.48]  -40.4%  digest same
+update-c64-f25-int-collision      baseline   89.49 [ 89.49.. 89.49]  flatcrc   84.20 [ 84.20.. 84.20]   -5.9%  candidate   83.61 [ 83.61.. 83.61]   -6.6%  digest same
+lookup-c16384-f50-int-default     baseline   33.71 [ 33.71.. 33.71]  flatcrc   19.36 [ 19.36.. 19.36]  -42.6%  candidate   22.11 [ 22.11.. 22.11]  -34.4%  digest same
+miss-c16384-f50-int-default       baseline   37.98 [ 37.98.. 37.98]  flatcrc   29.15 [ 29.15.. 29.15]  -23.2%  candidate   43.85 [ 43.85.. 43.85]  +15.5%  digest same

@@ -14,11 +14,14 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   Classes,
   DateUtils,
   Generics.Collections,
   pulse_harness in '..\common\pulse_harness.pas';
+
+{$I ../common/pulse_program_prefix.inc}
 
 type
   TIntegerArray = array of Integer;
@@ -171,31 +174,41 @@ begin
   end;
 end;
 
+{ Value is read after the loops: a managed local starts nil, the zero-trip
+  path the flow analysis sees is harmless. }
+{$ifdef FPC}{$push}{$warn 5089 off}{$endif}
 function CaseIntToStr32(Iterations: Integer): UInt64;
 var
-  I: Integer;
+  I, J: Integer;
   Value: UnicodeString;
 begin
   Result := 0;
   for I := 1 to Iterations do
-  begin
-    Value := IntToStr(Integer(I * 1009 - 7000001));
-    Result := Result + UInt64(Length(Value)) + UInt64(Ord(Value[1]));
-  end;
+    for J := 0 to 31 do
+    begin
+      Value := IntToStr(Integer((J - 16) * 1000003));
+      Result := Result + UInt64(Length(Value)) + UInt64(Ord(Value[1]));
+    end;
+  { The last string: the pool its strings come from. }
+  PulseCaseBlock := Pointer(Value);
 end;
 
 function CaseIntToStr64(Iterations: Integer): UInt64;
 var
-  I: Integer;
+  I, J: Integer;
   Value: UnicodeString;
 begin
   Result := 0;
   for I := 1 to Iterations do
-  begin
-    Value := IntToStr(Int64(I) * 1000003 + Int64(5000000000));
-    Result := Result + UInt64(Length(Value)) + UInt64(Ord(Value[1]));
-  end;
+    for J := 0 to 31 do
+    begin
+      Value := IntToStr(Int64(J - 16) * 100000000003);
+      Result := Result + UInt64(Length(Value)) + UInt64(Ord(Value[1]));
+    end;
+  { The last string: the pool its strings come from. }
+  PulseCaseBlock := Pointer(Value);
 end;
+{$ifdef FPC}{$pop}{$endif}
 
 function CaseStrToInt(Iterations: Integer): UInt64;
 var
@@ -208,28 +221,30 @@ end;
 
 function CaseFloatToStr(Iterations: Integer): UInt64;
 var
-  I: Integer;
+  I, J: Integer;
   Value: UnicodeString;
 begin
   Result := 0;
   for I := 1 to Iterations do
-  begin
-    Value := FloatToStr(I * 0.125, PulseFormatSettings);
-    Result := Result + UInt64(Length(Value)) + UInt64(Ord(Value[1]));
-  end;
+    for J := 0 to 31 do
+    begin
+      Value := FloatToStr((123456 + J) * 0.125, PulseFormatSettings);
+      Result := Result + UInt64(Length(Value)) + UInt64(Ord(Value[1]));
+    end;
 end;
 
 function CaseStrDoubleGeneral(Iterations: Integer): UInt64;
 var
-  I: Integer;
+  I, J: Integer;
   Value: ShortString;
 begin
   Result := 0;
   for I := 1 to Iterations do
-  begin
-    Str(I * 0.125:22, Value);
-    Result := Result + UInt64(Length(Value)) + UInt64(Byte(Value[1]));
-  end;
+    for J := 0 to 31 do
+    begin
+      Str((123456 + J) * 0.125:22, Value);
+      Result := Result + UInt64(Length(Value)) + UInt64(Byte(Value[1]));
+    end;
 end;
 
 function CaseStrToFloat(Iterations: Integer): UInt64;
@@ -247,28 +262,30 @@ end;
 
 function CaseFormat(Iterations: Integer): UInt64;
 var
-  I: Integer;
+  I, J: Integer;
   Value: UnicodeString;
 begin
   Result := 0;
   for I := 1 to Iterations do
-  begin
-    Value := Format('%d:%.3f', [I, I * 0.125], PulseFormatSettings);
-    Result := Result + UInt64(Length(Value));
-  end;
+    for J := 0 to 31 do
+    begin
+      Value := Format('%d:%.3f', [123456 + J, (123456 + J) * 0.125], PulseFormatSettings);
+      Result := Result + UInt64(Length(Value));
+    end;
 end;
 
 function CaseFormatInteger(Iterations: Integer): UInt64;
 var
-  I: Integer;
+  I, J: Integer;
   Value: UnicodeString;
 begin
   Result := 0;
   for I := 1 to Iterations do
-  begin
-    Value := Format('%d', [I], PulseFormatSettings);
-    Result := Result + UInt64(Length(Value));
-  end;
+    for J := 0 to 31 do
+    begin
+      Value := Format('%d', [123456 + J], PulseFormatSettings);
+      Result := Result + UInt64(Length(Value));
+    end;
 end;
 
 function CaseFormatLiteral(Iterations: Integer): UInt64;
@@ -299,15 +316,16 @@ end;
 
 function CaseFormatFloat(Iterations: Integer): UInt64;
 var
-  I: Integer;
+  I, J: Integer;
   Value: UnicodeString;
 begin
   Result := 0;
   for I := 1 to Iterations do
-  begin
-    Value := Format('%.3f', [I * 0.125], PulseFormatSettings);
-    Result := Result + UInt64(Length(Value));
-  end;
+    for J := 0 to 31 do
+    begin
+      Value := Format('%.3f', [(123456 + J) * 0.125], PulseFormatSettings);
+      Result := Result + UInt64(Length(Value));
+    end;
 end;
 
 function CaseStringListAdd(Iterations: Integer): UInt64;
@@ -1346,6 +1364,7 @@ var
   SelectedCase: string;
   Found: Boolean;
 begin
+  {$ifdef PULSE_PROGRAM_PREFIX}PulseProgramPrefix;{$endif}
   PulseInitialize('pulse_rtl', Profile, SelectedCase);
   InitializeData;
   Found := False;
@@ -1416,28 +1435,28 @@ begin
   PulseRunCase('pulse_rtl', 'trystrtoint-edges', 'rtl', 'TryStrToInt edges',
     @CaseTryStrToIntEdges, 24, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'inttostr-int32', 'rtl+mm', 'IntToStr(Integer)',
-    @CaseIntToStr32, 1, Profile, SelectedCase, Found);
+    @CaseIntToStr32, 32, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'inttostr-int64', 'rtl+mm', 'IntToStr(Int64)', @CaseIntToStr64,
-    1, Profile, SelectedCase, Found);
+    32, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'strtoint-int64', 'rtl+mm', 'StrToInt64', @CaseStrToInt,
     1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'floattostr-double', 'rtl+mm', 'FloatToStr',
-    @CaseFloatToStr, 1, Profile, SelectedCase, Found);
+    @CaseFloatToStr, 32, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'str-double-general', 'rtl',
-    'Str(Double general, ShortString)', @CaseStrDoubleGeneral, 1, Profile,
+    'Str(Double general, ShortString)', @CaseStrDoubleGeneral, 32, Profile,
     SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'strtofloat-double', 'rtl+mm', 'StrToFloat',
     @CaseStrToFloat, 1, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_rtl', 'format-mixed', 'rtl+mm', 'Format', @CaseFormat, 1,
+  PulseRunCase('pulse_rtl', 'format-mixed', 'rtl+mm', 'Format', @CaseFormat, 32,
     Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'format-integer', 'rtl+mm', 'Format integer',
-    @CaseFormatInteger, 1, Profile, SelectedCase, Found);
+    @CaseFormatInteger, 32, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'format-literal', 'rtl+mm', 'Format literal',
     @CaseFormatLiteral, 1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'format-string', 'rtl+mm', 'Format string',
     @CaseFormatString, 1, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'format-float', 'rtl+mm', 'Format float',
-    @CaseFormatFloat, 1, Profile, SelectedCase, Found);
+    @CaseFormatFloat, 32, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'stringlist-add-128', 'rtl+mm', 'TStringList.Add',
     @CaseStringListAdd, 128, Profile, SelectedCase, Found);
   PulseRunCase('pulse_rtl', 'stringlist-add-sort-128', 'rtl+mm',

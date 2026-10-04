@@ -15,10 +15,13 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   perf_clock in '..\common\perf_clock.pas',
   pulse_process_metrics in '..\common\pulse_process_metrics.pas',
   pulse_harness in '..\common\pulse_harness.pas';
+
+{$I ../common/pulse_program_prefix.inc}
 
 const
   ItemCount = 8192;
@@ -341,16 +344,20 @@ var
   Found: Boolean;
 begin
   InitializeData;
+  {$ifdef PULSE_PROGRAM_PREFIX}PulseProgramPrefix;{$endif}
   PulseInitialize('pulse_layout', Profile, SelectedCase);
   Found := False;
   PulseRunCase('pulse_layout', 'aligned-read', 'codegen+memory', 'compiler',
     @CaseAlignedRead, InnerCount, Profile, SelectedCase, Found);
   PulseRunCase('pulse_layout', 'unaligned-read', 'codegen+memory', 'compiler',
     @CaseUnalignedRead, InnerCount, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_layout', 'aos-one-field', 'codegen+memory', 'compiler',
-    @CaseAoSOneField, ItemCount, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_layout', 'aos-all-fields', 'codegen+memory', 'compiler',
-    @CaseAoSAllFields, ItemCount, Profile, SelectedCase, Found);
+  { The array of records: one memory-manager block for the whole AoS. }
+  PulseRunCaseData('pulse_layout', 'aos-one-field', 'codegen+memory', 'compiler',
+    @CaseAoSOneField, ItemCount, Profile, SelectedCase, Found, nil,
+    PulseData('items', PPointer(@AlignedItems)^));
+  PulseRunCaseData('pulse_layout', 'aos-all-fields', 'codegen+memory', 'compiler',
+    @CaseAoSAllFields, ItemCount, Profile, SelectedCase, Found, nil,
+    PulseData('items', PPointer(@AlignedItems)^));
   PulseRunCase('pulse_layout', 'soa-one-field', 'codegen+memory', 'compiler',
     @CaseSoAOneField, ItemCount, Profile, SelectedCase, Found);
   PulseRunCase('pulse_layout', 'soa-all-fields', 'codegen+memory', 'compiler',

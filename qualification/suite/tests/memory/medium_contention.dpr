@@ -10,18 +10,22 @@ program medium_contention;
 uses
 {$ifdef FPC}
   mormot.core.fpcx64mm,
+  {$ifndef windows}
   cthreads,
+  {$endif}
 {$else}
   Winapi.Windows,
 {$endif}
   SysUtils,
-  Classes;
+  Classes,
+  perf_clock in '..\..\..\performance\common\perf_clock.pas';
 
 const
-  SizeCount = 5;
+  SizeCount = 10;
   SampleCount = 3;
   BlockSizes: array[0..SizeCount - 1] of Integer =
-    (1200, 17000, 17496, 17497, 100500);
+    (1200, 17000, 17496, 17497, 32768, 48936, 48937, 49152, 65536,
+     100500);
 
 type
   TTimes = array[0..SampleCount - 1] of Int64;
@@ -32,7 +36,7 @@ type
     FRounds: Integer;
   public
     Checksum: UInt64;
-    ElapsedMs: Int64;
+    ElapsedNs: Int64;
     Failed: Boolean;
     {$ifdef FPC}
     Arena: Cardinal;
@@ -45,7 +49,11 @@ type
 {$ifdef FPC}
 function RawThreadSelf: QWord; nostackframe; assembler;
 asm
+  {$ifdef windows}
+  db $65, $48, $8B, $04, $25, $48, $00, $00, $00
+  {$else}
   db $64, $48, $8B, $04, $25, $10, $00, $00, $00
+  {$endif}
 end;
 {$endif}
 
@@ -93,23 +101,23 @@ end;
 procedure TAllocThread.Execute;
 var
   R: Integer;
-  StartedAt: UInt64;
+  StartedAt: TPerfStamp;
   {$ifdef FPC}
   Product: Cardinal;
   {$endif}
 begin
   {$ifdef FPC}
   Product := Cardinal(RawThreadSelf) * Cardinal($9E3779B1);
-  Arena := Product shr 27;
+  Arena := Product shr 30;
   {$endif}
-  StartedAt := GetTickCount64;
+  StartedAt := BeginPerfStamp;
   try
     for R := 1 to FRounds do
       AllocRing(FBlockSize, Checksum);
   except
     Failed := True;
   end;
-  ElapsedMs := Int64(GetTickCount64 - StartedAt);
+  ElapsedNs := Int64(EndDiagnosticPerfStamp(StartedAt).WallNs);
 end;
 
 function RunWorkers(BlockSize, Rounds, WorkerCount: Integer;
@@ -138,8 +146,8 @@ begin
   Result := 0;
   Failed := False;
   for T := 0 to WorkerCount - 1 do begin
-    If Workers[T].ElapsedMs > Result then
-      Result := Workers[T].ElapsedMs;
+    If Workers[T].ElapsedNs > Result then
+      Result := Workers[T].ElapsedNs;
     If Workers[T].Failed then
       Failed := True;
     If (T > 0) and (Workers[T].Checksum <> Workers[0].Checksum) then
@@ -175,10 +183,11 @@ var
   SingleTimes: array[0..SizeCount - 1] of TTimes;
   ThreadTimes: array[0..SizeCount - 1] of TTimes;
   Sample, Offset, SizeIndex, Code, Rounds, ThreadCount: Integer;
-  SingleMs, ThreadMs: Int64;
+  SingleNs, ThreadNs: Int64;
   Operations: Int64;
   Checksum, Sink: UInt64;
 begin
+  InitializePerfClock;
   Rounds := 100;
   ThreadCount := 4;
   If ParamCount > 0 then begin
@@ -195,7 +204,7 @@ begin
 
 {$ifdef FPC}
   WriteLn('medium-contention: FPC ', {$I %FPCVERSION%},
-    ' MM=fpcx64mm rounds=', Rounds);
+    ' MM=fpcx64mm flags=', FPCMM_FLAGS, ' rounds=', Rounds);
 {$else}
   WriteLn('medium-contention: Delphi ', CompilerVersion:0:1,
     ' MM=default rounds=', Rounds);
@@ -214,22 +223,22 @@ begin
       ThreadTimes[SizeIndex, Sample] := RunWorkers(BlockSizes[SizeIndex],
         Rounds, ThreadCount, Checksum);
       Sink := Sink xor Checksum;
-      WriteLn(Format('RAW sample=%d size=%d single_ms=%d thread_ms=%d workers=%d',
+      WriteLn(Format('RAW sample=%d size=%d single_ns=%d thread_ns=%d workers=%d',
         [Sample + 1, BlockSizes[SizeIndex], SingleTimes[SizeIndex, Sample],
          ThreadTimes[SizeIndex, Sample], ThreadCount]));
       Flush(Output);
     end;
 
   for SizeIndex := 0 to SizeCount - 1 do begin
-    SingleMs := Median(SingleTimes[SizeIndex]);
-    ThreadMs := Median(ThreadTimes[SizeIndex]);
-    If SingleMs = 0 then
+    SingleNs := Median(SingleTimes[SizeIndex]);
+    ThreadNs := Median(ThreadTimes[SizeIndex]);
+    If SingleNs = 0 then
       raise Exception.Create('single-thread sample is too short');
-    WriteLn(Format('RESULT size=%d single_ms=%d thread_ms=%d workers=%d '+
-      'single_ns=%.2f thread_ns=%.2f contention=%.2f',
-      [BlockSizes[SizeIndex], SingleMs, ThreadMs, ThreadCount,
-       SingleMs * 1E6 / Operations, ThreadMs * 1E6 / Operations,
-       ThreadMs / SingleMs]));
+    WriteLn(Format('RESULT size=%d single_ns=%d thread_ns=%d workers=%d '+
+      'single_ns_per_op=%.2f thread_ns_per_op=%.2f contention=%.2f',
+      [BlockSizes[SizeIndex], SingleNs, ThreadNs, ThreadCount,
+       SingleNs / Operations, ThreadNs / Operations,
+       ThreadNs / SingleNs]));
   end;
   WriteLn('sink=', IntToHex(Sink, 16));
 end.

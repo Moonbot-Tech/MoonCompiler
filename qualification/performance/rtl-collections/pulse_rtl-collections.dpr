@@ -14,10 +14,13 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   Generics.Defaults,
   Generics.Collections,
   pulse_harness in '..\common\pulse_harness.pas';
+
+{$I ../common/pulse_program_prefix.inc}
 
 const
   ItemCount = 256;
@@ -323,13 +326,16 @@ function CaseListIntegerInsertRangeList(Iterations: Integer): UInt64;
 var
   I: Integer;
   List: TList<Integer>;
+  Prepared: TEnumerable<Integer>;
 begin
+  { A local: PreparedBulkIntegerList reloaded after each call 4K-aliased the
+    stores of the range copy. }
+  Prepared := PreparedBulkIntegerList;
   Result := 0;
   for I := 1 to Iterations do begin
     List := TList<Integer>.Create(BulkIntegers);
     try
-      List.InsertRange(BulkItemCount div 2,
-        TEnumerable<Integer>(PreparedBulkIntegerList));
+      List.InsertRange(BulkItemCount div 2, Prepared);
       Result := Result + UInt64(List.Count) +
         UInt64(List[BulkItemCount div 2]) +
         UInt64(List[BulkItemCount + BulkItemCount div 2]);
@@ -960,6 +966,7 @@ var
   SelectedCase: string;
   Found: Boolean;
 begin
+  {$ifdef PULSE_PROGRAM_PREFIX}PulseProgramPrefix;{$endif}
   PulseInitialize('pulse_rtl_collections', Profile, SelectedCase);
   InitializeData;
   try
@@ -967,12 +974,14 @@ begin
     PulseRunCase('pulse_rtl_collections', 'list-string-add-reserved', 'rtl+mm',
       'TList<UnicodeString>.Add', @CaseListStringAddReserved, ItemCount, Profile,
       SelectedCase, Found);
-    PulseRunCase('pulse_rtl_collections', 'list-string-read', 'rtl',
+    PulseRunCaseData('pulse_rtl_collections', 'list-string-read', 'rtl',
       'TList<UnicodeString>.Items', @CaseListStringRead, ItemCount, Profile,
-      SelectedCase, Found);
-    PulseRunCase('pulse_rtl_collections', 'list-string-enumerate', 'rtl',
+      SelectedCase, Found, nil,
+      PulseData('items', Pointer(PreparedStringList.List)));
+    PulseRunCaseData('pulse_rtl_collections', 'list-string-enumerate', 'rtl',
       'TList<UnicodeString>.Enumerator', @CaseListStringEnumerate, ItemCount,
-      Profile, SelectedCase, Found);
+      Profile, SelectedCase, Found, nil,
+      PulseData('items', Pointer(PreparedStringList.List)));
     PulseRunCase('pulse_rtl_collections', 'list-string-insert-delete', 'rtl+mm',
       'TList<UnicodeString>.Insert/Delete', @CaseListStringInsertDelete,
       ItemCount, Profile, SelectedCase, Found);
@@ -1025,12 +1034,14 @@ begin
     PulseRunCase('pulse_rtl_collections', 'list-string-clear-4096',
       'rtl+mm', 'TList<UnicodeString>.AddRange/Clear', @CaseListStringClear,
       BulkItemCount, Profile, SelectedCase, Found);
-    PulseRunCase('pulse_rtl_collections', 'list-integer-indexof', 'rtl',
+    PulseRunCaseData('pulse_rtl_collections', 'list-integer-indexof', 'rtl',
       'TList<Integer>.IndexOf found/missing', @CaseListIntegerIndexOf,
-      ItemCount * 2, Profile, SelectedCase, Found);
-    PulseRunCase('pulse_rtl_collections', 'list-string-indexof', 'rtl',
+      ItemCount * 2, Profile, SelectedCase, Found, nil,
+      PulseData('items', Pointer(PreparedIntegerList.List)));
+    PulseRunCaseData('pulse_rtl_collections', 'list-string-indexof', 'rtl',
       'TList<UnicodeString>.IndexOf', @CaseListStringIndexOf, ItemCount,
-      Profile, SelectedCase, Found);
+      Profile, SelectedCase, Found, nil,
+      PulseData('items', Pointer(PreparedStringList.List)));
     PulseRunCase('pulse_rtl_collections', 'list-integer-sort', 'rtl+mm',
       'TList<Integer>.Sort', @CaseListIntegerSort, ItemCount, Profile,
       SelectedCase, Found);
@@ -1049,33 +1060,39 @@ begin
     PulseRunCase('pulse_rtl_collections', 'array-binarysearch', 'rtl',
       'TArray.BinarySearch<Integer>', @CaseArrayBinarySearch, ItemCount, Profile,
       SelectedCase, Found);
-    PulseRunCase('pulse_rtl_collections', 'dictionary-contains-key', 'rtl',
+    PulseRunCaseData('pulse_rtl_collections', 'dictionary-contains-key', 'rtl',
       'TDictionary.ContainsKey', @CaseDictionaryContainsKey, ItemCount * 2,
-      Profile, SelectedCase, Found);
-    PulseRunCase('pulse_rtl_collections', 'dictionary-contains-value', 'rtl',
+      Profile, SelectedCase, Found, nil,
+      {$ifdef FPC}PulseData('items', PPointer(PreparedIntegerDictionary.Ptr)^){$else}''{$endif});
+    PulseRunCaseData('pulse_rtl_collections', 'dictionary-contains-value', 'rtl',
       'TDictionary.ContainsValue', @CaseDictionaryContainsValue, 64, Profile,
-      SelectedCase, Found);
+      SelectedCase, Found, nil,
+      {$ifdef FPC}PulseData('items', PPointer(PreparedIntegerDictionary.Ptr)^){$else}''{$endif});
     PulseRunCase('pulse_rtl_collections', 'dictionary-tryadd', 'rtl+mm',
       'TDictionary.TryAdd', @CaseDictionaryTryAdd, ItemCount * 2, Profile,
       SelectedCase, Found);
     PulseRunCase('pulse_rtl_collections', 'dictionary-addorset', 'rtl',
       'TDictionary.AddOrSetValue', @CaseDictionaryAddOrSet, ItemCount, Profile,
       SelectedCase, Found);
-    PulseRunCase('pulse_rtl_collections', 'dictionary-pairs', 'rtl',
+    PulseRunCaseData('pulse_rtl_collections', 'dictionary-pairs', 'rtl',
       'TDictionary pair enumerator', @CaseDictionaryPairs, ItemCount, Profile,
-      SelectedCase, Found);
-    PulseRunCase('pulse_rtl_collections', 'dictionary-keys', 'rtl',
+      SelectedCase, Found, nil,
+      {$ifdef FPC}PulseData('items', PPointer(PreparedIntegerDictionary.Ptr)^){$else}''{$endif});
+    PulseRunCaseData('pulse_rtl_collections', 'dictionary-keys', 'rtl',
       'TDictionary.Keys enumerator', @CaseDictionaryKeys, ItemCount, Profile,
-      SelectedCase, Found);
-    PulseRunCase('pulse_rtl_collections', 'dictionary-values', 'rtl',
+      SelectedCase, Found, nil,
+      {$ifdef FPC}PulseData('items', PPointer(PreparedIntegerDictionary.Ptr)^){$else}''{$endif});
+    PulseRunCaseData('pulse_rtl_collections', 'dictionary-values', 'rtl',
       'TDictionary.Values enumerator', @CaseDictionaryValues, ItemCount, Profile,
-      SelectedCase, Found);
+      SelectedCase, Found, nil,
+      {$ifdef FPC}PulseData('items', PPointer(PreparedIntegerDictionary.Ptr)^){$else}''{$endif});
     PulseRunCase('pulse_rtl_collections', 'dictionary-string-add', 'rtl+mm',
       'TDictionary<UnicodeString,Integer>.Add', @CaseDictionaryStringAdd,
       ItemCount, Profile, SelectedCase, Found);
-    PulseRunCase('pulse_rtl_collections', 'dictionary-string-contains', 'rtl',
+    PulseRunCaseData('pulse_rtl_collections', 'dictionary-string-contains', 'rtl',
       'TDictionary<UnicodeString,Integer>.ContainsKey',
-      @CaseDictionaryStringContains, ItemCount, Profile, SelectedCase, Found);
+      @CaseDictionaryStringContains, ItemCount, Profile, SelectedCase, Found, nil,
+      {$ifdef FPC}PulseData('items', PPointer(PreparedStringDictionary.Ptr)^){$else}''{$endif});
     PulseRunCase('pulse_rtl_collections', 'dictionary-collision-churn',
       'rtl+mm', 'TDictionary constant-hash add/get/remove',
       @CaseDictionaryCollisionChurn, 160, Profile, SelectedCase, Found);

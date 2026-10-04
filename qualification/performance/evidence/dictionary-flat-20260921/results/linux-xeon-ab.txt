@@ -1,0 +1,54 @@
+compiler /root/moon-head-20260910/toolchain/bin/ppcx64
+mm /root/moon-head-20260910/runtime/mm/mormot.core.fpcx64mm.pas
+x86_64
+model name	: Intel(R) Xeon(R) W-2295 CPU @ 3.00GHz
+built dict_oracle base
+built dict_bench base
+built dict_ptrhash base
+built dict_oracle cand
+built dict_bench cand
+built dict_ptrhash cand
+LINUX ORACLE IDENTICAL (order-free)
+ORACLE_END lines=20 digest=CBF29CE484222325
+== ptrhash base
+              stride 8 lookup cyc/op   0.00
+             stride 16 lookup cyc/op   0.00
+             stride 24 lookup cyc/op   0.00
+             stride 32 lookup cyc/op   0.00
+             stride 48 lookup cyc/op   0.00
+             stride 64 lookup cyc/op   0.00
+             stride 96 lookup cyc/op   0.00
+            stride 128 lookup cyc/op   0.00
+TObject.Create stride: 32 / 32
+         real TObjects lookup cyc/op   0.00
+           ints 0..511 lookup cyc/op   0.00
+== ptrhash cand
+              stride 8 lookup cyc/op   0.00
+             stride 16 lookup cyc/op   0.00
+             stride 24 lookup cyc/op   0.00
+             stride 32 lookup cyc/op   0.00
+             stride 48 lookup cyc/op   0.00
+             stride 64 lookup cyc/op   0.00
+             stride 96 lookup cyc/op   0.00
+            stride 128 lookup cyc/op   0.00
+TObject.Create stride: 32 / 32
+         real TObjects lookup cyc/op   0.00
+           ints 0..511 lookup cyc/op   0.00
+== bench (thread cycles or TSC ticks per op; min of 3 process medians, taskset -c 5)
+update 256 25 int default       base=47.89  cand=24.67
+update 4096 50 int default      base=48.52  cand=35.68
+lookup 256 25 int default       base=36.61  cand=20.83
+lookup 4096 50 int default      base=35.98  cand=34.64
+miss 4096 50 int default        base=46.56  cand=52.12
+insert 1048576 25 int default   base=132.71  cand=95.0
+mixed 1048576 25 int default    base=95.69  cand=67.65
+update 64 25 int collision      base=98.74  cand=90.83
+lookup 256 50 str default       base=53.46  cand=40.96
+lookup 4096 50 str default      base=60.22  cand=51.53
+update 256 50 str default       base=65.33  cand=42.06
+miss 256 50 str default         base=59.76  cand=46.36
+insert 262144 25 str default    base=626.98  cand=599.17
+lookup 4096 50 i64 default      base=53.42  cand=37.08
+update 4096 50 i64 default      base=65.5  cand=37.33
+lookup 1024 50 obj default      base=73.05  cand=25.52
+update 1024 50 obj default      base=89.61  cand=29.24

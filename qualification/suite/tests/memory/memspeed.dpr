@@ -37,9 +37,10 @@ uses
 {$ifdef USESCALEMM}
   ScaleMM2,                            { Windows only }
 {$endif}
-{$ifdef FPC}
+{$ifdef UNIX}
   cthreads,
-{$else}
+{$endif}
+{$ifndef FPC}
   Winapi.Windows,
 {$endif}
   SysUtils, Classes;

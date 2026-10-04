@@ -1,0 +1,1 @@
+insert-c262144-f25-str-default    baseline  715.85 [713.95..729.27]  candidate  706.38 [658.96..719.72]   -1.3%  delphi  344.25 [344.25..344.25]  -51.9%  digest same

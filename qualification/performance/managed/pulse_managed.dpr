@@ -15,6 +15,7 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   Classes,
   Variants,
@@ -22,6 +23,8 @@ uses
   pulse_process_metrics in '..\common\pulse_process_metrics.pas',
   pulse_harness in '..\common\pulse_harness.pas',
   pulse_managed_targets in 'pulse_managed_targets.pas';
+
+{$I ../common/pulse_program_prefix.inc}
 
 type
   IPulseValue = interface
@@ -112,13 +115,17 @@ end;
 function CaseIgnoredInterfaceResult(Iterations: Integer): UInt64;
 var
   I, J: Integer;
+  Fetch: function: IPulseValue;
 begin
+  { A local: FetchIntfProc reloaded after each call 4K-aliased the release of
+    the call's result. }
+  Fetch := FetchIntfProc;
   IgnoredSideEffect := 0;
   for I := 1 to Iterations do
     for J := 0 to InnerCount - 1 do
     begin
       IgnoredIndex := I + J;
-      FetchIntfProc();
+      Fetch();
     end;
   Result := IgnoredSideEffect;
 end;
@@ -423,6 +430,7 @@ var
   SelectedCase: string;
   Found: Boolean;
 begin
+  {$ifdef PULSE_PROGRAM_PREFIX}PulseProgramPrefix;{$endif}
   PulseInitialize('pulse_managed', Profile, SelectedCase);
   InitializeSources;
   FetchTextProc := @FetchStatusText;

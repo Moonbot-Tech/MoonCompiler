@@ -1,0 +1,7 @@
+lookup 1024 50 int default      base=36.42  flatcrc=17.96  cand=25.66
+lookup 4096 50 int default      base=35.97  flatcrc=18.47  cand=34.6
+lookup 16384 50 int default     base=36.13  flatcrc=18.68  cand=39.06
+miss 4096 50 int default        base=47.07  flatcrc=33.92  cand=52.03
+miss 16384 50 int default       base=46.86  flatcrc=34.86  cand=60.03
+lookup 256 25 int default       base=36.5  flatcrc=17.99  cand=21.46
+lookup 1024 50 obj default      base=72.8  flatcrc=63.31  cand=26.23

@@ -1,0 +1,24 @@
+== ptrhash base (TSC ticks/op)
+              stride 8 lookup cyc/op  32.27
+             stride 16 lookup cyc/op  31.39
+             stride 24 lookup cyc/op  32.71
+             stride 32 lookup cyc/op  68.20
+             stride 48 lookup cyc/op  45.99
+             stride 64 lookup cyc/op  68.21
+             stride 96 lookup cyc/op  60.25
+            stride 128 lookup cyc/op  30.64
+TObject.Create stride: 32 / 32
+         real TObjects lookup cyc/op  72.92
+           ints 0..511 lookup cyc/op  37.22
+== ptrhash cand (TSC ticks/op)
+              stride 8 lookup cyc/op  19.78
+             stride 16 lookup cyc/op  19.05
+             stride 24 lookup cyc/op  18.46
+             stride 32 lookup cyc/op  20.11
+             stride 48 lookup cyc/op  19.06
+             stride 64 lookup cyc/op  18.63
+             stride 96 lookup cyc/op  18.89
+            stride 128 lookup cyc/op  18.55
+TObject.Create stride: 32 / 32
+         real TObjects lookup cyc/op  20.11
+           ints 0..511 lookup cyc/op  19.35

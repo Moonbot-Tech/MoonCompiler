@@ -6,6 +6,7 @@
     "local-pressure",
     "calls-abi",
     "arithmetic",
+    "repair-regressions",
     "loops-control",
     "memory-layout",
     "json-text",
@@ -14,7 +15,8 @@
     "algorithms",
     "memory-manager",
     "multithread",
-    "application-pipeline"
+    "application-pipeline",
+    "product-forms"
   ],
   "required_axis_values": {
     "target": ["win64", "linux-x86_64"],
@@ -181,6 +183,40 @@
       }
     },
     {
+      "id": "repair-regressions",
+      "status": "implemented",
+      "source": "repairs/pulse_repairs.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "fp-constant-folding", "fp-direct-constant", "fp-after-inline", "fp-runtime",
+        "round-normal", "ldexp-double-normal", "ldexp-single-normal", "roundto-minus2",
+        "roundto-minus4", "roundto-minus6", "roundto-minus8", "roundto-zero",
+        "roundto-plus2", "mean-double-4", "mean-double-256", "mean-int64-4",
+        "mean-int64-256", "variance-4", "variance-256", "stddev-4",
+        "stddev-256", "minmax-normal", "fp-const-after-inline", "fp-best-price-scan",
+        "fp-candle-update", "divmod-shared", "swapendian",
+        "range-proof", "small-set-ops", "unroll-dead-counter", "loop-invariant-field",
+        "pointer-bump", "list-reverse", "list-exchange", "unicode-cow",
+        "bytestring-cow", "sametext-short", "unicode-literal-equal", "utf8-roundtrip",
+        "utf8-encode", "utf8-decode", "utf8-raw", "stringbuilder-replace",
+        "variant-dictionary", "record-returns", "return-record16-cross-unit", "return-record24-cross-unit",
+        "static-array-const", "managed-static-array", "array-of-const", "managed-argument",
+        "eight-args", "interface-call", "padded-counters-4", "raise-catch",
+        "ring-64", "ring-256", "ring-1024", "getter-list-find",
+        "getter-first-char", "getter-property-compare", "getter-array-sum",
+        "getter-field-list-find", "getter-record-field"
+      ],
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["constant-folding", "copy-propagation", "cse", "dead-code-store", "inlining", "stack-init-final", "register-allocation", "loop-transform", "branch-lowering", "arithmetic-lowering", "address-alias", "rtl-intrinsic", "exception-cleanup", "peephole"],
+        "type": ["signed-integer", "unsigned-integer", "single", "double", "pointer", "enum-set", "unicode-string", "raw-byte-string", "dynamic-array", "interface", "variant", "managed-record"],
+        "lifetime": ["read-write", "copied", "returned", "escaped", "early-exit", "exception"],
+        "call": ["inline", "autoinline", "noinline", "indirect", "interface", "generic", "ppu-boundary"],
+        "memory": ["register", "stack", "heap", "l1", "l2", "llc", "sequential", "random", "aliased"],
+        "concurrency": ["single-unlocked", "single-locked", "independent", "shared-write", "false-sharing"]
+      }
+    },
+    {
       "id": "loops-control",
       "status": "implemented",
       "source": "loops/pulse_loops.dpr",
@@ -312,10 +348,13 @@
       "source": "mm/pulse_mm.dpr",
       "case_contract": "PulseRunCase/v1",
       "cases": [
-        "alloc-free-16", "alloc-free-64", "alloc-free-256", "alloc-free-1024",
-        "alloc-free-16k", "alloc-free-17408", "alloc-free-17409", "alloc-free-100500",
+        "alloc-free-16", "alloc-free-64", "alloc-free-128", "alloc-free-256",
+        "alloc-free-512", "alloc-free-1024", "alloc-free-2048", "alloc-free-16k",
+        "alloc-free-17408", "alloc-free-17409", "alloc-free-100500",
         "alloc-free-1m", "alloc-free-2m", "ring-same-class-16", "ring-same-class-64",
-        "ring-same-class-96", "ring-mixed-16-to-1m",
+        "ring-same-class-96", "ring-same-class-128", "ring-same-class-256",
+        "ring-same-class-512", "ring-same-class-1024", "ring-same-class-2048",
+        "ring-mixed-16-to-1m",
         "realloc-grow", "realloc-shrink", "fragmented-mixed"
       ],
       "coverage": {
@@ -382,6 +421,32 @@
         "call": ["inline", "autoinline", "indirect", "virtual", "interface", "generic", "ppu-boundary"],
         "memory": ["stack", "heap", "l1", "l2", "llc", "dram", "sequential", "random"],
         "concurrency": ["single-unlocked"]
+      }
+    },
+    {
+      "id": "product-forms",
+      "status": "implemented",
+      "source": "product-forms/pulse_product-forms.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": [
+        "trade-recent-price",
+        "trade-max-window",
+        "trade-buy-sell",
+        "trade-buy-sell-locked",
+        "candle-hour-deltas",
+        "candle-rebuild",
+        "market-by-int-name",
+        "market-by-name-dict",
+        "markets-batch-for-in"
+      ],
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["constant-folding", "inlining", "register-allocation", "loop-transform", "branch-lowering", "address-alias", "rtl-intrinsic", "exception-cleanup"],
+        "type": ["signed-integer", "single", "double", "pointer", "unicode-string", "dynamic-array"],
+        "lifetime": ["read-write", "copied", "early-exit", "exception"],
+        "call": ["inline", "noinline", "virtual", "generic", "ppu-boundary"],
+        "memory": ["heap", "l1", "l2", "sequential"],
+        "concurrency": ["single-unlocked", "single-locked"]
       }
     }
   ]

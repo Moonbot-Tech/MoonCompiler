@@ -14,10 +14,13 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   perf_clock in '..\common\perf_clock.pas',
   pulse_process_metrics in '..\common\pulse_process_metrics.pas',
   pulse_harness in '..\common\pulse_harness.pas';
+
+{$I ../common/pulse_program_prefix.inc}
 
 const
   RingCount = 256;
@@ -254,6 +257,7 @@ var
   Found: Boolean;
   UnitName: string;
 begin
+  {$ifdef PULSE_PROGRAM_PREFIX}PulseProgramPrefix;{$endif}
   PulseInitialize('pulse_mm', Profile, SelectedCase);
   UnitName := ManagerName;
   Found := False;

@@ -14,12 +14,15 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   TypInfo,
   Generics.Collections,
   perf_clock in '..\common\perf_clock.pas',
   pulse_process_metrics in '..\common\pulse_process_metrics.pas',
   pulse_harness in '..\common\pulse_harness.pas';
+
+{$I ../common/pulse_program_prefix.inc}
 
 const
   InnerCount = 64;
@@ -345,6 +348,7 @@ var
 begin
   InitializeData;
   try
+    {$ifdef PULSE_PROGRAM_PREFIX}PulseProgramPrefix;{$endif}
     PulseInitialize('pulse_dispatch', Profile, SelectedCase);
     Found := False;
     PulseRunCase('pulse_dispatch', 'static-method', 'codegen', 'compiler',

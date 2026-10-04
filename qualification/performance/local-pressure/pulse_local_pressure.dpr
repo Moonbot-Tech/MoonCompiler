@@ -14,8 +14,11 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   pulse_harness in '..\common\pulse_harness.pas';
+
+{$I ../common/pulse_program_prefix.inc}
 
 const
   LocalCount = 100;
@@ -55,14 +58,19 @@ begin
   end;
 end;
 
+{ The loop calls a local, not ActivePressureProc: a global reloaded after each
+  call 4K-aliases the stores of that call's frame (as ActiveSize did in
+  pulse_move). }
 function RepeatActive(Iterations: Integer): UInt64;
 var
   I: Integer;
   Before: UInt64;
+  Pressure: TPressureProc;
 begin
+  Pressure := ActivePressureProc;
   Before := Sink;
   for I := 1 to Iterations do
-    ActivePressureProc;
+    Pressure;
   Result := Sink - Before;
 end;
 
@@ -72,6 +80,7 @@ var
   SelectedCase: string;
   Found: Boolean;
 begin
+  {$ifdef PULSE_PROGRAM_PREFIX}PulseProgramPrefix;{$endif}
   PulseInitialize('pulse_local_pressure', Profile, SelectedCase);
   InitializeSources;
   Found := False;

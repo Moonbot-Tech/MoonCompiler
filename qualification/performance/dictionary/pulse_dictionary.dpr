@@ -14,9 +14,12 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   Generics.Collections,
   pulse_harness in '..\common\pulse_harness.pas';
+
+{$I ../common/pulse_program_prefix.inc}
 
 const
   ShortCount = 100;
@@ -141,6 +144,9 @@ begin
   Finalize(UInt64Keys);
 end;
 
+{ Dictionary is read after the loop for its address: Delphi's flow analysis
+  sees the zero-trip path, FPC's gives up at the try/finally. }
+{$ifndef FPC}{$WARN USE_BEFORE_DEF OFF}{$endif}
 function BuildUInt64(Iterations, Count: Integer; Reserve: Boolean): UInt64;
 var
   Dictionary: TUInt64Dictionary;
@@ -160,7 +166,10 @@ begin
       Dictionary.Free;
     end;
   end;
+  { The dictionary every iteration builds (freed: its address only). }
+  PulseCaseBlock := Dictionary;
 end;
+{$ifndef FPC}{$WARN USE_BEFORE_DEF DEFAULT}{$endif}
 
 function LookupUInt64(Iterations, Count: Integer;
   Dictionary: TUInt64Dictionary): UInt64;
@@ -230,6 +239,9 @@ begin
   Result := UInt64(Dictionary.Count) xor Value;
 end;
 
+{ Dictionary is read after the loop for its address: Delphi's flow analysis
+  sees the zero-trip path, FPC's gives up at the try/finally. }
+{$ifndef FPC}{$WARN USE_BEFORE_DEF OFF}{$endif}
 function BuildStringKey(Iterations, Count: Integer; Reserve: Boolean): UInt64;
 var
   Dictionary: TStringKeyDictionary;
@@ -249,7 +261,10 @@ begin
       Dictionary.Free;
     end;
   end;
+  { The dictionary every iteration builds (freed: its address only). }
+  PulseCaseBlock := Dictionary;
 end;
+{$ifndef FPC}{$WARN USE_BEFORE_DEF DEFAULT}{$endif}
 
 function LookupStringKey(Iterations, Count: Integer;
   Dictionary: TStringKeyDictionary): UInt64;
@@ -290,6 +305,9 @@ begin
   Result := UInt64(Dictionary.Count) xor Value;
 end;
 
+{ Dictionary is read after the loop for its address: Delphi's flow analysis
+  sees the zero-trip path, FPC's gives up at the try/finally. }
+{$ifndef FPC}{$WARN USE_BEFORE_DEF OFF}{$endif}
 function BuildStringValue(Iterations, Count: Integer; Reserve: Boolean): UInt64;
 var
   Dictionary: TStringValueDictionary;
@@ -309,7 +327,10 @@ begin
       Dictionary.Free;
     end;
   end;
+  { The dictionary every iteration builds (freed: its address only). }
+  PulseCaseBlock := Dictionary;
 end;
+{$ifndef FPC}{$WARN USE_BEFORE_DEF DEFAULT}{$endif}
 
 function LookupStringValue(Iterations, Count: Integer;
   Dictionary: TStringValueDictionary): UInt64;
@@ -467,28 +488,35 @@ begin
   PulseRunCase('pulse_dictionary', 'u64-u64-build-reserved-10000', 'rtl+mm',
     'TDictionary<UInt64,UInt64> reserved build, 10000 items',
     @CaseUInt64BuildReserved10000, LongCount, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'u64-u64-lookup-mixed-100', 'rtl',
+  PulseRunCaseData('pulse_dictionary', 'u64-u64-lookup-mixed-100', 'rtl',
     'TDictionary<UInt64,UInt64> hit/miss lookup, 100 items',
-    @CaseUInt64Lookup100, ShortCount * 2, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'u64-u64-lookup-mixed-10000', 'rtl',
+    @CaseUInt64Lookup100, ShortCount * 2, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedUInt64Short.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'u64-u64-lookup-mixed-10000', 'rtl',
     'TDictionary<UInt64,UInt64> hit/miss lookup, 10000 items',
-    @CaseUInt64Lookup10000, LongCount * 2, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'u64-u64-lookup-hit-10000', 'rtl',
+    @CaseUInt64Lookup10000, LongCount * 2, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedUInt64Long.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'u64-u64-lookup-hit-10000', 'rtl',
     'TDictionary<UInt64,UInt64> hit-only lookup, 10000 items',
-    @CaseUInt64LookupHits10000, LongCount, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'u64-u64-lookup-miss-10000', 'rtl',
+    @CaseUInt64LookupHits10000, LongCount, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedUInt64Long.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'u64-u64-lookup-miss-10000', 'rtl',
     'TDictionary<UInt64,UInt64> miss-only lookup, 10000 items',
-    @CaseUInt64LookupMisses10000, LongCount, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'u64-u64-lookup-halfload-10000', 'rtl',
+    @CaseUInt64LookupMisses10000, LongCount, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedUInt64Long.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'u64-u64-lookup-halfload-10000', 'rtl',
     'TDictionary<UInt64,UInt64> hit/miss lookup at 10000/32768 load',
     @CaseUInt64LookupHalfLoad10000, LongCount * 2, Profile, SelectedCase,
-    Found);
-  PulseRunCase('pulse_dictionary', 'u64-u64-churn-100', 'rtl',
+    Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedUInt64LongHalfLoad.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'u64-u64-churn-100', 'rtl',
     'TDictionary<UInt64,UInt64> remove/reinsert half, 100 items',
-    @CaseUInt64Churn100, ShortCount, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'u64-u64-churn-10000', 'rtl',
+    @CaseUInt64Churn100, ShortCount, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedUInt64Short.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'u64-u64-churn-10000', 'rtl',
     'TDictionary<UInt64,UInt64> remove/reinsert half, 10000 items',
-    @CaseUInt64Churn10000, LongCount, Profile, SelectedCase, Found);
+    @CaseUInt64Churn10000, LongCount, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedUInt64Long.Ptr)^){$else}''{$endif});
 
   PulseRunCase('pulse_dictionary', 'string-u64-build-grow-100', 'rtl+mm',
     'TDictionary<UnicodeString,UInt64> grow/build, 100 items',
@@ -502,18 +530,22 @@ begin
   PulseRunCase('pulse_dictionary', 'string-u64-build-reserved-10000', 'rtl+mm',
     'TDictionary<UnicodeString,UInt64> reserved build, 10000 items',
     @CaseStringKeyBuildReserved10000, LongCount, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'string-u64-lookup-mixed-100', 'rtl',
+  PulseRunCaseData('pulse_dictionary', 'string-u64-lookup-mixed-100', 'rtl',
     'TDictionary<UnicodeString,UInt64> hit/miss lookup, 100 items',
-    @CaseStringKeyLookup100, ShortCount * 2, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'string-u64-lookup-mixed-10000', 'rtl',
+    @CaseStringKeyLookup100, ShortCount * 2, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedStringKeyShort.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'string-u64-lookup-mixed-10000', 'rtl',
     'TDictionary<UnicodeString,UInt64> hit/miss lookup, 10000 items',
-    @CaseStringKeyLookup10000, LongCount * 2, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'string-u64-churn-100', 'rtl+mm',
+    @CaseStringKeyLookup10000, LongCount * 2, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedStringKeyLong.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'string-u64-churn-100', 'rtl+mm',
     'TDictionary<UnicodeString,UInt64> remove/reinsert half, 100 items',
-    @CaseStringKeyChurn100, ShortCount, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'string-u64-churn-10000', 'rtl+mm',
+    @CaseStringKeyChurn100, ShortCount, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedStringKeyShort.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'string-u64-churn-10000', 'rtl+mm',
     'TDictionary<UnicodeString,UInt64> remove/reinsert half, 10000 items',
-    @CaseStringKeyChurn10000, LongCount, Profile, SelectedCase, Found);
+    @CaseStringKeyChurn10000, LongCount, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedStringKeyLong.Ptr)^){$else}''{$endif});
 
   PulseRunCase('pulse_dictionary', 'u64-string-build-grow-100', 'rtl+mm',
     'TDictionary<UInt64,UnicodeString> grow/build, 100 items',
@@ -527,29 +559,36 @@ begin
   PulseRunCase('pulse_dictionary', 'u64-string-build-reserved-10000', 'rtl+mm',
     'TDictionary<UInt64,UnicodeString> reserved build, 10000 items',
     @CaseStringValueBuildReserved10000, LongCount, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'u64-string-lookup-mixed-100', 'rtl',
+  PulseRunCaseData('pulse_dictionary', 'u64-string-lookup-mixed-100', 'rtl',
     'TDictionary<UInt64,UnicodeString> hit/miss lookup, 100 items',
-    @CaseStringValueLookup100, ShortCount * 2, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'u64-string-lookup-mixed-10000', 'rtl',
+    @CaseStringValueLookup100, ShortCount * 2, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedStringValueShort.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'u64-string-lookup-mixed-10000', 'rtl',
     'TDictionary<UInt64,UnicodeString> hit/miss lookup, 10000 items',
-    @CaseStringValueLookup10000, LongCount * 2, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'u64-string-lookup-hit-10000', 'rtl',
+    @CaseStringValueLookup10000, LongCount * 2, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedStringValueLong.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'u64-string-lookup-hit-10000', 'rtl',
     'TDictionary<UInt64,UnicodeString> hit-only lookup, 10000 items',
-    @CaseStringValueLookupHits10000, LongCount, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'u64-string-lookup-miss-10000', 'rtl',
+    @CaseStringValueLookupHits10000, LongCount, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedStringValueLong.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'u64-string-lookup-miss-10000', 'rtl',
     'TDictionary<UInt64,UnicodeString> miss-only lookup, 10000 items',
     @CaseStringValueLookupMisses10000, LongCount, Profile, SelectedCase,
-    Found);
-  PulseRunCase('pulse_dictionary', 'u64-string-lookup-halfload-10000', 'rtl',
+    Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedStringValueLong.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'u64-string-lookup-halfload-10000', 'rtl',
     'TDictionary<UInt64,UnicodeString> hit/miss lookup at 10000/32768 load',
     @CaseStringValueLookupHalfLoad10000, LongCount * 2, Profile,
-    SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'u64-string-churn-100', 'rtl+mm',
+    SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedStringValueLongHalfLoad.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'u64-string-churn-100', 'rtl+mm',
     'TDictionary<UInt64,UnicodeString> remove/reinsert half, 100 items',
-    @CaseStringValueChurn100, ShortCount, Profile, SelectedCase, Found);
-  PulseRunCase('pulse_dictionary', 'u64-string-churn-10000', 'rtl+mm',
+    @CaseStringValueChurn100, ShortCount, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedStringValueShort.Ptr)^){$else}''{$endif});
+  PulseRunCaseData('pulse_dictionary', 'u64-string-churn-10000', 'rtl+mm',
     'TDictionary<UInt64,UnicodeString> remove/reinsert half, 10000 items',
-    @CaseStringValueChurn10000, LongCount, Profile, SelectedCase, Found);
+    @CaseStringValueChurn10000, LongCount, Profile, SelectedCase, Found, nil,
+    {$ifdef FPC}PulseData('items', PPointer(PreparedStringValueLong.Ptr)^){$else}''{$endif});
 end;
 
 procedure Run;
@@ -558,6 +597,7 @@ var
   SelectedCase: string;
   Found: Boolean;
 begin
+  {$ifdef PULSE_PROGRAM_PREFIX}PulseProgramPrefix;{$endif}
   PulseInitialize('pulse_dictionary', Profile, SelectedCase);
   InitializeData;
   try

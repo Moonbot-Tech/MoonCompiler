@@ -21,12 +21,13 @@ class PulseCaseContractTests(unittest.TestCase):
             source = Path(temporary) / "pulse_sample.dpr"
             source.write_text(
                 "PulseRunCase('pulse_sample', 'first', 'layer', 'unit', nil);\n"
-                "PulseRunCase(\n  'pulse_sample', 'second', 'layer', 'unit', nil);\n",
+                "PulseRunCase(\n  'pulse_sample', 'second', 'layer', 'unit', nil);\n"
+                "PulseRunCaseData('pulse_sample', 'third', 'layer', 'unit', nil, Data);\n",
                 encoding="utf-8",
             )
             self.assertEqual(
                 CHECK_COVERAGE.declared_pulse_cases(source, "PulseRunCase/v1"),
-                ["first", "second"],
+                ["first", "second", "third"],
             )
 
     def test_extracts_heartbeat_wrapper_case_matrix(self) -> None:

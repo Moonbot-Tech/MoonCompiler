@@ -1,0 +1,4 @@
+# Loads from .data/.bss in a case loop that only the Linux image has, read with case_loop_loads.txt
+# for ELF images (check_case_loads.py).
+
+hot-rtl P$PULSE_HOT_RTL_$$_CASEFORMAT3MIXED$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_RUNTIMEDOUBLE  # case input: prepared before the case; Extended is 80-bit on Linux, so the open array converts the Double on every call (Win64 points the element at the global)

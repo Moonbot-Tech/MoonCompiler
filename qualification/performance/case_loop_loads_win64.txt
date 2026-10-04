@@ -1,0 +1,22 @@
+# Loads from .data/.bss in a case loop that only the Win64 image has, read with case_loop_loads.txt
+# for Win64 images (check_case_loads.py).  The AsmSameText cases exist only under WIN64; the Linux
+# variant path does not read DirectVariantUnicodeString in the loop.
+
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTEQUAL128$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_EQUAL128A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTEQUAL128$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_EQUAL128B  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTEQUALDISTINCT12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTEQUALDISTINCT12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12B  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTFOLD1$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FOLD1A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTFOLD1$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FOLD1B  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTFOLD12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTFOLD12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FOLD12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTFOLD128$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FOLD128A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTFOLD128$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_FOLD128B  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTLENGTHDIFFER$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTLENGTHDIFFER$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_LENGTH13  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTMISMATCHFIRST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTMISMATCHFIRST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MISMATCHFIRST12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTMISMATCHLAST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_DISTINCT12A  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEASMSAMETEXTMISMATCHLAST12$LONGINT$$QWORD U_$P$PULSE_HOT_RTL_$$_MISMATCHLAST12  # case input: prepared before the case; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEVARIANTASSIGNSTRING$LONGINT$$QWORD TC_$SYSTEM_$$_DIRECTVARIANTUNICODESTRING  # product: System.DirectVariantUnicodeString: the variant string path reads it; trace 0/128 in flight
+hot-rtl P$PULSE_HOT_RTL_$$_CASEVARIANTASSIGNSTRING$LONGINT$$QWORD TC_$SYSTEM_$$_VARIANTUNICODEREADER  # product: replaceable System.VariantUnicodeReader callback: conversion must read the current hook on each call; trace 0/128 in flight

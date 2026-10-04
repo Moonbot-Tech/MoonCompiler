@@ -1,5 +1,14 @@
 # Pulse: current results and optimization history
 
+## Remote to Current — 2026-09-24
+
+Remote `ccaa5fba` versus Current `1aa1e824` on Windows and Linux: useful gains,
+practical regressions for the optimization TODO, and explicit trade-offs are in
+the [release comparison](evidence/remote-current-20260924/README.md).
+Its [top operations](evidence/remote-current-20260924/REPORT.md) require an
+independent confirmation after the full screen. A case-count vote is not a
+release verdict. Older snapshots below retain their original historical metrics.
+
 ## Final release snapshot — 2026-08-30
 
 The complete Win64 O3 medium run at clean HEAD

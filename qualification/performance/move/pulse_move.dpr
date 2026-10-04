@@ -15,10 +15,13 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   perf_clock in '..\common\perf_clock.pas',
   pulse_process_metrics in '..\common\pulse_process_metrics.pas',
   pulse_harness in '..\common\pulse_harness.pas';
+
+{$I ../common/pulse_program_prefix.inc}
 
 const
   CacheLineSize = 64;
@@ -45,13 +48,10 @@ const
   PageOffsetPairs: array[0..3, 0..1] of NativeInt = (
     (0, 128), (128, 0), (0, 2048), (2048, 0));
 
-  OverlapSizes: array[0..10] of NativeInt = (
-    33, 64, 65, 128, 256, 512, 1024, 1536, 2048, 4096, 65536);
+  OverlapSizes: array[0..15] of NativeInt = (
+    33, 64, 65, 128, 192, 193, 255, 256, 320, 321, 512, 1024, 1536,
+    2048, 4096, 65536);
   OverlapDistances: array[0..2] of NativeInt = (1, 16, 63);
-
-  SamePointerSizes: array[0..16] of NativeInt = (
-    0, 1, 16, 32, 33, 64, 65, 80, 96, 97, 127, 128, 129, 192,
-    256, 4096, 1048576);
 
   StreamingSizes: array[0..21] of NativeInt = (
     256, 512, 1024, 1536, 2048, 4096, 8192, 16384,
@@ -61,7 +61,7 @@ const
     64 * 1024 * 1024);
 
 type
-  TMovePattern = (mpHot, mpStream, mpSamePointer, mpOverlapForward,
+  TMovePattern = (mpHot, mpStream, mpOverlapForward,
     mpOverlapBackward);
 
 var
@@ -84,66 +84,73 @@ begin
     (UInt64(P[Count - 1]) shl 16) xor UInt64(Count) * $9e3779b97f4a7c15;
 end;
 
+{ The copy loops read no global: the size reloaded from ActiveSize (page
+  offset 0x050) right after the stores of a copy to a page start 4K-aliased
+  them, and Zen 3 held every call on that false dependency by the layout of
+  the code behind Move (audit WP3 r4).  A pass of the stream is a procedure of
+  its own: its five values fit the five callee-saved registers of SysV, where
+  the seven of a whole stream in one function left two pointers on the
+  stack. }
 function CaseMove(Iterations: Integer): UInt64;
 var
-  I, J: Integer;
+  I: Integer;
   SourcePointer, DestPointer: PByte;
+  Size: NativeInt;
 begin
-  DestPointer := DestBase;
+  Size := ActiveSize;
   case ActivePattern of
     mpHot:
       begin
         SourcePointer := SourceBase + ActiveSourceAlignment;
         DestPointer := DestBase + ActiveDestAlignment;
-        for I := 1 to Iterations do
-          Move(SourcePointer^, DestPointer^, ActiveSize);
-      end;
-    mpStream:
-      begin
-        for I := 1 to Iterations do
-        begin
-          SourcePointer := SourceBase + ActiveSourceAlignment;
-          DestPointer := DestBase + ActiveDestAlignment;
-          for J := 1 to ActiveStreamMoves do
-          begin
-            Move(SourcePointer^, DestPointer^, ActiveSize);
-            Inc(SourcePointer, ActiveStride);
-            Inc(DestPointer, ActiveStride);
-          end;
-        end;
-      end;
-    mpSamePointer:
-      begin
-        SourcePointer := SourceBase + ActiveSourceAlignment;
-        DestPointer := SourcePointer;
-        for I := 1 to Iterations do
-          Move(SourcePointer^, DestPointer^, ActiveSize);
       end;
     mpOverlapForward:
       begin
         SourcePointer := OverlapBase + ActiveDistance;
         DestPointer := OverlapBase;
-        for I := 1 to Iterations do
-          Move(SourcePointer^, DestPointer^, ActiveSize);
       end;
   else
     begin
       SourcePointer := OverlapBase;
       DestPointer := OverlapBase + ActiveDistance;
-      for I := 1 to Iterations do
-        Move(SourcePointer^, DestPointer^, ActiveSize);
     end;
   end;
-  If ActivePattern = mpStream then
-    Result := MixDigest(DestBase + ActiveDestAlignment, ActiveSize) xor
-      MixDigest(DestBase + ActiveDestAlignment +
-        (ActiveStreamMoves - 1) * ActiveStride, ActiveSize) *
-        $d6e8feb86659fd93 xor UInt64(ActiveStreamMoves)
-  else If ActivePattern in [mpOverlapForward, mpOverlapBackward] then
+  for I := 1 to Iterations do
+    Move(SourcePointer^, DestPointer^, Size);
+  If ActivePattern in [mpOverlapForward, mpOverlapBackward] then
     Result := UInt64(ActiveSize) xor (UInt64(ActiveDistance) shl 32) xor
       UInt64(Ord(ActivePattern)) * $9e3779b97f4a7c15
   else
     Result := MixDigest(DestPointer, ActiveSize);
+end;
+
+procedure StreamPass(Source, Dest: PByte; Size, Stride, Moves: NativeInt);
+begin
+  repeat
+    Move(Source^, Dest^, Size);
+    Inc(Source, Stride);
+    Inc(Dest, Stride);
+    Dec(Moves);
+  until Moves = 0;
+end;
+
+function CaseStream(Iterations: Integer): UInt64;
+var
+  I: Integer;
+  SourceStart, DestStart: PByte;
+  Size, Stride, Moves: NativeInt;
+begin
+  SourceStart := SourceBase + ActiveSourceAlignment;
+  DestStart := DestBase + ActiveDestAlignment;
+  Size := ActiveSize;
+  Stride := ActiveStride;
+  Moves := ActiveStreamMoves;
+  for I := 1 to Iterations do
+    StreamPass(SourceStart, DestStart, Size, Stride, Moves);
+  Result := MixDigest(DestBase + ActiveDestAlignment, ActiveSize) xor
+    MixDigest(DestBase + ActiveDestAlignment +
+      (ActiveStreamMoves - 1) * ActiveStride, ActiveSize) *
+      $d6e8feb86659fd93 xor UInt64(ActiveStreamMoves);
 end;
 
 procedure InitializeRegion(P: PByte; Count: NativeInt; Seed: UInt32);
@@ -172,6 +179,9 @@ procedure RunConfiguredCase(const CaseName: string; Size, SourceAlignment,
   const Profile: TPulseProfile; const SelectedCase: string; var Found: Boolean);
 var
   StreamAlignment: NativeInt;
+  Data: string;
+  Body: TPulseCaseProc;
+  Work: Pointer;
 begin
   ActiveSize := Size;
   ActiveSourceAlignment := SourceAlignment;
@@ -204,13 +214,33 @@ begin
           InitializeRegion(SourceBase, StreamingBytes + SourceAlignment, 11);
           InitializeRegion(DestBase, StreamingBytes + DestAlignment, 173);
         end;
-      mpSamePointer:
-        InitializeRegion(SourceBase, ActiveSize + SourceAlignment + CacheLineSize, 11);
     else
       InitializeRegion(OverlapBase, ActiveSize + Distance + CacheLineSize, 91);
     end;
-  PulseRunCase('pulse_move', CaseName, 'rtl+memory', 'System.Move', @CaseMove,
-    ActiveStreamMoves, Profile, SelectedCase, Found);
+  { The first copy's source and target, as the body computes them. }
+  case Pattern of
+    mpOverlapForward:
+      Data := PulseData('src', OverlapBase + Distance) + PulseData('dst', OverlapBase);
+    mpOverlapBackward:
+      Data := PulseData('src', OverlapBase) + PulseData('dst', OverlapBase + Distance);
+  else
+    Data := PulseData('src', SourceBase + SourceAlignment) +
+      PulseData('dst', DestBase + DestAlignment);
+  end;
+  { The copies of a stream loop in StreamPass: registered as the work, its
+    loop is checked with the body's. }
+  If Pattern = mpStream then
+  begin
+    Body := @CaseStream;
+    Work := @StreamPass;
+  end
+  else
+  begin
+    Body := @CaseMove;
+    Work := nil;
+  end;
+  PulseRunCaseData('pulse_move', CaseName, 'rtl+memory', 'System.Move', Body,
+    ActiveStreamMoves, Profile, SelectedCase, Found, Work, Data);
 end;
 
 var
@@ -219,6 +249,7 @@ var
   Found: Boolean;
   I, J, K: Integer;
 begin
+  {$ifdef PULSE_PROGRAM_PREFIX}PulseProgramPrefix;{$endif}
   PulseInitialize('pulse_move', Profile, SelectedCase);
   InitializeData;
   try
@@ -251,12 +282,6 @@ begin
         RunConfiguredCase(CaseName, AlignmentSizes[I], PageOffsetPairs[J, 0],
           PageOffsetPairs[J, 1], 0, mpHot, Profile, SelectedCase, Found);
       end;
-    for I := Low(SamePointerSizes) to High(SamePointerSizes) do
-    begin
-      CaseName := Format('same-a0-n%d', [SamePointerSizes[I]]);
-      RunConfiguredCase(CaseName, SamePointerSizes[I], 0, 0, 0,
-        mpSamePointer, Profile, SelectedCase, Found);
-    end;
     for I := Low(OverlapSizes) to High(OverlapSizes) do
       for J := Low(OverlapDistances) to High(OverlapDistances) do
         If OverlapDistances[J] < OverlapSizes[I] then

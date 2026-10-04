@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "coverage_manifest.json"
 PULSE_CASE_PATTERN = re.compile(
-    r"PulseRunCase\s*\(\s*'[^']+'\s*,\s*'([^']+)'", re.DOTALL
+    r"PulseRunCase(?:Data)?\s*\(\s*'[^']+'\s*,\s*'([^']+)'", re.DOTALL
 )
 PULSE_ADD_PATTERN = re.compile(r"\bAdd\s*\(\s*'([^']+)'", re.DOTALL)
 CASE_CONTRACTS = {

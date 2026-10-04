@@ -14,6 +14,7 @@ uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
   {$ifend}
+  {$I ../common/pulse_placement_uses.inc}
   SysUtils,
   Variants,
   Generics.Defaults,
@@ -26,6 +27,8 @@ uses
   perf_clock in '..\common\perf_clock.pas',
   pulse_process_metrics in '..\common\pulse_process_metrics.pas',
   pulse_harness in '..\common\pulse_harness.pas';
+
+{$I ../common/pulse_program_prefix.inc}
 
 { Heartbeat is one application-shaped benchmark with independent hot-path
   lines. It covers a deterministic market-data cycle plus concentrated work
@@ -1534,6 +1537,7 @@ var
   end;
 
 begin
+  {$ifdef PULSE_PROGRAM_PREFIX}PulseProgramPrefix;{$endif}
   PulseInitialize('pulse_heartbeat', Profile, SelectedCase);
   InitializeData;
   try
