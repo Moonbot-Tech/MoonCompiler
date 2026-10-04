@@ -2931,7 +2931,9 @@ const
      (mask:df_has_generic_fields; str:'Has generic fields'),
      (mask:df_llvm_no_typename; str:'LLVM no typename'),
      (mask:df_tuple;          str:'Tuple'),
-     (mask:df_expose_rtti;    str:'Expose RTTI')
+     (mask:df_expose_rtti;    str:'Expose RTTI'),
+     (mask:df_delphi_const_aggregate_abi; str:'Delphi const aggregate ABI'),
+     (mask:df_inherited_const_aggregate_abi; str:'Inherited const aggregate ABI')
   );
   defstate : array[1..ord(high(tdefstate))] of tdefstateinfo=(
      (mask:ds_vmt_written;           str:'VMT Written'),

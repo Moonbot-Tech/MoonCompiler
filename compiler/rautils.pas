@@ -1022,7 +1022,7 @@ Begin
               opr.localindexreg:=indexreg;
               opr.localscale:=0;
               opr.localgetoffset:=GetOffset;
-              if paramanager.push_addr_param(tabstractvarsym(sym).varspez,tabstractvarsym(sym).vardef,current_procinfo.procdef.proccalloption) then
+              if paramanager.push_addr_param_for_proc(tabstractvarsym(sym).varspez,tabstractvarsym(sym).vardef,current_procinfo.procdef) then
                 SetSize(sizeof(pint),false);
             end;
           else

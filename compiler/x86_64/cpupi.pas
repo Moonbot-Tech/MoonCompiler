@@ -56,6 +56,7 @@ implementation
     uses
       systems,
       globals,
+      cpuinfo,
       cutils,
       symconst,
       symtable,
@@ -173,10 +174,8 @@ implementation
 
     function x86_64_use_ms_abi(proccall: tproccalloption): boolean;
       begin
-        result:=
-          ((target_info.system in systems_x86_64_ms_abi) and
-            not(proccall in [pocall_sysv_abi_default,pocall_sysv_abi_cdecl])) or
-          (proccall in [pocall_ms_abi_default,pocall_ms_abi_cdecl]);
+        result:=x86_64_call_uses_ms_abi(proccall,
+          target_info.system in systems_x86_64_ms_abi);
       end;
 
 

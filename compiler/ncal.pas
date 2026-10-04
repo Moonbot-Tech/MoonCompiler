@@ -6315,7 +6315,7 @@ implementation
       begin
         paracomplexity:=node_complexity(para.left);
         if para.parasym.varspez=vs_const then
-          pushconstaddr:=paramanager.push_addr_param(vs_const,para.parasym.vardef,procdefinition.proccalloption)
+          pushconstaddr:=paramanager.push_addr_param_for_proc(vs_const,para.parasym.vardef,procdefinition)
         else
           pushconstaddr:=false;
         realtarget:=actualtargetnode(@para.left)^;

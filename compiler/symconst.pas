@@ -258,7 +258,15 @@ type
     df_tuple,
     { keep type-name string in RTTI/VMT even when m_strip_rtti is active;
       set by expose keyword, rttiexpose directive, or --rttiexpose= CLI }
-    df_expose_rtti
+    df_expose_rtti,
+    { The declaration uses Delphi-compatible Win64 passing for small const
+      aggregates.  This is an ABI property of a routine declaration and must
+      survive PPU/procvar copies instead of being inferred from the caller's
+      current language mode. }
+    df_delphi_const_aggregate_abi,
+    { The physical ABI of this routine was fixed by an inherited VMT or
+      interface contract rather than selected only by its declaration mode. }
+    df_inherited_const_aggregate_abi
   );
   tdefoptions=set of tdefoption;
 

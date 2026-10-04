@@ -5641,7 +5641,7 @@ implementation
                  { variants are already handled by the call to fpc_variant_copy_overwrite if
                    they are passed by reference }
                  if not((tparavarsym(p).vardef.typ=variantdef) and
-                   paramanager.push_addr_param(tparavarsym(p).varspez,tparavarsym(p).vardef,current_procinfo.procdef.proccalloption)) then
+                   paramanager.push_addr_param_for_proc(tparavarsym(p).varspez,tparavarsym(p).vardef,current_procinfo.procdef)) then
                    begin
                      location_get_data_ref(list,tparavarsym(p).vardef,tparavarsym(p).initialloc,href,
                        is_open_array(tparavarsym(p).vardef) or

@@ -369,8 +369,8 @@ implementation
                      (tobjectdef(callnode.procdefinition.owner.defowner).extendeddef.typ=pointerdef)
                    )
                  ) and
-                paramanager.push_addr_param(parasym.varspez,parasym.vardef,
-                    callnode.procdefinition.proccalloption));
+                paramanager.push_addr_param_for_proc(parasym.varspez,parasym.vardef,
+                    callnode.procdefinition));
 
             if pushaddr then
               begin

@@ -150,7 +150,7 @@ unit opttail;
                           end;
                         useaddr:=(paranode.parasym.varspez in [vs_var,vs_constref]) or
                           ((paranode.parasym.varspez=vs_const) and
-                          paramanager.push_addr_param(paranode.parasym.varspez,paranode.parasym.vardef,p.proccalloption)) or
+                          paramanager.push_addr_param_for_proc(paranode.parasym.varspez,paranode.parasym.vardef,p)) or
                           ((paranode.parasym.varspez=vs_value) and
                           is_open_array(paranode.parasym.vardef));
                         if useaddr then

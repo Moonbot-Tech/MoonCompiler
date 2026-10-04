@@ -135,6 +135,9 @@ var
      pocall_vectorcall
    ];
 
+function x86_64_call_uses_ms_abi(proccall: tproccalloption;
+  target_uses_ms_abi: boolean): boolean;
+
 const
    cputypestr : array[tcputype] of string[16] = ('',
      'ATHLON64',
@@ -366,5 +369,14 @@ type
    );
 
 Implementation
+
+function x86_64_call_uses_ms_abi(proccall: tproccalloption;
+  target_uses_ms_abi: boolean): boolean;
+  begin
+    result:=
+      (target_uses_ms_abi and
+        not(proccall in [pocall_sysv_abi_default,pocall_sysv_abi_cdecl])) or
+      (proccall in [pocall_ms_abi_default,pocall_ms_abi_cdecl]);
+  end;
 
 end.

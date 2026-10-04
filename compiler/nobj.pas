@@ -39,7 +39,8 @@ interface
         function  is_new_vmt_entry(pd:tprocdef; out overridesclasshelper: boolean):boolean;
         procedure add_new_vmt_entry(pd:tprocdef; allowoverridingmethod: boolean);
         function  check_msg_str(vmtpd, pd: tprocdef):boolean;
-        function  intf_search_procdef_by_name(proc: tprocdef;const name: string): tprocdef;
+        function  intf_search_procdef_by_name(proc: tprocdef;const name: string;
+          adoptinterfaceabi: boolean): tprocdef;
         procedure intf_get_procdefs(ImplIntf:TImplementedInterface;IntfDef:TObjectDef);
         procedure intf_get_procdefs_recursive(ImplIntf:TImplementedInterface;IntfDef:TObjectDef);
         procedure prot_get_procdefs_recursive(ImplProt:TImplementedInterface;ProtDef:TObjectDef);
@@ -192,8 +193,9 @@ implementation
 
       // returns true if we can stop checking, false if we have to continue
       function found_entry(var vmtpd: tprocdef; var vmtentryvis: tvisibility; updatevalues: boolean): boolean;
-{$ifdef jvm}
         var
+          inherited_abi_compatible: boolean;
+{$ifdef jvm}
           javanewtreeok: boolean;
 {$endif jvm}
         begin
@@ -366,9 +368,24 @@ implementation
                       include(pd.procoptions,po_hascallingconvention);
                     end;
 
+                  { An override implements the physical calling convention of
+                    the inherited VMT slot.  Its source language mode must not
+                    silently select a different representation for small const
+                    aggregates. }
+                  inherited_abi_compatible:=true;
+                  if (compare_paras(vmtpd.paras,pd.paras,cp_all,
+                       [cpo_ignoreuniv,cpo_ignorehidden])>=te_equal) and
+                     (vmtpd.proccalloption=pd.proccalloption) and
+                     (vmtpd.proctypeoption=pd.proctypeoption) and
+                     ((vmtpd.procoptions*po_comp)=(pd.procoptions*po_comp)) then
+                    inherited_abi_compatible:=
+                      pd.inherit_x86_64_ms_const_aggregate_abi(vmtpd);
+
                   { All parameter specifiers and some procedure the flags have to match
                     except abstract and override }
                   if (compare_paras(vmtpd.paras,pd.paras,cp_all,[cpo_ignoreuniv,cpo_ignorehidden])<te_equal) or
+                     not inherited_abi_compatible or
+                     not vmtpd.x86_64_ms_const_aggregate_abi_compatible(pd) or
                      (vmtpd.proccalloption<>pd.proccalloption) or
                      (vmtpd.proctypeoption<>pd.proctypeoption) or
                      ((vmtpd.procoptions*po_comp)<>(pd.procoptions*po_comp)) then
@@ -516,7 +533,8 @@ implementation
       end;
 
 
-    function TVMTBuilder.intf_search_procdef_by_name(proc: tprocdef;const name: string): tprocdef;
+    function TVMTBuilder.intf_search_procdef_by_name(proc: tprocdef;const name: string;
+      adoptinterfaceabi: boolean): tprocdef;
       const
         po_comp = [po_classmethod,po_staticmethod,po_interrupt,po_iocheck,po_msgint,
                    po_exports,po_varargs,po_explicitparaloc,po_nostackframe];
@@ -545,15 +563,24 @@ implementation
                     implprocdef:=tprocdef(tprocsym(srsym).ProcdefList[i]);
                     if po_overload in implprocdef.procoptions then
                       overload:=true;
-                    if (implprocdef.procsym=tprocsym(srsym)) and
-                       (compare_paras(proc.paras,implprocdef.paras,cp_all,[cpo_ignorehidden,cpo_ignoreuniv])>=te_equal) and
-                       (compare_defs(proc.returndef,implprocdef.returndef,nothingn)>=te_equal) and
-                       (proc.proccalloption=implprocdef.proccalloption) and
-                       (proc.proctypeoption=implprocdef.proctypeoption) and
-                       ((proc.procoptions*po_comp)=((implprocdef.procoptions+[po_virtualmethod])*po_comp)) and
-                       check_msg_str(proc,implprocdef) then
-                      begin
-                        { does the interface increase the visibility of the
+                     if (implprocdef.procsym=tprocsym(srsym)) and
+                        (compare_paras(proc.paras,implprocdef.paras,cp_all,[cpo_ignorehidden,cpo_ignoreuniv])>=te_equal) and
+                        (compare_defs(proc.returndef,implprocdef.returndef,nothingn)>=te_equal) and
+                        (proc.proccalloption=implprocdef.proccalloption) and
+                        (proc.proctypeoption=implprocdef.proctypeoption) and
+                        ((proc.procoptions*po_comp)=((implprocdef.procoptions+[po_virtualmethod])*po_comp)) and
+                        check_msg_str(proc,implprocdef) then
+                       begin
+                         { A method declared by the class being built can adopt
+                           the interface slot ABI before its body is emitted.
+                           An inherited method already belongs to another VMT
+                           and may come from a compiled PPU, so its ABI is
+                           immutable here. }
+                         if (adoptinterfaceabi and (hclass=_class) and
+                             not implprocdef.inherit_x86_64_ms_const_aggregate_abi(proc)) or
+                            not proc.x86_64_ms_const_aggregate_abi_compatible(implprocdef) then
+                           continue;
+                         { does the interface increase the visibility of the
                           implementing method? }
                         if implprocdef.visibility<proc.visibility then
 {$ifdef jvm}
@@ -602,10 +629,12 @@ implementation
                 hs:=prefix+tprocdef(def).procsym.name;
                 mappedname:=ImplIntf.GetMapping(hs);
                 if mappedname<>'' then
-                  implprocdef:=intf_search_procdef_by_name(tprocdef(def),mappedname);
+                  implprocdef:=intf_search_procdef_by_name(tprocdef(def),mappedname,
+                    ImplIntf.IType=etStandard);
                 if not assigned(implprocdef) then
                   if (mappedname='') or (ImplIntf.IntfDef<>IntfDef) then
-                    implprocdef:=intf_search_procdef_by_name(tprocdef(def),tprocdef(def).procsym.name);
+                    implprocdef:=intf_search_procdef_by_name(tprocdef(def),
+                      tprocdef(def).procsym.name,ImplIntf.IType=etStandard);
 
                 { Add procdef to the implemented interface }
                 if assigned(implprocdef) then

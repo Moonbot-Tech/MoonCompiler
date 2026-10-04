@@ -357,7 +357,7 @@ implementation
                 (symtableentry.typ=paravarsym) and
                 not(vo_has_local_copy in tparavarsym(symtableentry).varoptions) and
                 not(loadnf_load_addr in loadnodeflags) and
-                paramanager.push_addr_param(tparavarsym(symtableentry).varspez,tparavarsym(symtableentry).vardef,tprocdef(symtable.defowner).proccalloption);
+                paramanager.push_addr_param_for_proc(tparavarsym(symtableentry).varspez,tparavarsym(symtableentry).vardef,tprocdef(symtable.defowner));
       end;
 
 

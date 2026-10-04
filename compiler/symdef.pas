@@ -794,6 +794,9 @@ interface
           procedure done_paraloc_info(side: tcallercallee);
           function stack_tainting_parameter(side: tcallercallee): boolean;
           function is_pushleftright: boolean;virtual;
+          function has_x86_64_ms_const_aggregate_param:boolean;
+          function x86_64_ms_const_aggregate_abi_compatible(other:tabstractprocdef):boolean;
+          function inherit_x86_64_ms_const_aggregate_abi(declaration:tabstractprocdef):boolean;
           function address_type:tdef;virtual;
           { address type, generated for ofs() }
           function ofs_address_type:tdef;virtual;
@@ -6103,6 +6106,8 @@ implementation
          proctypeoption:=potype_none;
          proccalloption:=pocall_none;
          procoptions:=[];
+         if [m_delphi,m_unleashed]*current_settings.modeswitches<>[] then
+           include(defoptions,df_delphi_const_aggregate_abi);
          returndef:=voidtype;
          returndefderef.reset;
          savesize:=sizeof(pint);
@@ -6458,6 +6463,87 @@ implementation
         result:=true;
       end;
 
+
+    function tabstractprocdef.has_x86_64_ms_const_aggregate_param:boolean;
+      var
+        i : longint;
+        p : tparavarsym;
+      begin
+        result:=false;
+        if not assigned(parast) then
+          exit;
+        for i:=0 to parast.symlist.count-1 do
+          if tsym(parast.symlist[i]).typ=paravarsym then
+            begin
+              p:=tparavarsym(parast.symlist[i]);
+              if uses_delphi_const_aggregate_abi(p.varspez,p.vardef) then
+                exit(true);
+            end;
+      end;
+
+
+    function tabstractprocdef.x86_64_ms_const_aggregate_abi_compatible(other:tabstractprocdef):boolean;
+      var
+        self_uses_ms_abi,
+        other_uses_ms_abi : boolean;
+      begin
+        result:=true;
+        if not(has_x86_64_ms_const_aggregate_param or
+               other.has_x86_64_ms_const_aggregate_param) then
+          exit;
+{$ifdef x86_64}
+        self_uses_ms_abi:=x86_64_call_uses_ms_abi(proccalloption,
+          target_info.system in systems_x86_64_ms_abi);
+        other_uses_ms_abi:=x86_64_call_uses_ms_abi(other.proccalloption,
+          target_info.system in systems_x86_64_ms_abi);
+        result:=
+          (self_uses_ms_abi=other_uses_ms_abi) and
+          (not self_uses_ms_abi or
+           ((df_delphi_const_aggregate_abi in defoptions)=
+            (df_delphi_const_aggregate_abi in other.defoptions)));
+{$endif x86_64}
+      end;
+
+
+    function tabstractprocdef.inherit_x86_64_ms_const_aggregate_abi(declaration:tabstractprocdef):boolean;
+      var
+        self_uses_ms_abi,
+        declaration_uses_ms_abi,
+        use_delphi_abi : boolean;
+      begin
+        result:=true;
+        if not(has_x86_64_ms_const_aggregate_param or
+               declaration.has_x86_64_ms_const_aggregate_param) then
+          exit;
+{$ifdef x86_64}
+        self_uses_ms_abi:=x86_64_call_uses_ms_abi(proccalloption,
+          target_info.system in systems_x86_64_ms_abi);
+        declaration_uses_ms_abi:=x86_64_call_uses_ms_abi(declaration.proccalloption,
+          target_info.system in systems_x86_64_ms_abi);
+        if self_uses_ms_abi<>declaration_uses_ms_abi then
+          exit(false);
+        if not self_uses_ms_abi then
+          exit;
+        use_delphi_abi:=df_delphi_const_aggregate_abi in declaration.defoptions;
+        if (df_inherited_const_aggregate_abi in defoptions) and
+           (use_delphi_abi<>
+            (df_delphi_const_aggregate_abi in defoptions)) then
+          exit(false);
+        include(defoptions,df_inherited_const_aggregate_abi);
+        if use_delphi_abi=
+           (df_delphi_const_aggregate_abi in defoptions) then
+          exit;
+        { Parameter locations may already have been requested while resolving
+          the declaration.  They must be rebuilt from the inherited physical
+          contract before callers or the method body use them. }
+        done_paraloc_info(callbothsides);
+        if use_delphi_abi then
+          include(defoptions,df_delphi_const_aggregate_abi)
+        else
+          exclude(defoptions,df_delphi_const_aggregate_abi);
+{$endif x86_64}
+      end;
+
     function tabstractprocdef.no_self_node: boolean;
       begin
         Result:=([po_staticmethod,po_classmethod]<=procoptions)or
@@ -6549,6 +6635,14 @@ implementation
           tabstractprocdef(result).proctypeoption:=proctypeoption;
         tabstractprocdef(result).proccalloption:=proccalloption;
         tabstractprocdef(result).procoptions:=procoptions;
+        if df_delphi_const_aggregate_abi in defoptions then
+          include(tabstractprocdef(result).defoptions,df_delphi_const_aggregate_abi)
+        else
+          exclude(tabstractprocdef(result).defoptions,df_delphi_const_aggregate_abi);
+        if df_inherited_const_aggregate_abi in defoptions then
+          include(tabstractprocdef(result).defoptions,df_inherited_const_aggregate_abi)
+        else
+          exclude(tabstractprocdef(result).defoptions,df_inherited_const_aggregate_abi);
         if (copytyp=pc_bareproc) then
           tabstractprocdef(result).procoptions:=tabstractprocdef(result).procoptions*[po_explicitparaloc,po_hascallingconvention,po_varargs,po_iocheck,po_has_importname,po_has_importdll];
         if newtyp=procvardef then
@@ -8139,6 +8233,14 @@ implementation
         tprocvardef(result).proctypeoption:=proctypeoption;
         tprocvardef(result).proccalloption:=proccalloption;
         tprocvardef(result).procoptions:=procoptions;
+        if df_delphi_const_aggregate_abi in defoptions then
+          include(tprocvardef(result).defoptions,df_delphi_const_aggregate_abi)
+        else
+          exclude(tprocvardef(result).defoptions,df_delphi_const_aggregate_abi);
+        if df_inherited_const_aggregate_abi in defoptions then
+          include(tprocvardef(result).defoptions,df_inherited_const_aggregate_abi)
+        else
+          exclude(tprocvardef(result).defoptions,df_inherited_const_aggregate_abi);
         tprocvardef(result).callerargareasize:=callerargareasize;
         tprocvardef(result).calleeargareasize:=calleeargareasize;
         tprocvardef(result).maxparacount:=maxparacount;

@@ -458,8 +458,8 @@ unit opteffect;
                   ((tparavarsym(sym).varspez=vs_const) and
                    assigned(sym.owner) and
                    (sym.owner.defowner is tabstractprocdef) and
-                   paramanager.push_addr_param(vs_const,sym.vardef,
-                     tabstractprocdef(sym.owner.defowner).proccalloption))) then
+                   paramanager.push_addr_param_for_proc(vs_const,sym.vardef,
+                     tabstractprocdef(sym.owner.defowner)))) then
                 begin
                   { access goes through a caller-supplied reference: the
                     target may live anywhere except our exact locals }

@@ -2667,6 +2667,8 @@ implementation
          proc_to_procvar_equal_internal:=te_incompatible;
          if not(assigned(def1)) or not(assigned(def2)) then
            exit;
+         if not def1.x86_64_ms_const_aggregate_abi_compatible(def2) then
+           exit;
          { check for method pointer and local procedure pointer:
              a) anything but procvars can be assigned to blocks
              b) depending on their captured symbols anonymous functions can be

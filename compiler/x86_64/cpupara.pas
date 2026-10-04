@@ -34,11 +34,13 @@ unit cpupara;
     type
        tcpuparamanager = class(tparamanager)
        private
+          function abi_varspez(varspez:tvarspez;def:tdef;pd:tabstractprocdef):tvarspez;
           procedure create_paraloc_info_intern(p : tabstractprocdef; side: tcallercallee;paras:tparalist;
                                                var intparareg,mmparareg,parasize:longint;varargsparas: boolean);
        public
           function param_use_paraloc(const cgpara:tcgpara):boolean;override;
           function push_addr_param(varspez:tvarspez;def : tdef;calloption : tproccalloption) : boolean;override;
+          function push_addr_param_for_proc(varspez:tvarspez;def:tdef;pd:tabstractprocdef):boolean;override;
           function ret_in_param(def:tdef;pd:tabstractprocdef):boolean;override;
           function get_volatile_registers_int(calloption : tproccalloption):tcpuregisterset;override;
           function get_volatile_registers_mm(calloption : tproccalloption):tcpuregisterset;override;
@@ -122,8 +124,8 @@ unit cpupara;
     { Win64-specific helper }
     function aggregate_in_registers_win64(varspez:tvarspez;size:longint):boolean;
       begin
-    { TODO: Temporary hack: vs_const parameters are always passed by reference for win64}
-        result:=(varspez=vs_value) and (size in [1,2,4,8])
+        result:=(varspez=vs_value) and
+                (size in [1,2,4,8])
       end;
 
     (* x86-64 register passing implementation.  See x86-64 ABI for details.  Goal
@@ -1225,8 +1227,9 @@ unit cpupara;
           exit;
         fillchar(classes,sizeof(classes),0);
         case def.typ of
-          { for records it depends on their contents and size }
+          { for aggregates it depends on their contents and size }
           recorddef,
+          arraydef,
           { make sure we handle 'procedure of object' correctly }
           procvardef:
             begin
@@ -1347,9 +1350,11 @@ unit cpupara;
                 result:=false
               else if (calloption = pocall_vectorcall) then
                 begin
-                  { Pass all arrays by reference unless they are a valid, aligned SIMD type (arrays can't be homogeneous aggregates) }
-                  result := (is_simd_vector_type_or_homogeneous_aggregate(pocall_vectorcall,def,vs_value) = 0);
+                  result:=not aggregate_in_registers_win64(varspez,def.size) and
+                    (is_simd_vector_type_or_homogeneous_aggregate(pocall_vectorcall,def,vs_value)=0);
                 end
+              else if x86_64_use_ms_abi(calloption) then
+                result:=not aggregate_in_registers_win64(varspez,def.size)
               else
                 { pass all arrays by reference to be compatible with C (passing
                   an array by value (= copying it on the stack) does not exist,
@@ -1378,6 +1383,22 @@ unit cpupara;
           else
             ;
         end;
+      end;
+
+
+    function tcpuparamanager.abi_varspez(varspez:tvarspez;def:tdef;pd:tabstractprocdef):tvarspez;
+      begin
+        result:=varspez;
+        if uses_delphi_const_aggregate_abi(varspez,def) and
+           x86_64_use_ms_abi(pd.proccalloption) and
+           (df_delphi_const_aggregate_abi in pd.defoptions) then
+          result:=vs_value;
+      end;
+
+
+    function tcpuparamanager.push_addr_param_for_proc(varspez:tvarspez;def:tdef;pd:tabstractprocdef):boolean;
+      begin
+        result:=inherited push_addr_param_for_proc(abi_varspez(varspez,def,pd),def,pd);
       end;
 
 
@@ -1678,6 +1699,7 @@ unit cpupara;
         procparaalign,
         paraalign  : longint;
         use_ms_abi : boolean;
+        abivarspez : tvarspez;
       begin
         procparaalign:=get_para_align(p.proccalloption);
         use_ms_abi:=x86_64_use_ms_abi(p.proccalloption);
@@ -1687,6 +1709,7 @@ unit cpupara;
             hp:=tparavarsym(paras[i]);
             paradef:=hp.vardef;
             paralocdef:=hp.vardef;
+            abivarspez:=abi_varspez(hp.varspez,paradef,p);
 
             { in syscalls the libbase might be set as explicit paraloc }
             if (vo_has_explicit_paraloc in hp.varoptions) then
@@ -1732,8 +1755,8 @@ unit cpupara;
               end
             else
               begin
-                getvalueparaloc(p.proccalloption,hp.varspez,paralocdef,loc);
-                paralen:=push_size(hp.varspez,paralocdef,p.proccalloption);
+                getvalueparaloc(p.proccalloption,abivarspez,paralocdef,loc);
+                paralen:=push_size(abivarspez,paralocdef,p.proccalloption);
                 paraalign:=max(procparaalign,paradef.alignment);
                 if p.proccalloption = pocall_vectorcall then
                   begin

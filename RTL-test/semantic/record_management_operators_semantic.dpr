@@ -142,6 +142,7 @@ begin
 end;
 
 type
+  TSingle = array[0..0] of TRes;
   TPair = array[0..1] of TRes;
 
   { the ONLY operator carrier is a static-array field: the aggregate bit
@@ -199,6 +200,11 @@ end;
 procedure TakePair(P: TPair);
 begin
   Trace := Trace + 'y' + IntToStr(P[0].Slot) + ':' + IntToStr(P[1].Slot);
+end;
+
+procedure TakeSingle(P: TSingle);
+begin
+  Trace := Trace + 'y' + IntToStr(P[0].Slot);
 end;
 
 procedure OpenArrayStatic;
@@ -264,8 +270,13 @@ end;
 
 procedure StaticArrayParam;
 var
+  S: TSingle;
   P: TPair;
 begin
+  S[0].Slot := 4;
+  Trace := Trace + '|';
+  TakeSingle(S);
+  Trace := Trace + '|';
   P[0].Slot := 10;
   P[1].Slot := 20;
   Trace := Trace + '|';
@@ -553,7 +564,7 @@ begin
 
     Trace := '';
     StaticArrayParam;
-    Check('static array param', 'ii|iiaay11:21f11f21|f10f20');
+    Check('static array param', 'iii|iay5f5||iiaay11:21f11f21|f10f20f4');
 
     { C-003: the open-array copy helper owns the whole construction. A
       raising Assign finalizes every constructed copy (the assigned prefix

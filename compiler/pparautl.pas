@@ -437,7 +437,7 @@ implementation
              make a copy on the caller side, as otherwise the behaviour will
              be different (and less perfomant) for routines implemented in C }
            if (varspez=vs_value) and
-              paramanager.push_addr_param(varspez,vardef,pd.proccalloption) and
+              paramanager.push_addr_param_for_proc(varspez,vardef,pd) and
               not(is_open_array(vardef) or
                   is_array_of_const(vardef)) and
               { the caller passes the address of an operator-made per-call
@@ -568,7 +568,7 @@ implementation
         with tparavarsym(p) do
          begin
            if (not needs_finalization) and
-              paramanager.push_addr_param(varspez,vardef,tprocdef(arg).proccalloption) then
+              paramanager.push_addr_param_for_proc(varspez,vardef,tprocdef(arg)) then
              varregable:=vr_addr;
          end;
       end;
