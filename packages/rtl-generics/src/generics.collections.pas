@@ -2069,6 +2069,18 @@ end;
 
 procedure TList<T>.InternalInsert(AIndex: SizeInt; const AValue: T);
 begin
+  { As in Add, spare capacity in an exact unsubscribed list needs no virtual
+    preparation or notification. Managed operators can install a subscriber
+    during insertion, so keep their original notification path. }
+  if not IsManagedType(T) and (FLength <= High(FItems)) and DirectStorage then
+  begin
+    Inc(FLength);
+    if AIndex <> FLength - 1 then
+      System.Move(FItems[AIndex], FItems[AIndex + 1], (FLength - AIndex - 1) * SizeOf(T));
+    FItems[AIndex] := AValue;
+    Exit;
+  end;
+
   if AIndex <> PrepareAddingItem then
   begin
     { PrepareAddingItem has made one previously spare capacity slot part of
