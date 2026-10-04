@@ -59,6 +59,26 @@ begin
     'TryStrToFloat rejects non-ASCII digit');
   Check(not TryStrToFloat('1'+UnicodeChar(#0)+'2',D,Settings),
     'TryStrToFloat rejects embedded NUL');
+  Check(not TryStrToFloat('   ',D,Settings),'TryStrToFloat refuses whitespace only');
+  Check(TryStrToFloat('1e3',D,Settings) and (D=1000),'TryStrToFloat exponent');
+
+  { a comma locale: the first comma is the separator, a point is refused,
+    the thousand separator is refused wherever it stands }
+  Settings.DecimalSeparator:=',';
+  Settings.ThousandSeparator:=' ';
+  Check(TryStrToFloat('12345,625',D,Settings) and (D=12345.625),
+    'TryStrToFloat comma separator');
+  Check(TryStrToFloat(#9'-0,5'#9,D,Settings) and (D=-0.5),
+    'TryStrToFloat comma separator with whitespace');
+  Check(not TryStrToFloat('12345.678',D,Settings),
+    'TryStrToFloat comma locale refuses a point');
+  Check(not TryStrToFloat('1 000,5',D,Settings),
+    'TryStrToFloat comma locale refuses the thousand separator');
+  Check(not TryStrToFloat('1,2,3',D,Settings),
+    'TryStrToFloat comma locale refuses a second separator');
+  Check(StrToFloat('2,25',Settings)=2.25,'StrToFloat comma separator');
+  Settings.DecimalSeparator:='.';
+  Settings.ThousandSeparator:=',';
 
   S:=FloatToStr(1.25,Settings);
   Check(S='1.25','FloatToStr exact');

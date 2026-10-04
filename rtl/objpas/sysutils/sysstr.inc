@@ -1653,13 +1653,12 @@ end;
 
 function TryStrToDWord(const s: string; Out D: DWord): boolean;
 var
-  Error : word;
-  lq : QWord;
+  U: QWord;
+  Neg, Hex: Boolean;
 begin
-  Val(s, lq, Error);
-  TryStrToDWord:=(Error=0) and (lq<=High(DWord));
-  if TryStrToDWord then
-    D:=lq;
+  Result:=TryStrToUInt64Core(s,U,Neg,Hex) and not Neg and (U<=High(DWord));
+  if Result then
+    D:=DWord(U);
 end;
 
 function StrToUInt(const s: string): Cardinal;
@@ -1673,10 +1672,13 @@ begin
 end;
 
 function TryStrToQWord(const s: string; Out Q: QWord): boolean;
-var Error : word;
+var
+  U: QWord;
+  Neg, Hex: Boolean;
 begin
-  Val(s, Q, Error);
-  TryStrToQWord:=Error=0
+  Result:=TryStrToUInt64Core(s,U,Neg,Hex) and not Neg;
+  if Result then
+    Q:=U;
 end;
 
 function TryStrToUInt64(const s: string; Out u: UInt64): boolean;
@@ -1886,49 +1888,98 @@ end;
 
 {$ifndef FPUNONE}
 
-Function InternalTextToFloat(S: String; Out Value; ValueType: TFloatValue;
+{ The text the conversion itself wants: the ends trimmed, the decimal separator
+  replaced by a point, and narrowed to the ShortString that Val takes anyway on
+  the way to val_real.  Nothing is allocated on the way - the trim is a pair of
+  bounds rather than a copy, the separator becomes a point in the buffer
+  instead of in a copy-on-write of the caller's string, and the narrowing is
+  the one pass over the text there is.
+
+  False is the answer the separator rules gave before any conversion was
+  attempted: a thousand separator in the text, or a point where the locale
+  separator is not a point.  The caller then leaves the value alone, as it did
+  before.  Text that cannot go into the buffer at all - a character outside
+  ASCII, or more characters than a ShortString holds - comes back as an empty
+  buffer, and so does text that is nothing but whitespace: the conversion
+  refuses those and zeroes the value, which is what it did with them before. }
+Function FloatTextToBuffer(Const S: String; Const FormatSettings: TFormatSettings;
+  Out Buf: ShortString): Boolean;
+
+Var
+  I,L,Lo,Hi,N,P : Integer;
+  C,DS,TS : Char;
+  Src : PChar;
+
+Begin
+  DS:=FormatSettings.DecimalSeparator;
+  TS:=FormatSettings.ThousandSeparator;
+  L:=Length(S);
+  //ThousandSeparator not allowed as by Delphi specs
+  if TS<>DS then
+    if Pos(TS,S)<>0 then
+      exit(False);
+  P:=0;
+  if DS<>'.' then
+    begin
+      if Pos('.',S)<>0 then
+        exit(False);
+      P:=Pos(DS,S);   { the first one, as before, and only that one }
+    end;
+  { the same ends Trim() would have cut.  The character that becomes the point
+    is not whitespace any more, whatever it was before, so the trim stops
+    there - which is what trimming after the replacement did. }
+  Lo:=1;
+  while (Lo<=L) and (Lo<>P) and (S[Lo]<=' ') do
+    Inc(Lo);
+  Hi:=L;
+  while (Hi>=Lo) and (Hi<>P) and (S[Hi]<=' ') do
+    Dec(Hi);
+  N:=Hi-Lo+1;
+  if N>High(Buf) then
+    N:=0;
+  Buf[0]:=AnsiChar(0);
+  Result:=True;
+  if N<=0 then
+    exit;
+  Src:=PChar(Pointer(S))+(Lo-1);
+  for I:=0 to N-1 do
+    begin
+      C:=Src[I];
+      if Ord(C)>$7f then
+        exit;   { val_real knows ASCII only, and the empty buffer says so }
+      Buf[I+1]:=AnsiChar(Ord(C));
+    end;
+  if P>0 then
+    Buf[P-Lo+1]:='.';
+  Buf[0]:=AnsiChar(N);
+End;
+
+Function InternalTextToFloat(Const S: String; Out Value; ValueType: TFloatValue;
   Const FormatSettings: TFormatSettings): Boolean;
 
 Var
-  E,P : Integer;
+  E : Integer;
+  Buf : ShortString;
 
 Begin
   if S = '' then
     exit(false);
-  //ThousandSeparator not allowed as by Delphi specs
-  if (FormatSettings.ThousandSeparator <> FormatSettings.DecimalSeparator) and
-     (Pos(FormatSettings.ThousandSeparator, S) <> 0) then
-    begin
-      Result := False;
-      Exit;
-    end;
-  if (FormatSettings.DecimalSeparator <> '.') then
-    begin
-      if (Pos('.', S) <>0) then
-        begin
-          Result := False;
-          Exit;
-        end;
-      P:=Pos(FormatSettings.DecimalSeparator,S);
-      If (P<>0) Then
-        S[P] := '.';
-    end;
-
-  s:=Trim(s);
+  if not FloatTextToBuffer(S,FormatSettings,Buf) then
+    exit(false);
   try
     case ValueType of
       fvCurrency:
-        Val(S,Currency(Value),E);
+        Val(Buf,Currency(Value),E);
       fvExtended:
-        Val(S,Extended(Value),E);
+        Val(Buf,Extended(Value),E);
       fvDouble:
-        Val(S,Double(Value),E);
+        Val(Buf,Double(Value),E);
       fvSingle:
-        Val(S,Single(Value),E);
+        Val(Buf,Single(Value),E);
       fvComp:
-        Val(S,Comp(Value),E);
+        Val(Buf,Comp(Value),E);
       fvReal:
-        Val(S,Real(Value),E);
+        Val(Buf,Real(Value),E);
     end;
   { on x87, a floating point exception may be pending in case of an invalid
     input value -> trigger it now }
@@ -1943,35 +1994,19 @@ Begin
   Result:=(E=0);
 End;
 
-Function InternalTextToFloat(S: String; Out Value: Extended;
+Function InternalTextToFloat(Const S: String; Out Value: Extended;
   Const FormatSettings: TFormatSettings): Boolean;
 
 Var
-  E,P : Integer;
+  E : Integer;
+  Buf : ShortString;
 Begin
   if S = '' then
     exit(false);
-
-  //ThousandSeparator not allowed as by Delphi specs
-  if (FormatSettings.ThousandSeparator <> FormatSettings.DecimalSeparator) and
-     (Pos(FormatSettings.ThousandSeparator, S) <> 0) then
-    begin
-      Result := False;
-      Exit;
-    end;
-  if (FormatSettings.DecimalSeparator <> '.') then
-    begin
-      if (Pos('.', S) <>0) then
-        begin
-          Result := False;
-          Exit;
-        end;
-      P:=Pos(FormatSettings.DecimalSeparator,S);
-      If (P<>0) Then
-        S[P] := '.';
-    end;
+  if not FloatTextToBuffer(S,FormatSettings,Buf) then
+    exit(false);
   try
-    Val(trim(S),Value,E);
+    Val(Buf,Value,E);
   { on x87, a floating point exception may be pending in case of an invalid
     input value -> trigger it now }
 {$if defined(cpui386) or (defined(cpux86_64) and not(defined(win64))) or defined(cpui8086)}
