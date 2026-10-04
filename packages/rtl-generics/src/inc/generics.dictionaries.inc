@@ -854,14 +854,78 @@ begin
   Result := ContainsValue(AValue, TEqualityComparer<TValue>.Default(THashFactory));
 end;
 
+function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.ContainsOrdinalValue(const AValue: TValue;
+  const AEqualityComparer: IEqualityComparer<TValue>): Integer;
+var
+  i: SizeInt;
+  LItem: PItem;
+  LEquals: TOnEqualityComparison<TValue>;
+  LCode: Pointer;
+  LValue32: Cardinal;
+  LValue64: QWord;
+begin
+  if AEqualityComparer = nil then Exit(-1);
+  LEquals := AEqualityComparer.Equals;
+  LCode := TMethod(LEquals).Code;
+  if SizeOf(TValue) = 4 then
+  begin
+    if (LCode <> Pointer(@TEquals.Int32)) and (LCode <> Pointer(@TEquals.UInt32)) then Exit(-1);
+    LValue32 := PCardinal(@AValue)^;
+    if FItemsLength < (Length(FItems) shr 1) then
+    begin
+      for i := 0 to High(FItems) do
+      begin
+        LItem := @FItems[i];
+        if (LItem.Hash and UInt32.GetSignMask) <> 0 then
+          if LValue32 = PCardinal(@LItem.Pair.Value)^ then Exit(1);
+      end;
+      Exit(0);
+    end;
+    for i := 0 to High(FItems) do
+    begin
+      LItem := @FItems[i];
+      if (Ord(LValue32 = PCardinal(@LItem.Pair.Value)^) and (LItem.Hash shr 31)) <> 0 then Exit(1);
+    end;
+  end
+  else
+  begin
+    if (LCode <> Pointer(@TEquals.Int64)) and (LCode <> Pointer(@TEquals.UInt64)) then Exit(-1);
+    LValue64 := PQWord(@AValue)^;
+    if FItemsLength < (Length(FItems) shr 1) then
+    begin
+      for i := 0 to High(FItems) do
+      begin
+        LItem := @FItems[i];
+        if (LItem.Hash and UInt32.GetSignMask) <> 0 then
+          if LValue64 = PQWord(@LItem.Pair.Value)^ then Exit(1);
+      end;
+      Exit(0);
+    end;
+    for i := 0 to High(FItems) do
+    begin
+      LItem := @FItems[i];
+      if (Ord(LValue64 = PQWord(@LItem.Pair.Value)^) and (LItem.Hash shr 31)) <> 0 then Exit(1);
+    end;
+  end;
+  Result := 0;
+end;
+
 function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.ContainsValue(const AValue: TValue;
   const AEqualityComparer: IEqualityComparer<TValue>): Boolean;
 var
   i: SizeInt;
+  LOrdinalResult: Integer;
   LItem: PItem;
 begin
   if Length(FItems) = 0 then
     Exit(False);
+
+  if (GetTypeKind(TValue) in [tkInteger,tkInt64,tkQWord]) and
+     (SizeOf(TValue) in [4,8]) then
+  begin
+    LOrdinalResult := ContainsOrdinalValue(AValue,AEqualityComparer);
+    if LOrdinalResult >= 0 then Exit(LOrdinalResult <> 0);
+  end;
 
   for i := 0 to High(FItems) do
   begin

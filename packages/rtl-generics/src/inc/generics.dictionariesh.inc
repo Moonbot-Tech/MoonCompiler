@@ -277,6 +277,8 @@ type
     function GetValues: TValueCollection;
     function GetPointers: PPointersCollection; inline;
   private
+    function ContainsOrdinalValue(const AValue: TValue;
+      const AEqualityComparer: IEqualityComparer<TValue>): Integer;
     function GetItem(const AKey: TKey): TValue; inline;
     procedure SetItem(const AKey: TKey; const AValue: TValue); inline;
     procedure AddItem(var AItem: TItem; const AKey: TKey; const AValue: TValue; const AHash: UInt32); inline;
