@@ -1682,16 +1682,22 @@ function arctanh(x : float) : float;inline;
 
 function arcosh(x : float) : float;
   begin
-    { Provides accuracy about 4*eps near 1.0 }
-    arcosh:=Ln(x+Sqrt((x-1.0)*(x+1.0)));
+    if x>sqrt(MaxFloat)*0.5 then
+      arcosh:=ln(x)+ln(2.0)
+    else
+      { This form keeps the subtraction accurate near one. }
+      arcosh:=lnxp1((x-1.0)+sqrt((x-1.0)*(x+1.0)));
   end;
 
 function arsinh(x : float) : float;
   var
-    z: float;
+    a,z: float;
   begin
-    z:=abs(x);
-    z:=Ln(z+Sqrt(1+z*z));
+    a:=abs(x);
+    if a>sqrt(MaxFloat)*0.5 then
+      z:=ln(a)+ln(2.0)
+    else
+      z:=lnxp1(a+(a/(hypot(1.0,a)+1.0))*a);
     { copysign ensures that arsinh(-Inf)=-Inf and arsinh(-0.0)=-0.0 }
     arsinh:=copysign(z,x);
   end;
@@ -1774,57 +1780,81 @@ end;
 {$ifdef FPC_HAS_TYPE_SINGLE}
 function ArcSecH(X : Single): Single;
 begin
-  ArcSecH:=ln((1+(sqrt(1.0-sqr(X))))/X);  //replacing division inside ln() by subtracting 2 ln()'s seems to be slower
+  ArcSecH:=lnxp1(sqrt((1.0-X)*(1.0+X)))-ln(X);
 end;
 {$ENDIF}
 {$ifdef FPC_HAS_TYPE_DOUBLE}
 function ArcSecH(X : Double): Double;
 begin
-  ArcSecH:=ln((1+(sqrt(1.0-sqr(X))))/X);
+  ArcSecH:=lnxp1(sqrt((1.0-X)*(1.0+X)))-ln(X);
 end;
 {$ENDIF}
 {$ifdef FPC_HAS_TYPE_EXTENDED}
 function ArcSecH(X : Extended): Extended;
 begin
-  ArcSecH:=ln((1+(sqrt(1.0-sqr(X))))/X);
+  ArcSecH:=lnxp1(sqrt((1.0-X)*(1.0+X)))-ln(X);
 end;
 {$ENDIF}
 
 {$ifdef FPC_HAS_TYPE_SINGLE}
 function ArcCscH(X: Single): Single;
+var
+  R: Float;
 begin
-  ArcCscH:=ln((1.0/X)+sqrt(1.0/(sqr(x))+1.0));
+  if (X<>0.0) and (abs(X)<=1.0/MaxSingle) then
+    ArcCscH:=CopySign(ln(2.0)-ln(abs(X)),X)
+  else
+    begin
+      R:=1.0/X;
+      ArcCscH:=arsinh(R);
+    end;
 end;
 {$ENDIF}
 {$ifdef FPC_HAS_TYPE_DOUBLE}
 function ArcCscH(X: Double): Double;
+var
+  R: Float;
 begin
-  ArcCscH:=ln((1.0/X)+sqrt(1.0/(sqr(x))+1.0));
+  if (X<>0.0) and (abs(X)<=1.0/MaxDouble) then
+    ArcCscH:=CopySign(ln(2.0)-ln(abs(X)),X)
+  else
+    begin
+      R:=1.0/X;
+      ArcCscH:=arsinh(R);
+    end;
 end;
 {$ENDIF}
 {$ifdef FPC_HAS_TYPE_EXTENDED}
 function ArcCscH(X: Extended): Extended;
+var
+  R: Float;
 begin
-  ArcCscH:=ln((1.0/X)+sqrt(1.0/(sqr(x))+1.0));
+  if (X<>0.0) and (abs(X)<=1.0/MaxExtended) then
+    ArcCscH:=CopySign(ln(2.0)-ln(abs(X)),X)
+  else
+    begin
+      R:=1.0/X;
+      ArcCscH:=arsinh(R);
+    end;
 end;
 {$ENDIF}
 
 {$ifdef FPC_HAS_TYPE_SINGLE}
 function ArcCotH(X: Single): Single;
 begin
-  ArcCotH:=0.5*ln((x + 1.0)/(x - 1.0));
+  ArcCotH:=artanh(1.0/X);
 end;
 {$ENDIF}
 {$ifdef FPC_HAS_TYPE_DOUBLE}
 function ArcCotH(X: Double): Double;
 begin
-  ArcCotH:=0.5*ln((x + 1.0)/(x - 1.0));
+  ArcCotH:=artanh(1.0/X);
 end;
 {$ENDIF}
 {$ifdef FPC_HAS_TYPE_EXTENDED}
 function ArcCotH(X: Extended): Extended;
 begin
-  ArcCotH:=0.5*ln((x + 1.0)/(x - 1.0));
+  ArcCotH:=artanh(1.0/X);
 end;
 {$ENDIF}
 
@@ -1833,7 +1863,13 @@ function hypot(x,y : float) : float;
   begin
     x:=abs(x);
     y:=abs(y);
-    if (x>y) then
+    if IsInfinite(x) or IsInfinite(y) then
+      hypot:=Infinity
+    else if IsNan(x) then
+      hypot:=x
+    else if IsNan(y) then
+      hypot:=y
+    else if (x>y) then
       hypot:=x*sqrt(1.0+sqr(y/x))
     else if (x>0.0) then
       hypot:=y*sqrt(1.0+sqr(x/y))
@@ -2603,11 +2639,41 @@ begin
 end;
 
 
-function RandomRange(const aFrom, aTo: Int64): Int64;
+function RandomBelowQWord(Bound: QWord): QWord;
+var
+  LowProduct, Threshold: QWord;
+  RandomValue: QWord;
 begin
-  Result:=Random(Abs(aFrom-aTo))+Min(aTo,AFrom);
+  repeat
+    RandomValue:=(QWord(Random(Int64(QWord(1) shl 32))) shl 32) or
+      QWord(Random(Int64(QWord(1) shl 32)));
+    LowProduct:=UMul64x64_128(RandomValue,Bound,Result);
+    if LowProduct<Bound then
+      begin
+        Threshold:=QWord(-Bound) mod Bound;
+        if LowProduct<Threshold then
+          Continue;
+      end;
+    Exit;
+  until False;
 end;
 
+
+function RandomRange(const aFrom, aTo: Int64): Int64;
+var
+  Lower, Upper: Int64;
+  Span: QWord;
+begin
+  Lower:=Min(aFrom,aTo);
+  Upper:=Max(aFrom,aTo);
+  Span:=QWord(Upper)-QWord(Lower);
+  if Span=0 then
+    Exit(Lower);
+  if Span<=QWord(High(Int64)) then
+    Result:=Random(Int64(Span))+Lower
+  else
+    Result:=Int64(QWord(Lower)+RandomBelowQWord(Span));
+end;
 
 {$ifdef FPC_HAS_TYPE_SINGLE}
 procedure MeanAndTotalVariance
@@ -2780,9 +2846,20 @@ function norm(const data : array of Single) : float; inline;
   end;
 
 function norm(const data : PSingle; Const N : Integer) : float;
-
+  var
+    i: SizeInt;
   begin
-     norm:=sqrt(sumofsquares(data,N));
+     if FloatExceptionsUnmasked([exOverflow,exUnderflow]) then
+       exit(NormUnmaskedSingle(Data,N));
+     norm:=sumofsquares(data,N);
+     if (norm=0.0) or IsInfinite(norm) or IsNan(norm) or (norm<MinSingle) then
+       begin
+         norm:=0;
+         for i:=0 to N-1 do
+           norm:=hypot(norm,data[i]);
+       end
+     else
+       norm:=sqrt(norm);
   end;
 {$endif FPC_HAS_TYPE_SINGLE}
 
@@ -2959,8 +3036,20 @@ function norm(const data : array of Double) : float; inline;
   end;
 
 function norm(const data : PDouble; Const N : Integer) : float;
+  var
+    i: SizeInt;
   begin
-     norm:=sqrt(sumofsquares(data,N));
+     if FloatExceptionsUnmasked([exOverflow,exUnderflow]) then
+       exit(NormUnmaskedDouble(Data,N));
+     norm:=sumofsquares(data,N);
+     if (norm=0.0) or IsInfinite(norm) or IsNan(norm) or (norm<MinDouble) then
+       begin
+         norm:=0;
+         for i:=0 to N-1 do
+           norm:=hypot(norm,data[i]);
+       end
+     else
+       norm:=sqrt(norm);
   end;
 {$endif FPC_HAS_TYPE_DOUBLE}
 
@@ -3134,9 +3223,20 @@ function norm(const data : array of Extended) : float; inline;
   end;
 
 function norm(const data : PExtended; Const N : Integer) : float;
-
+  var
+    i: SizeInt;
   begin
-     norm:=sqrt(sumofsquares(data,N));
+     if FloatExceptionsUnmasked([exOverflow,exUnderflow]) then
+       exit(NormUnmaskedExtended(Data,N));
+     norm:=sumofsquares(data,N);
+     if (norm=0.0) or IsInfinite(norm) or IsNan(norm) or (norm<MinExtended) then
+       begin
+         norm:=0;
+         for i:=0 to N-1 do
+           norm:=hypot(norm,data[i]);
+       end
+     else
+       norm:=sqrt(norm);
   end;
 {$endif FPC_HAS_TYPE_EXTENDED}
 
