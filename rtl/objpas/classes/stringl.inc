@@ -2142,18 +2142,29 @@ function TStringList.Find(const S: string; out Index: Integer): Boolean;
 var
   L, R, I: Integer;
   CompareRes: PtrInt;
+{$ifdef UNICODERTL}
+  Fast: Boolean;
+{$endif}
 begin
   Result := false;
   Index:=-1;
   if Not Sorted then
     Raise EListError.Create(SErrFindNeedsSortedList);
+{$ifdef UNICODERTL}
+  Fast:=(ClassType=TStringList) and not FCaseSensitive and not UseLocale;
+{$endif}
   // Use binary search.
   L := 0;
   R := Count - 1;
   while (L<=R) do
   begin
     I := L + (R - L) div 2;
-    CompareRes := DoCompareText(S, Flist^[I].FString);
+{$ifdef UNICODERTL}
+    If Fast then
+      CompareRes:=CompareText(S,Flist^[I].FString)
+    else
+{$endif}
+      CompareRes := DoCompareText(S, Flist^[I].FString);
     if (CompareRes>0) then
       L := I+1
     else begin
