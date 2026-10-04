@@ -53,6 +53,7 @@ begin
     T:=P.Targets.AddUnit('system.ansistrings.pp');
     T:=P.Targets.AddUnit('system.masks.pp');
     T.ResourceStrings := True;
+    T:=P.Targets.AddUnit('system.net.urlclient.pp');
     T:=P.Targets.AddUnit('system.imagelist.pp');
     T:=P.Targets.AddUnit('system.diagnostics.pp');
     T:=P.Targets.AddUnit('system.notification.pp');
