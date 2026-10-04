@@ -43,32 +43,32 @@
  },
  "win64": {
   "NESTEDREADS": [
-   47,
+   48,
    4,
    8
   ],
   "NESTEDWRITESOTHER": [
-   60,
-   6,
+   64,
+   7,
    9
   ],
   "SHAPEADDRESSOFREADER": [
-   58,
+   59,
    6,
    7
   ],
   "SHAPENESTEDREADS": [
-   49,
+   50,
    5,
    7
   ],
   "SHAPENESTEDWRITESELSEWHERE": [
-   52,
+   53,
    5,
    7
   ],
   "SHAPEPLAIN": [
-   46,
+   47,
    4,
    7
   ],

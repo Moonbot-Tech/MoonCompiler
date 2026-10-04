@@ -57,7 +57,7 @@ implementation
   uses
     globtype,globals,verbose,systems,fmodule,
     nbas,ncal,nutils,
-    symconst,symsym,symdef,
+    symconst,symsym,symdef,defutil,
     cgbase,cgobj,cgutils,tgobj,
     cpubase,htypechk,
     pass_1,pass_2,
@@ -294,6 +294,40 @@ procedure tx64tryfinallynode.pass_generate_code;
     oldexitlabel: tasmlabel;
     oldflowcontrol: tflowcontrol;
     catch_frame: boolean;
+
+  function small_implicit_cleanup: boolean;
+    const
+      cleanup_budget=64;
+    var
+      cost: dword;
+      i: longint;
+      para: tparavarsym;
+      temp: ptemprecord;
+    begin
+      cost:=node_count_weighted(third,cleanup_budget+1);
+      if cost>cleanup_budget then
+        exit(false);
+      { finalizetemps emits parameter and temporary cleanup without AST
+        call nodes. Account for these calls after the body allocated its
+        temps, before deciding whether to duplicate the normal cleanup. }
+      if assigned(current_procinfo.procdef.parast) then
+        for i:=0 to current_procinfo.procdef.parast.SymList.count-1 do
+          begin
+            para:=tparavarsym(current_procinfo.procdef.parast.SymList[i]);
+            if (para.typ=paravarsym) and (para.varspez=vs_value) and
+               (is_managed_type(para.vardef) or is_open_array(para.vardef)) then
+              inc(cost,8);
+          end;
+      temp:=tg.templist;
+      while assigned(temp) and (cost<=cleanup_budget) do
+        begin
+          if temp^.fini and assigned(temp^.def) and is_managed_type(temp^.def) then
+            inc(cost,8);
+          temp:=temp^.next;
+        end;
+      result:=cost<=cleanup_budget;
+    end;
+
   begin
     if (not (target_info.system in systems_x86_64_seh)) then
       begin
@@ -394,7 +428,7 @@ procedure tx64tryfinallynode.pass_generate_code;
     { generate finally code as a separate procedure }
     if not implicitframe then
       tcgprocinfo(current_procinfo).generate_exceptfilter(finalizepi);
-    if assigned(third) then
+    if assigned(third) and (not implicitframe or small_implicit_cleanup) then
       secondpass(third)
     else
       secondpass(right);

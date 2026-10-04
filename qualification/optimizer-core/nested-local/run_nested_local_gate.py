@@ -16,6 +16,7 @@ import argparse, json, os, re, subprocess, sys
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1] / 'performance' / 'tools'))
 import code_placement  # noqa: E402
+import inline_cleanup_shape  # noqa: E402
 
 SOURCE = HERE / 'nested_local.dpr'
 PASS_LINE = 'NESTED_LOCAL_PASS'
@@ -154,6 +155,11 @@ def main():
     found = routines(listing)
     target = 'win64' if os.name == 'nt' else 'linux'
     problems = []
+    if target == 'win64':
+        for name in ('SHAPEPLAIN', 'SHAPENESTEDREADS', 'SHAPENESTEDWRITESELSEWHERE', 'NESTEDREADS',
+                     'SHAPEADDRESSOFREADER'):
+            problems += inline_cleanup_shape.problems(listing, name, 'fpc_dynarray_clear', 1)
+        problems += inline_cleanup_shape.problems(listing, 'NESTEDWRITESOTHER', 'fpc_dynarray_clear', 2)
     loops = {name: innermost_loop(found[name][0], name) for name in SHAPES}
     checked = 0
     for name, (targets, limit) in FRAME_IN_LOOP.items():

@@ -18,6 +18,7 @@ import argparse, json, os, re, subprocess, sys
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1] / 'performance' / 'tools'))
 import code_placement  # noqa: E402
+import inline_cleanup_shape  # noqa: E402
 
 SOURCE = HERE / 'record_fields.dpr'
 PASS_LINE = 'RECORD_FIELDS_PASS'
@@ -155,6 +156,8 @@ def main():
     found = routines(listing)
     target = 'win64' if os.name == 'nt' else 'linux'
     problems = []
+    if target == 'win64':
+        problems += inline_cleanup_shape.problems(listing, 'SHAPEMANAGEDNOTRAP', 'fpc_finalize', 1)
     loops = {name: innermost_loop(found[name][0], name) for name in SHAPES}
     checked = 0
     for name, (targets, limit) in FRAME_IN_LOOP.items():

@@ -19,6 +19,7 @@ import argparse, hashlib, json, os, re, subprocess, sys
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1] / 'performance' / 'tools'))
 import code_placement  # noqa: E402
+import inline_cleanup_shape  # noqa: E402
 
 SHAPES = ('STORERELOAD', 'STOREOTHER', 'STORETHENADD', 'CONTAINSMISS', 'CLEANNAME', 'CHECKALL', 'KIDAT', 'TOBYTE',
           'FLIPSHEET')
@@ -131,6 +132,8 @@ def main():
     (args.output / 'counts.json').write_text(json.dumps(counts, indent=2))
     target = 'win64' if os.name == 'nt' else 'linux'
     problems = []
+    if target == 'win64':
+        problems += inline_cleanup_shape.problems(listing, 'CLEANNAME', 'fpc_unicodestr_decr_ref', 2)
     for name in ('STORERELOAD', 'STOREOTHER'):
         if counts[name][2]:
             problems.append(f'{name}: a 32-bit register extended into itself: {", ".join(counts[name][2])}')

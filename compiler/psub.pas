@@ -1087,6 +1087,16 @@ implementation
 
             current_filepos:=entrypos;
             wrappedbody:=ctryfinallynode.create_implicit(code,finalcode);
+            if (target_info.system in systems_x86_64_seh) and
+               (cs_opt_level2 in current_settings.optimizerswitches) then
+              begin
+                { Build independently: copies of first-passed managed calls
+                  can share temporary lifecycle hooks with the funclet. }
+                ttryfinallynode(wrappedbody).third:=internalstatements(codestatement);
+                if procdef.proctypeoption<>potype_exceptfilter then
+                  addstatement(codestatement,cfinalizetempsnode.create);
+                cnodeutils.procdef_block_add_implicit_finalize_nodes(procdef,codestatement);
+              end;
             { afterconstruction must be called after finalizetemps, because it
                has to execute after the temps have been finalised in case of a
                refcounted class (afterconstruction decreases the refcount

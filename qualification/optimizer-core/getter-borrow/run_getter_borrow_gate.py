@@ -17,6 +17,7 @@ import argparse, json, os, re, subprocess, sys
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1] / 'performance' / 'tools'))
 import code_placement  # noqa: E402
+import inline_cleanup_shape  # noqa: E402
 
 BORROWED = ('GETTERLENGTH', 'GETTERCHAR', 'GETTERCOMPARE', 'GETTEREMPTY', 'GETTERELEMENT', 'GETTERLOOP', 'LISTFIND',
             'LISTLENGTHS', 'LISTFIRSTCHARS', 'NESTEDEMPTY', 'NESTEDLENGTH', 'NESTEDSUM', 'CHAINCOMPARE', 'CHAINLENGTH',
@@ -111,6 +112,8 @@ def main():
     counts = routines(listing)
     target = 'win64' if os.name == 'nt' else 'linux'
     problems = []
+    if target == 'win64':
+        problems += inline_cleanup_shape.problems(listing, 'KEEPRECORDTOCALL', 'fpc_finalize', 1)
     for name in BORROWED:
         calls = [symbol for symbol in counts[name][2] if REFERENCE_CALL.search(symbol)]
         if calls:
