@@ -404,12 +404,8 @@ var
 
   procedure JumpToHandleSignal;
     var
-      res, rip, _rbp, sigtype : dword64;
+      res, sigtype : dword64;
     begin
-      asm
-        movq (%rbp),%rax
-        movq %rax,_rbp
-      end;
 {$ifdef SIGNALS_DEBUG}
       if IsConsole then
         Writeln(stderr,'In start of JumpToHandleSignal');
@@ -419,7 +415,6 @@ var
         dec(except_level)
       else
         RunError(216);
-      rip:=except_rip[except_level];
 
       sigtype:=except_signal[except_level];
       if reset_fpu[except_level] then
@@ -447,12 +442,12 @@ var
           RunError(sigtype);
         end
       else
-        { jump back to old code }
+        { jump back to old code: leave gives the frame back and ret returns
+          through it.  The saved rip and rbp the code used to push in front of
+          leave (as on i386) were thrown away by leave unread, so the routine
+          never went back to except_rip, and the unwinder took the two pushes
+          for stack the frame did not describe. }
         asm
-          movq rip,%rax
-          push %rax
-          movq _rbp,%rax
-          push %rax
           leave
           ret
         end;

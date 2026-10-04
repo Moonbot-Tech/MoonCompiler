@@ -1038,6 +1038,12 @@ begin
   Replace(cmdstr,'$LTO',ltostr);
   Replace(cmdstr,'$RPATH',rpathstr);
   Replace(cmdstr,'$GCSECTIONS',GCSectionsStr);
+
+  { The unwinder discovers FDEs in a shared object through PT_GNU_EH_FRAME,
+    just as it does for executables. }
+  if tf_use_psabieh in target_info.flags then
+    cmdstr:=cmdstr+' --eh-frame-hdr';
+
   success:=DoExec(FindUtil(utilsprefix+binstr),cmdstr,true,false);
 
 { Strip the library ? }

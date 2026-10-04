@@ -417,16 +417,17 @@ implementation
             list.concat(tai_const.create_rel_sym(aitconst_uleb128bit,augstartlabel,augendlabel));
             list.concat(tai_label.create(augstartlabel));
             { personality function ('P') }
-            { encoding }
-            list.concat(tai_const.create_8bit({DW_EH_PE_indirect or DW_EH_PE_pcrel or} DW_EH_PE_sdata4));
+            { CreateName/Create_sym and the FDE range below emit native-sized
+              absolute values, not signed 32-bit values on a 64-bit target. }
+            list.concat(tai_const.create_8bit(DW_EH_PE_absptr));
             { address of personality function }
             list.concat(tai_const.Createname('_FPC_psabieh_personality_v0',AT_FUNCTION,0));
 
             { LSDA encoding  ('L')}
-            list.concat(tai_const.create_8bit({DW_EH_PE_pcrel or }DW_EH_PE_sdata4));
+            list.concat(tai_const.create_8bit(DW_EH_PE_absptr));
 
             { FDE encoding ('R') }
-            list.concat(tai_const.create_8bit({DW_EH_PE_pcrel or }DW_EH_PE_sdata4));
+            list.concat(tai_const.create_8bit(DW_EH_PE_absptr));
             list.concat(tai_label.create(augendlabel));
           end;
 

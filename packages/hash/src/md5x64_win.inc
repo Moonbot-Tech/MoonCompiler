@@ -4,8 +4,8 @@ procedure MD5Transform(var Context: TMDContext; Buffer: Pointer); assembler; nos
 // RCX = Context, RDX = Buffer
 {$asmmode intel}
 asm
-.seh_pushreg RBX
   PUSH RBX
+.seh_pushreg RBX
 .seh_endprologue
 
   // R8D = A, R9D = B, R10D = C, R11D = D

@@ -5,10 +5,23 @@ procedure SHA1Transform_Plain(var ctx: TSHA1Context; const Buf: Pointer); assemb
   RSI - Buf
 }
 asm
+  // The frame is told to the unwinder: a fault on Buf has to reach the caller's except with
+  // the caller's RBX and RBP (doc/ASM_LAYOUT_RULES.md, "Unwinding hand-written frames").
   PUSH  RBX
+{$ifdef FPC_HAS_ASM_CFI_OFFSET}
+.cfi_def_cfa_offset 16
+.cfi_offset rbx, -16
+{$endif}
   PUSH  RBP
+{$ifdef FPC_HAS_ASM_CFI_OFFSET}
+.cfi_def_cfa_offset 24
+.cfi_offset rbp, -24
+{$endif}
   // Allocaste 128 bytes on the stack.
   LEA   RSP, [RSP-128]
+{$ifdef FPC_HAS_ASM_CFI_OFFSET}
+.cfi_def_cfa_offset 152
+{$endif}
 
   // EAX = A, R8D = B, R9D = C, R10D = D, R11D = E.
   MOV   EAX, TSHA1Context.State[RDI] // A, B, C, D, E := *ctx.State[0 .. 4].
@@ -1479,8 +1492,19 @@ asm
 
   // Restore stack
   LEA   RSP, [RSP+128]
+{$ifdef FPC_HAS_ASM_CFI_OFFSET}
+.cfi_def_cfa_offset 24
+{$endif}
   POP   RBP
+{$ifdef FPC_HAS_ASM_CFI_OFFSET}
+.cfi_def_cfa_offset 16
+.cfi_restore rbp
+{$endif}
   POP   RBX
+{$ifdef FPC_HAS_ASM_CFI_OFFSET}
+.cfi_def_cfa_offset 8
+.cfi_restore rbx
+{$endif}
 end;
 
 {$i sha1x86.inc}

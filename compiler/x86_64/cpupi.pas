@@ -148,6 +148,7 @@ implementation
     procedure tcpuprocinfo.dump_scopes(list: TAsmList);
       var
         hdir: tai_seh_directive;
+        section: tai_section;
       begin
         if (scopecount=0) then
           exit;
@@ -156,6 +157,12 @@ implementation
           current_module.add_extern_asmsym('__FPC_specific_handler',AB_EXTERNAL,AT_FUNCTION);
         hdir.data.flags:=unwindflags;
         list.concat(hdir);
+        { Explicitly separate handler data from code in every assembler pass.
+          .seh_handlerdata switches section only during the internal writer's
+          final pass; otherwise scope bytes inflate later DWARF code labels. }
+        section:=new_section(list,sec_user,'.xdata.n_'+lower(procdef.mangledname),4);
+        section.secflags:=[SF_A];
+        section.secprogbits:=SPB_PROGBITS;
         list.concat(cai_seh_directive.create(ash_handlerdata));
         inc(list.section_count);
         list.concat(tai_const.create_32bit(scopecount));

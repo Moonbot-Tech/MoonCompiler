@@ -5,17 +5,19 @@ procedure SHA1Transform_Plain(var ctx: TSHA1Context; const Buf: Pointer); assemb
   RDX - Buf
 }
 asm
-.seh_pushreg RSI
+  // Every unwind directive follows its instruction: the unwinder takes a push for done from
+  // the address behind it (a directive in front put each one an instruction early).
   PUSH  RSI
-.seh_pushreg RDI
+.seh_pushreg RSI
   PUSH  RDI
-.seh_pushreg RBX
+.seh_pushreg RDI
   PUSH  RBX
-.seh_pushreg RBP
+.seh_pushreg RBX
   PUSH  RBP
-.seh_stackalloc 128
+.seh_pushreg RBP
   // Allocaste 128 bytes on the stack.
   LEA   RSP, [RSP-128]
+.seh_stackalloc 128
 .seh_endprologue
 
   // EAX = A, R8D = B, R9D = C, R10D = D, R11D = E.

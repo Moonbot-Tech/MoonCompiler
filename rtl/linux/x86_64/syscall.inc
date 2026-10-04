@@ -24,10 +24,13 @@ function FpSysCall(sysnr:TSysParam):TSysResult; assembler; nostackframe; [public
 
 asm
   pushq %rax              { keep stack aligned }
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 16 {$endif}
 {$ifdef FPC_PROFILE}
   pushq sysnr
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 24 {$endif}
   call mcount
   popq sysnr
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 16 {$endif}
 {$endif FPC_PROFILE}
   movq sysnr, %rax        { Syscall number -> rax.  }
   syscall                 { Do the system call. }
@@ -39,18 +42,24 @@ asm
   movq  $-1,%rax
 .LSyscOK:
   popq %rcx               { remove alignment }
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 8 {$endif}
 end;
 
 function FpSysCall(sysnr,param1 : TSysParam):TSysResult; assembler; nostackframe; [public,alias:'FPC_SYSCALL1'];
 
 asm
   pushq %rax              { keep stack aligned }
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 16 {$endif}
 {$ifdef FPC_PROFILE}
   pushq sysnr
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 24 {$endif}
   pushq param1
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 32 {$endif}
   call mcount
   popq param1
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 24 {$endif}
   popq sysnr
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 16 {$endif}
 {$endif FPC_PROFILE}
   movq sysnr, %rax        { Syscall number -> rax.  }
   movq param1, %rdi         { shift arg1 - arg5. }
@@ -63,20 +72,28 @@ asm
   movq  $-1,%rax
 .LSyscOK:
   popq %rcx               { remove alignment }
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 8 {$endif}
 end;
 
 function FpSysCall(sysnr,param1,param2 : TSysParam):TSysResult; assembler; nostackframe; [public,alias:'FPC_SYSCALL2'];
 
 asm
   pushq %rax              { keep stack aligned }
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 16 {$endif}
 {$ifdef FPC_PROFILE}
   pushq sysnr
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 24 {$endif}
   pushq param1
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 32 {$endif}
   pushq param2
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 40 {$endif}
   call mcount
   popq param2
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 32 {$endif}
   popq param1
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 24 {$endif}
   popq sysnr
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 16 {$endif}
 {$endif FPC_PROFILE}
   movq sysnr, %rax        { Syscall number -> rax.  }
   movq param1, %rdi         { shift arg1 - arg5. }
@@ -90,22 +107,32 @@ asm
   movq  $-1,%rax
 .LSyscOK:
   popq %rcx               { remove alignment }
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 8 {$endif}
 end;
 
 function FpSysCall(sysnr,param1,param2,param3:TSysParam):TSysResult; assembler; nostackframe; [public,alias:'FPC_SYSCALL3'];
 
 asm
   pushq %rax              { keep stack aligned }
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 16 {$endif}
 {$ifdef FPC_PROFILE}
   pushq sysnr
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 24 {$endif}
   pushq param1
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 32 {$endif}
   pushq param2
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 40 {$endif}
   pushq param3
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 48 {$endif}
   call mcount
   popq param3
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 40 {$endif}
   popq param2
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 32 {$endif}
   popq param1
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 24 {$endif}
   popq sysnr
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 16 {$endif}
 {$endif FPC_PROFILE}
   movq sysnr, %rax        { Syscall number -> rax.  }
   movq param1, %rdi         { shift arg1 - arg5. }
@@ -120,24 +147,36 @@ asm
   movq  $-1,%rax
 .LSyscOK:
   popq %rcx               { remove alignment }
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 8 {$endif}
 end;
 
 function FpSysCall(sysnr,param1,param2,param3,param4:TSysParam):TSysResult; assembler; nostackframe; [public,alias:'FPC_SYSCALL4'];
 
 asm
   pushq %rax              { keep stack aligned }
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 16 {$endif}
 {$ifdef FPC_PROFILE}
   pushq sysnr
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 24 {$endif}
   pushq param1
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 32 {$endif}
   pushq param2
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 40 {$endif}
   pushq param3
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 48 {$endif}
   pushq param4
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 56 {$endif}
   call mcount
   popq param4
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 48 {$endif}
   popq param3
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 40 {$endif}
   popq param2
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 32 {$endif}
   popq param1
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 24 {$endif}
   popq sysnr
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 16 {$endif}
 {$endif FPC_PROFILE}
   movq sysnr, %rax        { Syscall number -> rax.  }
   movq param1, %rdi         { shift arg1 - arg5. }
@@ -153,26 +192,40 @@ asm
   movq  $-1,%rax
 .LSyscOK:
   popq %rcx               { remove alignment }
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 8 {$endif}
 end;
 
 function FpSysCall(sysnr,param1,param2,param3,param4,param5 : TSysParam):TSysResult; assembler; nostackframe; [public,alias:'FPC_SYSCALL5'];
 
 asm
   pushq %rax              { keep stack aligned }
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 16 {$endif}
 {$ifdef FPC_PROFILE}
   pushq sysnr
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 24 {$endif}
   pushq param1
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 32 {$endif}
   pushq param2
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 40 {$endif}
   pushq param3
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 48 {$endif}
   pushq param4
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 56 {$endif}
   pushq param5
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 64 {$endif}
   call mcount
   popq param5
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 56 {$endif}
   popq param4
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 48 {$endif}
   popq param3
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 40 {$endif}
   popq param2
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 32 {$endif}
   popq param1
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 24 {$endif}
   popq sysnr
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 16 {$endif}
 {$endif FPC_PROFILE}
   movq sysnr, %rax        { Syscall number -> rax.  }
   movq param1, %rdi         { shift arg1 - arg5. }
@@ -189,6 +242,7 @@ asm
   movq  $-1,%rax
 .LSyscOK:
   popq %rcx               { remove alignment }
+  {$ifdef FPC_HAS_ASM_CFI_OFFSET} .cfi_def_cfa_offset 8 {$endif}
 end;
 
 

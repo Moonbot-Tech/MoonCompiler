@@ -26,11 +26,13 @@ Unit rax64att;
   interface
 
     uses
-      raatt,rax86att,aasmtai;
+      raatt,rax86att,aasmtai,aasmcfi;
 
     type
       tx8664attreader = class(tx86attreader)
         actsehdirective: TAsmSehDirective;
+        actcfidirective: tcfikind;
+        cfidirective: boolean;
         procedure handleopcode;override;
         function is_targetdirective(const s:string):boolean;override;
         procedure handletargetdirective;override;
@@ -72,7 +74,25 @@ Unit rax64att;
     function tx8664attreader.is_targetdirective(const s:string):boolean;
       var
         i: TAsmSehDirective;
+        cfikind: tcfikind;
       begin
+        cfidirective:=false;
+        if target_info.system=system_x86_64_linux then
+          for cfikind in [cfi_def_cfa_offset,cfi_offset,cfi_restore] do
+            if s=cfi2str[cfikind] then
+              begin
+                { An absolute RSP-based CFA and the register saves counted from
+                  it describe a standalone stack-owning ASM routine (the same
+                  three directives as the Intel reader). They are not an
+                  annotation for inlined Pascal code. }
+                result:=(current_procinfo.procdef.procoptions*[po_assembler,po_nostackframe,po_inline])=
+                  [po_assembler,po_nostackframe];
+                if not result then
+                  Message(asmr_e_syntax_error);
+                cfidirective:=result;
+                actcfidirective:=cfikind;
+                exit;
+              end;
         result:=false;
         if target_info.system<>system_x86_64_win64 then
           exit;
@@ -108,6 +128,39 @@ Unit rax64att;
         if actasmtoken<>AS_TARGET_DIRECTIVE then
           InternalError(2011100201);
         Consume(AS_TARGET_DIRECTIVE);
+        if cfidirective then
+          begin
+            if actcfidirective=cfi_def_cfa_offset then
+              begin
+                hnum:=BuildConstExpression(false,false);
+                if (hnum<0) or (hnum>high(longint)) then
+                  Message(asmr_e_syntax_error)
+                else
+                  curlist.concat(tai_cfi_op_val.create(cfi_def_cfa_offset,hnum));
+              end
+            else
+              begin
+                hreg:=actasmregister;
+                Consume(AS_REGISTER);
+                if (getregtype(hreg)<>R_INTREGISTER) or (getsubreg(hreg)<>R_SUBQ) then
+                  Message(asmr_e_syntax_error)
+                else if actcfidirective=cfi_restore then
+                  curlist.concat(tai_cfi_op_reg.create(cfi_restore,hreg))
+                else
+                  begin
+                    Consume(AS_COMMA);
+                    hnum:=BuildConstExpression(false,false);
+                    { as in the Intel reader: aligned saves below the CFA only }
+                    if (hnum<low(longint)) or (hnum>0) or ((hnum and 7)<>0) then
+                      Message(asmr_e_syntax_error)
+                    else
+                      curlist.concat(tai_cfi_op_reg_val.create(cfi_offset,hreg,hnum));
+                  end;
+              end;
+            if actasmtoken<>AS_SEPARATOR then
+              Consume(AS_SEPARATOR);
+            exit;
+          end;
         Include(current_procinfo.flags,pi_has_unwind_info);
 
         case actsehdirective of

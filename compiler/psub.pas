@@ -147,7 +147,7 @@ implementation
        cutils, cmsgs, cdynset,
        { global }
        globtype,tokens,verbose,comphook,constexp,
-       systems,cpubase,aasmbase,aasmtai,
+       systems,cpubase,aasmbase,aasmtai,aasmcfi,
        { symtable }
        symconst,symbase,symsym,symtype,symtable,defutil,defcmp,procdefutil,symcreat,
        paramgr,
@@ -2366,6 +2366,45 @@ implementation
 
     procedure tcgprocinfo.generate_code;
 
+       procedure lower_asm_cfi;
+         var
+           item,nextitem: tai;
+           annotation: TAsmList;
+         begin
+           if target_info.system<>system_x86_64_linux then
+             exit;
+           annotation:=TAsmList.Create;
+           item:=tai(aktproccode.first);
+           while assigned(item) do
+             begin
+               nextitem:=tai(item.next);
+               if (item.typ=ait_cfi) and
+                  (tai_cfi_base(item).cfityp in [cfi_def_cfa_offset,cfi_offset,cfi_restore]) then
+                 begin
+                   { Frame inference is complete here. Do not silently discard
+                     explicit RSP-based metadata if a compiler frame remains. }
+                   if not(po_nostackframe in procdef.procoptions) then
+                     Message(asmr_e_syntax_error);
+                   case tai_cfi_base(item).cfityp of
+                     cfi_def_cfa_offset:
+                       current_asmdata.asmcfi.cfa_def_cfa_offset(annotation,tai_cfi_op_val(item).val1);
+                     cfi_offset:
+                       current_asmdata.asmcfi.cfa_offset(annotation,tai_cfi_op_reg_val(item).reg1,
+                         tai_cfi_op_reg_val(item).val);
+                     cfi_restore:
+                       current_asmdata.asmcfi.cfa_restore(annotation,tai_cfi_op_reg(item).reg1);
+                     else
+                       internalerror(2026092001);
+                   end;
+                   aktproccode.insertlistbefore(item,annotation);
+                   aktproccode.remove(item);
+                   item.free;
+                 end;
+               item:=nextitem;
+             end;
+           annotation.free;
+         end;
+
        procedure check_for_threadvars_in_initfinal;
          begin
            if current_procinfo.procdef.proctypeoption=potype_unitfinalize then
@@ -2854,6 +2893,8 @@ implementation
             current_filepos:=entrypos;
             gen_proc_entry_code(templist);
             aktproccode.insertlistafter(headertai,templist);
+            { Entry CFA must precede explicit ASM changes; exit CFA follows. }
+            lower_asm_cfi;
 {$ifdef SUPPORT_SAFECALL}
             { Set return value of safecall procedure if implicit try/finally blocks are disabled }
             if not (cs_implicit_exceptions in current_settings.moduleswitches) and

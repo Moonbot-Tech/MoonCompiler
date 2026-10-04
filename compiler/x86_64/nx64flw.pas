@@ -527,7 +527,8 @@ procedure tx64tryexceptnode.pass_generate_code;
             sym:=current_asmdata.RefAsmSymbol(tonnode(hnode).excepttype.vmt_mangledname,AT_DATA,true);
             hlist.concat(tai_const.create_rva_sym(sym));
             hlist.concat(tai_const.create_rva_sym(onlabel));
-            current_module.add_extern_asmsym(sym);
+            if tonnode(hnode).excepttype.vmt_def.owner.moduleid<>current_module.moduleid then
+              current_module.add_extern_asmsym(sym);
             cg.a_label(current_asmdata.CurrAsmList,onlabel);
             secondpass(hnode);
             inc(onnodecount.value);

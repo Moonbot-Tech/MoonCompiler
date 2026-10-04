@@ -1512,10 +1512,23 @@ asm
         mov     rcx, rdx
         mov     rdx, r10
         push    rsi   // Win64 expects those registers to be preserved
+        .seh_pushreg rsi
         push    rdi
+        .seh_pushreg rdi
         {$endif}
         // P=r8 len=rcx crc=rdx
         push    rbx
+        { The saves are told to the unwinder (they emit no code): a fault on the
+          key's bytes unwinds through this frame to the caller's except with
+          the caller's registers restored. }
+        {$ifdef WIN64}
+        .seh_pushreg rbx
+        .seh_endprologue
+        {$endif}
+        {$ifdef FPC_HAS_ASM_CFI_OFFSET}
+        .cfi_def_cfa_offset 16
+        .cfi_offset rbx, -16
+        {$endif}
         lea     r10, [rcx+rdx]
         cmp     rdx, 15
         lea     eax, [r8+165667B1H]
@@ -1590,6 +1603,10 @@ asm
         shr     edx, 16
         xor     eax, edx
         pop     rbx
+        {$ifdef FPC_HAS_ASM_CFI_OFFSET}
+        .cfi_def_cfa_offset 8
+        .cfi_restore rbx
+        {$endif}
         {$ifdef WIN64}
         pop     rdi
         pop     rsi

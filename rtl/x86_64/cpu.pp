@@ -114,8 +114,18 @@ type
       // that's why this internal version with "out res" exists...
       // Win64: ecx = in_eax, edx = in_ecx, r8 = res.
       // SysV:  edi = in_eax, esi = in_ecx, rdx = res.
+      // cpuid writes rbx, which the caller keeps: the save is told to the unwinder
+      // (doc/ASM_LAYOUT_RULES.md, "Unwinding hand-written frames").
       asm
         push  %rbx
+{$ifdef WIN64}
+        .seh_pushreg %rbx
+        .seh_endprologue
+{$endif}
+{$ifdef FPC_HAS_ASM_CFI_OFFSET}
+        .cfi_def_cfa_offset 16
+        .cfi_offset %rbx, -16
+{$endif}
 {$ifndef FPC_ABI_WIN64}
         mov   %rdx, %r8 // r8 = res
 {$endif}
@@ -127,6 +137,10 @@ type
         mov   %ecx, TCpuidResult.ecx(%r8)
         mov   %edx, TCpuidResult.edx(%r8)
         pop   %rbx
+{$ifdef FPC_HAS_ASM_CFI_OFFSET}
+        .cfi_def_cfa_offset 8
+        .cfi_restore %rbx
+{$endif}
       end;
 
 
@@ -148,7 +162,12 @@ type
       end;
 
 
-    function InterlockedCompareExchange128(var Target: Int128Rec; NewValue: Int128Rec; Comperand: Int128Rec): Int128Rec; assembler;
+    { cmpxchg16b takes the new value in rcx:rbx, and rbx is the caller's: the save is told to
+      the unwinder, since the instruction faults on a Target that is not 16-byte aligned or not
+      there, and the exception has to reach the caller with its rbx (doc/ASM_LAYOUT_RULES.md,
+      "Unwinding hand-written frames").  No frame of the compiler: the one it built could not
+      say where rbx went. }
+    function InterlockedCompareExchange128(var Target: Int128Rec; NewValue: Int128Rec; Comperand: Int128Rec): Int128Rec; assembler; nostackframe;
      {
         win64:
           rcx ... pointer to result
@@ -159,9 +178,13 @@ type
     {$ifdef FPC_ABI_WIN64}
       asm
         pushq %rbx
+        {$ifdef WIN64}
+        .seh_pushreg %rbx
+        .seh_endprologue
+        {$endif}
 
-        { store result pointer for later use }
-        pushq %rcx
+        { the result pointer for later use; the stack stays as described }
+        movq %rcx,%r10
 
         { load new value }
         movq (%r8),%rbx
@@ -179,12 +202,10 @@ type
         {$else}
         lock cmpxchg16b (%r8)
         {$endif}
-        { restore result pointer }
-        popq %rcx
 
         { store result }
-        movq %rax,(%rcx)
-        movq %rdx,8(%rcx)
+        movq %rax,(%r10)
+        movq %rdx,8(%r10)
 
         popq %rbx
       end;
@@ -198,6 +219,10 @@ type
     }
       asm
         pushq %rbx
+        {$ifdef FPC_HAS_ASM_CFI_OFFSET}
+        .cfi_def_cfa_offset 16
+        .cfi_offset %rbx, -16
+        {$endif}
 
         movq %rsi,%rbx          // new value low
         movq %rcx,%rax          // comperand low
@@ -210,6 +235,10 @@ type
         {$endif}
 
         popq %rbx
+        {$ifdef FPC_HAS_ASM_CFI_OFFSET}
+        .cfi_def_cfa_offset 8
+        .cfi_restore %rbx
+        {$endif}
       end;
     {$endif FPC_ABI_WIN64}
 

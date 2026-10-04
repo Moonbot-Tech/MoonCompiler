@@ -1321,6 +1321,7 @@ implementation
             Add('    *(.rdata.*)');
             add('    *(.rodata .rodata.* .gnu.linkonce.r.*)');
             Add('    *(SORT(.rdata$*))');
+            Add('    *(.xdata*)');
             Add('    *(.eh_frame)');
             Add('    ___RUNTIME_PSEUDO_RELOC_LIST__ = .;');
             Add('    __RUNTIME_PSEUDO_RELOC_LIST__ = .;');
@@ -1328,7 +1329,7 @@ implementation
             Add('    ___RUNTIME_PSEUDO_RELOC_LIST_END__ = .;');
             Add('    __RUNTIME_PSEUDO_RELOC_LIST_END__ = .;');
             Add('  }');
-            Add('  .pdata BLOCK(__section_alignment__) : { *(.pdata) }');
+            Add('  .pdata BLOCK(__section_alignment__) : { *(.pdata*) }');
             Add('  .bss BLOCK(__section_alignment__) :');
             Add('  {');
             Add('    __bss_start__ = . ;');
