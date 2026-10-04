@@ -431,6 +431,8 @@ end;
 
 begin
   Len:=Length(Fmt);
+  If Len=0 then
+    exit(Fmt);
 {$if defined(INWIDEFORMAT) and not defined(INUNICODESTRING)}
   { The three unqualified one-argument forms need neither the format parser nor
     a temporary output buffer.  Unicode strings are copy-on-write, so sharing

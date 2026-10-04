@@ -573,6 +573,8 @@ Function UnicodeFormat (Const Fmt : UnicodeString; const Args : Array of const; 
 var
   I,Precision: Integer;
 begin
+  If Length(Fmt)=0 then
+    exit('');
   { Keep the common one-argument forms out of UnicodeFormatGeneral: entering
     that parser would construct its large stack frame and initialize all of
     its managed temporaries before it could take the same decision. }
