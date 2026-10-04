@@ -48,6 +48,9 @@ interface
          saveinputpointer : pansichar;  { save fields for scanner variables }
          savelastlinepos,
          saveline_no      : longint;
+         sourcecodepage   : tstringencoding;
+         sourcecodepage_is_system,
+         sourcecodepage_is_explicit : boolean;
 
          linebuf    : tlongintarr;  { line buffer to retrieve lines }
          maxlinebuf : longint;
@@ -232,6 +235,9 @@ uses
         saveinputpointer:=nil;
         saveline_no:=0;
         savelastlinepos:=0;
+        sourcecodepage:=0;
+        sourcecodepage_is_system:=false;
+        sourcecodepage_is_explicit:=false;
       { indexing refs }
         ref_index:=0;
       { line buffer }

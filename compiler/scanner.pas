@@ -3537,6 +3537,9 @@ type
         inputfile:=do_openinputfile(fn);
         if is_macro then
           inputfile.is_macro:=true;
+        inputfile.sourcecodepage:=current_settings.sourcecodepage;
+        inputfile.sourcecodepage_is_system:=cs_system_codepage in current_settings.moduleswitches;
+        inputfile.sourcecodepage_is_explicit:=cs_explicit_codepage in current_settings.moduleswitches;
         if assigned(current_module) then
           current_module.sourcefiles.register_file(inputfile);
       { reset localinput }
@@ -3695,6 +3698,9 @@ type
 {$endif CHECK_INPUTPOINTER_LIMITS}
         inputfile.savelastlinepos:=lastlinepos;
         inputfile.saveline_no:=line_no;
+        inputfile.sourcecodepage:=current_settings.sourcecodepage;
+        inputfile.sourcecodepage_is_system:=cs_system_codepage in current_settings.moduleswitches;
+        inputfile.sourcecodepage_is_explicit:=cs_explicit_codepage in current_settings.moduleswitches;
       end;
 
 
@@ -3709,6 +3715,15 @@ type
 {$endif check_inputpointer_limits}
         lastlinepos:=inputfile.savelastlinepos;
         line_no:=inputfile.saveline_no;
+        current_settings.sourcecodepage:=inputfile.sourcecodepage;
+        if inputfile.sourcecodepage_is_system then
+          include(current_settings.moduleswitches,cs_system_codepage)
+        else
+          exclude(current_settings.moduleswitches,cs_system_codepage);
+        if inputfile.sourcecodepage_is_explicit then
+          include(current_settings.moduleswitches,cs_explicit_codepage)
+        else
+          exclude(current_settings.moduleswitches,cs_explicit_codepage);
         if not inputfile.is_macro then
           parser_current_file:=inputfile.name;
       end;
@@ -4596,6 +4611,9 @@ type
     procedure tscannerfile.addfile(hp:tinputfile);
       begin
         saveinputfile;
+        hp.sourcecodepage:=current_settings.sourcecodepage;
+        hp.sourcecodepage_is_system:=cs_system_codepage in current_settings.moduleswitches;
+        hp.sourcecodepage_is_explicit:=cs_explicit_codepage in current_settings.moduleswitches;
         { add to list }
         hp.next:=inputfile;
         inputfile:=hp;
@@ -4667,13 +4685,6 @@ type
                      (ord((inputpointer+2)^)=$bf) then
                      begin
 {$endif CHECK_INPUTPOINTER_LIMITS}
-                       (* we don't support including files with an UTF-8 bom
-                          inside another file that wasn't encoded as UTF-8
-                          already (we don't support {$codepage xxx} switches in
-                          the middle of a file either) *)
-                       if (current_settings.sourcecodepage<>CP_UTF8) and
-                          not current_module.in_global then
-                         Message(scanner_f_illegal_utf8_bom);
 {$ifdef CHECK_INPUTPOINTER_LIMITS}
                        inc_inputpointer(3);
 {$else not CHECK_INPUTPOINTER_LIMITS}
@@ -4683,6 +4694,9 @@ type
                        current_settings.sourcecodepage:=CP_UTF8;
                        exclude(current_settings.moduleswitches,cs_system_codepage);
                        include(current_settings.moduleswitches,cs_explicit_codepage);
+                       inputfile.sourcecodepage:=CP_UTF8;
+                       inputfile.sourcecodepage_is_system:=false;
+                       inputfile.sourcecodepage_is_explicit:=true;
                      end;
 
                    line_no:=1;
