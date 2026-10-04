@@ -66,6 +66,7 @@ interface
           function may_have_sideeffect_norecurse: boolean;
           function may_raise_exception_norecurse: boolean;
           function observes_fp_environment_norecurse: boolean;
+          function fold_runtime_real_const: tnode;
 
           function may_ignore_result:boolean;
          protected
@@ -2549,6 +2550,17 @@ implementation
 
       begin { simplify }
          result:=nil;
+         { A constant met after inlining or constant propagation stands for
+           a run-time FP operation: it gets the value the operation computes,
+           or stays at run time (fold_runtime_real_const). }
+         if (forinline or
+             (tnf_runtime_expression in transientflags) or
+             (assigned(left) and (tnf_runtime_expression in left.transientflags))) and
+            observes_fp_environment_norecurse then
+           begin
+             result:=fold_runtime_real_const;
+             exit;
+           end;
          { handle intern constant functions in separate case }
          if inf_inlineconst in inlinenodeflags then
           begin
@@ -6700,6 +6712,116 @@ implementation
        squares a tiny argument - belongs to the routine and is not kept); Min
        and Max select as minsd and maxsd do; Round, FMA and float128 stay at
        run time. }
+     function tinlinenode.fold_runtime_real_const: tnode;
+       var
+         operand,
+         second : tnode;
+         value : bestreal;
+         s : single;
+         d : double;
+       begin
+         result:=nil;
+         if inlinenumber in [in_min_single,in_min_double,in_max_single,in_max_double] then
+           begin
+             if left.nodetype<>callparan then
+               exit;
+             { the first parameter is the last one in the list }
+             operand:=tcallparanode(tcallparanode(left).nextpara).paravalue;
+             second:=tcallparanode(left).paravalue;
+             if (operand.nodetype<>realconstn) or
+                (second.nodetype<>realconstn) or
+                not is_ordinary_real(trealconstnode(operand).value_real,operand.resultdef) or
+                not is_ordinary_real(trealconstnode(second).value_real,second.resultdef) then
+               exit;
+             if (inlinenumber in [in_min_single,in_min_double]) and
+                not(trealconstnode(operand).value_real<trealconstnode(second).value_real) then
+               operand:=second
+             else if (inlinenumber in [in_max_single,in_max_double]) and
+                not(trealconstnode(operand).value_real>trealconstnode(second).value_real) then
+               operand:=second;
+             result:=crealconstnode.create(trealconstnode(operand).value_real,resultdef);
+             include(result.transientflags,tnf_runtime_expression);
+             exit;
+           end;
+         if not(inlinenumber in [in_sqr_real,in_sqrt_real,in_trunc_real,in_exp_real,in_ln_real,
+              in_sin_real,in_cos_real,in_arctan_real,in_frac_real,in_int_real]) or
+            (left.nodetype<>realconstn) then
+           exit;
+         value:=trealconstnode(left).value_real;
+         if not is_ordinary_real(value,left.resultdef) then
+           exit;
+         case inlinenumber of
+           in_sqr_real:
+             { x*x in the format of the result }
+             if not fold_ordinary_real(muln,value,value,resultdef,value) then
+               exit;
+           in_sqrt_real:
+             begin
+               { a negative operand is invalid; the root of -0 is -0 }
+               if value<0 then
+                 exit;
+               case tfloatdef(resultdef).floattype of
+                 s32real:
+                   begin
+                     s:=single(value);
+                     s:=sqrt(s);
+                     value:=s;
+                   end;
+                 s64real:
+                   begin
+                     d:=double(value);
+                     d:=sqrt(d);
+                     value:=d;
+                   end;
+                 else
+                   { an x87 format: bestreal is the x87 extended where
+                     is_ordinary_real accepts one }
+                   value:=sqrt(value);
+               end;
+             end;
+           in_trunc_real:
+             begin
+               { cvttsd2si and fistp give the integer indefinite outside Int64 }
+               if not((value>=-9223372036854775808.0) and (value<9223372036854775808.0)) then
+                 exit;
+               result:=cordconstnode.create(trunc(value),s64inttype,true);
+               exit;
+             end;
+           else
+             begin
+               case inlinenumber of
+                 in_exp_real:
+                   value:=exp(value);
+                 in_ln_real:
+                   begin
+                     if value<=0 then
+                       exit;
+                     value:=ln(value);
+                   end;
+                 in_sin_real:
+                   value:=sin(value);
+                 in_cos_real:
+                   value:=cos(value);
+                 in_arctan_real:
+                   value:=arctan(value);
+                 in_frac_real:
+                   value:=frac(value);
+                 in_int_real:
+                   value:=int(value);
+                 else
+                   internalerror(2026092805);
+               end;
+               if value=0 then
+                 exit;
+             end;
+         end;
+         if not is_ordinary_real(value,resultdef) then
+           exit;
+         result:=crealconstnode.create(value,resultdef);
+         include(result.transientflags,tnf_runtime_expression);
+       end;
+
+
      function tinlinenode.may_ignore_result:boolean;
        begin
          case inlinenumber of

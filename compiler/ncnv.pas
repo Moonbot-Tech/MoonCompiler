@@ -3959,6 +3959,7 @@ implementation
 {$ifndef CPUNO32BITOPS}
         foundsint: boolean;
 {$endif not CPUNO32BITOPS}
+        runtimeexpr: boolean;
       begin
         result := nil;
         { Constant folding and other node transitions to
@@ -4026,6 +4027,18 @@ implementation
                  (resultdef.typ=floatdef) and
                  (tfloatdef(resultdef).floattype=s80real) then
                 exit;
+              { A conversion met after inlining is a run-time operation: it
+                is folded while the value is an ordinary number of both
+                formats (ncon.is_ordinary_real), and it is rounded to
+                nearest as cvtsd2ss and the x87 store round it. }
+              runtimeexpr:=forinline or
+                (tnf_runtime_expression in transientflags) or
+                (tnf_runtime_expression in left.transientflags);
+              if runtimeexpr and
+                 (convtype=tc_real_2_real) and
+                 not(is_ordinary_real(trealconstnode(left).value_real,left.resultdef) and
+                     is_ordinary_real(trealconstnode(left).value_real,resultdef)) then
+                exit;
               if (convtype = tc_real_2_currency) then
                 result := typecheck_real_to_currency
               else if (convtype = tc_real_2_real) then
@@ -4041,6 +4054,8 @@ implementation
                 begin
                   hp:=result;
                   result:=crealconstnode.create(trealconstnode(hp).value_real,resultdef);
+                  if runtimeexpr then
+                    include(result.transientflags,tnf_runtime_expression);
                   if nf_is_currency in hp.flags then
                     include(result.flags,nf_is_currency);
                   if ([nf_explicit,nf_internal] * flags <> []) then

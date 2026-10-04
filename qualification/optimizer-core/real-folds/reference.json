@@ -1,0 +1,86 @@
+{
+ "x86_64-linux": {
+  "CLAMPCONST": {
+   "calls": 0,
+   "insns": 2
+  },
+  "LERPCONST": {
+   "calls": 0,
+   "insns": 2
+  },
+  "MININCLUSIVE": {
+   "calls": 0,
+   "insns": 5
+  },
+  "MINPRICE": {
+   "calls": 0,
+   "insns": 18
+  },
+  "PICKSMALL": {
+   "calls": 0,
+   "insns": 2
+  },
+  "RATIOBYZERO": {
+   "calls": 0,
+   "insns": 4
+  },
+  "ROOTOFNEGATIVE": {
+   "calls": 0,
+   "insns": 3
+  },
+  "SCALEFOUR": {
+   "calls": 0,
+   "insns": 3
+  },
+  "TIMESZERO": {
+   "calls": 0,
+   "insns": 4
+  },
+  "WIDEN": {
+   "calls": 0,
+   "insns": 6
+  }
+ },
+ "x86_64-win64": {
+  "CLAMPCONST": {
+   "calls": 0,
+   "insns": 2
+  },
+  "LERPCONST": {
+   "calls": 0,
+   "insns": 2
+  },
+  "MININCLUSIVE": {
+   "calls": 0,
+   "insns": 6
+  },
+  "MINPRICE": {
+   "calls": 0,
+   "insns": 18
+  },
+  "PICKSMALL": {
+   "calls": 0,
+   "insns": 2
+  },
+  "RATIOBYZERO": {
+   "calls": 0,
+   "insns": 4
+  },
+  "ROOTOFNEGATIVE": {
+   "calls": 0,
+   "insns": 3
+  },
+  "SCALEFOUR": {
+   "calls": 0,
+   "insns": 3
+  },
+  "TIMESZERO": {
+   "calls": 0,
+   "insns": 4
+  },
+  "WIDEN": {
+   "calls": 0,
+   "insns": 6
+  }
+ }
+}

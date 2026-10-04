@@ -248,6 +248,22 @@ interface
 
     function getbooleanvalue(p : tnode) : boolean;
 
+    { A floating-point operation on constants that the program performs at
+      run time (constants met after inlining or constant propagation) may be
+      computed by the compiler in the FP state every run of the product starts
+      with: round to nearest, all exceptions masked, neither DAZ nor FTZ, the
+      x87 at full precision.  There the operation raises nothing but inexact
+      while its operands and result are zero or normal numbers of their
+      format above the smallest one.  Any other operand or result - a NaN, an
+      infinity, a subnormal, the smallest normal number (a tiny result rounds
+      up to it), a non-zero value rounded to zero - leaves the operation to
+      run time, where a program that unmasked an exception still gets it.
+      is_ordinary_real: value in the format of def is such a number.
+      fold_ordinary_real: l op r (+ - * /) computed in the format of def as
+      the target instruction computes it; false when it stays at run time. }
+    function is_ordinary_real(const value : bestreal; def : tdef) : boolean;
+    function fold_ordinary_real(op : tnodetype; const l, r : bestreal; def : tdef; out value : bestreal) : boolean;
+
 implementation
 
     uses
@@ -480,6 +496,136 @@ implementation
           result:=tordconstnode(p).value<>0
         else
           internalerror(2013111601);
+      end;
+
+
+    function is_ordinary_real(const value : bestreal; def : tdef) : boolean;
+      var
+        s : single;
+        d : double;
+{$ifdef FPC_HAS_TYPE_EXTENDED}
+        e : extended;
+{$endif FPC_HAS_TYPE_EXTENDED}
+      begin
+        result:=false;
+        if def.typ<>floatdef then
+          exit;
+        { a zero stays a zero; a non-zero value has to be a normal number of
+          the format (not rounded to zero, subnormal or infinite) above the
+          smallest one: a result below the smallest normal number that rounds
+          up to it is tiny all the same (x86 detects tininess after rounding
+          with unbounded exponent) and underflows }
+        case tfloatdef(def).floattype of
+          s32real:
+            begin
+              s:=single(value);
+              result:=(value=0) or
+                ((TSingleRec(s).SpecialType in [fsPositive,fsNegative]) and
+                 ((TSingleRec(s).Exp>1) or (TSingleRec(s).Frac<>0)));
+            end;
+          s64real:
+            begin
+              d:=double(value);
+              result:=(value=0) or
+                ((TDoubleRec(d).SpecialType in [fsPositive,fsNegative]) and
+                 ((TDoubleRec(d).Exp>1) or (TDoubleRec(d).Frac<>0)));
+            end;
+{$ifdef FPC_HAS_TYPE_EXTENDED}
+          { the compiler computes x87 formats only with an x87 of its own }
+          s80real,
+          sc80real:
+            begin
+              e:=extended(value);
+              result:=(value=0) or
+                ((TExtended80Rec(e).SpecialType in [fsPositive,fsNegative]) and
+                 ((TExtended80Rec(e).Exp>1) or (TExtended80Rec(e).Frac<>qword($8000000000000000))));
+            end;
+{$endif FPC_HAS_TYPE_EXTENDED}
+          else
+            ;
+        end;
+      end;
+
+
+    function fold_ordinary_real(op : tnodetype; const l, r : bestreal; def : tdef; out value : bestreal) : boolean;
+      var
+        s : single;
+        d : double;
+{$ifdef FPC_HAS_TYPE_EXTENDED}
+        e : extended;
+{$endif FPC_HAS_TYPE_EXTENDED}
+        res : bestreal;
+      begin
+        result:=false;
+        res:=0;
+        { x/0 traps with an unmasked zero divide, 0/0 with an unmasked invalid }
+        if is_ordinary_real(l,def) and
+           is_ordinary_real(r,def) and
+           ((op<>slashn) or (r<>0)) then
+          begin
+            case tfloatdef(def).floattype of
+              s32real:
+                begin
+                  case op of
+                    addn:
+                      s:=single(l)+single(r);
+                    subn:
+                      s:=single(l)-single(r);
+                    muln:
+                      s:=single(l)*single(r);
+                    slashn:
+                      s:=single(l)/single(r);
+                    else
+                      internalerror(2026092801);
+                  end;
+                  res:=s;
+                end;
+              s64real:
+                begin
+                  case op of
+                    addn:
+                      d:=double(l)+double(r);
+                    subn:
+                      d:=double(l)-double(r);
+                    muln:
+                      d:=double(l)*double(r);
+                    slashn:
+                      d:=double(l)/double(r);
+                    else
+                      internalerror(2026092802);
+                  end;
+                  res:=d;
+                end;
+{$ifdef FPC_HAS_TYPE_EXTENDED}
+              s80real,
+              sc80real:
+                begin
+                  case op of
+                    addn:
+                      e:=extended(l)+extended(r);
+                    subn:
+                      e:=extended(l)-extended(r);
+                    muln:
+                      e:=extended(l)*extended(r);
+                    slashn:
+                      e:=extended(l)/extended(r);
+                    else
+                      internalerror(2026092803);
+                  end;
+                  res:=e;
+                end;
+{$endif FPC_HAS_TYPE_EXTENDED}
+              else
+                internalerror(2026092804);
+            end;
+            { an overflow gives an infinity, an underflow a subnormal; a
+              product or quotient of non-zero numbers that rounds to zero
+              underflowed too (a zero sum or difference is exact) }
+            result:=is_ordinary_real(res,def) and
+              ((res<>0) or (op in [addn,subn]) or (l=0) or ((op=muln) and (r=0)));
+          end;
+        { last: a caller may pass one variable as an operand and as value }
+        value:=res;
       end;
 
 {*****************************************************************************

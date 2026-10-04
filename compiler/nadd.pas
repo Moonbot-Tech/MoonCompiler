@@ -1042,7 +1042,7 @@ const
         hdef,
         rd,ld   , inttype: tdef;
         rv,lv,v : tconstexprint;
-        rvd,lvd : bestreal;
+        rvd,lvd,vd : bestreal;
         ws1,ws2 : tcompilerwidestring;
         concatstrings : boolean;
         c1,c2   : array[0..1] of ansichar;
@@ -1069,6 +1069,12 @@ const
         ld:=left.resultdef;
         rt:=right.nodetype;
         lt:=left.nodetype;
+        { constants met after inlining or constant propagation belong to a
+          run-time operation (fold_ordinary_real) }
+        runtimeexpr:=forinline or
+          (tnf_runtime_expression in transientflags) or
+          (tnf_runtime_expression in left.transientflags) or
+          (tnf_runtime_expression in right.transientflags);
 
         if (nodetype = slashn) and
            (((rt = ordconstn) and
@@ -1252,7 +1258,16 @@ const
                    { int/int becomes a real }
                    rvd:=rv;
                    lvd:=lv;
-                   t:=crealconstnode.create(lvd/rvd,resultrealdef);
+                   if runtimeexpr then
+                     begin
+                       { the run-time division of the converted operands }
+                       if not fold_ordinary_real(slashn,lvd,rvd,resultrealdef,vd) then
+                         exit;
+                       t:=crealconstnode.create(vd,resultrealdef);
+                       include(t.transientflags,tnf_runtime_expression);
+                     end
+                   else
+                     t:=crealconstnode.create(lvd/rvd,resultrealdef);
                  end;
                else
                  internalerror(2008022101);
@@ -1417,42 +1432,61 @@ const
           begin
              lvd:=trealconstnode(left).value_real;
              rvd:=trealconstnode(right).value_real;
-             case nodetype of
-                addn :
-                  t:=crealconstnode.create(lvd+rvd,resultrealdef);
-                subn :
-                  t:=crealconstnode.create(lvd-rvd,resultrealdef);
-                muln :
-                  t:=crealconstnode.create(lvd*rvd,resultrealdef);
-                starstarn:
-                  begin
-                    if lvd<0 then
-                     begin
-                       Message(parser_e_invalid_float_operation);
-                       t:=crealconstnode.create(0,resultrealdef);
-                     end
-                    else if lvd=0 then
-                      t:=crealconstnode.create(1.0,resultrealdef)
+             { A run-time operation gets the value its instruction computes in
+               its own format, and one with an exceptional operand or result
+               stays at run time (fold_ordinary_real); ordinary numbers compare
+               without raising, and ** has no run-time form. }
+             if runtimeexpr and (nodetype in [addn,subn,muln,slashn]) then
+               begin
+                 if not fold_ordinary_real(nodetype,lvd,rvd,resultrealdef,vd) then
+                   exit;
+                 t:=crealconstnode.create(vd,resultrealdef);
+                 include(t.transientflags,tnf_runtime_expression);
+               end
+             else
+               begin
+                 if runtimeexpr and
+                    ((nodetype=starstarn) or
+                     not is_ordinary_real(lvd,ld) or
+                     not is_ordinary_real(rvd,rd)) then
+                   exit;
+                 case nodetype of
+                    addn :
+                      t:=crealconstnode.create(lvd+rvd,resultrealdef);
+                    subn :
+                      t:=crealconstnode.create(lvd-rvd,resultrealdef);
+                    muln :
+                      t:=crealconstnode.create(lvd*rvd,resultrealdef);
+                    starstarn:
+                      begin
+                        if lvd<0 then
+                         begin
+                           Message(parser_e_invalid_float_operation);
+                           t:=crealconstnode.create(0,resultrealdef);
+                         end
+                        else if lvd=0 then
+                          t:=crealconstnode.create(1.0,resultrealdef)
+                        else
+                          t:=crealconstnode.create(exp(ln(lvd)*rvd),resultrealdef);
+                      end;
+                    slashn :
+                      t:=crealconstnode.create(lvd/rvd,resultrealdef);
+                    ltn :
+                      t:=cordconstnode.create(ord(lvd<rvd),pasbool1type,true);
+                    lten :
+                      t:=cordconstnode.create(ord(lvd<=rvd),pasbool1type,true);
+                    gtn :
+                      t:=cordconstnode.create(ord(lvd>rvd),pasbool1type,true);
+                    gten :
+                      t:=cordconstnode.create(ord(lvd>=rvd),pasbool1type,true);
+                    equaln :
+                      t:=cordconstnode.create(ord(lvd=rvd),pasbool1type,true);
+                    unequaln :
+                      t:=cordconstnode.create(ord(lvd<>rvd),pasbool1type,true);
                     else
-                      t:=crealconstnode.create(exp(ln(lvd)*rvd),resultrealdef);
-                  end;
-                slashn :
-                  t:=crealconstnode.create(lvd/rvd,resultrealdef);
-                ltn :
-                  t:=cordconstnode.create(ord(lvd<rvd),pasbool1type,true);
-                lten :
-                  t:=cordconstnode.create(ord(lvd<=rvd),pasbool1type,true);
-                gtn :
-                  t:=cordconstnode.create(ord(lvd>rvd),pasbool1type,true);
-                gten :
-                  t:=cordconstnode.create(ord(lvd>=rvd),pasbool1type,true);
-                equaln :
-                  t:=cordconstnode.create(ord(lvd=rvd),pasbool1type,true);
-                unequaln :
-                  t:=cordconstnode.create(ord(lvd<>rvd),pasbool1type,true);
-                else
-                  internalerror(2008022102);
-             end;
+                      internalerror(2008022102);
+                 end;
+               end;
              result:=t;
              if nf_is_currency in flags then
                include(result.flags,nf_is_currency);
@@ -1505,9 +1539,14 @@ const
                 exit;
               end;
 
-            { optimize operations with real constants, but only if fast math is switched on as
-              the operations could change e.g. the sign of 0 so they cannot be optimized always
-            }
+            { optimize operations with real constants: an identity holds for
+              every other operand in round to nearest, a NaN, an infinity and
+              the sign of zero included (-0.0+x = x, x-(+0.0) = x,
+              x+(-0.0) = x, 1*x = x, x/1 = x, 2*x = x+x, and x+(+0.0) = x for
+              an x that is never -0.0), the others only with fast math (0*x = 0
+              is -0.0, NaN or an invalid operation for a negative, NaN or
+              infinite x; 0/x, 0-x = -x and x+(+0.0) = x change the sign of
+              zero or of a NaN) }
             if is_real(resultdef) then
               begin
                 if lt=realconstn then
@@ -1516,14 +1555,13 @@ const
                       begin
                         case nodetype of
                           addn:
-                            begin
-                              { -0.0+(+0.0)=+0.0 so we cannot carry out this optimization if no fastmath is passed }
-                              if not(cs_opt_fastmath in current_settings.optimizerswitches) then
-                                begin
-                                  result:=PruneKeepRight();
-                                  exit;
-                                end;
-                            end;
+                            if (cs_opt_fastmath in current_settings.optimizerswitches) or
+                               (get_real_sign(trealconstnode(left).value_real)<0) or
+                               sum_with_nonzero_constant(right) then
+                              begin
+                                result:=PruneKeepRight();
+                                exit;
+                              end;
                           slashn,
                           muln:
                             { fast math takes 0 for any x; the fold drops the
@@ -1536,11 +1574,12 @@ const
                                 exit;
                               end;
                           subn:
-                            begin
-                              t := PruneKeepRight();
-                              result:=ctypeconvnode.create_internal(cunaryminusnode.create(t),rd);
-                              exit;
-                            end;
+                            if cs_opt_fastmath in current_settings.optimizerswitches then
+                              begin
+                                t := PruneKeepRight();
+                                result:=ctypeconvnode.create_internal(cunaryminusnode.create(t),rd);
+                                exit;
+                              end;
                           else
                             Internalerror(2020060801);
                         end;
@@ -1564,10 +1603,13 @@ const
                         case nodetype of
                           subn,
                           addn:
-                            begin
-                              result:=left.getcopy;
-                              exit;
-                            end;
+                            if (cs_opt_fastmath in current_settings.optimizerswitches) or
+                               ((get_real_sign(trealconstnode(right).value_real)<0)=(nodetype=addn)) or
+                               ((nodetype=addn) and sum_with_nonzero_constant(left)) then
+                              begin
+                                result:=left.getcopy;
+                                exit;
+                              end;
                           muln:
                             { see 0*x above }
                             if (cs_opt_fastmath in current_settings.optimizerswitches) and
