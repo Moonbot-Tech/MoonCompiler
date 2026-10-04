@@ -458,8 +458,9 @@ begin
   Required:=GetCharCount(@Bytes[ByteIndex],ByteCount);
   if Required>CharLen-CharIndex then
     raise EEncodingError.Create(SInvalidDestinationArray);
-  Result:=GetChars(@Bytes[ByteIndex],ByteCount,@Chars[CharIndex],
-    CharLen-CharIndex);
+  { Required, not the whole rest of the array: the decoded text is all this
+    call owns, and the elements behind it belong to the caller. }
+  Result:=GetChars(@Bytes[ByteIndex],ByteCount,@Chars[CharIndex],Required);
 end;
 
 class function TEncoding.GetEncoding(CodePage: Integer): TEncoding;
@@ -484,25 +485,40 @@ begin
   Result := GetEncoding(ACodePage);
 end;
 
+{ The text is decoded straight into the result string.  Going through a
+  TUnicodeCharArray first would allocate the characters twice and copy them
+  once more for nothing. }
+
 function TEncoding.GetString(const Bytes: TBytes): UnicodeString;
 var
-  Chars: TUnicodeCharArray;
+  Len: Integer;
 begin
-  if Length(Bytes)=0 then
-    Result := ''
-  else
-  begin
-    Chars := GetChars(Bytes);
-    SetString(Result, PUnicodeChar(Chars), Length(Chars));
-  end;
+  Len:=Length(Bytes);
+  if Len=0 then
+    exit('');
+  SetLength(Result,GetCharCount(@Bytes[0],Len));
+  if Length(Result)=0 then
+    exit;
+  Len:=GetChars(@Bytes[0],Len,PUnicodeChar(Result),Length(Result));
+  if Len<>Length(Result) then
+    SetLength(Result,Len);
 end;
 
 function TEncoding.GetString(const Bytes: TBytes; ByteIndex, ByteCount: Integer): UnicodeString;
 var
-  Chars: TUnicodeCharArray;
+  Len: Integer;
 begin
-  Chars := GetChars(Bytes, ByteIndex, ByteCount);
-  SetString(Result, PUnicodeChar(Chars), Length(Chars));
+  if (Bytes=nil) and (ByteCount<>0) then
+    raise EEncodingError.Create(SInvalidSourceArray);
+  CheckEncodingSourceSpan(ByteIndex,ByteCount,Length(Bytes),False);
+  if ByteCount=0 then
+    exit('');
+  SetLength(Result,GetCharCount(@Bytes[ByteIndex],ByteCount));
+  if Length(Result)=0 then
+    exit;
+  Len:=GetChars(@Bytes[ByteIndex],ByteCount,PUnicodeChar(Result),Length(Result));
+  if Len<>Length(Result) then
+    SetLength(Result,Len);
 end;
 
 { TMBCSEncoding }
@@ -571,15 +587,25 @@ end;
 
 constructor TMBCSEncoding.Create(ACodePage, MBToWCharFlags,
   WCharToMBFlags: Integer);
+var
+  Capabilities: TCodePageCapabilities;
 begin
   FCodePage := ACodePage;
   FMBToWCharFlags := MBToWCharFlags;
   FWCharToMBFlags := WCharToMBFlags;
-  case ACodePage of
-    CP_UTF7, CP_UTF8, CP_UTF16, CP_UTF16BE: FIsSingleByte := False;
+  if Assigned(widestringmanager.GetCodePageCapabilitiesProc) then
+    begin
+      widestringmanager.GetCodePageCapabilitiesProc(ACodePage,Capabilities);
+      FMaxCharSize:=Capabilities.MaxCharSize;
+      FIsSingleByte:=Capabilities.IsSingleByte;
+    end
   else
-    FIsSingleByte := True;
-  end;
+    begin
+      FMaxCharSize:=1;
+      FIsSingleByte:=True;
+    end;
+  if FMaxCharSize<1 then
+    FMaxCharSize:=1;
 end;
 
 function TMBCSEncoding.Clone: TEncoding;
@@ -608,7 +634,10 @@ end;
 
 function TMBCSEncoding.GetMaxByteCount(CharCount: Integer): Integer;
 begin
-  Result := CharCount;
+  if (CharCount>0) and (FMaxCharSize>MaxInt div CharCount) then
+    Result:=MaxInt
+  else
+    Result:=CharCount*FMaxCharSize;
 end;
 
 function TMBCSEncoding.GetMaxCharCount(ByteCount: Integer): Integer;
@@ -678,6 +707,101 @@ function TUTF8Encoding.GetBytes(Chars: PUnicodeChar; CharCount: Integer;
   Bytes: PByte; ByteCount: Integer): Integer;
 begin
   Result:=UnicodeToUtf8Buffer(PAnsiChar(Bytes),ByteCount,Chars,CharCount);
+end;
+
+{ The other way round the class used to inherit TMBCSEncoding, which hands the
+  whole buffer to the code page manager: an OS call (MultiByteToWideChar) and a
+  temporary UnicodeString on Windows, and a byte-for-byte widening - that is,
+  the wrong text - wherever no manager is installed.  The RTL decoder replaces
+  the same invalid sequences with U+FFFD as the OS call does, needs no
+  temporary and answers the same on every target.
+
+  UTF-8 is self-synchronizing at every byte below $80 and each such byte is one
+  character, so a leading run of them decodes without the per-character
+  decision tree - one byte in, one character out - and the rest of the buffer
+  still decodes on its own.  The lane takes eight bytes per step, the tail
+  walks. }
+
+function Utf8PlainAsciiBytes(Bytes: PByte; Count: Integer): Integer; inline;
+const
+  HighBits = QWord($8080808080808080);
+var
+  I: Integer;
+begin
+  I:=0;
+  while (I+8<=Count) and ((PQWord(@Bytes[I])^ and HighBits)=0) do
+    Inc(I,8);
+  while (I<Count) and (Bytes[I]<$80) do
+    Inc(I);
+  Result:=I;
+end;
+
+procedure Utf8WidenAscii(Bytes: PByte; Chars: PUnicodeChar; Count: Integer);
+var
+  I: Integer;
+{$ifdef ENDIAN_LITTLE}
+  B: Cardinal;
+{$endif}
+begin
+  I:=0;
+{$ifdef ENDIAN_LITTLE}
+  while I+4<=Count do
+    begin
+      B:=PCardinal(@Bytes[I])^;
+      PQWord(@Chars[I])^:=QWord(B and $ff) or (QWord((B shr 8) and $ff) shl 16) or
+        (QWord((B shr 16) and $ff) shl 32) or (QWord(B shr 24) shl 48);
+      Inc(I,4);
+    end;
+{$endif ENDIAN_LITTLE}
+  while I<Count do
+    begin
+      Chars[I]:=UnicodeChar(Bytes[I]);
+      Inc(I);
+    end;
+end;
+
+function Utf8CharCountWithAsciiLane(Bytes: PByte; ByteCount: Integer): Integer;
+var
+  Plain: Integer;
+begin
+  Plain:=Utf8PlainAsciiBytes(Bytes,ByteCount);
+  if Plain=ByteCount then
+    exit(ByteCount);
+  { Utf8ToUnicode counts when Dest is nil; its result leaves room for the
+    terminator it would have written. }
+  Result:=Plain+Integer(Utf8ToUnicode(nil,0,PAnsiChar(@Bytes[Plain]),ByteCount-Plain))-1;
+end;
+
+function Utf8DecodeWithAsciiLane(Bytes: PByte; ByteCount: Integer;
+  Chars: PUnicodeChar; CharCount: Integer): Integer;
+var
+  Plain: Integer;
+begin
+  Plain:=Utf8PlainAsciiBytes(Bytes,ByteCount);
+  if Plain>CharCount then
+    Plain:=CharCount;
+  Utf8WidenAscii(Bytes,Chars,Plain);
+  if (Plain=ByteCount) or (Plain=CharCount) then
+    exit(Plain);
+  Result:=Plain+Integer(Utf8ToUnicode(@Chars[Plain],CharCount-Plain,
+    PAnsiChar(@Bytes[Plain]),ByteCount-Plain))-1;
+end;
+
+function TUTF8Encoding.GetCharCount(Bytes: PByte; ByteCount: Integer): Integer;
+begin
+  if (ByteCount>0) and (Bytes<>nil) then
+    Result:=Utf8CharCountWithAsciiLane(Bytes,ByteCount)
+  else
+    Result:=0;
+end;
+
+function TUTF8Encoding.GetChars(Bytes: PByte; ByteCount: Integer;
+  Chars: PUnicodeChar; CharCount: Integer): Integer;
+begin
+  if (ByteCount>0) and (CharCount>0) and (Bytes<>nil) and (Chars<>nil) then
+    Result:=Utf8DecodeWithAsciiLane(Bytes,ByteCount,Chars,CharCount)
+  else
+    Result:=0;
 end;
 
 constructor TUTF8Encoding.Create;

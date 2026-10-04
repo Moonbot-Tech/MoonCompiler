@@ -71,6 +71,10 @@ Type
     scpConsoleOutput,        // system console output code page (GetConsoleOutputCP on windows)
     scpFileSystemSingleByte  // file system code page used by single byte OS FileSystem APIs (GetACP on Windows),
   );
+  TCodePageCapabilities = record
+    MaxCharSize: SizeInt;
+    IsSingleByte: Boolean;
+  end;
 
 {$ifndef FPC_HAS_BUILTIN_WIDESTR_MANAGER}
   { hooks for internationalization
@@ -135,6 +139,13 @@ Type
     CompareUnicodeBufferToStringProc : function(Buffer: PUnicodeChar;
       BufferLength: SizeInt; const S: UnicodeString;
       Options: TCompareOptions): PtrInt;
+
+    { Geometry reported by the same backend that implements
+      Unicode2AnsiMoveProc.  IsSingleByte is a property of the character set;
+      MaxCharSize is a conservative allocation bound and may also cover
+      fallback or state-shift output. }
+    GetCodePageCapabilitiesProc: procedure(cp: TSystemCodePage;
+      out Capabilities: TCodePageCapabilities);
   end;
 {$endif FPC_HAS_BUILTIN_WIDESTR_MANAGER}
 

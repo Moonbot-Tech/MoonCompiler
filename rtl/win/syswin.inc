@@ -942,6 +942,16 @@ var
 function GetACP:UINT; stdcall; external 'kernel32' name 'GetACP';
 function GetConsoleCP:UINT; stdcall; external 'kernel32' name 'GetConsoleCP';
 
+type
+  TSystemCPInfo = record
+    MaxCharSize: DWord;
+    DefaultChar: array[0..1] of Byte;
+    LeadByte: array[0..11] of Byte;
+  end;
+
+function GetCPInfo(CodePage: UINT; var CPInfo: TSystemCPInfo): LongBool; stdcall;
+  external 'kernel32' name 'GetCPInfo';
+
 var
   { Console code page queries round-trip to the console host and cost tens
     of microseconds; every new thread re-opens its threadvar stdio and asked
@@ -970,6 +980,24 @@ function Win32GetStandardCodePage(const stdcp: TStandardCodePageEnum): TSystemCo
           Result:=CachedConsoleOutputCP;
         end;
     end;
+  end;
+
+procedure Win32GetCodePageCapabilities(cp: TSystemCodePage;
+  out Capabilities: TCodePageCapabilities);
+  var
+    Info: TSystemCPInfo;
+  begin
+    Info.MaxCharSize:=0;
+    if not GetCPInfo(cp,Info) or (Info.MaxCharSize=0) then
+      begin
+        Info.MaxCharSize:=0;
+        if (cp=DefaultSystemCodePage) or
+           not GetCPInfo(DefaultSystemCodePage,Info) or
+           (Info.MaxCharSize=0) then
+          Info.MaxCharSize:=1;
+      end;
+    Capabilities.MaxCharSize:=Info.MaxCharSize;
+    Capabilities.IsSingleByte:=Info.MaxCharSize=1;
   end;
 
 { there is a similar procedure in sysutils which inits the fields which
@@ -1005,6 +1033,7 @@ procedure InitWin32Widestrings;
     widestringmanager.LowerUnicodeStringProc:=@Win32UnicodeLower;
     { Codepage }
     widestringmanager.GetStandardCodePageProc:=@Win32GetStandardCodePage;
+    widestringmanager.GetCodePageCapabilitiesProc:=@Win32GetCodePageCapabilities;
 
     DefaultSystemCodePage:=GetACP;
     DefaultUnicodeCodePage:=CP_UTF16;

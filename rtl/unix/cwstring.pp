@@ -1122,6 +1122,41 @@ begin
     Result:={$IFDEF FPC_DOTTEDUNITS}UnixApi.CP{$ELSE}unixcp{$ENDIF}.GetSystemCodepage;
 end;
 
+
+procedure GetCodePageCapabilities(cp: TSystemCodePage;
+  out Capabilities: TCodePageCapabilities);
+var
+  Converter: iconv_t;
+begin
+  { iconv exposes no portable query for converter geometry.  Keep the
+    allocation bound conservative, but classify the standardized Windows
+    code-page identities implemented by UnixCpMap independently. }
+  Converter:=open_iconv_for_cps(cp,unicode_encoding2,false);
+  if Converter=iconv_t(-1) then
+    begin
+      Capabilities.MaxCharSize:=1;
+      Capabilities.IsSingleByte:=True;
+      Exit;
+    end;
+  iconv_close(Converter);
+  Capabilities.MaxCharSize:=MB_CUR_MAX;
+  case cp of
+    0,
+    932,936,949,950,1361,
+    1200,1201,12000,12001,
+    10001,10002,10003,10008,
+    20000,20001,20002,20003,20004,20005,
+    20261,20932,20936,20949,
+    50220,50221,50222,50225,50227,
+    51932,51936,51949,52936,54936,
+    57002,57003,57004,57005,57006,
+    57007,57008,57009,57010,57011,65001:
+      Capabilities.IsSingleByte:=False;
+  else
+    Capabilities.IsSingleByte:=True;
+  end;
+end;
+
 procedure SetStdIOCodePage(var T: Text); inline;
 begin
   case TextRec(T).Mode of
@@ -1182,6 +1217,7 @@ begin
       CompareUnicodeStringProc:=@CompareWideString;
       { CodePage }
       GetStandardCodePageProc:=@GetStandardCodePage;
+      GetCodePageCapabilitiesProc:=@GetCodePageCapabilities;
     end;
   SetUnicodeStringManager(CWideStringManager);
 end;

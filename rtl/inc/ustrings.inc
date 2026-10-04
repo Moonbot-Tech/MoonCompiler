@@ -139,6 +139,14 @@ function DefaultGetStandardCodePage(const stdcp: TStandardCodePageEnum): TSystem
       Result:=DefaultFileSystemCodePage
   end;
 
+
+procedure DefaultGetCodePageCapabilities(cp: TSystemCodePage;
+  out Capabilities: TCodePageCapabilities);
+  begin
+    Capabilities.MaxCharSize:=1;
+    Capabilities.IsSingleByte:=True;
+  end;
+
 Procedure GetUnicodeStringManager (Out Manager : TUnicodeStringManager);
 begin
   manager:=widestringmanager;
@@ -2019,6 +2027,10 @@ end;
   var
     i,j : SizeUInt;
     lw : longword;
+{$if defined(CPU64) and defined(ENDIAN_LITTLE)}
+    lim : SizeUInt;
+    w : QWord;
+{$endif}
   begin
     result:=0;
     if source=nil then
@@ -2027,6 +2039,26 @@ end;
     j:=0;
     if assigned(Dest) then
       begin
+{$if defined(CPU64) and defined(ENDIAN_LITTLE)}
+        { Plain ASCII in front is one byte a character: four characters a
+          step, up to the first character that is not ASCII or the end of the
+          room, and the walk below does the rest.  No call in here - a call
+          would cost this routine its leaf frame, and the text that is not
+          ASCII would pay for that on every conversion. }
+        lim:=SourceChars;
+        if lim>MaxDestBytes then
+          lim:=MaxDestBytes;
+        while i+4<=lim do
+          begin
+            w:=PQWord(@Source[i])^;
+            if (w and QWord($ff80ff80ff80ff80))<>0 then
+              break;
+            PLongWord(@Dest[i])^:=longword(w and $ff) or longword((w shr 8) and $ff00) or
+              longword((w shr 16) and $ff0000) or longword((w shr 24) and $ff000000);
+            inc(i,4);
+          end;
+        j:=i;
+{$endif}
         while i<SourceChars do
           begin
             lw:=ord(Source[i]);
@@ -2099,6 +2131,13 @@ end;
       end
     else
       begin
+{$ifdef CPU64}
+        { the same run, counted: four characters a step }
+        while (i+4<=SourceChars) and
+              ((PQWord(@Source[i])^ and QWord($ff80ff80ff80ff80))=0) do
+          inc(i,4);
+        j:=i;
+{$endif CPU64}
         while i<SourceChars do
           begin
             case word(Source[i]) of
@@ -2173,11 +2212,37 @@ end;
     SourcePos,DestPos,Consumed: SizeUint;
     B0,B1,B2,B3,UC: cardinal;
     Valid: Boolean;
+{$if defined(CPUX86_64) and defined(ENDIAN_LITTLE)}
+    Pair: Cardinal;
+{$endif}
   begin
     if not Assigned(Source) then
       exit(0);
     SourcePos:=0;
     DestPos:=0;
+{$if defined(CPUX86_64) and defined(ENDIAN_LITTLE)}
+    { A valid two-byte run needs one load/store for two UTF16 units.
+      Other byte classes and short destinations keep the scalar validation. }
+    while SourceBytes-SourcePos>=4 do
+      begin
+        Pair:=PCardinal(Source+SourcePos)^;
+        if (Pair and $c0e0c0e0)<>$80c080c0 then
+          break;
+        if (Pair and $0000001e)=0 then
+          break;
+        if (Pair and $001e0000)=0 then
+          break;
+        if Assigned(Dest) then
+          begin
+            if MaxDestChars-DestPos<2 then
+              break;
+            PCardinal(Dest+DestPos)^:=((Pair and $001f001f) shl 6) or
+              ((Pair shr 8) and $003f003f);
+          end;
+        inc(SourcePos,4);
+        inc(DestPos,2);
+      end;
+{$endif}
     while SourcePos<SourceBytes do
       begin
         B0:=ord(Source[SourcePos]);
@@ -2379,10 +2444,11 @@ function UTF8Encode(const s : UnicodeString) : RawByteString;
       if c>$7f then
         begin
         processed:=ns-remaining;
-        SetLength(utf8string(result),ns*3);
+        ns:=processed+remaining*3;
+        SetLength(utf8string(result),ns);
         dest:=PAnsiChar(Pointer(result))+processed;
         SetLength(utf8string(result),processed+
-          UnicodeToUtf8Buffer(dest,ns*3-processed,source,remaining));
+          UnicodeToUtf8Buffer(dest,ns-processed,source,remaining));
         exit;
         end;
       dest^:=AnsiChar(Byte(c));
@@ -2692,6 +2758,7 @@ procedure initunicodestringmanager;
     widestringmanager.UpperUnicodeStringProc:=@StubUnicodeCase;
     widestringmanager.LowerUnicodeStringProc:=@StubUnicodeCase;
     widestringmanager.GetStandardCodePageProc:=@DefaultGetStandardCodePage;
+    widestringmanager.GetCodePageCapabilitiesProc:=@DefaultGetCodePageCapabilities;
 {$endif HAS_WIDESTRINGMANAGER}
     widestringmanager.CompareWideStringProc:=@StubCompareWideString;
 //    widestringmanager.CompareTextWideStringProc:=@StubCompareWideString;
