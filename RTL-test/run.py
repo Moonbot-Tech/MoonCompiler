@@ -238,6 +238,10 @@ LANGUAGE = [
     "-Mimplicitgenerics",
     "-Mautoderef",
 ]
+SOURCE_UNIT_ABI = [
+    "-dUNICODERTL",
+    "-dENABLE_DELPHI_RTTI",
+]
 NAMESPACES = [
     "-FNSystem",
     "-UaSystem.SysUtils=SysUtils",
@@ -370,6 +374,7 @@ def main() -> int:
                     for unit_file in unit_files:
                         shutil.copy2(unit_file, unit_stage / unit_file.name)
                     unit_dirs = (*unit_dirs, unit_stage)
+                source_unit_abi = bool(unit_dirs)
                 ppu_units = PPU_ONLY_UNITS.get(source.stem, ())
                 if ppu_units:
                     unit_stage = output / "ppu-only"
@@ -414,6 +419,7 @@ def main() -> int:
                     f"-Fi{SEMANTIC}",
                     *([] if ppu_units else [f"-Fu{SEMANTIC / 'support'}", f"-Fi{SEMANTIC / 'support'}"]),
                     *(option for unit_dir in unit_dirs for option in (f"-Fu{unit_dir}", f"-Fi{unit_dir}")),
+                    *(SOURCE_UNIT_ABI if source_unit_abi else ()),
                     f"-FU{output}",
                     f"-FE{output}",
                     *MODES[mode],

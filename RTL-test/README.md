@@ -35,6 +35,13 @@ contain no remaining `MoveNext/GetCurrent` calls.
 `string_empty_compare_semantic.dpr` prohibits O3 from retaining a full
 Ansi/Short/Wide -> Unicode conversion for one comparison with an empty string.
 
+Cases that rebuild product package units from the current source tree use the
+product's `UNICODERTL` and `ENABLE_DELPHI_RTTI` ABI defines. The installed
+units already carry those choices in their PPUs. Source rebuilding without the
+defines would give `Variants.VarToStr` an `AnsiString` return type even though
+the delivered Unicode RTL gives it `UnicodeString`; the conversion API oracle
+checks the latter. Each case still uses its selected Debug/O2/O3 optimization.
+
 `runtime_prefix_bare_semantic.dpr` and `runtime_prefix_semantic.dpr`
 intentionally contain no service runtime units: they prove compiler-level
 injection for a bare program and for `TThread`/`TMonitor`. Legacy semantic
