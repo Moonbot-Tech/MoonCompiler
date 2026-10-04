@@ -1386,7 +1386,7 @@ function  Pos(const substr : shortstring;c:Ansichar; Offset: Sizeint = 1): SizeI
 {$ifdef FPC_HAS_FEATURE_ANSISTRINGS}
 Procedure UniqueString(var S : RawByteString);rtlproc;{$ifdef SYSTEMINLINE}inline;{$endif}
 Function  Pos (const Substr : RawByteString; const Source : RawByteString; Offset: Sizeint = 1) : SizeInt;
-Function  Pos (c : AnsiChar; const s : RawByteString; Offset: Sizeint = 1) : SizeInt;
+Function  Pos (c : AnsiChar; const s : RawByteString; Offset: Sizeint = 1) : SizeInt; inline; { a length check around IndexByte/IndexWord: the call and its frame cost a third of a short search }
 Function  StringOfChar(c : Ansichar;l : SizeInt) : AnsiString;
 function  UpCase(const s : ansistring) : ansistring;
 function  LowerCase(const s : ansistring) : ansistring;

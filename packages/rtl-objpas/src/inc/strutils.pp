@@ -3097,7 +3097,10 @@ Begin
      p:=@s[offs];
      p2:=@s[1];
      while (p2<=p) and (p^<>c) do dec(p);
-     RPosEx:=SizeUint(pointer(p)-pointer(p2)) div sizeof(unicodechar)+1; { p-p2+1 but avoids signed division... }
+     if p<p2 then
+       RPosEx:=0
+     else
+       RPosEx:=SizeUint(pointer(p)-pointer(p2)) div sizeof(unicodechar)+1; { p-p2+1 but avoids signed division... }
    end
   else
     RPosEX:=0;
