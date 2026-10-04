@@ -566,8 +566,26 @@ begin
     IntegerList.DeleteRange(0,IntegerList.Count);
     Check(IntegerList.Count=0,'unmanaged full DeleteRange');
 
-    IntegerList.DeleteRange(-1,0);
-    Check(IntegerList.Count=0,'zero DeleteRange preserves established no-op');
+    Raised:=False;
+    try
+      IntegerList.DeleteRange(-1,0);
+    except
+      on EArgumentOutOfRangeException do
+        Raised:=True;
+    end;
+    Check(Raised and (IntegerList.Count=0),
+      'zero DeleteRange validates negative index');
+    Raised:=False;
+    try
+      IntegerList.DeleteRange(1,0);
+    except
+      on EArgumentOutOfRangeException do
+        Raised:=True;
+    end;
+    Check(Raised and (IntegerList.Count=0),
+      'zero DeleteRange validates index past end');
+    IntegerList.DeleteRange(0,0);
+    Check(IntegerList.Count=0,'valid zero DeleteRange is a no-op');
     Raised:=False;
     try
       IntegerList.DeleteRange(-1,1);

@@ -2325,12 +2325,12 @@ var
   i: SizeInt;
   LMoveDelta: SizeInt;
 begin
-  if ACount = 0 then
-    Exit;
-
   if (ACount < 0) or (AIndex < 0) or (AIndex > Count) or
       (ACount > Count - AIndex) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
+
+  if ACount = 0 then
+    Exit;
 
   LMoveDelta := Count - (AIndex + ACount);
   if DirectStorage then
