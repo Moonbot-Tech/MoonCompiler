@@ -2091,14 +2091,19 @@ function floor64(x: float): Int64;
   end;
 
 
-// Correction for "rounding to nearest, ties to even".
-// RoundToNearestTieToEven(QWE.RTYUIOP) = QWE + TieToEven(ER, TYUIOP <> 0).
-function TieToEven(AB: cardinal; somethingAfter: boolean): cardinal;
-  begin
-    result := AB and 1;
-    if (result <> 0) and not somethingAfter then
-      result := AB shr 1;
-  end;
+{ Divide an unsigned significand by 2**Shift and round the final result to
+  nearest, ties to even.  Shift is proven to be in 1..63 by the caller;
+  binary80 handles its distinct Shift=64 boundary before calling here. }
+function RoundedShiftRightToEven(M: QWord; Shift: Integer): QWord; inline;
+var
+  Half, Remainder: QWord;
+begin
+  Result:=M shr Shift;
+  Half:=QWord(1) shl (Shift-1);
+  Remainder:=M and ((QWord(1) shl Shift)-1);
+  if (Remainder>Half) or ((Remainder=Half) and Odd(Result)) then
+    Inc(Result);
+end;
 
 {$ifdef FPC_HAS_TYPE_SINGLE}
 procedure Frexp(X: single; out Mantissa: single; out Exponent: integer);
@@ -2134,39 +2139,55 @@ procedure Frexp(X: single; out Mantissa: single; out Exponent: integer);
 
 
 function Ldexp(X: single; p: integer): single;
-  var
-    M, E: uint32;
-    xp, sh: integer;
-  begin
-    E := TSingleRec(X).Exp;
-    if (E = 0) and (TSingleRec(X).Frac = 0) or (E = 2 * TSingleRec.Bias + 1) then
-      // ±0, ±Inf, NaN.
-      exit(X);
-
-    Frexp(X, result, xp);
-    inc(xp, p);
-    if (xp >= -TSingleRec.Bias + 2) and (xp <= TSingleRec.Bias + 1) then
-      // Normalized.
-      TSingleRec(result).Exp := xp + (TSingleRec.Bias - 1)
-    else if xp > TSingleRec.Bias + 1 then
+var
+  Bits, SignBits: DWord;
+  M: QWord;
+  E, ExtraE, Unbiased, Shift: Integer;
+begin
+  Bits:=TSingleRec(X).Data;
+  SignBits:=Bits and $80000000;
+  E:=(Bits shr 23) and $ff;
+  M:=Bits and $7fffff;
+  if E=0 then
     begin
-      // Overflow.
-      TSingleRec(result).Exp := 2 * TSingleRec.Bias + 1;
-      TSingleRec(result).Frac := 0;
-    end else
+      if M=0 then
+        exit(X);
+      ExtraE:=23-BsrDWord(DWord(M));
+      M:=M shl ExtraE;
+      Unbiased:=1-TSingleRec.Bias-ExtraE;
+    end
+  else
     begin
-      TSingleRec(result).Exp := 0;
-      if xp >= -TSingleRec.Bias + 2 - 23 then
-      begin
-        // Denormalized.
-        M := TSingleRec(result).Frac or uint32(1) shl 23;
-        sh := -TSingleRec.Bias + 1 - xp;
-        TSingleRec(result).Frac := M shr (sh + 1) + TieToEven(M shr sh and 3, M and (uint32(1) shl sh - 1) <> 0);
-      end else
-        // Underflow.
-        TSingleRec(result).Frac := 0;
+      if E=$ff then
+        exit(X);
+      M:=M or QWord(1) shl 23;
+      Unbiased:=E-TSingleRec.Bias;
     end;
-  end;
+
+  if p>TSingleRec.Bias-Unbiased then
+    begin
+      TSingleRec(Result).Data:=SignBits or $7f800000;
+      exit;
+    end;
+  if p<1-TSingleRec.Bias-24-Unbiased then
+    begin
+      TSingleRec(Result).Data:=SignBits;
+      exit;
+    end;
+  Inc(Unbiased,p);
+  if Unbiased>=1-TSingleRec.Bias then
+    TSingleRec(Result).Data:=SignBits or (DWord(Unbiased+TSingleRec.Bias) shl 23) or
+      DWord(M and $7fffff)
+  else
+    begin
+      Shift:=1-TSingleRec.Bias-Unbiased;
+      M:=RoundedShiftRightToEven(M,Shift);
+      if M=QWord(1) shl 23 then
+        TSingleRec(Result).Data:=SignBits or $00800000
+      else
+        TSingleRec(Result).Data:=SignBits or DWord(M);
+    end;
+end;
 {$endif}
 
 {$ifdef FPC_HAS_TYPE_DOUBLE}
@@ -2202,40 +2223,54 @@ procedure Frexp(X: double; out Mantissa: double; out Exponent: integer);
   end;
 
 function Ldexp(X: double; p: integer): double;
-  var
-    M: uint64;
-    E: uint32;
-    xp, sh: integer;
-  begin
-    E := TDoubleRec(X).Exp;
-    if (E = 0) and (TDoubleRec(X).Frac = 0) or (E = 2 * TDoubleRec.Bias + 1) then
-      // ±0, ±Inf, NaN.
-      exit(X);
-
-    Frexp(X, result, xp);
-    inc(xp, p);
-    if (xp >= -TDoubleRec.Bias + 2) and (xp <= TDoubleRec.Bias + 1) then
-      // Normalized.
-      TDoubleRec(result).Exp := xp + (TDoubleRec.Bias - 1)
-    else if xp > TDoubleRec.Bias + 1 then
+var
+  Bits, SignBits, M: QWord;
+  E, ExtraE, Unbiased, Shift: Integer;
+begin
+  Bits:=TDoubleRec(X).Data;
+  SignBits:=Bits and QWord($8000000000000000);
+  E:=Integer((Bits shr 52) and $7ff);
+  M:=Bits and QWord($000fffffffffffff);
+  if E=0 then
     begin
-      // Overflow.
-      TDoubleRec(result).Exp := 2 * TDoubleRec.Bias + 1;
-      TDoubleRec(result).Frac := 0;
-    end else
+      if M=0 then
+        exit(X);
+      ExtraE:=52-BsrQWord(M);
+      M:=M shl ExtraE;
+      Unbiased:=1-TDoubleRec.Bias-ExtraE;
+    end
+  else
     begin
-      TDoubleRec(result).Exp := 0;
-      if xp >= -TDoubleRec.Bias + 2 - 52 then
-      begin
-        // Denormalized.
-        M := TDoubleRec(result).Frac or uint64(1) shl 52;
-        sh := -TSingleRec.Bias + 1 - xp;
-        TDoubleRec(result).Frac := M shr (sh + 1) + TieToEven(M shr sh and 3, M and (uint64(1) shl sh - 1) <> 0);
-      end else
-        // Underflow.
-        TDoubleRec(result).Frac := 0;
+      if E=$7ff then
+        exit(X);
+      M:=M or QWord(1) shl 52;
+      Unbiased:=E-TDoubleRec.Bias;
     end;
-  end;
+
+  if p>TDoubleRec.Bias-Unbiased then
+    begin
+      TDoubleRec(Result).Data:=SignBits or QWord($7ff0000000000000);
+      exit;
+    end;
+  if p<1-TDoubleRec.Bias-53-Unbiased then
+    begin
+      TDoubleRec(Result).Data:=SignBits;
+      exit;
+    end;
+  Inc(Unbiased,p);
+  if Unbiased>=1-TDoubleRec.Bias then
+    TDoubleRec(Result).Data:=SignBits or (QWord(Unbiased+TDoubleRec.Bias) shl 52) or
+      (M and QWord($000fffffffffffff))
+  else
+    begin
+      Shift:=1-TDoubleRec.Bias-Unbiased;
+      M:=RoundedShiftRightToEven(M,Shift);
+      if M=QWord(1) shl 52 then
+        TDoubleRec(Result).Data:=SignBits or QWord($0010000000000000)
+      else
+        TDoubleRec(Result).Data:=SignBits or M;
+    end;
+end;
 {$endif}
 
 {$ifdef FPC_HAS_TYPE_EXTENDED}
@@ -2271,44 +2306,66 @@ procedure Frexp(X: extended; out Mantissa: extended; out Exponent: integer);
   end;
 
 function Ldexp(X: extended; p: integer): extended;
-  var
-    M: uint64;
-    E: uint32;
-    xp, sh: integer;
-  begin
-    E := TExtended80Rec(X).Exp;
-    if (E = 0) and (TExtended80Rec(X).Frac = 0) or (E = 2 * TExtended80Rec.Bias + 1) then
-      // ±0, ±Inf, NaN.
-      exit(X);
-
-    Frexp(X, result, xp);
-    inc(xp, p);
-    if (xp >= -TExtended80Rec.Bias + 2) and (xp <= TExtended80Rec.Bias + 1) then
-      // Normalized.
-      TExtended80Rec(result).Exp := xp + (TExtended80Rec.Bias - 1)
-    else if xp > TExtended80Rec.Bias + 1 then
+var
+  Input, Output: TExtended80Rec;
+  M: QWord;
+  SignBits: Word;
+  E, ExtraE, Unbiased, Shift: Integer;
+begin
+  Input.Value:=X;
+  SignBits:=Input._Exp and $8000;
+  E:=Input._Exp and $7fff;
+  M:=Input.Frac;
+  if E=0 then
     begin
-      // Overflow.
-      TExtended80Rec(result).Exp := 2 * TExtended80Rec.Bias + 1;
-      TExtended80Rec(result).Frac := uint64(1) shl 63;
+      if M=0 then
+        exit(X);
+      ExtraE:=63-BsrQWord(M);
+      M:=M shl ExtraE;
+      Unbiased:=1-TExtended80Rec.Bias-ExtraE;
     end
-    else if xp >= -TExtended80Rec.Bias + 2 - 63 then
+  else
     begin
-      // Denormalized... usually.
-      // Mantissa of subnormal 'extended' (Exp = 0) must always start with 0.
-      // If the calculated mantissa starts with 1, extended instead becomes normalized with Exp = 1.
-      M := TExtended80Rec(result).Frac;
-      sh := -TExtended80Rec.Bias + 1 - xp;
-      M := M shr (sh + 1) + TieToEven(M shr sh and 3, M and (uint64(1) shl sh - 1) <> 0);
-      TExtended80Rec(result).Exp := M shr 63;
-      TExtended80Rec(result).Frac := M;
-    end else
-    begin
-      // Underflow.
-      TExtended80Rec(result).Exp := 0;
-      TExtended80Rec(result).Frac := 0;
+      if E=$7fff then
+        exit(X);
+      Unbiased:=E-TExtended80Rec.Bias;
     end;
-  end;
+
+  if p>TExtended80Rec.Bias-Unbiased then
+    begin
+      Output._Exp:=SignBits or $7fff;
+      Output.Frac:=QWord(1) shl 63;
+      exit(Output.Value);
+    end;
+  if p<1-TExtended80Rec.Bias-64-Unbiased then
+    begin
+      Output._Exp:=SignBits;
+      Output.Frac:=0;
+      exit(Output.Value);
+    end;
+  Inc(Unbiased,p);
+  if Unbiased>=1-TExtended80Rec.Bias then
+    begin
+      Output._Exp:=SignBits or Word(Unbiased+TExtended80Rec.Bias);
+      Output.Frac:=M;
+    end
+  else
+    begin
+      Shift:=1-TExtended80Rec.Bias-Unbiased;
+      if Shift=64 then
+        begin
+          if M>QWord($8000000000000000) then
+            M:=1
+          else
+            M:=0;
+        end
+      else
+        M:=RoundedShiftRightToEven(M,Shift);
+      Output._Exp:=SignBits or Word(M shr 63);
+      Output.Frac:=M;
+    end;
+  Result:=Output.Value;
+end;
 {$endif}
 
 const
