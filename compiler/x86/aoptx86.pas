@@ -137,6 +137,7 @@ unit aoptx86;
           may stand at p1 instead: every instruction after p1 and before p2
           raises no exception, leaves the address of op as it is and reaches
           no memory which may be the one behind op }
+        function WriteMayMoveUp(const op: TOper; opbytes: ASizeInt; p1, p2: tai): Boolean;
       private
         FFrameKnown, FFramePrivate: Boolean;
         function SkipSimpleInstructions(var hp1: tai): Boolean;
@@ -1905,6 +1906,114 @@ unit aoptx86;
       end;
 
 
+    function TX86AsmOptimizer.WriteMayMoveUp(const op: TOper; opbytes: ASizeInt; p1, p2: tai): Boolean;
+
+      { the bytes an instruction reaches behind its memory operand }
+      function Reach(hp: taicpu): ASizeInt;
+        begin
+          case hp.opcode of
+            A_MOVSS,A_VMOVSS:
+              result:=4;
+            A_MOVSD,A_VMOVSD:
+              result:=8;
+            else
+              begin
+                result:=topsize2memsize[hp.opsize] shr 3;
+                if result=0 then
+                  result:=WidestOperand;
+              end;
+          end;
+        end;
+
+      { Moves, integer arithmetic and logic between registers, constants,
+        cells of the frame and data of symbols: they raise no exception and
+        reach no memory but the one of their operand, and that one is
+        certainly not the memory of the write (RefsApart).  An instruction
+        which may raise an exception must not stand behind the write: the
+        handler would see the write done before its time. }
+      function Quiet(hp: taicpu): boolean;
+        var
+          i: longint;
+        begin
+          result:=false;
+          case hp.opcode of
+            A_MOV,A_MOVZX,A_MOVSX,
+{$ifdef x86_64}
+            A_MOVSXD,
+{$endif x86_64}
+            A_LEA,A_ADD,A_SUB,A_AND,A_OR,A_XOR,A_NOT,A_NEG,A_INC,A_DEC,
+            A_SHL,A_SHR,A_SAR,A_IMUL,A_CMP,A_TEST,A_SETcc,A_CMOVcc,
+            A_MOVSS,A_MOVAPS,A_MOVAPD,A_MOVUPS,A_MOVUPD,A_MOVD,A_MOVQ,
+            A_VMOVSS,A_VMOVSD,A_VMOVAPS,A_VMOVAPD,A_VMOVUPS,A_VMOVUPD,A_VMOVD,A_VMOVQ,
+            A_XORPS,A_XORPD,A_PXOR,A_VXORPS,A_VXORPD,A_VPXOR:
+              ;
+            A_MOVSD:
+              { without operands it is the string instruction }
+              if hp.ops=0 then
+                exit;
+            else
+              exit;
+          end;
+          if RegModifiedByInstruction(NR_STACK_POINTER_REG,hp) then
+            exit;
+          for i:=0 to hp.ops-1 do
+            case hp.oper[i]^.typ of
+              top_reg:
+                if not(getregtype(hp.oper[i]^.reg) in [R_INTREGISTER,R_MMREGISTER]) then
+                  exit;
+              top_const:
+                ;
+              top_ref:
+                if (hp.opcode<>A_LEA) and
+                   not((RefIsFrameCell(hp.oper[i]^.ref^) or RefIsSymbolData(hp.oper[i]^.ref^)) and
+                       (hp.oper[i]^.ref^.volatility=[]) and
+                       RefsApart(op.ref^,opbytes,hp.oper[i]^.ref^,Reach(hp))) then
+                  exit;
+              else
+                exit;
+            end;
+          result:=true;
+        end;
+
+      var
+        hp: tai;
+      begin
+        result:=false;
+        case op.typ of
+          top_reg:
+            { the handlers read no register }
+            exit(not RegUsedBetween(op.reg,p1,p2));
+          top_ref:
+            ;
+          else
+            exit;
+        end;
+        if op.ref^.volatility<>[] then
+          exit;
+        if (op.ref^.base<>NR_NO) and
+{$ifdef x86_64}
+           (op.ref^.base<>NR_RIP) and
+{$endif x86_64}
+           RegModifiedBetween(op.ref^.base,p1,p2) then
+          exit;
+        if (op.ref^.index<>NR_NO) and
+           RegModifiedBetween(op.ref^.index,p1,p2) then
+          exit;
+        hp:=tai(p1.next);
+        while assigned(hp) and (hp<>p2) do
+          begin
+            if (hp.typ=ait_label) and
+               (tai_label(hp).labsym.labeltype in [alt_eh_begin,alt_eh_end]) then
+              exit;
+            if (hp.typ=ait_instruction) and
+               not Quiet(taicpu(hp)) then
+              exit;
+            hp:=tai(hp.next);
+          end;
+        result:=assigned(hp);
+      end;
+
+
 {$ifdef DEBUG_AOPTCPU}
     procedure TX86AsmOptimizer.DebugMsg(const s: string;p : tai);
       begin
@@ -2990,6 +3099,9 @@ unit aoptx86;
 
 
     function TX86AsmOptimizer.OptPass1_V_MOVAP(var p : tai) : boolean;
+      const
+        { the bytes (v)movss and (v)movsd write }
+        ScalarBytes: array[boolean] of ASizeInt = (4,8);
       var
         hp1,hp2 : tai;
       begin
@@ -3071,21 +3183,46 @@ unit aoptx86;
                       vmovs* reg2,<op>
                       dealloc reg2
                       =>
-                      vmovs* reg1,<op> }
+                      ...
+                      vmovs* reg1,<op>
+
+                      On -O3 other instructions may stand between the two:
+                      the ones which compute the address of <op>, a read or a
+                      write of the memory behind it.  The move stays where it
+                      stands and takes reg1 there while reg1 holds the value;
+                      it goes up to the place of the copy only if this cannot
+                      be told from the outside. }
                     TransferUsedRegs(TmpUsedRegs);
                     UpdateUsedRegsBetween(TmpUsedRegs, p, hp1);
                     if not(RegUsedAfterInstruction(taicpu(p).oper[1]^.reg,hp1,TmpUsedRegs)) then
                       begin
-                        DebugMsg(SPeepholeOptimization + '(V)MOVA*(V)MOVS*2(V)MOVS* 1',p);
-                        taicpu(p).opcode:=taicpu(hp1).opcode;
-                        taicpu(p).loadoper(1,taicpu(hp1).oper[1]^);
+                        if not RegModifiedBetween(taicpu(p).oper[0]^.reg, p, hp1) then
+                          begin
+                            DebugMsg(SPeepholeOptimization + '(V)MOVA*(V)MOVS*2(V)MOVS* 1',p);
+                            taicpu(hp1).loadreg(0,taicpu(p).oper[0]^.reg);
 
-                        TransferUsedRegs(TmpUsedRegs);
-                        AllocRegBetween(taicpu(p).oper[0]^.reg, p, hp1, TmpUsedRegs);
+                            TransferUsedRegs(TmpUsedRegs);
+                            AllocRegBetween(taicpu(p).oper[0]^.reg, p, hp1, TmpUsedRegs);
 
-                        RemoveInstruction(hp1);
-                        result:=true;
-                        exit;
+                            RemoveCurrentP(p);
+                            result:=true;
+                            exit;
+                          end
+                        else if (taicpu(hp1).ops=2) and
+                          WriteMayMoveUp(taicpu(hp1).oper[1]^,
+                            ScalarBytes[(taicpu(hp1).opcode=A_MOVSD) or (taicpu(hp1).opcode=A_VMOVSD)], p, hp1) then
+                          begin
+                            DebugMsg(SPeepholeOptimization + '(V)MOVA*(V)MOVS*2(V)MOVS* 1a',p);
+                            taicpu(p).opcode:=taicpu(hp1).opcode;
+                            taicpu(p).loadoper(1,taicpu(hp1).oper[1]^);
+
+                            TransferUsedRegs(TmpUsedRegs);
+                            AllocRegBetween(taicpu(p).oper[0]^.reg, p, hp1, TmpUsedRegs);
+
+                            RemoveInstruction(hp1);
+                            result:=true;
+                            exit;
+                          end;
                       end
                   end;
 
@@ -7176,35 +7313,9 @@ unit aoptx86;
             if not RegUsedAfterInstruction(taicpu(p).oper[1]^.reg,hp1,TmpUsedRegs) then
               begin
 
-                if (
-                    { Instructions are always adjacent under -O2 and under }
-                    not(cs_opt_level3 in current_settings.optimizerswitches) or
-                    (
-                      (
-                        (taicpu(hp1).oper[1]^.ref^.base=NR_NO) or
-                        not RegModifiedBetween(taicpu(hp1).oper[1]^.ref^.base,p,hp1)
-                      ) and
-                      (
-                        (taicpu(hp1).oper[1]^.ref^.index=NR_NO) or
-                        not RegModifiedBetween(taicpu(hp1).oper[1]^.ref^.index,p,hp1)
-                      )
-                    )
-                  ) then
-                  begin
-                    DebugMsg(SPeepholeOptimization+'Merged (V)MOVD/(V)MOVQ and MOV to eliminate intermediate register (MovD/QMov2MovD/Q 1a)',p);
-
-                    taicpu(p).loadref(1,taicpu(hp1).oper[1]^.ref^);
-
-                    { loadref increases the reference count, so decrement it again }
-                    if Assigned(taicpu(hp1).oper[1]^.ref^.symbol) then
-                      taicpu(hp1).oper[1]^.ref^.symbol.decrefs;
-                    if Assigned(taicpu(hp1).oper[1]^.ref^.relsymbol) then
-                      taicpu(hp1).oper[1]^.ref^.relsymbol.decrefs;
-
-                    RemoveInstruction(hp1);
-                    Include(OptsToCheck, aoc_ForceNewIteration);
-                  end
-                else if not RegModifiedBetween(taicpu(p).oper[0]^.reg,p,hp1) then
+                { Keep the store where it belongs while the XMM register still
+                  holds the value. Logical adjacency can skip EH labels. }
+                if not RegModifiedBetween(taicpu(p).oper[0]^.reg,p,hp1) then
                   begin
                     DebugMsg(SPeepholeOptimization+'Merged (V)MOVD/(V)MOVQ and MOV to eliminate intermediate register (MovD/QMov2MovD/Q 1b)',hp1);
 
@@ -7223,6 +7334,22 @@ unit aoptx86;
                     RemoveCurrentP(p);
                     Result:=True;
                     Exit;
+                  end
+                else if WriteMayMoveUp(taicpu(hp1).oper[1]^,
+                    topsize2memsize[taicpu(hp1).opsize] shr 3,p,hp1) then
+                  begin
+                    DebugMsg(SPeepholeOptimization+'Merged (V)MOVD/(V)MOVQ and MOV to eliminate intermediate register (MovD/QMov2MovD/Q 1a)',p);
+
+                    taicpu(p).loadref(1,taicpu(hp1).oper[1]^.ref^);
+
+                    { loadref increases the reference count, so decrement it again }
+                    if Assigned(taicpu(hp1).oper[1]^.ref^.symbol) then
+                      taicpu(hp1).oper[1]^.ref^.symbol.decrefs;
+                    if Assigned(taicpu(hp1).oper[1]^.ref^.relsymbol) then
+                      taicpu(hp1).oper[1]^.ref^.relsymbol.decrefs;
+
+                    RemoveInstruction(hp1);
+                    Include(OptsToCheck, aoc_ForceNewIteration);
                   end;
               end;
           end;
