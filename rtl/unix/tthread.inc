@@ -133,6 +133,8 @@ begin
   LFreeOnTerminate := LThread.FreeOnTerminate;
   LThread.DoTerminate;
   LThread.FFinished := True;
+  { Wake a main-thread WaitFor as well as pending Synchronize calls. }
+  RtlEventSetEvent(SynchronizeTimeoutEvent);
   if LFreeOnTerminate then
     begin
       WRITE_DEBUG('Thread ',ptruint(lthread),' should be freed');
