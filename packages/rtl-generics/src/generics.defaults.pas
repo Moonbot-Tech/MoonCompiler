@@ -2887,6 +2887,13 @@ begin
   FEqualityComparer_UnicodeString_VMT.__ClassRef := THashFactoryClass(T.ClassType);
   FEqualityComparer_Method_VMT.__ClassRef        := THashFactoryClass(T.ClassType);
   FEqualityComparer_Variant_VMT.__ClassRef       := THashFactoryClass(T.ClassType);
+  {$ifdef LINUX}
+  { Keep the existing avalanche hash for canonical Variant payloads. Enabling
+    CRC32C for strings must not cluster numeric Variant keys in linear probing.
+    xxHash32 uses the assembler implementation when available. }
+  If THashFactoryClass(T.ClassType) = TGenericsHashFactory then
+    FEqualityComparer_Variant_VMT.__ClassRef := TxxHash32HashFactory;
+  {$endif}
   FEqualityComparer_Pointer_VMT.__ClassRef       := THashFactoryClass(T.ClassType);
 
   ///////

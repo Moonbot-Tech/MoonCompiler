@@ -55,8 +55,14 @@ uses
   as it can be modified before by the global $PIC preprocessor directive.
   Pierre Muller 2018/07/04 }
 
+{ Under PIC only the table code of crc32cfast goes: its i386 assembler reads
+  crc32ctab by absolute address (x86-64 has that routine in Pascal anyway),
+  while crc32csse42 and xxHash32 address no data.  PIC used to take out all
+  the assembler, which x86-64 ignored until FPC 67bab6fb (2026-02, for
+  OpenBSD) made it obey: the Linux packages are built as PIC, and every
+  dictionary key was hashed in Pascal there. }
 {$ifdef FPC_PIC}
-  {$define DISABLE_X86_CPUINTEL}
+  {$define PUREPASCAL}
 {$endif FPC_PIC}
 
 {$if defined(OPENBSD) or defined(EMX) or defined(OS2)}
@@ -83,8 +89,7 @@ uses
       {$define CPUINTEL}
       {$ASMMODE INTEL}
     {$else}
-      { Assembler code uses references to static
-        variables with are not PIC ready }
+      { the table code of crc32cfast is assembler too }
       {$define PUREPASCAL}
     {$endif}
   {$else CPUX86}
@@ -1610,6 +1615,8 @@ asm
         imul    eax, eax, 668265263
         cmp     r10, r8
         jnc     @3
+        {$ifndef LINUX}
+        db      $3E,$3E
         lea     rdx, [r10-4H]
         db      $3E,$3E
         sub     rdx, rcx
@@ -1619,6 +1626,12 @@ asm
         and     rcx, 0FFFFFFFFFFFFFFFCH
         db      $3E
         add     rcx, r9
+        {$else}
+        // r8 already points four bytes past the consumed dwords.
+        lea     rcx, [r8-4]
+        jmp     @4 // skipped bytes preserve the byte-loop layout
+        db      $90,$90,$90,$90,$90,$90,$90,$90,$90,$90,$90,$90,$90,$90,$90,$90,$90,$90,$90
+        {$endif}
 @4:     cmp     r10, rcx
         jbe     @6
 @5:     movzx   edx, byte ptr [rcx]
@@ -1867,7 +1880,7 @@ begin
     repeat
       if PtrUInt(buf) and 3=0 then // align to 4 bytes boundary
         break;
-      result := crc32ctab[0,ToByte(result xor cardinal(buf^))] xor (result shr 8);
+      result := crc32ctab[0,ToByte(result xor PByte(buf)^)] xor (result shr 8);
       dec(len);
       inc(buf);
     until len=0;
@@ -1881,7 +1894,7 @@ begin
       dec(len,4);
     end;
     while len>0 do begin
-      result := crc32ctab[0,ToByte(result xor cardinal(buf^))] xor (result shr 8);
+      result := crc32ctab[0,ToByte(result xor PByte(buf)^)] xor (result shr 8);
       dec(len);
       inc(buf);
     end;
