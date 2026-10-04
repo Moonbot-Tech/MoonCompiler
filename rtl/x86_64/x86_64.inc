@@ -157,12 +157,12 @@ asm
 .Lquit:
     ret
 {$else FPC_ABI_WIN64}
-{ SysV: rdi source, rsi dest, rdx count.  The paths up to 32 bytes use them as they are
+{ SysV: rdi source, rsi dest, rdx count.  The paths up to 96 bytes use them as they are
   (no register shuffle on the common call); only a longer move takes the Win64 roles that
-  the rest of the routine is written in.  Same bytes per line as on Win64 from here on. }
+  the rest of the routine is written in. }
 .LEntry:
     cmp    $32, %rdx
-    .byte  0x7F,0x68              { jg .LShuffle (rel8 written out, doc/ASM_LAYOUT_RULES.md) }
+    .byte  0x7F,0x7A              { jg .L33OrMoreCheckAvx (rel8 written out, doc/ASM_LAYOUT_RULES.md) }
     .byte  0x77,0x65              { ja .Lquit, count <= 0 (rel8 written out) }
     cmp    $16, %dl
     jle    .L16OrLess
@@ -182,7 +182,7 @@ asm
     mov    %r9, -8(%rsi,%rdx)
     ret
 
-    .balign 64                    { layout: 4..8, 0..3 bytes and the >32 shuffle in one line (the fill is dead) }
+    .balign 64                    { layout: 4..8 and 0..3 bytes in one line (the fill is dead) }
 .L8OrLess:
     cmp    $3, %dl
     jle    .L3OrLess
@@ -204,29 +204,42 @@ asm
 .Lquit:
     ret
 
-.LShuffle:                        { >32 bytes: the Win64 register roles; the prefixes end the }
-    .byte  62,62,62               { line exactly on byte 64, so the dispatch follows without fill }
-    mov    %rdx, %r8
-    .byte  62,62,62
-    mov    %rsi, %rdx
-    mov    %rdi, %rcx
-    mov    %r8, %rax
 {$endif FPC_ABI_WIN64}
 
     .balign 64                    { layout: the 33..96 dispatch in its own line }
 .L33OrMoreCheckAvx:
+{$ifdef FPC_ABI_WIN64}
     cmp    $96, %r8
+{$else}
+    cmp    $96, %rdx
+{$endif}
     jg     .LCheckAvx
+{$ifdef FPC_ABI_WIN64}
     cmp    $64, %r8
+{$else}
+    cmp    $64, %rdx
+{$endif}
     .byte  0x7E,0x74              { jle .L33To64 (rel8 written out) }
+{$ifdef FPC_ABI_WIN64}
     cmp    $80, %r8
+{$else}
+    cmp    $80, %rdx
+{$endif}
     jle    .L65To80
     jmp    .L81To96
 
-    .balign 64                    { layout: the AVX check in one line, parked on byte 10 so that its }
+    .balign 64                    { layout: the AVX check and longer-path ABI conversion in one line }
+{$ifdef FPC_ABI_WIN64}
     .byte  15,31,68,0,0           { jump to .L33OrMore starts on byte 32 (dead nops) }
     .byte  15,31,68,0,0
+{$endif}
 .LCheckAvx:
+{$ifndef FPC_ABI_WIN64}
+    mov    %rdx, %r8
+    mov    %rsi, %rdx
+    mov    %rdi, %rcx
+    mov    %r8, %rax
+{$endif}
 {$ifdef FPC_PIC}
     movq   has_avx_support@GOTPCREL(%rip), %r10
     cmpb   $1, (%r10)
@@ -239,6 +252,7 @@ asm
     jmp    .L33OrMore
 
     .balign 64                    { layout: each 33..96 body in its own line }
+{$ifdef FPC_ABI_WIN64}
 .L33To64:
     movups 0(%rcx), %xmm0
     movups 16(%rcx), %xmm1
@@ -281,6 +295,49 @@ asm
     movups %xmm5, -16(%rdx,%r8)
     ret
 
+{$else}
+.L33To64:
+    movups 0(%rdi), %xmm0
+    movups 16(%rdi), %xmm1
+    movups -32(%rdi,%rdx), %xmm2
+    movups -16(%rdi,%rdx), %xmm3
+    movups %xmm0, 0(%rsi)
+    movups %xmm1, 16(%rsi)
+    movups %xmm2, -32(%rsi,%rdx)
+    movups %xmm3, -16(%rsi,%rdx)
+    ret
+
+    .balign 64
+.L65To80:
+    movups 0(%rdi), %xmm0
+    movups 16(%rdi), %xmm1
+    movups 32(%rdi), %xmm2
+    movups -32(%rdi,%rdx), %xmm3
+    movups -16(%rdi,%rdx), %xmm4
+    movups %xmm0, 0(%rsi)
+    movups %xmm1, 16(%rsi)
+    movups %xmm2, 32(%rsi)
+    movups %xmm3, -32(%rsi,%rdx)
+    movups %xmm4, -16(%rsi,%rdx)
+    ret
+
+    .balign 64
+.L81To96:
+    movups 0(%rdi), %xmm0
+    movups 16(%rdi), %xmm1
+    movups 32(%rdi), %xmm2
+    movups 48(%rdi), %xmm3
+    movups 64(%rdi), %xmm4
+    movups -16(%rdi,%rdx), %xmm5
+    movups %xmm0, 0(%rsi)
+    movups %xmm1, 16(%rsi)
+    movups %xmm2, 32(%rsi)
+    movups %xmm3, 48(%rsi)
+    movups %xmm4, 64(%rsi)
+    movups %xmm5, -16(%rsi,%rdx)
+    ret
+
+{$endif}
     .balign 64                    { layout: the SSE path (no AVX) starts on a line }
 .L33OrMore:
     movups -32(%rcx,%r8), %xmm3  { Second vector from the end. Wasted read if .Lback branch is taken (it uses second vector from the start instead), }
@@ -587,6 +644,7 @@ asm
 {$endif FPC_PIC}
     jae    .LAvxMaybeNt
 .LAvxTemporalForward:
+    sub    $192, %rax             { count > 320; bias survives the optional <=31-byte peel. }
     testb  $31, %dl
     jz     .LAvxLoop128f
     cmp    %rcx, %rdx
@@ -606,10 +664,8 @@ asm
     sub    %r9, %rax
     jmp    .LAvxLoop128f         { layout: over the fill, so that the loop head sits on a line }
 
-    .balign 64                   { layout: the 72-byte loop from byte 0, two lines }
+    .balign 64                   { The biased counter removes the remaining-size compare from each iteration. }
 .LAvxLoop128f:
-    cmp    $192, %rax
-    jbe    .LAvxTail192
     vmovdqu 0(%rcx), %ymm0
     vmovdqu 32(%rcx), %ymm1
     vmovdqu 64(%rcx), %ymm2
@@ -621,15 +677,14 @@ asm
     add    $128, %rcx
     add    $128, %rdx
     sub    $128, %rax
-    jmp    .LAvxLoop128f
+    ja     .LAvxLoop128f
+    add    $192, %rax
 
-    .balign 32                   { layout: the two checks of .LAvxTail192 on bytes 32..55 of the loop's second }
-.LAvxTail192:                    { line (a 12-byte pair cannot straddle a 32-byte boundary), the body on the next line }
+.LAvxTail192:
     cmp    $128, %rax
     jbe    .LAvxTail128Body
     cmp    $160, %rax
     jbe    .LAvxTail160Body
-    .byte  15,31,132,0,0,0,0,0   { one 8-byte nop into the body (one uop; a jump would be more) }
 .LAvxTail192Body:
     vmovdqu 0(%rcx), %ymm0
     vmovdqu 32(%rcx), %ymm1
@@ -763,6 +818,7 @@ asm
     cmp    %r8, %r10
     jb     .LAvxTemporalForward { Forward overlap must remain cacheable and direction-safe. }
 .LAvxNtPrepare:
+    sub    $128, %rax             { count > 320; bias for SUB/JA, restored before the tail. }
     test   $31, %rdx
     jz     .LAvxNtLoop128f
     mov    %rdx, %r9
@@ -776,8 +832,6 @@ asm
     jmp    .LAvxNtLoop128f       { layout: over the fill }
     .balign 64
 .LAvxNtLoop128f:
-    cmp    $128, %rax
-    jbe    .LAvxNtTail
     vmovdqu 0(%rcx), %ymm0
     vmovdqu 32(%rcx), %ymm1
     vmovdqu 64(%rcx), %ymm2
@@ -789,8 +843,9 @@ asm
     add    $128, %rcx
     add    $128, %rdx
     sub    $128, %rax
-    jmp    .LAvxNtLoop128f
+    ja     .LAvxNtLoop128f
 .LAvxNtTail:
+    add    $128, %rax
     sfence
     jmp    .LAvxTail
 end;

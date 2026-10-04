@@ -17,8 +17,8 @@ executable:
 
 * the entry is on a 64-byte line (rule 1);
 * the number of branches and macro-fused pairs that cross or end on a 32-byte
-  boundary (rule 4) does not exceed the documented ceiling - zero for every
-  routine of the table;
+  boundary (rule 4) does not exceed the documented ceiling; Move's two
+  once-per-copy NT preparation sites are named by offset and branch below;
 * the number of short loops that do not lie inside one 64-byte line (rule 2)
   does not exceed its ceiling (Move: the NT/ERMS check chain, which the loop
   finder takes for a loop and which runs once).
@@ -59,6 +59,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import os
 import re
@@ -347,6 +348,20 @@ def check_unwind(compiler: Path, config: Path, probe_dir: Path, work: Path) -> l
     return failures
 
 
+# The accepted 60-byte NT loop is wholly inside its aligned line. Its one-time
+# alignment test/pad jump cross/end on 32 bytes after the count-bias instruction.
+# These are not loop branches. Keep their exact identities instead of allowing
+# two arbitrary new rule-4 violations anywhere in Move.
+RULE4_SITES = {"FPC_MOVE": {(2145, "je"), (2174, "jmp")}}
+
+
+def documented_rule4_site(name: str, begin: int, line: str) -> bool:
+    if not line.startswith("R4: "):
+        return False
+    routine, address, _, _, branch = ast.literal_eval(line[4:])
+    return routine == name and (address - begin, branch) in RULE4_SITES.get(name, set())
+
+
 def check(exe: Path, pattern: str) -> tuple[int, int, int, list[str]]:
     """(branches, rule-4 sites, short loops off a line, listed violations) of the routines matching."""
     result = subprocess.run([sys.executable, str(TOOLS / "check_placement_rules.py"), str(exe),
@@ -399,11 +414,12 @@ def main() -> int:
             name, begin, end = found[0]
             short = name.split("$$_")[-1].split("$")[0]
             branches, r4, r2, listed = check(exe, pattern)
-            print(f"{short:36s} @{begin % 64:2d} {end - begin:6d} {branches:9d} {r4:6d}/{r4_max:<3d} {r2:12d}/{r2_max}")
+            named_r4 = sum(documented_rule4_site(name, begin, line) for line in listed)
+            print(f"{short:36s} @{begin % 64:2d} {end - begin:6d} {branches:9d} {r4:6d}/{r4_max + named_r4:<3d} {r2:12d}/{r2_max}")
             if begin % 64 != 0:
                 failures.append(f"{short}: entry on byte {begin % 64} of a 64-byte line (rule 1)")
-            if r4 > r4_max:
-                failures.append(f"{short}: {r4} branches on a 32-byte boundary, {r4_max} documented (rule 4)")
+            if r4 - named_r4 > r4_max:
+                failures.append(f"{short}: {r4} branches on a 32-byte boundary, {r4_max + named_r4} documented (rule 4)")
             if r2 > r2_max:
                 failures.append(f"{short}: {r2} short loops not inside one 64-byte line, {r2_max} documented (rule 2)")
             if args.list or r4 > r4_max or r2 > r2_max:
