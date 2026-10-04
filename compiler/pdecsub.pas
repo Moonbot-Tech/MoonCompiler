@@ -2904,7 +2904,12 @@ var
       pooption : [];
       mutexclpocall : [pocall_internproc];
       mutexclpotype : [];
-      mutexclpo     : [po_external,po_inline]
+      { "inline; forward;" is a valid Delphi declaration: the routine is a
+        forward whose body follows in the same unit and is inlined once that
+        body is known.  "forward; inline;" was already accepted, and an
+        interface declaration is an implicit forward that may carry inline,
+        so the exclusion here was the only inconsistent order. }
+      mutexclpo     : [po_external]
     ),(
       idtok:_OLDFPCCALL;
       pd_flags : [pd_interface,pd_implemen,pd_body,pd_procvar];
