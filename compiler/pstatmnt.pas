@@ -3078,13 +3078,13 @@ implementation
               end
             else
               begin
-                { A non-addressable Delphi record rvalue must survive an
-                  escaped anonymous routine. Materialize the value itself in
-                  a lexical read-only local so the ordinary capturer can own
-                  it without changing addressable-with by-reference semantics. }
-                if (m_delphi in current_settings.modeswitches) and
-                   (p.resultdef.typ=recorddef) and
-                   not valid_for_addr(p,false) then
+                { Materialize record rvalues and complex class/interface
+                  references in lexical locals so anonymous routines can
+                  capture them.  A class reference retains the evaluated
+                  pointer, while an interface local also owns its reference. }
+                if ((m_delphi in current_settings.modeswitches) and
+                    (p.resultdef.typ=recorddef) and not valid_for_addr(p,false)) or
+                   is_class(p.resultdef) or is_interface(p.resultdef) then
                   begin
                     if not assigned(withblockst) then
                       begin
@@ -3093,16 +3093,20 @@ implementation
                       end;
                     withvar:=create_inline_var_sym('$with_value_'+
                       tostr(entrypos.line)+'_'+tostr(entrypos.column),p.resultdef);
-                    include(withvar.varoptions,vo_is_const);
+                    { A materialized interface owns its reference, but the
+                      with-target must still permit property setters. }
+                    if not is_interface(p.resultdef) then
+                      include(withvar.varoptions,vo_is_const);
                     include(withvar.varoptions,vo_is_internal);
                     { Delphi keeps an ordinary record value alive when a
                       closure captures one of its fields. A record with custom
                       management operators is different: its lexical Finalize
                       still runs at with-scope exit, and the closure observes
                       the resulting record state. }
-                    withvar.capture_lexical_lifetime:=
-                      trecordsymtable(trecorddef(p.resultdef).symtable).
-                        managementoperators<>[];
+                    if p.resultdef.typ=recorddef then
+                      withvar.capture_lexical_lifetime:=
+                        trecordsymtable(trecorddef(p.resultdef).symtable).
+                          managementoperators<>[];
                     withvar.register_sym;
                     symtablestack.top.insertsym(withvar);
                     withvar.varstate:=vs_initialised;
