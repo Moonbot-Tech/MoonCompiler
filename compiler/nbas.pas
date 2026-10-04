@@ -392,7 +392,7 @@ interface
 {$ifdef DEBUG_NODE_XML}
           procedure XMLPrintNodeData(var T: Text); override;
 {$endif DEBUG_NODE_XML}
-         protected
+         public
           release_to_normal : boolean;
         private
           tempidx : longint;

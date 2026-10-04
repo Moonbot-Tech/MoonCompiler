@@ -422,10 +422,12 @@ implementation
                      (symtable.defowner<>current_procinfo.procdef))
                  ) then
                  begin
-                   { The exception load is guaranteed to be rewritten to its
-                     capturer field before code generation. Unlike a regular
-                     outer local, it has no addressable parent-frame slot. }
-                   if symtable.symtabletype<>exceptsymtable then
+                   { Exception and top-level inline loads are rewritten to
+                     capturer fields before code generation; neither has an
+                     addressable parent-frame slot for the nested routine. }
+                   if (symtable.symtabletype<>exceptsymtable) and
+                      not(tprocdef(symtable.defowner).proctypeoption in
+                        [potype_proginit,potype_unitinit,potype_unitfinalize]) then
                      begin
                        if assigned(left) then
                          internalerror(200309289);
@@ -942,13 +944,70 @@ implementation
       end;
 
 
+    type
+      townedresulttemp = record
+        temp: ttempcreatenode;
+        cleanup: ttempdeletenode;
+      end;
+      pownedresulttemp = ^townedresulttemp;
+
+    function detach_result_temp(var n:tnode; arg:pointer):foreachnoderesult;
+      begin
+        result:=fen_false;
+        if (n.nodetype in [tempcreaten,tempdeleten]) and
+           (ttempbasenode(n).tempinfo=pownedresulttemp(arg)^.temp.tempinfo) then
+          begin
+            if n.nodetype=tempdeleten then
+              pownedresulttemp(arg)^.cleanup:=ttempdeletenode(n);
+            n:=cnothingnode.create;
+            result:=fen_norecurse_false;
+          end;
+      end;
+
+    function has_custom_value_lifetime(def:tdef):boolean;
+      var
+        st: TSymtable;
+        sym: tsym;
+        i: integer;
+      begin
+        if has_non_trivial_value_init(def) then
+          exit(true);
+        result:=false;
+        case def.typ of
+          arraydef:
+            exit(is_normal_array(def) and has_custom_value_lifetime(tarraydef(def).elementdef));
+          recorddef:
+            begin
+              st:=trecorddef(def).symtable;
+              if mop_finalize in trecordsymtable(st).managementoperators then
+                exit(true);
+            end;
+          objectdef:
+            begin
+              if tobjectdef(def).objecttype<>odt_object then
+                exit;
+              if assigned(tobjectdef(def).childof) and has_custom_value_lifetime(tobjectdef(def).childof) then
+                exit(true);
+              st:=tobjectdef(def).symtable;
+            end;
+          else
+            exit;
+        end;
+        for i:=0 to st.SymList.Count-1 do
+          begin
+            sym:=tsym(st.SymList[i]);
+            if (sym.typ=fieldvarsym) and has_custom_value_lifetime(tfieldvarsym(sym).vardef) then
+              exit(true);
+          end;
+      end;
+
     function tassignmentnode.pass_1 : tnode;
 
-      function tempreturnfromcall(allowinterfacewrappers:boolean):boolean;
+      function tempreturnfromcall(allowinterfacewrappers:boolean):ttempcreatenode;
         var
           node:tnode;
         begin
-          result:=false;
+          result:=nil;
           if not is_managed_type(right.resultdef) then
             exit;
           node:=right;
@@ -985,7 +1044,65 @@ implementation
             internalerror(2024111101);
           if (node.nodetype=calln) and assigned(tcallnode(node).funcretnode) then
             node:=tcallnode(node).funcretnode;
-          result:=(node.nodetype=temprefn) and (nf_is_funcret in node.flags);
+          if (node.nodetype=temprefn) and (nf_is_funcret in node.flags) then
+            result:=ttemprefnode(node).tempinfo^.owner;
+        end;
+
+      function consume_result_temp(temp:ttempcreatenode):tnode;
+        var
+          owner: townedresulttemp;
+          bytes: tarraydef;
+          carrier,dest: ttempcreatenode;
+          statements,body,handler: tstatementnode;
+          trybody,exceptbody: tnode;
+        begin
+          owner.temp:=temp;
+          owner.cleanup:=nil;
+          foreachnodestatic(right,@detach_result_temp,@owner);
+          if not assigned(owner.cleanup) then
+            internalerror(2026100201);
+
+          { A fresh result owns its value only until the move. Keep its storage
+            outside the routine-wide managed temp list: reinitializing a moved
+            value would start an observable, unnecessary second lifetime. }
+          bytes:=carraydef.getreusable(u8inttype,max(1,left.resultdef.size));
+          carrier:=ctempcreatenode.create(bytes,bytes.size,tt_persistent,false);
+          carrier.tempinfo^.storagealignment:=left.resultdef.alignment;
+          temp.includetempflag(ti_reference);
+          temp.ftemplvalue:=cderefnode.create(ctypeconvnode.create_internal(
+            caddrnode.create_internal(ctemprefnode.create(carrier)),cpointerdef.getreusable(temp.tempinfo^.typedef)));
+          temp.tempinfo^.tempinitcode:=temp.ftemplvalue;
+          firstpass(temp.tempinfo^.tempinitcode);
+
+          result:=internalstatements(statements);
+          addstatement(statements,carrier);
+          addstatement(statements,temp);
+          addstatement(statements,cnodeutils.initialize_data_node(ctemprefnode.create(temp),false));
+
+          { Resolve the destination before the call, as the assignment helper
+            does, and evaluate both once. The callee must still see the old
+            destination through any alias, so it cannot use that destination
+            as its hidden result storage. }
+          dest:=ctempcreatenode.create_reference(left.resultdef,left.resultdef.size,tt_persistent,false,left,false);
+          addstatement(statements,dest);
+          trybody:=internalstatements(body);
+          addstatement(body,ctemprefnode.create(dest));
+          addstatement(body,right);
+          addstatement(body,cnodeutils.finalize_data_node(ctemprefnode.create(dest)));
+          if left.resultdef.size<>0 then
+            addstatement(body,cassignmentnode.create(cderefnode.create(ctypeconvnode.create_internal(
+              caddrnode.create_internal(ctemprefnode.create(dest)),cpointerdef.getreusable(bytes))),
+              ctemprefnode.create(carrier)));
+          exceptbody:=internalstatements(handler);
+          addstatement(handler,cnodeutils.finalize_data_node(ctemprefnode.create(temp)));
+          addstatement(handler,craisenode.create(nil,nil,nil));
+          addstatement(statements,ctryexceptnode.create(trybody,nil,exceptbody));
+          addstatement(statements,ctempdeletenode.create(dest));
+          owner.cleanup.release_to_normal:=false;
+          addstatement(statements,owner.cleanup);
+          addstatement(statements,ctempdeletenode.create(carrier));
+          left:=nil;
+          right:=nil;
         end;
 
       function is_delphi_default_array_move(n:tnode):boolean;
@@ -1012,6 +1129,7 @@ implementation
         hs: string;
         needrtti,
         defaultarrayassign: boolean;
+        resulttemp: ttempcreatenode;
       begin
          result:=nil;
          expectloc:=LOC_VOID;
@@ -1098,6 +1216,14 @@ implementation
             not is_const(left) and
             not(target_info.system in systems_garbage_collected_managed_types) then
          begin
+           resulttemp:=tempreturnfromcall(false);
+           if assigned(resulttemp) and has_custom_value_lifetime(left.resultdef) and
+              (target_info.system in [system_x86_64_win64,system_x86_64_linux]) then
+             begin
+               result:=consume_result_temp(resulttemp);
+               firstpass(result);
+               exit;
+             end;
            hp:=ccallparanode.create(caddrnode.create_internal(
                   crttinode.create(tstoreddef(left.resultdef),initrtti,rdt_normal)),
                ccallparanode.create(ctypeconvnode.create_internal(
@@ -1105,7 +1231,7 @@ implementation
                ccallparanode.create(ctypeconvnode.create_internal(
                  caddrnode.create_internal(right),voidpointertype),
                nil)));
-            if tempreturnfromcall(false) then
+            if assigned(resulttemp) then
              result:=ccallnode.createintern('fpc_copy_with_move_semantics_proc',hp)
            else
              result:=ccallnode.createintern('fpc_copy_proc',hp);
@@ -1161,7 +1287,7 @@ implementation
               end
             else if is_interfacecom_or_dispinterface(left.resultdef) then
               begin
-                if tempreturnfromcall(true) then
+                if assigned(tempreturnfromcall(true)) then
                   begin
                     hp:=ccallparanode.create(ctypeconvnode.create_internal(
                         caddrnode.create_internal(right),voidpointertype),

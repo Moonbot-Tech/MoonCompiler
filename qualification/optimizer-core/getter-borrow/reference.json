@@ -1,0 +1,190 @@
+{
+ "linux": {
+  "CHAINCOMPARE": [
+   36,
+   3
+  ],
+  "CHAINLENGTH": [
+   8,
+   0
+  ],
+  "FIELDCHAINELEMENT": [
+   34,
+   2
+  ],
+  "FIELDLISTFIND": [
+   54,
+   3
+  ],
+  "GETTERCHAR": [
+   6,
+   0
+  ],
+  "GETTERCOMPARE": [
+   8,
+   1
+  ],
+  "GETTERELEMENT": [
+   6,
+   0
+  ],
+  "GETTEREMPTY": [
+   5,
+   0
+  ],
+  "GETTERLENGTH": [
+   7,
+   0
+  ],
+  "GETTERLOOP": [
+   17,
+   0
+  ],
+  "KEEPCHAINTOCALL": [
+   45,
+   6
+  ],
+  "KEEPINDEXCALL": [
+   27,
+   4
+  ],
+  "KEEPRECORDTOCALL": [
+   47,
+   7
+  ],
+  "KEEPTOCALL": [
+   22,
+   4
+  ],
+  "LISTFIND": [
+   49,
+   3
+  ],
+  "LISTFIRSTCHARS": [
+   60,
+   4
+  ],
+  "LISTLENGTHS": [
+   45,
+   2
+  ],
+  "NESTEDEMPTY": [
+   5,
+   0
+  ],
+  "NESTEDLENGTH": [
+   7,
+   0
+  ],
+  "NESTEDSUM": [
+   17,
+   0
+  ],
+  "RECORDCOMPARE": [
+   35,
+   3
+  ],
+  "RECORDELEMENT": [
+   33,
+   2
+  ],
+  "RECORDFIELD": [
+   28,
+   2
+  ]
+ },
+ "win64": {
+  "CHAINCOMPARE": [
+   35,
+   3
+  ],
+  "CHAINLENGTH": [
+   8,
+   0
+  ],
+  "FIELDCHAINELEMENT": [
+   33,
+   2
+  ],
+  "FIELDLISTFIND": [
+   52,
+   3
+  ],
+  "GETTERCHAR": [
+   6,
+   0
+  ],
+  "GETTERCOMPARE": [
+   8,
+   1
+  ],
+  "GETTERELEMENT": [
+   6,
+   0
+  ],
+  "GETTEREMPTY": [
+   5,
+   0
+  ],
+  "GETTERLENGTH": [
+   7,
+   0
+  ],
+  "GETTERLOOP": [
+   17,
+   0
+  ],
+  "KEEPCHAINTOCALL": [
+   43,
+   6
+  ],
+  "KEEPINDEXCALL": [
+   27,
+   4
+  ],
+  "KEEPRECORDTOCALL": [
+   45,
+   7
+  ],
+  "KEEPTOCALL": [
+   22,
+   4
+  ],
+  "LISTFIND": [
+   48,
+   3
+  ],
+  "LISTFIRSTCHARS": [
+   58,
+   4
+  ],
+  "LISTLENGTHS": [
+   44,
+   2
+  ],
+  "NESTEDEMPTY": [
+   5,
+   0
+  ],
+  "NESTEDLENGTH": [
+   7,
+   0
+  ],
+  "NESTEDSUM": [
+   17,
+   0
+  ],
+  "RECORDCOMPARE": [
+   34,
+   3
+  ],
+  "RECORDELEMENT": [
+   32,
+   2
+  ],
+  "RECORDFIELD": [
+   27,
+   2
+  ]
+ }
+}

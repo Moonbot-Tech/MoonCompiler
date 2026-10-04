@@ -48,6 +48,8 @@ interface
       function dogetcopy : tnode;override;
       function simplify(forinline: boolean): tnode;override;
       procedure pass_generate_code;override;
+    protected
+      procedure firstpass_finalizer;override;
     end;
 
 implementation
@@ -60,7 +62,7 @@ implementation
     cpubase,htypechk,
     pass_1,pass_2,
     aasmbase,aasmtai,aasmdata,aasmcpu,
-    procinfo,cpupi,procdefutil;
+    procinfo,cpupi,procdefutil,optcall;
 
   var
     endexceptlabel: tasmlabel;
@@ -220,6 +222,28 @@ function tx64tryfinallynode.dogetcopy: tnode;
   end;
 
 
+procedure tx64tryfinallynode.firstpass_finalizer;
+  var
+    old_procinfo: tprocinfo;
+    oldflowcontrol: tflowcontrol;
+    expanded: boolean;
+  begin
+    if not assigned(finalizepi) or not assigned(finalizepi.code) then
+      exit;
+    { The finalizer shares its parent's temp allocator. Discover managed
+      temps introduced by inlining before the parent builds its cleanup. }
+    old_procinfo:=current_procinfo;
+    oldflowcontrol:=flowcontrol;
+    current_procinfo:=finalizepi;
+    do_optinline(finalizepi.code,expanded);
+    firstpass(finalizepi.code);
+    current_procinfo:=old_procinfo;
+    flowcontrol:=oldflowcontrol;
+    current_procinfo.flags:=current_procinfo.flags+
+      (finalizepi.flags*[pi_needs_implicit_finally,pi_do_call]);
+  end;
+
+
 function tx64tryfinallynode.simplify(forinline: boolean): tnode;
   begin
     result:=inherited simplify(forinline);
@@ -240,7 +264,9 @@ function tx64tryfinallynode.simplify(forinline: boolean): tnode;
             if implicitframe then
               begin
                 current_procinfo.finalize_procinfo:=finalizepi;
-              end;
+              end
+            else
+              firstpass_finalizer;
           end;
       end;
   end;

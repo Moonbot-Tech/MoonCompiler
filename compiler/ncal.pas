@@ -141,6 +141,7 @@ interface
           function  optimize_funcret_assignment(inlineblock: tblocknode): tnode;
           procedure check_inlining;
           function doinlining: boolean;
+          procedure mark_unregable_parameters;
           procedure order_parameters;
        protected
           pushedparasize : longint;
@@ -195,6 +196,11 @@ interface
           }
           typedef: tdef;
           callnodeflags : tcallnodeflags;
+          { Transient use-context facts recomputed immediately before inlining:
+            the consumer may borrow, or needs the address of the result.
+            They neither survive AST copying nor get serialized to a PPU. }
+          funcret_borrow,
+          funcret_byref : boolean;
 
           spezcontext : tspecializationcontext;
 
@@ -358,7 +364,7 @@ implementation
       pgenutil,
       ngenutil,objcutil,aasmcnst,
       procinfo,cpuinfo,
-      wpobase;
+      wpobase,opteffect;
 
     type
      tobjectinfoitem = class(tlinkedlistitem)
@@ -1344,6 +1350,26 @@ implementation
         statements : tstatementnode;
         temp : ttempcreatenode;
         owningprocdef: tprocdef;
+
+      procedure mark_byref_actual;
+        begin
+          { For an inline candidate whose implemented formal never exposes its
+            address, defer physical-storage marking until pass_1 knows whether
+            a real call remains.  Successful inlining substitutes the lvalue
+            directly and therefore needs neither a stack slot nor addr_taken. }
+          if po_compilerproc in callnode.procdefinition.procoptions then
+            make_not_regable(left,[ra_addr_regable])
+          else if (callnode.procdefinition.typ=procdef) and
+             tprocdef(callnode.procdefinition).is_implemented and
+             not(parasym.addr_taken) then
+            begin
+              if not(po_inline in tprocdef(callnode.procdefinition).procoptions) then
+                make_not_regable(left,[ra_addr_regable]);
+            end
+          else
+            make_not_regable(left,[ra_addr_regable,ra_addr_taken]);
+        end;
+
       begin
          { Be sure to have the resultdef }
          if not assigned(left.resultdef) then
@@ -1626,52 +1652,19 @@ implementation
                         { uninitialized warnings (tbs/tb0542)         }
                         set_varstate(left,vs_written,[]);
                         set_varstate(left,vs_readwritten,[]);
-                        { compilerprocs never capture the address of their
-                          parameters }
-                        if (po_compilerproc in callnode.procdefinition.procoptions) or
-                        { if we handled already the proc. body and it is not inlined,
-                          we can propagate the information if the address of a parameter is taken or not }
-                        ((callnode.procdefinition.typ=procdef) and
-                         not(po_inline in tprocdef(callnode.procdefinition).procoptions) and
-                         (tprocdef(callnode.procdefinition).is_implemented) and
-                         not(parasym.addr_taken)) then
-                          make_not_regable(left,[ra_addr_regable])
-                        else
-                          make_not_regable(left,[ra_addr_regable,ra_addr_taken]);
+                        mark_byref_actual;
                       end;
                     vs_var:
                       begin
                         set_varstate(left,vs_readwritten,[vsf_must_be_valid,vsf_use_hints]);
-                        { compilerprocs never capture the address of their
-                          parameters }
-                        if (po_compilerproc in callnode.procdefinition.procoptions) or
-                        { if we handled already the proc. body and it is not inlined,
-                          we can propagate the information if the address of a parameter is taken or not }
-                        ((callnode.procdefinition.typ=procdef) and
-                         not(po_inline in tprocdef(callnode.procdefinition).procoptions) and
-                         (tprocdef(callnode.procdefinition).is_implemented) and
-                         not(parasym.addr_taken)) then
-                          make_not_regable(left,[ra_addr_regable])
-                        else
-                          make_not_regable(left,[ra_addr_regable,ra_addr_taken]);
+                        mark_byref_actual;
                       end;
                     vs_constref:
                       begin
                         { constref does not mean that the variable is actually written, this might only
                           happen if it's address is taken, this is handled below }
                         set_varstate(left,vs_read,[vsf_must_be_valid,vsf_use_hints]);
-                        { compilerprocs never capture the address of their
-                          parameters }
-                        if (po_compilerproc in callnode.procdefinition.procoptions) or
-                        { if we handled already the proc. body and it is not inlined,
-                          we can propagate the information if the address of a parameter is taken or not }
-                        ((callnode.procdefinition.typ=procdef) and
-                         not(po_inline in tprocdef(callnode.procdefinition).procoptions) and
-                         (tprocdef(callnode.procdefinition).is_implemented) and
-                         not(parasym.addr_taken)) then
-                          make_not_regable(left,[ra_addr_regable])
-                        else
-                          make_not_regable(left,[ra_addr_regable,ra_addr_taken]);
+                        mark_byref_actual;
                       end;
                     else
                       set_varstate(left,vs_read,[vsf_must_be_valid]);
@@ -1806,6 +1799,8 @@ implementation
          symtableprocentry:=v;
          symtableproc:=st;
          callnodeflags:=callflags+[cnf_return_value_used];
+         funcret_borrow:=false;
+         funcret_byref:=false;
          methodpointer:=mp;
          callinitblock:=nil;
          callcleanupblock:=nil;
@@ -1987,6 +1982,8 @@ implementation
         symtableproc:=nil;
         ppufile.getderef(procdefinitionderef);
         ppufile.getset(tppuset4(callnodeflags));
+        funcret_borrow:=false;
+        funcret_byref:=false;
         intrinsiccode:=TInlineNumber(ppufile.getword);
         if intrinsiccode=in_str_x_string then
           ppufile.getderef(strresultdefderef);
@@ -2102,6 +2099,8 @@ implementation
         n.procdefinition:=procdefinition;
         n.typedef := typedef;
         n.callnodeflags := callnodeflags;
+        n.funcret_borrow := false;
+        n.funcret_byref := false;
         n.inlinelevel := inlinelevel;
         n.pushedparasize := pushedparasize;
         n.intrinsiccode := intrinsiccode;
@@ -2394,7 +2393,7 @@ implementation
 
     procedure tcallnode.add_done_statement(n:tnode);
       var
-        lastdonestatement, before_firstpass : tstatementnode;
+        lastdonestatement, beforelast, before_firstpass : tstatementnode;
         was_first_statement : boolean;
       begin
         if not assigned(n) then
@@ -2409,12 +2408,25 @@ implementation
           end;
         lastdonestatement:=laststatement(callcleanupblock);
         was_first_statement:=(lastdonestatement=callcleanupblock.statements);
+        if not was_first_statement then
+          begin
+            beforelast:=tstatementnode(callcleanupblock.statements);
+            while assigned(beforelast) and (beforelast.right<>lastdonestatement) do
+              beforelast:=tstatementnode(beforelast.next);
+            if not assigned(beforelast) then
+              internalerror(2026071701);
+          end;
         { see comments in add_init_statement }
         addstatement(lastdonestatement,n);
         before_firstpass:=lastdonestatement;
         firstpass(tnode(lastdonestatement));
-        if was_first_statement and (lastdonestatement<>before_firstpass) then
-          callcleanupblock.statements:=lastdonestatement;
+        if (lastdonestatement<>before_firstpass) then
+          begin
+            if was_first_statement then
+              callcleanupblock.statements:=lastdonestatement
+            else if assigned(beforelast) then
+              beforelast.right:=lastdonestatement;
+          end;
         { Update expectloc for callcleanupblock }
         callcleanupblock.expectloc:=lastdonestatement.expectloc;
       end;
@@ -4078,13 +4090,17 @@ implementation
                end;
            end;
 
-        { if the result is the same as the self parameter (in case of objects),
-          we can't optimise. We have to check this explicitly because
+        { The receiver may contain the destination, e.g. A:=A[i].Split(...).
+          It is an input just like an explicit parameter. Check it here because
           hidden parameters such as self have not yet been inserted at this
           point
         }
         if assigned(methodpointer) and
-           realassignmenttarget.isequal(actualtargetnode(@methodpointer)^) then
+           (realassignmenttarget.isequal(actualtargetnode(@methodpointer)^) or
+            ((realassignmenttarget.nodetype=loadn) and
+             foreachnodestatic(methodpointer,@check_funcret_used_as_para,tloadnode(realassignmenttarget).symtableentry)) or
+            ((realassignmenttarget.nodetype=temprefn) and
+             foreachnodestatic(methodpointer,@check_funcret_temp_used_as_para,ttemprefnode(realassignmenttarget).tempinfo))) then
           exit;
 
         { when we substitute a function result inside an inlined function,
@@ -5615,6 +5631,55 @@ implementation
       end;
 
 
+    function inline_expression_may_need_managed_temp(var n: tnode;
+      arg: pointer): foreachnoderesult;
+      begin
+        { A value-producing managed expression in a procedure body may acquire
+          a temporary only after the body has been copied into its caller. }
+        if assigned(n.resultdef) and is_managed_type(n.resultdef) and
+           { Argument links and lvalue projections do not acquire ownership.
+             Still visit their children: a field or element can be selected
+             from a managed function result which does need cleanup. }
+           not(n.nodetype in [loadn,stringconstn,temprefn,callparan,subscriptn,vecn,derefn]) then
+          result:=fen_norecurse_true
+        else
+          result:=fen_false;
+      end;
+
+
+    function inline_body_has_used_managed_local(var n: tnode;
+      arg: pointer): foreachnoderesult;
+      begin
+        { createinlineparas turns every referenced ordinary managed local into
+          a caller temp, which provides the cleanup frame needed by managed
+          expressions exposed from the same body. }
+        if (n.nodetype=loadn) and
+           (tloadnode(n).symtableentry.typ=localvarsym) and
+           is_managed_type(tabstractnormalvarsym(
+             tloadnode(n).symtableentry).vardef) then
+          result:=fen_norecurse_true
+        else
+          result:=fen_false;
+      end;
+
+
+    function call_has_delphi_assign_value_para(callnode: tcallnode): boolean;
+      var
+        para: tcallparanode;
+      begin
+        result:=false;
+        para:=tcallparanode(callnode.left);
+        while assigned(para) do
+          begin
+            if (para.parasym.typ=paravarsym) and
+               (para.parasym.varspez=vs_value) and
+               is_delphi_assign_record(para.parasym.vardef) then
+              exit(true);
+            para:=tcallparanode(para.right);
+          end;
+      end;
+
+
     function tcallnode.doinlining: boolean;
       var
         para: tcallparanode;
@@ -5665,61 +5730,106 @@ implementation
               end;
             para:=tcallparanode(para.right);
           end;
+
+        { A managed function result already has a caller-owned slot.  A
+          procedure without any cleanup frame cannot accept its first managed
+          temporary after frame layout has been fixed.  This is part of the
+          final inline decision because cnf_do_inline also controls whether
+          by-reference actuals require physical storage. }
+        if (cs_implicit_exceptions in current_settings.moduleswitches) and
+           is_void(procdefinition.returndef) and
+           not(pi_needs_implicit_finally in current_procinfo.flags) and
+           not(call_has_delphi_assign_value_para(self)) and
+           not(foreachnodestatic(
+             tprocdef(procdefinition).inlininginfo^.code,
+             @inline_body_has_used_managed_local,nil)) and
+           foreachnodestatic(
+             tprocdef(procdefinition).inlininginfo^.code,
+             @inline_expression_may_need_managed_temp,nil) then
+          result:=false;
+      end;
+
+
+    procedure tcallnode.mark_unregable_parameters;
+      var
+        hp : tcallparanode;
+
+      function has_same_byref_actual(needle: tcallparanode): boolean;
+        var
+          candidate: tcallparanode;
+          needletarget,
+          candidatetarget: pnode;
+        begin
+          result:=false;
+          if not(needle.parasym.varspez in [vs_out,vs_var,vs_constref]) then
+            exit;
+          needletarget:=actualtargetnode(@needle.left);
+          candidate:=tcallparanode(left);
+          while assigned(candidate) do
+            begin
+              if (candidate<>needle) and
+                 (candidate.parasym.varspez in [vs_out,vs_var,vs_constref]) then
+                begin
+                  candidatetarget:=actualtargetnode(@candidate.left);
+                  if needletarget^.isequal(candidatetarget^) then
+                    exit(true);
+                end;
+              candidate:=tcallparanode(candidate.right);
+            end;
+        end;
+
+      begin
+        hp:=tcallparanode(left);
+        while assigned(hp) do
+          begin
+            do_typecheckpass(hp.left);
+            { When the address needs to be pushed then the register is
+              not regable. Exception is when the location is also a var
+              parameter and we can pass the address transparently (but
+              that is handled by make_not_regable if ra_addr_regable is
+              passed, and make_not_regable always needs to called for
+              the ra_addr_taken info for non-invisible parameters) }
+            if (not (cpf_varargs_para in hp.callparaflags)) and (
+                not(
+                    (vo_is_hidden_para in hp.parasym.varoptions) and
+                    (hp.left.resultdef.typ in [pointerdef,classrefdef])
+                   ) and
+                paramanager.push_addr_param_for_proc(hp.parasym.varspez,hp.parasym.vardef,
+                    self.procdefinition)
+               ) then
+              begin
+                { A selected inline expansion substitutes a non-escaping
+                  by-reference formal with the actual lvalue.  No address is
+                  passed at run time, so keep a scalar actual registerable. }
+                if not((cnf_do_inline in callnodeflags) and
+                       (hp.parasym.varspez in [vs_out,vs_var,vs_constref]) and
+                       (procdefinition.typ=procdef) and
+                       tprocdef(procdefinition).is_implemented and
+                       not(tabstractvarsym(hp.parasym).addr_taken) and
+                       not(has_same_byref_actual(hp))) then
+                  begin
+                    { pushing the address of a variable to take the place of
+                      a temp as the complex function result of a function does
+                      not make its address escape the current block }
+                    if not(vo_is_funcret in hp.parasym.varoptions) and
+                       ((po_inline in procdefinition.procoptions) or
+                         (not(po_compilerproc in procdefinition.procoptions) and
+                         (hp.parasym.varspez=vs_const))) and
+                       not((hp.parasym.varspez in [vs_value,vs_out,vs_var,vs_constref]) and
+                           (procdefinition.typ=procdef) and
+                           tprocdef(procdefinition).is_implemented and
+                           not(tabstractvarsym(hp.parasym).addr_taken)) then
+                      make_not_regable(hp.left,[ra_addr_regable,ra_addr_taken])
+                    else
+                      make_not_regable(hp.left,[ra_addr_regable]);
+                  end;
+              end;
+            hp:=tcallparanode(hp.right);
+          end;
       end;
 
 
     function tcallnode.pass_1: tnode;
-
-      procedure mark_unregable_parameters;
-        var
-          hp : tcallparanode;
-        begin
-          hp:=tcallparanode(left);
-          while assigned(hp) do
-            begin
-              do_typecheckpass(hp.left);
-              { When the address needs to be pushed then the register is
-                not regable. Exception is when the location is also a var
-                parameter and we can pass the address transparently (but
-                that is handled by make_not_regable if ra_addr_regable is
-                passed, and make_not_regable always needs to called for
-                the ra_addr_taken info for non-invisible parameters) }
-              if (not (cpf_varargs_para in hp.callparaflags)) and (
-                  not(
-                      (vo_is_hidden_para in hp.parasym.varoptions) and
-                      (hp.left.resultdef.typ in [pointerdef,classrefdef])
-                     ) and
-                  paramanager.push_addr_param(hp.parasym.varspez,hp.parasym.vardef,
-                      self.procdefinition.proccalloption)
-                 ) then
-                { pushing the address of a variable to take the place of a temp
-                  as the complex function result of a function does not make its
-                  address escape the current block, as the "address of the
-                  function result" is not something which can be stored
-                  persistently by the callee (it becomes invalid when the callee
-                  returns)                                                       }
-                if not(vo_is_funcret in hp.parasym.varoptions) and
-                   ((po_inline in procdefinition.procoptions) or
-                     (not(po_compilerproc in procdefinition.procoptions) and
-                     (hp.parasym.varspez=vs_const))
-                   ) and
-                   { an inlinable value parameter whose implemented body never
-                     takes the parameter's address cannot leak the argument's
-                     address: substituted directly it is only read, and a
-                     non-inlined call passes the address of the caller-side
-                     copy.  Marking it addr_taken here would force the inliner
-                     into exactly that needless private copy. }
-                   not((hp.parasym.varspez=vs_value) and
-                       (procdefinition.typ=procdef) and
-                       tprocdef(procdefinition).is_implemented and
-                       not(tabstractvarsym(hp.parasym).addr_taken)) then
-                  make_not_regable(hp.left,[ra_addr_regable,ra_addr_taken])
-                else
-                  make_not_regable(hp.left,[ra_addr_regable]);
-              hp:=tcallparanode(hp.right);
-            end;
-        end;
-
       var
         para: tcallparanode;
       begin
@@ -6229,6 +6339,252 @@ implementation
       end;
 
 
+    type
+      tinlineparausage = record
+        sym: tsym;
+        count: longint;
+      end;
+      pinlineparausage = ^tinlineparausage;
+
+
+    function inline_tree_count_para(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_false;
+        if (n.nodetype=loadn) and
+           (tloadnode(n).symtableentry=pinlineparausage(arg)^.sym) then
+          begin
+            inc(pinlineparausage(arg)^.count);
+            result:=fen_norecurse_true;
+          end;
+      end;
+
+
+    { A constant goes in directly where the body reads it and it costs nothing
+      to repeat: an immediate operand or an address (an ordinal, a pointer, a
+      string literal), which the body can fold.  A real constant has no
+      immediate form: it is a read of memory wherever it stands - once in
+      front of the body in the register copy, at every place the body reads
+      the formal when substituted - and the body folds it only in an
+      expression of constants.  For a formal the body never reads the direct
+      form only drops the dead move of the register copy.  At -O3 the actual
+      of such a formal is still evaluated (dead values stay below -O4), and
+      the move of a constant is what the peephole puts over the dead read of
+      another actual in the same register (Mov2Nop 5): in every VariantTo*
+      of varutils the inlined VariantTypeMismatch(vType, varByte) kept the
+      move of varByte and dropped the read of vType; without the move the
+      read stays. }
+    function inline_constant_goes_in(call: tcallnode; para: tcallparanode): boolean;
+      var
+        usage: tinlineparausage;
+      begin
+        result:=false;
+        if not is_constnode(para.left) or
+           (para.left.nodetype=realconstn) then
+          exit;
+        usage.sym:=para.parasym;
+        usage.count:=0;
+        foreachnodestatic(tprocdef(call.procdefinition).inlininginfo^.code,
+          @inline_tree_count_para,@usage);
+        result:=usage.count>0;
+      end;
+
+
+    function inline_collect_temps(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_false;
+        if n.nodetype=temprefn then
+          TFPList(arg).Add(ttemprefnode(n).tempinfo);
+      end;
+
+
+    function inline_tree_names_temp(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_false;
+        if (n.nodetype=temprefn) and
+           (TFPList(arg).IndexOf(ttemprefnode(n).tempinfo)>=0) then
+          result:=fen_norecurse_true;
+      end;
+
+
+    { A caller's exception handler cannot observe this compiler-internal
+      temporary.  An un-managed ordinal value therefore stays register-safe
+      when only the caller contains an exception region.  A callee with its
+      own handler may read the parameter after unwinding, so it deliberately
+      keeps the normal stack-backed rule. }
+    function inline_para_temp_regable(para: tcallparanode; pd: tabstractprocdef): boolean;
+      begin
+        result:=tparavarsym(para.parasym).is_regvar(false,
+          is_ordinal(para.parasym.vardef) and
+          assigned(tprocdef(pd).inlininginfo) and
+          not(pi_uses_exceptions in tprocdef(pd).inlininginfo^.flags));
+      end;
+
+
+    { Is the actual a value that only the calling routine reaches: constants,
+      its own locals and value parameters that neither an address nor a
+      nested routine exposes, and its temps whose address nobody holds,
+      combined by operations that neither trap nor call - the exact-local
+      class of the effect model?  The inlined body can change such a value
+      only through an assignable parameter of the same call whose actual
+      names one of its variables. }
+    function inline_actual_is_callers_own(call: tcallnode; para: tcallparanode): boolean;
+      var
+        e,oe: teffect;
+        temps: TFPList;
+        other: tcallparanode;
+        i: longint;
+      begin
+        result:=false;
+        temps:=nil;
+        effect_init(e);
+        try
+          tree_effect(para.left,e);
+          if e.runbounded or e.wunbounded or (e.wclasses<>[]) or
+             (e.ieffects<>[]) or ((e.rclasses-[ac_local])<>[]) then
+            exit;
+          if e.hastemps then
+            begin
+              temps:=TFPList.Create;
+              foreachnodestatic(para.left,@inline_collect_temps,temps);
+            end;
+          other:=tcallparanode(call.left);
+          while assigned(other) do
+            begin
+              if (other<>para) and
+                 (not assigned(other.parasym) or
+                  (other.parasym.varspez in [vs_var,vs_out,vs_constref]) or
+                  (other.parasym.vardef.typ=formaldef)) then
+                begin
+                  effect_init(oe);
+                  try
+                    tree_effect(other.left,oe);
+                    if oe.runbounded then
+                      exit;
+                    if assigned(e.rsyms) and assigned(oe.rsyms) then
+                      for i:=0 to e.rsyms.count-1 do
+                        if oe.rsyms.IndexOf(e.rsyms[i])>=0 then
+                          exit;
+                    if assigned(temps) and
+                       foreachnodestatic(other.left,@inline_tree_names_temp,temps) then
+                      exit;
+                  finally
+                    effect_done(oe);
+                  end;
+                end;
+              other:=tcallparanode(other.right);
+            end;
+          result:=true;
+        finally
+          temps.free;
+          effect_done(e);
+        end;
+      end;
+
+
+    type
+      tinlinewritecount = record
+        pd: tprocdef;
+        count: longint;
+        writer: tnode;
+        para: tparavarsym;
+      end;
+      pinlinewritecount = ^tinlinewritecount;
+
+    function inline_count_writes(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        if ((n.nodetype=forn) and
+            not inline_assign_target_is_callee_local(tfornode(n).left,pinlinewritecount(arg)^.pd)) or
+           (inline_body_mutates_nonlocal(n,pinlinewritecount(arg)^.pd)=fen_norecurse_true) then
+          begin
+            inc(pinlinewritecount(arg)^.count);
+            pinlinewritecount(arg)^.writer:=n;
+          end;
+        result:=fen_false;
+      end;
+
+    function inline_read_outside_writer(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        if n=pinlinewritecount(arg)^.writer then
+          exit(fen_norecurse_false);
+        { A repeated call can observe its preceding iteration's write;
+          exception regions can run hidden cleanup between reads. }
+        if n.nodetype in [forn,whilerepeatn,tryexceptn,tryfinallyn] then
+          exit(fen_norecurse_true);
+        result:=inline_tree_uses_para(n,pinlinewritecount(arg)^.para);
+      end;
+
+    function inline_unstructured_flow(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        if n.nodetype in [goton,labeln,asmn] then
+          result:=fen_norecurse_true
+        else
+          result:=fen_false;
+      end;
+
+    function inline_value_observes_write(pd: tprocdef; para: tparavarsym): boolean;
+      var
+        written: boolean;
+        allwrites: tinlinewritecount;
+
+      function walk(n: tnode; var written: boolean): boolean;
+        var
+          branchwritten: boolean;
+          writes: tinlinewritecount;
+        begin
+          result:=false;
+          if not assigned(n) then exit;
+          case n.nodetype of
+            blockn:
+              exit(walk(tblocknode(n).left,written));
+            statementn:
+              begin
+                while assigned(n) do
+                  begin
+                    if walk(tstatementnode(n).left,written) then exit(true);
+                    n:=tstatementnode(n).right;
+                  end;
+                exit;
+              end;
+            ifn:
+              begin
+                if walk(tifnode(n).left,written) then exit(true);
+                branchwritten:=written;
+                if walk(tifnode(n).right,branchwritten) or walk(tifnode(n).t1,written) then exit(true);
+                written:=written or branchwritten;
+                exit;
+              end;
+            else
+              ;
+          end;
+          writes.pd:=pd;
+          writes.count:=0;
+          writes.writer:=nil;
+          writes.para:=para;
+          foreachnodestatic(n,@inline_count_writes,@writes);
+          if foreachnodestatic(n,@inline_tree_uses_para,para) then
+            result:=written or ((writes.count>0) and not
+              ((writes.count=1) and (writes.writer.nodetype in [calln,assignn]) and
+               not foreachnodestatic(n,@inline_read_outside_writer,@writes)));
+          { A call consumes its pure arguments before it can write; an
+            assignment with pure operands also writes last. A pure expression
+            of that result (Contains testing IndexOf) adds no later read.
+            Other mixed expressions, loops and EH stay conservative. }
+          written:=written or (writes.count>0);
+        end;
+      begin
+        if not foreachnodestatic(pd.inlininginfo^.code,@inline_tree_uses_para,para) then exit(false);
+        if foreachnodestatic(pd.inlininginfo^.code,@inline_unstructured_flow,nil) then
+          begin
+            allwrites.pd:=pd;
+            allwrites.count:=0;
+            foreachnodestatic(pd.inlininginfo^.code,@inline_count_writes,@allwrites);
+            exit(allwrites.count>0);
+          end;
+        written:=false;
+        result:=walk(pd.inlininginfo^.code,written);
+      end;
+
+
     function tcallnode.paraneedsinlinetemp(para: tcallparanode; const pushconstaddr, complexpara: boolean): boolean;
       begin
         { if it's an assignable call-by-reference parameter, we cannot pass a
@@ -6261,11 +6617,28 @@ implementation
           substituting the caller expression would read it again after the
           inlined body changes captured/global storage.  Materialize the ABI
           copy whenever the body can mutate outside its own frame; a pure body
-          still gets the zero-overhead substitution. }
+          still gets the zero-overhead substitution.  An actual the body
+          cannot change (inline_actual_is_callers_own) needs no snapshot, and
+          it goes in directly where the copy would cost: a constant the body
+          reads and can fold (inline_constant_goes_in), and a value whose temp
+          could not be a register - a copy through the frame.  A register copy
+          is kept: it costs nothing, and the register allocator uses it to
+          split the variable's lifetime. }
         if (para.parasym.varspez=vs_const) and
            not pushconstaddr and
+           not ((inline_constant_goes_in(self,para) or
+                 not inline_para_temp_regable(para,procdefinition)) and
+                inline_actual_is_callers_own(self,para)) and
            foreachnodestatic(tprocdef(procdefinition).inlininginfo^.code,
              @inline_body_mutates_nonlocal,pointer(procdefinition)) then
+          exit(true);
+
+        { An ordinary value parameter has the same snapshot contract. Only a
+          read after a possible mutation needs this extra copy: forwarding
+          helpers consume their arguments before calling the mutating target. }
+        if (para.parasym.varspez=vs_value) and
+           not inline_actual_is_callers_own(self,para) and
+           inline_value_observes_write(tprocdef(procdefinition),para.parasym) then
           exit(true);
 
         { We don't need temps for parameters that are already temps, except if
@@ -6368,6 +6741,211 @@ implementation
       end;
 
 
+    type
+      tinlinewrittenactual = record
+        sym: tsym;
+        tempinfo: ptempinfo;
+      end;
+      pinlinewrittenactual = ^tinlinewrittenactual;
+
+
+    function inline_tree_names_var(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_false;
+        if ((n.nodetype=loadn) and
+            assigned(pinlinewrittenactual(arg)^.sym) and
+            (tloadnode(n).symtableentry=pinlinewrittenactual(arg)^.sym)) or
+           ((n.nodetype=temprefn) and
+            assigned(pinlinewrittenactual(arg)^.tempinfo) and
+            (ttemprefnode(n).tempinfo=pinlinewrittenactual(arg)^.tempinfo)) then
+          result:=fen_norecurse_true;
+      end;
+
+
+
+    { Element of a static array in the frame (or in a static variable),
+      selected by constants and register variables of the calling routine, as
+      the actual of a var/out/constref parameter of an inlined call.
+
+      Its address is the same wherever the inlined body evaluates it: nothing
+      the body can reach writes to a register variable of the caller - the
+      variable's address was never taken and no nested routine sees it, either
+      would have cleared varregable.  Two ways are left in which the body
+      itself assigns such a variable: it is another assignable actual of the
+      same call, substituted as directly (checked here), or it is the
+      destination that receives the function result directly
+      (funcret_can_be_reused refuses a destination that occurs in an actual).
+
+      When the formal occurs once, the expression is substituted as it stands
+      instead of taking its address into a temp in front of the body.  Reusing
+      the formal would duplicate the address expression at every occurrence;
+      in that case the single address temp is cheaper.  That temp lives across
+      every call the body makes and takes a callee-saved register for it: with
+      GetMem(Pointers[J],Size) inlined (RTL at -O3) the SysV side of x86-64,
+      which has five such registers against seven, spilled the loop's
+      accumulator - Pulse repairs ring-*, 1.10 on the Xeon; substituted, the
+      store is "mov %rax,(%rsp,%r12,8)" after the call and costs nothing.
+      Only an element the addressing mode scales (1, 2, 4, 8 bytes) or a
+      constant index, without a range check: every use is then one operand. }
+    function inline_actual_address_is_fixed(call: tcallnode; para: tcallparanode): boolean;
+
+      function written_by_other_actual(n: tnode): boolean;
+        var
+          other: tcallparanode;
+          wanted: tinlinewrittenactual;
+        begin
+          result:=false;
+          wanted.sym:=nil;
+          wanted.tempinfo:=nil;
+          if n.nodetype=loadn then
+            wanted.sym:=tloadnode(n).symtableentry
+          else
+            wanted.tempinfo:=ttemprefnode(n).tempinfo;
+          other:=tcallparanode(call.left);
+          while assigned(other) do
+            begin
+              if (other<>para) and
+                 (not assigned(other.parasym) or
+                  (other.parasym.varspez in [vs_var,vs_out])) and
+                 foreachnodestatic(other.left,@inline_tree_names_var,@wanted) then
+                exit(true);
+              other:=tcallparanode(other.right);
+            end;
+        end;
+
+      function index_is_fixed(n: tnode): boolean;
+        var
+          sym: tsym;
+        begin
+          result:=false;
+          while n.nodetype=typeconvn do
+            begin
+              if not(ttypeconvnode(n).convtype in [tc_equal,tc_int_2_int]) or
+                 (n.localswitches*[cs_check_range,cs_check_overflow]<>[]) then
+                exit;
+              n:=ttypeconvnode(n).left;
+            end;
+          case n.nodetype of
+            ordconstn:
+              result:=true;
+            temprefn:
+              result:=(ti_may_be_in_reg in ttemprefnode(n).tempflags) and
+                not(ti_addr_taken in ttemprefnode(n).tempflags) and
+                not written_by_other_actual(n);
+            loadn:
+              begin
+                sym:=tloadnode(n).symtableentry;
+                result:=(sym.typ in [localvarsym,paravarsym]) and
+                  not assigned(tloadnode(n).left) and
+                  assigned(tloadnode(n).symtable) and
+                  (tloadnode(n).symtable.symtablelevel=current_procinfo.procdef.parast.symtablelevel) and
+                  not tloadnode(n).is_addr_param_load and
+                  not tabstractvarsym(sym).addr_taken and
+                  (tabstractvarsym(sym).varregable in [vr_intreg,vr_mmreg,vr_fpureg]) and
+                  not written_by_other_actual(n);
+              end;
+            else
+              ;
+          end;
+        end;
+
+      var
+        n: tnode;
+        sym: tsym;
+        elements: boolean;
+        usage: tinlineparausage;
+      begin
+        result:=false;
+        if not(para.parasym.varspez in [vs_var,vs_out,vs_constref]) or
+           not assigned(current_procinfo) then
+          exit;
+        usage.sym:=para.parasym;
+        usage.count:=0;
+        foreachnodestatic(tprocdef(call.procdefinition).inlininginfo^.code,
+          @inline_tree_count_para,@usage);
+        elements:=false;
+        n:=para.left;
+        while assigned(n) do
+          case n.nodetype of
+            typeconvn:
+              begin
+                if ttypeconvnode(n).convtype<>tc_equal then
+                  exit;
+                n:=ttypeconvnode(n).left;
+              end;
+            subscriptn:
+              begin
+                if is_implicit_pointer_object_type(tsubscriptnode(n).left.resultdef) or
+                   is_bitpacked_access(n) then
+                  exit;
+                n:=tsubscriptnode(n).left;
+              end;
+            vecn:
+              begin
+                { A decomposed inline address keeps its array pointer in an
+                  immutable raw temp. Element stores cannot change that base. }
+                if is_dynamic_array(tvecnode(n).left.resultdef) and
+                   not is_packed_array(tvecnode(n).left.resultdef) and
+                   (tvecnode(n).left.nodetype=typeconvn) and
+                   (ttypeconvnode(tvecnode(n).left).left.nodetype=temprefn) and
+                   (ti_readonly in ttemprefnode(ttypeconvnode(tvecnode(n).left).left).tempflags) and
+                   not(cs_check_range in n.localswitches) and
+                   (tarraydef(tvecnode(n).left.resultdef).elesize in [1,2,4,8]) then
+                  exit(index_is_fixed(tvecnode(n).right));
+                if (tvecnode(n).left.resultdef.typ<>arraydef) or
+                   is_special_array(tvecnode(n).left.resultdef) or
+                   is_packed_array(tvecnode(n).left.resultdef) or
+                   (cs_check_range in n.localswitches) or
+                   not index_is_fixed(tvecnode(n).right) then
+                  exit;
+                if (tvecnode(n).right.nodetype<>ordconstn) and
+                   not(tarraydef(tvecnode(n).left.resultdef).elesize in [1,2,4,8]) then
+                  exit;
+                elements:=true;
+                n:=tvecnode(n).left;
+              end;
+            temprefn:
+              exit(elements and (usage.count=1) and
+                not(ti_may_be_in_reg in ttemprefnode(n).tempflags));
+            loadn:
+              begin
+                sym:=tloadnode(n).symtableentry;
+                exit(elements and (usage.count=1) and
+                  not assigned(tloadnode(n).left) and
+                  (sym.typ in [localvarsym,paravarsym,staticvarsym]) and
+                  not((sym.typ=staticvarsym) and
+                      (vo_is_thread_var in tstaticvarsym(sym).varoptions)) and
+                  ((sym.typ=staticvarsym) or
+                   (assigned(tloadnode(n).symtable) and
+                    (tloadnode(n).symtable.symtablelevel=current_procinfo.procdef.parast.symtablelevel))));
+              end;
+            else
+              exit;
+          end;
+      end;
+
+
+    type
+      tconstresultrelease = record
+        info: ptempinfo;
+        creation,release: pnode;
+      end;
+      pconstresultrelease = ^tconstresultrelease;
+
+    function find_const_result_lifetime(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_false;
+        if (n.nodetype in [tempcreaten,tempdeleten]) and
+           (ttempbasenode(n).tempinfo=pconstresultrelease(arg)^.info) then
+          begin
+            if n.nodetype=tempcreaten then
+              pconstresultrelease(arg)^.creation:=@n
+            else if ttempdeletenode(n).release_to_normal then
+              pconstresultrelease(arg)^.release:=@n;
+            result:=fen_norecurse_true;
+          end;
+      end;
+
     procedure tcallnode.getinlineparatempinfo(para: tcallparanode; out complexpara, pushconstaddr: boolean);
       var
         realtarget: tnode;
@@ -6397,7 +6975,9 @@ implementation
             not((realtarget.nodetype=loadn) and tloadnode(realtarget).is_addr_param_load) and
             not(realtarget.nodetype=realconstn)
            )
-          );
+          ) and
+          { nor for an array element with an immutable address }
+          not inline_actual_address_is_fixed(self,para);
       end;
 
 
@@ -6406,8 +6986,52 @@ implementation
         tempnode: ttempcreatenode;
         pushconstaddr,
         regabletemp: boolean;
+        producer: tcallnode;
+        heldresult: tconstresultrelease;
       begin
         result:=false;
+        { A by-reference const argument can use the function result's own
+          storage. Move only its storage release past the inline consumer;
+          copying an aggregate carrier here has no assignment semantics. }
+        if (para.parasym.varspez=vs_const) and
+           paramanager.push_addr_param_for_proc(vs_const,para.parasym.vardef,procdefinition) and
+           (para.left.nodetype=calln) and
+           equal_defs(para.parasym.vardef,para.left.resultdef) then
+          begin
+            producer:=tcallnode(para.left);
+            if assigned(producer.funcretnode) and
+               (producer.funcretnode.nodetype=temprefn) and
+               (producer.funcretnode.expectloc in [LOC_REFERENCE,LOC_CREFERENCE]) and
+               assigned(producer.callinitblock) and assigned(producer.callcleanupblock) then
+              begin
+                heldresult.info:=ttemprefnode(producer.funcretnode).tempinfo;
+                heldresult.creation:=nil;
+                heldresult.release:=nil;
+                if (heldresult.info^.temptype=tt_persistent) and
+                   not(ti_reference in ttemprefnode(producer.funcretnode).tempflags) and
+                   foreachnodestatic(tnode(producer.callinitblock),@find_const_result_lifetime,@heldresult) and
+                   foreachnodestatic(tnode(producer.callcleanupblock),@find_const_result_lifetime,@heldresult) and
+                   assigned(heldresult.creation) and assigned(heldresult.release) then
+                  begin
+                    para.left:=producer.funcretnode.getcopy;
+                    { The consumer borrows the result. Its assignments must
+                      copy the value, not consume the producer's owner. }
+                    exclude(para.left.flags,nf_is_funcret);
+                    addstatement(inlinecleanupstatement,heldresult.release^);
+                    heldresult.release^:=cnothingnode.create;
+                    { Keep the producer's lifecycle in the enclosing block:
+                      later inlining must not copy its result away from the
+                      references substituted into this consumer. }
+                    addstatement(inlineinitstatement,producer.callinitblock);
+                    producer.callinitblock:=nil;
+                    addstatement(inlineinitstatement,producer);
+                    addstatement(inlineinitstatement,producer.callcleanupblock);
+                    producer.callcleanupblock:=nil;
+                    complexpara:=false;
+                    exit(true);
+                  end;
+              end;
+          end;
         { determine how a parameter is passed to the inlined body
           There are three options:
             - insert the node tree of the callparanode directly
@@ -6429,16 +7053,7 @@ implementation
           with the temp everywhere in the function                  }
         if paraneedsinlinetemp(para,pushconstaddr,complexpara) then
           begin
-            { A caller's exception handler cannot observe this compiler-internal
-              temporary.  An un-managed ordinal value therefore stays register-
-              safe when only the caller contains an exception region.  A callee
-              with its own handler may read the parameter after unwinding, so it
-              deliberately keeps the normal stack-backed rule. }
-            regabletemp:=tparavarsym(para.parasym).is_regvar(false,
-              is_ordinal(para.parasym.vardef) and
-              assigned(tprocdef(procdefinition).inlininginfo) and
-              not(pi_uses_exceptions in
-                tprocdef(procdefinition).inlininginfo^.flags));
+            regabletemp:=inline_para_temp_regable(para,procdefinition);
             tempnode:=ctempcreatenode.create(para.parasym.vardef,para.parasym.vardef.size,
               tt_persistent,regabletemp);
             if inline_constant_needs_runtime_temp(para,pushconstaddr,procdefinition) and
@@ -6721,7 +7336,54 @@ implementation
         tempnode: ttempcreatenode;
         paraaddr: taddrnode;
         isfuncretnode : boolean;
+        base,index: ttempcreatenode;
+        vec: tvecnode;
+        e: teffect;
       begin
+        { Preserve the by-reference snapshot without making a full address
+          register live throughout the body. A scaled operand can use the
+          captured pointer and index directly at each load or store. }
+        if (target_info.cpu=systems.cpu_x86_64) and
+           (para.parasym.varspez in [vs_var,vs_out,vs_constref]) and
+           (para.left.nodetype=vecn) and
+           is_dynamic_array(tvecnode(para.left).left.resultdef) and
+           not is_packed_array(tvecnode(para.left).left.resultdef) and
+           (tarraydef(tvecnode(para.left).left.resultdef).elesize in [1,2,4,8]) and
+           not(cs_check_range in para.left.localswitches) and
+           (tvecnode(para.left).right.nodetype in [ordconstn,loadn,temprefn,typeconvn]) then
+          begin
+            vec:=tvecnode(para.left);
+            effect_init(e);
+            try
+              tree_effect(vec.left,e);
+              tree_effect(vec.right,e);
+              if not e.wunbounded and (e.wclasses=[]) and not assigned(e.wsyms) and
+                 (e.ieffects-[ie_trap]=[]) then
+                begin
+                  base:=ctempcreatenode.create(voidpointertype,voidpointertype.size,tt_persistent,true);
+                  base.includetempflag(ti_readonly);
+                  addstatement(inlineinitstatement,base);
+                  addstatement(inlinecleanupstatement,ctempdeletenode.create(base));
+                  addstatement(inlineinitstatement,cassignmentnode.create(ctemprefnode.create(base),
+                    ctypeconvnode.create_internal(vec.left,voidpointertype)));
+                  vec.left:=ctypeconvnode.create_internal(ctemprefnode.create(base),vec.left.resultdef);
+                  if vec.right.nodetype<>ordconstn then
+                    begin
+                      index:=ctempcreatenode.create(vec.right.resultdef,vec.right.resultdef.size,tt_persistent,true);
+                      index.includetempflag(ti_readonly);
+                      addstatement(inlineinitstatement,index);
+                      addstatement(inlinecleanupstatement,ctempdeletenode.create(index));
+                      addstatement(inlineinitstatement,cassignmentnode.create(ctemprefnode.create(index),vec.right));
+                      vec.right:=ctemprefnode.create(index);
+                    end;
+                  exclude(vec.transientflags,tnf_pass1_done);
+                  firstpass(para.left);
+                  exit;
+                end;
+            finally
+              effect_done(e);
+            end;
+          end;
         ptrtype:=cpointerdef.getreusable(para.left.resultdef);
         tempnode:=ctempcreatenode.create(ptrtype,ptrtype.size,tt_persistent,true);
         addstatement(inlineinitstatement,tempnode);
@@ -6754,6 +7416,21 @@ implementation
       end;
 
 
+    type
+      ttempreads = record
+        tempinfo : ptempinfo;
+        count : longint;
+      end;
+      ptempreads = ^ttempreads;
+
+    function CountTmpReads(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        Result:=fen_false;
+        if (n.nodetype=temprefn) and (ttemprefnode(n).tempinfo=ptempreads(arg)^.tempinfo) then
+          inc(ptempreads(arg)^.count);
+      end;
+
+
     function tcallnode.optimize_funcret_assignment(inlineblock: tblocknode): tnode;
       var
         stmts : tfplist;
@@ -6763,11 +7440,24 @@ implementation
         destdef : tdef;
         functempinfo : ptempinfo;
         srcpara : tcallparanode;
+        srcaddr : taddrnode;
         srcwrapped : boolean;
         matchedstmt,
         editstmt : tstatementnode;
+        createindex,
         assignindex,
         i : longint;
+
+      { how often the source reads the temp that a deletion ends }
+      function srcreads(delete: tnode): longint;
+        var
+          reads : ttempreads;
+        begin
+          reads.tempinfo:=ttempdeletenode(delete).tempinfo;
+          reads.count:=0;
+          foreachnodestatic(srcnode,@CountTmpReads,@reads);
+          result:=reads.count;
+        end;
 
       { The inlined tree nests statements: the callee body and the call
         init/cleanup parts each stay their own non-scoping block node.
@@ -6789,19 +7479,75 @@ implementation
             end;
         end;
 
+      { Removing a managed result assignment also removes the reference it
+        acquired.  That is only a transfer when the source already denotes a
+        function-result owner (or immortal string storage).  A load, field,
+        element, ordinary temp, parameter or captured value is borrowed and
+        must keep the result temp: a later const consumer may invalidate the
+        source before it has finished reading the result. }
+      function source_owns_value(src: tnode): boolean;
+        begin
+          while src.nodetype=typeconvn do
+            src:=ttypeconvnode(src).left;
+          result:=(nf_is_funcret in src.flags) or
+                  (src.nodetype=stringconstn);
+        end;
+
       { A managed assignment to the result temp has already been lowered to a
         helper call when this optimization runs.  Recognize the exact lowered
         shape helper(<source>, @<result temp>), plus the leading rtti
         parameter of the dynamic-array helper, and hand back the source
         expression.  Each helper only stores <source> into the temp and
         rebalances reference counts, so eliminating the temp together with
-        the call is the same rewrite as eliminating a plain assignment. }
+        the call is the same rewrite as eliminating a plain assignment.
+        fpc_copy_proc(@<source>, @<result temp>, rtti) copies a record or a
+        static array with managed fields the same way, field by field, as
+        long as that runs no code of the program; otherwise the copy, the
+        temp's initialization and its finalization are calls of that code. }
       function matchloweredassign(call: tcallnode; out src: tnode): boolean;
         var
           para : tcallparanode;
           expr : tnode;
           destexpr : tnode;
           helper : string;
+          byaddr : boolean;
+
+        { a field-by-field copy runs code of the program through the
+          management operators of a record, the _AddRef/_Release of an
+          interface and the copy handler of a variant }
+        function copy_runs_no_user_code(def: tdef): boolean;
+          var
+            i : longint;
+            sym : tsym;
+          begin
+            while (def.typ=arraydef) and not is_special_array(def) do
+              def:=tarraydef(def).elementdef;
+            case def.typ of
+              recorddef:
+                begin
+                  result:=false;
+                  if trecordsymtable(trecorddef(def).symtable).managementoperators<>[] then
+                    exit;
+                  for i:=0 to trecorddef(def).symtable.SymList.Count-1 do
+                    begin
+                      sym:=tsym(trecorddef(def).symtable.SymList[i]);
+                      if (sym.typ=fieldvarsym) and
+                         not(sp_static in sym.symoptions) and
+                         not copy_runs_no_user_code(tfieldvarsym(sym).vardef) then
+                        exit;
+                    end;
+                  result:=true;
+                end;
+              objectdef:
+                result:=not is_interfacecom_or_dispinterface(def) and
+                  not is_object(def);
+              variantdef:
+                result:=false;
+              else
+                result:=true;
+            end;
+          end;
+
         begin
           result:=false;
           src:=nil;
@@ -6819,13 +7565,16 @@ implementation
              (helper<>'FPC_ANSISTR_ASSIGN') and
              (helper<>'FPC_ANSISTR_ASSIGN_GLOBAL') and
              (helper<>'FPC_WIDESTR_ASSIGN') and
-             (helper<>'FPC_DYNARRAY_ASSIGN') then
+             (helper<>'FPC_DYNARRAY_ASSIGN') and
+             (helper<>'FPC_COPY_PROC') then
             exit;
+          byaddr:=helper='FPC_COPY_PROC';
           para:=tcallparanode(call.left);
           while assigned(para) do
             begin
               expr:=para.left;
-              { the typeinfo parameter of fpc_dynarray_assign }
+              { the typeinfo parameter of fpc_dynarray_assign and
+                fpc_copy_proc }
               if (expr.nodetype=addrn) and
                  (taddrnode(expr).left.nodetype=rttin) then
                 begin
@@ -6833,10 +7582,17 @@ implementation
                   continue;
                 end;
               { the lowering wrapped both arguments in an internal
-                void-pointer conversion; the destination must be exactly the
-                result temp under it }
+                void-pointer conversion (fpc_copy_proc: their addresses,
+                where the first pass drops the conversion); the destination
+                must be exactly the result temp under it }
               while expr.nodetype=typeconvn do
                 expr:=ttypeconvnode(expr).left;
+              if byaddr and (expr.nodetype=addrn) then
+                begin
+                  expr:=taddrnode(expr).left;
+                  while expr.nodetype=typeconvn do
+                    expr:=ttypeconvnode(expr).left;
+                end;
               if (expr.nodetype=temprefn) and
                  (ttemprefnode(expr).tempinfo=functempinfo) then
                 begin
@@ -6851,6 +7607,7 @@ implementation
                     exit;
                   srcpara:=para;
                   srcwrapped:=false;
+                  srcaddr:=nil;
                   expr:=para.left;
                   if (expr.nodetype=typeconvn) and
                      (nf_internal in expr.flags) and
@@ -6859,12 +7616,24 @@ implementation
                       srcwrapped:=true;
                       expr:=ttypeconvnode(expr).left;
                     end;
+                  if byaddr then
+                    begin
+                      if expr.nodetype<>addrn then
+                        exit;
+                      srcaddr:=taddrnode(expr);
+                      expr:=srcaddr.left;
+                    end;
                   src:=expr;
                 end;
               para:=tcallparanode(para.right);
             end;
           result:=assigned(destexpr) and assigned(src) and
-                  (nf_is_funcret in destexpr.flags);
+                  (nf_is_funcret in destexpr.flags) and
+                  (not byaddr or copy_runs_no_user_code(destexpr.resultdef));
+          if result and
+             not source_owns_value(src) and
+             not funcret_borrow then
+            result:=false;
           { the _global helper also materializes a Ref<0 source (dvl-0031).
             Dropping it is the same rewrite only when the source provably
             cannot hold a shared constant: a literal, a string temp or a
@@ -6895,12 +7664,39 @@ implementation
         try
           collectstatements(tstatementnode(inlineblock.left));
 
-          { tempcreatenode for the function result }
-          if (stmts.count<4) or
-             (tstatementnode(stmts[0]).left.nodetype<>tempcreaten) or
-             not(nf_is_funcret in tstatementnode(stmts[0]).left.flags) then
+          { the function result as the final value, released to normal
+            right before it }
+          if stmts.count<4 then
             exit;
-          functempinfo:=ttempcreatenode(tstatementnode(stmts[0]).left).tempinfo;
+          checknode:=tstatementnode(stmts[stmts.count-1]).left;
+          if (checknode.nodetype<>temprefn) or
+             not(nf_is_funcret in checknode.flags) then
+            exit;
+          functempinfo:=ttemprefnode(checknode).tempinfo;
+          checknode:=tstatementnode(stmts[stmts.count-2]).left;
+          if (checknode.nodetype<>tempdeleten) or
+             (ttempdeletenode(checknode).tempinfo<>functempinfo) then
+            exit;
+
+          { tempcreatenode for the function result.  A method pointer that
+            calls was loaded into a temp of the call's init block before the
+            result temp was created (load_in_temp), so it need not be first. }
+          createindex:=-1;
+          for i:=0 to stmts.count-3 do
+            begin
+              checknode:=tstatementnode(stmts[i]).left;
+              if (checknode.nodetype=tempcreaten) and
+                 (ttempcreatenode(checknode).tempinfo=functempinfo) then
+                begin
+                  createindex:=i;
+                  break;
+                end;
+              if has_node_of_type(checknode,[exitn,asmn]) then
+                exit;
+            end;
+          if (createindex<0) or
+             not(nf_is_funcret in tstatementnode(stmts[createindex]).left.flags) then
+            exit;
 
           { The result assignment may be preceded by inlined statements that
             do not reference the result temp, e.g. the range check of a
@@ -6914,8 +7710,9 @@ implementation
           srcnode:=nil;
           destdef:=nil;
           srcpara:=nil;
+          srcaddr:=nil;
           srcwrapped:=false;
-          for i:=1 to stmts.count-1 do
+          for i:=createindex+1 to stmts.count-3 do
             begin
               checknode:=tstatementnode(stmts[i]).left;
               if checknode.nodetype=assignn then
@@ -6969,19 +7766,46 @@ implementation
              not assigned(destdef) then
             exit;
 
-          { tempdelete to normal of the function result, directly after the
-            assignment }
-          if (assignindex+2<>stmts.count-1) or
-             (tstatementnode(stmts[assignindex+1]).left.nodetype<>tempdeleten) or
-             (ttempdeletenode(tstatementnode(stmts[assignindex+1]).left).tempinfo<>functempinfo) then
+          { Passing the result's address must not expose the storage from
+            which the function copied it: a const consumer can change that
+            storage before reading its argument. Value arguments and immediate
+            reads still borrow; a result that already owns its storage can
+            transfer it. This also applies to records without managed fields. }
+          if funcret_byref and not funcret_borrow and
+             not source_owns_value(srcnode) then
             exit;
 
-          { the function result once more, as the final value }
-          checknode:=tstatementnode(stmts[stmts.count-1]).left;
-          if (checknode.nodetype<>temprefn) or
-             not(nf_is_funcret in checknode.flags) or
-             (ttemprefnode(checknode).tempinfo<>functempinfo) then
+          { A result without finalization keeps the shape in which the block
+            creates its temp first and releases it right after the
+            assignment: that temp is a register the block frees where the
+            source's temps die, and reading the source at the consumer
+            instead only lengthens their lives. }
+          if not is_managed_type(destdef) and
+             ((createindex<>0) or (assignindex<>stmts.count-3)) then
             exit;
+
+          { Between the assignment and the release of the result temp the
+            block only deletes its other temps: of the method pointer, of the
+            parameters.  The source may read one of them - Self of a getter
+            whose object another call returned.  The final value then carries
+            that temp to the consumer, which reads it once, so its deletion
+            releases it to normal like the result temp's.  Not handed over:
+            a temp with finalization, and any temp to a source with a call:
+            the inliner puts a temp argument into the body as it stands, and
+            the body may read its parameter again (OwnerOf(Self).FName). }
+          for i:=assignindex+1 to stmts.count-3 do
+            begin
+              checknode:=tstatementnode(stmts[i]).left;
+              if (checknode.nodetype<>tempdeleten) or
+                 (srcreads(checknode)>1) or
+                 ((srcreads(checknode)=1) and
+                  (is_managed_type(ttempdeletenode(checknode).tempinfo^.typedef) or
+                   (ti_reference in ttempdeletenode(checknode).tempflags) or
+                   (ttempdeletenode(checknode).tempinfo^.temptype<>tt_persistent) or
+                   has_node_of_type(srcnode,[calln]))) then
+                exit;
+            end;
+
           { The value of a statement block was historically always a temp
             reference, so consumers only expect register or memory locations
             from it: the boolean jump lowering, for one, has no constant,
@@ -7000,6 +7824,8 @@ implementation
           matchedstmt:=tstatementnode(stmts[assignindex]);
           if matchedstmt.left.nodetype=assignn then
             tassignmentnode(matchedstmt.left).right:=nil
+          else if assigned(srcaddr) then
+            srcaddr.left:=nil
           else if srcwrapped then
             ttypeconvnode(srcpara.left).left:=nil
           else
@@ -7007,10 +7833,14 @@ implementation
           matchedstmt.left.free;
           matchedstmt.left:=cnothingnode.create;
 
-          editstmt:=tstatementnode(stmts[0]);
+          for i:=assignindex+1 to stmts.count-3 do
+            if srcreads(tstatementnode(stmts[i]).left)=1 then
+              ttempdeletenode(tstatementnode(stmts[i]).left).release_to_normal:=true;
+
+          editstmt:=tstatementnode(stmts[createindex]);
           editstmt.left.free;
           editstmt.left:=cnothingnode.create;
-          editstmt:=tstatementnode(stmts[assignindex+1]);
+          editstmt:=tstatementnode(stmts[stmts.count-2]);
           editstmt.left.free;
           editstmt.left:=cnothingnode.create;
           editstmt:=tstatementnode(stmts[stmts.count-1]);

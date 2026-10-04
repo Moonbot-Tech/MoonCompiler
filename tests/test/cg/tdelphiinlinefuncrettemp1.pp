@@ -35,6 +35,10 @@ type
     property Items[AIndex: NativeInt]: TIntArray read GetItem; default;
   end;
 
+var
+  GlobalText: UnicodeString;
+  GlobalValues: TIntArray;
+
 procedure TStrStore.Add(const AValue: UnicodeString);
 begin
   If FCount = Length(FItems) then
@@ -109,6 +113,58 @@ begin
     Result := Result + UInt64(Length(Store[J]));
 end;
 
+function SumStringHighs(Store: TStrStore): Int64;
+var
+  J: NativeInt;
+begin
+  Result := 0;
+  for J := 0 to Store.FCount - 1 do
+    Result := Result + High(Store[J]);
+end;
+
+function SumArrayHighs(Store: TArrStore): Int64;
+var
+  J: NativeInt;
+begin
+  Result := 0;
+  for J := 0 to Store.FCount - 1 do
+    Result := Result + High(Store[J]);
+end;
+
+function GetGlobalText: UnicodeString; inline;
+begin
+  Result := GlobalText;
+end;
+
+function GetGlobalValues: TIntArray; inline;
+begin
+  Result := GlobalValues;
+end;
+
+function MakeArr(const AValues: array of Integer): TIntArray; forward;
+
+procedure ConsumeText(const Value: UnicodeString); noinline;
+begin
+  GlobalText := '';
+  if Value <> StringOfChar('T', 128) then
+    Halt(14);
+end;
+
+procedure ConsumeValues(const Value: TIntArray); noinline;
+begin
+  GlobalValues := nil;
+  if (Length(Value) <> 3) or (Value[2] <> 30) then
+    Halt(15);
+end;
+
+procedure CheckEscapingBorrowedResults; noinline;
+begin
+  GlobalText := StringOfChar('T', 128);
+  ConsumeText(GetGlobalText);
+  GlobalValues := MakeArr([10, 20, 30]);
+  ConsumeValues(GetGlobalValues);
+end;
+
 function MakeArr(const AValues: array of Integer): TIntArray;
 var
   I: Integer;
@@ -135,6 +191,8 @@ begin
     Length path in the borrowed form }
   If SumLengths(Store, 1000) <> 20000 then
     Halt(1);
+  If SumStringHighs(Store) <> 20 then
+    Halt(12);
 
   If Store[0] + Store[1] <> 'alphabeta' then
     Halt(2);
@@ -166,10 +224,13 @@ begin
   ArrStore.Add(MakeArr([4, 5]));
   If SumArrayLengths(ArrStore) <> 5 then
     Halt(9);
+  If SumArrayHighs(ArrStore) <> 3 then
+    Halt(13);
   If ArrStore[1][1] <> 5 then
     Halt(10);
   Arr := ArrStore[0];
   FreeAndNil(ArrStore);
   If (Length(Arr) <> 3) or (Arr[2] <> 3) then
     Halt(11);
+  CheckEscapingBorrowedResults;
 end.

@@ -36,7 +36,7 @@ unit optcall;
   implementation
 
     uses
-      cclasses,
+      cutils,cclasses,
       globtype,
       verbose,globals,
       defutil,defcmp,
@@ -46,8 +46,10 @@ unit optcall;
       nutils,
       fmodule,
       pass_1,
+      compinnr,
       symtable,
-      nbas,ncal,nflw,nld;
+      nbas,ncal,ncnv,nflw,ninl,nld,nmem,
+      optloop;
 
     { this procedure removes the user code flag because it prevents optimizations }
     function removeusercodeflag(var n : tnode; arg : pointer) : foreachnoderesult;
@@ -112,53 +114,183 @@ unit optcall;
       end;
 
 
-    function inline_expression_may_need_managed_temp(var n: tnode;
-      arg: pointer): foreachnoderesult;
+    function clear_funcret_borrow(var n: tnode; arg: pointer): foreachnoderesult;
       begin
-        { A value-producing managed expression in a procedure body may acquire
-          a temporary only after the body has been copied into its caller.
-          Detect that possibility before inlining: otherwise the late
-          temporary asks for cleanup after the caller's frame layout has
-          already been fixed. }
-        if assigned(n.resultdef) and is_managed_type(n.resultdef) and
-           not(n.nodetype in [loadn,stringconstn,temprefn]) then
-          result:=fen_norecurse_true
-        else
-          result:=fen_false;
+        result:=fen_false;
+        if n.nodetype=calln then
+          begin
+            tcallnode(n).funcret_borrow:=false;
+            tcallnode(n).funcret_byref:=false;
+          end;
       end;
 
 
-    function inline_body_has_used_managed_local(var n: tnode;
-      arg: pointer): foreachnoderesult;
-      begin
-        { createinlineparas turns every referenced ordinary managed local into
-          a caller temp before the copied body is optimized.  That temp already
-          provides the cleanup frame required by any later managed expression
-          exposed inside the same body. }
-        if (n.nodetype=loadn) and
-           (tloadnode(n).symtableentry.typ=localvarsym) and
-           is_managed_type(tabstractnormalvarsym(
-             tloadnode(n).symtableentry).vardef) then
-          result:=fen_norecurse_true
-        else
-          result:=fen_false;
-      end;
-
-
-    function call_has_delphi_assign_value_para(callnode: tcallnode): boolean;
+    { The call whose value n is, reached through parts that run no code and
+      keep no pointer into the value: a conversion the compiler made or one of
+      a value that is not managed, an element or a character selected by an
+      index without calls or assignments, a field. }
+    function projected_call(n: tnode): tcallnode;
       var
-        para: tcallparanode;
+        bottom: tnode;
+      begin
+        result:=nil;
+        bottom:=n;
+        while bottom.nodetype in [typeconvn,vecn,subscriptn] do
+          bottom:=tunarynode(bottom).left;
+        if bottom.nodetype<>calln then
+          exit;
+        while n<>bottom do
+          begin
+            case n.nodetype of
+              typeconvn:
+                if not(nf_internal in n.flags) and
+                   is_managed_type(ttypeconvnode(n).left.resultdef) then
+                  exit;
+              vecn:
+                if might_have_sideeffects(tvecnode(n).right,[]) then
+                  exit;
+              else
+                ;
+            end;
+            n:=tunarynode(n).left;
+          end;
+        result:=tcallnode(bottom);
+      end;
+
+
+    { The helpers of the string types (compare, assign, concatenate, convert,
+      Copy) and the dynamic-array assignment, which takes its reference to the
+      source before it releases anything, run no code of the program. }
+    function helper_reads_only(call: tcallnode): boolean;
+      var
+        helper: string;
       begin
         result:=false;
-        para:=tcallparanode(callnode.left);
-        while assigned(para) do
-          begin
-            if (para.parasym.typ=paravarsym) and
-               (para.parasym.varspez=vs_value) and
-               is_delphi_assign_record(para.parasym.vardef) then
-              exit(true);
-            para:=tcallparanode(para.right);
-          end;
+        if not assigned(call.procdefinition) or
+           (call.procdefinition.typ<>procdef) or
+           not(po_compilerproc in call.procdefinition.procoptions) then
+          exit;
+        helper:=upper(tprocdef(call.procdefinition).procsym.name);
+        result:=(helper='FPC_DYNARRAY_ASSIGN') or
+                (copy(helper,1,12)='FPC_ANSISTR_') or
+                (copy(helper,1,12)='FPC_WIDESTR_') or
+                (copy(helper,1,15)='FPC_UNICODESTR_');
+      end;
+
+
+    { An inlined call may hand its source to the consumer of its value instead
+      of a reference of its own (tcallnode.funcret_borrow) when the consumer
+      finishes reading the value before any code can run that could change the
+      source: an operator, Length/High, the step of Inc/Dec, a store without a
+      helper and a helper that only reads, while the other operands run no code
+      either.  Everything else - a call of a routine above all, a pointer to
+      the value, an operand that calls or assigns - keeps the reference. }
+    function mark_funcret_borrow(var n: tnode; arg: pointer): foreachnoderesult;
+
+      { Follow storage contained in the returned value, stopping at an
+        implicit dereference: the address of an object's field or a dynamic
+        array element is not the address of the returned pointer itself. }
+      procedure use_address(value: tnode);
+        begin
+          while assigned(value) do
+            begin
+              case value.nodetype of
+                calln:
+                  begin
+                    tcallnode(value).funcret_byref:=true;
+                    exit;
+                  end;
+                typeconvn:
+                  if ttypeconvnode(value).convtype<>tc_equal then
+                    exit;
+                subscriptn:
+                  if is_implicit_pointer_object_type(tsubscriptnode(value).left.resultdef) then
+                    exit;
+                vecn:
+                  if not(((tvecnode(value).left.resultdef.typ=arraydef) and
+                           not is_special_array(tvecnode(value).left.resultdef)) or
+                          is_shortstring(tvecnode(value).left.resultdef)) then
+                    exit;
+                else
+                  exit;
+              end;
+              value:=tunarynode(value).left;
+            end;
+        end;
+
+      procedure borrow(value, other: tnode);
+        var
+          call: tcallnode;
+        begin
+          call:=projected_call(value);
+          if assigned(call) and
+             (not assigned(other) or not might_have_sideeffects(other,[])) then
+            call.funcret_borrow:=true;
+        end;
+
+      var
+        call: tcallnode;
+        para,
+        other: tcallparanode;
+        readonlyhelper: boolean;
+      begin
+        result:=fen_false;
+        case n.nodetype of
+          addrn:
+            use_address(taddrnode(n).left);
+          inlinen:
+            case tinlinenode(n).inlinenumber of
+              in_length_x,
+              in_high_x:
+                borrow(tinlinenode(n).left,nil);
+              in_inc_x,
+              in_dec_x:
+                begin
+                  para:=tcallparanode(tinlinenode(n).left);
+                  if assigned(para.right) then
+                    borrow(tcallparanode(para.right).left,para.left);
+                end;
+              else
+                ;
+            end;
+          assignn:
+            if not is_managed_type(tassignmentnode(n).left.resultdef) and
+               (tassignmentnode(n).left.resultdef.typ<>pointerdef) then
+              borrow(tassignmentnode(n).right,tassignmentnode(n).left);
+          calln:
+            begin
+              readonlyhelper:=helper_reads_only(tcallnode(n));
+              para:=tcallparanode(tcallnode(n).left);
+              while assigned(para) do
+                begin
+                  if paramanager.push_addr_param_for_proc(para.parasym.varspez,para.parasym.vardef,
+                      tcallnode(n).procdefinition) then
+                    use_address(para.left);
+                  if readonlyhelper then
+                    begin
+                      call:=projected_call(para.left);
+                      other:=tcallparanode(tcallnode(n).left);
+                      while assigned(call) and assigned(other) do
+                        begin
+                          if (other<>para) and
+                             might_have_sideeffects(other.left,[]) then
+                            call:=nil;
+                          other:=tcallparanode(other.right);
+                        end;
+                      if assigned(call) then
+                        call.funcret_borrow:=true;
+                    end;
+                  para:=tcallparanode(para.right);
+                end;
+            end;
+          else
+            if n.inheritsfrom(tbinopnode) and
+               (n.resultdef.typ<>pointerdef) then
+              begin
+                borrow(tbinarynode(n).left,tbinarynode(n).right);
+                borrow(tbinarynode(n).right,tbinarynode(n).left);
+              end;
+        end;
       end;
 
 
@@ -190,32 +322,6 @@ unit optcall;
         if not(assigned(tprocdef(callnode.procdefinition).inlininginfo) and
           assigned(tprocdef(callnode.procdefinition).inlininginfo^.code)) then
           internalerror(200412021);
-
-        { Managed function results already have an explicit caller-owned result
-          slot.  A procedure has no such slot, so a managed expression copied
-          from it may introduce the caller's first managed temporary only
-          during code generation, after entry/exit cleanup has been fixed.
-          Keep that procedure as a call unless the caller already has an
-          implicit cleanup frame.  This preserves the safe managed-result
-          inlining path and avoids manufacturing a late, unowned temp. }
-        if (cs_implicit_exceptions in current_settings.moduleswitches) and
-           is_void(callnode.procdefinition.returndef) and
-           not(pi_needs_implicit_finally in current_procinfo.flags) and
-           { a call with a by-value Delphi-assign record parameter builds
-             its own cleanup frame (the copy's Finalize wrapped in an
-             implicit try..finally by this very routine), so the late,
-             unowned managed temp this guard protects against cannot
-             occur - and a late refusal would break the cnf_do_inline
-             contract: the caller-copy contour is already disabled for
-             this call (dvl-0057) }
-           not(call_has_delphi_assign_value_para(callnode)) and
-           not(foreachnodestatic(
-             tprocdef(callnode.procdefinition).inlininginfo^.code,
-             @inline_body_has_used_managed_local,nil)) and
-           foreachnodestatic(
-             tprocdef(callnode.procdefinition).inlininginfo^.code,
-             @inline_expression_may_need_managed_temp,nil) then
-          exit;
 
         callnode.inlinelocals:=TFPObjectList.create(true);
 
@@ -334,6 +440,10 @@ unit optcall;
 
         PBoolean(arg)^:=true;
 
+        { the calls of the body and of the actuals moved into it meet their
+          consumers only now; the traversal inlines them next }
+        foreachnodestatic(pm_postprocess,_n,@mark_funcret_borrow,nil);
+
 {$ifdef EXTDEBUG_INLINE}
         writeln;
         writeln('**************************************************************************************************************');
@@ -351,6 +461,11 @@ unit optcall;
         printnode(rootnode);
         writeln('****************************************************************************');
 {$endif EXTDEBUG_INLINE}
+        { The borrow is a fact of the use, not of the call: record it on the
+          call at the point where the inliner will consume it; a context-free
+          result node must not carry this permission. }
+        foreachnodestatic(pm_postprocess,rootnode,@clear_funcret_borrow,nil);
+        foreachnodestatic(pm_postprocess,rootnode,@mark_funcret_borrow,nil);
         foreachnodestatic(pm_postprocess, rootnode, @doinline, @changed);
         if changed then
           begin

@@ -98,16 +98,12 @@ implementation
         result:=arr;
       end;
 
-    { block scopes at main-program level (program body, unit init) hold
-      static vars like every other main-program variable, so a closure can
-      capture them directly - a parent-frame access from a nested routine
-      into the main frame cannot be expressed (IE 2020050302). Block scopes
-      inside routines hold ordinary locals }
+    { An inline declaration belongs to its routine, including the program
+      body and unit init/final. Captured variables move into the same owner
+      object as ordinary routine locals; they are not module globals. }
     function inline_var_sym_is_local: boolean;
       begin
-        result:=(symtablestack.top.symtabletype=localsymtable) or
-                ((symtablestack.top.symtabletype=blocksymtable) and
-                 (symtablestack.top.symtablelevel>=normal_function_level));
+        result:=symtablestack.top.symtabletype in [localsymtable,blocksymtable];
       end;
 
     { create the sym for an inline var declaration. sibling main-body block

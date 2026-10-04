@@ -537,26 +537,15 @@ implementation
              if mf_classinits in current_module.moduleflags then
                append_struct_initfinis(current_module, potype_class_constructor, stat);
            end;
-         { units have separate code for initialization and finalization }
-         potype_unitfinalize: ;
-         { program init/final is generated in separate procedure,
-           but block-scoped local vars (from inline var / for-in
-           destructuring) live on the stack and need explicit init }
-         potype_proginit:
-           begin
-             if assigned(pd.blocklocalsymtables) then
-               for blk_i:=0 to pd.blocklocalsymtables.count-1 do
-                 TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@sym_maybe_initialize,@stat);
-           end;
+         { Module globals have separate initialization. }
+         potype_unitfinalize,potype_proginit: ;
          else
-           begin
-             current_procinfo.procdef.localst.SymList.ForEachCall(@sym_maybe_initialize,@stat);
-             { also initialize managed vars in block-scoped symtables (m_inline_var) }
-             if assigned(pd.blocklocalsymtables) then
-               for blk_i:=0 to pd.blocklocalsymtables.count-1 do
-                 TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@sym_maybe_initialize,@stat);
-           end;
+           current_procinfo.procdef.localst.SymList.ForEachCall(@sym_maybe_initialize,@stat);
       end;
+      { Inline locals belong to every routine, including main and init/final. }
+      if assigned(pd.blocklocalsymtables) then
+        for blk_i:=0 to pd.blocklocalsymtables.count-1 do
+          TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@sym_maybe_initialize,@stat);
     end;
 
 
@@ -581,9 +570,17 @@ implementation
              if assigned(current_module.globalsymtable) then
                TSymtable(current_module.globalsymtable).SymList.ForEachCall(@static_syms_finalize,@stat);
              TSymtable(current_module.localsymtable).SymList.ForEachCall(@static_syms_finalize,@stat);
+             if assigned(pd.blocklocalsymtables) then
+               for blk_i:=0 to pd.blocklocalsymtables.count-1 do
+                 TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@local_varsyms_finalize,@stat);
            end;
          { units/progs have separate code for initialization and finalization }
-         potype_unitinit: ;
+         potype_unitinit:
+           begin
+             if assigned(pd.blocklocalsymtables) then
+               for blk_i:=0 to pd.blocklocalsymtables.count-1 do
+                 TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@local_varsyms_finalize,@stat);
+           end;
          { program init/final is generated in separate procedure,
            but block-scoped local vars need explicit finalization }
           potype_proginit:
@@ -592,8 +589,7 @@ implementation
                 for blk_i:=0 to pd.blocklocalsymtables.count-1 do
                   begin
                     TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@local_varsyms_finalize,@stat);
-                    { main-body block-scoped inline vars are static syms and
-                      live outside the staticsymtable walked at unit finalize }
+                    { Block-scoped typed constants are separate static symbols. }
                     TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@static_syms_finalize,@stat);
                   end;
             end;

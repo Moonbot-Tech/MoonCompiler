@@ -263,6 +263,9 @@ interface
           function simplify(forinline:boolean): tnode;override;
        protected
           procedure adjust_estimated_stack_size; virtual;
+          { Outlined finalizers must expose their managed temps before the
+            parent decides whether it needs an implicit cleanup frame. }
+          procedure firstpass_finalizer; virtual;
        public
           function dogetcopy: tnode;override;
        end;
@@ -3295,6 +3298,7 @@ implementation
         firstpass(left);
 
         firstpass(right);
+        firstpass_finalizer;
         if assigned(third) then
           firstpass(third);
 
@@ -3341,6 +3345,11 @@ implementation
     procedure ttryfinallynode.adjust_estimated_stack_size;
       begin
         inc(current_procinfo.estimatedtempsize,rec_jmp_buf.size);
+      end;
+
+
+    procedure ttryfinallynode.firstpass_finalizer;
+      begin
       end;
 
 

@@ -51,6 +51,7 @@ interface
         procedure maybe_add_constructor_wrapper(var tocode: tnode; withexceptblock: boolean);
         procedure add_entry_exit_code;
         procedure setup_tempgen;
+        procedure request_implicit_finally;
         procedure TransformNodeTree;
         procedure convert_captured_syms;
         procedure generate_code_tree_converted;
@@ -356,8 +357,8 @@ implementation
 
     procedure check_finalize_block_syms(p:TObject;arg:pointer);
       begin
-        { block-scoped inline vars are finalized by the routine itself; in
-          the main program body they are static syms, so accept both kinds }
+        { Inline locals and block-scoped typed constants are finalized by
+          the routine itself. }
         if (tsym(p).typ in [localvarsym,staticvarsym]) and
            not(tabstractnormalvarsym(p).inline_scope_managed) and
            (tabstractnormalvarsym(p).refs>0) and
@@ -1051,8 +1052,10 @@ implementation
 
         if (cs_implicit_exceptions in current_settings.moduleswitches) and
            (pi_needs_implicit_finally in flags) and
-           { but it's useless in init/final code of units }
-           not(procdef.proctypeoption in [potype_unitfinalize,potype_unitinit]) and
+           { Unit globals have module finalization; either callback's own
+             inline locals still need exception cleanup. }
+           (not(procdef.proctypeoption in [potype_unitinit,potype_unitfinalize]) or
+            assigned(procdef.blocklocalsymtables)) and
            not(target_info.system in systems_garbage_collected_managed_types) and
            (f_exceptions in features) then
           begin
@@ -1292,10 +1295,47 @@ implementation
       end;
 
 
+    { set implicit_finally flag when there are locals/paras to be finalized
+      or the procedure is safecall }
+    procedure tcgprocinfo.request_implicit_finally;
+      var
+        blk_i : longint;
+      begin
+        if not(po_assembler in current_procinfo.procdef.procoptions) then
+          begin
+            procdef.parast.SymList.ForEachCall(@check_finalize_paras,nil);
+            procdef.localst.SymList.ForEachCall(@check_finalize_locals,nil);
+            { also check block-scoped inline vars }
+            if assigned(procdef.blocklocalsymtables) then
+              for blk_i:=0 to procdef.blocklocalsymtables.count-1 do
+                TSymtable(procdef.blocklocalsymtables[blk_i]).SymList.ForEachCall(@check_finalize_block_syms,nil);
+          end;
+
+{$ifdef SUPPORT_SAFECALL}
+        { set implicit_finally flag for if procedure is safecall }
+        if (tf_safecall_exceptions in target_info.flags) and
+           (procdef.proccalloption=pocall_safecall) then
+          include(flags, pi_needs_implicit_finally);
+{$endif}
+      end;
+
+
+    { the request of ttempcreatenode.pass_1 }
+    function is_managed_temp(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_false;
+        if (n.nodetype=tempcreaten) and
+           ttempcreatenode(n).tempinfo^.typedef.needs_inittable and
+           not(ti_const in ttempcreatenode(n).tempflags) then
+          result:=fen_norecurse_true;
+      end;
+
+
     procedure tcgprocinfo.TransformNodeTree;
       var
         i : integer;
         UserCode : TNode;
+        hpi : tprocinfo;
         updated,
         RedoDFA : boolean;
       begin
@@ -1467,6 +1507,34 @@ implementation
          trusting stale or copied live-in sets. }
        if assigned(dfabuilder) then
          dfabuilder.redodfainfo(code);
+
+       { A managed temp requests the implicit finally frame in its pass_1, and
+         the request outlives it: the result temp of an inlined getter that
+         optimize_funcret_assignment removed again left an empty frame and a
+         call of an empty finalizer behind.  Ask the final tree again, as for
+         pi_uses_exceptions after inlining: the symbols, the managed temps and
+         the finally bodies outlined into routines of their own, whose temps
+         this routine finalizes.  An outlined body was first passed here,
+         before simplify moved it out, so its temps asked this routine and
+         not its own. }
+       if (pi_needs_implicit_finally in flags) and
+          (procdef.proctypeoption<>potype_exceptfilter) then
+         begin
+           exclude(flags,pi_needs_implicit_finally);
+           request_implicit_finally;
+           hpi:=get_first_nestedproc;
+           while assigned(hpi) do
+             begin
+               if (hpi.procdef.proctypeoption=potype_exceptfilter) and
+                  ((pi_needs_implicit_finally in hpi.flags) or
+                   (assigned(tcgprocinfo(hpi).code) and
+                    foreachnodestatic(tcgprocinfo(hpi).code,@is_managed_temp,nil))) then
+                 include(flags,pi_needs_implicit_finally);
+               hpi:=tprocinfo(hpi.next);
+             end;
+           if foreachnodestatic(code,@is_managed_temp,nil) then
+             include(flags,pi_needs_implicit_finally);
+         end;
       end;
 
 
@@ -2449,22 +2517,7 @@ implementation
           end;
 
         { set implicit_finally flag when there are locals/paras to be finalized }
-        if not(po_assembler in current_procinfo.procdef.procoptions) then
-          begin
-            procdef.parast.SymList.ForEachCall(@check_finalize_paras,nil);
-            procdef.localst.SymList.ForEachCall(@check_finalize_locals,nil);
-            { also check block-scoped inline vars }
-            if assigned(procdef.blocklocalsymtables) then
-              for blk_i:=0 to procdef.blocklocalsymtables.count-1 do
-                TSymtable(procdef.blocklocalsymtables[blk_i]).SymList.ForEachCall(@check_finalize_block_syms,nil);
-          end;
-
-{$ifdef SUPPORT_SAFECALL}
-        { set implicit_finally flag for if procedure is safecall }
-        if (tf_safecall_exceptions in target_info.flags) and
-           (procdef.proccalloption=pocall_safecall) then
-          include(flags, pi_needs_implicit_finally);
-{$endif}
+        request_implicit_finally;
 {$ifdef DEBUG_NODE_XML}
         { Print out nodes as they appear after the first pass }
         XMLPrintProc(True);
