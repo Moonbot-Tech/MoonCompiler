@@ -149,6 +149,24 @@ type
     sun_path      : array[0..107] of AnsiChar;
   end;
 
+  { POSIX sockaddr_storage: 128 bytes, aligned for every address family
+    (sockaddr_in6 included) - the buffer for fprecvfrom/fpaccept when the
+    family is not known in advance; read ss_family, then cast.  Same size
+    and alignment as the C struct on glibc, the BSDs and Winsock. }
+  psockaddr_storage = ^sockaddr_storage;
+  sockaddr_storage = record
+    {$ifdef SOCK_HAS_SINLEN}
+      ss_len    : cuint8;
+    {$endif}
+    ss_family   : sa_family_t;
+    __ss_pad    : array[0..128-8-sizeof(sa_family_t){$ifdef SOCK_HAS_SINLEN}-1{$endif}-1] of cuint8;
+    __ss_align  : cuint64;
+  end;
+  TSockAddrStorage = sockaddr_storage;
+  PSockAddrStorage = psockaddr_storage;
+
+  socklen_t = TSockLen;
+
   Tsocket=longint;   {To easy porting code from Kylix libc unit to sockets unit.}
 
 function socketerror : cint;
