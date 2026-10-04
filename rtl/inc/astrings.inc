@@ -1191,17 +1191,25 @@ begin
   Lim:=Length(S)-Index; { Cannot overflow as both Length(S) and Index are non-negative. }
   if Size>Lim then
     Size:=Lim;
-  if (Size>0) and Assigned(Pointer(Result)) and (PAnsiRec(Pointer(Result)-AnsiFirstOff)^.Ref=1) then
+  if Size<=0 then
    begin
-     PhysResultAddress:=Pointer(Result)-AnsiFirstOff;
-     ResultAddress:=ReallocMem(PhysResultAddress,Size+(AnsiFirstOff+1))+AnsiFirstOff;
+     fpc_ansistr_decr_ref(Pointer(Result));
+     exit;
+   end;
+  if Assigned(Pointer(Result)) and (PAnsiRec(Pointer(Result)-AnsiFirstOff)^.Ref=1) then
+   begin
+     ResultAddress:=Pointer(Result);
+     if PAnsiRec(ResultAddress-AnsiFirstOff)^.Len<>Size then
+       begin
+         PhysResultAddress:=ResultAddress-AnsiFirstOff;
+         ResultAddress:=ReallocMem(PhysResultAddress,Size+(AnsiFirstOff+1))+AnsiFirstOff;
+       end;
    end
   else
    begin
-     fpc_ansistr_decr_ref(Pointer(Result));
-     if Size<=0 then
-       exit;
      ResultAddress:=GetMem(Size+(AnsiFirstOff+1))+AnsiFirstOff;
+     { Keep the old result alive if allocation raises before assignment. }
+     fpc_ansistr_decr_ref(Pointer(Result));
    end;
   Pointer(Result):=ResultAddress;
   PAnsiRec(ResultAddress-AnsiFirstOff)^.CodePage:=PAnsiRec(Pointer(S)-AnsiFirstOff)^.CodePage;

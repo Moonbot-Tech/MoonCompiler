@@ -5883,7 +5883,8 @@ implementation
         else if is_widestring(resultdef) then
           result:=ccallnode.createintern('fpc_widestr_copy',paras)
         else if is_unicodestring(resultdef) then
-          result:=ccallnode.createintern('fpc_unicodestr_copy',paras)
+          { Keep the result type established by type checking, also for Unicode aliases. }
+          result:=ccallnode.createinternres('fpc_unicodestr_copy',paras,resultdef)
           { can't check for resultdef = cansichartype, because resultdef=
             cshortstringtype here }
         else if is_char(paradef) then

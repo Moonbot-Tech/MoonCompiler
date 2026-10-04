@@ -1416,17 +1416,25 @@ begin
   Lim:=Length(S)-Index; { Cannot overflow as both Length(S) and Index are non-negative. }
   if Size>Lim then
    Size:=Lim;
-  if (Size>0) and Assigned(Pointer(Result)) and (PUnicodeRec(Pointer(Result)-UnicodeFirstOff)^.Ref=1) then
+  if Size<=0 then
    begin
-     PhysResultAddress:=Pointer(Result)-UnicodeFirstOff;
-     ResultAddress:=ReallocMem(PhysResultAddress,Size*sizeof(UnicodeChar)+(UnicodeFirstOff+sizeof(UnicodeChar)))+UnicodeFirstOff;
+     fpc_unicodestr_decr_ref(Pointer(Result));
+     exit;
+   end;
+  if Assigned(Pointer(Result)) and (PUnicodeRec(Pointer(Result)-UnicodeFirstOff)^.Ref=1) then
+   begin
+     ResultAddress:=Pointer(Result);
+     if PUnicodeRec(ResultAddress-UnicodeFirstOff)^.Len<>Size then
+       begin
+         PhysResultAddress:=ResultAddress-UnicodeFirstOff;
+         ResultAddress:=ReallocMem(PhysResultAddress,Size*sizeof(UnicodeChar)+(UnicodeFirstOff+sizeof(UnicodeChar)))+UnicodeFirstOff;
+       end;
    end
   else
    begin
-     fpc_unicodestr_decr_ref(Pointer(Result));
-     if Size<=0 then
-       exit;
      ResultAddress:=GetMem(Size*sizeof(UnicodeChar)+(UnicodeFirstOff+sizeof(UnicodeChar)))+UnicodeFirstOff;
+     { Keep the old result alive if allocation raises before assignment. }
+     fpc_unicodestr_decr_ref(Pointer(Result));
    end;
   Pointer(Result):=ResultAddress;
   PUnicodeRec(ResultAddress-UnicodeFirstOff)^.CodePage:=DefaultUnicodeCodePage;
