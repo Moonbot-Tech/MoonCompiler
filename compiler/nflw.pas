@@ -49,12 +49,19 @@ interface
          lnf_simplify_processing,
          { set if in a for loop the counter is not used, so an easier exit check
            can be carried out }
-         lnf_counter_not_used);
+         lnf_counter_not_used,
+         { Set only after the local DFA has converged and proved a private
+           routine-owned counter dead at the normal continuation.  Unlike
+           lnf_dont_mind_loopvar_on_exit this is not a language-mode rule and
+           must never survive a tree copy or PPU roundtrip. }
+         lnf_dfa_dead_loopvar_on_exit);
        tloopflags = set of tloopflag;
 
     const
          { loop flags which must match to consider loop nodes equal regarding the flags }
          loopflagsequal = [lnf_backward];
+         loopcounterexitdiscardflags =
+           [lnf_dont_mind_loopvar_on_exit,lnf_dfa_dead_loopvar_on_exit];
 
     type
        tlabelnode = class;
@@ -117,6 +124,10 @@ interface
             the optimize stage, which is after the inline info snapshot of
             the surrounding procedure was taken }
           loopstep : tnode;
+          { Optimizer-generated code that must run after the zero-trip gate
+            but before the first iteration.  It is transient and therefore
+            deliberately not serialized in PPUs. }
+          looppreheader : tnode;
           loopvar_notid:cardinal;
           constructor create(l,r,_t1,_t2 : tnode;back : boolean);virtual;reintroduce;
           destructor destroy;override;
@@ -621,6 +632,8 @@ implementation
           ton,
           loopbody,
           false);
+        include(forloopnode.transientflags,
+          tnf_internal_counter_lifetime);
 
         addstatement(loopstatement,forloopnode);
         { free the loop counter }
@@ -755,6 +768,8 @@ implementation
           highbound,
           loopbody,
           false);
+        include(forloopnode.transientflags,
+          tnf_internal_counter_lifetime);
 
         addstatement(loopstatement,forloopnode);
         { free the loop counter }
@@ -822,6 +837,8 @@ implementation
           cinlinenode.create(in_high_x,false,ctemprefnode.create(setvar)),
           loopbody,
           false);
+        include(forloopnode.transientflags,
+          tnf_internal_counter_lifetime);
 
         addstatement(loopstatement,forloopnode);
         { free the loop counter }
@@ -1152,15 +1169,19 @@ implementation
         t1:=ppuloadnode(ppufile);
         t2:=ppuloadnode(ppufile);
         ppufile.getset(tppuset1(loopflags));
+        exclude(loopflags,lnf_dfa_dead_loopvar_on_exit);
       end;
 
 
     procedure tloopnode.ppuwrite(ppufile:tcompilerppufile);
+      var
+        storedflags : tloopflags;
       begin
         inherited ppuwrite(ppufile);
         ppuwritenode(ppufile,t1);
         ppuwritenode(ppufile,t2);
-        ppufile.putset(tppuset1(loopflags));
+        storedflags:=loopflags-[lnf_dfa_dead_loopvar_on_exit];
+        ppufile.putset(tppuset1(storedflags));
       end;
 
 
@@ -1199,7 +1220,7 @@ implementation
            p.t2:=t2.dogetcopy
          else
            p.t2:=nil;
-         p.loopflags:=loopflags;
+         p.loopflags:=loopflags-[lnf_dfa_dead_loopvar_on_exit];
          dogetcopy:=p;
       end;
 
@@ -2006,6 +2027,8 @@ implementation
          loopiteration := nil;
          loopstep.free;
          loopstep := nil;
+         looppreheader.free;
+         looppreheader := nil;
          inherited destroy;
       end;
 
@@ -2018,6 +2041,15 @@ implementation
            p.loopstep:=loopstep.dogetcopy
          else
            p.loopstep:=nil;
+         if assigned(looppreheader) then
+           p.looppreheader:=looppreheader.dogetcopy
+         else
+           p.looppreheader:=nil;
+         { A copied typed loop enters a new control-flow context (notably an
+           inline body).  Its old observer flags are context-specific, so the
+           owning routine must solve them again. }
+         if assigned(current_procinfo) then
+           current_procinfo.has_pending_loop_observer_analysis:=true;
          result:=p;
       end;
 
@@ -2027,6 +2059,10 @@ implementation
            (
              ((loopstep=nil) and (tfornode(p).loopstep=nil)) or
              (assigned(loopstep) and assigned(tfornode(p).loopstep) and loopstep.isequal(tfornode(p).loopstep))
+           ) and
+           (
+             ((looppreheader=nil) and (tfornode(p).looppreheader=nil)) or
+             (assigned(looppreheader) and assigned(tfornode(p).looppreheader) and looppreheader.isequal(tfornode(p).looppreheader))
            );
       end;
 
@@ -2035,6 +2071,7 @@ implementation
       begin
         inherited ppuload(t,ppufile);
         loopstep:=ppuloadnode(ppufile);
+        looppreheader:=nil;
       end;
 
 
@@ -2050,6 +2087,8 @@ implementation
         inherited buildderefimpl;
         if assigned(loopstep) then
           loopstep.buildderefimpl;
+        if assigned(looppreheader) then
+          looppreheader.buildderefimpl;
       end;
 
 
@@ -2058,6 +2097,8 @@ implementation
         inherited derefimpl;
         if assigned(loopstep) then
           loopstep.derefimpl;
+        if assigned(looppreheader) then
+          looppreheader.derefimpl;
       end;
 
     function tfornode.simplify(forinline : boolean) : tnode;
@@ -2115,6 +2156,8 @@ implementation
          typecheckpass(t1);
          if assigned(loopstep) then
            typecheckpass(loopstep);
+         if assigned(looppreheader) then
+           typecheckpass(looppreheader);
 
          set_varstate(left,vs_written,[]);
 
@@ -2139,11 +2182,19 @@ implementation
 
          if assigned(t2) then
            typecheckpass(t2);
+         { Both full unrolling and reversal consume the complete-tree
+           observability result.  Demand therefore belongs to every newly
+           typed source for, independently of the enabled optimizer set. }
+         if assigned(current_procinfo) then
+           current_procinfo.has_pending_loop_observer_analysis:=true;
+         include(transientflags,tnf_loop_observer_analysis_source);
          result:=simplify(false);
 
          { loop unrolling }
          if not(assigned(result)) and
            (cs_opt_loopunroll in current_settings.optimizerswitches) and
+           not(cs_opt_size in current_settings.optimizerswitches) and
+           ([m_tp7,m_mac]*current_settings.modeswitches=[]) and
            assigned(t2) and
            { statements must be error free }
            not(tnf_error in t2.transientflags) then
@@ -2159,13 +2210,11 @@ implementation
                  if assigned(res) then
                    t2:=res;
                end;
-             res:=unroll_loop(self);
-             if assigned(res) then
-               begin
-                 typecheckpass(res);
-                 result:=res;
-                 exit;
-               end;
+             { This marker captures the complete source-position policy:
+               loop unrolling enabled, size optimization disabled and a mode
+               where the final counter is not language-defined.  The mutable
+               current_settings must not be consulted again after parsing. }
+             include(transientflags,tnf_delay_loop_unroll);
            end;
 
       end;
@@ -2190,6 +2239,8 @@ implementation
         firstpass(t1);
         if assigned(loopstep) then
           firstpass(loopstep);
+        if assigned(looppreheader) then
+          firstpass(looppreheader);
 
         if assigned(t2) then
           firstpass(t2);
@@ -2449,7 +2500,7 @@ implementation
         get_physical_ord_range(left.resultdef,physmin,physmax);
 
         { check if we can pred/succ the loop var at the end }
-        do_loopvar_at_end:=(lnf_dont_mind_loopvar_on_exit in loopflags) and
+        do_loopvar_at_end:=(loopflags*loopcounterexitdiscardflags<>[]) and
           is_constnode(t1) and
           { we cannot test at the end after the pred/succ if the to value is equal to the max./min. value of the counter variable
             because we either get an overflow/underflow or the compiler removes the check as it never can be true }
@@ -2536,6 +2587,15 @@ implementation
                 iterate_counter_func(right.getcopy,lnf_backward in loopflags)))
             else
               addstatement(ifstatements,cassignmentnode.create_internal(left.getcopy,right.getcopy));
+          end;
+
+        { This point is reached only after the source for-loop's entry test.
+          Non-speculatable invariant seeds belong here: a zero-trip loop must
+          not evaluate them, while every entered loop evaluates them once. }
+        if assigned(looppreheader) then
+          begin
+            addstatement(ifstatements,looppreheader);
+            looppreheader:=nil;
           end;
 
         if assigned(entrylabel) then
@@ -2755,6 +2815,47 @@ implementation
                              TGOTONODE
 *****************************************************************************}
 
+    procedure register_cross_frame_goto_target(targetsym : tlabelsym);
+      var
+        target_procinfo : tprocinfo;
+        target_level : longint;
+      begin
+        if not assigned(targetsym) or
+           not assigned(targetsym.owner) or
+           not assigned(current_procinfo) or
+           not assigned(current_procinfo.procdef) or
+           not assigned(current_procinfo.procdef.localst) then
+          exit;
+
+        target_level:=targetsym.owner.symtablelevel;
+        if (targetsym.owner=current_procinfo.procdef.localst) or
+           (target_level=current_procinfo.procdef.parast.symtablelevel) then
+          exit;
+
+        { A goto node is the first common representation of every source and
+          compiler-generated transfer: scalar/array labels and nested exits all
+          pass here.  Record the exact externally entered continuation before
+          later passes replace the symbol with a label node. }
+        targetsym.has_nonlocal_entry:=true;
+        TFPList.AddOnDemand(current_procinfo.procdef.nonlocal_goto_targets,
+          targetsym);
+        include(current_procinfo.flags,pi_has_global_goto);
+
+        { setjmp/longjmp restores the callee-saved registers captured at the
+          target routine's entry.  Values written later in that frame therefore
+          need memory homes if the external continuation can observe them. }
+        target_procinfo:=current_procinfo.parent;
+        while assigned(target_procinfo) and
+              (target_procinfo.procdef.localst<>targetsym.owner) and
+              (target_procinfo.procdef.parast.symtablelevel<>target_level) do
+          target_procinfo:=target_procinfo.parent;
+        if assigned(target_procinfo) then
+          include(target_procinfo.flags,pi_has_interproclabel);
+
+        if is_nested_pd(current_procinfo.procdef) then
+          current_procinfo.set_needs_parentfp(target_level);
+      end;
+
     constructor tgotonode.create(p : tlabelsym);
       begin
         inherited create(goton);
@@ -2805,6 +2906,7 @@ implementation
 
     function tgotonode.pass_typecheck:tnode;
       begin
+        register_cross_frame_goto_target(labelsym);
         result:=nil;
         resultdef:=voidtype;
       end;

@@ -979,6 +979,15 @@ interface
           { only needed when actually compiling a unit, no need to save/load from ppu }
           invoke_helper : tprocdef;
           copied_from : tprocdef;
+          { Transient call-effect facts for source-level non-local gotos.  The
+            lists contain non-owning tlabelsym/tprocdef pointers and are kept
+            on the procdef because nested bodies are compiled before their
+            enclosing routine is optimized.  An absent/incomplete summary is
+            never interpreted as proof that a call cannot escape. }
+          nonlocal_goto_targets,
+          nonlocal_goto_callees : tfplist;
+          nonlocal_goto_has_opaque_transfer,
+          nonlocal_goto_summary_complete : boolean;
           constructor create(level:byte;doregister:boolean);virtual;
           constructor ppuload(ppufile:tcompilerppufile);
           destructor  destroy;override;
@@ -7162,6 +7171,10 @@ implementation
          import_name:=nil;
          import_nr:=0;
          inlininginfo:=nil;
+         nonlocal_goto_targets:=nil;
+         nonlocal_goto_callees:=nil;
+         nonlocal_goto_has_opaque_transfer:=false;
+         nonlocal_goto_summary_complete:=false;
          deprecatedmsg:=nil;
          genericdecltokenbuf:=nil;
          if cs_opt_fastmath in current_settings.optimizerswitches then
@@ -7269,6 +7282,10 @@ implementation
            inlininginfo^.code:=ppuloadnodetree(ppufile);
          { default values for no persistent data }
          blocklocalsymtables:=nil;
+         nonlocal_goto_targets:=nil;
+         nonlocal_goto_callees:=nil;
+         nonlocal_goto_has_opaque_transfer:=false;
+         nonlocal_goto_summary_complete:=false;
          if (cs_link_deffile in current_settings.globalswitches) and
             (tf_need_export in target_info.flags) and
             (po_exports in procoptions) then
@@ -7284,6 +7301,10 @@ implementation
          aliasnames:=nil;
          blocklocalsymtables.free;
          blocklocalsymtables:=nil;
+         nonlocal_goto_targets.free;
+         nonlocal_goto_targets:=nil;
+         nonlocal_goto_callees.free;
+         nonlocal_goto_callees:=nil;
          if assigned(localst) and
            (localst.symtabletype<>staticsymtable) then
           begin

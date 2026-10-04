@@ -418,6 +418,8 @@ const
         cinlinenode.create(in_pred_x,false,cinlinenode.create(in_length_x,false,arr1.getcopy)),
         ifstatement,
         false);
+      include(forstatement.transientflags,
+        tnf_internal_counter_lifetime);
       { create outer if }
       addstatement(cmpstatements,cifnode.create(ctemprefnode.create(resultvar),
         forstatement,nil));

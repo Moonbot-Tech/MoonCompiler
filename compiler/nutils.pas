@@ -205,6 +205,11 @@ interface
     }
     function actualtargetnode(n : pnode) : pnode;
 
+    { True only for storage whose value cannot be observed outside the
+      current routine once local data-flow proves it dead.  Structural
+      lvalue conversions do not change the storage identity. }
+    function node_is_private_routine_storage(target: tnode): boolean;
+
     { moves src into dest, before doing so, right is set to nil and dest is freed.
       Because dest and src are var parameters, this can be done inline in an existing
       node tree }
@@ -1848,6 +1853,36 @@ implementation
           typeconvn:
             if ttypeconvnode(n^).retains_value_location then
               result:=actualtargetnode(@ttypeconvnode(n^).left);
+          else
+            ;
+        end;
+      end;
+
+
+    function node_is_private_routine_storage(target: tnode): boolean;
+      var
+        sym : tabstractvarsym;
+      begin
+        result:=false;
+        target:=actualtargetnode(@target)^;
+        case target.nodetype of
+          loadn:
+            begin
+              if not(tloadnode(target).symtableentry is tabstractvarsym) then
+                exit;
+              sym:=tabstractvarsym(tloadnode(target).symtableentry);
+              if not(sym.typ in [localvarsym,paravarsym]) or
+                 sym.addr_taken or
+                 sym.different_scope or
+                 (sym.varoptions*[vo_is_funcret,vo_is_result,vo_volatile]<>[]) or
+                 ((sym.typ=paravarsym) and (sym.varspez<>vs_value)) then
+                exit;
+              result:=not tabstractnormalvarsym(sym).is_captured and
+                not tabstractnormalvarsym(sym).inparentfpstruct;
+            end;
+          temprefn:
+            result:=ttemprefnode(target).tempflags*
+              [ti_addr_taken,ti_reference]=[];
           else
             ;
         end;

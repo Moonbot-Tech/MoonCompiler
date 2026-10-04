@@ -74,6 +74,11 @@ interface
           this boundary belong to the handler and stay SP-relative.
           Only used on AArch64-Win64. }
         exceptfilter_parent_tempend : longint;
+        { What the routine writes of the routines around it, which routines
+          of a nesting level it calls and which it knows by address: read by
+          optloop from the tree as parsed and asked for while the routines of
+          the same outer routine are compiled, when that tree is gone. }
+        nested_access : tobject;
 
         destructor  destroy;override;
 
@@ -529,7 +534,10 @@ implementation
 
     procedure add_label_init(p:TObject;arg:pointer);
       begin
-        if tstoredsym(p).typ=labelsym then
+        { Array-label sentinels are lookup metadata, not executable targets,
+          and intentionally have no jump buffer.  Initialise only real labels. }
+        if (tstoredsym(p).typ=labelsym) and
+           assigned(tlabelsym(p).jumpbuf) then
           begin
             addstatement(tstatementnode(arg^),
               cifnode.create(caddnode.create(equaln,
@@ -812,6 +820,8 @@ implementation
          TFPList.FreeAndNilDisposing(tempinfo_flags_map,TypeInfo(ttempinfo_flags_entry));
          code.free;
          code := nil;
+         nested_access.free;
+         nested_access := nil;
          inherited destroy;
        end;
 
@@ -1884,6 +1894,11 @@ implementation
         { All code trees, including the program body and unit init/final
           routines, must have captured loads rewritten before code generation. }
         convert_captured_syms;
+        { The first routine compiled is this one, the trees of the routines
+          nested in it go one by one after that: what each of them does to
+          the locals around it is read while all of them are as parsed. }
+        if has_nestedprocs then
+          collect_nested_access(self);
         generate_code_tree_converted;
       end;
 
@@ -2561,6 +2576,11 @@ implementation
         { Print out nodes as they appear after the first pass }
         XMLPrintProc(True);
 {$endif DEBUG_NODE_XML}
+
+        { Compiler-created procedures can bypass parse_body.  Finalize any
+          delayed loop unrolling while the tree is still purely typed, before
+          firstpass assigns locations and creates backend state. }
+        finish_loop_unrolling(code);
 
         { firstpass everything }
         flowcontrol:=[];
@@ -3423,6 +3443,11 @@ implementation
              { rewrite any `async`/`await` into the future-impl factory call and
                the `__Await` method call (no-op without them) }
              lower_async(self);
+
+             { The complete exceptional consumers are visible now.  Preserve
+               only the loop-counter states they can actually observe, then
+               perform the delayed unrolling before inline info is captured. }
+             finish_loop_unrolling(code);
 
              if assigned(procdef.parentfpinitblock) then
                begin

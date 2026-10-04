@@ -6637,6 +6637,8 @@ implementation
            cinlinenode.create(in_high_x,false,packednode.getcopy),
            loopbody,
            false);
+         include(tempnode.transientflags,
+           tnf_internal_counter_lifetime);
          addstatement(loopstatement,tempnode);
          { free the loop counter }
          addstatement(loopstatement,ctempdeletenode.create(loopvar));

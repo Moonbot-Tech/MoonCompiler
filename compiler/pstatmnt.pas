@@ -4951,6 +4951,17 @@ implementation
       end;
 
 
+    procedure check_source_goto_scope(targetsym: tlabelsym);
+      begin
+        if assigned(targetsym) and
+           assigned(targetsym.owner) and
+           (targetsym.owner.symtablelevel<>
+              current_procinfo.procdef.parast.symtablelevel) and
+           not(m_non_local_goto in current_settings.modeswitches) then
+          Message(parser_e_goto_outside_proc);
+      end;
+
+
     { Generate a case statement for goto label[variable_expr].
       The sentinel labelsym holds the range lo..hi; we build:
         case expr of
@@ -4988,6 +4999,7 @@ implementation
             result:=longint(h);
         end;
       begin
+        check_source_goto_scope(sentinel);
         if length(sentinel.arraylabel_strings)>0 then
           begin
             { String array labels don't support variable index }
@@ -5413,16 +5425,7 @@ implementation
 
                           if not assigned(code) then
                             begin
-                              { goto outside the current scope? }
-                              if srsym.owner<>current_procinfo.procdef.localst then
-                                begin
-                                  { allowed? }
-                                  if not(m_non_local_goto in current_settings.modeswitches) then
-                                    Message(parser_e_goto_outside_proc);
-                                  include(current_procinfo.flags,pi_has_global_goto);
-                                  if is_nested_pd(current_procinfo.procdef) then
-                                    current_procinfo.set_needs_parentfp(srsym.owner.symtablelevel);
-                                end;
+                              check_source_goto_scope(tlabelsym(srsym));
                               code:=cgotonode.create(tlabelsym(srsym));
                               tgotonode(code).labelsym:=tlabelsym(srsym);
                               { set flag that this label is used }

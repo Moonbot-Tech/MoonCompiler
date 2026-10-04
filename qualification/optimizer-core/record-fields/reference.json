@@ -1,0 +1,106 @@
+{
+ "linux": {
+  "GOTOINSIDE": [
+   27,
+   0,
+   10
+  ],
+  "SHAPEBEFOREGUARDREAD": [
+   51,
+   5,
+   10
+  ],
+  "SHAPECALLSBUDGET": [
+   52,
+   5,
+   9
+  ],
+  "SHAPECLEANUPUNREAD": [
+   49,
+   3,
+   10
+  ],
+  "SHAPEGUARDEDUNREAD": [
+   48,
+   4,
+   10
+  ],
+  "SHAPEMANAGEDNOTRAP": [
+   34,
+   3,
+   5
+  ],
+  "SHAPENOTRAP": [
+   33,
+   4,
+   7
+  ],
+  "SHAPEOTHERFIELD": [
+   51,
+   4,
+   10
+  ],
+  "SHAPEPLAIN": [
+   24,
+   0,
+   7
+  ],
+  "TWORECORDS": [
+   61,
+   4,
+   13
+  ]
+ },
+ "win64": {
+  "GOTOINSIDE": [
+   29,
+   0,
+   10
+  ],
+  "SHAPEBEFOREGUARDREAD": [
+   52,
+   3,
+   10
+  ],
+  "SHAPECALLSBUDGET": [
+   52,
+   5,
+   9
+  ],
+  "SHAPECLEANUPUNREAD": [
+   57,
+   3,
+   10
+  ],
+  "SHAPEGUARDEDUNREAD": [
+   49,
+   2,
+   10
+  ],
+  "SHAPEMANAGEDNOTRAP": [
+   36,
+   3,
+   5
+  ],
+  "SHAPENOTRAP": [
+   32,
+   2,
+   7
+  ],
+  "SHAPEOTHERFIELD": [
+   52,
+   2,
+   10
+  ],
+  "SHAPEPLAIN": [
+   24,
+   0,
+   7
+  ],
+  "TWORECORDS": [
+   62,
+   2,
+   13
+  ]
+ }
+}

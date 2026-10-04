@@ -276,6 +276,27 @@ interface
            expressions and may retain checks or FP-environment effects. }
          tnf_runtime_expression,
 
+         { Full unrolling is delayed until the complete typed tree which owns
+           the loop is available, including rewritten handlers/finalizers. }
+         tnf_delay_loop_unroll,
+
+         { This typed source for must be reanalysed whenever its tree is
+           copied or moved into another routine/control-flow context. }
+         tnf_loop_observer_analysis_source,
+
+         { The compiler owns this hidden loop counter and its lifetime ends
+           with the generated loop.  No source-level continuation can observe
+           its final value. }
+         tnf_internal_counter_lifetime,
+
+         { An abrupt continuation (exception or non-local goto) can observe
+           this source loop's counter at the operation which transfers. }
+         tnf_loopvar_observable_on_abrupt_exit,
+
+         { A defined normal continuation reads this source loop's final
+           counter value. }
+         tnf_loopvar_observable_on_normal_exit,
+
          { internal flag to indicate that this node has been removed from the tree or must otherwise not be
            execute.  Running it through firstpass etc. will raise an internal error }
          tnf_do_not_execute

@@ -105,7 +105,11 @@ implementation
               ctypeconvnode.create_explicit(ctemprefnode.create(iteratortmp),
                 olditerator.resultdef)));
             addstatement(newbodystat,t2);
-            addstatement(stat,cfornode.create(left,right,t1,newbody,lnf_backward in loopflags));
+            result:=cfornode.create(left,right,t1,newbody,
+              lnf_backward in loopflags);
+            include(result.transientflags,
+              tnf_internal_counter_lifetime);
+            addstatement(stat,result);
             addstatement(stat,ctempdeletenode.create(iteratortmp));
             left:=nil;
             right:=nil;

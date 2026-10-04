@@ -33,6 +33,7 @@ type
   TCpuAsmOptimizer = class(TX86AsmOptimizer)
   private
     function OptPass1DIV(var p: tai): Boolean;
+    function PostPeepholeOptLoopAddress(p: tai): Boolean;
     function PostPeepholeOptImm64(var p: tai): Boolean;
   public
     function PrePeepHoleOptsCpu(var p: tai): boolean; override;
@@ -201,6 +202,176 @@ uses
           end;
         RemoveCurrentP(p,Consumers[0]);
         Result:=True;
+      end;
+
+    function TCpuAsmOptimizer.PostPeepholeOptLoopAddress(p: tai): Boolean;
+      const
+        MaxInstructions = 128;
+        Metadata = [ait_comment,ait_regalloc,ait_tempalloc,ait_force_line,ait_varloc];
+      var
+        Align, Scan, Latch, Load, AllocNode, DeallocNode, LastUse, Previous: tai;
+        BaseReg: TRegister;
+        Insns, UseCount, Op: Integer;
+        Valid, SeenLoad: Boolean;
+
+      function IsStaticAddress(Current: tai): Boolean;
+        begin
+          Result:=MatchInstruction(Current,A_LEA,[S_Q]) and
+            (taicpu(Current).ops=2) and
+            (taicpu(Current).oper[0]^.typ=top_ref) and
+            (taicpu(Current).oper[1]^.typ=top_reg);
+          if Result then
+            with taicpu(Current).oper[0]^.ref^ do
+              Result:=(base=NR_RIP) and (index=NR_NO) and (segment=NR_NO) and
+                Assigned(symbol) and not Assigned(relsymbol) and (refaddr=addr_pic_no_got);
+        end;
+
+      begin
+        Result:=False;
+        if tai_label(p).labsym.getrefs<>1 then
+          exit;
+        Align:=tai(p.Previous);
+        while Assigned(Align) and (Align.typ in Metadata) do
+          Align:=tai(Align.Previous);
+        if not Assigned(Align) or (Align.typ<>ait_align) or
+          (tai_align_abstract(Align).purpose<>ap_loop) then
+          exit;
+
+        { The only entrance is fallthrough from an actual preheader.  A jump
+          over the body to its condition needs CFG analysis and is left alone. }
+        Previous:=tai(Align.Previous);
+        while Assigned(Previous) and (Previous.typ in Metadata) do
+          Previous:=tai(Previous.Previous);
+        if not Assigned(Previous) or (Previous.typ<>ait_instruction) or
+          is_calljmp(taicpu(Previous).opcode) or
+          is_calljmpuncondret(taicpu(Previous).opcode) then
+          exit;
+
+        Latch:=nil;
+        Scan:=tai(p.Next);
+        Insns:=0;
+        while Assigned(Scan) and (Insns<MaxInstructions) do
+          begin
+            if Scan.typ=ait_instruction then
+              begin
+                Inc(Insns);
+                if MatchInstruction(Scan,A_Jcc,[]) and
+                  (taicpu(Scan).ops=1) and (taicpu(Scan).oper[0]^.typ=top_ref) and
+                  (taicpu(Scan).oper[0]^.ref^.symbol=tai_label(p).labsym) then
+                  begin
+                    Latch:=Scan;
+                    break;
+                  end;
+                if is_calljmp(taicpu(Scan).opcode) or
+                  is_calljmpuncondret(taicpu(Scan).opcode) then
+                  exit;
+                { Restrict this profitability rule to explicit operands and a
+                  fixed stack; implicit string/stack stores stay untouched. }
+                if (taicpu(Scan).ops=0) or RegModifiedByInstruction(NR_STACK_POINTER_REG,Scan) then
+                  exit;
+                { Keep loops with memory writes on their existing schedule and
+                  placement. Their store addresses need not limit throughput. }
+                for Op:=0 to taicpu(Scan).ops-1 do
+                  if (taicpu(Scan).oper[Op]^.typ=top_ref) and
+                    (taicpu(Scan).spilling_get_operation_type(Op) in [operand_write,operand_readwrite]) then
+                    exit;
+              end
+            else if not (Scan.typ in Metadata) then
+              if (Scan.typ<>ait_label) or
+                (tai_label(Scan).labsym.labeltype<>alt_jump) or
+                (tai_label(Scan).labsym.getrefs<>0) then
+                exit;
+            Scan:=tai(Scan.Next);
+          end;
+        if not Assigned(Latch) then
+          exit;
+
+        Load:=tai(p.Next);
+        while Load<>Latch do
+          begin
+            if (Load.typ=ait_instruction) and IsStaticAddress(Load) then
+              begin
+                BaseReg:=taicpu(Load).oper[1]^.reg;
+                if not RegInUsedRegs(BaseReg,UsedRegs) and
+                  (BaseReg<>NR_STACK_POINTER_REG) and (BaseReg<>current_procinfo.framepointer) then
+                  begin
+                    UseCount:=0;
+                    Valid:=True;
+                    SeenLoad:=False;
+                    AllocNode:=nil;
+                    DeallocNode:=nil;
+                    LastUse:=nil;
+                    Scan:=tai(p.Next);
+                    while Scan<>Latch do
+                      begin
+                        if Scan=Load then
+                          SeenLoad:=True
+                        else if (Scan.typ=ait_instruction) and RegInInstruction(BaseReg,Scan) then
+                          begin
+                            if not SeenLoad or Assigned(DeallocNode) or RegModifiedByInstruction(BaseReg,Scan) then
+                              Valid:=False;
+                            for Op:=0 to taicpu(Scan).ops-1 do
+                              with taicpu(Scan).oper[Op]^ do
+                                case typ of
+                                  top_reg:
+                                    if SuperRegistersEqual(BaseReg,reg) then
+                                      Valid:=False;
+                                  top_ref:
+                                    begin
+                                      if SuperRegistersEqual(BaseReg,ref^.index) then
+                                        Valid:=False;
+                                      if SuperRegistersEqual(BaseReg,ref^.base) then
+                                        begin
+                                          if taicpu(Scan).opcode=A_LEA then
+                                            Valid:=False
+                                          else
+                                            Inc(UseCount);
+                                          LastUse:=Scan;
+                                        end;
+                                    end;
+                                  else
+                                    ;
+                                end;
+                          end
+                        else if (Scan.typ=ait_regalloc) and
+                          SuperRegistersEqual(BaseReg,tai_regalloc(Scan).reg) then
+                          case tai_regalloc(Scan).ratype of
+                            ra_alloc:
+                              if Assigned(AllocNode) or SeenLoad then
+                                Valid:=False
+                              else
+                                AllocNode:=Scan;
+                            ra_dealloc:
+                              if Assigned(DeallocNode) or not SeenLoad then
+                                Valid:=False
+                              else
+                                DeallocNode:=Scan;
+                            else
+                              Valid:=False;
+                          end;
+                        if not Valid then
+                          break;
+                        Scan:=tai(Scan.Next);
+                      end;
+                    if Valid and (UseCount>=2) and Assigned(AllocNode) and Assigned(DeallocNode) and
+                      not RegInInstruction(BaseReg,Latch) and RegEndOfLife(BaseReg,taicpu(LastUse)) then
+                      begin
+                        { Keep the same physical register and every consumer.
+                          Extend its single lifetime through the backedge. }
+                        AsmL.Remove(AllocNode);
+                        AsmL.InsertBefore(AllocNode,Align);
+                        AsmL.Remove(Load);
+                        AsmL.InsertBefore(Load,Align);
+                        AsmL.Remove(DeallocNode);
+                        AsmL.InsertAfter(DeallocNode,Latch);
+                        IncludeRegInUsedRegs(BaseReg,UsedRegs);
+                        Result:=True;
+                        exit;
+                      end;
+                  end;
+              end;
+            Load:=tai(Load.Next);
+          end;
       end;
 
     function TCpuAsmOptimizer.OptPass1DIV(var p: tai): Boolean;
@@ -576,6 +747,8 @@ uses
       begin
         result := false;
         case p.typ of
+          ait_label:
+            Result:=PostPeepholeOptLoopAddress(p);
           ait_instruction:
             begin
               case taicpu(p).opcode of

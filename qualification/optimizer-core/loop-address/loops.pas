@@ -1,0 +1,146 @@
+unit loops;
+{$mode delphi}{$H+}{$Q-}{$R-}{$INLINE OFF}
+interface
+function reduction64(N:Integer):QWord;
+function reduction4096(N:Integer):QWord;
+function matrix_row(N:Integer):QWord;
+function matrix_column(N:Integer):QWord;
+function histogram(N:Integer):QWord;
+function write_one_base(N:Integer):QWord;
+function write_two_base(N:Integer):QWord;
+function aliased(N:Integer):QWord;
+function nonaliased(N:Integer):QWord;
+function pressure_low(N:Integer):QWord;
+function pressure_high(N:Integer):QWord;
+function matrix_2_fields(N:Integer):QWord;
+function matrix_3_fields(N:Integer):QWord;
+function matrix_4_fields(N:Integer):QWord;
+function local_table(N:Integer):QWord;
+function literal_table(N:Integer):QWord;
+function literal_fp(N:Integer):QWord;
+procedure InitData;
+implementation
+type TDoublePair=array[0..1] of Double;PDoublePair=^TDoublePair;
+var A,B:array[0..8191] of LongWord; D:array[0..8191] of Double;
+procedure InitData; var I:Integer; begin for I:=0 to 8191 do begin
+A[I]:=LongWord(QWord(I)*747796405+2891336453); B[I]:=0; D[I]:=((I*17) and 1023)/1024; end; end;
+function reduction64(N:Integer):QWord;
+var I,J,K:Integer; X,Y,Z,W:Double;
+begin Result:=0;
+X:=0;Y:=0;Z:=0;W:=0;
+for I:=1 to N do begin J:=0; while J<256 do begin
+X:=X+D[(I+J) and 8191];Y:=Y+D[(I+J+1) and 8191];
+Z:=Z+D[(I+J+2) and 8191];W:=W+D[(I+J+3) and 8191];Inc(J,4);
+end;end; Result:=Trunc((X+Y+Z+W)*1024);
+end;
+function reduction4096(N:Integer):QWord;
+var I,J,K:Integer; X,Y,Z,W:Double;
+begin Result:=0;
+X:=0;Y:=0;Z:=0;W:=0;
+for I:=1 to N do begin J:=0; while J<16384 do begin
+X:=X+D[(I+J) and 8191];Y:=Y+D[(I+J+1) and 8191];
+Z:=Z+D[(I+J+2) and 8191];W:=W+D[(I+J+3) and 8191];Inc(J,4);
+end;end; Result:=Trunc((X+Y+Z+W)*1024);
+end;
+function matrix_row(N:Integer):QWord;
+var I,J,K:Integer;
+begin Result:=0;
+for I:=1 to N do for J:=0 to 63 do begin K:=((I and 63)*64+J);
+Result:=Result+A[K];
+end;
+end;
+function matrix_column(N:Integer):QWord;
+var I,J,K:Integer;
+begin Result:=0;
+for I:=1 to N do for J:=0 to 63 do begin K:=(J*64+I);
+Result:=Result+A[K];
+end;
+end;
+function histogram(N:Integer):QWord;
+var I,J,K:Integer; H:array[0..255] of LongWord;
+begin Result:=0;
+FillChar(H,SizeOf(H),0);for I:=1 to N do for J:=0 to 255 do
+Inc(H[A[(I*17+J) and 8191] and 255]);
+for J:=0 to 255 do Result:=Result+QWord(H[J])*(J+1);
+end;
+function write_one_base(N:Integer):QWord;
+var I,J,K:Integer;
+begin Result:=0;
+for I:=1 to N do for J:=0 to 255 do begin Inc(A[J]);Result:=LongWord(Result+A[J]);end;
+end;
+function write_two_base(N:Integer):QWord;
+var I,J,K:Integer;
+begin Result:=0;
+for I:=1 to N do for J:=0 to 255 do begin B[J]:=A[J];Result:=LongWord(Result+B[J]);end;
+end;
+function aliased(N:Integer):QWord;
+var I,J,K:Integer;
+begin Result:=0;
+for I:=1 to N do for J:=0 to 255 do begin K:=(I+J) and 8191;
+B[K]:=A[K];B[K]:=B[K]+B[K]*3+1;
+end;Result:=B[(N+7) and 8191];
+end;
+function nonaliased(N:Integer):QWord;
+var I,J,K:Integer;
+begin Result:=0;
+for I:=1 to N do for J:=0 to 255 do begin K:=(I+J) and 8191;
+B[K]:=0;B[K]:=B[K]+A[K]*3+1;
+end;Result:=B[(N+7) and 8191];
+end;
+function pressure_low(N:Integer):QWord;
+var I,J,K:Integer; X:Double; S,T,U,V,P,Q:QWord;
+begin Result:=0;
+X:=0;S:=1;T:=2;U:=3;V:=4;P:=5;Q:=6;
+for I:=1 to N do for J:=0 to 255 do begin X:=X+D[J];
+end;Result:=Trunc(X*1024);
+end;
+function pressure_high(N:Integer):QWord;
+var I,J,K:Integer; X:Double; S,T,U,V,P,Q:QWord;
+begin Result:=0;
+X:=0;S:=1;T:=2;U:=3;V:=4;P:=5;Q:=6;
+for I:=1 to N do for J:=0 to 255 do begin X:=X+D[J];
+Inc(S);Inc(T,2);Inc(U,3);Inc(V,4);Inc(P,5);Inc(Q,6);
+end;Result:=Trunc(X*1024);
+Result:=Result xor S xor T xor U xor V xor P xor Q;
+end;
+function matrix_2_fields(N:Integer):QWord;
+var I,J,K:Integer;
+begin Result:=0;
+for I:=1 to N do for J:=0 to 63 do begin K:=(J*64+I);
+Result:=Result+A[K];
+Result:=Result+A[K+1];
+end;
+end;
+function matrix_3_fields(N:Integer):QWord;
+var I,J,K:Integer;
+begin Result:=0;
+for I:=1 to N do for J:=0 to 63 do begin K:=(J*64+I);
+Result:=Result+A[K];
+Result:=Result+A[K+1];
+Result:=Result+A[K+2];
+end;
+end;
+function matrix_4_fields(N:Integer):QWord;
+var I,J,K:Integer;
+begin Result:=0;
+for I:=1 to N do for J:=0 to 63 do begin K:=(J*64+I);
+Result:=Result+A[K];
+Result:=Result+A[K+1];
+Result:=Result+A[K+2];
+Result:=Result+A[K+3];
+end;
+end;
+function local_table(N:Integer):QWord;
+const T:array[0..255] of LongWord=(13,42,71,100,129,158,187,216,245,274,303,332,361,390,419,448,477,506,535,564,593,622,651,680,709,738,767,796,825,854,883,912,941,970,999,1028,1057,1086,1115,1144,1173,1202,1231,1260,1289,1318,1347,1376,1405,1434,1463,1492,1521,1550,1579,1608,1637,1666,1695,1724,1753,1782,1811,1840,1869,1898,1927,1956,1985,2014,2043,2072,2101,2130,2159,2188,2217,2246,2275,2304,2333,2362,2391,2420,2449,2478,2507,2536,2565,2594,2623,2652,2681,2710,2739,2768,2797,2826,2855,2884,2913,2942,2971,3000,3029,3058,3087,3116,3145,3174,3203,3232,3261,3290,3319,3348,3377,3406,3435,3464,3493,3522,3551,3580,3609,3638,3667,3696,3725,3754,3783,3812,3841,3870,3899,3928,3957,3986,4015,4044,4073,4102,4131,4160,4189,4218,4247,4276,4305,4334,4363,4392,4421,4450,4479,4508,4537,4566,4595,4624,4653,4682,4711,4740,4769,4798,4827,4856,4885,4914,4943,4972,5001,5030,5059,5088,5117,5146,5175,5204,5233,5262,5291,5320,5349,5378,5407,5436,5465,5494,5523,5552,5581,5610,5639,5668,5697,5726,5755,5784,5813,5842,5871,5900,5929,5958,5987,6016,6045,6074,6103,6132,6161,6190,6219,6248,6277,6306,6335,6364,6393,6422,6451,6480,6509,6538,6567,6596,6625,6654,6683,6712,6741,6770,6799,6828,6857,6886,6915,6944,6973,7002,7031,7060,7089,7118,7147,7176,7205,7234,7263,7292,7321,7350,7379,7408);
+var I,J:Integer;begin Result:=0;for I:=1 to N do for J:=0 to 63 do
+Result:=Result+T[J]+T[J+1]+T[J+2];end;
+function literal_table(N:Integer):QWord;
+var I,J:Integer;begin Result:=0;for I:=1 to N do for J:=0 to 63 do begin
+Result:=Result+Ord(PAnsiChar('0123456789abcdef')[(I+J) and 15])+
+Ord(PAnsiChar('0123456789abcdef')[(I+J+1) and 15]);end;end;
+function literal_fp(N:Integer):QWord;
+var I,J:Integer;X:Double;begin X:=0;for I:=1 to N do for J:=0 to 63 do
+X:=X+PDoublePair(PAnsiChar(#0#0#0#0#0#0#0#63#0#0#0#0#0#0#16#63))^[(I+J) and 1]+
+PDoublePair(PAnsiChar(#0#0#0#0#0#0#0#63#0#0#0#0#0#0#16#63))^[(I+J+1) and 1];
+Result:=Trunc(X*32768);end;
+end.

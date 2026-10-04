@@ -76,7 +76,7 @@ unit opteffect;
     uses
       globtype,cclasses,
       node,
-      symdef;
+      symdef,symsym;
 
     type
       { storage classes - ARCHITECTURE paragraph 2.1; only physical storages }
@@ -185,6 +185,31 @@ unit opteffect;
       e must be initialized with effect_init and released with effect_done. }
     procedure tree_effect(n : tnode; var e : teffect);
 
+    { Effect contributed by n itself, excluding ordinary child evaluation.
+      Store-designator structure still belongs to the owning operation.  This
+      lets control-flow consumers distinguish an exact direct call from an
+      implicit runtime helper introduced by another source node. }
+    procedure node_effect(n : tnode; var e : teffect);
+
+    { Cheap exact negative query for clients which scan a whole tree and only
+      need to classify the operation represented by n itself.  True means
+      node_effect cannot add ie_trap; false means "ask node_effect", not that
+      the node necessarily traps.  Keeping this selector beside the model
+      prevents consumers from growing parallel nodetype classifications. }
+    function effect_node_proven_trap_free_norecurse(n : tnode) : boolean;
+
+    { Does a current-frame local's value on entry to n reach a read in n or
+      in a live continuation before every continuing path overwrites it?
+      This ordered query complements tree_effect's deliberately unordered
+      read/write summary.  It proves kills only for control-flow forms whose
+      execution order is explicit; everything else stays conservative. }
+    function effect_local_live_in(n : tnode; sym : tabstractvarsym;
+      live_after : boolean) : boolean;
+
+    { The source-level effect of the positive-step gate which ConvertForLoops
+      creates later.  Pre-lowering consumers must use this same predicate. }
+    function effect_for_step_may_trap(n : tnode) : boolean;
+
     { may the trees behind a and b touch the same memory, or does a barrier
       forbid reordering them?  v1 conflict promises (review R3-02): exact
       symbol identity inside ac_local, ac_heapelem as one class, and the
@@ -197,10 +222,12 @@ unit opteffect;
     { Is candidate a trap-free unmanaged value expression whose only memory
       inputs are exact local/value-parameter symbols, and are those symbols
       unchanged by loop?  This is the sole F2 invariance query: LICM must not
-      grow a second mutation/alias scan.  pressure is the number of distinct
-      exact locals read by the loop and is only a profitability hint. }
-    function effect_licm_invariant(candidate : tnode; const loopeffect : teffect;
-      out pressure : longint) : boolean;
+      grow a second mutation/alias scan. }
+    function effect_licm_invariant(candidate : tnode; const loopeffect : teffect) : boolean;
+
+    { Native integer conversions whose complete storage range is represented
+      exactly: neither rounding mode nor FP exception state is observed. }
+    function effect_int_to_real_is_exact(n : tnode) : boolean;
 
     { observe-only consumer (-OoEFFECTOBSERVE): walks the final routine tree,
       emits one machine-stable remark per classified reason occurrence and one
@@ -213,14 +240,17 @@ unit opteffect;
       cutils,
       verbose,
       compinnr,procinfo,paramgr,
-      symconst,symtype,symbase,symsym,defutil,defcmp,
-      nutils,nbas,nld,ncal,ncnv,ninl,nflw;
+      symconst,symtype,symbase,defutil,defcmp,
+      nutils,nbas,nld,ncal,ncnv,ncon,ninl,nflw;
 
     type
       teffectwalk = record
         e : ^teffect;
         { observe mode: emit remarks }
         observing : boolean;
+        { classify the current operation only; recursive child walks issued
+          by the classifier are suppressed }
+        shallow : boolean;
         counters : array[teffectreason] of longint;
         nodes : longint;
       end;
@@ -336,23 +366,56 @@ unit opteffect;
       end;
 
 
-    function effect_licm_invariant(candidate : tnode; const loopeffect : teffect;
-      out pressure : longint) : boolean;
+    function effect_int_to_real_is_exact(n : tnode) : boolean;
+{$ifdef x86_64}
+      var
+        source : tnode;
+        precision : longint;
+{$endif x86_64}
+      begin
+        result:=false;
+{$ifdef x86_64}
+        if (n.nodetype<>typeconvn) or (ttypeconvnode(n).convtype<>tc_int_2_real) or
+           not use_vectorfpu(n.resultdef) or not is_ordinal(ttypeconvnode(n).left.resultdef) or
+           (ttypeconvnode(n).left.resultdef.size>8) then
+          exit;
+        if is_single(n.resultdef) then
+          precision:=24
+        else if is_double(n.resultdef) then
+          precision:=53
+        else
+          exit;
+        source:=ttypeconvnode(n).left;
+        { The x86-64 first pass widens UInt32 to Int64 before CVTSI2S*.
+          Follow only value-preserving widenings.  Use storage widths, not
+          subrange bounds which unchecked assignments need not preserve. }
+        while source.resultdef.size*8>precision do
+          begin
+            if (source.nodetype<>typeconvn) or
+               (ttypeconvnode(source).convtype<>tc_int_2_int) or
+               (source.resultdef.size<=ttypeconvnode(source).left.resultdef.size) or
+               not is_signed(source.resultdef) then
+              exit;
+            source:=ttypeconvnode(source).left;
+          end;
+        result:=true;
+{$endif x86_64}
+      end;
+
+
+    function effect_licm_invariant(candidate : tnode; const loopeffect : teffect) : boolean;
       var
         ce : teffect;
         i : longint;
         sym : tabstractvarsym;
       begin
         result:=false;
-        pressure:=0;
         if not assigned(candidate) or not assigned(candidate.resultdef) or
            is_managed_type(candidate.resultdef) then
           exit;
         effect_init(ce);
         try
           tree_effect(candidate,ce);
-          if assigned(loopeffect.rsyms) then
-            pressure:=loopeffect.rsyms.count;
           { The expression itself must be a plain computation over exact
             current-frame values.  In particular: no compiler temp identity,
             no implicit helper, no trap, no write, no escaped/global/heap
@@ -373,9 +436,15 @@ unit opteffect;
                         (tparavarsym(sym).varspez=vs_value))) then
                   exit;
               end;
-          { The loop effect includes its condition, body and lowered latch.
-            Its writes/barriers are therefore the only mutation authority. }
-          if effects_conflict(ce,loopeffect) then
+          { Unlike the general conflict query, this candidate names no temp.
+            A loop may write private temps as well as exact locals: their
+            lifetime cannot change one of the candidate's symbols.  Retain
+            the temp barrier for indirect writes, including reference temps
+            whose underlying storage has no exact identity in the model. }
+          if (loopeffect.hastemps and (loopeffect.wclasses-[ac_local]<>[])) or
+             (ie_sync in loopeffect.ieffects) or
+             classpairs_conflict(ce.rclasses,ce.rsyms,ce.runbounded,
+               loopeffect.wclasses,loopeffect.wsyms,loopeffect.wunbounded) then
             exit;
           result:=true;
         finally
@@ -583,6 +652,35 @@ unit opteffect;
     function checked_switches(n : tnode) : boolean;
       begin
         result:=(n.localswitches*[cs_check_range,cs_check_overflow])<>[];
+      end;
+
+
+    function effect_for_step_may_trap(n : tnode) : boolean;
+      var
+        step : tnode;
+      begin
+        { ConvertForLoops lowers a non-default step into a mandatory runtime
+          positive-step gate before it touches either bound or the counter.
+          The effect belongs to the source forn already: optimizers which run
+          before lowering must not move or discard an observation that the
+          generated range error can make visible.  Only a positive constant
+          proves the gate dead under Delphi's unchecked explicit casts. }
+        if not assigned(n) or (n.nodetype<>forn) then
+          exit(false);
+        step:=tfornode(n).loopstep;
+        if not assigned(step) then
+          exit(false);
+        if step.nodetype=ordconstn then
+          begin
+            result:=tordconstnode(step).value.is_negative or
+              ((tordconstnode(step).value.vhi=0) and
+               (tordconstnode(step).value.vlo=0));
+            exit;
+          end;
+        { A declared positive subrange is not proof under Delphi $R-: an
+          explicit cast may still carry zero.  The lowering gate observes the
+          runtime value, therefore only a positive constant is trap-free. }
+        result:=true;
       end;
 
 
@@ -1104,10 +1202,11 @@ unit opteffect;
                         end;
                     end;
                   tc_int_2_real,tc_real_2_real,tc_real_2_currency:
-                    begin
-                      include(ctx^.e^.ieffects,ie_trap);
-                      journal(ctx^,n,er_fp_environment,'');
-                    end;
+                    if not effect_int_to_real_is_exact(n) then
+                      begin
+                        include(ctx^.e^.ieffects,ie_trap);
+                        journal(ctx^,n,er_fp_environment,'');
+                      end;
                   tc_set_to_set:
                     begin
                       if bigset_def(n.resultdef) or
@@ -1182,8 +1281,17 @@ unit opteffect;
             begin
               { manual handling: the left designator is a store target, the
                 right side is an ordinary read tree.  Managed assignments
-                run refcount helpers and may call user operators. }
-              if is_managed_type(tbinarynode(n).left.resultdef) then
+                run refcount helpers and may call user operators.  Generated
+                assignments are allowed to omit the designator result type;
+                absence of that proof is opaque, never permission to
+                dereference a nil definition or to assume a plain store. }
+              if not assigned(tbinarynode(n).left) or
+                 not assigned(tbinarynode(n).left.resultdef) then
+                begin
+                  add_managed_opaque(ctx^);
+                  journal(ctx^,n,er_unknown_node,'assign-type');
+                end
+              else if is_managed_type(tbinarynode(n).left.resultdef) then
                 begin
                   add_managed_opaque(ctx^);
                   journal(ctx^,n,er_managed_operation,'assign');
@@ -1211,10 +1319,13 @@ unit opteffect;
                 loop machinery (the counter read comes from the generic
                 children walk). }
               add_store_target(ctx^,tloopnode(n).left,true);
-              if checked_switches(n) then
+              if checked_switches(n) or effect_for_step_may_trap(n) then
                 begin
                   include(ctx^.e^.ieffects,ie_trap);
-                  journal(ctx^,n,er_may_trap,'');
+                  if effect_for_step_may_trap(n) then
+                    journal(ctx^,n,er_may_trap,'for-step')
+                  else
+                    journal(ctx^,n,er_may_trap,'');
                 end;
             end;
           exitn:
@@ -1253,7 +1364,7 @@ unit opteffect;
 
     procedure walk_tree(var ctx : teffectwalk; n : tnode);
       begin
-        if assigned(n) then
+        if assigned(n) and not ctx.shallow then
           foreachnodestatic(pm_postprocess,n,@effect_walk_node,@ctx);
       end;
 
@@ -1270,6 +1381,154 @@ unit opteffect;
         ctx.e:=@e;
         ctx.observing:=false;
         walk_tree(ctx,n);
+      end;
+
+
+    procedure node_effect(n : tnode; var e : teffect);
+      var
+        ctx : teffectwalk;
+        current : tnode;
+      begin
+        if not assigned(n) then
+          exit;
+        fillchar(ctx,sizeof(ctx),0);
+        ctx.e:=@e;
+        ctx.shallow:=true;
+        current:=n;
+        effect_walk_node(current,@ctx);
+      end;
+
+
+    function effect_node_proven_trap_free_norecurse(n : tnode) : boolean;
+      begin
+        result:=false;
+        if not assigned(n) then
+          exit(true);
+        case n.nodetype of
+          ordconstn,realconstn,stringconstn,pointerconstn,niln,setconstn,
+          guidconstn,typen,rttin,nothingn,setelementn,arrayconstructorrangen,
+          loadvmtaddrn,loadparentfpn,addrn,
+          blockn,statementn,ifn,whilerepeatn,casen,labeln,goton,breakn,
+          continuen,callparan,tryexceptn,tryfinallyn,
+          isn,temprefn,tempcreaten,exitn,onn:
+            result:=true;
+          loadn:
+            result:=tloadnode(n).symtableentry.typ in
+              [staticvarsym,localvarsym,paravarsym,absolutevarsym,
+               procsym,labelsym];
+          forn:
+            result:=not checked_switches(n) and
+              not effect_for_step_may_trap(n) and
+              assigned(tloopnode(n).left) and
+              (tloopnode(n).left.nodetype=loadn) and
+              (tloadnode(tloopnode(n).left).symtableentry.typ in
+                [staticvarsym,localvarsym,paravarsym,absolutevarsym]);
+          else
+            ;
+        end;
+      end;
+
+
+    type
+      tincomingflow = record
+        observed,
+        liveout : boolean;
+      end;
+
+    function effect_reads_sym(n : tnode; sym : tabstractvarsym) : boolean;
+      var
+        e : teffect;
+      begin
+        effect_init(e);
+        try
+          tree_effect(n,e);
+          result:=e.runbounded or
+            (assigned(e.rsyms) and (e.rsyms.indexof(sym)>=0));
+        finally
+          effect_done(e);
+        end;
+      end;
+
+
+    function incoming_local_flow(n : tnode; sym : tabstractvarsym) : tincomingflow;
+      var
+        statement : tstatementnode;
+        thenflow,
+        elseflow : tincomingflow;
+      begin
+        result.observed:=false;
+        result.liveout:=true;
+        if not assigned(n) then
+          exit;
+        case n.nodetype of
+          nothingn:
+            ;
+          blockn:
+            result:=incoming_local_flow(tblocknode(n).left,sym);
+          statementn:
+            begin
+              statement:=tstatementnode(n);
+              while assigned(statement) and result.liveout and
+                    not result.observed do
+                begin
+                  result:=incoming_local_flow(statement.left,sym);
+                  statement:=tstatementnode(statement.right);
+                end;
+            end;
+          assignn:
+            begin
+              { The RHS and any address calculation happen before the store.
+                tree_effect records a direct local target only in wsyms, so a
+                read here is necessarily an observation of the incoming
+                value.  Only a plain assignment to that exact local is a
+                definite kill. }
+              result.observed:=effect_reads_sym(n,sym);
+              if not result.observed and
+                 (tassignmentnode(n).assigntype=at_normal) and
+                 (tassignmentnode(n).left.nodetype=loadn) and
+                 (tloadnode(tassignmentnode(n).left).symtableentry=sym) then
+                result.liveout:=false;
+            end;
+          ifn:
+            begin
+              result.observed:=effect_reads_sym(tifnode(n).left,sym);
+              if result.observed then
+                exit;
+              thenflow:=incoming_local_flow(tifnode(n).right,sym);
+              if assigned(tifnode(n).t1) then
+                elseflow:=incoming_local_flow(tifnode(n).t1,sym)
+              else
+                begin
+                  elseflow.observed:=false;
+                  elseflow.liveout:=true;
+                end;
+              result.observed:=thenflow.observed or elseflow.observed;
+              result.liveout:=thenflow.liveout or elseflow.liveout;
+            end;
+          exitn,raisen:
+            begin
+              result.observed:=effect_reads_sym(n,sym);
+              result.liveout:=false;
+            end;
+          else
+            begin
+              { Loops, cases, gotos and nested EH require full CFG facts to
+                prove a kill.  Their unordered effect is still sufficient to
+                prove an observation; otherwise keep the incoming value live
+                for following statements. }
+              result.observed:=effect_reads_sym(n,sym);
+            end;
+        end;
+      end;
+
+
+    function effect_local_live_in(n : tnode; sym : tabstractvarsym;
+      live_after : boolean) : boolean;
+      var
+        flow : tincomingflow;
+      begin
+        flow:=incoming_local_flow(n,sym);
+        result:=flow.observed or (flow.liveout and live_after);
       end;
 
 

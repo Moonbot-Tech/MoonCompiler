@@ -152,6 +152,12 @@ unit procinfo;
             initializer runs once per thread on first entry }
           threadstatic_initcode : tnode;
 
+          { Transient demand bit for complete-tree loop observability.  It
+            is deliberately not part of tprocinfoflags: that legacy set is
+            serialized as a fixed 32-bit PPU value. }
+          has_pending_loop_observer_analysis : boolean;
+          loop_observer_analysis_initialized : boolean;
+
           { Registers saved by the current procedure - useful for peephole optimizers }
           saved_regs_int,
           saved_regs_address,

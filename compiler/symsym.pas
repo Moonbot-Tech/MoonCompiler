@@ -64,10 +64,14 @@ interface
        end;
 
        tlabelsym = class(tstoredsym)
-          used,
-          defined,
-          nonlocal,
-          { true when this is the sentinel symbol for an array label declaration,
+           used,
+           defined,
+           nonlocal,
+           { entered by a goto emitted from a nested routine.  This is a
+             source-control-flow fact, distinct from nonlocal, which controls
+             assembler-label visibility. }
+           has_nonlocal_entry,
+           { true when this is the sentinel symbol for an array label declaration,
             e.g. "label foo[1..10]" - the actual targets are foo$1..foo$10 }
           arraylabel : boolean;
           { for integer array labels: lo..hi range for jump table generation }
@@ -843,6 +847,7 @@ implementation
          used:=false;
          defined:=false;
          nonlocal:=false;
+         has_nonlocal_entry:=false;
          arraylabel:=false;
          arraylabel_lo:=0;
          arraylabel_hi:=0;
@@ -857,6 +862,7 @@ implementation
          code:=nil;
          used:=false;
          nonlocal:=false;
+         has_nonlocal_entry:=false;
          defined:=true;
          ppuload_platform(ppufile);
       end;

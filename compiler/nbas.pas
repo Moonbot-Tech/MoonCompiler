@@ -169,7 +169,11 @@ interface
          { helper block introduced by parser (e.g. autofree
            desugar) - rewrite_defers should walk through it instead of
            treating it as a separate scope. }
-         bnf_defer_transparent
+         bnf_defer_transparent,
+         { exact wrapper emitted by tvecnode.gen_array_rangecheck for an
+           open-array access; preserves the check/access relationship for
+           later structural range proofs }
+         bnf_open_array_rangecheck
        );
 
        TBlockNodeFlags = set of TBlockNodeFlag;

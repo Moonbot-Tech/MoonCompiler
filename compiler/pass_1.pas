@@ -47,6 +47,7 @@ implementation
       procinfo,
       verbose,
       symdef
+      ,optloop
 {$ifdef extdebug}
       ,htypechk
       ,cgbase
@@ -176,6 +177,11 @@ implementation
                if (p.resultdef=nil) then
                  begin
                    typecheckpass_internal_loop(p,nodechanged);
+                   { firstpass transforms may manufacture a fresh typed tree
+                     after the routine-wide optimizer entry point.  Apply the
+                     same complete-tree loop finalization before assigning
+                     locations, irrespective of which transform created it. }
+                   finish_loop_unrolling(p);
                  end;
 
                hp:=nil;

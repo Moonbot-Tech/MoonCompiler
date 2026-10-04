@@ -1,0 +1,86 @@
+{
+ "linux": {
+  "NESTEDREADS": [
+   45,
+   4,
+   8
+  ],
+  "NESTEDWRITESOTHER": [
+   58,
+   6,
+   9
+  ],
+  "SHAPEADDRESSOFREADER": [
+   59,
+   6,
+   7
+  ],
+  "SHAPENESTEDREADS": [
+   47,
+   5,
+   7
+  ],
+  "SHAPENESTEDWRITESELSEWHERE": [
+   50,
+   5,
+   7
+  ],
+  "SHAPEPLAIN": [
+   44,
+   4,
+   7
+  ],
+  "WALKOFNESTED": [
+   26,
+   1,
+   7
+  ],
+  "WALKOFNESTEDPLAIN": [
+   26,
+   1,
+   7
+  ]
+ },
+ "win64": {
+  "NESTEDREADS": [
+   47,
+   4,
+   8
+  ],
+  "NESTEDWRITESOTHER": [
+   60,
+   6,
+   9
+  ],
+  "SHAPEADDRESSOFREADER": [
+   58,
+   6,
+   7
+  ],
+  "SHAPENESTEDREADS": [
+   49,
+   5,
+   7
+  ],
+  "SHAPENESTEDWRITESELSEWHERE": [
+   52,
+   5,
+   7
+  ],
+  "SHAPEPLAIN": [
+   46,
+   4,
+   7
+  ],
+  "WALKOFNESTED": [
+   26,
+   1,
+   7
+  ],
+  "WALKOFNESTEDPLAIN": [
+   26,
+   1,
+   7
+  ]
+ }
+}

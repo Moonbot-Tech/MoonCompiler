@@ -416,6 +416,10 @@ unit optcall;
 
         typecheckpass(tnode(inlineblock));
         doinlinesimplify(tnode(inlineblock));
+        { The copied inline body was typechecked before its caller's final
+          tree existed.  Finish delayed full unrolling before firstpass; the
+          loop counter is callee-private or unrolling already refuses it. }
+        finish_loop_unrolling(tnode(inlineblock));
         firstpass(tnode(inlineblock));
         _n:=inlineblock;
 

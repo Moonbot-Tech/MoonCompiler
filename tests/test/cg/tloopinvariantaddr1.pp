@@ -57,11 +57,15 @@ end;
 
 procedure TWorker.Bump(Count: Integer);
 var
-  I: Integer;
+  I,
+  Index: Integer;
 begin
+  { The address preheader is legal because the potentially trapping field
+    read remains at its source position, before the possibly empty loop. }
+  Index := FIndex;
   { INVARIANT_ADDRESS_LOOP_BEGIN }
   for I := 1 to Count do
-    Inc(Counters[FIndex].Value);
+    Inc(Counters[Index].Value);
   { INVARIANT_ADDRESS_LOOP_END }
 end;
 

@@ -1623,6 +1623,8 @@ implementation
             begin
               temp:=nil;
               result:=internalstatements(stat);
+              include(tblocknode(result).blocknodeflags,
+                bnf_open_array_rangecheck);
               { can't use node_complexity here, assumes that the code has
                 already been firstpassed }
               if not is_const(right) then

@@ -229,7 +229,7 @@ unit optdfa;
           save: TDFASet;
           lv, hv: TConstExprInt;
           i : longint;
-          counteruse_after_loop : boolean;
+          countertarget : tnode;
         begin
           if node=nil then
             exit;
@@ -308,6 +308,10 @@ unit optdfa;
 
             forn:
               begin
+                { Equal/location-preserving conversions around an lvalue are
+                  structural wrappers, not a different DFA storage.  Function
+                  Result is one common source of such a wrapper. }
+                countertarget:=actualtargetnode(@tfornode(node).left)^;
                 {
                   left: loopvar
                   right: from
@@ -332,21 +336,21 @@ unit optdfa;
                 { create life for the body }
                 CreateInfo(tfornode(node).t2);
 
-                { is the counter living after the loop?
-
-                  if left is a record element, it might not be tracked by dfa, so
-                  optinfo might not be assigned
-                }
-                counteruse_after_loop:=assigned(tfornode(node).left.optinfo) and assigned(node.successor) and
-                  DynSetIn(node.successor.optinfo^.life,tfornode(node).left.optinfo^.index);
-
-                if counteruse_after_loop then
-                  begin
-                    { if yes, then we should warn }
-                    { !!!!!! }
-                  end
-                else
-                  Include(tfornode(node).loopflags,lnf_dont_mind_loopvar_on_exit);
+                { This derived flag is recomputed, never accumulated.  Every
+                  for node is visited on the final unchanged solver pass, so
+                  that pass leaves the decision based on the converged life
+                  sets without requiring another whole-tree walk.  A local
+                  successor can prove death only for non-escaping storage
+                  owned by this routine. }
+                exclude(tfornode(node).loopflags,
+                  lnf_dfa_dead_loopvar_on_exit);
+                if node_is_private_routine_storage(countertarget) and
+                   assigned(countertarget.optinfo) and
+                   assigned(node.successor) and
+                   not DynSetIn(node.successor.optinfo^.life,
+                     countertarget.optinfo^.index) then
+                  include(tfornode(node).loopflags,
+                    lnf_dfa_dead_loopvar_on_exit);
 
                 { first update the dummy node }
 
@@ -362,8 +366,8 @@ unit optdfa;
                   if left is a record element, it might not be tracked by dfa, so
                   optinfo might not be assigned
                 }
-                if assigned(tfornode(node).left.optinfo) then
-                  DynSetInclude(l,tfornode(node).left.optinfo^.index);
+                if assigned(countertarget.optinfo) then
+                  DynSetInclude(l,countertarget.optinfo^.index);
 
                 { force block node life info }
                 UpdateLifeInfo(tfornode(node).loopiteration,l);
@@ -384,8 +388,8 @@ unit optdfa;
                   if left is a record element, it might not be tracked by dfa, so
                     optinfo might not be assigned
                 }
-                if assigned(tfornode(node).left.optinfo) then
-                  DynSetExclude(l,tfornode(node).left.optinfo^.index);
+                if assigned(countertarget.optinfo) then
+                  DynSetExclude(l,countertarget.optinfo^.index);
 
                 { ... but it could be that left/right use it, so do this after
                   removing the def of the counter variable }

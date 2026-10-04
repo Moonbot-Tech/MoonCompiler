@@ -4659,6 +4659,7 @@ implementation
         statements : tstatementnode;
         converted_result_data : ttempcreatenode;
         calltype: tdispcalltype;
+        called_through_procvar : boolean;
 
         
       procedure maybe_reset_para_callnode;
@@ -4667,8 +4668,31 @@ implementation
             set_para_callnode(nil);
         end;
 
+      procedure register_nonlocal_goto_call_effect;
+        begin
+          if not assigned(current_procinfo) or
+             not assigned(current_procinfo.procdef) then
+            exit;
+          { A statically selected, non-virtual procdef can be followed to its
+            transient summary once all nested bodies are typed.  Procvars,
+            virtual dispatch and opaque definitions may invoke an escaping
+            nested callback, so absence of a known target is not proof of
+            absence there. }
+          if not called_through_procvar and
+             (procdefinition.typ=procdef) and
+             (not(po_virtualmethod in procdefinition.procoptions) or
+              (cnf_inherited in callnodeflags)) and
+             not(po_abstractmethod in procdefinition.procoptions) then
+            TFPList.AddOnDemand(
+              current_procinfo.procdef.nonlocal_goto_callees,
+              procdefinition)
+          else
+            current_procinfo.procdef.nonlocal_goto_has_opaque_transfer:=true;
+        end;
+
       begin
         result:=nil;
+        called_through_procvar:=assigned(right);
 
         { determine length of parameter list }
         paralength:=0;
@@ -5049,6 +5073,8 @@ implementation
             maybe_reset_para_callnode;
             exit;
           end;
+
+        register_nonlocal_goto_call_effect;
 
          { in case this is an Objective-C message that returns a related object type by convention,
            override the default result type }
