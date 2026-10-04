@@ -1317,9 +1317,9 @@ implementation
             (cpf_varargs_para in callparaflags)) and
            (left.nodetype<>nothingn) and
            not(vo_has_local_copy in parasym.varoptions) and
-           ((not is_open_array(parasym.vardef) and
-             not is_array_of_const(parasym.vardef)) or
-            not(callnode.procdefinition.proccalloption in cdecl_pocalls)) and
+            ((not is_open_array(parasym.vardef) and
+              not is_array_of_const(parasym.vardef)) or
+             assigned(get_high_value_sym(parasym))) and
            paramanager.push_addr_param(vs_value,parasym.vardef,
                       callnode.procdefinition.proccalloption) and
            not(cnf_do_inline in callnode.callnodeflags) then
@@ -1469,7 +1469,11 @@ implementation
                     not(parasym.univpara) then
                    begin
                       { Process open parameters }
-                      if paramanager.keep_para_array_range(parasym.varspez,parasym.vardef,callnode.procdefinition.proccalloption) then
+                      { The declaration's hidden High parameter is the physical
+                        ABI contract.  It may come from a PPU compiled in a
+                        different language mode than the current caller. }
+                      if assigned(get_high_value_sym(parasym)) or
+                         paramanager.keep_para_array_range(parasym.varspez,parasym.vardef,callnode.procdefinition.proccalloption) then
                        begin
                          { insert type conv but hold the ranges of the array }
                          olddef:=left.resultdef;
@@ -5179,11 +5183,13 @@ implementation
           include(callnodeflags,cnf_call_never_returns);
 
         { Change loading of array of const to varargs }
-        if assigned(left) and
-           (procdefinition.paras.count>0) and
-           is_array_of_const(tparavarsym(procdefinition.paras[procdefinition.paras.count-1]).vardef) and
-           (procdefinition.proccalloption in cdecl_pocalls) then
-          convert_carg_array_of_const;
+         if assigned(left) and
+            (procdefinition.paras.count>0) and
+            is_array_of_const(tparavarsym(procdefinition.paras[procdefinition.paras.count-1]).vardef) and
+            (procdefinition.proccalloption in cdecl_pocalls) and
+            not assigned(get_high_value_sym(
+              tparavarsym(procdefinition.paras[procdefinition.paras.count-1]))) then
+           convert_carg_array_of_const;
 
         { bind parasyms to the callparanodes and insert hidden parameters }
         bind_parasym;

@@ -1606,9 +1606,9 @@ implementation
           { expect to find the load node }
           if get_open_const_array(left).nodetype<>loadn then
             internalerror(2014040601);
-          { cdecl functions don't have high() so we can not check the range }
-          { (can't use current_procdef, since it may be a nested procedure) }
-          if not(tprocdef(tparasymtable(tparavarsym(tloadnode(get_open_const_array(left)).symtableentry).owner).defowner).proccalloption in cdecl_pocalls) then
+          { Can't use current_procdef, since this may be a nested procedure. }
+          if assigned(get_high_value_sym(
+               tparavarsym(tloadnode(get_open_const_array(left)).symtableentry))) then
             begin
               temp:=nil;
               result:=internalstatements(stat);

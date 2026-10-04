@@ -169,6 +169,10 @@ interface
     }
     function is_special_array(p : tdef) : boolean;
 
+    {# Returns true if a const parameter is one of the small aggregates whose
+       Win64 representation differs between Delphi-compatible and legacy modes. }
+    function uses_delphi_const_aggregate_abi(varspez : tvarspez; def : tdef) : boolean;
+
     {# Returns true, if p points to a normal array, bitpacked arrays are included }
     function is_normal_array(p : tdef) : boolean;
 
@@ -985,6 +989,14 @@ implementation
                   ((tarraydef(p).arrayoptions * [ado_IsVariant,ado_IsArrayOfConst,ado_IsConstructor,ado_IsDynamicArray,ado_IsFlexibleArray])<>[]) or
                   is_open_array(p)
                  );
+      end;
+
+    function uses_delphi_const_aggregate_abi(varspez : tvarspez; def : tdef) : boolean;
+      begin
+        result:=(varspez=vs_const) and
+                (def.typ in [recorddef,arraydef]) and
+                not is_special_array(def) and
+                (def.size in [1,2,4,8]);
       end;
 
     { true, if p points to a normal array, bitpacked arrays are included }

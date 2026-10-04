@@ -3567,6 +3567,7 @@ implementation
          hp        : tnode;
          temp_pnode: pnode;
          convdef   : tdef;
+         highsym   : tabstractvarsym;
       begin
         result:=nil;
         { when handling writeln "left" contains no valid address }
@@ -4214,7 +4215,13 @@ implementation
                            if is_open_string(left.resultdef) then
                             begin
                               set_varstate(left,vs_read,[]);
-                              result:=load_high_value_node(tparavarsym(tloadnode(left).symtableentry))
+                              highsym:=get_high_value_sym(tparavarsym(tloadnode(left).symtableentry));
+                              if assigned(highsym) then
+                                result:=load_high_value_node(tparavarsym(tloadnode(left).symtableentry))
+                              else
+                                { Delphi cdecl OpenString has no hidden bound;
+                                  High is still the declared ShortString limit. }
+                                result:=cordconstnode.create(tstringdef(cshortstringtype).len,u8inttype,true)
                             end
                            else if is_dynamicstring(left.resultdef) then
                               begin

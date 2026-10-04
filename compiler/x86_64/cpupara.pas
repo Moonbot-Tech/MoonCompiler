@@ -1327,11 +1327,23 @@ unit cpupara;
             end;
           arraydef :
             begin
-              { cdecl array of const need to be ignored and therefor be pushed
-                as value parameter with length 0 }
-              if ((calloption in cdecl_pocalls) and
-                  is_array_of_const(def)) or
-                 is_dynamic_array(def) then
+              { A static array that contains Delphi-managed records follows the
+                same caller-copy contract as the record itself.  In particular,
+                even 1/2/4/8-byte arrays must stay address-passed on Win64: the
+                callee finalizes the widened caller temp and its ownership flag,
+                not a register-sized copy without that flag. }
+              if is_delphi_assign_record(def) then
+                result:=true
+              { Open arrays and Pascal array-of-const parameters are represented
+                by an address.  C-family array-of-const parameters without a
+                hidden high bound retain the historical empty-value form; the
+                actual parameter symbol refines that case in
+                create_paraloc_info_intern. }
+              else if is_open_array(def) then
+                result:=true
+              else if is_array_of_const(def) then
+                result:=not(calloption in cdecl_pocalls)
+              else if is_dynamic_array(def) then
                 result:=false
               else if (calloption = pocall_vectorcall) then
                 begin
@@ -1700,7 +1712,7 @@ unit cpupara;
                (tfloatdef(fdef).floattype in [s32real,s64real]) then
               paralocdef:=fdef;
 
-            pushaddr:=push_addr_param(hp.varspez,paralocdef,p.proccalloption);
+            pushaddr:=push_addr_param_for_proc(hp.varspez,paralocdef,p);
             if pushaddr then
               begin
                 loc[0].typ:=X86_64_INTEGER_CLASS;

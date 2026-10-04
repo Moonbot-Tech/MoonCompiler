@@ -11,12 +11,15 @@ uses
   StrUtils,
   Variants,
   mormot.core.base,
+  mormot.core.json,
   mormot.core.variants;
 
 var
   Doc: Variant;
   Data: Variant;
   Text: UnicodeString;
+  Json: RawUtf8;
+  Args: TTVarRecDynArray;
   ServerTime: UInt64;
 begin
   Doc := _Json('{"channel":"post","data":{"id":123,"response":' +
@@ -33,5 +36,13 @@ begin
   ServerTime := Doc.data.response.payload.data.time;
   if ServerTime <> 456 then
     Halt(4);
+  Doc := _Json('["one",2,3]');
+  TDocVariantData(Doc).ToArrayOfConst(Args);
+  Json := FormatJson('[?,?,?]', [], Args);
+  if Json <> '["one",2,3]' then
+    Halt(5);
+  Json := FormatJson('[?,?,?]', [], TDocVariantData(Doc).ToArrayOfConst);
+  if Json <> '["one",2,3]' then
+    Halt(6);
   Writeln('PASS mormot-docvariant-unicode');
 end.

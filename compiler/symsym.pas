@@ -603,8 +603,27 @@ implementation
 
 
     function get_high_value_sym(vs: tparavarsym):tabstractvarsym;
+      var
+        i: longint;
+        sym: tsym;
       begin
         result := tabstractvarsym(vs.owner.Find('high'+vs.name));
+        if assigned(result) then
+          exit;
+
+        { Hidden parameter names created from source and restored from a PPU
+          are not guaranteed to have the same internal '$' spelling.  Their
+          declaration relation is: the companion is the hidden High parameter
+          immediately following the array parameter.  Use that persisted
+          identity as the authoritative fallback. }
+        for i:=0 to vs.owner.SymList.Count-1 do
+          begin
+            sym:=tsym(vs.owner.SymList[i]);
+            if (sym.typ=paravarsym) and
+               (vo_is_high_para in tparavarsym(sym).varoptions) and
+               (tparavarsym(sym).paranr=vs.paranr+1) then
+              exit(tparavarsym(sym));
+          end;
       end;
 
 

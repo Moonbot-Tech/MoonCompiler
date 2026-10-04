@@ -475,7 +475,9 @@ implementation
               { Give a warning that cdecl routines does not include high()
                 support }
               if (pd.proccalloption in cdecl_pocalls) and
-                 paramanager.push_high_param(varspez,vardef,pocall_default) then
+                 paramanager.push_high_param(varspez,vardef,pocall_default) and
+                 not(is_open_string(vardef) and
+                   ([m_delphi,m_unleashed]*current_settings.modeswitches<>[])) then
                begin
                  if is_open_string(vardef) then
                     MessagePos(fileinfo,parser_w_cdecl_no_openstring);
@@ -505,10 +507,9 @@ implementation
     procedure check_c_para(pd:Tabstractprocdef);
       var
         i,
-        lastparaidx : longint;
+        j : longint;
         sym : TSym;
       begin
-        lastparaidx:=pd.parast.SymList.Count-1;
         for i:=0 to pd.parast.SymList.Count-1 do
           begin
             sym:=tsym(pd.parast.SymList[i]);
@@ -519,11 +520,19 @@ implementation
                    not is_array_of_const(tparavarsym(sym).vardef) and
                    (tparavarsym(sym).varspez<>vs_var) then
                   MessagePos(tparavarsym(sym).fileinfo,parser_h_c_arrays_are_references);
+                { The first declaration is checked before hidden parameters are
+                  inserted; a repeated declaration may already carry them. }
                 if is_array_of_const(tparavarsym(sym).vardef) and
-                   (i<lastparaidx) and
-                   (tsym(pd.parast.SymList[i+1]).typ=paravarsym) and
-                   not(vo_is_high_para in tparavarsym(pd.parast.SymList[i+1]).varoptions) then
-                  MessagePos(tparavarsym(sym).fileinfo,parser_e_C_array_of_const_must_be_last);
+                   not(assigned(get_high_value_sym(tparavarsym(sym))) or
+                       paramanager.push_high_param(tparavarsym(sym).varspez,
+                         tparavarsym(sym).vardef,pd.proccalloption)) then
+                  for j:=i+1 to pd.parast.SymList.Count-1 do
+                    if (tsym(pd.parast.SymList[j]).typ=paravarsym) and
+                       not(vo_is_hidden_para in tparavarsym(pd.parast.SymList[j]).varoptions) then
+                      begin
+                        MessagePos(tparavarsym(sym).fileinfo,parser_e_C_array_of_const_must_be_last);
+                        break;
+                      end;
               end;
           end;
       end;

@@ -293,9 +293,9 @@ implementation
       begin
         if maybe_push_unused_para then
           exit;
-        { allow passing of a constant to a const or constref formaldef: both
-          promise the callee an address, so a non-reference actual (a call
-          result, a folded constant) is materialized once for the call }
+        { Both const and constref formaldefs promise the callee an address.
+          Materialize an accepted non-reference actual, such as a function
+          result, once for the call. Existing references keep their identity. }
         if (parasym.varspez in [vs_const,vs_constref]) and
            not(left.location.loc in [LOC_CREFERENCE,LOC_REFERENCE]) then
           hlcg.location_force_mem(current_asmdata.CurrAsmList,left.location,left.resultdef);
@@ -397,8 +397,8 @@ implementation
                     (vo_is_hidden_para in parasym.varoptions) and
                     (left.resultdef.typ in [pointerdef,classrefdef])
                    ) and
-                paramanager.push_addr_param(parasym.varspez,parasym.vardef,
-                    callnode.procdefinition.proccalloption)) and
+                paramanager.push_addr_param_for_proc(parasym.varspez,parasym.vardef,
+                   callnode.procdefinition)) and
                 { dyn. arrays passed to an array of const must be passed by value, see tests/webtbs/tw4219.pp }
                 not(
                     is_array_of_const(parasym.vardef) and

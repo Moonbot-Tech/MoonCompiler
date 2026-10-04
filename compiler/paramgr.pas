@@ -56,6 +56,10 @@ unit paramgr;
             the address is pushed
           }
           function push_addr_param(varspez:tvarspez;def : tdef;calloption : tproccalloption) : boolean;virtual;abstract;
+          { As above, but with the declaration that owns the physical ABI.
+            Targets whose ABI depends on declaration-time language semantics
+            override this method; the default remains call-option based. }
+          function push_addr_param_for_proc(varspez:tvarspez;def:tdef;pd:tabstractprocdef):boolean;virtual;
           { returns true if a parameter must be handled via copy-out (construct
             a reference, copy the parameter's value there in case of copy-in/out, pass the reference)
           }
@@ -236,12 +240,18 @@ implementation
 
     function tparamanager.push_high_param(varspez:tvarspez;def : tdef;calloption : tproccalloption) : boolean;
       begin
-         push_high_param:=not(calloption in cdecl_pocalls) and
-                          (
-                           is_open_array(def) or
-                           is_open_string(def) or
-                           is_array_of_const(def)
-                          );
+         if calloption in cdecl_pocalls then
+           { Delphi keeps the hidden High argument for open arrays and array
+             constructors under cdecl. OpenString remains the C-compatible
+             single-pointer form. }
+           push_high_param:=
+             ([m_delphi,m_unleashed]*current_settings.modeswitches<>[]) and
+             (is_open_array(def) or is_array_of_const(def))
+         else
+           push_high_param:=
+             is_open_array(def) or
+             is_open_string(def) or
+             is_array_of_const(def);
       end;
 
 
@@ -254,6 +264,30 @@ implementation
     function tparamanager.push_copyout_param(varspez: tvarspez; def: tdef; calloption: tproccalloption): boolean;
       begin
         push_copyout_param:=false;
+      end;
+
+
+    function tparamanager.push_addr_param_for_proc(varspez:tvarspez;def:tdef;pd:tabstractprocdef):boolean;
+      var
+        i: longint;
+        sym: tsym;
+      begin
+        { A Pascal array-of-const parameter has a two-part physical ABI: the
+          data address followed by its hidden High value.  In Delphi modes this
+          representation is also valid with cdecl.  The hidden parameter is
+          stored in the procdef (and its PPU), so use that declaration-time fact
+          rather than reconstructing it from the current caller's mode. }
+        if is_array_of_const(def) then
+          for i:=0 to pd.parast.SymList.Count-1 do
+            begin
+              sym:=tsym(pd.parast.SymList[i]);
+              if (sym.typ=paravarsym) and
+                 (tparavarsym(sym).vardef=def) and
+                 not(vo_is_hidden_para in tparavarsym(sym).varoptions) and
+                 assigned(get_high_value_sym(tparavarsym(sym))) then
+                exit(true);
+            end;
+        result:=push_addr_param(varspez,def,pd.proccalloption);
       end;
 
 

@@ -5602,9 +5602,7 @@ implementation
          (is_open_array(tparavarsym(p).vardef) or
           is_array_of_const(tparavarsym(p).vardef)) then
         begin
-          { cdecl functions don't have a high pointer so it is not possible to generate
-            a local copy }
-          if not(current_procinfo.procdef.proccalloption in cdecl_pocalls) and
+          if assigned(get_high_value_sym(tparavarsym(p))) and
              not(is_open_array(tparavarsym(p).vardef) and
                is_delphi_assign_record(tarraydef(tparavarsym(p).vardef).elementdef)) then
             g_releasevaluepara_openarray(list,tarraydef(tparavarsym(p).vardef),tparavarsym(p).localloc);
@@ -5777,19 +5775,12 @@ implementation
           if is_open_array(tparavarsym(p).vardef) or
              is_array_of_const(tparavarsym(p).vardef) then
             begin
-              { cdecl functions don't have a high pointer so it is not possible to generate
-                a local copy }
-              if not(current_procinfo.procdef.proccalloption in cdecl_pocalls) then
+              if assigned(get_high_value_sym(tparavarsym(p))) then
                 begin
-                  if paramanager.push_high_param(tparavarsym(p).varspez,tparavarsym(p).vardef,current_procinfo.procdef.proccalloption) then
-                    begin
-                      hsym:=tparavarsym(get_high_value_sym(tparavarsym(p)));
-                      if not assigned(hsym) then
-                        internalerror(2011020506);
-                      highloc:=hsym.initialloc
-                    end
-                  else
-                    highloc.loc:=LOC_INVALID;
+                  hsym:=tparavarsym(get_high_value_sym(tparavarsym(p)));
+                  if not assigned(hsym) then
+                    internalerror(2011020506);
+                  highloc:=hsym.initialloc;
                   hreg:=getaddressregister(list,voidpointertype);
                   if not is_packed_array(tparavarsym(p).vardef) then
                     g_copyvaluepara_openarray(list,href,highloc,tarraydef(tparavarsym(p).vardef),hreg)
