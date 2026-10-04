@@ -3370,37 +3370,46 @@ unit cgx86;
 {$ifdef x86_64}
 {$ifndef NOTARGETWIN}
            { windows guards only a few pages for stack growing,
-             so we have to access every page first              }
+             so we have to access every page first.  The pages are touched
+             below the stack pointer, from the top down, and the stack pointer
+             moves once, behind them (as MSVC's __chkstk does): the unwind code
+             of the allocation, which g_proc_entry puts behind the last
+             instruction emitted here, then holds from the instruction that
+             allocates, and a probe that runs out of stack faults with rsp
+             where the unwind codes in front of it say it is.  Moved first, rsp
+             pointed below committed memory while the probes ran, and the
+             unwinder took every probe for one before the allocation. }
            if (target_info.system=system_x86_64_win64) and
               (localsize>=winstackpagesize) then
              begin
                if localsize div winstackpagesize<=5 then
                  begin
-                    decrease_sp(localsize);
                     for i:=1 to localsize div winstackpagesize do
                       begin
-                         reference_reset_base(href,NR_RSP,localsize-i*winstackpagesize+4,ctempposinvalid,4,[]);
+                         reference_reset_base(href,NR_RSP,4-i*winstackpagesize,ctempposinvalid,4,[]);
                          list.concat(Taicpu.op_reg_ref(A_MOV,S_L,NR_EAX,href));
                       end;
-                    reference_reset_base(href,NR_RSP,0,ctempposinvalid,4,[]);
+                    reference_reset_base(href,NR_RSP,-localsize,ctempposinvalid,4,[]);
                     list.concat(Taicpu.op_reg_ref(A_MOV,S_L,NR_EAX,href));
+                    decrease_sp(localsize);
                  end
                else
                  begin
+                    { r10 runs from rsp-4096 down to the lowest whole page }
                     current_asmdata.getjumplabel(again);
                     getcpuregister(list,NR_R10);
-                    list.concat(Taicpu.op_const_reg(A_MOV,S_Q,localsize div winstackpagesize,NR_R10));
+                    list.concat(Taicpu.op_const_reg(A_MOV,S_Q,-winstackpagesize,NR_R10));
                     a_label(list,again);
-                    decrease_sp(winstackpagesize);
                     reference_reset_base(href,NR_RSP,0,ctempposinvalid,4,[]);
+                    href.index:=NR_R10;
+                    href.scalefactor:=1;
                     list.concat(Taicpu.op_reg_ref(A_MOV,S_L,NR_EAX,href));
-                    if UseIncDec then
-                      list.concat(Taicpu.op_reg(A_DEC,S_Q,NR_R10))
-                    else
-                      list.concat(Taicpu.op_const_reg(A_SUB,S_Q,1,NR_R10));
+                    list.concat(Taicpu.op_const_reg(A_SUB,S_Q,winstackpagesize,NR_R10));
+                    list.concat(Taicpu.op_const_reg(A_CMP,S_Q,
+                      -((localsize div winstackpagesize)+1)*winstackpagesize,NR_R10));
                     a_jmp_cond(list,OC_NE,again);
-                    decrease_sp(localsize mod winstackpagesize);
                     ungetcpuregister(list,NR_R10);
+                    decrease_sp(localsize);
                  end
              end
            else

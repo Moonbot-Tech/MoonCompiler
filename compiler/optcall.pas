@@ -312,7 +312,11 @@ unit optcall;
           exit;
         callnode:=tcallnode(_n);
 
-        if not(callnode.doinlining) then
+        { first_call_pass freezes the complete semantic inline decision after
+          hidden parameters/result storage exist and before call ABI layout.
+          Re-evaluating it here against already transformed actuals can turn
+          an inline into a real call after its outgoing area was omitted. }
+        if not(cnf_do_inline in callnode.callnodeflags) then
           begin
             if not(po_compilerproc in callnode.procdefinition.procoptions) then
               Message1(cg_n_no_inline,tprocdef(callnode.procdefinition).customprocname([pno_proctypeoption, pno_paranames,pno_ownername, pno_noclassmarker, pno_prettynames]));

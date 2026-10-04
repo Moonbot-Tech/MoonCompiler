@@ -50,6 +50,8 @@ unit cgcpu;
 
         function use_ms_abi: boolean;
       private
+        function try_tail_forwarder(localsize: longint): boolean;
+        function try_unused_call_frame(localsize: longint): boolean;
         function use_push: boolean;
         function saved_xmm_reg_size: longint;
       end;
@@ -152,6 +154,169 @@ unit cgcpu;
       end;
 
 
+    function tcgx86_64.try_tail_forwarder(localsize: longint): boolean;
+      var
+        p: tai;
+        ins,callins: taicpu;
+        i: longint;
+        regs: tcpuregisterarray;
+      begin
+        result:=false;
+        { Recognize a register-only forwarding body after register allocation,
+          before creating its frame and unwind records. A late CALL/RET fold
+          cannot simply discard the stack adjustment described by those records.
+          Keep explicit frames, diagnostics, cleanup and user assembler intact. }
+        if not(cs_opt_level3 in current_settings.optimizerswitches) or
+           not(current_procinfo.procdef.proctypeoption in [potype_function,potype_procedure]) or
+           (current_procinfo.framepointer<>NR_STACK_POINTER_REG) or
+           (current_procinfo.flags*[pi_has_assembler_block,pi_is_assembler,pi_uses_exceptions,
+             pi_needs_implicit_finally,pi_has_implicit_finally,pi_has_unwind_info,pi_uses_ymm]<>[]) or
+           (cs_check_stack in current_procinfo.entryswitches) or
+           (cs_profile in current_settings.moduleswitches) or
+           (current_procinfo.procdef.procoptions*[po_noreturn,po_nostackframe]<>[]) then
+          exit;
+        { The target reuses the caller's return address and, on Win64, its
+          shadow space. No wrapper locals or outgoing stack arguments survive. }
+        if use_ms_abi then
+          begin
+            if (localsize<>32) or (current_procinfo.maxpushedparasize<>32) then
+              exit;
+          end
+        else if (localsize<>0) or (current_procinfo.maxpushedparasize<>0) then
+          exit;
+        { used_in_proc includes the target call's volatile set. Thus a target
+          with another calling convention cannot clobber wrapper nonvolatiles. }
+        regs:=paramanager.get_saved_registers_int(current_procinfo.procdef.proccalloption);
+        for i:=low(regs) to high(regs) do
+          if regs[i] in rg[R_INTREGISTER].used_in_proc then
+            exit;
+        regs:=paramanager.get_saved_registers_mm(current_procinfo.procdef.proccalloption);
+        for i:=low(regs) to high(regs) do
+          if regs[i] in rg[R_MMREGISTER].used_in_proc then
+            exit;
+        callins:=nil;
+        p:=tai(current_procinfo.aktproccode.first);
+        while assigned(p) do
+          begin
+            case p.typ of
+              ait_comment,ait_regalloc,ait_tempalloc,ait_varloc,ait_force_line,ait_marker,
+              ait_symbol,ait_function_name:
+                ;
+              ait_label:
+                if tai_label(p).labsym.is_used then
+                  exit;
+              ait_instruction:
+                begin
+                  ins:=taicpu(p);
+                  if assigned(callins) then
+                    begin
+                      { Only identity result moves may follow the call.
+                        In particular, MOV r32,r32 zero-extends its value. }
+                      if not((((ins.opcode=A_MOV) and (ins.opsize=S_Q)) or
+                        (ins.opcode=A_MOVSD) or (ins.opcode=A_MOVSS)) and (ins.ops=2) and
+                        (ins.oper[0]^.typ=top_reg) and (ins.oper[1]^.typ=top_reg) and
+                        (ins.oper[0]^.reg=ins.oper[1]^.reg)) then
+                        exit;
+                    end
+                  else if ins.opcode=A_CALL then
+                    callins:=ins
+                  else
+                    case ins.opcode of
+                      A_MOV,A_MOVZX,A_MOVSX,A_MOVSXD,A_LEA,A_MOVSS,A_MOVSD,A_MOVQ:
+                        if (ins.ops<>2) or (ins.oper[1]^.typ<>top_reg) then
+                          exit;
+                      else
+                        exit;
+                    end;
+                  for i:=0 to ins.ops-1 do
+                    case ins.oper[i]^.typ of
+                      top_reg:
+                        if (getregtype(ins.oper[i]^.reg)=R_INTREGISTER) and
+                           (getsupreg(ins.oper[i]^.reg) in [RS_ESP,RS_EBP]) then
+                          exit;
+                      top_ref:
+                        if (getsupreg(ins.oper[i]^.ref^.base) in [RS_ESP,RS_EBP]) or
+                           (getsupreg(ins.oper[i]^.ref^.index) in [RS_ESP,RS_EBP]) then
+                          exit;
+                      else
+                        ;
+                    end;
+                end;
+              else
+                exit;
+            end;
+            p:=tai(p.next);
+          end;
+        if not assigned(callins) then
+          exit;
+        callins.opcode:=A_JMP;
+        callins.is_jmp:=true;
+        exclude(current_procinfo.flags,pi_do_call);
+        result:=true;
+      end;
+
+
+    function tcgx86_64.try_unused_call_frame(localsize: longint): boolean;
+      var
+        p: tai;
+        ins: taicpu;
+        i: longint;
+      begin
+        result:=false;
+        { Inlining and managed-result lowering can remove every call after
+          pi_do_call reserved its outgoing area. The allocated physical body
+          now proves whether that area and call alignment are still needed. }
+        if not(cs_opt_level3 in current_settings.optimizerswitches) or
+           not(pi_do_call in current_procinfo.flags) or
+           not(current_procinfo.procdef.proctypeoption in [potype_function,potype_procedure]) or
+           (current_procinfo.framepointer<>NR_STACK_POINTER_REG) or
+           (localsize>current_procinfo.maxpushedparasize) or
+           (current_procinfo.flags*[pi_has_assembler_block,pi_is_assembler,pi_uses_exceptions,
+             pi_needs_implicit_finally,pi_has_implicit_finally,pi_has_unwind_info]<>[]) or
+           (cs_check_stack in current_procinfo.entryswitches) or
+           (cs_profile in current_settings.moduleswitches) or
+           (current_procinfo.procdef.procoptions*[po_noreturn,po_nostackframe]<>[]) then
+          exit;
+        p:=tai(current_procinfo.aktproccode.first);
+        while assigned(p) do
+          begin
+            case p.typ of
+              ait_comment,ait_regalloc,ait_tempalloc,ait_varloc,ait_force_line,ait_marker,
+              ait_symbol,ait_function_name,ait_label,ait_align:
+                ;
+              ait_instruction:
+                begin
+                  ins:=taicpu(p);
+                  case ins.opcode of
+                    A_CALL,A_LCALL,A_PUSH,A_POP,A_PUSHF,A_POPF,A_ENTER,A_LEAVE:
+                      exit;
+                    else
+                      ;
+                  end;
+                  for i:=0 to ins.ops-1 do
+                    case ins.oper[i]^.typ of
+                      top_reg:
+                        if (getregtype(ins.oper[i]^.reg)=R_INTREGISTER) and
+                           (getsupreg(ins.oper[i]^.reg)=RS_ESP) then
+                          exit;
+                      top_ref:
+                        if (getsupreg(ins.oper[i]^.ref^.base)=RS_ESP) or
+                           (getsupreg(ins.oper[i]^.ref^.index)=RS_ESP) then
+                          exit;
+                      else
+                        ;
+                    end;
+                end;
+              else
+                exit;
+            end;
+            p:=tai(p.next);
+          end;
+        exclude(current_procinfo.flags,pi_do_call);
+        result:=true;
+      end;
+
+
     procedure tcgx86_64.g_proc_entry(list : TAsmList;localsize:longint;nostackframe:boolean);
       var
         hitem: tlinkedlistitem;
@@ -206,6 +371,8 @@ unit cgcpu;
         end;
 
       begin
+        if try_tail_forwarder(localsize) or try_unused_call_frame(localsize) then
+          localsize:=0;
         regsize:=0;
         regs_to_save_int:=paramanager.get_saved_registers_int(current_procinfo.procdef.proccalloption);
         regs_to_save_mm:=paramanager.get_saved_registers_mm(current_procinfo.procdef.proccalloption);
@@ -402,6 +569,7 @@ unit cgcpu;
       begin
         { we do not need an exit stack frame when we never return
                 * the final ret is left so the peephole optimizer can easily do call/ret -> jmp or call conversions
+                  (with Win64 unwind info it is an int3, see below)
                 * the entry stack frame must be normally generated because the subroutine could be still left by
                   an exception and then the unwinding code might need to restore the registers stored by the entry code
         }
@@ -461,7 +629,16 @@ unit cgcpu;
         if current_procinfo.framepointer<>NR_STACK_POINTER_REG then
           list.concat(tai_regalloc.dealloc(NR_STACK_POINTER_REG,nil));
 
-        list.concat(Taicpu.Op_none(A_RET,S_NO));
+        { Win64 unwinding finds the function of a return address in .pdata only
+          below the function's end, and takes a ret found at the return address
+          for the end of an epilogue, reading the caller's address from the
+          frame a noreturn procedure never removes.  So the byte behind the last
+          call of such a procedure is int3: inside the function and no epilogue }
+        if (po_noreturn in current_procinfo.procdef.procoptions) and
+           (pi_has_unwind_info in current_procinfo.flags) then
+          list.concat(Taicpu.Op_none(A_INT3,S_NO))
+        else
+          list.concat(Taicpu.Op_none(A_RET,S_NO));
 
         if (pi_has_unwind_info in current_procinfo.flags) then
           begin

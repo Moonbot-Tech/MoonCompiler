@@ -1116,7 +1116,7 @@ implementation
       var
          htype,elementdef,elementptrdef : tdef;
          newordtyp: tordtype;
-         valid : boolean;
+         valid,indexrangeproven : boolean;
          minvalue, maxvalue, indexvalue: Tconstexprint;
          tup_idx, tup_fld : longint;
          tup_sym : tsym;
@@ -1227,6 +1227,11 @@ implementation
                         end;
                     end;
                  htype:=Tarraydef(left.resultdef).rangedef;
+                 indexrangeproven:=
+                   not is_special_array(left.resultdef) and
+                   try_get_ordinal_interval(right,minvalue,maxvalue) and
+                   (minvalue>=Tarraydef(left.resultdef).lowrange) and
+                   (maxvalue<=Tarraydef(left.resultdef).highrange);
                  if ado_isvariant in Tarraydef(left.resultdef).arrayoptions then
                    {Variant arrays are a special array, can have negative indexes and would therefore
                     need s32bit. However, they should not appear in a vecn, as they are handled in
@@ -1318,11 +1323,14 @@ implementation
                         end
                      else
                        newordtyp:=torddef(sizesinttype).ordtype;
-                     inserttypeconv(right,corddef.create(newordtyp,
-                                                         int64(Tarraydef(left.resultdef).lowrange),
-                                                         int64(Tarraydef(left.resultdef).highrange),
-                                                         true
-                                                        ));
+                     if indexrangeproven then
+                       inserttypeconv_internal(right,corddef.create(newordtyp,
+                         int64(Tarraydef(left.resultdef).lowrange),
+                         int64(Tarraydef(left.resultdef).highrange),true))
+                     else
+                       inserttypeconv(right,corddef.create(newordtyp,
+                         int64(Tarraydef(left.resultdef).lowrange),
+                         int64(Tarraydef(left.resultdef).highrange),true));
                    end
                  else
                    begin

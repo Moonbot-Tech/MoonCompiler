@@ -172,9 +172,6 @@ implementation
                if (tnf_do_not_execute in p.transientflags) then
                  InternalError(2022112401);
 
-               { checks make always a call }
-               if ([cs_check_range,cs_check_overflow,cs_check_stack] * current_settings.localswitches <> []) then
-                 include(current_procinfo.flags,pi_do_call);
                { determine the resultdef if not done }
                if (p.resultdef=nil) then
                  begin

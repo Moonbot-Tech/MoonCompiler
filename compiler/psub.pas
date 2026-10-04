@@ -2584,6 +2584,18 @@ implementation
         { add implicit entry and exit code }
         add_entry_exit_code;
 
+        { R+/Q+/S+ describe which checks are permitted, not whether this
+          procedure actually calls a helper.  Compute the call obligation
+          from the optimized tree and the same target conditions used below
+          to emit generic stack checking.  Explicit calls and managed/EH
+          helpers have already set pi_do_call themselves. }
+        if ((not(tf_no_generic_stackcheck in target_info.flags) and
+             (cs_check_stack in entryswitches) and
+             not(po_assembler in procdef.procoptions) and
+             (procdef.proctypeoption<>potype_proginit))) or
+           tree_may_emit_runtime_check_call(code) then
+          include(flags,pi_do_call);
+
         { An x86-64 exception region does not invalidate every local in its
           parent.  Mark the values observed on exceptional paths and let all
           unrelated locals use the normal allocator.  A user nested routine

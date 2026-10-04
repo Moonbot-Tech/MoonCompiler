@@ -241,6 +241,7 @@ unit opttail;
         for i:=0 to p.paras.count-1 do
           with tparavarsym(p.paras[i]) do
             if (varspez=vs_out) or
+               addr_taken or
                { parameters requiring tables are too complicated to handle
                  and slow down things anyways so a tail recursion call
                  makes no sense
@@ -253,7 +254,9 @@ unit opttail;
         if is_managed_type(vardef) then
           write('is managed ')
         else if (varspez=vs_out) then
-          write('is out parameter');
+          write('is out parameter')
+        else if addr_taken then
+          write('has its address taken');
         writeln;
         writeln('====================================================================================');
 {$endif debug_opttail}
@@ -271,22 +274,31 @@ unit opttail;
           check parked under an inactive define. }
         if pi_needs_implicit_finally in current_procinfo.flags then
           exit;
+        { Tail recursion reuses the current stack frame.  An address of a
+          parameter or local may survive the recursive call, so overwriting
+          that slot before the next iteration would change what the pointer
+          denotes.  This pass has no escape/liveness proof that could make a
+          narrower decision; addr_taken is therefore a correctness boundary. }
         for i:=0 to p.localst.SymList.Count-1 do
           with tsym(p.localst.SymList[i]) do
-            if (typ=localvarsym) and
-               not(tlocalvarsym(p.localst.SymList[i]).inline_scope_managed) and
-               (tlocalvarsym(p.localst.SymList[i]).refs>0) and
-               is_managed_type(tlocalvarsym(p.localst.SymList[i]).vardef) then
-              exit;
+            if typ=localvarsym then
+              with tlocalvarsym(p.localst.SymList[i]) do
+                if addr_taken or
+                   (not inline_scope_managed and
+                    (refs>0) and
+                    is_managed_type(vardef)) then
+                  exit;
         if assigned(p.blocklocalsymtables) then
           for j:=0 to p.blocklocalsymtables.count-1 do
             with TSymtable(p.blocklocalsymtables[j]) do
               for i:=0 to SymList.Count-1 do
-                if (tsym(SymList[i]).typ in [localvarsym,staticvarsym]) and
-                   not(tabstractnormalvarsym(SymList[i]).inline_scope_managed) and
-                   (tabstractnormalvarsym(SymList[i]).refs>0) and
-                   is_managed_type(tabstractnormalvarsym(SymList[i]).vardef) then
-                  exit;
+                if tsym(SymList[i]).typ in [localvarsym,staticvarsym] then
+                  with tabstractnormalvarsym(SymList[i]) do
+                    if ((tsym(SymList[i]).typ=localvarsym) and addr_taken) or
+                       (not inline_scope_managed and
+                        (refs>0) and
+                        is_managed_type(vardef)) then
+                      exit;
 
         labelsym:=clabelsym.create('$opttail');
         labelnode:=clabelnode.create(cnothingnode.create,labelsym);

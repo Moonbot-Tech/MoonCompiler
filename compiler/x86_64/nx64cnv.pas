@@ -62,9 +62,9 @@ implementation
     uses
       verbose,globals,globtype,
       aasmbase,aasmtai,aasmdata,aasmcpu,
-      symconst,symdef,
+      symconst,symdef,constexp,
       cgbase,cga,
-      ncnv,
+      ncnv,nutils,
       cpubase,cpuinfo,
       cgutils,cgobj,hlcgobj,cgx86;
 
@@ -95,8 +95,7 @@ implementation
         if is_128bit(resultdef) and
            (left.resultdef.size<resultdef.size) then
           begin
-            { insert range check if not explicit or internally generated conversion }
-            if (flags*[nf_explicit,nf_internal])=[] then
+            if ordinal_conversion_needs_runtime_check(self) then
               hlcg.g_rangecheck(current_asmdata.CurrAsmList,left.location,left.resultdef,resultdef);
             location_copy(location,left.location);
             hlcg.location_force_reg(current_asmdata.CurrAsmList,location,left.resultdef,resultdef,true);
@@ -106,7 +105,7 @@ implementation
            (resultdef.size<left.resultdef.size) and
            (left.location.loc in [LOC_REGISTER,LOC_CREGISTER]) then
           begin
-            if (flags*[nf_explicit,nf_internal])=[] then
+            if ordinal_conversion_needs_runtime_check(self) then
               hlcg.g_rangecheck(current_asmdata.CurrAsmList,left.location,left.resultdef,resultdef);
             { the narrowed value is the low half of the pair }
             newsize:=def_cgsize(resultdef);
@@ -120,13 +119,28 @@ implementation
 
 
     function tx8664typeconvnode.first_int_to_real : tnode;
+      var
+        lowvalue,
+        highvalue: tconstexprint;
       begin
         result:=nil;
         if use_vectorfpu(resultdef) and
-           (torddef(left.resultdef).ordtype=u32bit) and
-           not(FPUX86_HAS_AVX512F in fpu_capabilities[current_settings.fputype]) then
+           not(FPUX86_HAS_AVX512F in fpu_capabilities[current_settings.fputype]) and
+           (torddef(left.resultdef).ordtype=u32bit) then
           begin
             inserttypeconv(left,s64inttype);
+            firstpass(left);
+          end
+        else if use_vectorfpu(resultdef) and
+          not(FPUX86_HAS_AVX512F in fpu_capabilities[current_settings.fputype]) and
+          (torddef(left.resultdef).ordtype=u64bit) and
+          try_get_ordinal_interval(left,lowvalue,highvalue) and
+          (lowvalue>=0) and (highvalue<=high(int64)) then
+          begin
+            if highvalue<=high(longint) then
+              inserttypeconv_internal(left,s32inttype)
+            else
+              inserttypeconv_internal(left,s64inttype);
             firstpass(left);
           end
         else

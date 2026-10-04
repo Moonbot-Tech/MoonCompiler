@@ -816,6 +816,7 @@ unit optcse;
         rootblock : tblocknode;
         i, max_fpu_regs_assigned, fpu_regs_assigned,
         max_int_regs_assigned, int_regs_assigned: Integer;
+        hascalls: boolean;
         old_current_filepos: tfileposinfo;
       begin
   {$ifdef csedebug}
@@ -830,8 +831,14 @@ unit optcse;
         createblock:=nil;
         deleteblock:=nil;
         rootblock:=nil;
+        { pi_do_call contains explicit and implicit calls found by pass 1.
+          Checked arithmetic/range helpers are selected only after the final
+          tree is known, so account for their surviving obligations here
+          without treating a mere R+/Q+ switch as a call. }
+        hascalls:=(pi_do_call in current_procinfo.flags) or
+          tree_may_emit_runtime_check_call(rootnode);
         { estimate how many int registers can be used }
-        if pi_do_call in current_procinfo.flags then
+        if hascalls then
           max_int_regs_assigned:=length(paramanager.get_saved_registers_int(current_procinfo.procdef.proccalloption))
           { we store only addresses, so take care of the relation between address sizes and register sizes }
             div max(sizeof(PtrUInt) div sizeof(ALUUInt),1)
@@ -841,13 +848,13 @@ unit optcse;
           max_int_regs_assigned:=max(first_int_imreg div 4,1);
 {$if defined(x86) or defined(aarch64) or defined(arm)}
         { x86, aarch64 and arm (neglecting fpa) use mm registers for floats }
-        if pi_do_call in current_procinfo.flags then
+        if hascalls then
           { heuristics, just use a fifth of all registers at maximum }
           max_fpu_regs_assigned:=length(paramanager.get_saved_registers_mm(current_procinfo.procdef.proccalloption)) div 5
         else
           max_fpu_regs_assigned:=max(first_mm_imreg div 5,1);
 {$else defined(x86) or defined(aarch64) or defined(arm)}
-        if pi_do_call in current_procinfo.flags then
+        if hascalls then
           { heuristics, just use a fifth of all registers at maximum }
           max_fpu_regs_assigned:=length(paramanager.get_saved_registers_fpu(current_procinfo.procdef.proccalloption)) div 5
         else
@@ -865,7 +872,7 @@ unit optcse;
                 if (constentries[i].valuenode.nodetype=realconstn) and
                    { if there is a call, we need most likely to save/restore a register }
                   ((constentries[i].weight>3) or
-                  ((constentries[i].weight>1) and not(pi_do_call in current_procinfo.flags)))
+                  ((constentries[i].weight>1) and not hascalls))
                 then
                   begin
                     if fpu_regs_assigned>=max_fpu_regs_assigned then
@@ -889,7 +896,7 @@ unit optcse;
                 else if CSEOnReference(constentries[i].valuenode) and
                    { if there is a call, we need most likely to save/restore a register }
                   ((constentries[i].weight>2) or
-                  ((constentries[i].weight>1) and not(pi_do_call in current_procinfo.flags)))
+                  ((constentries[i].weight>1) and not hascalls))
                 then
                   begin
                     if int_regs_assigned>=max_int_regs_assigned then

@@ -118,8 +118,9 @@ interface
             exit;
           end;
 
-        { insert range check if not explicit or internally generated conversion }
-        if (flags*[nf_explicit,nf_internal])=[] then
+        { Keep lowering and the procedure call-obligation analysis on the
+          same range proof. }
+        if ordinal_conversion_needs_runtime_check(self) then
           hlcg.g_rangecheck(current_asmdata.CurrAsmList,left.location,left.resultdef,resultdef);
 
         { is the result size smaller? when typecasting from void

@@ -126,6 +126,11 @@ interface
       parameter type) }
     function create_simplified_ord_const(const value: tconstexprint; def: tdef; forinline, rangecheck: boolean): tnode;
 
+    { Conservatively derive an interval for an ordinal expression.  The
+      result may be narrower than resultdef for operations whose bit shape
+      proves it; failure means that callers must keep their regular checks. }
+    function try_get_ordinal_interval(n: tnode; out lowvalue,highvalue: tconstexprint): boolean;
+
     { returns true if n is only a tree of administrative nodes
       containing no code }
     function has_no_code(n : tnode) : boolean;
@@ -160,6 +165,24 @@ interface
         made unconditional): [mhs_exceptions,mhs_memory_reads]. }
     function might_have_sideeffects(n : tnode;
       const flags : tmhs_flags) : boolean;
+
+    { Returns true when the surviving tree contains an operation whose
+      enabled range/overflow check may lower to an RTL helper call.  This is
+      deliberately separate from general exception/effect analysis: an x86
+      division may trap without calling, while a checked integer add calls
+      fpc_overflow only when the check is still present in the final tree. }
+    function tree_may_emit_runtime_check_call(n: tnode): boolean;
+
+    { Returns true when the code generated for the tree may contain a call:
+      an explicit call, an exception frame, a runtime check helper, or the
+      helper which pass 2 itself calls for a managed temp, the finalization
+      of temps, a threadvar access or heaptrc pointer checking. }
+    function tree_may_emit_call(n: tnode): boolean;
+
+    { True when this ordinal conversion still needs a runtime range check.
+      The same predicate is shared by call-obligation analysis and lowering so
+      a proven-safe conversion cannot reserve no call frame and then emit one. }
+    function ordinal_conversion_needs_runtime_check(n: tnode): boolean;
 
     { returns true, if n contains nodes which might be conditionally executed }
     function has_conditional_nodes(n : tnode) : boolean;
@@ -1220,6 +1243,112 @@ implementation
       end;
 
 
+    function try_get_ordinal_interval(n: tnode; out lowvalue,highvalue: tconstexprint): boolean;
+      var
+        childlow,
+        childhigh,
+        maskvalue,
+        shiftvalue: tconstexprint;
+        valuenode: tnode;
+        bitcount: longint;
+      begin
+        result:=false;
+        if not assigned(n) or not assigned(n.resultdef) or
+           not is_ordinal(n.resultdef) then
+          exit;
+        case n.nodetype of
+          ordconstn:
+            begin
+              lowvalue:=tordconstnode(n).value;
+              highvalue:=lowvalue;
+              result:=true;
+            end;
+          typeconvn:
+            begin
+              getrange(n.resultdef,lowvalue,highvalue);
+              if try_get_ordinal_interval(ttypeconvnode(n).left,childlow,childhigh) and
+                 (childlow>=lowvalue) and (childhigh<=highvalue) then
+                begin
+                  lowvalue:=childlow;
+                  highvalue:=childhigh;
+                  result:=true;
+                end;
+            end;
+          andn:
+            begin
+              if tbinarynode(n).left.nodetype=ordconstn then
+                begin
+                  valuenode:=tbinarynode(n).right;
+                  maskvalue:=tordconstnode(tbinarynode(n).left).value;
+                end
+              else if tbinarynode(n).right.nodetype=ordconstn then
+                begin
+                  valuenode:=tbinarynode(n).left;
+                  maskvalue:=tordconstnode(tbinarynode(n).right).value;
+                end
+              else
+                exit;
+              if not is_ordinal(valuenode.resultdef) then
+                exit;
+              getrange(n.resultdef,lowvalue,highvalue);
+              if (maskvalue<0) or (maskvalue>highvalue) then
+                exit;
+              lowvalue:=0;
+              highvalue:=maskvalue;
+              result:=true;
+            end;
+          modn:
+            begin
+              if (tbinarynode(n).right.nodetype<>ordconstn) or
+                 is_signed(tbinarynode(n).left.resultdef) then
+                exit;
+              maskvalue:=tordconstnode(tbinarynode(n).right).value;
+              if maskvalue<=0 then
+                exit;
+              maskvalue:=maskvalue-1;
+              getrange(n.resultdef,lowvalue,highvalue);
+              lowvalue:=0;
+              if maskvalue<highvalue then
+                highvalue:=maskvalue;
+              result:=true;
+            end;
+          shrn,
+          shln:
+            begin
+              { .uvalue is the low 64-bit limb of tconstexprint.  Do not
+                manufacture a narrower interval for 128-bit shifts until the
+                full-width operation is implemented here. }
+              if (n.resultdef.size>8) or
+                 (tbinarynode(n).right.nodetype<>ordconstn) or
+                 not try_get_ordinal_interval(tbinarynode(n).left,childlow,childhigh) or
+                 (childlow<0) then
+                exit;
+              bitcount:=n.resultdef.size*8;
+              shiftvalue:=tordconstnode(tbinarynode(n).right).value;
+              if (shiftvalue<0) or (shiftvalue>=bitcount) then
+                exit;
+              if n.nodetype=shrn then
+                begin
+                  lowvalue:=childlow.uvalue shr shiftvalue.uvalue;
+                  highvalue:=childhigh.uvalue shr shiftvalue.uvalue;
+                  result:=true;
+                end
+              else
+                begin
+                  getrange(n.resultdef,lowvalue,highvalue);
+                  if childhigh.uvalue>(highvalue.uvalue shr shiftvalue.uvalue) then
+                    exit;
+                  lowvalue:=childlow.uvalue shl shiftvalue.uvalue;
+                  highvalue:=childhigh.uvalue shl shiftvalue.uvalue;
+                  result:=true;
+                end;
+            end;
+          else
+            ;
+        end;
+      end;
+
+
     procedure propaccesslist_to_node(var p1:tnode;st:TSymtable;pl:tpropaccesslist);
       var
         plist : ppropaccesslistitem;
@@ -1523,6 +1652,122 @@ implementation
     function might_have_sideeffects(n : tnode; const flags : tmhs_flags) : boolean;
       begin
         result:=foreachnodestatic(n,@check_for_sideeffect,@flags);
+      end;
+
+
+    function ordinal_conversion_needs_runtime_check(n: tnode): boolean;
+      var
+        sourcelow,sourcehigh,
+        targetlow,targethigh: tconstexprint;
+        conv: ttypeconvnode;
+      begin
+        result:=false;
+        if not assigned(n) or (n.nodetype<>typeconvn) then
+          exit;
+        conv:=ttypeconvnode(n);
+        if not(cs_check_range in conv.localswitches) or
+           conv.assignment_side or
+           (conv.flags*[nf_explicit,nf_internal]<>[]) or
+           not assigned(conv.left.resultdef) or
+           not assigned(conv.resultdef) or
+           not(conv.left.resultdef.typ in [orddef,enumdef]) or
+           not(conv.resultdef.typ in [orddef,enumdef]) or
+           is_cbool(conv.resultdef) then
+          exit;
+        getrange(conv.resultdef,targetlow,targethigh);
+        getrange(conv.left.resultdef,sourcelow,sourcehigh);
+        { Match the code generator's unconditional widening proof before
+          asking for a narrower expression interval.  In particular, every
+          bit pattern of an unsigned smaller source is representable in a
+          wider target whose declared range contains the source range. }
+        if (conv.left.resultdef.size<conv.resultdef.size) and
+           ((is_signed(conv.left.resultdef)=is_signed(conv.resultdef)) or
+            not is_signed(conv.left.resultdef)) and
+           (sourcelow>=targetlow) and (sourcehigh<=targethigh) then
+          exit;
+        result:=not try_get_ordinal_interval(conv.left,sourcelow,sourcehigh) or
+          (sourcelow<targetlow) or (sourcehigh>targethigh);
+      end;
+
+
+    function check_for_runtime_check_call(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_false;
+        case n.nodetype of
+          addn,
+          subn,
+          muln:
+            if (cs_check_overflow in n.localswitches) and
+               not(nf_internal in n.flags) and
+               assigned(n.resultdef) and
+               is_ordinal(n.resultdef) and
+               assigned(tbinarynode(n).left.resultdef) and
+               assigned(tbinarynode(n).right.resultdef) and
+               (tbinarynode(n).left.resultdef.typ<>pointerdef) and
+               (tbinarynode(n).right.resultdef.typ<>pointerdef) then
+              result:=fen_norecurse_true;
+          unaryminusn:
+            if (cs_check_overflow in n.localswitches) and
+               assigned(tunarynode(n).left.resultdef) and
+               is_ordinal(tunarynode(n).left.resultdef) then
+              result:=fen_norecurse_true;
+          typeconvn:
+            if ordinal_conversion_needs_runtime_check(n) then
+              result:=fen_norecurse_true;
+          vecn:
+            if vector_access_needs_runtime_check(tvecnode(n)) then
+              result:=fen_norecurse_true;
+          inlinen:
+            if (tinlinenode(n).inlinenumber=in_abs_long) and
+               (n.localswitches*[cs_check_overflow,cs_check_range]<>[]) then
+              result:=fen_norecurse_true;
+          else
+            ;
+        end;
+      end;
+
+
+    function tree_may_emit_runtime_check_call(n: tnode): boolean;
+      begin
+        result:=assigned(n) and
+          foreachnodestatic(n,@check_for_runtime_check_call,nil);
+      end;
+
+
+    function check_for_call(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_false;
+        case n.nodetype of
+          calln,
+          tryexceptn,
+          tryfinallyn,
+          finalizetempsn:
+            result:=fen_norecurse_true;
+          tempcreaten:
+            { a managed temp is finalized where it is created }
+            if is_managed_type(ttempcreatenode(n).tempinfo^.typedef) and
+               not(ti_const in ttempcreatenode(n).tempflags) then
+              result:=fen_norecurse_true;
+          loadn:
+            if (tloadnode(n).symtableentry.typ in [staticvarsym,localvarsym,paravarsym]) and
+               (vo_is_thread_var in tabstractvarsym(tloadnode(n).symtableentry).varoptions) then
+              result:=fen_norecurse_true;
+          derefn,
+          subscriptn:
+            if (cs_use_heaptrc in current_settings.globalswitches) and
+               (cs_checkpointer in n.localswitches) then
+              result:=fen_norecurse_true;
+          else
+            ;
+        end;
+      end;
+
+
+    function tree_may_emit_call(n: tnode): boolean;
+      begin
+        result:=assigned(n) and
+          (foreachnodestatic(n,@check_for_call,nil) or
+           tree_may_emit_runtime_check_call(n));
       end;
 
 

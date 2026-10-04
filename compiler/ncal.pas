@@ -5982,6 +5982,14 @@ implementation
          { Insert the self,vmt,function result in the parameters }
          gen_hidden_parameters;
 
+         { Hidden self/result parameters and result storage are part of the
+           real call contract, but do not exist yet when check_inlining makes
+           its provisional heuristic choice.  Freeze the semantic inline
+           decision only now, before registerability and outgoing ABI layout
+           are committed. }
+         if (cnf_do_inline in callnodeflags) and not doinlining then
+           exclude(callnodeflags,cnf_do_inline);
+
          { Remove useless nodes from init/final blocks }
          { (simplify depends on typecheck info)        }
          if assigned(callinitblock) then
@@ -6015,11 +6023,13 @@ implementation
          else
            pushedparasize:=procdefinition.callerargareasize;
 
-         { record maximum parameter size used in this proc }
-         current_procinfo.allocate_push_parasize(pushedparasize);
+         { An expanded inline call has no outgoing ABI area.  Calls in its
+           actuals or expanded body record their own requirements. }
+         if not(cnf_do_inline in callnodeflags) then
+           current_procinfo.allocate_push_parasize(pushedparasize);
 
          { check for stacked parameters }
-         if assigned(left) and
+         if not(cnf_do_inline in callnodeflags) and assigned(left) and
             (current_settings.optimizerswitches*[cs_opt_stackframe,cs_opt_level1]<>[]) then
            check_stack_parameters;
 
@@ -6045,7 +6055,11 @@ implementation
          if assigned(callcleanupblock) then
            firstpass(tnode(callcleanupblock));
 
-         if not (block_type in [bt_const,bt_type,bt_const_type,bt_var_type]) then
+         { A successfully expanded inline call is not a call obligation by
+           itself.  Any calls that survive inside its expanded body are
+           first-passed normally and mark the procedure themselves. }
+         if not (block_type in [bt_const,bt_type,bt_const_type,bt_var_type]) and
+            not(cnf_do_inline in callnodeflags) then
            include(current_procinfo.flags,pi_do_call);
 
          { order parameters }
