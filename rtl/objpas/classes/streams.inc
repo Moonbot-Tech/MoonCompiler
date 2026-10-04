@@ -1940,6 +1940,15 @@ begin
     ERangeError for TBytesStream) - unified on the argument-error class }
   If (NewSize<0) or (NewSize>High(TMemoryStreamCapacity)) then
     Raise ERangeError.Create(SRangeError);
+  { The exact base class has no capacity hook to observe this transition.
+    Keep the same rounded-capacity/shrink policy as Realloc. }
+  If (ClassType=TMemoryStream) and (NewSize<=FCapacity) and (NewSize>FCapacity-TMSGrow) then
+    begin
+    FSize:=NewSize;
+    If FPosition>FSize then
+      FPosition:=FSize;
+    Exit;
+    end;
   SavedPendingSize:=FPendingSize;
   SavedPendingSizeActive:=FPendingSizeActive;
   FPendingSize:=NewSize;

@@ -83,6 +83,7 @@ var
   Rd: array[0..15] of Byte;
   R: LongInt;
   I: Integer;
+  SavedMemory: Pointer;
 begin
   for I := 0 to 15 do
     Buf[I] := $10 + I;
@@ -162,6 +163,28 @@ begin
     M.Clear;
     Check('clear', (M.Size = 0) and (M.Position = 0) and (M.Memory = nil));
     Check('write-after-clear', M.Write(Buf, 2) = 2);
+
+    { Capacity-stable base-class transitions and the exact rounding boundary.
+      A negative Position remains legal; an oversized Position is clamped. }
+    M.Size := 8192;
+    SavedMemory := M.Memory;
+    for I := 4097 to 8192 do
+    begin
+      M.Position := 9000;
+      M.Size := I;
+      Check('same-rounded-block', (M.Size = I) and (M.Position = I) and
+        (TCapHack(M).Capacity = 8192) and (M.Memory = SavedMemory));
+    end;
+    M.Position := -3;
+    M.Size := 4097;
+    Check('same-block-negative-position', M.Position = -3);
+    M.Size := 4096;
+    Check('rounding-boundary-shrinks', TCapHack(M).Capacity = 4096);
+    M.Size := 0;
+    Check('zero-releases', (M.Memory = nil) and (TCapHack(M).Capacity = 0));
+    M.Position := 5;
+    M.Size := 0;
+    Check('empty-clamps-position', M.Position = 0);
   finally
     M.Free;
   end;
