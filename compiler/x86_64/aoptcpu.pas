@@ -27,10 +27,11 @@ unit aoptcpu;
 
 interface
 
-uses cpubase, aasmtai, aopt, aoptx86;
+uses cpubase, aasmtai, cgbase, aopt, aoptx86;
 
 type
   TCpuAsmOptimizer = class(TX86AsmOptimizer)
+    function OptPass1DIV(var p: tai): Boolean;
     function PrePeepHoleOptsCpu(var p: tai): boolean; override;
     function PeepHoleOptPass1Cpu(var p: tai): boolean; override;
     function PeepHoleOptPass2Cpu(var p: tai): boolean; override;
@@ -43,6 +44,128 @@ uses
   globals,
   globtype,
   aasmcpu;
+    function TCpuAsmOptimizer.OptPass1DIV(var p: tai): Boolean;
+      var
+        FirstSetup,
+        FirstExtend,
+        FirstCopy,
+        SecondSetup,
+        SecondExtend,
+        SecondDiv,
+        SecondCopy: tai;
+        NumeratorReg,
+        DivisorReg,
+        FirstResultReg,
+        OtherResultReg: TRegister;
+
+      function MatchExtend(const First, Second: tai): Boolean;
+        begin
+          Result:=MatchInstruction(Second,taicpu(First).opcode,
+            [taicpu(First).opsize]);
+          if not Result then
+            exit;
+          case taicpu(First).opcode of
+            A_CDQ,A_CQO:
+              Result:=(taicpu(First).ops=0) and
+                (taicpu(Second).ops=0);
+            A_XOR:
+              Result:=(taicpu(First).ops=2) and
+                (taicpu(Second).ops=2) and
+                MatchOperand(taicpu(First).oper[0]^,
+                  taicpu(Second).oper[0]^) and
+                MatchOperand(taicpu(First).oper[1]^,
+                  taicpu(Second).oper[1]^);
+            else
+              Result:=False;
+          end;
+        end;
+
+      function IsExpectedExtend(const Instr: tai): Boolean;
+        begin
+          if taicpu(p).opcode=A_IDIV then
+            if taicpu(p).opsize=S_Q then
+              exit(MatchInstruction(Instr,A_CQO,[S_NO]))
+            else
+              exit(MatchInstruction(Instr,A_CDQ,[S_NO]));
+          Result:=MatchInstruction(Instr,A_XOR,[taicpu(p).opsize]) and
+            (taicpu(Instr).ops=2) and
+            (taicpu(Instr).oper[0]^.typ=top_reg) and
+            (taicpu(Instr).oper[1]^.typ=top_reg) and
+            (getsupreg(taicpu(Instr).oper[0]^.reg)=RS_EDX) and
+            MatchOperand(taicpu(Instr).oper[0]^,
+              taicpu(Instr).oper[1]^);
+        end;
+
+      begin
+        Result:=False;
+
+        { A hardware DIV/IDIV produces quotient and remainder together.  The
+          generic lowering historically discarded one projection and repeated
+          the same division for an immediately following complementary use.
+          Reuse is deliberately recognized after register allocation: only an
+          exact uninterrupted register-input sequence is accepted, so no load,
+          aliasing store, call or second operand evaluation is removed. }
+        if not MatchInstruction(p,A_DIV,A_IDIV,[S_L,S_Q]) or
+           (taicpu(p).ops<>1) or
+           (taicpu(p).oper[0]^.typ<>top_reg) or
+           (getsupreg(taicpu(p).oper[0]^.reg) in [RS_EAX,RS_EDX]) or
+           not GetLastInstruction(p,FirstExtend) or
+           not IsExpectedExtend(FirstExtend) or
+           not GetLastInstruction(FirstExtend,FirstSetup) or
+           not MatchInstruction(FirstSetup,A_MOV,[taicpu(p).opsize]) or
+           (taicpu(FirstSetup).ops<>2) or
+           (taicpu(FirstSetup).oper[0]^.typ<>top_reg) or
+           (taicpu(FirstSetup).oper[1]^.typ<>top_reg) or
+           (getsupreg(taicpu(FirstSetup).oper[0]^.reg) in [RS_EAX,RS_EDX]) or
+           (getsupreg(taicpu(FirstSetup).oper[1]^.reg)<>RS_EAX) or
+           not GetNextInstruction(p,FirstCopy) or
+           not MatchInstruction(FirstCopy,A_MOV,[taicpu(p).opsize]) or
+           (taicpu(FirstCopy).ops<>2) or
+           (taicpu(FirstCopy).oper[0]^.typ<>top_reg) or
+           not GetNextInstruction(FirstCopy,SecondSetup) or
+           not MatchInstruction(SecondSetup,A_MOV,[taicpu(p).opsize]) or
+           (taicpu(SecondSetup).ops<>2) or
+           not MatchOperand(taicpu(FirstSetup).oper[0]^,
+             taicpu(SecondSetup).oper[0]^) or
+           not MatchOperand(taicpu(FirstSetup).oper[1]^,
+             taicpu(SecondSetup).oper[1]^) or
+           not GetNextInstruction(SecondSetup,SecondExtend) or
+           not MatchExtend(FirstExtend,SecondExtend) or
+           not GetNextInstruction(SecondExtend,SecondDiv) or
+           not MatchInstruction(SecondDiv,taicpu(p).opcode,
+             [taicpu(p).opsize]) or
+           (taicpu(SecondDiv).ops<>1) or
+           not MatchOperand(taicpu(p).oper[0]^,
+             taicpu(SecondDiv).oper[0]^) or
+           not GetNextInstruction(SecondDiv,SecondCopy) or
+           not MatchInstruction(SecondCopy,A_MOV,[taicpu(p).opsize]) or
+           (taicpu(SecondCopy).ops<>2) or
+           (taicpu(SecondCopy).oper[0]^.typ<>top_reg) then
+          exit;
+
+        NumeratorReg:=taicpu(FirstSetup).oper[0]^.reg;
+        DivisorReg:=taicpu(p).oper[0]^.reg;
+        FirstResultReg:=taicpu(FirstCopy).oper[0]^.reg;
+        if getsupreg(FirstResultReg)=RS_EAX then
+          OtherResultReg:=NR_RDX
+        else if getsupreg(FirstResultReg)=RS_EDX then
+          OtherResultReg:=NR_RAX
+        else
+          exit;
+        setsubreg(OtherResultReg,getsubreg(FirstResultReg));
+
+        if not MatchOperand(taicpu(SecondCopy).oper[0]^,OtherResultReg) or
+           RegModifiedByInstruction(NumeratorReg,FirstCopy) or
+           RegModifiedByInstruction(DivisorReg,FirstCopy) or
+           RegModifiedByInstruction(OtherResultReg,FirstCopy) then
+          exit;
+
+        DebugMsg('DivMod pair reuses quotient/remainder',SecondDiv);
+        RemoveInstruction(SecondSetup);
+        RemoveInstruction(SecondExtend);
+        RemoveInstruction(SecondDiv);
+        Result:=True;
+      end;
 
     function TCpuAsmOptimizer.PrePeepHoleOptsCpu(var p : tai) : boolean;
       begin
@@ -98,6 +221,9 @@ uses
                   Result:=OptPass1CMOVcc(p);
                 A_IMUL:
                   Result:=OptPass1Imul(p);
+                A_DIV,
+                A_IDIV:
+                  Result:=OptPass1DIV(p);
                 A_MOV:
                   Result:=OptPass1MOV(p);
                 A_MOVD,

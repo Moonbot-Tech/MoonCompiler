@@ -30,7 +30,8 @@ interface
 
     type
        TModDivNodeFlag = (
-         mdnf_isomod
+         mdnf_isomod,
+         mdnf_narrowed_u32
        );
 
        TModDivNodeFlags = set of TModDivNodeFlag;
@@ -162,7 +163,7 @@ implementation
 
     function tmoddivnode.simplify(forinline : boolean):tnode;
       var
-        rv,lv : tconstexprint;
+        rv,lv,lowvalue,highvalue : tconstexprint;
         hp: tnode;
       begin
         result:=nil;
@@ -237,15 +238,24 @@ implementation
               assigned(resultdef) and
               (compare_defs(resultdef,left.resultdef,nothingn)=te_exact) then
               begin
-                { re-use the current node so we get the result type right }
-                right:=caddnode.create_internal(muln,right,tmoddivnode(left).right.getcopy);
-                hp:=tmoddivnode(left).left.getcopy;
-                left.Free;
-                left:=hp;
-                Result:=getcopy;
-                Result.resultdef:=nil;
-                Result:=ctypeconvnode.create_internal(Result,resultdef);
-                exit;
+                { Combining nested constant divisors is valid only when their
+                  product is representable in the division domain.  Building
+                  a synthetic multiply node first can overflow, wrap to zero
+                  and even diagnose division by zero for a valid source tree. }
+                lv:=rv*tordconstnode(tmoddivnode(left).right).value;
+                getrange(resultdef,lowvalue,highvalue);
+                if not lv.overflow and (lv>=lowvalue) and (lv<=highvalue) then
+                  begin
+                    right.free;
+                    right:=cordconstnode.create(lv,resultdef,false);
+                    hp:=tmoddivnode(left).left.getcopy;
+                    left.Free;
+                    left:=hp;
+                    Result:=getcopy;
+                    Result.resultdef:=nil;
+                    Result:=ctypeconvnode.create_internal(Result,resultdef);
+                    exit;
+                  end;
               end;
 
             { pointer subtractions generate nodes dividing pointer (constants) }
@@ -740,10 +750,44 @@ implementation
         power,shiftval : longint;
         statements : tstatementnode;
         temp,resulttemp : ttempcreatenode;
+        hp,
         masknode : tnode;
         invertsign: Boolean;
+
+        function is_u32_to_u64_conversion(n: tnode): boolean;
+          begin
+            result:=(n.nodetype=typeconvn) and
+              (ttypeconvnode(n).convtype=tc_int_2_int) and
+              (n.resultdef.typ=orddef) and
+              (torddef(n.resultdef).ordtype=u64bit) and
+              (ttypeconvnode(n).left.resultdef.typ=orddef) and
+              (torddef(ttypeconvnode(n).left.resultdef).ordtype=u32bit);
+          end;
+
       begin
         result := nil;
+
+        { Division and remainder of two zero-extended 32-bit unsigned
+          values have a 32-bit result. Keep the public UInt64 type, but sink
+          the extensions below the operation after type checking has
+          stabilised the tree. Rewriting during type checking allows the
+          surrounding conversion simplifier to rebuild the original shape. }
+        if (resultdef.typ=orddef) and
+          (torddef(resultdef).ordtype=u64bit) and
+          not(mdnf_narrowed_u32 in moddivnodeflags) and
+          is_u32_to_u64_conversion(left) and
+          is_u32_to_u64_conversion(right) then
+          begin
+            include(moddivnodeflags,mdnf_narrowed_u32);
+            hp:=cmoddivnode.create(nodetype,
+              ttypeconvnode(left).left.getcopy,
+              ttypeconvnode(right).left.getcopy);
+            tmoddivnode(hp).moddivnodeflags:=moddivnodeflags;
+            result:=ctypeconvnode.create_internal(hp,resultdef);
+            firstpass(result);
+            exit;
+          end;
+
         { divide/mod a number by a constant which is a power of 2? }
         { 128 bit is handled by helpers, the masks below are 64 bit only }
         if (right.nodetype = ordconstn) and
