@@ -436,9 +436,13 @@ Procedure TCFileStream.SetSize(NewSize: Longint);
 begin
   {$push} {$I-}
    System.Seek(FHandle,NewSize);
-   System.Truncate(FHandle);
+   CStreamError:=IOResult;
+   { A failed seek must not truncate at the old position. }
+   If CStreamError=0 then begin
+     System.Truncate(FHandle);
+     CStreamError:=IOResult;
+   end;
   {$pop}
-  CStreamError:=IOResult;
 end;
 
 
