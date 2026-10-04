@@ -2481,6 +2481,7 @@ implementation
         vl,vl2    : TConstExprInt;
         vr        : bestreal;
         helperres : Boolean;
+        sym       : tsym;
 
       begin { simplify }
          result:=nil;
@@ -2912,6 +2913,27 @@ implementation
                       internalerror(2019050512);
                   end;
                 end;
+              in_gettypekind_x,
+              in_ismanagedtype_x:
+                { the kind and the managedness of a known type are constants,
+                  like its size: folded while the body is type checked, they
+                  let an if/case that forks on them fold at once, so the body
+                  of a specialization is saved for inlining with its own
+                  branch only.  A type parameter and a type still generic
+                  wait for their specialization. }
+                if not is_typeparam(left.resultdef) and
+                   not(df_generic in left.resultdef.defoptions) then
+                  begin
+                    if inlinenumber=in_gettypekind_x then
+                      begin
+                        sym:=tenumdef(typekindtype).int2enumsym(get_typekind(left.resultdef));
+                        if not assigned(sym) or (sym.typ<>enumsym) then
+                          internalerror(2026092801);
+                        result:=genenumnode(tenumsym(sym));
+                      end
+                    else
+                      result:=cordconstnode.create(ord(left.resultdef.needs_inittable),resultdef,false);
+                  end;
               in_exp_real :
                 begin
                   if left.nodetype in [ordconstn,realconstn] then

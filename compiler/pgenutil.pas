@@ -1663,6 +1663,127 @@ uses
           consume(_RSHARPBRACKET);
       end;
 
+
+    function specialization_param_def(item:tobject):tdef;
+      var
+        sym : tsym;
+      begin
+        sym:=tsym(item);
+        if sym.typ=typesym then
+          result:=ttypesym(sym).typedef
+        else
+          result:=nil;
+      end;
+
+
+    function type_expression_contains(candidate,target:tdef;visited:tfplist):boolean;
+      var
+        i : longint;
+        stored : tstoreddef;
+      begin
+        result:=false;
+        if not assigned(candidate) or not assigned(target) then
+          exit;
+        if candidate=target then
+          exit(true);
+        if visited.indexof(candidate)>=0 then
+          exit;
+        visited.add(candidate);
+
+        if candidate is tstoreddef then
+          begin
+            stored:=tstoreddef(candidate);
+            if (df_specialization in stored.defoptions) and
+               assigned(stored.genericparas) then
+              for i:=0 to stored.genericparas.count-1 do
+                if not stored.is_generic_param_const(i) and
+                   type_expression_contains(stored.get_generic_param_def(i),
+                     target,visited) then
+                  exit(true);
+            if (df_unique in stored.defoptions) and
+               assigned(stored.orgdef) and
+               type_expression_contains(stored.orgdef,target,visited) then
+              exit(true);
+          end;
+
+        case candidate.typ of
+          arraydef:
+            result:=type_expression_contains(tarraydef(candidate).elementdef,
+              target,visited);
+          pointerdef:
+            result:=type_expression_contains(tpointerdef(candidate).pointeddef,
+              target,visited);
+          setdef:
+            result:=type_expression_contains(tsetdef(candidate).elementdef,
+              target,visited);
+          filedef:
+            result:=type_expression_contains(tfiledef(candidate).typedfiledef,
+              target,visited);
+          classrefdef:
+            result:=type_expression_contains(tclassrefdef(candidate).pointeddef,
+              target,visited);
+          else
+            ;
+        end;
+      end;
+
+
+    function specialization_grows_active(genericdef:tstoreddef;
+      paramlist:tfpobjectlist):boolean;
+      var
+        state,
+        nearest : pspecializationstate;
+        candidate,
+        activeparam : tdef;
+        visited : tfplist;
+        i,
+        j : longint;
+        hasancestor : boolean;
+      begin
+        result:=false;
+        nearest:=nil;
+        hasancestor:=false;
+        state:=pspecializationstate(current_module.specializestate);
+        while assigned(state) do
+          begin
+            if state^.activegenericdef=genericdef then
+              if not assigned(nearest) then
+                nearest:=state
+              else
+                begin
+                  hasancestor:=true;
+                  break;
+                end;
+            state:=state^.oldspecializestate;
+          end;
+        if not hasancestor or not assigned(nearest^.activeparamlist) then
+          exit;
+
+        visited:=tfplist.create;
+        try
+          for i:=0 to paramlist.count-1 do
+            begin
+              candidate:=specialization_param_def(paramlist[i]);
+              for j:=0 to nearest^.activeparamlist.count-1 do
+                begin
+                  activeparam:=specialization_param_def(
+                    nearest^.activeparamlist[j]);
+                  if assigned(candidate) and assigned(activeparam) and
+                     (candidate<>activeparam) then
+                    begin
+                      visited.clear;
+                      if type_expression_contains(candidate,activeparam,
+                          visited) then
+                        exit(true);
+                    end;
+                end;
+            end;
+        finally
+          visited.free;
+        end;
+      end;
+
+
     function generate_specialization_phase2(context:tspecializationcontext;genericdef:tstoreddef;parse_class_parent:boolean;const _prettyname:ansistring):tdef;
 
         procedure unset_forwarddef(def: tdef);
@@ -2057,9 +2178,22 @@ uses
                 end;
           end;
 
+        if not assigned(result) and
+           specialization_grows_active(genericdef,context.paramlist) then
+          begin
+            if context.poslist.count>0 then
+              MessagePos(pfileposinfo(context.poslist[0])^,
+                type_e_generics_cannot_reference_itself)
+            else
+              Message(type_e_generics_cannot_reference_itself);
+            result:=generrordef;
+          end;
+
         if not assigned(result) then
           begin
             specialization_init(genericdef,state);
+            state.activegenericdef:=genericdef;
+            state.activeparamlist:=context.paramlist;
 
             { push a temporary global symtable so that the specialization is
               added to the correct symtable; this symtable does not contain
@@ -2954,6 +3088,8 @@ uses
       state.oldgenericdummysyms:=current_module.genericdummysyms;
       state.oldcurrent_genericdef:=current_genericdef;
       state.oldspecializestate:=pspecializationstate(current_module.specializestate);
+      state.activegenericdef:=nil;
+      state.activeparamlist:=nil;
       state.oldoptoken:=optoken;
       optoken:=NOTOKEN;
       current_module.specializestate:=@state;

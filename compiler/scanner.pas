@@ -4406,7 +4406,7 @@ type
       var
         wlen,mesgnb,copy_size : asizeint;
         specialtoken : tspecialgenerictoken;
-        i : byte;
+        i : asizeint;
         pmsg,prevmsg : pmessagestaterecord;
         msgset : thashset;
         msgfound,
@@ -4553,7 +4553,8 @@ type
                         msgset:=thashset.create(min(mesgnb,10),false,false);
                         prevmsg:=nil;
                         pmsg:=nil;
-                        for i:=1 to mesgnb do
+                        i:=1;
+                        while i<=mesgnb do
                           begin
                             if not assigned(pmsg) then
                               begin
@@ -4569,13 +4570,17 @@ type
                             pmsg^.next:=nil;
                             msgfound:=false;
                             if assigned(msgset.findoradd(@pmsg^.value,sizeof(pmsg^.value),msgfound)) and msgfound then
-                              continue;
+                              begin
+                                inc(i);
+                                continue;
+                              end;
                             if i=1 then
                               pendingstate.nextmessagerecord:=pmsg
                             else
                               prevmsg^.next:=pmsg;
                             prevmsg:=pmsg;
                             pmsg:=nil;
+                            inc(i);
                           end;
                         if assigned(pmsg) then
                           dispose(pmsg);

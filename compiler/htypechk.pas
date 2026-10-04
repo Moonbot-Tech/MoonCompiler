@@ -2535,8 +2535,17 @@ implementation
       begin
         FIgnoredCandidateProcs.free;
         FIgnoredCandidateProcs := nil;
-        { free any symbols for anonymous parameter types that we're used for
-          specialization when no specialization was picked }
+        { free symbols for anonymous parameter types that were created while
+          trying an implicit specialization which was not selected }
+        if assigned(FParaAnonSyms) then
+          for i:=0 to FParaAnonSyms.count-1 do
+            begin
+              sym:=tsym(FParaAnonSyms[i]);
+              if (sym.typ=typesym) and
+                 (sp_generic_unnamed_type in sym.symoptions) and
+                 (ttypesym(sym).typedef.typesym=sym) then
+                ttypesym(sym).typedef.typesym:=nil;
+            end;
         TFPList.FreeAndNilObjects(FParaAnonSyms);
         hp:=FCandidateProcs;
         while assigned(hp) do

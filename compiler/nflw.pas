@@ -1892,6 +1892,27 @@ implementation
 
 
     function tifnode.pass_typecheck:tnode;
+
+      { in a specialization a branch is cut off by the type arguments, not by
+        the source: the generic's own body reports what is dead for every
+        type }
+      function in_specialization: boolean;
+        var
+          pi: tprocinfo;
+        begin
+          result:=true;
+          pi:=current_procinfo;
+          while assigned(pi) do
+            begin
+              if pi.procdef.is_specialization or
+                 (assigned(pi.procdef.struct) and
+                  (df_specialization in pi.procdef.struct.defoptions)) then
+                exit;
+              pi:=pi.parent;
+            end;
+          result:=false;
+        end;
+
       begin
          result:=nil;
          resultdef:=voidtype;
@@ -1915,7 +1936,7 @@ implementation
            not(is_typeparam(left.resultdef)) then
              inserttypeconv(left,pasbool1type);
 
-         result:=internalsimplify(not(nf_internal in flags));
+         result:=internalsimplify(not(nf_internal in flags) and not in_specialization);
       end;
 
 

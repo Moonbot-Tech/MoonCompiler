@@ -42,6 +42,8 @@ type
     oldgenericdummysyms   : tfphashobjectlist;
     oldspecializestate    : pspecializationstate;
     oldcurrent_genericdef : tdef;
+    activegenericdef      : tdef;
+    activeparamlist       : tfpobjectlist;
     oldoptoken            : ttoken;
   end;
 
