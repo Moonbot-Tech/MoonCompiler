@@ -677,7 +677,8 @@ end;
 type
   Xoshiro128ss_32 = object
     procedure Setup(const seed: uint64);
-    function Next: uint32; inline; // inlined as it is actually internal and called only through xsr128_32_u32rand
+    function NextPair: uint64; inline;
+    function Next: uint32; inline;
   private
     state: array[0 .. 3] of longword;
   end;
@@ -710,6 +711,39 @@ type
     state[3] := RolDWord(s3, 11);
   end;
 
+  function Xoshiro128ss_32.NextPair: uint64;
+  var
+    s0, s1, s2, s3, t, a, b: uint32;
+  begin
+    { Keep both transitions local: storing then reloading the intermediate
+      state adds four memory dependencies between consecutive outputs. }
+    s0:=state[0];
+    s1:=state[1];
+    s2:=state[2];
+    s3:=state[3];
+    a:=RolDWord(s1*5,7)*9;
+    t:=s1 shl 9;
+    s2:=s2 xor s0;
+    s3:=s3 xor s1;
+    s1:=s1 xor s2;
+    s0:=s0 xor s3;
+    s2:=s2 xor t;
+    s3:=RolDWord(s3,11);
+    b:=RolDWord(s1*5,7)*9;
+    t:=s1 shl 9;
+    s2:=s2 xor s0;
+    s3:=s3 xor s1;
+    s1:=s1 xor s2;
+    s0:=s0 xor s3;
+    s2:=s2 xor t;
+    s3:=RolDWord(s3,11);
+    state[0]:=s0;
+    state[1]:=s1;
+    state[2]:=s2;
+    state[3]:=s3;
+    Result:=uint64(a) shl 32 or b;
+  end;
+
 var
   // Just in case user sets RandSeed := not Cardinal(0) (RandSeed := $FFFFFFFF) from the start,
   // thus bypassing first-time RandSeed <> OldRandSeed check,
@@ -729,12 +763,6 @@ var
     OldRandSeed := RandSeed;
   end;
 
-  function xsr128_32_u32rand: uint32;
-  begin
-    if RandSeed <> OldRandSeed then ReseedGlobalRNG;
-    result := GlobalXsr128_32.Next;
-  end;
-
   // There's still a flaw: repeated assignments of RandSeed := $FFFFFFFF from the start, i.e.
   // RandSeed := $FFFFFFFF;
   // writeln(random(10));
@@ -750,17 +778,18 @@ var
   t: uint32;
   m: uint64;
 begin
+  if RandSeed<>OldRandSeed then ReseedGlobalRNG;
   result:=l;
   if l<0 then
     result:=-result-1; { from now on, uint32(result) is a bound. }
 
   { https://lemire.me/blog/2019/06/06/nearly-divisionless-random-integer-generation-on-various-systems/ }
-  m:=uint64(xsr128_32_u32rand)*uint32(result);
+  m:=uint64(GlobalXsr128_32.Next)*uint32(result);
   if Lo(m)<uint32(result) then
     begin
       t:=uint32(-result) mod uint32(result);
       while Lo(m)<t do
-        m:=uint64(xsr128_32_u32rand)*uint32(result);
+        m:=uint64(GlobalXsr128_32.Next)*uint32(result);
     end;
   result:=Hi(m);
 
@@ -771,26 +800,22 @@ end;
 function random(l:int64): int64;
 var
   t, ul, mLo: uint64;
-  a: uint32;
 begin
   if l=int32(l) then
     { This makes random(NativeType) on 64-bit platforms match 32-bit when possible. }
     exit(random(longint(l)));
 
+  if RandSeed<>OldRandSeed then ReseedGlobalRNG;
   ul:=l;
   if l<0 then
     ul:=-ul-1;
 
-  a:=xsr128_32_u32rand;
-  mLo:=UMul64x64_128(uint64(a) shl 32 or xsr128_32_u32rand,ul,uint64(result));
+  mLo:=UMul64x64_128(GlobalXsr128_32.NextPair,ul,uint64(result));
   if mLo<ul then
     begin
       t:=uint64(-ul) mod ul;
       while mLo<t do
-        begin
-          a:=xsr128_32_u32rand;
-          mLo:=UMul64x64_128(uint64(a) shl 32 or xsr128_32_u32rand,ul,uint64(result));
-        end;
+        mLo:=UMul64x64_128(GlobalXsr128_32.NextPair,ul,uint64(result));
     end;
 
   if l<-1 then
@@ -802,6 +827,7 @@ function random: extended;
 var
   res: double;
   r0, exponent: uint32;
+  Bits: uint64;
 begin
   { There are
 
@@ -817,8 +843,10 @@ begin
     minimum of 2^N random values has around N trailing zeros in its mantissa. }
 
   { 52 bits (double precision) go to mantissa: r0[0:19] + one_more_u32rand[0:31]. }
-  r0:=xsr128_32_u32rand;
-  PUint64(@res)^:=uint64(r0 and (1 shl 20-1)) shl 32 or xsr128_32_u32rand;
+  if RandSeed<>OldRandSeed then ReseedGlobalRNG;
+  Bits:=GlobalXsr128_32.NextPair;
+  r0:=Hi(Bits);
+  PUint64(@res)^:=Bits and $000fffffffffffff;
 
   { Exponent = −1 − (count of zeros in the stream of random bits). There are 12 bits left in r0. }
   exponent:=1023-1-31; { Biased exponent, - 31 for Bsr(r0). }
@@ -827,7 +855,7 @@ begin
       inc(exponent,20); { Subtract 12 bits the first time and 32 on subsequent iterations. }
       repeat
         dec(exponent,32);
-        r0:=xsr128_32_u32rand;
+        r0:=GlobalXsr128_32.Next;
       until r0<>0;
     end;
   PUint64(@res)^:=PUint64(@res)^ or uint64(exponent+BsrDWord(r0)) shl 52;
