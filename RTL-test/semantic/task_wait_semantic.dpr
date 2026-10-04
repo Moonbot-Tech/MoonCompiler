@@ -103,7 +103,8 @@ begin
     Watch:=TStopwatch.StartNew;
     Index:=TTask.WaitForAny([SlowTask,FastTask],1000);
     Watch.Stop;
-    Check(Index=1,'finite WaitForAny index');
+    Check(Index=1,'finite WaitForAny index '+IntToStr(Index)+' after '+
+      IntToStr(Watch.ElapsedMilliseconds)+' ms');
     Check(Watch.ElapsedMilliseconds>=10,'finite WaitForAny waited');
     Gate.SetEvent;
     Check(TTask.WaitForAll([SlowTask,FastTask],2000),

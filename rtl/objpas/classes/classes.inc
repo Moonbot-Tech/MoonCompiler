@@ -960,8 +960,9 @@ begin
         (Act.NiceTime-Previous.NiceTime);
   Idle:=Act.IdleTime-Previous.IdleTime;
   Previous:=Act;
-  if (Load<>0) and (Load>Idle) then
-    Result:=100*Trunc(1-(Idle/Load));
+  { kernel time includes the idle time: the busy share of the interval, in % }
+  if Load>Idle then
+    Result:=(Load-Idle)*100 div Load;
 end;
 
 

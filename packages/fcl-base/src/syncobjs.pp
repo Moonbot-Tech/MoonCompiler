@@ -822,7 +822,7 @@ var
 {$ENDIF}
 begin
 {$IFDEF WINDOWS}
-  inherited Create(aUseCOMWait);
+  FUseCOMWait:=aUseCOMWait;
   PN:=Pchar(Pointer(aName));
 {$IF SIZEOF(CHAR)=1}
   FHandle:=TEventHandle(CreateSemaphoreA(aAttributes,aInitial,aMaximum,PN));
@@ -858,7 +858,7 @@ begin
 {$IFNDEF WINDOWS}
   Create(Nil,1,1,aName,aUseCOMWait);
 {$ELSE WINDOWS}
-  inherited Create(aUseCOMWait);
+  FUseCOMWait:=aUseCOMWait;
   PN:=PChar(Pointer(aName));
 {$IF SIZEOF(CHAR)=1}
   FHandle:=TEventHandle(OpenSemaphoreA(aAccess,aInherit,PN));
@@ -1064,7 +1064,7 @@ begin
     Acquire;
 {$ELSE}
 {$IFDEF WINDOWS}
-  inherited Create(aUseCOMWait);
+  FUseCOMWait:=aUseCOMWait;
   PN:=PChar(Pointer(aName));
   {$IF SIZEOF(CHAR)=1}
   FHandle:=TEventHandle(CreateMutexA(aAttributes,aInitialOwner,PN));
@@ -1102,7 +1102,7 @@ begin
   Create(nil,false,aName,aUseCOMWait);
 {$ELSE}
 {$IFDEF WINDOWS}
-  inherited Create(aUseCOMWait);
+  FUseCOMWait:=aUseCOMWait;
   PN:=PChar(Pointer(aName));
 {$IF SIZEOF(CHAR)=1}
   FHandle:=TEventHandle(OpenMutexA(aAccess,aInherit,PN));

@@ -196,11 +196,6 @@ type
   private
     class var FDefaultPool: TThreadPool;
     const
-      RetireDelay  = 5000;      // in milliseconds. Time after which a thread retires
-      SuspendDelay = 5500;      // in milliseconds. Minimum time between 2 thread suspending themselves
-      SuspendTime  = 6000;      // in milliseconds. Time for which a suspended thread sleeps.
-      SuspendTries = 3;         // Number of tries for suspend loop
-      MaxCPUUsage  = 95;        // CPU usage % at which we stop threads.
       MinCPUUsage  = 80;        // CPU usage % below which we add threads.
       NumCPUUsageSamples = 10;  // Number of samples for average CPU usage
       MaxThreadsPerCPU = 2;     // Max threads per CPU, used to determine MaxThreads.
@@ -211,72 +206,37 @@ type
       MonitorIdleLimit = MonitorMaxInactiveInterval div MonitorThreadDelay;
       EnoughThreadsTimeout = 2 * IdleTimeout; // If there are enough threads, if the current thread will wait longer than this, kill it.
       NoRequestsTimeOut = 4 * IdleTimeout; // If there are no requests, if the current thread will wait longer than this, kill it.
-    procedure GrowPool;
+    function GrowPool: Boolean;
     function IsThrottledDelay(aLastCreationTick: UInt64; aThreadCount: Cardinal): Boolean;
     procedure LockQueue;
     procedure UnLockQueue;
     procedure WaitForThreads;
     procedure WorkQueued;
+    procedure SetMaxLimit(aValue: Integer);
+    procedure SetMinLimit(aValue: Integer);
   Private
     FInteractive: Boolean;
     FOnThreadStart: TProcThread;
     FOnThreadTerminate: TProcThread;
     FUnlimitedWorkerThreadsWhenBlocked: Boolean;
-    FSuspendGuard : integer; // Suspend guard
-    FSuspendAtTick : Int64;  // Tick at which last suspend occurred
-    FSuspendCount : Integer; // Number of suspended threads
     FMaxThreads: Integer; // Maximum number of worker threads.
     FMinThreads: Integer; // Minimum number of worker threads.
     FThreadCount : Integer;  // Number of worker threads
     FIdleThreads : Integer;  // number of worker threads in idle state
-    FRetiring : Integer;     // Number of worker threads trying to retire
     FCPUUsage : Integer;     // CPU usage in %
     FAvgCPUUsage : Integer;  // Average CPU usage in %
     FRequestCount : Integer; // Number of work items in queue
-    FPreviousRequestCount : Integer; // During monitor check, this is used to determine whether the number of request grows/shrinks
+    FPreviousRequestCount : Integer; // Requests when the monitor last added threads: it adds more only for a queue not shorter
     FThreadCreationAt : Int64; // Tick at which the last thread was created.
-    FRetireEvent : TEvent;
+    FMonitorEvent : TEvent;  // Wakes the monitor when a producer found every allowed worker busy.
     FQueueLock : TSpinlock;
-    FQueueEvent : TEvent;    // Set when a work item is queued.
+    FQueueSemaphore : TSemaphore; // Work notifications retained until a worker waits.
     FCPUInfo: TThread.TSystemTimes;
     FCpuUsageArray: array[0..TThreadPool.NumCPUUsageSamples - 1] of Cardinal;
     FCurUsageSlot: Integer;
 
     class function GetCurrentThreadPool: TThreadPool; static;
   protected type
-
-    { TSafeSharedInteger }
-
-    TSafeSharedInteger = record
-    private
-      FValue : ^Integer;
-      function GetInteger: Integer;
-      procedure SetInteger(AValue: Integer);
-    public
-      constructor Create(var aSharedVar: Integer);
-      function Increment: Integer; inline;
-      function Decrement: Integer; inline;
-      function CompareExchange(aValue: Integer; aComparand: Integer): Integer; inline;
-      class operator Explicit(aValue: TSafeSharedInteger): Integer; inline;
-      property Value: Integer read GetInteger write SetInteger;
-    end;
-
-    {$IFDEF THREAD64BIT}
-    { TSafeSharedUInt64 }
-    TSafeSharedUInt64 = record
-    private
-      FValue : ^UInt64;
-      function GetUInt64: UInt64;
-      procedure SetUInt64(AValue: UInt64);
-    public
-      constructor Create(var aSharedVar: UInt64);
-      function Increment: UInt64; inline;
-      function Decrement: UInt64; inline;
-      class operator Explicit(aValue: TSafeSharedUInt64): UInt64; inline;
-
-      property Value: UInt64 read GetUInt64 write SetUInt64;
-    end;
-    {$ENDIF}
 
     { IThreadPoolWorkItem }
 
@@ -356,22 +316,17 @@ type
     TQueueWorkerThread = class(TBaseWorkerThread)
     Protected
     const
-      MaxDelay = RetireDelay * 60;
       MaxCheckWaitTime = MaxInt div 2;
     private
       FCheckWaitTime : Integer;
       FIdle: Boolean;
       FWorkQueue: TWorkStealingQueueThreadPoolWorkItem;
       FWorkException : Exception;
-      FPoolRetireEvent : TEvent; // owned by pool!
       procedure AdjustWaitTime;
       procedure WrapExecute(var aItem: IThreadPoolWorkItem);
     protected
-      function SuspendWork: Boolean;
-      function TryToRetire: Boolean;
       procedure ExecuteWorkItem(var aItem: IThreadPoolWorkItem);
       procedure Execute; override;
-      procedure PushLocalWorkToGlobal;
       property WorkQueue: TWorkStealingQueueThreadPoolWorkItem read FWorkQueue;
       Property CheckWaitTime : Integer Read FCheckWaitTime;
     public
@@ -387,9 +342,7 @@ type
       FThreadPool : TThreadPool;
       function GetThreadName: string;
     protected
-      function IsThrottledDelay(aLastCreationTick: UInt64; aThreadCount: Cardinal): Boolean;
       procedure Execute; override;
-      procedure GrowThreadPoolIfStarved;
     public
       constructor Create(aThreadPool: TThreadPool);
     end;
@@ -427,7 +380,6 @@ type
     procedure AssignWorkToLocalQueue(WorkerData: IThreadPoolWorkItem; aThread: TQueueWorkerThread);
     procedure AssignWorkToGlobalQueue(WorkerData: IThreadPoolWorkItem);
     // Getting work.
-    function CheckShouldTerminate(aThread: TQueueWorkerThread): Boolean;
     function GetWorkItemForThread(aThread: TQueueWorkerThread; out Itm: IThreadPoolWorkItem): Boolean;
     function GetWorkItemFromQueues(aSkip: TWorkStealingQueueThreadPoolWorkItem; out Itm: IThreadPoolWorkItem): Boolean;
     // Notification when work was queued
@@ -451,8 +403,8 @@ type
     // Return true if new value was actually set.
     function SetMaxWorkerThreads(aValue: Integer): Boolean;
     function SetMinWorkerThreads(aValue: Integer): Boolean;
-    property MaxWorkerThreads: Integer read FMaxThreads;
-    property MinWorkerThreads: Integer read FMinThreads;
+    property MaxWorkerThreads: Integer read FMaxThreads write SetMaxLimit;
+    property MinWorkerThreads: Integer read FMinThreads write SetMinLimit;
     property UnlimitedWorkerThreadsWhenBlocked: Boolean read FUnlimitedWorkerThreadsWhenBlocked  write FUnlimitedWorkerThreadsWhenBlocked default True;
     // if set, then wait loops will call checksynchronize if they are executed in main thread.
     property Interactive: Boolean read FInteractive write FInteractive default False;
@@ -1529,7 +1481,8 @@ end;
 function TWorkStealingQueue.TrySteal(out aItem: T; aTimeout: Cardinal): Boolean;
 begin
   Result:=LocalPop(aItem);
-  If Result then
+  // Without a timeout there is nothing to wait for: no event calls.
+  If Result or (aTimeout=0) then
     exit;
   FEvent.ResetEvent;
   if FEvent.WaitFor(aTimeOut)=wrSignaled then
@@ -1650,16 +1603,19 @@ begin
   {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.WorkQueued','enter');{$ENDIF USE_THREADLOG}
   AtomicIncrement(FRequestCount);
   {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.WorkQueued','Queueing work (Requests: %d)',[FRequestCount]);{$ENDIF USE_THREADLOG}
-  DoEventSignal:=FIdleThreads>=FRequestCount;
-  {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.WorkQueued','DoEventSignal %s (%d>%d)',[BToS(DoEventSignal),FIdleThreads,FRequestCount]);{$ENDIF USE_THREADLOG}
+  // Wake an idle worker even when the pending work also calls for growth.
+  DoEventSignal:=FIdleThreads>0;
+  {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.WorkQueued','DoEventSignal %s',[BToS(DoEventSignal)]);{$ENDIF USE_THREADLOG}
   if DoEventSignal then
-    FQueueEvent.SetEvent
-  else
-    GrowPool;
+    FQueueSemaphore.Release;
+  // Nobody is free and no thread may be added: as in Delphi the monitor
+  // decides at once whether every worker is blocked.
+  if (FIdleThreads<FRequestCount) and not GrowPool and FUnlimitedWorkerThreadsWhenBlocked then
+    FMonitorEvent.SetEvent;
   {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.WorkQueued','leave');{$ENDIF USE_THREADLOG}
 end;
 
-procedure TThreadPool.GrowPool;
+function TThreadPool.GrowPool: Boolean;
 
   procedure DoAdd;
 
@@ -1675,33 +1631,25 @@ procedure TThreadPool.GrowPool;
   end;
 
 Var
-  DoGrow,NeedMinimum,IdleDeficit,HaveRoom : Boolean;
+  NeedMinimum,IdleDeficit,HaveRoom : Boolean;
 
 begin
   {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowPool','Enter');{$ENDIF USE_THREADLOG}
   NeedMinimum:=(FThreadCount<FMinThreads);
   IdleDeficit:=(FIdleThreads<FRequestCount);
   HaveRoom:=(FThreadCount<FMaxThreads);
-  DoGrow:=NeedMinimum or (IdleDeficit and HaveRoom);
-  {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowPool','DoGrow: %s, NeedMinimum: %s, IdleDeficit: %s, HaveRoom: %s',[BToS(DoGrow),BToS(NeedMinimum),BToS(IdleDeficit),BToS(HaveRoom)]);{$ENDIF USE_THREADLOG}
-  if Not DoGrow then
+  Result:=NeedMinimum or (IdleDeficit and HaveRoom);
+  {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowPool','DoGrow: %s, NeedMinimum: %s, IdleDeficit: %s, HaveRoom: %s',[BToS(Result),BToS(NeedMinimum),BToS(IdleDeficit),BToS(HaveRoom)]);{$ENDIF USE_THREADLOG}
+  if Not Result then
     begin
     {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowPool','Leave (not DoGrow)');{$ENDIF USE_THREADLOG}
     exit;
     end;
-  if FRetiring>0 then
-     begin
-     {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowPool','Waking retired threads: %d',[FRetiring]);{$ENDIF USE_THREADLOG}
-     FRetireEvent.SetEvent;
-     end
-  else
+  DoAdd;
+  while (FThreadCount<FMinThreads) do
     begin
+    {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowPool','Adding thread to pool: %d<%d',[FThreadCount,FMinThreads]);{$ENDIF USE_THREADLOG}
     DoAdd;
-    while (FThreadCount<FMinThreads) do
-      begin
-      {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowPool','Adding thread to pool: %d<%d',[FThreadCount,FMinThreads]);{$ENDIF USE_THREADLOG}
-      DoAdd;
-      end;
     end;
   {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowPool','Leave');{$ENDIF USE_THREADLOG}
 end;
@@ -1711,18 +1659,21 @@ procedure TThreadPool.NewThread(aThread: TBaseWorkerThread);
 begin
   if Assigned(FThreads) then
     FThreads.Add(aThread);
-  if assigned(FOnThreadStart) then
-    FOnThreadStart(aThread);
 end;
 
 procedure TThreadPool.RemoveThread(aThread: TBaseWorkerThread);
 begin
-  If Assigned(FThreads) then
-    FThreads.Remove(aThread);
   AtomicDecrement(FThreadCount);
+  // A request may have arrived after the worker's final queue check, while
+  // it still occupied the last slot. Reconsider it as soon as that slot opens.
+  if not FShutdown and (FRequestCount>0) then
+    GrowPool;
   {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.RemoveThread','Thread count now %d',[FThreadCount]);{$ENDIF USE_THREADLOG}
   if assigned(FOnThreadTerminate) then
     FOnThreadTerminate(aThread);
+  // Keep the pool alive until the departing worker has finished using it.
+  If Assigned(FThreads) then
+    FThreads.Remove(aThread);
 end;
 
 procedure TThreadPool.AssignWorkToLocalQueue(WorkerData: IThreadPoolWorkItem; aThread: TQueueWorkerThread);
@@ -1777,7 +1728,7 @@ end;
 procedure TThreadPool.DoQueueWorkItem(WorkerData: IThreadPoolWorkItem; PreferThread : TQueueWorkerThread);
 begin
   {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.DoQueueWorkItem','enter');{$ENDIF USE_THREADLOG}
-  if assigned(PreferThread) then
+  if assigned(PreferThread) and (PreferThread.ThreadPool=Self) then
     AssignWorkToLocalQueue(WorkerData,PreferThread)
   else
     AssignWorkToGlobalQueue(WorkerData);
@@ -1792,8 +1743,8 @@ var
   PC: Integer;
 
 begin
-  FRetireEvent:=TLightweightEvent.Create;
-  FQueueEvent:=TEvent.Create;
+  FMonitorEvent:=TEvent.Create(Nil,True,False,'');
+  FQueueSemaphore:=TSemaphore.Create(Nil,0,MaxInt,'');
   FQueueLock:=TSpinLock.Create(False);
   FWorkQueue:=TWorkItemQueue.Create;
   PC:=TThread.ProcessorCount;
@@ -1802,6 +1753,7 @@ begin
   if FMinThreads<2 then
     FMinThreads:=2;
   FMaxThreads:=PC*MaxThreadsPerCPU;
+  FUnlimitedWorkerThreadsWhenBlocked:=True;
   FThreads:=TBaseWorkerThreadList.Create;
   FThreads.Duplicates:=dupIgnore;
 {
@@ -1825,11 +1777,15 @@ begin
     try
       Empty:=List.Count=0;
       If not Empty then
+        begin
         for T in List do
           begin
           T.Terminate;
           {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.WaitForThreads','Terminated thread');{$ENDIF USE_THREADLOG}
           end;
+        // A worker waiting for work wakes with a permit and sees FShutdown.
+        FQueueSemaphore.Release(List.Count);
+        end;
     finally
       FThreads.UnlockList;
     end;
@@ -1843,13 +1799,12 @@ end;
 destructor TThreadPool.Destroy;
 begin
   FShutdown:=True;
-  FQueueEvent.SetEvent;
   WaitForThreads;
   WaitForMonitorThread;
   FreeAndNil(FWorkQueue);
   FreeAndNil(FQueues);
-  FreeAndNil(FRetireEvent);
-  FreeAndNil(FQueueEvent);
+  FreeAndNil(FMonitorEvent);
+  FreeAndNil(FQueueSemaphore);
   FreeAndNil(FThreads);
   inherited Destroy;
 end;
@@ -1887,18 +1842,31 @@ begin
   DoQueueWorkItem(WorkerData,Nil);
 end;
 
+// As in Delphi, each limit is checked on its own: a minimum above the maximum
+// makes GrowPool start that many workers at once.
 function TThreadPool.SetMaxWorkerThreads(aValue: Integer): Boolean;
 begin
-  Result:=(aValue>FMinThreads);
+  Result:=(aValue>0);
   if Result then
     AtomicExchange(FMaxThreads,aValue);
 end;
 
 function TThreadPool.SetMinWorkerThreads(aValue: Integer): Boolean;
 begin
-  Result:=(aValue>=0) and (aValue<FMaxThreads);
+  Result:=(aValue>=0);
   if Result then
     AtomicExchange(FMinThreads,aValue);
+end;
+
+// The properties write as in Delphi: a refused value leaves the limit as is.
+procedure TThreadPool.SetMaxLimit(aValue: Integer);
+begin
+  SetMaxWorkerThreads(aValue);
+end;
+
+procedure TThreadPool.SetMinLimit(aValue: Integer);
+begin
+  SetMinWorkerThreads(aValue);
 end;
 
 procedure TThreadPool.SignalExecuting(aThread : TQueueWorkerThread);
@@ -1910,31 +1878,6 @@ begin
   aThread.Idle:=False;
   AtomicDecrement(FRequestCount);
   {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.SignalExecuting','Leave (Requests left: %d, Idle: %d)',[FRequestCount,FIdleThreads]);{$ENDIF USE_THREADLOG}
-end;
-
-function TThreadPool.CheckShouldTerminate(aThread : TQueueWorkerThread) : Boolean;
-
-var
-  HighLoad: Boolean;
-  aTick : Int64;
-begin
-  Result:=False;
-  if FSuspendGuard<>0 then // We're suspending another thread.
-    Exit;
-  aTick:=GetTickCount64;
-  HighLoad:=((FThreadCount-FIdleThreads)>2*FMinThreads) and
-             (FAvgCPUUsage >= MaxCPUUsage) and
-             (aTick>(FSuspendAtTick+SuspendDelay));
-  if not HighLoad then
-    exit;
-  if AtomicCmpExchange(FSuspendGuard, 1, 0) = 0 then
-    begin
-    Result:=AThread.SuspendWork;
-    FSuspendGuard:=0;
-    AtomicIncrement(FSuspendCount);
-    if Result then
-      FSuspendAtTick:=aTick;
-    end;
 end;
 
 procedure TThreadPool.LockQueue;
@@ -2006,8 +1949,33 @@ end;
 
 function TThreadPool.GetWorkItemForThread(aThread: TQueueWorkerThread; out Itm: IThreadPoolWorkItem): Boolean;
 
+  // The global queue first, then the local queues of the other threads.
+  function TakeWork: Boolean;
+  begin
+    {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','locking queue');{$ENDIF USE_THREADLOG}
+    LockQueue;
+    try
+      // FWorkQueue access is guarded by LockQueue.
+      if (FWorkQueue.Count > 0) then
+        Itm:=FWorkQueue.Dequeue;
+    finally
+      {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','unlocking queue');{$ENDIF USE_THREADLOG}
+      UnLockQueue;
+    end;
+    Result:=Assigned(Itm) or GetWorkItemFromQueues(aThread.WorkQueue,Itm);
+  end;
+
+  // A worker leaving the idle set must recheck work published while it
+  // still counted, before releasing its slot in RemoveThread.
+  function KeepWorking: Boolean;
+  begin
+    AtomicDecrement(FIdleThreads);
+    aThread.Idle:=False;
+    Result:=TakeWork;
+  end;
+
 Var
-  CheckThreadQueues : Boolean;
+  Woken : Boolean;
 
 begin
   Result:=True;
@@ -2016,54 +1984,29 @@ begin
     {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Shutting down, no work -> quit');{$ENDIF USE_THREADLOG}
     Exit(False);
     end;
-  {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','locking queue');{$ENDIF USE_THREADLOG}
-  LockQueue;
-  try
-    if (FWorkQueue.Count > 0) then
-      begin
-      // FWorkQueue access is guarded by LockQueue.
-      {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Have global work');{$ENDIF USE_THREADLOG}
-      Itm:=FWorkQueue.Dequeue;
-      if assigned(Itm) then
-        begin
-        {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Global work, -> no quit');{$ENDIF USE_THREADLOG}
-        Exit(True); // We got work, do not stop thread
-        end;
-      end;
-  finally
-    {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','unlocking queue');{$ENDIF USE_THREADLOG}
-    UnLockQueue;
-  end;
-  // No local work, check global
+  // Publish idle before the last queue check: a producer either leaves work
+  // for that check or observes an idle worker and leaves a semaphore permit.
   if not aThread.Idle then
     begin
     {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','marking thread %d as idle',[PtrInt(aThread.ThreadID)]);{$ENDIF USE_THREADLOG}
     AtomicIncrement(FIdleThreads);
     aThread.Idle:=True;
     end;
-  {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Waiting for queue event (%d ms.)',[aThread.CheckWaitTime]);{$ENDIF USE_THREADLOG}
-  CheckThreadQueues:=(FQueueEvent.WaitFor(aThread.CheckWaitTime)<>wrTimeout);
-  {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Work queued triggered: %s',[BToS(CheckThreadQueues)]);{$ENDIF USE_THREADLOG}
+  if TakeWork then
+    begin
+    {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Got work, -> no quit');{$ENDIF USE_THREADLOG}
+    Exit(True); // We got work, do not stop thread
+    end;
+  {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Waiting for queue semaphore (%d ms.)',[aThread.CheckWaitTime]);{$ENDIF USE_THREADLOG}
+  Woken:=FQueueSemaphore.WaitFor(aThread.CheckWaitTime)=wrSignaled;
+  {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Work queued triggered: %s',[BToS(Woken)]);{$ENDIF USE_THREADLOG}
   if FShutdown then
     begin
     {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Shutdown -> quit');{$ENDIF USE_THREADLOG}
     Exit(False); // Stop thread
     end;
-  if CheckThreadQueues then
-    begin
-    {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Checking other queues');{$ENDIF USE_THREADLOG}
-    if GetWorkItemFromQueues(aThread.WorkQueue,Itm) then
-      begin
-      {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Checked other queues, got work -> no quit');{$ENDIF USE_THREADLOG}
-      Exit(True); // We got work, do not stop thread
-      end;
-    {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','No work in other queues');{$ENDIF USE_THREADLOG}
-    end;
-  if FShutdown then
-    begin
-    {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Shutdown -> quit');{$ENDIF USE_THREADLOG}
-    Exit(False); // Stop thread
-    end;
+  if Woken then
+    Exit(True); // Work was queued: look for it, the wait was no idle time
   // Nothing to do. Adjust waiting time or stop thread.
   if (FThreadCount > FMinThreads+1) then
     begin
@@ -2074,7 +2017,7 @@ begin
       if (aThread.CheckWaitTime>EnoughThreadsTimeOut) then
         begin
         {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','Enough threads to handle workload -> quit');{$ENDIF USE_THREADLOG}
-        Exit(False); // Stop thread
+        Exit(KeepWorking); // Stop thread, unless work came meanwhile
         end;
       end;
     aThread.AdjustWaitTime;
@@ -2086,7 +2029,7 @@ begin
     if (aThread.CheckWaitTime>NoRequestsTimeOut) then
       begin
       {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GetWorkItemForThread','One thread, waiting quite long -> quit');{$ENDIF USE_THREADLOG}
-      Exit(False); // Stop thread
+      Exit(KeepWorking); // Stop thread, unless work came meanwhile
       end;
     aThread.AdjustWaitTime;
     end;
@@ -2105,13 +2048,28 @@ procedure TThreadPool.StopCPUStats;
 begin
   FCurUsageSlot:=0;
   FillChar(FCPUUsageArray, SizeOf(FCPUUsageArray), 0);
-  FMonitorStatus:=MonitorNone;
 end;
 
 function TThreadPool.HaveNoWorkers : boolean;
 
+var
+  List: specialize TList<TBaseWorkerThread>;
+  Worker: TBaseWorkerThread;
+
 begin
-  Result:=True
+  Result:=False;
+  // A worker clears Idle before removing its request count.
+  if FRequestCount<>0 then
+    Exit;
+  List:=FThreads.LockList;
+  try
+    for Worker in List do
+      if not TQueueWorkerThread(Worker).Idle then
+        Exit;
+    Result:=True;
+  finally
+    FThreads.UnlockList;
+  end;
 end;
 function TThreadPool.IsThrottledDelay(aLastCreationTick: UInt64; aThreadCount: Cardinal): Boolean;
 
@@ -2120,55 +2078,43 @@ begin
   if aThreadCount<>0 then; // Silence compiler warning
 end;
 
+// The monitor calls this while the processors are not busy.  Work waits and no
+// worker is idle: the workers are blocked, not busy.  As in Delphi, threads are
+// added only for a queue not shorter than at the last addition and not in the
+// tick of a thread creation: one below the maximum and, when
+// UnlimitedWorkerThreadsWhenBlocked is set, up to half the maximum plus one
+// above it.
 procedure TThreadPool.GrowIfStarved;
 
 var
-  PrevRequestCount: Integer;
-  AllowMoreThreads,IncreasingRequests,ThrottleOK,B,CreateNewThread: Boolean;
-  HaveRoomForWork : Boolean;
+  Requests,Grow,I: Integer;
 
 begin
-  HaveRoomForWork:=(FRequestCount>0) and (FThreadCount<FMaxThreads);
-  if Not HaveRoomForWork then
-    begin
-    {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowIfStarved','No work (%d>0) and (%d<%d) is False. Not creating new threads',[FRequestCount,FThreadCount,FMaxThreads]);{$ENDIF USE_THREADLOG}
+  if FRequestCount<=0 then
     Exit;
-    end;
-  PrevRequestCount:=FPreviousRequestCount;
-  FPreviousRequestCount:=FRequestCount;
-  {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowIfStarved','(FRequestCount>=PrevRequestCount) and IsThrottledDelay(FThreadCreationAt,FThreadCount):');{$ENDIF USE_THREADLOG}
-  ThrottleOK:=IsThrottledDelay(FThreadCreationAt,FThreadCount);
-  IncreasingRequests:=(FRequestCount>=PrevRequestCount);
-  B:=IncreasingRequests and ThrottleOK;
-  {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowIfStarved','IncreasingRequests (%d>=%d) [%s] and ThrottleOK (%d,%d) [%s] : %s',[FRequestCount,PrevRequestCount,BToS(IncreasingRequests),FThreadCreationAt, FThreadCount, BToS(ThrottleOK),BToS(B)]);{$ENDIF USE_THREADLOG}
-  if not B then
-    Exit;
-  if B then
-    begin
-    CreateNewThread:=False;
-    {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowIfStarved','locking queue');{$ENDIF USE_THREADLOG}
-    LockQueue;
-    try
-      IncreasingRequests:=(FRequestCount>=PrevRequestCount);
-      AllowMoreThreads:=(FThreadCount<FMaxThreads);
-      {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowIfStarved','IncreasingRequests (%d>=%d) : %s ',[FRequestCount,PrevRequestCount,BToS(IncreasingRequests)]);{$ENDIF USE_THREADLOG}
-      {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowIfStarved','AllowMoreThreads (%d<%d) : %s',[FThreadCount,FMaxThreads,BToS(AllowMoreThreads)]);{$ENDIF USE_THREADLOG}
-      {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowIfStarved','(FIdleThreads=FRetiring) : (%d=%d) %s',[FIdleThreads,FRetiring,BToS(FIdleThreads=FRetiring)]);{$ENDIF USE_THREADLOG}
-      B:=IncreasingRequests and AllowMoreThreads and (FIdleThreads=FRetiring);
-      {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowIfStarved','Attempt to create new thread %s',[BToS(B)]);{$ENDIF USE_THREADLOG}
-      if B then
+  LockQueue;
+  try
+    Requests:=FRequestCount;
+    if (Requests<=0) or (Requests<FPreviousRequestCount) or (FIdleThreads>0) or
+       not IsThrottledDelay(FThreadCreationAt,FThreadCount) then
+      Exit;
+    if FThreadCount<FMaxThreads then
+      Grow:=1
+    else if FUnlimitedWorkerThreadsWhenBlocked then
       begin
-        CreateNewThread:=FRetiring<=0;
-        if CreateNewThread then
-          AddThreadToPool;
-      end;
-    finally
-      {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowIfStarved','unlocking queue');{$ENDIF USE_THREADLOG}
-      UnLockQueue;
-    end;
-    if Not CreateNewThread then
-      FRetireEvent.SetEvent;
-    end;
+      Grow:=FMaxThreads div 2+1;
+      if Grow>Requests then
+        Grow:=Requests;
+      end
+    else
+      Exit;
+    {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.GrowIfStarved','Requests %d, threads %d of %d: adding %d',[Requests,FThreadCount,FMaxThreads,Grow]);{$ENDIF USE_THREADLOG}
+    FPreviousRequestCount:=Requests;
+    for I:=1 to Grow do
+      AddThreadToPool;
+  finally
+    UnLockQueue;
+  end;
 end;
 
 function TThreadPool.AddThreadToPool : TQueueWorkerThread;
@@ -2186,13 +2132,17 @@ function TThreadPool.DoMonitor : TMonitorResult;
 var
   I: Integer;
   AvgCPU: Cardinal;
+  Woken: Boolean;
 
 begin
   Result:=TMonitorResult.mrContinue;
   if FShutdown then
     Exit(TMonitorResult.mrTerminate);
-  TThread.Sleep(MonitorThreadDelay);
-//  FCurrentCPUUsage:=TThread.GetCPUUsage(CPUInfo);
+  // A producer that found every allowed worker busy starts the round at once.
+  Woken:=FMonitorEvent.WaitFor(MonitorThreadDelay)=wrSignaled;
+  if Woken then
+    FMonitorEvent.ResetEvent;
+  FCPUUsage:=TThread.GetCPUUsage(FCPUInfo);
   FCPUUsageArray[FCurUsageSlot]:=FCPUUsage;
   if FCurUsageSlot = NumCPUUsageSamples - 1 then
     FCurUsageSlot:=0
@@ -2202,92 +2152,15 @@ begin
   for I:=0 to NumCPUUsageSamples - 1 do
     Inc(AvgCPU, FCPUUsageArray[I]);
   FAvgCPUUsage:=AvgCPU div TThreadPool.NumCPUUsageSamples;
+  // Busy processors mean busy workers, not blocked ones.
   if FCPUUsage < MinCPUUsage then
     GrowIfStarved;
   if FShutdown then
     Exit(TMonitorResult.mrTerminate)
-  else if HaveNoWorkers then
+  else if not Woken and HaveNoWorkers then
     Exit(TMonitorResult.mrIdle);
 end;
 
-
-{ *********************************************************************
-  TThreadPool.TSafeSharedInteger
-  *********************************************************************}
-
-
-function TThreadPool.TSafeSharedInteger.GetInteger: Integer;
-begin
-  Result:=FValue^;
-end;
-
-procedure TThreadPool.TSafeSharedInteger.SetInteger(AValue: Integer);
-begin
-  FValue^:=aValue;
-end;
-
-constructor TThreadPool.TSafeSharedInteger.Create(var aSharedVar: Integer);
-begin
-  FValue:=@aSharedVar;
-end;
-
-function TThreadPool.TSafeSharedInteger.Increment: Integer;
-begin
-  Result:=AtomicIncrement(FValue^);
-end;
-
-function TThreadPool.TSafeSharedInteger.Decrement: Integer;
-begin
-  Result:=AtomicDecrement(FValue^);
-end;
-
-function TThreadPool.TSafeSharedInteger.CompareExchange(aValue: Integer; aComparand: Integer): Integer;
-begin
-  Result:=AtomicCmpExchange(FValue^,aValue,aComparand);
-end;
-
-class operator TThreadPool.TSafeSharedInteger.Explicit(aValue: TSafeSharedInteger): Integer;
-begin
-  Result:=aValue.FValue^;
-end;
-
-{$IFDEF THREAD64BIT}
-
-{ *********************************************************************
-  TThreadPool.TSafeSharedUInt64
-  *********************************************************************}
-
-function TThreadPool.TSafeSharedUInt64.GetUInt64: UInt64;
-begin
-  Result:=FValue^;
-end;
-
-procedure TThreadPool.TSafeSharedUInt64.SetUInt64(AValue: UInt64);
-begin
-  FValue^:=aValue;
-end;
-
-constructor TThreadPool.TSafeSharedUInt64.Create(var aSharedVar: UInt64);
-begin
-  FValue:=@aSharedVar;
-end;
-
-function TThreadPool.TSafeSharedUInt64.Increment: UInt64;
-begin
-  Result:=AtomicIncrement(FValue^);
-end;
-
-function TThreadPool.TSafeSharedUInt64.Decrement: UInt64;
-begin
-  Result:=AtomicDecrement(FValue^);
-end;
-
-class operator TThreadPool.TSafeSharedUInt64.Explicit(aValue: TSafeSharedUInt64): UInt64;
-begin
-  Result:=aValue.FValue^;
-end;
-
-{$ENDIF THREAD64BIT}
 
 { *********************************************************************
   TThreadPool.TControlFlag
@@ -2465,59 +2338,6 @@ end;
   TThreadPool.TQueueWorkerThread
   *********************************************************************}
 
-function TThreadPool.TQueueWorkerThread.SuspendWork: Boolean;
-
-var
-  I,Limit,Usage: Integer;
-
-begin
-  Limit:=TThreadPool.SuspendTries;
-  I:=0;
-  Usage:=ThreadPool.FCPUUsage-4;
-  while (I<Limit) do
-    begin
-    Sleep(TThreadPool.SuspendTime);
-    if (ThreadPool.FCPUUsage<Usage) then
-      Limit:=0;
-    Inc(I);
-    end;
-  Result:=Limit<>0;
-end;
-
-function TThreadPool.TQueueWorkerThread.TryToRetire: Boolean;
-
-// Return true if we can retire.
-
-var
-  aTime : Integer;
-
-begin
-  Result:=False;
-  AtomicIncrement(ThreadPool.FRetiring);
-  try
-    aTime:=TThreadPool.RetireDelay;
-    while True do
-      begin
-      if (FPoolRetireEvent.WaitFor(aTime)<>wrTimeout) then
-        // We were signaled, so do not retire
-        Exit
-      else
-        // Timeout ?
-        begin
-        // total time exceeded: retire if there is no work.
-        if (aTime>MaxDelay) then
-          Exit(FWorkQueue.Count=0);
-        // We must wait, lets wait longer
-        aTime:=2*aTime;
-        if aTime>MaxDelay then
-          aTime:=MaxDelay;
-        end;
-      end;
-  finally
-    AtomicDecrement(ThreadPool.FRetiring);
-  end;
-end;
-
 procedure TThreadPool.TQueueWorkerThread.ExecuteWorkItem(var aItem: IThreadPoolWorkItem);
 
 begin
@@ -2556,7 +2376,13 @@ var
   Itm: IThreadPoolWorkItem;
 
 begin
-  // Set event
+  // Run the callback in the worker, outside the queue lock held by its creator.
+  // A callback may queue work in this pool; Delphi also ignores its exception.
+  try
+    if Assigned(ThreadPool.FOnThreadStart) then
+      ThreadPool.FOnThreadStart(Self);
+  except
+  end;
   inherited Execute;
   FCheckWaitTime:=IdleTimeout;
   ThreadPool.RegisterWorkerThread(Self);
@@ -2580,11 +2406,6 @@ begin
         FCheckWaitTime:=IdleTimeout;
         {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.TQueueWorkerThread.Execute','Called WrapExecute. Idle: %s',[BToS(Idle)]);{$ENDIF USE_THREADLOG}
         end;
-      if ThreadPool.CheckShouldTerminate(Self) then
-        begin
-        {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.TQueueWorkerThread.Execute','Threadpool said to stop; terminating');{$ENDIF USE_THREADLOG}
-        Terminate;
-        end;
       if Terminated then
         {$IFDEF USE_THREADLOG}ThreadLog('TThreadPool.TQueueWorkerThread.Execute','Thread Terminated');{$ENDIF USE_THREADLOG}
       end;
@@ -2593,19 +2414,8 @@ begin
   end;
 end;
 
-procedure TThreadPool.TQueueWorkerThread.PushLocalWorkToGlobal;
-
-var
-  Itm: IThreadPoolWorkItem;
-
-begin
-  while FWorkQueue.LocalPop(Itm) do
-    ThreadPool.DoQueueWorkItem(Itm,Nil);
-end;
-
 constructor TThreadPool.TQueueWorkerThread.Create(aThreadPool: TThreadPool);
 begin
-  FPoolRetireEvent:=aThreadPool.FRetireEvent;
   FWorkQueue:=TWorkStealingQueueThreadPoolWorkItem.Create;
   Inherited Create(aThreadPool);
 end;
@@ -2622,11 +2432,6 @@ end;
 
 
 
-function TThreadPool.TThreadPoolMonitor.IsThrottledDelay(aLastCreationTick: UInt64; aThreadCount: Cardinal): Boolean;
-begin
-  Result:=FThreadPool.IsThrottledDelay(aLastCreationTick,aThreadCount);
-end;
-
 function TThreadPool.TThreadPoolMonitor.GetThreadName : string;
 
 begin
@@ -2642,7 +2447,8 @@ Var
 begin
   try
   NameThreadForDebugging(GetThreadName);
-  TThread.Sleep(TThreadPool.MonitorThreadDelay);
+  // A wake ends the first delay and stays set: the first round goes at once.
+  FThreadPool.FMonitorEvent.WaitFor(TThreadPool.MonitorThreadDelay);
   FThreadPool.InitCPUStats;
   IdleCount:=TThreadPool.MonitorIdleLimit;
   while not Terminated do
@@ -2666,11 +2472,6 @@ begin
   finally
     FThreadPool.FMonitorStatus:=MonitorNone;
   end;
-end;
-
-procedure TThreadPool.TThreadPoolMonitor.GrowThreadPoolIfStarved;
-begin
-  FThreadPool.GrowIfStarved
 end;
 
 constructor TThreadPool.TThreadPoolMonitor.Create(aThreadPool: TThreadPool);
@@ -2707,11 +2508,12 @@ begin
   FMaxLimitWorkerThreadCount:=aPool.FMaxThreads;
   FIdleWorkerThreadCount:=aPool.FIdleThreads;
   FQueuedRequestCount:=aPool.FRequestCount;
-  FRetiredWorkerThreadCount:=aPool.FRetiring;
+  // Workers leave on their idle timeout; none retires or suspends itself.
+  FRetiredWorkerThreadCount:=0;
   FAverageCPUUsage:=aPool.FAvgCPUUsage;
   FCurrentCPUUsage:=aPool.FCPUUsage;
-  FThreadSuspended:=aPool.FSuspendCount;
-  FLastSuspendTick:=aPool.FSuspendAtTick;
+  FThreadSuspended:=0;
+  FLastSuspendTick:=0;
   FLastThreadCreationTick:=aPool.FThreadCreationAt;
   FLastQueuedRequestCount:=aPool.FPreviousRequestCount;
 end;

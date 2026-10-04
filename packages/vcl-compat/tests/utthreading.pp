@@ -1512,7 +1512,7 @@ begin
   C:=FThreadPool.MaxWorkerThreads;
   try
     AssertFalse('No zero',FThreadPool.SetMaxWorkerThreads(0));
-    AssertFalse('Bigger than min',FThreadPool.SetMaxWorkerThreads(FThreadPool.MinWorkerThreads));
+    AssertTrue('Not bound by min',FThreadPool.SetMaxWorkerThreads(FThreadPool.MinWorkerThreads));
     AssertTrue('Big value',FThreadPool.SetMaxWorkerThreads(256));
   finally
     FThreadPool.SetMaxWorkerThreads(C);
@@ -1528,7 +1528,7 @@ begin
   C:=FThreadPool.MinWorkerThreads;
   try
     AssertFalse('No negative',FThreadPool.SetMinWorkerThreads(-1));
-    AssertFalse('Smaller than max',FThreadPool.SetMinWorkerThreads(FThreadPool.MaxWorkerThreads+1));
+    AssertTrue('Not bound by max',FThreadPool.SetMinWorkerThreads(FThreadPool.MaxWorkerThreads+1));
     AssertTrue('zero',FThreadPool.SetMinWorkerThreads(0));
   finally
     FThreadPool.SetMinWorkerThreads(C);

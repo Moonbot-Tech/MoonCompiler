@@ -103,6 +103,17 @@ uses
   sysconst;
 {$ENDIF FPC_DOTTEDUNITS}
 
+{$DEFINE HAS_TTHREAD_GETSYSTEMTIMES}
+function WinGetSystemTimes(IdleTime, KernelTime, UserTime: PQWord): LongBool; stdcall;
+  external 'kernel32' name 'GetSystemTimes';
+
+class function TThread.GetSystemTimes(out aSystemTimes : TSystemTimes) : Boolean;
+begin
+  { FILETIME counts of all processors; the kernel time includes the idle time }
+  aSystemTimes:=Default(TSystemTimes);
+  Result:=WinGetSystemTimes(@aSystemTimes.IdleTime,@aSystemTimes.KernelTime,@aSystemTimes.UserTime);
+end;
+
 { OS - independent class implementations are in /inc directory. }
 {$i classes.inc}
 

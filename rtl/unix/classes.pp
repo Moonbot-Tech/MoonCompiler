@@ -121,13 +121,14 @@ const
   BufSize = 1024;
 
 var
-  Buf: array[0..BufSize-1] of Char;
+  { /proc/stat is bytes; Char is a WideChar in the Unicode RTL }
+  Buf: array[0..BufSize-1] of AnsiChar;
   fd: cint;
   BytesRead, Pos, Len: SizeInt;
   V: QWord;
   lField: Integer;
   lDigits: Boolean;
-  Ch: Char;
+  Ch: AnsiChar;
 
 
 
@@ -167,15 +168,19 @@ begin
         Inc(lField);
         V:=0;
         lDigits:=False;
-        if lField > 3 then
+        if lField > 4 then
           Break;
         end;
       Inc(Pos);
     end;
     // Handle last field if line ended without trailing space
-    if lDigits and (lField<=3) then
+    if lDigits and (lField<=4) then
+      begin
       StoreTime(lField,V);
-    Result:=lField>=3;
+      Inc(lField);
+      end;
+    // all four fields, idle included: without it every sample reads as full load
+    Result:=lField>4;
   finally
     fpClose(fd);
   end;
