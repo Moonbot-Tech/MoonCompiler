@@ -2903,6 +2903,11 @@ implementation
              copytype:=pc_address_only
            else
              copytype:=pc_normal;
+           { an intrinsic of the compiler is expanded at every call and has
+             no body, so there is no address to take }
+           if (pd.typ=procdef) and
+              (pd.proccalloption=pocall_internproc) then
+             CGMessage1(type_e_cant_take_address_of_intrinsic,tprocdef(pd).procsym.realname);
            resultdef:=cprocvardef.getreusableprocaddr(pd,copytype);
          end;
       end;

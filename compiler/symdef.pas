@@ -6645,8 +6645,17 @@ implementation
           exclude(tabstractprocdef(result).defoptions,df_inherited_const_aggregate_abi);
         if (copytyp=pc_bareproc) then
           tabstractprocdef(result).procoptions:=tabstractprocdef(result).procoptions*[po_explicitparaloc,po_hascallingconvention,po_varargs,po_iocheck,po_has_importname,po_has_importdll];
+        { a procedural type has no body: a call through it is an indirect
+          call to whatever routine the variable holds, so the type does not
+          inherit what the copied routine says about its own body (which the
+          language does not allow on a procedural type either): inline (the
+          call is never expanded), noreturn (another routine returns),
+          internconst (a constant argument is not folded by an intrinsic
+          number the type does not have) and assembler (a call of an
+          assembler safecall routine does not check its HRESULT, so the
+          failure of another routine would be lost) }
         if newtyp=procvardef then
-          tabstractprocdef(result).procoptions:=tabstractprocdef(result).procoptions-[po_has_importname,po_has_importdll];
+          tabstractprocdef(result).procoptions:=tabstractprocdef(result).procoptions-[po_has_importname,po_has_importdll,po_inline,po_noreturn,po_internconst,po_assembler];
         if copytyp=pc_address_only then
           include(tabstractprocdef(result).procoptions,po_addressonly);
 

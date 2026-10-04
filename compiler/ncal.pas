@@ -5003,12 +5003,15 @@ implementation
             (procdefinition=current_procinfo.procdef) then
            include(current_procinfo.flags,pi_is_recursive);
 
-         { handle predefined procedures }
-         is_const:=(po_internconst in procdefinition.procoptions) and
+         { handle predefined procedures: the intrinsic number is a field of
+           the routine, a call through a procedural type has none }
+         is_const:=(procdefinition.typ=procdef) and
+                   (po_internconst in procdefinition.procoptions) and
                    ((block_type in [bt_const,bt_type,bt_const_type,bt_var_type]) or
                     (assigned(left) and ((tcallparanode(left).left.nodetype in [realconstn,ordconstn])
                      and (not assigned(tcallparanode(left).right) or (tcallparanode(tcallparanode(left).right).left.nodetype in [realconstn,ordconstn])))));
-         if (procdefinition.proccalloption=pocall_internproc) or is_const then
+         if ((procdefinition.typ=procdef) and
+             (procdefinition.proccalloption=pocall_internproc)) or is_const then
           begin
             if assigned(left) then
              begin

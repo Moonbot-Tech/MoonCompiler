@@ -2008,7 +2008,7 @@ parser_w_aligned_useless=03376_W_Aligned is useless here.
 #
 # 03431 is the last used parser one
 #
-# 04141 is the last used one
+# 04142 is the last used one
 #
 % \section{Type checking errors}
 % This section lists all errors that can occur when type checking is
@@ -2498,6 +2498,11 @@ type_h_swapvalues_not_inplace=04141_H_SwapValues on "$1" is not an in-place swap
 % an address. A property read through a getter has none, so the swap goes
 % through a hidden temporary and every property operand costs one getter and
 % one setter call. The accessors run user code, so the exchange is not atomic.
+type_e_cant_take_address_of_intrinsic=04142_E_The address of the compiler intrinsic "$1" cannot be taken
+% A routine declared with \var{internproc} (for example \var{Abs},
+% \var{Sqrt}, \var{Sin} or \var{PopCnt}) is expanded by the compiler in
+% place at every call. It has no body, so it has no address either. Call it
+% directly, or take the address of a routine of your own that calls it.
 %
 % \end{description}
 #
