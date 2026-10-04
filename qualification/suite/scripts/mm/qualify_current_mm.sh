@@ -21,7 +21,7 @@ fi
 mkdir -p "$build" "$results"
 mkdir -p "$root/toolchain"
 cp "$fpc" "$root/toolchain/fpc-exact"
-cp "$cfg" "$root/toolchain/fpc.cfg"
+cp "$cfg" "$root/toolchain/moon-base.cfg"
 # Standalone allocator probes use the ordinary compiler/RTL config, without
 # the product-only MM link contract.
 cp "$cfg" "$root/toolchain/fpc-lab.cfg"
@@ -107,6 +107,7 @@ compile_test standalone small-finalize memory_small_last_free_finalize.dpr \
 compile_test product small-pool-leak-report memory_small_pool_last_free_finalize.dpr \
   -dFPCMM_REPORTMEMORYLEAKS -dFPCMM_MEDIUMLASTFREE_TEST
 compile_test product memory-large-boundary memory_large_boundary.dpr
+compile_test product memory-status memory_status.dpr
 compile_test standalone memory-small-pool-default memory_hot_small_pool.dpr \
   -dFPCMM_SMALLPOOL_REUSE_TEST
 compile_test server memory-small-pool-server memory_hot_small_pool.dpr \
@@ -115,6 +116,10 @@ compile_test booster memory-small-pool-booster memory_hot_small_pool.dpr \
   -dFPCMM_SMALLPOOL_REUSE_TEST
 compile_test product memory-small-pool-product memory_hot_small_pool.dpr \
   -dFPCMM_SMALLPOOL_REUSE_TEST
+compile_test server memory-zero-copy-server memory_zero_copy_contract.dpr \
+  -dFPCMM_ERMSFILL_TEST
+compile_test product memory-zero-copy-product memory_zero_copy_contract.dpr \
+  -dFPCMM_ERMSFILL_TEST
 compile_test product memory-mega memory_mega.dpr
 compile_test product memory-massive memory_massive.dpr \
   -Fu"$perf_common" -dFPCMM_SMALLLASTFREE_TEST -dFPCMM_MEDIUMLASTFREE_TEST
@@ -147,11 +152,19 @@ run_one memory-large-boundary \
   "$build/memory-large-boundary/memory-large-boundary"
 grep -q 'MEMORY_LARGE_BOUNDARY_PASS' \
   "$results/memory-large-boundary/run.log"
+run_one memory-status "$build/memory-status/memory-status"
+grep -q 'MEMORY_STATUS_PASS' "$results/memory-status/run.log"
 for profile in default server booster product; do
   run_one "memory-small-pool-$profile" \
     "$build/memory-small-pool-$profile/memory-small-pool-$profile"
   grep -q 'MEMORY_HOT_SMALL_POOL_PASS' \
     "$results/memory-small-pool-$profile/run.log"
+done
+for profile in server product; do
+  run_one "memory-zero-copy-$profile" \
+    "$build/memory-zero-copy-$profile/memory-zero-copy-$profile"
+  grep -q 'MEMORY_ZERO_COPY_CONTRACT_PASS' \
+    "$results/memory-zero-copy-$profile/run.log"
 done
 run_one memory-mega-full "$build/memory-mega/memory-mega" full "$seed"
 grep -q 'MEMORY_MEGA_PASS' "$results/memory-mega-full/run.log"
@@ -214,7 +227,7 @@ done
 
 (
   cd "$root"
-  sha256sum toolchain/fpc-exact toolchain/fpc.cfg toolchain/fpc-lab.cfg
+  sha256sum toolchain/fpc-exact toolchain/moon-base.cfg toolchain/fpc-lab.cfg
 ) >"$root/TOOLCHAIN.sha256"
 printf 'CURRENT_MM_QUALIFICATION_PASS\n' >"$root/SUMMARY.txt"
 (

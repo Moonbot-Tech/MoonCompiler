@@ -293,8 +293,39 @@ type
     // - see also GetSmallBlockContention() for more detailed information
     // - by design, our FreeMem() can't block thanks to its lock-less free list
     SmallGetmemSleepCount: PtrUInt;
+    /// standby medium-pool bytes retained by prefetch
+    MediumStandbyBytes: PtrUInt;
+    /// memory currently held from the Operating System
+    // - includes active medium pools, standby medium pools and live large maps
+    OsHeldBytes: PtrUInt;
   end;
   PMMStatus = ^TMMStatus;
+
+  /// detailed allocator topology returned by CurrentHeapFragmentationStatus
+  // - unlike CurrentHeapStatus, gathering this record is an explicit heavy
+  // operation: allocation arenas are paused and their physical blocks scanned
+  TMMFragmentationStatus = record
+    /// active and retained standby medium-pool counts
+    MediumPools: PtrUInt;
+    MediumPrefetches: PtrUInt;
+    /// live capacity split by allocation kind
+    LiveSmallBytes: PtrUInt;
+    LiveMediumBytes: PtrUInt;
+    LiveLargeBytes: PtrUInt;
+    /// physical medium-arena layout
+    SmallPoolBytes: PtrUInt;
+    EmptySmallPoolBytes: PtrUInt;
+    FreeMediumBytes: PtrUInt;
+    DeferredFreeBytes: PtrUInt;
+    UnfedBytes: PtrUInt;
+    LargestFreeMediumBlock: PtrUInt;
+    /// memory retained from the Operating System
+    MediumReservedBytes: PtrUInt;
+    MediumStandbyBytes: PtrUInt;
+    LargeReservedBytes: PtrUInt;
+    /// non-zero means an arena contained inconsistent block or deferred-list data
+    Errors: PtrUInt;
+  end;
 
 
 /// allocate a new memory buffer
@@ -379,6 +410,11 @@ function Fpcx64mmTestBlockFlags(P: pointer): PtrUInt;
 // - note that FPC GetHeapStatus and GetFPCHeapStatus is only about the
 // current thread (irrelevant for sure) whereas CurrentHeapStatus is global
 function CurrentHeapStatus: TMMStatus;
+
+/// scan the allocator topology for fragmentation and retained-memory analysis
+// - this is intentionally not a hot-path API: it pauses all allocator arenas
+// while walking physical medium pools, then returns one consistent snapshot
+function CurrentHeapFragmentationStatus: TMMFragmentationStatus;
 
 
 {$ifdef FPCMM_STANDALONE}
@@ -6074,10 +6110,19 @@ end;
 
 {$endif FPCMM_STANDALONE}
 
+procedure SampleMediumStandby(const Info: TMediumBlockInfo;
+  var StandbyBytes: PtrUInt);
+begin
+  {$ifdef FPCMM_MEDIUMPREFETCH}
+  if Info.Prefetch <> nil then
+    inc(StandbyBytes, MediumBlockPoolSizeMem);
+  {$endif FPCMM_MEDIUMPREFETCH}
+end;
+
 function CurrentHeapStatus: TMMStatus;
 var
   i: PtrInt;
-  small, pending: PtrUInt;
+  small, pending, standby: PtrUInt;
   p: PSmallBlockType;
 begin
   result := HeapStatus;
@@ -6105,10 +6150,296 @@ begin
     end;
     inc(p);
   end;
+  standby := 0;
+  SampleMediumStandby(MediumBlockInfo, standby);
+  {$ifdef FPCMM_MS_MEDIUM}
+  for i := 1 to high(MediumBlockInfoExtra) do
+    SampleMediumStandby(MediumBlockInfoExtra[i], standby);
+  {$endif FPCMM_MS_MEDIUM}
+  {$ifdef FPCMM_SMALLNOTWITHMEDIUM}
+  for i := 0 to high(SmallMediumBlockInfo) do
+    SampleMediumStandby(SmallMediumBlockInfo[i], standby);
+  {$endif FPCMM_SMALLNOTWITHMEDIUM}
+  result.MediumStandbyBytes := standby;
+  result.OsHeldBytes := result.Medium.CurrentBytes +
+    result.Large.CurrentBytes + standby;
+end;
+
+procedure FragmentationPause; nostackframe; assembler;
+asm
+        pause
+end;
+
+procedure FragmentationLock(var Locked: boolean);
+begin
+  while AtomicCmpExchange(PByte(@Locked)^, byte(1), byte(0)) <> 0 do
+    FragmentationPause;
+end;
+
+procedure FragmentationLockMedium(var Info: TMediumBlockInfo);
+begin
+  FragmentationLock(Info.Locked);
+  FragmentationLock(Info.LastFreeLocked);
+  {$ifdef FPCMM_MEDIUMPREFETCH}
+  FragmentationLock(Info.PrefetchLocked);
+  {$endif FPCMM_MEDIUMPREFETCH}
+end;
+
+procedure FragmentationUnlockMedium(var Info: TMediumBlockInfo); inline;
+begin
+  {$ifdef FPCMM_MEDIUMPREFETCH}
+  Info.PrefetchLocked := false;
+  {$endif FPCMM_MEDIUMPREFETCH}
+  Info.LastFreeLocked := false;
+  Info.Locked := false;
+end;
+
+function MediumPointerBelongsToInfo(P: pointer;
+  var Info: TMediumBlockInfo; PoolLimit: PtrUInt): boolean;
+var
+  pool: PMediumBlockPoolHeader;
+  address, count: PtrUInt;
+begin
+  result := false;
+  address := PtrUInt(P);
+  count := 0;
+  pool := Info.PoolsCircularList.NextMediumBlockPoolHeader;
+  while pool <> @Info.PoolsCircularList do
+  begin
+    inc(count);
+    if count > PoolLimit then
+      exit;
+    if (address >= PtrUInt(pool) + MediumBlockPoolHeaderSize) and
+       (address < PtrUInt(pool) + MediumBlockPoolSize) then
+    begin
+      result := true;
+      exit;
+    end;
+    pool := pool^.NextMediumBlockPoolHeader;
+  end;
+end;
+
+procedure ScanMediumFragmentation(var Info: TMediumBlockInfo;
+  var Status: TMMFragmentationStatus);
+var
+  pool: PMediumBlockPoolHeader;
+  block, limit: PByte;
+  blocktype: PSmallBlockType;
+  pending: PPointer;
+  header, size, offset, smalllive, livemedium, pendingmedium,
+  pendingcount, pendinglimit, poolcount, poollimit: PtrUInt;
+begin
+  {$ifdef FPCMM_MEDIUMPREFETCH}
+  if Info.Prefetch <> nil then
+  begin
+    inc(Status.MediumPrefetches);
+    inc(Status.MediumStandbyBytes, MediumBlockPoolSizeMem);
+  end;
+  {$endif FPCMM_MEDIUMPREFETCH}
+  livemedium := 0;
+  poolcount := 0;
+  poollimit := HeapStatus.Medium.CurrentBytes div MediumBlockPoolSizeMem + 1;
+  pool := Info.PoolsCircularList.NextMediumBlockPoolHeader;
+  while pool <> @Info.PoolsCircularList do
+  begin
+    inc(poolcount);
+    if poolcount > poollimit then
+    begin
+      inc(Status.Errors);
+      break;
+    end;
+    inc(Status.MediumPools);
+    inc(Status.MediumReservedBytes, MediumBlockPoolSizeMem);
+    limit := PByte(pool) + MediumBlockPoolSize;
+    if (Info.SequentialFeedBytesLeft <> 0) and
+       (PtrUInt(Info.LastSequentiallyFed) >= PtrUInt(pool)) and
+       (PtrUInt(Info.LastSequentiallyFed) <= PtrUInt(limit)) then
+    begin
+      inc(Status.UnfedBytes, Info.SequentialFeedBytesLeft);
+      if Info.SequentialFeedBytesLeft =
+          MediumBlockPoolSize - MediumBlockPoolHeaderSize then
+        block := nil
+      else
+        block := Info.LastSequentiallyFed;
+    end
+    else
+      block := PByte(pool) + MediumBlockPoolHeaderSize;
+    while block <> nil do
+    begin
+      header := PPtrUInt(block - BlockHeaderSize)^;
+      size := header and DropMediumAndLargeFlagsMask;
+      if size = 0 then
+        break;
+      if (block < PByte(pool) + MediumBlockPoolHeaderSize) or
+         (block >= limit) or
+         (size < 16) or
+         (size > PtrUInt(limit - block)) then
+      begin
+        inc(Status.Errors);
+        break;
+      end;
+      if header and IsFreeBlockFlag <> 0 then
+      begin
+        inc(Status.FreeMediumBytes, size);
+        if size > Status.LargestFreeMediumBlock then
+          Status.LargestFreeMediumBlock := size;
+      end
+      else if header and IsSmallBlockPoolInUseFlag <> 0 then
+      begin
+        inc(Status.SmallPoolBytes, size);
+        if PSmallBlockPoolHeader(block)^.BlocksInUse = 0 then
+          inc(Status.EmptySmallPoolBytes, size)
+        else
+        begin
+          blocktype := PSmallBlockPoolHeader(block)^.BlockType;
+          offset := PtrUInt(blocktype) - PtrUInt(@SmallBlockInfo);
+          if (offset >= NumSmallInfoBlock * SizeOf(TSmallBlockType)) or
+             (offset and (SizeOf(TSmallBlockType) - 1) <> 0) or
+             (blocktype^.BlockSize = 0) then
+          begin
+            inc(Status.Errors);
+            break;
+          end;
+          smalllive := PtrUInt(PSmallBlockPoolHeader(block)^.BlocksInUse) *
+            blocktype^.BlockSize;
+          if smalllive > size then
+          begin
+            inc(Status.Errors);
+            break;
+          end;
+          inc(Status.LiveSmallBytes, smalllive);
+        end;
+      end
+      else
+        inc(livemedium, size);
+      inc(block, size);
+    end;
+    pool := pool^.NextMediumBlockPoolHeader;
+  end;
+  pendingmedium := 0;
+  pendingcount := 0;
+  pendinglimit := poolcount * (MediumBlockPoolSizeMem div MinimumMediumBlockSize + 1);
+  pending := Info.LastFree;
+  while pending <> nil do
+  begin
+    inc(pendingcount);
+    if (pendingcount > pendinglimit) or
+       not MediumPointerBelongsToInfo(pending, Info, poollimit) then
+    begin
+      inc(Status.Errors);
+      break;
+    end;
+    header := PPtrUInt(PByte(pending) - BlockHeaderSize)^;
+    if header and IsSmallBlockPoolInUseFlag = 0 then
+      inc(pendingmedium, header and DropMediumAndLargeFlagsMask);
+    pending := pending^;
+  end;
+  inc(Status.DeferredFreeBytes, pendingmedium);
+  if pendingmedium <= livemedium then
+    dec(livemedium, pendingmedium)
+  else
+  begin
+    livemedium := 0;
+    inc(Status.Errors);
+  end;
+  inc(Status.LiveMediumBytes, livemedium);
+end;
+
+function CurrentHeapFragmentationStatus: TMMFragmentationStatus;
+var
+  i: PtrInt;
+  small, pending: PtrUInt;
+  p: PSmallBlockType;
+  pending: PtrUInt;
+begin
+  FillChar(result, SizeOf(result), 0);
+  p := @SmallBlockInfo;
+  for i := 1 to NumSmallInfoBlock do
+  begin
+    FragmentationLock(p^.Locked);
+    FragmentationLock(p^.LastFreeLocked);
+    inc(p);
+  end;
+  FragmentationLockMedium(MediumBlockInfo);
+  {$ifdef FPCMM_MS_MEDIUM}
+  for i := 1 to high(MediumBlockInfoExtra) do
+    FragmentationLockMedium(MediumBlockInfoExtra[i]);
+  {$endif FPCMM_MS_MEDIUM}
+  {$ifdef FPCMM_SMALLNOTWITHMEDIUM}
+  for i := 0 to high(SmallMediumBlockInfo) do
+    FragmentationLockMedium(SmallMediumBlockInfo[i]);
+  {$endif FPCMM_SMALLNOTWITHMEDIUM}
+  LockLargeBlocks;
+  try
+    ScanMediumFragmentation(MediumBlockInfo, result);
+    {$ifdef FPCMM_MS_MEDIUM}
+    for i := 1 to high(MediumBlockInfoExtra) do
+      ScanMediumFragmentation(MediumBlockInfoExtra[i], result);
+    {$endif FPCMM_MS_MEDIUM}
+    {$ifdef FPCMM_SMALLNOTWITHMEDIUM}
+    for i := 0 to high(SmallMediumBlockInfo) do
+      ScanMediumFragmentation(SmallMediumBlockInfo[i], result);
+    {$endif FPCMM_SMALLNOTWITHMEDIUM}
+    p := @SmallBlockInfo;
+    pending := 0;
+    for i := 1 to NumSmallInfoBlock do
+    begin
+      inc(pending, PtrUInt(p^.LastFreeCount) * p^.BlockSize);
+      inc(p);
+    end;
+    inc(result.DeferredFreeBytes, pending);
+    if pending <= result.LiveSmallBytes then
+      dec(result.LiveSmallBytes, pending)
+    else
+    begin
+      result.LiveSmallBytes := 0;
+      inc(result.Errors);
+    end;
+    result.LiveLargeBytes := HeapStatus.Large.CurrentBytes;
+    result.LargeReservedBytes := result.LiveLargeBytes;
+  finally
+    LargeBlocksLocked := false;
+    {$ifdef FPCMM_SMALLNOTWITHMEDIUM}
+    for i := high(SmallMediumBlockInfo) downto 0 do
+      FragmentationUnlockMedium(SmallMediumBlockInfo[i]);
+    {$endif FPCMM_SMALLNOTWITHMEDIUM}
+    {$ifdef FPCMM_MS_MEDIUM}
+    for i := high(MediumBlockInfoExtra) downto 1 do
+      FragmentationUnlockMedium(MediumBlockInfoExtra[i]);
+    {$endif FPCMM_MS_MEDIUM}
+    FragmentationUnlockMedium(MediumBlockInfo);
+    p := PSmallBlockType(PByte(@SmallBlockInfo) +
+      (NumSmallInfoBlock - 1) * SizeOf(TSmallBlockType));
+    for i := NumSmallInfoBlock downto 1 do
+    begin
+      p^.LastFreeLocked := false;
+      p^.Locked := false;
+      dec(p);
+    end;
+  end;
 end;
 
 
 { ********* Initialization and Finalization }
+
+{$ifdef FPCMM_ERMS}
+// true on an "AuthenticAMD" processor; cpuid is part of every x86-64
+function CpuIsAmd: boolean; nostackframe; assembler;
+asm
+        mov     r8, rbx // cpuid overwrites this non-volatile register
+        xor     eax, eax
+        cpuid
+        xor     eax, eax
+        cmp     ebx, $68747541 // Auth
+        jne     @no
+        cmp     edx, $69746E65 // enti
+        jne     @no
+        cmp     ecx, $444D4163 // cAMD
+        jne     @no
+        mov     al, 1
+@no:    mov     rbx, r8
+end;
+{$endif FPCMM_ERMS}
 
 procedure InitializeMediumPool(var Info: TMediumBlockInfo);
 var

@@ -1,0 +1,5 @@
+/data/*
+!/data/README.md
+/results/
+/*.exe
+/*.log

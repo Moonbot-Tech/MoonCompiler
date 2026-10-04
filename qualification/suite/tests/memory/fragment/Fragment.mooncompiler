@@ -1,0 +1,4 @@
+# the qualification MoonORMot, ahead of the mormot directory next to the
+# toolchain; System.ZLib is the toolchain's own unit
+-Fu../../../../../.qualification/deps/moonormot/*
+-UaWinapi.Windows=Windows

@@ -34,11 +34,16 @@ end;
 var
   P: pointer;
   Worker: TFreeThread;
+  BeforeAlloc, AfterAlloc, AfterFree: TMMFragmentationStatus;
 begin
   InitializeMemoryManager;
+  BeforeAlloc := CurrentHeapFragmentationStatus;
   P := _GetMem(100000);
   If P = nil then
     raise Exception.Create('custom allocation failed');
+  AfterAlloc := CurrentHeapFragmentationStatus;
+  If AfterAlloc.LiveMediumBytes <= BeforeAlloc.LiveMediumBytes then
+    raise Exception.Create('medium allocation was not counted');
   Worker := TFreeThread.Create(P);
   try
     Fpcx64mmTestLockMedium(P, true);
@@ -51,6 +56,9 @@ begin
       raise Exception.Create('free worker returned zero');
     If Fpcx64mmTestMediumLastFree(P) <> P then
       raise Exception.Create('expected pending medium free');
+    AfterFree := CurrentHeapFragmentationStatus;
+    If AfterFree.LiveMediumBytes <> BeforeAlloc.LiveMediumBytes then
+      raise Exception.Create('pending medium free still counted as live');
   finally
     Worker.Free;
   end;
