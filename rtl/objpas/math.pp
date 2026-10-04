@@ -4037,41 +4037,1121 @@ begin
 end;
 {$endif}
 
-{$ifdef FPC_HAS_TYPE_DOUBLE}
-function RoundTo(const AValue: Double; const Digits: TRoundToRange): Double;
+{ RoundTo uses the ordinary MoonCompiler FP contract: nearest/even rounding
+  with the default exception masks.  Common finite values stay on the
+  table-driven hardware path.  Decimal midpoints and values outside its proven
+  range use exact fixed-width integer arithmetic. }
+{$push}{$Q-}{$R-}
+
+type
+  TUInt192 = record
+    Limb: array[0..5] of DWord;
+  end;
+
+const
+  DecimalQuantumExponent: array[TRoundToRange] of ShortInt =
+    (-123,-120,-117,-113,-110,-107,-103,-100,-97,-94,-90,-87,-84,-80,-77,-74,-70,-67,-64,
+     -60,-57,-54,-50,-47,-44,-40,-37,-34,-30,-27,-24,-20,-17,-14,-10,-7,-4,0,3,6,9,13,16,
+     19,23,26,29,33,36,39,43,46,49,53,56,59,63,66,69,73,76,79,83,86,89,93,96,99,102,106,
+     109,112,116,119,122);
+
+function BigFromQWord(Value: QWord): TUInt192; inline;
+begin
+  FillChar(Result,SizeOf(Result),0);
+  Result.Limb[0]:=DWord(Value);
+  Result.Limb[1]:=DWord(Value shr 32);
+end;
+
+function BigBitLength(const Value: TUInt192): Integer; inline;
+var
+  I: Integer;
+begin
+  for I:=High(Value.Limb) downto Low(Value.Limb) do
+    if Value.Limb[I]<>0 then
+      Exit(I*32+BsrDWord(Value.Limb[I])+1);
+  Result:=0;
+end;
+
+function BigCompare(const Left,Right: TUInt192): Integer; inline;
+var
+  I: Integer;
+begin
+  for I:=High(Left.Limb) downto Low(Left.Limb) do
+    if Left.Limb[I]<>Right.Limb[I] then
+      begin
+        if Left.Limb[I]<Right.Limb[I] then
+          Exit(-1);
+        Exit(1);
+      end;
+  Result:=0;
+end;
+
+procedure BigSubtract(var Left: TUInt192; const Right: TUInt192); inline;
+var
+  I: Integer;
+  OldValue,Subtrahend,Borrow: QWord;
+begin
+  Borrow:=0;
+  for I:=Low(Left.Limb) to High(Left.Limb) do
+    begin
+      OldValue:=Left.Limb[I];
+      Subtrahend:=QWord(Right.Limb[I])+Borrow;
+      Left.Limb[I]:=DWord(OldValue-Subtrahend);
+      Borrow:=Ord(OldValue<Subtrahend);
+    end;
+end;
+
+function BigShiftLeft(const Value: TUInt192; Shift: Integer; out Shifted: TUInt192): Boolean;
+var
+  I,Target,WordShift,BitShift: Integer;
+  Part: QWord;
+begin
+  FillChar(Shifted,SizeOf(Shifted),0);
+  if Shift<0 then
+    Exit(False);
+  WordShift:=Shift div 32;
+  BitShift:=Shift and 31;
+  for I:=Low(Value.Limb) to High(Value.Limb) do
+    if Value.Limb[I]<>0 then
+      begin
+        Target:=I+WordShift;
+        if Target>High(Shifted.Limb) then
+          Exit(False);
+        Part:=QWord(Value.Limb[I]) shl BitShift;
+        Shifted.Limb[Target]:=Shifted.Limb[Target] or DWord(Part);
+        if Part shr 32<>0 then
+          begin
+            if Target=High(Shifted.Limb) then
+              Exit(False);
+            Shifted.Limb[Target+1]:=Shifted.Limb[Target+1] or DWord(Part shr 32);
+          end;
+      end;
+  Result:=True;
+end;
+
+function BigMultiplySmall(var Value: TUInt192; Factor: DWord): Boolean; inline;
+var
+  I: Integer;
+  Product,Carry: QWord;
+begin
+  Carry:=0;
+  for I:=Low(Value.Limb) to High(Value.Limb) do
+    begin
+      Product:=QWord(Value.Limb[I])*Factor+Carry;
+      Value.Limb[I]:=DWord(Product);
+      Carry:=Product shr 32;
+    end;
+  Result:=Carry=0;
+end;
+
+function BigPowerOfFive(Power: Integer): TUInt192;
+begin
+  Result:=BigFromQWord(1);
+  while Power>0 do
+    begin
+      BigMultiplySmall(Result,5);
+      Dec(Power);
+    end;
+end;
+
+function BigRoundRatioPow2(const Numerator,Denominator: TUInt192; BinaryShift: Integer;
+  out RoundedPastQWord: Boolean): QWord;
+var
+  N,D,Aligned,DistanceToDenominator: TUInt192;
+  I,QuotientBits: Integer;
+  RoundUp: Boolean;
+begin
+  Result:=0;
+  RoundedPastQWord:=False;
+  if BigBitLength(Numerator)=0 then
+    Exit;
+  if BinaryShift>=0 then
+    begin
+      if not BigShiftLeft(Numerator,BinaryShift,N) then
+        begin
+          RoundedPastQWord:=True;
+          Exit;
+        end;
+      D:=Denominator;
+    end
+  else
+    begin
+      N:=Numerator;
+      if not BigShiftLeft(Denominator,-BinaryShift,D) then
+        Exit;
+    end;
+
+  QuotientBits:=BigBitLength(N)-BigBitLength(D);
+  If QuotientBits>=0 then begin
+    BigShiftLeft(D,QuotientBits,Aligned);
+    If BigCompare(N,Aligned)<0 then Dec(QuotientBits);
+  end;
+  if QuotientBits>63 then
+    begin
+      RoundedPastQWord:=True;
+      Exit;
+    end;
+  if QuotientBits>=0 then
+    for I:=QuotientBits downto 0 do
+      begin
+        BigShiftLeft(D,I,Aligned);
+        if BigCompare(N,Aligned)>=0 then
+          begin
+            BigSubtract(N,Aligned);
+            Result:=Result or (QWord(1) shl I);
+          end;
+      end;
+
+  DistanceToDenominator:=D;
+  BigSubtract(DistanceToDenominator,N);
+  RoundUp:=(BigCompare(N,DistanceToDenominator)>0) or
+    ((BigCompare(N,DistanceToDenominator)=0) and Odd(Result));
+  if RoundUp then
+    if Result=High(QWord) then
+      RoundedPastQWord:=True
+    else
+      Inc(Result);
+end;
+
+function BigFloorLog2Ratio(const Numerator,Denominator: TUInt192): Integer;
+var
+  Shifted: TUInt192;
+begin
+  Result:=BigBitLength(Numerator)-BigBitLength(Denominator);
+  if Result>=0 then
+    begin
+      BigShiftLeft(Denominator,Result,Shifted);
+      if BigCompare(Numerator,Shifted)<0 then
+        Dec(Result);
+    end
+  else
+    begin
+      BigShiftLeft(Numerator,-Result,Shifted);
+      if BigCompare(Shifted,Denominator)<0 then
+        Dec(Result);
+    end;
+end;
+
+function BigRoundRatioWide(const Numerator,Denominator: TUInt192; BinaryShift: Integer): TUInt192;
+var
+  N,D,Aligned,Distance: TUInt192;
+  I,LimbIndex,Cmp: Integer;
+begin
+  Result:=BigFromQWord(0);
+  If BigBitLength(Numerator)=0 then Exit;
+  If BinaryShift>=0 then begin
+    If not BigShiftLeft(Numerator,BinaryShift,N) then
+      raise EOverflow.Create('RoundTo internal precision overflow');
+    D:=Denominator;
+  end else begin
+    N:=Numerator;
+    If not BigShiftLeft(Denominator,-BinaryShift,D) then Exit;
+  end;
+  I:=BigBitLength(N)-BigBitLength(D);
+  If I>High(Result.Limb)*32+31 then
+    raise EOverflow.Create('RoundTo internal quotient overflow');
+  for I:=I downto 0 do begin
+    BigShiftLeft(D,I,Aligned);
+    If BigCompare(N,Aligned)>=0 then begin
+      BigSubtract(N,Aligned);
+      Result.Limb[I shr 5]:=Result.Limb[I shr 5] or (DWord(1) shl (I and 31));
+    end;
+  end;
+  Distance:=D;
+  BigSubtract(Distance,N);
+  Cmp:=BigCompare(N,Distance);
+  If (Cmp>0) or ((Cmp=0) and Odd(Result.Limb[0])) then begin
+    LimbIndex:=0;
+    repeat
+      Inc(Result.Limb[LimbIndex]);
+      If Result.Limb[LimbIndex]<>0 then Break;
+      Inc(LimbIndex);
+    until LimbIndex=6;
+  end;
+end;
+
+procedure BuildRoundedDecimal(Mantissa: QWord; BinaryExponent: Integer; Digits: TRoundToRange;
+  out Numerator,Denominator: TUInt192; out BinaryScale: Integer);
+var
+  Dividend,Divisor,Pow5: TUInt192;
+  I,K: Integer;
+begin
+  K:=Abs(Digits);
+  Pow5:=BigPowerOfFive(K);
+  Dividend:=BigFromQWord(Mantissa);
+  If Digits>=0 then begin
+    Numerator:=BigRoundRatioWide(Dividend,Pow5,BinaryExponent-Digits);
+    for I:=1 to Digits do BigMultiplySmall(Numerator,5);
+    Denominator:=BigFromQWord(1);
+    BinaryScale:=Digits;
+  end else begin
+    for I:=1 to K do BigMultiplySmall(Dividend,5);
+    Divisor:=BigFromQWord(1);
+    Numerator:=BigRoundRatioWide(Dividend,Divisor,BinaryExponent+K);
+    Denominator:=Pow5;
+    BinaryScale:=-K;
+  end;
+end;
+
+function RoundRationalToSingleBits(const Numerator,Denominator: TUInt192;
+  BinaryScale: Integer; SignBits: DWord): DWord;
+var
+  Exponent,RatioExponent,Shift: Integer;
+  Significand: QWord;
+  Carry: Boolean;
+begin
+  if BigBitLength(Numerator)=0 then
+    Exit(SignBits);
+  RatioExponent:=BigFloorLog2Ratio(Numerator,Denominator);
+  Exponent:=RatioExponent+BinaryScale;
+  if Exponent>127 then
+    Exit(SignBits or $7f800000);
+  if Exponent>=-126 then
+    begin
+      Shift:=23-RatioExponent;
+      Significand:=BigRoundRatioPow2(Numerator,Denominator,Shift,Carry);
+      if Carry or (Significand=QWord(1) shl 24) then
+        begin
+          Significand:=QWord(1) shl 23;
+          Inc(Exponent);
+          if Exponent>127 then
+            Exit(SignBits or $7f800000);
+        end;
+      Result:=SignBits or (DWord(Exponent+127) shl 23) or (DWord(Significand) and $7fffff);
+    end
+  else
+    begin
+      Shift:=BinaryScale+149;
+      Significand:=BigRoundRatioPow2(Numerator,Denominator,Shift,Carry);
+      if Significand>=QWord(1) shl 23 then
+        Result:=SignBits or $00800000
+      else
+        Result:=SignBits or DWord(Significand);
+    end;
+end;
+
+function RoundRationalToDoubleBits(const Numerator,Denominator: TUInt192;
+  BinaryScale: Integer; SignBits: QWord): QWord;
+var
+  Exponent,RatioExponent,Shift: Integer;
+  Significand: QWord;
+  Carry: Boolean;
+begin
+  if BigBitLength(Numerator)=0 then
+    Exit(SignBits);
+  RatioExponent:=BigFloorLog2Ratio(Numerator,Denominator);
+  Exponent:=RatioExponent+BinaryScale;
+  if Exponent>1023 then
+    Exit(SignBits or QWord($7ff0000000000000));
+  if Exponent>=-1022 then
+    begin
+      Shift:=52-RatioExponent;
+      Significand:=BigRoundRatioPow2(Numerator,Denominator,Shift,Carry);
+      if Carry or (Significand=QWord(1) shl 53) then
+        begin
+          Significand:=QWord(1) shl 52;
+          Inc(Exponent);
+          if Exponent>1023 then
+            Exit(SignBits or QWord($7ff0000000000000));
+        end;
+      Result:=SignBits or (QWord(Exponent+1023) shl 52) or
+        (Significand and QWord($000fffffffffffff));
+    end
+  else
+    begin
+      Shift:=BinaryScale+1074;
+      Significand:=BigRoundRatioPow2(Numerator,Denominator,Shift,Carry);
+      if Significand>=QWord(1) shl 52 then
+        Result:=SignBits or QWord($0010000000000000)
+      else
+        Result:=SignBits or Significand;
+    end;
+end;
+
+{$if sizeof(extended)=10}
+function RoundRationalToExtended(const Numerator,Denominator: TUInt192;
+  BinaryScale: Integer; SignBits: Word): Extended;
+var
+  Output: TExtended80Rec;
+  Exponent,RatioExponent,Shift: Integer;
+  Significand: QWord;
+  Carry: Boolean;
+begin
+  if BigBitLength(Numerator)=0 then
+    begin
+      Output._Exp:=SignBits;
+      Output.Frac:=0;
+      Exit(Output.Value);
+    end;
+  RatioExponent:=BigFloorLog2Ratio(Numerator,Denominator);
+  Exponent:=RatioExponent+BinaryScale;
+  if Exponent>16383 then
+    begin
+      Output._Exp:=SignBits or $7fff;
+      Output.Frac:=QWord(1) shl 63;
+      Exit(Output.Value);
+    end;
+  if Exponent>=-16382 then
+    begin
+      Shift:=63-RatioExponent;
+      Significand:=BigRoundRatioPow2(Numerator,Denominator,Shift,Carry);
+      if Carry then
+        begin
+          Significand:=QWord(1) shl 63;
+          Inc(Exponent);
+          if Exponent>16383 then
+            begin
+              Output._Exp:=SignBits or $7fff;
+              Output.Frac:=QWord(1) shl 63;
+              Exit(Output.Value);
+            end;
+        end;
+      Output._Exp:=SignBits or Word(Exponent+16383);
+      Output.Frac:=Significand;
+    end
+  else
+    begin
+      Shift:=BinaryScale+16445;
+      Significand:=BigRoundRatioPow2(Numerator,Denominator,Shift,Carry);
+      if Carry or (Significand=QWord(1) shl 63) then
+        Output._Exp:=SignBits or 1
+      else
+        Output._Exp:=SignBits;
+      Output.Frac:=Significand;
+    end;
+  Result:=Output.Value;
+end;
+{$endif}
+
+function DecimalQuantumBelowUlp(BinaryExponent: Integer; Digits: TRoundToRange): Boolean; inline;
+begin
+  Result:=BinaryExponent>DecimalQuantumExponent[Digits]+1;
+end;
+
+
+function ExactRoundToDouble(const AValue: Double; const Digits: TRoundToRange): Double;
+var
+  Bits,SignBits,Mantissa: QWord;
+  RawExponent,BinaryExponent,BinaryScale: Integer;
+  Numerator,Denominator: TUInt192;
+begin
+  Bits:=TDoubleRec(AValue).Data;
+  SignBits:=Bits and QWord($8000000000000000);
+  RawExponent:=(Bits shr 52) and $7ff;
+  Mantissa:=Bits and QWord($000fffffffffffff);
+  if RawExponent=0 then
+    begin
+      if Mantissa=0 then
+        Exit(AValue);
+      BinaryExponent:=-1074;
+    end
+  else
+    begin
+      if RawExponent=$7ff then
+        Exit(AValue);
+      Mantissa:=Mantissa or QWord(1) shl 52;
+      BinaryExponent:=RawExponent-1023-52;
+    end;
+  if DecimalQuantumBelowUlp(BinaryExponent,Digits) then
+    Exit(AValue);
+  BuildRoundedDecimal(Mantissa,BinaryExponent,Digits,Numerator,Denominator,BinaryScale);
+  TDoubleRec(Result).Data:=RoundRationalToDoubleBits(Numerator,Denominator,BinaryScale,SignBits);
+end;
+
+function ExactRoundToSingle(const AValue: Single; const Digits: TRoundToRange): Single;
+var
+  Bits,SignBits: DWord;
+  Mantissa: QWord;
+  RawExponent,BinaryExponent,BinaryScale: Integer;
+  Numerator,Denominator: TUInt192;
+begin
+  Bits:=TSingleRec(AValue).Data;
+  SignBits:=Bits and $80000000;
+  RawExponent:=(Bits shr 23) and $ff;
+  Mantissa:=Bits and $7fffff;
+  if RawExponent=0 then
+    begin
+      if Mantissa=0 then
+        Exit(AValue);
+      BinaryExponent:=-149;
+    end
+  else
+    begin
+      if RawExponent=$ff then
+        Exit(AValue);
+      Mantissa:=Mantissa or QWord(1) shl 23;
+      BinaryExponent:=RawExponent-127-23;
+    end;
+  if DecimalQuantumBelowUlp(BinaryExponent,Digits) then
+    Exit(AValue);
+  BuildRoundedDecimal(Mantissa,BinaryExponent,Digits,Numerator,Denominator,BinaryScale);
+  TSingleRec(Result).Data:=RoundRationalToSingleBits(Numerator,Denominator,BinaryScale,SignBits);
+end;
+
+{$if sizeof(extended)=10}
+function ExactRoundToExtended(const AValue: Extended; const Digits: TRoundToRange): Extended;
 
 var
-  RV : Double;
-
+  Input: TExtended80Rec;
+  SignBits: Word;
+  Mantissa: QWord;
+  RawExponent,BinaryExponent,BinaryScale: Integer;
+  Numerator,Denominator: TUInt192;
 begin
-  RV:=IntPower(10,Digits);
-  Result:=Round(AValue/RV)*RV;
+  Input.Value:=AValue;
+  SignBits:=Input._Exp and $8000;
+  RawExponent:=Input._Exp and $7fff;
+  Mantissa:=Input.Frac;
+  if RawExponent=0 then
+    begin
+      if Mantissa=0 then
+        Exit(AValue);
+      BinaryExponent:=-16445;
+    end
+  else
+    begin
+      if RawExponent=$7fff then
+        Exit(AValue);
+      BinaryExponent:=RawExponent-16383-63;
+    end;
+  if DecimalQuantumBelowUlp(BinaryExponent,Digits) then
+    Exit(AValue);
+  BuildRoundedDecimal(Mantissa,BinaryExponent,Digits,Numerator,Denominator,BinaryScale);
+  Result:=RoundRationalToExtended(Numerator,Denominator,BinaryScale,SignBits);
+end;
+{$endif}
+
+{$ifdef cpux86_64}
+{$asmmode intel}
+
+const
+  Powers5: array[0..27] of QWord = (
+    1,5,25,125,625,3125,15625,78125,390625,1953125,9765625,48828125,
+    244140625,1220703125,6103515625,30517578125,152587890625,762939453125,
+    3814697265625,19073486328125,95367431640625,476837158203125,
+    2384185791015625,11920928955078125,59604644775390625,298023223876953125,
+    1490116119384765625,7450580596923828125);
+
+function MulWide(A, B: QWord; out Hi: QWord): QWord; assembler; nostackframe;
+asm
+  {$ifdef FPC_ABI_WIN64}
+  mov rax,rcx
+  mul rdx
+  mov [r8],rdx
+  {$else}
+  mov rcx,rdx
+  mov rax,rdi
+  mul rsi
+  mov [rcx],rdx
+  {$endif}
+end;
+
+function DivWide(Lo, Hi, Den: QWord; out Rem: QWord): QWord; assembler; nostackframe;
+asm
+  {$ifdef FPC_ABI_WIN64}
+  mov rax,rcx
+  div r8
+  mov [r9],rdx
+  {$else}
+  mov r8,rdx
+  mov rax,rdi
+  mov rdx,rsi
+  div r8
+  mov [rcx],rdx
+  {$endif}
+end;
+
+function RoundShift(Lo, Hi: QWord; Shift: Integer): QWord; inline;
+var
+  R, Half: QWord;
+begin
+  If Shift <= 0 then
+    Exit(Lo shl (-Shift));
+  If Shift < 64 then begin
+    Result := (Lo shr Shift) or (Hi shl (64-Shift));
+    Half := QWord(1) shl (Shift-1);
+    R := Lo and ((Half shl 1)-1);
+    If (R > Half) or ((R = Half) and Odd(Result)) then
+      Inc(Result);
+  end else If Shift = 64 then begin
+    Result := Hi;
+    Half := QWord(1) shl 63;
+    If (Lo > Half) or ((Lo = Half) and Odd(Result)) then
+      Inc(Result);
+  end else If Shift < 128 then begin
+    Dec(Shift,64);
+    Result := Hi shr Shift;
+    Half := QWord(1) shl (Shift-1);
+    R := Hi and ((Half shl 1)-1);
+    If (R > Half) or ((R = Half) and ((Lo <> 0) or Odd(Result))) then
+      Inc(Result);
+  end else begin
+    Result := 0;
+    If (Shift = 128) and ((Hi > QWord($8000000000000000)) or
+      ((Hi = QWord($8000000000000000)) and (Lo <> 0))) then
+      Result := 1;
+  end;
+end;
+
+function RoundDivision(Lo, Hi, Den: QWord): QWord; inline;
+var
+  Rem: QWord;
+begin
+  Result := DivWide(Lo,Hi,Den,Rem);
+  If (Rem > Den-Rem) or ((Rem = Den-Rem) and Odd(Result)) then
+    Inc(Result);
+end;
+
+function FractionBits(Num, Den: QWord; BinaryScale: Integer): QWord;
+var
+  RatioExponent, Shift: Integer;
+  Lo, Hi, Sig: QWord;
+begin
+  If Num = 0 then
+    Exit(0);
+  RatioExponent := BsrQWord(Num)-BsrQWord(Den);
+  If RatioExponent >= 0 then begin
+    If Num < (Den shl RatioExponent) then
+      Dec(RatioExponent);
+  end else If (Num shl (-RatioExponent)) < Den then
+    Dec(RatioExponent);
+  Shift := 52-RatioExponent;
+  If Shift < 64 then begin
+    Lo := Num shl Shift;
+    If Shift = 0 then
+      Hi := 0
+    else
+      Hi := Num shr (64-Shift);
+  end else begin
+    Lo := 0;
+    Hi := Num shl (Shift-64);
+  end;
+  Sig := RoundDivision(Lo,Hi,Den);
+  If Sig = (QWord(1) shl 53) then begin
+    Sig := Sig shr 1;
+    Inc(RatioExponent);
+  end;
+  Result := (QWord(RatioExponent+BinaryScale+1023) shl 52) or (Sig and QWord($fffffffffffff));
+end;
+
+function IntegerBits(Lo, Hi: QWord; BinaryScale: Integer): QWord;
+var
+  Top: Integer;
+  Sig: QWord;
+begin
+  If (Hi or Lo) = 0 then
+    Exit(0);
+  If Hi = 0 then
+    Top := BsrQWord(Lo)
+  else
+    Top := 64+BsrQWord(Hi);
+  Sig := RoundShift(Lo,Hi,Top-52);
+  If Sig = (QWord(1) shl 53) then begin
+    Sig := Sig shr 1;
+    Inc(Top);
+  end;
+  Result := (QWord(Top+BinaryScale+1023) shl 52) or (Sig and QWord($fffffffffffff));
+end;
+
+function RoundToDoubleInteger(Value: Double; Digits: TRoundToRange): Double;
+var
+  Bits, Sign, M, P5, Lo, Hi, Q, Den: QWord;
+  E, K, Shift, Top: Integer;
+begin
+  Bits := TDoubleRec(Value).Data;
+  Sign := Bits and QWord($8000000000000000);
+  E := Integer((Bits shr 52) and $7ff);
+  If E = $7ff then
+    Exit(Value);
+  If E = 0 then begin
+    TDoubleRec(Result).Data := Sign;
+    Exit;
+  end;
+  M := (Bits and QWord($fffffffffffff)) or (QWord(1) shl 52);
+  Dec(E,1075);
+  K := Abs(Digits);
+  If K > High(Powers5) then
+    Exit(ExactRoundToDouble(Value,Digits));
+  If Digits = 0 then begin
+    If E >= 0 then
+      Exit(Value);
+    Q := RoundShift(M,0,-E);
+    TDoubleRec(Result).Data := Sign or IntegerBits(Q,0,0);
+    Exit;
+  end;
+  P5 := Powers5[K];
+  If Digits < 0 then begin
+    Lo := MulWide(M,P5,Hi);
+    If Hi = 0 then
+      Top := BsrQWord(Lo)
+    else
+      Top := 64+BsrQWord(Hi);
+    Shift := -E-K;
+    If Top-Shift > 52 then
+      Exit(ExactRoundToDouble(Value,Digits));
+    Q := RoundShift(Lo,Hi,Shift);
+    TDoubleRec(Result).Data := Sign or FractionBits(Q,P5,-K);
+  end else begin
+    Shift := E-K;
+    If Shift < 0 then begin
+      Shift := -Shift;
+      If (Shift >= 64) or (BsrQWord(P5)+Shift > 53) then begin
+        TDoubleRec(Result).Data := Sign;
+        Exit;
+      end;
+      Den := P5 shl Shift;
+      Q := RoundDivision(M,0,Den);
+    end else begin
+      If (Shift > 63) or (52+Shift-BsrQWord(P5) > 52) then
+        Exit(ExactRoundToDouble(Value,Digits));
+      Lo := M shl Shift;
+      If Shift = 0 then
+        Hi := 0
+      else
+        Hi := M shr (64-Shift);
+      Q := RoundDivision(Lo,Hi,P5);
+    end;
+    Lo := MulWide(Q,P5,Hi);
+    TDoubleRec(Result).Data := Sign or IntegerBits(Lo,Hi,K);
+  end;
+end;
+
+type
+  TRoundToDoubleParam = record
+    Scale: Double;
+    Low, Span: QWord;
+  end;
+const
+  RoundToDoubleParams: array[-22..22] of TRoundToDoubleParam = (
+    (Scale:1e22; Low:QWord($3b5e392010175ee7); Span:QWord($33ffffffffffffe)),
+    (Scale:1e21; Low:QWord($3b92e3b40a0e9b50); Span:QWord($33ffffffffffffe)),
+    (Scale:1e20; Low:QWord($3bc79ca10c924224); Span:QWord($33ffffffffffffe)),
+    (Scale:1e19; Low:QWord($3bfd83c94fb6d2ad); Span:QWord($33ffffffffffffe)),
+    (Scale:1e18; Low:QWord($3c32725dd1d243ad); Span:QWord($33ffffffffffffe)),
+    (Scale:1e17; Low:QWord($3c670ef54646d498); Span:QWord($33ffffffffffffe)),
+    (Scale:1e16; Low:QWord($3c9cd2b297d889bd); Span:QWord($33ffffffffffffe)),
+    (Scale:1e15; Low:QWord($3cd203af9ee75617); Span:QWord($33ffffffffffffe)),
+    (Scale:1e14; Low:QWord($3d06849b86a12b9c); Span:QWord($33ffffffffffffe)),
+    (Scale:1e13; Low:QWord($3d3c25c268497683); Span:QWord($33ffffffffffffe)),
+    (Scale:1e12; Low:QWord($3d719799812dea12); Span:QWord($33ffffffffffffe)),
+    (Scale:1e11; Low:QWord($3da5fd7fe1796496); Span:QWord($33ffffffffffffe)),
+    (Scale:1e10; Low:QWord($3ddb7cdfd9d7bdbc); Span:QWord($33ffffffffffffe)),
+    (Scale:1e9; Low:QWord($3e112e0be826d696); Span:QWord($33ffffffffffffe)),
+    (Scale:1e8; Low:QWord($3e45798ee2308c3b); Span:QWord($33ffffffffffffe)),
+    (Scale:1e7; Low:QWord($3e7ad7f29abcaf49); Span:QWord($33ffffffffffffe)),
+    (Scale:1e6; Low:QWord($3eb0c6f7a0b5ed8e); Span:QWord($33ffffffffffffe)),
+    (Scale:1e5; Low:QWord($3ee4f8b588e368f2); Span:QWord($33ffffffffffffe)),
+    (Scale:1e4; Low:QWord($3f1a36e2eb1c432e); Span:QWord($33ffffffffffffe)),
+    (Scale:1e3; Low:QWord($3f50624dd2f1a9fd); Span:QWord($33ffffffffffffe)),
+    (Scale:1e2; Low:QWord($3f847ae147ae147c); Span:QWord($33ffffffffffffe)),
+    (Scale:1e1; Low:QWord($3fb999999999999b); Span:QWord($33ffffffffffffe)),
+    (Scale:1e0; Low:QWord($3ff0000000000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e1; Low:QWord($4024000000000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e2; Low:QWord($4059000000000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e3; Low:QWord($408f400000000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e4; Low:QWord($40c3880000000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e5; Low:QWord($40f86a0000000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e6; Low:QWord($412e848000000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e7; Low:QWord($416312d000000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e8; Low:QWord($4197d78400000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e9; Low:QWord($41cdcd6500000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e10; Low:QWord($4202a05f20000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e11; Low:QWord($42374876e8000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e12; Low:QWord($426d1a94a2000000); Span:QWord($33fffffffffffff)),
+    (Scale:1e13; Low:QWord($42a2309ce5400000); Span:QWord($33fffffffffffff)),
+    (Scale:1e14; Low:QWord($42d6bcc41e900000); Span:QWord($33fffffffffffff)),
+    (Scale:1e15; Low:QWord($430c6bf526340000); Span:QWord($33fffffffffffff)),
+    (Scale:1e16; Low:QWord($4341c37937e08000); Span:QWord($33fffffffffffff)),
+    (Scale:1e17; Low:QWord($4376345785d8a000); Span:QWord($33fffffffffffff)),
+    (Scale:1e18; Low:QWord($43abc16d674ec800); Span:QWord($33fffffffffffff)),
+    (Scale:1e19; Low:QWord($43e158e460913d00); Span:QWord($33fffffffffffff)),
+    (Scale:1e20; Low:QWord($4415af1d78b58c40); Span:QWord($33fffffffffffff)),
+    (Scale:1e21; Low:QWord($444b1ae4d6e2ef50); Span:QWord($33fffffffffffff)),
+    (Scale:1e22; Low:QWord($4480f0cf064dd592); Span:QWord($33fffffffffffff)));
+
+{ The three RoundTo routines are laid out by hand (doc/ASM_LAYOUT_RULES.md): no jump, fused
+  compare+jump pair or return crosses or ends on a 32-byte boundary.  The Win64 spelling of the
+  first instruction is a byte shorter than the SysV one; a DS prefix (db $3E: ignored in long
+  mode, no uop) makes both ABIs share one layout.  The other prefixes and the dead bytes behind
+  a return move a pair off a boundary; edx is zero-extended into rdx by the movsx, so the 64-bit
+  address forms give the same eax without the address-size prefix.
+  cvtsi2sd/cvtsi2ss write only the low lane of xmm3 and so wait for the value xmm3 held before:
+  nothing else in the routine writes xmm3, so that value came from the previous call, and a loop of
+  calls became one dependency chain through the divide, both conversions and the midpoint test
+  (roundto-minus2: 15 -> 30 core cycles per call against the Pascal RoundTo of the 1.0 release;
+  zeroing xmm3 in the caller alone gave 1.76x).  xorps xmm3,xmm3 is a zeroing idiom resolved at
+  register rename; it breaks the chain before the conversion, the same fix GCC and LLVM emit. }
+function RoundTo(const AValue: Double; const Digits: TRoundToRange): Double; assembler; nostackframe;
+asm
+  {$ifdef FPC_ABI_WIN64}
+  db $3E
+  movsx edx,dl
+  {$else}
+  movsx edx,dil
+  {$endif}
+  test edx,edx
+  jz @integral
+  lea eax,[rdx+22]
+  cmp eax,44
+  ja @fallback
+  lea eax,[rax+rax*2]
+  lea r11,[rip+RoundToDoubleParams]
+  lea r11,[r11+rax*8]
+  movq r8,xmm0
+  db $3E
+  btr r8,63
+  sub r8,[r11+8]
+  cmp r8,[r11+16]
+  ja @fallback
+  movsd xmm1,[r11]
+  xorps xmm3,xmm3                 { breaks the false dependency of cvtsi2sd below }
+  movapd xmm2,xmm0
+  test edx,edx
+  jg @divide
+  mulsd xmm2,xmm1
+  jmp @round
+@divide:
+  divsd xmm2,xmm1
+@round:
+  cvtsd2si rax,xmm2
+  cvtsi2sd xmm3,rax
+  test rax,rax
+  jne @midpoint
+  movq rax,xmm2
+  shr rax,63
+  shl rax,63
+  movq xmm3,rax
+@midpoint:
+  movq rax,xmm2
+  mov rcx,rax
+  shr rcx,52
+  add ecx,13
+  shl rax,cl
+  mov r8,$8000000000000000
+  cmp rax,r8
+  je @fallback
+  movapd xmm0,xmm3
+  test edx,edx
+  jg @multiply
+  divsd xmm0,xmm1
+  ret
+@multiply:
+  mulsd xmm0,xmm1
+  ret
+  { dead bytes: the Digits=0 path is reached by a jump and is 58 bytes up to its last
+    compare - inside one line from a line start, across two from byte 46 }
+  align 64
+@integral:
+  movq r8,xmm0
+  mov r9,r8
+  btr r9,63
+  mov r11,$7ff0000000000000
+  cmp r9,r11
+  jae @unchanged
+  mov r11,$4330000000000000
+  cmp r9,r11
+  jae @unchanged
+  mov r11,$0010000000000000
+  cmp r9,r11
+  jae @round0
+  shr r8,63
+  shl r8,63
+  movq xmm0,r8
+@unchanged:
+  ret
+  { dead bytes: like @integral, @round0 starts a line.  On byte 59 the block lay across the
+    line, and RoundTo(x, 0) went from 7.4 to 8.2 ns on the Ryzen }
+  align 64
+@round0:
+  cvtsd2si rax,xmm0
+  test rax,rax
+  jne @integer_result
+  movq rax,xmm0
+  shr rax,63
+  shl rax,63
+  movq xmm0,rax
+  ret
+@integer_result:
+  cvtsi2sd xmm0,rax
+  ret
+@fallback:
+  jmp RoundToDoubleInteger
+end;
+
+type
+  TRoundToSingleParam = record
+    Scale: Single;
+    Low,Span,Identity: DWord;
+  end;
+const
+  RoundToSingleParams: array[-10..10] of TRoundToSingleParam = (
+    (Scale:1e10; Low:$2edbe700; Span:$b7ffffe; Identity:$3b000000),
+    (Scale:1e9; Low:$30897060; Span:$b7ffffe; Identity:$3d000000),
+    (Scale:1e8; Low:$322bcc78; Span:$b7ffffe; Identity:$3e800000),
+    (Scale:1e7; Low:$33d6bf96; Span:$b7ffffe; Identity:$40000000),
+    (Scale:1e6; Low:$358637be; Span:$b7ffffe; Identity:$42000000),
+    (Scale:1e5; Low:$3727c5ad; Span:$b7ffffe; Identity:$43800000),
+    (Scale:1e4; Low:$38d1b718; Span:$b7ffffe; Identity:$45000000),
+    (Scale:1e3; Low:$3a831270; Span:$b7ffffe; Identity:$47000000),
+    (Scale:1e2; Low:$3c23d70b; Span:$b7ffffe; Identity:$48800000),
+    (Scale:1e1; Low:$3dccccce; Span:$b7ffffe; Identity:$4a000000),
+    (Scale:1e0; Low:$3f800000; Span:$b7fffff; Identity:$4b800000),
+    (Scale:1e1; Low:$41200000; Span:$b7fffff; Identity:$4d800000),
+    (Scale:1e2; Low:$42c80000; Span:$b7fffff; Identity:$4f000000),
+    (Scale:1e3; Low:$447a0000; Span:$b7fffff; Identity:$50800000),
+    (Scale:1e4; Low:$461c4000; Span:$b7fffff; Identity:$52800000),
+    (Scale:1e5; Low:$47c35000; Span:$b7fffff; Identity:$54000000),
+    (Scale:1e6; Low:$49742400; Span:$b7fffff; Identity:$55800000),
+    (Scale:1e7; Low:$4b189680; Span:$b7fffff; Identity:$57800000),
+    (Scale:1e8; Low:$4cbebc20; Span:$b7fffff; Identity:$59000000),
+    (Scale:1e9; Low:$4e6e6b28; Span:$b7fffff; Identity:$5a800000),
+    (Scale:1e10; Low:$501502f9; Span:$b7fffff; Identity:$5c800000));
+{ Laid out by hand like the Double routine above.  The jump to the exact routine stands behind
+  the two returns of the fast path, where every jump to it is a short one, and the two early
+  "unchanged" exits take the nearest return. }
+function RoundTo(const AValue: Single; const Digits: TRoundToRange): Single; assembler; nostackframe;
+asm
+  {$ifdef FPC_ABI_WIN64}
+  db $3E
+  movsx edx,dl
+  {$else}
+  movsx edx,dil
+  {$endif}
+  test edx,edx
+  jz @integral
+  lea eax,[rdx+10]
+  cmp eax,20
+  db $77,$79                      { ja @fallback (rel8 written out, doc/ASM_LAYOUT_RULES.md) }
+  shl eax,4
+  lea r11,[rip+RoundToSingleParams]
+  add r11,rax
+  movd eax,xmm0
+  db $3E,$3E
+  and eax,$7fffffff
+  cmp eax,$7f800000
+  jae @return_now
+  cmp eax,[r11+12]
+  jae @return_now
+  xorps xmm3,xmm3                 { breaks the false dependency of cvtsi2ss below, in the place
+                                    of three DS prefixes: the cmp/ja behind stays on byte 64 }
+  sub eax,[r11+4]
+  cmp eax,[r11+8]
+  ja @fallback
+  movss xmm1,[r11]
+  movaps xmm2,xmm0
+  test edx,edx
+  jg @divide
+  mulss xmm2,xmm1
+  jmp @round
+@divide:
+  divss xmm2,xmm1
+@round:
+  cvtss2si eax,xmm2
+  cvtsi2ss xmm3,eax
+  movd eax,xmm2
+  mov ecx,eax
+  shr ecx,23
+  add ecx,10
+  shl eax,cl
+  cmp eax,$80000000
+  je @fallback
+  test edx,edx
+  jg @multiply
+  movaps xmm0,xmm3
+  divss xmm0,xmm1
+@return_now:
+  ret
+@multiply:
+  movaps xmm0,xmm3
+  mulss xmm0,xmm1
+  ret
+@fallback:
+  jmp ExactRoundToSingle
+  db $66,$90                      { dead: the first compare of @integral on byte 32 }
+@integral:
+  movd eax,xmm0
+  mov ecx,eax
+  and ecx,$7fffffff
+  cmp ecx,$4b000000
+  jae @unchanged
+  cmp ecx,$00800000
+  jb @signedzero
+  cvtss2si ecx,xmm0
+  test ecx,ecx
+  jz @signedzero
+  cvtsi2ss xmm0,ecx
+@unchanged:
+  ret
+  align 64                        { dead bytes: the block would lie across the line }
+@signedzero:
+  and eax,$80000000
+  movd xmm0,eax
+end;
+
+{$ifdef FPC_HAS_TYPE_EXTENDED}
+{$if sizeof(extended)=10}
+type
+  TRoundToBinary80 = packed record
+    Mantissa: QWord;
+    Exponent: Word;
+  end;
+const
+  { Integer payloads retain all 64 significand bits even when decimal
+    floating literals are parsed through binary64. }
+  RoundToExtendedPowers10: array[0..27] of TRoundToBinary80 = (
+    (Mantissa:QWord($8000000000000000); Exponent:$3fff),
+    (Mantissa:QWord($a000000000000000); Exponent:$4002),
+    (Mantissa:QWord($c800000000000000); Exponent:$4005),
+    (Mantissa:QWord($fa00000000000000); Exponent:$4008),
+    (Mantissa:QWord($9c40000000000000); Exponent:$400c),
+    (Mantissa:QWord($c350000000000000); Exponent:$400f),
+    (Mantissa:QWord($f424000000000000); Exponent:$4012),
+    (Mantissa:QWord($9896800000000000); Exponent:$4016),
+    (Mantissa:QWord($bebc200000000000); Exponent:$4019),
+    (Mantissa:QWord($ee6b280000000000); Exponent:$401c),
+    (Mantissa:QWord($9502f90000000000); Exponent:$4020),
+    (Mantissa:QWord($ba43b74000000000); Exponent:$4023),
+    (Mantissa:QWord($e8d4a51000000000); Exponent:$4026),
+    (Mantissa:QWord($9184e72a00000000); Exponent:$402a),
+    (Mantissa:QWord($b5e620f480000000); Exponent:$402d),
+    (Mantissa:QWord($e35fa931a0000000); Exponent:$4030),
+    (Mantissa:QWord($8e1bc9bf04000000); Exponent:$4034),
+    (Mantissa:QWord($b1a2bc2ec5000000); Exponent:$4037),
+    (Mantissa:QWord($de0b6b3a76400000); Exponent:$403a),
+    (Mantissa:QWord($8ac7230489e80000); Exponent:$403e),
+    (Mantissa:QWord($ad78ebc5ac620000); Exponent:$4041),
+    (Mantissa:QWord($d8d726b7177a8000); Exponent:$4044),
+    (Mantissa:QWord($878678326eac9000); Exponent:$4048),
+    (Mantissa:QWord($a968163f0a57b400); Exponent:$404b),
+    (Mantissa:QWord($d3c21bcecceda100); Exponent:$404e),
+    (Mantissa:QWord($84595161401484a0); Exponent:$4052),
+    (Mantissa:QWord($a56fa5b99019a5c8); Exponent:$4055),
+    (Mantissa:QWord($cecb8f27f4200f3a); Exponent:$4058));
+  RoundToExtendedMaxInputExponent: array[-27..27] of Word = (
+    16355,16358,16361,16365,16368,16371,16375,16378,16381,16385,16388,
+    16391,16395,16398,16401,16405,16408,16411,16415,16418,16421,16425,
+    16428,16431,16435,16438,16441,16445,16448,16451,16454,16458,16461,
+    16464,16468,16471,16474,16478,16481,16484,16488,16491,16494,16498,
+    16501,16504,16508,16511,16514,16518,16521,16524,16528,16531,16534);
+
+{ Linux x86-64 SysV. Value is the native 80-bit stack argument, result ST(0).
+  The red zone holds one scaled payload. No floating control state is changed. }
+{$push}{$codealign proc=64}       { layout: the entry on a 64-byte line }
+function RoundTo(const AValue: Extended; const Digits: TRoundToRange): Extended; assembler; nostackframe;
+asm
+  movzx eax,word ptr [rsp+16]
+  and eax,$7fff
+  cmp eax,$7fff
+  je @unchanged
+  test eax,eax
+  jz @zero
+  movsx ecx,dil
+  test ecx,ecx
+  jz @integral
+  lea edx,[ecx+27]
+  cmp edx,54
+  ja @fallback
+  lea r11,[rip+RoundToExtendedMaxInputExponent]
+  movzx edx,word ptr [r11+rdx*2]
+  cmp eax,edx
+  ja @fallback
+  mov eax,ecx
+  neg eax
+  cmovs eax,ecx
+  lea eax,[eax+eax*4]
+  lea r11,[rip+RoundToExtendedPowers10]
+  fld tbyte ptr [r11+rax*2]
+  fld tbyte ptr [rsp+8]
+  test ecx,ecx
+  jg @divide
+  fmul st,st(1)
+  jmp @midpoint
+@divide:
+  fdiv st,st(1)
+@midpoint:
+  fld st
+  fstp tbyte ptr [rsp-16]
+  movzx ecx,word ptr [rsp-8]
+  db $3E                          { the compare and its jump behind the line }
+  and ecx,$7fff
+  cmp ecx,$3fff
+  jb @fallback_pop
+  db $3E,$3E,$3E                  { the next compare and its jump behind byte 32 }
+  add ecx,2
+  mov rax,qword ptr [rsp-16]
+  shl rax,cl
+  mov rdx,$8000000000000000
+  cmp rax,rdx
+  je @fallback_pop
+  frndint
+  test dil,dil
+  jg @multiply
+  fdiv st,st(1)
+  fstp st(1)
+  ret
+@multiply:
+  fmulp st(1),st
+  ret
+@integral:
+  fld tbyte ptr [rsp+8]
+  frndint
+  ret
+  db $0F,$1F,$44,$00,$00          { dead: @zero on a line start, its test+jz inside the line }
+@zero:
+  fldz
+  test word ptr [rsp+16],$8000
+  jz @return
+  fchs
+@return:
+  ret
+@unchanged:
+  fld tbyte ptr [rsp+8]
+  ret
+@fallback_pop:
+  fstp st
+  fstp st
+@fallback:
+  jmp ExactRoundToExtended
+end;
+{$pop}
+{$else}
+function RoundTo(const AValue: Extended; const Digits: TRoundToRange): Extended;
+begin
+  Result:=RoundTo(Double(AValue),Digits);
+end;
+{$endif}
+{$endif}
+
+{$asmmode gas}
+{$endif}
+
+{$ifndef cpux86_64}
+{$ifdef FPC_HAS_TYPE_DOUBLE}
+function RoundTo(const AValue: Double; const Digits: TRoundToRange): Double;
+begin
+  Result:=ExactRoundToDouble(AValue,Digits);
 end;
 {$endif}
 
 {$ifdef FPC_HAS_TYPE_EXTENDED}
-function RoundTo(const AVAlue: Extended; const Digits: TRoundToRange): Extended;
-
-var
-  RV : Extended;
-
+function RoundTo(const AValue: Extended; const Digits: TRoundToRange): Extended;
 begin
-  RV:=IntPower(10,Digits);
-  Result:=Round(AValue/RV)*RV;
+  {$if sizeof(extended)=8}
+  Result:=RoundTo(Double(AValue),Digits);
+  {$else}
+  Result:=ExactRoundToExtended(AValue,Digits);
+  {$endif}
 end;
 {$endif}
 
 {$ifdef FPC_HAS_TYPE_SINGLE}
 function RoundTo(const AValue: Single; const Digits: TRoundToRange): Single;
-
-var
-  RV : Single;
-
 begin
-  RV:=IntPower(10,Digits);
-  Result:=Round(AValue/RV)*RV;
+  Result:=ExactRoundToSingle(AValue,Digits);
 end;
 {$endif}
+{$endif}
+{$pop}
 
 {$ifdef FPC_HAS_TYPE_SINGLE}
 function SimpleRoundTo(const AValue: Single; const Digits: TRoundToRange = -2): Single;
