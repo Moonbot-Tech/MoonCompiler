@@ -3735,6 +3735,11 @@ unit aoptx86;
     function TX86AsmOptimizer.DeepMOVOpt(const p_mov: taicpu; const hp: taicpu): Boolean;
       var
         CurrentReg, ReplaceReg: TRegister;
+{$ifdef x86_64}
+        Scan: tai;
+        Count: Integer;
+        PreviousCopy: TRegister;
+{$endif}
       begin
         Result := False;
 
@@ -3750,6 +3755,55 @@ unit aoptx86;
            ((hp.oper[1]^.reg = CurrentReg) and
             (hp.oper[0]^.reg = ReplaceReg))) then
           Exit;
+
+{$ifdef x86_64}
+        if (p_mov.opsize=S_L) and (getsubreg(ReplaceReg)=R_SUBD) and
+           (getsubreg(CurrentReg)=R_SUBD) then
+          begin
+            { Two 32-bit copies of one unchanged value have identical
+              64-bit contents, even when the original upper half is dirty. }
+            Scan:=tai(p_mov.Previous);
+            Count:=0;
+            while assigned(Scan) and (Count<16) do
+              begin
+                case Scan.typ of
+                  ait_comment,ait_force_line,ait_regalloc,ait_tempalloc,ait_varloc: ;
+                  ait_instruction:
+                    begin
+                      if is_calljmp(taicpu(Scan).opcode) or (taicpu(Scan).opcode=A_RET) or
+                         (Ch_All in insprop[taicpu(Scan).opcode].Ch) or
+                         RegModifiedByInstruction(ReplaceReg,Scan) then Break;
+                      if MatchInstruction(Scan,A_MOV,[S_L]) and
+                         MatchOpType(taicpu(Scan),top_reg,top_reg) and
+                         MatchOperand(taicpu(Scan).oper[0]^,ReplaceReg) then
+                        begin
+                          PreviousCopy:=taicpu(Scan).oper[1]^.reg;
+                          setsubreg(PreviousCopy,R_SUBQ);
+                          if not SuperRegistersEqual(PreviousCopy,CurrentReg) and
+                             RegInUsedRegs(PreviousCopy,UsedRegs) and
+                             not RegModifiedBetween(PreviousCopy,Scan,p_mov) and
+                             not RegModifiedBetween(PreviousCopy,p_mov,hp) then
+                            begin
+                              ReplaceReg:=PreviousCopy;
+                              setsubreg(CurrentReg,R_SUBQ);
+                              Break;
+                            end;
+                        end;
+                      Inc(Count);
+                    end;
+                  else Break;
+                end;
+                Scan:=tai(Scan.Previous);
+              end;
+          end;
+
+        { A widened replacement must also keep loop-bound CMP reads alive. }
+        if (hp.opcode=A_CMP) and MatchOpType(hp,top_reg,top_reg) and
+           ((SuperRegistersEqual(hp.oper[0]^.reg,CurrentReg) and
+             SuperRegistersEqual(hp.oper[1]^.reg,ReplaceReg)) or
+            (SuperRegistersEqual(hp.oper[1]^.reg,CurrentReg) and
+             SuperRegistersEqual(hp.oper[0]^.reg,ReplaceReg))) then Exit;
+{$endif x86_64}
 
         case hp.opcode of
           A_FSTSW, A_FNSTSW,
