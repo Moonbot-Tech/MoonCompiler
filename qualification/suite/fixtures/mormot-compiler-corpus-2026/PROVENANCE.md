@@ -9,7 +9,7 @@ matching `mormot2static.tgz` archive. The archive SHA-256 was
 their checksums are recorded in `static/x86_64-linux.SHA256SUMS`.
 
 This snapshot is compiler-test input. It is not the MoonBot product mORMot and
-must not replace `qualification/vendor/mormot-product`.
+must not replace the pinned `Moonbot-Tech/MoonORMot` qualification dependency.
 
 The runner copies this exact checkout into a disposable work tree, then applies
 the versioned Unicode source patch and `mormot-compiler-corpus-2026-test-contract.diff`.

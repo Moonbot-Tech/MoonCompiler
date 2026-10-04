@@ -1,0 +1,293 @@
+name: moonormot-sync
+
+# Once a day: are the three MoonORMot records of this repository on the tip
+# of MoonORMot main?  The qualification pin (runner_manifest.json), the
+# version floor of the runtime units (runtime/moonormot.need.inc) and the
+# bundled memory manager (runtime/mm/mormot.core.fpcx64mm.pas) are compared
+# by scripts/sync-moonormot.py --check.
+#
+#   on main      nothing to do; an open moonormot-drift issue is closed.
+#   moved        on Linux and on Win64 alike: the script moves the three
+#                records, the toolchain is built and the mORMot and
+#                memory-manager gates and the product smoke run (the memory
+#                manager has MSWINDOWS branches of its own, so one platform
+#                proves nothing about the other).  Both green: one commit on
+#                main from github-actions[bot], on exactly the main that the
+#                gates ran against.  Either red, or the bundled memory manager
+#                carries an edit not in MoonORMot: an issue labelled
+#                moonormot-drift, no commit.
+#
+# Every job checks out the commit the run was triggered on, and the commit
+# job publishes only if main is still that commit and MoonORMot main is still
+# the tip the gates saw; otherwise it stops and the next run starts over on
+# the new state.  A push by the workflow's own token starts no other
+# workflow, so the commit is qualified here, not by qualification.yml.
+# MoonORMot is public: no token.
+
+on:
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: moonormot-sync
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      status: ${{ steps.check.outputs.status }}
+      tip: ${{ steps.check.outputs.tip }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Compare the records with MoonORMot main
+        id: check
+        run: |
+          set +e
+          python3 scripts/sync-moonormot.py --check 2>&1 | tee check.log
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "tip=$(git ls-remote https://github.com/Moonbot-Tech/MoonORMot.git refs/heads/main | cut -f1)" >> "$GITHUB_OUTPUT"
+          # 0 on main, 1 moved; anything else is the script failing (network,
+          # a broken record) and fails the run without an issue
+          [[ "$status" == 0 || "$status" == 1 ]]
+
+      - name: Close the drift issue
+        if: steps.check.outputs.status == '0'
+        run: |
+          for number in $(gh issue list --label moonormot-drift --state open \
+              --json number --jq '.[].number'); do
+            gh issue close "$number" --comment \
+              "The MoonORMot records are on main again: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          done
+
+  gates:
+    needs: check
+    if: needs.check.outputs.status == '1'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            name: linux-x86-64
+          - os: windows-2022
+            name: win64-x86-64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Move the records to MoonORMot main
+        run: |
+          python3 scripts/sync-moonormot.py 2>&1 | tee sync.log
+          # the records must land on the tip the check job saw, not a newer one
+          pin=$(python3 -c "import json; print(json.load(open('qualification/suite/runner_manifest.json'))['mormot']['sources']['current']['commit'])")
+          [[ "$pin" == "${{ needs.check.outputs.tip }}" ]] || {
+            echo "MoonORMot main moved during the run ($pin); the next run starts over" >&2
+            exit 1
+          }
+
+      - name: Install bootstrap (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends \
+            make binutils gcc fp-compiler-3.2.2 python3 openssl ca-certificates
+          test "$(fpc -iV)" = 3.2.2
+
+      - name: Build the toolchain (Linux)
+        if: runner.os == 'Linux'
+        run: ./build compiler 2>&1 | tee build.log
+
+      - name: Install bootstrap (Win64)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          .\scripts\Install-FpcBootstrap.ps1 `
+            -Destination "$env:RUNNER_TEMP\fpc-3.2.2"
+
+      - name: Build the toolchain (Win64)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          .\build.ps1 compiler `
+            -Bootstrap "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\fpc.exe" 2>&1 |
+            Tee-Object -FilePath build.log
+          If ($LASTEXITCODE -ne 0) { throw 'toolchain build failed' }
+
+      - name: Run the mORMot and memory-manager gates (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          {
+            python3 qualification/suite/tests/test_runner_contracts.py
+            python3 qualification/suite/tests/test_sync_moonormot.py
+            python3 qualification/suite/scripts/run_runtime_mormot_gate.py \
+              --compiler toolchain/bin/ppcx64 \
+              --rtl "$(ls -d toolchain/lib/fpc/*/units/x86_64-linux/rtl)" \
+              --results .qualification/sync-mormot --product-mm
+            ./qualification/memory-manager/profile_contract.sh
+            ./qualification/memory-manager/medium_arenas.sh
+            python3 qualification/memory-manager/mm_failure_gate.py \
+              --compiler toolchain/bin/ppcx64 \
+              --config toolchain/etc/moon-base.cfg \
+              --mm runtime/mm/mormot.core.fpcx64mm.pas \
+              --out .qualification/sync-mm-failure --group all
+            python3 qualification/memory-manager/mm_profile_matrix.py
+            # the product profile over the mormot directory the build cloned
+            fpc=$PWD/toolchain/bin/fpc
+            (cd qualification/suite/tests/smoke && "$fpc" -B build_smoke.dpr)
+            output=$(./qualification/suite/tests/smoke/build_smoke)
+            test "$output" = MOONBOT_BUILD_OK
+            (cd examples && "$fpc" -B zip.dpr)
+            output=$(./examples/zip)
+            test "$(printf '%s\n' "$output" | tail -n 1)" = ZIP_EXAMPLE_OK
+          } 2>&1 | tee gates.log
+
+      - name: Run the mORMot and memory-manager gates (Win64)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python .\qualification\suite\tests\test_runner_contracts.py
+          If ($LASTEXITCODE -ne 0) { throw 'runner contracts failed' }
+          python .\qualification\suite\tests\test_sync_moonormot.py
+          If ($LASTEXITCODE -ne 0) { throw 'sync-moonormot tests failed' }
+          python .\qualification\suite\scripts\run_runtime_mormot_gate.py `
+            --compiler .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --rtl .\toolchain\units\x86_64-win64\rtl `
+            --results .\.qualification\sync-mormot --product-mm
+          If ($LASTEXITCODE -ne 0) { throw 'runtime mORMot gate failed' }
+          .\qualification\memory-manager\profile_contract.ps1
+          If ($LASTEXITCODE -ne 0) { throw 'MM profile contract failed' }
+          .\qualification\memory-manager\medium_arenas.ps1
+          If ($LASTEXITCODE -ne 0) { throw 'MM medium arenas failed' }
+          python .\qualification\memory-manager\mm_failure_gate.py `
+            --compiler .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --config .\toolchain\bin\x86_64-win64\moon-base.cfg `
+            --mm .\runtime\mm\mormot.core.fpcx64mm.pas `
+            --out .\.qualification\sync-mm-failure --group all
+          If ($LASTEXITCODE -ne 0) { throw 'MM failure contracts failed' }
+          $env:MOON_OBJDUMP = "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\x86_64-win64-objdump.exe"
+          python .\qualification\memory-manager\mm_profile_matrix.py
+          If ($LASTEXITCODE -ne 0) { throw 'MM profile matrix failed' }
+          $Fpc = (Resolve-Path .\toolchain\bin\x86_64-win64\fpc.exe).Path
+          Push-Location .\qualification\suite\tests\smoke
+          try {
+            & $Fpc -B build_smoke.dpr
+            If ($LASTEXITCODE -ne 0) { throw 'product smoke did not compile' }
+            $Output = & .\build_smoke.exe
+            If ($LASTEXITCODE -ne 0 -or $Output -ne 'MOONBOT_BUILD_OK') { throw 'product smoke failed' }
+          } finally {
+            Pop-Location
+          }
+          Push-Location .\examples
+          try {
+            & $Fpc -B zip.dpr
+            If ($LASTEXITCODE -ne 0) { throw 'System.Zip smoke did not compile' }
+            $Output = @(& .\zip.exe)
+            If ($LASTEXITCODE -ne 0 -or $Output[-1] -ne 'ZIP_EXAMPLE_OK') { throw "System.Zip smoke failed: $Output" }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Keep the logs for the issue
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moonormot-sync-${{ matrix.name }}-logs
+          path: |
+            sync.log
+            build.log
+            gates.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  commit:
+    needs: [check, gates]
+    if: needs.check.outputs.status == '1' && needs.gates.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Publish the records the gates ran against
+        run: |
+          # main must still be the commit the gates were run on: a newer main
+          # is a combination nobody verified, so stop and let the next run
+          # start over on it
+          git fetch --quiet origin main
+          [[ "$(git rev-parse origin/main)" == "$GITHUB_SHA" ]] || {
+            echo "main moved during the run; not publishing, the next run starts over" >&2
+            exit 1
+          }
+          python3 scripts/sync-moonormot.py 2>&1 | tee sync.log
+          pin=$(python3 -c "import json; print(json.load(open('qualification/suite/runner_manifest.json'))['mormot']['sources']['current']['commit'])")
+          [[ "$pin" == "${{ needs.check.outputs.tip }}" ]] || {
+            echo "MoonORMot main moved during the run ($pin); not publishing, the next run starts over" >&2
+            exit 1
+          }
+          version=$(cat runtime/moonormot.need.inc)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add qualification/suite/runner_manifest.json \
+            runtime/moonormot.need.inc runtime/mm/mormot.core.fpcx64mm.pas
+          git commit -m "MoonORMot: sync pin ${pin:0:7} and version $version" \
+            -m "scripts/sync-moonormot.py after passing mORMot/MM gates on Linux and Win64: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          git push origin HEAD:main
+
+  drift-issue:
+    needs: [check, gates]
+    if: always() && needs.check.outputs.status == '1' && needs.gates.result != 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: moonormot-sync-*-logs
+          path: logs
+      - name: Open or update the drift issue
+        run: |
+          {
+            echo "MoonORMot main moved to ${{ needs.check.outputs.tip }} and the records of this repository could not follow: the gates did not pass on both platforms."
+            echo
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            for log in $(find logs -type f -name '*.log' | sort); do
+              echo "### $log (tail)"
+              echo '```'
+              tail -n 60 "$log"
+              echo '```'
+            done
+          } > issue.md
+          number=$(gh issue list --label moonormot-drift --state open \
+            --json number --jq '.[0].number')
+          if [[ -n "$number" ]]; then
+            gh issue comment "$number" --body-file issue.md
+          else
+            gh label create moonormot-drift --force --color B60205 \
+              --description "MoonORMot main moved; the records of this repository could not follow"
+            gh issue create --title "MoonORMot drift: the records could not follow main" \
+              --label moonormot-drift --body-file issue.md
+          fi

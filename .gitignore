@@ -19,9 +19,6 @@
 *.elg
 *.log
 *.obj
-!qualification/vendor/mormot-product/static/delphi/
-!qualification/vendor/mormot-product/static/delphi/sha512-x64sse4.obj
-!qualification/vendor/mormot-product/static/delphi/crc32c64.obj
 *.dcu
 *.asm
 *.rsj
@@ -105,8 +102,6 @@ units
 !/qualification/suite/fixtures/known/units/*.pas
 !/qualification/suite/fixtures/minimized/units/
 !/qualification/suite/fixtures/minimized/units/*.pas
-!/qualification/vendor/mormot-product/src/*.res
-!/qualification/vendor/mormot-product/src/tools/*/*.res
 /tests/createlst
 /tests/gparmake
 /tests/output

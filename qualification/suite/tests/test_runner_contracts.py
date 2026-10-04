@@ -207,7 +207,64 @@ class RunnerContractsTest(unittest.TestCase):
             )
             self.assertEqual(list(checkout.parent.glob(".source-*")), [])
 
-    def test_existing_mormot_source_is_never_replaced(self) -> None:
+    def test_clean_managed_mormot_source_advances_to_new_pin(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repository = root / "repository"
+            checkout = root / "deps/source"
+            subprocess.run(
+                ["git", "init", "--quiet", str(repository)], check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(repository), "config", "user.email",
+                 "qualification@example.invalid"], check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(repository), "config", "user.name",
+                 "Qualification"], check=True,
+            )
+            unit = repository / "unit.pas"
+            unit.write_text("first\n", encoding="utf-8")
+            subprocess.run(
+                ["git", "-C", str(repository), "add", "unit.pas"], check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(repository), "commit", "--quiet", "-m", "first"],
+                check=True,
+            )
+            first = subprocess.run(
+                ["git", "-C", str(repository), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            runner.ensure_clean_git_source(checkout, first, str(repository))
+
+            unit.write_text("second\n", encoding="utf-8")
+            subprocess.run(
+                ["git", "-C", str(repository), "add", "unit.pas"], check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(repository), "commit", "--quiet", "-m", "second"],
+                check=True,
+            )
+            second = subprocess.run(
+                ["git", "-C", str(repository), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+
+            runner.ensure_clean_git_source(checkout, second, str(repository))
+
+            runner.require_clean_git_source(checkout, second)
+            self.assertEqual(
+                (checkout / "unit.pas").read_text(encoding="utf-8"), "second\n",
+            )
+            (checkout / "unit.pas").write_text("local\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "local changes"):
+                runner.ensure_clean_git_source(checkout, first, str(repository))
+            self.assertEqual(
+                (checkout / "unit.pas").read_text(encoding="utf-8"), "local\n",
+            )
+
+    def test_existing_non_git_mormot_source_is_never_replaced(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "source"
             source.mkdir()
@@ -218,6 +275,75 @@ class RunnerContractsTest(unittest.TestCase):
                     source, "expected", "https://example.invalid/source.git",
                 )
             self.assertEqual(marker.read_text(encoding="utf-8"), "keep\n")
+
+    def test_current_mormot_pin_must_match_remote_branch_tip(self) -> None:
+        completed = SimpleNamespace(stdout="expected\trefs/heads/main\n")
+        runner.REMOTE_BRANCH_TIPS.clear()
+        with mock.patch.object(runner.subprocess, "run", return_value=completed):
+            runner.require_remote_branch_tip(
+                "expected", "https://example.invalid/mormot.git", "main",
+            )
+        runner.REMOTE_BRANCH_TIPS.clear()
+        with mock.patch.object(runner.subprocess, "run", return_value=completed), \
+                self.assertRaisesRegex(RuntimeError, "stale mORMot pin"):
+            runner.require_remote_branch_tip(
+                "stale", "https://example.invalid/mormot.git", "main",
+            )
+
+    def test_embedded_mormot_mm_must_match_pinned_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            embedded = root / "embedded.pas"
+            reference = source / "core/mm.pas"
+            reference.parent.mkdir(parents=True)
+            reference.write_bytes(b"unit mm;\n")
+            embedded.write_bytes(b"unit mm;\r\n")
+            spec = {
+                "memory_manager": "embedded.pas",
+                "memory_manager_reference": "core/mm.pas",
+            }
+            with mock.patch.object(runner, "ROOT", root):
+                runner.verify_embedded_mormot_memory_manager(source, spec)
+                embedded.write_bytes(b"unit changed;\r\n")
+                with self.assertRaisesRegex(RuntimeError, "differs"):
+                    runner.verify_embedded_mormot_memory_manager(source, spec)
+
+    def test_runtime_mormot_version_must_match_pinned_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            source.mkdir()
+            reference = source / "moonormot.version.inc"
+            runtime = root / "runtime/moonormot.need.inc"
+            runtime.parent.mkdir()
+            reference.write_text("7", encoding="utf-8")
+            runtime.write_text("7" + chr(10), encoding="utf-8")
+            spec = {
+                "runtime_version": "runtime/moonormot.need.inc",
+                "version_reference": "moonormot.version.inc",
+            }
+            with mock.patch.object(runner, "ROOT", root):
+                runner.verify_runtime_mormot_version(source, spec)
+                runner.verify_runtime_mormot_version(source, {})
+                runtime.write_text("6", encoding="utf-8")
+                with self.assertRaisesRegex(
+                    RuntimeError, r"runtime MoonORMot version 6 differs .* 7",
+                ):
+                    runner.verify_runtime_mormot_version(source, spec)
+                runtime.write_text("8", encoding="utf-8")
+                with self.assertRaisesRegex(RuntimeError, "differs"):
+                    runner.verify_runtime_mormot_version(source, spec)
+                runtime.write_text("seven", encoding="utf-8")
+                with self.assertRaisesRegex(RuntimeError, "not a number"):
+                    runner.verify_runtime_mormot_version(source, spec)
+                runtime.unlink()
+                with self.assertRaisesRegex(RuntimeError, "runtime .* missing"):
+                    runner.verify_runtime_mormot_version(source, spec)
+                with self.assertRaisesRegex(RuntimeError, "no runtime version"):
+                    runner.verify_runtime_mormot_version(
+                        source, {"version_reference": "moonormot.version.inc"},
+                    )
 
     def test_mormot_source_patch_changes_only_the_staged_copy(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -375,6 +501,17 @@ class RunnerContractsTest(unittest.TestCase):
             "--required-first-unit=mormot.core.fpcx64mm,cthreads",
             command,
         )
+
+    def test_mormot_compile_command_accepts_flat_source_tree(self) -> None:
+        compiler = {"driver": "fpc", "config": "moon-base.cfg"}
+        with mock.patch.object(runner, "compiler_provenance", return_value="hash"):
+            command = runner.mormot_compile_command(
+                compiler, [], Path("source"), Path("static"), Path("work"),
+                source_dir=".",
+            )
+        unit_path = next(option for option in command if option.startswith("-Fu"))
+        self.assertIn(str(Path("source/core")), unit_path)
+        self.assertNotIn(str(Path("source/src/core")), unit_path)
 
     def test_mormot_runtime_inputs_are_hashed_and_decompressed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

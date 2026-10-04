@@ -3027,7 +3027,9 @@ begin
   if not DiagLargeNodeLinkedLocked(new) then
   begin
     LargeBlocksLocked := false;
-    inc(new);
+    DiagRaiseIfFailed;
+    result := nil;
+    exit;
   end;
   {$endif FPCX64MM_DIAGNOSTIC_ACTIVE}
   LargeBlocksLocked := false;
@@ -4015,7 +4017,6 @@ asm     // size = rcx on Windows, = rdi on SystemV; use rsi = TSmallBlockType
         // Both allocator locks are released. Leave our frame before raising.
         add     rsp, 32
         pop     rbx
-@Quit:  {$ifdef MSWINDOWS}
         pop     rdi
         pop     rsi
         jmp     AllocationFailed
@@ -4341,7 +4342,6 @@ asm     // P = rcx on Windows, P = rdi on SystemV
         // Keep TSmallBlockType in the register best suited to each ABI:
         // rbx on Win64 and caller-saved rsi on SystemV.
         {$ifdef MSWINDOWS}
-        push    rbx
         mov     rbx, [rdx].TSmallBlockPoolHeader.BlockType
         {$else}
         mov     rsi, [rdx].TSmallBlockPoolHeader.BlockType
@@ -4585,9 +4585,6 @@ asm     // P = rcx on Windows, P = rdi on SystemV
         pop     rax
         {$endif MSWINDOWS}
         {$ifdef NOSFRAME}
-        {$ifdef MSWINDOWS}
-        pop     rbx
-        {$endif MSWINDOWS}
         ret
         {$else}
         jmp     @Done // on Win64, a stack frame is required
@@ -4712,7 +4709,6 @@ asm     // P = rcx on Windows, P = rdi on SystemV
         mov     byte ptr [rbx].TSmallBlockType.LastFreeLocked, false
         movzx   eax, word ptr [rbx].TSmallBlockType.BlockSize
 @Done:  // restore rbx and the stack frame before ret
-        pop     rbx
         {$else}
         inc     dword ptr [rsi].TSmallBlockType.LastFreeCount
         mov     byte ptr [rsi].TSmallBlockType.LastFreeLocked, false
@@ -6348,7 +6344,6 @@ end;
 function CurrentHeapFragmentationStatus: TMMFragmentationStatus;
 var
   i: PtrInt;
-  small, pending: PtrUInt;
   p: PSmallBlockType;
   pending: PtrUInt;
 begin
@@ -7177,6 +7172,7 @@ end;
 
 initialization
   InitializeMemoryManager;
+  OldMM := Default(TMemoryManager);
   GetMemoryManager(OldMM);
   SetMemoryManager(NewMM);
   {$ifndef FPCMM_UNINSTALL_AT_EXIT}

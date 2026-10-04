@@ -57,30 +57,34 @@ ROOT = Path(__file__).resolve().parents[1]
 CHIMERA = ROOT / "tests" / "chimera"
 # Провод Арбитража стоит на настоящем AES-GCM из продуктовой линии mORMot:
 # подменять шифр игрушкой значило бы проверять не ту работу.
-MORMOT = ROOT.parents[1] / "qualification" / "vendor" / "mormot-product"
+MORMOT = ROOT.parents[1] / ".qualification" / "deps" / "moonormot"
 
 
-# На Windows mORMot подключает эти два объекта жёстким относительным путём из
-# `..\static\delphi`. Они являются частью закреплённого qualification input и
-# хранятся рядом с vendor source; preflight защищает от неполной копии репы.
-WINDOWS_OBJECTS = ("sha512-x64sse4.obj", "crc32c64.obj")
+# mORMot links these objects through fixed relative paths (`..\static\delphi`
+# on Windows, `..\static\x86_64-linux` on Linux, mormot.crypt.core.asmx64.inc).
+# They belong to the pinned qualification checkout; preflight rejects the
+# checkout when one is missing - on Linux a missing checkout otherwise reads as
+# one failed build and every census row unexecuted, findings instead of input.
+OBJECTS = {
+    "win32": ("static/delphi", ("sha512-x64sse4.obj", "crc32c64.obj")),
+    "linux": ("static/x86_64-linux", ("sha512-x64sse4.o", "crc32c64.o")),
+}
 
 
-def check_mormot_objects() -> None:
-    """Fail before linking when the pinned Windows vendor is incomplete."""
-    if sys.platform != "win32":
-        return
-    delphi = MORMOT / "static" / "delphi"
-    missing = [n for n in WINDOWS_OBJECTS if not (delphi / n).is_file()]
+def check_mormot_objects(platform: str = sys.platform) -> None:
+    """Fail before linking when the pinned MoonORMot checkout is incomplete."""
+    folder, names = OBJECTS[platform]
+    folder = MORMOT / folder
+    missing = [n for n in names if not (folder / n).is_file()]
     if not missing:
         return
     raise SystemExit(
         "incomplete pinned mORMot input: missing " + ", ".join(missing)
-        + f" in {delphi}")
+        + f" in {folder} (runner.py prepare checks it out)")
 
 
 def mormot_options() -> list[str]:
-    src = MORMOT / "src"
+    src = MORMOT
     static = MORMOT / "static" / ("x86_64-win64" if sys.platform == "win32"
                                   else "x86_64-linux")
     units = sorted({p.parent for p in src.rglob("*.pas")})

@@ -5,10 +5,11 @@ The `test/` directory is based on the upstream test tree from commit
 Original Git tree ID: `632a414230ee6056511ec3a6a30d7f83e5fe7696`.
 
 The product source does not come from this fixture. The runner places the test
-tree next to `qualification/vendor/mormot-product/src`, so compilation and
-execution use exactly the established MoonBot product snapshot. The documented
-local Keccak-256 patch is already part of the snapshot. Its memory manager is
-not copied: the compiler pins `runtime/mm/mormot.core.fpcx64mm.pas`.
+tree beside the exact pinned `Moonbot-Tech/MoonORMot` checkout, so compilation
+and execution use the established MoonBot product source. Its memory manager is
+not loaded through the source path: the compiler pins
+`runtime/mm/mormot.core.fpcx64mm.pas` and the runner first proves that it matches
+the checkout's `core/mormot.core.fpcx64mm.pas`.
 
 MoonBot deliberately preserves fractional JSON numbers as text unless double
 parsing is explicitly requested. Therefore, the local suite changes only the
