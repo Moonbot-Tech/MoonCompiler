@@ -745,12 +745,11 @@ type
       Proc: TInt32Proc;
       StateEvent: TIteratorStateEvent32;
       ProcWithState: TInt32LoopStateProc;
-      State :  TLoopState32;
       LowInclusive,
       HighExclusive,
       Index,
       Stride: Integer;
-      Procedure Execute(Iteration : Integer);
+      Procedure Execute(Iteration : Integer; aState: TLoopState32);
       Function NumTasks : Integer;
       class function create(aSender: TObject; aLowInclusive, aHighInclusive: Integer; aIteratorEvent: TIteratorEvent32) : TParallel.TInt32LoopProc; static;
       class function create(aLowInclusive, aHighInclusive: Integer; aIteratorEvent: TInt32Proc) : TParallel.TInt32LoopProc; static;
@@ -769,12 +768,11 @@ type
       Proc: TInt64Proc;
       StateEvent: TIteratorStateEvent64;
       ProcWithState: TInt64LoopStateProc;
-      State :  TLoopState64;
       LowInclusive,
       HighExclusive,
       Index,
       Stride: Int64;
-      Procedure Execute(Iteration : Int64);
+      Procedure Execute(Iteration : Int64; aState: TLoopState64);
       Function NumTasks : Integer;
       class function create(aSender: TObject; aLowInclusive, aHighInclusive: Int64; aIteratorEvent: TIteratorEvent64) : TParallel.TInt64LoopProc; static;
       class function create(aLowInclusive, aHighInclusive: Int64; aIteratorEvent: TInt64Proc) : TParallel.TInt64LoopProc; static;
@@ -838,7 +836,7 @@ type
       FMaxStride : Integer;
       Procedure UpdateBreakAt(aValue : Integer);
       Function GetCurrentStride : Integer;
-      Function GetCurrentStart : Integer;
+      Function GetCurrentStart(out aStride: Integer) : Integer;
       Function GetNextStride : Integer;
       function ShouldExitLoop(CurrentIter: Integer): Boolean; overload;
       function ShouldExitLoop: Boolean; inline; overload;
@@ -863,7 +861,7 @@ type
       FMaxStride : Int64;
       Procedure UpdateBreakAt(aValue : Int64);
       Function GetCurrentStride : Int64;
-      Function GetCurrentStart : Int64;
+      Function GetCurrentStart(out aStride: Int64) : Int64;
       Function GetNextStride : int64;
       function ShouldExitLoop(CurrentIter: Int64): Boolean; overload;
       function ShouldExitLoop: Boolean; inline; overload;
@@ -4507,11 +4505,7 @@ end;
 
 
 
-function TParallel.TInt32LoopParams.GetCurrentStart: Integer;
-
-var
-  aStride : Integer;
-
+function TParallel.TInt32LoopParams.GetCurrentStart(out aStride: Integer): Integer;
 begin
   aStride:=GetCurrentStride;
   {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt32LoopParams.GetCurrentStart','Index: %d, Stride: %d',[FLoopProc.Index,aStride]);{$ENDIF USE_THREADLOG}
@@ -4538,14 +4532,17 @@ procedure TParallel.TInt32LoopParams.Invoke;
 
 var
   I, Start, Limit, UpperLimit, MyStride: Integer;
+  LoopState: TLoopState32;
 
 begin
   {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt32LoopParams.Invoke','Enter');{$ENDIF USE_THREADLOG}
   {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt32LoopParams.Invoke','Loop params: '+Self.FLoopProc.ToString);{$ENDIF USE_THREADLOG}
-  UpperLimit:=HighExclusive;
-  Try
-    Start:=GetCurrentStart;
-    MyStride:=GetCurrentStride;
+  LoopState:=nil;
+  if Assigned(FLoopProc.ProcWithState) or Assigned(FLoopProc.StateEvent) then
+    LoopState:=TLoopState32.Create(Self);
+  try
+    UpperLimit:=HighExclusive;
+    Start:=GetCurrentStart(MyStride);
     {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt32LoopParams.Invoke','Start: %d, Upper: %d, Stride: %d',[Start,UpperLimit,MyStride]);{$ENDIF USE_THREADLOG}
     while Start<UpperLimit do
       begin
@@ -4554,22 +4551,20 @@ begin
       If Limit>UpperLimit then
         Limit:=UpperLimit;
       {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt32LoopParams.Invoke','Inner loop from %d to Limit: %d',[I,Limit]);{$ENDIF USE_THREADLOG}
-      while (I<Limit) and not ShouldExitLoop(Start) do
+      while (I<Limit) and not ShouldExitLoop(I) do
         begin
         {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt32LoopParams.Invoke','Executing loop at %d',[I]);{$ENDIF USE_THREADLOG}
-        FLoopProc.Execute(I);
+        FLoopProc.Execute(I,LoopState);
         Inc(I);
         end;
       if ShouldExitLoop(Start) then
         Break;
       GetNextStride;
-      MyStride:=GetCurrentStride;
-      Start:=GetCurrentStart;
+      Start:=GetCurrentStart(MyStride);
       {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt32LoopParams.Invoke','Next loop from %d to %d',[Start,Start+MyStride]);{$ENDIF USE_THREADLOG}
       end;
-  except
-//    Fparams.SharedFlags.SetFaulted;
-    raise;
+  finally
+    LoopState.Free;
   end;
   {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt32LoopParams.Invoke','leave');{$ENDIF USE_THREADLOG}
 end;
@@ -4653,11 +4648,7 @@ end;
 
 
 
-function TParallel.TInt64LoopParams.GetCurrentStart: Int64;
-
-var
-  aStride : Int64;
-
+function TParallel.TInt64LoopParams.GetCurrentStart(out aStride: Int64): Int64;
 begin
   aStride:=GetCurrentStride;
   {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt64LoopParams.GetCurrentStart','Index: %d, Stride: %d',[FLoopProc.Index,aStride]);{$ENDIF USE_THREADLOG}
@@ -4684,14 +4675,17 @@ procedure TParallel.TInt64LoopParams.Invoke;
 
 var
   I, Start, Limit, UpperLimit, MyStride: Int64;
+  LoopState: TLoopState64;
 
 begin
   {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt64LoopParams.Invoke','Enter');{$ENDIF USE_THREADLOG}
   {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt64LoopParams.Invoke','Loop params: '+Self.FLoopProc.ToString);{$ENDIF USE_THREADLOG}
-  UpperLimit:=HighExclusive;
-  Try
-    Start:=GetCurrentStart;
-    MyStride:=GetCurrentStride;
+  LoopState:=nil;
+  if Assigned(FLoopProc.ProcWithState) or Assigned(FLoopProc.StateEvent) then
+    LoopState:=TLoopState64.Create(Self);
+  try
+    UpperLimit:=HighExclusive;
+    Start:=GetCurrentStart(MyStride);
     {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt64LoopParams.Invoke','Start: %d, Upper: %d, Stride: %d',[Start,UpperLimit,MyStride]);{$ENDIF USE_THREADLOG}
     while Start<UpperLimit do
       begin
@@ -4700,22 +4694,20 @@ begin
       If Limit>UpperLimit then
         Limit:=UpperLimit;
       {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt64LoopParams.Invoke','Inner loop from %d to Limit: %d',[I,Limit]);{$ENDIF USE_THREADLOG}
-      while (I<Limit) and not ShouldExitLoop(Start) do
+      while (I<Limit) and not ShouldExitLoop(I) do
         begin
         {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt64LoopParams.Invoke','Executing loop at %d',[I]);{$ENDIF USE_THREADLOG}
-        FLoopProc.Execute(I);
+        FLoopProc.Execute(I,LoopState);
         Inc(I);
         end;
       if ShouldExitLoop(Start) then
         Break;
       GetNextStride;
-      MyStride:=GetCurrentStride;
-      Start:=GetCurrentStart;
+      Start:=GetCurrentStart(MyStride);
       {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt64LoopParams.Invoke','Next loop from %d to %d',[Start,Start+MyStride]);{$ENDIF USE_THREADLOG}
       end;
-  except
-//    Fparams.SharedFlags.SetFaulted;
-    raise;
+  finally
+    LoopState.Free;
   end;
   {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt64LoopParams.Invoke','leave');{$ENDIF USE_THREADLOG}
 end;
@@ -4726,7 +4718,7 @@ end;
   TParallel.TInt32LoopProc
   *********************************************************************}
 
-procedure TParallel.TInt32LoopProc.Execute(Iteration: Integer);
+procedure TParallel.TInt32LoopProc.Execute(Iteration: Integer; aState: TLoopState32);
 
 begin
   {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt32LoopProc.Execute','enter (%d)',[Iteration]);{$ENDIF USE_THREADLOG}
@@ -4737,13 +4729,13 @@ begin
     Proc(Iteration)
   else if Assigned(ProcWithState) then
   begin
-    State.CurrentIteration:=Iteration;
-    ProcWithState(Iteration,State);
+    aState.CurrentIteration:=Iteration;
+    ProcWithState(Iteration,aState);
   end
   else if Assigned(StateEvent) then
   begin
-    State.CurrentIteration:=Iteration;
-    StateEvent(Sender,Iteration, State);
+    aState.CurrentIteration:=Iteration;
+    StateEvent(Sender,Iteration,aState);
   end;
   {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt32LoopProc.Execute','leave (%d) ',[Iteration]);{$ENDIF USE_THREADLOG}
 end;
@@ -4812,7 +4804,7 @@ end;
 
 {$IFDEF THREAD64BIT}
 
-procedure TParallel.TInt64LoopProc.Execute(Iteration: Int64);
+procedure TParallel.TInt64LoopProc.Execute(Iteration: Int64; aState: TLoopState64);
 
 begin
   {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt64LoopProc.Execute','enter (%d)',[Iteration]);{$ENDIF USE_THREADLOG}
@@ -4823,13 +4815,13 @@ begin
     Proc(Iteration)
   else if Assigned(ProcWithState) then
   begin
-    State.CurrentIteration:=Iteration;
-    ProcWithState(Iteration,State);
+    aState.CurrentIteration:=Iteration;
+    ProcWithState(Iteration,aState);
   end
   else if Assigned(StateEvent) then
   begin
-    State.CurrentIteration:=Iteration;
-    StateEvent(Sender,Iteration, State);
+    aState.CurrentIteration:=Iteration;
+    StateEvent(Sender,Iteration,aState);
   end;
   {$IFDEF USE_THREADLOG}ThreadLog('TParallel.TInt64LoopProc.Execute','leave (%d) ',[Iteration]);{$ENDIF USE_THREADLOG}
 end;
@@ -4933,6 +4925,7 @@ begin
     if (StateFlags*[TLoopStateFlag.Exception, TLoopStateFlag.Cancelled])<>[] then
       Exit(False);
     Include(StateFlags,TLoopStateFlag.Broken);
+    Result:=True;
   finally
     UnLock
   end;
