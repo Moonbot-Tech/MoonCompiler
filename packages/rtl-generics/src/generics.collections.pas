@@ -241,7 +241,7 @@ type
     procedure SetCapacity(AValue: SizeInt); virtual; abstract;
     function GetCount: SizeInt; virtual;
   public
-    function ToArray: TArray<T>; override; final;
+    function ToArray: TArray<T>; override;
 
     property Count: SizeInt read GetCount;
     property Capacity: SizeInt read GetCapacity write SetCapacity;
@@ -467,6 +467,7 @@ type
     function DoRemove(AIndex: SizeInt; ACollectionNotification: TCollectionNotification): T; override;
     function GetCount: SizeInt; override;
   public
+    function ToArray: TArray<T>; override;
     constructor Create(ACollection: TEnumerable<T>); overload;
     {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
     constructor Create(ACollection: TEnumerableWithPointers<T>); overload;
@@ -2987,6 +2988,11 @@ end;
 function TQueue<T>.GetCount: SizeInt;
 begin
   Result := FLength - FLow;
+end;
+
+function TQueue<T>.ToArray: TArray<T>;
+begin
+  Result:=Copy(FItems,FLow,Count);
 end;
 
 constructor TQueue<T>.Create(ACollection: TEnumerable<T>);
