@@ -2835,6 +2835,19 @@ unit cgx86;
 
 { ************* concatcopy ************ }
 
+    var
+      { the number of the last copy of a block made of moves }
+      last_blockcopy : word = 0;
+
+    procedure mark_blockcopy(list:TAsmList;id:word);
+      begin
+        if (id<>0) and assigned(list.last) and
+           (tai(list.last).typ=ait_instruction) and
+           (taicpu(list.last).opcode=A_MOV) then
+          taicpu(list.last).blockcopy:=id;
+      end;
+
+
     procedure Tcgx86.g_concatcopy(list:TAsmList;const source,dest:Treference;len:tcgint);
 
     const
@@ -2859,6 +2872,7 @@ unit cgx86;
       srcref,dstref,tmpref:Treference;
       r,r0,r1,r2,r3:Tregister;
       copysize:byte;
+      copyid:word;
       cgsize:Tcgsize;
       cm:tcopymode;
       saved_ds,saved_es: Boolean;
@@ -2919,6 +2933,16 @@ unit cgx86;
           begin
             copysize:=sizeof(aint);
             cgsize:=int_cgsize(copysize);
+            { the moves of one copy carry its number: the peephole optimizer
+              may merge them where it merges no moves of two statements }
+            copyid:=0;
+            if len>copysize then
+              begin
+                if last_blockcopy=high(word) then
+                  last_blockcopy:=0;
+                inc(last_blockcopy);
+                copyid:=last_blockcopy;
+              end;
             while len<>0 do
               begin
                 if len<2 then
@@ -2949,7 +2973,9 @@ unit cgx86;
                 dec(len,copysize);
                 r:=getintregister(list,cgsize);
                 a_load_ref_reg(list,cgsize,cgsize,srcref,r);
+                mark_blockcopy(list,copyid);
                 a_load_reg_ref(list,cgsize,cgsize,r,dstref);
+                mark_blockcopy(list,copyid);
                 inc(srcref.offset,copysize);
                 inc(dstref.offset,copysize);
               end;

@@ -1,0 +1,76 @@
+{
+ "linux": {
+  "LESS": [
+   12,
+   1,
+   0
+  ],
+  "SHAPECOPYRECORD": [
+   3,
+   0,
+   2
+  ],
+  "SHAPEOTHERFIELD": [
+   4,
+   0,
+   0
+  ],
+  "SHAPEOTHERNAME": [
+   4,
+   0,
+   0
+  ],
+  "SHAPEREADANDSTEP": [
+   9,
+   0,
+   0
+  ],
+  "SHAPEREADNUMBER": [
+   21,
+   0,
+   0
+  ],
+  "WRITEIFNOTEMPTY": [
+   19,
+   1,
+   0
+  ]
+ },
+ "win64": {
+  "LESS": [
+   6,
+   1,
+   0
+  ],
+  "SHAPECOPYRECORD": [
+   3,
+   0,
+   2
+  ],
+  "SHAPEOTHERFIELD": [
+   4,
+   0,
+   0
+  ],
+  "SHAPEOTHERNAME": [
+   4,
+   0,
+   0
+  ],
+  "SHAPEREADANDSTEP": [
+   9,
+   0,
+   0
+  ],
+  "SHAPEREADNUMBER": [
+   22,
+   0,
+   0
+  ],
+  "WRITEIFNOTEMPTY": [
+   21,
+   1,
+   0
+  ]
+ }
+}

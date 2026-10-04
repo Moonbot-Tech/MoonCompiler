@@ -94,10 +94,51 @@ unit aoptx86;
         function RegModifiedByInstruction(Reg: TRegister; p1: tai): boolean; override;
 
         { returns true if any of the registers in ref are modified by any
-          instruction between p1 and p2, or if those instructions write to the
-          reference }
+          instruction between p1 and p2, or if those instructions may write
+          to the memory behind the reference: every write which is not
+          certainly to other memory (RefsApart) counts }
         function RefModifiedBetween(Ref: TReference; RefSize: ASizeInt; p1, p2: tai): Boolean;
+
+        { returns true if the register holds at p2 the value it holds
+          behind p1: no instruction in between writes it, or the one which
+          does repeats the move between registers which has written it last
+          before p1 }
+        function RegKeepsValueBetween(reg: TRegister; p1, p2: tai): Boolean;
+
+        { returns true if Ref addresses at p2 the memory it addresses behind
+          p1 (RegKeepsValueBetween for its registers) and no instruction in
+          between may write that memory }
+        function RefKeptBetween(const Ref: TReference; RefSize: ASizeInt; p1, p2: tai): Boolean;
+
+        { returns true if no pointer can look at a cell of the frame of the
+          routine: the routine takes the address of no cell, hands its
+          frame to nobody and has no handler which would read the frame
+          after an exception }
+        function FramePrivate: Boolean;
+
+        { RefsApart, and a cell of a private frame against what is
+          addressed without the registers of the frame }
+        function CellsApart(const a: treference; abytes: asizeint; const b: treference; bbytes: asizeint): Boolean;
+
+        { returns true if the instruction may write the RefSize bytes behind
+          Ref }
+        function MayWriteRef(hp: tai; const Ref: TReference; RefSize: ASizeInt): Boolean;
+
+        { returns true if an instruction after p1 and before p2 may write
+          memory, whichever }
+        function MemoryWrittenBetween(p1, p2: tai): Boolean;
+
+        { returns true if the two instructions may change places as far as
+          memory goes: none of them may write what the other one reads or
+          writes }
+        function MemoryOrderFree(p1, p2: tai): Boolean;
+
+        { returns true if the write of opbytes bytes to op which stands at p2
+          may stand at p1 instead: every instruction after p1 and before p2
+          raises no exception, leaves the address of op as it is and reaches
+          no memory which may be the one behind op }
       private
+        FFrameKnown, FFramePrivate: Boolean;
         function SkipSimpleInstructions(var hp1: tai): Boolean;
 
       protected
@@ -282,6 +323,15 @@ unit aoptx86;
 
     { Like RefsEqual, but doesn't compare the offsets }
     function RefsAlmostEqual(const r1, r2: treference): boolean;
+
+    { Returns true if the abytes bytes behind a and the bbytes bytes behind b
+      are certainly different memory: a cell of the frame and data a symbol
+      addresses, the data of two symbols, or two operands with one address
+      expression which their offsets and sizes keep apart.  The registers of
+      the address expression must hold the same values where a and b stand.
+      Two address expressions which differ say nothing: a pointer may look
+      at a global, at a cell of the frame, at what another pointer looks at }
+    function RefsApart(const a: treference; abytes: asizeint; const b: treference; bbytes: asizeint): boolean;
 
     { Note that Result is set to True if the references COULD overlap but the
       compiler cannot be sure (e.g. "(%reg1)" and "4(%reg2)" with a range of 4
@@ -528,7 +578,70 @@ unit aoptx86;
       end;
 
 
+    const
+      { no memory operand is wider }
+      WidestOperand = 64;
+
+    { a cell of the frame of the routine }
+    function RefIsFrameCell(const ref: treference): boolean;
+      begin
+        result:=(ref.symbol=nil) and (ref.relsymbol=nil) and
+          (ref.index=NR_NO) and (ref.segment=NR_NO) and
+          ((ref.base=NR_STACK_POINTER_REG) or
+           (ref.base=current_procinfo.framepointer));
+      end;
+
+
+    { data a symbol addresses }
+    function RefIsSymbolData(const ref: treference): boolean;
+      begin
+        result:=assigned(ref.symbol) and (ref.index=NR_NO) and
+          (ref.segment=NR_NO) and
+          ((ref.base=NR_NO)
+{$ifdef x86_64}
+           or (ref.base=NR_RIP)
+{$endif x86_64}
+          );
+      end;
+
+
+    function RefsApart(const a: treference; abytes: asizeint; const b: treference; bbytes: asizeint): boolean;
+      begin
+        if (RefIsFrameCell(a) and RefIsSymbolData(b)) or
+           (RefIsSymbolData(a) and RefIsFrameCell(b)) then
+          exit(true);
+        if (a.symbol=b.symbol) and (a.relsymbol=b.relsymbol) and
+           (a.refaddr=b.refaddr) and (a.segment=b.segment) and
+           (a.base=b.base) and (a.index=b.index) and
+           ((a.index=NR_NO) or (a.scalefactor=b.scalefactor)) then
+          begin
+            { an unknown size is the widest }
+            if abytes<=0 then
+              abytes:=WidestOperand;
+            if bbytes<=0 then
+              bbytes:=WidestOperand;
+            exit((a.offset+abytes<=b.offset) or (b.offset+bbytes<=a.offset));
+          end;
+        { two symbols are two variables }
+        result:=(a.symbol<>b.symbol) and (a.refaddr=b.refaddr) and
+          (a.relsymbol=nil) and (b.relsymbol=nil) and
+          RefIsSymbolData(a) and RefIsSymbolData(b);
+      end;
+
+
     function RefsMightOverlap(const r1, r2: treference; const Range: asizeint): boolean;
+      begin
+        Result := (r1.volatility + r2.volatility <> []) or
+          not RefsApart(r1, Range, r2, Range);
+      end;
+
+
+    { The question of the moves of one copy of a block (the assignment of a
+      record, of a set): there two references with different symbols - a
+      symbol and none as well, which is a variable and what a pointer looks
+      at - count as apart.  It is the question RefsMightOverlap asked for
+      every pair of moves until 2026-09-29 }
+    function BlockCopyMightOverlap(const r1, r2: treference; const Range: asizeint): boolean;
       begin
         if (r1.symbol<>r2.symbol) then
           { If the index registers are different, there's a chance one could
@@ -1373,16 +1486,316 @@ unit aoptx86;
       end;
 
 
-    function TX86AsmOptimizer.RefModifiedBetween(Ref: TReference; RefSize: ASizeInt; p1, p2: tai): Boolean;
-      const
-        WriteOps: array[0..3] of set of TInsChange =
-          ([CH_RWOP1,CH_WOP1,CH_MOP1],
-           [Ch_RWOP2,Ch_WOP2,Ch_MOP2],
-           [Ch_RWOP3,Ch_WOP3,Ch_MOP3],
-           [Ch_RWOP4,Ch_WOP4,Ch_MOP4]);
+    const
+      MemWriteFlags: array[0..3] of set of TInsChange =
+        ([Ch_RWop1,Ch_Wop1,Ch_Mop1],
+         [Ch_RWop2,Ch_Wop2,Ch_Mop2],
+         [Ch_RWop3,Ch_Wop3,Ch_Mop3],
+         [Ch_RWop4,Ch_Wop4,Ch_Mop4]);
+      MemReadFlags: array[0..3] of set of TInsChange =
+        ([Ch_RWop1,Ch_Rop1,Ch_Mop1],
+         [Ch_RWop2,Ch_Rop2,Ch_Mop2],
+         [Ch_RWop3,Ch_Rop3,Ch_Mop3],
+         [Ch_RWop4,Ch_Rop4,Ch_Mop4]);
+
+    { the bytes an instruction reaches behind its memory operand; the
+      widest operand where it is not known }
+    function MemOperandBytes(hp: taicpu): asizeint;
+      begin
+        result:=WidestOperand;
+        case hp.opcode of
+          A_MOVSS,A_VMOVSS,A_MOVD,A_VMOVD:
+            result:=4;
+          A_MOVSD,A_VMOVSD,A_MOVQ,A_VMOVQ:
+            { without operands movsd is the string instruction }
+            if hp.ops>0 then
+              result:=8;
+          else
+            case hp.opsize of
+              S_B,S_BW,S_BL{$ifdef x86_64},S_BQ{$endif x86_64}:
+                result:=1;
+              S_W,S_WL{$ifdef x86_64},S_WQ{$endif x86_64}:
+                result:=2;
+              S_L{$ifdef x86_64},S_LQ{$endif x86_64}:
+                result:=4;
+              S_Q:
+                result:=8;
+              else
+                ;
+            end;
+        end;
+      end;
+
+
+    { may the instruction write its memory operand; what the table of
+      instructions does not tell may be a write }
+    function MemOperandWritten(hp: taicpu; i: longint): boolean;
+      begin
+        case hp.opcode of
+          A_LEA:
+            { an address, no access }
+            exit(false);
+          A_MOVSD,A_VMOVSS,A_VMOVSD:
+            { the table has the string instruction and the form of three
+              operands }
+            exit((hp.ops=2) and (i=1));
+          A_MUL,A_IMUL,A_DIV,A_IDIV:
+            { the memory operand is a source }
+            exit(false);
+          else
+            ;
+        end;
+        with insprop[hp.opcode] do
+          result:=(MemWriteFlags[i]*Ch<>[]) or (MemReadFlags[i]*Ch=[]);
+      end;
+
+
+    { may the instruction read its memory operand }
+    function MemOperandRead(hp: taicpu; i: longint): boolean;
+      begin
+        case hp.opcode of
+          A_LEA:
+            exit(false);
+          A_MOVSD,A_VMOVSS,A_VMOVSD:
+            exit((hp.ops=2) and (i=0));
+          A_MUL,A_IMUL,A_DIV,A_IDIV:
+            exit(true);
+          else
+            ;
+        end;
+        with insprop[hp.opcode] do
+          result:=(MemReadFlags[i]*Ch<>[]) or (MemWriteFlags[i]*Ch=[]);
+      end;
+
+
+    { memory an instruction reads without naming it: the stack, the source
+      and the destination of a string instruction, what a call reaches, what
+      the table does not describe }
+    function MemReadBlind(hp: taicpu): boolean;
+      begin
+        if is_calljmp(hp.opcode) then
+          exit(true);
+        if ((hp.opcode=A_MOVSD) or (hp.opcode=A_CMPSD)) and (hp.ops>0) then
+          { the SSE instructions of these names }
+          exit(false);
+        result:=insprop[hp.opcode].Ch*[Ch_All,Ch_RMemEDI,Ch_WMemEDI,
+          Ch_RESI,Ch_RWESI,Ch_MESI,Ch_RESP,Ch_RWESP,Ch_MESP
+{$ifdef x86_64}
+          ,Ch_RRSI,Ch_RWRSI,Ch_MRSI,Ch_RRSP,Ch_RWRSP,Ch_MRSP
+{$endif x86_64}
+          ]<>[];
+      end;
+
+
+    { memory an instruction writes without naming it }
+    function MemWrittenBlind(hp: taicpu): boolean;
+      begin
+        if is_calljmp(hp.opcode) then
+          exit(true);
+        if (hp.opcode=A_MOVSD) and (hp.ops>0) then
+          exit(false);
+        result:=insprop[hp.opcode].Ch*[Ch_All,Ch_WMemEDI,
+          Ch_WESP,Ch_RWESP,Ch_MESP
+{$ifdef x86_64}
+          ,Ch_WRSP,Ch_RWRSP,Ch_MRSP
+{$endif x86_64}
+          ]<>[];
+      end;
+
+
+    function TX86AsmOptimizer.FramePrivate: Boolean;
+
+      function OfFrame(reg: tregister): boolean;
+        begin
+          result:=(reg<>NR_NO) and
+            (getregtype(reg)=R_INTREGISTER) and
+            ((getsupreg(reg)=RS_STACK_POINTER_REG) or
+             (getsupreg(reg)=getsupreg(current_procinfo.framepointer)));
+        end;
+
+      { the routine keeps its frame: "mov %rsp,%rbp", "lea -32(%rsp),%rsp",
+        "sub $32,%rsp", "push %rbp" }
+      function Bookkeeping(hp: taicpu): boolean;
+        begin
+          case hp.opcode of
+            A_PUSH,A_POP:
+              result:=not((hp.ops=1) and (hp.oper[0]^.typ=top_reg) and
+                (getsupreg(hp.oper[0]^.reg)=RS_STACK_POINTER_REG));
+            A_MOV,A_LEA,A_ADD,A_SUB,A_AND:
+              result:=(hp.ops=2) and (hp.oper[1]^.typ=top_reg) and
+                OfFrame(hp.oper[1]^.reg);
+            else
+              result:=false;
+          end;
+        end;
+
       var
-        X: Integer;
-        CurrentP1Size: asizeint;
+        hp: tai;
+        i: longint;
+      begin
+        if FFrameKnown then
+          exit(FFramePrivate);
+        FFrameKnown:=true;
+        FFramePrivate:=false;
+        Result:=false;
+{$ifdef x86_64}
+        { x86-64 only: its parameters are written to a fixed stack.  Where
+          they are pushed, a push may hand the frame pointer to a nested
+          routine, and the scan below takes a push for the entry code }
+        if current_procinfo.flags*[pi_uses_exceptions,pi_needs_implicit_finally,
+             pi_has_implicit_finally,pi_has_assembler_block,pi_is_assembler,
+             pi_has_stack_allocs,pi_has_interproclabel,pi_has_global_goto]<>[] then
+          exit;
+        { the body of a finally block which is a routine of its own works on
+          the frame of its parent }
+        if current_procinfo.procdef.proctypeoption=potype_exceptfilter then
+          exit;
+        hp:=tai(asml.first);
+        while assigned(hp) do
+          begin
+            if (hp.typ=ait_instruction) and not Bookkeeping(taicpu(hp)) then
+              for i:=0 to taicpu(hp).ops-1 do
+                case taicpu(hp).oper[i]^.typ of
+                  top_reg:
+                    { the value of the register goes somewhere }
+                    if OfFrame(taicpu(hp).oper[i]^.reg) then
+                      exit;
+                  top_ref:
+                    { the address of a cell }
+                    if (taicpu(hp).opcode=A_LEA) and
+                       (OfFrame(taicpu(hp).oper[i]^.ref^.base) or
+                        OfFrame(taicpu(hp).oper[i]^.ref^.index)) then
+                      exit;
+                  else
+                    ;
+                end;
+            hp:=tai(hp.next);
+          end;
+        FFramePrivate:=true;
+        Result:=true;
+{$endif x86_64}
+      end;
+
+
+    function TX86AsmOptimizer.CellsApart(const a: treference; abytes: asizeint; const b: treference; bbytes: asizeint): Boolean;
+
+      function Elsewhere(const ref: treference): boolean;
+        begin
+          result:=(ref.segment=NR_NO) and
+            (ref.base<>NR_STACK_POINTER_REG) and
+            (ref.index<>NR_STACK_POINTER_REG) and
+            (ref.base<>current_procinfo.framepointer) and
+            (ref.index<>current_procinfo.framepointer);
+        end;
+
+      begin
+        Result:=RefsApart(a,abytes,b,bbytes) or
+          (
+            ((RefIsFrameCell(a) and Elsewhere(b)) or
+             (RefIsFrameCell(b) and Elsewhere(a))) and
+            FramePrivate
+          );
+      end;
+
+
+    function TX86AsmOptimizer.MayWriteRef(hp: tai; const Ref: TReference; RefSize: ASizeInt): Boolean;
+      var
+        i: longint;
+      begin
+        Result := False;
+        if hp.typ <> ait_instruction then
+          exit;
+        if MemWrittenBlind(taicpu(hp)) then
+          exit(True);
+        for i := 0 to taicpu(hp).ops - 1 do
+          if (taicpu(hp).oper[i]^.typ = top_ref) and
+            MemOperandWritten(taicpu(hp), i) and
+            not CellsApart(Ref, RefSize, taicpu(hp).oper[i]^.ref^, MemOperandBytes(taicpu(hp))) then
+            exit(True);
+      end;
+
+
+    function TX86AsmOptimizer.MemoryWrittenBetween(p1, p2: tai): Boolean;
+      var
+        i: longint;
+      begin
+        Result := False;
+        while assigned(p1) and assigned(p2) and GetNextInstruction(p1,p1) and (p1<>p2) do
+          if p1.typ = ait_instruction then
+            begin
+              if MemWrittenBlind(taicpu(p1)) then
+                exit(True);
+              for i := 0 to taicpu(p1).ops - 1 do
+                if (taicpu(p1).oper[i]^.typ = top_ref) and
+                  MemOperandWritten(taicpu(p1), i) and
+                  not (RefIsFrameCell(taicpu(p1).oper[i]^.ref^) and FramePrivate) then
+                  exit(True);
+            end;
+      end;
+
+
+    function TX86AsmOptimizer.MemoryOrderFree(p1, p2: tai): Boolean;
+
+      function Reaches(hp: taicpu): boolean;
+        var
+          i: longint;
+        begin
+          result:=MemReadBlind(hp) or MemWrittenBlind(hp);
+          if not result and (hp.opcode<>A_LEA) then
+            for i:=0 to hp.ops-1 do
+              if hp.oper[i]^.typ=top_ref then
+                exit(true);
+        end;
+
+      function Writes(hp: taicpu): boolean;
+        var
+          i: longint;
+        begin
+          result:=MemWrittenBlind(hp);
+          if not result then
+            for i:=0 to hp.ops-1 do
+              if (hp.oper[i]^.typ=top_ref) and MemOperandWritten(hp,i) then
+                exit(true);
+        end;
+
+      var
+        a, b: taicpu;
+        i, j: longint;
+        awritten, bwritten: boolean;
+      begin
+        Result := False;
+        if (p1.typ <> ait_instruction) or (p2.typ <> ait_instruction) then
+          exit;
+        a := taicpu(p1);
+        b := taicpu(p2);
+        if not Reaches(a) or not Reaches(b) then
+          exit(True);
+        { what is reached without a name is compared with nothing }
+        if (MemWrittenBlind(a) or MemWrittenBlind(b)) or
+          (MemReadBlind(a) and Writes(b)) or
+          (MemReadBlind(b) and Writes(a)) then
+          exit;
+        for i := 0 to a.ops - 1 do
+          if a.oper[i]^.typ = top_ref then
+            begin
+              awritten := MemOperandWritten(a, i);
+              if not awritten and not MemOperandRead(a, i) then
+                continue;
+              for j := 0 to b.ops - 1 do
+                if b.oper[j]^.typ = top_ref then
+                  begin
+                    bwritten := MemOperandWritten(b, j);
+                    if (awritten and (bwritten or MemOperandRead(b, j))) or
+                      (bwritten and MemOperandRead(a, i)) then
+                      if not CellsApart(a.oper[i]^.ref^, MemOperandBytes(a), b.oper[j]^.ref^, MemOperandBytes(b)) then
+                        exit;
+                  end;
+            end;
+        Result := True;
+      end;
+
+
+    function TX86AsmOptimizer.RefModifiedBetween(Ref: TReference; RefSize: ASizeInt; p1, p2: tai): Boolean;
       begin
         Result := (
           (Ref.base <> NR_NO) and
@@ -1397,38 +1810,95 @@ unit aoptx86;
           RegModifiedBetween(Ref.index, p1, p2)
         );
 
-        { Now check to see if the memory itself is written to }
+        { Now check to see if the memory itself may be written to.  A write
+          through another address expression is a write to this memory
+          unless it is certain that it is not: a pointer may look at the
+          variable which is read by name, two pointers at one cell }
         if not Result then
-          begin
-            while assigned(p1) and assigned(p2) and GetNextInstruction(p1,p1) and (p1<>p2) do
-              if p1.typ = ait_instruction then
-                begin
-                  CurrentP1Size := topsize2memsize[taicpu(p1).opsize] shr 3; { Convert to bytes }
-                  with insprop[taicpu(p1).opcode] do
-                    for X := 0 to taicpu(p1).ops - 1 do
-                      if (taicpu(p1).oper[X]^.typ = top_ref) and
-                        RefsAlmostEqual(Ref, taicpu(p1).oper[X]^.ref^) and
-                        { Catch any potential overlaps }
-                        (
-                          (RefSize = 0) or
-                          ((taicpu(p1).oper[X]^.ref^.offset - Ref.offset) < RefSize)
-                        ) and
-                        (
-                          (CurrentP1Size = 0) or
-                          ((Ref.offset - taicpu(p1).oper[X]^.ref^.offset) < CurrentP1Size)
-                        ) and
-                        { Reference is used, but does the instruction write to it? }
-                        (
-                          (Ch_All in Ch) or
-                          ((WriteOps[X] * Ch) <> [])
-                        ) then
-                        begin
-                          Result := True;
-                          Break;
-                        end;
-                end;
-          end;
+          while assigned(p1) and assigned(p2) and GetNextInstruction(p1,p1) and (p1<>p2) do
+            if MayWriteRef(p1, Ref, RefSize) then
+              exit(True);
       end;
+
+
+    function TX86AsmOptimizer.RegKeepsValueBetween(reg: TRegister; p1, p2: tai): Boolean;
+      const
+        { how far back the move is looked for }
+        MaxSteps = 16;
+      var
+        hp, again, before: tai;
+        steps: Integer;
+      begin
+        if not RegModifiedBetween(reg, p1, p2) then
+          exit(True);
+        Result := False;
+        { the one instruction in between which writes the register }
+        again := nil;
+        hp := p1;
+        while GetNextInstruction(hp, hp) and (hp <> p2) do
+          begin
+            if hp.typ <> ait_instruction then
+              exit;
+            if RegModifiedByInstruction(reg, hp) then
+              begin
+                if assigned(again) then
+                  exit;
+                again := hp;
+              end;
+          end;
+        if (hp <> p2) or not assigned(again) or
+          not MatchInstruction(again, A_MOV, [S_L{$ifdef x86_64}, S_Q{$endif x86_64}]) or
+          not MatchOpType(taicpu(again), top_reg, top_reg) or
+          not SuperRegistersEqual(taicpu(again).oper[1]^.reg, reg) or
+          SuperRegistersEqual(taicpu(again).oper[0]^.reg, reg) then
+          exit;
+        { the instruction which has written it last before p1: straight
+          code in between, no label a jump may come to, no call; p1 itself
+          leaves the register as it is }
+        if (p1.typ <> ait_instruction) or RegModifiedByInstruction(reg, p1) then
+          exit;
+        before := p1;
+        steps := 0;
+        repeat
+          if not GetLastInstruction(before, before) or
+            (before.typ <> ait_instruction) or
+            is_calljmp(taicpu(before).opcode) then
+            exit;
+          Inc(steps);
+          if steps > MaxSteps then
+            exit;
+        until RegModifiedByInstruction(reg, before);
+        Result :=
+          (taicpu(before).opcode = A_MOV) and
+          (taicpu(before).opsize = taicpu(again).opsize) and
+          MatchOpType(taicpu(before), top_reg, top_reg) and
+          (taicpu(before).oper[0]^.reg = taicpu(again).oper[0]^.reg) and
+          (taicpu(before).oper[1]^.reg = taicpu(again).oper[1]^.reg) and
+          { the register both moves read has kept its value; p1 stands
+            between the two }
+          not RegModifiedBetween(taicpu(again).oper[0]^.reg, before, again);
+      end;
+
+
+    function TX86AsmOptimizer.RefKeptBetween(const Ref: TReference; RefSize: ASizeInt; p1, p2: tai): Boolean;
+      begin
+        Result := False;
+        if (Ref.base <> NR_NO) and
+{$ifdef x86_64}
+          (Ref.base <> NR_RIP) and
+{$endif x86_64}
+          not RegKeepsValueBetween(Ref.base, p1, p2) then
+          exit;
+        if (Ref.index <> NR_NO) and
+          (Ref.index <> Ref.base) and
+          not RegKeepsValueBetween(Ref.index, p1, p2) then
+          exit;
+        while assigned(p1) and assigned(p2) and GetNextInstruction(p1,p1) and (p1<>p2) do
+          if MayWriteRef(p1, Ref, RefSize) then
+            exit;
+        Result := True;
+      end;
+
 
 {$ifdef DEBUG_AOPTCPU}
     procedure TX86AsmOptimizer.DebugMsg(const s: string;p : tai);
@@ -4387,7 +4857,41 @@ unit aoptx86;
                       op_idx := -1; { Needed to prevent compiler warnings }
                       if (SetAndPassThrough(GetRMReadIndex(hp1),op_idx)<>-1) and
                         (taicpu(hp1).oper[op_idx]^.reg = p_TargetReg) and
-                        not RefModifiedBetween(taicpu(p).oper[0]^.ref^, topsize2memsize[taicpu(p).opsize] shr 3, p, hp1) then
+                        RefModifiedBetween(taicpu(p).oper[0]^.ref^, topsize2memsize[taicpu(p).opsize] shr 3, p, hp1) then
+                        begin
+                          {
+                            mov    ref,reg0           movzx ref,reg1
+                            ...                  ->   ...
+                            movzx  reg0,reg1
+
+                            What stands in between may write the memory
+                            or change the address: the load stays where
+                            it stands, and the extension of what it has
+                            loaded comes up to it.
+                          }
+                          if MatchInstruction(hp1, A_MOVZX, A_MOVSX{$ifdef x86_64}, A_MOVSXD{$endif x86_64}, []) and
+                            MatchOpType(taicpu(hp1), top_reg, top_reg) and
+                            (IsMOVZXAcceptable or (taicpu(hp1).opcode <> A_MOVZX)) and
+                            not RegUsedBetween(taicpu(hp1).oper[1]^.reg, p, hp1) then
+                            begin
+                              TransferUsedRegs(TmpUsedRegs);
+                              UpdateUsedRegsBetween(TmpUsedRegs, tai(p.Next), hp1);
+                              if SuperRegistersEqual(taicpu(hp1).oper[1]^.reg, p_TargetReg) or
+                                not RegUsedAfterInstruction(p_TargetReg, hp1, TmpUsedRegs) then
+                                begin
+                                  DebugMsg(SPeepholeOptimization + 'MovMovXX2MovXX 3 done',p);
+                                  AllocRegBetween(taicpu(hp1).oper[1]^.reg, p, hp1, UsedRegs);
+                                  taicpu(p).opcode := taicpu(hp1).opcode;
+                                  taicpu(p).opsize := taicpu(hp1).opsize;
+                                  taicpu(p).loadreg(1, taicpu(hp1).oper[1]^.reg);
+                                  RemoveInstruction(hp1);
+                                  Result := True;
+                                  Exit;
+                                end;
+                            end;
+                        end
+                      else if (op_idx<>-1) and
+                        (taicpu(hp1).oper[op_idx]^.reg = p_TargetReg) then
                         begin
                           TransferUsedRegs(TmpUsedRegs);
                           UpdateUsedRegsBetween(TmpUsedRegs, tai(p.Next), hp1);
@@ -4729,9 +5233,19 @@ unit aoptx86;
                                       TargetRef := taicpu(hp1).oper[1]^.ref^;
                                       if (taicpu(p).opsize = S_Q) and
                                         not RegUsedAfterInstruction(p_TargetReg, hp1, TmpUsedRegs) and
+                                        { The four moves stand side by side.  On -O3
+                                          hp1 may stand further down: what stands in
+                                          between may write the memory the merged
+                                          load reads earlier or later than the two
+                                          loads did, or change a register of its
+                                          address }
+                                        GetNextInstruction(p, hp3) and (hp3 = hp1) and
                                         GetNextInstruction(hp1, hp2) and
                                         MatchInstruction(hp2, A_MOV, [taicpu(p).opsize]) and
-                                        MatchOpType(taicpu(hp2), top_ref, top_reg) then
+                                        MatchOpType(taicpu(hp2), top_ref, top_reg) and
+                                        { the second load leaves the address of the
+                                          second store as it is }
+                                        not RegInRef(taicpu(hp2).oper[1]^.reg, TargetRef) then
                                         begin
                                           { Delay calling GetNextInstruction(hp2, hp3) for as long as possible }
 
@@ -4750,14 +5264,31 @@ unit aoptx86;
                                               MovUnaligned := A_MOVDQU;
                                             end;
 
+                                          { The merged load reads the second half
+                                            before the first store: the memory of
+                                            the load must not be the one of the
+                                            store.  The moves of one copy of a block
+                                            have no order among themselves: there
+                                            the references have to look apart only }
+                                          TempBool := False;
                                           if RefsEqual(SourceRef, taicpu(hp2).oper[0]^.ref^) and
-                                            not RefsMightOverlap(taicpu(p).oper[0]^.ref^, TargetRef, 16) then
+                                            (
+                                              not RefsMightOverlap(taicpu(p).oper[0]^.ref^, TargetRef, 16) or
+                                              SetAndTest(
+                                                (taicpu(p).blockcopy <> 0) and
+                                                (taicpu(hp1).blockcopy = taicpu(p).blockcopy) and
+                                                (taicpu(hp2).blockcopy = taicpu(p).blockcopy) and
+                                                not BlockCopyMightOverlap(taicpu(p).oper[0]^.ref^, TargetRef, 16),
+                                                TempBool
+                                              )
+                                            ) then
                                             begin
                                               UpdateUsedRegs(TmpUsedRegs, tai(hp2.Next));
                                               Inc(TargetRef.offset, 8);
                                               if GetNextInstruction(hp2, hp3) and
                                                 MatchInstruction(hp3, A_MOV, [taicpu(p).opsize]) and
                                                 MatchOpType(taicpu(hp3), top_reg, top_ref) and
+                                                (not TempBool or (taicpu(hp3).blockcopy = taicpu(p).blockcopy)) and
                                                 (taicpu(hp2).oper[1]^.reg = taicpu(hp3).oper[0]^.reg) and
                                                 RefsEqual(TargetRef, taicpu(hp3).oper[1]^.ref^) and
                                                 not RegUsedAfterInstruction(taicpu(hp2).oper[1]^.reg, hp3, TmpUsedRegs) then
@@ -4975,7 +5506,13 @@ unit aoptx86;
                               SourceRef.index := p_SourceReg;
 
                             { RefsEqual also checks to ensure both references are non-volatile }
-                            if RefsEqual(taicpu(hp1).oper[0]^.ref^, SourceRef) then
+                            if RefsEqual(taicpu(hp1).oper[0]^.ref^, SourceRef) and
+                              { %reg1 holds what the memory held at hp1: the
+                                memory must hold the same at hp2 and the
+                                other register of the address the same
+                                value }
+                              RefKeptBetween(taicpu(hp2).oper[0]^.ref^,
+                                topsize2memsize[taicpu(p).opsize] shr 3, hp1, hp2) then
                               begin
                                 taicpu(hp2).loadreg(0, p_SourceReg);
 
@@ -5116,7 +5653,15 @@ unit aoptx86;
                   { mov reg1, mem1     or     mov mem1, reg1
                     mov mem2, reg1            mov reg2, mem1}
                   begin
-                    if OpsEqual(taicpu(hp1).oper[0]^,taicpu(p).oper[1]^) then
+                    if OpsEqual(taicpu(hp1).oper[0]^,taicpu(p).oper[1]^)
+{$ifdef x86_64}
+                      and not ((taicpu(hp1).opsize=S_L) and (taicpu(hp1).oper[1]^.typ=top_reg))
+{$endif x86_64}
+                      { after "mov (%reg2),%reg2" the second statement stores
+                        through the new reg2, not back to where p read from }
+                      and not ((taicpu(p).oper[0]^.typ=top_ref) and
+                        RegInRef(taicpu(p).oper[1]^.reg,taicpu(p).oper[0]^.ref^))
+                      then
                       { Removes the second statement from
                         mov reg1, mem1/reg2
                         mov mem1/reg2, reg1 }
@@ -5124,10 +5669,22 @@ unit aoptx86;
                         if taicpu(p).oper[0]^.typ=top_reg then
                           AllocRegBetween(taicpu(p).oper[0]^.reg,p,hp1,usedregs);
                         DebugMsg(SPeepholeOptimization + 'MovMov2Mov 1',p);
+
+                        { Whether reg2 dies with the second statement is asked after
+                          that statement: p itself writes reg2, so asked at p,
+                          RegUsedAfterInstruction answers "not used" for every load }
+                        TempBool := taicpu(p).oper[1]^.typ = top_reg;
+                        if TempBool then
+                          begin
+                            TransferUsedRegs(TmpUsedRegs);
+                            UpdateUsedRegsBetween(TmpUsedRegs, tai(p.Next), hp1);
+                            TempBool := not RegUsedAfterInstruction(taicpu(p).oper[1]^.reg, hp1, TmpUsedRegs);
+                          end;
+
                         RemoveInstruction(hp1);
                         Result:=true;
 
-                        if (taicpu(p).oper[1]^.typ = top_reg) then
+                        if TempBool then
                           begin
                             TransferUsedRegs(TmpUsedRegs);
                             if not RegUsedAfterInstruction(taicpu(p).oper[1]^.reg, p, TmpUsedRegs) then
@@ -5351,9 +5908,12 @@ unit aoptx86;
                           become deallocated (otherwise GetNextInstructionUsingReg would
                           have stopped at an earlier instruction). [Kit] }
 
+                        { The search starts after hp1 and never rewrites it: hp1
+                          may still read %treg (cmp %treg,%reg, or a reader that
+                          only became the next instruction in this pass) }
                         TempRegUsed :=
                           CrossJump { Assume the register is in use if it crossed a conditional jump } or
-                          RegReadByInstruction(p_TargetReg, hp3) or
+                          RegUsedBetween(p_TargetReg, p, hp2) or
                           RegUsedAfterInstruction(p_TargetReg, hp2, TmpUsedRegs);
 
                         case taicpu(p).oper[0]^.typ Of
@@ -5532,7 +6092,7 @@ unit aoptx86;
                       begin
                         TempRegUsed :=
                           CrossJump { Assume the register is in use if it crossed a conditional jump } or
-                          RegReadByInstruction(p_TargetReg, hp3) or
+                          RegUsedBetween(p_TargetReg, p, hp2) or
                           RegUsedAfterInstruction(p_TargetReg, hp2, TmpUsedRegs);
 
                         taicpu(hp2).opsize := S_L;
@@ -5671,6 +6231,9 @@ unit aoptx86;
                             { If a conditional jump was crossed, do not delete
                               the original MOV no matter what }
                             if not CrossJump and
+                              { nor while hp1, where the search started, still
+                                reads it }
+                              not RegUsedBetween(p_TargetReg, p, hp2) and
                               { RegEndOfLife returns True if the register is
                                 deallocated before the next instruction or has
                                 been loaded with a new value }
@@ -10835,6 +11398,12 @@ unit aoptx86;
             Exit;
         end;
 
+      { Two operands which are not written alike may still be one cell of
+        memory: a write goes past no read or write which may be of its
+        memory }
+      if not MemoryOrderFree(p, hp1) then
+        Exit;
+
       { The instruction can be safely moved }
       asml.Remove(hp1);
 
@@ -15914,6 +16483,13 @@ unit aoptx86;
 
                     taicpu(hp1).loadoper(1, taicpu(p).oper[0]^);
                     if AndTest then
+                      RemoveInstruction(hp2);
+                    { The value is not used: what is left of an AND are its
+                      flags, and TEST gives them.  An AND would write the
+                      operand the value was read from - the variable, or the
+                      register which holds it }
+                    if not RegUsed and
+                      (AndTest or (taicpu(hp1).opcode = A_AND)) then
                       begin
                         RemoveInstruction(hp2);
                         if not RegUsed then
@@ -17141,6 +17717,17 @@ unit aoptx86;
                   RegModifiedBetween(taicpu(p).oper[0]^.reg, p, hp1)
                 ) then
                   begin
+                    { The load goes up past what stands in between, and
+                      the registers of its address have other values
+                      there: no write to memory may stand in between.
+                      Nor may anything in between read or write the
+                      register it loads: the load now comes first, and
+                      "add %rdx,%rdi; add $1,%rdx; mov (%rdi),%rdx"
+                      would add 1 to the value loaded }
+                    if MemoryWrittenBetween(p, hp1) or
+                      RegUsedBetween(taicpu(hp1).oper[1]^.reg, p, hp1) then
+                      Exit;
+
                     { If the other register is used in between, move the MOV
                       instruction to right after the ADD instruction so a
                       saving can still be made }

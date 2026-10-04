@@ -938,6 +938,10 @@ interface
 {$endif x86}
            { true if instruction is a jmp }
            is_jmp    : boolean; { is this instruction a jump? (needed for optimizer) }
+           { the copy of a block of memory this move is a part of, 0 if it is
+             none: the moves of one assignment of a record or a set have no
+             order among themselves, the moves of two statements have }
+           blockcopy : word;
            Constructor Create(op : tasmop);virtual;
            Destructor Destroy;override;
            function getcopy:TLinkedListItem;override;
