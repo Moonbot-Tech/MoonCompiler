@@ -135,7 +135,7 @@ Begin
      { Reopen with filemode 2, to be Tp compatible (PFV) }
 {$ifdef USE_FILEREC_FULLNAME}
      if Assigned(FileRec(f).FullName) then
-       Do_Open(f,FileRec(f).FullName,$1002,false)
+       Do_Open(f,PFileTextRecChar(FileRec(f).FullName),$1002,false)
      else
 {$endif USE_FILEREC_FULLNAME}
        Do_Open(f,PFileTextRecChar(@FileRec(f).Name),$1002,false);
@@ -164,7 +164,7 @@ Begin
    Begin
 {$ifdef USE_FILEREC_FULLNAME}
      if Assigned(FileRec(f).FullName) then
-       Do_Open(f,FileRec(f).FullName,Filemode,false)
+       Do_Open(f,PFileTextRecChar(FileRec(f).FullName),Filemode,false)
      else
 {$endif USE_FILEREC_FULLNAME}
        Do_Open(f,PFileTextRecChar(@FileRec(f).Name),Filemode,false);
@@ -432,9 +432,7 @@ Function FilePos(var f:File):Int64;[IOCheck];
   Return current Position In file f in records
 }
 Begin
-  FilePos:=0;
-  If InOutRes <> 0 then
-   exit;
+  FilePos:=-1;
   case FileRec(f).Mode of
     fmInOut,fmInput,fmOutput :
       FilePos:=Do_FilePos(FileRec(f).Handle) div FileRec(f).RecSize;
@@ -456,7 +454,10 @@ Begin
         if (FileRec(f).RecSize>0) then
           FileSize:=Do_FileSize(FileRec(f).Handle) div FileRec(f).RecSize;
       end;
-    else InOutRes:=103;
+    else begin
+      FileSize:=-1;
+      InOutRes:=103;
+    end;
   end;
 End;
 
@@ -466,9 +467,7 @@ Function Eof(var f:File):Boolean;[IOCheck];
   Return True if we're at the end of the file f, else False is returned
 }
 Begin
-  Eof:=false;
-  If InOutRes <> 0 then
-   exit;
+  Eof:=true;
   case FileRec(f).Mode of
     {Can't use do_ routines because we need record support}
     fmInOut,fmInput,fmOutput : Eof:=(FileSize(f)<=FilePos(f));
@@ -536,7 +535,6 @@ End;
 
 {$ifdef FPC_HAS_FEATURE_WIDESTRINGS}
 Procedure Rename(var f : File; const S : UnicodeString);[IOCheck];
-{$ifdef FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
 var
 {$ifdef FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
   fs: RawByteString;

@@ -301,7 +301,6 @@ End;
 
 {$ifdef FPC_HAS_FEATURE_WIDESTRINGS}
 Procedure Rename(var t : Text;const s : unicodestring);[IOCheck];
-{$ifdef FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
 var
 {$ifdef FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
   fs: RawByteString;
