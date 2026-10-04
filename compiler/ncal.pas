@@ -5913,6 +5913,24 @@ implementation
     function tcallnode.pass_1: tnode;
       var
         para: tcallparanode;
+
+      function empty_inherited_constructor: boolean;
+        var
+          body: tnode;
+        begin
+          result:=false;
+          if (procdefinition.proctypeoption<>potype_constructor) or
+             not(cnf_inherited in callnodeflags) or
+             not is_class(tprocdef(procdefinition).struct) or
+             not assigned(methodpointer) or not is_class(methodpointer.resultdef) or
+             not assigned(call_self_node) or might_have_sideeffects(call_self_node,[mhs_exceptions]) or
+             assigned(callinitblock) or assigned(callcleanupblock) or
+             not tprocdef(procdefinition).has_inlininginfo then
+            exit;
+          body:=tprocdef(procdefinition).inlininginfo^.code;
+          result:=(body.nodetype=blockn) and (tblocknode(body).statements=nil);
+        end;
+
       begin
          result:=simplify(false);
 
@@ -5939,7 +5957,7 @@ implementation
          if (cs_opt_remove_empty_proc in current_settings.optimizerswitches) and
             not(cnf_return_value_used in callnodeflags) and
            (procdefinition.typ=procdef) and
-           tprocdef(procdefinition).isempty and
+           (tprocdef(procdefinition).isempty or empty_inherited_constructor) and
            { allow only certain proc options }
            ((tprocdef(procdefinition).procoptions-[po_none,po_classmethod,po_staticmethod,
              po_interrupt,po_iocheck,po_assembler,po_msgstr,po_msgint,po_exports,po_external,po_overload,
@@ -5952,6 +5970,10 @@ implementation
              while assigned(para) do
                begin
                  if (para.parasym.typ = paravarsym) and
+                    { Constructor Self/mode are still placeholder nodes here;
+                      the proven inherited entry uses Self without effects and mode=0. }
+                    not((procdefinition.proctypeoption=potype_constructor) and
+                        ((para.parasym.varoptions*[vo_is_self,vo_is_vmt])<>[])) and
                     ((para.parasym.refs>0) or
                     { array of consts are converted later on so we need to skip them here
                       else no error detection is done }

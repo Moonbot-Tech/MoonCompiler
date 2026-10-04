@@ -1358,6 +1358,40 @@ implementation
         hpi : tprocinfo;
         updated,
         RedoDFA : boolean;
+
+       function empty_constructor_entry: boolean;
+         var
+           j: longint;
+           sym: tsym;
+           para: tparavarsym;
+         begin
+           result:=false;
+           if (procdef.proctypeoption<>potype_constructor) or not is_class(procdef.struct) or
+              procdef.has_inlininginfo or has_nestedprocs or procdef.has_capturer or
+              assigned(tobjectdef(procdef.struct).auto_prop_init_fields) or
+              (cs_profile in current_settings.moduleswitches) or
+              (cs_check_stack in entryswitches) or
+              (pio_zeroinit in procdef.implprocoptions) or
+              ((flags*[pi_needs_implicit_finally,pi_has_assembler_block,pi_is_assembler])<>[]) then
+             exit;
+           { Implicit local Initialize/Finalize runs outside the source body. }
+           for j:=0 to procdef.localst.SymList.Count-1 do
+             begin
+               sym:=tsym(procdef.localst.SymList[j]);
+               if (sym.typ=localvarsym) and is_managed_type(tlocalvarsym(sym).vardef) then
+                 exit;
+             end;
+           for j:=0 to procdef.paras.Count-1 do
+             begin
+               para:=tparavarsym(procdef.paras[j]);
+               if not(vo_is_hidden_para in para.varoptions) and
+                  ((para.varspez=vs_out) or is_managed_type(para.vardef) or
+                   (para.vardef.typ in [arraydef,recorddef])) then
+                 exit;
+             end;
+           result:=true;
+         end;
+
       begin
        { inlining is a heuristics, so we do this very early }
        do_optinline(code,updated);
@@ -1503,6 +1537,14 @@ implementation
          (procdef.proctypeoption in [potype_operator,potype_procedure,potype_function]) and
          (code.nodetype=blockn) and (tblocknode(code).statements=nil) then
          procdef.isempty:=true;
+
+       if (cs_opt_remove_empty_proc in current_settings.optimizerswitches) and
+          (code.nodetype=blockn) and (tblocknode(code).statements=nil) and
+          empty_constructor_entry then
+         { Persist the proven mode=0 body through the existing PPU node-tree
+           metadata. Do not set po_inline or isempty: the allocating entry,
+           constructor hooks and VMT target still require the real wrapper. }
+         CreateInlineInfo;
 
        if cs_opt_nodecse in current_settings.optimizerswitches then
          do_optcse(code);
