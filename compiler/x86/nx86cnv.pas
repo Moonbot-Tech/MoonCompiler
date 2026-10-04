@@ -281,6 +281,14 @@ implementation
           begin
             location_reset(location,LOC_MMREGISTER,def_cgsize(resultdef));
             location.register:=cg.getmmregister(current_asmdata.CurrAsmList,location.size);
+            { Scalar conversions preserve the upper lanes (VEX copies them
+              from the second source, also the destination here). Break the
+              dependency on the previous value of the physical register so
+              independent loop iterations need not wait for each other. }
+            if UseAVX then
+              emit_reg_reg_reg(A_VXORPS,S_NO,location.register,location.register,location.register)
+            else
+              emit_reg_reg(A_XORPS,S_NO,location.register,location.register);
             if UseAVX then
               case location.size of
                 OS_F32:

@@ -138,16 +138,30 @@ implementation
 
     procedure tx8664typeconvnode.second_int_to_real;
       var
-         href : treference;
          l1,l2 : tasmlabel;
          op : tasmop;
+         shiftedreg,stickyreg : tregister;
+
+      procedure emit_signed_conversion(reg : tregister);
+        begin
+          if UseAVX then
+            current_asmdata.CurrAsmList.concat(taicpu.op_reg_reg_reg(op,S_Q,reg,location.register,location.register))
+          else
+            current_asmdata.CurrAsmList.concat(taicpu.op_reg_reg(op,S_Q,reg,location.register));
+        end;
       begin
         if use_vectorfpu(resultdef) and not(FPUX86_HAS_AVX512F in fpu_capabilities[current_settings.fputype]) then
           begin
             if is_double(resultdef) then
-              op:=A_CVTSI2SD
+              if UseAVX then
+                op:=A_VCVTSI2SD
+              else
+                op:=A_CVTSI2SD
             else if is_single(resultdef) then
-              op:=A_CVTSI2SS
+              if UseAVX then
+                op:=A_VCVTSI2SS
+              else
+                op:=A_CVTSI2SS
             else
               internalerror(200506061);
 
@@ -157,62 +171,42 @@ implementation
             case torddef(left.resultdef).ordtype of
               u64bit:
                 begin
-                   { unsigned 64 bit ints are harder to handle:
-                     we load bits 0..62 and then check bit 63:
-                     if it is 1 then we add $80000000 000000000
-                     as double                                  }
-                   current_asmdata.getdatalabel(l1);
+                   { CVTSI2S* only accepts signed integers.  Converting the
+                     negative interpretation first and adding 2^64 afterwards
+                     loses the discarded low bits before the final unsigned
+                     value is formed.  For the high half, preserve them as a
+                     sticky bit, convert the resulting positive Int64 once,
+                     then scale by two. }
+                   current_asmdata.getjumplabel(l1);
                    current_asmdata.getjumplabel(l2);
-
-                   { Get sign bit }
-                   if not(left.location.loc in [LOC_REGISTER,LOC_REFERENCE]) then
-                     hlcg.location_force_reg(current_asmdata.CurrAsmList,left.location,left.resultdef,left.resultdef,false);
-                   case left.location.loc of
-                     LOC_REGISTER :
-                       begin
-                         cg.a_reg_alloc(current_asmdata.CurrAsmList,NR_DEFAULTFLAGS);
-                         emit_const_reg(A_BT,S_Q,63,left.location.register);
-                         current_asmdata.CurrAsmList.concat(taicpu.op_reg_reg(op,S_Q,left.location.register,location.register));
-                       end;
-                     LOC_REFERENCE :
-                       begin
-                         href:=left.location.reference;
-                         tcgx86(cg).make_simple_ref(current_asmdata.CurrAsmList,href);
-                         inc(href.offset,4);
-                         cg.a_reg_alloc(current_asmdata.CurrAsmList,NR_DEFAULTFLAGS);
-                         emit_const_ref(A_BT,S_L,31,href);
-                         dec(href.offset,4);
-                         current_asmdata.CurrAsmList.concat(taicpu.op_ref_reg(op,S_Q,href,location.register));
-                       end;
-                     else
-                       internalerror(200710181);
-                   end;
-
-                   cg.a_jmp_flags(current_asmdata.CurrAsmList,F_NC,l2);
-                   cg.a_reg_dealloc(current_asmdata.CurrAsmList,NR_DEFAULTFLAGS);
-                   new_section(current_asmdata.asmlists[al_typedconsts],sec_rodata_norel,l1.name,const_align(sizeof(pint)));
-                   current_asmdata.asmlists[al_typedconsts].concat(Tai_label.Create(l1));
-                   reference_reset_symbol(href,l1,0,4,[]);
-                   { simplify for PIC }
-                   tcgx86(cg).make_simple_ref(current_asmdata.CurrAsmList,href);
-
-                   { I got these constant from a test program (FK) }
-                   if is_double(resultdef) then
-                     begin
-                       { double (2^64) }
-                       current_asmdata.asmlists[al_typedconsts].concat(Tai_const.Create_32bit(0));
-                       current_asmdata.asmlists[al_typedconsts].concat(Tai_const.Create_32bit($43f00000));
-                       tcgx86(cg).make_simple_ref(current_asmdata.CurrAsmList,href);
-                       current_asmdata.CurrAsmList.concat(taicpu.op_ref_reg(A_ADDSD,S_NO,href,location.register));
-                     end
-                   else if is_single(resultdef) then
-                     begin
-                       { single(2^64) }
-                       current_asmdata.asmlists[al_typedconsts].concat(Tai_const.Create_32bit($5f800000));
-                       current_asmdata.CurrAsmList.concat(taicpu.op_ref_reg(A_ADDSS,S_NO,href,location.register));
-                     end
+                   { both conversions below write only the low lane: zero the
+                     register first (tx86typeconvnode.second_int_to_real) }
+                   if UseAVX then
+                     emit_reg_reg_reg(A_VXORPS,S_NO,location.register,location.register,location.register)
                    else
-                     internalerror(200506071);
+                     emit_reg_reg(A_XORPS,S_NO,location.register,location.register);
+
+                   if not(left.location.loc in [LOC_REGISTER,LOC_CREGISTER]) then
+                     hlcg.location_force_reg(current_asmdata.CurrAsmList,left.location,left.resultdef,left.resultdef,false);
+                   cg.a_reg_alloc(current_asmdata.CurrAsmList,NR_DEFAULTFLAGS);
+                   emit_const_reg(A_BT,S_Q,63,left.location.register);
+                   cg.a_jmp_flags(current_asmdata.CurrAsmList,F_NC,l1);
+                   cg.a_reg_dealloc(current_asmdata.CurrAsmList,NR_DEFAULTFLAGS);
+
+                   shiftedreg:=cg.getintregister(current_asmdata.CurrAsmList,OS_64);
+                   stickyreg:=cg.getintregister(current_asmdata.CurrAsmList,OS_64);
+                   cg.a_load_reg_reg(current_asmdata.CurrAsmList,OS_64,OS_64,left.location.register,shiftedreg);
+                   cg.a_load_reg_reg(current_asmdata.CurrAsmList,OS_64,OS_64,left.location.register,stickyreg);
+                   cg.a_op_const_reg(current_asmdata.CurrAsmList,OP_SHR,OS_64,1,shiftedreg);
+                   cg.a_op_const_reg(current_asmdata.CurrAsmList,OP_AND,OS_64,1,stickyreg);
+                   cg.a_op_reg_reg(current_asmdata.CurrAsmList,OP_OR,OS_64,stickyreg,shiftedreg);
+                   emit_signed_conversion(shiftedreg);
+                   cg.a_opmm_reg_reg(current_asmdata.CurrAsmList,OP_ADD,location.size,
+                     location.register,location.register,mms_movescalar);
+                   cg.a_jmp_always(current_asmdata.CurrAsmList,l2);
+
+                   cg.a_label(current_asmdata.CurrAsmList,l1);
+                   emit_signed_conversion(left.location.register);
                    cg.a_label(current_asmdata.CurrAsmList,l2);
                 end
               else

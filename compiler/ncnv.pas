@@ -1706,7 +1706,16 @@ implementation
         result:=nil;
         if left.nodetype=ordconstn then
          begin
-           rv:=tordconstnode(left).value;
+           if not(is_currency(resultdef)) and
+              not(is_currency(left.resultdef)) and
+              (tfloatdef(resultdef).floattype=s32real) then
+             rv:=tordconstnode(left).value.to_ieee754_single
+           else if not(is_currency(resultdef)) and
+                   not(is_currency(left.resultdef)) and
+                   (tfloatdef(resultdef).floattype=s64real) then
+             rv:=tordconstnode(left).value.to_ieee754_double
+           else
+             rv:=tordconstnode(left).value;
            if is_currency(resultdef) and
                not(nf_internal in flags) then
               rv:=rv*10000.0

@@ -762,7 +762,14 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
         if is_constrealnode(node) then
           value:=trealconstnode(node).value_real
         else if is_constintnode(node) then
-          value:=tordconstnode(node).value
+          case def.floattype of
+            s32real:
+              value:=tordconstnode(node).value.to_ieee754_single;
+            s64real:
+              value:=tordconstnode(node).value.to_ieee754_double;
+            else
+              value:=tordconstnode(node).value;
+          end
         else if is_constnode(node) then
           IncompatibleTypes(node.resultdef, def)
         else

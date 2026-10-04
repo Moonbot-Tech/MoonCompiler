@@ -55,6 +55,11 @@ type  Tconstexprint=record
         function extract_sign_abs(out abslo,abshi: qword): boolean;
         procedure div_or_mod(const by: Tconstexprint; isdiv: boolean; out r: Tconstexprint);
         function tobestreal: bestreal;
+        { correctly rounded IEEE-754 binary payload for this exact integer;
+          used by target-independent constant evaluation }
+        function to_ieee754_bits(fractionbits,exponentbits: byte): qword;
+        function to_ieee754_single: single;
+        function to_ieee754_double: double;
         { true when the value lies in low(int64)..high(qword), i.e. the range
           supported before 128 bit constants existed }
         function representable64: boolean;
@@ -349,6 +354,124 @@ begin
       else
         result:=bestreal(mhi)*two64+bestreal(mlo);
     end;
+end;
+
+function Tconstexprint.to_ieee754_bits(fractionbits,exponentbits: byte): qword;
+var
+  mlo,mhi,q,remlo,remhi,halflo,halfhi,mask: qword;
+  precision,e,k,shift,maxexponent,bias,signbit: longint;
+  negative,roundup: boolean;
+
+  function lowmask(bits: longint): qword; inline;
+  begin
+    if bits=0 then
+      result:=0
+    else if bits>=64 then
+      result:=high(qword)
+    else
+      result:=high(qword) shr (64-bits);
+  end;
+
+  function highestbit(v: qword): longint; inline;
+  begin
+    result:=-1;
+    while v<>0 do
+      begin
+        inc(result);
+        v:=v shr 1;
+      end;
+  end;
+
+begin
+  if overflow then
+    internalerrorproc(2026091001);
+  precision:=fractionbits+1;
+  if (fractionbits<1) or (precision>=64) or
+     (exponentbits<2) or (fractionbits+exponentbits>=64) then
+    internalerrorproc(2026091002);
+
+  negative:=extract_sign_abs(mlo,mhi);
+  signbit:=fractionbits+exponentbits;
+  if (mlo or mhi)=0 then
+    begin
+      result:=0;
+      exit;
+    end;
+
+  if mhi<>0 then
+    e:=64+highestbit(mhi)
+  else
+    e:=highestbit(mlo);
+  k:=e-(precision-1);
+  if k<=0 then
+    q:=mlo shl (-k)
+  else
+    begin
+      if k<64 then
+        q:=(mhi shl (64-k)) or (mlo shr k)
+      else
+        q:=mhi shr (k-64);
+
+      remlo:=0;
+      remhi:=0;
+      halflo:=0;
+      halfhi:=0;
+      if k<64 then
+        begin
+          remlo:=mlo and lowmask(k);
+          halflo:=qword(1) shl (k-1);
+        end
+      else if k=64 then
+        begin
+          remlo:=mlo;
+          halflo:=qword(1) shl 63;
+        end
+      else
+        begin
+          shift:=k-64;
+          remlo:=mlo;
+          remhi:=mhi and lowmask(shift);
+          halfhi:=qword(1) shl (shift-1);
+        end;
+      roundup:=(remhi>halfhi) or
+        ((remhi=halfhi) and ((remlo>halflo) or
+          ((remlo=halflo) and odd(q))));
+      if roundup then
+        inc(q);
+      if q=(qword(1) shl precision) then
+        begin
+          q:=q shr 1;
+          inc(e);
+        end;
+    end;
+
+  maxexponent:=(1 shl exponentbits)-1;
+  bias:=(1 shl (exponentbits-1))-1;
+  if e+bias>=maxexponent then
+    result:=qword(maxexponent) shl fractionbits
+  else
+    begin
+      mask:=lowmask(fractionbits);
+      result:=(qword(e+bias) shl fractionbits) or (q and mask);
+    end;
+  if negative then
+    result:=result or (qword(1) shl signbit);
+end;
+
+function Tconstexprint.to_ieee754_single: single;
+var
+  bits: longword;
+begin
+  bits:=longword(to_ieee754_bits(23,8));
+  move(bits,result,sizeof(result));
+end;
+
+function Tconstexprint.to_ieee754_double: double;
+var
+  bits: qword;
+begin
+  bits:=to_ieee754_bits(52,11);
+  move(bits,result,sizeof(result));
 end;
 
 function int128_low:Tconstexprint;
