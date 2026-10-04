@@ -1335,6 +1335,10 @@ implementation
           case p.nodetype of
             subscriptn:
               begin
+                { An instance field exposes the pointee, not the storage holding
+                  its pointer.  Scope tracking still follows the base expression. }
+                if is_implicit_pointer_object_type(tsubscriptnode(p).left.resultdef) then
+                  exclude(how,ra_addr_taken);
                 records_only:=true;
                 p:=tsubscriptnode(p).left;
               end;
