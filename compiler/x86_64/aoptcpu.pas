@@ -31,7 +31,10 @@ uses cpubase, aasmtai, cgbase, aopt, aoptx86;
 
 type
   TCpuAsmOptimizer = class(TX86AsmOptimizer)
+  private
     function OptPass1DIV(var p: tai): Boolean;
+    function PostPeepholeOptImm64(var p: tai): Boolean;
+  public
     function PrePeepHoleOptsCpu(var p: tai): boolean; override;
     function PeepHoleOptPass1Cpu(var p: tai): boolean; override;
     function PeepHoleOptPass2Cpu(var p: tai): boolean; override;
@@ -43,7 +46,163 @@ implementation
 uses
   globals,
   globtype,
-  aasmcpu;
+  aasmcpu,
+  aasmbase,
+  cgutils,
+  paramgr,
+  procinfo;
+
+    function TCpuAsmOptimizer.PostPeepholeOptImm64(var p: tai): Boolean;
+      const
+        MaxMaterializations = 16;
+        MaxInstructions = 64;
+        Metadata = [ait_comment,ait_regalloc,ait_tempalloc,ait_force_line];
+      var
+        Loads, Consumers: array[0..MaxMaterializations-1] of tai;
+        Count, Insns, I, SuperReg: Integer;
+        Scan, Consumer, Start, Previous, NewLoad: tai;
+        Value: TCGInt;
+        SharedReg: TRegister;
+        RegSet: TCPURegisterSet;
+        FreeRange: Boolean;
+
+      function NextLocalInstruction(Current: tai): tai;
+        begin
+          Result:=tai(Current.Next);
+          while Assigned(Result) and (Result.typ in Metadata) do
+            Result:=tai(Result.Next);
+          if not Assigned(Result) or (Result.typ<>ait_instruction) then
+            Result:=nil;
+        end;
+
+      function IsMaterialization(Current: tai; out Use: tai): Boolean;
+        begin
+          Result:=False;
+          Use:=nil;
+          if not MatchInstruction(Current,A_MOV,[S_Q]) or
+            (taicpu(Current).ops<>2) or
+            (taicpu(Current).oper[0]^.typ<>top_const) or
+            (taicpu(Current).oper[1]^.typ<>top_reg) or
+            (taicpu(Current).oper[0]^.val<>Value) then
+            exit;
+          Use:=NextLocalInstruction(Current);
+          { A two-operand IMUL reads the constant and writes only the other
+            register. }
+          Result:=Assigned(Use) and MatchInstruction(Use,A_IMUL,[S_Q]) and
+            (taicpu(Use).ops=2) and
+            MatchOperand(taicpu(Use).oper[0]^,taicpu(Current).oper[1]^) and
+            (taicpu(Use).oper[1]^.typ=top_reg) and
+            not SuperRegistersEqual(taicpu(Use).oper[0]^.reg,taicpu(Use).oper[1]^.reg) and
+            RegEndOfLife(taicpu(Current).oper[1]^.reg,taicpu(Use));
+        end;
+
+      begin
+        Result:=False;
+        if not MatchInstruction(p,A_MOV,[S_Q]) or
+          (taicpu(p).ops<>2) or
+          (taicpu(p).oper[0]^.typ<>top_const) or
+          (taicpu(p).oper[1]^.typ<>top_reg) then
+          exit;
+        Value:=taicpu(p).oper[0]^.val;
+        { Keep encodable 32-bit constants on the existing lowering. }
+        if (Value>=-2147483648) and (Value<=Int64($FFFFFFFF)) then
+          exit;
+        if not IsMaterialization(p,Consumer) then
+          exit;
+        Count:=1;
+        Consumers[0]:=Consumer;
+        Insns:=0;
+        Scan:=Consumer;
+        while (Count<MaxMaterializations) and (Insns<MaxInstructions) do
+          begin
+            Scan:=NextLocalInstruction(Scan);
+            if not Assigned(Scan) or
+              not MatchInstruction(Scan,[A_MOV,A_LEA,A_ADD,A_SUB,A_XOR,A_AND,A_OR,
+                A_SHL,A_SHR,A_SAR,A_IMUL,A_CMP,A_TEST],[]) then
+              break;
+            Inc(Insns);
+            if IsMaterialization(Scan,Consumer) then
+              begin
+                Loads[Count]:=Scan;
+                Consumers[Count]:=Consumer;
+                Inc(Count);
+              end;
+          end;
+        if Count<2 then
+          exit;
+
+        { An already free volatile physical register cannot introduce a spill
+          or a save/restore.  Inspect raw allocation nodes and both endpoints. }
+        SharedReg:=NR_NO;
+        RegSet:=paramanager.get_volatile_registers_int(current_procinfo.procdef.proccalloption);
+        for SuperReg in RegSet do
+          begin
+            SharedReg:=newreg(R_INTREGISTER,TSuperRegister(SuperReg),R_SUBQ);
+            if RegInUsedRegs(SharedReg,UsedRegs) then
+              continue;
+            FreeRange:=True;
+            Scan:=p;
+            repeat
+              if ((Scan.typ=ait_instruction) and RegInInstruction(SharedReg,Scan)) or
+                ((Scan.typ=ait_regalloc) and
+                 (tai_regalloc(Scan).ratype<>ra_dealloc) and
+                 SuperRegistersEqual(SharedReg,tai_regalloc(Scan).reg)) then
+                begin
+                  FreeRange:=False;
+                  break;
+                end;
+              if Scan=Consumers[Count-1] then
+                break;
+              Scan:=tai(Scan.Next);
+            until not Assigned(Scan);
+            if FreeRange and Assigned(Scan) then
+              break;
+            SharedReg:=NR_NO;
+          end;
+        if (SharedReg=NR_NO) or RegInUsedRegs(SharedReg,UsedRegs) then
+          exit;
+
+        { Move only a pure immediate load, never an arithmetic operation or a
+          memory access.  Stop at every label, boundary and register lifetime. }
+        Start:=p;
+        Previous:=tai(Start.Previous);
+        Insns:=0;
+        while Assigned(Previous) and (Insns<MaxInstructions) do
+          begin
+            if Previous.typ in Metadata then
+              begin
+                if (Previous.typ=ait_regalloc) and
+                  SuperRegistersEqual(SharedReg,tai_regalloc(Previous).reg) then
+                  break;
+              end
+            else if (Previous.typ=ait_instruction) and
+              MatchInstruction(Previous,[A_MOV,A_LEA,A_ADD,A_SUB,A_XOR,A_AND,A_OR,
+                A_SHL,A_SHR,A_SAR,A_IMUL],[]) and
+              not RegInInstruction(SharedReg,Previous) and
+              not RegInInstruction(NR_STACK_POINTER_REG,Previous) then
+              begin
+                Start:=Previous;
+                Inc(Insns);
+              end
+            else
+              break;
+            Previous:=tai(Previous.Previous);
+          end;
+
+        NewLoad:=taicpu.op_const_reg(A_MOV,S_Q,Value,SharedReg);
+        taicpu(NewLoad).fileinfo:=taicpu(p).fileinfo;
+        AsmL.InsertBefore(NewLoad,Start);
+        AllocRegBetween(SharedReg,NewLoad,Consumers[Count-1],UsedRegs);
+        for I:=0 to Count-1 do
+          begin
+            taicpu(Consumers[I]).loadreg(0,SharedReg);
+            if I>0 then
+              RemoveInstruction(Loads[I]);
+          end;
+        RemoveCurrentP(p,Consumers[0]);
+        Result:=True;
+      end;
+
     function TCpuAsmOptimizer.OptPass1DIV(var p: tai): Boolean;
       var
         FirstSetup,
@@ -421,7 +580,11 @@ uses
             begin
               case taicpu(p).opcode of
                 A_MOV:
-                  Result:=PostPeepholeOptMov(p);
+                  begin
+                    Result:=PostPeepholeOptImm64(p);
+                    if not Result then
+                      Result:=PostPeepholeOptMov(p);
+                  end;
                 A_AND:
                   Result:=PostPeepholeOptAnd(p);
                 A_MOVSX,
