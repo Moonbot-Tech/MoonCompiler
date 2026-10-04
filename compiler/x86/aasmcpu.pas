@@ -4470,6 +4470,10 @@ implementation
             &40,&41,&42 :    // 040..042
               begin
                 getvalsym(c-&40);
+{$ifdef x86_64}
+                if (currval<-4294967296) or (currval>4294967295) then
+                 Message2(asmw_e_value_exceeds_bounds,'dword',tostr(currval));
+{$endif x86_64}
                 if assigned(currsym)
 {$ifdef i8086}
                    or (currabsreloc in [RELOC_DGROUP,RELOC_FARDATASEG])
@@ -4721,6 +4725,17 @@ implementation
                    if not process_ea(oper[opidx]^,ea_data,rfield, EVEXTupleState = etsNotTuple) then
 {$endif x86_64}
                     Message(asmw_e_invalid_effective_address);
+{$ifdef x86_64}
+                   { a 64-bit address takes its displacement sign-extended from 32 bits
+                     and process_ea keeps the low half only; a 32-bit address, and an
+                     address a lea narrows to 32 or 16 bits, wraps with it }
+                   if (oper[opidx]^.typ=top_ref) and
+                      (getsubreg(oper[opidx]^.ref^.base)<>R_SUBD) and
+                      (getsubreg(oper[opidx]^.ref^.index)<>R_SUBD) and
+                      ((opcode<>A_LEA) or (opsize=S_Q)) and
+                      ((oper[opidx]^.ref^.offset<low(longint)) or (oper[opidx]^.ref^.offset>high(longint))) then
+                    Message2(asmw_e_value_exceeds_bounds,'signed dword',tostr(oper[opidx]^.ref^.offset));
+{$endif x86_64}
 
 
                    pb:=@bytes[0];

@@ -148,6 +148,10 @@ type
     is_prefix: boolean; { was it a prefix, possible prefixes are +,- and not }
    end;
 
+   { whose rules give the expression its value: GNU as for the AT&T readers,
+     TP/Delphi BASM for the x86 Intel reader, the historical ranks for the rest }
+   TExprSyntax = (exs_legacy, exs_intel, exs_gnu);
+
   {**********************************************************************}
   { The following operators are supported:                              }
   {  '+' : addition                                                     }
@@ -168,11 +172,12 @@ type
 
   TExprParse = class
     public
-     Constructor create;
+     Constructor create(asyntax: TExprSyntax);
      Destructor Destroy;override;
      Function Evaluate(Expr:  String): tcgint;
-     Function Priority(_Operator: Char): aint;
+     Function Priority(_Operator: Char; prefix: boolean): aint;
     private
+     syntax     : TExprSyntax;
      RPNStack   : Array[1..RPNMax] of tcgint;        { Stack For RPN calculator }
      RPNTop     : tcgint;
      OpStack    : Array[1..OpMax] of TExprOperator;    { Operator stack For conversion }
@@ -186,14 +191,13 @@ type
   end;
 
   { Evaluate an expression string to a tcgint }
-  Function CalculateExpression(const expression: string): tcgint;
+  Function CalculateExpression(const expression: string; syntax: TExprSyntax = exs_legacy): tcgint;
 
   {---------------------------------------------------------------------}
   {                     String routines                                 }
   {---------------------------------------------------------------------}
 
 Function ParseVal(const S:String;base:byte):tcgint;
-Function PadZero(Var s: String; n: byte): Boolean;
 Function EscapeToPascal(const s:string): string;
 
 {---------------------------------------------------------------------
@@ -234,8 +238,9 @@ uses
                               TExprParse
 *************************************************************************}
 
-Constructor TExprParse.create;
+Constructor TExprParse.create(asyntax: TExprSyntax);
 Begin
+  syntax:=asyntax;
 end;
 
 
@@ -305,42 +310,52 @@ begin
         RPNPush(n2 or n1);
       end;
     '~' : RPNPush(NOT RPNPop);
-    '<' :
+    '<','>' :
       begin
         n1:=RPNPop;
         n2:=RPNPop;
-        RPNPush(n2 SHL n1);
-      end;
-    '>' :
-      begin
-        n1:=RPNPop;
-        n2:=RPNPop;
-        RPNPush(n2 SHR n1);
-      end;
-    '%' :
-      begin
-        Temp:=RPNPop;
-        if Temp <> 0 then
-         RPNPush(RPNPop mod Temp)
+        { GNU as and Delphi shift all bits out once the count reaches the width,
+          TP/Delphi BASM shr keeps the sign; a negative count has no meaning }
+        if (syntax<>exs_legacy) and (n1<0) then
+          Message(asmr_e_expr_illegal);
+        if (syntax<>exs_legacy) and ((n1<0) or (n1>63)) then
+          begin
+            if (Token[1]='>') and (syntax=exs_intel) and (n2<0) then
+              n2:=-1
+            else
+              n2:=0;
+          end
+        else if Token[1]='<' then
+          n2:=n2 shl n1
+        else if syntax=exs_intel then
+          n2:=SarInt64(n2,n1)
         else
-         begin
-           Message(asmr_e_expr_zero_divide);
-           { push 1 for error recovery }
-           RPNPush(1);
-         end;
+          n2:=n2 shr n1;
+        RPNPush(n2);
       end;
     '^' : RPNPush(RPNPop XOR RPNPop);
-    '/' :
+    '/','%' :
       begin
-        Temp:=RPNPop;
-        if Temp <> 0 then
-         RPNPush(RPNPop div Temp)
-        else
+        n1:=RPNPop;
+        n2:=RPNPop;
+        if n1=0 then
          begin
            Message(asmr_e_expr_zero_divide);
            { push 1 for error recovery }
            RPNPush(1);
-         end;
+         end
+        { the smallest tcgint divided by -1 traps on x86: x div -1 is -x, x mod -1 is 0 }
+        else if n1=-1 then
+         begin
+           if Token[1]='/' then
+             RPNPush(-n2)
+           else
+             RPNPush(0);
+         end
+        else if Token[1]='/' then
+         RPNPush(n2 div n1)
+        else
+         RPNPush(n2 mod n1);
       end;
    end
   else
@@ -386,24 +401,61 @@ begin
 end;
 
 
-Function TExprParse.Priority(_Operator : Char) : aint;
+Function TExprParse.Priority(_Operator : Char; prefix: boolean) : aint;
 { Return priority of operator }
 { The greater the priority, the higher the precedence }
 begin
   Priority:=0;
-  Case _Operator OF
-    '(','[' :
-      Priority:=0;
-    '|','^','~' :             // the lowest priority: OR, XOR, NOT
-      Priority:=0;
-    '&' :                     // bigger priority: AND
-      Priority:=1;
-    '+', '-' :                // bigger priority: +, -
-      Priority:=2;
-    '*', '/','%','<','>' :   // the highest priority: *, /, MOD, SHL, SHR
-      Priority:=3;
+  case syntax of
+    { GNU as (expr.c op_rank): prefix operators, then * / % << >>, then | & ^ at one rank,
+      then + - }
+    exs_gnu:
+      if prefix then
+        Priority:=4
+      else
+        Case _Operator OF
+          '+', '-' :
+            Priority:=1;
+          '|','^','&' :
+            Priority:=2;
+          '*', '/','%','<','>' :
+            Priority:=3;
+          else
+            Message(asmr_e_expr_illegal);
+        end;
+    { TP/Delphi BASM: unary + -, then * / MOD SHL SHR, then binary + -, then NOT,
+      then AND, then OR XOR }
+    exs_intel:
+      if prefix and (_Operator<>'~') then
+        Priority:=5
+      else
+        Case _Operator OF
+          '|','^' :
+            Priority:=0;
+          '&' :
+            Priority:=1;
+          '~' :
+            Priority:=2;
+          '+', '-' :
+            Priority:=3;
+          '*', '/','%','<','>' :
+            Priority:=4;
+          else
+            Message(asmr_e_expr_illegal);
+        end;
     else
-      Message(asmr_e_expr_illegal);
+      Case _Operator OF
+        '|','^','~' :             // the lowest priority: OR, XOR, NOT
+          Priority:=0;
+        '&' :                     // bigger priority: AND
+          Priority:=1;
+        '+', '-' :                // bigger priority: +, -
+          Priority:=2;
+        '*', '/','%','<','>' :   // the highest priority: *, /, MOD, SHL, SHR
+          Priority:=3;
+        else
+          Message(asmr_e_expr_illegal);
+      end;
   end;
 end;
 
@@ -459,20 +511,24 @@ begin
                   OpPop(opr);                          { Pop off and ignore the '(' }
                 end;
   '+','-','~' : Begin
-                  { workaround for -2147483648 }
-                  if (expr[I]='-') and (expr[i+1] in ['0'..'9']) then
-                   begin
-                     token:='-';
-                     expr[i]:='+';
-                   end;
                   { if start of expression then surely a prefix }
                   { or if previous char was also an operator    }
-                  if (I = 1) or (not (Expr[I-1] in ['0'..'9',')'])) then
-                    OpPush(Expr[I],true)
+                  if (I = 1) or (not (Expr[I-1] in ['0'..'9',')',']'])) then
+                    begin
+                      { a prefix minus in front of digits belongs to the number:
+                        -9223372036854775808 has no positive counterpart }
+                      if (expr[I]='-') and (expr[i+1] in ['0'..'9']) then
+                        token:='-'
+                      else
+                        OpPush(Expr[I],true);
+                    end
+                  else if Expr[I]='~' then
+                    Message(asmr_e_expr_illegal)
                   else
                     Begin
                     { Evaluate all higher priority operators }
-                      While (OpTop > 0) AND (Priority(Expr[I]) <= Priority(OpStack[OpTop].ch)) DO
+                      While (OpTop > 0) and not (OpStack[OpTop].ch in ['(','[']) and
+                            (Priority(Expr[I],false) <= Priority(OpStack[OpTop].ch,OpStack[OpTop].is_prefix)) DO
                        Begin
                          OpPop(opr);
                          RPNCalc(opr.ch,opr.is_prefix);
@@ -483,7 +539,8 @@ begin
      '*', '/',
   '^','|','&',
   '%','<','>' : begin
-                  While (OpTop > 0) and (Priority(Expr[I]) <= Priority(OpStack[OpTop].ch)) DO
+                  While (OpTop > 0) and not (OpStack[OpTop].ch in ['(','[']) and
+                        (Priority(Expr[I],false) <= Priority(OpStack[OpTop].ch,OpStack[OpTop].is_prefix)) DO
                    Begin
                      OpPop(opr);
                      RPNCalc(opr.ch,opr.is_prefix);
@@ -505,6 +562,9 @@ begin
 
 { The result is stored on the top of the stack }
   Evaluate:=RPNPop;
+{ an operand left over had no operator: "2(3)" is no number }
+  if RPNTop<>0 then
+    Message(asmr_e_expr_illegal);
 end;
 
 
@@ -513,11 +573,11 @@ Begin
 end;
 
 
-Function CalculateExpression(const expression: string): tcgint;
+Function CalculateExpression(const expression: string; syntax: TExprSyntax): tcgint;
 var
   expr: TExprParse;
 Begin
-  expr:=TExprParse.create;
+  expr:=TExprParse.create(syntax);
   CalculateExpression:=expr.Evaluate(expression);
   expr.Free;
   expr := nil;
@@ -534,7 +594,7 @@ Function EscapeToPascal(const s:string): string;
 var
   i,len : asizeint;
   hs    : string;
-  temp  : string;
+  v,digits : longint;
   c     : char;
 Begin
   hs:='';
@@ -561,20 +621,30 @@ Begin
            c:=#9;
          '"':
            c:='"';
-         '0'..'7':
+         '0'..'9':
            Begin
-             temp:=s[i];
-             temp:=temp+s[i+1];
-             temp:=temp+s[i+2];
-             inc(i,2);
-             c:=chr(ParseVal(temp,8));
+             { at most three digits, as GNU as reads them: 8 and 9 count with
+               their values and the code is taken modulo 256 }
+             v:=ord(s[i])-ord('0');
+             digits:=1;
+             while (digits<3) and (i<length(s)) and (s[i+1] in ['0'..'9']) do
+               begin
+                 inc(i);
+                 v:=v*8+ord(s[i])-ord('0');
+                 inc(digits);
+               end;
+             c:=chr(v and $ff);
            end;
          'x':
            Begin
-             temp:=s[i+1];
-             temp:=temp+s[i+2];
-             inc(i,2);
-             c:=chr(ParseVal(temp,16));
+             { all the hex digits that follow, the code taken modulo 256 }
+             v:=0;
+             while (i<length(s)) and (s[i+1] in ['0'..'9','A'..'F','a'..'f']) do
+               begin
+                 inc(i);
+                 v:=(v*16+pos(upcase(s[i]),'0123456789ABCDEF')-1) and $ff;
+               end;
+             c:=chr(v);
            end;
          else
            Begin
@@ -634,27 +704,6 @@ Begin
           result:=0;
         end;
     end;
-end;
-
-
-Function PadZero(Var s: String; n: byte): Boolean;
-Begin
-  PadZero:=TRUE;
-  { Do some error checking first }
-  if Length(s) = n then
-    exit
-  else
-  if Length(s) > n then
-  Begin
-    PadZero:=FALSE;
-    delete(s,n+1,length(s));
-    exit;
-  end
-  else
-    PadZero:=TRUE;
-  { Fill it up with the specified character }
-  fillchar(s[length(s)+1],n-1,#0);
-  s[0]:=chr(n);
 end;
 
 
@@ -1946,8 +1995,14 @@ end;
   {  Description: This routine emits an global   definition to the      }
   {  linked list of instructions.(used by AT&T styled asm)              }
   {*********************************************************************}
+   var
+     hp : tai_align;
    begin
-     p.concat(Tai_align.Create(l));
+     hp:=Tai_align.Create(l);
+     { an alignment the directive cannot carry would silently become none }
+     if (l<>0) and (hp.aligntype<>l) then
+       Message(asmr_e_constant_out_of_bounds);
+     p.concat(hp);
    end;
 
    procedure ConcatPublic(p:TAsmList;const s : string);

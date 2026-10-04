@@ -1,0 +1,878 @@
+# id	dialect	group	accept|refuse	text (lines split by ;;)	bytes (hex, a|b), align:N[:HEX], or the message
+# generated from the inventory of lab/impl/asm_number_readers (GNU as 2.46, Delphi 12.2 dcc64,
+# correctly rounded floats); see run_gate.py
+AD001	att	att_int	accept	.byte 0	00
+AD002	att	att_int	accept	.byte 1	01
+AD003	att	att_int	accept	.byte 9	09
+AD004	att	att_int	accept	.byte 10	0a
+AD005	att	att_int	accept	.byte 255	ff
+AD006	att	att_int	refuse	.byte 256	Constant value out of bounds
+AD007	att	att_int	accept	.byte -1	ff
+AD008	att	att_int	accept	.byte -128	80
+AD009	att	att_int	refuse	.byte -129	Constant value out of bounds
+AD010	att	att_int	accept	.byte 00	00
+AD011	att	att_int	accept	.byte 01	01
+AD012	att	att_int	accept	.byte 07	07
+AD013	att	att_int	accept	.byte 010	08
+AD014	att	att_int	accept	.byte 017	0f
+AD015	att	att_int	accept	.byte 077	3f
+AD016	att	att_int	accept	.byte 0100	40
+AD017	att	att_int	accept	.byte 0177	7f
+AD018	att	att_int	accept	.byte 0377	ff
+AD019	att	att_int	refuse	.byte 0400	Constant value out of bounds
+AD020	att	att_int	accept	.byte 0017	0f
+AD021	att	att_int	accept	.byte 0000	00
+AD022	att	att_int	refuse	.byte 08	Invalid constant expression
+AD023	att	att_int	refuse	.byte 09	Invalid constant expression
+AD024	att	att_int	refuse	.byte 018	Invalid constant expression
+AD025	att	att_int	accept	.byte 0x0	00
+AD026	att	att_int	accept	.byte 0x7f	7f
+AD027	att	att_int	accept	.byte 0xFF	ff
+AD028	att	att_int	accept	.byte 0X1f	1f
+AD029	att	att_int	accept	.byte 0xa	0a
+AD030	att	att_int	accept	.byte 0x	00
+AD031	att	att_int	refuse	.byte 0x100	Constant value out of bounds
+AD032	att	att_int	accept	.byte 0b0	00
+AD033	att	att_int	accept	.byte 0b1	01
+AD034	att	att_int	accept	.byte 0b101	05
+AD035	att	att_int	accept	.byte 0B11	03
+AD036	att	att_int	accept	.byte 0b11111111	ff
+AD037	att	att_int	refuse	.byte 0b100000000	Constant value out of bounds
+AD038	att	att_int	refuse	.byte 0b12	Invalid constant expression
+AD039	att	att_int	refuse	.byte 0b	Error converting binary
+AD040	att	att_int	refuse	.byte 1 2	Invalid constant expression
+AD041	att	att_int	refuse	.byte 0x1 0x2	Invalid constant expression
+AD042	att	att_int	accept	.byte -0	00
+AD043	att	att_int	accept	.byte +1	01
+AD044	att	att_int	accept	.byte - 1	ff
+AD045	att	att_int	accept	.byte --1	01
+AD046	att	att_int	accept	.byte 1, 2, 3	010203
+AD047	att	att_int	accept	.byte 01, 07, 010, 017	0107080f
+AD048	att	att_int	accept	.word 0	0000
+AD049	att	att_int	accept	.word 65535	ffff
+AD050	att	att_int	refuse	.word 65536	Constant value out of bounds
+AD051	att	att_int	accept	.word -1	ffff
+AD052	att	att_int	accept	.word -32768	0080
+AD053	att	att_int	refuse	.word -32769	Constant value out of bounds
+AD054	att	att_int	accept	.word 0177777	ffff
+AD055	att	att_int	accept	.word 0x1234	3412
+AD056	att	att_int	accept	.word 012345	e514
+AD057	att	att_int	accept	.long 0	00000000
+AD058	att	att_int	accept	.long 4294967295	ffffffff
+AD059	att	att_int	refuse	.long 4294967296	Constant value out of bounds
+AD060	att	att_int	accept	.long -1	ffffffff
+AD061	att	att_int	accept	.long -2147483648	00000080
+AD062	att	att_int	refuse	.long -2147483649	Constant value out of bounds
+AD063	att	att_int	accept	.long 0xFFFFFFFF	ffffffff
+AD064	att	att_int	accept	.long 037777777777	ffffffff
+AD065	att	att_int	accept	.long 0x80000000	00000080
+AD066	att	att_int	refuse	.long 0x100000000	Constant value out of bounds
+AD067	att	att_int	accept	.long 2147483647	ffffff7f
+AD068	att	att_int	accept	.long 2147483648	00000080
+AD069	att	att_int	accept	.long 01234567	77390500
+AD070	att	att_int	accept	.quad 0	0000000000000000
+AD071	att	att_int	accept	.quad 9223372036854775807	ffffffffffffff7f
+AD075	att	att_int	accept	.quad -1	ffffffffffffffff
+AD078	att	att_int	accept	.quad 0x7FFFFFFFFFFFFFFF	ffffffffffffff7f
+AD079	att	att_int	accept	.quad 0x8000000000000000	0000000000000080
+AD080	att	att_int	accept	.quad 0xFFFFFFFFFFFFFFFF	ffffffffffffffff
+AD081	att	att_int	refuse	.quad 0x10000000000000000	Error converting hexadecimal 010000000000000000
+AD082	att	att_int	accept	.quad 0777777777777777777777	ffffffffffffff7f
+AD083	att	att_int	accept	.quad 01000000000000000000000	0000000000000080
+AD084	att	att_int	accept	.quad 01777777777777777777777	ffffffffffffffff
+AD085	att	att_int	refuse	.quad 02000000000000000000000	Error converting octal
+AD086	att	att_int	accept	.quad 0b1111111111111111111111111111111111111111111111111111111111111111	ffffffffffffffff
+AD087	att	att_int	refuse	.quad 0b10000000000000000000000000000000000000000000000000000000000000000	Error converting binary 010000000000000000000000000000000000
+AD088	att	att_int	accept	.quad 0x00000000000000000001	0100000000000000
+AD089	att	att_int	accept	.quad 000000000000000000000000017	0f00000000000000
+AD090	att	att_int	accept	.quad 1234567890123	cb04fb711f010000
+AD091	att	att_int	accept	.quad -0x8000000000000000	0000000000000080
+AD092	att	att_int	accept	.quad 0x123456789ABCDEF0	f0debc9a78563412
+AD093	att	att_int	accept	.quad 0x0123456789abcdef	efcdab8967452301
+AD094	att	att_int	accept	.dc.a 017	0f00000000000000
+AD095	att	att_int	accept	.long 0x7FFFFFFF+1	00000080
+AD096	att	att_int	accept	.byte 0x1F, 0X2e, 9, 0	1f2e0900
+AD097	att	att_int	accept	.byte 0b101, 0B11	0503
+AD098	att	att_int	accept	.quad 0b111111111111111111111111111111111111111111111111111111111111111	ffffffffffffff7f
+AD099	att	att_int	accept	.word 0xFFFF, -0x8000	ffff0080
+AD100	att	att_int	accept	.byte 0x0f, 0x0F, 0XF	0f0f0f
+AE001	att	att_expr	accept	.quad 1+2*3	0700000000000000
+AE002	att	att_expr	accept	.quad (1+2)*3	0900000000000000
+AE003	att	att_expr	accept	.quad 10-2-3	0500000000000000
+AE004	att	att_expr	accept	.quad 100/7	0e00000000000000
+AE005	att	att_expr	accept	.quad -7/2	fdffffffffffffff
+AE006	att	att_expr	accept	.quad 7%3	0100000000000000
+AE007	att	att_expr	accept	.quad -7%3	ffffffffffffffff
+AE009	att	att_expr	accept	.quad 1<<4	1000000000000000
+AE010	att	att_expr	accept	.quad 256>>4	1000000000000000
+AE011	att	att_expr	accept	.quad -1>>1	ffffffffffffff7f
+AE012	att	att_expr	accept	.quad 1<<63	0000000000000080
+AE013	att	att_expr	accept	.quad 1<<64	0000000000000000
+AE014	att	att_expr	accept	.quad 0xF0&0x3C	3000000000000000
+AE015	att	att_expr	accept	.quad 0xF0|0x0F	ff00000000000000
+AE016	att	att_expr	accept	.quad 0xF0^0xFF	0f00000000000000
+AE017	att	att_expr	refuse	.quad !0	Invalid constant expression
+AE018	att	att_expr	refuse	.quad !5	Invalid constant expression
+AE019	att	att_expr	accept	.quad ~0	ffffffffffffffff
+AE020	att	att_expr	accept	.quad ~0&0xFF	ff00000000000000
+AE021	att	att_expr	refuse	.quad !0&0xFF	Invalid constant expression
+AE022	att	att_expr	accept	.quad 4+1&3	0500000000000000
+AE023	att	att_expr	accept	.quad 0x10|0x0F+1	2000000000000000
+AE024	att	att_expr	accept	.quad 4|2&1	0000000000000000
+AE025	att	att_expr	accept	.quad 1+2^3	0200000000000000
+AE026	att	att_expr	accept	.quad 2*-3	faffffffffffffff
+AE027	att	att_expr	accept	.quad -2*3	faffffffffffffff
+AE028	att	att_expr	accept	.quad 3--2	0500000000000000
+AE029	att	att_expr	accept	.quad 3-(-2)	0500000000000000
+AE030	att	att_expr	accept	.quad -(3)	fdffffffffffffff
+AE031	att	att_expr	refuse	.quad 1<2	Char < not allowed here
+AE032	att	att_expr	refuse	.quad 2>1	Char > not allowed here
+AE033	att	att_expr	refuse	.quad 8>2	Char > not allowed here
+AE034	att	att_expr	refuse	.quad 1==1	Illegal character
+AE035	att	att_expr	refuse	.quad 1!=2	Illegal character
+AE036	att	att_expr	refuse	.quad 1<>2	Char < not allowed here
+AE037	att	att_expr	refuse	.quad 1<=2	Char < not allowed here
+AE038	att	att_expr	refuse	.quad 1&&2	Illegal expression
+AE039	att	att_expr	refuse	.quad 1||0	Illegal expression
+AE040	att	att_expr	accept	.quad 0x7FFFFFFFFFFFFFFF+1	0000000000000080
+AE041	att	att_expr	accept	.quad 0xFFFFFFFFFFFFFFFF+1	0000000000000000
+AE042	att	att_expr	accept	.quad 3*0x5555555555555555	ffffffffffffffff
+AE043	att	att_expr	accept	.quad 017+1	1000000000000000
+AE044	att	att_expr	accept	.quad 010*010	4000000000000000
+AE045	att	att_expr	accept	.quad (017)	0f00000000000000
+AE046	att	att_expr	accept	.quad 1-0x8000000000000000	0100000000000080
+AE047	att	att_expr	refuse	.quad 1/0	Divide by zero
+AE048	att	att_expr	refuse	.quad 5%0	Divide by zero
+AE049	att	att_expr	accept	.quad 2*3+4*5	1a00000000000000
+AE050	att	att_expr	accept	.quad 100-10*2	5000000000000000
+AE051	att	att_expr	accept	.quad 1<<2+1	0500000000000000
+AE052	att	att_expr	accept	.quad 12/2*3	1200000000000000
+AE053	att	att_expr	accept	.quad 12/(2*3)	0200000000000000
+AE054	att	att_expr	accept	.quad 0x0F&~0x3	0c00000000000000
+AE055	att	att_expr	accept	.quad 7-1-1	0500000000000000
+AE056	att	att_expr	accept	.quad -1&0xFF	ff00000000000000
+AE057	att	att_expr	refuse	.quad 5!3	Invalid constant expression
+AE058	att	att_expr	refuse	.quad !!5	Invalid constant expression
+AE059	att	att_expr	accept	.quad 0x11-1&0xF	1000000000000000
+AE060	att	att_expr	accept	.quad 3*4%5	0200000000000000
+AE061	att	att_expr	accept	.quad 2+3<<1	0800000000000000
+AE062	att	att_expr	accept	.quad 1<<2<<3	2000000000000000
+AE063	att	att_expr	accept	.quad 0x100>>4>>2	0400000000000000
+AE064	att	att_expr	accept	.quad (1<<63)>>63	0100000000000000
+AE065	att	att_expr	accept	.quad -8>>1	fcffffffffffff7f
+AE066	att	att_expr	refuse	.quad 1<<-1	Illegal expression
+AE067	att	att_expr	accept	.quad - 1	ffffffffffffffff
+AE068	att	att_expr	accept	.quad -(1)>>1	ffffffffffffff7f
+AE069	att	att_expr	accept	.quad 2-3	ffffffffffffffff
+AE070	att	att_expr	accept	.quad 6&3|8	0a00000000000000
+AE071	att	att_expr	accept	.quad 1|2^3	0000000000000000
+AE072	att	att_expr	accept	.quad 3 * (2 + 1) - 4 / 2	0700000000000000
+AE074	att	att_expr	accept	.quad 0x10 + 010 + 0b10 + 10	2400000000000000
+AE075	att	att_expr	accept	.long 017+017	1e000000
+AF001	att	att_float	accept	.single 0d1.5	0000c03f
+AF002	att	att_float	accept	.double 0d1.5	000000000000f83f
+AF003	att	att_float	accept	.double 0d-1.5	000000000000f8bf
+AF004	att	att_float	accept	.double -0d1.5	000000000000f8bf
+AF005	att	att_float	accept	.double 0d1.5e10	000000b08ef00b42
+AF006	att	att_float	accept	.double 0d1.5E-3	fa7e6abc7493583f
+AF007	att	att_float	accept	.double 0d0.1	9a9999999999b93f
+AF008	att	att_float	accept	.single 0d0.1	cdcccc3d
+AF010	att	att_float	accept	.tfloat 0d1.5	00000000000000c0ff3f
+AF011	att	att_float	accept	.double 1	000000000000f03f
+AF012	att	att_float	accept	.double -1	000000000000f0bf
+AF013	att	att_float	accept	.double 0	0000000000000000
+AF014	att	att_float	accept	.double -0	0000000000000080
+AF015	att	att_float	accept	.double 010	0000000000002040
+AF016	att	att_float	accept	.double 017	0000000000002e40
+AF017	att	att_float	accept	.double 0x10	0000000000003040
+AF018	att	att_float	accept	.double 0b11	0000000000000840
+AF024	att	att_float	accept	.double 0d.5	000000000000e03f
+AF025	att	att_float	accept	.double 0d5.	0000000000001440
+AF027	att	att_float	refuse	.double 0d1.8e308	Invalid floating point constant 1.8e308
+AF028	att	att_float	accept	.double 0d4.9e-324	0100000000000000
+AF030	att	att_float	accept	.single 0d3.4028235e38	ffff7f7f
+AF031	att	att_float	refuse	.single 0d3.5e38	Invalid floating point constant 3.5e38
+AF033	att	att_float	accept	.double 0d123456789012345678901234567890.0	3e376cff90eef845
+AF034	att	att_float	accept	.double 0d0.30000000000000004	343333333333d33f
+AF035	att	att_float	accept	.double 0d9007199254740993.0	0000000000004043
+AF038	att	att_float	accept	.single 0d16777217.0	0000804b
+AF039	att	att_float	accept	.double 0d1.5, 0d2.5	000000000000f83f0000000000000440
+AF042	att	att_float	accept	.double 0d1.0e+3	0000000000408f40
+AF043	att	att_float	refuse	.quad 0d1.5	Assembler syntax error in constant
+AF045	att	att_float	accept	.double 9007199254740993	0000000000004043
+AF046	att	att_float	accept	.single 0d-0.0	00000080
+AF047	att	att_float	accept	.double 0d2.5e-1	000000000000d03f
+AF050	att	att_float	accept	.double 0d0.1e1	000000000000f03f
+AS001	att	att_str	accept	.ascii "abc"	616263
+AS002	att	att_str	accept	.asciz "abc"	61626300
+AS003	att	att_str	accept	.ascii "a\nb"	610a62
+AS004	att	att_str	accept	.ascii "\t\r\b\f"	090d080c
+AS005	att	att_str	accept	.ascii "\\"	5c
+AS006	att	att_str	accept	.ascii "\""	22
+AS007	att	att_str	accept	.ascii "\101"	41
+AS008	att	att_str	accept	.ascii "\0"	00
+AS009	att	att_str	accept	.ascii "a\0"	6100
+AS010	att	att_str	accept	.ascii "\12x"	0a78
+AS011	att	att_str	accept	.ascii "\1234"	5334
+AS012	att	att_str	accept	.ascii "\x41"	41
+AS013	att	att_str	accept	.ascii "\x4"	04
+AS014	att	att_str	accept	.ascii "\x41B"	1b
+AS017	att	att_str	accept	.ascii "\8"	08
+AS018	att	att_str	accept	.ascii "\377"	ff
+AS019	att	att_str	accept	.ascii "\400"	00
+AS020	att	att_str	accept	.ascii 'abc'	616263
+AS021	att	att_str	accept	.byte 'a'	61
+AS022	att	att_str	accept	.byte 'a', 'b'	6162
+AS023	att	att_str	accept	.word 'a'	6100
+AS024	att	att_str	accept	.long 'a'	61000000
+AS025	att	att_str	accept	.quad 'a'	6100000000000000
+AS026	att	att_str	accept	.byte "a"	61
+AS027	att	att_str	accept	.byte 'a'+1	62
+AS028	att	att_str	accept	.long 'ab'	62610000
+AS029	att	att_str	accept	.ascii "abc", "def"	616263646566
+AS030	att	att_str	refuse	.ascii "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"	longer than 255 chars
+AS031	att	att_str	accept	.asciz ""	00
+AS032	att	att_str	accept	.ascii "\x"	00
+AS033	att	att_str	accept	.ascii "a\x41\x42"	614142
+AS035	att	att_str	accept	.ascii "\1"	01
+AS036	att	att_str	accept	.ascii "\01"	01
+AS037	att	att_str	accept	.ascii "abc\"def"	61626322646566
+AS038	att	att_str	accept	.asciz "\0"	0000
+AS039	att	att_str	accept	.ascii "\1a"	0161
+AS040	att	att_str	accept	.ascii "\0\0"	0000
+AS041	att	att_str	accept	movl $'a', %eax	b861000000
+AS042	att	att_str	accept	movl $'ab', %eax	b862610000
+AS043	att	att_str	accept	.ascii "\n\101\x42\\"	0a41425c
+AS044	att	att_str	accept	.ascii "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"	7979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979
+AS045	att	att_str	accept	.ascii "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"	797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979
+AS046	att	att_str	refuse	.ascii "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"	longer than 255 chars
+AS047	att	att_str	accept	.asciz "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"	79797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797900
+AI001	att	att_imm	accept	movl $1, %eax	b801000000
+AI002	att	att_imm	accept	movl $017, %eax	b80f000000
+AI003	att	att_imm	accept	movl $0xFFFFFFFF, %eax	b8ffffffff
+AI004	att	att_imm	accept	movl $-1, %eax	b8ffffffff
+AI005	att	att_imm	refuse	movl $4294967296, %eax	Asm: dword value exceeds bounds 4294967296
+AI006	att	att_imm	accept	movl $-2147483649, %eax	b8ffffff7f
+AI007	att	att_imm	accept	movq $1, %rax	48c7c001000000
+AI008	att	att_imm	accept	movq $-1, %rax	48c7c0ffffffff
+AI009	att	att_imm	accept	movq $0x7FFFFFFF, %rax	48b8ffffff7f00000000
+AI010	att	att_imm	accept	movq $0x80000000, %rax	48b80000008000000000
+AI011	att	att_imm	accept	movq $0xFFFFFFFF, %rax	48b8ffffffff00000000
+AI012	att	att_imm	accept	movq $0x123456789, %rax	48b88967452301000000
+AI013	att	att_imm	accept	movabsq $0x123456789ABCDEF0, %rax	48b8f0debc9a78563412
+AI014	att	att_imm	accept	movabsq $0xFFFFFFFFFFFFFFFF, %rax	48b8ffffffffffffffff
+AI015	att	att_imm	accept	movabsq $017, %rax	48b80f00000000000000
+AI016	att	att_imm	accept	addl $0x80, %eax	0580000000
+AI017	att	att_imm	accept	addl $0xFFFFFFFF, %eax	05ffffffff
+AI018	att	att_imm	refuse	addq $0xFFFFFFFF, %rax	Asm: signed dword value exceeds bounds 4294967295
+AI019	att	att_imm	accept	addq $-1, %rax	4883c0ff
+AI020	att	att_imm	refuse	andq $0xFFFFFFFF, %rax	Asm: signed dword value exceeds bounds 4294967295
+AI021	att	att_imm	accept	andq $0x7FFFFFFF, %rax	4825ffffff7f
+AI022	att	att_imm	accept	andl $0xFFFFFF00, %eax	2500ffffff
+AI023	att	att_imm	accept	movb $255, %al	b0ff
+AI024	att	att_imm	refuse	movb $256, %al	Asm: byte value exceeds bounds 256
+AI025	att	att_imm	accept	movb $-1, %al	b0ff
+AI026	att	att_imm	accept	movb $-129, %al	b07f
+AI027	att	att_imm	accept	movw $65535, %ax	66b8ffff
+AI028	att	att_imm	refuse	movw $65536, %ax	Asm: word value exceeds bounds 65536
+AI029	att	att_imm	accept	movw $-1, %ax	66b8ffff
+AI030	att	att_imm	refuse	pushq $0xFFFFFFFF	Asm: [push imm64] invalid combination of opcode and operands
+AI031	att	att_imm	accept	pushq $-1	6aff
+AI032	att	att_imm	accept	imull $017, %eax, %eax	6bc00f
+AI033	att	att_imm	accept	shll $017, %eax	c1e00f
+AI034	att	att_imm	accept	shll $32, %eax	c1e020
+AI035	att	att_imm	refuse	shll $256, %eax	Asm: unsigned byte value exceeds bounds 256
+AI036	att	att_imm	accept	cmpb $0200, %al	3c80
+AI037	att	att_imm	accept	testl $0x80000000, %eax	a900000080
+AI038	att	att_imm	accept	movl $0b1010, %eax	b80a000000
+AI039	att	att_imm	accept	movl $1<<31, %eax	b800000080
+AI040	att	att_imm	accept	movq $1<<31, %rax	48b80000008000000000
+AI041	att	att_imm	accept	retq $0x10	c21000
+AI043	att	att_imm	accept	movq $-2147483648, %rax	48b800000080ffffffff
+AI044	att	att_imm	accept	movl $0x80000000, %eax	b800000080
+AI045	att	att_imm	accept	addw $0x8000, %ax	66050080
+AI046	att	att_imm	accept	xorl $0x80000000, %eax	3500000080
+AI047	att	att_imm	refuse	orq $0x80000000, %rax	Asm: signed dword value exceeds bounds 2147483648
+AI048	att	att_imm	refuse	movl $0x100000000, (%rax)	Asm: dword value exceeds bounds 4294967296
+AI049	att	att_imm	refuse	movq $0xFFFFFFFF, (%rax)	Asm: signed dword value exceeds bounds 4294967295
+AI050	att	att_imm	refuse	movb $0400, (%rax)	Asm: byte value exceeds bounds 256
+AI051	att	att_imm	refuse	movw $0200000, %ax	Asm: word value exceeds bounds 65536
+AI052	att	att_imm	accept	addb $0377, %al	04ff
+AI053	att	att_imm	refuse	imulq $0x80000000, %rax, %rax	Asm: signed dword value exceeds bounds 2147483648
+AI054	att	att_imm	accept	cmpq $017, %rax	4883f80f
+AI055	att	att_imm	accept	movl $-0x80000001, %eax	b8ffffff7f
+AI056	att	att_imm	accept	pushw $0xFFFF	6668ffff
+AI057	att	att_imm	accept	int $0x80	cd80
+AI058	att	att_imm	refuse	int $256	Asm: unsigned byte value exceeds bounds 256
+AI059	att	att_imm	accept	pextrw $017, %xmm1, %eax	660fc5c10f
+AI060	att	att_imm	accept	roundsd $017, %xmm1, %xmm2	660f3a0bd10f
+AM001	att	att_mem	accept	movl 0x10(%rax), %eax	8b4010
+AM002	att	att_mem	accept	movl 017(%rax), %eax	8b400f
+AM003	att	att_mem	accept	movl -1(%rax), %eax	8b40ff
+AM004	att	att_mem	accept	movl 0x7FFFFFFF(%rax), %eax	8b80ffffff7f
+AM005	att	att_mem	refuse	movl 0x80000000(%rax), %eax	Asm: signed dword value exceeds bounds 2147483648
+AM006	att	att_mem	accept	movl -0x80000000(%rax), %eax	8b8000000080
+AM007	att	att_mem	refuse	movl 0xFFFFFFFF(%rax), %eax	Asm: signed dword value exceeds bounds 4294967295
+AM008	att	att_mem	refuse	movl 0x100000000(%rax), %eax	Asm: signed dword value exceeds bounds 4294967296
+AM009	att	att_mem	accept	movl (%rax,%rcx,8), %eax	8b04c8
+AM010	att	att_mem	accept	movl (%rax,%rcx,010), %eax	8b04c8
+AM011	att	att_mem	refuse	movl (%rax,%rcx,3), %eax	Wrong scale factor specified
+AM012	att	att_mem	accept	movl 0x10(%rax,%rcx,4), %eax	8b448810
+AM013	att	att_mem	accept	movl %fs:0x28, %eax	64a12800000000000000
+AM014	att	att_mem	accept	movq %gs:0x30, %rax	6548a13000000000000000
+AM015	att	att_mem	accept	movl %fs:017, %eax	64a10f00000000000000
+AM016	att	att_mem	accept	movl 128(%rax), %eax	8b8080000000
+AM017	att	att_mem	accept	movl -128(%rax), %eax	8b4080
+AM018	att	att_mem	accept	movl 127(%rax), %eax	8b407f
+AM019	att	att_mem	accept	movl -129(%rax), %eax	8b807fffffff
+AM020	att	att_mem	accept	movl 0x10+0x20(%rax), %eax	8b4030
+AM021	att	att_mem	refuse	movl 1<<31(%rax), %eax	Asm: signed dword value exceeds bounds 2147483648
+AM022	att	att_mem	accept	movl 0x10(,%rcx,2), %eax	8b044d10000000|8b440910
+AM023	att	att_mem	accept	jmp *0x10(%rax)	ff6010
+AM024	att	att_mem	accept	movl 0177(%rax), %eax	8b407f
+AM025	att	att_mem	accept	movl -0200(%rax), %eax	8b4080
+AM026	att	att_mem	accept	movl (%rax,%rcx,02), %eax	8b0448
+AM027	att	att_mem	accept	leaq 0x10(%rax,%rcx,1), %rdx	488d540810
+AM029	att	att_mem	accept	movl 0xFFFFFFFF80000000(%rax), %eax	8b8000000080
+AM030	att	att_mem	refuse	movl -0x80000001(%rax), %eax	Asm: signed dword value exceeds bounds -2147483649
+AA001	att	att_align	accept	.balign 16	align:16
+AA002	att	att_align	accept	.balign 020	align:16
+AA003	att	att_align	accept	.balign 0x10	align:16
+AA004	att	att_align	accept	.p2align 4	align:16
+AA005	att	att_align	accept	.p2align 04	align:16
+AA006	att	att_align	accept	.p2align 4,0x90	align:16
+AA007	att	att_align	accept	.p2align 4,,7	
+AA008	att	att_align	accept	.p2align 4,0220	align:16
+AL004	att	att_label	refuse	jmp 0b	Error converting binary 0b
+AL005	att	att_label	accept	.L1: nop ;; jmp .L1	90ebfd
+AL006	att	att_label	refuse	jmp 0f	Unknown identifier "F"
+ID001	intel	intel_int	accept	db 0	00
+ID002	intel	intel_int	accept	db 255	ff
+ID003	intel	intel_int	refuse	db 256	Constant value out of bounds
+ID004	intel	intel_int	accept	db -1	ff
+ID005	intel	intel_int	accept	db -128	80
+ID006	intel	intel_int	refuse	db -129	Constant value out of bounds
+ID007	intel	intel_int	accept	db 075	4b
+ID008	intel	intel_int	accept	db 08	08
+ID009	intel	intel_int	accept	db 010	0a
+ID010	intel	intel_int	accept	db $1F	1f
+ID011	intel	intel_int	accept	db $ff	ff
+ID012	intel	intel_int	accept	db 1Fh	1f
+ID013	intel	intel_int	accept	db 0FFh	ff
+ID014	intel	intel_int	accept	db 0ffh	ff
+ID015	intel	intel_int	accept	db 1FH	1f
+ID016	intel	intel_int	accept	db 101b	05
+ID017	intel	intel_int	accept	db 101B	05
+ID018	intel	intel_int	accept	db 17o	0f
+ID019	intel	intel_int	accept	db 17O	0f
+ID022	intel	intel_int	refuse	db 10t	Unknown identifier "T"
+ID023	intel	intel_int	refuse	db 101y	Unknown identifier "Y"
+ID024	intel	intel_int	refuse	db 0x75	Unknown identifier "X75"
+ID025	intel	intel_int	accept	db 1Bh	1b
+ID026	intel	intel_int	accept	db 0Bh	0b
+ID027	intel	intel_int	accept	db 11b	03
+ID028	intel	intel_int	refuse	db 1 2	Invalid constant expression
+ID030	intel	intel_int	refuse	db 18o	Error converting octal 18
+ID031	intel	intel_int	refuse	db 2Fb	Error converting binary 2F
+ID032	intel	intel_int	refuse	db 1e3	Error converting decimal 1E3
+ID033	intel	intel_int	refuse	db 1.5	Invalid constant expression
+ID034	intel	intel_int	accept	db $1F, 1Fh, 31, 37o, 11111b	1f1f1f1f1f
+ID035	intel	intel_int	accept	dw 65535	ffff
+ID036	intel	intel_int	refuse	dw 65536	Constant value out of bounds
+ID037	intel	intel_int	accept	dw -32768	0080
+ID038	intel	intel_int	accept	dw $FFFF	ffff
+ID039	intel	intel_int	accept	dd 4294967295	ffffffff
+ID040	intel	intel_int	refuse	dd 4294967296	Constant value out of bounds
+ID041	intel	intel_int	accept	dd -2147483648	00000080
+ID042	intel	intel_int	accept	dd $FFFFFFFF	ffffffff
+ID043	intel	intel_int	accept	dd 0FFFFFFFFh	ffffffff
+ID044	intel	intel_int	accept	dq 9223372036854775807	ffffffffffffff7f
+ID047	intel	intel_int	accept	dq -1	ffffffffffffffff
+ID048	intel	intel_int	accept	dq $FFFFFFFFFFFFFFFF	ffffffffffffffff
+ID049	intel	intel_int	accept	dq 0FFFFFFFFFFFFFFFFh	ffffffffffffffff
+ID050	intel	intel_int	accept	dq $8000000000000000	0000000000000080
+ID052	intel	intel_int	refuse	dq $10000000000000000	Error converting hexadecimal 10000000000000000
+ID053	intel	intel_int	accept	dq 1111111111111111111111111111111111111111111111111111111111111111b	ffffffffffffffff
+ID054	intel	intel_int	accept	dq 1777777777777777777777o	ffffffffffffffff
+ID055	intel	intel_int	accept	dq 0123456789ABCDEF0h	f0debc9a78563412
+ID056	intel	intel_int	accept	dq 00000000000000000000000000000001	0100000000000000
+ID057	intel	intel_int	accept	db - 1	ff
+ID058	intel	intel_int	accept	db +1	01
+ID059	intel	intel_int	accept	db --1	01
+ID060	intel	intel_int	accept	dd 12345678h	78563412
+ID061	intel	intel_int	accept	dw 1234h	3412
+ID062	intel	intel_int	accept	dd $7FFFFFFF+1	00000080
+ID063	intel	intel_int	accept	db 0	00
+ID064	intel	intel_int	accept	dd 037777777777o	ffffffff
+ID065	intel	intel_int	accept	dq 7FFFFFFFFFFFFFFFh	ffffffffffffff7f
+ID066	intel	intel_int	accept	db 0Fh, 0fh, 0FH	0f0f0f
+ID067	intel	intel_int	accept	dw 177777o	ffff
+ID068	intel	intel_int	accept	db 1b	01
+ID069	intel	intel_int	accept	db 0b	00
+ID070	intel	intel_int	accept	db 0h	00
+IE001	intel	intel_expr	accept	dq 1+2*3	0700000000000000
+IE002	intel	intel_expr	accept	dq (1+2)*3	0900000000000000
+IE003	intel	intel_expr	accept	dq 10-2-3	0500000000000000
+IE004	intel	intel_expr	accept	dq 100/7	0e00000000000000
+IE005	intel	intel_expr	accept	dq -7/2	fdffffffffffffff
+IE006	intel	intel_expr	accept	dq 7 mod 3	0100000000000000
+IE007	intel	intel_expr	accept	dq -7 mod 3	ffffffffffffffff
+IE008	intel	intel_expr	accept	dq 1 shl 4	1000000000000000
+IE009	intel	intel_expr	accept	dq 256 shr 4	1000000000000000
+IE010	intel	intel_expr	accept	dq -1 shr 1	ffffffffffffffff
+IE011	intel	intel_expr	accept	dq $F0 and $3C	3000000000000000
+IE012	intel	intel_expr	accept	dq $F0 or $0F	ff00000000000000
+IE013	intel	intel_expr	accept	dq $F0 xor $FF	0f00000000000000
+IE014	intel	intel_expr	accept	dq not 0	ffffffffffffffff
+IE015	intel	intel_expr	accept	dq not 0 and $FF	ff00000000000000
+IE016	intel	intel_expr	accept	dq not 1 + 2	fcffffffffffffff
+IE017	intel	intel_expr	accept	dq 4 + 1 and 3	0100000000000000
+IE018	intel	intel_expr	accept	dq 4 or 2 and 1	0400000000000000
+IE019	intel	intel_expr	accept	dq 2*-3	faffffffffffffff
+IE020	intel	intel_expr	accept	dq -2*3	faffffffffffffff
+IE021	intel	intel_expr	accept	dq 3 - -2	0500000000000000
+IE022	intel	intel_expr	accept	dq 1 shl 63	0000000000000080
+IE023	intel	intel_expr	accept	dq 1 shl 64	0000000000000000
+IE024	intel	intel_expr	accept	dq $7FFFFFFFFFFFFFFF+1	0000000000000080
+IE025	intel	intel_expr	accept	dq 2+3 shl 1	0800000000000000
+IE026	intel	intel_expr	accept	dq 1 shl 2 shl 3	2000000000000000
+IE027	intel	intel_expr	accept	dq 12/2*3	1200000000000000
+IE028	intel	intel_expr	accept	dq 100-10*2	5000000000000000
+IE029	intel	intel_expr	accept	dq not not 5	0500000000000000
+IE030	intel	intel_expr	accept	dq -(3)	fdffffffffffffff
+IE031	intel	intel_expr	accept	dq 5 and not 1	0400000000000000
+IE032	intel	intel_expr	accept	dq not 5 and 1	0000000000000000
+IE033	intel	intel_expr	accept	dq 1 or 2 xor 3	0000000000000000
+IE034	intel	intel_expr	accept	dq 6 and 3 or 8	0a00000000000000
+IE035	intel	intel_expr	accept	dq 7 mod 4 * 2	0600000000000000
+IE036	intel	intel_expr	accept	dq -8 shr 1	fcffffffffffffff
+IE037	intel	intel_expr	refuse	dq 1 shl -1	Illegal expression
+IE038	intel	intel_expr	refuse	dq 5/0	Divide by zero in asm evaluator
+IE039	intel	intel_expr	accept	dq 0FFh + 1	0001000000000000
+IE040	intel	intel_expr	accept	dq 'a' + 1	6200000000000000
+IE041	intel	intel_expr	accept	dq 'ab'	6261000000000000
+IE042	intel	intel_expr	accept	dq 'abcd'	6463626100000000
+IE043	intel	intel_expr	accept	dq 'abcdefgh'	6867666564636261
+IE044	intel	intel_expr	refuse	dq 'abcde'	Invalid string as opcode operand: abcde
+IE045	intel	intel_expr	accept	dq 3 * (2 + 1) - 4 / 2	0700000000000000
+IE046	intel	intel_expr	accept	dd not 0	ffffffff
+IE047	intel	intel_expr	accept	dd not 0 and $FF	ff000000
+IE048	intel	intel_expr	accept	dq 1 and 3 + 4	0100000000000000
+IE049	intel	intel_expr	accept	dq 8 shr 1 + 1	0500000000000000
+IE050	intel	intel_expr	accept	dq 2 * 3 mod 4	0200000000000000
+IE051	intel	intel_expr	accept	dq 017 + 017	2200000000000000
+IE052	intel	intel_expr	accept	dq 10h + 10 + 10o + 10b	2400000000000000
+IS001	intel	intel_str	accept	db 'abc'	616263
+IS002	intel	intel_str	accept	db 'abc', 0	61626300
+IS003	intel	intel_str	accept	db "abc"	616263
+IS004	intel	intel_str	accept	db 'it''s'	69742773
+IS005	intel	intel_str	accept	db "a""b"	612262
+IS006	intel	intel_str	accept	db 'a"b'	612262
+IS007	intel	intel_str	accept	db ''	
+IS008	intel	intel_str	accept	dw 'a'	6100
+IS009	intel	intel_str	accept	dw 'ab'	6261
+IS010	intel	intel_str	accept	dd 'abcd'	64636261
+IS011	intel	intel_str	accept	dd 'ab'	62610000
+IS012	intel	intel_str	accept	dq 'abcdefgh'	6867666564636261
+IS013	intel	intel_str	refuse	dd 'abcde'	Invalid string as opcode operand: abcde
+IS014	intel	intel_str	refuse	db 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'	longer than 255 chars
+IS015	intel	intel_str	accept	mov eax, 'ab'	b862610000
+IS016	intel	intel_str	accept	mov eax, 'abcd'	b864636261
+IS017	intel	intel_str	accept	mov al, 'a'	b061
+IS018	intel	intel_str	accept	dw 'ab'+0	6261
+IS019	intel	intel_str	refuse	db 'a'+1	Invalid String expression
+IS020	intel	intel_str	accept	dd 'a'	61000000
+IS021	intel	intel_str	accept	dd 'ab'+0	62610000
+IS022	intel	intel_str	accept	dq 'a'	6100000000000000
+IS023	intel	intel_str	accept	db 'yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy'	797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979
+IS024	intel	intel_str	refuse	db 'yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy'	longer than 255 chars
+IS025	intel	intel_str	accept	db 'a', 'bc', 0	61626300
+IS026	intel	intel_str	refuse	db 'a' 'b'	Invalid String expression
+IS027	intel	intel_str	accept	dw 'a','b'	61006200
+II001	intel	intel_imm	accept	mov eax, 1	b801000000
+II002	intel	intel_imm	accept	mov eax, $FFFFFFFF	b8ffffffff
+II003	intel	intel_imm	accept	mov eax, -1	b8ffffffff
+II004	intel	intel_imm	refuse	mov eax, 4294967296	Asm: dword value exceeds bounds 4294967296
+II005	intel	intel_imm	accept	mov rax, 1	48c7c001000000
+II006	intel	intel_imm	accept	mov rax, -1	48c7c0ffffffff
+II007	intel	intel_imm	accept	mov rax, $7FFFFFFF	48b8ffffff7f00000000
+II008	intel	intel_imm	accept	mov rax, $80000000	48b80000008000000000
+II009	intel	intel_imm	accept	mov rax, $FFFFFFFF	48b8ffffffff00000000
+II010	intel	intel_imm	accept	mov rax, $123456789	48b88967452301000000
+II011	intel	intel_imm	accept	mov rax, $FFFFFFFFFFFFFFFF	48c7c0ffffffff
+II012	intel	intel_imm	accept	add eax, $80	0580000000
+II013	intel	intel_imm	accept	add eax, $FFFFFFFF	05ffffffff
+II014	intel	intel_imm	refuse	add rax, $FFFFFFFF	Asm: signed dword value exceeds bounds 4294967295
+II015	intel	intel_imm	refuse	and rax, $FFFFFFFF	Asm: signed dword value exceeds bounds 4294967295
+II016	intel	intel_imm	accept	and rax, $7FFFFFFF	4825ffffff7f
+II017	intel	intel_imm	accept	mov al, 255	b0ff
+II018	intel	intel_imm	refuse	mov al, 256	Asm: byte value exceeds bounds 256
+II019	intel	intel_imm	accept	mov al, -1	b0ff
+II020	intel	intel_imm	accept	mov al, -129	b07f
+II021	intel	intel_imm	accept	mov ax, $FFFF	66b8ffff
+II022	intel	intel_imm	refuse	mov ax, $10000	Asm: word value exceeds bounds 65536
+II023	intel	intel_imm	accept	push $7FFFFFFF	68ffffff7f
+II024	intel	intel_imm	accept	push -1	6aff
+II025	intel	intel_imm	accept	imul eax, eax, 17o	6bc00f
+II026	intel	intel_imm	accept	shl eax, 17o	c1e00f
+II027	intel	intel_imm	refuse	shl eax, 256	Asm: unsigned byte value exceeds bounds 256
+II028	intel	intel_imm	accept	cmp al, 200o	3c80
+II029	intel	intel_imm	accept	test eax, $80000000	a900000080
+II030	intel	intel_imm	accept	mov eax, 1010b	b80a000000
+II031	intel	intel_imm	accept	mov eax, 1 shl 31	b800000080
+II032	intel	intel_imm	accept	mov rax, 1 shl 31	48b80000008000000000
+II033	intel	intel_imm	refuse	or rax, $80000000	Asm: signed dword value exceeds bounds 2147483648
+II034	intel	intel_imm	accept	mov rax, -2147483648	48b800000080ffffffff
+II035	intel	intel_imm	accept	xor eax, $80000000	3500000080
+II036	intel	intel_imm	accept	add ax, $8000	66050080
+II037	intel	intel_imm	accept	mov eax, 017	b811000000
+II038	intel	intel_imm	accept	ret 16	c21000
+II039	intel	intel_imm	accept	mov eax, 0FFFFFFFFh	b8ffffffff
+II040	intel	intel_imm	accept	mov r8d, -1	41b8ffffffff
+II041	intel	intel_imm	refuse	mov qword ptr [rax], $FFFFFFFF	Asm: signed dword value exceeds bounds 4294967295
+II042	intel	intel_imm	accept	mov dword ptr [rax], $FFFFFFFF	c700ffffffff
+II043	intel	intel_imm	refuse	mov byte ptr [rax], 256	Asm: byte value exceeds bounds 256
+II044	intel	intel_imm	refuse	mov dword ptr [rax], $100000000	Asm: dword value exceeds bounds 4294967296
+II045	intel	intel_imm	accept	mov eax, -2147483649	b8ffffff7f
+II046	intel	intel_imm	refuse	mov word ptr [rax], $10000	Asm: word value exceeds bounds 65536
+II047	intel	intel_imm	accept	add al, 377o	04ff
+II048	intel	intel_imm	refuse	imul rax, rax, $80000000	Asm: signed dword value exceeds bounds 2147483648
+II049	intel	intel_imm	accept	cmp rax, 17o	4883f80f
+II050	intel	intel_imm	accept	int 80h	cd80
+II051	intel	intel_imm	accept	pextrw eax, xmm1, 17o	660fc5c10f
+II052	intel	intel_imm	accept	mov eax, -0	b800000000
+IM001	intel	intel_mem	accept	mov eax, [rax+10h]	8b4010
+IM002	intel	intel_mem	accept	mov eax, [rax+17o]	8b400f
+IM003	intel	intel_mem	accept	mov eax, [rax-1]	8b40ff
+IM004	intel	intel_mem	accept	mov eax, [rax+$7FFFFFFF]	8b80ffffff7f
+IM005	intel	intel_mem	refuse	mov eax, [rax+$80000000]	signed dword value exceeds bounds
+IM006	intel	intel_mem	accept	mov eax, [rax-$80000000]	8b8000000080
+IM007	intel	intel_mem	refuse	mov eax, [rax+$FFFFFFFF]	signed dword value exceeds bounds
+IM008	intel	intel_mem	refuse	mov eax, [rax+$100000000]	signed dword value exceeds bounds
+IM009	intel	intel_mem	accept	mov eax, [rax+rcx*8]	8b04c8
+IM010	intel	intel_mem	refuse	mov eax, [rax+rcx*3]	Asm: Invalid effective address
+IM011	intel	intel_mem	refuse	mov eax, [rcx*3]	Asm: Invalid effective address
+IM012	intel	intel_mem	refuse	mov eax, [rcx*5]	Asm: Invalid effective address
+IM013	intel	intel_mem	refuse	mov eax, [rcx*9]	Asm: Invalid effective address
+IM014	intel	intel_mem	refuse	mov eax, [rcx*6]	Asm: Invalid effective address
+IM015	intel	intel_mem	refuse	mov eax, [rcx*16]	Wrong scale factor specified
+IM016	intel	intel_mem	accept	mov eax, [rax+rcx*4+10h]	8b448810
+IM017	intel	intel_mem	accept	mov eax, [rax+128]	8b8080000000
+IM018	intel	intel_mem	accept	mov eax, [rax-128]	8b4080
+IM019	intel	intel_mem	accept	mov eax, [rax+127]	8b407f
+IM020	intel	intel_mem	accept	mov eax, [rax-129]	8b807fffffff
+IM021	intel	intel_mem	accept	mov rax, gs:[30h]	6548a13000000000000000
+IM022	intel	intel_mem	accept	mov eax, [rax+10h+20h]	8b4030
+IM023	intel	intel_mem	accept	mov eax, [rax+1 shl 4]	8b4010
+IM025	intel	intel_mem	accept	mov eax, [rax][rcx*2]	8b0448
+IM026	intel	intel_mem	refuse	mov eax, [rax+rcx*010]	Wrong scale factor specified
+IM027	intel	intel_mem	refuse	mov eax, [rax+rcx*2*2]	Wrong scale factor specified
+IM028	intel	intel_mem	accept	mov eax, [rax+0FFFFFFFF80000000h]	8b8000000080
+IM029	intel	intel_mem	refuse	mov eax, [rax-$80000001]	signed dword value exceeds bounds
+IM030	intel	intel_mem	accept	mov eax, [rax+377o]	8b80ff000000
+IM031	intel	intel_mem	accept	mov eax, [rax+rcx*1]	8b0408
+IM032	intel	intel_mem	accept	mov eax, [rax+rcx*2+17o]	8b44480f
+IA001	intel	intel_align	accept	align 16	align:16
+IA002	intel	intel_align	accept	align 10h	align:16
+IA003	intel	intel_align	refuse	align 020	Constant value out of bounds
+IA004	intel	intel_align	accept	align 20o	align:16
+IE053	intel	intel_expr	accept	dq $8000000000000000 shr 1	00000000000000c0
+IE054	intel	intel_expr	accept	dq -1 shr 63	ffffffffffffffff
+IE055	intel	intel_expr	accept	dd $80000000 shr 1	00000040
+IE056	intel	intel_expr	accept	dq $FFFFFFFF shr 1	ffffff7f00000000
+IE057	intel	intel_expr	accept	dq -1 shr 64	ffffffffffffffff
+IE058	intel	intel_expr	accept	dq 1 shl 63 shr 63	ffffffffffffffff
+IE059	intel	intel_expr	accept	dq not 0 shr 1	ffffffffffffffff
+IE060	intel	intel_expr	accept	dq not 0 or 1 and 2	ffffffffffffffff
+IE061	intel	intel_expr	accept	dq 1 or not 0 and 3	0300000000000000
+IE062	intel	intel_expr	accept	dq not 1 * 2	fdffffffffffffff
+IE063	intel	intel_expr	accept	dq - 1 shr 1	ffffffffffffffff
+IE064	intel	intel_expr	accept	dq -(1) shr 1	ffffffffffffffff
+IE065	intel	intel_expr	accept	dq 2 * - 1	feffffffffffffff
+IE066	intel	intel_expr	accept	dq 1 + not 0	0000000000000000
+IE067	intel	intel_expr	accept	dq 5 - not 0	0600000000000000
+IE068	intel	intel_expr	accept	dq -(3) * 2	faffffffffffffff
+IE069	intel	intel_expr	accept	dq -8 shr 62	ffffffffffffffff
+IE070	intel	intel_expr	accept	dq -1 shl 1	feffffffffffffff
+IE071	intel	intel_expr	accept	dq 1 shl 32	0000000001000000
+IE072	intel	intel_expr	accept	dq 1 shl 31	0000008000000000
+IE073	intel	intel_expr	accept	dd -1 shr 1	ffffffff
+IE074	intel	intel_expr	accept	dq $4000000000000000 * 4	0000000000000000
+IE075	intel	intel_expr	accept	dq -7 mod 2	ffffffffffffffff
+IE076	intel	intel_expr	accept	dq 7 mod -2	0100000000000000
+IE077	intel	intel_expr	accept	dq -7 / 2	fdffffffffffffff
+IE078	intel	intel_expr	accept	dq 1 shr 64	0000000000000000
+IE079	intel	intel_expr	accept	dq 1 shl 65	0000000000000000
+IE080	intel	intel_expr	accept	dq 3 shl 62	00000000000000c0
+IE081	intel	intel_expr	accept	dq not (1 + 2)	fcffffffffffffff
+IE082	intel	intel_expr	accept	dq not 1 shl 1	fdffffffffffffff
+IE083	intel	intel_expr	accept	dq 4 and not 1 + 1	0400000000000000
+IE084	intel	intel_expr	accept	dq (not 0) and $FF	ff00000000000000
+IE085	intel	intel_expr	accept	dq 1 xor not 0	feffffffffffffff
+IE086	intel	intel_expr	accept	dq 6 or 1 and not 1	0600000000000000
+IE087	intel	intel_expr	accept	mov eax, -8 shr 1	b8fcffffff
+IE088	intel	intel_expr	accept	mov rax, -8 shr 1	48c7c0fcffffff
+IE089	intel	intel_expr	accept	dq -2 shr 1 shr 1	ffffffffffffffff
+IE090	intel	intel_expr	refuse	dq 1 shl -1	Illegal expression
+IE091	intel	intel_expr	refuse	dq 1 shl -32	Illegal expression
+IE092	intel	intel_expr	refuse	dq $FF shr -1	Illegal expression
+AE076	att	att_expr	accept	.quad ~1+2	0000000000000000
+AE077	att	att_expr	accept	.quad 1+~1	ffffffffffffffff
+AE078	att	att_expr	accept	.quad 0x8000000000000000>>1	0000000000000040
+AE079	att	att_expr	accept	.quad -(8)>>1	fcffffffffffff7f
+AE080	att	att_expr	accept	.quad 1<<63>>63	0100000000000000
+AE081	att	att_expr	accept	.quad 2*-(3)	faffffffffffffff
+AE082	att	att_expr	accept	.quad 6|1&~1	0600000000000000
+AE083	att	att_expr	accept	.quad 1-2-3	fcffffffffffffff
+AE084	att	att_expr	accept	.quad 8/2/2	0200000000000000
+AE085	att	att_expr	accept	.quad 2|4^6&3	0000000000000000
+AE086	att	att_expr	accept	.quad -1>>64	0000000000000000
+AE087	att	att_expr	accept	.quad 1<<65	0000000000000000
+AE089	att	att_expr	accept	.quad -7%2	ffffffffffffffff
+AE090	att	att_expr	refuse	.quad 3<2+1	Char < not allowed here
+AE091	att	att_expr	accept	.quad -(1)	ffffffffffffffff
+AE092	att	att_expr	refuse	.quad !1+1	Invalid constant expression
+AE093	att	att_expr	accept	.quad ~(1+2)	fcffffffffffffff
+AE094	att	att_expr	accept	.quad 1 - 1 & 3	0000000000000000
+AE095	att	att_expr	accept	.quad 1 << 2 | 1	0500000000000000
+AA009	att	att_align	refuse	.balign 128	Constant value out of bounds
+AA010	att	att_align	refuse	.balign 20	Constant value out of bounds
+AA011	att	att_align	accept	.balign 0	
+AA012	att	att_align	accept	.balign 1	
+AA013	att	att_align	refuse	.balign 4096	Constant value out of bounds
+AA014	att	att_align	refuse	.p2align 7	Constant value out of bounds
+AA015	att	att_align	accept	.p2align 0	
+AA016	att	att_align	refuse	.p2align 6,,63	Constant value out of bounds
+AA017	att	att_align	refuse	.p2align 6,0x90	Constant value out of bounds
+AA018	att	att_align	accept	.p2align 5,,31	align:32
+AA019	att	att_align	accept	.p2align 4,0xCC,15	cccccccccccccccc
+AA020	att	att_align	accept	.align 16	align:16
+AA021	att	att_align	refuse	.align 3	Constant value out of bounds
+AA022	att	att_align	accept	.balign 64	align:64
+AA023	att	att_align	accept	.byte 1 ;; .balign 8	align:8:01
+IA005	intel	intel_align	refuse	align 128	Constant value out of bounds
+IA006	intel	intel_align	refuse	align 20	Constant value out of bounds
+IA007	intel	intel_align	accept	align 64	align:64
+IA008	intel	intel_align	accept	align 0	
+IA009	intel	intel_align	accept	align 1	
+IA010	intel	intel_align	accept	db 1 ;; align 8	align:8:01
+AS048	att	att_str	refuse	.byte ''	Invalid string as opcode operand
+AS049	att	att_str	accept	.word 'ab'	6261
+AS050	att	att_str	accept	.dc.a 'a'	6100000000000000
+AS051	att	att_str	accept	.ascii "\18"	10
+AS052	att	att_str	accept	.ascii "\9"	09
+AS053	att	att_str	accept	.ascii "\x41\x"	4100
+AS054	att	att_str	accept	.ascii "\xfff"	ff
+AS055	att	att_str	accept	.ascii "a\x4"	6104
+AS056	att	att_str	accept	.ascii "\0010"	0130
+AS057	att	att_str	accept	.ascii "\1234\x41"	533441
+IS028	intel	intel_str	accept	dd 'abc'	63626100
+IS029	intel	intel_str	refuse	dw 'abc'	Constant value out of bounds
+IS030	intel	intel_str	accept	dq 'abcd'	6463626100000000
+IS031	intel	intel_str	accept	dd ''	00000000
+IS032	intel	intel_str	accept	dw ''	0000
+IS033	intel	intel_str	accept	dd 'a', 'bc'	6100000063620000
+AI061	att	att_imm	accept	imull $0x80000000, %eax, %eax	69c000000080
+AI062	att	att_imm	accept	imulq $0x7FFFFFFF, %rax, %rax	4869c0ffffff7f
+AI063	att	att_imm	accept	imulq $-0x80000000, %rax, %rax	4869c000000080
+AI064	att	att_imm	refuse	imulw $0x10000, %ax, %ax	Asm: word value exceeds bounds 65536
+AI065	att	att_imm	accept	movl $-4294967296, %eax	b800000000
+AI066	att	att_imm	refuse	movl $-4294967297, %eax	Asm: dword value exceeds bounds -4294967297
+AI067	att	att_imm	refuse	addl $0x100000000, %eax	Asm: dword value exceeds bounds 4294967296
+AI068	att	att_imm	refuse	testq $0x80000000, %rax	Asm: signed dword value exceeds bounds 2147483648
+AI069	att	att_imm	refuse	movq $0x80000000, (%rax)	Asm: signed dword value exceeds bounds 2147483648
+AI070	att	att_imm	refuse	pushq $0x80000000	Asm: [push imm64] invalid combination of opcode and operands
+AI071	att	att_imm	refuse	andl $0x1FFFFFFFF, %eax	Asm: dword value exceeds bounds 8589934591
+AI072	att	att_imm	accept	xorq $0xFFFFFFFF80000000, %rax	483500000080
+II053	intel	intel_imm	accept	imul eax, eax, $80000000	69c000000080
+II054	intel	intel_imm	accept	imul rax, rax, -$80000000	4869c000000080
+II055	intel	intel_imm	refuse	add eax, $100000000	Asm: dword value exceeds bounds 4294967296
+II056	intel	intel_imm	refuse	test rax, $80000000	signed dword value exceeds bounds
+II057	intel	intel_imm	refuse	push $80000000	signed dword value exceeds bounds
+II058	intel	intel_imm	accept	mov eax, -4294967296	b800000000
+II059	intel	intel_imm	refuse	and eax, $1FFFFFFFF	Asm: dword value exceeds bounds 8589934591
+II060	intel	intel_imm	accept	mov r8, $80000000	49b80000008000000000
+II061	intel	intel_imm	refuse	imul ax, ax, $10000	Asm: word value exceeds bounds 65536
+AM031	att	att_mem	accept	movl 0x7FFFFFFF(%rax,%rcx,2), %eax	8b8448ffffff7f
+AM032	att	att_mem	refuse	movl 0x80000000(%rax,%rcx,2), %eax	Asm: signed dword value exceeds bounds 2147483648
+AM033	att	att_mem	refuse	movl 0x80000000(,%rcx,2), %eax	Asm: signed dword value exceeds bounds 2147483648
+AM034	att	att_mem	refuse	leaq 0x100000000(%rip), %rax	Asm: signed dword value exceeds bounds 4294967296
+AM035	att	att_mem	accept	movl %fs:0x100000000, %eax	64a10000000001000000
+AM036	att	att_mem	accept	movl -0x80000000(%rax), %eax	8b8000000080
+IM033	intel	intel_mem	refuse	mov eax, [rcx*2+$80000000]	signed dword value exceeds bounds
+IM034	intel	intel_mem	refuse	mov eax, [rax+rcx*4*2]	Wrong scale factor specified
+IM035	intel	intel_mem	refuse	mov eax, [rax+2*rcx*2]	Wrong scale factor specified
+IM036	intel	intel_mem	refuse	mov eax, [rax+rcx*2+rdx]	Multiple index register usage
+IM037	intel	intel_mem	accept	lea rax, [rcx*8+$10]	488d04cd10000000
+AF052	att	att_float	refuse	.single 0d3.4028235677973367e38	Invalid floating point constant
+AF053	att	att_float	accept	.double 0d1.7976931348623157e308	ffffffffffffef7f
+AF054	att	att_float	accept	.double 0d1.7976931348623158e308	ffffffffffffef7f
+AF055	att	att_float	refuse	.double 0d1.7976931348623159e308	Invalid floating point constant
+AF056	att	att_float	refuse	.single -0d3.5e38	Invalid floating point constant -3.5e38
+AF057	att	att_float	refuse	.double 0d-1.8e308	Invalid floating point constant -1.8e308
+AF058	att	att_float	refuse	.single 1e39	Invalid floating point expression
+IE093	intel	intel_expr	accept	dq (1 or 2)	0300000000000000
+IE094	intel	intel_expr	accept	dq (1 xor 3)	0200000000000000
+IE095	intel	intel_expr	accept	dq 2*(1 or 2)	0600000000000000
+IE096	intel	intel_expr	accept	dq 5-8 shr 1	0100000000000000
+IE097	intel	intel_expr	accept	dq 5-1 and 3	0000000000000000
+IE098	intel	intel_expr	accept	dq -(8) shr 1	fcffffffffffffff
+IE099	intel	intel_expr	accept	dq (3 and 1) or 4	0500000000000000
+IM038	intel	intel_mem	accept	mov eax, [rax-7 shr 1]	8b40fd
+IM039	intel	intel_mem	refuse	mov eax, [rax-5 and 3]	Invalid reference syntax
+IM040	intel	intel_mem	accept	mov eax, [rax-1+1]	8b00
+IM041	intel	intel_mem	accept	mov eax, [rax-2*3]	8b40fa
+IM042	intel	intel_mem	accept	mov eax, [rax-(1 or 2)]	8b40fd
+IS034	intel	intel_str	accept	mov eax, ''	b800000000
+AE096	att	att_expr	accept	.quad (1|2)	0300000000000000
+AE097	att	att_expr	accept	.quad (1^3)	0200000000000000
+AE098	att	att_expr	accept	.quad 5-8>>1	0100000000000000
+AE099	att	att_expr	accept	.quad 5-1&3	0400000000000000
+AE100	att	att_expr	accept	.quad 2*(1|2)	0600000000000000
+AM037	att	att_mem	accept	movl (0x80000000), %eax	a10000008000000000
+AM038	att	att_mem	refuse	movl -7>>1(%rax), %eax	Asm: signed dword value exceeds bounds 9223372036854775804
+AM039	att	att_mem	accept	movl (0x7FFFFFFF), %eax	a1ffffff7f00000000
+AA024	att	att_align	refuse	.p2align 17	Constant value out of bounds
+AA025	att	att_align	accept	.p2align 6	align:64
+IM043	intel	intel_mem	accept	mov eax, [$123456789]	a18967452301000000
+IM044	intel	intel_mem	refuse	add eax, [$80000000]	signed dword value exceeds bounds
+IM045	intel	intel_mem	accept	mov rax, [$80000000]	48a10000008000000000
+IM046	intel	intel_mem	accept	mov ecx, [$7FFFFFFF]	8b0c25ffffff7f
+IM047	intel	intel_mem	refuse	mov ecx, [$80000000]	signed dword value exceeds bounds
+IM048	intel	intel_mem	accept	mov ecx, [eax+$FFFFFFFF]	678b48ff
+IM049	intel	intel_mem	accept	mov ecx, [eax+$100000000]	678b08
+IM050	intel	intel_mem	refuse	mov ecx, [-$80000001]	signed dword value exceeds bounds
+AM040	att	att_mem	refuse	addl (0x80000000), %eax	Asm: signed dword value exceeds bounds 2147483648
+AM041	att	att_mem	refuse	movl (0x80000000), %ecx	Asm: signed dword value exceeds bounds 2147483648
+AM042	att	att_mem	accept	movl 0xFFFFFFFF(%eax), %ecx	678b48ff
+AM043	att	att_mem	accept	movl 0x100000000(%eax), %ecx	678b08
+AM044	att	att_mem	accept	movl (0x123456789), %eax	a18967452301000000
+AM045	att	att_mem	refuse	movl (-0x80000001), %ecx	Asm: signed dword value exceeds bounds -2147483649
+AE101	att	att_expr	accept	.quad 0x8000000000000000/-1	0000000000000080
+IE100	intel	intel_expr	accept	dq $8000000000000000 / -1	0000000000000080
+IE101	intel	intel_expr	accept	dq $8000000000000000 mod -1	0000000000000000
+AD101	att	att_int	refuse	.byte -256	Constant value out of bounds
+AD102	att	att_int	refuse	.byte -257	Constant value out of bounds
+AD103	att	att_int	refuse	.word -65536	Constant value out of bounds
+AD104	att	att_int	refuse	.word -65537	Constant value out of bounds
+AD105	att	att_int	refuse	.long -4294967295	Constant value out of bounds
+AD106	att	att_int	refuse	.long -4294967296	Constant value out of bounds
+AI073	att	att_imm	accept	movb $-256, %al	b000
+AI074	att	att_imm	refuse	movb $-257, %al	byte value exceeds bounds
+AI075	att	att_imm	accept	movw $-65536, %ax	66b80000
+AI076	att	att_imm	refuse	movw $-65537, %ax	word value exceeds bounds
+AI077	att	att_imm	accept	movl $-4294967295, %eax	b801000000
+AI078	att	att_imm	accept	addl $-4294967295, %eax	0501000000
+AI081	att	att_imm	refuse	push $0x80000000	Asm: signed dword value exceeds bounds 2147483648
+AI082	att	att_imm	refuse	movl $0b, %eax	Error converting binary
+AD107	att	att_int	refuse	.byte 0b	Error converting binary
+AD108	att	att_int	refuse	.byte 0B	Error converting binary
+II062	intel	intel_imm	accept	push $7FFFFFFF	68ffffff7f
+II063	intel	intel_imm	accept	push -$80000000	6800000080
+II064	intel	intel_imm	refuse	push 0FFFFFFFFh	signed dword value exceeds bounds
+II065	intel	intel_imm	accept	mov eax, -4294967295	b801000000
+II066	intel	intel_imm	accept	mov eax, -4294967296	b800000000
+ID071	intel	intel_int	refuse	dd -4294967296	Constant value out of bounds
+ID072	intel	intel_int	refuse	db -256	Constant value out of bounds
+IM051	intel	intel_mem	accept	mov eax, [5 and 3]	a10100000000000000
+IM052	intel	intel_mem	refuse	mov eax, [rax + 5 and 3]	Invalid reference syntax
+IM053	intel	intel_mem	accept	mov eax, [rax + (5 and 3)]	8b4001
+IM054	intel	intel_mem	refuse	mov eax, [not 3 + rax]	Invalid reference syntax
+IM055	intel	intel_mem	refuse	mov eax, [rax + not 3]	Invalid reference syntax
+IM056	intel	intel_mem	refuse	mov eax, [rax + 4 or 1]	Invalid reference syntax
+IM057	intel	intel_mem	refuse	lea rax, [rcx + 8 xor 1]	Invalid reference syntax
+IM058	intel	intel_mem	refuse	mov eax, [5 and 3 + rax]	Invalid reference syntax
+IM059	intel	intel_mem	accept	mov eax, [rax + 5 shl 1]	8b400a
+IM060	intel	intel_mem	accept	mov eax, [rax + (not 3)]	8b40fc
+IM061	intel	intel_mem	refuse	mov eax, [rax + rcx*2 + 5 or 2]	Invalid reference syntax
+AM046	att	att_mem	accept	movl 5&3(%rax), %eax	8b4001
+AM047	att	att_mem	accept	movl 4|1(%rax), %eax	8b4005
+IM062	intel	intel_mem	accept	mov eax, [CFIVE and 3]	a10100000000000000
+IM063	intel	intel_mem	accept	mov eax, [5 and 3 + 8]	a10100000000000000
+IM064	intel	intel_mem	accept	mov eax, [TRR.B or 1]	a10500000000000000
+IM065	intel	intel_mem	accept	mov eax, dword ptr 5 and 3	b801000000
+IM066	intel	intel_mem	accept	mov eax, [5 and 3][rax]	8b4001
+IM067	intel	intel_mem	accept	mov eax, [rax][5 and 3]	8b4001
+IM068	intel	intel_mem	accept	mov eax, [rax + (CFIVE and 3)]	8b4001
+IM069	intel	intel_mem	accept	mov eax, TRR.B + (5 and 3)	b805000000
+IM070	intel	intel_mem	accept	mov eax, fs:[5 and 3]	64a10100000000000000
+IM071	intel	intel_mem	refuse	mov eax, fs:5 and 3	Invalid reference syntax
+IM072	intel	intel_mem	accept	mov eax, [not 3]	a1fcffffffffffffff
+IM073	intel	intel_mem	refuse	mov eax, [rax + CFIVE and 3]	Invalid reference syntax
+IM074	intel	intel_mem	refuse	mov eax, [CFIVE and 3 + rax]	Invalid reference syntax
+IM075	intel	intel_mem	refuse	mov eax, [rax + TRR.B and 3]	Invalid reference syntax
+IM076	intel	intel_mem	refuse	mov eax, [rax] + 5 and 3	Invalid reference syntax
+IM077	intel	intel_mem	accept	mov eax, TRR.B + 5 and 3	b801000000
+IM078	intel	intel_mem	refuse	mov eax, [GVX + 5 and 3]	Invalid reference syntax
+IM079	intel	intel_mem	refuse	mov eax, GVX + 5 and 3	Invalid reference syntax
+IM080	intel	intel_mem	refuse	mov eax, [5 and 3 + GVX]	Relocatable symbol can only be added
+IM081	intel	intel_mem	refuse	mov eax, offset GVX + 5 and 3	Relocatable symbol can only be added
+IM082	intel	intel_mem	refuse	mov eax, fs:[rax + 5 and 3]	Invalid reference syntax
+IM083	intel	intel_mem	refuse	lea rax, [rax + 5 and not 3]	Invalid reference syntax
+IM084	intel	intel_mem	refuse	mov eax, [rax][5 and 3 + rcx]	Invalid reference syntax
+IM085	intel	intel_mem	accept	mov eax, GVX + (5 and 3)	a1@GVX:1
+IM086	intel	intel_mem	accept	mov eax, [rax + rcx*(1 shl 1)]	8b0448
+IM087	intel	intel_mem	accept	mov eax, [rax + rcx*(2) + 8]	8b444808
+IM088	intel	intel_mem	accept	mov eax, [rax + rcx*(2) shl 1]	8b0488
+IM089	intel	intel_mem	accept	mov eax, [rax + rcx*(2)*2]	8b0488
+IM090	intel	intel_mem	accept	mov eax, [rax + rcx*CTWO]	8b0448
+IM091	intel	intel_mem	accept	mov eax, [rax + rcx*CTWO - 8]	8b4448f8
+IM092	intel	intel_mem	refuse	mov eax, [rax + rcx*(2) and 3]	Invalid reference syntax
+IM093	intel	intel_mem	refuse	mov eax, [rax + rcx*(2) mod 3]	Invalid reference syntax
+IM094	intel	intel_mem	refuse	mov eax, [rax + rcx*(4) shr 1]	Invalid reference syntax
+IM095	intel	intel_mem	refuse	mov eax, [rax + rcx*(4)/2]	Invalid reference syntax
+IM096	intel	intel_mem	refuse	mov eax, [rax + rcx*CTWO or 1]	Invalid reference syntax
+IM097	intel	intel_mem	refuse	mov eax, [rax + rcx*CTWO xor 1]	Invalid reference syntax
+IE110	intel	intel_expr	refuse	dq GVX + 5 and 3	Relocatable symbol can only be added
+IE111	intel	intel_expr	accept	dq GVX + (5 and 3)	@GVX:1
+IM098	intel	intel_mem	accept	mov eax, [rax] - 5 shr 1	8b40fe
+IM099	intel	intel_mem	accept	mov eax, TRR.B - 5 shr 1	b802000000
+IM100	intel	intel_mem	accept	lea rax, [rcx] - 7 shr 1	488d41fd
+IM101	intel	intel_mem	accept	mov eax, [rax].1+2[rcx]	8b440803
+IM102	intel	intel_mem	refuse	mov eax, TRR.B 5	Invalid constant expression
+IM103	intel	intel_mem	accept	mov eax, TRR.B - 1 shl 2	b800000000
+IM104	intel	intel_mem	accept	mov eax, TRR.B + 2*3	b80a000000
+IM105	intel	intel_mem	accept	mov eax, [rax] + 5 shr 1	8b4002
+IM106	intel	intel_mem	accept	mov eax, [rax] - 4	8b40fc
+IM107	intel	intel_mem	accept	mov eax, fs:5 + 3	64a10800000000000000
+IM108	intel	intel_mem	accept	mov eax, TRR.B	b804000000
+IM109	intel	intel_mem	accept	mov eax, [rax + TRR.B]	8b4004
+IM110	intel	intel_mem	refuse	mov eax, 5 - offset GVX	Relocatable symbol can only be added
+IM111	intel	intel_mem	refuse	mov eax, 5 * offset GVX	Relocatable symbol can only be added
+IM112	intel	intel_mem	refuse	mov eax, 5 offset GVX	Relocatable symbol can only be added
+IM114	intel	intel_mem	refuse	mov eax, (offset GVX)	Relocatable symbol can only be added
+IM115	intel	intel_mem	refuse	mov eax, (offset GVX) + 4	Relocatable symbol can only be added
+IM117	intel	intel_mem	accept	mov rax, offset GVX - 5 shr 1	48b8@GVX:-2
+IM118	intel	intel_mem	accept	mov rax, offset GVX + 3	48b8@GVX:3
+IE112	intel	intel_expr	accept	dq GVX - 5 shr 1	@GVX:-2
+IE113	intel	intel_expr	refuse	dq 5 - GVX	Relocatable symbol can only be added
+IE114	intel	intel_expr	accept	dq GVX - 1	@GVX:-1
+IE115	intel	intel_expr	accept	dq 4 + GVX - 7 shr 1	@GVX:1
+AE103	att	att_expr	accept	.quad GVX - 5 >> 1	@GVX:-2
+AE104	att	att_expr	accept	.quad GVX - 5 & 3	@GVX:-1
+AE105	att	att_expr	accept	.quad GVX - 5 | 2	@GVX:-7
+AE106	att	att_expr	accept	.quad 4 + GVX - 7 >> 1	@GVX:1
+AE107	att	att_expr	accept	.quad GVX - 2 * 3	@GVX:-6
+AE108	att	att_expr	accept	.quad GVX + 5 & 3	@GVX:1
+AE109	att	att_expr	refuse	.quad 5 - GVX	Relocatable symbol can only be added
+AE110	att	att_expr	accept	.quad 4*TRR+1	0100000000000000
+AE111	att	att_expr	accept	.quad GVX+1	@GVX:1
+AE112	att	att_expr	accept	.quad 3+GVX-1	@GVX:2
+AM048	att	att_mem	accept	movl (%rax,%rcx,1+1), %eax	8b0448
+AM049	att	att_mem	accept	movl (%rax,%rcx,8/2), %eax	8b0488
+AM050	att	att_mem	accept	movl (%rax,%rcx,1<<1), %eax	8b0448
+AM051	att	att_mem	accept	movl (%rax,%rcx,5&3), %eax	8b0408
+IF001	intel	intel_float	refuse	dd 1.0	Invalid constant expression
+IF002	intel	intel_float	refuse	dq 1.0	Invalid constant expression
+IF003	intel	intel_float	refuse	dd 1.5	Invalid constant expression
+IF004	intel	intel_float	refuse	dq 2.5e-1	Invalid constant expression
+IF005	intel	intel_float	refuse	dd -1.0	Invalid constant expression
+IF006	intel	intel_float	refuse	dq 1e3	Error converting decimal 1E3
+IF007	intel	intel_float	refuse	dw 1.0	Invalid constant expression
+IF008	intel	intel_float	refuse	dd 1.	Invalid constant expression
+IF009	intel	intel_float	refuse	dq 0.1	Invalid constant expression
+IF010	intel	intel_float	refuse	dd 3.4e38	Invalid constant expression
+IF011	intel	intel_float	refuse	dq 1.0e400	Invalid constant expression
+IF012	intel	intel_float	refuse	mov eax, 1.0	Invalid constant expression
+AF060	att	att_float	refuse	.tcfloat 1.5	Invalid floating point expression
+AF061	att	att_float	accept	.tcfloat 0d1.5	00000000000000c0ff3f0000|00000000000000c0ff3f000000000000

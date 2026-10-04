@@ -2320,7 +2320,7 @@
   (
     opcode  : A_IMUL;
     ops     : 3;
-    optypes : (ot_reg32 or ot_bits64,ot_rm_gpr,ot_immediate,ot_none);
+    optypes : (ot_reg32,ot_rm_gpr,ot_immediate,ot_none);
     code    : #208#1#105#72#34;
     flags   : [if_386,if_sm,if_sd,if_ar2]
   ),
@@ -4527,7 +4527,7 @@
     ops     : 1;
     optypes : (ot_immediate or ot_bits32,ot_none,ot_none,ot_none);
     code    : #213#1#104#32#221;
-    flags   : [if_386]
+    flags   : [if_386,if_nox86_64]
   ),
   (
     opcode  : A_PUSH;

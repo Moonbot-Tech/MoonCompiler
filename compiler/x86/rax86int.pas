@@ -69,7 +69,10 @@ Unit Rax86int;
        tconstsymbolexpressionoutputflag = (
          cseof_isseg,
          cseof_is_farproc_entry,
-         cseof_hasofs
+         cseof_hasofs,
+         { NOT, AND, OR or XOR outside parentheses: they bind looser than +, so
+           the expression is no term that can be added to another one }
+         cseof_bitop
        );
        tconstsymbolexpressionoutputflags = set of tconstsymbolexpressionoutputflag;
 
@@ -96,12 +99,12 @@ Unit Rax86int;
          procedure AddReferences(dest,src : tx86operand);
          procedure SetSegmentOverride(oper:tx86operand;seg:tregister);
          procedure BuildRecordOffsetSize(const expr: string;out offset:tcgint;out size:tcgint; out mangledname: string; needvmtofs: boolean; out hastypecast: boolean);
-         procedure BuildConstSymbolExpression(in_flags: tconstsymbolexpressioninputflags;out value:tcgint;out asmsym:string;out asmsymtyp:TAsmsymtype;out size:tcgint;out out_flags:tconstsymbolexpressionoutputflags);
+         procedure BuildConstSymbolExpression(in_flags: tconstsymbolexpressioninputflags;out value:tcgint;out asmsym:string;out asmsymtyp:TAsmsymtype;out size:tcgint;out out_flags:tconstsymbolexpressionoutputflags;const seed:string='');
          function BuildConstExpression:aint;
-         function BuildRefConstExpression(out size:tcgint;startingminus:boolean=false):aint;
+         function BuildRefConstExpression(out size:tcgint;out bitop:boolean;startingminus:boolean=false):aint;
          procedure BuildReference(oper : tx86operand);
          procedure BuildOperand(oper: tx86operand;istypecast:boolean);
-         procedure BuildConstantOperand(oper: tx86operand);
+         procedure BuildConstantOperand(oper: tx86operand;out bitop:boolean);
          procedure BuildOpCode(instr : tx86instruction);
          procedure BuildConstant(constsize: byte);
          procedure consume_voperand_ext(aop: tx86operand; aConsumeVOpExt: boolean = true);
@@ -584,6 +587,7 @@ Unit Rax86int;
              '''' : { string or character }
                begin
                  actasmpattern:='';
+                 len:=0;
                  repeat
                    if c = '''' then
                     begin
@@ -600,6 +604,7 @@ Unit Rax86int;
                            if c='''' then
                             begin
                               actasmpattern:=actasmpattern+'''';
+                              inc(len);
                               c:=current_scanner.asmgetchar;
                               if c in [#10,#13] then
                                begin
@@ -613,6 +618,7 @@ Unit Rax86int;
                         else
                          begin
                            actasmpattern:=actasmpattern+c;
+                           inc(len);
                            c:=current_scanner.asmgetchar;
                            if c in [#10,#13] then
                             begin
@@ -625,6 +631,9 @@ Unit Rax86int;
                    else
                     break; { end if }
                  until false;
+                 { the pattern holds 255 chars, the rest would be lost silently }
+                 if len>255 then
+                   Message(scan_e_string_exceeds_255_chars);
                  actasmtoken:=AS_STRING;
                  exit;
                end;
@@ -632,6 +641,7 @@ Unit Rax86int;
              '"' : { string or character }
                begin
                  actasmpattern:='';
+                 len:=0;
                  repeat
                    if c = '"' then
                     begin
@@ -648,6 +658,7 @@ Unit Rax86int;
                            if c='"' then
                             begin
                               actasmpattern:=actasmpattern+'"';
+                              inc(len);
                               c:=current_scanner.asmgetchar;
                               if c in [#10,#13] then
                                begin
@@ -661,6 +672,7 @@ Unit Rax86int;
                         else
                          begin
                            actasmpattern:=actasmpattern+c;
+                           inc(len);
                            c:=current_scanner.asmgetchar;
                            if c in [#10,#13] then
                             begin
@@ -673,6 +685,8 @@ Unit Rax86int;
                    else
                     break; { end if }
                  until false;
+                 if len>255 then
+                   Message(scan_e_string_exceeds_255_chars);
                  actasmtoken:=AS_STRING;
                  exit;
                end;
@@ -1270,7 +1284,7 @@ Unit Rax86int;
       end;
 
 
-    Procedure tx86intreader.BuildConstSymbolExpression(in_flags: tconstsymbolexpressioninputflags;out value:tcgint;out asmsym:string;out asmsymtyp:TAsmsymtype;out size:tcgint;out out_flags:tconstsymbolexpressionoutputflags);
+    Procedure tx86intreader.BuildConstSymbolExpression(in_flags: tconstsymbolexpressioninputflags;out value:tcgint;out asmsym:string;out asmsymtyp:TAsmsymtype;out size:tcgint;out out_flags:tconstsymbolexpressionoutputflags;const seed:string);
       var
         tempstr,expr,hs,mangledname : string;
         parenlevel : longint;
@@ -1286,6 +1300,15 @@ Unit Rax86int;
         srsymtable : TSymtable;
         hastypecast : boolean;
 	stop_at_plus_minus: boolean;
+
+      procedure AddOperand(const s: string);
+        begin
+          { two operands without an operator would merge into one number: "1 2" is no 12 }
+          if (expr<>'') and (expr[length(expr)] in ['0'..'9',')',']']) then
+            Message(asmr_e_invalid_constant_expression);
+          expr:=expr + s;
+        end;
+
       Begin
         { reset }
         value:=0;
@@ -1295,9 +1318,12 @@ Unit Rax86int;
         out_flags:=[];
         errorflag:=FALSE;
         tempstr:='';
-        expr:='';
+        { a value read before continues here: TRec.Field+5 and 3 is one expression }
+        expr:=seed;
+        { the reference so far minus what follows: in [reg-7 shr 1] the shr binds
+          first, a minus glued to the 7 would not }
         if cseif_startingminus in in_flags then
-          expr:='-';
+          expr:='0-';
         inexpression:=TRUE;
         parenlevel:=0;
         sym:=nil;
@@ -1333,6 +1359,13 @@ Unit Rax86int;
               else
                 ;
             end;
+          if (parenlevel=0) and (actasmtoken in [AS_NOT,AS_AND,AS_OR,AS_XOR]) then
+            include(out_flags,cseof_bitop);
+          { the factor of a scale, as in [rcx*C shr 1]: the operator takes rcx*C as
+            its left operand; only * and shl give the same product }
+          if stop_at_plus_minus and (parenlevel=0) and
+             (actasmtoken in [AS_SLASH,AS_MOD,AS_SHR,AS_NOT,AS_AND,AS_OR,AS_XOR]) then
+            Message(asmr_e_invalid_reference_syntax);
           Case actasmtoken of
             AS_LPAREN:
               Begin
@@ -1414,7 +1447,7 @@ Unit Rax86int;
               end;
             AS_INTNUM:
               Begin
-                expr:=expr + actasmpattern;
+                AddOperand(actasmpattern);
                 Consume(AS_INTNUM);
               end;
 {$ifdef i8086}
@@ -1487,7 +1520,7 @@ Unit Rax86int;
                     end;
                  end;
                 str(l, tempstr);
-                expr:=expr + tempstr;
+                AddOperand(tempstr);
                 if hasparen then
                   Consume(AS_RPAREN);
               end;
@@ -1500,6 +1533,8 @@ Unit Rax86int;
               begin
                 l:=0;
                 case Length(actasmpattern) of
+                 { '' is 0, as in Delphi }
+                 0 : ;
                  1 :
                   l:=ord(actasmpattern[1]);
                  2 :
@@ -1519,7 +1554,7 @@ Unit Rax86int;
                   Message1(asmr_e_invalid_string_as_opcode_operand,actasmpattern);
                 end;
                 str(l, tempstr);
-                expr:=expr + tempstr;
+                AddOperand(tempstr);
                 Consume(AS_STRING);
               end;
             AS_ID:
@@ -1548,7 +1583,7 @@ Unit Rax86int;
                 else if SearchIConstant(tempstr,l) then
                  begin
                    str(l, tempstr);
-                   expr:=expr + tempstr;
+                   AddOperand(tempstr);
                  end
                 else
                  begin
@@ -1621,20 +1656,15 @@ Unit Rax86int;
                         end
                       else
                        Message(asmr_e_cant_have_multiple_relocatable_symbols);
-                      if (expr='') or (expr[length(expr)]='+') then
-                       begin
-                         { don't remove the + if there could be a record field }
-                         if actasmtoken<>AS_DOT then
-                          delete(expr,length(expr),1);
-                       end
-                      else
-                       if (cseif_needofs in in_flags) then
-                         begin
-                           if (prevtok<>AS_OFFSET) then
-                             Message(asmr_e_need_offset);
-                         end
-                       else
-                         Message(asmr_e_only_add_relocatable_symbol);
+                      { a symbol can only be added: 5-offset x, 5*offset x and
+                        5 offset x are no address plus a number }
+                      if (expr<>'') and (expr[length(expr)]<>'+') then
+                        begin
+                          if (cseif_needofs in in_flags) and (prevtok<>AS_OFFSET) then
+                            Message(asmr_e_need_offset)
+                          else
+                            Message(asmr_e_only_add_relocatable_symbol);
+                        end;
                     end;
                    if (actasmtoken=AS_DOT) or
                       (assigned(sym) and
@@ -1646,7 +1676,7 @@ Unit Rax86int;
                       else
                         begin
                           str(l, tempstr);
-                          expr:=expr + tempstr;
+                          AddOperand(tempstr);
                         end
                     end
                    else if (actasmtoken<>AS_DOT) and
@@ -1656,13 +1686,13 @@ Unit Rax86int;
                      begin
                        { just a record type (without being followed by dot)
                          evaluates to 0. Ugly, but TP7 compatible. }
-                       expr:=expr+'0';
+                       AddOperand('0');
                      end
                    else
-                    begin
-                      if (expr='') or (expr[length(expr)] in ['+','-','/','*']) then
-                       delete(expr,length(expr),1);
-                    end;
+                     { the symbol is added to the value apart; its place in the
+                       expression is 0, so what follows keeps its own place:
+                       sym-5 shr 1 is sym-(5 shr 1) }
+                     AddOperand('0');
                    if (actasmtoken=AS_LBRACKET) and
                       assigned(def) and
                       (def.typ=arraydef) then
@@ -1707,9 +1737,13 @@ Unit Rax86int;
             end;
           end;
         Until false;
+        { a symbol is added to the value: in "sym+5 and 3" the and takes
+          sym+5 as its operand, there is no sum to add the symbol to }
+        if (asmsym<>'') and (cseof_bitop in out_flags) then
+          Message(asmr_e_only_add_relocatable_symbol);
         { calculate expression }
         if not ErrorFlag then
-          value:=CalculateExpression(expr)
+          value:=CalculateExpression(expr,exs_intel)
         else
           value:=0;
         { no longer in an expression }
@@ -1731,7 +1765,7 @@ Unit Rax86int;
       end;
 
 
-    Function tx86intreader.BuildRefConstExpression(out size:tcgint;startingminus:boolean):aint;
+    Function tx86intreader.BuildRefConstExpression(out size:tcgint;out bitop:boolean;startingminus:boolean):aint;
       var
         l : tcgint;
         hs : string;
@@ -1745,6 +1779,7 @@ Unit Rax86int;
         BuildConstSymbolExpression(in_flags,l,hs,hssymtyp,size,out_flags);
         if hs<>'' then
          Message(asmr_e_relocatable_symbol_not_allowed);
+        bitop:=cseof_bitop in out_flags;
         BuildRefConstExpression:=aint(l);
       end;
 
@@ -1765,6 +1800,20 @@ Unit Rax86int;
         refparasym: tabstractnormalvarsym;
         cse_in_flags: tconstsymbolexpressioninputflags;
         cse_out_flags: tconstsymbolexpressionoutputflags;
+        terms : longint;
+        bitop,
+        hasbitop : boolean;
+
+      procedure CheckTerms;
+        begin
+          { the address is read as a sum of its terms: a constant with NOT, AND,
+            OR or XOR outside parentheses takes the other terms as its operands
+            instead, as in [rax+5 and 3] = (rax+5) and 3; without brackets the
+            segment binds first, fs:5 and 3 = (fs:5) and 3 }
+          if bitop and ((terms>1) or BracketlessReference) then
+            Message(asmr_e_invalid_reference_syntax);
+        end;
+
       Begin
         if actasmtoken=AS_LBRACKET then
           begin
@@ -1780,6 +1829,8 @@ Unit Rax86int;
         GotOffset:=false;
         Negative:=false;
         Scale:=0;
+        terms:=0;
+        bitop:=false;
         repeat
           if GotOffset and (actasmtoken<>AS_ID) then
             Message(asmr_e_invalid_reference_syntax);
@@ -1792,11 +1843,14 @@ Unit Rax86int;
                   Message(asmr_e_invalid_reference_syntax);
                 GotStar:=false;
                 GotPlus:=false;
+                inc(terms);
                 if (actasmtoken = AS_VMTOFFSET) or
                    (SearchIConstant(actasmpattern,l) or
                     SearchRecordType(actasmpattern)) then
                  begin
-                   l:=BuildRefConstExpression(size,negative);
+                   l:=BuildRefConstExpression(size,hasbitop,negative);
+                   if hasbitop then
+                     bitop:=true;
                    if size<>0 then
                      oper.SetSize(size,false);
                    negative:=false;   { "l" was negated if necessary }
@@ -2034,11 +2088,20 @@ Unit Rax86int;
                   begin
                     if hs<>'' then
                       val(hs,l,code);
+                    { a second factor, as in rcx*2*2, would replace the first }
                     case oper.opr.typ of
                       OPR_REFERENCE :
-                        oper.opr.ref.scalefactor:=l;
+                        begin
+                          if oper.opr.ref.scalefactor<>0 then
+                            Message(asmr_e_wrong_scale_factor);
+                          oper.opr.ref.scalefactor:=l;
+                        end;
                       OPR_LOCAL :
-                        oper.opr.localscale:=l;
+                        begin
+                          if oper.opr.localscale<>0 then
+                            Message(asmr_e_wrong_scale_factor);
+                          oper.opr.localscale:=l;
+                        end;
                       else
                         internalerror(2019050717);
                     end;
@@ -2071,6 +2134,7 @@ Unit Rax86int;
                     if not((GotPlus and (not Negative)) or
                            GotStar) then
                       Message(asmr_e_invalid_reference_syntax);
+                    inc(terms);
                     { this register will be the index:
                        1. just read a *
                        2. next token is a *
@@ -2144,6 +2208,9 @@ Unit Rax86int;
                 if GotPlus and negative then
                   include(cse_in_flags,cseif_startingminus);
                 BuildConstSymbolExpression(cse_in_flags,l,tempstr,tempsymtyp,size,cse_out_flags);
+                inc(terms);
+                if cseof_bitop in cse_out_flags then
+                  bitop:=true;
                 { already handled by BuildConstSymbolExpression(); must be
                   handled there to avoid [reg-1+1] being interpreted as
                   [reg-(1+1)] }
@@ -2215,6 +2282,7 @@ Unit Rax86int;
               begin
                 if (GotPlus and Negative) or GotStar then
                   Message(asmr_e_invalid_reference_syntax);
+                inc(terms);
                 tmpoper:=Tx86Operand.create;
                 BuildReference(tmpoper);
                 AddReferences(oper,tmpoper);
@@ -2227,6 +2295,7 @@ Unit Rax86int;
               begin
                 if GotPlus or GotStar or BracketlessReference then
                   Message(asmr_e_invalid_reference_syntax);
+                CheckTerms;
 
                 Consume(AS_RBRACKET, MightHaveExtension(actopcode));
                 while actasmtoken in OPEXT_STARTASMTOKEN do
@@ -2254,7 +2323,9 @@ Unit Rax86int;
                   begin
                     Message(asmr_e_invalid_reference_syntax);
                     RecoverConsume(true);
-                  end;
+                  end
+                else
+                  CheckTerms;
                 break;
               end;
 
@@ -2269,16 +2340,24 @@ Unit Rax86int;
       end;
 { Disable range check because opr.val must accept values from min(longint) to max(dword) for i386 }
 {$R-}
-    Procedure tx86intreader.BuildConstantOperand(oper: tx86operand);
+    Procedure tx86intreader.BuildConstantOperand(oper: tx86operand;out bitop:boolean);
       var
         l,size : tcgint;
         tempstr : string;
         tempsymtyp : tasmsymtype;
         cse_out_flags : tconstsymbolexpressionoutputflags;
+        seed : string;
       begin
         if not (oper.opr.typ in [OPR_NONE,OPR_CONSTANT]) then
           Message(asmr_e_invalid_operand_type);
-        BuildConstSymbolExpression([cseif_needofs],l,tempstr,tempsymtyp,size,cse_out_flags);
+        { a constant read before, as the offset of TRec.Field, starts the
+          expression: TRec.Field+5 and 3 is (TRec.Field+5) and 3 }
+        seed:='';
+        if oper.opr.typ=OPR_CONSTANT then
+          str(oper.opr.val,seed);
+        BuildConstSymbolExpression([cseif_needofs],l,tempstr,tempsymtyp,size,cse_out_flags,seed);
+        { with the value before, the operand is one expression again }
+        bitop:=(cseof_bitop in cse_out_flags) and (seed='');
 {$ifdef i8086}
         if tempstr='@DATA' then
           begin
@@ -2303,13 +2382,10 @@ Unit Rax86int;
             oper.opr.sym_farproc_entry:=cseof_is_farproc_entry in cse_out_flags;
           end
         else
-          if oper.opr.typ=OPR_NONE then
-            begin
-              oper.opr.typ:=OPR_CONSTANT;
-              oper.opr.val:=l;
-            end
-          else
-            inc(oper.opr.val,l);
+          begin
+            oper.opr.typ:=OPR_CONSTANT;
+            oper.opr.val:=l;
+          end;
       end;
 
 
@@ -2345,11 +2421,28 @@ Unit Rax86int;
         toffset,
         tsize   : tcgint;
         hastypecast: boolean;
+        terms   : longint;
+        bitop,
+        hasbitop,
+        startminus : boolean;
+        cse_symtyp : TAsmsymtype;
+        cse_in_flags : tconstsymbolexpressioninputflags;
+        cse_out_flags : tconstsymbolexpressionoutputflags;
 
       begin
         oper.vopext := 0;
 
         expr:='';
+        { the operand is read as a sum of its terms (see BuildReference); what
+          came in with it counts as one }
+        terms:=0;
+        bitop:=false;
+        if (oper.opr.typ=OPR_LOCAL) or
+           ((oper.opr.typ=OPR_REFERENCE) and
+            ((oper.opr.ref.base<>NR_NO) or (oper.opr.ref.index<>NR_NO) or
+             assigned(oper.opr.ref.symbol) or assigned(oper.opr.ref.relsymbol) or
+             (oper.opr.ref.offset<>0))) then
+          terms:=1;
         repeat
           if actasmtoken=AS_DOT then
             begin
@@ -2435,6 +2528,13 @@ Unit Rax86int;
             AS_LPAREN,
             AS_INTNUM :
               begin
+                { a constant read before continues in this expression (see
+                  BuildConstantOperand), anything else is one more term }
+                if oper.opr.typ<>OPR_CONSTANT then
+                  inc(terms);
+                { a minus after another term subtracts the whole constant: in
+                  [rax]-5 shr 1 the shr binds first, a minus glued to the 5 would not }
+                startminus:=(terms>1) and (actasmtoken=AS_MINUS);
                 case oper.opr.typ of
                   OPR_REFERENCE :
 {$ifndef x86_64}
@@ -2455,7 +2555,11 @@ Unit Rax86int;
                     else
 {$endif x86_64}
                     begin
-                      l := BuildRefConstExpression(tsize);
+                      if startminus then
+                        Consume(AS_MINUS);
+                      l := BuildRefConstExpression(tsize,hasbitop,startminus);
+                      if hasbitop then
+                        bitop:=true;
                       if tsize<>0 then
                         oper.SetSize(tsize,false);
                       inc(oper.opr.ref.offset,l);
@@ -2463,14 +2567,28 @@ Unit Rax86int;
                     end;
                   OPR_LOCAL :
                     begin
-                      l := BuildConstExpression;
+                      cse_in_flags:=[];
+                      if startminus then
+                        begin
+                          Consume(AS_MINUS);
+                          include(cse_in_flags,cseif_startingminus);
+                        end;
+                      BuildConstSymbolExpression(cse_in_flags,l,hs,cse_symtyp,tsize,cse_out_flags);
+                      if hs<>'' then
+                        Message(asmr_e_relocatable_symbol_not_allowed);
+                      if cseof_bitop in cse_out_flags then
+                        bitop:=true;
                       inc(oper.opr.localsymofs,l);
                       inc(oper.opr.localconstoffset,l);
                     end;
 
                   OPR_NONE,
                   OPR_CONSTANT :
-                    BuildConstantOperand(oper);
+                    begin
+                      BuildConstantOperand(oper,hasbitop);
+                      if hasbitop then
+                        bitop:=true;
+                    end;
                   else
                     Message(asmr_e_invalid_operand_type);
                 end;
@@ -2504,6 +2622,7 @@ Unit Rax86int;
 
             AS_ID : { A constant expression, or a Variable ref. }
               Begin
+                inc(terms);
                 { Label or Special symbol reference? }
                 if actasmpattern[1] = '@' then
                  Begin
@@ -2549,7 +2668,7 @@ Unit Rax86int;
                       case oper.opr.typ of
                         OPR_REFERENCE :
                           begin
-                            l := BuildRefConstExpression(tsize);
+                            l := BuildRefConstExpression(tsize,hasbitop);
                             if tsize<>0 then
                               oper.SetSize(tsize,false);
                             inc(oper.opr.ref.offset,l);
@@ -2558,7 +2677,7 @@ Unit Rax86int;
 
                         OPR_LOCAL :
                           begin
-                            l := BuildRefConstExpression(tsize);
+                            l := BuildRefConstExpression(tsize,hasbitop);
                             if tsize<>0 then
                               oper.SetSize(tsize,false);
                             inc(oper.opr.localsymofs,l);
@@ -2566,10 +2685,15 @@ Unit Rax86int;
                           end;
                         OPR_NONE,
                         OPR_CONSTANT :
-                          BuildConstantOperand(oper);
+                          BuildConstantOperand(oper,hasbitop);
                         else
-                          Message(asmr_e_invalid_operand_type);
+                          begin
+                            hasbitop:=false;
+                            Message(asmr_e_invalid_operand_type);
+                          end;
                       end;
+                      if hasbitop then
+                        bitop:=true;
                     end
                    else
                     { Check for pascal label }
@@ -2667,6 +2791,7 @@ Unit Rax86int;
                    Consume(AS_COLON);
                    oper.InitRef;
                    SetSegmentOverride(oper,tempreg);
+                   inc(terms);
                    BuildReference(oper);
                  end
                 else
@@ -2682,6 +2807,7 @@ Unit Rax86int;
 
             AS_LBRACKET: { a variable reference, register ref. or a constant reference }
               Begin
+                inc(terms);
                 BuildReference(oper);
               end;
 
@@ -2760,7 +2886,8 @@ Unit Rax86int;
           end;
         until false;
 
-
+        if bitop and (terms>1) then
+          Message(asmr_e_invalid_reference_syntax);
 
         { End of operand, update size if a typecast is forced }
         if (oper.typesize<>0) and
@@ -3101,27 +3228,25 @@ Unit Rax86int;
         cse_out_flags : tconstsymbolexpressionoutputflags;
       Begin
         Repeat
-          Case actasmtoken of
-            AS_STRING:
-              Begin
-                { DD and DW cases }
-                if constsize <> 1 then
-                 Begin
-                   if Not PadZero(actasmpattern,constsize) then
-                    Message(scan_f_string_exceeds_line);
-                 end;
-                expr:=actasmpattern;
-                Consume(AS_STRING);
-                Case actasmtoken of
-                  AS_COMMA:
-                    Consume(AS_COMMA);
-                  AS_END,
-                  AS_SEPARATOR: ;
-                  else
-                    Message(asmr_e_invalid_string_expression);
-                end;
-                ConcatString(curlist,expr);
+          { DB takes a string as its characters; in DW, DD and DQ a string is a
+            number, as in TP and Delphi }
+          if (actasmtoken=AS_STRING) and (constsize=1) then
+            Begin
+              expr:=actasmpattern;
+              Consume(AS_STRING);
+              Case actasmtoken of
+                AS_COMMA:
+                  Consume(AS_COMMA);
+                AS_END,
+                AS_SEPARATOR: ;
+                else
+                  Message(asmr_e_invalid_string_expression);
               end;
+              ConcatString(curlist,expr);
+              continue;
+            end;
+          Case actasmtoken of
+            AS_STRING,
             AS_BYTE,
             AS_WORD,
             AS_DWORD,

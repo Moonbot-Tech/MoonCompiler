@@ -118,7 +118,7 @@ unit raatt;
 
     uses
       { globals }
-      verbose,systems,
+      globals,verbose,systems,
       { input }
       scanner, pbase,
       { symtable }
@@ -520,6 +520,9 @@ unit raatt;
                    'B': { binary }
                      Begin
                        c:=current_scanner.asmgetchar;
+                       { a 0b without digits is a backward reference to label 0 for GNU as }
+                       if not (c in ['0','1']) then
+                         Message1(asmr_e_error_converting_binary,actasmpattern+'b');
                        while c in ['0','1'] do
                         Begin
                           actasmpattern:=actasmpattern + c;
@@ -590,9 +593,8 @@ unit raatt;
                        actasmtoken:=AS_INTNUM;
                        exit;
                      end;
-                   '1'..'7': { octal }
+                   '0'..'7': { octal }
                      begin
-                       actasmpattern:=actasmpattern + c;
                        while c in ['0'..'7'] do
                         Begin
                           actasmpattern:=actasmpattern + c;
@@ -620,6 +622,7 @@ unit raatt;
              '''' : { char }
                begin
                  actasmpattern:='';
+                 len:=0;
                  repeat
                    c:=current_scanner.asmgetchar;
                    case c of
@@ -629,6 +632,7 @@ unit raatt;
                          actasmpattern:=actasmpattern+c;
                          c:=current_scanner.asmgetchar;
                          actasmpattern:=actasmpattern+c;
+                         inc(len,2);
                        end;
                      '''' :
                        begin
@@ -638,9 +642,15 @@ unit raatt;
                      #10,#13:
                        Message(scan_f_string_exceeds_line);
                      else
-                       actasmpattern:=actasmpattern+c;
+                       begin
+                         actasmpattern:=actasmpattern+c;
+                         inc(len);
+                       end;
                    end;
                  until false;
+                 { the pattern holds 255 chars, the rest would be lost silently }
+                 if len>255 then
+                   Message(scan_e_string_exceeds_255_chars);
                  actasmpattern:=EscapeToPascal(actasmpattern);
                  actasmtoken:=AS_STRING;
                  exit;
@@ -649,6 +659,7 @@ unit raatt;
              '"' : { string }
                begin
                  actasmpattern:='';
+                 len:=0;
                  repeat
                    c:=current_scanner.asmgetchar;
                    case c of
@@ -658,6 +669,7 @@ unit raatt;
                          actasmpattern:=actasmpattern+c;
                          c:=current_scanner.asmgetchar;
                          actasmpattern:=actasmpattern+c;
+                         inc(len,2);
                        end;
                      '"' :
                        begin
@@ -667,9 +679,14 @@ unit raatt;
                      #10,#13:
                        Message(scan_f_string_exceeds_line);
                      else
-                       actasmpattern:=actasmpattern+c;
+                       begin
+                         actasmpattern:=actasmpattern+c;
+                         inc(len);
+                       end;
                    end;
                  until false;
+                 if len>255 then
+                   Message(scan_e_string_exceeds_255_chars);
                  actasmpattern:=EscapeToPascal(actasmpattern);
                  actasmtoken:=AS_STRING;
                  exit;
@@ -768,8 +785,11 @@ unit raatt;
 {$else}
                  actasmtoken:=AS_SHL;
                  c:=current_scanner.asmgetchar;
+                 { a single < is a comparison for GNU as, not a shift }
                  if c = '<' then
-                  c:=current_scanner.asmgetchar;
+                  c:=current_scanner.asmgetchar
+                 else
+                  Message(asmr_e_invalid_char_smaller);
 {$endif loongarch64}
                  exit;
                end;
@@ -787,8 +807,11 @@ unit raatt;
 {$else}
                  actasmtoken:=AS_SHR;
                  c:=current_scanner.asmgetchar;
+                 { a single > is a comparison for GNU as, not a shift }
                  if c = '>' then
-                  c:=current_scanner.asmgetchar;
+                  c:=current_scanner.asmgetchar
+                 else
+                  Message(asmr_e_invalid_char_greater);
 {$endif loongarch64}
                  exit;
                end;
@@ -942,27 +965,13 @@ unit raatt;
     Procedure tattreader.BuildConstant(constsize: byte);
       var
        asmsymtyp : TAsmSymType;
-       asmsym,
-       expr: string;
+       asmsym : string;
        value : tcgint;
       Begin
         Repeat
           Case actasmtoken of
-            AS_STRING:
-              Begin
-                expr:=actasmpattern;
-                if length(expr) > 1 then
-                 Message(asmr_e_string_not_allowed_as_const);
-                Consume(AS_STRING);
-                Case actasmtoken of
-                  AS_COMMA: Consume(AS_COMMA);
-                  AS_END,
-                  AS_SEPARATOR: ;
-                else
-                  Message(asmr_e_invalid_string_expression);
-                end; { end case }
-                ConcatString(curlist,expr);
-              end;
+            { a character is a number of the directive's size, as in any expression }
+            AS_STRING,
             AS_INTNUM,
             AS_PLUS,
             AS_MINUS,
@@ -970,6 +979,7 @@ unit raatt;
             AS_TYPE,
             AS_SIZEOF,
             AS_NOT,
+            AS_NOR,
             AS_VMTOFFSET,
             AS_ID :
               Begin
@@ -999,10 +1009,28 @@ unit raatt;
 
 
     Procedure tattreader.BuildRealConstant(typ : tfloattype);
+
+      procedure ConcatReal(const expr: string);
+        var
+          r : bestreal;
+          code : integer;
+        begin
+          val(expr,r,code);
+          if code<>0 then
+           Begin
+             r:=0;
+             Message(asmr_e_invalid_float_expr);
+           End
+          { a value past the range of the type would silently become an infinity }
+          else if ((typ=s32real) and (abs(ts32real(r))=MathInf.Value)) or
+                  ((typ=s64real) and (abs(ts64real(r))=MathInf.Value)) or
+                  (abs(r)=MathInf.Value) then
+            Message1(asmr_e_invalid_float_const,expr);
+          ConcatRealConstant(curlist,r,typ);
+        end;
+
       var
         expr : string;
-        r : bestreal;
-        code : integer;
         negativ : boolean;
         errorflag: boolean;
       Begin
@@ -1025,13 +1053,7 @@ unit raatt;
                 Consume(AS_INTNUM);
                 if negativ then
                  expr:='-'+expr;
-                val(expr,r,code);
-                if code<>0 then
-                 Begin
-                   r:=0;
-                   Message(asmr_e_invalid_float_expr);
-                 End;
-                ConcatRealConstant(curlist,r,typ);
+                ConcatReal(expr);
               end;
             AS_REALNUM:
               Begin
@@ -1044,13 +1066,7 @@ unit raatt;
                  Delete(expr,1,2);
                 if negativ then
                  expr:='-'+expr;
-                val(expr,r,code);
-                if code<>0 then
-                 Begin
-                   r:=0;
-                   Message(asmr_e_invalid_float_expr);
-                 End;
-                ConcatRealConstant(curlist,r,typ);
+                ConcatReal(expr);
               end;
             AS_COMMA:
               begin
@@ -1075,7 +1091,6 @@ unit raatt;
 
     Procedure tattreader.BuildStringConstant(asciiz: boolean);
       var
-        expr: string;
         errorflag : boolean;
       Begin
         errorflag:=FALSE;
@@ -1083,10 +1098,10 @@ unit raatt;
           Case actasmtoken of
             AS_STRING:
               Begin
-                expr:=actasmpattern;
+                ConcatString(curlist,actasmpattern);
+                { apart: a string of 255 chars has no room for it }
                 if asciiz then
-                  expr:=expr+#0;
-                ConcatString(curlist,expr);
+                  ConcatString(curlist,#0);
                 Consume(AS_STRING);
               end;
             AS_COMMA:
@@ -1123,6 +1138,7 @@ unit raatt;
        symofs     : tcgint;
        symtyp     : TAsmsymtype;
        section    : tai_section;
+       hpalign    : tai_align;
        secflags   : TSectionFlags;
        secprogbits : TSectionProgbits;
        i: Integer;
@@ -1293,7 +1309,11 @@ unit raatt;
                if (l1>=0) and (l1<=16) then
                  l1:=tcgint(1) shl l1
                else
-                 l1:=1;
+                 begin
+                   Message(asmr_e_constant_out_of_bounds);
+                   l1:=1;
+                 end;
+               hpalign:=nil;
                if actasmtoken=AS_COMMA then
                  begin
                    Consume(AS_COMMA);
@@ -1308,8 +1328,10 @@ unit raatt;
                            l4:=BuildConstExpression(false,false);
                            if (l4<0) or (l4>l1) then
                              Message(asmr_e_invalid_constant_expression);
-                           curlist.concat(Tai_align.create_op_max(l1,l3,l4));
+                           hpalign:=Tai_align.create_op_max(l1,l3,l4);
                          end
+                       else
+                         hpalign:=Tai_align.create_op(l1,l3);
                      end
                    else if actasmtoken=AS_COMMA then
                      begin
@@ -1317,11 +1339,15 @@ unit raatt;
                        l4:=BuildConstExpression(false,false);
                        if (l4<0) or (l4>l1) then
                          Message(asmr_e_invalid_constant_expression);
-                       curlist.concat(Tai_align.create_max(l1,l4));
+                       hpalign:=Tai_align.create_max(l1,l4);
                      end
-                 end
-               else
-                 ConcatAlign(curlist,l1);
+                 end;
+               if not assigned(hpalign) then
+                 hpalign:=Tai_align.create(l1);
+               { an alignment the directive cannot carry would silently become none }
+               if hpalign.aligntype<>l1 then
+                 Message(asmr_e_constant_out_of_bounds);
+               curlist.concat(hpalign);
 
                if actasmtoken<>AS_SEPARATOR then
                 Consume(AS_SEPARATOR);
@@ -1542,6 +1568,15 @@ unit raatt;
         sym : tsym;
         srsymtable : TSymtable;
         hl  : tasmlabel;
+
+      procedure AddOperand(const s: string);
+        begin
+          { two operands without an operator would merge into one number: "1 2" is no 12 }
+          if (expr<>'') and (expr[length(expr)] in ['0'..'9',')']) then
+            Message(asmr_e_invalid_constant_expression);
+          expr:=expr + s;
+        end;
+
       Begin
         asmsym:='';
         asmsymtyp:=AT_DATA;
@@ -1621,9 +1656,11 @@ unit raatt;
                 Consume(AS_AND);
                 expr:=expr + '&';
               end;
-            AS_NOT:
+            { GNU as: ~ is the bitwise not; ! is a logical not there, and the
+              FPC manual lists it as not supported, so it stays an error }
+            AS_NOR:
               Begin
-                Consume(AS_NOT);
+                Consume(AS_NOR);
                 expr:=expr + '~';
               end;
             AS_XOR:
@@ -1638,7 +1675,7 @@ unit raatt;
               end;
             AS_INTNUM:
               Begin
-                expr:=expr + actasmpattern;
+                AddOperand(actasmpattern);
                 Consume(AS_INTNUM);
               end;
             AS_DOLLAR:
@@ -1670,7 +1707,7 @@ unit raatt;
                   Message1(asmr_e_invalid_string_as_opcode_operand,actasmpattern);
                 end;
                 str(l, tempstr);
-                expr:=expr + tempstr;
+                AddOperand(tempstr);
                 Consume(AS_STRING);
               end;
             AS_SIZEOF,
@@ -1711,7 +1748,7 @@ unit raatt;
                     end;
                  end;
                 str(l, tempstr);
-                expr:=expr + tempstr;
+                AddOperand(tempstr);
               end;
             AS_VMTOFFSET:
               begin
@@ -1726,7 +1763,7 @@ unit raatt;
                     if (mangledname <> '') then
                       Message(asmr_e_wrong_sym_type);
                     str(k,tempstr);
-                    expr := expr + tempstr;
+                    AddOperand(tempstr);
                   end
               end;
             AS_ID:
@@ -1739,7 +1776,7 @@ unit raatt;
                 if SearchIConstant(tempstr,l) then
                  begin
                    str(l, tempstr);
-                   expr:=expr + tempstr;
+                   AddOperand(tempstr);
                  end
                 else
                  begin
@@ -1808,13 +1845,7 @@ unit raatt;
                         end
                       else
                         Message(asmr_e_cant_have_multiple_relocatable_symbols);
-                      if (expr='') or (expr[length(expr)]='+') then
-                       begin
-                         { don't remove the + if there could be a record field }
-                         if actasmtoken<>AS_DOT then
-                          delete(expr,length(expr),1);
-                       end
-                      else
+                      if (expr<>'') and (expr[length(expr)]<>'+') then
                        Message(asmr_e_only_add_relocatable_symbol);
                     end;
                    if actasmtoken=AS_DOT then
@@ -1825,14 +1856,14 @@ unit raatt;
                       else
                         begin
                           str(l, tempstr);
-                          expr:=expr + tempstr;
+                          AddOperand(tempstr);
                         end
                     end
                    else
-                    begin
-                      if (expr='') or (expr[length(expr)] in ['+','-','/','*']) then
-                       delete(expr,length(expr),1);
-                    end;
+                    { the symbol is added to the value apart, a record type alone
+                      is 0; its place in the expression is 0, so what follows
+                      keeps its own place: sym-5>>1 is sym-(5>>1) }
+                    AddOperand('0');
                  end;
                 { check if there are wrong operator used like / or mod etc. }
                 if (hs<>'') and
@@ -1857,7 +1888,7 @@ unit raatt;
         Until false;
         { calculate expression }
         if not ErrorFlag then
-          value:=CalculateExpression(expr)
+          value:=CalculateExpression(expr,exs_gnu)
         else
           value:=0;
       end;
