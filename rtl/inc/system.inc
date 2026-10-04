@@ -580,6 +580,9 @@ type
 {$endif FPC_HAS_FEATURE_ANSISTRINGS}
 
 {$ifdef FPC_HAS_FEATURE_WIDESTRINGS}
+  {$ifdef CPUX86_64}
+    {$i utf16pos.inc}
+  {$endif CPUX86_64}
   {$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
     {$i wstrings.inc}
   {$endif FPC_WIDESTRING_EQUAL_UNICODESTRING}

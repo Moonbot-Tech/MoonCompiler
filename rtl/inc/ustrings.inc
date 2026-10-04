@@ -1442,6 +1442,11 @@ end;
 {$ifndef FPC_HAS_POS_UNICODESTR_UNICODESTR}
 {$define FPC_HAS_POS_UNICODESTR_UNICODESTR}
 Function Pos (Const Substr : UnicodeString; Const Source : UnicodeString; Offset: Sizeint = 1) : SizeInt;
+{$ifdef CPUX86_64}
+begin
+  Result:=PosUTF16(Pointer(Substr),Pointer(Source),Length(Substr),Length(Source),Offset);
+end;
+{$else CPUX86_64}
 var
   i,MaxLen,nsource,nsub,d : SizeInt;
 begin
@@ -1467,6 +1472,7 @@ begin
       end;
    end;
 end;
+{$endif CPUX86_64}
 {$endif FPC_HAS_POS_UNICODESTR_UNICODESTR}
 
 

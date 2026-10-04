@@ -583,6 +583,11 @@ end;
 
 
 Function Pos (Const Substr : WideString; Const Source : WideString; Offset : SizeInt = 1) : SizeInt;
+{$ifdef CPUX86_64}
+begin
+  Result:=PosUTF16(Pointer(Substr),Pointer(Source),Length(Substr),Length(Source),Offset);
+end;
+{$else CPUX86_64}
 var
   i,MaxLen : SizeInt;
   pc : pwidechar;
@@ -606,28 +611,22 @@ begin
       end;
    end;
 end;
+{$endif CPUX86_64}
 
 
 { Faster version for a widechar alone }
 Function Pos (c : WideChar; Const s : WideString; Offset : Sizeint = 1) : SizeInt;
 var
-  i: SizeInt;
-  pc : pwidechar;
+  ns,idx: SizeInt;
 begin
-  if (Offset>0) and (Offset<=length(s)) then
-   begin
-     pc:=@s[OffSet];
-     for i:=OffSet to length(s) do
-       begin
-         if pc^=c then
-           begin
-             pos:=i;
-             exit;
-           end;
-         inc(pc);
-       end;
-   end;
   pos:=0;
+  ns:=length(s);
+  if (Offset>0) and (Offset<=ns) then
+    begin
+      idx:=IndexWord(s[Offset],ns-Offset+1,word(c));
+      if idx>=0 then
+        pos:=Offset+idx;
+    end;
 end;
 
 { DO NOT inline these! Inlining a managed typecast creates an implicit try..finally

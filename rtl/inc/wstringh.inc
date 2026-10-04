@@ -16,9 +16,9 @@
 
 
 Procedure UniqueString (Var S : WideString);{$ifdef SYSTEMINLINE}inline;{$endif}
-Function Pos (Const Substr : WideString; Const Source : WideString; Offset : SizeInt = 1) : SizeInt;
-Function Pos (c : AnsiChar; Const s : WideString; Offset : SizeInt = 1) : SizeInt;
-Function Pos (c : WideChar; Const s : WideString; Offset : SizeInt = 1) : SizeInt;
+Function Pos (Const Substr : WideString; Const Source : WideString; Offset : SizeInt = 1) : SizeInt;{$ifdef CPUX86_64}inline;{$endif}
+Function Pos (c : AnsiChar; Const s : WideString; Offset : SizeInt = 1) : SizeInt; inline;
+Function Pos (c : WideChar; Const s : WideString; Offset : SizeInt = 1) : SizeInt; inline;
 Function Pos (c : WideChar; Const s : RawByteString; Offset : SizeInt = 1) : SizeInt;
 Function Pos (const c : RawByteString; Const s : WideString; Offset : SizeInt = 1) : SizeInt;
 Function Pos (const c : WideString; Const s : RawByteString; Offset : SizeInt = 1) : SizeInt;

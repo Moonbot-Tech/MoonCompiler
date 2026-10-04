@@ -2,6 +2,6 @@
 # Here we set processor dependent include file names.
 #
 
-CPUNAMES=int64p math set setjump setjumph x86_64 cpuh
+CPUNAMES=int64p math set setjump setjumph x86_64 cpuh utf16pos
 CPUINCNAMES=$(addsuffix .inc,$(CPUNAMES))
 #
