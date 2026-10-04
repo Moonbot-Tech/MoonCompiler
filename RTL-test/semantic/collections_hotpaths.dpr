@@ -1031,8 +1031,10 @@ begin
       Check(Value=(I xor $55AA),'dictionary collision value');
       end;
 
+    // Capacity reserves room for that many items (Delphi's contract); the
+    // slots behind 2048 items at the 0.75 load factor are 4096
     Dictionary.Capacity:=2048;
-    Check((Dictionary.Count=384) and (Dictionary.Capacity=2048),
+    Check((Dictionary.Count=384) and (Dictionary.Capacity=4096),
       'dictionary explicit rehash capacity');
     Check((KeyNotify.Added=384) and (ValueNotify.Added=384) and
       (KeyNotify.Removed=0) and (ValueNotify.Removed=0),

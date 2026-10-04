@@ -651,6 +651,7 @@ type
     FEqualityComparer_Method_Instance       : Pointer;
     FEqualityComparer_Variant_Instance      : Pointer;
     FEqualityComparer_Pointer_Instance      : Pointer;
+    FEqualityComparer_Class_Instance        : Pointer;
 
 
     FEqualityComparerInstances: array[TTypeKind] of TInstance;
@@ -2296,11 +2297,16 @@ end;
 {----------------------------------------------------------------------------------------------------------------------}
 
 class function THashFactory.&Class(const AValue: TObject): UInt32;
+var
+  LCode: PtrInt;
 begin
   if AValue = nil then
     Exit($2A);
 
-  Result := AValue.GetHashCode;
+  { TObject.GetHashCode is the address by default: run it through the
+    factory like a pointer, an overriding class's code the same way }
+  LCode := AValue.GetHashCode;
+  Result := HASH_FACTORY.GetHashCode(@LCode, SizeOf(LCode), 0);
 end;
 
 {-----------------------------------------------------------------------------------------------------------------------
@@ -2909,6 +2915,7 @@ begin
   FEqualityComparer_Method_Instance        := @FEqualityComparer_Method_VMT       ;
   FEqualityComparer_Variant_Instance       := @FEqualityComparer_Variant_VMT      ;
   FEqualityComparer_Pointer_Instance       := @FEqualityComparer_Pointer_VMT      ;
+  FEqualityComparer_Class_Instance         := @FEqualityComparer_Class_VMT        ;
 
   //////
   FEqualityComparerInstances[tkUnknown]      := TInstance.CreateSelector(TMethod(TSelectMethod(THashService<T>.SelectBinaryEqualityComparer)).Code);
@@ -2926,7 +2933,8 @@ begin
   FEqualityComparerInstances[tkArray]        := TInstance.CreateSelector(TMethod(TSelectMethod(THashService<T>.SelectBinaryEqualityComparer)).Code);
   FEqualityComparerInstances[tkRecord]       := TInstance.CreateSelector(TMethod(TSelectMethod(THashService<T>.SelectBinaryEqualityComparer)).Code);
   FEqualityComparerInstances[tkInterface]    := TInstance.Create(False, @FEqualityComparer_Pointer_Instance);
-  FEqualityComparerInstances[tkClass]        := TInstance.Create(False, @FEqualityComparer_Pointer_Instance);
+  // object keys compare and hash through TObject.Equals/GetHashCode, as in Delphi
+  FEqualityComparerInstances[tkClass]        := TInstance.Create(False, @FEqualityComparer_Class_Instance);
   FEqualityComparerInstances[tkObject]       := TInstance.CreateSelector(TMethod(TSelectMethod(THashService<T>.SelectBinaryEqualityComparer)).Code);
   FEqualityComparerInstances[tkWChar]        := TInstance.Create(False, @FEqualityComparer_UInt16_Instance);
   FEqualityComparerInstances[tkBool]         := TInstance.CreateSelector(TMethod(TSelectMethod(THashService<T>.SelectIntegerEqualityComparer)).Code);
@@ -3173,10 +3181,18 @@ class function TEqualityComparer<T>.Default(AHashFactoryClass: THashFactoryClass
 begin
   if TComparerService.TypeNeedsBinaryMethods<T> then
     Result := TBinaryEqualityComparer<T>.Create(AHashFactoryClass)
+  else if (AHashFactoryClass = TDefaultHashFactory) and Assigned(TypeInfo(T)) then
+    Result := TDefaultHashFactory.GetHashService.LookupEqualityComparer(TypeInfo(T), SizeOf(T))
   else if AHashFactoryClass.InheritsFrom(TExtendedHashFactory) then
-    Result := _LookupVtableInfoEx(giExtendedEqualityComparer, TypeInfo(T), SizeOf(T), AHashFactoryClass)
+  begin
+    if not Assigned(TypeInfo(T)) then System.Error(reInvalidCast);
+    Result := TExtendedHashServiceClass(AHashFactoryClass.GetHashService).LookupExtendedEqualityComparer(TypeInfo(T), SizeOf(T));
+  end
   else if AHashFactoryClass.InheritsFrom(THashFactory) then
-    Result := _LookupVtableInfoEx(giEqualityComparer, TypeInfo(T), SizeOf(T), AHashFactoryClass);
+  begin
+    if not Assigned(TypeInfo(T)) then System.Error(reInvalidCast);
+    Result := AHashFactoryClass.GetHashService.LookupEqualityComparer(TypeInfo(T), SizeOf(T));
+  end;
 end;
 
 class function  TEqualityComparer<T>.Construct(const AEqualityComparison: TOnEqualityComparison<T>;

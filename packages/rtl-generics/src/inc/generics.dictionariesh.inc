@@ -88,21 +88,41 @@ type
     constructor Create(ACollection: TEnumerableWithPointers<TDictionaryPair>); virtual; overload;
     constructor Create(ACollection: TEnumerableWithPointers<TDictionaryPair>; const AComparer: IEqualityComparer<TKey>); virtual; overload;
     {$ENDIF}
+    constructor Create(const AItems: array of TDictionaryPair); overload;
+    constructor Create(const AItems: array of TDictionaryPair; const AComparer: IEqualityComparer<TKey>); overload;
 
     destructor Destroy; override;
   private
     FOnKeyNotify: TCollectionNotifyEvent<TKey>;
     FOnValueNotify: TCollectionNotifyEvent<TValue>;
+    { Notifications have an effect only when a handler is assigned, a
+      descendant overrides KeyNotify/ValueNotify (TObjectDictionary) or both;
+      FNotify caches that, so the hot paths skip the two virtual calls per
+      operation that a plain TDictionary otherwise pays for nothing. }
+    FNotify: Boolean;
+    FNotifyOverride: Boolean;
+  private type
+    TKeyNotifyProc = procedure(const AKey: TKey; ACollectionNotification: TCollectionNotification) of object;
+    TValueNotifyProc = procedure(const AValue: TValue; ACollectionNotification: TCollectionNotification) of object;
+    TNotifyBase = TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>;
+  private
+    procedure SetOnKeyNotify(const AValue: TCollectionNotifyEvent<TKey>);
+    procedure SetOnValueNotify(const AValue: TCollectionNotifyEvent<TValue>);
+    procedure UpdateNotify; inline;
   protected
     procedure UpdateItemsThreshold(ASize: SizeInt); virtual; abstract;
+    { the copy constructors merge their source like Delphi's: a repeated key
+      keeps the last value instead of raising }
+    procedure AddOrSetPair(const APair: TDictionaryPair); virtual; abstract;
 
     procedure KeyNotify(const AKey: TKey; ACollectionNotification: TCollectionNotification); virtual;
     procedure ValueNotify(const AValue: TValue; ACollectionNotification: TCollectionNotification); virtual;
     procedure PairNotify(const APair: TDictionaryPair; ACollectionNotification: TCollectionNotification); inline;
     procedure SetValue(var AValue: TValue; const ANewValue: TValue);
+    property NotifyActive: Boolean read FNotify;
   public
-    property OnKeyNotify: TCollectionNotifyEvent<TKey> read FOnKeyNotify write FOnKeyNotify;
-    property OnValueNotify: TCollectionNotifyEvent<TValue> read FOnValueNotify write FOnValueNotify;
+    property OnKeyNotify: TCollectionNotifyEvent<TKey> read FOnKeyNotify write SetOnKeyNotify;
+    property OnValueNotify: TCollectionNotifyEvent<TValue> read FOnValueNotify write SetOnValueNotify;
   protected // FItemsLength must be declared at the end of TCustomDictionary
     FItemsLength: SizeInt;
   public
@@ -268,6 +288,7 @@ type
     function DoAdd(const AKey: TKey; const AValue: TValue): SizeInt; virtual; overload;
 
     procedure UpdateItemsThreshold(ASize: SizeInt); override;
+    procedure AddOrSetPair(const APair: TDictionaryPair); override;
 
     procedure SetCapacity(ACapacity: SizeInt); override;
     // bug #24283 - can't descend from TEnumerable
@@ -559,6 +580,7 @@ type
 
     function GetQueueCount: SizeInt;
   protected
+    procedure AddOrSetPair(const APair: TDictionaryPair); override;
     procedure SetCapacity(ACapacity: SizeInt); override;
     // bug #24283 - can't decadent from TEnumerable
     function DoGetEnumerator: TEnumerator<TDictionaryPair>; override;
@@ -648,9 +670,57 @@ type
 
   TOpenAddressingLinearLP<TKey, TValue, THashFactory> = class(
     TOpenAddressingLP<TKey, TValue, THashFactory, TLinearProbing>)
+  private
+    { Flat path: with the default equality comparer and a key kind whose
+      equality is known at compile time (GetTypeKind folds at
+      specialization), the lookup is one straight function - hash, probe
+      loop, compare - without the interface calls into the comparer and the
+      virtual FindBucketIndex hop.  Strings keep the factory hash of their
+      content; ordinals and pointers are mixed by FlatHash, see there.  A
+      custom comparer, a record or a float key take the comparer path. }
+    FFlat: Boolean;
+    class function FlatKind: Boolean; static; inline;
+  private class var
+    { Cache only the built-in factory's static comparer. Each copy of a
+      specialization in another unit may initialize its own pointer. }
+    FDefaultComparer: Pointer;
+  private const
+    { Key kinds whose flat hash and compare are a few instructions of their
+      own: TryGetValue and ContainsKey paste the whole flat path into the
+      caller.  A string's hash and compare are calls anyway, so its pasted
+      probe loop saves one call and lengthens every caller; strings and the
+      kinds of the comparer path look up through FindKey. }
+    FlatInlineKinds = [tkInteger, tkInt64, tkQWord, tkEnumeration, tkBool,
+      tkChar, tkWChar, tkClass, tkClassRef, tkPointer];
+    { every kind the flat path serves: FFlat is False for any other key, so
+      a method tests the kind first - a constant once the specialization
+      is type checked - and the flat path is not even compiled for a record,
+      a float, a Variant or an interface key }
+    FlatKinds = FlatInlineKinds + [tkUString, tkAString];
+  private
+    function FlatHash(const AKey: TKey): UInt32; inline;
+    function FlatEquals(const ALeft, ARight: TKey): Boolean; inline;
+    function FlatFindForHash(const AItems: TArray<TItem>; const AKey: TKey; AHash: UInt32): SizeInt; inline;
+    function FlatFind(const AItems: TArray<TItem>; const AKey: TKey; out AHash: UInt32): SizeInt; inline;
+    { the lookup behind one direct call; noinline because a generic method
+      compiles in the user's module under the user's -O3 auto-inline, and
+      this one exists to stay a call }
+    function FindKey(const AKey: TKey): SizeInt; noinline;
   protected
+    function FindBucketIndex(const AItems: TArray<TItem>; const AKey: TKey; out AHash: UInt32): SizeInt; override; overload;
     function FindBucketIndexForHash(const AItems: TArray<TItem>; const AKey: TKey;
       var AHash: UInt32): SizeInt; override;
+    function GetItem(const AKey: TKey): TValue; inline;
+    procedure SetItem(const AKey: TKey; const AValue: TValue); inline;
+  public
+    constructor Create(ACapacity: SizeInt; const AComparer: IEqualityComparer<TKey>); override; overload;
+    function TryGetValue(const AKey: TKey; var AValue: TValue): Boolean; reintroduce; inline;
+    function ContainsKey(const AKey: TKey): Boolean; reintroduce; inline;
+    procedure AddOrSetValue(const AKey: TKey; const AValue: TValue); reintroduce;
+    function TryAdd(const AKey: TKey; const AValue: TValue): Boolean; reintroduce;
+    procedure Remove(const AKey: TKey); reintroduce;
+    property Items[Index: TKey]: TValue read GetItem write SetItem; default;
+    property Flat: Boolean read FFlat;
   end;
 
   // useful generics overloads

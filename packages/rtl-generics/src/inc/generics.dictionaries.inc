@@ -40,8 +40,28 @@ end;
 procedure TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.PairNotify(const APair: TDictionaryPair;
   ACollectionNotification: TCollectionNotification);
 begin
-  KeyNotify(APair.Key, ACollectionNotification);
-  ValueNotify(APair.Value, ACollectionNotification);
+  if FNotify then
+  begin
+    KeyNotify(APair.Key, ACollectionNotification);
+    ValueNotify(APair.Value, ACollectionNotification);
+  end;
+end;
+
+procedure TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.UpdateNotify;
+begin
+  FNotify := FNotifyOverride or Assigned(FOnKeyNotify) or Assigned(FOnValueNotify);
+end;
+
+procedure TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.SetOnKeyNotify(const AValue: TCollectionNotifyEvent<TKey>);
+begin
+  FOnKeyNotify := AValue;
+  UpdateNotify;
+end;
+
+procedure TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.SetOnValueNotify(const AValue: TCollectionNotifyEvent<TValue>);
+begin
+  FOnValueNotify := AValue;
+  UpdateNotify;
 end;
 
 procedure TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.KeyNotify(const AKey: TKey;
@@ -55,6 +75,11 @@ procedure TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.SetValue(var AValue: 
 var
   LOldValue: TValue;
 begin
+  if not FNotify then
+  begin
+    AValue := ANewValue;
+    Exit;
+  end;
   LOldValue := AValue;
   AValue := ANewValue;
 
@@ -86,8 +111,26 @@ end;
 
 constructor TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.Create(ACapacity: SizeInt;
   const AComparer: IEqualityComparer<TKey>);
+var
+  LKeyProc: TKeyNotifyProc;
+  LValueProc: TValueNotifyProc;
+  LBase: TMethod;
 begin
-  FEqualityComparer := AComparer;
+  { a nil comparer means the default one, as in Delphi }
+  if AComparer = nil then
+    FEqualityComparer := TEqualityComparer<TKey>.Default(THashFactory)
+  else
+    FEqualityComparer := AComparer;
+  { a descendant that overrides KeyNotify or ValueNotify (TObjectDictionary,
+    user classes) must keep receiving them whether a handler is assigned or
+    not: compare the instance's virtual slots with this class's methods }
+  LKeyProc := KeyNotify;
+  LBase.Code := @TNotifyBase.KeyNotify;
+  FNotifyOverride := TMethod(LKeyProc).Code <> LBase.Code;
+  LValueProc := ValueNotify;
+  LBase.Code := @TNotifyBase.ValueNotify;
+  FNotifyOverride := FNotifyOverride or (TMethod(LValueProc).Code <> LBase.Code);
+  UpdateNotify;
   SetCapacity(ACapacity);
 end;
 
@@ -115,7 +158,22 @@ var
 begin
   Create(AComparer);
   for LItem in ACollection do
-    Add(LItem);
+    AddOrSetPair(LItem);
+end;
+
+constructor TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.Create(const AItems: array of TDictionaryPair);
+begin
+  Create(AItems, TEqualityComparer<TKey>.Default(THashFactory));
+end;
+
+constructor TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.Create(const AItems: array of TDictionaryPair;
+  const AComparer: IEqualityComparer<TKey>);
+var
+  LItem: TDictionaryPair;
+begin
+  Create(Length(AItems), AComparer);
+  for LItem in AItems do
+    AddOrSetPair(LItem);
 end;
 
 {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
@@ -126,7 +184,7 @@ var
 begin
   Create(AComparer);
   for LItem in ACollection.Ptr^ do
-    Add(LItem^);
+    AddOrSetPair(LItem^);
 end;
 {$ENDIF}
 
@@ -332,9 +390,13 @@ end;
 constructor TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACapacity: SizeInt;
   const AComparer: IEqualityComparer<TKey>);
 begin
-  inherited Create(ACapacity, AComparer);
-
+  { the inherited constructor reserves ACapacity through SetCapacity, and
+    the threshold of that table is a function of the load factor: set the
+    factor first.  With it still zero the threshold came out as zero and
+    the first Add took the table for a never-allocated one, replacing the
+    reservation with eight slots. }
   FMaxLoadFactor := TProbeSequence.DEFAULT_LOAD_FACTOR;
+  inherited Create(ACapacity, AComparer);
 end;
 
 function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.GetKeys: TKeyCollection;
@@ -516,11 +578,11 @@ var
   LIndex: SizeInt;
 begin
   LIndex := FindBucketIndex(AKey);
-  if LIndex < 0 then
-    Exit(Default(TPair<TKey, TValue>));
-
   Result.Key := AKey;
-  Result.Value := DoRemove(LIndex, cnExtracted);
+  if LIndex < 0 then
+    Result.Value := Default(TValue)
+  else
+    Result.Value := DoRemove(LIndex, cnExtracted);
 end;
 
 procedure TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.Clear;
@@ -531,8 +593,7 @@ var
 begin
   FItemsLength := 0;
   FItemsThreshold := 0;
-  if (ClassInfo = TypeInfo(TDictionary<TKey, TValue>)) and
-      not Assigned(FOnKeyNotify) and not Assigned(FOnValueNotify) then
+  if not FNotify then
   begin
     FItems := nil;
     Exit;
@@ -598,11 +659,29 @@ begin
 end;
 
 procedure TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.SetCapacity(ACapacity: SizeInt);
+var
+  LSize: SizeInt;
+  LFactor: Single;
 begin
   if ACapacity < FItemsLength then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  Resize(ACapacity);
+  { Capacity is a number of items the table holds without growing (Delphi's
+    contract: Create(N) followed by N adds never rehashes); the slot count
+    is the power of two whose threshold covers it.  Capacity reads back as
+    the slot count, as in Delphi. }
+  if ACapacity = 0 then
+    Resize(0)
+  else
+  begin
+    LFactor := FMaxLoadFactor;
+    if LFactor <= 0 then    { not set yet: a descendant constructing out of order }
+      LFactor := TProbeSequence.DEFAULT_LOAD_FACTOR;
+    LSize := 8;
+    while (Round(LSize * LFactor) < ACapacity) and (LSize < $40000000) do
+      LSize := LSize shl 1;
+    Rehash(LSize);
+  end;
 end;
 
 procedure TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.SetMaxLoadFactor(AValue: single);
@@ -674,7 +753,7 @@ end;
 
 procedure TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.TrimExcess;
 begin
-  SetCapacity(Succ(FItemsLength));
+  SetCapacity(FItemsLength);
 end;
 
 procedure TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.SetItem(const AKey: TKey; const AValue: TValue);
@@ -742,6 +821,11 @@ begin
   Result := i < 0;
   if Result then
     DoAdd(AKey, AValue, LHash, i);
+end;
+
+procedure TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.AddOrSetPair(const APair: TDictionaryPair);
+begin
+  AddOrSetValue(APair.Key, APair.Value);
 end;
 
 procedure TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.AddOrSetValue(const AKey: TKey; const AValue: TValue);
@@ -955,8 +1039,11 @@ begin
   LItem.Pair := Default(TPair<TKey, TValue>);
   Dec(FItemsLength);
 
-  KeyNotify(LKey, ACollectionNotification);
-  ValueNotify(Result, ACollectionNotification);
+  if FNotify then
+  begin
+    KeyNotify(LKey, ACollectionNotification);
+    ValueNotify(Result, ACollectionNotification);
+  end;
 end;
 
 function TOpenAddressingLP<OPEN_ADDRESSING_CONSTRAINTS>.FindBucketIndex(const AItems: TArray<TItem>;
@@ -1002,12 +1089,210 @@ begin
   until false;
 end;
 
+{ TOpenAddressingLinearLP: flat path }
+
+class function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.FlatKind: Boolean;
+begin
+  { key kinds whose default comparer is plain equality of the value
+    (strings: of the content), so FlatEquals can stand in for it.  An
+    enumeration without RTTI (one with gaps, such as (a = 0, b = 2)) is
+    left out: its default comparer is not a static instance but a new
+    TBinaryEqualityComparer object on every Default call, so the address
+    cached in FDefaultComparer would name a freed object, and a user
+    comparer allocated later at that address would pass for the default
+    and lose its Equals/GetHashCode to the flat path. }
+  Result := (GetTypeKind(TKey) in FlatKinds) and
+    not ((GetTypeKind(TKey) = tkEnumeration) and not Assigned(TypeInfo(TKey)));
+end;
+
+function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.FlatHash(const AKey: TKey): UInt32;
+var
+  LWide: UInt64;
+begin
+  case GetTypeKind(TKey) of
+    tkUString:
+      Result := THashFactory.GetHashCode(@PUnicodeString(@AKey)^[1],
+        Length(PUnicodeString(@AKey)^) * SizeOf(UnicodeChar), 0);
+    tkAString:
+      Result := THashFactory.GetHashCode(@PAnsiString(@AKey)^[1],
+        Length(PAnsiString(@AKey)^) * SizeOf(AnsiChar), 0);
+  else
+    { ordinals and pointers: the MurmurHash3 finalizer (two multiplies,
+      three shift-xors) of the value itself.  Every input bit reaches every
+      index bit, so aligned pointers (objects come from the allocator at a
+      32/64-byte stride), sequential ids and keys that differ only in their
+      high half all spread like random keys.  The CRC of the raw bytes that
+      the default comparer computes collapses on the pointer population
+      (two live buckets out of four, ten probes per lookup at 512 keys);
+      a single Fibonacci multiply collapses on keys that differ only in
+      their high 32 bits.  A flat table therefore does not share the hash
+      values of the default comparer - the enumeration order of a
+      dictionary with such keys differs from the comparer path, which the
+      unordered container does not promise anyway. }
+    case SizeOf(TKey) of
+      1, 2, 4:
+        begin
+          case SizeOf(TKey) of
+            1: Result := PByte(@AKey)^;
+            2: Result := PWord(@AKey)^;
+          else
+            Result := PCardinal(@AKey)^;
+          end;
+          Result := Result xor (Result shr 16);
+          Result := Result * UInt32($85EBCA6B);
+          Result := Result xor (Result shr 13);
+          Result := Result * UInt32($C2B2AE35);
+          Result := Result xor (Result shr 16);
+        end;
+    else
+      LWide := PQWord(@AKey)^;
+      { a class key whose class overrides GetHashCode is hashed by that
+        (Delphi's contract for object keys: Equals/GetHashCode decide);
+        a plain object is its address - one VMT slot compare per hash }
+      if (GetTypeKind(TKey) = tkClass) and (LWide <> 0) and
+          (PVmt(PPointer(LWide)^)^.vGetHashCode <> CodePointer(@TObject.GetHashCode)) then
+        LWide := UInt64(TObject(Pointer(LWide)).GetHashCode);
+      LWide := LWide xor (LWide shr 33);
+      LWide := LWide * UInt64($FF51AFD7ED558CCD);
+      LWide := LWide xor (LWide shr 33);
+      LWide := LWide * UInt64($C4CEB9FE1A85EC53);
+      LWide := LWide xor (LWide shr 33);
+      Result := UInt32(LWide);
+    end;
+  end;
+end;
+
+function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.FlatEquals(const ALeft, ARight: TKey): Boolean;
+begin
+  case GetTypeKind(TKey) of
+    tkUString:
+      Result := PUnicodeString(@ALeft)^ = PUnicodeString(@ARight)^;
+    tkAString:
+      Result := PAnsiString(@ALeft)^ = PAnsiString(@ARight)^;
+  else
+    case SizeOf(TKey) of
+      1: Result := PByte(@ALeft)^ = PByte(@ARight)^;
+      2: Result := PWord(@ALeft)^ = PWord(@ARight)^;
+      4: Result := PCardinal(@ALeft)^ = PCardinal(@ARight)^;
+      8:
+        begin
+          Result := PQWord(@ALeft)^ = PQWord(@ARight)^;
+          { two distinct objects are equal when the left one's class says
+            so (an overridden Equals); a plain object only equals itself }
+          if (GetTypeKind(TKey) = tkClass) and not Result and
+              (PQWord(@ALeft)^ <> 0) and (PQWord(@ARight)^ <> 0) and
+              (PVmt(PPointer(PPointer(@ALeft)^)^)^.vEquals <> CodePointer(@TObject.Equals)) then
+            Result := TObject(PPointer(@ALeft)^).Equals(TObject(PPointer(@ARight)^));
+        end;
+    else
+      Result := CompareByte(ALeft, ARight, SizeOf(TKey)) = 0;
+    end;
+  end;
+end;
+
+function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.FlatFindForHash(
+  const AItems: TArray<TItem>; const AKey: TKey; AHash: UInt32): SizeInt;
+var
+  LItem: PItem;
+  m: SizeInt;
+begin
+  m := Length(AItems);
+  { the probe is the body of the test and the empty table's -1 comes after
+    it: the lookup falls through one conditional jump into the probe.  With
+    Exit(-1) up front the store and a jump sat between the test and the
+    probe, and every lookup took a branch over them unless the optimizer
+    could move the store above the test - a matter of the caller's
+    registers (Zen 5 mispredicts its probes after such a branch, u64-string
+    misses); a store above a plain Exit costs two instructions per lookup }
+  if m <> 0 then
+  begin
+    Result := AHash and (m - 1);
+    LItem := @AItems[Result];
+    repeat
+      if (LItem.Hash and UInt32.GetSignMask) = 0 then
+        Exit(not Result);
+      if (LItem.Hash = AHash) and FlatEquals(AKey, LItem.Pair.Key) then
+        Exit;
+      Inc(Result);
+      Inc(LItem);
+      if Result = m then
+      begin
+        Result := 0;
+        LItem := @AItems[0];
+      end;
+    until false;
+  end;
+  Result := -1;
+end;
+
+function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.FlatFind(
+  const AItems: TArray<TItem>; const AKey: TKey; out AHash: UInt32): SizeInt;
+begin
+  AHash := FlatHash(AKey) or UInt32.GetSignMask;
+  Result := FlatFindForHash(AItems, AKey, AHash);
+end;
+
+function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.FindKey(const AKey: TKey): SizeInt;
+var
+  LHash: UInt32;
+begin
+  if (GetTypeKind(TKey) in FlatKinds) and FFlat then
+    Result := FlatFind(FItems, AKey, LHash)
+  else
+    Result := FindBucketIndex(FItems, AKey, LHash);
+end;
+
+constructor TOpenAddressingLinearLP<TKey, TValue, THashFactory>.Create(ACapacity: SizeInt;
+  const AComparer: IEqualityComparer<TKey>);
+var
+  LDefault: Pointer;
+  LEquals, LBuiltinEquals: TOnEqualityComparison<TKey>;
+begin
+  inherited Create(ACapacity, AComparer);
+  { Only the built-in factory guarantees static comparers for FlatKind.
+    User hash services may return a fresh instance on every Default call. }
+  if FlatKind then
+  begin
+    if TClass(THashFactory) = TDefaultHashFactory then
+    begin
+      LDefault := FDefaultComparer;
+      if LDefault = nil then
+      begin
+        LDefault := Pointer(TEqualityComparer<TKey>.Default(THashFactory));
+        FDefaultComparer := LDefault;
+      end;
+      FFlat := Pointer(FEqualityComparer) = LDefault;
+    end
+    else
+    begin
+      { A factory's Default may itself have custom equality, even if it
+        returns a stable instance. Only the built-in equality can be
+        replaced by FlatEquals; the built-in hash services share its code. }
+      LEquals := FEqualityComparer.Equals;
+      LBuiltinEquals := TEqualityComparer<TKey>.Default.Equals;
+      FFlat := TMethod(LEquals).Code = TMethod(LBuiltinEquals).Code;
+    end;
+  end;
+end;
+
+function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.FindBucketIndex(
+  const AItems: TArray<TItem>; const AKey: TKey; out AHash: UInt32): SizeInt;
+begin
+  if (GetTypeKind(TKey) in FlatKinds) and FFlat then
+    Result := FlatFind(AItems, AKey, AHash)
+  else
+    Result := inherited FindBucketIndex(AItems, AKey, AHash);
+end;
+
 function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.FindBucketIndexForHash(
   const AItems: TArray<TItem>; const AKey: TKey; var AHash: UInt32): SizeInt;
 var
   LItem: PItem;
   m: SizeInt;
 begin
+  if (GetTypeKind(TKey) in FlatKinds) and FFlat then
+    Exit(FlatFindForHash(AItems, AKey, AHash));
+
   m := Length(AItems);
 
   if m = 0 then
@@ -1032,6 +1317,112 @@ begin
       LItem := @AItems[0];
     end;
   until false;
+end;
+
+function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.TryGetValue(const AKey: TKey; var AValue: TValue): Boolean;
+var
+  LIndex: SizeInt;
+  LHash: UInt32;
+begin
+  if not (GetTypeKind(TKey) in FlatInlineKinds) then
+    LIndex := FindKey(AKey)
+  else if FFlat then
+    LIndex := FlatFind(FItems, AKey, LHash)
+  else
+    LIndex := FindBucketIndex(FItems, AKey, LHash);
+  Result := LIndex >= 0;
+  if Result then
+    AValue := FItems[LIndex].Pair.Value
+  else
+    AValue := Default(TValue);
+end;
+
+function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.ContainsKey(const AKey: TKey): Boolean;
+var
+  LHash: UInt32;
+begin
+  if not (GetTypeKind(TKey) in FlatInlineKinds) then
+    Result := FindKey(AKey) >= 0
+  else if FFlat then
+    Result := FlatFind(FItems, AKey, LHash) >= 0
+  else
+    Result := FindBucketIndex(FItems, AKey, LHash) >= 0;
+end;
+
+procedure TOpenAddressingLinearLP<TKey, TValue, THashFactory>.AddOrSetValue(const AKey: TKey; const AValue: TValue);
+var
+  LIndex: SizeInt;
+  LHash: UInt32;
+begin
+  if (GetTypeKind(TKey) in FlatKinds) and FFlat then
+    LIndex := FlatFind(FItems, AKey, LHash)
+  else
+    LIndex := FindBucketIndex(FItems, AKey, LHash);
+  if LIndex < 0 then
+    DoAdd(AKey, AValue, LHash, LIndex)
+  else if NotifyActive then
+    SetValue(FItems[LIndex].Pair.Value, AValue)
+  else
+    FItems[LIndex].Pair.Value := AValue;
+end;
+
+function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.TryAdd(const AKey: TKey; const AValue: TValue): Boolean;
+var
+  LIndex: SizeInt;
+  LHash: UInt32;
+begin
+  if (GetTypeKind(TKey) in FlatKinds) and FFlat then
+    LIndex := FlatFind(FItems, AKey, LHash)
+  else
+    LIndex := FindBucketIndex(FItems, AKey, LHash);
+  Result := LIndex < 0;
+  if Result then
+    DoAdd(AKey, AValue, LHash, LIndex);
+end;
+
+procedure TOpenAddressingLinearLP<TKey, TValue, THashFactory>.Remove(const AKey: TKey);
+var
+  LIndex: SizeInt;
+  LHash: UInt32;
+begin
+  if (GetTypeKind(TKey) in FlatKinds) and FFlat then
+    LIndex := FlatFind(FItems, AKey, LHash)
+  else
+    LIndex := FindBucketIndex(FItems, AKey, LHash);
+  if LIndex < 0 then
+    Exit;
+  DoRemove(LIndex, cnRemoved);
+end;
+
+function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.GetItem(const AKey: TKey): TValue;
+var
+  LIndex: SizeInt;
+  LHash: UInt32;
+begin
+  if (GetTypeKind(TKey) in FlatKinds) and FFlat then
+    LIndex := FlatFind(FItems, AKey, LHash)
+  else
+    LIndex := FindBucketIndex(FItems, AKey, LHash);
+  if LIndex < 0 then
+    Exit(inherited GetItem(AKey));    // raises with the key text, as before
+  Result := FItems[LIndex].Pair.Value;
+end;
+
+procedure TOpenAddressingLinearLP<TKey, TValue, THashFactory>.SetItem(const AKey: TKey; const AValue: TValue);
+var
+  LIndex: SizeInt;
+  LHash: UInt32;
+begin
+  if (GetTypeKind(TKey) in FlatKinds) and FFlat then
+    LIndex := FlatFind(FItems, AKey, LHash)
+  else
+    LIndex := FindBucketIndex(FItems, AKey, LHash);
+  if LIndex < 0 then
+    raise EListError.CreateRes(@SItemNotFound);
+  if NotifyActive then
+    SetValue(FItems[LIndex].Pair.Value, AValue)
+  else
+    FItems[LIndex].Pair.Value := AValue;
 end;
 
 { TOpenAddressingTombstones<OPEN_ADDRESSING_CONSTRAINTS> }
@@ -2334,6 +2725,11 @@ begin
     LIndex := LHashListOrIndex[LLookupResult + 1] and (Length(FItems[0]) - 1);
     AValue := FItems[LLookupResult][LIndex].Pair.Value;
   end;
+end;
+
+procedure TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.AddOrSetPair(const APair: TDictionaryPair);
+begin
+  AddOrSetValue(APair.Key, APair.Value);
 end;
 
 procedure TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.AddOrSetValue(const AKey: TKey; const AValue: TValue);
