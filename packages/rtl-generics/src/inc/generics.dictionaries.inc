@@ -980,7 +980,19 @@ begin
       LIndex := TProbeSequence.Probe(LProbe, LItem.Hash) and LLengthMask;
       Inc(LProbe);
     until (LNewItems[LIndex].Hash and UInt32.GetSignMask) = 0;
-    LNewItems[LIndex] := LItem^;
+    { Relocation of plain managed references transfers their existing owner.
+      Custom management and custom probes keep the assignment path: either can
+      execute user code, and a throwing probe must not leave half a moved table. }
+    if (IsManagedType(TKey) or IsManagedType(TValue)) and
+      (not IsManagedType(TKey) or (GetTypeKind(TKey) in [tkAString, tkWString, tkUString, tkInterface, tkDynArray])) and
+      (not IsManagedType(TValue) or (GetTypeKind(TValue) in [tkAString, tkWString, tkUString, tkInterface, tkDynArray])) and
+      (TClass(TProbeSequence) = TLinearProbing) then
+    begin
+      System.Move(LItem^, LNewItems[LIndex], SizeOf(TItem));
+      FillChar(LItem^, SizeOf(TItem), 0);
+    end
+    else
+      LNewItems[LIndex] := LItem^;
   end;
 
   FItems := LNewItems;
