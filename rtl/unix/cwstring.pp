@@ -836,6 +836,8 @@ function CompareWideString(const s1, s2 : WideString; Options : TCompareOptions)
 
   begin
     { wcscoll interprets null chars as end-of-string -> filter out }
+    if Pointer(s1)=Pointer(s2) then
+      Exit(0);
     if coIgnoreCase in Options then
       begin
       us1:=UpperWideString(s1);
@@ -857,6 +859,8 @@ function CompareWideString(const s1, s2 : WideString; Options : TCompareOptions)
     us1,us2 : WideString;
     hs1, hs2: array of widechar;
   begin
+    if Pointer(s1)=Pointer(s2) then
+      Exit(0);
     if coIgnoreCase in Options then
       begin
       us1:=UpperWideString(s1);

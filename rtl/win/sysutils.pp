@@ -1790,6 +1790,8 @@ function DoCompareStringA(P1, P2: PWideChar; L1, L2: PtrUInt; Flags: DWORD): Ptr
 
 function DoCompareStringW(P1, P2: PWideChar; L1, L2: PtrUInt; Flags: DWORD): PtrInt;
   begin
+    if (P1=P2) and (L1=L2) then
+      Exit(0);
 {$ifdef win64}
     Result:=CompareStringW(LOCALE_USER_DEFAULT,Flags,P1,L1,P2,L2);
     if Result=0 then
