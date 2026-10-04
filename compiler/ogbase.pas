@@ -762,7 +762,7 @@ interface
         procedure AfterUnusedSectionRemoval;virtual;
         procedure GenerateLibraryImports(ImportLibraryList:TFPHashObjectList);virtual;
         procedure GenerateDebugLink(const dbgname:string;dbgcrc:cardinal);
-        function WriteExeFile(const fn:string):boolean;
+        function WriteExeFile(const fn:TPathStr):boolean;
         procedure ParseScript (linkscript:TCmdStrList); virtual;
         property Writer:TObjectWriter read FWriter;
         property ExeSectionList:TFPHashObjectList read FExeSectionList;
@@ -2453,7 +2453,7 @@ implementation
       end;
 
 
-    function TExeOutput.WriteExeFile(const fn:string):boolean;
+    function TExeOutput.WriteExeFile(const fn:TPathStr):boolean;
       begin
         result:=false;
         if FWriter.createfile(fn) then

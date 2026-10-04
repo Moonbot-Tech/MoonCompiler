@@ -337,7 +337,7 @@ Const
 
        { things specified with parameters }
        paralinkoptions   : TCmdStr;
-       paradynamiclinker : string;
+       paradynamiclinker : TCmdStr;
        paraprintnodetree : byte;
 {$ifdef PREPROCWRITE}
        parapreprocess    : boolean;

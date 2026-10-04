@@ -255,7 +255,7 @@ interface
          dynsymnames: Plongword;
          dynsymtable: TElfSymtab;
          interpobjsec: TObjSection;
-         FInterpreter: pshortstring;
+         FInterpreter: ansistring;
          verneedcount,
          verdefcount: longword;
          symversec,
@@ -332,7 +332,7 @@ interface
          procedure DataPos_ExeSection(const aname:string);override;
          function writeData:boolean;override;
          procedure GenerateLibraryImports(ImportLibraryList:TFPHashObjectList);override;
-         property interpreter:pshortstring read FInterpreter write FInterpreter;
+         property interpreter:ansistring read FInterpreter write FInterpreter;
        end;
 
      var
@@ -2006,7 +2006,6 @@ implementation
         dynreloclist := nil;
         if assigned(dynsymnames) then
           FreeMem(dynsymnames);
-        stringdispose(FInterpreter);
         inherited Destroy;
       end;
 
@@ -2968,7 +2967,9 @@ implementation
         if not IsSharedLibrary then
           begin
             interpobjsec:=internalObjData.createsection('.interp',1,[oso_data,oso_load,oso_keep]);
-            interpobjsec.writestr(interpreter^);
+            if interpreter<>'' then
+              interpobjsec.write(interpreter[1],length(interpreter));
+            interpobjsec.writeUInt8(0);
           end;
 
         hashobjsec:=TElfObjSection.create_ext(internalObjData,'.hash',

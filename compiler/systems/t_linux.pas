@@ -65,7 +65,7 @@ interface
       reorder: boolean;
       linklibc: boolean;
       prtobj: string[20];
-      dynlinker: string[100];
+      dynlinker: ansistring;
     public
       constructor Create;override;
       procedure DefaultLinkScript;override;
@@ -291,7 +291,7 @@ const defdynlinker='/lib/ld-linux-aarch64.so.1';
   const defdynlinker='/lib64/ld-linux-loongarch-lp64d.so.1';
 {$endif loongarch64}
 
-procedure SetupDynlinker(out DynamicLinker:string;out libctype:TLibcType);
+procedure SetupDynlinker(out DynamicLinker:TCmdStr;out libctype:TLibcType);
 begin
 {$ifdef powerpc64}
   if defdynlinker='' then
@@ -980,7 +980,7 @@ var
   InitStr,
   FiniStr,
   GCSectionsStr,
-  SoNameStr : string[80];
+  SoNameStr : TCmdStr;
   binstr,
   cmdstr,
   mapstr,
@@ -1140,7 +1140,7 @@ begin
       AddSharedLibrary('c');
     end;
 
-  TElfExeOutput(exeoutput).interpreter:=stringdup(dynlinker);
+  TElfExeOutput(exeoutput).interpreter:=dynlinker;
 
   { add objectfiles, start with prt0 always }
   if not (target_info.system in systems_internal_sysinit) and (prtobj<>'') then

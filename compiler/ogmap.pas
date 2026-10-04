@@ -38,10 +38,10 @@ interface
          t : text;
          FImageBase : qword;
        public
-         constructor Create(const s:string);
+         constructor Create(const s:TPathStr);
          destructor Destroy;override;
          procedure Flush;
-         procedure Add(const s:string);
+         procedure Add(const s:TCmdStr);
          procedure AddHeader(const s:string);
          procedure AddCommonSymbolsHeader;
          procedure AddCommonSymbol(p:TObjSymbol);
@@ -98,7 +98,7 @@ implementation
                                   TExeMap
 ****************************************************************************}
 
-     constructor TExeMap.Create(const s:string);
+     constructor TExeMap.Create(const s:TPathStr);
        begin
          Assign(t,FixFileName(s));
          Rewrite(t);
@@ -118,7 +118,7 @@ implementation
        end;
 
 
-     procedure TExeMap.Add(const s:string);
+     procedure TExeMap.Add(const s:TCmdStr);
        begin
          writeln(t,s);
        end;

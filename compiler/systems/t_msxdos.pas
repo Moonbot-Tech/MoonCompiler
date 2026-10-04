@@ -69,7 +69,7 @@ implementation
          FOrigin: Word;
        protected
          procedure DefaultLinkScript;override;
-         function ExecutableFilename:String;override;
+         function ExecutableFilename:TPathStr;override;
        public
          constructor create;override;
          procedure InitSysInitUnitName;override;
@@ -397,7 +397,7 @@ constructor TInternalLinkerMSXDOS.create;
       FOrigin:=DefaultOrigin;
   end;
 
-function TInternalLinkerMSXDOS.ExecutableFilename:String;
+function TInternalLinkerMSXDOS.ExecutableFilename:TPathStr;
   begin
     result:=ChangeFileExt(current_module.exefilename,'.ihx');
   end;

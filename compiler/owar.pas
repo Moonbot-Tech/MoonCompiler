@@ -44,7 +44,7 @@ type
   tarobjectwriter=class(tobjectwriter)
     constructor createAr(const Aarfn:string);override;
     destructor  destroy;override;
-    function  createfile(const fn:string):boolean;override;
+    function  createfile(const fn:TPathStr):boolean;override;
     procedure closefile;override;
     procedure writesym(const sym:string);override;
     procedure write(const b;len:longword);override;
@@ -228,7 +228,7 @@ implementation
       end;
 
 
-    function tarobjectwriter.createfile(const fn:string):boolean;
+    function tarobjectwriter.createfile(const fn:TPathStr):boolean;
       begin
         objfn:=fn;
         objpos:=ardata.size;

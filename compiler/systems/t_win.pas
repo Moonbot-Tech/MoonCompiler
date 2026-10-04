@@ -74,7 +74,7 @@ interface
       TExternalLinkerWin=class(texternallinker)
       private
          Function  WriteResponseFile(isdll:boolean) : Boolean;
-         Function  PostProcessExecutable(const fn:string;isdll:boolean) : Boolean;
+         Function  PostProcessExecutable(const fn:TPathStr;isdll:boolean) : Boolean;
       public
          Constructor Create;override;
          Procedure SetDefaultInfo;override;
@@ -1626,7 +1626,7 @@ implementation
       end;
 
 
-    function TExternalLinkerWin.postprocessexecutable(const fn : string;isdll:boolean):boolean;
+    function TExternalLinkerWin.postprocessexecutable(const fn : TPathStr;isdll:boolean):boolean;
       type
         tdosheader = packed record
            e_magic : word;
@@ -1657,7 +1657,7 @@ implementation
         end;
       var
         f : file;
-        cmdstr : string;
+        cmdstr : TCmdStr;
         dosheader : tdosheader;
         peheader : tcoffheader;
         peoptheader : tcoffpeoptheader;

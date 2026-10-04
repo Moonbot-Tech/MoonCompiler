@@ -86,7 +86,7 @@ type
     constructor createAr(const Aarfn:string);override;
     constructor createAr(const Aarfn:string;PageSize:Integer);
     destructor  destroy;override;
-    function  createfile(const fn:string):boolean;override;
+    function  createfile(const fn:TPathStr):boolean;override;
     procedure closefile;override;
     procedure writesym(const sym:string);override;
     procedure write(const b;len:longword);override;
@@ -215,7 +215,7 @@ implementation
       end;
 
 
-    function TOmfLibObjectWriter.createfile(const fn: string): boolean;
+    function TOmfLibObjectWriter.createfile(const fn: TPathStr): boolean;
       begin
         FCurrentModule:=TOmfLibObjectModule.Create(fn);
         FCurrentModuleIndex:=FObjectModules.Add(FCurrentModule);

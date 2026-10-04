@@ -46,7 +46,7 @@ interface
         ResName       : string[100];
         ScriptName    : string[100];
         ExtraOptions  : TCmdStr;
-        DynamicLinker : string[100];
+        DynamicLinker : TCmdStr;
       end;
 
       TLinker = class(TObject)
@@ -119,7 +119,7 @@ interface
          procedure ParseScript_Handle;
          procedure ParseScript_PostCheck;
          procedure ParseScript_Load;
-         function  ParsePara(const para : string) : string;
+         function  ParsePara(const para : TCmdStr) : TCmdStr;
          procedure ParseScript_Order;
          procedure ParseScript_MemPos;
          procedure ParseScript_DataPos;
@@ -141,8 +141,8 @@ interface
          function GetCodeSize(aExeOutput: TExeOutput): QWord;virtual;
          function GetDataSize(aExeOutput: TExeOutput): QWord;virtual;
          function GetBssSize(aExeOutput: TExeOutput): QWord;virtual;
-         function ExecutableFilename:String;virtual;
-         function SharedLibFilename:String;virtual;
+         function ExecutableFilename:TPathStr;virtual;
+         function SharedLibFilename:TPathStr;virtual;
       public
          IsSharedLibrary : boolean;
          UseStabs : boolean;
@@ -1796,7 +1796,7 @@ Implementation
 
     procedure TInternalLinker.ParseScript_Handle;
       var
-        s{, para}, keyword : String;
+        s{, para}, keyword : TCmdStr;
         hp : TCmdStrListItem;
         i : longint;
       begin
@@ -1863,9 +1863,9 @@ Implementation
           end;
       end;
 
-    function  TInternalLinker.ParsePara(const para : string) : string;
+    function  TInternalLinker.ParsePara(const para : TCmdStr) : TCmdStr;
       var
-        res : string;
+        res : TCmdStr;
       begin
         res:=trim(para);
         { Remove enclosing braces }
@@ -1879,7 +1879,7 @@ Implementation
       var
         s,
         para,
-        keyword : String;
+        keyword : TCmdStr;
         hp : TCmdStrListItem;
         i : longint;
         handled : boolean;
@@ -1933,7 +1933,7 @@ Implementation
       var
         s,
         para,
-        keyword : String;
+        keyword : TCmdStr;
         hp : TCmdStrListItem;
         i : longint;
         handled : boolean;
@@ -1988,7 +1988,7 @@ Implementation
       var
         s,
         para,
-        keyword : String;
+        keyword : TCmdStr;
         hp : TCmdStrListItem;
         i : longint;
         handled : boolean;
@@ -2027,7 +2027,7 @@ Implementation
       var
         s,
         para,
-        keyword : String;
+        keyword : TCmdStr;
         hp : TCmdStrListItem;
         i : longint;
         handled : boolean;
@@ -2191,13 +2191,13 @@ Implementation
       end;
 
 
-    function TInternalLinker.ExecutableFilename:String;
+    function TInternalLinker.ExecutableFilename:TPathStr;
       begin
         result:=current_module.exefilename;
       end;
 
 
-    function TInternalLinker.SharedLibFilename:String;
+    function TInternalLinker.SharedLibFilename:TPathStr;
       begin
         result:=current_module.sharedlibfilename;
       end;

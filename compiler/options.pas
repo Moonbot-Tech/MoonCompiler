@@ -2057,8 +2057,10 @@ var
 begin
   while (cmd<>'') do
    begin
-     while cmd[1]=' ' do
+     while (cmd<>'') and (cmd[1]=' ') do
       delete(cmd,1,1);
+     if cmd='' then
+       break;
      i:=pos(' ',cmd);
      if i=0 then
        i:=2147483647;
@@ -2083,10 +2085,10 @@ begin
          begin
            Delete(opts,1,1);
            ps:=pos('"',cmd);
-           if (i<>256) and (ps>0) then
+           if ps>0 then
              begin
                opts:=opts + ' '+ copy(cmd,1,ps-1);
-               cmd:=copy(cmd,ps+1,255);
+               delete(cmd,1,ps);
              end;
            interpret_option(opts,true);
          end;

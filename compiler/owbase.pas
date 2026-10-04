@@ -45,7 +45,7 @@ type
     constructor create;
     constructor createAr(const Aarfn:string);virtual;
     destructor  destroy;override;
-    function  createfile(const fn:string):boolean;virtual;
+    function  createfile(const fn:TPathStr):boolean;virtual;
     procedure closefile;virtual;
     procedure writesym(const sym:string);virtual;
     procedure write(const b;len:longword);virtual;
@@ -126,7 +126,7 @@ begin
 end;
 
 
-function tobjectwriter.createfile(const fn:string):boolean;
+function tobjectwriter.createfile(const fn:TPathStr):boolean;
 begin
   createfile:=false;
   f:=CFileStreamClass.Create(fn,fmCreate);
@@ -145,7 +145,7 @@ end;
 
 procedure tobjectwriter.closefile;
 var
-  fn : string;
+  fn : TPathStr;
 begin
   if bufidx>0 then
    writebuf;
