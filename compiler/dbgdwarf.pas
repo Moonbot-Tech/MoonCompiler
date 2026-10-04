@@ -4656,6 +4656,23 @@ implementation
 
     procedure TDebugInfoDwarf3.appenddef_object(list:TAsmList;def: tobjectdef);
 
+      procedure dointerfacestructlabel;
+        var
+          structlab: tasmsymbol;
+        begin
+          { DWARF 2 represents implicit-pointer interfaces as a pointer plus a
+            separate class type.  Later DWARF versions describe the interface
+            directly, but a DWARF 2 consumer can reuse a PPU emitted by a later
+            version and reference the common struct label recorded there.
+            Publish that label at the interface DIE so all supported DWARF
+            formats fulfil the same external-label contract. }
+          structlab:=def_dwarf_class_struct_lab(def);
+          if not(tf_dwarf_only_local_labels in target_info.flags) then
+            current_asmdata.asmlists[al_dwarf_info].concat(tai_symbol.create_global(structlab,0))
+          else
+            current_asmdata.asmlists[al_dwarf_info].concat(tai_symbol.create(structlab,0));
+        end;
+
       procedure dostruct(tag: tdwarf_tag; has_children: boolean=true);
         begin
           if assigned(def.objname) then
@@ -4742,6 +4759,7 @@ implementation
           odt_interfacecorba,
           odt_dispinterface:
             begin
+              dointerfacestructlabel;
               if (not assigned(def.childof)) and
                  ((not assigned(def.ImplementedInterfaces)) or (def.ImplementedInterfaces.count = 0)) and
                 (def.symtable.symList.count = 0)
