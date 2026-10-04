@@ -3771,14 +3771,25 @@ implementation
 
     procedure TExeOutput.RemoveDisabledSections;
       var
-        i: longint;
+        i, j: longint;
         exesec: TExeSection;
+        objsec: TObjSection;
       begin
         for i:=0 to ExeSectionList.Count-1 do
           begin
             exesec:=TExeSection(ExeSectionList[i]);
             if exesec.Disabled then
-              ExeSectionList[i]:=nil;
+              begin
+                { ExeSectionList owns its entries.  Detach discarded object
+                  sections before freeing their output section, otherwise
+                  symbol emission can dereference the stale back pointer. }
+                for j:=0 to exesec.ObjSectionList.Count-1 do
+                  begin
+                    objsec:=TObjSection(exesec.ObjSectionList[j]);
+                    objsec.ExeSection:=nil;
+                  end;
+                ExeSectionList[i]:=nil;
+              end;
           end;
         ExeSectionList.Pack;
       end;
