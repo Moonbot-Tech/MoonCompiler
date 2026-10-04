@@ -122,7 +122,10 @@ def main() -> int:
         if off_shifts < 8 or on_shifts > 2:
             failures.append(
                 f"index reuse missing: shifts off={off_shifts} on={on_shifts}")
-        if off_bases and (off_bases < 8 or on_bases > 2):
+        # Stores to adjacent fields can already share their base with ADDRESSGVN
+        # off (Win64: six LEAs for eight accesses). Require the positive control
+        # to demonstrate elimination, not a fixed unoptimized instruction count.
+        if off_bases and (on_bases > 2 or off_bases <= on_bases):
             failures.append(
                 f"base reuse missing: bases off={off_bases} on={on_bases}")
         if not off_bases and on_bases:

@@ -2600,8 +2600,15 @@ unit aoptx86;
               with insprop[p.opcode] do
                 begin
                   if (
-                    { xor %reg,%reg etc. is classed as a new value }
+                    { xor %reg,%reg etc. is classed as a new value: the
+                      instruction writes the register and what it writes
+                      does not depend on what was there.  cmp %reg,%reg
+                      reads nothing either, but it writes nothing: the
+                      register keeps its value and whoever loaded it is
+                      still needed; xchg %reg,%reg leaves the value too }
                     (([Ch_NoReadIfEqualRegs]*Ch)<>[]) and
+                    (([Ch_Wop2,Ch_RWop2,Ch_Mop2]*Ch)<>[]) and
+                    (p.opcode<>A_XCHG) and
                     MatchOpType(p, top_reg, top_reg) and
                     (p.oper[0]^.reg = p.oper[1]^.reg) and
                     Reg1WriteOverwritesReg2Entirely(p.oper[1]^.reg,reg)
@@ -5686,13 +5693,9 @@ unit aoptx86;
 
                         if TempBool then
                           begin
-                            TransferUsedRegs(TmpUsedRegs);
-                            if not RegUsedAfterInstruction(taicpu(p).oper[1]^.reg, p, TmpUsedRegs) then
-                              begin
-                                { reg2 is no longer in use }
-                                DebugMsg(SPeepholeOptimization + 'Mov2Nop 6 done',p);
-                                RemoveCurrentP(p);
-                              end;
+                            { reg2 is no longer in use }
+                            DebugMsg(SPeepholeOptimization + 'Mov2Nop 6 done',p);
+                            RemoveCurrentP(p);
                           end;
 
                         exit;
@@ -6101,17 +6104,7 @@ unit aoptx86;
 
                         AllocRegBetween(taicpu(p).oper[0]^.reg, p, hp2, UsedRegs);
 
-                        if (taicpu(p).oper[0]^.reg = taicpu(hp2).oper[1]^.reg) then
-                          begin
-                            { %reg1 = %reg3 }
-                            DebugMsg(SPeepholeOptimization + 'Made 32-to-64-bit zero extension more efficient (MovlMovq2MovlAndl 2)', hp2);
-                            taicpu(hp2).opcode := A_AND;
-                          end
-                        else
-                          begin
-                            { %reg1 <> %reg3 }
-                            DebugMsg(SPeepholeOptimization + 'Made 32-to-64-bit zero extension more efficient (MovlMovq2MovlMovl 2)', hp2);
-                          end;
+                        DebugMsg(SPeepholeOptimization + 'Made 32-to-64-bit zero extension more efficient (MovlMovq2MovlMovl 2)', hp2);
 
                         if not TempRegUsed then
                           begin
@@ -6885,7 +6878,6 @@ unit aoptx86;
                   end
                 else if not RegModifiedBetween(taicpu(p).oper[0]^.reg,p,hp1) then
                   begin
-                    { Still possible to optimise if hp1 is converted instead }
                     DebugMsg(SPeepholeOptimization+'Merged (V)MOVD/(V)MOVQ and MOV to eliminate intermediate register (MovD/QMov2MovD/Q 1b)',hp1);
 
                     { Decrement the reference prior to replacing it }
@@ -7684,7 +7676,11 @@ unit aoptx86;
                             RemoveInstruction(hp1);
                           end;
                       end
-                    else
+                    else if
+                      { the second operation must not read the register it
+                        changes: "add $8,%reg; add (%reg),%reg" reads the
+                        memory behind the register which has the 8 in it }
+                      not RegInOp(ActiveReg, taicpu(hp1).oper[0]^) then
                       begin
                         { Move the constant addition to after the reg/ref addition to improve optimisation }
                         DebugMsg(SPeepholeOptimization + 'Add/sub swap 1a done',p);
@@ -7711,9 +7707,10 @@ unit aoptx86;
         offsetcalc: Int64;
         TempReg: TRegister;
         Multiple: TCGInt;
-        Adjacent, IntermediateRegDiscarded: Boolean;
+        Adjacent, IntermediateRegDiscarded, ConvertLater, LoadTakesRegister: Boolean;
       begin
         Result:=false;
+        ConvertLater:=false;
 
         { play save and throw an error if LEA uses a seg register prefix,
           this is most likely an error somewhere else }
@@ -7758,11 +7755,25 @@ unit aoptx86;
               ) and
               { If the flags register is in use, don't change the instruction
                 to an ADD otherwise this will scramble the flags. [Kit] }
-              not RegInUsedRegs(NR_DEFAULTFLAGS, UsedRegs) and
-              ConvertLEA(taicpu(p)) then
+              not RegInUsedRegs(NR_DEFAULTFLAGS, UsedRegs) then
               begin
-                Result:=true;
-                exit;
+                { The instruction which follows may take the address as its
+                  operand or the register of the LEA as its own one, and no
+                  LEA is left: "lea -12(%rax),%rax; orl $2,4(%rax)" is
+                  "orl $2,-8(%rax)".  An addition it would not take; the
+                  conversion waits for it. }
+                if (taicpu(p).oper[1]^.reg=NR_STACK_POINTER_REG) or
+                   (taicpu(p).oper[1]^.reg=current_procinfo.framepointer) or
+                   not(GetNextInstruction(p,hp1) and (hp1.typ=ait_instruction)) then
+                  begin
+                    if ConvertLEA(taicpu(p)) then
+                      begin
+                        Result:=true;
+                        exit;
+                      end;
+                  end
+                else
+                  ConvertLater:=true;
               end;
           end;
 
@@ -7830,28 +7841,35 @@ unit aoptx86;
 {$endif x86_64}
                   then
                   begin
+                    { a load which reads through the address and writes the
+                      whole register of the LEA: the address has no reader
+                      behind the load }
+                    LoadTakesRegister:=(ref=0) and
+                      MatchInstruction(hp1,[A_MOV,A_MOVZX,A_MOVSX{$ifdef x86_64},A_MOVSXD{$endif x86_64}],[]) and
+                      (taicpu(hp1).ops=2) and
+                      (taicpu(hp1).oper[1]^.typ=top_reg) and
+                      Reg1WriteOverwritesReg2Entirely(taicpu(hp1).oper[1]^.reg,taicpu(p).oper[1]^.reg);
                     { reg1 might not used by the second instruction after it is remove from the reference }
-                    if not(RegInInstruction(taicpu(p).oper[1]^.reg,taicpu(hp1))) then
+                    if LoadTakesRegister or
+                       not(RegInInstruction(taicpu(p).oper[1]^.reg,taicpu(hp1))) then
                       begin
                         TransferUsedRegs(TmpUsedRegs);
                         UpdateUsedRegs(TmpUsedRegs, tai(p.next));
                         { reg1 is not updated so it might not be used afterwards }
-                        if not(RegUsedAfterInstruction(taicpu(p).oper[1]^.reg,hp1,TmpUsedRegs)) then
+                        if LoadTakesRegister or
+                           not(RegUsedAfterInstruction(taicpu(p).oper[1]^.reg,hp1,TmpUsedRegs)) then
                           begin
                             DebugMsg(SPeepholeOptimization + 'LeaOp2Op done',p);
                             if taicpu(p).oper[0]^.ref^.base<>NR_NO then
-                              begin
-                                taicpu(hp1).oper[ref]^.ref^.base:=taicpu(p).oper[0]^.ref^.base;
-                                AllocRegBetween(taicpu(p).oper[0]^.ref^.base,p,hp1,UsedRegs);
-                              end;
+                              taicpu(hp1).oper[ref]^.ref^.base:=taicpu(p).oper[0]^.ref^.base;
                             if taicpu(p).oper[0]^.ref^.index<>NR_NO then
+                              taicpu(hp1).oper[ref]^.ref^.index:=taicpu(p).oper[0]^.ref^.index;
+                            if taicpu(p).oper[0]^.ref^.symbol<>nil then
                               begin
                                 taicpu(hp1).oper[ref]^.ref^.index:=taicpu(p).oper[0]^.ref^.index;
                                 if taicpu(p).oper[0]^.ref^.index<>taicpu(p).oper[0]^.ref^.base then
                                   AllocRegBetween(taicpu(p).oper[0]^.ref^.index,p,hp1,UsedRegs);
                               end;
-                            if taicpu(p).oper[0]^.ref^.symbol<>nil then
-                              taicpu(hp1).oper[ref]^.ref^.symbol:=taicpu(p).oper[0]^.ref^.symbol;
                             if taicpu(p).oper[0]^.ref^.relsymbol<>nil then
                               taicpu(hp1).oper[ref]^.ref^.relsymbol:=taicpu(p).oper[0]^.ref^.relsymbol;
                             if taicpu(p).oper[0]^.ref^.scalefactor > 1 then
@@ -7870,6 +7888,13 @@ unit aoptx86;
                   end;
                 { recover }
                 taicpu(hp1).oper[ref]^.ref^:=saveref;
+              end;
+
+            if ConvertLater and
+               ConvertLEA(taicpu(p)) then
+              begin
+                Result:=true;
+                exit;
               end;
 
             Adjacent := RegInInstruction(taicpu(p).oper[1]^.reg, hp1);
@@ -8815,8 +8840,10 @@ unit aoptx86;
                                 ((taicpu(p).opsize in [S_L{$ifdef x86_64}, S_Q{$endif x86_64}]) and (taicpu(p).oper[0]^.val <> -2147483648))
                               ) then
                               begin
+                                { two subtractions with a negative sum are
+                                  an addition }
                                 DebugMsg(SPeepholeOptimization + 'SUB; ADD/SUB -> ADD',p);
-                                taicpu(p).opcode := A_SUB;
+                                taicpu(p).opcode := A_ADD;
                                 taicpu(p).oper[0]^.val := -taicpu(p).oper[0]^.val;
                               end
                             else
@@ -8824,7 +8851,10 @@ unit aoptx86;
                             RemoveInstruction(hp1);
                           end;
                       end
-                    else
+                    else if
+                      { the second operation must not read the register it
+                        changes }
+                      not RegInOp(ActiveReg, taicpu(hp1).oper[0]^) then
                       begin
                         { Move the constant subtraction to after the reg/ref addition to improve optimisation }
                         DebugMsg(SPeepholeOptimization + 'Add/sub swap 1b done',p);
@@ -8920,7 +8950,13 @@ unit aoptx86;
                 TmpBool1 := False;
                 if taicpu(hp1).opcode=A_LEA then
                   begin
+                    { The lea reads the shifted register as its index; the
+                      merged lea reads the unshifted one and scales it, so
+                      the lea must not also use it as base: "shl $1,%r;
+                      lea (%r,%r,2),%r" is 6*r and "lea (%r,%r,4),%r" is
+                      not. }
                     if (TmpRef.base = NR_NO) and
+                       not SuperRegistersEqual(taicpu(hp1).oper[0]^.ref^.base,taicpu(p).oper[1]^.reg) and
                        (taicpu(hp1).oper[0]^.ref^.symbol=nil) and
                        (taicpu(hp1).oper[0]^.ref^.relsymbol=nil) and
                        { Segment register isn't a concern here }
@@ -8953,7 +8989,10 @@ unit aoptx86;
                 else
                   if (taicpu(hp1).oper[0]^.typ = Top_Reg) and
                      (((taicpu(hp1).opcode = A_ADD) and
-                       (TmpRef.base = NR_NO)) or
+                       (TmpRef.base = NR_NO) and
+                       { "add %r,%r" after the shift doubles the shifted
+                         value; it is not a base for the merged lea }
+                       not SuperRegistersEqual(taicpu(hp1).oper[0]^.reg,taicpu(p).oper[1]^.reg)) or
                       (taicpu(hp1).opcode = A_INC) or
                       (taicpu(hp1).opcode = A_DEC)) then
                     begin
@@ -9162,14 +9201,43 @@ unit aoptx86;
            (MatchInstruction(hp1,A_FST,A_FSTP,A_FLD,[]) and
            MatchOpType(taicpu(hp1),top_ref))
           ) and
-          (taicpu(p).oper[1]^.reg=taicpu(hp1).oper[0]^.ref^.index) and
-          (taicpu(p).oper[1]^.reg<>taicpu(hp1).oper[0]^.ref^.base) and
-          (taicpu(hp1).oper[0]^.ref^.scalefactor in [0,1]) then
+          (
+            { the register is the index of the address }
+            (
+              (taicpu(p).oper[1]^.reg=taicpu(hp1).oper[0]^.ref^.index) and
+              (taicpu(p).oper[1]^.reg<>taicpu(hp1).oper[0]^.ref^.base) and
+              (taicpu(hp1).oper[0]^.ref^.scalefactor in [0,1])
+            ) or
+            { or its base, beside no index or an index without a scale:
+              the register with a scale is the index, the other one the
+              base }
+            (
+              (taicpu(p).oper[1]^.reg=taicpu(hp1).oper[0]^.ref^.base) and
+              (taicpu(p).oper[1]^.reg<>taicpu(hp1).oper[0]^.ref^.index) and
+              (
+                (taicpu(hp1).oper[0]^.ref^.index=NR_NO) or
+                (taicpu(hp1).oper[0]^.ref^.scalefactor in [0,1])
+              ) and
+              (taicpu(hp1).oper[0]^.ref^.symbol=nil) and
+              (taicpu(hp1).oper[0]^.ref^.relsymbol=nil) and
+              (taicpu(hp1).oper[0]^.ref^.segment=NR_NO)
+            )
+          ) then
           begin
             TransferUsedRegs(TmpUsedRegs);
             UpdateUsedRegs(TmpUsedRegs, tai(p.next));
-            if not(RegUsedAfterInstruction(taicpu(p).oper[1]^.reg, hp1, TmpUsedRegs)) then
+            if { the load writes the whole register of the index: the shifted
+                 value has no reader behind the load, whoever reads the
+                 register there reads what the load brought }
+               (MatchInstruction(hp1,A_MOV,A_LEA,[]) and
+                Reg1WriteOverwritesReg2Entirely(taicpu(hp1).oper[1]^.reg,taicpu(p).oper[1]^.reg)) or
+               not(RegUsedAfterInstruction(taicpu(p).oper[1]^.reg, hp1, TmpUsedRegs)) then
               begin
+                if taicpu(hp1).oper[0]^.ref^.base=taicpu(p).oper[1]^.reg then
+                  begin
+                    taicpu(hp1).oper[0]^.ref^.base:=taicpu(hp1).oper[0]^.ref^.index;
+                    taicpu(hp1).oper[0]^.ref^.index:=taicpu(p).oper[1]^.reg;
+                  end;
                 taicpu(hp1).oper[0]^.ref^.scalefactor:=1 shl taicpu(p).oper[0]^.val;
                 DebugMsg(SPeepholeOptimization + 'ShlOp2Op', p);
                 RemoveCurrentP(p);
@@ -14154,18 +14222,6 @@ unit aoptx86;
                         if RegModifiedByInstruction(NR_DEFAULTFLAGS, next) then
                           begin
                             case taicpu(next).opcode of
-                              A_SETcc,
-                              A_CMOVcc,
-                              A_Jcc:
-                                begin
-                                  if PotentialModified then
-                                    { Not safe because the flags were modified earlier }
-                                    Exit
-                                  else
-                                    { Condition is the same as the initial SETcc, so this is safe
-                                      (don't add to instruction list though) }
-                                    Continue;
-                                end;
                               A_ADD:
                                 begin
                                   if { LEA doesn't support 8-bit in general and 16-bit on x86-64 operands }
@@ -16491,17 +16547,13 @@ unit aoptx86;
                     if not RegUsed and
                       (AndTest or (taicpu(hp1).opcode = A_AND)) then
                       begin
-                        RemoveInstruction(hp2);
-                        if not RegUsed then
+                        taicpu(hp1).opcode := A_TEST;
+                        if (taicpu(hp1).oper[0]^.typ = top_ref) then
                           begin
-                            taicpu(hp1).opcode := A_TEST;
-                            if (taicpu(hp1).oper[0]^.typ = top_ref) then
-                              begin
-                                { Make sure the reference is the second operand }
-                                SwapOper := taicpu(hp1).oper[0];
-                                taicpu(hp1).oper[0] := taicpu(hp1).oper[1];
-                                taicpu(hp1).oper[1] := SwapOper;
-                              end;
+                            { Make sure the reference is the second operand }
+                            SwapOper := taicpu(hp1).oper[0];
+                            taicpu(hp1).oper[0] := taicpu(hp1).oper[1];
+                            taicpu(hp1).oper[1] := SwapOper;
                           end;
                       end;
 

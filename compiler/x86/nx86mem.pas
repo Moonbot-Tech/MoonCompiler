@@ -42,7 +42,7 @@ interface
 implementation
 
     uses
-      cutils,verbose,
+      cutils,verbose,globals,
       aasmdata,
       cgutils,cgobj,
       symconst,symcpu;
@@ -87,10 +87,12 @@ implementation
      { The passed register may be a LOC_CREGISTER as well.                }
      procedure tx86vecnode.update_reference_reg_mul(maybe_const_reg: tregister; regsize: tdef; l: aint);
        var
-         l2 : integer;
+         l2,scale : integer;
+         stride : aint;
          hreg : tregister;
          saveseg: TRegister;
        begin
+         stride:=l;
          { Optimized for x86 to use the index register and scalefactor }
          if location.reference.index=NR_NO then
           begin
@@ -132,6 +134,20 @@ implementation
          else
            begin
               hreg:=cg.getaddressregister(current_asmdata.CurrAsmList);
+              { Keep a power-of-two part in the memory operand when the
+                remaining stride is a single LEA.  The intermediate then needs
+                no separate shift, without adding another live register. }
+              if (l>0) and not(cs_check_overflow in current_settings.localswitches) then
+                begin
+                  scale:=1;
+                  while (scale<8) and ((l div scale) mod 2=0) do
+                    scale:=scale*2;
+                  if (l div scale) in [3,5,9] then
+                    begin
+                      l:=l div scale;
+                      location.reference.scalefactor:=scale;
+                    end;
+                end;
               if ispowerof2(l,l2) then
                 cg.a_op_const_reg_reg(current_asmdata.CurrAsmList,OP_SHL,OS_ADDR,l2,maybe_const_reg,hreg)
               else
@@ -139,7 +155,7 @@ implementation
            end;
          end;
          location.reference.index:=hreg;
-         location.reference.alignment:=newalignment(location.reference.alignment,l);
+         location.reference.alignment:=newalignment(location.reference.alignment,stride);
        end;
 
 begin

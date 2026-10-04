@@ -2168,6 +2168,22 @@ unit nx86add;
 
        pass_left_right;
 
+       { the operands of a subtraction changed their places for the evaluation
+         and the subtrahend, which is left now, lies in memory: they go back.
+         The subtrahend is the memory operand of the instruction and the
+         register takes the minuend, as where the operands kept their places.
+         Loaded into a register of its own, the subtrahend waited for the
+         peephole optimizer to fold it back into the instruction, and that
+         needs the register of its address alive up to the instruction: the
+         minuend took this register where it was the first free one.  A
+         minuend which is a register variable or a constant goes its own
+         way below }
+       if (nodetype=subn) and
+          (nf_swapped in flags) and
+          (left.location.loc in [LOC_REFERENCE,LOC_CREFERENCE]) and
+          (right.location.loc in [LOC_REFERENCE,LOC_CREFERENCE]) then
+         swapleftright;
+
        { do we have to allocate a register? If yes, then three opcode instructions are better, however for sub three op code instructions
          make no sense if right is a reference }
        if ((left.location.loc<>LOC_REGISTER) and (right.location.loc<>LOC_REGISTER) and

@@ -1,0 +1,306 @@
+{
+ "linux": {
+  "SHAPECOPYFIELD": [
+   3,
+   0,
+   0
+  ],
+  "SHAPEDECIDE": [
+   10,
+   0,
+   0
+  ],
+  "SHAPEHEADERFLAG": [
+   3,
+   0,
+   0
+  ],
+  "SHAPEINDEXFIELD": [
+   4,
+   0,
+   0
+  ],
+  "SHAPEINDEXFIELDS": [
+   14,
+   0,
+   0
+  ],
+  "SHAPEINDEXNESTED": [
+   31,
+   0,
+   0
+  ],
+  "SHAPELOOPBUMPCELLS": [
+   14,
+   0,
+   5
+  ],
+  "SHAPELOOPBUYSELL": [
+   39,
+   0,
+   24
+  ],
+  "SHAPELOOPCALLINSIDE": [
+   34,
+   1,
+   13
+  ],
+  "SHAPELOOPCLEARITEMS": [
+   21,
+   0,
+   10
+  ],
+  "SHAPELOOPMAXPRICE": [
+   24,
+   0,
+   12
+  ],
+  "SHAPELOOPSKIPNAMES": [
+   9,
+   0,
+   5
+  ],
+  "SHAPELOOPSUMCELLS": [
+   14,
+   0,
+   5
+  ],
+  "SHAPELOOPSUMWIDE": [
+   19,
+   0,
+   9
+  ],
+  "SHAPELOOPSWAPINSIDE": [
+   36,
+   1,
+   15
+  ],
+  "SHAPEOTHERNAME": [
+   4,
+   0,
+   0
+  ],
+  "SHAPESTEPATINDEX": [
+   6,
+   0,
+   0
+  ],
+  "SHAPESTEPBACK": [
+   3,
+   0,
+   0
+  ],
+  "SHAPESTEPBACKREAD": [
+   3,
+   0,
+   0
+  ],
+  "SHAPESTEPFIELD": [
+   5,
+   0,
+   0
+  ],
+  "SHAPESTEPITEM": [
+   11,
+   0,
+   0
+  ],
+  "SHAPESTEPNODE": [
+   6,
+   0,
+   0
+  ],
+  "SHAPESTEPTOTAL": [
+   8,
+   0,
+   0
+  ],
+  "SHAPESUBNESTED": [
+   9,
+   0,
+   0
+  ],
+  "SHAPESUBPOINTERS": [
+   4,
+   0,
+   0
+  ],
+  "SHAPESUBPOINTERS32": [
+   4,
+   0,
+   0
+  ],
+  "SHAPESUBREFERENCE": [
+   9,
+   0,
+   0
+  ],
+  "SHAPESUBSTORED": [
+   4,
+   0,
+   0
+  ],
+  "SHAPESUMFIELDS": [
+   4,
+   0,
+   0
+  ],
+  "SHAPETWONAMES": [
+   6,
+   0,
+   0
+  ]
+ },
+ "win64": {
+  "SHAPECOPYFIELD": [
+   3,
+   0,
+   0
+  ],
+  "SHAPEDECIDE": [
+   10,
+   0,
+   0
+  ],
+  "SHAPEHEADERFLAG": [
+   3,
+   0,
+   0
+  ],
+  "SHAPEINDEXFIELD": [
+   4,
+   0,
+   0
+  ],
+  "SHAPEINDEXFIELDS": [
+   14,
+   0,
+   0
+  ],
+  "SHAPEINDEXNESTED": [
+   31,
+   0,
+   0
+  ],
+  "SHAPELOOPBUMPCELLS": [
+   14,
+   0,
+   5
+  ],
+  "SHAPELOOPBUYSELL": [
+   39,
+   0,
+   24
+  ],
+  "SHAPELOOPCALLINSIDE": [
+   34,
+   1,
+   12
+  ],
+  "SHAPELOOPCLEARITEMS": [
+   21,
+   0,
+   10
+  ],
+  "SHAPELOOPMAXPRICE": [
+   23,
+   0,
+   12
+  ],
+  "SHAPELOOPSKIPNAMES": [
+   9,
+   0,
+   5
+  ],
+  "SHAPELOOPSUMCELLS": [
+   14,
+   0,
+   5
+  ],
+  "SHAPELOOPSUMWIDE": [
+   19,
+   0,
+   9
+  ],
+  "SHAPELOOPSWAPINSIDE": [
+   36,
+   1,
+   14
+  ],
+  "SHAPEOTHERNAME": [
+   4,
+   0,
+   0
+  ],
+  "SHAPESTEPATINDEX": [
+   6,
+   0,
+   0
+  ],
+  "SHAPESTEPBACK": [
+   3,
+   0,
+   0
+  ],
+  "SHAPESTEPBACKREAD": [
+   3,
+   0,
+   0
+  ],
+  "SHAPESTEPFIELD": [
+   5,
+   0,
+   0
+  ],
+  "SHAPESTEPITEM": [
+   11,
+   0,
+   0
+  ],
+  "SHAPESTEPNODE": [
+   6,
+   0,
+   0
+  ],
+  "SHAPESTEPTOTAL": [
+   8,
+   0,
+   0
+  ],
+  "SHAPESUBNESTED": [
+   9,
+   0,
+   0
+  ],
+  "SHAPESUBPOINTERS": [
+   4,
+   0,
+   0
+  ],
+  "SHAPESUBPOINTERS32": [
+   4,
+   0,
+   0
+  ],
+  "SHAPESUBREFERENCE": [
+   9,
+   0,
+   0
+  ],
+  "SHAPESUBSTORED": [
+   4,
+   0,
+   0
+  ],
+  "SHAPESUMFIELDS": [
+   4,
+   0,
+   0
+  ],
+  "SHAPETWONAMES": [
+   6,
+   0,
+   0
+  ]
+ }
+}
