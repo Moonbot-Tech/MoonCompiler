@@ -238,6 +238,7 @@ type
     FCount : Integer;
     FUpdateCount : Integer;
     FDisabledCount : Integer;
+    FClearPending : Boolean;
 
   protected
     function GetItems(aIndex : Integer) : TMessageClient;
@@ -281,6 +282,7 @@ type
   private
     FMessageClients: TMessageClientListDict;
     FLock : TCriticalSection;
+    FShuttingDown: Boolean;
 
   protected
     FLockCount : Integer;
@@ -391,9 +393,18 @@ begin
 end;
 
 destructor TSimpleMessageManager.Destroy;
+var
+  Clients: TMessageClientListDict;
 begin
+  { Listener destruction may release captured objects which unsubscribe from
+    this manager.  Publish terminal state while the lock is still alive, then
+    destroy the detached ownership graph.  Shutdown callbacks may unsubscribe
+    (a no-op), but cannot create a new graph in an object being destroyed. }
+  FShuttingDown:=True;
+  Clients:=FMessageClients;
+  FMessageClients:=nil;
+  Clients.Free;
   FreeAndNil(FLock);
-  FreeAndNil(FMessageClients);
   inherited;
 end;
 
@@ -402,7 +413,7 @@ function TSimpleMessageManager.GetList(const aMessageClass: TClass; out
 
 begin
   aList:=Nil;
-  Result:=FMessageClients.TryGetValue(aMessageClass,aList);
+  Result:=Assigned(FMessageClients) and FMessageClients.TryGetValue(aMessageClass,aList);
 end;
 
 function TSimpleMessageManager.CreateMessageTypeDict: TMessageClientListDict;
@@ -449,8 +460,11 @@ var
   Clients: TMessageClientList;
 
 begin
+  Result:=0;
   Lock;
   try
+    if FShuttingDown then
+      Exit;
     Clients:=GetOrCreateList(aMessageClass);
     Result:=GenerateClientID;
     Clients.Add(Result,AListener);
@@ -464,8 +478,11 @@ function TSimpleMessageManager.SubscribeToMessage(const aMessageClass: TClass; c
 var
   Clients: TMessageClientList;
 begin
+  Result:=0;
   Lock;
   try
+    if FShuttingDown then
+      Exit;
     Clients:=GetOrCreateList(aMessageClass);
     Result:=GenerateClientID;
     Clients.Add(Result,AListenerMethod);
@@ -483,6 +500,8 @@ var
 begin
   Lock;
   try
+    if FShuttingDown then
+      Exit;
     if Not FMessageClients.TryGetValue(aMessageClass,Clients) then
       exit;
     Idx:=Clients.IndexOf(aListener);
@@ -501,6 +520,8 @@ var
 begin
   Lock;
   try
+    if FShuttingDown then
+      Exit;
     if not FMessageClients.TryGetValue(aMessageClass,Clients) then
       Exit;
 
@@ -526,6 +547,8 @@ var
 begin
   Lock;
   try
+    if FShuttingDown then
+      Exit;
      if Not FMessageClients.TryGetValue(aMessageClass,Clients) then
        exit;
      Idx:=Clients.IndexOf(SubscriptionId);
@@ -547,7 +570,7 @@ begin
   Lock;
   try
     try
-      if GetList(aMessage.ClassType, Clients) then
+      if not FShuttingDown and GetList(aMessage.ClassType, Clients) then
         Clients.NotifyClients(Sender, aMessage);
     finally
       if ADispose then
@@ -584,7 +607,9 @@ begin
   begin
     if FUpdateCount < 0 then
       raise EListError.Create('TMessageClientList.EndUpdate unbalanced');
-    if FDisabledCount > cRemoveDisabledTreshold then
+    if FClearPending then
+      RemoveDisabled
+    else if FDisabledCount > cRemoveDisabledTreshold then
       RemoveDisabled;
   end;
 end;
@@ -691,15 +716,32 @@ end;
 
 procedure TMessageClientList.Clear;
 var
-  i : Integer;
+  Detached : array of TMessageClient;
+  i, OldCount : Integer;
 begin
   if FUpdateCount > 0 then
-    raise Exception.Create('TMessageClientList.Clear while an update is ongoing (NOT supported yet)');
+  begin
+    for i := 0 to Count-1 do
+      if not FItems[i].Disabled then
+      begin
+        FItems[i].Disabled := True;
+        Inc(FDisabledCount);
+      end;
+    FClearPending := True;
+    Exit;
+  end;
 
-  for i := 0 to Count-1 do
-    FreeAndNil(FItems[i]);
+  { Publish an empty, reusable list before running arbitrary client
+    destructors. A captured object may call back into Clear or AddClient while
+    its listener is being released. }
+  OldCount := FCount;
+  Detached := FItems;
   SetLength(FItems, 0);
+  FCount := 0;
   FDisabledCount := 0;
+  FClearPending := False;
+  for i := 0 to OldCount-1 do
+    FreeAndNil(Detached[i]);
 end;
 
 function TMessageClientList.GetItems(aIndex: Integer): TMessageClient;
@@ -724,19 +766,22 @@ end;
 
 procedure TMessageClientList.RemoveDisabled;
 var
-  iSrc, iDest : Integer;
+  Detached : array of TMessageClient;
+  iSrc, iDest, DetachedCount, OldCount : Integer;
 begin
   if FUpdateCount > 0 then
     raise Exception.Create('TMessageClientList.RemoveDisabled while an update is ongoing');
 
+  OldCount := FCount;
+  SetLength(Detached, FDisabledCount);
   iDest := 0;
-  for iSrc := 0 to Count-1 do
+  DetachedCount := 0;
+  for iSrc := 0 to OldCount-1 do
   begin
     if FItems[iSrc].Disabled then
     begin
-      FreeAndNil(FItems[iSrc]);
-      Dec(FCount);
-      Dec(FDisabledCount);
+      Detached[DetachedCount] := FItems[iSrc];
+      Inc(DetachedCount);
     end
     else
     begin
@@ -746,11 +791,21 @@ begin
     end;
   end;
 
+  for iSrc := iDest to OldCount-1 do
+    FItems[iSrc] := nil;
+  FCount := iDest;
+  FDisabledCount := 0;
+  FClearPending := False;
+
   // if less 25% used, relinquish 50%
   if iDest < (Length(FItems) shr 2) then
   begin
     SetLength(FItems, Length(FItems) shr 1);
   end;
+
+  { The live list is consistent before client destruction can re-enter it. }
+  for iSrc := 0 to DetachedCount-1 do
+    FreeAndNil(Detached[iSrc]);
 end;
 
 { TClient }
