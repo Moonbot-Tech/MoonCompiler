@@ -5057,7 +5057,8 @@ implementation
             i:=list.count-1;
             repeat
               odef:=tobjectdef(list[i]);
-              result:=(odef.owner.symtabletype in [staticsymtable,globalsymtable]) or
+              result:=odef.owner.iscurrentunit or
+                      (odef.owner.symtabletype in [staticsymtable,globalsymtable]) or
                       is_visible_for_object(tobjectdef(list[i]).typesym,contextclassh);
               if result then
                 result:=search_sym_in_helperdef(name,odef,contextclassh,srsym,srsymtable);
@@ -5078,8 +5079,9 @@ implementation
           begin
             i:=list.count-1;
             repeat
-              odef:=tobjectdef(list[list.count-1]);
-              result:=(odef.owner.symtabletype in [staticsymtable,globalsymtable]) or
+              odef:=tobjectdef(list[i]);
+              result:=odef.owner.iscurrentunit or
+                      (odef.owner.symtabletype in [staticsymtable,globalsymtable]) or
                       is_visible_for_object(tobjectdef(list[i]).typesym,contextclassh);
               dec(i);
             until result or (i<0);
