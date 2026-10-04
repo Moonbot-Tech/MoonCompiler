@@ -3789,7 +3789,11 @@ var
          if (po_nostackframe in pd.procoptions) and
             not (po_assembler in pd.procoptions) and
             ((pd.typ<>procdef) or not tprocdef(pd).forwarddef) then
-           message(parser_e_nostackframe_without_assembler);
+           message(parser_e_nostackframe_without_assembler)
+         else if (pd.typ=procdef) and
+            (po_nostackframe in pd.procoptions) and
+            pd.generate_safecall_wrapper then
+           Message2(parser_e_proc_dir_conflict,'NOSTACKFRAME','"SAFECALL"');
       end;
 
 

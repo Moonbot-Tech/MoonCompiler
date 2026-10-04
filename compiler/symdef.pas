@@ -6815,12 +6815,14 @@ implementation
       end;
 
 
+    { the wrapper is a property of the calling convention, not of the body:
+      a safecall routine written in assembler turns its exceptions into an
+      HRESULT and returns the HRESULT of the wrapper, as in Delphi }
     function tabstractprocdef.generate_safecall_wrapper: boolean;
       begin
 {$ifdef SUPPORT_SAFECALL}
         result:=
           (proccalloption=pocall_safecall) and
-          not(po_assembler in procoptions) and
           (tf_safecall_exceptions in target_info.flags);
 {$else SUPPORT_SAFECALL}
         result:=false;

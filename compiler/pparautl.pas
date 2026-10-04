@@ -396,6 +396,7 @@ implementation
             { vo_is_funcret is necessary so the local only gets freed after we loaded its
               value into the return register }
             vs:=clocalvarsym.create('$safecallresult',vs_value,search_system_type('HRESULT').typedef,[vo_is_funcret]);
+            include(vs.symoptions,sp_internal);
             { do not put this variable in a register. The register which will be bound
               to this symbol will not be allocated automatically. Which means it will
               be re-used which breaks the code. Besides this it is questionable if it is

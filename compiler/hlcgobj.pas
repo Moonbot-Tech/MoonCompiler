@@ -6033,15 +6033,16 @@ implementation
       ressym : tsym;
       retdef : tdef;
     begin
-      { Is the loading needed? }
-      if (is_void(current_procinfo.procdef.returndef) and
-          not current_procinfo.procdef.generate_safecall_wrapper) or
-         (
-          (po_assembler in current_procinfo.procdef.procoptions) and
-          (current_procinfo.procdef.generate_safecall_wrapper or
-           not assigned(current_procinfo.procdef.funcretsym) or
-           (tabstractvarsym(current_procinfo.procdef.funcretsym).refs=0) or
-           (po_nostackframe in current_procinfo.procdef.procoptions)
+      { Is the loading needed? The HRESULT of a safecall wrapper always is,
+        in assembler as well }
+      if not current_procinfo.procdef.generate_safecall_wrapper and
+         (is_void(current_procinfo.procdef.returndef) or
+          (
+           (po_assembler in current_procinfo.procdef.procoptions) and
+           (not assigned(current_procinfo.procdef.funcretsym) or
+            (tabstractvarsym(current_procinfo.procdef.funcretsym).refs=0) or
+            (po_nostackframe in current_procinfo.procdef.procoptions)
+           )
           )
          ) then
         begin
