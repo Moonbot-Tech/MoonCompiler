@@ -206,10 +206,128 @@ function UnicodeCompareText(const s1, s2 : UnicodeString) : PtrInt;{$ifdef SYSUT
   end;
 
 
-function UnicodeSameText(const s1, s2 : UnicodeString) : Boolean;{$ifdef SYSUTILSINLINE}inline;{$endif}
-  begin
-    result:=widestringmanager.CompareUnicodeStringProc(s1,s2,[coIgnoreCase])=0;
-  end;
+function UnicodeIsPlainAscii(P: PWideChar; Len: SizeInt): Boolean;
+{$ifdef CPUX86_64}
+const
+  NonAscii = QWord($ff80ff80ff80ff80);
+  Space = QWord($0020002000200020);
+  LaneHigh = QWord($8000800080008000);
+  One = QWord($0001000100010001);
+  Bit7 = QWord($0080008000800080);
+var
+  Block: QWord;
+{$endif CPUX86_64}
+var
+  I: SizeInt;
+  C: Word;
+begin
+  I:=0;
+{$ifdef CPUX86_64}
+  { four characters at a time: a lane above $7F, a lane below $20 (the
+    subtraction borrows into the next lane only out of a lane that is
+    below $20 itself, so a borrow can only send more text to the locale
+    routines, never less) or a lane of exactly $7F }
+  while I+4<=Len do
+    begin
+      Block:=PQWord(P+I)^;
+      if ((Block and NonAscii)<>0) or
+         (((Block-Space) and LaneHigh)<>0) or
+         (((Block+One) and Bit7)<>0) then
+        Exit(False);
+      Inc(I,4);
+    end;
+{$endif CPUX86_64}
+  while I<Len do
+    begin
+      C:=Word(P[I]);
+      if (C<$20) or (C>$7E) then
+        Exit(False);
+      Inc(I);
+    end;
+  Result:=True;
+end;
+
+
+function UnicodeSameTextBuffer(P1, P2: PWideChar; Len: SizeInt): Boolean;
+{$ifdef CPUX86_64}
+const
+  LaneHigh = QWord($8000800080008000);
+  LaneLow = QWord($7fff7fff7fff7fff);
+  UpperA = QWord($0041004100410041);
+  UpperZ = QWord($005a005a005a005a);
+var
+  A, B, ALow, BLow, ARange, BRange: QWord;
+{$endif CPUX86_64}
+var
+  I: SizeInt;
+  CA, CB: Word;
+  Tail: UnicodeString;
+begin
+  if (P1=P2) or (Len<=0) then
+    Exit(True);
+  if not (UnicodeIsPlainAscii(P1,Len) and UnicodeIsPlainAscii(P2,Len)) then
+    begin
+      SetString(Tail,P2,Len);
+      Exit(widestringmanager.CompareUnicodeBufferToStringProc(P1,Len,Tail,[coIgnoreCase])=0);
+    end;
+  I:=0;
+{$ifdef CPUX86_64}
+  { four characters at a time; a differing block is compared again with
+    A..Z folded to a..z lane-wise (bit 15 of a lane marks a letter, moved
+    down to bit 5, the ASCII case bit) }
+  while I+4<=Len do
+    begin
+      A:=PQWord(P1+I)^;
+      B:=PQWord(P2+I)^;
+      if A<>B then
+        begin
+          ALow:=A and LaneLow;
+          BLow:=B and LaneLow;
+          ARange:=((ALow or LaneHigh)-UpperA) and ((UpperZ or LaneHigh)-ALow) and LaneHigh;
+          BRange:=((BLow or LaneHigh)-UpperA) and ((UpperZ or LaneHigh)-BLow) and LaneHigh;
+          if (A xor (ARange shr 10))<>(B xor (BRange shr 10)) then
+            Exit(False);
+        end;
+      Inc(I,4);
+    end;
+{$endif CPUX86_64}
+  while I<Len do
+    begin
+      CA:=Word(P1[I]);
+      CB:=Word(P2[I]);
+      if CA<>CB then
+        begin
+          if (CA>=Ord('A')) and (CA<=Ord('Z')) then
+            Inc(CA,32);
+          if (CB>=Ord('A')) and (CB<=Ord('Z')) then
+            Inc(CB,32);
+          if CA<>CB then
+            Exit(False);
+        end;
+      Inc(I);
+    end;
+  Result:=True;
+end;
+
+
+function UnicodeSameText(const s1, s2 : UnicodeString) : Boolean;
+var
+  L1, L2: SizeInt;
+begin
+  if Pointer(s1)=Pointer(s2) then
+    Exit(True);
+  L1:=Length(s1);
+  L2:=Length(s2);
+  if L1=L2 then
+    Result:=UnicodeSameTextBuffer(PWideChar(Pointer(s1)),PWideChar(Pointer(s2)),L1)
+  else if UnicodeIsPlainAscii(PWideChar(Pointer(s1)),L1) and
+          UnicodeIsPlainAscii(PWideChar(Pointer(s2)),L2) then
+    { no printable ASCII character is ignorable and none expands, so
+      plain-ASCII text of different lengths is never the same text }
+    Result:=False
+  else
+    Result:=widestringmanager.CompareUnicodeStringProc(s1,s2,[coIgnoreCase])=0;
+end;
 
 
 { we've no templates, but with includes we can simulate this :) }
@@ -990,6 +1108,80 @@ end;
 {$define SRCHAR:=UnicodeChar}
 {$define SRINDEXCHAR:=IndexWord}
 {$define SRCOMPARECHAR:=CompareWord}
+
+{ The two searches the printable-ASCII case-insensitive instance of the
+  replace engine below makes instead of IndexWord and CompareWord.  Both texts
+  are printable ASCII there - the caller answers for that - so ORing bit 5
+  folds a letter onto its lower case and maps nothing else onto it.  Leaves,
+  their arguments in registers. }
+
+{ like IndexWord for a letter, given in lower case, found in either case }
+function UnicodeFoldIndex(P: PUnicodeChar; Count: SizeInt; Target: Word): SizeInt;
+{$ifdef ENDIAN_LITTLE}
+const
+  LaneOne = QWord($0001000100010001);
+  LaneHigh = QWord($8000800080008000);
+  LaneCase = QWord($0020002000200020);
+var
+  Lanes, X, Z: QWord;
+{$endif ENDIAN_LITTLE}
+var
+  I: SizeInt;
+begin
+  { a hit where the search starts first: the dense case pays nothing more }
+  if (Count>0) and ((Word(P^) or $20)=Target) then
+    Exit(0);
+  I:=0;
+{$ifdef ENDIAN_LITTLE}
+  { four characters a step: a zero lane marks a hit, and the lowest set bit
+    of the zero test belongs to the first of them }
+  Lanes:=QWord(Target)*LaneOne;
+  while I+4<=Count do
+    begin
+      X:=(PQWord(@P[I])^ or LaneCase) xor Lanes;
+      Z:=(X-LaneOne) and not X and LaneHigh;
+      if Z<>0 then
+        Exit(I+SizeInt(BsfQWord(Z) shr 4));
+      Inc(I,4);
+    end;
+{$endif ENDIAN_LITTLE}
+  while I<Count do
+    begin
+      if (Word(P[I]) or $20)=Target then
+        Exit(I);
+      Inc(I);
+    end;
+  Result:=-1;
+end;
+
+{ like CompareWord(...)=0 by ASCII case folding: the same character, or the
+  same letter in the other case }
+function UnicodeFoldSame(A, B: PUnicodeChar; Len: SizeInt): Boolean;
+var
+  I: SizeInt;
+  CA, CB: Word;
+begin
+  for I:=0 to Len-1 do
+    begin
+      CA:=Word(A[I]);
+      CB:=Word(B[I]);
+      if CA<>CB then
+        begin
+          if (CA or $20)<>(CB or $20) then
+            Exit(False);
+          if Cardinal((CA or $20)-Ord('a'))>=26 then
+            Exit(False);
+        end;
+    end;
+  Result:=True;
+end;
+
+{ the printable-ASCII case-insensitive instance, entered from the engine below }
+{$define SRASCIIFOLD}
+function UnicodeStringReplaceAsciiFold(const S, OldPattern, NewPattern: UnicodeString;
+  Flags: TReplaceFlags; Out aCount : Integer): UnicodeString;
+{$i syssr.inc}
+{$undef SRASCIIFOLD}
 
 Function UnicodeStringReplace(const S, OldPattern, NewPattern: Unicodestring;  Flags: TReplaceFlags): Unicodestring;
 

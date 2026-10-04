@@ -245,6 +245,147 @@ end;
     S1 > S2  > 0
     S1 = S2  = 0     }
 
+{$if defined(UNICODERTL) and defined(CPUX86_64)}
+{$push}{$asmmode intel}
+function CompareText(const S1, S2: string): Integer; overload; assembler; nostackframe;
+asm
+  {$ifndef FPC_ABI_WIN64}
+  mov rcx,rdi
+  mov rdx,rsi
+  {$endif}
+  cmp rcx,rdx
+  je @@TextSame
+  xor r8d,r8d
+  xor r9d,r9d
+  test rcx,rcx
+  jz @@TextLengthB
+  mov r8,[rcx-8]
+@@TextLengthB:
+  test rdx,rdx
+  jz @@TextMin
+  mov r9,[rdx-8]
+@@TextMin:
+  xor r11d,r11d
+  cmp r8,r9
+  je @@TextCount
+  jb @@TextLess
+  mov r8,r9
+  mov r11d,1
+  jmp @@TextCount
+@@TextLess:
+  mov r11d,-1
+@@TextCount:
+  test r8,r8
+  jz @@TextLengthResult
+  cmp r8,8
+  jb @@TextPairCount
+  movdqu xmm4,[rip+@@TextLower]
+  movdqu xmm5,[rip+@@TextUpper]
+@@TextVector:
+  movdqu xmm0,[rcx]
+  movdqu xmm1,[rdx]
+  movdqa xmm2,xmm0
+  pcmpeqw xmm2,xmm1
+  pmovmskb eax,xmm2
+  cmp eax,65535
+  je @@TextAdvanceVector
+  { Signed word comparisons leave every non-ASCII UTF16 code unit unchanged. }
+  movdqa xmm2,xmm0
+  pcmpgtw xmm2,xmm4
+  movdqa xmm3,xmm5
+  pcmpgtw xmm3,xmm0
+  pand xmm2,xmm3
+  psrlw xmm2,15
+  psllw xmm2,5
+  pxor xmm0,xmm2
+  movdqa xmm2,xmm1
+  pcmpgtw xmm2,xmm4
+  movdqa xmm3,xmm5
+  pcmpgtw xmm3,xmm1
+  pand xmm2,xmm3
+  psrlw xmm2,15
+  psllw xmm2,5
+  pxor xmm1,xmm2
+  pcmpeqw xmm0,xmm1
+  pmovmskb eax,xmm0
+  cmp eax,65535
+  je @@TextAdvanceVector
+  not eax
+  and eax,65535
+  bsf eax,eax
+  shr eax,1
+  movzx r10d,word ptr [rcx+rax*2]
+  movzx r9d,word ptr [rdx+rax*2]
+  mov eax,r10d
+  jmp @@TextDifference
+@@TextAdvanceVector:
+  add rcx,16
+  add rdx,16
+  sub r8,8
+  cmp r8,8
+  jae @@TextVector
+  test r8,r8
+  jz @@TextLengthResult
+@@TextPairCount:
+  cmp r8,2
+  jb @@TextScalar
+@@TextPair:
+  mov eax,dword ptr [rcx]
+  mov r9d,dword ptr [rdx]
+  cmp eax,r9d
+  jne @@TextPairDifference
+  add rcx,4
+  add rdx,4
+  sub r8,2
+  cmp r8,2
+  jae @@TextPair
+  test r8,r8
+  jz @@TextLengthResult
+@@TextScalar:
+  movzx eax,word ptr [rcx]
+  movzx r9d,word ptr [rdx]
+  cmp eax,r9d
+  je @@TextAdvanceScalar
+@@TextDifference:
+  lea r10d,[eax-97]
+  cmp r10d,25
+  ja @@TextFirstReady
+  sub eax,32
+@@TextFirstReady:
+  lea r10d,[r9d-97]
+  cmp r10d,25
+  ja @@TextSecondReady
+  sub r9d,32
+@@TextSecondReady:
+  sub eax,r9d
+  jnz @@TextReturn
+@@TextAdvanceScalar:
+  add rcx,2
+  add rdx,2
+  dec r8
+  jnz @@TextScalar
+@@TextLengthResult:
+  mov eax,r11d
+@@TextReturn:
+  ret
+@@TextSame:
+  xor eax,eax
+  ret
+@@TextPairDifference:
+  movzx eax,ax
+  movzx r9d,r9w
+  cmp eax,r9d
+  je @@TextAdvanceScalar
+  jmp @@TextDifference
+  align 32
+@@TextLower:
+  dq $0060006000600060,$0060006000600060
+@@TextUpper:
+  dq $007B007B007B007B,$007B007B007B007B
+end;
+{$pop}
+
+{$else}
 function CompareText(const S1, S2: string): Integer; overload;
 
 var
@@ -326,6 +467,8 @@ begin
   // CAPSIZEINT is no-op if Sizeof(Sizeint)<=SizeOF(Integer)
   Result:=CAPSIZEINT(Count1-Count2);
 end;
+
+{$endif}
 
 function CompareText(const S1, S2: string; LocaleOptions: TLocaleOptions): Integer; overload;{$ifdef SYSUTILSINLINE}inline;{$endif}
 
@@ -578,7 +721,12 @@ end ;
 function AnsiSameText(const s1,s2:String):Boolean;{$ifdef SYSUTILSINLINE}inline;{$endif}
 
 begin
+{$ifdef UNICODERTL}
+ { the plain-ASCII fast path of UnicodeSameText; the locale for the rest }
+ AnsiSameText:=UnicodeSameText(S1,S2);
+{$else}
  AnsiSameText:=AnsiCompareText(S1,S2)=0;
+{$endif}
 end;
 
 function AnsiSameStr(const s1,s2:String):Boolean;{$ifdef SYSUTILSINLINE}inline;{$endif}

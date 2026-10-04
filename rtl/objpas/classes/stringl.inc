@@ -2175,6 +2175,7 @@ function TStringList.IndexOf(const S: string): Integer;
 var
   Item: PStringItem;
   SearchLength: SizeInt;
+  Exact, Fast: Boolean;
 {$endif}
 begin
   If Not Sorted then
@@ -2182,12 +2183,26 @@ begin
     begin
     Item:=@FList^[0];
     SearchLength:=Length(S);
+    { the exact class cannot override DoCompareText, so the length check
+      holds for it and, with the default UseLocale and CaseSensitive=False,
+      the equality is AnsiSameText of the two strings: plain ASCII by ASCII
+      rules, the rest through the locale (UnicodeSameTextBuffer), instead
+      of a locale compare per item; a descendant gets its own DoCompareText
+      for every item }
+    Exact:=ClassType=TStringList;
+    Fast:=Exact and UseLocale and not FCaseSensitive;
     for Result:=0 to FCount-1 do
       begin
-      if ((ClassType<>TStringList) or
-          (Length(Item^.FString)=SearchLength)) and
-         (DoCompareText(Item^.FString,S)=0) then
-        Exit;
+      if (not Exact) or (Length(Item^.FString)=SearchLength) then
+        begin
+        if Fast then
+          begin
+          if UnicodeSameTextBuffer(PWideChar(Pointer(Item^.FString)),PWideChar(Pointer(S)),SearchLength) then
+            Exit;
+          end
+        else if DoCompareText(Item^.FString,S)=0 then
+          Exit;
+        end;
       Inc(Item);
       end;
     Result:=-1;
@@ -2245,20 +2260,17 @@ begin
         Equal:=True
       else if UseLocale then
         begin
+        if not FCaseSensitive then
+          { AnsiSameText of the name range: plain ASCII by ASCII rules,
+            the rest through the locale }
+          Equal:=UnicodeSameTextBuffer(ItemChars,NameChars,NameLength)
+        else
         {$ifdef MSWINDOWS}
-        if FCaseSensitive then
           Equal:=CompareStringW(LOCALE_USER_DEFAULT,0,ItemChars,NameLength,
-            NameChars,NameLength)=CSTR_EQUAL
-        else
-          Equal:=CompareStringW(LOCALE_USER_DEFAULT,NORM_IGNORECASE,ItemChars,
-            NameLength,NameChars,NameLength)=CSTR_EQUAL;
+            NameChars,NameLength)=CSTR_EQUAL;
         {$else MSWINDOWS}
-        if FCaseSensitive then
           Equal:=widestringmanager.CompareUnicodeBufferToStringProc(
-            ItemChars,NameLength,Name,[])=0
-        else
-          Equal:=widestringmanager.CompareUnicodeBufferToStringProc(
-            ItemChars,NameLength,Name,[coIgnoreCase])=0;
+            ItemChars,NameLength,Name,[])=0;
         {$endif MSWINDOWS}
         end
       else

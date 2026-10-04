@@ -27,7 +27,16 @@ function UnicodeLowerCase(const s : UnicodeString) : UnicodeString;{$ifdef SYSUT
 function UnicodeCompareStr(const s1, s2 : UnicodeString) : PtrInt;{$ifdef SYSUTILSINLINE}inline;{$endif}
 function UnicodeSameStr(const s1, s2 : UnicodeString) : Boolean;{$ifdef SYSUTILSINLINE}inline;{$endif}
 function UnicodeCompareText(const s1, s2 : UnicodeString) : PtrInt;{$ifdef SYSUTILSINLINE}inline;{$endif}
-function UnicodeSameText(const s1, s2 : UnicodeString) : Boolean;{$ifdef SYSUTILSINLINE}inline;{$endif}
+function UnicodeSameText(const s1, s2 : UnicodeString) : Boolean;
+{ Every character of the range is printable ASCII ($20..$7E).  Such text
+  compares, uppercases and searches by ASCII rules under every locale
+  (checked against CompareStringW and LCMapStringW on Win64 for every such
+  character and pair, tr-TR and az-Latn included), so the case-insensitive
+  routines need no locale call for it. }
+function UnicodeIsPlainAscii(P: PWideChar; Len: SizeInt): Boolean;
+{ AnsiSameText of two ranges of Len characters: plain-ASCII ranges by ASCII
+  case folding, anything else through the locale (widestringmanager). }
+function UnicodeSameTextBuffer(P1, P2: PWideChar; Len: SizeInt): Boolean;
 
 Function UnicodeFormat (Const Fmt : UnicodeString; const Args : Array of const) : UnicodeString;
 Function UnicodeFormat (Const Fmt : UnicodeString; const Args : Array of const; Const FormatSettings: TFormatSettings) : UnicodeString;

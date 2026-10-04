@@ -36,10 +36,13 @@ uses
 
 Function AnsiResemblesText(const AText, AOther: AnsiString): Boolean;
 Function AnsiContainsText(const AText, ASubText: AnsiString): Boolean;
+Function AnsiContainsText(const AText, ASubText: UnicodeString): Boolean;
 Function AnsiStartsText(const ASubText, AText: AnsiString): Boolean;
+Function AnsiStartsText(const ASubText, AText: UnicodeString): Boolean;
 Function AnsiEndsText(const ASubText, AText: AnsiString): Boolean;
 function AnsiEndsText(const ASubText, AText: UnicodeString): Boolean;
 Function AnsiReplaceText(const AText, AFromText, AToText: AnsiString): AnsiString;inline;
+Function AnsiReplaceText(const AText, AFromText, AToText: UnicodeString): UnicodeString;
 Function AnsiMatchText(const AText: AnsiString; const AValues: array of AnsiString): Boolean;inline;
 Function AnsiIndexText(const AText: AnsiString; const AValues: array of AnsiString): Integer;
 Function StartsText(const ASubText, AText: string): Boolean; inline;
@@ -880,10 +883,102 @@ begin
   Result := (ASubText = '') or AnsiSameText(RightStr(AText, Length(ASubText)), ASubText);
 end;
 
-function AnsiEndsText(const ASubText, AText: UnicodeString): Boolean;
+{ The UnicodeString overloads (the product String).  StartsText, EndsText,
+  ContainsText and ReplaceText used to reach the AnsiString overloads: both
+  strings converted to AnsiString (lossy outside the ANSI code page - two
+  CJK strings became '??' and compared equal), the prefix or two uppercased
+  copies allocated, and the locale called for every comparison (StartsText:
+  1249 cycles for a 12-character prefix on the hot-rtl stand).  They now
+  compare in place with the contract of AnsiSameText: printable ASCII by
+  ASCII rules, everything else through the locale (UnicodeSameTextBuffer). }
 
+function AnsiStartsText(const ASubText, AText: UnicodeString): Boolean;
+var
+  L: SizeInt;
 begin
-  Result := (ASubText = '') or SameText(RightStr(AText, Length(ASubText)), ASubText);
+  L := Length(ASubText);
+  if L = 0 then
+    Exit(True);
+  if L > Length(AText) then
+    Exit(False);
+  Result := UnicodeSameTextBuffer(PWideChar(Pointer(ASubText)), PWideChar(Pointer(AText)), L);
+end;
+
+function AnsiEndsText(const ASubText, AText: UnicodeString): Boolean;
+var
+  L, T: SizeInt;
+begin
+  L := Length(ASubText);
+  if L = 0 then
+    Exit(True);
+  T := Length(AText);
+  if L > T then
+    Exit(False);
+  Result := UnicodeSameTextBuffer(PWideChar(Pointer(ASubText)), PWideChar(Pointer(AText)) + (T - L), L);
+end;
+
+function AnsiContainsText(const AText, ASubText: UnicodeString): Boolean;
+var
+  N, M, I, J: SizeInt;
+  P, Q: PWideChar;
+  First, C, D: Word;
+begin
+  M := Length(ASubText);
+  N := Length(AText);
+  { Pos of an empty pattern is 0: an empty ASubText is never contained }
+  if (M = 0) or (M > N) then
+    Exit(False);
+  P := PWideChar(Pointer(AText));
+  Q := PWideChar(Pointer(ASubText));
+  if UnicodeIsPlainAscii(P, N) and UnicodeIsPlainAscii(Q, M) then
+  begin
+    First := Word(Q[0]);
+    if (First >= Ord('A')) and (First <= Ord('Z')) then
+      Inc(First, 32);
+    for I := 0 to N - M do
+    begin
+      C := Word(P[I]);
+      if (C >= Ord('A')) and (C <= Ord('Z')) then
+        Inc(C, 32);
+      if C = First then
+      begin
+        J := 1;
+        while J < M do
+        begin
+          C := Word(P[I + J]);
+          if (C >= Ord('A')) and (C <= Ord('Z')) then
+            Inc(C, 32);
+          D := Word(Q[J]);
+          if (D >= Ord('A')) and (D <= Ord('Z')) then
+            Inc(D, 32);
+          if C <> D then
+            Break;
+          Inc(J);
+        end;
+        if J = M then
+          Exit(True);
+      end;
+    end;
+    Result := False;
+  end
+  else
+  begin
+    { UnicodeUpperCase + ordinal Pos is not the locale contract used by
+      StartsText, EndsText and SameText: Windows, for example, compares the
+      Kelvin/Angstrom/Ohm signs equal to K/A-ring/Omega while simple uppercasing
+      leaves their code points unchanged.  The non-ASCII path is rare and may
+      ask the locale comparer at each candidate; the ASCII hot path above stays
+      allocation-free. }
+    for I := 0 to N - M do
+      if UnicodeSameTextBuffer(Q, P + I, M) then
+        Exit(True);
+    Result := False;
+  end;
+end;
+
+function AnsiReplaceText(const AText, AFromText, AToText: UnicodeString): UnicodeString;
+begin
+  Result := StringReplace(AText, AFromText, AToText, [rfReplaceAll, rfIgnoreCase]);
 end;
 
 
