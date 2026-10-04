@@ -489,11 +489,14 @@ Const
 
 {$ifndef FPC_HAS_GETTIMEZONEFILE}
 
+{$i timezonefile.inc}
+
 function GetTimezoneFile:string;
 var
-  f,len : longint;
-  fn,s : shortstring;
+  fn : shortstring;
+{$if (defined(darwin) and defined(arm)) or defined(iphonesim)}
   info : stat;
+{$endif}
 begin
   GetTimezoneFile:='';
   // Observe TZ variable.
@@ -509,33 +512,15 @@ begin
         Exit(fn);
         end;
       end;
-  if (fn='') then
-    fn:=TimeZoneLocationFile;
-  f:=fpopen(TimeZoneLocationFile,Open_RdOnly);
-  if f>0 then
-    begin
-    len:=fpread(f,s[1],high(s));
-    s[0]:=chr(len);
-    len:=pos(#10,s);
-    if len<>0 then
-     s[0]:=chr(len-1);
-    fpclose(f);
-    GetTimezoneFile:=s;
-    end
-  // Try SuSE
-  else if fpstat(TimeZoneFile,{$ifdef oldlinuxstat}baseunix.stat(info){$else}info{$endif})>=0 then
-    GetTimeZoneFile:=TimeZoneFile
-  // Try RedHat
-  else If fpstat(AltTimeZoneFile,{$ifdef oldlinuxstat}baseunix.stat(info){$else}info{$endif})>=0 then
-      GetTimeZoneFile:=AltTimeZoneFile
+  GetTimezoneFile:=ResolveUnixTimezoneFile(TimeZoneLocationFile,TimeZoneFile,AltTimeZoneFile);
 {$ifdef BSD}
 //  else
 //       If fpstat(BSDTimeZoneFile,{$ifdef oldlinuxstat}baseunix.stat(info){$else}info{$endif})>=0 then
 // GetTimeZoneFile:=BSDTimeZoneFile
 {$ENDIF}
 {$if (defined(darwin) and defined(arm)) or defined(iphonesim)}
-  else If fpstat(iOSTimeZoneFile,info)>=0 then
-      GetTimeZoneFile:=iOSTimeZoneFile
+  if (GetTimezoneFile='') and (fpstat(iOSTimeZoneFile,info)>=0) then
+    GetTimeZoneFile:=iOSTimeZoneFile;
 {$endif}
 end;
 
