@@ -1504,44 +1504,53 @@ begin
     scanned character and regrows in small steps. }
   if AQuoteStart=#0 then
     begin
+      if ACount<0 then exit(nil);
       SrcLen:=System.Length(Self);
       PS:=PTStringChar(Pointer(Self));
       PE:=PS+SrcLen;
       { The overwhelmingly common no-hit case is already the complete result.
         Avoid allocating an eight-slot pointer array only to shrink it to one. }
-      if ACount>=0 then
+      if High(Separators)=0 then
+        Sep:=IndexChar(PS^,SrcLen,Separators[0])
+      else
         begin
-        if High(Separators)=0 then
-          Sep:=IndexChar(PS^,SrcLen,Separators[0])
-        else
+        Sep:=-1;
+        PC:=PS;
+        while PC<PE do
           begin
-          Sep:=-1;
-          PC:=PS;
-          while PC<PE do
-            begin
-            for J:=0 to High(Separators) do
-              if PC^=Separators[J] then
-                begin
-                Sep:=PC-PS;
-                Break;
-                end;
-            if Sep>=0 then
+          for J:=0 to High(Separators) do
+            if PC^=Separators[J] then
+              begin
+              Sep:=PC-PS;
               Break;
-            Inc(PC);
-            end;
-          end;
-        if Sep<0 then
-          begin
-          SetLength(Result,1);
-          SetString(Result[0],PS,SrcLen);
-          exit;
+              end;
+          if Sep>=0 then
+            Break;
+          Inc(PC);
           end;
         end;
-      SetLength(Result,8);
+      if Sep<0 then
+        begin
+        SetLength(Result,1);
+        SetString(Result[0],PS,SrcLen);
+        exit;
+        end;
+      Len:=System.Length(Result);
+      if (Len<=8) or (DynArrayRefCount(Pointer(Result))<>1) then Len:=8;
+      { SetLength also detaches a shared result before fields are replaced. }
+      SetLength(Result,Len);
       Len:=0;
       LastSep:=0;
-      While ((ACount=0) or (Len<ACount)) and (LastSep<=SrcLen) do
-        begin
+      repeat
+        If (Sep>LastSep) or (not (TStringSplitOptions.ExcludeEmpty=Options)) then
+          begin
+          if System.Length(Result)<=Len then
+            SetLength(Result,System.Length(Result)*2);
+          SetString(Result[Len],PS+LastSep,Sep-LastSep);
+          Inc(Len);
+          end;
+        LastSep:=Sep+1;
+        if ((ACount>0) and (Len>=ACount)) or (LastSep>SrcLen) then Break;
         if High(Separators)=0 then
           begin
           Sep:=IndexChar((PS+LastSep)^,SrcLen-LastSep,Separators[0]);
@@ -1571,15 +1580,7 @@ begin
             Inc(PC);
             end;
           end;
-        If (Sep>LastSep) or (not (TStringSplitOptions.ExcludeEmpty=Options)) then
-          begin
-          if System.Length(Result)<=Len then
-            SetLength(Result,System.Length(Result)*2);
-          SetString(Result[Len],PS+LastSep,Sep-LastSep);
-          Inc(Len);
-          end;
-        LastSep:=Sep+1;
-        end;
+      until False;
       If (TStringSplitOptions.ExcludeLastEmpty=Options) then
         if (Len > 0) and (Result[Len-1] = '') then
           dec(Len);

@@ -32,6 +32,7 @@ type
 
 procedure DynArraySetLength(var a: Pointer; typeInfo: Pointer; dimCnt: SizeInt; lengthVec: PSizeInt);
 function DynArraySize(a : pointer): tdynarrayindex;
+function DynArrayRefCount(a: Pointer): SizeInt; inline;
 procedure DynArrayClear(var a: Pointer; typeInfo: Pointer);
 function DynArrayDim(typeInfo: Pointer): Integer;
 function DynArrayBounds(a: Pointer; typeInfo: Pointer): TBoundArray;
