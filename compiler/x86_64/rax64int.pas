@@ -26,12 +26,14 @@ Unit rax64int;
   interface
 
     uses
-      aasmtai,
+      aasmtai, aasmcfi,
       rax86int;
 
     type
       tx8664intreader = class(tx86intreader)
         actsehdirective: TAsmSehDirective;
+        actcfidirective: tcfikind;
+        cfidirective: boolean;
         function is_targetdirective(const s:string):boolean;override;
         procedure HandleTargetDirective;override;
       end;
@@ -66,8 +68,24 @@ Unit rax64int;
     function tx8664intreader.is_targetdirective(const s:string):boolean;
       var
         i: TAsmSehDirective;
+        cfikind: tcfikind;
       begin
         result:=false;
+        cfidirective:=false;
+        if target_info.system=system_x86_64_linux then
+          for cfikind in [cfi_def_cfa_offset,cfi_offset,cfi_restore] do
+            if s=cfi2str[cfikind] then
+              begin
+                { Like SEH, these describe a complete standalone ASM routine.
+                  Its author owns the stack and register-save description. }
+                result:=(po_assembler in current_procinfo.procdef.procoptions) and
+                  not (po_inline in current_procinfo.procdef.procoptions);
+                if not result then
+                  Message(asmr_e_syntax_error);
+                cfidirective:=result;
+                actcfidirective:=cfikind;
+                exit;
+              end;
         if target_info.system<>system_x86_64_win64 then exit;
 
         for i:=low(TAsmSehDirective) to high(TAsmSehDirective) do
@@ -102,6 +120,41 @@ Unit rax64int;
         if actasmtoken<>AS_TARGET_DIRECTIVE then
           InternalError(2011100203);
         Consume(AS_TARGET_DIRECTIVE);
+        if cfidirective then
+          begin
+            if actcfidirective=cfi_def_cfa_offset then
+              begin
+                hnum:=BuildConstExpression;
+                if (hnum<0) or (hnum>high(longint)) then
+                  Message(asmr_e_syntax_error)
+                else
+                  curlist.concat(tai_cfi_op_val.create(actcfidirective,hnum));
+              end
+            else
+              begin
+                hreg:=actasmregister;
+                Consume(AS_REGISTER);
+                if (getregtype(hreg)<>R_INTREGISTER) or (getsubreg(hreg)<>R_SUBQ) then
+                  Message(asmr_e_syntax_error)
+                else if actcfidirective=cfi_restore then
+                  curlist.concat(tai_cfi_op_reg.create(actcfidirective,hreg))
+                else
+                  begin
+                    Consume(AS_COMMA);
+                    hnum:=BuildConstExpression;
+                    { The existing DW_CFA_offset backend uses unsigned factored
+                      offsets. Accept aligned x64 saves below CFA, never round
+                      an unrepresentable byte offset in that backend. }
+                    if (hnum<low(longint)) or (hnum>0) or ((hnum and 7)<>0) then
+                      Message(asmr_e_syntax_error)
+                    else
+                      curlist.concat(tai_cfi_op_reg_val.create(actcfidirective,hreg,hnum));
+                  end;
+              end;
+            if actasmtoken<>AS_SEPARATOR then
+              Consume(AS_SEPARATOR);
+            exit;
+          end;
         Include(current_procinfo.flags,pi_has_unwind_info);
         case actsehdirective of
           { TODO: .seh_pushframe is supposed to have a boolean parameter,

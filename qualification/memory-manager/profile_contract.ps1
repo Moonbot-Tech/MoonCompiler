@@ -1,6 +1,6 @@
 param(
-  [string]$Compiler = "$PSScriptRoot\..\..\.moonbot\toolchain\bin\x86_64-win64\fpc.exe",
-  [string]$Config = "$PSScriptRoot\..\..\.moonbot\toolchain\bin\x86_64-win64\fpc.cfg"
+  [string]$Compiler = "$PSScriptRoot\..\..\toolchain\bin\x86_64-win64\fpc.exe",
+  [string]$Config = "$PSScriptRoot\..\..\toolchain\bin\x86_64-win64\moon-base.cfg"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -78,6 +78,38 @@ Assert-ReuseProfile default @()
 Assert-ReuseProfile server @('-dFPCMM_SERVER')
 Assert-ReuseProfile booster @('-dFPCMM_BOOSTER')
 Assert-ReuseProfile product @('-dMOONBOT_MM_PROFILE_REQUIRED',
+  '-dFPCMM_BOOSTER', '-dFPCMM_MOONSHARD')
+
+# AllocMem zeroes and ReallocMem copies every size correctly, whichever loop
+# or "rep" instruction does it, under both values of the zeroing threshold.
+$ZeroCopySource = Join-Path $Root `
+  'qualification\suite\tests\memory\memory_zero_copy_contract.dpr'
+$ZeroCopyBase = @(
+  '-n', "@$Config", '-Mdelphi', '-Twin64', '-Px86_64', '-B',
+  '-dMOONCOMPILER_VANILLA_RUNTIME', '-dFPCMM_ERMSFILL_TEST',
+  '-uMOONBOT_MM_PROFILE_REQUIRED', '-uFPCMM_SERVER',
+  '-uFPCMM_BOOSTER', '-uFPCMM_MOONSHARD',
+  "--pinned-unit=mormot.core.fpcx64mm=$Mm")
+
+function Assert-ZeroCopyProfile([string]$Name, [string[]]$Defines) {
+  $Case = Join-Path $Output "zerocopy-$Name"
+  New-Item -ItemType Directory -Force -Path $Case | Out-Null
+  & $Compiler @ZeroCopyBase @Defines "-FU$Case" "-FE$Case" $ZeroCopySource `
+    *> "$Case.log"
+  If ($LASTEXITCODE -ne 0) {
+    throw "MM zero/copy profile $Name did not compile"
+  }
+  & "$Case\memory_zero_copy_contract.exe" *> "$Case.out"
+  If ($LASTEXITCODE -ne 0 -or
+      -not (Select-String -LiteralPath "$Case.out" `
+        -SimpleMatch 'MEMORY_ZERO_COPY_CONTRACT_PASS' -Quiet)) {
+    throw "MM zero/copy profile $Name failed"
+  }
+}
+
+Assert-ZeroCopyProfile default @()
+Assert-ZeroCopyProfile server @('-dFPCMM_SERVER')
+Assert-ZeroCopyProfile product @('-dMOONBOT_MM_PROFILE_REQUIRED',
   '-dFPCMM_BOOSTER', '-dFPCMM_MOONSHARD')
 
 Write-Output 'MM profile contract: PASS'

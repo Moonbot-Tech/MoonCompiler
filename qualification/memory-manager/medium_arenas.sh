@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-COMPILER=${1:-$ROOT/.moonbot/toolchain/bin/fpc}
-CONFIG=${2:-$ROOT/.moonbot/toolchain/etc/fpc.cfg}
+COMPILER=${1:-$ROOT/toolchain/bin/fpc}
+CONFIG=${2:-$ROOT/toolchain/etc/moon-base.cfg}
 MM=$ROOT/runtime/mm/mormot.core.fpcx64mm.pas
 SOURCE=$ROOT/qualification/memory-manager/medium_arenas.dpr
 OUTPUT=$ROOT/.qualification/medium-arenas
