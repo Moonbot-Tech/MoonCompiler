@@ -160,7 +160,7 @@ interface
 implementation
 
     uses
-      verbose,cutils,
+      verbose,cutils,systems,
       symconst,symdef,symsym,symtable,defutil,defcmp,
       htypechk,pass_1,
       nadd,nbas,ncal,ncnv,nld,nutils,
@@ -778,6 +778,64 @@ implementation
           add_label_to_blockid_list(result,flabels);
         end;
 
+      function makegroupedordinalcase: tnode;
+        var
+          i,j,k,pass: longint;
+          singleton: boolean;
+          blocklist,lablist: tfpobjectlist;
+          labitem: pcaselabel;
+          values: tconstset;
+          settype: tsetdef;
+          selecttemp: ttempcreatenode;
+          stmts: tstatementnode;
+          condition,chain: tnode;
+        begin
+          result:=nil;
+          { A few shared bodies can classify many labels with one membership
+            test per body. Keep a long list of distinct actions as a case. }
+          if (target_info.cpu<>cpu_x86_64) or
+             not(cs_opt_level2 in current_settings.optimizerswitches) or
+             (blocks.count>3) or (labelcnt<3*blocks.count) or
+             (left.resultdef.size>4) or
+             (case_get_min(flabels)<0) or (case_get_max(flabels)>255) then
+            exit;
+          blocklist:=order_labels_by_blockid;
+          result:=internalstatements(stmts);
+          selecttemp:=ctempcreatenode.create(left.resultdef,left.resultdef.size,tt_persistent,true);
+          addstatement(stmts,selecttemp);
+          addstatement(stmts,cassignmentnode.create(ctemprefnode.create(selecttemp),left));
+          left:=nil;
+          settype:=csetdef.create(selecttemp.tempinfo^.typedef,0,255,true);
+          chain:=elseblock;
+          elseblock:=nil;
+          { A singleton only needs a compare; keep it before membership
+            tests that may need an indexed constant-pool load. Build the
+            chain backwards, preserving source order within either class. }
+          for pass:=0 to 1 do
+            for i:=blocklist.count-1 downto 0 do
+              begin
+                lablist:=tfpobjectlist(blocklist[i]);
+                labitem:=TLinkedListCaseLabelItem(lablist[0]).casenode;
+                singleton:=(lablist.count=1) and (labitem^._low=labitem^._high);
+                if singleton<>(pass=1) then
+                  continue;
+                values:=[];
+                for j:=0 to lablist.count-1 do
+                  begin
+                    labitem:=TLinkedListCaseLabelItem(lablist[j]).casenode;
+                    for k:=labitem^._low.svalue to labitem^._high.svalue do
+                      include(values,k);
+                  end;
+                condition:=cinnode.create(ctemprefnode.create(selecttemp),csetconstnode.create(@values,settype));
+                chain:=cifnode.create(condition,pcaseblock(blocks[i])^.statement,chain);
+                pcaseblock(blocks[i])^.statement:=nil;
+              end;
+          blocklist.free;
+          addstatement(stmts,chain);
+          addstatement(stmts,ctempdeletenode.create(selecttemp));
+          typecheckpass(result);
+        end;
+
       function makeifblock(elseblock : tnode): tnode;
         var
           i, j: longint;
@@ -962,6 +1020,10 @@ implementation
              elseblock:=nil;
              exit;
            end;
+
+         result:=makegroupedordinalcase;
+         if assigned(result) then
+           exit;
 
          if is_boolean(left.resultdef) then
            begin
