@@ -36,11 +36,17 @@ interface
        PInteger = ^Integer;
 {$endif CPU16}
 
-       { Ansistring are the default }
+       { PString follows the default long-string ABI.  A Unicode RTL uses
+         UnicodeString; WideString is a distinct BSTR representation on
+         Windows even though both have two-byte characters. }
+{$IFDEF UNICODERTL}
+       PString = PUnicodeString;
+{$ELSE}
 {$IF SIZEOF(Char)=2}
        PString = PWideString;
 {$ELSE}
        PString = PAnsiString;
+{$ENDIF}
 {$ENDIF}
 
        { array types }

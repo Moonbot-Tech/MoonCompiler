@@ -19,7 +19,8 @@ function AnsiUpperCaseFileName(const s : string) : string;
 function AnsiPos(const substr,s : string) : SizeInt;
 function AnsiStrPos(str,substr : PAnsiChar) : PAnsiChar;
 function AnsiStrRScan(Str : PAnsiChar;Chr : AnsiChar) : PAnsiChar;
-function AnsiStrScan(Str : PAnsiChar;Chr: AnsiChar) : PAnsiChar;
+function AnsiStrScan(Str : PAnsiChar;Chr: AnsiChar) : PAnsiChar; overload;
+function AnsiStrScan(Str : PWideChar;Chr: WideChar) : PWideChar; overload; inline;
 function HashName(Name: PAnsiChar): LongWord;
 
 function BytesOf(const Val: RawByteString): TBytes;

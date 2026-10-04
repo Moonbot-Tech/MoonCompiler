@@ -63,6 +63,11 @@ begin
   Result:=StrScan(Str,Chr);
 end;
 
+Function AnsiStrScan(Str: PWideChar; Chr: WideChar): PWideChar;
+begin
+  Result:=StrScan(Str,Chr);
+end;
+
 Function HashName(Name: PAnsiChar): LongWord;
 Var
   thehash,g : LongWord;

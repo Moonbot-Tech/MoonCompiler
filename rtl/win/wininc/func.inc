@@ -58,7 +58,8 @@ function WinMain(hInstance:HINST; hPrevInstance:HINST; lpCmdLine:LPSTR; nShowCmd
 function FreeLibrary(hLibModule:HINST):WINBOOL; external 'kernel32' name 'FreeLibrary';
 procedure FreeLibraryAndExitThread(hLibModule:HMODULE; dwExitCode:DWORD); external 'kernel32' name 'FreeLibraryAndExitThread';
 function DisableThreadLibraryCalls(hLibModule:HMODULE):WINBOOL; external 'kernel32' name 'DisableThreadLibraryCalls';
-function GetProcAddress(hModule:HINST; lpProcName:LPCSTR):FARPROC; external 'kernel32' name 'GetProcAddress';
+function GetProcAddress(hModule:HINST; lpProcName:LPCSTR):FARPROC; overload; external 'kernel32' name 'GetProcAddress';
+function GetProcAddress(hModule:HINST; lpProcName:LPCWSTR):FARPROC; overload;
 function GetVersion:DWORD; external 'kernel32' name 'GetVersion';
 function GlobalAlloc(uFlags:UINT; dwBytes:PTRUINT):HGLOBAL; external 'kernel32' name 'GlobalAlloc';
 function GlobalDiscard(hglbMem:HGLOBAL):HGLOBAL;
@@ -1381,6 +1382,14 @@ function CONSOLE_REAL_OUTPUT_HANDLE : HANDLE;
 {$endif read_interface}
 
 {$ifdef read_implementation}
+
+function GetProcAddress(hModule:HINST; lpProcName:LPCWSTR):FARPROC;
+begin
+  If PtrUInt(lpProcName) shr 16=0 then
+    Result:=GetProcAddress(hModule,LPCSTR(lpProcName))
+  else
+    Result:=GetProcAddress(hModule,LPCSTR(AnsiString(lpProcName)));
+end;
 
 { Win32 API calling convention
   pushes POINT struct passed by value directly

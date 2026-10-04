@@ -666,9 +666,15 @@ Type
   POleVariant         = ^OleVariant;
 {$endif FPC_HAS_FEATURE_VARIANTS}
 
+{$ifdef UNICODERTL}
+  PWideChar           = PChar;
+  PPWideChar          = PPChar;
+  PPPWideChar         = PPPChar;
+{$else}
   PWideChar           = ^WideChar;
   PPWideChar          = ^PWideChar;
   PPPWideChar         = ^PPWideChar;
+{$endif}
   WChar               = Widechar;
   UCS2Char            = WideChar;
   PUCS2Char           = PWideChar;
