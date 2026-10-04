@@ -887,7 +887,10 @@ unit optcse;
                       end;
                      constentries[i].temp:=ctempcreatenode.create(constentries[i].valuenode.resultdef,
                        constentries[i].valuenode.resultdef.size,tt_persistent,true);
+                     { the temp is the constant for its whole life }
+                     constentries[i].temp.includetempflag(ti_const);
                      addstatement(creates,constentries[i].temp);
+                     addstatement(deletes,ctempdeletenode.create(constentries[i].temp));
                      addstatement(creates,cassignmentnode.create_internal(ctemprefnode.create(constentries[i].temp),constentries[i].valuenode));
                      current_filepos:=old_current_filepos;
                      foreachnodestatic(pm_postprocess,rootnode,@replaceconsts,@constentries[i]);
@@ -912,6 +915,7 @@ unit optcse;
                      constentries[i].temp:=ctempcreatenode.create(cpointerdef.getreusable(constentries[i].valuenode.resultdef),
                        voidpointertype.size,tt_persistent,true);
                      addstatement(creates,constentries[i].temp);
+                     addstatement(deletes,ctempdeletenode.create(constentries[i].temp));
                      addstatement(creates,cassignmentnode.create_internal(ctemprefnode.create(constentries[i].temp),
                        caddrnode.create_internal(constentries[i].valuenode)));
                      current_filepos:=old_current_filepos;

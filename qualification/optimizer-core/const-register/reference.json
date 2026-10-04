@@ -1,0 +1,20 @@
+{
+ "linux": {
+  "BRANCHLOOP": 22,
+  "DELTAS": 104,
+  "HOURDELTAS": 96,
+  "INLOOP2": 73,
+  "PRESSURELOOP": 78,
+  "REVERSE": 89,
+  "WITNESS14": 74
+ },
+ "win64": {
+  "BRANCHLOOP": 23,
+  "DELTAS": 123,
+  "HOURDELTAS": 118,
+  "INLOOP2": 96,
+  "PRESSURELOOP": 101,
+  "REVERSE": 107,
+  "WITNESS14": 97
+ }
+}

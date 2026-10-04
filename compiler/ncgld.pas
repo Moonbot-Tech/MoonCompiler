@@ -998,6 +998,17 @@ implementation
                           left.resultdef,
                           right.location.reference,
                           left.location.register,mms_movescalar);
+                        { an immutable temp loaded from a real constant keeps the
+                          constant for its whole life: the register allocator reads
+                          the constant's memory instead of spilling the register }
+                        if (left.location.loc=LOC_CMMREGISTER) and
+                           (left.nodetype=temprefn) and
+                           (ti_const in ttemprefnode(left).tempflags) and
+                           (right.nodetype=realconstn) and
+                           (right.location.loc=LOC_CREFERENCE) and
+                           (def_cgsize(right.resultdef)=def_cgsize(left.resultdef)) and
+                           assigned(cg.rg[getregtype(left.location.register)]) then
+                          cg.rg[getregtype(left.location.register)].set_reg_constant_load(left.location.register);
                       end;
                     LOC_SUBSETREG,
                     LOC_CSUBSETREG:

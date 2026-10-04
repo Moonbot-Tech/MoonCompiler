@@ -100,7 +100,10 @@ unit rgobj;
         ri_coalesced,       { the register is coalesced with other register }
         ri_selected,        { the register is put to selectstack }
         ri_spill_helper,    { the register contains a value of a previously spilled register }
-        ri_has_initial_loc  { the register has the initial memory location (e.g. a parameter in the stack) }
+        ri_has_initial_loc, { the register has the initial memory location (e.g. a parameter in the stack) }
+        ri_constant_load    { the register holds for its whole life the constant its first instruction
+                              loads from read-only memory; that memory is its initial location, which
+                              must never be written }
       );
       Treginfoflagset=set of Treginfoflag;
 
@@ -121,6 +124,9 @@ unit rgobj;
 {$endif llvm}
         count_uses : longint;
         total_interferences : longint;
+        { the weight of the instructions which read and write the register:
+          spilled, each of them reads and writes its memory }
+        rwweight : longint;
         real_reg_interferences: word;
       end;
       // Preginfo=^TReginfo;
@@ -150,6 +156,8 @@ unit rgobj;
       tspillinfo = record
         spilllocation : treference;
         spilled : boolean;
+        { spilllocation is the read-only memory of a constant load }
+        readonly : boolean;
         interferences : Tinterferencebitmap;
       end;
 
@@ -198,6 +206,9 @@ unit rgobj;
         procedure translate_register(var reg : tregister);
         { sets the initial memory location of the register }
         procedure set_reg_initial_location(reg: tregister; const ref: treference);
+        { the register holds for its whole life the constant which its first
+          instruction loads from read-only memory }
+        procedure set_reg_constant_load(reg: tregister);
       protected
         maxreginfo,
         maxreginfoinc,
@@ -272,6 +283,30 @@ unit rgobj;
         procedure epilogue_colouring;
         { Colour the registers; that is do the register allocation.}
         procedure colour_registers;
+        { keeps the flag of the constant loads which qualify and gives them
+          their memory as the initial location }
+        procedure find_constant_loads;
+        { the weights of the memory accesses spilling n adds }
+        function spill_cost(n:tsuperregister):int64;
+        { whether spilling the constant loads of r replaces each of their
+          uses by their memory, so that no helper register is needed }
+        function constant_loads_replaceable(list:TAsmList;headertai:tai;const r:tsuperregisterset):boolean;
+        { gives the values the colouring left without a register the colour
+          of constant loads, which go to their memory instead, where it is
+          cheaper; true when the spilling of the round is then constant loads
+          only, each replaced by its memory, and the colouring stays complete }
+        function substitute_constant_loads(list:TAsmList;headertai:tai):boolean;
+        { the register-register moves which the colouring leaves, by their
+          weight, and the saves of the callee-saved registers it uses }
+        function colouring_cost(headertai:tai):int64;
+        { colours again after only constant loads left the graph: as a new
+          round would, with the moves given up under their pressure, and from
+          the start; keeps the cheapest complete colouring }
+        procedure recolour_after_substitution(list:TAsmList;headertai:tai);
+        { a callee-saved register which only constant loads hold is saved at
+          the entry and restored at the exit: where their reads cost less,
+          they go to their memory and the register is left unused }
+        procedure release_saved_registers(list:TAsmList;headertai:tai);
         procedure insert_regalloc_info(list:TAsmList;u:tsuperregister);
         procedure generate_interference_graph(list:TAsmList;headertai:tai);
         { sort spilled nodes by increasing number of interferences }
@@ -332,7 +367,7 @@ unit rgobj;
     uses
       sysutils,
       globals,
-      verbose,tgobj,procinfo,cgobj;
+      verbose,aasmbase,symtable,tgobj,procinfo,cgobj,paramgr;
 
     procedure sort_movelist(ml:Pmovelist);
 
@@ -484,11 +519,15 @@ unit rgobj;
          spillworklist.init;
          coalescednodes.init;
          selectstack.init;
+         if regtype=R_MMREGISTER then
+           occweights:=THashSet.Create(64,true,false);
       end;
 
 
     destructor trgobj.destroy;
       begin
+        occweights.free;
+        occweights:=nil;
         spillednodes.done;
         simplifyworklist.done;
         freezeworklist.done;
@@ -628,6 +667,7 @@ unit rgobj;
         insert_regalloc_info_all(list);
         ibitmap:=tinterferencebitmap.create;
         generate_interference_graph(list,headertai);
+        find_constant_loads;
 {$ifdef DEBUG_SPILLCOALESCE}
         if maxreg>first_imaginary then
           writeln(current_procinfo.procdef.mangledname, ': register allocation [',regtype,']');
@@ -657,8 +697,12 @@ unit rgobj;
           with reginfo[i] do
             if (real_reg_interferences>=usable_registers_cnt) or
                { also spill registers which have the initial memory location
-                 and are used only once }
-               ((ri_has_initial_loc in flags) and (weight<=200)) then
+                 and are used only once; a constant load goes to its memory
+                 only in place of a value the colouring leaves without a
+                 register (substitute_constant_loads) }
+               ((ri_has_initial_loc in flags) and
+                not(ri_constant_load in flags) and
+                (weight<=200)) then
               spillednodes.add(i);
         if spillednodes.length<>0 then
           begin
@@ -683,9 +727,23 @@ unit rgobj;
                   internalerror(200309041);
 {$endif}
                 end;
-              endspill:=not spill_registers(list,headertai);
+              loopregionround:=spillingcounter=1;
+              if substitute_constant_loads(list,headertai) then
+                begin
+                  { only constant loads leave the graph, their memory
+                    replaces every use without a helper register: the
+                    colouring stays complete, no round follows }
+                  i:=maxreg;
+                  spill_registers(list,headertai);
+                  if maxreg<>i then
+                    internalerror(2026092804);
+                  recolour_after_substitution(list,headertai);
+                end
+              else
+                endspill:=not spill_registers(list,headertai);
             end;
         until endspill;
+        release_saved_registers(list,headertai);
         ibitmap.free;
         ibitmap := nil;
 
@@ -910,6 +968,11 @@ unit rgobj;
                 weight:=high(weight)
               else
                 inc(weight,aweight);
+
+              if assigned(occweights) and
+                 not spillcode and
+                 (instr.typ=ait_instruction) then
+                occweights.FindOrAdd(@instr,sizeof(instr))^.Data:=TObject(ptrint(aweight));
 
               if (live_range_direction=rad_forward) then
                 begin
@@ -1343,6 +1406,10 @@ unit rgobj;
         found : boolean;
 
     begin
+      { what is coalesced into a constant load may be written: the group is
+        no longer the constant, and its memory is no place for the group }
+      if ri_constant_load in reginfo[u].flags then
+        reginfo[u].flags:=reginfo[u].flags-[ri_constant_load,ri_has_initial_loc];
       if not freezeworklist.delete(v) then
         spillworklist.delete(v);
       coalescednodes.add(v);
@@ -1840,6 +1907,578 @@ unit rgobj;
       assign_colours;
     end;
 
+
+    function trgobj.spill_cost(n:tsuperregister):int64;
+      var
+        item : PHashSetItem;
+      begin
+        { a spilled register is read or written in memory wherever it is used,
+          read and written where it is both; a register with an initial
+          location loses the load from it, and a constant load is only read }
+        result:=reginfo[n].weight;
+        if not(ri_constant_load in reginfo[n].flags) then
+          inc(result,reginfo[n].rwweight);
+        if ri_has_initial_loc in reginfo[n].flags then
+          begin
+            item:=nil;
+            if assigned(occweights) and assigned(reginfo[n].live_start) then
+              item:=occweights.Find(@reginfo[n].live_start,sizeof(reginfo[n].live_start));
+            if assigned(item) then
+              dec(result,ptrint(item^.Data))
+            else
+              dec(result,100);
+          end;
+      end;
+
+
+    function trgobj.constant_loads_replaceable(list:TAsmList;headertai:tai;const r:tsuperregisterset):boolean;
+      var
+        p : tai;
+        instr,copy : tai_cpu_abstract_sym;
+        i,count : longint;
+        orgreg,supreg : tsuperregister;
+      begin
+        result:=false;
+        p:=headertai;
+        while assigned(p) do
+          begin
+            if p.typ=ait_instruction then
+              begin
+                instr:=tai_cpu_abstract_sym(p);
+                count:=0;
+                orgreg:=RS_INVALID;
+                for i:=0 to instr.ops-1 do
+                  with instr.oper[i]^ do
+                    if (typ=top_reg) and (getregtype(reg)=regtype) then
+                      begin
+                        supreg:=get_alias(getsupreg(reg));
+                        if supregset_in(r,supreg) then
+                          begin
+                            inc(count);
+                            orgreg:=supreg;
+                          end;
+                      end
+                    else if (typ=top_ref) and
+                       (((ref^.base<>NR_NO) and (getregtype(ref^.base)=regtype) and
+                         supregset_in(r,get_alias(getsupreg(ref^.base)))) or
+                        ((ref^.index<>NR_NO) and (getregtype(ref^.index)=regtype) and
+                         supregset_in(r,get_alias(getsupreg(ref^.index))))) then
+                      exit;
+                { the load of a constant goes with its spilling; any other
+                  instruction must take the memory for the register }
+                if (count>1) or
+                   ((count=1) and (p<>reginfo[orgreg].live_start)) then
+                  begin
+                    if count>1 then
+                      exit;
+                    copy:=tai_cpu_abstract_sym(instr.getcopy);
+                    { the copy is no use of the symbols of its references }
+                    for i:=0 to copy.ops-1 do
+                      if copy.oper[i]^.typ=top_ref then
+                        begin
+                          if assigned(copy.oper[i]^.ref^.symbol) then
+                            copy.oper[i]^.ref^.symbol.decrefs;
+                          if assigned(copy.oper[i]^.ref^.relsymbol) then
+                            copy.oper[i]^.ref^.relsymbol.decrefs;
+                        end;
+                    count:=ord(do_spill_replace(list,copy,orgreg,spillinfo[orgreg].spilllocation));
+                    copy.free;
+                    if count=0 then
+                      exit;
+                  end;
+              end;
+            p:=tai(p.next);
+          end;
+        result:=true;
+      end;
+
+
+    function trgobj.substitute_constant_loads(list:TAsmList;headertai:tai):boolean;
+      type
+        tcolourchange = record
+          node,colour : tsuperregister;
+        end;
+      var
+        values,blockers,best : array of tsuperregister;
+        changes : array of tcolourchange;
+        evicted,spillset : tsuperregisterset;
+        i,j,k,m : longint;
+        n,a,col,bestcol : tsuperregister;
+        cost,bestcost,ncost : int64;
+        ok : boolean;
+        adj : psuperregisterworklist;
+{$if declared(RS_STACK_POINTER_REG) and (RS_STACK_POINTER_REG<>RS_INVALID)}
+        tmpr : tregister;
+{$ifend}
+
+      procedure setcolour(node,colour:tsuperregister);
+        begin
+          setlength(changes,length(changes)+1);
+          changes[high(changes)].node:=node;
+          changes[high(changes)].colour:=reginfo[node].colour;
+          reginfo[node].colour:=colour;
+        end;
+
+      procedure rollback;
+        var
+          c : longint;
+        begin
+          for c:=high(changes) downto 0 do
+            reginfo[changes[c].node].colour:=changes[c].colour;
+        end;
+
+      begin
+        result:=false;
+        { constant loads are mm registers }
+        if not assigned(occweights) then
+          exit;
+        { the values the colouring left without a register, the dearest first }
+        values:=nil;
+        for i:=0 to spillednodes.length-1 do
+          begin
+            n:=spillednodes.buf[i];
+            if ri_constant_load in reginfo[n].flags then
+              continue;
+            if ri_spill_helper in reginfo[n].flags then
+              exit;
+            ncost:=spill_cost(n);
+            j:=length(values);
+            setlength(values,j+1);
+            while (j>0) and (spill_cost(values[j-1])<ncost) do
+              begin
+                values[j]:=values[j-1];
+                dec(j);
+              end;
+            values[j]:=n;
+          end;
+        changes:=nil;
+        supregset_reset(evicted,false,maxreg);
+        for i:=0 to high(values) do
+          begin
+            n:=values[i];
+            ncost:=spill_cost(n);
+            adj:=reginfo[n].adjlist;
+            bestcol:=RS_INVALID;
+            bestcost:=high(int64);
+            best:=nil;
+            { a colour which only constant loads among the neighbours hold:
+              they go to their memory, the value takes it }
+            for k:=0 to usable_registers_cnt-1 do
+              begin
+                col:=usable_registers[k];
+{$if declared(RS_STACK_POINTER_REG) and (RS_STACK_POINTER_REG<>RS_INVALID)}
+                tmpr:=NR_STACK_POINTER_REG;
+                if (regtype=getregtype(tmpr)) and
+                   (col=RS_STACK_POINTER_REG) then
+                  continue;
+{$ifend}
+                blockers:=nil;
+                cost:=0;
+                ok:=true;
+                if assigned(adj) then
+                  for j:=0 to adj^.length-1 do
+                    begin
+                      a:=get_alias(adj^.buf[j]);
+                      if reginfo[a].colour<>col then
+                        continue;
+                      if (a<first_imaginary) or
+                         not(ri_constant_load in reginfo[a].flags) then
+                        begin
+                          ok:=false;
+                          break;
+                        end;
+                      m:=0;
+                      while (m<length(blockers)) and (blockers[m]<>a) do
+                        inc(m);
+                      if m=length(blockers) then
+                        begin
+                          setlength(blockers,m+1);
+                          blockers[m]:=a;
+                          inc(cost,spill_cost(a));
+                        end;
+                    end;
+                if ok and (cost<ncost) and (cost<bestcost) then
+                  begin
+                    bestcol:=col;
+                    bestcost:=cost;
+                    best:=copy(blockers);
+                  end;
+              end;
+            { every value or none: a value left in the stack would bring the
+              spilling round back, which colours anew }
+            if bestcol=RS_INVALID then
+              begin
+                rollback;
+                exit;
+              end;
+            for j:=0 to high(best) do
+              begin
+                setcolour(best[j],best[j]);
+                supregset_include(evicted,best[j]);
+              end;
+            setcolour(n,bestcol);
+          end;
+        { the spilled constant loads read their memory everywhere: no helper,
+          and the colouring stays complete }
+        supregset_reset(spillset,false,maxreg);
+        for i:=0 to spillednodes.length-1 do
+          if ri_constant_load in reginfo[spillednodes.buf[i]].flags then
+            supregset_include(spillset,spillednodes.buf[i]);
+        for i:=first_imaginary to maxreg-1 do
+          if supregset_in(evicted,i) then
+            supregset_include(spillset,i);
+        if not constant_loads_replaceable(list,headertai,spillset) then
+          begin
+            rollback;
+            exit;
+          end;
+        spillednodes.clear;
+        for i:=first_imaginary to maxreg-1 do
+          if supregset_in(spillset,i) then
+            spillednodes.add(i);
+        for i:=0 to coalescednodes.length-1 do
+          begin
+            n:=coalescednodes.buf[i];
+            reginfo[n].colour:=reginfo[get_alias(n)].colour;
+          end;
+        result:=true;
+      end;
+
+
+    function trgobj.colouring_cost(headertai:tai):int64;
+      var
+        p : tai;
+        instr : tai_cpu_abstract_sym;
+        i : longint;
+        r : tregister;
+        c : tsuperregister;
+        item : PHashSetItem;
+        used : set of byte;
+        saved : tcpuregisterarray;
+      begin
+        result:=0;
+        used:=[];
+        p:=headertai;
+        while assigned(p) do
+          begin
+            if p.typ=ait_instruction then
+              begin
+                instr:=tai_cpu_abstract_sym(p);
+                for i:=0 to instr.ops-1 do
+                  if (instr.oper[i]^.typ=top_reg) and
+                     (getregtype(instr.oper[i]^.reg)=regtype) then
+                    begin
+                      c:=reginfo[getsupreg(instr.oper[i]^.reg)].colour;
+                      if c<=255 then
+                        include(used,c);
+                    end;
+                { a move between registers of different colours stays }
+                if (instr.ops=2) and
+                   (instr.oper[0]^.typ=top_reg) and
+                   (instr.oper[1]^.typ=top_reg) and
+                   (getregtype(instr.oper[0]^.reg)=regtype) and
+                   (getregtype(instr.oper[1]^.reg)=regtype) and
+                   (reginfo[getsupreg(instr.oper[0]^.reg)].colour<>
+                    reginfo[getsupreg(instr.oper[1]^.reg)].colour) then
+                  begin
+                    r:=instr.oper[1]^.reg;
+                    instr.oper[1]^.reg:=instr.oper[0]^.reg;
+                    if instr.is_same_reg_move(regtype) then
+                      begin
+                        item:=nil;
+                        if assigned(occweights) then
+                          item:=occweights.Find(@p,sizeof(p));
+                        if assigned(item) then
+                          inc(result,ptrint(item^.Data))
+                        else
+                          inc(result,100);
+                      end;
+                    instr.oper[1]^.reg:=r;
+                  end;
+              end;
+            p:=tai(p.next);
+          end;
+        { a callee-saved register is saved at the entry and restored at the exit }
+        if regtype=R_MMREGISTER then
+          begin
+            saved:=paramanager.get_saved_registers_mm(current_procinfo.procdef.proccalloption);
+            for i:=0 to high(saved) do
+              if (saved[i]<=255) and (saved[i] in used) then
+                inc(result,200);
+          end;
+      end;
+
+
+    procedure trgobj.recolour_after_substitution(list:TAsmList;headertai:tai);
+      var
+        kept : array of tsuperregister;
+        keptcost,cost : int64;
+        i : longint;
+        m,next : Tmoveins;
+
+      function spilled(r:tsuperregister):boolean;
+        begin
+          r:=get_alias(r);
+          result:=(r<length(spillinfo)) and spillinfo[r].spilled;
+        end;
+
+      { a complete colouring cheaper than the kept one is kept }
+      procedure colour_again;
+        var
+          r : longint;
+        begin
+          for r:=first_imaginary to maxreg-1 do
+            exclude(reginfo[r].flags,ri_selected);
+          determine_spill_registers(list,headertai);
+          if spillednodes.length=0 then
+            begin
+              cost:=colouring_cost(headertai);
+              if cost<keptcost then
+                begin
+                  keptcost:=cost;
+                  for r:=0 to maxreg-1 do
+                    kept[r]:=reginfo[r].colour;
+                end;
+            end;
+          spillednodes.clear;
+        end;
+
+      { forgets the coalescing of the rounds: the graph of the code as it is
+        now, and every move which still joins two registers, in the order the
+        code generator made them }
+      procedure restart;
+        var
+          moves : array of Tmoveins;
+          r,j,k : longint;
+          t : Tmoveins;
+        begin
+          moves:=nil;
+          m:=Tmoveins(move_garbage.first);
+          while assigned(m) do
+            begin
+              next:=Tmoveins(m.next);
+              if not spilled(m.x) and not spilled(m.y) then
+                begin
+                  move_garbage.remove(m);
+                  setlength(moves,length(moves)+1);
+                  moves[high(moves)]:=m;
+                end;
+              m:=next;
+            end;
+          { the precoloured registers too, whose degree stays infinite; a
+            move list is never empty }
+          for r:=0 to maxreg-1 do
+            with reginfo[r] do
+              begin
+                if assigned(movelist) then
+                  begin
+                    freemem(movelist);
+                    movelist:=nil;
+                  end;
+                total_interferences:=0;
+                count_uses:=0;
+              end;
+          for r:=first_imaginary to maxreg-1 do
+            with reginfo[r] do
+              begin
+                if assigned(adjlist) then
+                  begin
+                    dispose(adjlist,done);
+                    adjlist:=nil;
+                  end;
+                flags:=flags-[ri_coalesced,ri_selected];
+                degree:=0;
+                real_reg_interferences:=0;
+                rwweight:=0;
+              end;
+          coalescednodes.clear;
+          ibitmap.free;
+          ibitmap:=tinterferencebitmap.create;
+          for j:=1 to high(moves) do
+            begin
+              t:=moves[j];
+              k:=j;
+              while (k>0) and (moves[k-1].id>t.id) do
+                begin
+                  moves[k]:=moves[k-1];
+                  dec(k);
+                end;
+              moves[k]:=t;
+            end;
+          for j:=0 to high(moves) do
+            begin
+              t:=moves[j];
+              t.moveset:=ms_worklist_moves;
+              worklist_moves.insert(t);
+              add_to_movelist(t.x,t);
+              if t.x<>t.y then
+                add_to_movelist(t.y,t);
+            end;
+          generate_interference_graph(list,headertai);
+        end;
+
+      begin
+        { the colouring of the round, complete for the code as it is now }
+        setlength(kept,maxreg);
+        for i:=0 to maxreg-1 do
+          kept[i]:=reginfo[i].colour;
+        keptcost:=colouring_cost(headertai);
+        { as the next round would colour }
+        colour_again;
+        { and with the moves the colouring gave up under the pressure of the
+          constant loads, which may coalesce now }
+        m:=Tmoveins(move_garbage.first);
+        while assigned(m) do
+          begin
+            next:=Tmoveins(m.next);
+            if not spilled(m.x) and not spilled(m.y) then
+              begin
+                move_garbage.remove(m);
+                m.moveset:=ms_worklist_moves;
+                worklist_moves.concat(m);
+              end;
+            m:=next;
+          end;
+        colour_again;
+        { and from the start, as if the spilled constant loads had never
+          been in the graph }
+        restart;
+        colour_again;
+        for i:=0 to maxreg-1 do
+          reginfo[i].colour:=kept[i];
+      end;
+
+
+    procedure trgobj.release_saved_registers(list:TAsmList;headertai:tai);
+      var
+        saved : tcpuregisterarray;
+        present,group,spillset : tsuperregisterset;
+        p : tai;
+        instr : tai_cpu_abstract_sym;
+        i,k : longint;
+        r,col : tsuperregister;
+        cost : int64;
+        ok,found,held : boolean;
+      begin
+        if not assigned(occweights) then
+          exit;
+        saved:=paramanager.get_saved_registers_mm(current_procinfo.procdef.proccalloption);
+        if length(saved)=0 then
+          exit;
+        { the registers the code still names }
+        supregset_reset(present,false,maxreg);
+        p:=headertai;
+        while assigned(p) do
+          begin
+            if p.typ=ait_instruction then
+              begin
+                instr:=tai_cpu_abstract_sym(p);
+                for i:=0 to instr.ops-1 do
+                  if (instr.oper[i]^.typ=top_reg) and
+                     (getregtype(instr.oper[i]^.reg)=regtype) then
+                    supregset_include(present,getsupreg(instr.oper[i]^.reg));
+              end;
+            p:=tai(p.next);
+          end;
+        supregset_reset(spillset,false,maxreg);
+        found:=false;
+        for k:=0 to high(saved) do
+          begin
+            col:=saved[k];
+            if (col>=first_imaginary) or supregset_in(present,col) then
+              continue;
+            { every register of this colour a constant load of its own, whose
+              reads cost less than a save and a restore }
+            supregset_reset(group,false,maxreg);
+            ok:=true;
+            held:=false;
+            cost:=0;
+            for r:=first_imaginary to maxreg-1 do
+              if supregset_in(present,r) and (reginfo[r].colour=col) then
+                begin
+                  if (ri_coalesced in reginfo[r].flags) or
+                     not(ri_constant_load in reginfo[r].flags) then
+                    begin
+                      ok:=false;
+                      break;
+                    end;
+                  supregset_include(group,r);
+                  held:=true;
+                  inc(cost,spill_cost(r));
+                end;
+            if not ok or not held or (cost>=200) or
+               not constant_loads_replaceable(list,headertai,group) then
+              continue;
+            for r:=first_imaginary to maxreg-1 do
+              if supregset_in(group,r) then
+                supregset_include(spillset,r);
+            found:=true;
+          end;
+        if not found then
+          exit;
+        { their memory replaces every use: no helper, the colouring stays }
+        spillednodes.clear;
+        for r:=first_imaginary to maxreg-1 do
+          if supregset_in(spillset,r) then
+            spillednodes.add(r);
+        i:=maxreg;
+        spill_registers(list,headertai);
+        if maxreg<>i then
+          internalerror(2026092805);
+        spillednodes.clear;
+      end;
+
+
+    procedure trgobj.find_constant_loads;
+      var
+        i : tsuperregister;
+        instr : tai_cpu_abstract_sym;
+        ok : boolean;
+      begin
+        for i:=first_imaginary to maxreg-1 do
+          with reginfo[i] do
+            if ri_constant_load in flags then
+              begin
+                { the allocation is bound to the first instruction, which the
+                  spilling removes: it must be the load of the constant into
+                  the register, from an address which uses no register the
+                  allocation could reuse }
+                ok:=assigned(live_start) and (live_start.typ=ait_instruction);
+                if ok then
+                  begin
+                    instr:=tai_cpu_abstract_sym(live_start);
+                    ok:=(instr.ops=2) and
+                      (instr.oper[0]^.typ=top_ref) and
+                      (instr.oper[1]^.typ=top_reg) and
+                      (getregtype(instr.oper[1]^.reg)=regtype) and
+                      (getsupreg(instr.oper[1]^.reg)=i) and
+                      (instr.spilling_get_operation_type(0)=operand_read) and
+                      (instr.spilling_get_operation_type(1)=operand_write);
+                    if ok then
+                      with instr.oper[0]^.ref^ do
+                        ok:=assigned(symbol) and
+                          (refaddr in [addr_no,addr_pic_no_got]) and
+                          (index=NR_NO) and
+{$if defined(x86)}
+                          (segment=NR_NO) and
+{$endif defined(x86)}
+                          ((base=NR_NO)
+{$if defined(x86_64)}
+                           or (base=NR_RIP)
+{$endif defined(x86_64)}
+                          );
+                  end;
+                if ok then
+                  begin
+                    alloc_spillinfo(i+1);
+                    spillinfo[i].spilllocation:=instr.oper[0]^.ref^;
+                    include(flags,ri_has_initial_loc);
+                  end
+                else
+                  exclude(flags,ri_constant_load);
+              end;
+      end;
+
     procedure trgobj.epilogue_colouring;
     begin
       { remove all items from the worklists, but do not free them, they are still needed for spill coalesce }
@@ -2053,6 +2692,7 @@ unit rgobj;
         p : tai;
         i : integer;
         supreg, u: tsuperregister;
+        item : PHashSetItem;
 {$ifdef arm}
         so: pshifterop;
 {$endif arm}
@@ -2088,6 +2728,22 @@ unit rgobj;
                                    internalerror(2018111701);
 {$endif}
                                  RecordUse(reginfo[u]);
+                                 { a constant load is written only by its load }
+                                 if (ri_constant_load in reginfo[u].flags) and
+                                    (p<>reginfo[u].live_start) and
+                                    (spilling_get_operation_type(i)<>operand_read) then
+                                   exclude(reginfo[u].flags,ri_constant_load);
+                                 if assigned(occweights) and
+                                    (spilling_get_operation_type(i)=operand_readwrite) then
+                                   begin
+                                     item:=occweights.Find(@p,sizeof(p));
+                                     if assigned(item) then
+                                       with reginfo[u] do
+                                         if high(rwweight)-ptrint(item^.Data)<rwweight then
+                                           rwweight:=high(rwweight)
+                                         else
+                                           inc(rwweight,ptrint(item^.Data));
+                                   end;
                                end;
                           top_ref:
                             begin
@@ -2226,6 +2882,17 @@ unit rgobj;
         alloc_spillinfo(supreg+1);
         spillinfo[supreg].spilllocation:=ref;
         include(reginfo[supreg].flags,ri_has_initial_loc);
+      end;
+
+
+    procedure trgobj.set_reg_constant_load(reg: tregister);
+      var
+        supreg: TSuperRegister;
+      begin
+        supreg:=getsupreg(reg);
+        if (supreg<first_imaginary) or (supreg>=maxreg) then
+          internalerror(2026092802);
+        include(reginfo[supreg].flags,ri_constant_load);
       end;
 
 
@@ -2465,6 +3132,7 @@ unit rgobj;
         getnewspillloc : Boolean;
       begin
         spill_registers:=false;
+        spillcode:=true;
         live_registers.clear;
         { spilling should start with the node with the highest number of interferences, so we can coalesce as
           much as possible spilled nodes (coalesce in case of spilled node means they share the same memory location) }
@@ -2521,6 +3189,7 @@ unit rgobj;
                     y:=Tmoveins(reginfo[t].movelist^.data[j]).y;
                     if (x=t) and
                       (spillinfo[get_alias(y)].spilled) and
+                      not(spillinfo[get_alias(y)].readonly) and
                       not(spillinfo[get_alias(y)].interferences[0,t]) then
                       begin
                         spill_temps[t]:=spillinfo[get_alias(y)].spilllocation;
@@ -2532,6 +3201,7 @@ unit rgobj;
                       end
                     else if (y=t) and
                       (spillinfo[get_alias(x)].spilled) and
+                      not(spillinfo[get_alias(x)].readonly) and
                       not(spillinfo[get_alias(x)].interferences[0,t]) then
                       begin
 {$ifdef DEBUG_SPILLCOALESCE}
@@ -2554,6 +3224,7 @@ unit rgobj;
               spillinfo[t].spilled:=true;
 
               spillinfo[t].spilllocation:=spill_temps[t];
+              spillinfo[t].readonly:=ri_constant_load in reginfo[t].flags;
             end;
         list.insertlistafter(headertai,templist);
         templist.free;
@@ -2845,6 +3516,13 @@ unit rgobj;
         { if no spilling for this instruction we can leave }
         if not spilled then
           exit;
+
+        { the memory of a constant load is read-only: the load that wrote the
+          register was removed, and nothing else writes it }
+        for counter := 0 to pred(spregs.spillreginfocount) do
+          with spregs.spillreginfo[counter] do
+            if mustbespilled and regwritten and spillinfo[orgreg].readonly then
+              internalerror(2026092803);
 
         { Check if the instruction is "OP reg1,reg2" and reg1 is coalesced with reg2 }
         if (spregs.spillreginfocount=1) and (instr.ops=2) and
