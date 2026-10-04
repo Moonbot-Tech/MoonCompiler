@@ -714,6 +714,19 @@ implementation
       end;
 
 
+    { The call of one item of a Read or Write statement.  Delphi checks the
+      I/O result once, after the whole statement: every item is written or
+      read even when an earlier one failed or an error was left pending, and
+      EInOutError comes after the last one.  So an item gets no check of its
+      own; the end call of a text file and the last item of a typed file
+      carry the check of the statement. }
+    function create_io_item_call(const name: string; params: tnode): tnode;
+      begin
+        result:=ccallnode.createintern(name,params);
+        exclude(result.localswitches,cs_check_io);
+      end;
+
+
     procedure maybe_convert_to_string(var n: tnode);
       begin
         { stringconstnodes are arrays of char. It's much more }
@@ -875,7 +888,14 @@ implementation
                 end;
               pointerdef :
                 begin
-                  if (not is_pchar(para.left.resultdef)) or do_read then
+                  if not do_read and is_pwidechar(para.left.resultdef) then
+                    begin
+                      { Reuse Unicode text output, including the file's code
+                        page and character-based field width. }
+                      inserttypeconv(para.left,cunicodestringtype);
+                      name:=procprefixes[do_read]+'unicodestr';
+                    end
+                  else if (not is_pchar(para.left.resultdef)) or do_read then
                     begin
                       CGMessagePos(para.fileinfo,type_e_cant_read_write_type);
                       error_para := true;
@@ -1186,7 +1206,7 @@ implementation
 
                   { create the call to the helper }
                   addstatement(Tstatementnode(newstatement),
-                    ccallnode.createintern(name,tcallparanode(p1)));
+                    create_io_item_call(name,tcallparanode(p1)));
 
                   { assign the result to the original var (this automatically }
                   { takes care of range checking)                             }
@@ -1237,7 +1257,7 @@ implementation
                       getparaencoding(para.left.resultdef),u16inttype,true),para);
                   { create the call statement }
                   addstatement(Tstatementnode(newstatement),
-                    ccallnode.createintern(name,para));
+                    create_io_item_call(name,para));
                 end
             end
           else
@@ -1385,9 +1405,12 @@ implementation
           { create call statement                                            }
           { since the parameters are in the correct order, we have to insert }
           { the statements always at the end of the current block            }
-          addstatement(Tstatementnode(newstatement),
-            Ccallnode.createintern(procprefixes[m_isolike_io in current_settings.modeswitches,do_read],para
-          ));
+          { (the last item carries the I/O check of the statement)           }
+          if assigned(nextpara) then
+            p1:=create_io_item_call(procprefixes[m_isolike_io in current_settings.modeswitches,do_read],para)
+          else
+            p1:=Ccallnode.createintern(procprefixes[m_isolike_io in current_settings.modeswitches,do_read],para);
+          addstatement(Tstatementnode(newstatement),p1);
 
           { if we used a temp, free it }
           if para.left.nodetype = temprefn then

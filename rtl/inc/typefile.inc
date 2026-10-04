@@ -95,8 +95,6 @@ End;
 
 Procedure fpc_reset_typed_iso(var f : TypedFile;Size : Longint);[Public,IOCheck, Alias:'FPC_RESET_TYPED_ISO']; compilerproc;
 Begin
-  If InOutRes <> 0 then
-   exit;
 
   { create file name? }
   if FileRec(f).mode=0 then
@@ -112,8 +110,6 @@ End;
 
 Procedure fpc_rewrite_typed_iso(var f : TypedFile;Size : Longint);[Public,IOCheck, Alias:'FPC_REWRITE_TYPED_ISO']; compilerproc;
 Begin
-  If InOutRes <> 0 then
-   exit;
 
   { create file name? }
   if FileRec(f).mode=0 then
@@ -125,8 +121,6 @@ End;
 
 Procedure fpc_reset_typed_name_iso(var f : TypedFile;const FileName : ShortString;Size : Longint);[Public,IOCheck, Alias:'FPC_RESET_TYPED_NAME_ISO']; compilerproc;
 Begin
-  If InOutRes <> 0 then
-   exit;
 
   { create file name? }
   if FileRec(f).mode=0 then
@@ -145,8 +139,6 @@ End;
 
 Procedure fpc_rewrite_typed_name_iso(var f : TypedFile;const FileName : ShortString;Size : Longint);[Public,IOCheck, Alias:'FPC_REWRITE_TYPED_NAME_ISO']; compilerproc;
 Begin
-  If InOutRes <> 0 then
-   exit;
 
   { create file name? }
   if FileRec(f).mode=0 then
@@ -158,13 +150,10 @@ End;
 
 Procedure fpc_typed_write(TypeSize : Longint;var f : TypedFile;const Buf);[IOCheck, Public, Alias :'FPC_TYPED_WRITE']; compilerproc;
 Begin
-  If InOutRes <> 0 then
-   exit;
   case fileRec(f).mode of
     fmOutPut,fmInOut:
       Do_Write(FileRec(f).Handle,@Buf,TypeSize);
-    fmInput: inOutRes := 105;
-    else inOutRes := 103;
+    else inOutRes := 5;
   end;
 End;
 
@@ -172,8 +161,6 @@ Procedure fpc_typed_read(TypeSize : Longint;var f : TypedFile;out Buf);[IOCheck,
 var
   Result : Longint;
 Begin
-  If InOutRes <> 0 then
-   exit;
   case FileRec(f).mode of
     fmInput,fmInOut:
       begin

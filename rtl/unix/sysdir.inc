@@ -50,10 +50,9 @@ Procedure do_ChDir(s: rawbytestring);
 
 Begin
   If Fpchdir(PAnsiChar(s))<0 Then
-   Errno2Inoutres;
-  { file not exists is path not found under tp7 }
-  if InOutRes=2 then
-   InOutRes:=3;
+   { file not exists is path not found under tp7 }
+   if Errno2Inoutres=2 then
+    InOutRes:=3;
 End;
 
 // !! for now we use getcwd, unless we are fpc_use_libc.

@@ -479,6 +479,11 @@ procedure fpc_PWideChar_To_ShortStr(out res : shortstring;const p : pwidechar); 
 
 { $ifdef FPC_HAS_FEATURE_TEXTIO}
 { from text.inc }
+function fpc_text_eof_checked(var t:Text):Boolean;compilerproc;
+function fpc_text_eoln_checked(var t:Text):Boolean;compilerproc;
+function fpc_text_seekeof_checked(var t:Text):Boolean;compilerproc;
+function fpc_text_seekeoln_checked(var t:Text):Boolean;compilerproc;
+
 Function fpc_get_input:PText;compilerproc;
 Function fpc_get_output:PText;compilerproc;
 Procedure fpc_textinit_iso(var t : Text;nr : DWord);compilerproc;

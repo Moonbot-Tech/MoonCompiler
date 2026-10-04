@@ -44,10 +44,13 @@ Type
   ---------------------------------------------------------------------}
 
 
+{ The driver sets InOutRes only when it fails: an error the program left
+  pending stays pending through reads and writes that succeed, as for the
+  files of the RTL. }
+
 procedure StreamRead(var F: TTextRec);
 
 begin
-  InOutRes:=0;
   With F do
     Try
       Bufend:=GetStream(F).Read(BufPtr^,BufSize);
@@ -60,7 +63,6 @@ end;
 
 procedure StreamWrite(var F: TTextRec );
 begin
-  InOutRes:=0;
   with F do
     if (BufPos>0) then
       try
@@ -77,20 +79,17 @@ end;
 Procedure StreamFlush(var F: TTextRec);
 
 begin
-  InOutRes:=0;
 end;
 
 
 procedure StreamClose(var F: TTextRec);
 begin
-  InOutRes:=0;
 end;
 {$POP}
 
 Procedure StreamOpen(var F: TTextRec );
 
 begin
-  InOutRes:=0;
   with F do
     begin
     BufPos:=0;

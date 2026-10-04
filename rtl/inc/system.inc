@@ -1276,6 +1276,31 @@ end;
 {$endif FPC_HAS_FEATURE_HEAP}
 
 {$ifdef FPC_HAS_FEATURE_CONSOLEIO}
+{$ifdef FPC_HAS_FEATURE_THREADING}
+var
+  MainThreadStdIO: array[0..3] of ^Text;
+
+procedure RememberMainThreadStdIO;
+begin
+  MainThreadStdIO[0]:=@Output;
+  MainThreadStdIO[1]:=@ErrOutput;
+  MainThreadStdIO[2]:=@StdOut;
+  MainThreadStdIO[3]:=@StdErr;
+end;
+
+procedure FlushMainThreadStdIO;
+var
+  i: Integer;
+begin
+  { A worker terminating the process owns different standard-file buffers.
+    The main thread's records remain alive until process teardown. }
+  If MainThreadStdIO[0]<>@Output then
+    for i:=Low(MainThreadStdIO) to High(MainThreadStdIO) do
+      If Assigned(MainThreadStdIO[i]) and (TextRec(MainThreadStdIO[i]^).Mode=fmOutput) then
+        Flush(MainThreadStdIO[i]^);
+end;
+{$endif FPC_HAS_FEATURE_THREADING}
+
 procedure SysFlushStdIO;
 begin
   { Make sure that all output is written to the redirected file }
@@ -1308,7 +1333,6 @@ Begin
 {$ifndef CPUAVR}
   while exitProc<>nil Do
    Begin
-     InOutRes:=0;
      current_exit:=tProcedure(exitProc);
      exitProc:=nil;
      current_exit();
@@ -1333,12 +1357,24 @@ Begin
      dump_stack(pstdout^,ErrorBase,ErrorAddr);
      Writeln(pstdout^,'');
    End;
+{$ifdef FPC_HAS_FEATURE_THREADING}
+  FlushMainThreadStdIO;
+{$endif FPC_HAS_FEATURE_THREADING}
   SysFlushStdIO;
 {$endif EMBEDDED}
 {$endif FPC_HAS_FEATURE_CONSOLEIO}
 
   { Finalize units }
   FinalizeUnits;
+
+{$ifdef FPC_HAS_FEATURE_CONSOLEIO}
+{$ifndef EMBEDDED}
+  { What the finalization of the units wrote reaches a redirected output
+    too: Delphi writes the standard files after the last unit is finalized
+    (System closes them in its own finalization) }
+  SysFlushStdIO;
+{$endif EMBEDDED}
+{$endif FPC_HAS_FEATURE_CONSOLEIO}
 
 {$if defined(OS2)}
   { finally release the heap if possible, especially
@@ -2092,7 +2128,7 @@ end;
 
 Procedure MkDir(Const s: RawByteString);[IOCheck];
 Begin
-  If (Length(s)=0) or (InOutRes <> 0) then
+  If Length(s)=0 then
    exit;
 {$ifdef FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
   Do_mkdir(ToSingleByteFileSystemEncodedFileName(S));
@@ -2104,7 +2140,7 @@ end;
 
 Procedure RmDir(Const s: RawByteString);[IOCheck];
 Begin
-  If (Length(s)=0) or (InOutRes <> 0) then
+  If Length(s)=0 then
    exit;
 {$ifdef FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
   Do_rmdir(ToSingleByteFileSystemEncodedFileName(S));
@@ -2116,7 +2152,7 @@ End;
 
 Procedure ChDir(Const s: RawByteString);[IOCheck];
 Begin
-  If (Length(s)=0) or (InOutRes <> 0) then
+  If Length(s)=0 then
    exit;
 {$ifdef FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
   Do_chdir(ToSingleByteFileSystemEncodedFileName(S));
@@ -2153,7 +2189,7 @@ end;
 
 Procedure MkDir(Const s: shortstring);[IOCheck];
 Begin
-  If (Length(s)=0) or (InOutRes <> 0) then
+  If Length(s)=0 then
    exit;
   Do_mkdir(GetDirStrFromShortstring(S));
 End;
@@ -2161,7 +2197,7 @@ End;
 
 Procedure RmDir(Const s: shortstring);[IOCheck];
 Begin
-  If (Length(s)=0) or (InOutRes <> 0) then
+  If Length(s)=0 then
    exit;
   Do_rmdir(GetDirStrFromShortstring(S));
 End;
@@ -2169,7 +2205,7 @@ End;
 
 Procedure ChDir(Const s: shortstring);[IOCheck];
 Begin
-  If (Length(S)=0) or (InOutRes <> 0) then
+  If Length(S)=0 then
    exit;
   Do_chdir(GetDirStrFromShortstring(S));
 End;
@@ -2222,7 +2258,7 @@ end;
 
 Procedure MkDir(Const s: UnicodeString);[IOCheck];
 Begin
-  if (Length(s)=0) or (InOutRes <> 0) then
+  if Length(s)=0 then
    exit;
   Do_mkdir(S);
 End;
@@ -2230,7 +2266,7 @@ End;
 
 Procedure RmDir(Const s: UnicodeString);[IOCheck];
 Begin
-  if (Length(s)=0) or (InOutRes <> 0) then
+  if Length(s)=0 then
    exit;
   Do_rmdir(S);
 End;
@@ -2238,7 +2274,7 @@ End;
 
 Procedure ChDir(Const s: UnicodeString);[IOCheck];
 Begin
-  if (Length(s)=0) or (InOutRes <> 0) then
+  if Length(s)=0 then
    exit;
   Do_chdir(S);
 End;

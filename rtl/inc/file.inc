@@ -119,8 +119,6 @@ Procedure Rewrite(var f:File;l:Longint);[IOCheck];
   Create file f with recordsize of l
 }
 Begin
-  If InOutRes <> 0 then
-   exit;
   Case FileRec(f).mode Of
    fmInOut,fmInput,fmOutput : Close(f);
    fmClosed : ;
@@ -151,8 +149,6 @@ Procedure Reset(var f:File;l:Longint);[IOCheck];
   Open file f with recordsize of l and filemode
 }
 Begin
-  If InOutRes <> 0 then
-   Exit;
   Case FileRec(f).mode Of
    fmInOut,fmInput,fmOutput : Close(f);
    fmClosed : ;
@@ -182,8 +178,6 @@ Procedure Rewrite(Var f:File);[IOCheck];
   Create file with (default) 128 byte records
 }
 Begin
-  If InOutRes <> 0 then
-   exit;
   Rewrite(f,128);
 End;
 
@@ -193,8 +187,6 @@ Procedure Reset(Var f:File);[IOCheck];
   Open file with (default) 128 byte records
 }
 Begin
-  If InOutRes <> 0 then
-   exit;
   Reset(f,128);
 End;
 
@@ -205,8 +197,6 @@ Procedure BlockWrite(Var f:File;Const Buf;Count:Int64;var Result:Int64);[IOCheck
 }
 Begin
   Result:=0;
-  If InOutRes <> 0 then
-   exit;
   case FileRec(f).Mode of
     fmInOut,fmOutput :
       Result:=Do_Write(FileRec(f).Handle,@Buf,Count*FileRec(f).RecSize)
@@ -301,10 +291,18 @@ begin
 {$else EXCLUDE_COMPLEX_PROCS}
 var
   Result : Int64;
+  OldInOutRes : Word;
 Begin
+  OldInOutRes:=InOutRes;
+  InOutRes:=0;
   BlockWrite(f,Buf,Count,Result);
-  If (InOutRes=0) and (Result<Count) and (Count>0) Then
-   InOutRes:=101;
+  { a short count is an error when the call itself reported none; an error
+    left pending before stays when the call succeeds }
+  If InOutRes=0 then
+    If (Result<Count) and (Count>0) Then
+      InOutRes:=101
+    else
+      InOutRes:=OldInOutRes;
 End;
 {$endif EXCLUDE_COMPLEX_PROCS}
 
@@ -316,8 +314,6 @@ Procedure BlockRead(var f:File;var Buf;Count:Int64;var Result:Int64);[IOCheck];
 }
 Begin
   Result:=0;
-  If InOutRes <> 0 then
-   exit;
   case FileRec(f).Mode of
     fmInOut,fmInput :
       Result:=Do_Read(FileRec(f).Handle,@Buf,count*FileRec(f).RecSize)
@@ -415,10 +411,18 @@ begin
 {$else EXCLUDE_COMPLEX_PROCS}
 var
   Result : int64;
+  OldInOutRes : Word;
 Begin
+  OldInOutRes:=InOutRes;
+  InOutRes:=0;
   BlockRead(f,Buf,Count,Result);
-  If (InOutRes=0) and (Result<Count) and (Count>0) Then
-   InOutRes:=100;
+  { a short count is an error when the call itself reported none; an error
+    left pending before stays when the call succeeds }
+  If InOutRes=0 then
+    If (Result<Count) and (Count>0) Then
+      InOutRes:=100
+    else
+      InOutRes:=OldInOutRes;
 End;
 {$endif EXCLUDE_COMPLEX_PROCS}
 
@@ -446,8 +450,6 @@ Function FileSize(var f:File):Int64;[IOCheck];
 }
 Begin
   FileSize:=0;
-  If InOutRes <> 0 then
-   exit;
   case FileRec(f).Mode of
     fmInOut,fmInput,fmOutput :
       begin
@@ -480,8 +482,6 @@ Procedure Seek(var f:File;Pos:Int64);[IOCheck];
   Goto record Pos in file f
 }
 Begin
-  If InOutRes <> 0 then
-   exit;
   case FileRec(f).Mode of
     fmInOut,fmInput,fmOutput :
       Do_Seek(FileRec(f).Handle,Pos*FileRec(f).RecSize);
@@ -494,8 +494,6 @@ Procedure Truncate(Var f:File);[IOCheck];
   Truncate/Cut file f at the current record Position
 }
 Begin
-  If InOutRes <> 0 then
-   exit;
   case FileRec(f).Mode of
     fmInOut,fmOutput :
       Do_Truncate(FileRec(f).Handle,FilePos(f)*FileRec(f).RecSize);
@@ -509,8 +507,6 @@ Procedure Close(var f:File);[IOCheck];
   Close file f
 }
 Begin
-  If InOutRes <> 0 then
-   exit;
   case FileRec(f).Mode of
     fmInOut,fmInput,fmOutput :
       begin
@@ -529,8 +525,6 @@ End;
 
 Procedure Erase(var f : File);[IOCheck];
 Begin
-  if InOutRes<>0 then
-    exit;
   if FileRec(f).mode<>fmClosed then
     begin
       InOutRes:=102;
@@ -544,32 +538,37 @@ End;
 Procedure Rename(var f : File; const S : UnicodeString);[IOCheck];
 {$ifdef FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
 var
+{$ifdef FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
   fs: RawByteString;
 {$endif FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
+  OldInOutRes: Word;
 Begin
-  if InOutRes<>0 then
-    exit;
   if FileRec(f).mode<>fmClosed then
     begin
       InOutRes:=102;
       exit;
     end;
+  OldInOutRes:=InOutRes;
+  InOutRes:=0;
 {$ifdef FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
   { it's slightly faster to convert the unicodestring here to rawbytestring
     than doing it in do_rename(), because here we still know the length }
   fs:=ToSingleByteFileSystemEncodedFileName(s);
   Do_Rename(PFileTextRecChar(@FileRec(f).Name),PAnsiChar(fs),false,true);
   If InOutRes=0 then
-     FileRec(f).Name:=fs
+     FileRec(f).Name:=fs;
 {$else FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
   Do_Rename(PFileTextRecChar(@FileRec(f).Name),PUnicodeChar(S),false,false);
   If InOutRes=0 then
 {$ifdef FPC_ANSI_TEXTFILEREC}
     FileRec(f).Name:=ToSingleByteFileSystemEncodedFileName(s);
 {$else FPC_ANSI_TEXTFILEREC}
-    FileRec(f).Name:=s
+    FileRec(f).Name:=s;
 {$endif FPC_ANSI_TEXTFILEREC}
 {$endif FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
+  { an error left pending before a successful rename stays }
+  If InOutRes=0 then
+    InOutRes:=OldInOutRes;
 End;
 {$endif FPC_HAS_FEATURE_WIDESTRINGS}
 
@@ -585,9 +584,8 @@ var
   pdst: PUnicodeChar;
 {$endif FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
   dstchangeable: boolean;
+  OldInOutRes: Word;
 Begin
-  if InOutRes<>0 then
-    exit;
   if FileRec(f).mode<>fmClosed then
     begin
       InOutRes:=102;
@@ -611,13 +609,19 @@ Begin
    pdst:=PUnicodeChar(fs);
    dstchangeable:=true;
 {$endif FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
+  OldInOutRes:=InOutRes;
+  InOutRes:=0;
   Do_Rename(PFileTextRecChar(@FileRec(f).Name),pdst,false,dstchangeable);
   If InOutRes=0 then
+    begin
 {$if defined(FPC_ANSI_TEXTFILEREC) and not defined(FPCRTL_FILESYSTEM_SINGLE_BYTE_API)}
-    FileRec(f).Name:=ToSingleByteFileSystemEncodedFileName(fs)
+      FileRec(f).Name:=ToSingleByteFileSystemEncodedFileName(fs);
 {$else FPC_ANSI_TEXTFILEREC and not FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
-    FileRec(f).Name:=fs
+      FileRec(f).Name:=fs;
 {$endif FPC_ANSI_TEXTFILEREC and not FPCRTL_FILESYSTEM_SINGLE_BYTE_API}
+      { an error left pending before stays }
+      InOutRes:=OldInOutRes;
+    end;
 End;
 {$endif FPC_HAS_FEATURE_ANSISTRINGS}
 
@@ -646,14 +650,15 @@ End;
 {$else FPC_HAS_FEATURE_ANSISTRINGS}
 var
   len: SizeInt;
+  OldInOutRes: Word;
 Begin
-  if InOutRes<>0 then
-    exit;
   if FileRec(f).mode<>fmClosed then
     begin
       InOutRes:=102;
       exit;
     end;
+  OldInOutRes:=InOutRes;
+  InOutRes:=0;
   Do_Rename(PFileTextRecChar(@FileRec(f).Name),p,false,false);
   { check error code of do_rename }
   if InOutRes=0 then
@@ -661,6 +666,8 @@ Begin
       len:=min(StrLen(p),high(FileRec(f).Name));
       Move(p^,FileRec(f).Name,len);
       FileRec(f).Name[len]:=#0;
+      { an error left pending before stays }
+      InOutRes:=OldInOutRes;
     end;
 End;
 {$endif FPC_HAS_FEATURE_ANSISTRINGS}

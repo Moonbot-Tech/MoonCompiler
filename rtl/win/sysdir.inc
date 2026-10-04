@@ -25,10 +25,11 @@ begin
   CreateDirectoryTrunc:=CreateDirectoryW(name,nil);
 end;
 
-procedure dirfn(afunc : TDirFnType;s:unicodestring);
+function dirfn(afunc : TDirFnType;s:unicodestring) : boolean;
 begin
   DoDirSeparators(s);
-  if not aFunc(punicodechar(s)) then
+  dirfn:=aFunc(punicodechar(s));
+  if not dirfn then
     begin
       Errno2InoutRes(GetLastError);
     end;
@@ -67,6 +68,7 @@ var
   Len, Len2: cardinal;
   FullPath: UnicodeString;
   P: PWideChar;
+  Done: boolean;
 {$ENDIF WINCE}
 begin
 {$ifndef WINCE}
@@ -82,8 +84,8 @@ begin
 { Real length returned by GetFullPathNameW seems to be usually smaller than originally requested buffer size }
      SetLength (FullPath, Len2);
 { Use FullPath for SetCurrentDirectory instead of original input to ensure consistency }
-    DirFn (TDirFnType (@SetCurrentDirectoryW), FullPath);
-    if (InOutRes = 0) and (Length (S) > 2) and (S [2] = ':') then
+    Done := DirFn (TDirFnType (@SetCurrentDirectoryW), FullPath);
+    if Done and (Length (S) > 2) and (S [2] = ':') then
      begin
       EnvName [0] := '=';
       EnvName [1] := S [1];
@@ -94,8 +96,10 @@ begin
    end
   else
 { Try SetCurrentDirectoryW with the original input if GetFullPathNameW errors out }
-   dirfn(TDirFnType(@SetCurrentDirectoryW),s);
-  if Inoutres=2 then
+   Done := dirfn(TDirFnType(@SetCurrentDirectoryW),s);
+  { InOutRes may hold an error left pending before: map only the error of
+    this call }
+  if not Done and (Inoutres=2) then
    Inoutres:=3;
 {$else WINCE}
   InOutRes:=3;

@@ -92,6 +92,7 @@ interface
           function get_expect_loc: tcgloc;
           function  handle_compilerproc: tnode;
           function  try_expand_blockop: tnode;
+          function  try_redirect_text_io_check: tnode;
           procedure set_para_callnode(n : tcallnode);
 
        protected
@@ -5266,13 +5267,58 @@ implementation
       end;
 
 
+    function tcallnode.try_redirect_text_io_check: tnode;
+      var
+        pname, helpername: TSymStr;
+        arg: tnode;
+        inputsym: tsym;
+      begin
+        result:=nil;
+        if not(cs_check_io in localswitches) or
+           (cs_compilesystem in current_settings.moduleswitches) or
+           not assigned(procdefinition) or
+           (procdefinition.typ<>procdef) or
+           not assigned(tprocdef(procdefinition).procsym) or
+           (tprocdef(procdefinition).procsym.owner<>systemunit) or
+           assigned(right) or
+           (po_iocheck in current_procinfo.procdef.procoptions) then
+          exit;
+        pname:=tprocdef(procdefinition).procsym.name;
+        if not((pname='EOF') or (pname='EOLN') or (pname='SEEKEOF') or (pname='SEEKEOLN')) then
+          exit;
+        helpername:='fpc_text_'+lower(pname)+'_checked';
+        { An older System unit can still bootstrap the compiler. }
+        if not assigned(systemunit.Find(helpername)) then
+          exit;
+        if assigned(left) then
+          begin
+            arg:=tcallparanode(left).left;
+            if (arg.resultdef.typ<>filedef) or (tfiledef(arg.resultdef).filetyp<>ft_text) then
+              exit;
+            arg:=arg.getcopy;
+          end
+        else
+          begin
+            inputsym:=tsym(systemunit.Find('INPUT'));
+            arg:=cloadnode.create(inputsym,inputsym.owner);
+          end;
+        result:=ccallnode.createintern(helpername,ccallparanode.create(arg,nil));
+      end;
+
+
     function tcallnode.simplify(forinline : boolean) : tnode;
       begin
         { See if there's any special handling we can do based on the intrinsic code }
         if (intrinsiccode <> Default(TInlineNumber)) then
           result := handle_compilerproc
         else
-          result := try_expand_blockop;
+          begin
+            result:=nil;
+            if not forinline then
+              result:=try_redirect_text_io_check;
+            if not assigned(result) then
+              result:=try_expand_blockop;
+          end;
       end;
 
 

@@ -718,6 +718,9 @@ begin
   initunicodestringmanager;
   { Setup stdin, stdout and stderr }
   SysInitStdIO;
+{$ifdef FPC_HAS_FEATURE_THREADING}
+  RememberMainThreadStdIO;
+{$endif FPC_HAS_FEATURE_THREADING}
   { Reset IO Error }
   InOutRes:=0;
   { threading }

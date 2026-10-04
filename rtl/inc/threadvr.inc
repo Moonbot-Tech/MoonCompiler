@@ -119,6 +119,10 @@ begin
 {$if defined(FPC_HAS_FEATURE_HEAP) and not defined(HAS_MEMORYMANAGER)}
    RelocateHeap;
 {$endif FPC_HAS_FEATURE_HEAP and not HAS_MEMORYMANAGER}
+{$ifdef FPC_HAS_FEATURE_CONSOLEIO}
+   { The main thread's records moved with its threadvar block. }
+   RememberMainThreadStdIO;
+{$endif FPC_HAS_FEATURE_CONSOLEIO}
 end;
 
 

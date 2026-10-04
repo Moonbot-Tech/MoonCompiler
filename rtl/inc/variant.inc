@@ -77,8 +77,6 @@ procedure fpc_variant_copy_overwrite(source, dest : pointer);[Public,Alias:'FPC_
 
 Procedure fpc_write_text_variant(Len : Longint;var f : Text;const v : variant); iocheck; [Public,Alias:'FPC_WRITE_TEXT_VARIANT']; compilerproc;
   begin
-    if (InOutRes<>0) then
-     exit;
     case TextRec(f).mode of
       { fmAppend gets changed to fmOutPut in do_open (JM) }
       fmOutput:

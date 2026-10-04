@@ -42,9 +42,7 @@ Begin
      exit;
    end;
   if Fpunlink(p)<0 then
-   Errno2Inoutres
-  Else
-   InOutRes:=0;
+   Errno2Inoutres;
 End;
 
 { truncate at a given position }
@@ -53,9 +51,7 @@ begin
   { should be simulated in cases where it is not }
   { available.                                   }
   If Fpftruncate(handle,fpos)<0 Then
-   Errno2Inoutres
-  Else
-   InOutRes:=0;
+   Errno2Inoutres;
 end;
 
 
@@ -63,9 +59,7 @@ end;
 Procedure Do_Rename(p1,p2:PAnsiChar; p1changeable, p2changeable: boolean);
 Begin
   If Fprename(p1,p2)<0 Then
-   Errno2Inoutres
-  Else
-   InOutRes:=0;
+   Errno2Inoutres;
 End;
 
 
@@ -81,9 +75,7 @@ Begin
    Begin
     Errno2InOutRes;
     Do_Write:=0;
-   End
-  else
-   InOutRes:=0;
+   End;
 End;
 
 
@@ -100,35 +92,27 @@ Begin
    Begin
     Errno2InOutRes;
     Do_Read:=0;
-   End
-  else
-   InOutRes:=0;
+   End;
 End;
 
 function Do_FilePos(Handle: thandle):Int64;
 Begin
   do_FilePos:=Fplseek(Handle, 0, SEEK_CUR);
   If Do_FilePos<0 Then
-    Errno2InOutRes
-  else
-   InOutRes:=0;
+    Errno2InOutRes;
 End;
 
 Procedure Do_Seek(Handle:thandle;Pos:Int64);
 Begin
   If Fplseek(Handle, pos, SEEK_SET)<0 Then
-   Errno2Inoutres
-  Else
-   InOutRes:=0;
+   Errno2Inoutres;
 End;
 
 Function Do_SeekEnd(Handle:thandle):Int64;
 begin
   Do_SeekEnd:=Fplseek(Handle,0,SEEK_END);
   If Do_SeekEnd<0 Then
-   Errno2Inoutres
-  Else
-   InOutRes:=0;
+   Errno2Inoutres;
 end;
 
 Function Do_FileSize(Handle:thandle):Int64;
@@ -142,9 +126,7 @@ Begin
   else
    Do_FileSize:=0;
   If Ret<0 Then
-   Errno2InOutRes
-  Else
-   InOutRes:=0;
+   Errno2InOutRes;
 End;
 
 Procedure Do_Open(var f; p: PAnsiChar; flags: longint; pchangeable: boolean);
@@ -231,9 +213,7 @@ Begin
    begin
      Errno2Inoutres;
      FileRec(f).mode:=fmclosed;
-   end
-  else
-   InOutRes:=0;
+   end;
 End;
 
 

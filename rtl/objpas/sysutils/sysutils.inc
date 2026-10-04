@@ -356,6 +356,11 @@ end;
 
 {$push}
 {$S-}
+{ As Delphi's ExceptHandler: report the exception and end the program with
+  exit code 1.  The report is written without I/O checks, so that an I/O
+  error the program left pending, or a standard error that cannot be
+  written, cannot raise a second exception inside it. }
+{$push}{$I-}
 Procedure CatchUnhandledException (Obj : TObject; Addr: CodePointer; FrameCount: Longint; Frames: PCodePointer);[public,alias:'FPC_BREAK_UNHANDLED_EXCEPTION'];
 Var
   i : longint;
@@ -385,7 +390,9 @@ begin
         Writeln(hstdout^,BackTraceStrFunc(Frames[i]));
     end;
   Writeln(hstdout^,'');
+  Halt(1);
 end;
+{$pop}
 
 type
   PExceptMapEntry=^TExceptMapEntry;

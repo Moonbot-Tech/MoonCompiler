@@ -1681,6 +1681,7 @@ var
   found, found_aranges : Boolean;
   er: TEReader;
   abbrevs: TAbbrevs; { To reuse allocations between ParseCompilationUnitForFunctionName calls. }
+  OldInOutRes : Word;
 
 begin
 {$ifdef has_LineInfoCache}
@@ -1695,10 +1696,16 @@ begin
   line := 0;
   GetLineInfo:=false;
 
+  { The reading of the executable below is the RTL's own: an I/O error the
+    program left pending would make its open look failed (and the failure is
+    remembered for the file), and it stays pending for the program. }
+  OldInOutRes:=InOutRes;
+  InOutRes:=0;
   Lock(DwarfLock);
   if not OpenDwarf(codepointer(addr)) then
   begin
     Unlock(DwarfLock);
+    InOutRes:=OldInOutRes;
   {$ifdef has_LineInfoCache}
     Lock(LiCacheLock);
     liCache.Put(CodePointer(addr), '', '', 0); { Cache the failure, too; in particular, on Win64 some frames above main() point into kernel32 or something. }
@@ -1771,6 +1778,7 @@ begin
   if not AllowReuseOfLineInfoData then
     CloseDwarf(false);
   Unlock(DwarfLock);
+  InOutRes:=OldInOutRes;
 
 {$ifdef has_LineInfoCache}
   Lock(LiCacheLock);

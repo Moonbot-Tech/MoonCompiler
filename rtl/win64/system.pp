@@ -446,6 +446,9 @@ initialization
   initunicodestringmanager;
   InitWin32Widestrings;
   SysInitStdIO;
+{$ifdef FPC_HAS_FEATURE_THREADING}
+  RememberMainThreadStdIO;
+{$endif FPC_HAS_FEATURE_THREADING}
   { Arguments }
   setup_arguments;
   InitSystemDynLibs;

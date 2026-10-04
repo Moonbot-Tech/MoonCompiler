@@ -905,7 +905,7 @@ Var
   StackLength : SizeUInt;
 
 Var
-  WriteErrorsToStdErr : Boolean = True;
+  WriteErrorsToStdErr : Boolean = False;
 
 function StackTop: Pointer;
 
@@ -1526,15 +1526,15 @@ procedure SetTextAutoFlush (var T: Text; AutoFlush: boolean);
 (* used for output to other devices like console or sockets in case of       *)
 (* AutoFlush = false. Note that reopening the file resets the behaviour to   *)
 (* the default. Runtime error 103 is triggered if the text file is not open, *)
-(* runtime error 105 if the text file is open strictly for input. The call   *)
-(* is ignored if InOutRes is not 0 before the call.                          *)
+(* runtime error 105 if the text file is open strictly for input. An I/O     *)
+(* error left pending before the call does not stop it.                      *)
 function GetTextAutoFlush (var T: Text): boolean;
 (* Check whether output buffering is enabled for the currently open file, or *)
 (* not - either due to default behaviour for the associated device, or due   *)
 (* a previous call of SetTextAutoFlush. Runtime error 103 is triggered if    *)
 (* the text file is not open, runtime error 105 if the text file is open     *)
-(* strictly for input. The call is ignored if InOutRes is not 0 before the   *)
-(* call.                                                                     *)
+(* strictly for input. An I/O error left pending before the call does not    *)
+(* stop it.                                                                  *)
 {$endif FPC_HAS_FEATURE_TEXTIO}
 
 {****************************************************************************
