@@ -2372,6 +2372,17 @@ const
   { Cutoff for https://en.wikipedia.org/wiki/Pairwise_summation; sums of at least this many elements are split in two halves. }
   RecursiveSumThreshold=12;
 
+function FloatExceptionsUnmasked(const Exceptions: TFPUExceptionMask): Boolean; forward;
+{$ifdef FPC_HAS_TYPE_SINGLE}
+function NormUnmaskedSingle(const data: PSingle; const N: Integer): Float; forward;
+{$endif}
+{$ifdef FPC_HAS_TYPE_DOUBLE}
+function NormUnmaskedDouble(const data: PDouble; const N: Integer): Float; forward;
+{$endif}
+{$ifdef FPC_HAS_TYPE_EXTENDED}
+function NormUnmaskedExtended(const data: PExtended; const N: Integer): Float; forward;
+{$endif}
+
 {$ifdef FPC_HAS_TYPE_SINGLE}
 function mean(const data : array of Single) : float;
 
@@ -2493,6 +2504,7 @@ function mean(const data: array of Int64):Float;
   begin
      mean:=mean(PInt64(@data[0]),High(Data)+1);
   end;
+
 
 function sumInt(const data : PInteger; Const N : longint) : Int64;
 var
@@ -3301,6 +3313,7 @@ function norm(const data : PExtended; Const N : Integer) : float;
        norm:=sqrt(norm);
   end;
 {$endif FPC_HAS_TYPE_EXTENDED}
+
 
 
 function MinIntValue(const Data: array of Integer): Integer;
@@ -5324,6 +5337,77 @@ begin
     Result := -(AFutureValue + APayment*factor) / qn;
   end;
 end;
+
+function FloatExceptionsUnmasked(const Exceptions: TFPUExceptionMask): Boolean;
+{$ifdef cpux86_64}
+  nostackframe; assembler;
+asm
+  { Read the real control register used by Float arithmetic on this target.
+    A registry updated only through Math.SetExceptionMask cannot own changes
+    made by System, foreign code or direct register APIs.  The register goes
+    out through a slot the routine owns without moving rsp - the home area of
+    its parameter on Win64, the red zone on SysV -, so the routine stays a
+    leaf with nothing to tell the unwinder. }
+  {$if sizeof(float)>8}
+  {$ifdef FPC_ABI_WIN64}
+  fnstcw 8(%rsp)
+  movzwl 8(%rsp),%eax
+  {$else}
+  fnstcw -8(%rsp)
+  movzwl -8(%rsp),%eax
+  {$endif}
+  {$else}
+  {$ifdef FPC_ABI_WIN64}
+  stmxcsr 8(%rsp)
+  movl 8(%rsp),%eax
+  {$else}
+  stmxcsr -8(%rsp)
+  movl -8(%rsp),%eax
+  {$endif}
+  shrl $7,%eax
+  {$endif}
+  notl %eax
+  andl Exceptions,%eax
+  setne %al
+end;
+{$else}
+begin
+  Result:=(Exceptions-GetExceptionMask)<>[];
+end;
+{$endif}
+
+{$ifdef FPC_HAS_TYPE_SINGLE}
+function NormUnmaskedSingle(const data: PSingle; const N: Integer): Float;
+var
+  i: SizeInt;
+begin
+  Result:=0;
+  for i:=0 to N-1 do
+    Result:=hypot(Result,data[i]);
+end;
+{$endif FPC_HAS_TYPE_SINGLE}
+
+{$ifdef FPC_HAS_TYPE_DOUBLE}
+function NormUnmaskedDouble(const data: PDouble; const N: Integer): Float;
+var
+  i: SizeInt;
+begin
+  Result:=0;
+  for i:=0 to N-1 do
+    Result:=hypot(Result,data[i]);
+end;
+{$endif FPC_HAS_TYPE_DOUBLE}
+
+{$ifdef FPC_HAS_TYPE_EXTENDED}
+function NormUnmaskedExtended(const data: PExtended; const N: Integer): Float;
+var
+  i: SizeInt;
+begin
+  Result:=0;
+  for i:=0 to N-1 do
+    Result:=hypot(Result,data[i]);
+end;
+{$endif FPC_HAS_TYPE_EXTENDED}
 
 {$else}
 implementation
