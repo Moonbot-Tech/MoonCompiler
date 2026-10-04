@@ -2016,19 +2016,24 @@ function power(base,exponent : float) : float;
 
 
 function intpower(base : float;exponent : longint) : float;
+  var
+    magnitude: cardinal;
   begin
     if exponent<0 then
       begin
         base:=1.0/base;
-        exponent:=-exponent;
-      end;
+        magnitude:=cardinal(-int64(exponent));
+      end
+    else
+      magnitude:=cardinal(exponent);
     intpower:=1.0;
-    while exponent<>0 do
+    while magnitude<>0 do
       begin
-        if exponent and 1<>0 then
+        if magnitude and 1<>0 then
           intpower:=intpower*base;
-        exponent:=exponent shr 1;
-        base:=sqr(base);
+        magnitude:=magnitude shr 1;
+        if magnitude<>0 then
+          base:=sqr(base);
       end;
   end;
 
