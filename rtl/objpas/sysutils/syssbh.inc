@@ -10,6 +10,7 @@
       TCharEnumerator = record
       private
         FCurrentPosition: PSBChar;
+        FNextPosition: PSBChar;
         FEndPosition: PSBChar;
         Function GetCurrent: SBChar; inline;
       public

@@ -42,12 +42,18 @@ end;
 function TGenericStringBuilder.TCharEnumerator.GetCurrent: SBChar;
 begin
   Result := FCurrentPosition^;
-  Inc(FCurrentPosition);
 end;
 
 function TGenericStringBuilder.TCharEnumerator.MoveNext: Boolean;
 begin
-  Result := FCurrentPosition < FEndPosition;
+  Result := FNextPosition <> FEndPosition;
+  if Result then
+    begin
+      FCurrentPosition:=FNextPosition;
+      Inc(FNextPosition);
+    end
+  else
+    FCurrentPosition:=nil;
 end;
 
 function TGenericStringBuilder.GetEnumerator: TCharEnumerator;
@@ -58,7 +64,8 @@ begin
     StartPosition:=nil
   else
     StartPosition:=@FData[0];
-  Result.FCurrentPosition := StartPosition;
+  Result.FCurrentPosition := nil;
+  Result.FNextPosition := StartPosition;
   Result.FEndPosition := StartPosition + Length;
 end;
 
@@ -842,11 +849,11 @@ begin
   BC:=OldValue[1];
   Cur:=@FData[StartIndex];
   // Loop
-  while (CurIndex<Length-OldLen+1) and (CurIndex<MaxIndex) do
+  while CurIndex<=MaxIndex-OldLen do
     begin
     if (Cur^=BC) then
       begin
-      if 0=StrLComp(@FData[CurIndex],PSBChar(OldValue),OldLen) then
+      if CompareMem(@FData[CurIndex],@OldValue[1],OldLen*SizeOf(SBChar)) then
         begin
         // Do actual replace.
         DoReplace(CurIndex,OldValue,NewValue);
