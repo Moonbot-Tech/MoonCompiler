@@ -204,6 +204,8 @@ unit aoptx86;
           Only set "correct_symrefs" to True if you used loadref() or loadoper() to
           transfer a reference, as these increase the symbol reference counts. }
         procedure TrackAndCorrectRefMove(const ref: TReference; var p: tai; const hp1: tai; const correct_symrefs: Boolean);
+        function ForwardMemoryValue(const p: tai): Boolean;
+        function RemoveRedundantCmpJump(const p: tai): Boolean;
 {$ifdef x86_64}
         function CanDrop32BitZeroExtend(const p: tai; const reg: TRegister): Boolean;
         function Upper32ZeroBefore(const p: tai; const reg: TRegister): Boolean;
@@ -244,6 +246,9 @@ unit aoptx86;
         function OptPass1NOT(var p : tai) : boolean;
 {$endif not i8086}
         function OptPass1OP(var p : tai) : boolean;
+{$ifdef x86_64}
+        function TrySymbolAddressToOperands(var p : tai) : boolean;
+{$endif x86_64}
         function OptPass1LEA(var p : tai) : boolean;
         function OptPass1Sub(var p : tai) : boolean;
         function OptPass1SHLSAL(var p : tai) : boolean;
@@ -3303,6 +3308,9 @@ unit aoptx86;
         OldSubReg, NewSubReg: TSubRegister;
         OldRegType: TRegisterType;
         ThisOper: POper;
+{$ifdef x86_64}
+        I: Integer;
+{$endif x86_64}
       begin
         ThisOper := p.oper[OperIdx]; { Faster to access overall }
         Result := False;
@@ -3321,6 +3329,23 @@ unit aoptx86;
 
         if OldSubReg <> NewSubReg then
           InternalError(2020011803);
+
+{$ifdef x86_64}
+        { AH/BH/CH/DH have no extended-register equivalent and cannot share
+          an instruction with a newly required REX prefix. }
+        if OldRegType=R_INTREGISTER then
+          begin
+            if (ThisOper^.typ=top_reg) and (getsubreg(ThisOper^.reg)=R_SUBH) and
+              not (NewSupReg in [RS_EAX,RS_EBX,RS_ECX,RS_EDX]) then
+              Exit;
+            if (NewSupReg>=RS_R8) or
+              ((ThisOper^.typ=top_reg) and (getsubreg(ThisOper^.reg)=R_SUBL) and
+               (NewSupReg in [RS_ESI,RS_EDI,RS_EBP,RS_ESP])) then
+              for I:=0 to p.ops-1 do
+                if (p.oper[I]^.typ=top_reg) and (getsubreg(p.oper[I]^.reg)=R_SUBH) then
+                  Exit;
+          end;
+{$endif x86_64}
 
         case ThisOper^.typ of
           top_reg:
@@ -3769,6 +3794,283 @@ unit aoptx86;
       end;
 
 
+    { A register already holds the value of a memory operand when that memory
+      was just stored from it or loaded into it, and nothing since has
+      reached memory or changed the register or the registers of the
+      address.  A later read of the memory takes the register:
+
+        mov  %reg1,mem   (or  mov mem,%reg1)        mov  %reg1,mem
+        <instructions of the list below>       ->   <...>
+        mov  mem,%reg2   (or  op mem,%reg2)         mov  %reg1,%reg2  (or  op %reg1,%reg2)
+
+      In between stand only plain integer instructions whose memory operand,
+      if any, is read (lea reads none), and conditional jumps: the
+      instruction behind one is reached from it only by falling through,
+      with the same memory and registers.  A store, a call, an unconditional
+      jump, a label or any other instruction ends the search; so a compare
+      and its repeat behind a conditional jump both read the register, and
+      the repeat still goes (CMP/Jcc/CMP, TEST/Jcc/TEST).  The next
+      instruction is left to the rules of a neighbouring pair; this one
+      looks past it.  After a load the register must be in use behind the
+      second read anyway: where it dies earlier, the load goes into its only
+      reader (add (mem),%reg) and the second read into its own, and the
+      register would only keep a value nobody else needs.  A load whose
+      register the next instruction stores back to the same memory is a pair
+      of its own: MovMov2Mov 1 removes the store, and the load with it where
+      the register dies. }
+    function TX86AsmOptimizer.ForwardMemoryValue(const p: tai): Boolean;
+      const
+        MaxScan = 8;
+      var
+        hp, hp2: tai;
+        reg1: TRegister;
+        ref: preference;
+        count, refidx: longint;
+        loaded: Boolean;
+{$ifdef x86_64}
+        globalref: treference;
+        indexdef: tai;
+        indexreg: TRegister;
+        globaladdress, addresschanged: Boolean;
+
+      { The last write defines a register's value. A full copy has its
+        source's definition; a 32-bit copy needs the source's zero upper half. }
+      function RegisterDefinition(at: tai; var reg: TRegister): tai;
+        var
+          scan: tai;
+          n: Integer;
+        begin
+          Result:=nil;
+          scan:=tai(at.Previous);
+          n:=0;
+          while assigned(scan) and (n<16) do
+            begin
+              case scan.typ of
+                ait_comment,ait_force_line,ait_regalloc,ait_tempalloc,ait_varloc: ;
+                ait_instruction:
+                  begin
+                    if is_calljmp(taicpu(scan).opcode) or (taicpu(scan).opcode=A_RET) or
+                       (Ch_All in insprop[taicpu(scan).opcode].Ch) then Exit;
+                    if RegModifiedByInstruction(reg,scan) then
+                      begin
+                        if MatchInstruction(scan,A_MOV,[S_Q,S_L]) and
+                           MatchOpType(taicpu(scan),top_reg,top_reg) and
+                           SuperRegistersEqual(taicpu(scan).oper[1]^.reg,reg) and
+                           ((taicpu(scan).opsize=S_Q) or Upper32ZeroBefore(scan,taicpu(scan).oper[0]^.reg)) then
+                          reg:=newreg(R_INTREGISTER,getsupreg(taicpu(scan).oper[0]^.reg),R_SUBQ)
+                        else
+                          Exit(scan);
+                      end;
+                    Inc(n);
+                  end;
+                else Exit;
+              end;
+              scan:=tai(scan.Previous);
+            end;
+        end;
+
+      function GlobalReference(at: tai; const address: treference; out resolved: treference;
+        out idxdef: tai; out idxreg: TRegister): Boolean;
+        var
+          base, origin: TRegister;
+          definition: tai;
+        begin
+          Result:=False;
+          if assigned(address.relsymbol) or (address.segment<>NR_NO) or (address.volatility<>[]) or
+             (address.refaddr<>addr_no) or (address.offset<-$3fffffff) or (address.offset>$3fffffff) then Exit;
+          resolved:=address;
+          if not assigned(resolved.symbol) then
+            begin
+              base:=address.base;
+              if ((base=NR_NO) or (base=NR_RIP)) or SuperRegistersEqual(base,NR_STACK_POINTER_REG) then Exit;
+              origin:=base;
+              definition:=RegisterDefinition(at,origin);
+              if not assigned(definition) or not MatchInstruction(definition,A_LEA,[S_Q]) or
+                 not MatchOpType(taicpu(definition),top_ref,top_reg) then Exit;
+              resolved:=taicpu(definition).oper[0]^.ref^;
+              if (resolved.base<>NR_RIP) or (resolved.index<>NR_NO) or not assigned(resolved.symbol) or
+                 assigned(resolved.relsymbol) or (resolved.segment<>NR_NO) or (resolved.volatility<>[]) or
+                 not(resolved.refaddr in [addr_no,addr_pic_no_got]) or
+                 (resolved.offset<-$3fffffff) or (resolved.offset>$3fffffff) then Exit;
+              Inc(resolved.offset,address.offset);
+            end
+          else if (address.base<>NR_NO) and (address.base<>NR_RIP) then Exit;
+          resolved.base:=NR_NO;
+          resolved.index:=NR_NO;
+          resolved.scalefactor:=address.scalefactor;
+          idxreg:=address.index;
+          idxdef:=nil;
+          if idxreg<>NR_NO then
+            begin
+              idxdef:=RegisterDefinition(at,idxreg);
+              if not assigned(idxdef) then Exit;
+            end;
+          Result:=True;
+        end;
+
+      function SameReference(ins: taicpu; const address: treference): Boolean;
+        var
+          other: treference;
+          definition: tai;
+          reg: TRegister;
+        begin
+          Result:=not addresschanged and RefsEqual(address,ref^);
+          if not Result and globaladdress and GlobalReference(ins,address,other,definition,reg) then
+            Result:=(definition=indexdef) and (reg=indexreg) and RefsEqual(other,globalref);
+        end;
+{$endif x86_64}
+
+      function ReadsOnly(ins: taicpu): Boolean;
+        var
+          i: longint;
+        begin
+          Result:=False;
+          case ins.opcode of
+            A_Jcc:
+              Exit(True);
+            A_MOV,A_MOVZX,A_MOVSX,
+{$ifdef x86_64}
+            A_MOVSXD,
+{$endif x86_64}
+            A_LEA,A_ADD,A_SUB,A_ADC,A_SBB,A_AND,A_OR,A_XOR,A_NOT,A_NEG,A_INC,A_DEC,
+            A_SHL,A_SHR,A_SAR,A_CMP,A_TEST,A_SETcc,A_CMOVcc:
+              ;
+            A_IMUL:
+              if ins.ops=1 then
+                Exit;
+            else
+              Exit;
+          end;
+          { a memory destination is a store; cmp and test write no operand }
+          if (ins.opcode<>A_CMP) and (ins.opcode<>A_TEST) and (ins.ops>0) and
+             (ins.oper[ins.ops-1]^.typ=top_ref) then
+            Exit;
+          { A volatile view is a barrier, including reads of other memory. }
+          for i:=0 to ins.ops-1 do
+            If (ins.oper[i]^.typ=top_ref) and (ins.oper[i]^.ref^.volatility<>[]) then
+              Exit;
+          Result:=True;
+        end;
+
+      { the operand of ins that reads the memory of p, or -1 }
+      function ReadOfRef(ins: taicpu): longint;
+        begin
+          Result:=-1;
+          if (ins.ops<>2) or (ins.opsize<>taicpu(p).opsize) then
+            Exit;
+          case ins.opcode of
+            A_MOV,A_ADD,A_SUB,A_ADC,A_SBB,A_AND,A_OR,A_XOR,A_IMUL:
+              if (ins.oper[0]^.typ=top_ref) and (ins.oper[1]^.typ=top_reg) and
+{$ifdef x86_64}
+                 SameReference(ins,ins.oper[0]^.ref^) then
+{$else}
+                 RefsEqual(ins.oper[0]^.ref^,ref^) then
+{$endif}
+                Result:=0;
+            A_CMP,A_TEST:
+              if (ins.oper[0]^.typ=top_ref) and (ins.oper[1]^.typ in [top_reg,top_const]) and
+{$ifdef x86_64}
+                 SameReference(ins,ins.oper[0]^.ref^) then
+{$else}
+                 RefsEqual(ins.oper[0]^.ref^,ref^) then
+{$endif}
+                Result:=0
+              else if (ins.oper[1]^.typ=top_ref) and (ins.oper[0]^.typ in [top_reg,top_const]) and
+{$ifdef x86_64}
+                 SameReference(ins,ins.oper[1]^.ref^) then
+{$else}
+                 RefsEqual(ins.oper[1]^.ref^,ref^) then
+{$endif}
+                Result:=1;
+            else
+              ;
+          end;
+        end;
+
+      begin
+        Result:=False;
+        if taicpu(p).ops<>2 then
+          Exit;
+        if not(taicpu(p).opsize in [S_L{$ifdef x86_64},S_Q{$endif x86_64}]) then
+          Exit;
+        loaded:=MatchOpType(taicpu(p),top_ref,top_reg);
+        if MatchOpType(taicpu(p),top_reg,top_ref) then
+          begin
+            reg1:=taicpu(p).oper[0]^.reg;
+            ref:=taicpu(p).oper[1]^.ref;
+          end
+        else if loaded then
+          begin
+            reg1:=taicpu(p).oper[1]^.reg;
+            ref:=taicpu(p).oper[0]^.ref;
+            { mov (%reg1),%reg1: the address is gone }
+            if RegInRef(reg1,ref^) then
+              Exit;
+          end
+        else
+          Exit;
+        if (getregtype(reg1)<>R_INTREGISTER) or (ref^.volatility<>[]) or
+           (ref^.segment<>NR_NO) or
+           SuperRegistersEqual(reg1,NR_STACK_POINTER_REG) then
+          Exit;
+        hp:=p;
+        count:=0;
+{$ifdef x86_64}
+        globaladdress:=GlobalReference(p,ref^,globalref,indexdef,indexreg);
+        addresschanged:=False;
+{$endif}
+        while (count<MaxScan) and GetNextInstruction(hp,hp) and
+          (hp.typ=ait_instruction) do
+          begin
+            if count>0 then
+              begin
+                refidx:=ReadOfRef(taicpu(hp));
+                if refidx>=0 then
+                  begin
+                    if (taicpu(hp).opcode=A_MOV) and GetNextInstruction(hp,hp2) and
+                       MatchInstruction(hp2,A_MOV,[taicpu(hp).opsize]) and
+                       MatchOpType(taicpu(hp2),top_reg,top_ref) and
+                       (taicpu(hp2).oper[0]^.reg=taicpu(hp).oper[1]^.reg) and
+                       RefsEqual(taicpu(hp2).oper[1]^.ref^,ref^) then
+                      Exit;
+                    if loaded then
+                      begin
+                        TransferUsedRegs(TmpUsedRegs);
+                        UpdateUsedRegsBetween(TmpUsedRegs,tai(p.Next),hp);
+                        if not RegUsedAfterInstruction(reg1,hp,TmpUsedRegs) then
+                          Exit;
+                      end;
+                    DebugMsg(SPeepholeOptimization+'the value of the memory is in '+
+                      debug_regname(reg1)+' (MovFwd2Reg)',hp);
+                    AllocRegBetween(reg1,p,hp,UsedRegs);
+                    taicpu(hp).loadreg(refidx,reg1);
+                    if taicpu(hp).opcode=A_MOV then
+                      taicpu(hp).forwarded_memory_load:=True;
+                    Result:=True;
+                    Exit;
+                  end;
+              end;
+            if not ReadsOnly(taicpu(hp)) or RegModifiedByInstruction(reg1,hp) then
+              Exit;
+            if ((ref^.base<>NR_NO) and
+{$ifdef x86_64}
+                (ref^.base<>NR_RIP) and
+{$endif x86_64}
+                RegModifiedByInstruction(ref^.base,hp)) or
+               ((ref^.index<>NR_NO) and RegModifiedByInstruction(ref^.index,hp)) then
+              begin
+{$ifdef x86_64}
+                if not globaladdress then Exit;
+                addresschanged:=True;
+{$else}
+                Exit;
+{$endif}
+              end;
+            Inc(count);
+          end;
+      end;
+
+
 {$ifdef x86_64}
     function TX86AsmOptimizer.ReuseSymbolAddress(const p: tai): Boolean;
       var
@@ -4109,6 +4411,29 @@ unit aoptx86;
             DebugMsg(SPeepholeOptimization + 'Mov2Nop 1 done',p);
             { take care of the register (de)allocs following p }
             RemoveCurrentP(p);
+            Result := True;
+            exit;
+          end;
+
+{$ifdef x86_64}
+        { the address of a symbol as a value }
+        if (taicpu(p).oper[0]^.typ=top_ref) and
+           (taicpu(p).oper[0]^.ref^.refaddr=addr_full) and
+           TrySymbolAddressToOperands(p) then
+          exit(true);
+{$endif x86_64}
+
+{$ifdef x86_64}
+        { A known zero upper half makes this a full-register copy. Reuse the
+          existing propagation and lifetime checks; a later write alone does
+          not establish this equality at the MOV. }
+        if (cs_opt_level3 in current_settings.optimizerswitches) and
+          MatchOpType(taicpu(p),top_reg,top_reg) and (taicpu(p).opsize=S_L) and
+          Upper32ZeroBefore(p,taicpu(p).oper[0]^.reg) and DoZeroUpper32Opt(p,p) then
+          Exit(True);
+{$endif x86_64}
+        if ForwardMemoryValue(p) then
+          begin
             Result := True;
             exit;
           end;
@@ -7079,7 +7404,7 @@ unit aoptx86;
 
     function TX86AsmOptimizer.OptPass1Test(var p: tai) : boolean;
       var
-        hp1, p_label, p_dist, hp1_dist, hp1_last: tai;
+        hp1, hp2, hp3, p_label, p_dist, hp1_dist, hp1_last: tai;
         JumpLabel, JumpLabel_dist: TAsmLabel;
         FirstValue, SecondValue: TCGInt;
 
@@ -7200,6 +7525,49 @@ unit aoptx86;
                 JumpLabel := TAsmLabel(taicpu(hp1).oper[0]^.ref^.symbol);
                 if Assigned(JumpLabel) then
                   p_label := getlabelwithsym(JumpLabel);
+              end;
+
+            { Search for:
+                test  ###,###
+                j(c)  @lbl
+                test  ###,### (the same; or cmp $0,%reg after test %reg,%reg)
+                (anything but a conditional jump reads the flags)
+
+              The conditional jump changes neither the flags nor the
+              operands: remove the second TEST, as CMP/Jcc/CMP does for a
+              CMP.  A conditional jump behind the second TEST is left to the
+              search below, which can remove that jump as well. }
+            if GetNextInstruction(hp1, hp2) and
+              (hp2.typ = ait_instruction) and
+              (taicpu(hp2).opsize = taicpu(p).opsize) and
+              (
+                (
+                  (taicpu(hp2).opcode = A_TEST) and
+                  MatchOperand(taicpu(hp2).oper[0]^, taicpu(p).oper[0]^) and
+                  MatchOperand(taicpu(hp2).oper[1]^, taicpu(p).oper[1]^)
+                ) or (
+                  (taicpu(hp2).opcode = A_CMP) and
+                  (taicpu(p).oper[1]^.typ = top_reg) and
+                  MatchOperand(taicpu(p).oper[0]^, taicpu(p).oper[1]^.reg) and
+                  MatchOperand(taicpu(hp2).oper[0]^, 0) and
+                  MatchOperand(taicpu(hp2).oper[1]^, taicpu(p).oper[1]^.reg)
+                )
+              ) and
+              not (
+                (taicpu(p).oper[1]^.typ = top_ref) and
+                (taicpu(p).oper[1]^.ref^.volatility <> [])
+              ) and
+              not (
+                GetNextInstruction(hp2, hp3) and
+                MatchInstruction(hp3, A_Jcc, [])
+              ) then
+              begin
+                DebugMsg(SPeepholeOptimization + 'TEST/Jcc/TEST; removed superfluous TEST', hp2);
+                TransferUsedRegs(TmpUsedRegs);
+                AllocRegBetween(NR_DEFAULTFLAGS, p, hp2, TmpUsedRegs);
+                RemoveInstruction(hp2);
+                Result := True;
+                Exit;
               end;
           end;
 
@@ -7699,6 +8067,197 @@ unit aoptx86;
       end;
 
 
+{$ifdef x86_64}
+    { lea sym+c(%rip),%reg                  mov sym+c+d1(%rip),%x
+      mov d1(%reg),%x                  ->   add %y,sym+c+d2(%rip)
+      add %y,d2(%reg)
+      (%reg free behind)
+
+      and the same with "mov $sym+c,%reg" in front, the address where the
+      code does not have to be independent of its position: the operands
+      are "sym+c+d" then.
+
+      An operand which names the data of a symbol needs no register, and
+      the register which held the address is free.  Every appearance of
+      %reg up to the place where it is free is the base of a memory operand
+      without index and symbol; no jump, call or label stands in between.
+      The operands get longer by the bytes of the address; where they would
+      get longer by more than the instruction which loaded the address had,
+      the register stays. }
+    function TX86AsmOptimizer.TrySymbolAddressToOperands(var p : tai) : boolean;
+      const
+        MaxOperands = 8;
+        MaxDistance = 24;
+      var
+        hp : tai;
+        reg : TRegister;
+        source : TReference;
+        found : array[0..MaxOperands-1] of record
+          instr : taicpu;
+          idx : longint;
+        end;
+        count,distance,i,refidx,grow,room,addressbytes : longint;
+        relative : boolean;
+
+      { an appearance no operand shows }
+      function Implicit(instr : taicpu) : boolean;
+        var
+          i : longint;
+          shown : boolean;
+        begin
+          shown:=false;
+          for i:=0 to instr.ops-1 do
+            if RegInOp(reg,instr.oper[i]^) then
+              shown:=true;
+          result:=not shown or
+            (Ch_All in insprop[instr.opcode].Ch) or
+            (instr.opcode in [A_MUL,A_DIV,A_IDIV,A_CALL]) or
+            ((instr.opcode=A_IMUL) and (instr.ops=1));
+          if result then
+            exit;
+          case getsupreg(reg) of
+            RS_EAX:
+              result:=([Ch_REAX,Ch_RRAX,Ch_WEAX,Ch_WRAX,Ch_RWEAX,Ch_RWRAX,Ch_MEAX,Ch_MRAX]*insprop[instr.opcode].Ch)<>[];
+            RS_ECX:
+              result:=([Ch_RECX,Ch_RRCX,Ch_WECX,Ch_WRCX,Ch_RWECX,Ch_RWRCX,Ch_MECX,Ch_MRCX]*insprop[instr.opcode].Ch)<>[];
+            RS_EDX:
+              result:=([Ch_REDX,Ch_RRDX,Ch_WEDX,Ch_WRDX,Ch_RWEDX,Ch_RWRDX,Ch_MEDX,Ch_MRDX]*insprop[instr.opcode].Ch)<>[];
+            RS_EBX:
+              result:=([Ch_REBX,Ch_RRBX,Ch_WEBX,Ch_WRBX,Ch_RWEBX,Ch_RWRBX,Ch_MEBX,Ch_MRBX]*insprop[instr.opcode].Ch)<>[];
+            RS_ESI:
+              result:=([Ch_RESI,Ch_RRSI,Ch_WESI,Ch_WRSI,Ch_RWESI,Ch_RWRSI,Ch_MESI,Ch_MRSI,Ch_RMemEDI]*insprop[instr.opcode].Ch)<>[];
+            RS_EDI:
+              result:=([Ch_REDI,Ch_RRDI,Ch_WEDI,Ch_WRDI,Ch_RWEDI,Ch_RWRDI,Ch_MEDI,Ch_MRDI,Ch_WMemEDI]*insprop[instr.opcode].Ch)<>[];
+            else
+              ;
+          end;
+        end;
+
+      begin
+        result:=false;
+        if (taicpu(p).opsize<>S_Q) or
+           (taicpu(p).ops<>2) or
+           (taicpu(p).oper[0]^.typ<>top_ref) or
+           (taicpu(p).oper[1]^.typ<>top_reg) then
+          exit;
+        source:=taicpu(p).oper[0]^.ref^;
+        if (source.index<>NR_NO) or
+           not assigned(source.symbol) or assigned(source.relsymbol) or
+           (source.segment<>NR_NO) or (source.volatility<>[]) or
+           (source.offset<-$3fffffff) or (source.offset>$3fffffff) then
+          exit;
+        case taicpu(p).opcode of
+          A_LEA:
+            begin
+              if (source.base<>NR_RIP) or
+                 not(source.refaddr in [addr_no,addr_pic_no_got]) then
+                exit;
+              relative:=true;
+              { REX, the opcode, ModRM and four bytes of displacement; an
+                operand relative to the instruction pointer has ModRM and the
+                four bytes }
+              room:=7;
+              addressbytes:=4;
+            end;
+          A_MOV:
+            begin
+              if (source.base<>NR_NO) or
+                 (source.refaddr<>addr_full) or
+                 (cs_create_pic in current_settings.moduleswitches) then
+                exit;
+              relative:=false;
+              { REX, the opcode and eight bytes of the address; an operand
+                with the address in it has ModRM, SIB and four bytes }
+              room:=10;
+              addressbytes:=5;
+            end;
+          else
+            exit;
+        end;
+        reg:=taicpu(p).oper[1]^.reg;
+        if (getsupreg(reg) in [RS_ESP,RS_EBP]) or
+           (reg=current_procinfo.framepointer) then
+          exit;
+        count:=0;
+        grow:=0;
+        distance:=0;
+        hp:=p;
+        while true do
+          begin
+            if not GetNextInstruction(hp,hp) or
+               (hp.typ<>ait_instruction) then
+              exit;
+            inc(distance);
+            if (distance>MaxDistance) or
+               is_calljmp(taicpu(hp).opcode) then
+              exit;
+            if RegInInstruction(reg,hp) then
+              begin
+                if Implicit(taicpu(hp)) then
+                  exit;
+                refidx:=-1;
+                for i:=0 to taicpu(hp).ops-1 do
+                  case taicpu(hp).oper[i]^.typ of
+                    top_reg:
+                      if SuperRegistersEqual(reg,taicpu(hp).oper[i]^.reg) then
+                        exit;
+                    top_ref:
+                      if RegInRef(reg,taicpu(hp).oper[i]^.ref^) then
+                        with taicpu(hp).oper[i]^.ref^ do
+                          begin
+                            if (refidx<>-1) or
+                               (base<>reg) or (index=reg) or (relative and (index<>NR_NO)) or
+                               assigned(symbol) or assigned(relsymbol) or
+                               (segment<>NR_NO) or (refaddr<>addr_no) or
+                               (volatility<>[]) or
+                               (offset<-$3fffffff) or (offset>$3fffffff) then
+                              exit;
+                            refidx:=i;
+                          end;
+                    else
+                      ;
+                  end;
+                if (refidx=-1) or (count=MaxOperands) then
+                  exit;
+                found[count].instr:=taicpu(hp);
+                found[count].idx:=refidx;
+                inc(count);
+                with taicpu(hp).oper[refidx]^.ref^ do
+                  if (offset=0) and not(getsupreg(reg) in [RS_EBP,RS_R13]) then
+                    inc(grow,addressbytes-ord(index<>NR_NO))
+                  else if (offset>=-128) and (offset<=127) then
+                    inc(grow,addressbytes-ord(index<>NR_NO)-1)
+                  else
+                    inc(grow,addressbytes-ord(index<>NR_NO)-4);
+                TransferUsedRegs(TmpUsedRegs);
+                UpdateUsedRegsBetween(TmpUsedRegs,tai(p.Next),hp);
+                if not RegUsedAfterInstruction(reg,hp,TmpUsedRegs) then
+                  break;
+              end;
+          end;
+        if (count=0) or (grow>room) then
+          exit;
+        for i:=0 to count-1 do
+          with found[i].instr.oper[found[i].idx]^.ref^ do
+            begin
+              if relative then
+                begin
+                  base:=NR_RIP;
+                  refaddr:=source.refaddr;
+                end
+              else
+                base:=NR_NO;
+              symbol:=source.symbol;
+              inc(offset,source.offset);
+              symbol.increfs;
+            end;
+        DebugMsg(SPeepholeOptimization + 'SymOps2Ops done',p);
+        RemoveCurrentP(p);
+        result:=true;
+      end;
+{$endif x86_64}
+
+
     function TX86AsmOptimizer.OptPass1LEA(var p : tai) : boolean;
       var
         hp1, hp2: tai;
@@ -7716,6 +8275,13 @@ unit aoptx86;
           this is most likely an error somewhere else }
         if taicpu(p).oper[0]^.ref^.Segment<>NR_NO then
           internalerror(2022022001);
+
+{$ifdef x86_64}
+        if ReuseSymbolAddress(p) then
+          exit(true);
+        if TrySymbolAddressToOperands(p) then
+          exit(true);
+{$endif x86_64}
 
         { changes "lea (%reg1), %reg2" into "mov %reg1, %reg2" }
         if (taicpu(p).oper[0]^.ref^.base <> NR_NO) and
@@ -7866,9 +8432,12 @@ unit aoptx86;
                               taicpu(hp1).oper[ref]^.ref^.index:=taicpu(p).oper[0]^.ref^.index;
                             if taicpu(p).oper[0]^.ref^.symbol<>nil then
                               begin
-                                taicpu(hp1).oper[ref]^.ref^.index:=taicpu(p).oper[0]^.ref^.index;
-                                if taicpu(p).oper[0]^.ref^.index<>taicpu(p).oper[0]^.ref^.base then
-                                  AllocRegBetween(taicpu(p).oper[0]^.ref^.index,p,hp1,UsedRegs);
+                                taicpu(hp1).oper[ref]^.ref^.symbol:=taicpu(p).oper[0]^.ref^.symbol;
+                                { the operand names the data of the symbol now,
+                                  as an operand the code generator writes
+                                  itself: the kind of the reference goes
+                                  with the symbol }
+                                taicpu(hp1).oper[ref]^.ref^.refaddr:=taicpu(p).oper[0]^.ref^.refaddr;
                               end;
                             if taicpu(p).oper[0]^.ref^.relsymbol<>nil then
                               taicpu(hp1).oper[ref]^.ref^.relsymbol:=taicpu(p).oper[0]^.ref^.relsymbol;
@@ -9891,6 +10460,110 @@ unit aoptx86;
        end;
 
 
+    function TX86AsmOptimizer.RemoveRedundantCmpJump(const p: tai): Boolean;
+      { The fallthrough of CMP/Jcc proves that the branch condition is false.
+        Follow unchanged register values through local joins, independently of
+        any intervening FLAGS writers. Bound this local proof, not generated code. }
+      const
+        MaxDistance = 24;
+        MaxLabels = 8;
+      var
+        FirstJump, Scan, Next: tai;
+        Branches: record
+          Symbols: array[0..MaxLabels-1] of TAsmSymbol;
+          Refs: array[0..MaxLabels-1] of LongInt;
+          Count: Integer;
+        end;
+        I, J, Distance: Integer;
+        Symbol: TAsmSymbol;
+
+      function NextInRegion(Current: tai; out Following: tai): Boolean;
+        begin
+          { GetNextInstruction skips opaque blocks. Their writes must stop this proof. }
+          Following:=tai(Current.Next);
+          while Assigned(Following) and
+            (Following.typ in [ait_comment,ait_regalloc,ait_tempalloc,ait_varloc,ait_force_line,ait_align,ait_stab]) do
+            Following:=tai(Following.Next);
+          Result:=Assigned(Following);
+        end;
+      begin
+        Result:=False;
+        if (taicpu(p).ops<>2) or
+          not (taicpu(p).oper[0]^.typ in [top_reg,top_const]) or
+          (taicpu(p).oper[1]^.typ<>top_reg) or
+          (getregtype(taicpu(p).oper[1]^.reg)<>R_INTREGISTER) or
+          ((taicpu(p).oper[0]^.typ=top_reg) and
+           (getregtype(taicpu(p).oper[0]^.reg)<>R_INTREGISTER)) or
+          not NextInRegion(p,FirstJump) or
+          not MatchInstruction(FirstJump,A_Jcc,[]) or
+          not IsJumpToLabel(taicpu(FirstJump)) or
+          (JumpTargetOp(taicpu(FirstJump))^.ref^.offset<>0) or
+          (taicpu(FirstJump).condition=C_None) then
+          Exit;
+        { Count initializes the table; only entries below Count are read. }
+        Branches.Count:=0;
+        Distance:=0;
+        Scan:=FirstJump;
+        while (Distance<MaxDistance) and NextInRegion(Scan,Scan) do
+          begin
+            Inc(Distance);
+            case Scan.typ of
+              ait_label:
+                begin
+                  Symbol:=tai_label(Scan).labsym;
+                  if (Symbol.bind<>AB_LOCAL) or (tai_label(Scan).labsym.labeltype<>alt_jump) or
+                    tai_label(Scan).labsym.is_public then Exit;
+                  if not Symbol.is_used then Continue;
+                  { Every reference must come from an already visited branch.
+                    In particular, the first taken edge is never admitted. }
+                  I:=0;
+                  while (I<Branches.Count) and (Branches.Symbols[I]<>Symbol) do Inc(I);
+                  if (I=Branches.Count) or (Branches.Refs[I]<>Symbol.getrefs) then Exit;
+                end;
+              ait_instruction:
+                begin
+                  if taicpu(Scan).opcode=A_Jcc then
+                    begin
+                      if not IsJumpToLabel(taicpu(Scan)) or (JumpTargetOp(taicpu(Scan))^.ref^.offset<>0) then Exit;
+                      Symbol:=JumpTargetOp(taicpu(Scan))^.ref^.symbol;
+                      I:=0;
+                      while (I<Branches.Count) and (Branches.Symbols[I]<>Symbol) do Inc(I);
+                      if I=Branches.Count then
+                        begin
+                          if Branches.Count=MaxLabels then Exit;
+                          Branches.Symbols[I]:=Symbol;
+                          Branches.Refs[I]:=0;
+                          Inc(Branches.Count);
+                        end;
+                      Inc(Branches.Refs[I]);
+                      Continue;
+                    end;
+                  if is_calljmp(taicpu(Scan).opcode) or (taicpu(Scan).opcode=A_RET) or
+                    (Ch_All in insprop[taicpu(Scan).opcode].Ch) then Exit;
+                  if MatchInstruction(Scan,A_CMP,[taicpu(p).opsize]) and
+                    MatchOperand(taicpu(Scan).oper[0]^,taicpu(p).oper[0]^) and
+                    MatchOperand(taicpu(Scan).oper[1]^,taicpu(p).oper[1]^) and
+                    NextInRegion(Scan,Next) and MatchInstruction(Next,A_Jcc,[]) and
+                    IsJumpToLabel(taicpu(Next)) and
+                    (taicpu(Next).condition<>C_None) and
+                    condition_in(taicpu(Next).condition,taicpu(FirstJump).condition) then
+                    begin
+                      { The original branch was not taken. The operands still
+                        hold the same values on every incoming path here.
+                        Keep CMP: its flags may have other consumers. }
+                      JumpTargetOp(taicpu(Next))^.ref^.symbol.decrefs;
+                      RemoveInstruction(Next);
+                      Exit(True);
+                    end;
+                  for J:=0 to 1 do
+                    if (taicpu(p).oper[J]^.typ=top_reg) and
+                      RegModifiedByInstruction(taicpu(p).oper[J]^.reg,Scan) then Exit;
+                end;
+              else Exit;
+            end;
+          end;
+      end;
+
      function TX86AsmOptimizer.OptPass1Cmp(var p: tai): boolean;
        var
          v: TCGInt;
@@ -9900,6 +10573,9 @@ unit aoptx86;
          JumpLabel, JumpLabel_dist, JumpLabel_far: TAsmLabel;
        begin
          Result:=false;
+
+         if (cs_opt_level3 in current_settings.optimizerswitches) and
+           RemoveRedundantCmpJump(p) then Exit(True);
 
          { All these optimisations need a next instruction }
          if not GetNextInstruction(p, hp1) then
@@ -14158,7 +14834,7 @@ unit aoptx86;
     function TX86AsmOptimizer.OptPass2SETcc(var p: tai): boolean;
       var
         hp1,hp2,next: tai; SetC, JumpC: TAsmCond;
-        Unconditional, PotentialModified: Boolean;
+        Unconditional, PotentialModified, CompareOne: Boolean;
         OperPtr: POper;
 
         NewRef: TReference;
@@ -14171,15 +14847,44 @@ unit aoptx86;
 {$else DEBUG_AOPTCPU}
         SNoFlags = '';
 {$endif DEBUG_AOPTCPU}
+
+      function flags_deallocated_after(consumer: tai): boolean;
+        var
+          scan: tai;
+        begin
+          result:=Assigned(FindRegDealloc(NR_DEFAULTFLAGS,tai(consumer.next)));
+          if result or (taicpu(consumer).opcode<>A_SETcc) then
+            exit;
+          { SETcc has one successor.  Follow only flag-neutral instructions
+            to the explicit release; never infer death from a later writer. }
+          scan:=tai(consumer.next);
+          repeat
+            while Assigned(scan) and (scan.typ in SkipInstr) do
+              scan:=tai(scan.next);
+            if not Assigned(scan) or (scan.typ<>ait_instruction) or
+               is_calljmp(taicpu(scan).opcode) or (taicpu(scan).opcode=A_RET) or
+               RegReadByInstruction(NR_DEFAULTFLAGS,scan) or
+               RegModifiedByInstruction(NR_DEFAULTFLAGS,scan) then
+              exit;
+            scan:=tai(scan.next);
+            if Assigned(FindRegDealloc(NR_DEFAULTFLAGS,scan)) then
+              exit(true);
+          until false;
+        end;
+
       begin
         Result:=false;
 
         if MatchOpType(taicpu(p),top_reg) and GetNextInstructionUsingReg(p, hp1, taicpu(p).oper[0]^.reg) then
           begin
-            if MatchInstruction(hp1, A_TEST, [S_B]) and
+            CompareOne:=MatchInstruction(hp1, A_CMP, [S_B]) and
+              MatchOpType(taicpu(hp1),top_const,top_reg) and
+              (taicpu(hp1).oper[0]^.val=1) and
+              (taicpu(p).oper[0]^.reg=taicpu(hp1).oper[1]^.reg);
+            if (CompareOne or (MatchInstruction(hp1, A_TEST, [S_B]) and
               MatchOpType(taicpu(hp1),top_reg,top_reg) and
               (taicpu(hp1).oper[0]^.reg = taicpu(hp1).oper[1]^.reg) and
-              (taicpu(p).oper[0]^.reg = taicpu(hp1).oper[1]^.reg) and
+              (taicpu(p).oper[0]^.reg = taicpu(hp1).oper[1]^.reg))) and
               GetNextInstruction(hp1, hp2) and
               MatchInstruction(hp2, A_Jcc, A_SETcc, []) then
               { Change from:             To:
@@ -14196,6 +14901,20 @@ unit aoptx86;
                 (Also do something similar with sete/setne instead of je/jne)
               }
               begin
+                { SETcc produces exactly 0 or 1.  Equality with 1 asks the
+                  opposite question to TEST.  Other CMP predicates stay. }
+                if CompareOne and not(conditions_equal(taicpu(hp2).condition,C_E) or
+                                      conditions_equal(taicpu(hp2).condition,C_NE)) then
+                  exit;
+                TransferUsedRegs(TmpUsedRegs);
+                UpdateUsedRegsBetween(TmpUsedRegs,tai(p.next),hp2);
+                UpdateUsedRegs(TmpUsedRegs,tai(hp2.next));
+                { Neither TEST nor CMP flags may survive this consumer,
+                  including on a taken branch.  A release followed by an
+                  allocation belongs to a new flags lifetime. }
+                if TmpUsedRegs[getregtype(NR_DEFAULTFLAGS)].IsUsed(NR_DEFAULTFLAGS) and
+                   not flags_deallocated_after(hp2) then
+                  exit;
                 { Before we do anything else, we need to check the instructions
                   in between SETcc and TEST to make sure they don't modify the
                   FLAGS register - if -O2 or under, there won't be any
@@ -14218,6 +14937,11 @@ unit aoptx86;
                         if next.typ <> ait_instruction then
                           { GetNextInstructionUsingReg should have returned False }
                           InternalError(2021051701);
+
+                        { A later reader needs the intermediate flags, not the
+                          flags that reached the original SETcc. }
+                        if PotentialModified and RegReadByInstruction(NR_DEFAULTFLAGS,next) then
+                          Exit;
 
                         if RegModifiedByInstruction(NR_DEFAULTFLAGS, next) then
                           begin
@@ -14265,10 +14989,10 @@ unit aoptx86;
                                 end;
                               A_IMUL:
                                 begin
-                                  if (taicpu(next).ops <> 3) or
-                                    (taicpu(next).oper[1]^.typ <> top_reg) or
-                                    { Must write to a register }
-                                    (taicpu(next).oper[2]^.val in [2,3,4,5,8,9]) then
+                                  if not MatchOpType(taicpu(next),top_const,top_reg,top_reg) or
+                                    not(taicpu(next).opsize in [S_L{$ifdef x86_64},S_Q{$endif x86_64}]) or
+                                    (getsupreg(taicpu(next).oper[1]^.reg)=RS_ESP) or
+                                    not(taicpu(next).oper[0]^.val in [2,3,4,5,8,9]) then
                                     { We can convert "imul x,%reg1,%reg2" (where x = 2, 4 or 8)
                                       to "lea (%reg1,x),%reg2".  If x = 3, 5  or 9, we can
                                       change this to "lea (%reg1,%reg1,(x-1)),%reg2" }
@@ -14356,6 +15080,9 @@ unit aoptx86;
                                 end;
 
                                 InstrList[Index].loadref(0, NewRef);
+                                InstrList[Index].loadreg(1, InstrList[Index].oper[2]^.reg);
+                                InstrList[Index].clearop(2);
+                                InstrList[Index].ops := 2;
                               end;
                             else
                               InternalError(2021051710);
@@ -14370,6 +15097,8 @@ unit aoptx86;
                 UpdateUsedRegs(TmpUsedRegs, tai(hp1.next));
 
                 JumpC := taicpu(hp2).condition;
+                if CompareOne then
+                  JumpC:=inverse_cond(JumpC);
                 Unconditional := False;
 
                 if conditions_equal(JumpC, C_E) then

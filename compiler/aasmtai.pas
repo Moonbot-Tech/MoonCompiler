@@ -942,6 +942,7 @@ interface
              none: the moves of one assignment of a record or a set have no
              order among themselves, the moves of two statements have }
            blockcopy : word;
+           forwarded_memory_load : boolean;
            Constructor Create(op : tasmop);virtual;
            Destructor Destroy;override;
            function getcopy:TLinkedListItem;override;

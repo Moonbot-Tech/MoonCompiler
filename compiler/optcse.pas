@@ -65,7 +65,7 @@ unit optcse;
         derefn,equaln,unequaln,ltn,gtn,lten,gten,typeconvn,subscriptn,
         inn,symdifn,shrn,shln,ordconstn,realconstn,unaryminusn,pointerconstn,stringconstn,setconstn,niln,
         setelementn,{arrayconstructorn,arrayconstructorrangen,}
-        isn,asn,starstarn,nothingn,temprefn,loadparentfpn {,callparan},addrn];
+        isn,asn,starstarn,nothingn,temprefn,loadparentfpn {,callparan},assignn,addrn];
 
     function searchsubdomain(var n:tnode; arg: pointer) : foreachnoderesult;
       begin
@@ -104,6 +104,44 @@ unit optcse;
       end;
 
       plists = ^tlists;
+
+    { The pointer to a frame as a common subexpression is a temp which holds
+      a copy of it.
+
+      The frame of the routine itself is its frame pointer: the copy is a
+      register for nothing.
+
+      The frame of the routine around comes in a parameter, a register
+      variable as any other one; the copy is worth its register where the
+      parameter lives in memory, and the peephole optimizer takes the copy of
+      a register back where the statement is straight code.  A statement with
+      overflow or range checks has the calls of the checks inside: between
+      the value and the store into the target of an assignment the copy lives
+      across them, which costs a register the routine has to save.  There the
+      parameter is no candidate while it is expected in a register: a nested
+      routine with exception handling keeps it in its frame
+      (tcgprocinfo.generate_code), the implicit frame of the managed values
+      among them. }
+    function frame_pointer_costs_as_temp(n : tloadparentfpnode) : boolean;
+      var
+        sym : tsym;
+      begin
+        result:=false;
+        if not assigned(n.parentpd) then
+          exit;
+        { as tcgloadparentfpnode.pass_generate_code decides }
+        if current_procinfo.procdef.parast.symtablelevel=n.parentpd.parast.symtablelevel then
+          exit(true);
+        if (current_procinfo.procdef.owner.symtablelevel<>n.parentpd.parast.symtablelevel) or
+           (n.localswitches*[cs_check_overflow,cs_check_range]=[]) or
+           (current_procinfo.flags*[pi_uses_exceptions,pi_needs_implicit_finally]<>[]) then
+          exit;
+        sym:=tsym(current_procinfo.procdef.parast.Find('parentfp'));
+        result:=assigned(sym) and
+          (sym.typ=paravarsym) and
+          tparavarsym(sym).is_regvar(false);
+      end;
+
 
     { collectnodes needs the address of itself to call foreachnodestatic,
       so we need a wrapper because @<func> inside <func doesn't work }
@@ -260,6 +298,8 @@ unit optcse;
               that a certain node stays a setelementn, this does not hurt either because
               setelementn nodes itself generate no real code (except moving data into register) }
             not(n.nodetype in [temprefn,callparan,setelementn]) and
+            not((n.nodetype=loadparentfpn) and
+                frame_pointer_costs_as_temp(tloadparentfpnode(n))) and
 
             { node worth to add?
 

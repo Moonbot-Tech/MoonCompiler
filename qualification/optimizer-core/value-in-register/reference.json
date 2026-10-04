@@ -1,0 +1,78 @@
+{
+  "linux": {
+    "CHECKALL": [
+      16,
+      4
+    ],
+    "CLEANNAME": [
+      39,
+      13
+    ],
+    "CONTAINSMISS": [
+      22,
+      8
+    ],
+    "FLIPSHEET": [
+      15,
+      9
+    ],
+    "KIDAT": [
+      41,
+      13
+    ],
+    "STOREOTHER": [
+      25,
+      5
+    ],
+    "STORERELOAD": [
+      26,
+      5
+    ],
+    "STORETHENADD": [
+      24,
+      4
+    ],
+    "TOBYTE": [
+      39,
+      4
+    ]
+  },
+  "win64": {
+    "CHECKALL": [
+      17,
+      4
+    ],
+    "CLEANNAME": [
+      32,
+      14
+    ],
+    "CONTAINSMISS": [
+      22,
+      7
+    ],
+    "FLIPSHEET": [
+      17,
+      10
+    ],
+    "KIDAT": [
+      41,
+      12
+    ],
+    "STOREOTHER": [
+      31,
+      7
+    ],
+    "STORERELOAD": [
+      33,
+      9
+    ],
+    "STORETHENADD": [
+      34,
+      10
+    ],
+    "TOBYTE": [
+      39,
+      8
+    ]
+  }
+}
