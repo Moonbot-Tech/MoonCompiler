@@ -27,6 +27,9 @@
   fpc_in_x86_get_fs   = fpc_in_cpu_first+12;
   fpc_in_x86_get_gs   = fpc_in_cpu_first+13;
   fpc_in_x86_pause    = fpc_in_cpu_first+14;
+  {$if FPC_FULLVERSION>=30301}
+  fpc_in_x86_swapendian = fpc_in_cpu_first+15;
+  {$endif}
 
   { include automatically generated numbers }
   {$ifndef VER3_2}

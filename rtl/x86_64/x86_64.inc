@@ -2172,13 +2172,37 @@ function SwapEndian(const AValue: Word): Word;{$ifdef SYSTEMINLINE}inline;{$endi
   end;
 
 
+{$if FPC_FULLVERSION>=30301}
+function SwapEndian(const AValue: LongInt): LongInt; inline;
+  begin
+    Result := LongInt(fpc_x86_swapendian(DWord(AValue)));
+  end;
+
+
+function SwapEndian(const AValue: DWord): DWord; inline;
+  begin
+    Result := fpc_x86_swapendian(AValue);
+  end;
+
+
+function SwapEndian(const AValue: Int64): Int64; inline;
+  begin
+    Result := Int64(fpc_x86_swapendian(QWord(AValue)));
+  end;
+
+
+function SwapEndian(const AValue: QWord): QWord; inline;
+  begin
+    Result := fpc_x86_swapendian(AValue);
+  end;
+{$else}
 function SwapEndian(const AValue: LongInt): LongInt; assembler; nostackframe;
 asm
 {$ifdef FPC_ABI_WIN64}
   movl %ecx, %eax
-{$else FPC_ABI_WIN64}
+{$else}
   movl %edi, %eax
-{$endif FPC_ABI_WIN64}
+{$endif}
   bswap %eax
 end;
 
@@ -2187,9 +2211,9 @@ function SwapEndian(const AValue: DWord): DWord; assembler; nostackframe;
 asm
 {$ifdef FPC_ABI_WIN64}
   movl %ecx, %eax
-{$else FPC_ABI_WIN64}
+{$else}
   movl %edi, %eax
-{$endif FPC_ABI_WIN64}
+{$endif}
   bswap %eax
 end;
 
@@ -2198,9 +2222,9 @@ function SwapEndian(const AValue: Int64): Int64; assembler; nostackframe;
 asm
 {$ifdef FPC_ABI_WIN64}
   movq %rcx, %rax
-{$else FPC_ABI_WIN64}
+{$else}
   movq %rdi, %rax
-{$endif FPC_ABI_WIN64}
+{$endif}
   bswap %rax
 end;
 
@@ -2209,11 +2233,12 @@ function SwapEndian(const AValue: QWord): QWord; assembler; nostackframe;
 asm
 {$ifdef FPC_ABI_WIN64}
   movq %rcx, %rax
-{$else FPC_ABI_WIN64}
+{$else}
   movq %rdi, %rax
-{$endif FPC_ABI_WIN64}
+{$endif}
   bswap %rax
 end;
+{$endif}
 
 
 {$ifndef FPC_ABI_WIN64}

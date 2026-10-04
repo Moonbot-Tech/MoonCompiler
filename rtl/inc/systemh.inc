@@ -1074,8 +1074,8 @@ function SwapEndian(const AValue: SmallInt): SmallInt;{$ifdef SYSTEMINLINE}inlin
 function SwapEndian(const AValue: Word): Word;{$ifdef SYSTEMINLINE}inline;{$endif}
 function SwapEndian(const AValue: LongInt): LongInt;{$ifdef SYSTEMINLINE}inline;{$endif}
 function SwapEndian(const AValue: DWord): DWord;{$ifdef SYSTEMINLINE}inline;{$endif}
-function SwapEndian(const AValue: Int64): Int64;
-function SwapEndian(const AValue: QWord): QWord;
+function SwapEndian(const AValue: Int64): Int64;{$if defined(cpux86_64) and (FPC_FULLVERSION>=30301)}inline;{$endif}
+function SwapEndian(const AValue: QWord): QWord;{$if defined(cpux86_64) and (FPC_FULLVERSION>=30301)}inline;{$endif}
 
 function BEtoN(const AValue: SmallInt): SmallInt;{$ifdef SYSTEMINLINE}inline;{$endif}
 function BEtoN(const AValue: Word): Word;{$ifdef SYSTEMINLINE}inline;{$endif}

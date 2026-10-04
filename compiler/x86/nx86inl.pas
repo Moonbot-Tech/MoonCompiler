@@ -156,6 +156,15 @@ implementation
 {$else i8086}
              resultdef:=s32inttype;
 {$endif i8086}
+           in_x86_swapendian:
+             begin
+               CheckParameters(1);
+               set_varstate(left,vs_read,[vsf_must_be_valid]);
+               if not is_integer(left.resultdef) or
+                  not(left.resultdef.size in [4,8]) then
+                 CGMessage1(type_e_integer_expr_expected,left.resultdef.typename);
+               resultdef:=left.resultdef;
+             end;
            { include automatically generated code }
            {$i x86mmtype.inc}
            else
@@ -177,6 +186,8 @@ implementation
            in_x86_get_es,
            in_x86_get_fs,
            in_x86_get_gs:
+             expectloc:=LOC_REGISTER;
+           in_x86_swapendian:
              expectloc:=LOC_REGISTER;
            in_x86_outportb,
            in_x86_outportw,
@@ -446,7 +457,23 @@ implementation
        var
          temp : tnode;
        begin
-         if (current_settings.fputype>=fpu_sse41) and
+         if (inlinenumber=in_x86_swapendian) and
+            (left.nodetype=ordconstn) then
+           begin
+             case left.resultdef.size of
+               4:
+                 result:=cordconstnode.create(
+                   SwapEndian(DWord(tordconstnode(left).value.uvalue)),
+                   resultdef,false);
+               8:
+                 result:=cordconstnode.create(
+                   SwapEndian(QWord(tordconstnode(left).value.uvalue)),
+                   resultdef,false);
+               else
+                 internalerror(2026091101);
+             end;
+           end
+         else if (current_settings.fputype>=fpu_sse41) and
            (inlinenumber=in_int_real) and (left.nodetype=typeconvn) and
            not(nf_explicit in left.flags) and
            (ttypeconvnode(left).left.resultdef.typ=floatdef) and
@@ -632,6 +659,19 @@ implementation
              current_asmdata.CurrAsmList.concat(taicpu.op_none(A_STI));
            in_x86_pause:
              current_asmdata.CurrAsmList.concat(taicpu.op_none(A_PAUSE));
+           in_x86_swapendian:
+             begin
+               secondpass(left);
+               hlcg.location_force_reg(current_asmdata.CurrAsmList,left.location,
+                 left.resultdef,resultdef,false);
+               location_reset(location,LOC_REGISTER,def_cgsize(resultdef));
+               location.register:=hlcg.getintregister(current_asmdata.CurrAsmList,
+                 resultdef);
+               hlcg.a_load_reg_reg(current_asmdata.CurrAsmList,left.resultdef,
+                 resultdef,left.location.register,location.register);
+               emit_reg(A_BSWAP,TCGSize2OpSize[def_cgsize(resultdef)],
+                 location.register);
+             end;
            in_x86_get_cs:
              get_segreg(NR_CS);
            in_x86_get_ss:

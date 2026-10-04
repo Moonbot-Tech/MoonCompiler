@@ -28,3 +28,7 @@ function fpc_x86_get_es:longint;[internproc:fpc_in_x86_get_es];
 function fpc_x86_get_fs:longint;[internproc:fpc_in_x86_get_fs];
 function fpc_x86_get_gs:longint;[internproc:fpc_in_x86_get_gs];
 procedure fpc_x86_pause;[internproc:fpc_in_x86_pause];
+{$if FPC_FULLVERSION>=30301}
+function fpc_x86_swapendian(value : dword) : dword;[internproc:fpc_in_x86_swapendian];
+function fpc_x86_swapendian(value : qword) : qword;[internproc:fpc_in_x86_swapendian];
+{$endif}
