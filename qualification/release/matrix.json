@@ -3031,6 +3031,8 @@
         "win64": [
           "{python}",
           "{root}/qualification/suite/scripts/run_reporting_gate.py",
+          "--jobs",
+          "{job_slots}",
           "--compiler",
           "{pp}",
           "--rtl",
@@ -3044,6 +3046,8 @@
         "linux": [
           "{python}",
           "{root}/qualification/suite/scripts/run_reporting_gate.py",
+          "--jobs",
+          "{job_slots}",
           "--compiler",
           "{pp}",
           "--rtl",
@@ -3061,7 +3065,9 @@
       ],
       "resource": "suite",
       "timeout": 7200,
-      "expected": "REPORTING_GATE_PASS"
+      "expected": "REPORTING_GATE_PASS",
+      "slots": 4,
+      "memory_mb_per_slot": 1024
     },
     {
       "id": "runtime_mormot",

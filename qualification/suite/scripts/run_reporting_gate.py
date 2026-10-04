@@ -5,6 +5,7 @@ The compiler and --rtl must belong to the same freshly rebuilt MoonCompiler.
 The result directory must not exist. Nothing is deleted or rewritten in a checkout.
 """
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
@@ -37,8 +38,11 @@ def main():
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[3])
     parser.add_argument('--results', type=Path, required=True)
     parser.add_argument('--option', action='append', default=[])
+    parser.add_argument('--jobs', type=int, default=1, help='parallel independent correctness cases')
     parser.add_argument('--product-mm', action='store_true', help='use bundled product MM and automatic runtime prefix')
     args = parser.parse_args()
+    if args.jobs < 1:
+        parser.error('--jobs must be positive')
     root = args.root.resolve()
     out = args.results.resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -87,7 +91,7 @@ def main():
                       f'--pinned-unit=mormot.core.fpcx64mm={root / "runtime/mm/mormot.core.fpcx64mm.pas"}']
                      if args.product_mm else ['-dMOONCOMPILER_VANILLA_RUNTIME']), *args.option,
                    *[f'-d{define}' for define in defines], root / 'qualification/suite/tests/smoke' / source]
-        run(command, out, dest / 'compile.log')
+        run(command, dest, dest / 'compile.log')
         return dest / (Path(source).stem + ('.exe' if os.name == 'nt' else ''))
 
     def openssl_command():
@@ -102,7 +106,7 @@ def main():
                     return bundled
         raise RuntimeError('OpenSSL command is required to create the reporting-gate test certificate')
 
-    def delivery_checks(opt):
+    def delivery_checks(opt, rows):
         requests = []
         response_outcomes = []
         both_posts = threading.Barrier(2)
@@ -142,9 +146,9 @@ def main():
 
         executable = compile_source('diagnostic_delivery.pas', out / f'delivery-{opt}', opt,
                                     ['MOON_DIAGNOSTICS_TEST'])
-        attachment = out / 'delivery-attachment.bin'
+        attachment = out / f'delivery-{opt}-attachment.bin'
         attachment.write_bytes(bytes(range(256)) * 4096)
-        random_attachment = out / 'delivery-random.bin'
+        random_attachment = out / f'delivery-{opt}-random.bin'
         random_attachment.write_bytes(os.urandom(1024 * 1024))
         server = ThreadingHTTPServer(('127.0.0.1', 0), Receiver)
         # Reuse the repository's published test key; do not generate credentials.
@@ -255,7 +259,7 @@ def main():
                     assert 'delivery original exception' in stdout
                 else:
                     assert 'DIAGNOSTIC_DELIVERY_PASS' in stdout
-                results.append({'optimization': opt, 'case': f'delivery-{mode}', 'reports': expected})
+                rows.append({'optimization': opt, 'case': f'delivery-{mode}', 'reports': expected})
                 print(f'PASS {opt} delivery-{mode}', flush=True)
         finally:
             server.shutdown()
@@ -265,7 +269,8 @@ def main():
             tls_server.server_close()
             tls_thread.join()
 
-    for opt in ('O-', 'O2', 'O3'):
+    def profile_checks(opt):
+        rows = []
         executable = compile_source('diagnostic_reports.pas', out / opt, opt)
         # Only executable + test attachment enter the deployment directory.
         # There is no adjacent map/debug file, source or PPU to rescue symbol lookup.
@@ -339,7 +344,7 @@ def main():
                 assert f'DIAGNOSTICS_TEST_PASS {mode}' in stdout
             else:
                 assert 'An unhandled exception occurred' in stdout and 'original error' in stdout, (opt, stdout)
-            results.append({'optimization': opt, 'case': mode, 'reports': len(reports), 'seconds': elapsed})
+            rows.append({'optimization': opt, 'case': mode, 'reports': len(reports), 'seconds': elapsed})
             print(f'PASS {opt} {mode}', flush=True)
 
         executable = compile_source('diagnostic_resilience.pas', out / f'resilience-{opt}', opt,
@@ -377,10 +382,10 @@ def main():
                 assert 'resilience original exception' in stdout
             else:
                 assert f'DIAGNOSTIC_RESILIENCE_PASS {mode}' in stdout
-            results.append({'optimization': opt, 'case': f'resilience-{mode}', 'reports': len(reports)})
+            rows.append({'optimization': opt, 'case': f'resilience-{mode}', 'reports': len(reports)})
             print(f'PASS {opt} resilience-{mode}', flush=True)
 
-        delivery_checks(opt)
+        delivery_checks(opt, rows)
 
         executable = compile_source('diagnostic_switches.pas', out / f'switches-{opt}', opt)
         for mode in ('states', 'manual-disabled-worker', 'disabled-worker-fatal', 'disabled-main-fatal'):
@@ -399,8 +404,16 @@ def main():
                     'normal RTL fatal exception lost'
             else:
                 assert 'DIAGNOSTIC_SWITCHES_PASS' in text
-            results.append({'optimization': opt, 'case': f'switches-{mode}', 'reports': len(reports)})
+            rows.append({'optimization': opt, 'case': f'switches-{mode}', 'reports': len(reports)})
             print(f'PASS {opt} switches-{mode}', flush=True)
+
+        return rows
+
+    # Profiles own their executables, reports, attachments and HTTP/TLS receivers.
+    # Keep each profile's stateful checks in their original order.
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        for rows in pool.map(profile_checks, ('O-', 'O2', 'O3')):
+            results.extend(rows)
 
     if os.name != 'nt':
         for opt in ('O-', 'O2', 'O3'):
@@ -446,6 +459,7 @@ def main():
     # 1, and the report tells that exit from the test's own Halt(1).  Only a
     # baseline copy on the vanilla runtime has no SysUtils: runtime error 217.
     unhandled = [root / f'tests/test/cg/traise{i}.pp' for i in range(1, 7)]
+    impact_cases = []
     for active in (False, True):
         source_dir = out / ('impact-active-sources' if active else 'impact-baseline-sources')
         source_dir.mkdir()
@@ -467,16 +481,25 @@ def main():
             generated = source_dir / source.name
             generated.write_text(content, encoding='utf-8')
             for opt in ('O-', 'O2', 'O3'):
-                name = f'impact-{int(active)}-{source.stem}-{opt}'
-                executable = compile_source(generated, out / name, opt)
-                text = run([executable, out / (name + '-reports')], out, out / (name + '.log'), expected)
-                assert marker in text.replace('\r\n', '\n'), (name, text)
-                if active:
-                    assert (out / (name + '-reports')).is_dir(), 'report initialization was not executed'
-                assert not list((out / (name + '-reports')).glob('*.txt')), name
-                results.append({'optimization': opt, 'case': source.stem, 'capture_active': active})
+                impact_cases.append((active, generated, opt, expected, marker))
+
+    def impact_check(case):
+        active, source, opt, expected, marker = case
+        name = f'impact-{int(active)}-{source.stem}-{opt}'
+        executable = compile_source(source, out / name, opt)
+        text = run([executable, out / (name + '-reports')], executable.parent, out / (name + '.log'), expected)
+        assert marker in text.replace('\r\n', '\n'), (name, text)
+        if active:
+            assert (out / (name + '-reports')).is_dir(), 'report initialization was not executed'
+        assert not list((out / (name + '-reports')).glob('*.txt')), name
+        return {'optimization': opt, 'case': source.stem, 'capture_active': active}
+
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        results.extend(pool.map(impact_check, impact_cases))
+    for active in (False, True):
         print(f'PASS existing exception/lifetime regressions: capture={active}', flush=True)
 
+    # All correctness workers have joined before collecting timing samples.
     executables = {label: compile_source('diagnostic_raise_bench.pas', out / f'bench-{label}', 'O3', defines)
                    for label, defines in [('baseline', []), ('capture', ['REPORTING'])]}
     samples = {label: [] for label in ('baseline', 'capture', 'thread-off', 'global-off', 'toggle')}

@@ -149,6 +149,13 @@ suite/dependency trees or mORMot network fixtures retain the `suite` resource
 lock. Product rebuilds and Pulse run alone. RTL-test already uses private
 scratch directories; Forms/tracker/MM outputs belong to the current job.
 
+The reporting gate accepts `--jobs`: independent profiles and exception/lifetime
+cases run in bounded pools, with private build directories, reports, attachments
+and HTTP/TLS receivers. Every original cold rebuild and assertion remains;
+cases within a stateful profile keep their order. Its timing samples start only
+after all correctness workers finish. The matrix reserves four worker slots
+for this gate. No shared PPU cache is introduced.
+
 Full Devil reserves its worker slots from the outer controller. Its independent
 stages have separate work directories. Its main sweep divides the same budget
 between seeds and optimization profiles. Every seed has its own generated
