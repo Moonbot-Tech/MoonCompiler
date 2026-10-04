@@ -1501,6 +1501,19 @@ end;
 {$endif CPUX86}
 
 {$ifdef CPUX64}
+{ Laid out by hand (doc/ASM_LAYOUT_RULES.md); the compiler puts nothing inside
+  an assembler block.  The DS prefixes (db $3E: ignored in long mode, no decode
+  cost) move what follows without an instruction to execute:
+  - the jbe behind the Win64 prologue crossed byte 32 of the entry line;
+  - the 16-byte loop (93 bytes) starts a 64-byte line: 1 byte short of it
+    behind the Win64 prologue, 11 behind the SysV one;
+  - the tail for the last 15 bytes starts the fourth line: a short key jumps
+    straight to it, and from byte 53 of the line in front its cmp+jc pair
+    ended exactly on the line's boundary; the 4-byte loop lies inside that line;
+  - the pair in front of the byte loop ended on the next boundary, and the
+    back-edge of that loop lay across byte 32; both stand on bytes 3..7 and
+    32..36 of the fifth line now, the loop inside it. }
+{$push}{$codealign proc=64} // layout: the entry on a 64-byte line
 function xxHash32(crc: cardinal; P: Pointer; len: integer): cardinal;
 asm
         {$ifndef WIN64} // crc=rdi P=rsi len=rdx
@@ -1531,11 +1544,28 @@ asm
         {$endif}
         lea     r10, [rcx+rdx]
         cmp     rdx, 15
+        {$ifdef WIN64}
+        db      $3E,$3E
+        {$endif}
         lea     eax, [r8+165667B1H]
         jbe     @2
+        {$ifdef WIN64}
+        db      $3E
+        {$else}
+        db      $3E,$3E,$3E
+        {$endif}
         lea     rsi, [r10-10H]
+        {$ifndef WIN64}
+        db      $3E,$3E,$3E
+        {$endif}
         lea     ebx, [r8+24234428H]
+        {$ifndef WIN64}
+        db      $3E,$3E,$3E
+        {$endif}
         lea     edi, [r8-7A143589H]
+        {$ifndef WIN64}
+        db      $3E,$3E
+        {$endif}
         lea     eax, [r8+61C8864FH]
 @1:     imul    r9d, dword ptr [rcx], -2048144777
         add     rcx, 16
@@ -1556,9 +1586,13 @@ asm
         imul    eax, eax, -1640531535
         cmp     rsi, rcx
         jnc     @1
+        db      $3E,$3E,$3E
         rol     edi, 7
+        db      $3E,$3E,$3E
         rol     ebx, 1
+        db      $3E,$3E,$3E
         rol     r8d, 12
+        db      $3E,$3E
         mov     r9d, edi
         ror     eax, 14
         add     r9d, ebx
@@ -1577,9 +1611,13 @@ asm
         cmp     r10, r8
         jnc     @3
         lea     rdx, [r10-4H]
+        db      $3E,$3E
         sub     rdx, rcx
+        db      $3E,$3E
         mov     rcx, rdx
+        db      $3E
         and     rcx, 0FFFFFFFFFFFFFFFCH
+        db      $3E
         add     rcx, r9
 @4:     cmp     r10, rcx
         jbe     @6
@@ -1612,6 +1650,7 @@ asm
         pop     rsi
         {$endif}
 end;
+{$pop}
 {$endif CPUX64}
 {$else not CPUINTEL}
 function xxHash32(crc: cardinal; P: Pointer; len: integer): cardinal;
@@ -1680,6 +1719,7 @@ end;
 {$ifdef CPUINTEL}
 
 {$ifdef CPU64}
+{$push}{$codealign proc=64} // layout: the entry on a 64-byte line
 function crc32csse42(crc: cardinal; buf: PAnsiChar; len: cardinal): cardinal; nostackframe; assembler;
 asm
         mov     eax, crc
@@ -1698,19 +1738,32 @@ asm
 @4:     test    cl, 2
         jz      @2
         crc32   eax, word ptr [buf]
+        {$ifdef WIN64}
+        // behind the Win64 spelling "@1: not eax" stood on byte 62 of the entry
+        // line and the ret behind it on the next one: the exit of every short
+        // key lay across a line.  Two DS prefixes (ignored in long mode, no
+        // decode cost) put @1 on the start of the next line.
+        db      $3E,$3E
+        {$endif}
         add     buf, 2
 @2:     test    cl, 1
         jz      @1
         crc32   eax, byte ptr [buf]
 @1:     not     eax
 @z:     ret
-        align 16
+        // 32, not 16: behind the Win64 spelling of the code above a 16-byte
+        // boundary is byte 16 of the line, and the 16-byte loop then ended
+        // with its jnz exactly on byte 32 (a branch ending on a 32-byte
+        // boundary is kept out of the decoded-uop cache on Intel, and a
+        // back-edge ending on byte 29-31 is a slow spot of Zen 3)
+        align 32
 @by8:   crc32   rax, qword ptr [buf] // hash 8 bytes per loop
         add     buf, 8
         sub     len, 1
         jnz     @by8
         jmp     @0
 end;
+{$pop}
 {$else}
 function crc32csse42(crc: cardinal; buf: PAnsiChar; len: cardinal): cardinal; nostackframe; assembler;
 asm

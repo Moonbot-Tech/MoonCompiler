@@ -249,11 +249,18 @@ function WinTryEnterCriticalSection(var cs : TRTLCriticalSection):longint;
   {$define FPC_HAS_SYSRELOCATETHREADVAR_ASM}
     function TrulyRelocateThreadvar(offset : dword) : pointer; forward;
 
+    {$push}{$codealign proc=64}  { layout: the entry on a 64-byte line }
     function SysRelocateThreadvar(offset : dword) : pointer; assembler; nostackframe;
       { ecx = offset }
       const { Same as above but 64-bit: TEB pointer is in GS register, different offsets. }
         TlsSlots = $1480;
         TlsExpansionSlots = $1780;
+      { Every access to a threadvar goes through here.  Laid out by hand
+        (doc/ASM_LAYOUT_RULES.md): the return of the fast path ended exactly on
+        byte 32 of the line, where a branch is kept out of the decoded-uop cache
+        on Intel; one DS prefix (0x3E: ignored in long mode, no uop) on the add
+        puts it on byte 32.  The jump to the slow routine stands behind both
+        paths, so every jump to it goes forward. }
       asm
         mov  TLSKey(%rip), %rdx
         mov  (%rdx), %edx { edx = TLSKey^. }
@@ -263,10 +270,9 @@ function WinTryEnterCriticalSection(var cs : TRTLCriticalSection):longint;
         mov  %gs:TlsSlots(,%rdx,8), %rax
         test %rax, %rax
         jz   .LOops
+        .byte 0x3E
         add  %rcx, %rax { Hopefully offset is zero-extended on entry. }
         ret
-
-.LOops: jmp  TrulyRelocateThreadvar
 
 .LExp:  cmp  $0x440, %edx
         jae  .LOops
@@ -277,7 +283,11 @@ function WinTryEnterCriticalSection(var cs : TRTLCriticalSection):longint;
         test %rax, %rax
         jz   .LOops
         add  %rcx, %rax
+        ret
+
+.LOops: jmp  TrulyRelocateThreadvar
       end;
+    {$pop}
 {$endif implement SysRelocateThreadvar with assembly}
 {$endif not wince}
 

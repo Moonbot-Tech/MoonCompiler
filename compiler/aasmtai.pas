@@ -342,6 +342,11 @@ interface
         the way the program runs/behaves, but which may be encountered by the
         optimizer (= if it's sometimes added to the exprasm list). Update if you add
         a new ait type!                                                              }
+      { list items without code bytes that may sit between two
+        instructions; code placement looks through them }
+      TransparentInstr = [ait_comment,ait_regalloc,ait_tempalloc,ait_varloc,
+                          ait_marker,ait_force_line];
+
       SkipInstr = [ait_comment, ait_symbol,ait_section,ait_align
                    ,ait_stab, ait_function_name, ait_force_line
                    ,ait_regalloc, ait_tempalloc, ait_symbol_end
@@ -946,6 +951,10 @@ interface
              buffer when the procedure returns without reading it again. }
            explicit_blockop_store : boolean;
            forwarded_memory_load : boolean;
+           { code placement: the pad node whose prefixes this instruction
+             carries (nil when it carries none), so that a pad that
+             shrinks takes back its own prefixes wherever they sit }
+           padowner  : tai;
            Constructor Create(op : tasmop);virtual;
            Destructor Destroy;override;
            function getcopy:TLinkedListItem;override;
@@ -970,6 +979,37 @@ interface
 
            function  Pass1(objdata:TObjData):longint;virtual;
            procedure Pass2(objdata:TObjData);virtual;
+           { code placement: number of padding bytes the internal assembler
+             must insert in front of padstart (this instruction or the
+             instruction it fuses with) so that the instruction does not
+             cross a 32-byte boundary; existingpad is the padding already in
+             place, so the result is the total padding wanted }
+           function branch_pad_before(objdata:TObjData;existingpad:longint;out padstart:tai;delta:longint=0):longint;virtual;
+           { code placement: a call returns to the instruction behind it,
+             so a pad behind the call may put its prefixes in front of it }
+           function is_call:boolean;virtual;
+           { code placement: after a layout pass, force a short relative jump
+             to its near form when the final addresses of that pass put its
+             target out of the 8-bit range; returns true when it changed }
+           function verify_short_jump(objdata:TObjData;definedonly:boolean):boolean;virtual;
+           { code placement: the instruction was positioned before a pad in
+             front of it changed; move its recorded offset by delta }
+           procedure shift_offset(delta:longint);virtual;
+           { code placement: the target symbol of a relative jump in the
+             current section and the end offset of the jump, nil otherwise }
+           function jump_target(objdata:TObjData;out endofs:longint):TObjSymbol;virtual;
+           { code placement, prefix padding: pad_prefix_ok tells whether this
+             instruction may carry padding prefixes, pad_prefix_capacity is
+             the safe byte count for its current unprefixed encoding,
+             pad_prefix_set assigns their number and returns the size change,
+             pad_prefix_count reads it back; ends_flow is true for an
+             unconditional jump or a return (the bytes after it are never
+             executed) }
+           function pad_prefix_ok:boolean;virtual;
+           function pad_prefix_capacity:byte;virtual;
+           function pad_prefix_set(count:byte):longint;virtual;
+           function pad_prefix_count:byte;virtual;
+           function ends_flow:boolean;virtual;
 
            procedure resetpass1; virtual;
            procedure resetpass2; virtual;
@@ -979,6 +1019,12 @@ interface
         { Buffer type used for alignment }
         tfillbuffer = array[0..63] of char;
 
+        { ap_target: an ordinary jump-target alignment that the internal
+          assembler took over under the placement rules (the target is kept
+          out of the last 12 bytes of a line, the fill realized as prefixes
+          on the block in front) }
+        TAlignPurpose = (ap_none,ap_proc,ap_loop,ap_target);
+
         { alignment for operator }
         tai_align_abstract = class(tai)
            aligntype : byte;   { 1 = no align, 2 = word align, 4 = dword align }
@@ -986,7 +1032,23 @@ interface
            fillsize  : byte;   { real size to fill }
            fillop    : byte;   { value to fill with - optional }
            use_op    : boolean;
+           { fixed padding inserted by the internal assembler (code placement):
+             fillsize is always padbytes, no alignment arithmetic }
+           fixedfill : boolean;
+           padbytes  : byte;
+           { code placement: the part of padbytes carried as prefixes on the
+             instructions in front of the pad instead of nops }
+           prefixbytes : byte;
+           { what the alignment is for; the internal assembler decides the
+             fill of a procedure entry or loop head from the size of the
+             procedure or loop (code placement rules 1-3) }
+           purpose   : TAlignPurpose;
+           { assembler state: 0 undecided, 1 short span, 2 long span; and
+             how often the fill changed, a node that keeps moving is frozen }
+           spanclass : byte;
+           spanchanges : byte;
            constructor Create(b:byte);virtual;
+           constructor create_fixedpad(bytes:byte);virtual;
            constructor Create_op(b: byte; _op: byte);virtual;
            constructor create_max(b: byte; max: byte);virtual;
            constructor create_op_max(b: byte; _op: byte; max: byte);virtual;
@@ -1132,21 +1194,33 @@ implementation
 
 
     function new_section(list:TAsmList;Asectype:TAsmSectiontype;const Aname:string;Aalign:byte;Asecorder:TasmSectionorder=secorder_default) : tai_section;
+      var
+        al : tai_align_abstract;
       begin
         Result:=tai_section.create(Asectype,Aname,Aalign,Asecorder);
         list.concat(Result);
         inc(list.section_count);
-        list.concat(cai_align.create(Aalign));
+        al:=cai_align.create(Aalign);
+        { the entry of a procedure: the internal assembler places it by the
+          size of the procedure (code placement rule 1) }
+        if (Asectype=sec_code) and (Aalign>=16) then
+          al.purpose:=ap_proc;
+        list.concat(al);
       end;
 
 
     function new_proc_section(list:TAsmList;Asectype:TAsmSectiontype;
       const Aname:string;Aalign:byte;Asecorder:TasmSectionorder):tai_section;
+      var
+        al : tai_align_abstract;
       begin
         Result:=tai_section.Create_proc(Asectype,Aname,Aalign,Asecorder);
         list.concat(Result);
         inc(list.section_count);
-        list.concat(cai_align.create(Aalign));
+        al:=cai_align.create(Aalign);
+        if Aalign>=16 then
+          al.purpose:=ap_proc;
+        list.concat(al);
       end;
 
 
@@ -3328,6 +3402,67 @@ implementation
       end;
 
 
+    function tai_cpu_abstract.is_call:boolean;
+      begin
+        result:=false;
+      end;
+
+
+    function tai_cpu_abstract.branch_pad_before(objdata:TObjData;existingpad:longint;out padstart:tai;delta:longint):longint;
+      begin
+        padstart:=self;
+        result:=-1;
+      end;
+
+
+    function tai_cpu_abstract.verify_short_jump(objdata:TObjData;definedonly:boolean):boolean;
+      begin
+        result:=false;
+      end;
+
+
+    procedure tai_cpu_abstract.shift_offset(delta:longint);
+      begin
+      end;
+
+
+    function tai_cpu_abstract.jump_target(objdata:TObjData;out endofs:longint):TObjSymbol;
+      begin
+        endofs:=0;
+        result:=nil;
+      end;
+
+
+    function tai_cpu_abstract.pad_prefix_ok:boolean;
+      begin
+        result:=false;
+      end;
+
+
+    function tai_cpu_abstract.pad_prefix_capacity:byte;
+      begin
+        result:=0;
+      end;
+
+
+    function tai_cpu_abstract.pad_prefix_set(count:byte):longint;
+      begin
+        result:=0;
+      end;
+
+
+    function tai_cpu_abstract.pad_prefix_count:byte;
+      begin
+        result:=0;
+      end;
+
+
+    function tai_cpu_abstract.ends_flow:boolean;
+      begin
+        result:=false;
+      end;
+
+
     procedure tai_cpu_abstract.ppuloadoper(ppufile:tcompilerppufile;var o:toper);
       begin
         o.typ:=toptype(ppufile.getbyte);
@@ -3481,6 +3616,20 @@ implementation
        end;
 
 
+     constructor tai_align_abstract.create_fixedpad(bytes:byte);
+       begin
+          inherited Create;
+          typ:=ait_align;
+          aligntype:=1;
+          maxbytes:=1;
+          fillsize:=bytes;
+          padbytes:=bytes;
+          fixedfill:=true;
+          fillop:=0;
+          use_op:=false;
+       end;
+
+
      constructor tai_align_abstract.Create_zeros(b: byte);
        begin
           inherited Create;
@@ -3513,6 +3662,13 @@ implementation
         fillop:=ppufile.getbyte;
         use_op:=ppufile.getboolean;
         maxbytes:=ppufile.getbyte;
+        fixedfill:=ppufile.getboolean;
+        padbytes:=ppufile.getbyte;
+        if fixedfill then
+          fillsize:=padbytes;
+        purpose:=TAlignPurpose(ppufile.getbyte);
+        spanclass:=0;
+        spanchanges:=0;
       end;
 
 
@@ -3523,6 +3679,9 @@ implementation
         ppufile.putbyte(fillop);
         ppufile.putboolean(use_op);
         ppufile.putbyte(maxbytes);
+        ppufile.putboolean(fixedfill);
+        ppufile.putbyte(padbytes);
+        ppufile.putbyte(ord(purpose));
       end;
 
 

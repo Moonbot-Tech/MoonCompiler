@@ -5543,6 +5543,12 @@ begin
           set_target_asm(target_info.assemextern);
           Message1(option_asm_forced,target_asm.idtxt);
         end;
+      { MoonCompiler places code (branch, loop and procedure rules) only in
+        the internal assembler: say so when -A trades it for a source writer }
+      if assigned(asminfos[target_info.assem]) and
+         (af_outputbinary in asminfos[target_info.assem]^.flags) and
+         not(af_outputbinary in target_asm.flags) then
+        Message1(option_w_external_assembler_no_placement,target_asm.idtxt);
       if (af_no_debug in asminfos[option.paratargetasm]^.flags) and
          (option.paratargetdbg<>dbg_none) then
         begin
@@ -5590,6 +5596,9 @@ begin
 {$else}
      set_target_asm(target_info.assemextern);
 {$endif}
+     { the placement rules live in the internal assembler that was just
+       replaced because of -a or -s }
+     Message1(option_w_external_assembler_no_placement,target_asm.idtxt);
      { At least i8086 needs that for nasm and -CX
        which is incompatible with internal linker }
      option.checkoptionscompatibility;

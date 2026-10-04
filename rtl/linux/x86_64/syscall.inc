@@ -141,6 +141,9 @@ asm
   syscall                 { Do the system call. }
   cmpq $-4095, %rax       { Check %rax for error.  }
   jnae .LSyscOK           { Jump to error handler if error.  }
+  { with three parameters the call below crossed byte 32 of the line
+    (doc/ASM_LAYOUT_RULES.md, rule 4); the DS prefixes put it on byte 32 }
+  .byte 0x3E,0x3E,0x3E
   negq  %rax
   movq  %rax,%rdi
   call  seterrno@PLT

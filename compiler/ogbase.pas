@@ -269,6 +269,14 @@ interface
 {$ifdef ARM}
        ThumbFunc : boolean;
 {$endif ARM}
+       { code placement: length of the loop whose head this label is (end
+         of the farthest backward jump to it) as measured in layout pass
+         looppass; the loop alignment reads it in the next pass }
+       looplen   : longint;
+       looppass  : byte;
+       { code placement: the layout pass in which a jump referenced this
+         label; the next pass keeps such a target out of a line's tail }
+       targetpass : byte;
 
        constructor create(AList:TFPHashObjectList;const AName:string);virtual;
        function  ToString:RTLString;override;
@@ -431,6 +439,9 @@ interface
        property CObjSectionGroup: TObjSectionGroupClass read FCObjSectionGroup write FCObjSectionGroup;
      public
        CurrPass  : byte;
+       { code placement relaxation: extra layout passes may move code
+         forward, the "code can never grow" check is suspended }
+       relaxing  : boolean;
        ExecStack : boolean;
 {$ifdef ARM}
        ThumbFunc : boolean;
@@ -911,10 +922,12 @@ implementation
               end;
           end;
         pass:=apass;
-        { Code can never grow after a pass }
+        { Code can never grow after a pass, except while the internal
+          assembler is still relaxing the code placement }
         if assigned(objsection) and
            (objsection=aobjsec) and
-           (aobjsec.size>offset) then
+           (aobjsec.size>offset) and
+           not ObjData.relaxing then
           internalerror(200603014);
         objsection:=aobjsec;
         offset:=aobjsec.size;

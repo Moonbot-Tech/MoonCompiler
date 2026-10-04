@@ -1,0 +1,10 @@
+# Hand-written assembler routines of the RTL that nobody has laid out, one regular expression per
+# line (matched against the symbol, case-insensitive).  The compiler puts nothing inside a
+# hand-written block, so the rule-4 state of such a routine is its author's; the "compiled code
+# rule 4 gate" of the stand chains (scripts/Stand-F-Chain.ps1, scripts/stand-chain.sh) skips them.
+# A routine starts on a 64-byte line and nothing inside it moves, so this list changes only when
+# one of these routines is edited, a new one appears, or one is laid out (then it moves to
+# qualification/build-driver/rtl_asm_layout_gate.py with a ceiling of zero).
+#
+# Empty since 2026-09-17: every assembler routine that the Pulse program links on Win64 and on
+# Linux is laid out (doc/ASM_LAYOUT_RULES.md lists them).  A new entry is a debt, not a fix.

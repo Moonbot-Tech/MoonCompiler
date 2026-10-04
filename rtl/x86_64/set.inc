@@ -15,6 +15,13 @@
 
 {$asmmode intel}
 
+{ The routines below are laid out by hand (doc/ASM_LAYOUT_RULES.md).  The byte loop for sets
+  shorter than 16 bytes is reached by a jump only, so it starts a line ("align 64": the bytes
+  are dead) and lies inside it; before, it lay across the line and its sub+jae pair across the
+  boundary.  In the two routines without a precalculated tail the 16-byte loop got DS prefixes
+  (db $3E: ignored in long mode, no uop) on its moves - four, and three more with the shorter
+  SysV encodings - so that its sub+ja pair starts on byte 32: it crossed that byte on Win64
+  and its jump ended on byte 30, a slow place of Zen 3, on SysV. }
 {$ifndef FPC_SYSTEM_HAS_FPC_VARSET_ADD_SETS}
 procedure fpc_varset_add_sets(const set1,set2; var dest;size : ptrint); compilerproc; assembler; nostackframe;
 { Windows: rcx = set1, rdx = set2, r8 = dest, r9 = size
@@ -24,9 +31,14 @@ asm
     jl     @Bytewise_Prepare { probably dead branch... }
 
 @16x_Loop:
+    db     $3E,$3E,$3E
     movdqu xmm0, xmmword ptr [set1 + size]
+    db     $3E
     movdqu xmm1, xmmword ptr [set2 + size]
     por    xmm0, xmm1
+{$ifndef FPC_ABI_WIN64}
+    db     $3E,$3E,$3E
+{$endif}
     movdqu xmmword ptr [dest + size], xmm0
     sub    size, 16
     ja     @16x_Loop
@@ -37,6 +49,7 @@ asm
     movdqu xmmword ptr [dest], xmm0
     ret
 
+    align  64
 @Bytewise_Prepare:
     add    size, 15
 @Bytewise_Loop:
@@ -57,9 +70,14 @@ asm
     jl     @Bytewise_Prepare { probably dead branch... }
 
 @16x_Loop:
+    db     $3E,$3E,$3E
     movdqu xmm0, xmmword ptr [set1 + size]
+    db     $3E
     movdqu xmm1, xmmword ptr [set2 + size]
     pand   xmm0, xmm1
+{$ifndef FPC_ABI_WIN64}
+    db     $3E,$3E,$3E
+{$endif}
     movdqu xmmword ptr [dest + size], xmm0
     sub    size, 16
     ja     @16x_Loop
@@ -70,6 +88,7 @@ asm
     movdqu xmmword ptr [dest], xmm0
     ret
 
+    align  64
 @Bytewise_Prepare:
     add    size, 15
 @Bytewise_Loop:
@@ -105,6 +124,7 @@ asm
     movdqu xmmword ptr [dest], xmm2 { Write precalculated tail. }
     ret
 
+    align  64
 @Bytewise_Prepare:
     add    size, 15
 @Bytewise_Loop:
@@ -143,6 +163,7 @@ asm
     movdqu xmmword ptr [dest], xmm2 { Write precalculated tail. }
     ret
 
+    align  64
 @Bytewise_Prepare:
     add    size, 15
 @Bytewise_Loop:
@@ -156,6 +177,7 @@ end;
 {$endif ndef FPC_SYSTEM_HAS_FPC_VARSET_SYMDIF_SETS}
 
 {$ifndef FPC_SYSTEM_HAS_FPC_VARSET_CONTAINS_SET}
+{$push}{$codealign proc=64}      { layout: the entry on a 64-byte line }
 function fpc_varset_contains_sets(const set1,set2;size : ptrint):boolean; compilerproc; assembler; nostackframe;
 { Windows: rcx = set1, rdx = set2, r8 = size
   Linux:   rdi = set1, rsi = set2, rdx = size }
@@ -188,6 +210,7 @@ asm
     xor    eax, eax
     ret
 
+    align  16                   { dead bytes: both pairs of the byte loop clear of byte 32 }
 @Bytewise_Prepare:
     add    size, 16
     neg    size
@@ -202,6 +225,7 @@ asm
     jnz    @Bytewise_Loop
     mov    eax, $1
 end;
+{$pop}
 {$define FPC_SYSTEM_HAS_FPC_VARSET_CONTAINS_SET}
 {$endif ndef FPC_SYSTEM_HAS_FPC_VARSET_CONTAINS_SET}
 

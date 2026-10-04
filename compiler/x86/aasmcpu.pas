@@ -656,6 +656,19 @@ interface
          function  CheckIfValid:boolean; {$ifdef USEINLINE}inline;{$endif USEINLINE}
          function  Pass1(objdata:TObjData):longint;override;
          procedure Pass2(objdata:TObjData);override;
+         function branch_pad_before(objdata:TObjData;existingpad:longint;out padstart:tai;delta:longint=0):longint;override;
+         function is_call:boolean;override;
+         function verify_short_jump(objdata:TObjData;definedonly:boolean):boolean;override;
+         procedure shift_offset(delta:longint);override;
+         function jump_target(objdata:TObjData;out endofs:longint):TObjSymbol;override;
+         function pad_prefix_ok:boolean;override;
+         function pad_prefix_capacity:byte;override;
+         function pad_prefix_set(count:byte):longint;override;
+         function pad_prefix_count:byte;override;
+         function ends_flow:boolean;override;
+      public
+         { code placement: never encode this relative jump as a short jump }
+         forcenear : boolean;
          procedure SetOperandOrder(order:TOperandOrder);
          function is_same_reg_move(regtype: Tregistertype):boolean;override;
          { register spilling code }
@@ -674,6 +687,10 @@ interface
 {$ifdef x86_64}
          rex       : byte;
 {$endif x86_64}
+         { code placement: padding prefixes written before the encoding }
+         padprefix : byte;
+         { the chosen encoding carries a VEX/EVEX prefix (set by calcsize) }
+         usesvex   : boolean;
          function  InsEnd:longint;
          procedure create_ot(objdata:TObjData);
          function  Matches(p:PInsEntry):boolean;
@@ -1065,6 +1082,8 @@ implementation
          InsOffset:=0;
          InsSize:=0;
          EVEXTupleState := etsUnknown;
+         padprefix:=0;
+         usesvex:=false;
       end;
 
 
@@ -1658,6 +1677,7 @@ implementation
                           { instruction size will then always become 2 (PFV) }
                           relsize:=(InsOffset+2)-l;
                           if (relsize>=-128) and (relsize<=127) and
+                             not forcenear and
                              (
                               not assigned(currsym) or
                               (currsym.objsection=objdata.currobjsec)
@@ -2347,6 +2367,8 @@ implementation
 
            { Calculate instruction size }
            InsSize:=calcsize(insentry);
+           if padprefix>0 then
+            inc(InsSize,padprefix);
            if segprefix<>NR_NO then
             inc(InsSize);
            if NeedAddrPrefix then
@@ -2381,17 +2403,31 @@ implementation
       end;
 
     const
+      { code placement: the DS override, a no-op in long mode }
+      padprefixbyte : byte = $3E;
       segprefixes: array[NR_ES..NR_GS] of Byte=(
       // es  cs   ss   ds   fs   gs
         $26, $2E, $36, $3E, $64, $65
       );
 
     procedure taicpu.Pass2(objdata:TObjData);
+      var
+        i : longint;
       begin
         { error in pass1 ? }
         if insentry=nil then
          exit;
         current_filepos:=fileinfo;
+        { code placement: padding prefixes in front of everything else.
+          GenCode measures rip-relative displacements from InsEnd, so the
+          prefix bytes move the start and leave the size for the duration }
+        if padprefix>0 then
+          begin
+            for i:=1 to padprefix do
+              objdata.writebytes(padprefixbyte,1);
+            inc(InsOffset,padprefix);
+            dec(InsSize,padprefix);
+          end;
         { Segment override }
         if (segprefix>=NR_ES) and (segprefix<=NR_GS) then
          begin
@@ -2415,6 +2451,263 @@ implementation
         end;
         { Generate the instruction }
         GenCode(objdata);
+        if padprefix>0 then
+          begin
+            dec(InsOffset,padprefix);
+            inc(InsSize,padprefix);
+          end;
+      end;
+
+
+    { Code placement: a short relative jump chosen from the addresses of the
+      previous layout pass can be out of range once padding has moved code
+      between it and its target.  Checked with the final addresses of the
+      pass that has just been completed; a violating jump is forced to the
+      near encoding for all further passes.  With definedonly the check is
+      made during the pass and only for targets already defined in it, so
+      that a backward jump is re-encoded at once instead of a pass later. }
+    function taicpu.verify_short_jump(objdata:TObjData;definedonly:boolean):boolean;
+      var
+        currsym : TObjSymbol;
+        data : int64;
+      begin
+        result:=false;
+        if forcenear or (insentry=nil) or (inssize<>2) then
+          exit;
+        case opcode of
+          A_JMP,A_Jcc:
+            ;
+          else
+            exit;
+        end;
+        if (ops<>1) or (oper[0]^.typ<>top_ref) or not assigned(oper[0]^.ref^.symbol) then
+          exit;
+        currsym:=objdata.symbolref(oper[0]^.ref^.symbol);
+        if not assigned(currsym) or (currsym.objsection<>objdata.currobjsec) then
+          exit;
+        if definedonly and (currsym.pass<>objdata.currpass) then
+          exit;
+{$push}
+{$r-,q-}
+        data:=int64(currsym.offset)+oper[0]^.ref^.offset-int64(insoffset+inssize);
+{$pop}
+        if (data>127) or (data<-128) then
+          begin
+            forcenear:=true;
+            { the short entry has no IF_PASS2 flag, so it would never be
+              re-selected: drop it and let the next pass pick the near form }
+            InsEntry:=nil;
+            InsSize:=0;
+            result:=true;
+          end;
+      end;
+
+
+    procedure taicpu.shift_offset(delta:longint);
+      begin
+        inc(InsOffset,delta);
+      end;
+
+
+    { Code placement: a DS override is ignored in long mode, so it is a free
+      byte in front of any legacy-encoded instruction with operands.  Not on
+      branches (they would read it as a hint), not on prefix opcodes or the
+      instruction that belongs to one, not on VEX/EVEX encodings and not on
+      the F2/F3-mapped bit instructions. }
+    function taicpu.pad_prefix_ok:boolean;
+{$ifdef x86_64}
+      var
+        prev : tai;
+        i : longint;
+{$endif x86_64}
+      begin
+        result:=false;
+{$ifdef x86_64}
+        if (insentry=nil) or (inssize<=0) or (ops=0) or (segprefix<>NR_NO) or usesvex then
+          exit;
+        case opcode of
+          A_JMP,A_Jcc,A_CALL,A_RET,A_RETN,
+          A_LOOP,A_LOOPE,A_LOOPNE,A_LOOPNZ,A_LOOPZ,A_JECXZ,A_JRCXZ,
+          A_LOCK,A_REP,A_REPE,A_REPNE,A_REPNZ,A_REPZ,A_XACQUIRE,A_XRELEASE,
+          A_TZCNT,A_LZCNT,A_POPCNT,A_CRC32,A_NOP,
+          A_INT,A_INT01,A_INT1,A_INT03,
+          { prologue and epilogue: the Win64 unwinder recognizes an
+            epilogue by its exact bytes (a stack adjustment, pops, a
+            return), so a prefix on a pop or on an instruction that
+            adjusts rsp would hide the epilogue from it when an exception
+            unwinds through that very spot }
+          A_PUSH,A_POP,A_LEAVE,A_ENTER:
+            exit;
+          else
+            ;
+        end;
+        for i:=0 to ops-1 do
+          if (oper[i]^.typ=top_reg) and (oper[i]^.reg=NR_RSP) then
+            exit;
+        prev:=tai(previous);
+        while assigned(prev) and (prev.typ in TransparentInstr) do
+          prev:=tai(prev.previous);
+        if assigned(prev) and (prev.typ=ait_instruction) then
+          case taicpu(prev).opcode of
+            A_LOCK,A_REP,A_REPE,A_REPNE,A_REPNZ,A_REPZ,A_XACQUIRE,A_XRELEASE:
+              exit;
+            else
+              ;
+          end;
+        result:=true;
+{$endif x86_64}
+      end;
+
+
+    function taicpu.pad_prefix_capacity:byte;
+{$ifdef x86_64}
+      var
+        unprefixedsize : longint;
+{$endif x86_64}
+      begin
+        result:=0;
+{$ifdef x86_64}
+        if not pad_prefix_ok then
+          exit;
+        unprefixedsize:=InsSize-padprefix;
+        { The architectural x86 instruction-length limit is 15 bytes,
+          including ignored DS prefixes. }
+        if unprefixedsize<12 then
+          result:=3
+        else if unprefixedsize<15 then
+          result:=15-unprefixedsize;
+{$endif x86_64}
+      end;
+
+
+    function taicpu.pad_prefix_set(count:byte):longint;
+      begin
+        if count>pad_prefix_capacity then
+          internalerror(2026091801);
+        result:=longint(count)-longint(padprefix);
+        padprefix:=count;
+        if insentry<>nil then
+          inc(InsSize,result);
+      end;
+
+
+    function taicpu.pad_prefix_count:byte;
+      begin
+        result:=padprefix;
+      end;
+
+
+    function taicpu.ends_flow:boolean;
+      begin
+        case opcode of
+          A_JMP,A_RET,A_RETN:
+            result:=true;
+          else
+            result:=false;
+        end;
+      end;
+
+
+    function taicpu.jump_target(objdata:TObjData;out endofs:longint):TObjSymbol;
+      begin
+        result:=nil;
+        endofs:=InsOffset+InsSize;
+        case opcode of
+          A_JMP,A_Jcc:
+            ;
+          else
+            exit;
+        end;
+        if (insentry=nil) or (ops<>1) or (oper[0]^.typ<>top_ref) or
+           not assigned(oper[0]^.ref^.symbol) then
+          exit;
+        result:=objdata.symbolref(oper[0]^.ref^.symbol);
+        if assigned(result) and (result.objsection<>objdata.currobjsec) then
+          result:=nil;
+      end;
+
+
+    { Code placement rule for every branch: a jcc/jmp/call/ret (or a
+      macro-fused ALU+jcc pair) must neither cross a 32-byte boundary nor end
+      exactly on one.  Intel documents this as the JCC erratum mitigation
+      (such a branch is excluded from the decoded-uop cache); on AMD the
+      padding is harmless.  The offsets used here are the ones of the current
+      layout pass minus the padding already in front of the pair, so the
+      result is the complete padding that has to be there. }
+    function taicpu.is_call:boolean;
+      begin
+        result:=opcode=A_CALL;
+      end;
+
+
+    function taicpu.branch_pad_before(objdata:TObjData;existingpad:longint;out padstart:tai;delta:longint):longint;
+
+      function fusable(op:tasmop):boolean;
+        begin
+          case op of
+            A_CMP,A_TEST,A_ADD,A_SUB,A_AND,A_OR,A_XOR,A_INC,A_DEC:
+              result:=true;
+            else
+              result:=false;
+          end;
+        end;
+
+      var
+        startofs,endofs : longint;
+        prev : tai;
+      begin
+        padstart:=self;
+        { -1: the rule does not apply to this instruction }
+        result:=-1;
+        case opcode of
+          A_JMP,A_Jcc,A_CALL,A_RET,A_RETN:
+            ;
+          else
+            exit;
+        end;
+        if (insentry=nil) or (inssize<=0) then
+          exit;
+        if opcode=A_CALL then
+          begin
+            prev:=tai(previous);
+            while assigned(prev) and (prev.typ in TransparentInstr) do
+              prev:=tai(prev.previous);
+            { The raw TLS GD prefixes belong to the call's 16-byte linker pattern. }
+            if assigned(prev) and (prev.typ=ait_const) then
+              exit;
+          end;
+        result:=0;
+        startofs:=insoffset+delta;
+        endofs:=insoffset+delta+inssize;
+        if opcode=A_Jcc then
+          begin
+            { the decoder fuses adjacent bytes; a label between the ALU
+              instruction and the jump does not separate them, and neither
+              does the target pad node the assembler itself puts in front
+              of such a label as long as it holds no bytes (the adjacency
+              test below): the carry trick of a set test, "stc; je L; sub;
+              cmp; L: jae", left its cmp+jae across a boundary because the
+              walk stopped at that node and judged the jae alone
+              (TValue.AsSingle) }
+            prev:=tai(previous);
+            while assigned(prev) and (prev.typ in TransparentInstr+[ait_label,ait_align]) do
+              prev:=tai(prev.previous);
+            if assigned(prev) and
+               (prev.typ=ait_instruction) and
+               fusable(taicpu(prev).opcode) and
+               (taicpu(prev).insentry<>nil) and
+               (taicpu(prev).inssize>0) and
+               (taicpu(prev).insoffset+taicpu(prev).inssize=insoffset) then
+              begin
+                padstart:=prev;
+                startofs:=taicpu(prev).insoffset+delta;
+              end;
+          end;
+        dec(startofs,existingpad);
+        dec(endofs,existingpad);
+        if ((startofs div 32)<>((endofs-1) div 32)) or
+           ((endofs mod 32)=0) then
+          result:=32-(startofs mod 32);
       end;
 
 
@@ -3254,6 +3547,7 @@ implementation
 
         codes:=@p^.code[0];
         exists_vex := false;
+        usesvex := false;
         exists_vex_extension := false;
         exists_prefix_66 := false;
         exists_prefix_F2 := false;
@@ -3454,6 +3748,7 @@ implementation
             &350:
               begin
                 exists_evex := true;
+                usesvex := true;
               end;
             &351: exists_l512 := true; // EVEX length bit 512
             &352: exists_EVEXW1 := true; // EVEX W1
@@ -3466,6 +3761,7 @@ implementation
                 //end;
 
                 exists_vex := true;
+                usesvex := true;
               end;
             &363: // REX.W = 1
                   // =>> VEX prefix length = 3

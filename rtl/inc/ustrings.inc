@@ -486,6 +486,7 @@ end;
   Assigns S2 to S1 (S1:=S2), taking in account reference counts.
 }
 {$ifdef CPUX86_64}
+{$push}{$codealign proc=64}      { layout: the entry on a 64-byte line }
 Procedure fpc_UnicodeStr_Assign (Var S1 : Pointer;S2 : Pointer);[Public,Alias:'FPC_UNICODESTR_ASSIGN']; compilerproc; assembler; nostackframe;
 asm
   testq  {$ifdef FPC_ABI_WIN64} %rdx,%rdx {$else} %rsi,%rsi {$endif}
@@ -495,10 +496,15 @@ asm
      .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
   incl   {$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
 .Lustrassign_source_done:
+  { layout: two check pairs of the old value in a row cannot both stay clear of byte 32 of the
+    line, so the store of the new pointer sits between them (the nil exit stores on its own)
+    and DS prefixes on the load and the store put the second pair on byte 32 }
+     .byte      0x3E,0x3E,0x3E // layout: DS prefixes, see doc/ASM_LAYOUT_RULES.md
   movq   {$ifdef FPC_ABI_WIN64} (%rcx),%r8 {$else} (%rdi),%rdx {$endif}
-  movq   {$ifdef FPC_ABI_WIN64} %rdx,(%rcx) {$else} %rsi,(%rdi) {$endif}
   testq  {$ifdef FPC_ABI_WIN64} %r8,%r8 {$else} %rdx,%rdx {$endif}
-  jz     .Lustrassign_done
+  jz     .Lustrassign_done_store
+     .byte      0x3E,0x3E,0x3E // layout: DS prefixes, see doc/ASM_LAYOUT_RULES.md
+  movq   {$ifdef FPC_ABI_WIN64} %rdx,(%rcx) {$else} %rsi,(%rdi) {$endif}
   cmpl   $1,{$ifdef FPC_ABI_WIN64} -12(%r8) {$else} -12(%rdx) {$endif}
   je     .Lustrassign_free
   jle    .Lustrassign_done
@@ -509,7 +515,11 @@ asm
   leaq   {$ifdef FPC_ABI_WIN64} -16(%r8),%rcx {$else} -16(%rdx),%rdi {$endif}
   jmp    fpc_UnicodeStr_FreeHeader
 .Lustrassign_done:
+  ret
+.Lustrassign_done_store:
+  movq   {$ifdef FPC_ABI_WIN64} %rdx,(%rcx) {$else} %rsi,(%rdi) {$endif}
 end;
+{$pop}
 {$else CPUX86_64}
 Procedure fpc_UnicodeStr_Assign (Var S1 : Pointer;S2 : Pointer);[Public,Alias:'FPC_UNICODESTR_ASSIGN']; compilerproc;
 begin

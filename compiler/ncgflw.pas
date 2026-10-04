@@ -225,9 +225,13 @@ implementation
              if cs_opt_codealign in current_settings.optimizerswitches then
                begin
                  if current_settings.alignment.loopalign>32 then
-                   current_asmdata.CurrAsmList.concat(cai_align.create(current_settings.alignment.loopalign))
+                   loopalign:=cai_align.create(current_settings.alignment.loopalign)
                  else
-                   current_asmdata.CurrAsmList.concat(cai_align.create(32));
+                   loopalign:=cai_align.create(32);
+                 { the internal assembler places the loop by its size
+                   (code placement rules 2 and 3) }
+                 loopalign.purpose:=ap_loop;
+                 current_asmdata.CurrAsmList.concat(loopalign);
                end
              else
 {$endif CPUX86_64}
@@ -564,6 +568,8 @@ implementation
 
 
     procedure tcglabelnode.pass_generate_code;
+      var
+         gotoalign : tai_align_abstract;
       begin
          location_reset(location,LOC_VOID,OS_NO);
          if not (nf_internal in flags) then
@@ -574,9 +580,13 @@ implementation
                 not(cs_opt_size in current_settings.optimizerswitches) then
                begin
                  if current_settings.alignment.jumpalign>32 then
-                   current_asmdata.CurrAsmList.concat(cai_align.create(current_settings.alignment.jumpalign))
+                   gotoalign:=cai_align.create(current_settings.alignment.jumpalign)
                  else
-                   current_asmdata.CurrAsmList.concat(cai_align.create(32));
+                   gotoalign:=cai_align.create(32);
+                 { a hand-written loop: placed by its size like a natural
+                   loop when a backward jump targets the label }
+                 gotoalign.purpose:=ap_loop;
+                 current_asmdata.CurrAsmList.concat(gotoalign);
                end;
 {$endif CPUX86_64}
            end;

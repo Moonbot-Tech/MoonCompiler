@@ -1,0 +1,365 @@
+{
+  "schema": 1,
+  "profile": "acceptance",
+  "cpus": [
+    "amd2",
+    "amd3",
+    "amd4",
+    "intel2",
+    "intel3",
+    "intel3e",
+    "hel1",
+    "confirm-local"
+  ],
+  "processes": [
+    "1",
+    "2"
+  ],
+  "rounds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "positions": [
+    0,
+    64,
+    128,
+    192,
+    256,
+    320,
+    384,
+    448,
+    512,
+    576,
+    640,
+    704,
+    768,
+    832,
+    896,
+    960,
+    1024,
+    1088,
+    1152,
+    1216,
+    1280,
+    1344,
+    1408,
+    1472,
+    1536,
+    1600,
+    1664,
+    1728,
+    1792,
+    1856,
+    1920,
+    1984,
+    2048,
+    2112,
+    2176,
+    2240,
+    2304,
+    2368,
+    2432,
+    2496,
+    2560,
+    2624,
+    2688,
+    2752,
+    2816,
+    2880,
+    2944,
+    3008,
+    3072,
+    3136,
+    3200,
+    3264,
+    3328,
+    3392,
+    3456,
+    3520,
+    3584,
+    3648,
+    3712,
+    3776,
+    3840,
+    3904,
+    3968,
+    4032
+  ],
+  "drivers": [
+    0,
+    32
+  ],
+  "expected_variants": {
+    "amd2": 296,
+    "amd3": 296,
+    "amd4": 296,
+    "intel2": 296,
+    "intel3": 296,
+    "intel3e": 296,
+    "hel1": 296,
+    "confirm-local": 299
+  },
+  "cpu_identity": {
+    "amd2": {
+      "brand": "AMD EPYC 4245P 6-Core Processor",
+      "affinity_cpu": 5
+    },
+    "amd3": {
+      "brand": "AMD Ryzen 5 3600 6-Core Processor",
+      "affinity_cpu": 0
+    },
+    "amd4": {
+      "brand": "AMD Ryzen 7 7700 8-Core Processor",
+      "affinity_cpu": 7
+    },
+    "intel2": {
+      "brand": "Intel(R) Xeon(R) CPU E5-1650 v3 @ 3.50GHz",
+      "affinity_cpu": 2
+    },
+    "intel3": {
+      "brand": "13th Gen Intel(R) Core(TM) i9-13900",
+      "affinity_cpu": 3
+    },
+    "intel3e": {
+      "brand": "13th Gen Intel(R) Core(TM) i9-13900",
+      "affinity_cpu": 22
+    },
+    "hel1": {
+      "brand": "Intel(R) Xeon(R) W-2295 CPU @ 3.00GHz",
+      "affinity_cpu": 0
+    },
+    "confirm-local": {
+      "brand": "AMD Ryzen 7 5800X 8-Core Processor",
+      "affinity_cpu": 12
+    }
+  },
+  "groups": [
+    {
+      "name": "r19-varset-contains",
+      "cases": [
+        0
+      ],
+      "tags": [
+        "h"
+      ],
+      "refphases": [
+        0
+      ]
+    }
+  ],
+  "runs": [
+    {
+      "cpu": "amd2",
+      "process": "1",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\amd2\\c0-p1-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0.0,
+      "monitor_peak": 0.0,
+      "raw_sha256": "25314332af97cdad187b2fb5e2390d11bb74d35b345939b6b37e5ae7ed29e4d8"
+    },
+    {
+      "cpu": "amd2",
+      "process": "2",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\amd2\\c0-p2-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0.0,
+      "monitor_peak": 0.0,
+      "raw_sha256": "17d4475cedaec818ab5436b42edaca19053dc1a217f0da2412f7d0287bccf712"
+    },
+    {
+      "cpu": "amd3",
+      "process": "1",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\amd3\\c0-p1-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0.0,
+      "monitor_peak": 0.0,
+      "raw_sha256": "a88599e76098412fdcd0cb33155db85d608e073be3bfaa46966e8323b8c2bc55"
+    },
+    {
+      "cpu": "amd3",
+      "process": "2",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\amd3\\c0-p2-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0.0,
+      "monitor_peak": 0.0,
+      "raw_sha256": "96a7aad5ca63085425f9acfe179a383dc5705963388ac35de2f4e2ea2454b2a6"
+    },
+    {
+      "cpu": "amd4",
+      "process": "1",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\amd4\\c0-p1-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0.0,
+      "monitor_peak": 0.0,
+      "raw_sha256": "9017f89397ed16ff6fd08fa68e4e8aedd74332c5aeeb539225a8bff2c80acccb"
+    },
+    {
+      "cpu": "amd4",
+      "process": "2",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\amd4\\c0-p2-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0.0,
+      "monitor_peak": 0.0,
+      "raw_sha256": "5b64132f4dd75cd86bf0348bcbd6e8247c5f72ca8f60b720dabbaa5d1da28bf2"
+    },
+    {
+      "cpu": "intel2",
+      "process": "1",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\intel2\\c0-p1-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0.0,
+      "monitor_peak": 0.0,
+      "raw_sha256": "0bca575fa7fade38a9ec2e9a70d24194e11c5db0f0ab637c442eb160a8a93789"
+    },
+    {
+      "cpu": "intel2",
+      "process": "2",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\intel2\\c0-p2-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0.0,
+      "monitor_peak": 0.0,
+      "raw_sha256": "f6068396eb960b0a1c6c8757d19fc49d8cab990bab984f14b3516588d76fdb33"
+    },
+    {
+      "cpu": "intel3",
+      "process": "1",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\intel3\\c0-p1-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0.0,
+      "monitor_peak": 0.0,
+      "raw_sha256": "cc1b37f09e95a252bf52da220ab7078880d5694caaabd8ff441eef5d1518c3db"
+    },
+    {
+      "cpu": "intel3",
+      "process": "2",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\intel3\\c0-p2-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0.0,
+      "monitor_peak": 0.0,
+      "raw_sha256": "cb629f0026e2e55c1c29f6b731472358062e6c4ea23a15d89d8ca21ef18430de"
+    },
+    {
+      "cpu": "intel3e",
+      "process": "1",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\intel3e\\c0-p1-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0,
+      "monitor_peak": 0,
+      "raw_sha256": "d9b9f7e430438977f0f266c0b04a24f6ac5b1008265e59a050f75d9c7dffc2f2"
+    },
+    {
+      "cpu": "intel3e",
+      "process": "2",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\intel3e\\c0-p2-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0,
+      "monitor_peak": 0,
+      "raw_sha256": "b19ee2c10b21faddbad078d0685636cb40f1245beb320729dfbf3351111a57ef"
+    },
+    {
+      "cpu": "hel1",
+      "process": "1",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\hel1\\c0-p1-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0.14880952380952378,
+      "monitor_peak": 16.666666666666664,
+      "raw_sha256": "5e1e89fcca7288a53b5496184462fb6a774e27ed3967f14275c3101d37a836b3"
+    },
+    {
+      "cpu": "hel1",
+      "process": "2",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\hraw\\hel1\\c0-p2-a1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 0.0,
+      "monitor_peak": 0.0,
+      "raw_sha256": "1ca9d51ee25cfcd4f28d4e29258bef02449ee689bbd242eb01834f8b36d6c2a3"
+    },
+    {
+      "cpu": "confirm-local",
+      "process": "1",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\confirm-local\\audit-c0-p1.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 1.98,
+      "monitor_peak": 14.29,
+      "raw_sha256": "1939cf86b82cc1e822093854674687e029fa68117c1496183214018a99b7da6f"
+    },
+    {
+      "cpu": "confirm-local",
+      "process": "2",
+      "raw": "R:\\test\\MC-root-20260924\\lab\\impl\\asm_layout_final\\audit\\confirm-local\\audit-c0-p3.tsv",
+      "cases": [
+        0
+      ],
+      "accepted": true,
+      "exit_code": 0,
+      "monitor_mean": 1.97,
+      "monitor_peak": 15.38,
+      "raw_sha256": "7f81a2d2e5e617bdc685cb02b59b8e196bff8a892c0dc3f5a54df4c72f1dfc09"
+    }
+  ]
+}

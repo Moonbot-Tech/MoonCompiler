@@ -48,7 +48,9 @@ const
   CurrentPPUVersion = 208;
   { for any other changes to the ppu format, increase this version number
     (it's a cardinal) }
-  CurrentPPULongVersion = 43;
+  { 44: tai_align_abstract serializes fixedfill and padbytes;
+    45: tai_align_abstract additionally serializes its placement purpose. }
+  CurrentPPULongVersion = 45;
 
 { unit flags }
   uf_big_endian          = $000004;

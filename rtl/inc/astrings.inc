@@ -253,6 +253,7 @@ end;
 {$if defined(CPUX86_64) and not defined(VER3_2)}
 { mirror of the unicodestring assign: same header layout, same
   lock-elided code }
+{$push}{$codealign proc=64}      { layout: the entry on a 64-byte line }
 Procedure fpc_AnsiStr_Assign (Var DestS : Pointer;S2 : Pointer);[Public,Alias:'FPC_ANSISTR_ASSIGN']; compilerproc; assembler; nostackframe;
 asm
   testq  {$ifdef FPC_ABI_WIN64} %rdx,%rdx {$else} %rsi,%rsi {$endif}
@@ -262,10 +263,15 @@ asm
      .byte      0xF0 // LOCK prefix, unconditional: the product always runs threaded.
   incl   {$ifdef FPC_ABI_WIN64} -12(%rdx) {$else} -12(%rsi) {$endif}
 .Lastrassign_source_done:
+  { layout: two check pairs of the old value in a row cannot both stay clear of byte 32 of the
+    line, so the store of the new pointer sits between them (the nil exit stores on its own)
+    and DS prefixes on the load and the store put the second pair on byte 32 }
+     .byte      0x3E,0x3E,0x3E // layout: DS prefixes, see doc/ASM_LAYOUT_RULES.md
   movq   {$ifdef FPC_ABI_WIN64} (%rcx),%r8 {$else} (%rdi),%rdx {$endif}
-  movq   {$ifdef FPC_ABI_WIN64} %rdx,(%rcx) {$else} %rsi,(%rdi) {$endif}
   testq  {$ifdef FPC_ABI_WIN64} %r8,%r8 {$else} %rdx,%rdx {$endif}
-  jz     .Lastrassign_done
+  jz     .Lastrassign_done_store
+     .byte      0x3E,0x3E,0x3E // layout: DS prefixes, see doc/ASM_LAYOUT_RULES.md
+  movq   {$ifdef FPC_ABI_WIN64} %rdx,(%rcx) {$else} %rsi,(%rdi) {$endif}
   cmpl   $1,{$ifdef FPC_ABI_WIN64} -12(%r8) {$else} -12(%rdx) {$endif}
   je     .Lastrassign_free
   jle    .Lastrassign_done
@@ -276,7 +282,11 @@ asm
   leaq   {$ifdef FPC_ABI_WIN64} -16(%r8),%rcx {$else} -16(%rdx),%rdi {$endif}
   jmp    fpc_AnsiStr_FreeHeader
 .Lastrassign_done:
+  ret
+.Lastrassign_done_store:
+  movq   {$ifdef FPC_ABI_WIN64} %rdx,(%rcx) {$else} %rsi,(%rdi) {$endif}
 end;
+{$pop}
 {$else}
 Procedure fpc_AnsiStr_Assign (Var DestS : Pointer;S2 : Pointer);[Public,Alias:'FPC_ANSISTR_ASSIGN'];  compilerproc;
 {
@@ -766,7 +776,11 @@ begin
   Result:=fpc_AnsiStr_Compare(r1,r2);
 end;
 
+{$if defined(CPUX86_64) and not defined(VER3_2)}
+Function fpc_AnsiStr_Compare_Generic(const S1,S2 : RawByteString): SizeInt;[Public,Alias : 'FPC_ANSISTR_COMPARE_GENERIC'];
+{$else}
 Function fpc_AnsiStr_Compare(const S1,S2 : RawByteString): SizeInt;[Public,Alias : 'FPC_ANSISTR_COMPARE'];  compilerproc;
+{$ifend}
 {
   Compares 2 AnsiStrings;
   The result is
@@ -790,6 +804,97 @@ begin
   if result=0 then
     result:=Len1-Len2;
 end;
+
+{$if defined(CPUX86_64) and not defined(VER3_2)}
+{ The fast path in front of the generic routine: the pointer, nil and
+  first-byte answers, then strings of the same raw code page (their
+  translated pages are equal too) up to 32 bytes compared eight bytes
+  at a time without a byte read past either string (the last chunk
+  overlaps the one before, fewer than 8 bytes go one by one), longer
+  ones and different code pages through the generic routine.  A short
+  key compare cost a Pascal frame, two placeholder translations and the
+  entry of CompareByte's vector code: 4-5 ns against 2 for the same work
+  here (mORMot's replacement, which NOPATCHRTL retired, did the same
+  but read past the end of the shorter string and returned a positive
+  number for '' < 'a').
+  win64: rcx=s1 rdx=s2; sysv: rdi=s1 rsi=s2; rax result, r8 len1-len2,
+  r9 scratch, r10 shorter length, r11 index. }
+Function fpc_AnsiStr_Compare(const S1,S2 : RawByteString): SizeInt;[Public,Alias : 'FPC_ANSISTR_COMPARE'];  compilerproc; assembler; nostackframe;
+asm
+  xorl   %eax,%eax
+  cmpq   {$ifdef FPC_ABI_WIN64} %rdx,%rcx {$else} %rsi,%rdi {$endif}
+  je     .Lastrcmp_ret
+  testq  {$ifdef FPC_ABI_WIN64} %rcx,%rcx {$else} %rdi,%rdi {$endif}
+  jz     .Lastrcmp_s1nil
+  testq  {$ifdef FPC_ABI_WIN64} %rdx,%rdx {$else} %rsi,%rsi {$endif}
+  jz     .Lastrcmp_s2nil
+  movzwl {$ifdef FPC_ABI_WIN64} -16(%rcx) {$else} -16(%rdi) {$endif},%r8d
+  cmpw   {$ifdef FPC_ABI_WIN64} -16(%rdx) {$else} -16(%rsi) {$endif},%r8w
+  jne    .Lastrcmp_generic
+  movzbl {$ifdef FPC_ABI_WIN64} (%rcx) {$else} (%rdi) {$endif},%eax
+  movzbl {$ifdef FPC_ABI_WIN64} (%rdx) {$else} (%rsi) {$endif},%r8d
+  subq   %r8,%rax
+  jne    .Lastrcmp_ret
+  movq   {$ifdef FPC_ABI_WIN64} -8(%rcx) {$else} -8(%rdi) {$endif},%r8
+  movq   {$ifdef FPC_ABI_WIN64} -8(%rdx) {$else} -8(%rsi) {$endif},%r9
+  movq   %r8,%r10
+  cmpq   %r9,%r10
+  cmovaq %r9,%r10
+  subq   %r9,%r8
+  cmpq   $32,%r10
+  ja     .Lastrcmp_generic
+  cmpq   $8,%r10
+  .byte  0x72,0x6A                { jb .Lastrcmp_bytes (rel8 written out, doc/ASM_LAYOUT_RULES.md) }
+  xorl   %r11d,%r11d
+.Lastrcmp_loop:
+  movq   {$ifdef FPC_ABI_WIN64} (%rcx,%r11) {$else} (%rdi,%r11) {$endif},%rax
+  xorq   {$ifdef FPC_ABI_WIN64} (%rdx,%r11) {$else} (%rsi,%r11) {$endif},%rax
+  jnz    .Lastrcmp_diff
+  addq   $8,%r11
+  leaq   8(%r11),%r9
+  cmpq   %r10,%r9
+  jbe    .Lastrcmp_loop
+  cmpq   %r10,%r11
+  jae    .Lastrcmp_lendiff
+  leaq   -8(%r10),%r11
+  movq   {$ifdef FPC_ABI_WIN64} (%rcx,%r11) {$else} (%rdi,%r11) {$endif},%rax
+  xorq   {$ifdef FPC_ABI_WIN64} (%rdx,%r11) {$else} (%rsi,%r11) {$endif},%rax
+  jnz    .Lastrcmp_diff
+.Lastrcmp_lendiff:
+  movq   %r8,%rax
+  ret
+.Lastrcmp_generic:                { layout: here, within a short jump of both checks that lead to it }
+  jmp    FPC_ANSISTR_COMPARE_GENERIC
+.Lastrcmp_diff:
+  bsfq   %rax,%rax
+  shrq   $3,%rax
+  addq   %rax,%r11
+  movzbl {$ifdef FPC_ABI_WIN64} (%rcx,%r11) {$else} (%rdi,%r11) {$endif},%eax
+  movzbl {$ifdef FPC_ABI_WIN64} (%rdx,%r11) {$else} (%rsi,%r11) {$endif},%r9d
+  subq   %r9,%rax
+  ret
+  .balign 64                      { layout: the byte loop inside one line, parked on byte 4 so that }
+  .byte  15,31,64,0               { its back-edge ends on byte 34 and not on 30 (dead nop) }
+.Lastrcmp_bytes:
+  movl   $1,%r11d
+.Lastrcmp_byteloop:
+  cmpq   %r10,%r11
+  jae    .Lastrcmp_lendiff
+  movzbl {$ifdef FPC_ABI_WIN64} (%rcx,%r11) {$else} (%rdi,%r11) {$endif},%eax
+  movzbl {$ifdef FPC_ABI_WIN64} (%rdx,%r11) {$else} (%rsi,%r11) {$endif},%r9d
+  subq   %r9,%rax
+  jne    .Lastrcmp_ret
+  incq   %r11
+  jmp    .Lastrcmp_byteloop
+.Lastrcmp_s1nil:
+  movq   $-1,%rax
+  ret
+.Lastrcmp_s2nil:
+  movl   $1,%eax
+.Lastrcmp_ret:
+  ret
+end;
+{$ifend}
 {$endif FPC_HAS_ANSISTR_COMPARE}
 
 
@@ -815,7 +920,11 @@ begin
       result:=CompareByte(r1[1],r2[1],L1);
 end;
 
+{$if defined(CPUX86_64) and not defined(VER3_2)}
+Function fpc_AnsiStr_Compare_equal_Generic(const S1,S2 : RawByteString): SizeInt;[Public,Alias : 'FPC_ANSISTR_COMPARE_EQUAL_GENERIC'];
+{$else}
 Function fpc_AnsiStr_Compare_equal(const S1,S2 : RawByteString): SizeInt;[Public,Alias : 'FPC_ANSISTR_COMPARE_EQUAL'];  compilerproc;
+{$ifend}
 {
   Compares 2 AnsiStrings for equality/inequality only;
   The result is
@@ -835,6 +944,61 @@ begin
   if Result=0 then
     result:=CompareByte(S1[1],S2[1],MaxI);
 end;
+
+{$if defined(CPUX86_64) and not defined(VER3_2)}
+{ The fast path in front of the generic routine (see fpc_AnsiStr_Compare):
+  pointer, nil, code page, length; then the last eight bytes first (keys
+  with a common prefix differ at the end; for fewer than 8 bytes the
+  read overlaps the length field, equal by then), the rest eight at a
+  time up to 64 bytes, longer strings through CompareByte.
+  win64: rcx=s1 rdx=s2; sysv: rdi=s1 rsi=s2 (CompareByte takes the
+  length in r8 / rdx). }
+{$push}{$codealign proc=64}      { layout: the entry on a 64-byte line }
+Function fpc_AnsiStr_Compare_equal(const S1,S2 : RawByteString): SizeInt;[Public,Alias : 'FPC_ANSISTR_COMPARE_EQUAL'];  compilerproc; assembler; nostackframe;
+asm
+  xorl   %eax,%eax
+  cmpq   {$ifdef FPC_ABI_WIN64} %rdx,%rcx {$else} %rsi,%rdi {$endif}
+  je     .Lastreq_ret
+  testq  {$ifdef FPC_ABI_WIN64} %rcx,%rcx {$else} %rdi,%rdi {$endif}
+  jz     .Lastreq_ne
+  testq  {$ifdef FPC_ABI_WIN64} %rdx,%rdx {$else} %rsi,%rsi {$endif}
+  jz     .Lastreq_ne
+  movzwl {$ifdef FPC_ABI_WIN64} -16(%rcx) {$else} -16(%rdi) {$endif},%r8d
+  cmpw   {$ifdef FPC_ABI_WIN64} -16(%rdx) {$else} -16(%rsi) {$endif},%r8w
+  jne    .Lastreq_generic
+  movq   {$ifdef FPC_ABI_WIN64} -8(%rcx) {$else} -8(%rdi) {$endif},%r8
+  movq   %r8,%rax
+  subq   {$ifdef FPC_ABI_WIN64} -8(%rdx) {$else} -8(%rsi) {$endif},%rax
+  jne    .Lastreq_ret
+  movq   {$ifdef FPC_ABI_WIN64} -8(%rcx,%r8) {$else} -8(%rdi,%r8) {$endif},%r9
+  cmpq   {$ifdef FPC_ABI_WIN64} -8(%rdx,%r8) {$else} -8(%rsi,%r8) {$endif},%r9
+  jne    .Lastreq_ne
+  cmpq   $64,%r8
+  ja     .Lastreq_long
+  leaq   {$ifdef FPC_ABI_WIN64} -8(%rcx,%r8),%rcx {$else} -8(%rdi,%r8),%rdi {$endif}
+  leaq   {$ifdef FPC_ABI_WIN64} -8(%rdx,%r8),%rdx {$else} -8(%rsi,%r8),%rsi {$endif}
+  negq   %r8
+.Lastreq_loop:
+  addq   $8,%r8
+  jns    .Lastreq_ret
+  movq   {$ifdef FPC_ABI_WIN64} (%rcx,%r8) {$else} (%rdi,%r8) {$endif},%r9
+  cmpq   {$ifdef FPC_ABI_WIN64} (%rdx,%r8) {$else} (%rsi,%r8) {$endif},%r9
+  je     .Lastreq_loop
+.Lastreq_ne:
+  movl   $1,%eax
+.Lastreq_ret:
+  ret
+  .balign 32                      { layout: dead fill, the exit jumps clear of the 32-byte boundary }
+.Lastreq_long:
+{$ifndef FPC_ABI_WIN64}
+  movq   %r8,%rdx
+{$endif FPC_ABI_WIN64}
+  jmp    CompareByte
+.Lastreq_generic:
+  jmp    FPC_ANSISTR_COMPARE_EQUAL_GENERIC
+end;
+{$pop}
+{$ifend}
 {$endif FPC_HAS_ANSISTR_COMPARE_EQUAL}
 
 

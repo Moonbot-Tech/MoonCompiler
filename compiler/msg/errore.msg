@@ -4094,6 +4094,13 @@ option_n_win16_set_default_large_memory_model=11070_N_Setting memory model for W
 % i8086-win16 requires at least large memory model.
 option_e_avr_cvt_unsupported=11071_E_CVT option not supported for $1
 % The CVT option is not supported by the selected MCU
+option_w_external_assembler_no_placement=11072_W_Using the external assembler "$1": the object is not the one the internal assembler of the product writes
+% MoonCompiler writes its objects with its internal assembler: the jump
+% encodings, the alignment fills and, when it is switched on
+% (\var{MOONCOMPILER_PLACEMENT=1}), the code placement draft are its own.
+% An external assembler was selected with \var{-a} (assembler source
+% options) or \var{-A}, so the produced object can differ from the
+% product's.  Gates that inspect assembler listings use this mode on purpose.
 %
 % \end{description}
 # EndOfTeX

@@ -1,0 +1,39 @@
+{
+  "status": "KEEP_OLD",
+  "results": [
+    {
+      "group": "r19-varset-contains",
+      "tag": "h",
+      "verdict": "REJECT",
+      "comparisons": 2048,
+      "noisy": 467,
+      "hard_cells": 126,
+      "reproduced_gain": true,
+      "all_faster": false,
+      "worst": {
+        "cpu": "intel3e",
+        "process": "1",
+        "file": "c0-p1-a1.tsv",
+        "group": "r19-varset-contains",
+        "case": 0,
+        "tag": "h",
+        "pos": 2624,
+        "driver": 32,
+        "refphase": 0,
+        "ref": 334.124,
+        "candidate": 828.17,
+        "loss": 147.86306880080446,
+        "aa": 0.30767020627071595,
+        "ref_dispersion": 0.09295238323323574,
+        "control_dispersion": 1.6012859332361185,
+        "candidate_dispersion": 0.10453418539773107,
+        "upper_loss": 151.13704001601297,
+        "lower_loss": 144.63177901370125
+      }
+    }
+  ],
+  "comparisons": 2048,
+  "acceptance_eligible": false,
+  "unit": "One driver sweep; cycles are not normalized primitive-call latency.",
+  "scope": "Declared CPU/case/entry/caller matrix only; no arbitrary-context guarantee."
+}
