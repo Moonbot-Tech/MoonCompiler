@@ -80,6 +80,7 @@ interface
           function get_check_uses(out check_impl_uses, check_crc: boolean): boolean;
           function continueloadppu : boolean;
           function canreload(out firstwaiting: tmodule; ignore_do_reload: boolean): boolean;
+          function reload_needs_recompile: boolean;
           procedure reload;
           function ppuloadcancontinue(out firstwaiting: tmodule): boolean;
           function is_reload_needed(pu: tdependent_unit): boolean; override;
@@ -114,6 +115,7 @@ interface
           function ppu_check_used_crcs: boolean;
           procedure printcomments;
           procedure queuecomment(const s:TMsgStr;v,w:longint);
+          procedure buildimplementationderefs;
           procedure buildderefunitimportsyms;
           procedure derefunitimportsyms;
           procedure freederefunitimportsyms;
@@ -836,6 +838,23 @@ var
                 break;
               end;
           end;
+      end;
+
+
+    procedure tppumodule.buildimplementationderefs;
+      begin
+         tstoredsymtable(globalsymtable).buildderefimpl;
+         tunitwpoinfo(wpoinfo).buildderef;
+         tunitwpoinfo(wpoinfo).buildderefimpl;
+
+         if assigned(globalmacrosymtable) and (globalmacrosymtable.SymList.count > 0) then
+            begin
+              tstoredsymtable(globalmacrosymtable).buildderef;
+              tstoredsymtable(globalmacrosymtable).buildderefimpl;
+            end;
+
+         if mf_local_symtable in moduleflags then
+           tstoredsymtable(localsymtable).buildderef_registered;
       end;
 
 
@@ -1821,18 +1840,7 @@ var
            { the unit may have been re-resolved, in which case the current
              position in derefdata is not necessarily at the end }
             derefdata.seek(derefdata.size);
-         tstoredsymtable(globalsymtable).buildderefimpl;
-         tunitwpoinfo(wpoinfo).buildderef;
-         tunitwpoinfo(wpoinfo).buildderefimpl;
-
-         if assigned(globalmacrosymtable) and (globalmacrosymtable.SymList.count > 0) then
-            begin
-              tstoredsymtable(globalmacrosymtable).buildderef;
-              tstoredsymtable(globalmacrosymtable).buildderefimpl;
-            end;
-
-         if mf_local_symtable in moduleflags then
-           tstoredsymtable(localsymtable).buildderef_registered;
+         buildimplementationderefs;
          buildderefunitimportsyms;
          writederefmap;
          writederefdata;
@@ -1872,10 +1880,15 @@ var
          { end of implementation }
          ppufile.writeentry(ibendimplementation);
 
-         { write static symtable
-           needed for local debugging of unit functions }
+         { Registered private defs/syms can be referenced by inline code
+           in other units, so their identity is part of the full CRC. }
          if mf_local_symtable in moduleflags then
-           tstoredsymtable(localsymtable).ppuwrite(ppufile);
+           begin
+             ppufile.do_crc:=true;
+             ppufile.do_interface_crc:=false;
+             tstoredsymtable(localsymtable).ppuwrite(ppufile);
+             ppufile.do_crc:=false;
+           end;
 
          { write whole program optimisation-related information }
          tunitwpoinfo(wpoinfo).ppuwrite(ppufile);
@@ -1972,6 +1985,9 @@ var
          derefdata.reset;
          tstoredsymtable(globalsymtable).buildderef;
          derefdataintflen:=derefdata.size;
+         { A final CRC must include the private references of inline bodies. }
+         if not in_interface then
+           buildimplementationderefs;
          writederefmap;
          writederefdata;
 
@@ -1990,6 +2006,12 @@ var
            begin
              ppufile.putbyte(byte(false));
              ppufile.writeentry(ibexportedmacros);
+           end;
+
+         if not in_interface and (mf_local_symtable in moduleflags) then
+           begin
+             ppufile.do_interface_crc:=false;
+             tstoredsymtable(localsymtable).ppuwrite(ppufile);
            end;
 
          { save crc  }
@@ -2698,6 +2720,29 @@ var
         end;
         Result:=true;
       end;
+
+    function tppumodule.reload_needs_recompile: boolean;
+      begin
+        { A reload re-resolves what has deref data.  A module compiled from
+          its sources in this run has that for its interface as soon as the
+          interface crc is taken; for the rest - the definitions of its
+          implementation, the node trees it keeps for inlining - only when its
+          ppu is written.  Once its implementation has been parsed and it
+          waits for the crcs of the units it uses, all of that points straight
+          at the definitions of those units.  If one of them is reset then
+          (its ppu recorded another implementation crc of this module: the
+          body of a routine changed, the unit was compiled by name next to
+          the ppu of a unit that uses it in its implementation and that it
+          uses itself - math and types), the reload left those pointers
+          dangling: the unit compiled from its sources afterwards inlined
+          Math.CompareValue, whose result conversion still named the freed
+          TValueRelationship of the old Types, and the compiler died with an
+          access violation (release build) or internal error 200306031.
+          Such a module is compiled again instead. }
+        result:=not fromppu and
+          (state in [ms_compiling_waitfinish,ms_compiled_waitcrc]);
+      end;
+
 
     procedure tppumodule.reload;
       var

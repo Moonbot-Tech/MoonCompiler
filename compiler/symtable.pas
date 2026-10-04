@@ -909,6 +909,15 @@ implementation
                (sym.typ<>typesym) then
               sym.deref;
           end;
+        { The deref data exists: either built by buildderef before writing
+          the ppu, or loaded with the ppu.  tppumodule.re_resolve asks
+          is_deref_built before it re-runs deref for a module whose used
+          unit was recompiled; a module loaded from a ppu never went through
+          buildderef, so without this flag it kept its pointers into the
+          freed symtables of the recompiled unit (an incremental build after
+          an interface change of a low-level unit then crashed with a
+          use-after-free on a tdef, 2026-09-16). }
+        deref_built:=true;
       end;
 
 
@@ -925,6 +934,8 @@ implementation
                def.is_registered then
               def.derefimpl;
           end;
+        { see deref }
+        derefimpl_built:=true;
       end;
 
 

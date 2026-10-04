@@ -1028,6 +1028,14 @@ implementation
             asmdata:=nil;
           end;
         DoneDebugInfo(self,current_debuginfo_reset);
+        { Retire registrations before symtable destruction can free defs with
+          no module back-pointer. Shared aliases surviving the reset must also
+          lose their back-pointer. }
+        for i:=0 to deflist.Count-1 do
+          if assigned(deflist[i]) and (tdef(deflist[i]).registered_in_module=self) then
+            tdef(deflist[i]).registered_in_module:=nil;
+        deflist.free;
+        deflist:=TFPObjectList.Create(false);
         globalsymtable.free;
         globalsymtable:=nil;
         localsymtable.free;
@@ -1036,8 +1044,6 @@ implementation
         globalmacrosymtable:=nil;
         localmacrosymtable.free;
         localmacrosymtable:=nil;
-        deflist.free;
-        deflist:=TFPObjectList.Create(false);
         symlist.free;
         symlist:=TFPObjectList.Create(false);
         ptrdefs.free;

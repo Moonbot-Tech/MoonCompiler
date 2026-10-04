@@ -407,9 +407,15 @@ begin
   tmodule.ctask_fast_backtrack:=false;
   if m.do_reload then
   begin
-    tppumodule(m).reload;
-    t.SaveState;
-    tglobalstate.clear_state;
+    if tppumodule(m).reload_needs_recompile then
+      { see tppumodule.reload_needs_recompile; discards the saved state }
+      recompile_module(m)
+    else
+      begin
+        tppumodule(m).reload;
+        t.SaveState;
+        tglobalstate.clear_state;
+      end;
     exit(false);
   end;
   case m.state of
@@ -649,8 +655,8 @@ end;
 function ttask_handler.check_do_reload_cycle(scc_root: tmodule): boolean;
 { return true if something changed }
 var
-  m, firstwaiting: tmodule;
-  HasDoReload: Boolean;
+  m, next_m, firstwaiting: tmodule;
+  HasDoReload, Recompiled: Boolean;
 begin
   Result:=false;
   HasDoReload:=false;
@@ -669,11 +675,40 @@ begin
   if not HasDoReload then
     exit;
 
-  { reload all do_reloads }
   Result:=true;
+
+  { first the modules that are compiled again instead of reloaded (see
+    tppumodule.reload_needs_recompile).  That resets their interface and
+    their uses, so what was checked above does not hold any more: a module
+    that uses one of them can not be reloaded now (tppumodule.reload stopped
+    with internal error 2026022413 on aasmsym behind the recompiled aasmtai
+    in the incremental build of the compiler), and one that only names their
+    definitions through a third unit would resolve into the emptied lists.
+    The others keep their do_reload for the next round of the scheduler, the
+    same way as after a recompile because of a crc mismatch. }
+  Recompiled:=false;
   m:=scc_root;
   while assigned(m) do
     begin
+      next_m:=m.scc_next;
+      if m.do_reload and tppumodule(m).reload_needs_recompile then
+        begin
+          {$IFDEF DEBUG_CTASK}
+          writeln('PPUALGO ttask_handler.check_do_reload_cycle recompiling ',m.modulename^,' ',m.statestr,' ...');
+          {$ENDIF}
+          Recompiled:=true;
+          recompile_module(m);
+        end;
+      m:=next_m;
+    end;
+  if Recompiled then
+    exit;
+
+  { reload all do_reloads }
+  m:=scc_root;
+  while assigned(m) do
+    begin
+      next_m:=m.scc_next;
       if m.do_reload then
         begin
           {$IFDEF DEBUG_CTASK}
@@ -681,7 +716,7 @@ begin
           {$ENDIF}
           reload_module(m);
         end;
-      m:=m.scc_next;
+      m:=next_m;
     end;
 end;
 
@@ -1008,6 +1043,14 @@ begin
       Internalerror(2026022412);
     end;
   {$ENDIF}
+
+  if tppumodule(m).reload_needs_recompile then
+    begin
+      {$IFDEF DEBUG_PPU_CYCLES}
+      writeln('PPUALGO ttask_handler.reload_module ',m.modulename^,' ',m.statestr,' compiled from its sources, implementation parsed: recompiling instead');
+      {$ENDIF}
+      exit(recompile_module(m));
+    end;
 
   Result:=restore_state(m);
   tppumodule(m).reload;

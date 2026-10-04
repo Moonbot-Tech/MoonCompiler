@@ -3324,7 +3324,11 @@ implementation
         if df_copied_def in defoptions then
           begin
             basedef:=tenumdef(basedefderef.resolve);
-            symtable:=basedef.symtable.getcopy;
+            if symtable<>basedef.symtable then
+               begin
+                 symtable.free;
+                 symtable:=basedef.symtable.getcopy;
+               end;
           end
         else
           tenumsymtable(symtable).deref(false);
@@ -5948,7 +5952,11 @@ implementation
          if df_copied_def in defoptions then
            begin
              cloneddef:=trecorddef(cloneddefderef.resolve);
-             symtable:=cloneddef.symtable.getcopy;
+             if symtable<>cloneddef.symtable then
+               begin
+                 symtable.free;
+                 symtable:=cloneddef.symtable.getcopy;
+               end;
            end
          else
            tstoredsymtable(symtable).deref(false);
@@ -8322,12 +8330,25 @@ implementation
          { only used for external Objective-C classes/protocols }
          if (objextname^='') then
            stringdispose(objextname);
-         symtable:=tObjectSymtable.create(self,objrealname^,0,0);
-         tObjectSymtable(symtable).datasize:=ppufile.getasizeint;
-         tObjectSymtable(symtable).paddingsize:=ppufile.getword;
-         tObjectSymtable(symtable).fieldalignment:=shortint(ppufile.getbyte);
-         tObjectSymtable(symtable).recordalignment:=shortint(ppufile.getbyte);
-         tObjectSymtable(symtable).recordalignmin:=shortint(ppufile.getbyte);
+         if df_copied_def in defoptions then
+           begin
+             { A copied definition acquires its owner's table in deref.
+               Consume the stored layout without allocating a placeholder. }
+             ppufile.getasizeint;
+             ppufile.getword;
+             ppufile.getbyte;
+             ppufile.getbyte;
+             ppufile.getbyte;
+           end
+         else
+           begin
+             symtable:=tObjectSymtable.create(self,objrealname^,0,0);
+             tObjectSymtable(symtable).datasize:=ppufile.getasizeint;
+             tObjectSymtable(symtable).paddingsize:=ppufile.getword;
+             tObjectSymtable(symtable).fieldalignment:=shortint(ppufile.getbyte);
+             tObjectSymtable(symtable).recordalignment:=shortint(ppufile.getbyte);
+             tObjectSymtable(symtable).recordalignmin:=shortint(ppufile.getbyte);
+           end;
          ppufile.getderef(vmt_fieldderef);
          ppufile.getderef(childofderef);
 
@@ -8664,7 +8685,11 @@ implementation
          if df_copied_def in defoptions then
            begin
              cloneddef:=tobjectdef(cloneddefderef.resolve);
-             symtable:=cloneddef.symtable.getcopy;
+             if symtable<>cloneddef.symtable then
+               begin
+                 symtable.free;
+                 symtable:=cloneddef.symtable.getcopy;
+               end;
            end
          else
            tstoredsymtable(symtable).deref(false);
@@ -8718,8 +8743,12 @@ implementation
           end
         else if (psym.typ<>procsym) then
           internalerror(2009111501);
-        { add ourselves to this special procsym }
-        tprocsym(psym).procdeflist.add(def);
+        { add ourselves to this special procsym, once: derefimpl runs again
+          when the unit is re-resolved after a used unit was recompiled
+          (tppumodule.re_resolve), and a procdef listed twice would be two
+          candidates of one overload }
+        if tprocsym(psym).procdeflist.indexof(def)<0 then
+          tprocsym(psym).procdeflist.add(def);
       end;
 
 
