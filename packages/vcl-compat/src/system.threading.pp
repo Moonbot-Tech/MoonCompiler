@@ -87,11 +87,11 @@ type
 
     TExceptionEnumerator = class
     private
-      FList : TExceptionArray;
+      FException : EAggregateException;
       FCurrent : Integer;
       function GetCurrent: Exception;
     public
-      constructor Create(aList : TExceptionArray);
+      constructor Create(aException : EAggregateException);
       function MoveNext: Boolean; inline;
       property Current: Exception read GetCurrent;
     end;
@@ -301,7 +301,7 @@ type
     TAbstractWorkerData = class(TInterfacedObject)
     protected
       FControlFlag: IControlFlag;
-      function ShouldExecute: Boolean;
+      function ShouldExecute: Boolean; virtual;
     public
       class function NewInstance: TObject; override;
       procedure FreeInstance; override;
@@ -555,9 +555,8 @@ type
                        TOptionStateFlag.Complete, TOptionStateFlag.Canceled, TOptionStateFlag.Faulted];
       OptionFlagMask = [TOptionStateFlag.Replicating, TOptionStateFlag.Replica];
       ReplicatingStates = OptionFlagMask;
-      StartedStates = [TOptionStateFlag.Started, TOptionStateFlag.Canceled, TOptionStateFlag.Faulted, TOptionStateFlag.Complete];
       CompleteStates = [TOptionStateFlag.Destroying, TOptionStateFlag.Complete,
-        TOptionStateFlag.Canceled, TOptionStateFlag.Faulted];
+        TOptionStateFlag.Faulted];
       CanceledStates = [TOptionStateFlag.Canceled, TOptionStateFlag.Faulted];
 
   Public
@@ -620,7 +619,7 @@ type
     procedure SetRaisedState;
     procedure CalcStatus;
     procedure ForceStateFlags(aFlags : TOptionStateFlags); inline;
-    function InternalWork(aCheckExecuting: Boolean): Boolean;
+    function InternalWork: Boolean;
     procedure InternalExecute(var aCurrentTaskVar: TTask);
     procedure Execute;
     procedure DoCancel(aDestroying: Boolean);
@@ -632,6 +631,7 @@ type
     function MarkAsStarted: Boolean;
     function TryExecuteNow(aWasQueued: Boolean): Boolean;
     { IThreadPoolWorkItem }
+    function ShouldExecute: Boolean; override;
     procedure ExecuteWork;
     { ITask }
     function Wait(aTimeout: Cardinal = INFINITE): Boolean; overload;
@@ -1272,7 +1272,7 @@ end;
 
 function EAggregateException.GetEnumerator: TExceptionEnumerator;
 begin
-  Result:=TExceptionEnumerator.Create(Self.FList.List)
+  Result:=TExceptionEnumerator.Create(Self)
 end;
 
 procedure EAggregateException.Handle(aExceptionHandlerEvent: TExceptionHandlerEvent);
@@ -1346,20 +1346,21 @@ end;
 
 function EAggregateException.TExceptionEnumerator.GetCurrent: Exception;
 begin
-  Result:=Exception(FList[FCurrent]);
+  Result:=FException.InnerExceptions[FCurrent];
 end;
 
-constructor EAggregateException.TExceptionEnumerator.Create(aList: TExceptionArray);
+constructor EAggregateException.TExceptionEnumerator.Create(aException: EAggregateException);
 begin
-  FList:=aList;
+  FException:=aException;
   FCurrent:=-1;
 end;
 
 function EAggregateException.TExceptionEnumerator.MoveNext: Boolean;
 begin
-  Result:=Assigned(FList) and (FCurrent<Length(FList));
-  if Result then
-    Inc(FCurrent);
+  if FCurrent>=FException.Count then
+    Exit(False);
+  Inc(FCurrent);
+  Result:=FCurrent<FException.Count;
 end;
 
 { *********************************************************************
@@ -2787,7 +2788,9 @@ end;
 
 function TTask.GetIsQueued: Boolean;
 begin
-  Result:=(FStateFlags*StartedStates) = [TOptionStateFlag.Started];
+  Result:=(FStateFlags*[TOptionStateFlag.Started,TOptionStateFlag.CallbackRun,
+    TOptionStateFlag.Canceled,TOptionStateFlag.Faulted,TOptionStateFlag.Complete])=
+    [TOptionStateFlag.Started];
 end;
 
 function TTask.GetDoneEvent: TLightweightEvent;
@@ -2831,7 +2834,7 @@ Procedure TTask.CalcStatus;
     OSF:=FStateFlags;
     if Have(TOptionStateFlag.Faulted) then
       Exit(TTaskStatus.Exception);
-    if Have(TOptionStateFlag.Canceled) and Assigned(FParams.ParentControlFlag) and (FParams.ParentControlFlag.Value>0) then
+    if Have(TOptionStateFlag.Canceled) then
       Exit(TTaskStatus.Canceled);
     if Have(TOptionStateFlag.Complete) then
       Exit(TTaskStatus.Completed);
@@ -3053,10 +3056,10 @@ begin
   if HasExceptions then
     Include(State,TOptionStateFlag.Faulted);
   if IsCanceled then
-    Include(State,TOptionStateFlag.Canceled)
-  else
-    Include(State,TOptionStateFlag.Complete);
-  UpdateStateAtomic(State,[]);
+    Include(State,TOptionStateFlag.Canceled);
+  Include(State,TOptionStateFlag.Complete);
+  if not UpdateStateAtomic(State,[TOptionStateFlag.Complete]) then
+    Exit;
   SetComplete;
   FinalCompletion;
 end;
@@ -3121,21 +3124,13 @@ begin
     UpdateStateAtomic([TOptionStateFlag.Raised], []);
 end;
 
-function TTask.InternalWork(aCheckExecuting: Boolean): Boolean;
-
-var
-  BusyCheck : Boolean;
-
+function TTask.InternalWork: Boolean;
 begin
   {$IFDEF USE_THREADLOG}ThreadLog('TTask.InternalWork','Enter');{$ENDIF USE_THREADLOG}
-  BusyCheck:=aCheckExecuting or (TOptionStateFlag.Replicating in FStateFlags);
-  {$IFDEF USE_THREADLOG}ThreadLog('TTask.InternalWork','busycheck: %s:=%s or (%s));',[BToS(BusyCheck),BToS(aCheckExecuting),BToS(TOptionStateFlag.Replicating in FStateFlags)]);{$ENDIF USE_THREADLOG}
-  if Not BusyCheck then
-    begin
-    {$IFDEF USE_THREADLOG}ThreadLog('TTask.InternalWork','set running');{$ENDIF USE_THREADLOG}
-    ForceStateFlags([TOptionStateFlag.CallbackRun]);
-    end
-  else if not UpdateStateAtomic([TOptionStateFlag.CallbackRun], [TOptionStateFlag.CallbackRun]) and
+  if not (TOptionStateFlag.CallbackRun in FStateFlags) and
+    not UpdateStateAtomic([TOptionStateFlag.CallbackRun],
+      [TOptionStateFlag.CallbackRun,TOptionStateFlag.Canceled,
+       TOptionStateFlag.Faulted,TOptionStateFlag.Complete]) and
     not (TOptionStateFlag.Canceled in FStateFlags) then
       Exit(False);
   if IsCanceled then
@@ -3264,17 +3259,30 @@ begin
   if not Result then
     Exit;
   AtomicDecrement(FParams.Pool.FRequestCount);
-  Result:=InternalWork(False);
+  Result:=InternalWork;
 end;
 
 procedure TTask.ExecuteWork;
 begin
   try
-    InternalWork(False);
+    InternalWork;
   except
     HandleException(Self, TObject(AcquireExceptionObject));
     Complete(False);
   end;
+end;
+
+function TTask.ShouldExecute: Boolean;
+begin
+  Result:=inherited ShouldExecute;
+  if not Result then
+    { The state lock arbitrates the dequeue/cancel race.  Once CallbackRun is
+      published cancellation must wait for the callback path; if cancellation
+      won first, this worker skips user code. }
+    Result:=not UpdateStateAtomic([TOptionStateFlag.CallbackRun],
+      [TOptionStateFlag.Canceled,TOptionStateFlag.Faulted,TOptionStateFlag.Complete]);
+  if Result then
+    Complete(False);
 end;
 
 function TTask.Wait(aTimeout: Cardinal): Boolean;
@@ -3333,19 +3341,20 @@ end;
 procedure TTask.DoCancel(aDestroying : Boolean);
 
 var
-  LFlags: TOptionStateFlags;
-  OldQueued: Boolean;
+  LFlags, OldFlags: TOptionStateFlags;
 
 begin
   if IsComplete then
     exit;
   SetTaskStop;
-  OldQueued:=IsQueued;
   LFlags:=[TOptionStateFlag.Canceled];
   if aDestroying then
     Include(LFlags, TOptionStateFlag.Destroying);
-  UpdateStateAtomic(LFlags,[TOptionStateFlag.Faulted,TOptionStateFlag.Complete]);
-  if not (OldQueued or IsQueued) then
+  if not UpdateStateAtomic(LFlags,[TOptionStateFlag.Faulted,TOptionStateFlag.Complete],OldFlags) then
+    Exit;
+  { A task not yet claimed by a worker is terminal immediately.  A claimed
+    callback owns completion and publishes it only after leaving user code. }
+  if not (TOptionStateFlag.CallbackRun in OldFlags) then
     Complete(False);
 end;
 
