@@ -45,8 +45,8 @@ implementation
     uses
       globtype,
       systems,verbose,cutils,
-      cpubase,cgbase,cgutils,cgobj,
-      symconst,symcpu,nld,
+      cpubase,cgbase,cgutils,cgobj,parabase,
+      symconst,symcpu,symsym,nld,
       aasmtai,aasmdata,aasmcpu,
       cpupi;
 
@@ -86,9 +86,97 @@ implementation
     procedure tx8664callnode.extra_call_code;
       var
         mmregs : aint;
+        intsize : tcgsize;
+        para : tcallparanode;
+        paraloc : pcgparalocation;
+        intreg,
+        mmreg : tsuperregister;
+        mmsize : tcgsize;
       begin
-        { x86_64 requires %al to contain the no. SSE regs passed }
-        if (cnf_uses_varargs in callnodeflags) and not x86_64_use_ms_abi(procdefinition.proccalloption) then
+        if (cnf_uses_varargs in callnodeflags) and x86_64_use_ms_abi(procdefinition.proccalloption) then
+          begin
+            { The Microsoft x64 varargs ABI duplicates every floating-point
+              argument in the first four argument slots in the matching integer
+              and XMM registers.  Fixed parameters have an XMM canonical
+              location, while the variadic tail has an integer canonical
+              location; mirror both forms from the final call-parameter list
+              immediately before the call. }
+            para:=tcallparanode(left);
+            while assigned(para) do
+              begin
+                if para.parasym.vardef.typ=floatdef then
+                  begin
+                    paraloc:=para.parasym.paraloc[callerside].location;
+                    if assigned(paraloc) then
+                      begin
+                        case paraloc^.loc of
+                          LOC_REGISTER:
+                            begin
+                              case getsupreg(paraloc^.register) of
+                                RS_RCX:
+                                  mmreg:=RS_XMM0;
+                                RS_RDX:
+                                  mmreg:=RS_XMM1;
+                                RS_R8:
+                                  mmreg:=RS_XMM2;
+                                RS_R9:
+                                  mmreg:=RS_XMM3;
+                                else
+                                  internalerror(2026090901);
+                              end;
+                              case paraloc^.size of
+                                OS_32,OS_S32:
+                                  mmsize:=OS_F32;
+                                OS_64,OS_S64:
+                                  mmsize:=OS_F64;
+                                else
+                                  internalerror(2026090902);
+                              end;
+                              cg.a_loadmm_intreg_reg(current_asmdata.CurrAsmList,
+                                paraloc^.size,mmsize,paraloc^.register,
+                                newreg(R_MMREGISTER,mmreg,
+                                  cgsize2subreg(R_MMREGISTER,mmsize)),mms_movescalar);
+                            end;
+                          LOC_MMREGISTER:
+                            begin
+                              case getsupreg(paraloc^.register) of
+                                RS_XMM0:
+                                  intreg:=RS_RCX;
+                                RS_XMM1:
+                                  intreg:=RS_RDX;
+                                RS_XMM2:
+                                  intreg:=RS_R8;
+                                RS_XMM3:
+                                  intreg:=RS_R9;
+                                else
+                                  internalerror(2026091001);
+                              end;
+                              case paraloc^.size of
+                                OS_F32:
+                                  intsize:=OS_32;
+                                OS_F64:
+                                  intsize:=OS_64;
+                                else
+                                  internalerror(2026091002);
+                              end;
+                              cg.a_loadmm_reg_intreg(current_asmdata.CurrAsmList,
+                                paraloc^.size,intsize,paraloc^.register,
+                                newreg(R_INTREGISTER,intreg,
+                                  cgsize2subreg(R_INTREGISTER,intsize)),mms_movescalar);
+                            end;
+                          LOC_REFERENCE:
+                            ;
+                          else
+                            internalerror(2026091003);
+                        end;
+                      end;
+                  end;
+                para:=tcallparanode(para.right);
+              end;
+          end
+        { The System V x86-64 ABI requires %al to contain the number of SSE
+          registers used for variadic arguments. }
+        else if (cnf_uses_varargs in callnodeflags) then
           begin
             if assigned(varargsparas) then
               mmregs:=varargsparas.mmregsused

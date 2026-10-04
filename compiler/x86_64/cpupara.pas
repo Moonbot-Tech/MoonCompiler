@@ -1785,7 +1785,9 @@ unit cpupara;
                   paracgsize:=def_cgsize(paralocdef);
               end;
 
-            { cheat for now, we should copy the value to an mm reg as well (FK) }
+            { The Microsoft x64 varargs ABI uses the integer register as the
+              canonical location. nx64cal mirrors it to the matching XMM
+              register immediately before the call. }
             if varargsparas and
                use_ms_abi and
                (paralocdef.typ = floatdef) then
@@ -2021,29 +2023,38 @@ unit cpupara;
                           paraloc^.loc:=LOC_REFERENCE;
                           paraloc^.def:=loc[locidx].def;
 
-                          { s64comp/s64currency are passed as integer types
-                            (important for LLVM here) }
-                          if paracgsize=OS_C64 then
+                          { Only the register form of a Microsoft x64 variadic
+                            float uses the canonical integer representation.
+                            Once the argument spills past the first four slots,
+                            keep its floating-point type and size. }
+                          if varargsparas and use_ms_abi and (paradef.typ=floatdef) then
                             begin
-                              paraloc^.size:=OS_64;
-                              paraloc^.def:=u64inttype;
-                            end;
-
-                          {Hack alert!!! We should modify int_cgsize to handle OS_128,
-                           however, since int_cgsize is called in many places in the
-                           compiler where only a few can already handle OS_128, fixing it
-                           properly is out of the question to release 2.2.0 in time. (DM)}
-                          if paracgsize=OS_128 then
-                            if paralen=8 then
-                              paraloc^.size:=OS_64
-                            else if paralen=16 then
-                              paraloc^.size:=OS_128
-                            else
-                              internalerror(200707143)
-                          else if paracgsize in [OS_F32,OS_F64,OS_F80,OS_F128] then
-                            paraloc^.size:=int_float_cgsize(paralen)
+                              paraloc^.size:=def_cgsize(paradef);
+                              paraloc^.def:=paradef;
+                            end
                           else
-                            paraloc^.size:=int_cgsize(paralen);
+                            begin
+                              { s64comp/s64currency are passed as integer types
+                                (important for LLVM here) }
+                              if paracgsize=OS_C64 then
+                                paraloc^.def:=u64inttype;
+
+                              {Hack alert!!! We should modify int_cgsize to handle OS_128,
+                               however, since int_cgsize is called in many places in the
+                               compiler where only a few can already handle OS_128, fixing it
+                               properly is out of the question to release 2.2.0 in time. (DM)}
+                              if paracgsize=OS_128 then
+                                if paralen=8 then
+                                  paraloc^.size:=OS_64
+                                else if paralen=16 then
+                                  paraloc^.size:=OS_128
+                                else
+                                  internalerror(200707143)
+                              else if paracgsize in [OS_F32,OS_F64,OS_F80,OS_F128] then
+                                paraloc^.size:=int_float_cgsize(paralen)
+                              else
+                                paraloc^.size:=int_cgsize(paralen);
+                            end;
                           if side=callerside then
                             paraloc^.reference.index:=NR_STACK_POINTER_REG
                           else
