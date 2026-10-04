@@ -523,6 +523,56 @@ implementation
            end;
 {$endif i8086}
 
+{$ifndef i8086}
+         procedure emit_normalset_bit_test;
+           var
+             wordreg,addrreg,bitreg: tregister;
+             wordref: treference;
+             loadsize: tcgsize;
+             indexshift: byte;
+           begin
+             if not(right.location.loc in [LOC_REGISTER,LOC_CREGISTER,LOC_REFERENCE,LOC_CREFERENCE]) then
+               internalerror(2026100401);
+             if right.location.loc in [LOC_REGISTER,LOC_CREGISTER] then
+               emit_reg_reg(A_BT,S_L,pleftreg,right.location.register)
+             else if (cs_opt_size in current_settings.optimizerswitches) and (right.resultdef.size mod 4=0) then
+               emit_reg_ref(A_BT,S_L,pleftreg,right.location.reference)
+             else
+               begin
+                 { A register-indexed memory BT performs the word selection
+                   internally. An explicit load avoids that slow instruction. }
+                 loadsize:=OS_32;
+                 indexshift:=5;
+                 bitreg:=pleftreg;
+                 if right.resultdef.size mod 4<>0 then
+                   begin
+                     { Packed sets may end in a partial word. Read one byte
+                       so the final element never reads past the set storage. }
+                     loadsize:=OS_8;
+                     indexshift:=3;
+                     bitreg:=cg.getintregister(current_asmdata.CurrAsmList,OS_32);
+                     cg.a_load_reg_reg(current_asmdata.CurrAsmList,OS_32,OS_32,pleftreg,bitreg);
+                     cg.a_op_const_reg(current_asmdata.CurrAsmList,OP_AND,OS_32,7,bitreg);
+                   end;
+                 wordreg:=cg.getintregister(current_asmdata.CurrAsmList,OS_32);
+                 cg.a_load_reg_reg(current_asmdata.CurrAsmList,OS_32,OS_32,pleftreg,wordreg);
+                 cg.a_op_const_reg(current_asmdata.CurrAsmList,OP_SHR,OS_32,indexshift,wordreg);
+                 wordref:=right.location.reference;
+                 if wordref.index<>NR_NO then
+                   begin
+                     addrreg:=cg.getaddressregister(current_asmdata.CurrAsmList);
+                     cg.a_loadaddr_ref_reg(current_asmdata.CurrAsmList,wordref,addrreg);
+                     reference_reset_base(wordref,addrreg,0,wordref.temppos,wordref.alignment,wordref.volatility);
+                     wordref.segment:=right.location.reference.segment;
+                   end;
+                 wordref.index:=cg.makeregsize(current_asmdata.CurrAsmList,wordreg,OS_ADDR);
+                 wordref.scalefactor:=1 shl (indexshift-3);
+                 cg.a_load_ref_reg(current_asmdata.CurrAsmList,loadsize,OS_32,wordref,wordreg);
+                 emit_reg_reg(A_BT,S_L,bitreg,wordreg);
+               end;
+           end;
+{$endif i8086}
+
        begin
          ranges:=false;
          numparts:=0;
@@ -1004,14 +1054,7 @@ implementation
                       cg.a_label(current_asmdata.CurrAsmList,l);
 
                       pleftreg:=left.location.register;
-                      case right.location.loc of
-                        LOC_REGISTER, LOC_CREGISTER :
-                          emit_reg_reg(A_BT,S_L,pleftreg,right.location.register);
-                        LOC_CREFERENCE, LOC_REFERENCE :
-                          emit_reg_ref(A_BT,S_L,pleftreg,right.location.reference);
-                      else
-                        internalerror(2007020301);
-                      end;
+                      emit_normalset_bit_test;
 
                       cg.a_label(current_asmdata.CurrAsmList,l2);
 
@@ -1020,14 +1063,7 @@ implementation
                   else
                     begin
                       cg.a_reg_alloc(current_asmdata.CurrAsmList, NR_DEFAULTFLAGS);
-                      case right.location.loc of
-                        LOC_REGISTER, LOC_CREGISTER :
-                          emit_reg_reg(A_BT,S_L,pleftreg,right.location.register);
-                        LOC_CREFERENCE, LOC_REFERENCE :
-                          emit_reg_ref(A_BT,S_L,pleftreg,right.location.reference);
-                      else
-                        internalerror(2007020302);
-                      end;
+                      emit_normalset_bit_test;
                       location.resflags:=F_C;
                     end;
 {$endif i8086}

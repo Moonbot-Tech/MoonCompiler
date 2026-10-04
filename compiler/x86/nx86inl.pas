@@ -1301,7 +1301,7 @@ implementation
 
               hlcg.location_force_reg(current_asmdata.CurrAsmList,tcallparanode(tcallparanode(left).right).left.location,tcallparanode(tcallparanode(left).right).left.resultdef,opdef,true);
               register_maybe_adjust_setbase(current_asmdata.CurrAsmList,tcallparanode(tcallparanode(left).right).left.resultdef,tcallparanode(tcallparanode(left).right).left.location,setbase);
-              hregister:=tcallparanode(tcallparanode(left).right).left.location.register;
+              hregister:=cg.makeregsize(current_asmdata.CurrAsmList,tcallparanode(tcallparanode(left).right).left.location.register,opsize);
               if tcallparanode(left).left.location.loc=LOC_REFERENCE then
                 emit_reg_ref(asmop,tcgsize2opsize[opsize],hregister,tcallparanode(left).left.location.reference)
               else
