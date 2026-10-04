@@ -10711,6 +10711,31 @@ unit aoptx86;
          if not GetNextInstruction(p, hp1) then
            Exit;
 
+         { (x-1)=allones iff the subtraction borrowed. Other flags from
+           CMP differ, so require their immediate lifetime end after Jcc. }
+         if MatchOpType(taicpu(p),top_const,top_reg) and
+           ((taicpu(p).oper[0]^.val=-1) or
+            ((taicpu(p).opsize=S_B) and (taicpu(p).oper[0]^.val=255)) or
+            ((taicpu(p).opsize=S_W) and (taicpu(p).oper[0]^.val=65535)) or
+            ((taicpu(p).opsize=S_L) and (taicpu(p).oper[0]^.val=$ffffffff))) and
+           MatchInstruction(hp1,A_Jcc,[]) and
+           (taicpu(hp1).condition in [C_E,C_Z,C_NE,C_NZ]) and
+           assigned(FindRegDeAlloc(NR_DEFAULTFLAGS,tai(hp1.next))) and
+           GetLastInstruction(p,hp2) and
+           MatchInstruction(hp2,A_SUB,[taicpu(p).opsize]) and
+           MatchOpType(taicpu(hp2),top_const,top_reg) and
+           MatchOperand(taicpu(hp2).oper[0]^,1) and
+           MatchOperand(taicpu(hp2).oper[1]^,taicpu(p).oper[1]^.reg) then
+           begin
+             if taicpu(hp1).condition in [C_E,C_Z] then
+               taicpu(hp1).condition:=C_B
+             else
+               taicpu(hp1).condition:=C_AE;
+             AllocRegBetween(NR_DEFAULTFLAGS,hp2,hp1,UsedRegs);
+             RemoveCurrentP(p,hp1);
+             Exit(True);
+           end;
+
          true_hp1 := hp1;
 
          { Search for:

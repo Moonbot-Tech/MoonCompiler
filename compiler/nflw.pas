@@ -2265,7 +2265,7 @@ implementation
         ifblock,loopblock : tblocknode;
         ifstatements,statements,loopstatements : tstatementnode;
         fromtemp,totemp,steptemp : ttempcreatenode;
-        do_loopvar_at_end : Boolean;
+        do_loopvar_at_end,use_countdown : Boolean;
         { if the lower and/or upper bound are variable, we need a surrounding if }
         needsifblock : Boolean;
         cond : tnodetype;
@@ -2273,6 +2273,7 @@ implementation
         toexpr, leftcopy: tnode;
         { if the upper bound is not constant, it must be store in a temp initially }
         usetotemp : boolean;
+        bounddef : tdef;
         { if the lower bound is not constant, it must be store in a temp before calculating the upper bound }
         usefromtemp : boolean;
         storefilepos: tfileposinfo;
@@ -2552,6 +2553,27 @@ implementation
           upper one reads memory, where the temp gives the shorter loop entry }
         usefromtemp:=(might_have_sideeffects(t1,[mhs_exceptions,mhs_memory_reads]) and not(is_const(right))) or (node_complexity(right)>1);
         usetotemp:=not(is_const(t1));
+        { Reuse the frozen upper bound as a remaining count. The visible
+          counter keeps its original sequence; only the exit test changes.
+          A zero/one start can use the bound directly. Aliased counters and alternate entries must keep
+          testing the visible counter. }
+        use_countdown:=false;
+{$if defined(i386) or defined(x86_64)}
+        use_countdown:=(cs_opt_forloop in current_settings.optimizerswitches) and
+          usetotemp and not(lnf_backward in loopflags) and
+          is_constintnode(right) and (get_ordinal_value(right)>=0) and (get_ordinal_value(right)<=1) and
+          not assigned(entrylabel) and not has_node_of_type(t2,[labeln,asmn]) and
+          (left.resultdef.size<=sizeof(aint)) and
+          (left.nodetype=loadn) and
+          (tloadnode(left).symtableentry.typ in [localvarsym,paravarsym]) and
+          not tabstractvarsym(tloadnode(left).symtableentry).addr_taken and
+          not tabstractvarsym(tloadnode(left).symtableentry).different_scope and
+          not tabstractnormalvarsym(tloadnode(left).symtableentry).is_captured and
+          not tabstractnormalvarsym(tloadnode(left).symtableentry).inparentfpstruct and
+          ((tloadnode(left).symtableentry.typ<>paravarsym) or
+           (tabstractvarsym(tloadnode(left).symtableentry).varspez=vs_value)) and
+          (([cs_check_overflow,cs_check_range]*localswitches)=[]);
+{$endif}
 
         if needsifblock then
           begin
@@ -2573,7 +2595,12 @@ implementation
 
             if usetotemp then
               begin
-                totemp:=ctempcreatenode.create(t1.resultdef,t1.resultdef.size,tt_persistent,true);
+                if use_countdown then
+                  { The remaining count may leave a declared subrange. }
+                  bounddef:=cgsize_orddef(def_cgsize(t1.resultdef))
+                else
+                  bounddef:=t1.resultdef;
+                totemp:=ctempcreatenode.create(bounddef,bounddef.size,tt_persistent,true);
                 addstatement(statements,totemp);
                 addstatement(statements,cassignmentnode.create_internal(ctemprefnode.create(totemp),t1.getcopy));
               end;
@@ -2624,7 +2651,9 @@ implementation
         if do_loopvar_at_end then
          iterate_counter(loopstatements,not(lnf_backward in loopflags));
 
-        if do_loopvar_at_end then
+        if use_countdown then
+          cond:=equaln
+        else if do_loopvar_at_end then
           begin
             if lnf_backward in loopflags then
               cond:=ltn
@@ -2640,12 +2669,28 @@ implementation
           end;
 
         { get rid of nf_write etc. as the left node is now only read }
-        leftcopy:=left.getcopy;
-        node_reset_flags(leftcopy,[nf_modify,nf_write],[tnf_pass1_done]);
+        if use_countdown then
+          leftcopy:=ctemprefnode.create(totemp)
+        else
+          begin
+            leftcopy:=left.getcopy;
+            node_reset_flags(leftcopy,[nf_modify,nf_write],[tnf_pass1_done]);
+          end;
 
         if needsifblock then
           begin
-            if usetotemp then
+            if use_countdown then
+              begin
+                if get_ordinal_value(right)=1 then
+                  toexpr:=cordconstnode.create(0,bounddef,false)
+                else if is_signed(bounddef) then
+                  { For a zero start, x86 folds SUB 1 / CMP allones into a
+                    borrow test. This also covers a full unsigned range. }
+                  toexpr:=cordconstnode.create(-1,bounddef,false)
+                else
+                  toexpr:=cordconstnode.create(torddef(bounddef).high,bounddef,false);
+              end
+            else if usetotemp then
               toexpr:=ctemprefnode.create(totemp)
             else
               toexpr:=t1.getcopy;
@@ -2659,7 +2704,18 @@ implementation
                 addstatement(ifstatements,cwhilerepeatnode.create(caddnode.create_internal(equaln,leftcopy,toexpr),loopblock,false,true))
               end
             else
-              addstatement(ifstatements,cwhilerepeatnode.create(caddnode.create_internal(cond,leftcopy,toexpr),loopblock,false,true));
+              begin
+                whileloopnode:=cwhilerepeatnode.create(caddnode.create_internal(cond,leftcopy,toexpr),loopblock,false,true);
+                if use_countdown then
+                  begin
+                    latchblock:=internalstatements(latchstatements);
+                    addstatement(latchstatements,cinlinenode.createintern(in_dec_x,false,
+                      ccallparanode.create(ctemprefnode.create(totemp),nil)));
+                    { Continue, including through finally, executes the latch. }
+                    twhilerepeatnode(whileloopnode).t1:=latchblock;
+                  end;
+                addstatement(ifstatements,whileloopnode);
+              end;
 
             if usefromtemp then
               fromexpr:=ctemprefnode.create(fromtemp)
