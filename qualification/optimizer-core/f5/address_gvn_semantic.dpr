@@ -20,6 +20,13 @@ type
     Qty: Single;
   end;
 
+  TLoopPeer = record
+    Market: Pointer;
+    PriceMul: Single;
+    Padding: Cardinal;
+  end;
+  TLoopPeers = array of TLoopPeer;
+
   TIndexKeeper = function(I: Integer): Integer;
 
 var
@@ -86,6 +93,22 @@ begin
   Result := Price * Qty;
 end;
 
+function SamePairsWhile(const A, B: TLoopPeers): Boolean; noinline;
+var
+  J, Remaining: Integer;
+begin
+  Result := Length(A) = Length(B);
+  if not Result then Exit;
+  J := -1;
+  Remaining := High(A);
+  while Remaining >= 0 do begin
+    Inc(J);
+    if A[J].Market <> B[J].Market then Exit(False);
+    if PCardinal(@A[J].PriceMul)^ <> PCardinal(@B[J].PriceMul)^ then Exit(False);
+    Dec(Remaining);
+  end;
+end;
+
 procedure ButterflyOpen(var OpenData: array of TPair; I, J: Integer); noinline;
 var
   AX,
@@ -142,6 +165,7 @@ var
   Digest: QWord;
   FloatData: array of TFloatPair;
   Points: array of TMarketPoint;
+  LoopA, LoopB: TLoopPeers;
   OpenData: array of TPair;
   I: Integer;
 begin
@@ -182,6 +206,23 @@ begin
   if (Abs(ReadMarketPoint(Points,2)-50.0)>1e-12) or
      (Abs(BarrierPrice-12.5)>1e-12) then begin
     WriteLn('ADDRESSGVN:FAIL:MARKET-POINT');
+    Halt(1);
+  end;
+  SetLength(LoopA,40);
+  SetLength(LoopB,40);
+  for I := 0 to High(LoopA) do begin
+    LoopA[I].Market := Pointer(PtrUInt(I + 1));
+    LoopB[I].Market := LoopA[I].Market;
+    LoopA[I].PriceMul := I + 0.5;
+    LoopB[I].PriceMul := LoopA[I].PriceMul;
+  end;
+  if not SamePairsWhile(LoopA,LoopB) then begin
+    WriteLn('ADDRESSGVN:FAIL:LOOP-INDEX');
+    Halt(1);
+  end;
+  LoopB[High(LoopB)].PriceMul := -1;
+  if SamePairsWhile(LoopA,LoopB) then begin
+    WriteLn('ADDRESSGVN:FAIL:LOOP-MISMATCH');
     Halt(1);
   end;
   ButterflyOpen(OpenData,1,3);

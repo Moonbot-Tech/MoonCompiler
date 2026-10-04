@@ -684,12 +684,27 @@ procedure rebuildliveranges(asmlist : tasmlist; const marked : tregmarkarray;
     n : longword;
     p : tai;
     view : tx86insnflowview;
+
+  procedure touch(reg : tregister; item : tai);
+    var
+      r : longword;
+    begin
+      if getregtype(reg)<>R_INTREGISTER then
+        exit;
+      r:=getsupreg(reg);
+      if (r>=longword(length(marked))) or not marked[r] then
+        exit;
+      if not assigned(cg.rg[R_INTREGISTER].live_start[r]) then
+        cg.rg[R_INTREGISTER].live_start[r]:=item;
+      cg.rg[R_INTREGISTER].live_end[r]:=item;
+    end;
   begin
     if length(marked)<=first_int_imreg then
       exit;
     { Code generation has already recorded live-range endpoints.  Some of
       those endpoints are the private instructions removed by this pass, so
-      rebuild exactly the affected ranges before register allocation. }
+      rebuild exactly the affected ranges before register allocation.
+      Sync markers keep loop-carried regvars live across the backedge. }
     for n:=first_int_imreg to high(marked) do
       if marked[n] then
         begin
@@ -702,16 +717,10 @@ procedure rebuildliveranges(asmlist : tasmlist; const marked : tregmarkarray;
         if (p.typ=ait_instruction) and
            facts.readfact(p,facts.generation,view) then
           for i:=0 to high(view.regs) do
-            if (getregtype(view.regs[i].reg)=R_INTREGISTER) then
-              begin
-                n:=getsupreg(view.regs[i].reg);
-                if (n<longword(length(marked))) and marked[n] then
-                  begin
-                    if not assigned(cg.rg[R_INTREGISTER].live_start[n]) then
-                      cg.rg[R_INTREGISTER].live_start[n]:=p;
-                    cg.rg[R_INTREGISTER].live_end[n]:=p;
-                  end;
-              end;
+            touch(view.regs[i].reg,p)
+        else if (p.typ=ait_regalloc) and
+                (tai_regalloc(p).ratype=ra_sync) then
+          touch(tai_regalloc(p).reg,p);
         p:=tai(p.next);
       end;
   end;

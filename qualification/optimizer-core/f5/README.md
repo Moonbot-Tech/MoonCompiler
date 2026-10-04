@@ -33,3 +33,9 @@ The pass deliberately does not cache loaded values, move memory operations or
 cross calls, branches or source-index definitions.  It only removes duplicate,
 private address-materialization chains after proving their exact reaching
 definition and dead flag result.
+
+The semantic program also compares repeated stride-16 record accesses in an
+explicit `while` loop with a live index and a separate remaining counter.  This
+checks that rebuilding affected live ranges retains the loop-boundary register
+sync markers: the index must remain live across the backedge even when address
+reuse removes its last ordinary instruction use in the body.
