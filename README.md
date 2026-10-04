@@ -39,7 +39,7 @@ syntax. Working against a complete production application required substantial
 work on its compiler, RTL, and memory manager.
 
 MoonCompiler brings the modified compiler, Unicode RTL, packages, memory
-manager, and build driver together as one supported x86-64 configuration. We
+manager, and runtime units together as one supported x86-64 configuration. We
 validate and optimize that configuration as a whole.
 
 The supported surface and intentionally retained boundaries are listed in
@@ -69,65 +69,76 @@ In practice, this means:
 
 ## Quick Start
 
-Clone the repository first. It contains the build driver, project profile, and
-the pinned MM source used by the installed toolchain:
+Download the archive for your platform from
+[GitHub Releases](https://github.com/Moonbot-Tech/MoonCompiler/releases),
+unpack it into a directory named `toolchain`, and clone MoonORMot next to it.
+No bootstrap compiler, no clone of this repository and no Python are needed.
+Then build a program - this one, or [examples/hello.dpr](examples/hello.dpr):
 
-```bash
-git clone https://github.com/Moonbot-Tech/MoonCompiler.git
-cd MoonCompiler
+```pascal
+program hello;
+begin
+  Writeln('Hello from MoonCompiler');
+end.
 ```
-
-The shortest path is to download the archive for your platform from
-[GitHub Releases](https://github.com/Moonbot-Tech/MoonCompiler/releases) and
-install it into the clone. No bootstrap compiler is required.
 
 Linux:
 
 ```bash
-./build toolchain ~/Downloads/mooncompiler-toolchain-v1.0.0-linux-x86-64.tar.gz
-./build examples/hello.dpr debug
-./build examples/hello.dpr release
+mkdir -p ~/moon/toolchain && cd ~/moon
+tar -xzf ~/Downloads/mooncompiler-toolchain-v1.0.0-linux-x86-64.tar.gz -C toolchain
+git clone https://github.com/Moonbot-Tech/MoonORMot mormot
+toolchain/bin/fpc hello.dpr
+toolchain/bin/fpc -dRELEASE hello.dpr
 ```
 
 Win64 PowerShell:
 
 ```powershell
-.\build.ps1 toolchain $HOME\Downloads\mooncompiler-toolchain-v1.0.0-win64.zip
-.\build.ps1 examples\hello.dpr debug
-.\build.ps1 examples\hello.dpr release
+New-Item -ItemType Directory -Force C:\Moon | Set-Location
+Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v1.0.0-win64.zip -DestinationPath toolchain
+git clone https://github.com/Moonbot-Tech/MoonORMot mormot
+toolchain\bin\x86_64-win64\fpc.exe hello.dpr
+toolchain\bin\x86_64-win64\fpc.exe -dRELEASE hello.dpr
 ```
 
+`fpc` is the product: it reads only the configuration next to its own binary,
+so the two commands are the same on both platforms and from any directory.
+Without `-dRELEASE` the program is a Debug build. MoonORMot is not inside the
+archive on purpose: the runtime units over mORMot (`System.Zip`,
+`System.Net.HttpClient`, `Moon.Diagnostics`, ...) compile against the clone in
+`mormot`, and `git pull` there is how it is updated.
+
 Alternatively, build the same toolchain from source with the FPC 3.2.2
-bootstrap compiler:
+bootstrap compiler; this also clones MoonORMot next to the toolchain:
 
 ```bash
+git clone https://github.com/Moonbot-Tech/MoonCompiler.git
+cd MoonCompiler
 ./build compiler
 ```
 
 ```powershell
+git clone https://github.com/Moonbot-Tech/MoonCompiler.git
+Set-Location MoonCompiler
 .\build.ps1 compiler
 ```
 
-The source-build dependencies and exact bootstrap commands are listed in
-[Setup](doc/SETUP.md). Afterwards, application projects are always compiled
-with the pinned compiler in `.moonbot/toolchain`, regardless of how it was
-installed.
+The source-build dependencies and the exact bootstrap commands are in
+[Setup](doc/SETUP.md).
 
-That is enough for a normal project. The driver adds the Unicode RTL, Delphi
-namespaces, required runtime units, and bundled MM itself. For a larger project,
-add a `<project>.mooncompiler` file next to the `.dpr` once, containing source
-trees, aliases, and pinned Git dependencies; the daily command stays the same.
-The format is described in [Project Build](doc/PROJECT_BUILD.md).
+That is enough for a normal project. The toolchain's configuration adds the
+Unicode RTL, Delphi namespaces, the runtime units and the bundled MM itself.
+For a larger project, add a `<Project>.mooncompiler` file next to the `.dpr`
+once - a file of compiler options: source trees (`-Fu./**` for a whole tree),
+aliases and defines; the daily command stays the same. The format is described
+in [Project Build](doc/PROJECT_BUILD.md).
 
 Heavy MM diagnostics can be enabled separately without changing Debug/Release
 semantics:
 
 ```bash
-./build examples/hello.dpr debug --diagnostic-mm
-```
-
-```powershell
-.\build.ps1 examples\hello.dpr debug -DiagnosticMM
+toolchain/bin/fpc -dFPCX64MM_DIAGNOSTIC hello.dpr
 ```
 
 ## The Build Profile
@@ -144,10 +155,24 @@ explicitly with `AnsiString`, `RawByteString`, or `TBytes`. Debug and Release
 use one validated runtime-check profile: I/O checking is enabled, while
 overflow, range, and stack checking are disabled. Release uses `-O3` and
 AUTOINLINE; the presence of line information does not change program semantics.
+The installed Unicode RTL and the application-facing packages are built with
+the same `-O3` (`scripts/rtl-profile.txt`, one definition for both drivers):
+an application spends much of its time inside RTL code, and that code is
+optimized and aligned like the application's own. At `-O3` the compiler puts
+procedure entries and loop heads on 32 bytes (`CODEALIGN`); the hand-laid
+assembler routines of the RTL and of the bundled MM carry their own layout in
+their source - the entry on a 64-byte line, the short form of a forward jump
+written out as bytes where the assembler's single sizing pass would take the
+long one ([ASM layout rules](doc/ASM_LAYOUT_RULES.md)). The code placement
+draft of the internal assembler is off; `MOONCOMPILER_PLACEMENT=1` in the
+environment switches it on
+([Optimizer, Code placement](doc/OPTIMIZER.md#code-placement)). The toolchain
+records the exact profile, and `qualification/build-driver/rtl_profile_gate.py`
+proves the installed RTL and package witness objects against it.
 
 The product runtime can be explicitly disabled with
-`-dMOONCOMPILER_VANILLA_RUNTIME`; Valgrind and ASan profiles automatically use
-`cmem` instead of the bundled MM.
+`-dMOONCOMPILER_VANILLA_RUNTIME`; Valgrind and ASan builds use `cmem` instead
+of the bundled MM.
 
 For the full layout of profiles and dependencies, see [Setup](doc/SETUP.md)
 and [Project Build](doc/PROJECT_BUILD.md).
@@ -174,6 +199,11 @@ example:
 For the full catalogue of symptoms, causes, and regression tests, see
 [Compiler Fixes](doc/COMPILER_FIXES.md).
 
+`inline; forward;` is accepted, and a unit's own `{$MODE Delphi}` is a no-op
+under the product profile instead of a reset of the driver's switches. A
+Delphi Win64 assembler body used on Linux is declared `ms_abi_default` (see
+[Project Build](doc/PROJECT_BUILD.md#win64-assembler-bodies-on-linux)).
+
 ### RTL and API
 
 The product RTL uses `UnicodeString` as the normal `String` and provides the
@@ -181,6 +211,42 @@ Delphi surface applications need on both platforms. We fixed managed-value
 lifetime, strings and encodings, collections, streams, tasks and threads, RTTI
 invocation, file and network helpers, and the platform ABI. Win64 and Linux
 build from one source contract; platform differences remain inside the RTL.
+
+Delphi surface that Unleashed lacked and MoonBot/Arbitrage needed on Linux
+is written from behavioural contracts and standards, not from Embarcadero
+sources:
+
+- `Classes.TBufferedFileStream`, a `TFileStream` with one read/write window
+  that is observably identical to the plain stream (the `bufstream` page
+  cache, which corrupted seek-back write patterns, is repaired as well);
+- `SyncObjs.TLightweightMREW`, the readers/writer lock over the OS primitive
+  (SRW lock, pthread rwlock): a zero-filled record is a ready lock, with the
+  Linux-only timed `TryBeginRead/TryBeginWrite` as in Delphi;
+- `Sockets.sockaddr_storage` (`TSockAddrStorage`, `PSockAddrStorage`) and
+  `socklen_t`: the 128-byte, `sockaddr_in6`-aligned peer buffer for
+  `fprecvfrom`/`fpaccept` of any family;
+- `System.Masks` (`TMask`, `MatchesMask`, `EMaskException`) with the Delphi
+  wildcard syntax and its quirks (`*?`, ASCII-only case folding, byte sets);
+- `System.ZLib`: the zlib.h functions, `TZCompressionStream` /
+  `TZDecompressionStream` and the `ZCompress*`/`ZDecompress*` helpers over
+  zlib 1.3.1, linked as private objects on Win64 and Linux (no DLL, no
+  `libz.so`; no C runtime on Win64, the C library's `memcpy`/`memset` on
+  Linux); MoonORMot compresses through it too (`System.Zip`, mORMot's HTTP
+  compression), so a program carries one zlib;
+- `System.Net.URLClient` (`TNetHeaders`, `TURLHeaders`, `TURLRequest`,
+  `TCertificate`, `ENet*`) without mORMot;
+- in [`runtime/mormot`](runtime/mormot/README.md), compiled into each project
+  over its own mORMot: `System.Zip` (`TZipFile`, `TZipHeader`, `EZip*` over
+  `mormot.core.zip`: entry streams inflated on demand from the mapped
+  archive with CRC checking, ZIP64, UTF-8 names, `ExtractAll` that refuses
+  escaping names before writing anything), `System.Net.Mime`
+  (`TMultipartFormData` over `THttpMultiPartStream`, a flat RFC 7578 body
+  that streams its files and reads more than once) and `System.Net.HttpClient`
+  (`THTTPClient`, `IHTTPResponse`, `IAsyncResult`, `TCookieManager`,
+  `ENetHTTP*`: keep-alive, the redirect table with method changes, cookies
+  per host, gzip/deflate through `ContentAsString` or
+  `AutomaticDecompression`, progress with abort, TLS validation with the
+  handler retry, asynchronous `BeginGet`/`Cancel`);
 
 ### Optimizer
 
@@ -191,7 +257,9 @@ dedicated optimization block:
 - ADDRESSGVN and reuse of proven-stable addresses;
 - precise register allocation and liveness around Windows SEH and Linux EH;
 - shorter FP live ranges and register preservation through exception paths;
-- CODEALIGN and x86-64 machine facts checked by dedicated gates.
+- CODEALIGN (entries and loop heads on 32 bytes; the code placement draft of
+  the internal assembler is off by default) and x86-64 machine facts checked
+  by dedicated gates.
 
 The architecture, safety boundaries, and measured results are described in
 [Optimizer](doc/OPTIMIZER.md).
@@ -212,17 +280,15 @@ models of server and trading hot paths. Each case is built with both compilers
 from the same Pascal source; speed is considered only after their calculation
 results agree.
 
-Across the 243 cases shared by the original baseline and final snapshot,
-Moon/Unleashed was at parity with Delphi (`0.9978×`), while current Moon reached
-`0.7625×`. Our compiler/RTL/MM optimization series accounts for the entire gain
-on this set: the current version is `1.31×` faster than the original. The final
-extended matrix contains 744 cases, where Moon is `1.20×` faster than Delphi
-12.2. Across twenty Heartbeat application hot paths, the advantage is `1.22×`.
-Separately, the bundled MM is `1.65×` faster than the standard FPC MM on
-allocator workloads with the same compiler and source. Stock FPC is absent from
-the table because it cannot compile the Delphi code under test.
+The last published snapshot below is historical evidence from 2026-08-30,
+source HEAD `64067c9949c24f688c29c048ec3051ddce0b5847`. It predates the current
+Stage 2 compiler/RTL/MM work and the present fail-closed Pulse runner, so these
+numbers are not performance claims for the current HEAD. They remain useful as
+the frozen baseline that a fresh exact-HEAD run must replace before release.
+Stock FPC is absent from the table because it cannot compile the Delphi code
+under test.
 
-| Workload | Comparison | Cases | Moon result |
+| Historical workload | Comparison | Cases | Result at `64067c994` |
 |---|---|---:|---:|
 | Compiler/RTL/MM optimization series | Moon now / Moon before work began | 243 shared | `1.31×` faster |
 | Full matrix: ABI, code generation, RTL, MM, and application workloads | Delphi 12.2 + FastMM4 | 744 | `1.20×` faster |
@@ -232,7 +298,7 @@ the table because it cannot compile the Delphi code under test.
 | JSON through the mORMot API | Delphi 12.2 + FastMM4 | 18 | `1.16×` faster |
 | Memory allocation | Standard FPC MM with the same MoonCompiler | 15 | Bundled MM `1.65×` faster |
 
-The complete report, including all cases and source numbers, is
+The historical report, including all cases and source numbers, is
 [release-final-20260830](qualification/performance/evidence/release-final-20260830/REPORT.md).
 Result changes after each optimization stage are retained in the
 [Pulse history](qualification/performance/PULSE_HISTORY.html). For methodology
@@ -286,26 +352,33 @@ not patched. The toolchain contains two non-overlapping profiles: a normal FPC
 ABI for the IDE/LCL itself, and a Unicode product profile for Delphi-compatible
 applications.
 
-Lazarus provides the editor, navigation, debugger, and designer. The same
-`build`/`build.ps1` performs the final product build of a larger `.dpr`, so the
-IDE does not create a second set of hidden settings. For details, see [Lazarus
-setup](doc/SETUP.md#lazarus).
+Lazarus provides the editor, navigation, debugger, and designer. The product
+build of a larger `.dpr` is the toolchain's `fpc` with the project's
+`.mooncompiler` file next to it, so the IDE does not create a second set of
+hidden settings. For details, see [Lazarus setup](doc/SETUP.md#lazarus).
 
 ## Repository
 
 - `compiler`, `rtl`, `packages`, `utils` — toolchain;
 - `runtime/mm` — the sole product memory manager;
+- [`runtime/reporting`](runtime/reporting/README.md) — optional in-process exception and all-thread reports;
+- [`runtime/mormot`](runtime/mormot/README.md) — `System.Zip`, `System.Net.Mime`, `System.Net.HttpClient` over the mORMot next to the toolchain, and `MoonORMot.Need`, the MoonORMot version these units require;
 - `examples` — minimal Delphi-compatible projects for a quick start;
 - `tests` — upstream tests and minimal compiler regressions;
 - `RTL-test` — a separate matrix for RTL semantics and lifetime;
 - `qualification/suite` — Mega, Omni, Devil, Chimera, corpora, and integration;
 - `qualification/performance` — Pulse, Heartbeat, and versioned evidence;
-- `qualification/vendor/mormot-product` — the pinned mORMot 2.3.8832 product
-  corpus without its own MM;
+- `.qualification/deps/moonormot` — the ignored, on-demand checkout of the
+  exact MoonORMot commit used only by qualification; the pin must equal
+  MoonORMot `main`, and `scripts/sync-moonormot.py` keeps it, the runtime
+  units' version floor and the bundled MM on that tip together;
+- `mormot` — the ignored clone of MoonORMot next to `toolchain` that
+  applications build against (`build compiler` creates it when it is missing);
 - `doc` — public documentation.
 
 A clone and normal build require only the repository contents and the bootstrap
-tools from [Setup](doc/SETUP.md).
+tools from [Setup](doc/SETUP.md); `build compiler` fetches MoonORMot once for
+the applications, and qualification fetches its own pinned checkout.
 
 ## Documentation
 
@@ -316,6 +389,7 @@ tools from [Setup](doc/SETUP.md).
 - [Performance Qualification](doc/PERFORMANCE_QUALIFICATION.md) — Pulse methodology;
 - [Optimizer](doc/OPTIMIZER.md) — LICM, ADDRESSGVN, RA, and CODEALIGN;
 - [Memory Manager](doc/MEMORY_MANAGER.md) — MM, diagnostic mode, and limitations;
+- [Diagnostic Reports](doc/DIAGNOSTICS.md) — opt-in file reports and embedded stack symbols;
 - [Known Issues](doc/KNOWN_ISSUES.md) — accepted observable boundaries;
 - [Backlog](doc/BACKLOG.md) — intentionally deferred improvements;
 - [Development](doc/DEVELOPMENT.md) — rules for the next fix;

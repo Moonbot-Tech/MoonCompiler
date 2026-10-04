@@ -7,12 +7,13 @@ Normal qualification uses the compiler from the repository root:
 ```
 
 `runner_manifest.json` already points `moonbot-compiler-beta` to
-`../../.moonbot/toolchain` and selects the standard Linux or Win64 driver/config
-for the current platform. Product mORMot is bundled in
-`qualification/vendor/mormot-product`; the new public mORMot runner fetches
-itself from the URL and exact commit in the manifest. `qualification/prepare.sh`
-performs the same contract in advance when the lab must be prepared to work
-without network access.
+`../../toolchain` and selects the standard Linux or Win64 driver/config
+for the current platform. `Moonbot-Tech/MoonORMot` and the independent public
+mORMot compiler corpus are both fetched from the URLs and exact commits in the
+manifest into ignored `.qualification/deps` checkouts. The product MoonORMot
+pin must equal remote `main`; this freshness proof requires network access.
+`qualification/prepare.sh` performs the same checkout preparation explicitly.
+Neither dependency is needed by a normal MoonCompiler build.
 
 ## FPC 3.2.4 RC1
 

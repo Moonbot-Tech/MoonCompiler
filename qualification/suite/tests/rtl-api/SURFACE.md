@@ -84,6 +84,12 @@ logical live range rather than the backing array prefix. It covers empty,
 steady, dequeued, reused, compacted, and managed-element states, including a
 call dispatched through the `TEnumerable<T>` base class.
 
+`rtl_api_dictionary_capacity_contracts.dpr` verifies that both `Create(N)` and
+`Capacity := N` reserve enough storage for N additions. It checks the unchanged
+capacity and all stored values. The test describes an item reservation,
+so a corrected load-factor allowance cannot be mistaken for a performance loss
+against an older table which reserved fewer physical slots.
+
 `rtl_api_dynarray_managed_contracts.dpr` separates value copying from ownership
 transfer for dynamic arrays containing custom-managed records. It covers
 shared `SetLength`, slices, nested static-array elements, `Delete`, `Insert`,
@@ -123,3 +129,13 @@ Win64 and Linux.
 connection limit, opens one more connection and compares the complete overload
 response byte for byte. This pins an ASCII HTTP 503 wire response even when the
 product RTL makes Delphi `string` a UTF-16 `UnicodeString`.
+
+`rtl_api_unicode_copy_contracts.dpr` checks Copy result ownership and the unchanged
+destination after allocation/reallocation failure, including nil, unique, shared,
+constant and aliased sources. It injects failures through the FPC memory manager;
+normal Copy checks cover index/count clamping, empty results and retained owners.
+The hook must fire once; a particular allocation/reallocation choice is not an API promise.
+Strong Unicode typedefs, a typedef chain and SysV WideString take the same failure
+and ownership paths. Typed Copy wrappers retain their declared result type while
+the Copy expression keeps its canonical type for overload resolution. Win64
+WideString content and self-copy use its separate BSTR implementation.

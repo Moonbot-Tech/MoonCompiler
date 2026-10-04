@@ -17,11 +17,11 @@ After building the compiler on Linux x86-64, run from the repository root:
 repro=qualification/suite/tests/compiler-crash/o3-indysecopenssl-provider
 mkdir -p /tmp/mooncompiler-o2 /tmp/mooncompiler-o3
 
-./.moonbot/toolchain/bin/fpc -n @.moonbot/toolchain/etc/fpc.cfg -B -O2 \
+./toolchain/bin/fpc -n @toolchain/etc/fpc.cfg -B -O2 \
   -Fu"$repro" -FU/tmp/mooncompiler-o2 -FE/tmp/mooncompiler-o2 \
   "$repro/O3AutoinlineCycleCrash.dpr"
 
-./.moonbot/toolchain/bin/fpc -n @.moonbot/toolchain/etc/fpc.cfg -B -O3 \
+./toolchain/bin/fpc -n @toolchain/etc/fpc.cfg -B -O3 \
   -Fu"$repro" -FU/tmp/mooncompiler-o3 -FE/tmp/mooncompiler-o3 \
   "$repro/O3AutoinlineCycleCrash.dpr"
 ```

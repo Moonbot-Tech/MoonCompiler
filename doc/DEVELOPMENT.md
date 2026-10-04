@@ -63,6 +63,31 @@ Choose validation in proportion to risk:
 Exact commands and the system map are in [Testing](TESTING.md). A new test must
 fail closed: it must distinguish “nothing ran” from PASS.
 
+## Fast Compiler Iteration
+
+After the full toolchain has been installed once, rebuild only the current
+compiler sources with:
+
+```powershell
+.\build.ps1 backend-dev
+```
+
+```bash
+./build backend-dev
+```
+
+This command always uses the ordinary FPC-ABI IDE profile, rebuilds every
+compiler unit in an isolated staging tree, rejects a product-ABI configuration,
+and smoke-tests the resulting backend before publishing it atomically under
+`dev-backend`. The output directory is ignored by Git; the command is
+versioned because every clean checkout and automated build needs the same safe
+path. `provenance.txt` records the source fingerprint, Git state, parent
+compiler/config hashes, and resulting backend hash.
+
+Use the resulting `ppcx64` directly with the product or IDE `fpc.cfg` required
+by the test. Do not copy it into `compiler`, and do not reuse compiler-unit PPUs
+from a different profile.
+
 ## Product Runtime
 
 A normal program contains no runtime support prefix in `uses`. The compiler
@@ -83,12 +108,30 @@ is forbidden.
 
 ## Memory Manager and External Corpora
 
-The bundled `runtime/mm/mormot.core.fpcx64mm.pas` is the exact pinned unit. An
-MM from an external mORMot checkout cannot replace it through `-Fu` ordering.
+The repository holds three records of MoonORMot that must all name the tip
+of `Moonbot-Tech/MoonORMot` `main`: the qualification pin in
+`runner_manifest.json`, the version floor in `runtime/moonormot.need.inc`
+(compiled into every project through `runtime/mormot/MoonORMot.Need.pas`),
+and the bundled `runtime/mm/mormot.core.fpcx64mm.pas`, a byte-for-byte copy
+(apart from line endings) of the pin's memory manager. An MM from an external
+mORMot checkout cannot replace the bundled one through `-Fu` ordering.
+Qualification fetches MoonORMot, requires the pin to equal remote `main`,
+the floor to equal the version on the pin and the copy to equal the pin's
+file; a clean runner-managed checkout advances automatically, while local
+edits or an origin mismatch stop qualification.
 
-`qualification/vendor/mormot-product` is a versioned test fixture. A newer
-mORMot is fetched through the manifest as a separate corpus. Updating the
-dependency, adapting the corpus, and changing the compiler or RTL are separate
+A change to MoonORMot is pushed to its `main` first (the MoonORMot repository
+raises its own version number when a push forgets to), then
+`scripts/sync-moonormot.py` moves the three records here and the mORMot and
+memory-manager gates run; `.github/workflows/moonormot-sync.yml` does the
+same once a day. A memory-manager repair is made in MoonORMot, never only in
+the bundled copy: the script refuses to overwrite a copy that differs from
+the old pin's file.
+
+MoonORMot and the newer public mORMot compiler corpus are fetched through the
+manifest into ignored `.qualification/deps` checkouts; applications build
+against the separate `mormot` clone next to `toolchain`. Updating a
+dependency, adapting a corpus, and changing the compiler or RTL are separate
 intents and are not combined into one patch.
 
 For an upstream PR, separate independent root causes and retain the original

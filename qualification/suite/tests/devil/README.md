@@ -88,6 +88,31 @@ is then compared across Debug/O1/O2/O3 and Delphi 12.2. A green standalone test
 `global changed by call` or `loop value changed by pointer` can therefore no
 longer conceal their broken combination inside a particular optimizer pass.
 
+## Coverage across subsystem boundaries
+
+Several directions deliberately remain present in small generated programs:
+
+- `life`: managed inline results inside `finally`, crossing six result kinds,
+  normal return/`Exit`/exceptions, one to three forwarding getters, and an
+  unrelated managed local. Ownership is checked after the whole caller returns;
+  no unspecified temporary-destruction order is imposed.
+- `capture`: two escaped closures over a compiler-created `with` target,
+  distinguishing a produced object reference from a produced record value.
+- `io`: text builtins consume all six pointer/string kinds. This reaches
+  compiler lowering independently of pointer arithmetic and RTL string calls.
+- `flow`: the full 16-row truth table for mixed short/full `and` and `or`,
+  keeping equal load expressions and avoiding dependence on inline policy.
+  Zero-valued unused arguments expose accidental use of incoming registers.
+
+The generator's unit tests ensure these directions cannot silently disappear
+from minimum-density runs. Red/green checks also establish that the managed
+result family catches the former finalizer error and that the mixed Boolean
+matrix catches disabled conditional-availability protection at O2 and O3.
+
+Compiler-process resource ownership is a separate observation axis; the
+[optional resource gate](../../../optimizer-core/resources/README.md) checks
+that side without mistaking a correct executable for a leak-free compiler.
+
 ## Running
 
 Main gate:
@@ -132,6 +157,11 @@ python qualification/suite/scripts/run_devil_all.py \
 The full runner stops at the first red stage, preserves the complete log, and
 lists failed stages in the final JSON. For research collection of all independent
 signals there is an explicit `--keep-going`; a release run does not require it.
+The aggregate multi-seed main stage has its own four-hour `--main-timeout`.
+Each generated executable still has the five-minute `--program-timeout`, so an
+individual hang fails quickly without truncating a valid long Hel1 sweep.
+The stage wall limit also interrupts a silent child; live output is not required
+for the runner to notice the deadline.
 
 ### Fast and local loops
 

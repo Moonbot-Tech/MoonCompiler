@@ -20,6 +20,12 @@ the usual way.
   a different order, or a hidden `{$IFDEF}` name.
 
 `run.sh` checks the same contract on Linux through the installed product driver
-`.moonbot/toolchain/bin/fpc` and its exact `.moonbot/toolchain/etc/fpc.cfg`.
+`toolchain/bin/fpc` and its exact `toolchain/etc/fpc.cfg`.
 A bare `ppcx64 -n` must not be used here: the configuration supplies system
 linker paths, including `libgcc_s`, required by the built-in x86-64 PSABIEH.
+
+`python precedence_gate.py --compiler PATH --config PATH --output DIR` checks
+command-line precedence over response-file pins at `-O-`, `-O2`, and `-O3`.
+An explicit pin must retain its priority even when it repeats the config's
+source. Conflicting config pins still fail; repeated identical config pins
+and replacement by a later command-line pin remain valid.

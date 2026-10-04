@@ -39,10 +39,23 @@ its observe-only consumer (`-OoEFFECTOBSERVE`).  Three permanent stands:
   and restored from git; they are never committed.
 
 The gates default to the installed Win64 or Linux x86-64 toolchain under
-`.moonbot/toolchain`; `--compiler`/`--rtl` can point them at an explicit
+`toolchain`; `--compiler`/`--rtl` can point them at an explicit
 fresh toolchain during development.  Linux identity links in isolated `-n`
 mode and therefore obtains the host GCC runtime directory explicitly,
 without consuming an ambient `fpc.cfg`.
+Both non-mutating gates run in release Medium and platform CI. Explicit `--rtl`
+and `--help` work without an implicit toolchain next to the source checkout.
+
+Exact EXPECT fields protect precision where the carrier is stable.
+`w_contains` requires storage classes while allowing a conservative
+superset. String COW retains all wide writes of the opaque helper, including the
+escaped descriptor and heap payload; its unknown-block fallback may additionally
+invalidate unbounded locals, but that fallback is not a precision contract.
+The class-with fixture checks lexical-local identity, while the ObjFPC record-with
+fixture preserves actual compiler-temp coverage. Read-only string and exact-local
+neighbours still require their precise effects. Hostile checker controls run with
+the release controller tests; destructive compiler sabotage remains a manual lab
+step described in [release qualification](../release/README.md#optimizer-and-object-format-contracts).
 
 Fixture discipline: every exact-safe form has a neighbouring dangerous form
 (the five mandatory negative pairs live in `f_local` (call-clobber),

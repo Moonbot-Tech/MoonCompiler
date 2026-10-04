@@ -21,6 +21,7 @@ reproduce the product profile or its oracle.
 | [`compiler-crash`](compiler-crash) | permanently retained minimized compiler-crash reproductions |
 | [`corpus-extra`](corpus-extra/README.md) | neighbouring upstream controls outside the main generated corpus |
 | [`known`](known) | exact executable forms for accepted or previously classified behaviour |
+| [`research`](research) | non-gating probes that preserve accepted edge cases and experimental oracles |
 | [`mormot`](mormot) | focused mORMot regressions that complement the two complete mORMot corpora |
 | [`benchmark`](benchmark) | correctness-digested qualification workloads; performance is interpreted only after semantic agreement |
 

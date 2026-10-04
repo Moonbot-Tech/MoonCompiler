@@ -31,6 +31,24 @@ Key allocator properties:
 - built-in statistics report small/medium/large memory volumes and actual
   OS sleeps caused by contention.
 
+### Deferred frees and retained memory
+
+When a small-class lock is busy, FreeMem can queue the block. The program no
+longer owns it, but its pool cannot release that storage until pending frees
+are processed. GetMem checks the pending queue before acquiring a class lock;
+if the queue lock is busy it can continue with another block or pool. Slow
+FreeMem currently processes pending blocks only through the first pool
+retirement. There is no background or idle-time drain.
+
+Consequently, a small fixed number of simultaneously live application objects
+does not bound queued storage under sustained class contention. Memory can
+remain held after workers become idle, then fall as later allocation/free
+activity drains the queues. This is separate from the bounded single-block
+retention policy and from the backing medium-owner mapping. It is also present
+before the Win64 empty-pool handoff; that handoff does not claim to repair it.
+A partial drain budget was tested and did not establish a memory bound or
+idle cleanup. The remaining work is recorded in [Backlog](BACKLOG.md#deferred-small-free-backlog).
+
 ### Arnaud's comparison with libc
 
 In August 2026, Arnaud repeated a comparison of current `fpcx64mm` and glibc
@@ -60,6 +78,29 @@ average. The method and the full snapshot are in the
 The product profile therefore uses `FPCMM_BOOSTER`, not the standard FPC MM or
 libc.
 
+## Allocation failure contract
+
+With the normal `ReturnNilIfGrowHeapFails = False`, an allocation that cannot
+be satisfied reports FPC runtime error 203 (`EOutOfMemory` when SysUtils is
+active). With `ReturnNilIfGrowHeapFails = True`, it returns nil. A failed
+`ReallocMem(P, Size)` preserves P, its previous data and capacity, and its
+allocator-list membership; the old block remains valid for a later retry or
+`FreeMem`. Failed reserve/commit growth also releases any partial Windows
+reservation before falling back or reporting failure. Requests whose header
+and rounding would overflow fail before requesting storage.
+
+The usual tiny/small leaf GetMem and FreeMem paths gain no error check or
+wrapper. Error handling runs after allocator locks are released. Successful
+large allocations do check size overflow; successful large remaps check the
+result before publishing it. Windows medium-pool refill uses a small checked
+helper to keep ordinary medium-bin instructions at their previous positions.
+A returning refill, including nil-mode, leaves the sole unlock to its caller;
+the helper releases the lock only before a nonreturning OOM raise. The
+[targeted failure gates](../qualification/memory-manager/FAILURE_GATES.md)
+exercise OS rollback, unwind registers and lock ownership in private test copies.
+Linux manual GetMem, AllocMem and ReallocMem frames carry DWARF unwind rules;
+metadata is not executed on successful calls.
+
 ## What MoonCompiler adds over current upstream
 
 This section was checked against `mORMot2/master` `a333a689` from
@@ -87,20 +128,69 @@ logical small classes up to 2608 bytes:
 - Linux uses a shortened fast-get path; on both Win64 and Linux, the profile is
   chosen at compile time, with no runtime dispatch between implementations.
 
+Single-block retention is per `(arena, class)` slot, including the larger
+small classes. A conservative structural bound is one pool for each of
+the 44 classes in 32 arenas plus the two primary fallback slots: at
+`MaximumSmallBlockPoolSize` this is less than 91.70 MiB. This is an upper
+bound on this specific policy, not measured usage or a bound on total
+allocator memory; medium standby mappings and deferred-free queues are
+separate. A drained pool that served multiple simultaneous blocks is
+released to its medium owner,
+so that storage becomes available to other sizes instead of remaining
+reserved for its previous small class.
+
+The original `FPCMM_MOONSHARD` mapping inherited 127 backing medium owners from
+the 64-slot arena geometry. Every initialized owner may retain a 1.25 MiB
+prefetch mapping; the final `Fragment` state had 86 such standby mappings, or
+112,721,920 bytes. The product profile now uses 45 backing owners. This is the
+smallest count that preserves both direct isolation properties: all 44
+addressable classes in one row remain distinct, and the existing unused-slot
+skip after the base row followed by the coprime 45/64 stride assigns one class
+in all 32 shards to distinct owners.
+
+The compact mapping can make different `(shard, class)` pairs share a backing
+owner. It is therefore a deliberate memory/parallelism trade-off selected for
+the measured product workload, not a claim of universal collision freedom. A
+coordinated diagonal synthetic workload can favor the 127-owner layout; the
+comparison remains an internal upstream-research item rather than part of the
+release contract.
+
+On the production-shaped `Fragment` replay, this reduced standby memory by
+91.86%, total unused allocator capacity by 60.23%, and total memory held from
+the OS by 110,100,480 bytes (10.23%). The semantic digest and requested live
+bytes were unchanged. Interleaved Linux runs of the concurrent ownership and
+realloc workload retained the same 2.41-second median; targeted chaos, fuzz,
+cross-thread ownership, hot-pool lifecycle, and saturation checks also passed.
+The measurements and exact counter definitions are in the
+[`Fragment` report](../qualification/suite/tests/memory/fragment/README.md).
+
 ### Product profile and allocator installation
 
 The compiler inserts the MM as the first unit before the user's `uses`, and the
-build driver pins the exact unit-name-to-source mapping and required defines:
+toolchain's `moon-base.cfg` pins the exact unit-name-to-source mapping and
+required defines (the source is the copy the toolchain carries in its own
+`runtime/mm`, named relative to the compiler's directory):
 
 ```text
---pinned-unit=mormot.core.fpcx64mm=<repo>/runtime/mm/mormot.core.fpcx64mm.pas
--dMOONBOT_MM_PROFILE_REQUIRED -dFPCMM_BOOSTER -dFPCMM_MOONSHARD
+--pinned-unit=mormot.core.fpcx64mm=$FPCBINDIR/../../runtime/mm/mormot.core.fpcx64mm.pas
+-dMOONBOT_MM_PROFILE_REQUIRED -dFPCMM_BOOSTER -dFPCMM_MOONSHARD -dNOPATCHRTL
 ```
 
 The pinned unit is resolved before ordinary PPU/packages/`-Fu`; `uses ... in`
 cannot replace it with another file. The unit itself aborts compilation when
 the product profile is incomplete or `FPCMM_DISABLE`/`FPCMM_STANDALONE` would
 prevent allocator installation.
+
+`NOPATCHRTL` is also a symbol the compiler defines by itself on x86-64
+(options.pas, next to `FPC`): mORMot's `RedirectRtl` copies its replacement
+string routines over the RTL's by lengths measured on stock FPC and fixes a
+`jmp fpc_freemem` it searches for in the copy; the MoonCompiler RTL has its
+own routines (other lengths, other tails), so a stock mORMot compiled
+without the symbol crashes on the first string free. Whoever takes this
+compiler with their own mORMot copy is safe without knowing about the
+switch; the profile line above is kept for clarity, and `-uNOPATCHRTL` on
+the command line switches the patch back on for measurements against it
+(`config_contract_gate.py` checks both directions).
 
 On Win64, `fpwinmonitor` is added automatically after the MM; on Linux,
 `cthreads`, `cwstring`, and `fpmonitor` are added. Users do not need to carry
@@ -119,6 +209,36 @@ the MM performs a leak census, restores the previous manager, and frees the
 arenas. This preserves correct lifetime, a working leak report, and complete
 process cleanup. Early teardown remains available only for specialized
 diagnostics through `FPCMM_UNINSTALL_AT_EXIT`.
+
+### Memory telemetry
+
+`CurrentHeapStatus` is the inexpensive snapshot intended for periodic
+monitoring. It reads counters the allocator already maintains and adds no
+writes, branches, locks, or atomics to `GetMem`, `FreeMem`, or `ReallocMem`.
+Besides the existing live small-block and active medium/large mapping totals,
+it reports:
+
+- `MediumStandbyBytes` — medium-pool mappings retained by prefetch;
+- `OsHeldBytes` — active medium mappings + standby medium mappings + live
+  large mappings, i.e. memory currently held from the OS by the allocator.
+
+The cheap snapshot deliberately does not claim an exact live-medium byte
+count. The allocator does not store the caller's original requested size, and
+maintaining a rounded live-medium counter on every allocation/free added
+7-8% to an isolated 17 KiB allocation cycle. The accepted implementation keeps
+the generated hot paths byte-identical to the version without telemetry.
+
+`CurrentHeapFragmentationStatus` is the explicit detailed query. It pauses the
+existing allocator arenas and walks their physical block chains, returning
+live small/medium/large capacity, reusable medium holes, deferred frees,
+small-pool capacity and completely empty small pools, unfed arena tails,
+standby pools, OS-held bytes, and the largest reusable medium block. It is
+intended for diagnostics and controlled sampling, not for a request hot path.
+
+Live values are allocator capacity rounded to size classes and include block
+headers; they are not the sum of the original requested byte counts. A caller
+that tracks requested bytes can compare that total with the scan directly, as
+the `Fragment` workload does.
 
 ### Extended diagnostics
 
@@ -153,18 +273,19 @@ is not guaranteed to be detected immediately. Corrupt allocator metadata,
 owners, and list links are caught by the next affected operation or an explicit
 `Fpcx64mmDebugVerifyHeap()`.
 
-The public driver enables diagnostics separately without changing normal Debug
-semantics:
+One define enables diagnostics separately without changing the Debug or
+Release semantics; the compiled units go to their own `*-diagnostic`
+directory, so a diagnostic build never mixes with a normal one:
 
 ```bash
-./build Project.dpr debug --diagnostic-mm
+toolchain/bin/fpc -dFPCX64MM_DIAGNOSTIC Project.dpr
 ```
 
 ```powershell
-.\build.ps1 Project.dpr debug -DiagnosticMM
+toolchain\bin\x86_64-win64\fpc.exe -dFPCX64MM_DIAGNOSTIC Project.dpr
 ```
 
-### Exact live accounting
+### Small-block live accounting
 
 `CurrentHeapStatus.SmallBlocks` does not count blocks already accepted by
 `FreeMem` that are still awaiting recycling in a deferred list. The snapshot remains
@@ -174,10 +295,134 @@ monitoring does not receive a falsely elevated count of live objects.
 ### ABI on supported operating systems
 
 Linux `_FreeMem` uses caller-saved `RSI` and does not spend `push/pop` preserving
-it. Win64 retains `RBX`: both `RSI` and `RBX` are nonvolatile there, and moving
+it. Win64's full `_FreeMemSlow` path retains `RBX`: both `RSI` and `RBX` are nonvolatile there, and moving
 state into `RSI` degraded Moon-generated loops where the caller keeps its counter
 in `ESI`. The choice is made by conditional compilation; there is no runtime
 branch on the hot path.
+
+### Hand-laid hot paths
+
+`_GetMem`, `_FreeMem` and `_ReallocMem` follow
+[ASM_LAYOUT_RULES.md](ASM_LAYOUT_RULES.md). On Win64, the normal tiny/small
+paths are **leaf front-ends**. Calls, medium/large operations, pool retirement
+and exceptional reallocations enter separate ABI-correct framed `*Slow`
+routines. The leaf exits use no nonvolatile register saves and keep the Win64
+shadow-space and unwind obligations in the framed callees. Linux retains the
+separate monolithic System V layout and the `FPCMM_MS_LINUX_FASTGET` path.
+
+A Win64 leaf that has proved a small pool is empty and must be released
+hands its still-held class lock and decoded pool to a framed cold helper.
+This avoids unlocking, decoding the same header again and acquiring the
+same lock in `_FreeMemSlow`. The helper retires the same pool through
+`FreeMediumBlock`; it does not retain additional pools or change medium
+free-list selection. A pending cross-thread free follows the existing
+unlock/slow path: an empty pending queue is not proof that a pool is empty.
+Keeping the lock can change concurrent reuse: a competing allocation
+cannot refill that pool in the former unlock/relock window. It may use
+another pool, so unchanged retention rules do not guarantee identical
+addresses, contention cost or peak memory under the same request stream.
+
+In Win64 `_FreeMem`, an uncontended small-block release executes inline. A
+single-block sequential pool (`BlocksInUse = 1`, `FirstFreeBlock = nil`) stays
+on this path if the class is at most 256 bytes or has a proven reuse score;
+otherwise the cold retirement path handles it. This preserves the
+intent of the earlier 256-byte direct exit but is **not** the same binary
+layout as the old monolithic routine.
+
+The leaf/framed split gives Win64 two copies of the allocator paths, and the
+framed `_ReallocMemSlow` uses the second one: it calls `_GetMemSlow` and
+`_FreeMemSlow`, not the leaf wrappers. A block that is being reallocated sits
+between the program's own `GetMem` and `FreeMem`, so the leaf copy would serve
+two live blocks of two size classes in turn, and one set of instructions doing
+that is measurably dearer on Zen 3 than two sets doing one block each: two live
+blocks through one copy cost 70 cycles, through two copies 49, which is twice
+the 24 of a single block (the likely cause is predictor state kept per
+instruction address that flips between the two blocks; it was not measured
+with performance counters).
+`ReallocMem(64 -> 128)` went from 100 cycles to 80; the monolithic release
+allocator, one copy for everything, took 90. `_ReallocMemSlow` is entered only
+from the leaf `_ReallocMem` and starts from what the leaf has read (`P^` in
+`r8`, the block header in `r9`) instead of loading both again.
+
+What remains against the monolithic release are chains of medium reallocations
+that cannot stay in place (`mm/realloc-shrink` 1.05, `mm/realloc-grow` 1.03):
+the leaf front-end decodes the block before it hands over, and the framed
+routine has the Win64 shadow space and unwind frame the release routine lacked
+(it called its helpers without one). The same front-end answers a reallocation
+that fits the block in 6.6 cycles instead of 9.8 (7.3 against 11.2 for a medium
+block), which is what string and array growth mostly ask for. The extra cycle per
+call is still there, but the chains are now faster than the release (0.95 and
+0.98) because of the copying change below.
+
+### Zeroing and copying
+
+`_AllocMem` (a fresh dynamic array goes through it: `SetLength` of an empty
+array is `AllocMem`) zeroes the block, and a `ReallocMem` that cannot stay in
+place copies it. Upstream does both with a 16-byte SSE2 loop below 256 bytes and
+with `rep stosd` / `rep movsb` from 256 bytes on (`FPCMM_ERMS`, part of the
+product profile). The `rep` instructions have a start-up cost that upstream
+assumed to be small. Measured, cycles for one block (`qualification/memory-manager/zero_fill_map.dpr`,
+`copy_map.dpr`; best..worst of the four 16-byte alignments of the block):
+
+| Bytes | Zen 3 `rep stosd` | Cascade Lake `rep stosd` | SSE2, two 16-byte stores per turn (both) |
+|---:|---:|---:|---:|
+| 256 | 84..85 | 23..34 | 16 |
+| 512 | 75..97 | 37..43 | 32 |
+| 768 | 83..105 | 42..54 | 48 |
+| 1024 | 91..112 | 49..66 | 64 |
+| 2048 | 125..146 | 72 | 128 |
+
+| Bytes | Zen 3 `rep movsb` | Cascade Lake `rep movsb` | SSE2, two 16-byte copies per turn (both) |
+|---:|---:|---:|---:|
+| 256 | 35..49 | 35..39 | 16..18 |
+| 512 | 42..86 | 46..49 | 32..34 |
+| 768 | 51..65 | 55..56 | 48..50 |
+| 1024 | 59..73 | 63..68 | 64..66 |
+
+The loop with two 16-byte steps per turn moves 16 bytes a cycle on both
+processors with nothing to start, so the middle sizes use it:
+
+- zeroing: below `ErmsFillMinSize`, a variable that starts at 768 and that
+  `InitializeMemoryManager` raises to 2048 on an `AuthenticAMD` processor
+  (`cpuid`), because `rep stosd` needs about 80 cycles to start on Zen 3 and
+  about 25 on Cascade Lake; on both, `rep stosd` is also 15-22 cycles slower
+  when the block lies on every second 16-byte boundary;
+- copying: below `ErmsMoveMinSize` = 1024 on every processor.
+
+Below 256 bytes nothing changes (the 16-byte loop), above the thresholds nothing
+changes either (`rep`). The new loops perform the same 16-byte steps as the
+16-byte loop, two per turn; the one or two steps that are left at the end are
+done as "the next one" and "the last one of the sequence", which are the same
+step when one was left, so there is no branch on the parity and never a step
+more than before. `memory_zero_copy_contract.dpr` (in the profile contract of
+both systems) proves it for every size from 1 to 5000 bytes: zeroed contents,
+preserved contents, and an untouched header and body of the neighbour block,
+under both values of the zeroing threshold (test hook
+`Fpcx64mmTestErmsFillMinSize`, `FPCMM_ERMSFILL_TEST`); the start-up value is
+checked against the processor vendor. Removing the masking of the last step
+makes the test fail (checked for both loops).
+
+Pulse, cycles per operation on the Ryzen 5800X (release / before / after) and
+TSC ticks on the Xeon W-2295 (before / after):
+
+| Case | Ryzen | Xeon |
+|---|---|---|
+| `hot-rtl/dynarray-setlength-double-64` | 147.3 / 154.3 / **74.5** | 127.6 / **92.8** |
+| `mm/realloc-grow` | 53.7 / 55.1 / **50.8** | 62.9 / **57.9** |
+| `mm/realloc-shrink` | 27.4 / 29.2 / **26.9** | 36.7 / **34.7** |
+| every other `mm` and allocator-bound `hot-rtl` case | unchanged | unchanged |
+
+This also removes what was left of the realloc regression against the
+monolithic release (the chains were 1.03 and 1.07 of it, now 0.95 and 0.98).
+
+The product gate `qualification/memory-manager/mm_layout_gate.py` builds and
+runs `mm_probe.dpr`, checks 64-byte entries and 32-byte branch/fusion sites in
+the current leaf **and all three Win64 slow routines**, as well as the Linux
+monolithic routines. Its residue limits describe the present binary, not an
+earlier label/offset layout. `RTL-test/semantic/mm_hotpath_stress_semantic.dpr`
+checks cross-thread free and leaks; `mm_profile_matrix.py` tests the profile
+variants. Layout-gate success is a placement invariant, not proof of faster
+allocation; causal performance requires a same-source MM/profile A/B.
 
 ## What is not part of the product profile
 
@@ -194,7 +439,9 @@ branch on the hot path.
 MM qualification covers the pinned source/profile, small/medium/large
 boundaries, cross-thread realloc/free, ownership transfer, contention,
 shutdown, release/diagnostic chaos, and the older mORMot product line. Commands
-are in [Testing](TESTING.md#mormot-and-memory-manager).
+are in [Testing](TESTING.md#mormot-and-memory-manager).  The hand layout of
+the hot paths is gated by `qualification/memory-manager/mm_layout_gate.py`
+and stressed by `RTL-test/semantic/mm_hotpath_stress_semantic.dpr`.
 
 Leak gates fail closed: the MM prints paired
 `FPCMM_REPORTMEMORYLEAKS_BEGIN/DONE` markers, and the runner requires exactly one
@@ -202,9 +449,10 @@ completed report per process. No leak messages without `DONE` is not a success.
 Dedicated regressions prove a late managed finalizer and a deliberately lost
 block that must appear in the census.
 
-The table of 44 classes and 32 arenas is the current product baseline, not an
-architectural limit. Experiments with a different number of classes/arenas and
-a profile of real allocations are deferred as PB-009 in [Backlog](BACKLOG.md).
+The table of 44 classes and 32 arenas is the measured product baseline, not an
+architectural limit. A different class or arena count is accepted only from a
+full production allocation trace, fragmentation data, and the complete realloc
+range; no synthetic-loop alternative has met that bar.
 
 ## Origin and license
 

@@ -13,25 +13,24 @@ An automatic run ID contains a UTC timestamp, stage, and random filesystem
 suffix. Concurrent `fixtures`, `mega`, `mormot`, and other runner processes
 therefore atomically receive separate directories. An explicit `--run-id`
 remains strict and is rejected if its directory already exists.
+On Windows, the runner appends stderr after stdout when the process exits so
+concurrent writes cannot corrupt a fixture log.
 
 ## Product smoke
 
-`qualification/suite/tests/smoke/build_smoke.dpr` is built from the repository
-root through `build`/`build.ps1` in `debug` and `release`. It proves that the
-profile applies to a real `.dpr`, that the compiler places our MM first, that
-the exact source is pinned, and that the compile-time profile is in effect.
-Success is `MOONBOT_BUILD_OK` in both modes.
+`qualification/suite/tests/smoke/build_smoke.dpr` is built from its directory
+with the installed `toolchain/bin/fpc` (`toolchain/bin/x86_64-win64/fpc.exe` on
+Win64), first with `-B` and then with `-B -dRELEASE`. Both executables must
+print `MOONBOT_BUILD_OK`. The source omits the MM and platform startup units,
+so this also checks the automatic runtime prefix. `examples/zip.dpr` is built
+the same way and must print `ZIP_EXAMPLE_OK`.
 
-`qualification/build-driver/project_profile_gate.py` checks not an individual
-compiler switch but the complete public application-build command. It creates a
-logical source view, an external Git dependency, and an alias, then builds and
-runs a Unicode application in Debug/Release and Debug+diagnostic-MM. The latter
-mode must pass its define into the application and use a separate unit cache
-without changing normal Debug. A dirty dependency, lost logical path, missing
-`System.*` aliases, or an incorrect default `String` makes the gate fail. On
-Linux it also proves that a dependency root inside `.moonbot` is not lost to the
-service-descendant filter and that the automatically inserted runtime prefix is
-ordered `MM, cthreads, cwstring, fpmonitor`.
+`qualification/build-driver/product_config_gate.py` checks the installed
+compiler from a third-party directory: isolated product configuration, Debug
+and Release profiles, `.mooncompiler` project options, recursive unit paths,
+version macros, and rejection of project-file pinned-unit overrides. The
+separate pinned-unit and configuration gates check the exact MM source and
+toolchain configuration.
 
 ## Regression corpus
 
@@ -68,8 +67,8 @@ as ground truth: every case has its own oracle and a provenance record in
 
 ```bash
 python3 scripts/run_issue_tracker_corpus.py \
-  --fpc ../../.moonbot/toolchain/bin/fpc \
-  --fpc-config ../../.moonbot/toolchain/etc/fpc.cfg \
+  --fpc ../../toolchain/bin/fpc \
+  --fpc-config ../../toolchain/etc/moon-base.cfg \
   --output ../../.qualification/tracker --jobs 8 --enforce
 ```
 
@@ -119,6 +118,9 @@ or the product corpus cannot be presented as this proof.
 
 The focused `RTL-test/run.py` additionally locks down the runtime surface that
 is actually used: `task_wait_semantic`, `thread_pool_lifecycle_semantic`,
+`thread_pool_idle_worker_semantic`, `thread_pool_delivery_semantic`,
+`thread_pool_limits_semantic`, `thread_pool_blocked_growth_semantic`,
+`thread_cpu_usage_semantic`, `sync_handle_lifetime_semantic` (Windows),
 `ioutils_api_semantic`, `rtl_api_product_semantic`,
 `rtti_invoke_product_semantic`, and `url_encoding_utf8_codepage_semantic`.
 They run separately in Debug/O2/O3 and require an exact PASS marker; successful
@@ -139,7 +141,7 @@ scripts/run_rtl_api_surface_gate.sh rtl-api-linux-001
 
 ```bash
 scripts/run_forms_gate.sh \
-  ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg forms-001
+  ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg forms-001
 ```
 
 On Win64, `scripts/run_forms_gate.ps1` runs the same exact-set contract and a
@@ -314,10 +316,10 @@ gates must separately test real product behaviour. An ordinary red compiler
 test must never be added there: missing packages or a different ABI must be
 proven by the structure of the core harness.
 
-The upstream host utilities `createlst`/`gparmake` are built with the current
-Unicode RTL and therefore receive only `-Facwstring` through separate
-`host_support_options`. This does not change `TEST_OPT`, the uses clauses of
-the programs under test, or the compiler-level product prefix.
+The upstream host utilities `createlst`/`gparmake` use the installed IDE/FPC-ABI
+driver and its configuration. A wrapper isolates `PPC_CONFIG_PATH` for them;
+`TEST_FPC` remains the product driver for the core tests. The separate
+`host_support_options` do not change `TEST_OPT` or the programs under test.
 
 The runner also honours `%TARGET`/`%SKIPTARGET`. `tcpstrconcat4.pp` is excluded
 separately: its FPC-specific oracle requires a code-page-typed `AnsiString` to
@@ -347,10 +349,15 @@ is an infrastructure error. A known red result still requires its exact oracle.
 
 ## Focused integration gates
 
-`scripts/run_win64_repair_gate.py` closes the target-specific gap in the Linux
-gate. It runs natively on Windows against the current compiler worktree,
-requires exact planned/actual agreement with the sole inventory in
-`runner_manifest.json`, and separately reads the generated assembly of every
+`scripts/run_win64_repair_gate.py` runs the regressions of compiler repairs
+with the product configuration, natively on Windows and on Linux, against the
+current compiler worktree. The upstream suite runs the same tests on Linux
+only at the full stage and with its base RTL, and skips the product-profile
+ones; the tests of `qualification/suite/tests/smoke` it does not run at all.
+The gate requires exact planned/actual agreement with the sole inventory in
+`runner_manifest.json` (`win64-repairs`; a case that names `targets` runs
+only on those - the Win64 ABI regressions, whose bodies are empty elsewhere),
+and on Win64 separately reads the generated assembly of every
 optimizer branch bound in that manifest: a safe `try/finally` loop retains
 unrolling; the stable address of a static-array element is calculated before
 the loop; a proven non-throwing post-inline scalar tree loses its dead
@@ -393,7 +400,9 @@ on Win64 build Debug (`-O-`), O2, and O3 minimal forms that the large service
 graph exposed in the RTL and compiler: separate `KeyNames` semantics, the
 distinct-ordinal chain from Variant, an inline const array, the `TArray` facade
 (all three Delphi `BinarySearch` overloads), unsigned formatting, POSIX
-separator opt-in, `Char/WideChar` through late-bound Variant dispatch, dotted
+separator opt-in, mutation-safe `TMessageClientList.Clear`, arbitrary and
+by-reference Variant conversion to FMTBcd, `Char/WideChar` through late-bound
+Variant dispatch, dotted
 Unicode comparison, namespaced paszlib, `TList<T>.arrayofT`, replaying a generic
 from PPU with a unit alias, a non-distinct result alias, and Delphi `with`
 targets captured by an anonymous procedure. The final oracle checks an rvalue,
@@ -437,16 +446,20 @@ the fix, smart linking lost their full RTTI and failed with an undefined symbol;
 therefore a green runtime marker cannot be obtained merely by disabling smart
 linking.
 
+`scripts/run_dwarf_format_interop_gate.py` compiles interface-defining units
+and their consumers separately, then links the pairs DWARF3/4/5→DWARF2 and
+DWARF2→DWARF3. COM, CORBA, empty interfaces and a dispinterface are present.
+On Linux, where debug labels are external, GNU `readelf` must parse both
+compilation-unit versions without diagnostics; this is the actual PPU contract
+check. Win64 uses local debug labels and therefore provides a neighbouring
+format-interoperability regression check, not proof of the original external
+label failure. Compiling the entire unit graph under one format cannot expose
+that contract.
+
 `scripts/run_forms_gate.sh` separately runs standalone
 `tests/known/rtti_public_method_code_address.pas` at O2/O3 and requires Delphi
 parity `METHOD=1/CODE=1/CALLED=1`. Public-method lookup, its `CodeAddress`, and
 the actual call therefore cannot be hidden within the general Omni run.
-
-The upstream core suite builds its host utilities `createlst`/`gparmake` with
-the same Unicode RTL. The runner passes them only `-Facwstring`: it sets the
-string manager for those support processes and does not change options or uses
-clauses of the programs under test. It does not substitute for the compiler-
-level product prefix.
 
 ## mORMot
 
@@ -474,8 +487,10 @@ The complete `mormot2tests` checks RTL, generics, strings, JSON, crypto,
 threading, and other real library forms. External DNS/LDAP and RTSP-over-HTTP
 checks are classified as environment; qualification failures must be zero. Exit
 code `1` is acceptable only if the final report fully reduces to those explicitly
-named environmental deviations. Any unexplained nonzero code, including unit
-finalization failure after the report is written, is an error.
+named environmental deviations. A test method that raised is a failure although
+it adds no failed assertion: the framework reports it only with its `!` lines.
+Any unexplained nonzero code, including unit finalization failure after the
+report is written, is an error.
 
 Before the full suite, the runner executes focused mORMot probes.
 `record-fields-rtti` checks record size, rejection of incomplete numeric-set
@@ -487,17 +502,18 @@ implicit Unicode/`ContainsText` path. `runredirect-eof` requires pipe reading to
 finish at EOF, while `unicode-posix-boundaries` covers non-ASCII paths, masks,
 symlinks, process arguments/environment, and the working directory.
 
-Our product snapshot contains checked sources from stable line `2.3.8832` and a
-product Keccak-256 patch, but no `test` directory. The test suite corresponding
-to that base line is therefore stored in `fixtures/mormot-2.3.8832/test`: it is
+The pinned `Moonbot-Tech/MoonORMot` product repository descends from stable line
+`2.3.8832`, but does not carry the matching historical `test` directory. That
+test suite is therefore stored in `fixtures/mormot-2.3.8832/test`: it is
 based on the `test` tree from upstream commit
 `38874e16c03373a5275b959fdb1cc38d5597f67f`. The oracle contains only the
 adaptation for the intended local contract: fractional JSON numbers remain
 strings without explicit permission for `Double`; numeric-path BSON tests
 explicitly enable `dvoAllowDoubleValue`. A separate probe locks down both
-behaviours. The runner temporarily places the suite beside the actual
-`qualification/vendor/mormot-product/src`, testing our exact sources and MM,
-not a public or newer library.
+behaviours. The runner requires the product pin to be the current MoonORMot
+`main`, fetches that exact clean commit into `.qualification/deps/moonormot`,
+and temporarily places the suite beside those sources. Before compilation it
+also proves that the bundled MM matches the MM source in that checkout.
 
 The product suite alone is insufficient to check the compiler: newer mORMot
 versions add different combinations of generics, managed types, RTTI, strings,
@@ -511,12 +527,29 @@ on POSIX and passes application `String` directly to byte APIs. After checking
 the exact commit and a clean tree, the runner therefore copies only its
 `src/test`, applies a versioned FPC-only Unicode-boundary diff, a versioned
 test-contract diff, and moves the RTSP pair from `3999/3998` to `23999/23998`.
+Both suites run with `TMPDIR` set to an empty folder inside the run's work
+folder: the TFTP test serves the folder of its temporary file and lists every
+file under it on its first request, and a machine's `/tmp` (307,215 entries on
+a server that day) made that answer, at the runner's nice 15 under load, late
+enough for a resent request or for the test's own five-second timeout.
 The source checkout is unchanged; the test-contract diff makes JSON decimal
 input explicitly `Double`, because a bare Delphi decimal literal has implicit
 carrier `Currency`, whereas FPC selects `Double`. That difference is locked down
-by a separate Delphi oracle and is not a serializer test. The same source diff
-includes the already proven product check for incomplete FPC record RTTI before
-building a serializer descriptor and a one-line lifecycle repair in the corpus:
+by a separate Delphi oracle and is not a serializer test. The same diff makes
+the TFTP test compare the server's connection counter with the read requests
+the server accepted, counted by a subclass in `SetRrqStream` and read after the
+server stopped, instead of with the five downloads: libcurl resends a request
+whose first answer is late (after one to two seconds, as it does under load),
+and the server rightly serves the resend as a sixth connection. A counter that
+counts refused requests too, counts nothing or counts twice still fails
+(7, 0 and 10 against 5). The served file is never a multiple of the 512-byte
+TFTP block (256 KiB plus 1 to 100 bytes, upstream plus 0 to 99): the corpus
+mORMot leaves the pipe of a successful background GET open, and the server,
+reading it for the empty last block of such a file, waits forever - the rare
+hang of the upstream test, one run in a hundred. Any other hang still ends in
+the run timeout. The Unicode-boundary source diff includes the already proven
+product check for incomplete FPC record RTTI before building a serializer
+descriptor and a one-line lifecycle repair in the corpus:
 `ValueVarToVariant(nil, ...)` must release the prior managed value before setting
 `varNull`. Without it, upstream `Variants` deterministically loses one 32-byte
 string block; a full MM census is the regression oracle. Result provenance
@@ -525,13 +558,15 @@ changed in 901 commits: 16 files, 15,634 lines added, and 3,961 removed. This
 layer is only a broad compiler corpus; it does not update or replace our product
 mORMot.
 
-No manual clone is required. If the corpus is absent, the runner takes its URL
-and commit from the manifest, fetches into a disposable sibling directory,
-checks the exact HEAD and clean tree, and only then publishes it by atomic
-rename. The runner never switches or cleans an existing directory: any
-difference or local edit stops qualification. `qualification/prepare.*` uses
-the same sole contract and remains only an explicit prefetch for autonomous
-runs.
+No manual clone is required. If either external mORMot checkout is absent, the
+runner takes its URL and commit from the manifest, fetches into a disposable
+sibling directory, checks the exact HEAD and clean tree, and only then publishes
+it by atomic rename. A clean runner-managed checkout advances to a new pin;
+local edits, a different origin, or a non-Git directory stop qualification.
+The product MoonORMot pin is also compared with remote `main`, so the product
+repository cannot advance without an explicit MoonCompiler pin update.
+`qualification/prepare.*` uses the same contract and remains only an explicit
+prefetch; proving pin freshness still requires network access.
 
 The complete new suite is retained because no one can prove in advance which
 combination of forms will catch the next miscompile. If it finds a problem, its
@@ -568,11 +603,10 @@ Keccak-256 vectors are stated explicitly in the test; debug and release must
 print `KECCAK256_VECTORS_OK`. The same source was separately compiled with
 Delphi 12.2 and local product mORMot and produced the same result.
 
-The pinned old mORMot lacks a support `SHA256SUMS` file. The manifest of its
-Linux x86-64 static libraries is stored in the test package as
+The pinned product line's Linux x86-64 static manifest is also stored in the
+test package as
 `fixtures/mormot-static/x86_64-linux.SHA256SUMS`; the runner and MM gate verify
-the actual files from `qualification/vendor/mormot-product/static/x86_64-linux`
-against it.
+the actual files from the pinned MoonORMot checkout against it.
 
 ## Memory manager
 
@@ -585,7 +619,7 @@ The main correctness matrix:
 ```bash
 scripts/mm/qualify_current_mm.sh \
   ../../.qualification/mm-full \
-  ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+  ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg \
   ../../runtime/mm/mormot.core.fpcx64mm.pas
 ```
 
@@ -615,12 +649,28 @@ The full mORMot MM gate:
 
 ```bash
 scripts/mm/run_mormot_mm_gate.sh \
-  ../vendor/mormot-product ../../runtime/mm/mormot.core.fpcx64mm.pas \
-  ../../.qualification/mormot-mm ../../.moonbot/toolchain/bin/fpc \
-  ../../.moonbot/toolchain/etc/fpc.cfg
+  ../../.qualification/deps/moonormot \
+  ../../runtime/mm/mormot.core.fpcx64mm.pas \
+  ../../.qualification/mormot-mm ../../toolchain/bin/fpc \
+  ../../toolchain/etc/moon-base.cfg
 ```
 
-Success means all 18 classes of this version and zero failed assertions.
+It applies the same current numeric-contract patch as `runner.py mormot` to
+its disposable test copy. Success means all 18 classes of this version and
+zero unrecognized failures; the only allowed environment exception is the
+existing exact DNS/LDAP triple.
+
+The number of assertions is not part of the verdict and changes from run to
+run, on one host as well as between hosts. The suite seeds its random
+generator from fresh entropy in every process (`TLecuyer.Seed` in
+`mormot.core.base`), and loop bounds and branches drawn from it change the
+counts of `Numerical conversions`, `UTF8`, `SynLZ`, `JWT` and
+`Encode decode JSON`. `TSynTestCase.Check` counts with a plain increment,
+which the worker threads of `TTestMultiThreadProcess` race on, so each of its
+nine threaded methods loses a few counts. Four runs of `mormot-current` on one
+host gave four totals from 128,006,962 to 128,015,048 that differ only in
+these methods, and the gate on two hosts differed in the same set. A count
+that differs in any other method, or a different set of methods, is a finding.
 
 `scripts/mm/qualify_current_mm.sh` explicitly distinguishes two evidentiary
 modes: standalone probes check internal allocator invariants without installing
@@ -707,6 +757,6 @@ exception object, and direct/materialized/cast function references:
 
 ```bash
 scripts/run_exception_capture_gate.sh \
-  ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+  ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg \
   exception-capture-001
 ```

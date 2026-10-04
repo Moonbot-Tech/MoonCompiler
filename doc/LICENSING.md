@@ -28,12 +28,19 @@ original license.
 header: a choice of MPL 1.1 / GPL 2+ / LGPL 2.1+ with the FPC linking exception.
 A copy of the notices is in [runtime/mm/LICENSE.md](../runtime/mm/LICENSE.md).
 
-## Product mORMot Test Fixture
+## Optional Diagnostic Reports
 
-`qualification/vendor/mormot-product` is used only as a test fixture and
-retains its own [LICENCE.md](../qualification/vendor/mormot-product/LICENCE.md).
-A new public mORMot corpus is fetched from the official repository at an exact
-commit and is not included in MoonCompiler Git history.
+`runtime/reporting` uses the RTL license and linking exception; see its
+[notice](../runtime/reporting/LICENSE.md). Linux uses a dynamically loaded
+system libunwind, which is not bundled in this source directory.
+
+## External mORMot Qualification Inputs
+
+Qualification fetches
+[`Moonbot-Tech/MoonORMot`](https://github.com/Moonbot-Tech/MoonORMot) and a
+separate public upstream mORMot compiler corpus at exact commits. Neither full
+source tree is included in MoonCompiler Git history; each retains its own
+license and third-party notices.
 
 ## Practical Rule
 

@@ -49,3 +49,18 @@ consumer off/on matrix then compiles with only the producer PPU visible.  The
 current consumer build owns the codegen decision: either producer must allow
 an enabled consumer to hoist, and neither producer may force a disabled
 consumer to hoist.  All four executables return the same semantic digest.
+
+`run_exact_gate.py` covers exact native integer-to-Single/Double motion. It
+checks four rounding modes and MXCSR flags against direct conversion ASM,
+zero-trip inexact and checked conversions, mutation, address escape, an
+inlined const conversion next to a by-reference mutation, and FP pressure.
+The same source also builds with Delphi 12.2. Existing loop temps are exercised
+by pointer walking and an inline enum getter. The emitted assembly, rather
+than the Boolean `temps` summary, proves the conversion moved outside every
+backedge. A LICM-disabled build must keep it inside. Two four-multiply loops
+prove that FP budgeting does not remove earlier integer hoists.
+
+Run with `--compiler <ppcx64> --rtl <rtl-units> --output <evidence-directory>`.
+The output retains compilation logs, assembly and runtime results. This is a
+semantic/code-shape gate; CPU speed is established separately by causal probes
+and product qualification.

@@ -34,7 +34,7 @@ The complete form, runner, and oracle inventory is in
 
 | Directory | Contract |
 |---|---|
-| [`build-driver`](build-driver/) | Project profiles, version identity, dependency isolation, and transactional toolchain replacement. |
+| [`build-driver`](build-driver/) | Project profiles, version identity, dependency isolation, transactional toolchain replacement, and the audited `fpc.cfg` contract. |
 | [`pinned-unit`](pinned-unit/README.md) | Automatic runtime-unit order and the exact bundled MM source. |
 | [`memory-manager`](memory-manager/README.md) | Product MM profile selection and arena-layout contracts. |
 | [`optimizer-core`](optimizer-core/) | Focused optimizer gates and sabotage controls. |

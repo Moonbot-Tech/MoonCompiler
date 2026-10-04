@@ -19,10 +19,12 @@ On Win64, prepare the compiler as follows:
 .\build.ps1 compiler
 ```
 
-The full mORMot gate runs natively on Linux x86-64. On its first run, it fetches
-the exact public corpus itself. `qualification/prepare.sh` or
-`qualification/prepare.ps1` can be invoked in advance for a standalone run;
-they are not a mandatory hidden step.
+The full mORMot gate runs natively on Linux x86-64. It prepares both exact
+external checkouts automatically. The product MoonORMot pin must equal remote
+`main`; a clean managed checkout advances to the pin, while any local edit or
+origin mismatch stops the run. `qualification/prepare.sh` or
+`qualification/prepare.ps1` can perform the same preparation explicitly; they
+are not a mandatory hidden step.
 
 The full runner targets Linux because mORMot static inputs and some integration
 gates use the Linux runtime. The Win64 target has separate native gates and is
@@ -63,8 +65,8 @@ Their exact commands and place in full qualification are maintained by
 Omni/integrated and focused integration gates:
 
 ```bash
-FPC=../../.moonbot/toolchain/bin/fpc
-CFG=../../.moonbot/toolchain/etc/fpc.cfg
+FPC=../../toolchain/bin/fpc
+CFG=../../toolchain/etc/moon-base.cfg
 
 scripts/run_forms_gate.sh "$FPC" "$CFG" forms-001
 scripts/run_service_regressions_gate.sh "$FPC" "$CFG" service-001
@@ -73,6 +75,10 @@ scripts/run_namespace_scope_gate.sh "$FPC" "$CFG" namespace-001
 scripts/run_monitor_gate.sh "$FPC" "$CFG" monitor-001
 scripts/run_exception_capture_gate.sh "$FPC" "$CFG" exception-001
 scripts/run_rtti_gettypes_gate.sh "$FPC" "$CFG" rtti-001
+python3 scripts/run_win64_repair_gate.py \
+  ../../toolchain/bin/ppcx64 "$CFG" ../.. linux-repairs-001
+python3 scripts/run_dwarf_format_interop_gate.py \
+  "$FPC" "$CFG" ../.. dwarf-interop-001
 scripts/run_extra_corpus.sh "$FPC" "$CFG"
 ```
 
@@ -87,35 +93,44 @@ From the repository root:
 .\qualification\suite\scripts\run_extra_corpus.ps1
 
 .\qualification\suite\scripts\run_forms_gate.ps1 `
-  -Compiler .\.moonbot\toolchain\bin\x86_64-win64\ppcx64.exe `
-  -Config .\.moonbot\toolchain\bin\x86_64-win64\fpc.cfg `
+  -Compiler .\toolchain\bin\x86_64-win64\ppcx64.exe `
+  -Config .\toolchain\bin\x86_64-win64\moon-base.cfg `
   -RunId forms-win64-001
 
 .\qualification\suite\scripts\run_rtl_api_surface_gate.ps1 `
   -RunId rtl-api-win64-001
 
 python .\qualification\suite\scripts\run_win64_repair_gate.py `
-  .\.moonbot\toolchain\bin\x86_64-win64\ppcx64.exe `
-  .\.moonbot\toolchain\bin\x86_64-win64\fpc.cfg `
+  .\toolchain\bin\x86_64-win64\ppcx64.exe `
+  .\toolchain\bin\x86_64-win64\moon-base.cfg `
   . win64-repairs-001
+
+python .\qualification\suite\scripts\run_dwarf_format_interop_gate.py `
+  .\toolchain\bin\x86_64-win64\ppcx64.exe `
+  .\toolchain\bin\x86_64-win64\moon-base.cfg `
+  . dwarf-interop-win64-001
 ```
 
 The Forms gate executes both central programs (`Omni` and integrated Mega), O2/O3,
-and all six seeds with the exact-set oracle. Selected Win64 repairs do not
-replace it.
+and all six seeds with the exact-set oracle. Selected repairs do not
+replace it. The repair gate runs its inventory (`win64-repairs`) on both
+targets with the product configuration: a case that names `targets` runs
+only there, and the assembly bindings read Win64 listings.
 
 ## Memory manager
 
 From this directory on Linux:
 
 ```bash
+python3 runner.py prepare
+
 scripts/mm/qualify_current_mm.sh ../../.qualification/mm-full \
-  ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg \
+  ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg \
   ../../runtime/mm/mormot.core.fpcx64mm.pas
 
-scripts/mm/run_mormot_mm_gate.sh ../vendor/mormot-product \
+scripts/mm/run_mormot_mm_gate.sh ../../.qualification/deps/moonormot \
   ../../runtime/mm/mormot.core.fpcx64mm.pas ../../.qualification/mormot-mm \
-  ../../.moonbot/toolchain/bin/fpc ../../.moonbot/toolchain/etc/fpc.cfg
+  ../../toolchain/bin/fpc ../../toolchain/etc/moon-base.cfg
 ```
 
 ## Full description

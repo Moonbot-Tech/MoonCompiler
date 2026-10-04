@@ -17,8 +17,11 @@ of source files. Run the complete matrix with `RTL-test/run.py`.
 | buffered `SetSize64` | grow/shrink/no-op, dirty page flush, cached/physical size, zero extension, seek/position, reopen |
 | integer formatting/parsing | zero, signs, Low/High Int32/Int64, High QWord, decimal boundaries, overflow, invalid, plus/hex/whitespace fallback, Delphi-compatible embedded-NUL termination, random corpus |
 | floating text | zero and signed zero, fixed/scientific boundary, NaN/Inf, locale separators, exponent normalization, deterministic bit-pattern corpus |
+| runtime `Format` | exact and general templates; Unicode/Ansi/Wide, default/explicit settings, width/precision/indexing, signed/unsigned boundaries, errors, COW, NUL/surrogates, literal return, FmtStr and bounded FormatBuf |
+| floating-point extreme helpers | `ArcCscH` Single/Double/Extended on both sides and exactly at the reciprocal-overflow boundary, both signs and unmasked overflow; `IntPower` dead-tail overflow for positive/negative exponents, zero and `Low(LongInt)` |
 | trigonometric argument reduction | both sides of `Pi/4` and `Pi/2`, signs, ordinary and large arguments, the exact Cody/Waite → Payne/Hanek boundary, `Sin`, `Cos`, and the `sin²+cos²` identity in Debug/O2/O3 and Delphi 12.2 |
 | Unicode string core | nil/constant/shared/unique assign, self-assign, single- and multi-thread refcounts, COW, concat, `Pos`, case and comparisons |
+| Unicode equality fast path | pointer identity, nil/empty, length mismatch, equal distinct buffers, early/late mismatch, embedded NUL and single evaluation of side-effecting operands across lengths 0..512; O3 codegen proves caller-side pointer/length checks with a content-only helper fallback |
 | empty-string equality domains | `=`/`<>` in both operand orders for empty/non-empty RawByteString, UTF8String, UnicodeString, WideString and ShortString; embedded NUL/high bytes; Delphi 12.2 semantic oracle; O3 forbids Ansi/Short/Wide -> Unicode conversion calls |
 | Delphi byte-string domains | raw `#$xx`/pair/named/PPU bytes, `Chr`/`WideChar` codepage conversion, Ansi/Raw/UTF-8 concat, compare/`Pos`/replace, overload result type |
 | UTF-8 conversion | empty, all ASCII bytes including NUL, codepage metadata, BMP, surrogate pairs, unpaired/invalid input, boundary lengths, random Unicode |
@@ -30,6 +33,7 @@ of source files. Run the complete matrix with `RTL-test/run.py`.
 | Linux x86-64 stack contract | actual `pthread_getattr_np` size/guard for main, `TThread`, `BeginThread`, and raw pthread; product threads are exactly 1 MiB, main/raw retain Linux/glibc policy |
 | `TList<T>` hot paths | growth boundaries, indexed read/write, default/custom comparer search, `ToArray`, copy construction, `AddRange/InsertRange/DeleteRange`, `Pack/Clear`, reorder/sort including `TList<array of interface>`, bounds, exact-class/descendant split, virtual notifications, managed lifetime |
 | `TDictionary<TKey,TValue>` hot paths | collisions, grow/explicit rehash, duplicate reject, `Clear`, add/remove notifications, pair/key/value enumeration, managed key/value lifetime, `TryGetValue` hit/miss replacement, aliased managed key/output and non-linear custom probe lookup |
+| `TDictionary<TKey,TValue>` flat path and notification flag | flat selection per key kind and comparer (Integer/Int64/QWord/Cardinal/Word/Byte/enum/Boolean/AnsiChar/WideChar/string/AnsiString/Pointer/TObject/TClass against a custom comparer, `TIStringComparer`, record, Double, Single and dynamic-array keys), a model-checked operation mix per kind (empty string keys, signed narrow ordinals, the mutable-value pointer API, `TrimExcess`) through rehash/`Clear`/enumeration on both paths, key pairs whose stored flat hash collides, base-class statically bound methods over the same table, object keys with overridden `Equals`/`GetHashCode` on both paths next to identity keys, Delphi's construction contracts (a nil comparer is the default one, a copied collection or array keeps the last value of a repeated key, `Create(N)`/`Capacity := N` hold N items without a rehash - checked after every add, `ExtractPair` of a missing key returns that key), exact notification counts and order with handlers assigned and removed at run time, descendants overriding `KeyNotify`/`ValueNotify` without a handler, `TObjectDictionary` key/value ownership with and without handlers, cluster cost of allocator-strided pointers, sequential integers and high-half `Int64` keys (the populations the byte CRC collapsed on); twelve negative controls in `evidence/dictionary-flat-20260921` prove each section fails against a sabotaged dictionary |
 | `TQueue<T>/TStack<T>` hot paths | empty/steady state, wrap-around, scalar/string/128-byte record, `Clear`, enumeration order, managed lifetime |
 | `TStringList` name/value search | empty/missing keys, duplicates, separators, embedded NUL, case-sensitive/insensitive and Unicode names |
 | compiler loop strength reduction | enum/subrange bounds, guarded out-of-slice cursors, forward/backward traversal, checked-path preservation, procvar-element storage address, mutable UnicodeString/AnsiString/dynamic-array bases, non-address-taken local dynamic array across unrelated calls |
@@ -42,6 +46,10 @@ of source files. Run the complete matrix with `RTL-test/run.py`.
 | Delphi implicit whole-ASM frame | exact `var`-parameter comparison with two manual early `ret`; unequal/equal paths in Debug/O2/O3; neighbouring ASM routines with a real 32-byte local array or a used seventh stack parameter must retain their compiler frame |
 | URL encoding with UTF-8 default code page | Current-tree `System.NetEncoding` (not an installed stale PPU): UnicodeString, raw UTF-8 and arbitrary high bytes, Delphi-compatible ASCII allowed/reserved bytes, FPC length-aware embedded NUL, and empty input before and after `SetMultiByteConversionCodePage(CP_UTF8)` |
 | `TTask.WaitForAll/WaitForAny` | empty/nil/already complete, mixed completion, finite/infinite timeout, winning index, exception, cancellation, interactive wait, mixed interactive/non-interactive pools in both orders, and `Synchronize` callback dependencies |
+| task cancellation state machine | created, queued and already-running cancellation; queued callbacks never execute; `Wait`, `WaitForAll`, and `WaitForAny` observe terminal cancellation immediately for unclaimed work but not before a running callback leaves its release gate |
+| inlined managed function-result ownership | borrowed dynamic-array, UnicodeString, AnsiString and WideString globals/fields/parameters survive a const consumer that invalidates the source; a forwarded fresh dynamic-array result retains zero-copy O3 codegen |
+| `TParallel.For` scheduling | Integer/Int64 adaptive-stride reservations execute every iteration exactly once; stateful overloads receive a non-nil per-worker state with the current index; `Break` publishes the lowest iteration and stops the remainder of the current explicit-stride batch |
+| `EAggregateException` enumeration | empty and populated aggregates, insertion order, spare backing capacity, no nil entries and no iteration beyond logical `Count` |
 | thread-pool worker lifecycle | immediate shutdown before first time slice, startup publication order, repeated create/run/destroy and clean process exit |
 | `System.IOUtils` public API | directory root, file/directory timestamps, missing paths, Delphi enumerator overloads, platform boundaries and error results |
 | product RTL API surface | `TTask.Create/Start/Wait`, `TParallel.For`, SHA-256/SHA-512 HMAC, SHA-512/224/256 digest+HMAC, Base64 and URL UTF-8 |
@@ -89,7 +97,10 @@ Without separate evidence, the allocator, exception machinery, Variant/interface
 ABI, OS scheduler, and public collection virtuality were not changed. The
 experimental first AVX `Move`, cached notification method, and load factor 0.5
 were discarded: the first lacked a complete A/B matrix, the second lacked an
-honest A/B, and the third bought speed by doubling memory. mORMot `MoveFast`
+honest A/B, and the third bought speed by doubling memory. The notification
+flag returned on 2026-09-21 together with the flat lookup path, this time with
+a differential oracle and an A/B over placement families on two machines
+(`qualification/performance/evidence/dictionary-flat-20260921`). mORMot `MoveFast`
 also did not prove a universal advantage and was not ported.
 
 `System.Move` was later reopened with a separate 297-case matrix and replaced
