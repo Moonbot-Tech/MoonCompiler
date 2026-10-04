@@ -4319,6 +4319,7 @@ unit aoptx86;
                               negative number, as these won't merge properly }
                             taicpu(p1).opsize := S_W;
                             taicpu(p1).oper[0]^.val := (taicpu(p1).oper[0]^.val and $FF) or ((taicpu(p2).oper[0]^.val and $FF) shl 8);
+                            taicpu(p1).explicit_blockop_store:=taicpu(p1).explicit_blockop_store or taicpu(p2).explicit_blockop_store;
                             DebugMsg(SPeepholeOptimization + 'Merged two byte-sized constant writes to stack (MovMov2Mov 2a)', p1);
                             RemoveInstruction(p2);
                             Result := True;
@@ -4338,6 +4339,7 @@ unit aoptx86;
                               negative number, as these won't merge properly }
                             taicpu(p1).opsize := S_L;
                             taicpu(p1).oper[0]^.val := (taicpu(p1).oper[0]^.val and $FFFF) or ((taicpu(p2).oper[0]^.val and $FFFF) shl 16);
+                            taicpu(p1).explicit_blockop_store:=taicpu(p1).explicit_blockop_store or taicpu(p2).explicit_blockop_store;
                             DebugMsg(SPeepholeOptimization + 'Merged two word-sized constant writes to stack (MovMov2Mov 2b)', p1);
                             RemoveInstruction(p2);
                             Result := True;
@@ -4363,6 +4365,7 @@ unit aoptx86;
                             taicpu(p1).opsize := S_Q;
                             { Force a typecast into a 32-bit signed integer (that will then be sign-extended to 64-bit) }
                             taicpu(p1).oper[0]^.val := NewConst;
+                            taicpu(p1).explicit_blockop_store:=taicpu(p1).explicit_blockop_store or taicpu(p2).explicit_blockop_store;
                             DebugMsg(SPeepholeOptimization + 'Merged two longword-sized constant writes to stack (MovMov2Mov 2c)', p1);
                             RemoveInstruction(p2);
                             Result := True;
@@ -6704,7 +6707,7 @@ unit aoptx86;
           parameter or to the temporary storage room for the function
           result)
         }
-        if IsExitCode(hp1) and
+        if IsExitCode(hp1) and not taicpu(p).explicit_blockop_store and
           (taicpu(p).oper[1]^.typ = top_ref) and
           (taicpu(p).oper[1]^.ref^.index = NR_NO) and
           (
@@ -12628,6 +12631,77 @@ unit aoptx86;
 
   function TX86AsmOptimizer.OptPass2MOV(var p : tai) : boolean;
 
+     { Forwarding can leave a register-variable copy after all its real
+       readers have been redirected. Allocation markers keep that variable
+       live across the loop, so prove the absence of readers on both edges. }
+     function ForwardedCopyUnused: Boolean;
+       var
+         work: array[0..7] of tai;
+         seen: array[0..63] of tai;
+         hp, target: tai;
+         pending, count, i: Integer;
+         reg: TRegister;
+         visited: Boolean;
+       begin
+         Result:=False;
+         if not taicpu(p).forwarded_memory_load or not MatchOpType(taicpu(p),top_reg,top_reg) then Exit;
+         { Exception and nonlocal edges are not represented by branch labels. }
+         if current_procinfo.flags*[pi_uses_exceptions,pi_needs_implicit_finally,pi_has_implicit_finally,
+              pi_has_assembler_block,pi_is_assembler,pi_has_interproclabel,pi_has_global_goto]<>[] then Exit;
+         reg:=taicpu(p).oper[1]^.reg;
+         if (getregtype(reg)<>R_INTREGISTER) or (getsupreg(reg) in [RS_EAX,RS_EDX,RS_ESP,RS_EBP]) then Exit;
+         reg:=newreg(R_INTREGISTER,getsupreg(reg),R_SUBWHOLE);
+         FillChar(seen,SizeOf(seen),0);
+         work[0]:=tai(p.Next);
+         pending:=1;
+         count:=0;
+         while pending>0 do
+           begin
+             Dec(pending);
+             hp:=work[pending];
+             while assigned(hp) do
+               begin
+                 if hp.typ=ait_instruction then
+                   begin
+                     visited:=False;
+                     for i:=0 to count-1 do
+                       if seen[i]=hp then visited:=True;
+                     if visited then Break;
+                     if count=Length(seen) then Exit;
+                     seen[count]:=hp;
+                     Inc(count);
+                     if hp<>p then
+                       begin
+                         if InstructionLoadsFromReg(reg,hp) then Exit;
+                         if RegLoadedWithNewValue(reg,hp) then Break;
+                       end;
+                     if taicpu(hp).opcode=A_RET then Break;
+                     if (taicpu(hp).opcode=A_JMP) or (taicpu(hp).opcode=A_Jcc) then
+                       begin
+                         if (taicpu(hp).ops<>1) or (taicpu(hp).oper[0]^.typ<>top_ref) or
+                            not(taicpu(hp).oper[0]^.ref^.symbol is TAsmLabel) then Exit;
+                         target:=GetLabelWithSym(TAsmLabel(taicpu(hp).oper[0]^.ref^.symbol));
+                         if not assigned(target) then Exit;
+                         if taicpu(hp).opcode=A_JMP then
+                           begin
+                             hp:=target;
+                             Continue;
+                           end;
+                         if pending=Length(work) then Exit;
+                         work[pending]:=target;
+                         Inc(pending);
+                       end
+                     else if is_calljmp(taicpu(hp).opcode) or (Ch_All in insprop[taicpu(hp).opcode].Ch) then Exit;
+                   end
+                 else if not(hp.typ in [ait_label,ait_align,ait_comment,ait_force_line,ait_regalloc,
+                                        ait_tempalloc,ait_varloc,ait_seh_directive,ait_cfi]) then Exit;
+                 hp:=tai(hp.Next);
+               end;
+             if not assigned(hp) then Exit;
+           end;
+         Result:=True;
+       end;
+
      function IsXCHGAcceptable: Boolean; inline;
        begin
          { Always accept if optimising for size }
@@ -12710,6 +12784,12 @@ unit aoptx86;
 
      begin
         Result:=false;
+
+        if ForwardedCopyUnused then
+          begin
+            RemoveCurrentP(p);
+            Exit(True);
+          end;
 
         { This optimisation adds an instruction, so only do it for speed }
         if not (cs_opt_size in current_settings.optimizerswitches) and

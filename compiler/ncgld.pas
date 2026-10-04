@@ -72,7 +72,7 @@ implementation
       verbose,globals,constexp,fmodule,
       nutils,
       symtable,symconst,symdef,defutil,paramgr,ncon,nbas,ncgrtti,
-      aasmbase,
+      aasmbase,aasmtai,
       cgbase,pass_2,
       procinfo,
       cpuinfo,
@@ -742,6 +742,7 @@ implementation
          r64 : tregister64;
          {$endif}
          oldflowcontrol : tflowcontrol;
+         storestart, storeins: tai;
       begin
         { previously, managed types were handled in firstpass
           newer FPCs however can identify situations when
@@ -797,6 +798,10 @@ implementation
            if codegenerror then
              exit;
          end;
+
+        storestart:=nil;
+        if anf_explicit_blockop_store in assignmentnodeflags then
+          storestart:=tai(current_asmdata.CurrAsmList.Last);
 
         releaseright:=
           (left.nodetype<>temprefn) or
@@ -1248,6 +1253,20 @@ implementation
             end;
          end;
 
+        if anf_explicit_blockop_store in assignmentnodeflags then
+          begin
+            if assigned(storestart) then
+              storeins:=tai(storestart.Next)
+            else
+              storeins:=tai(current_asmdata.CurrAsmList.First);
+            while assigned(storeins) do
+              begin
+                if (storeins.typ=ait_instruction) and (tai_cpu_abstract(storeins).ops>0) and
+                   (tai_cpu_abstract(storeins).oper[tai_cpu_abstract(storeins).ops-1]^.typ=top_ref) then
+                  tai_cpu_abstract(storeins).explicit_blockop_store:=true;
+                storeins:=tai(storeins.Next);
+              end;
+          end;
         if releaseright then
           location_freetemp(current_asmdata.CurrAsmList,right.location);
       end;

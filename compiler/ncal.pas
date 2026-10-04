@@ -3473,6 +3473,12 @@ implementation
           end;
         end;
 
+      function blockopstore(dest, value: tnode): tnode;
+        begin
+          result:=cassignmentnode.create(dest,value);
+          include(tassignmentnode(result).assignmentnodeflags,anf_explicit_blockop_store);
+        end;
+
       var
         pname: TSymStr;
         isfill, valconst: boolean;
@@ -3627,7 +3633,7 @@ implementation
                   storeval:=cordconstnode.create(chunkpattern(patq,chunks[i].width),widthtype(chunks[i].width),false)
                 else
                   storeval:=ctypeconvnode.create_internal(ctemprefnode.create(vtmp),widthtype(chunks[i].width));
-                addstatement(newstatement,cassignmentnode.create(
+                addstatement(newstatement,blockopstore(
                   chunkderef(dptr,dstnode,chunks[i].off,chunks[i].width),storeval));
               end;
           end
@@ -3643,7 +3649,7 @@ implementation
                   chunkderef(sptr,srcnode,chunks[i].off,chunks[i].width)));
               end;
             for i:=0 to nchunks-1 do
-              addstatement(newstatement,cassignmentnode.create(
+              addstatement(newstatement,blockopstore(
                 chunkderef(dptr,dstnode,chunks[i].off,chunks[i].width),
                 ctemprefnode.create(loadtemps[i])));
             for i:=0 to nchunks-1 do

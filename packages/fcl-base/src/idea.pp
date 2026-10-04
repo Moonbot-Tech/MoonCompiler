@@ -175,7 +175,7 @@ BEGIN
     zi := zi + (i AND 8);
     i := i AND 7;
   END;
-  FOR i := 0 TO 7 DO userkey[i] := 0;
+  FillChar(userkey,SizeOf(userkey),0);
 END;
 
 PROCEDURE DeKeyIdea(z: IDEAKey; OUT dk: ideakey);

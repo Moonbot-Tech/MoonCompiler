@@ -942,6 +942,9 @@ interface
              none: the moves of one assignment of a record or a set have no
              order among themselves, the moves of two statements have }
            blockcopy : word;
+           { An expanded explicit memory operation must still write the local
+             buffer when the procedure returns without reading it again. }
+           explicit_blockop_store : boolean;
            forwarded_memory_load : boolean;
            Constructor Create(op : tasmop);virtual;
            Destructor Destroy;override;

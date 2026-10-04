@@ -88,7 +88,8 @@ interface
        tassigntype = (at_normal,at_plus,at_minus,at_star,at_slash);
 
        TAssignmentNodeFlag = (
-         anf_assign_done_in_right
+         anf_assign_done_in_right,
+         anf_explicit_blockop_store
        );
 
        TAssignmentNodeFlags = set of TAssignmentNodeFlag;
@@ -1517,7 +1518,9 @@ implementation
       begin
         docompare :=
           inherited docompare(p) and
-          (assigntype = tassignmentnode(p).assigntype);
+          (assigntype = tassignmentnode(p).assigntype) and
+          ((anf_explicit_blockop_store in assignmentnodeflags) =
+           (anf_explicit_blockop_store in tassignmentnode(p).assignmentnodeflags));
       end;
 
 {$ifdef state_tracking}
