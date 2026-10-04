@@ -1397,7 +1397,7 @@ begin
   end; {$ENDIF}
 end;
 
-function VarDateToString(DT: TDateTime): AnsiString;
+function VarDateToString(DT: TDateTime): {$ifdef UNICODERTL}UnicodeString{$else}AnsiString{$endif};
 begin
   if Trunc(DT) = 0 then
     Result := TimeToStr(DT)

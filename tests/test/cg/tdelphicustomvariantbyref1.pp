@@ -16,6 +16,17 @@ uses
 {$endif}
 
 type
+  IInterfaceProbe = interface
+    ['{97C776A8-7A40-43D3-A5BB-32426D167FBE}']
+    function Value: Integer;
+  end;
+
+  TInterfaceProbe = class(TInterfacedObject, IInterfaceProbe)
+  public
+    destructor Destroy; override;
+    function Value: Integer;
+  end;
+
   TProbeVariantType = class(TCustomVariantType)
   public
     procedure Clear(var V: TVarData); override;
@@ -29,6 +40,22 @@ type
       const Operation: TVarOp): Boolean; override;
   end;
 
+var
+  CopyCount: Integer;
+  IndirectCopyCount: Integer;
+  InterfaceDeaths: Integer;
+
+destructor TInterfaceProbe.Destroy;
+begin
+  Inc(InterfaceDeaths);
+  inherited Destroy;
+end;
+
+function TInterfaceProbe.Value: Integer;
+begin
+  Result := 73;
+end;
+
 procedure TProbeVariantType.Clear(var V: TVarData);
 begin
   V.VType := varEmpty;
@@ -37,7 +64,10 @@ end;
 procedure TProbeVariantType.Copy(var Dest: TVarData; const Source: TVarData;
   const Indirect: Boolean);
 begin
-  Dest.VType := Source.VType;
+  Inc(CopyCount);
+  If Indirect then
+    Inc(IndirectCopyCount);
+  Dest.VType := Source.VType and not varByRef;
 end;
 
 procedure TProbeVariantType.CastTo(var Dest: TVarData;
@@ -102,9 +132,126 @@ begin
   Check(Value = 'custom-reference', 12);
 end;
 
+{$ifdef FPC}
+procedure CheckInterfaceSnapshot(const Snapshot: Variant);
+var
+  Held: IInterfaceProbe;
+begin
+  Check(VarType(Snapshot) = varUnknown, 30);
+  Held := IUnknown(Snapshot) as IInterfaceProbe;
+  Check(Held.Value = 73, 31);
+end;
+
+procedure CheckCopyNoIndSnapshots;
+var
+  I: Integer;
+  InterfaceSource: IUnknown;
+  SourceInt64: Int64;
+  SourceInteger: Integer;
+  SourceWide: WideString;
+  SourceAnsi: AnsiString;
+  SourceUnicode: UnicodeString;
+  SourceVariant, SourceArray, CopyValue: Variant;
+  Reference: TVarData;
+begin
+  FillChar(Reference, SizeOf(Reference), 0);
+
+  SourceInteger := 42;
+  Reference.VType := varInteger or varByRef;
+  Reference.VPointer := @SourceInteger;
+  VarCopyNoInd(CopyValue, PVariant(@Reference)^);
+  SourceInteger := 73;
+  Check((VarType(CopyValue) = varInteger) and (Integer(CopyValue) = 42), 20);
+
+  SourceInteger := 51;
+  TVarData(CopyValue).VType := varInteger or varByRef;
+  TVarData(CopyValue).VPointer := @SourceInteger;
+  VarCopyNoInd(CopyValue, CopyValue);
+  SourceInteger := 99;
+  Check((VarType(CopyValue) = varInteger) and (Integer(CopyValue) = 51), 28);
+
+  InterfaceDeaths := 0;
+  InterfaceSource := TInterfaceProbe.Create;
+  for I := 1 to 10 do
+  begin
+    Reference.VType := varInt64 or varByRef;
+    Reference.VPointer := @SourceInt64;
+    SourceInt64 := 123456789;
+    VarCopyNoInd(CopyValue, PVariant(@Reference)^);
+    Check(Int64(CopyValue) = 123456789, 29);
+
+    Reference.VType := varUnknown or varByRef;
+    Reference.VPointer := @InterfaceSource;
+    VarCopyNoInd(CopyValue, PVariant(@Reference)^);
+    CheckInterfaceSnapshot(CopyValue);
+    VarClear(CopyValue);
+  end;
+  VarCopyNoInd(CopyValue, PVariant(@Reference)^);
+  InterfaceSource := nil;
+  Check(InterfaceDeaths = 0, 32);
+  VarClear(CopyValue);
+  Check(InterfaceDeaths = 1, 33);
+
+  SourceWide := 'wide-before';
+  Reference.VType := varOleStr or varByRef;
+  Reference.VPointer := @SourceWide;
+  VarCopyNoInd(CopyValue, PVariant(@Reference)^);
+  SourceWide := 'wide-after';
+  Check((VarType(CopyValue) = varOleStr) and
+    (WideString(CopyValue) = 'wide-before'), 22);
+
+  SourceAnsi := 'ansi-before';
+  Reference.VType := varString or varByRef;
+  Reference.VPointer := @SourceAnsi;
+  VarCopyNoInd(CopyValue, PVariant(@Reference)^);
+  SourceAnsi := 'ansi-after';
+  Check((VarType(CopyValue) = varString) and
+    (AnsiString(CopyValue) = 'ansi-before'), 21);
+
+  SourceUnicode := 'unicode-before';
+  Reference.VType := varUString or varByRef;
+  Reference.VPointer := @SourceUnicode;
+  VarCopyNoInd(CopyValue, PVariant(@Reference)^);
+  SourceUnicode := 'unicode-after';
+  Check((VarType(CopyValue) = varUString) and
+    (UnicodeString(CopyValue) = 'unicode-before'), 23);
+
+  SourceVariant := Int64(9007199254740993);
+  Reference.VType := varVariant or varByRef;
+  Reference.VPointer := @TVarData(SourceVariant);
+  VarCopyNoInd(CopyValue, PVariant(@Reference)^);
+  SourceVariant := Int64(7);
+  Check((VarType(CopyValue) = varInt64) and
+    (Int64(CopyValue) = 9007199254740993), 24);
+
+  SourceArray := VarArrayOf([Integer(11), Integer(29)]);
+  Reference.VType := VarType(SourceArray) or varByRef;
+  Reference.VPointer := @TVarData(SourceArray).VArray;
+  VarCopyNoInd(CopyValue, PVariant(@Reference)^);
+  SourceArray[0] := Integer(99);
+  Check((Integer(CopyValue[0]) = 11) and (Integer(CopyValue[1]) = 29), 25);
+
+  SourceArray := VarArrayCreate([0, 1], varInteger);
+  SourceArray[0] := Integer(31);
+  SourceArray[1] := Integer(47);
+  Reference.VType := VarType(SourceArray) or varByRef;
+  Reference.VPointer := @TVarData(SourceArray).VArray;
+  VarCopyNoInd(CopyValue, PVariant(@Reference)^);
+  SourceArray[0] := Integer(101);
+  Check((Integer(CopyValue[0]) = 31) and (Integer(CopyValue[1]) = 47), 26);
+
+  Reference.VType := varEmpty;
+  VarClear(CopyValue);
+  VarClear(SourceArray);
+  VarClear(SourceVariant);
+end;
+{$endif FPC}
+
 var
   Handler: TProbeVariantType;
-  Value, Reference1, Reference2, CastValue, CopyValue, NilReference: Variant;
+  Value, Reference1, Reference2, CastValue, CopyValue, NilReference,
+    SourceArray: Variant;
+  CustomReference: TVarData;
   AnsiValue: AnsiString;
   WideValue: WideString;
   UnicodeValue: UnicodeString;
@@ -115,14 +262,38 @@ var
   BooleanValue, Raised: Boolean;
 {$ifdef FPC}
   BeforeHeap, AfterHeap: PtrUInt;
+  HeapStatus: THeapStatus;
   I: Integer;
 {$endif FPC}
 begin
+{$ifdef FPC}
+  CheckCopyNoIndSnapshots;
+{$endif FPC}
   Handler := TProbeVariantType.Create;
   try
     TVarData(Value).VType := Handler.VarType;
     VarCopyNoInd(CopyValue, Value);
     Check(VarType(CopyValue) = Handler.VarType, 17);
+    FillChar(CustomReference, SizeOf(CustomReference), 0);
+    CustomReference.VType := Handler.VarType or varByRef;
+    CustomReference.VPointer := @TVarData(Value).VPointer;
+    CopyCount := 0;
+    IndirectCopyCount := 0;
+    VarCopyNoInd(CopyValue, PVariant(@CustomReference)^);
+    Check((VarType(CopyValue) = Handler.VarType) and
+      (CopyCount = 1) and (IndirectCopyCount = 1), 27);
+    CustomReference.VType := varEmpty;
+
+    SourceArray := VarArrayOf([Value, Value]);
+    CustomReference.VType := VarType(SourceArray) or varByRef;
+    CustomReference.VPointer := @TVarData(SourceArray).VArray;
+    CopyCount := 0;
+    VarCopyNoInd(CopyValue, PVariant(@CustomReference)^);
+    Check(CopyCount = 2, 34);
+    CustomReference.VType := varEmpty;
+    VarClear(SourceArray);
+    VarClear(CopyValue);
+
     VarCopyNoInd(CopyValue, UnicodeString('copy-value'));
     Check(UnicodeString(CopyValue) = 'copy-value', 18);
     SetVariantByRef(Value, Reference1);
@@ -139,13 +310,15 @@ begin
         TVarData.  Repeated conversions must release that temporary instead
         of leaking one string per call. }
       UnicodeValue := '';
-      BeforeHeap := GetHeapStatus.TotalAllocated;
+      HeapStatus := System.GetHeapStatus;
+      BeforeHeap := HeapStatus.TotalAllocated;
       for I := 1 to 64 do
       begin
         UnicodeValue := Reference2;
         UnicodeValue := '';
       end;
-      AfterHeap := GetHeapStatus.TotalAllocated;
+      HeapStatus := System.GetHeapStatus;
+      AfterHeap := HeapStatus.TotalAllocated;
       Check(AfterHeap = BeforeHeap, 19);
 {$endif FPC}
       ConsumeUnicode(Reference2);

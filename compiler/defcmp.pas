@@ -339,7 +339,8 @@ implementation
          diff : boolean;
          symfrom,symto : tsym;
          genconstrfrom,genconstrto : tgenericconstraintdata;
-         baseorddef : tdef;
+         baseuniquefrom,
+         baseuniqueto : tdef;
       begin
          eq:=te_incompatible;
          doconv:=tc_not_possible;
@@ -1487,7 +1488,18 @@ implementation
                        begin
                          { doing this in the compiler avoids a lot of unnecessary
                            copying }
-                         if (tvariantdef(def_from).varianttype=vt_olevariant) and
+                         if tvariantdef(def_from).varianttype=
+                            tvariantdef(def_to).varianttype then
+                           begin
+                             { Distinct aliases keep the Variant storage and
+                               conversion contract of their base type.  Route
+                               them directly instead of searching unrelated
+                               assignment operators and recursively selecting
+                               Variant-to-dynamic-array helpers. }
+                             doconv:=tc_equal;
+                             eq:=te_convert_l1;
+                           end
+                         else if (tvariantdef(def_from).varianttype=vt_olevariant) and
                            (tvariantdef(def_to).varianttype=vt_normalvariant) then
                            begin
                              doconv:=tc_equal;
@@ -2254,18 +2266,28 @@ implementation
           begin
             operatorpd:=search_assignment_operator(def_from,def_to,
               fromtreetype,cdo_explicit in cdoptions);
-            { Delphi applies the base ordinal Variant conversion to distinct
-              ordinal types as well (e.g. TUnixTime = type Int64). }
+            { Delphi applies the built-in Variant conversion operators to the
+              physical carriers of distinct ordinal and Variant types.  Keep
+              the first search on the nominal definitions so that a user
+              operator still has priority, then normalize both sides as one
+              pair: normalizing them in separate fallbacks is not
+              compositional when both definitions are distinct. }
             if not assigned(operatorpd) and
                (m_delphi in current_settings.modeswitches) and
-               (def_from.typ=variantdef) and
-               (def_to.typ=orddef) and
-               (df_unique in def_to.defoptions) then
+               ((def_from.typ=variantdef) or (def_to.typ=variantdef)) then
               begin
-                baseorddef:=get_unique_base_def(def_to);
-                if baseorddef.typ=orddef then
-                  operatorpd:=search_assignment_operator(def_from,
-                    baseorddef,fromtreetype,cdo_explicit in cdoptions);
+                baseuniquefrom:=def_from;
+                baseuniqueto:=def_to;
+                if (def_from.typ in [orddef,variantdef]) and
+                   (df_unique in def_from.defoptions) then
+                  baseuniquefrom:=get_unique_base_def(def_from);
+                if (def_to.typ in [orddef,variantdef]) and
+                   (df_unique in def_to.defoptions) then
+                  baseuniqueto:=get_unique_base_def(def_to);
+                if (baseuniquefrom<>def_from) or
+                   (baseuniqueto<>def_to) then
+                  operatorpd:=search_assignment_operator(baseuniquefrom,
+                    baseuniqueto,fromtreetype,cdo_explicit in cdoptions);
               end;
             if assigned(operatorpd) then
              eq:=te_convert_operator;

@@ -513,9 +513,9 @@ end;
 
 operator :=(const source : variant) dest : UTF8String;{$ifdef SYSTEMINLINE}inline;{$endif}
 var
-  temp : Widestring;
+  temp : UnicodeString;
 begin
-  VariantManager.VarToWStr(temp,Source);
+  temp:=UnicodeString(Source);
   dest:=UTF8Encode(temp);
 end;
 
@@ -531,12 +531,44 @@ end;
 {$endif dummy}
 
 {$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
-operator :=(const source : variant) dest : UnicodeString;{$ifdef SYSTEMINLINE}inline;{$endif}
+procedure VariantUnicodeStringLegacy(var Dest: UnicodeString; const Source: Variant);
 var
-  res : WideString;
+  Res: WideString;
 begin
-  variantmanager.vartowstr(res,source);
-  dest:=res;
+  VariantManager.VarToWStr(Res,Source);
+  Dest:=Res;
+end;
+
+var
+  StandardVariantWideReader: TVariantWideStringReader = nil;
+  StandardVariantUnicodeReader: TVariantUnicodeStringReader = nil;
+  VariantUnicodeReader: TVariantUnicodeStringReader = @VariantUnicodeStringLegacy;
+  DirectVariantUnicodeString: Boolean = False;
+
+procedure SelectVariantUnicodeStringReader;
+begin
+  DirectVariantUnicodeString:=assigned(StandardVariantWideReader) and
+    (CodePointer(VariantManager.VarToWStr)=CodePointer(StandardVariantWideReader));
+  if DirectVariantUnicodeString and assigned(StandardVariantUnicodeReader) then
+    VariantUnicodeReader:=StandardVariantUnicodeReader
+  else
+    VariantUnicodeReader:=@VariantUnicodeStringLegacy;
+end;
+
+procedure RegisterVariantUnicodeStringManager(const Reader: TVariantWideStringReader;
+  const UnicodeReader: TVariantUnicodeStringReader);
+begin
+  StandardVariantWideReader:=Reader;
+  StandardVariantUnicodeReader:=UnicodeReader;
+  SelectVariantUnicodeStringReader;
+end;
+
+operator :=(const source : variant) dest : UnicodeString;{$ifdef SYSTEMINLINE}inline;{$endif}
+begin
+  if (TVarData(Source).VType=varUString) and DirectVariantUnicodeString then
+    Dest:=UnicodeString(TVarData(Source).VUString)
+  else
+    VariantUnicodeReader(Dest,Source);
 end;
 {$endif FPC_WIDESTRING_EQUAL_UNICODESTRING}
 
@@ -1170,6 +1202,9 @@ end;
 procedure SetVariantManager(const VarMgr: TVariantManager);
 begin
   VariantManager:=VarMgr;
+{$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
+  SelectVariantUnicodeStringReader;
+{$endif FPC_WIDESTRING_EQUAL_UNICODESTRING}
 end;
 
 

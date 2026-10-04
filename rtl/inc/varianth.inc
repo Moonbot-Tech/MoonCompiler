@@ -219,6 +219,14 @@ type
 
 procedure GetVariantManager(Out VarMgr: TVariantManager);
 procedure SetVariantManager(const VarMgr: TVariantManager);
+{$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
+type
+  TVariantWideStringReader = procedure(var Dest: WideString; const Source: Variant);
+  TVariantUnicodeStringReader = procedure(var Dest: UnicodeString; const Source: Variant);
+{ RTL registration preserves the public variant-manager record ABI. }
+procedure RegisterVariantUnicodeStringManager(const Reader: TVariantWideStringReader;
+  const UnicodeReader: TVariantUnicodeStringReader = nil);
+{$endif FPC_WIDESTRING_EQUAL_UNICODESTRING}
 
 { Global constants. Needed here only for compatibility. }
 

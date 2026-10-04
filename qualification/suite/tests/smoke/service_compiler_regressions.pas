@@ -14,6 +14,8 @@ type
   TFirstOrdinal = type Int64;
   TSecondOrdinal = type TFirstOrdinal;
   TThirdOrdinal = type TSecondOrdinal;
+  TDistinctVariant = type Variant;
+  TDistinctOleVariant = type OleVariant;
 
 procedure Check(ACondition: Boolean; const AName: string);
 begin
@@ -46,6 +48,27 @@ begin
   Source := Int64(42);
   Value := Source;
   Check(Int64(Value) = 42, 'variant-distinct-chain');
+end;
+
+procedure CheckDistinctVariantPair;
+var
+  Source: TDistinctVariant;
+  OleSource: TDistinctOleVariant;
+  Value: TThirdOrdinal;
+  Plain: Variant;
+begin
+  Source := Int64(9007199254740993);
+  Value := Source;
+  Check(Int64(Value) = 9007199254740993, 'distinct-variant-to-ordinal');
+
+  Value := -9007199254740993;
+  Source := Value;
+  Plain := Source;
+  Check(Int64(Plain) = -9007199254740993, 'distinct-ordinal-to-variant');
+
+  OleSource := Int64(High(Int64));
+  Value := OleSource;
+  Check(Int64(Value) = High(Int64), 'distinct-olevariant-to-ordinal');
 end;
 
 procedure CheckInlineConstArray;
@@ -114,6 +137,7 @@ end;
 begin
   CheckKeyNames;
   CheckDistinctVariantChain;
+  CheckDistinctVariantPair;
   CheckInlineConstArray;
   CheckGenericArraySurface;
   CheckUnsignedFormatting;

@@ -3140,7 +3140,7 @@ implementation
         newblock: tblocknode;
         newstatement: tstatementnode;
         tempnode: ttempcreatenode;
-        baseorddef: tdef;
+        baseuniquedef: tdef;
         carrierdef: tdef;
         carrierpd: tprocdef;
       begin
@@ -3320,11 +3320,11 @@ implementation
                   { tell explicitly which def we must use !! (PM) }
                   tcallnode(hp).procdefinition:=aprocdef;
                   if (m_delphi in current_settings.modeswitches) and
-                     (resultdef.typ=orddef) and
+                     (resultdef.typ in [orddef,variantdef]) and
                      (df_unique in resultdef.defoptions) then
                     begin
-                      baseorddef:=get_unique_base_def(resultdef);
-                      if aprocdef.returndef=baseorddef then
+                      baseuniquedef:=get_unique_base_def(resultdef);
+                      if aprocdef.returndef=baseuniquedef then
                         hp:=ctypeconvnode.create_internal(hp,resultdef);
                     end;
                   left:=nil;

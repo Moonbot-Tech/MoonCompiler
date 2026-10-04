@@ -90,8 +90,9 @@ function VarIsNumeric(const V: Variant): Boolean; inline;
 function VarIsStr(const V: Variant): Boolean;
 function VarIsBool(const V: Variant): Boolean; inline;
 
-function VarToStr(const V: Variant): AnsiString;
-function VarToStrDef(const V: Variant; const ADefault: AnsiString): AnsiString;
+function VarToStr(const V: Variant): {$ifdef UNICODERTL}UnicodeString{$else}AnsiString{$endif};
+function VarToStrDef(const V: Variant; const ADefault: {$ifdef UNICODERTL}UnicodeString{$else}AnsiString{$endif}):
+  {$ifdef UNICODERTL}UnicodeString{$else}AnsiString{$endif};
 function VarToWideStr(const V: Variant): WideString;
 function VarToWideStrDef(const V: Variant; const ADefault: WideString): WideString;
 function VarToUnicodeStr(const V: Variant): UnicodeString;
@@ -283,7 +284,7 @@ var
   NullEqualityRule: TNullCompareRule = ncrLoose;
   NullMagnitudeRule: TNullCompareRule = ncrLoose;
   NullStrictConvert: Boolean = true;
-  NullAsStringValue: AnsiString = '';
+  NullAsStringValue: {$ifdef UNICODERTL}UnicodeString{$else}AnsiString{$endif} = '';
   PackVarCreation: Boolean = True;
 {$ifndef FPUNONE}
   OleVariantInt64AsDouble: Boolean = False;
@@ -881,6 +882,31 @@ begin
   else
     S := VariantToWideString(TVarData(V));
 end;
+
+
+{$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
+procedure sysvartoustrlegacy(var s: UnicodeString; const v: Variant);
+var
+  Legacy: WideString;
+begin
+  sysvartowstr(Legacy,v);
+  s:=Legacy;
+end;
+
+procedure sysvartoustr(var s: UnicodeString; const v: Variant);
+var
+  ValueType: TVarType;
+begin
+  { Custom variants keep the standard manager's varOleStr CastTo contract.
+    Ordinary scalar/string values need no intermediate BSTR on Win64. }
+  ValueType:=TVarData(v).vType and not varByRef;
+  if ((ValueType < CFirstUserType) and (ValueType <> varNull) and (ValueType <> varVariant)) or
+     (ValueType=varString) or (ValueType=varUString) then
+    s:=VariantToUnicodeString(TVarData(v))
+  else
+    sysvartoustrlegacy(s,v);
+end;
+{$endif FPC_WIDESTRING_EQUAL_UNICODESTRING}
 
 
 procedure sysvartointf (var Intf : IInterface; const v : Variant);
@@ -2528,6 +2554,8 @@ end;
 type
   TVarArrayCopyCallback = procedure(var aDest: TVarData; const aSource: TVarData);
 
+procedure DoVarCopyNoInd(var Dest: TVarData; const Source: TVarData); forward;
+
 procedure DoVarCopyArray(var aDest: TVarData; const aSource: TVarData; aCallback: TVarArrayCopyCallback);
 var
   SourceArray : PVarArray;
@@ -2632,6 +2660,80 @@ begin
       Dest := Source;
     end else
       DoVarCopyComplex(Dest, Source);
+end;
+
+procedure DoVarCopyNoInd(var Dest: TVarData; const Source: TVarData);
+var
+  BaseType: TVarType;
+  Direct: TVarData;
+  Handler: TCustomVariantType;
+  Temp: TVarData;
+begin
+  if (Source.vType and varByRef)=0 then
+  begin
+    DoVarCopy(Dest, Source);
+    Exit;
+  end;
+
+  BaseType:=Source.vType and not varByRef;
+  if (BaseType<>varEmpty) and (BaseType<>varNull) and
+      not Assigned(Source.vPointer) then
+    VarInvalidArgError(Source.vType);
+
+  FillChar(Temp,SizeOf(Temp),0);
+  try
+    case BaseType of
+      varVariant:
+        DoVarCopyNoInd(Temp, PVarData(Source.vPointer)^);
+      varString:
+        begin
+          Temp.vType:=varString;
+          Temp.vString:=nil;
+          AnsiString(Temp.vString):=PAnsiString(Source.vPointer)^;
+        end;
+      varOleStr:
+        begin
+          Temp.vType:=varOleStr;
+          Temp.vOleStr:=nil;
+          WideString(Pointer(Temp.vOleStr)):=PWideString(Source.vPointer)^;
+        end;
+      varAny:
+        begin
+          Temp.vType:=varAny;
+          Temp.vAny:=PPointer(Source.vPointer)^;
+          RefAnyProc(Temp);
+        end;
+      varUString:
+        begin
+          Temp.vType:=varUString;
+          Temp.vUString:=nil;
+          UnicodeString(Temp.vUString):=PUnicodeString(Source.vPointer)^;
+        end;
+    else
+      if (BaseType and varArray)<>0 then
+        begin
+          Direct:=Source;
+          Direct.vType:=BaseType;
+          Direct.vArray:=PVarArray(Source.vPointer^);
+          DoVarCopyArray(Temp, Direct, @DoVarCopyNoInd);
+        end
+      else if FindCustomVariantType(BaseType, Handler) then
+        Handler.Copy(Temp, Source, True)
+      else
+        { The platform implementation covers standard scalar and interface
+          carriers. Strings and arrays are handled above so Win64 and
+          non-Windows keep the same contract. }
+        VarResultCheck(VariantCopyInd(Temp, Source));
+    end;
+    { Temp already owns an independent value. Clear Dest only after that value
+      is complete, then transfer its ownership instead of deep-copying arrays
+      and custom variants a second time. }
+    DoVarClear(Dest);
+    Dest:=Temp;
+    Temp.vType:=varEmpty;
+  finally
+    DoVarClear(Temp);
+  end;
 end;
 
 procedure sysvarcopy (var Dest : Variant; const Source : Variant);
@@ -3187,11 +3289,17 @@ Procedure SetSysVariantManager;
 begin
   GetVariantManager(PrevVariantManager);
   SetVariantManager(SysVariantManager);
+{$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
+  RegisterVariantUnicodeStringManager(@sysvartowstr,@sysvartoustr);
+{$endif FPC_WIDESTRING_EQUAL_UNICODESTRING}
 end;
 
 Procedure UnsetSysVariantManager;
 
 begin
+{$ifndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
+  RegisterVariantUnicodeStringManager(nil);
+{$endif FPC_WIDESTRING_EQUAL_UNICODESTRING}
   SetVariantManager(PrevVariantManager);
 end;
 
@@ -3292,7 +3400,10 @@ end;
 
 function VarIsNull(const V: Variant): Boolean;
 begin
-  Result:=TVarData(V).vType=varNull;
+  if TVarData(V).vType=(varVariant or varByRef) then
+    Result:=FindVarData(V)^.vType=varNull
+  else
+    Result:=TVarData(V).vType=varNull;
 end;
 
 
@@ -3359,17 +3470,21 @@ begin
 end;
 
 
-function VarToStr(const V: Variant): AnsiString;
+function VarToStr(const V: Variant): {$ifdef UNICODERTL}UnicodeString{$else}AnsiString{$endif};
 
 begin
-  Result:=VarToStrDef(V,'');
+  If VarIsNull(V) then
+    Result:=NullAsStringValue
+  else
+    Result:=V;
 end;
 
 
-function VarToStrDef(const V: Variant; const ADefault: AnsiString): AnsiString;
+function VarToStrDef(const V: Variant; const ADefault: {$ifdef UNICODERTL}UnicodeString{$else}AnsiString{$endif}):
+  {$ifdef UNICODERTL}UnicodeString{$else}AnsiString{$endif};
 
 begin
-  If TVarData(V).vType<>varNull then
+  If not VarIsNull(V) then
     Result:=V
   else
     Result:=ADefault;
@@ -3379,14 +3494,17 @@ end;
 function VarToWideStr(const V: Variant): WideString;
 
 begin
-  Result:=VarToWideStrDef(V,'');
+  If VarIsNull(V) then
+    Result:=NullAsStringValue
+  else
+    Result:=V;
 end;
 
 
 function VarToWideStrDef(const V: Variant; const ADefault: WideString): WideString;
 
 begin
-  If TVarData(V).vType<>varNull then
+  If not VarIsNull(V) then
     Result:=V
   else
     Result:=ADefault;
@@ -3396,14 +3514,17 @@ end;
 function VarToUnicodeStr(const V: Variant): UnicodeString;
 
 begin
-  Result:=VarToUnicodeStrDef(V,'');
+  If VarIsNull(V) then
+    Result:=NullAsStringValue
+  else
+    Result:=V;
 end;
 
 
 function VarToUnicodeStrDef(const V: Variant; const ADefault: UnicodeString): UnicodeString;
 
 begin
-  If TVarData(V).vType<>varNull then
+  If not VarIsNull(V) then
     Result:=V
   else
     Result:=ADefault;
@@ -3588,7 +3709,7 @@ end;
 procedure VarCopyNoInd(var Dest: Variant; const Source: Variant);
 
 begin
-  DoVarCopy(TVarData(Dest), TVarData(Source));
+  DoVarCopyNoInd(TVarData(Dest), TVarData(Source));
 end;
 {$pop}
 
@@ -4178,8 +4299,7 @@ end;
 procedure TCustomVariantType.VarDataCopyNoInd(var Dest: TVarData; const Source: TVarData);
 
 begin
-  // This is probably not correct, but there is no DoVarCopyInd
-  DoVarCopy(Dest,Source);
+  DoVarCopyNoInd(Dest,Source);
 end;
 
 
@@ -5112,7 +5232,10 @@ begin
        SetFloatProp(Instance, PropInfo, Value);
 {$endif}
      tkString, tkLString, tkAString:
-       SetStrProp(Instance, PropInfo, VarToStr(Value));
+       if VarIsNull(Value) then
+         SetStrProp(Instance, PropInfo, AnsiString(NullAsStringValue))
+       else
+         SetStrProp(Instance, PropInfo, AnsiString(Value));
      tkWString:
        SetWideStrProp(Instance, PropInfo, VarToWideStr(Value));
      tkUString:
