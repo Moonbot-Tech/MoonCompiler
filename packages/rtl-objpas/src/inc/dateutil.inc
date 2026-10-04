@@ -2433,6 +2433,24 @@ end;
     Unix timestamp support.
   ---------------------------------------------------------------------}
 
+{$if defined(CPUX86_64) and defined(ENDIAN_LITTLE)}
+Function RecodePositiveUnixTime(const T: TDateTime): TDateTime;
+
+Var
+  D : TDateTime;
+  Stamp : TTimeStamp;
+
+begin
+  { Keep DecodeDate/DecodeTime rounding without a calendar round trip. }
+  D:=T+HalfMilliSecond;
+  if D>MaxDateTime then
+    D:=MaxDateTime;
+  Stamp:=DateTimeToTimeStamp(T);
+  Result:=Trunc(D)+(Stamp.Time div 1000*1000)/MSecsPerDay;
+end;
+{$endif}
+
+
 Function DateTimeToUnix(const AValue: TDateTime; AInputIsUTC: Boolean = True): Int64;
 
 Var
@@ -2442,7 +2460,16 @@ begin
   T:=aValue;
   if Not aInputisUTC then
     T:=IncMinute(T,GetLocalTimeOffset(AValue, AInputisUTC));
+  {$if defined(CPUX86_64) and defined(ENDIAN_LITTLE)}
+  { Nonnegative finite binary64 values have the same unsigned bit order. }
+  if PQWord(@T)^<=PQWord(@MaxDateTime)^ then
+    T:=RecodePositiveUnixTime(T)
+  else
+    T:=RecodeMillisecond(T,0);
+  Result:=Round(DateTimeDiff(T,UnixEpoch)*SecsPerDay);
+  {$else}
   Result:=Round(DateTimeDiff(RecodeMillisecond(T,0),UnixEpoch)*SecsPerDay);
+  {$endif}
 end;
 
 
