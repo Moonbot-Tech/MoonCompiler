@@ -311,6 +311,45 @@ Type
     property IsDismantled: Boolean read GetIsDismantled;
   end;
 
+  { Readers/writer lock over the OS primitive (Windows: SRW lock, Linux:
+    pthread rwlock), Delphi's System.SyncObjs.TLightweightMREW surface.  A
+    zero-filled value - Default(), a class field, a global - is a ready,
+    unlocked lock; there is nothing to create or finalize, and a value must
+    not be copied while in use (it is part of its owner, not an object).
+    Many readers at a time; a writer is exclusive and waits for the readers.
+    Whether readers arriving while a writer waits get in before it is the
+    primitive's choice: glibc's zero-initialised rwlock lets them in, the
+    SRW lock promises no order - a writer can starve under a constant
+    stream of readers on either platform.  Shared may be taken again by the
+    same thread (on Windows only while no writer waits, as the SRW lock is
+    not recursive); Exclusive may not (self-deadlock), and there is no
+    upgrade.  The Try* forms without timeout never block and answer False
+    when the lock is held, by anyone including the caller.  The timed forms
+    exist on Linux only, as in Delphi: 0 tries once, INFINITE waits,
+    anything else waits that many milliseconds of real time and answers
+    False afterwards.  An OS error other than "busy"/"timed out" raises
+    EOSError. }
+  TLightweightMREW = record
+  private
+{$IFDEF MSWINDOWS}
+    FLock: Pointer;
+{$ENDIF}
+{$IFDEF UNIX}
+    FLock: pthread_rwlock_t;
+{$ENDIF}
+  public
+    procedure BeginRead;
+    function TryBeginRead: Boolean; overload;
+    procedure EndRead;
+    procedure BeginWrite;
+    function TryBeginWrite: Boolean; overload;
+    procedure EndWrite;
+{$IFDEF UNIX}
+    function TryBeginRead(Timeout: Cardinal): Boolean; overload;
+    function TryBeginWrite(Timeout: Cardinal): Boolean; overload;
+{$ENDIF}
+  end;
+
 implementation
 
 {$ifdef MSWindows}
@@ -323,9 +362,9 @@ uses Windows;
 
 {$ifdef UNIX}
 {$IFDEF FPC_DOTTEDUNITS}
-uses UnixApi.Unix, UnixApi.Base, UnixApi.Pthreads, System.InitC;
+uses UnixApi.Unix, UnixApi.Base, UnixApi.Pthreads, System.InitC, System.SysConst;
 {$ELSE}
-uses unix, baseunix, pthreads, initc;
+uses unix, baseunix, pthreads, initc, sysconst;
 {$ENDIF}
 {$endif}
 
@@ -1304,29 +1343,33 @@ end;
 
 class function TSpinWait.SpinUntil(const aCondition: TSpinFunction; aTimeout: Cardinal): Boolean; overload;
 static;
-begin
-  SpinUntil(aCondition, TTimeSpan.FromMilliseconds(aTimeout));
-end;
-
-
-class function TSpinWait.SpinUntil(const aCondition: TSpinFunction; const aTimeout: TTimeSpan): Boolean; overload; static;
 var
   lStartTime: TDateTime;
-  lWaitTime,lElapsedTime: Int64;
   lWait: TSpinWait;
 begin
   Result:=False;
   if aCondition() then
     Exit(True);
-  lWaitTime:=Round(aTimeout.TotalMilliseconds);
+  if aTimeout=0 then
+    Exit;
   lWait.Reset;
   lStartTime:=Now;
   repeat
     lWait.SpinCycle;
     if aCondition() then
       Exit(True);
-    lElapsedTime:=MilliSecondsBetween(Now,lStartTime);
-  until (lElapsedTime >= lWaitTime) or lWait.NextSpinCycleWillYield;
+  until (aTimeout<>INFINITE) and (MilliSecondsBetween(Now,lStartTime)>=aTimeout);
+end;
+
+
+class function TSpinWait.SpinUntil(const aCondition: TSpinFunction; const aTimeout: TTimeSpan): Boolean; overload; static;
+var
+  Total: Int64;
+begin
+  Total:=Trunc(aTimeout.TotalMilliseconds);
+  if (Total<0) or (Total>MaxInt) then
+    raise EArgumentOutOfRangeException.Create('Timeout must be between 0 and MaxInt milliseconds');
+  Result:=SpinUntil(aCondition,Cardinal(Total));
 end;
 
 { ---------------------------------------------------------------------
@@ -1454,7 +1497,7 @@ var
   LStart: QWord;
   LTotalMs: QWord;
 begin
-  if TryEnter then 
+  if TryEnter() then
     System.Exit(True);
 
   LTotalMs:=Round(Timeout.TotalMilliseconds);
@@ -1464,7 +1507,7 @@ begin
   while (GetTickCount64-LStart)<LTotalMs do
     begin
     LSpinner.SpinCycle;
-    if TryEnter then 
+    if TryEnter() then
       System.Exit(True);
     end;
   Result:=False;
@@ -1492,5 +1535,149 @@ begin
   Result := FIsDismantled;
 end;
 
+{ ---------------------------------------------------------------------
+  TLightweightMREW
+  ---------------------------------------------------------------------}
+
+{$IFDEF MSWINDOWS}
+{ Slim reader/writer locks, Windows Vista and later.  A zeroed pointer is
+  SRWLOCK_INIT. }
+procedure AcquireSRWLockExclusive(var SRWLock: Pointer); stdcall; external 'kernel32' name 'AcquireSRWLockExclusive';
+procedure AcquireSRWLockShared(var SRWLock: Pointer); stdcall; external 'kernel32' name 'AcquireSRWLockShared';
+procedure ReleaseSRWLockExclusive(var SRWLock: Pointer); stdcall; external 'kernel32' name 'ReleaseSRWLockExclusive';
+procedure ReleaseSRWLockShared(var SRWLock: Pointer); stdcall; external 'kernel32' name 'ReleaseSRWLockShared';
+function TryAcquireSRWLockExclusive(var SRWLock: Pointer): ByteBool; stdcall; external 'kernel32' name 'TryAcquireSRWLockExclusive';
+function TryAcquireSRWLockShared(var SRWLock: Pointer): ByteBool; stdcall; external 'kernel32' name 'TryAcquireSRWLockShared';
+
+procedure TLightweightMREW.BeginRead;
+begin
+  AcquireSRWLockShared(FLock);
+end;
+
+function TLightweightMREW.TryBeginRead: Boolean;
+begin
+  Result:=TryAcquireSRWLockShared(FLock);
+end;
+
+procedure TLightweightMREW.EndRead;
+begin
+  ReleaseSRWLockShared(FLock);
+end;
+
+procedure TLightweightMREW.BeginWrite;
+begin
+  AcquireSRWLockExclusive(FLock);
+end;
+
+function TLightweightMREW.TryBeginWrite: Boolean;
+begin
+  Result:=TryAcquireSRWLockExclusive(FLock);
+end;
+
+procedure TLightweightMREW.EndWrite;
+begin
+  ReleaseSRWLockExclusive(FLock);
+end;
+{$ENDIF MSWINDOWS}
+
+{$IFDEF UNIX}
+{ pthread_rwlock_* answer the error number; EBUSY (try), ETIMEDOUT (timed)
+  and EDEADLK (glibc: the timed write lock asked by the thread that already
+  writes) are the answer "not taken", everything else is broken use }
+procedure RWLockCheck(ErrNo: cint);
+var
+  E: EOSError;
+begin
+  if ErrNo<>0 then
+    begin
+    E:=EOSError.CreateFmt(SOSError,[ErrNo,SysErrorMessage(ErrNo)]);
+    E.ErrorCode:=ErrNo;
+    raise E;
+    end;
+end;
+
+function RWLockTryResult(ErrNo: cint): Boolean;
+begin
+  Result:=ErrNo=0;
+  if not Result and (ErrNo<>ESysEBUSY) and (ErrNo<>ESysETIMEDOUT) and (ErrNo<>ESysEDEADLK) then
+    RWLockCheck(ErrNo);
+end;
+
+{ absolute CLOCK_REALTIME deadline Timeout milliseconds from now, as the
+  timed pthread_rwlock functions want it }
+procedure RWLockDeadline(Timeout: Cardinal; out Deadline: TTimespec);
+var
+  Now: TTimeval;
+begin
+  fpgettimeofday(@Now,nil);
+  MSecsFromNow(Now,Timeout,Deadline);
+end;
+
+procedure TLightweightMREW.BeginRead;
+begin
+  RWLockCheck(pthread_rwlock_rdlock(@FLock));
+end;
+
+function TLightweightMREW.TryBeginRead: Boolean;
+begin
+  Result:=RWLockTryResult(pthread_rwlock_tryrdlock(@FLock));
+end;
+
+procedure TLightweightMREW.EndRead;
+begin
+  RWLockCheck(pthread_rwlock_unlock(@FLock));
+end;
+
+procedure TLightweightMREW.BeginWrite;
+begin
+  RWLockCheck(pthread_rwlock_wrlock(@FLock));
+end;
+
+function TLightweightMREW.TryBeginWrite: Boolean;
+begin
+  Result:=RWLockTryResult(pthread_rwlock_trywrlock(@FLock));
+end;
+
+procedure TLightweightMREW.EndWrite;
+begin
+  RWLockCheck(pthread_rwlock_unlock(@FLock));
+end;
+
+function TLightweightMREW.TryBeginRead(Timeout: Cardinal): Boolean;
+var
+  Deadline: TTimespec;
+begin
+  if Timeout=0 then
+    Result:=TryBeginRead()
+  else if Timeout=INFINITE then
+    begin
+    BeginRead;
+    Result:=True;
+    end
+  else
+    begin
+    RWLockDeadline(Timeout,Deadline);
+    Result:=RWLockTryResult(pthread_rwlock_timedrdlock(@FLock,@Deadline));
+    end;
+end;
+
+function TLightweightMREW.TryBeginWrite(Timeout: Cardinal): Boolean;
+var
+  Deadline: TTimespec;
+begin
+  if Timeout=0 then
+    Result:=TryBeginWrite()
+  else if Timeout=INFINITE then
+    begin
+    BeginWrite;
+    Result:=True;
+    end
+  else
+    begin
+    RWLockDeadline(Timeout,Deadline);
+    Result:=RWLockTryResult(pthread_rwlock_timedwrlock(@FLock,@Deadline));
+    end;
+end;
+{$ENDIF UNIX}
 
 end.
