@@ -1478,9 +1478,12 @@ implementation
              is_unicodestring(left.resultdef) or
             (is_widestring(left.resultdef) and not(tf_winlikewidestring in target_info.flags))) then
            begin
+             { Pass the string slot itself as var Pointer.  A managed-to-Pointer
+               value conversion would prevent inlining the COW fast path. }
              left := ctypeconvnode.create_internal(ccallnode.createintern('fpc_'+tstringdef(left.resultdef).stringtypname+'_unique',
                ccallparanode.create(
-                 ctypeconvnode.create_internal(left,voidpointertype),nil)),
+                 cderefnode.create(ctypeconvnode.create_internal(
+                   caddrnode.create_internal(left),cpointerdef.getreusable(voidpointertype))),nil)),
                left.resultdef);
              firstpass(left);
              { double resultdef passes somewhere else may cause this to be }

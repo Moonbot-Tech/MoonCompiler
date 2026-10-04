@@ -1284,26 +1284,31 @@ Procedure UniqueString (Var S : UnicodeString);{$ifdef SYSTEMINLINE}inline;{$end
 
 {$ifndef FPC_HAS_UNICODESTR_UNIQUE}
 {$define FPC_HAS_UNICODESTR_UNIQUE}
-Function fpc_unicodestr_Unique(Var S : Pointer): Pointer; [Public,Alias : 'FPC_UNICODESTR_UNIQUE']; compilerproc;
-{
-  Make sure reference count of S is 1,
-  using copy-on-write semantics.
-}
+function fpc_truely_unicodestr_unique(Var S : Pointer): Pointer;
 Var
   SNew : Pointer;
   FullSize : SizeInt;
 begin
   result:=S;
+  FullSize:=PUnicodeRec(result-UnicodeFirstOff)^.Len*sizeof(UnicodeChar)+(UnicodeFirstOff+sizeof(UnicodeChar));
+  SNew:=GetMem(FullSize)+UnicodeFirstOff;
+  Move ((result-UnicodeFirstOff)^,(SNew-UnicodeFirstOff)^,FullSize); { Copy everything including header and #0, only refcount needs to be adjusted. }
+  PUnicodeRec(SNew-UnicodeFirstOff)^.Ref:=1;
+  fpc_unicodestr_decr_ref (S);  { Thread safe }
+  S:=SNew;
+  result:=SNew;
+end;
+
+
+Function fpc_unicodestr_Unique(Var S : Pointer): Pointer; [Public,Alias : 'FPC_UNICODESTR_UNIQUE']; compilerproc; inline;
+{
+  Make sure reference count of S is 1,
+  using copy-on-write semantics.
+}
+begin
+  result:=S;
   If (result<>nil) and (PUnicodeRec(result-UnicodeFirstOff)^.Ref<>1) then
-   begin
-     FullSize:=PUnicodeRec(result-UnicodeFirstOff)^.Len*sizeof(UnicodeChar)+(UnicodeFirstOff+sizeof(UnicodeChar));
-     SNew:=GetMem(FullSize)+UnicodeFirstOff;
-     Move ((result-UnicodeFirstOff)^,(SNew-UnicodeFirstOff)^,FullSize); { Copy everything including header and #0, only refcount needs to be adjusted. }
-     PUnicodeRec(SNew-UnicodeFirstOff)^.Ref:=1;
-     fpc_unicodestr_decr_ref (S);  { Thread safe }
-     S:=SNew;
-     result:=SNew;
-   end;
+    result:=fpc_truely_unicodestr_unique(S);
 end;
 {$endif FPC_HAS_UNICODESTR_UNIQUE}
 
