@@ -1956,6 +1956,17 @@ type
              init_procinfo.resetprocdef;
              release_main_proc(module,init_procinfo);
            end;
+         { a managed variable the unit got while its initialization was
+           generated - the value a method pointer there points into
+           (tloadnode.keep_method_value_in_memory) - is finalized with the
+           variables of the unit, as Delphi finalizes that temporary }
+         if not force_init_final and
+            tstaticsymtable(module.localsymtable).needs_init_final then
+           begin
+             force_init_final:=true;
+             if not assigned(finalize_procinfo) then
+               finalize_procinfo:=gen_implicit_initfinal(module,mf_finalize,module.localsymtable);
+           end;
          if assigned(finalize_procinfo) then
            begin
              if force_init_final or

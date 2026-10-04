@@ -1201,6 +1201,11 @@ implementation
         begin
           intfdef.defoptions:=intfdef.defoptions+current_procinfo.procdef.defoptions*[df_generic,df_specialization];
         end;
+      { a type written in the body of a specialization is no specialization of
+        a generic type: without a generic it would be equal to every other def
+        of that body (compare_defs_ext), an anonymous function among them }
+      if not assigned(pvdef.genericdef) then
+        exclude(intfdef.defoptions,df_specialization);
 
       if cs_generate_rtti in current_settings.localswitches then
         include(intfdef.objectoptions,oo_can_have_published);
@@ -1323,10 +1328,36 @@ implementation
     end;
 
 
-  function funcref_intf_for_proc(pd:tabstractprocdef;const suffix:string):tobjectdef;
+  { the global or static symtable that holds st through the types it is
+    declared in; nil when st is in the scope of a routine (a nested routine,
+    a local type, a specialization with a local parameter) }
+  function unit_level_symtable(st:tsymtable):tsymtable;
+    begin
+      result:=nil;
+      repeat
+        case st.symtabletype of
+          globalsymtable,
+          staticsymtable:
+            exit(st);
+          ObjectSymtable,
+          recordsymtable:
+            st:=st.defowner.owner;
+          else
+            exit;
+        end;
+      until false;
+    end;
+
+
+  { the interface whose Invoke has the signature of pd; suffix names it, and
+    an overload of the same routine, which shares the name, gets the next one }
+  function funcref_intf_for_proc(pd:tabstractprocdef;var suffix:string):tobjectdef;
     var
       name : tsymstr;
+      basesuffix : string;
+      overload : longint;
       sym : tsym;
+      st,
       symowner : tsymtable;
       oldsymtablestack: TSymtablestack;
       invokedef: tprocdef;
@@ -1334,21 +1365,36 @@ implementation
       if pd.is_generic then
         internalerror(2022010710);
 
-      name:='funcrefintf_'+suffix;
-      if pd.owner.symtabletype=globalsymtable then
+      { the interface is emitted by the unit that converts.  What is declared
+        at unit level in another unit (compiled already) or in the interface
+        of this one (written before its implementation began) is not given a
+        new entry: another unit never emits it, and this unit writes it with
+        the references of its interface (internal error 2019022201) }
+      st:=unit_level_symtable(pd.owner);
+      if assigned(st) and
+         ((st.symtabletype=globalsymtable) or not st.iscurrentunit) then
         symowner:=current_module.localsymtable
       else
         symowner:=pd.owner;
-      sym:=tsym(symowner.find(name));
-      if assigned(sym) then
-        begin
-          if sym.typ<>typesym then
-            internalerror(2022010708);
-          if not is_funcref(ttypesym(sym).typedef) then
-            internalerror(2022010709);
-          result:=tobjectdef(ttypesym(sym).typedef);
+      basesuffix:=suffix;
+      overload:=0;
+      repeat
+        name:='funcrefintf_'+suffix;
+        sym:=tsym(symowner.find(name));
+        if not assigned(sym) then
+          break;
+        if sym.typ<>typesym then
+          internalerror(2022010708);
+        if not is_funcref(ttypesym(sym).typedef) then
+          internalerror(2022010709);
+        result:=tobjectdef(ttypesym(sym).typedef);
+        { overloads differ in their parameters }
+        invokedef:=get_invoke_procdef(result);
+        if compare_paras(invokedef.paras,pd.paras,cp_all,[cpo_ignorehidden])>=te_equal then
           exit;
-        end;
+        inc(overload);
+        suffix:=basesuffix+'_'+tostr(overload);
+      until false;
 
       name:='$'+name;
 
@@ -1390,8 +1436,11 @@ implementation
 
 
   function async_block_funcref(pd:tprocdef):tobjectdef;
+    var
+      suffix : string;
     begin
-      result:=funcref_intf_for_proc(pd,fileinfo_to_suffix(pd.fileinfo));
+      suffix:=fileinfo_to_suffix(pd.fileinfo);
+      result:=funcref_intf_for_proc(pd,suffix);
     end;
 
 
@@ -1682,16 +1731,26 @@ implementation
                   else if sym.owner.symtabletype=exceptsymtable then
                     fieldname:='$except_'+fileinfo_to_suffix(sym.fileinfo)
                   else
-                    fieldname:=sym.name;
-                  if (sym.owner.symtabletype=exceptsymtable) and
-                      assigned(tabstractnormalvarsym(sym).capture_sym) then
+                    { Captured storage is identified by the declaration, not
+                      by the source identifier. Different lexical scopes may
+                      legally contain variables with the same name. }
+                    fieldname:='$captured_'+fileinfo_to_suffix(sym.fileinfo)+'_'+sym.name;
+                  { Reuse the symbol's mapping, including compiler-created
+                    locals whose internal names are case-sensitive. Looking
+                    them up as ordinary field names may miss an existing
+                    capture when a second closure uses the same local. }
+                  if assigned(tabstractnormalvarsym(sym).capture_sym) then
                     begin
                       fieldsym:=tfieldvarsym(tabstractnormalvarsym(sym).capture_sym);
                       if fieldsym.owner<>subcapturer.symtable then
                         internalerror(2022011602);
                     end
+                  else if vo_is_self in tabstractnormalvarsym(sym).varoptions then
+                    { OuterSelf may already have been synthesized while
+                      building the capturer chain. }
+                    fieldsym:=tfieldvarsym(subcapturer.symtable.find(fieldname))
                   else
-                    fieldsym:=tfieldvarsym(subcapturer.symtable.find(fieldname));
+                    fieldsym:=nil;
                   if not assigned(fieldsym) then
                     begin
                       {$ifdef DEBUG_CAPTURER}writeln('Adding field ',fieldname,' to ',subcapturer.typesym.name);{$endif}
@@ -1800,53 +1859,38 @@ implementation
     end;
 
 
+  { An expression moved into the Invoke of a capturer is evaluated there, at
+    every call: each local and parameter it reads, Self included, is captured
+    as an anonymous method would capture it. }
   function collect_syms_to_capture(var n:tnode;arg:pointer):foreachnoderesult;
     var
       pd : tprocdef absolute arg;
       sym : tsym;
     begin
       result:=fen_false;
-      if n.nodetype<>loadn then
-        exit;
-      sym:=tsym(tloadnode(n).symtableentry);
-      if not (sym.owner.symtabletype in [parasymtable,localsymtable,blocksymtable,exceptsymtable]) then
-        exit;
-      if ((sym.owner.symtabletype=exceptsymtable) and
-          (sym.owner.defowner<>pd)) or
-         ((sym.owner.symtabletype<>exceptsymtable) and
-          (sym.owner.symtablelevel>normal_function_level)) then begin
-        pd.add_captured_sym(sym,tloadnode(n).resultdef,n.fileinfo);
-        result:=fen_true;
+      case n.nodetype of
+        loadn:
+          begin
+            sym:=tsym(tloadnode(n).symtableentry);
+            if (sym.typ in [localvarsym,paravarsym]) and
+               (sym.owner.symtabletype in [parasymtable,localsymtable,blocksymtable,exceptsymtable]) then
+              pd.add_captured_sym(sym,tloadnode(n).resultdef,n.fileinfo)
+            else if sym.typ=staticvarsym then
+              { read by the Invoke, another routine, as a load from a nested
+                routine is: the main block of a program must not keep the
+                variable in a register }
+              make_not_regable(n,[ra_different_scope]);
+          end;
+        calln:
+          { a nested routine needs the frame of its parent, which the Invoke
+            does not have: as for an anonymous function, the capture check
+            refuses it }
+          if (tcallnode(n).procdefinition.typ=procdef) and
+             (tcallnode(n).procdefinition.parast.symtablelevel>normal_function_level) then
+            pd.add_captured_sym(tprocdef(tcallnode(n).procdefinition).procsym,tcallnode(n).procdefinition,n.fileinfo);
+        else
+          ;
       end;
-    end;
-
-
-  type
-    tselfinfo=record
-      selfsym:tsym;
-      ignore:tsym;
-    end;
-    pselfinfo=^tselfinfo;
-
-
-  function find_self_sym(var n:tnode;arg:pointer):foreachnoderesult;
-    var
-      info : pselfinfo absolute arg;
-    begin
-      result:=fen_false;
-      if assigned(info^.selfsym) then
-        exit(fen_norecurse_true);
-      if n.nodetype<>loadn then
-        exit;
-      if tloadnode(n).symtableentry.typ<>paravarsym then
-        exit;
-      if tloadnode(n).symtableentry=info^.ignore then
-        exit;
-      if vo_is_self in tparavarsym(tloadnode(n).symtableentry).varoptions then
-        begin
-          info^.selfsym:=tparavarsym(tloadnode(n).symtableentry);
-          result:=fen_norecurse_true;
-        end;
     end;
 
 
@@ -1963,9 +2007,11 @@ implementation
       implintf : TImplementedInterface;
       i : longint;
       stmt : tstatementnode;
-      n1 : tnode;
+      n1,
+      moved : tnode;
+      suffix : string;
+      snapshot : boolean;
       fieldsym : tfieldvarsym;
-      selfinfo : tselfinfo;
     begin
       if not (n.resultdef.typ in [procdef,procvardef]) then
         internalerror(2022022101);
@@ -1975,16 +2021,19 @@ implementation
       pinested:=nil;
       oldpd:=nil;
 
-      { determine a unique name for the variable, field for function of the
-        node we're trying to load }
-
+      { the routine or the procedure variable the value comes from names the
+        interface and the Invoke; a value without such a symbol (an event
+        field, a function result) is named by its position }
       sym:=nil;
-      if not foreachnodestatic(pm_preprocess,n,@find_outermost_loaded_sym,@sym) then
-        internalerror(2022022102);
+      foreachnodestatic(pm_preprocess,n,@find_outermost_loaded_sym,@sym);
+      if assigned(sym) then
+        suffix:=fileinfo_to_suffix(sym.fileinfo)
+      else
+        suffix:=fileinfo_to_suffix(n.fileinfo);
 
-      result:=funcref_intf_for_proc(tabstractprocdef(n.resultdef),fileinfo_to_suffix(sym.fileinfo));
+      result:=funcref_intf_for_proc(tabstractprocdef(n.resultdef),suffix);
 
-      if (sym.typ=procsym) and (sym.owner.symtabletype=localsymtable) then
+      if assigned(sym) and (sym.typ=procsym) and (sym.owner.symtabletype=localsymtable) then
         begin
           { this is assigning a nested function, so retrieve the correct procdef
             so that we can then retrieve the procinfo for it }
@@ -2047,13 +2096,23 @@ implementation
       implintf:=find_implemented_interface(capturedef,result);
       if assigned(implintf) then
         begin
-          { this is already captured into a method of the capturer, so nothing
-            further to do }
-          exit;
+          { a routine, or a nested routine made a method of the capturer, is
+            the same Invoke wherever it is converted }
+          if assigned(pinested) or
+             ((n.nodetype=loadn) and (n.resultdef.typ=procdef) and not assigned(tloadnode(n).left)) then
+            exit;
+          { the object of a method and a procedure variable are expressions of
+            this conversion: another conversion of the same method or variable
+            gets an Invoke of its own }
+          suffix:='at'+fileinfo_to_suffix(n.fileinfo);
+          result:=funcref_intf_for_proc(tabstractprocdef(n.resultdef),suffix);
+          implintf:=find_implemented_interface(capturedef,result);
+          if assigned(implintf) then
+            exit;
         end;
       implintf:=capturedef.register_implemented_interface(result,true);
 
-      invokename:=method_name_funcref_invoke_decl+'__FPCINTERNAL__'+fileinfo_to_suffix(sym.fileinfo);
+      invokename:=method_name_funcref_invoke_decl+'__FPCINTERNAL__'+suffix;
 
       ps:=cprocsym.create(invokename);
       pd:=tprocdef(tabstractprocdef(n.resultdef).getcopyas(procdef,pc_normal_no_hidden,'',false));
@@ -2139,9 +2198,13 @@ implementation
       else
         pi.code:=internalstatements(stmt);
 
-      selfinfo.selfsym:=nil;
-      selfinfo.ignore:=nil;
+      { FPC keeps the value a procedure variable has at the conversion;
+        Delphi reads the variable at every call, as it reads the object of a
+        method, like an anonymous method that calls it }
+      snapshot:=(n.resultdef.typ=procvardef) and
+        not (m_delphi in current_settings.modeswitches);
 
+      moved:=nil;
       fieldsym:=nil;
       if assigned(pinested) then
         begin
@@ -2149,7 +2212,7 @@ implementation
           { captured variables cannot be in registers }
           make_not_regable(tcallnode(n1).methodpointer,[ra_addr_regable,ra_addr_taken]);
         end
-      else if n.resultdef.typ=procvardef then
+      else if snapshot then
         begin
           { store the procvar in a field so that it won't be changed if the
             procvar itself is changed }
@@ -2163,8 +2226,12 @@ implementation
           selfsym:=tsym(pd.parast.find('self'));
           if not assigned(selfsym) then
             internalerror(2022052301);
-          selfinfo.ignore:=selfsym;
           n1:=ccallnode.create_procvar(create_paras(pd),csubscriptnode.create(fieldsym,cloadnode.create(selfsym,selfsym.owner)));
+        end
+      else if n.resultdef.typ=procvardef then
+        begin
+          moved:=n.getcopy;
+          n1:=ccallnode.create_procvar(create_paras(pd),moved);
         end
       else
         begin
@@ -2172,7 +2239,8 @@ implementation
             internalerror(2022032401);
           if tloadnode(n).symtableentry.typ<>procsym then
             internalerror(2022032402);
-          n1:=ccallnode.create(create_paras(pd),tprocsym(tloadnode(n).symtableentry),tloadnode(n).symtable,tloadnode(n).left,[],nil);
+          moved:=tloadnode(n).left;
+          n1:=ccallnode.create(create_paras(pd),tprocsym(tloadnode(n).symtableentry),tloadnode(n).symtable,moved,[],nil);
           tloadnode(n).left:=nil;
         end;
       if assigned(pd.returndef) and not is_void(pd.returndef) then
@@ -2208,29 +2276,19 @@ implementation
           { the original nested function now needs to capture only the capturer }
           pinested.procdef.add_captured_sym(capturer,capturedef,n.fileinfo);
         end
-      { does this need to capture Self? }
-      else if not foreachnodestatic(pm_postprocess,n,@find_self_sym,@selfinfo) then
+      else if assigned(moved) then
         begin
-          { is this a method of the current class? }
-          if (n.resultdef.typ=procdef) and
-              assigned(tprocdef(n.resultdef).struct) and
-              not (po_staticmethod in tprocdef(n.resultdef).procoptions) and
-              assigned(current_procinfo.procdef.struct) and
-              def_is_related(current_procinfo.procdef.struct,tprocdef(n.resultdef).struct) then
-            begin
-              selfinfo.selfsym:=tsym(current_procinfo.procdef.parast.find('self'));
-              if not assigned(selfinfo.selfsym) then
-                internalerror(2022110601);
-            end
-          else
-            { does this need some other local variable or parameter? }
-            foreachnodestatic(pm_postprocess,n,@collect_syms_to_capture,@pd)
+          { the Invoke evaluates the object or the procedure variable at every
+            call: what the expression reads of this routine is captured }
+          foreachnodestatic(pm_postprocess,moved,@collect_syms_to_capture,pointer(pd));
+          if assigned(pd.capturedsyms) then
+            for i:=0 to pd.capturedsyms.count-1 do
+              begin
+                captured:=pcapturedsyminfo(pd.capturedsyms[i]);
+                if not can_be_captured(captured^.sym,pd) then
+                  MessagePos1(captured^.fileinfo,sym_e_symbol_no_capture,captured^.sym.realname);
+              end;
         end;
-
-      if assigned(selfinfo.selfsym) and not assigned(fieldsym) then
-        { this isn't a procdef that was captured into a field, so capture the
-          self }
-        pd.add_captured_sym(selfinfo.selfsym,tabstractvarsym(selfinfo.selfsym).vardef,n.fileinfo);
 
       print_procinfo(pi);
       if assigned(pinested) then
@@ -2255,9 +2313,11 @@ implementation
       info : pcapturedsyminfo;
       pi : tprocinfo;
       mapping : tsym_mapping;
+      suffix : string;
     begin
       capturer:=nil;
-      result:=funcref_intf_for_proc(pd,fileinfo_to_suffix(pd.fileinfo));
+      suffix:=fileinfo_to_suffix(pd.fileinfo);
+      result:=funcref_intf_for_proc(pd,suffix);
 
       if df_generic in pd.defoptions then
         begin
@@ -2296,7 +2356,7 @@ implementation
         end;
       implintf:=capturedef.register_implemented_interface(result,true);
 
-      invokename:=method_name_funcref_invoke_decl+'__FPCINTERNAL__'+fileinfo_to_suffix(pd.fileinfo);
+      invokename:=method_name_funcref_invoke_decl+'__FPCINTERNAL__'+suffix;
       if po_anonymous in pd.procoptions then
         begin
           { turn the anonymous function into a method of the capturer }

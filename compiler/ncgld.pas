@@ -581,8 +581,9 @@ implementation
                         LOC_CREGISTER,
                         LOC_REGISTER:
                           begin
-                             { this is not possible for objects }
-                             if is_object(left.resultdef) then
+                             { the value whose address is Self stays in memory
+                               (keep_method_value_in_memory) }
+                             if method_self_is_address then
                                internalerror(200304234);
 {$if defined(CPU8BITALU) and defined(CPU16BITADDR)}
                              hlcg.a_load_reg_reg(current_asmdata.CurrAsmList,left.resultdef,left.resultdef,left.location.register,cg.GetNextReg(cg.GetNextReg(location.register)));
@@ -594,9 +595,7 @@ implementation
                         LOC_CREFERENCE,
                         LOC_REFERENCE:
                           begin
-                             if is_implicit_pointer_object_type(left.resultdef) or
-                                (left.resultdef.typ=classrefdef) or
-                                is_nested_pd(procdef) then
+                             if not method_self_is_address then
                                begin
                                  vd:=left.resultdef;
 {$if defined(CPU8BITALU) and defined(CPU16BITADDR)}

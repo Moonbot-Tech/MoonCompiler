@@ -267,6 +267,7 @@ interface
         moduleoptions: tmoduleoptions;
         deprecatedmsg: pshortstring;
         compilecount : integer;
+        inlinevarcounter : cardinal;
         consume_semicolon_after_uses : Boolean;
         initfinalchecked : boolean;
         functypechecked : boolean;
@@ -784,6 +785,7 @@ implementation
         async_thunks:=nil;
         parfor_thunk_pd:=nil;
         parfor_nested_pvd:=nil;
+        inlinevarcounter:=0;
         globalsymtable:=nil;
         localsymtable:=nil;
         globalmacrosymtable:=nil;
@@ -1176,6 +1178,7 @@ implementation
         localframeworksearchpath.free;
         localframeworksearchpath:=TSearchPathList.Create;
         moduleoptions:=[];
+        inlinevarcounter:=0;
         is_dbginfo_written:=false;
         crc_final:=false;
         crc:=0;

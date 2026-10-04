@@ -55,6 +55,7 @@ interface
           fprocdef : tprocdef;
           fprocdefderef : tderef;
           function handle_threadvar_access: tnode; virtual;
+          procedure keep_method_value_in_memory;
        public
           loadnodeflags : set of tloadnodeflags;
           symtableentry : tsym;
@@ -78,6 +79,7 @@ interface
           procedure XMLPrintNodeData(var T: Text); override;
 {$endif DEBUG_NODE_XML}
           procedure setprocdef(p : tprocdef;forfuncref:boolean);
+          function  method_self_is_address:boolean;
           property procdef: tprocdef read fprocdef;
        end;
        tloadnodeclass = class of tloadnode;
@@ -211,13 +213,13 @@ interface
 implementation
 
     uses
-      verbose,globtype,globals,systems,constexp,compinnr,
+      cutils,cclasses,verbose,globtype,globals,systems,constexp,compinnr,
       ppu,
       symtable,
       defutil,defcmp,
       cpuinfo,
       htypechk,pass_1,procinfo,paramgr,
-      nbas,ncon,nflw,ninl,ncnv,nmem,ncal,nutils,
+      nbas,ncon,nflw,ninl,ncnv,nmem,ncal,nutils,ngenutil,
       cgbase,
       optloadmodifystore,wpobase
       ;
@@ -562,6 +564,13 @@ implementation
                 if assigned(left) then
                   begin
                      expectloc:=LOC_CREGISTER;
+                     { A procvar conversion can attach Self to an already
+                       typechecked load. Classify it before assigning locations. }
+                     typecheckpass(left);
+                     if codegenerror then
+                       exit;
+                     if method_self_is_address then
+                       keep_method_value_in_memory;
                      firstpass(left);
                   end;
               end;
@@ -644,6 +653,167 @@ implementation
             else
               internalerror(2010072201);
           end;
+      end;
+
+
+    { A method pointer passes a class, a class reference and the frame of a
+      nested routine as they are; the method of a value - a record, an
+      object, the type a helper extends - gets the address of the value as
+      Self }
+    function tloadnode.method_self_is_address:boolean;
+      begin
+        result:=assigned(left) and
+          (symtableentry.typ=procsym) and
+          (resultdef.typ in [symconst.procdef,procvardef]) and
+          not tabstractprocdef(resultdef).is_addressonly and
+          not is_nested_pd(procdef) and
+          not is_implicit_pointer_object_type(left.resultdef) and
+          (left.resultdef.typ<>classrefdef);
+      end;
+
+
+    { Every call through the method pointer may read and change the value its
+      Self points to, as long as Delphi keeps that value: a variable, or a
+      part of one, stays in its own storage, which then can be neither a
+      register nor a place the optimizer assumes unchanged by a call; a value
+      that is no variable - a function result, an expression - is kept in a
+      variable of its place in the source for as long as Delphi keeps the
+      temporary it makes for it }
+    procedure tloadnode.keep_method_value_in_memory;
+
+      function is_storage(n:tnode):boolean;
+        begin
+          repeat
+            case n.nodetype of
+              loadn:
+                exit(tloadnode(n).symtableentry.typ in [absolutevarsym,staticvarsym,localvarsym,paravarsym]);
+              temprefn,
+              derefn:
+                exit(true);
+              subscriptn:
+                begin
+                  n:=tsubscriptnode(n).left;
+                  if is_implicit_pointer_object_type(n.resultdef) or
+                     (n.resultdef.typ=classrefdef) then
+                    exit(true);
+                end;
+              vecn:
+                begin
+                  { an element of a dynamic array, a pointer, a string on the
+                    heap is memory; one of a static array or a shortstring is
+                    a part of that value }
+                  if not(((tvecnode(n).left.resultdef.typ=arraydef) and
+                          not is_special_array(tvecnode(n).left.resultdef)) or
+                         is_shortstring(tvecnode(n).left.resultdef)) then
+                    exit(true);
+                  n:=tvecnode(n).left;
+                end;
+              typeconvn:
+                begin
+                  if not ttypeconvnode(n).retains_value_location then
+                    exit(false);
+                  n:=ttypeconvnode(n).left;
+                end;
+              blockn:
+                begin
+                  { the variable an earlier pass kept the value in (constant
+                    propagation passes a changed tree again) }
+                  n:=tblocknode(n).left;
+                  if not assigned(n) then
+                    exit(false);
+                  while assigned(tstatementnode(n).right) do
+                    n:=tstatementnode(n).right;
+                  n:=tstatementnode(n).left;
+                end;
+              else
+                exit(false);
+            end;
+          until false;
+        end;
+
+      { the variable of this place in the source, a copy of this load (the
+        body of an unrolled loop) keeps its value in the same one; the name of
+        an internal symbol is its real name without the $.  Delphi finalizes
+        the temporary when the routine ends; that of the main block when the
+        main block ends, that of the initialization or the finalization of a
+        unit with the variables of the unit }
+      function variable_of_place(const name:TIDString):tabstractnormalvarsym;
+        var
+          pd : tprocdef;
+          st : tsymtable;
+          i : longint;
+        begin
+          pd:=current_procinfo.procdef;
+          case pd.proctypeoption of
+            potype_unitinit,
+            potype_unitfinalize:
+              { the unit: pmodules gives it a finalization when this is the
+                first managed variable it has }
+              st:=pd.localst;
+            potype_proginit:
+              begin
+                { a block of the main block, whose statics it finalizes }
+                if assigned(pd.blocklocalsymtables) then
+                  for i:=0 to pd.blocklocalsymtables.count-1 do
+                    begin
+                      result:=tabstractnormalvarsym(tsymtable(pd.blocklocalsymtables[i]).find(name));
+                      if assigned(result) then
+                        exit;
+                    end;
+                st:=tblocksymtable.create(pd.localst);
+                if not assigned(pd.blocklocalsymtables) then
+                  pd.blocklocalsymtables:=tfpobjectlist.create(true);
+                pd.blocklocalsymtables.add(st);
+              end;
+            else
+              st:=pd.localst;
+          end;
+          result:=tabstractnormalvarsym(st.find(name));
+          if assigned(result) then
+            exit;
+          if st.symtabletype=localsymtable then
+            begin
+              result:=clocalvarsym.create('$'+name,vs_value,left.resultdef,[vo_is_internal]);
+              result.fileinfo:=fileinfo;
+              st.insertsym(result);
+              if is_managed_type(result.vardef) then
+                begin
+                  { the exit code of the routine finalizes it; the request
+                    for the implicit finally was made before it existed }
+                  include(current_procinfo.flags,pi_needs_implicit_finally);
+                  include(current_procinfo.flags,pi_do_call);
+                end;
+            end
+          else
+            begin
+              result:=cstaticvarsym.create('$'+name,vs_value,left.resultdef,[vo_is_internal]);
+              result.fileinfo:=fileinfo;
+              if st.symtabletype=blocksymtable then
+                tstaticvarsym(result).set_mangledname(make_mangledname('U',pd.localst,name));
+              st.insertsym(result);
+              cnodeutils.insertbssdata(tstaticvarsym(result));
+            end;
+        end;
+
+      var
+        vs : tabstractnormalvarsym;
+        hp : tnode;
+        stmt : tstatementnode;
+      begin
+        hp:=left;
+        if not is_storage(left) then
+          begin
+            vs:=variable_of_place('self_'+tostr(fileinfo.moduleindex)+'_'+tostr(fileinfo.fileindex)+'_'+
+              tostr(fileinfo.line)+'_'+tostr(fileinfo.column));
+            left:=internalstatements(stmt);
+            addstatement(stmt,cassignmentnode.create(cloadnode.create(vs,vs.owner),hp));
+            hp:=cloadnode.create(vs,vs.owner);
+            addstatement(stmt,hp);
+            typecheckpass(left);
+          end;
+        { as for @: the value is written through Self, and its address escapes }
+        set_varstate(hp,vs_written,[]);
+        make_not_regable(hp,[ra_addr_regable,ra_addr_taken]);
       end;
 
 {*****************************************************************************

@@ -119,9 +119,13 @@ implementation
           begin
             result:=cstaticvarsym.create(n,vs_value,def,[]);
             if symtablestack.top.symtabletype=blocksymtable then
-              tstaticvarsym(result).set_mangledname(
-                make_mangledname('U',current_procinfo.procdef.localst,
-                  n+'$blk'+tostr(current_tokenpos.line)+'_'+tostr(current_tokenpos.column)));
+              begin
+                inc(current_module.inlinevarcounter);
+                tstaticvarsym(result).set_mangledname(
+                  make_mangledname('U',current_procinfo.procdef.localst,
+                    n+'$blk'+tostr(current_tokenpos.line)+'_'+tostr(current_tokenpos.column)+'_'+
+                    tostr(current_module.inlinevarcounter)));
+              end;
           end;
       end;
 
