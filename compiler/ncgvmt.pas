@@ -1068,14 +1068,17 @@ implementation
          vmttypesym: ttypesym;
          vmtdef: tdef;
          sym : TAsmSymbol;
+         pushedlocalsymtable: boolean;
       begin
 {$ifdef WITHDMT}
          dmtlabel:=gendmt;
 {$endif WITHDMT}
-         { this code gets executed after the current module's symtable has
-           already been removed from the symtablestack -> add it again, so that
-           newly created defs here end up in the right unit }
-         symtablestack.push(current_module.localsymtable);
+         { Newly created defs must belong to the current module. The program's
+           local symtable may already be active; avoid registering its helpers
+           and generics again for every VMT. }
+         pushedlocalsymtable:=not assigned(symtablestack.stack) or (symtablestack.top<>current_module.localsymtable);
+         if pushedlocalsymtable then
+           symtablestack.push(current_module.localsymtable);
          strmessagetable:=nil;
          interfacetable:=nil;
          fieldtablelabel:=nil;
@@ -1247,7 +1250,8 @@ implementation
            hs:=hs+_class.vmt_mangledname;
          current_asmdata.asmlists[al_globals].concat(tai_symbol.CreateName(hs,AT_DATA,0,voidpointerdef));
 {$endif vtentry}
-        symtablestack.pop(current_module.localsymtable);
+        if pushedlocalsymtable then
+          symtablestack.pop(current_module.localsymtable);
       end;
 
 
