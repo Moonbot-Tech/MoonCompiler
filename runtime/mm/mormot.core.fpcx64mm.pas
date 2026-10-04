@@ -347,6 +347,8 @@ procedure Fpcx64mmTestCorruptSmallLastFreeHead(P: pointer);
 function Fpcx64mmTestSmallBlockType(P: pointer): pointer;
 function Fpcx64mmTestSmallEmptyPoolReuseScore(BlockType: pointer): cardinal;
 function Fpcx64mmTestSmallRetainedPool(BlockType: pointer): pointer;
+function Fpcx64mmTestSmallMediumArenaCount: integer;
+function Fpcx64mmTestSmallMediumArenaForSlot(Slot: integer): pointer;
 {$endif FPCMM_SMALLPOOL_REUSE_TEST}
 
 {$ifdef FPCMM_ERMSFILL_TEST}
@@ -1081,6 +1083,16 @@ const
      (1 shl NumTinyBlockArenasPO2) - 1; // -1 = main Small[]
   NumSmallInfoBlock        =
     NumSmallBlockTypes + NumTinyBlockArenas * NumTinyBlockTypes;
+  {$ifdef FPCMM_MOONSHARD}
+  // Keep all addressable classes distinct within one row and, with the existing
+  // first-row unused-slot skip plus the 64-slot stride, one class distinct
+  // across all 32 rows.  Different (row, class) pairs may deliberately share
+  // an owner: 45 is the product profile's memory/parallelism trade-off, not a
+  // globally collision-free mapping.
+  NumSmallMediumArenas     = NumSmallBlockClasses + 1; // 45
+  {$else}
+  NumSmallMediumArenas     = NumTinyBlockTypes * 2 - 1;
+  {$endif FPCMM_MOONSHARD}
   SmallBlockSizes: array[0..NumSmallBlockTypes - 1] of word = (
     16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 256,
     272, 288, 304, 320, 352, 384, 416, 448, 480, 528, 576, 624, 672, 736, 800,
@@ -1312,9 +1324,7 @@ var
   {$endif FPCMM_MS_MEDIUM}
   {$ifdef FPCMM_SMALLNOTWITHMEDIUM}
   {$ifdef FPCMM_MULTIPLESMALLNOTWITHMEDIUM}
-  SmallMediumBlockInfo: array[0.. (NumTinyBlockTypes * 2) - 2] of TMediumBlockInfo;
-  // -2 to ensure same small block size won't share the same medium block
-  // note: including NumTinyBlockArenasPO2 to the calculation has no benefit
+  SmallMediumBlockInfo: array[0..NumSmallMediumArenas - 1] of TMediumBlockInfo;
   {$else}
   SmallMediumBlockInfo: array[0..0] of TMediumBlockInfo;
   {$endif FPCMM_MULTIPLESMALLNOTWITHMEDIUM}
@@ -6539,6 +6549,26 @@ begin
     result := PSmallBlockType(BlockType)^.CurrentSequentialFeedPool
   else
     result := nil;
+end;
+
+function Fpcx64mmTestSmallMediumArenaCount: integer;
+begin
+  {$ifdef FPCMM_MULTIPLESMALLNOTWITHMEDIUM}
+  result := length(SmallMediumBlockInfo);
+  {$else}
+  result := 1;
+  {$endif FPCMM_MULTIPLESMALLNOTWITHMEDIUM}
+end;
+
+function Fpcx64mmTestSmallMediumArenaForSlot(Slot: integer): pointer;
+begin
+  if (Slot < 0) or (Slot >= NumSmallInfoBlock) then
+    exit(nil);
+  {$ifdef FPCMM_MULTIPLESMALLNOTWITHMEDIUM}
+  result := SmallBlockInfo.SmallMediumBlockInfo[Slot];
+  {$else}
+  result := @SmallMediumBlockInfo;
+  {$endif FPCMM_MULTIPLESMALLNOTWITHMEDIUM}
 end;
 {$endif FPCMM_SMALLPOOL_REUSE_TEST}
 

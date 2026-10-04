@@ -9,6 +9,9 @@ uses
 const
   ColdFreeCount = 8;
   TestSize = 1024;
+  ProductShardCount = 32;
+  ProductSlotCount = 64;
+  ProductClassCount = 44;
 
 procedure Require(Condition: boolean; const MessageText: string);
 begin
@@ -26,10 +29,30 @@ var
   {$ifdef FPCMM_MOONSHARD}
   Reused, Second: pointer;
   {$endif FPCMM_MOONSHARD}
-  I: integer;
+  I, J, K: integer;
 
 begin
   BeforeStatus := CurrentHeapStatus;
+  {$ifdef FPCMM_MOONSHARD}
+  Require(Fpcx64mmTestSmallMediumArenaCount = 45,
+    'product backing-arena geometry changed');
+  for I := 0 to ProductShardCount - 1 do
+    for J := 0 to ProductClassCount - 1 do
+    begin
+      Require(Fpcx64mmTestSmallMediumArenaForSlot(
+        I * ProductSlotCount + J) <> nil, 'missing product backing arena');
+      for K := 0 to J - 1 do
+        Require(Fpcx64mmTestSmallMediumArenaForSlot(
+          I * ProductSlotCount + J) <>
+          Fpcx64mmTestSmallMediumArenaForSlot(I * ProductSlotCount + K),
+          'two classes in one shard share a backing arena');
+      for K := 0 to I - 1 do
+        Require(Fpcx64mmTestSmallMediumArenaForSlot(
+          I * ProductSlotCount + J) <>
+          Fpcx64mmTestSmallMediumArenaForSlot(K * ProductSlotCount + J),
+          'one class in two shards shares a backing arena');
+    end;
+  {$endif FPCMM_MOONSHARD}
   BlockType := nil;
   for I := 1 to ColdFreeCount do
   begin
