@@ -415,7 +415,11 @@ implementation
                      temp:=nil;
                      { create call to fpc_finalize }
                      if is_managed_type(tpointerdef(p.resultdef).pointeddef) then
-                       if might_have_sideeffects(p) then
+                       { p is needed again after the finalization, which may
+                         run user code (a destructor released through an
+                         interface): a p read through memory, whose value that
+                         code can change, is evaluated once into a temp }
+                       if might_have_sideeffects(p,[mhs_exceptions,mhs_memory_reads]) then
                          begin
                            { ensure that p gets evaluated only once, in case it is e.g. a call }
                            temp:=ctempcreatenode.create_value(p.resultdef,p.resultdef.size,tt_persistent,true,p);

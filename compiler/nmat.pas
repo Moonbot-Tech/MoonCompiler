@@ -172,6 +172,12 @@ implementation
             rv:=tordconstnode(right).value;
             if rv = 1 then
               begin
+                { Reducing X mod 1 to zero removes X completely.  Calls,
+                  volatile accesses and runtime checks are observable even
+                  though the numeric result is known. }
+                if (nodetype=modn) and
+                   might_have_sideeffects(left,[mhs_exceptions]) then
+                  exit;
                 { Delphi chooses the promoted operation type below. Keep the
                   live identity node until that type has been selected. }
                 if (m_delphi in current_settings.modeswitches) and
@@ -219,7 +225,8 @@ implementation
                  tordconstnode(right).value := 1;
                end
             else if (rv=-1) and
-              (nodetype=modn) then
+              (nodetype=modn) and
+              not might_have_sideeffects(left,[mhs_exceptions]) then
               begin
                 result:=cordconstnode.create(0,left.resultdef,true);
                 left:=nil;
@@ -898,7 +905,11 @@ implementation
           not use_moddiv64bitint_helper and
           not(cs_opt_size in current_settings.optimizerswitches) then
           begin
-            if not might_have_sideeffects(left) then
+            { a dividend with a read through memory, a division or a check
+              goes through the temp: common subexpression elimination does
+              not share such a subtree with a 'x div C' of another statement,
+              and the copy only repeats it }
+            if not might_have_sideeffects(left,[mhs_exceptions,mhs_memory_reads]) then
               begin
                 { build the division from a plain copy of the dividend: the
                   subtree then matches a neighbouring 'x div C' textually and
@@ -1084,8 +1095,7 @@ implementation
               end;
             { '0 shl x' and '0 shr x' are 0 }
             if (lvalue=0) and
-               ((cs_opt_level4 in current_settings.optimizerswitches) or
-                not might_have_sideeffects(right)) then
+               not might_have_sideeffects(right,[mhs_exceptions]) then
               result:=cordconstnode.create(0,resultdef,true);
           end;
       end;

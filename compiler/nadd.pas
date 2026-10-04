@@ -644,6 +644,13 @@ const
 
     function taddnode.simplify(forinline : boolean) : tnode;
 
+      type
+        tarithmeticfoldresult = (
+          afr_safe,
+          afr_runtime_trap,
+          afr_source_error
+        );
+
       function is_range_test(nodel, noder: taddnode; out value: tnode; var cl,cr: Tconstexprint): boolean;
         const
           is_upper_test: array[ltn..gten] of boolean = (true,true,false,false);
@@ -676,7 +683,7 @@ const
 
           if noder.left.nodetype=ordconstn then
             begin
-              swapl:=true;
+              swapr:=true;
               cr:=tordconstnode(noder.left).value;
               valuer:=noder.right;
             end
@@ -742,6 +749,14 @@ const
           if not is_constintvalue(R,0) or is_shortstring(tinlinenode(L).left.resultdef) then
             exit;
 
+          { A Win-like WideString zero test needs both the pointer and its
+            stored length.  Do not duplicate an expression whose evaluation
+            is observable; the ordinary Length path evaluates it once. }
+          if is_widestring(tinlinenode(L).left.resultdef) and
+             (tf_winlikewidestring in target_info.flags) and
+             might_have_sideeffects(tinlinenode(L).left,[]) then
+            exit;
+
           { Length = 0, <> 0, > 0, <= 0 are reduced to Length = 0. }
           if op in [equaln,unequaln,gtn,lten] then
             begin
@@ -782,7 +797,8 @@ const
               Message(type_w_comparison_always_false);
 
           { Length < 0 is always false, Length >= 0 is always true. }
-          if not might_have_sideeffects(tinlinenode(L).left) then { Could somehow remove the check but keep the F() even in Length(F()) >= 0... }
+          if not might_have_sideeffects(tinlinenode(L).left,
+            [mhs_exceptions]) then { Could somehow remove the check but keep the F() even in Length(F()) >= 0... }
             begin
               resn:=cordconstnode.create(ord(op=gten),resultdef,true);
               exit(true);
@@ -824,7 +840,7 @@ const
             each other.  Such a fold belongs to the already typechecked runtime
             expression, not to a constant subexpression written by the user. }
           if foldruntimeconstants then
-            include(left.transientflags,tnf_runtime_const_reassociation);
+            include(left.transientflags,tnf_runtime_expression);
           left:=left.simplify(forinline);
           if resultdef.typ<>pointerdef then
             begin
@@ -848,7 +864,7 @@ const
           { See SwapRightWithLeftRight: this may be an optimizer-created
             constant pair inside an otherwise non-constant expression. }
           if foldruntimeconstants then
-            include(left.transientflags,tnf_runtime_const_reassociation);
+            include(left.transientflags,tnf_runtime_expression);
           left.resultdef:=nil;
           do_typecheckpass(left);
           hp2:=left.simplify(forinline);
@@ -912,10 +928,13 @@ const
 
       function TryVariableShiftPair(lin, rin: tnode; bitsize: asizeint): boolean;
         begin
+          { the rotate evaluates the count lin once where the pair evaluates
+            it twice, and drops the complement rin (bitsize-lin) }
           Result:=(rin.nodetype=subn) and
             is_constintnode(taddnode(rin).left) and
             (tordconstnode(taddnode(rin).left).value=bitsize) and
-            not might_have_sideeffects(lin) and
+            not might_have_sideeffects(lin,[]) and
+            not might_have_sideeffects(rin,[mhs_exceptions]) and
             taddnode(rin).right.isequal(lin);
         end;
 
@@ -931,7 +950,8 @@ const
             (torddef(tshlshrnode(left).left.resultdef).ordtype<>customint) and
             { the code generators have no 128 bit rotate }
             not is_128bit(tshlshrnode(left).left.resultdef) and
-            not might_have_sideeffects(tshlshrnode(left).left) and
+            { the rotated value: evaluated once where the pair evaluates it twice }
+            not might_have_sideeffects(tshlshrnode(left).left,[]) and
             tshlshrnode(left).left.isequal(tshlshrnode(right).left) then
             begin
               bitsize:=tshlshrnode(left).left.resultdef.size*8;
@@ -965,35 +985,51 @@ const
         end;
 
 
-      function constantarithmeticoverflow(var value: Tconstexprint;
-        forinline: boolean; out wrapped: boolean): boolean;
-        var
-          runtimefold: boolean;
+      { A sum or a difference with a non-zero real constant is never -0.0 in
+        the product FP state: an exact zero sum of numbers of opposite signs
+        rounds to +0.0 there, so x+(+0.0) = x holds for it. }
+      function sum_with_nonzero_constant(n: tnode): boolean;
+        begin
+          result:=(n.nodetype in [addn,subn]) and
+            (((taddnode(n).left.nodetype=realconstn) and (trealconstnode(taddnode(n).left).value_real<>0)) or
+             ((taddnode(n).right.nodetype=realconstn) and (trealconstnode(taddnode(n).right).value_real<>0)));
+        end;
+
+
+      function classifyconstantarithmetic(var value: Tconstexprint;
+        forinline: boolean; out wrapped,runtimefold: boolean): tarithmeticfoldresult;
         begin
           runtimefold:=forinline or
-            (tnf_runtime_const_reassociation in transientflags);
+            (tnf_runtime_expression in transientflags);
           wrapped:=value.overflow or
             (not(m_int128 in current_settings.modeswitches) and not value.representable64);
           { Delphi diagnoses a source constant expression in the arithmetic
             type selected from its operands.  Merely fitting the mathematical
             result in the opposite-signed 64-bit type is not sufficient. }
-          if not wrapped and not runtimefold and
-             (m_delphi in current_settings.modeswitches) and
-             is_integer(resultdef) then
+          if not wrapped and is_integer(resultdef) and
+             (((not runtimefold) and
+               (m_delphi in current_settings.modeswitches)) or
+              (runtimefold and
+               (cs_check_overflow in localswitches))) then
             wrapped:=(value<torddef(resultdef).low) or
               (value>torddef(resultdef).high);
-          result:=wrapped;
-          if wrapped and runtimefold and
-             not(cs_check_overflow in localswitches) and
-             is_integer(resultdef) then
+          if not wrapped then
+            result:=afr_safe
+          else if not runtimefold then
+            result:=afr_source_error
+          else if cs_check_overflow in localswitches then
+            result:=afr_runtime_trap
+          else if is_integer(resultdef) then
             begin
               { Once inlining exposes constant operands, preserve the unchecked
                 runtime arithmetic semantics of the already typechecked
                 expression.  A constant expression present in the source must
                 still report overflow even when overflow checks are disabled. }
               value.overflow:=false;
-              result:=false;
-            end;
+              result:=afr_safe;
+            end
+          else
+            result:=afr_source_error;
         end;
 
 
@@ -1013,8 +1049,9 @@ const
         foldplan : TTextFoldPlan;
         l1,l2   : longint;
         resultset : Tconstset;
-        res,wrapped,
-        b       : boolean;
+        res,wrapped,runtimefold,runtimeexpr,
+        b,silentprune : boolean;
+        arithmeticfold : tarithmeticfoldresult;
         cr, cl  : Tconstexprint;
         v2p, c2p, c1p, v1p: pnode;
         p1,p2: TConstPtrUInt;
@@ -1096,29 +1133,39 @@ const
                addn :
                  begin
                    v:=lv+rv;
-                    if constantarithmeticoverflow(v,forinline,wrapped) then
+                   arithmeticfold:=classifyconstantarithmetic(v,forinline,
+                     wrapped,runtimefold);
+                   if arithmeticfold=afr_source_error then
                      begin
                        Message(parser_e_arithmetic_operation_overflow);
                        { Recover }
                        t:=genintconstnode(0)
                      end
+                   else if arithmeticfold=afr_runtime_trap then
+                     exit
                    else if is_constpointernode(left) or is_constpointernode(right) then
                      t := cpointerconstnode.create(qword(v),resultdef)
                     else
                       if is_integer(ld) then
-                       t := create_simplified_ord_const(v,resultdef,forinline or wrapped,cs_check_overflow in localswitches)
+                       t := create_simplified_ord_const(v,resultdef,
+                         forinline or wrapped,
+                         (not runtimefold) and (cs_check_overflow in localswitches))
                      else
                        t := cordconstnode.create(v,resultdef,(ld.typ<>enumdef));
                  end;
                subn :
                  begin
                    v:=lv-rv;
-                    if constantarithmeticoverflow(v,forinline,wrapped) then
+                   arithmeticfold:=classifyconstantarithmetic(v,forinline,
+                     wrapped,runtimefold);
+                   if arithmeticfold=afr_source_error then
                      begin
                        Message(parser_e_arithmetic_operation_overflow);
                        { Recover }
                        t:=genintconstnode(0)
                      end
+                   else if arithmeticfold=afr_runtime_trap then
+                     exit
                    else if (lt=pointerconstn) then
                      { pointer-pointer results in an integer }
                      if (rt=pointerconstn) then
@@ -1133,21 +1180,29 @@ const
                        t:=cpointerconstnode.create(qword(v),resultdef)
                     else
                       if is_integer(ld) then
-                       t:=create_simplified_ord_const(v,resultdef,forinline or wrapped,cs_check_overflow in localswitches)
+                       t:=create_simplified_ord_const(v,resultdef,
+                         forinline or wrapped,
+                         (not runtimefold) and (cs_check_overflow in localswitches))
                      else
                        t:=cordconstnode.create(v,resultdef,(ld.typ<>enumdef));
                  end;
                muln :
                  begin
                    v:=lv*rv;
-                    if constantarithmeticoverflow(v,forinline,wrapped) then
+                   arithmeticfold:=classifyconstantarithmetic(v,forinline,
+                     wrapped,runtimefold);
+                   if arithmeticfold=afr_source_error then
                      begin
                        message(parser_e_arithmetic_operation_overflow);
                        { Recover }
                        t:=genintconstnode(0)
                      end
+                   else if arithmeticfold=afr_runtime_trap then
+                     exit
                    else
-                     t := create_simplified_ord_const(v,hdef,forinline or wrapped,cs_check_overflow in localswitches)
+                     t := create_simplified_ord_const(v,hdef,
+                       forinline or wrapped,
+                       (not runtimefold) and (cs_check_overflow in localswitches))
                  end;
                { 128 bit types combine over the full payload, the operators
                  keep the historical 64 bit window (same split as shl/shr) }
@@ -1211,8 +1266,10 @@ const
               t:=Cordconstnode.create(0,pasbool1type,true);
             { don't do this optimization, if the variable expression might
               have a side effect }
-            if (is_constintnode(left) and might_have_sideeffects(right)) or
-              (is_constintnode(right) and might_have_sideeffects(left)) then
+            if (is_constintnode(left) and
+                might_have_sideeffects(right,[mhs_exceptions])) or
+              (is_constintnode(right) and
+                might_have_sideeffects(left,[mhs_exceptions])) then
               t.free // no nil needed
             else
               result:=t;
@@ -1234,8 +1291,11 @@ const
                     result := PruneKeepLeft();
                   andn,muln:
                     begin
-                      if (cs_opt_level4 in current_settings.optimizerswitches) or
-                         not might_have_sideeffects(left) then
+                      { Even level 4 may discard only the value, never a
+                        call, an atomic operation, a volatile access or an
+                        exception the program asked for carried by the other
+                        operand; a read whose value is not needed goes. }
+                      if not might_have_sideeffects(left,[mhs_exceptions]) then
                         result:=cordconstnode.create(0,resultdef,true);
                     end
                   else
@@ -1328,9 +1388,10 @@ const
             else if (left.nodetype=niln) and is_pointer(right.resultdef) then
               result := ctypeconvnode.create_internal(cunaryminusnode.create(ctypeconvnode.create_internal(right.getcopy,resultdef)),resultdef)
 
-            { convert n - n mod const into n div const*const }
+            { convert n - n mod const into n div const*const: n is evaluated
+              once where the source evaluates it twice }
             else if (right.nodetype=modn) and is_constintnode(tmoddivnode(right).right) and
-              (left.isequal(tmoddivnode(right).left)) and not(might_have_sideeffects(left)) { and
+              (left.isequal(tmoddivnode(right).left)) and not(might_have_sideeffects(left,[])) { and
 	      not(cs_check_overflow in localswitches) } then
               begin
                 result:=caddnode.create(muln,cmoddivnode.create(divn,left,tmoddivnode(right).right.getcopy),tmoddivnode(right).right);
@@ -1340,7 +1401,9 @@ const
               end
 
             { transform -x-1 into not(x) }
-            else if is_signed(ld) and is_constintnode(right) and (tordconstnode(right).value=1) and (left.nodetype=unaryminusn) then
+            else if is_signed(ld) and is_constintnode(right) and
+              (tordconstnode(right).value=1) and (left.nodetype=unaryminusn) and
+              ((localswitches*[cs_check_overflow,cs_check_range])=[]) then
               begin
                 result:=cnotnode.create(tunaryminusnode(left).left.getcopy);
                 exit;
@@ -1461,7 +1524,11 @@ const
                             end;
                           slashn,
                           muln:
-                            if not(might_have_sideeffects(right,[mhs_exceptions])) then
+                            { fast math takes 0 for any x; the fold drops the
+                              evaluation of x, which only an exception the
+                              program asked for keeps }
+                            if (cs_opt_fastmath in current_settings.optimizerswitches) and
+                               not(might_have_sideeffects(right,[mhs_exceptions])) then
                               begin
                                 result:=PruneKeepLeft;
                                 exit;
@@ -1500,7 +1567,9 @@ const
                               exit;
                             end;
                           muln:
-                            if not(might_have_sideeffects(left,[mhs_exceptions])) then
+                            { see 0*x above }
+                            if (cs_opt_fastmath in current_settings.optimizerswitches) and
+                               not(might_have_sideeffects(left,[mhs_exceptions])) then
                               begin
                                 result:=right.getcopy;
                                 exit;
@@ -1799,11 +1868,31 @@ const
                       Result := ctypeconvnode.create_internal(Result,resultdef);
                     exit;
                   end
-                else if not(might_have_sideeffects(right)) and
+                { with short boolean evaluation a deciding constant on the left
+                  means that the right operand is never evaluated: nothing
+                  observable is dropped with it, whatever it contains.  Without
+                  this the constant is only found by the code generator, which
+                  jumps over the dead arm but keeps its code, registers and
+                  frame in the routine (TList<Integer>.IndexOf carried the whole
+                  UnicodeString search loop).  Only complete evaluation has to
+                  keep the effects and exceptions of the right operand }
+                else if (doshortbooleval(self) or
+                   not(might_have_sideeffects(right,[mhs_exceptions]))) and
                   (((nodetype=orn) and (tordconstnode(left).value<>0)) or
                   ((nodetype=andn) and (tordconstnode(left).value=0))) then
                   begin
+                    { A constant that decides only because evaluation is short is not
+                      a constant condition of the source: while the tree kept such an
+                      `and`, no `unreachable code` warning followed, and none may
+                      appear now (the compiler builds itself with -Sew, and its
+                      `if (sizeof(aint)<4) and (def.size<=...)` has a call on the
+                      right).  An effect-free right operand folded before and
+                      warned before; that stays, and a read through memory
+                      stays silent as it was. }
+                    silentprune:=might_have_sideeffects(right,[mhs_exceptions,mhs_memory_reads]);
                     Result := PruneKeepLeft();
+                    if silentprune then
+                      include(Result.flags,nf_internal);
                     if Result.resultdef<>resultdef then
                       Result := ctypeconvnode.create_internal(Result,resultdef);
                     exit;
@@ -1828,7 +1917,7 @@ const
                       result := ctypeconvnode.create_internal(result,resultdef);
                     exit;
                   end
-                else if not(might_have_sideeffects(left)) and
+                else if not(might_have_sideeffects(left,[mhs_exceptions])) and
                   (((nodetype=orn) and (tordconstnode(right).value<>0)) or
                    ((nodetype=andn) and (tordconstnode(right).value=0))) then
                   begin
@@ -2021,13 +2110,14 @@ const
             if is_boolean(ld) and is_boolean(rd) then
               begin
                 { transform unsigned comparisons of (v>=x) and (v<=y)
-                  into (v-x)<=(y-x)
+                  into (v-x)<=(y-x): v is evaluated once where the source
+                  evaluates it once or twice
                 }
                 if (nodetype in [andn,orn]) and
                    (left.nodetype in [ltn,lten,gtn,gten]) and
                    (right.nodetype in [ltn,lten,gtn,gten]) and
-                   (not might_have_sideeffects(left)) and
-                   (not might_have_sideeffects(right)) and
+                   (not might_have_sideeffects(left,[])) and
+                   (not might_have_sideeffects(right,[])) and
                    is_range_test(taddnode(left),taddnode(right),vl,cl,cr) and
                    { avoid optimization being applied to (<string. var > charconst1) and (<string. var < charconst2) }
                    (vl.resultdef.typ in [orddef,enumdef]) then
@@ -2055,12 +2145,13 @@ const
                   (v1=const1) and (v2=const2)
                     can be converted into
                   ((v1 xor const1) or (v2 xor const2))=0
+                  which evaluates v2 also where a short-circuit and does not
                 }
                 if (nodetype=andn) and
                    (left.nodetype=equaln) and
                    (right.nodetype=equaln) and
-                   (not might_have_sideeffects(left)) and
-                   (not might_have_sideeffects(right,[mhs_exceptions])) and
+                   (not might_have_sideeffects(left,[])) and
+                   (not might_have_sideeffects(right,[mhs_exceptions,mhs_memory_reads])) and
                    (is_constintnode(taddnode(left).left) or is_constintnode(taddnode(left).right) or
                     is_constpointernode(taddnode(left).left) or is_constpointernode(taddnode(left).right) or
                     is_constcharnode(taddnode(left).left) or is_constcharnode(taddnode(left).right)) and
@@ -2116,8 +2207,9 @@ const
                   optimization cannot be performed in case the node has
                   side effects, because this can change the result (e.g., in an
                   or-node that calls the same function twice and first returns
-                  false and then true because of a global state change }
-                if left.isequal(right) and not might_have_sideeffects(left) then
+                  false and then true because of a global state change; an
+                  exception is raised by the kept first evaluation }
+                if left.isequal(right) and not might_have_sideeffects(left,[]) then
                   begin
                     case nodetype of
                       andn,orn:
@@ -2136,8 +2228,9 @@ const
                         ;
                     end;
                   end
-                { short to full boolean evaluation possible and useful? }
-                else if not(might_have_sideeffects(right,[mhs_exceptions])) and doshortbooleval(self) then
+                { short to full boolean evaluation possible and useful?  It
+                  evaluates right also where the short-circuit does not }
+                else if not(might_have_sideeffects(right,[mhs_exceptions,mhs_memory_reads])) and doshortbooleval(self) then
                   begin
                     case nodetype of
                       andn,orn:
@@ -2163,7 +2256,12 @@ const
             if is_integer(ld) and is_integer(rd) then
               begin
                 if (cs_opt_level3 in current_settings.optimizerswitches) and
-                   left.isequal(right) and not might_have_sideeffects(left) then
+                   left.isequal(right) and
+                   { x and x, x or x keep one of the two evaluations of x,
+                     the other identities keep none }
+                   (((nodetype in [andn,orn]) and
+                     not might_have_sideeffects(left,[])) or
+                    not might_have_sideeffects(left,[mhs_exceptions])) then
                   begin
                     case nodetype of
                       andn,orn:
@@ -2261,7 +2359,10 @@ const
                (nodetype=muln) and
                is_real(ld) and is_real(rd) and
                left.isequal(right) and
-               not(might_have_sideeffects(left)) then
+               { sqr(x) evaluates x once where x*x evaluates it twice: an exception
+                 of x is raised by its first evaluation in both forms, only the real
+                 effects of a second evaluation would be lost }
+               not(might_have_sideeffects(left,[])) then
               begin
                 result:=cinlinenode.create(in_sqr_real,false,PruneKeepLeft());
                 inserttypeconv(result,resultdef);
@@ -2303,17 +2404,20 @@ const
                 into
 
                 c xor ((c xor a) and b)
+
+              which evaluates b once and c twice, and under short-circuit
+              evaluation also the operands the source skips
             }
             if (nodetype=orn) and
              (ld.typ=orddef) and
              (left.nodetype=andn) and
              (right.nodetype=andn) and
-             (not(is_boolean(resultdef)) or not(might_have_sideeffects(self,[mhs_exceptions])) or not(doshortbooleval(self))) and
+             (not(is_boolean(resultdef)) or not(might_have_sideeffects(self,[mhs_exceptions,mhs_memory_reads])) or not(doshortbooleval(self))) and
              { this test is not needed but it speeds up the test and allows to bail out early }
              ((taddnode(left).left.nodetype=notn) or (taddnode(left).right.nodetype=notn) or
               (taddnode(right).left.nodetype=notn) or (taddnode(right).right.nodetype=notn)
              ) and
-             not(might_have_sideeffects(self)) then
+             not(might_have_sideeffects(self,[])) then
              begin
                if MatchAndTransformNodesCommutative(taddnode(left).left,taddnode(left).right,taddnode(right).left,taddnode(right).right,
                  @IsAndOrAndNot,@TransformAndOrAndNot,Result) then
@@ -2522,6 +2626,42 @@ const
       end;
 
 
+    { Field-wise lowering reuses both tuple operands.  Materialize any
+      operand that cannot be repeated, evaluate the comparison while those
+      values are alive, and only then release the temporaries. }
+    function build_tuple_comparison(l,r:tnode;op:tnodetype):tnode;
+      var
+        block : tblocknode;
+        stat : tstatementnode;
+        ltemp,rtemp,resulttemp : ttempcreatenode;
+        comparison : tnode;
+      begin
+        block:=nil;
+        stat:=nil;
+        ltemp:=maybereplacewithtemp(l,block,stat,l.resultdef.size,true);
+        rtemp:=maybereplacewithtemp(r,block,stat,r.resultdef.size,true);
+        if op in [equaln,unequaln] then
+          comparison:=build_tuple_eq_chain(l,r,op=equaln)
+        else
+          comparison:=build_tuple_lex_chain(l,r,op);
+        if not assigned(block) then
+          exit(comparison);
+
+        resulttemp:=ctempcreatenode.create(pasbool1type,pasbool1type.size,
+          tt_persistent,true);
+        addstatement(stat,resulttemp);
+        addstatement(stat,cassignmentnode.create(
+          ctemprefnode.create(resulttemp),comparison));
+        if assigned(rtemp) then
+          addstatement(stat,ctempdeletenode.create(rtemp));
+        if assigned(ltemp) then
+          addstatement(stat,ctempdeletenode.create(ltemp));
+        addstatement(stat,ctempdeletenode.create_normal_temp(resulttemp));
+        addstatement(stat,ctemprefnode.create(resulttemp));
+        result:=block;
+      end;
+
+
     function taddnode.pass_typecheck:tnode;
       var
         rawbytestringconcat,
@@ -2611,7 +2751,7 @@ const
           begin
             if tuples_have_equal_shape(trecorddef(left.resultdef),trecorddef(right.resultdef)) then
               begin
-                result:=build_tuple_eq_chain(left,right,nodetype=equaln);
+                result:=build_tuple_comparison(left,right,nodetype);
                 left:=nil;
                 right:=nil;
                 typecheckpass(result);
@@ -2634,7 +2774,7 @@ const
           begin
             if tuples_have_equal_shape(trecorddef(left.resultdef),trecorddef(right.resultdef)) then
               begin
-                result:=build_tuple_lex_chain(left,right,nodetype);
+                result:=build_tuple_comparison(left,right,nodetype);
                 left:=nil;
                 right:=nil;
                 typecheckpass(result);
@@ -5667,7 +5807,7 @@ const
                    end;
                  { the node is copied so it might have no side effects, if the complexity is too, cse should fix it, so
                    do not check complexity }
-                 if not(might_have_sideeffects(varsetnode)) then
+                 if not(might_have_sideeffects(varsetnode,[])) then
                    begin
                      result:=nil;
                      for i:=low(tconstset) to high(tconstset) do

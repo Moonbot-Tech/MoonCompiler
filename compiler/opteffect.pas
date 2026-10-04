@@ -795,6 +795,14 @@ unit opteffect;
       var
         arg : tnode;
       begin
+        if n.may_raise_exception_norecurse then
+          begin
+            include(ctx.e^.ieffects,ie_trap);
+            if n.observes_fp_environment_norecurse then
+              journal(ctx,n,er_fp_environment,'')
+            else
+              journal(ctx,n,er_may_trap,'');
+          end;
         case n.inlinenumber of
           { pure value operations }
           in_lo_word,in_hi_word,in_lo_long,in_hi_long,in_lo_qword,in_hi_qword,
@@ -825,25 +833,17 @@ unit opteffect;
             end;
           { pure, but may range/overflow-check }
           in_pred_x,in_succ_x,in_abs_long:
-            begin
-              if checked_switches(n) then
-                begin
-                  include(ctx.e^.ieffects,ie_trap);
-                  journal(ctx,n,er_may_trap,'');
-                end;
-            end;
+            ;
           { value-pure FP operations: the FP environment is observable
             (CONTRACT paragraph 4), so they are never unconditionally
             trap-free }
-          in_trunc_real,in_round_real,in_frac_real,in_int_real,
-          in_pi_real,in_abs_real,in_sqr_real,in_sqrt_real,
+          in_exp_real,in_trunc_real,in_round_real,in_frac_real,in_int_real,
+          in_pi_real,in_cos_real,in_sin_real,in_arctan_real,
+          in_abs_real,in_sqr_real,in_sqrt_real,in_ln_real,
           in_fma_single,in_fma_double,in_fma_extended,in_fma_float128,
           in_max_single,in_max_double,in_min_single,in_min_double,
           in_min_quad,in_max_quad:
-            begin
-              include(ctx.e^.ieffects,ie_trap);
-              journal(ctx,n,er_fp_environment,'');
-            end;
+            ;
           { volatile view: every access executes, full barrier }
           in_volatile_x:
             begin

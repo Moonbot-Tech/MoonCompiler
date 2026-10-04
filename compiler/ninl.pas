@@ -64,6 +64,8 @@ interface
           property parameters : tnode read left write left;
 
           function may_have_sideeffect_norecurse: boolean;
+          function may_raise_exception_norecurse: boolean;
+          function observes_fp_environment_norecurse: boolean;
 
           function may_ignore_result:boolean;
          protected
@@ -2326,8 +2328,7 @@ implementation
                   ((resultdef.size=2) and (smallint(vl2.svalue)=-1)) or
                   ((resultdef.size=4) and (longint(vl2.svalue)=-1)) or
                   ((resultdef.size=8) and (int64(vl2.svalue)=-1))) and
-                 ((cs_opt_level4 in current_settings.optimizerswitches) or
-                  not might_have_sideeffects(tcallparanode(left).left)) then
+                 not might_have_sideeffects(tcallparanode(left).left,[mhs_exceptions]) then
                 begin
                   if vl2=0 then
                     result:=cordconstnode.create(0,resultdef,true)
@@ -2452,8 +2453,7 @@ implementation
                   ((resultdef.size=2) and (vl2=$ffff)) or
                   ((resultdef.size=4) and (vl2=$ffffffff)) or
                   ((resultdef.size=8) and (vl2.uvalue=qword($ffffffffffffffff)))) and
-                 ((cs_opt_level4 in current_settings.optimizerswitches) or
-                  not might_have_sideeffects(tcallparanode(left).left)) then
+                 not might_have_sideeffects(tcallparanode(left).left,[mhs_exceptions]) then
                 result:=cordconstnode.create(vl2,resultdef,true);
             end;
         end;
@@ -2474,6 +2474,16 @@ implementation
               res := DoMax;
               Exit(True);
             end
+        end;
+
+      { A min/max that folds to its constant operand drops the other one.
+        This is the discard site of the rewrite if..then x:=a else x:=b ->
+        x:=min/max(a,b): the comparison of the original statement evaluated
+        both operands, so an operand with an exception the program asked for
+        (an enabled range check) has to stay evaluated. }
+      function minmax_operand_is_droppable(n: tnode): boolean;
+        begin
+          result:=not might_have_sideeffects(n,[mhs_exceptions]);
         end;
 
       var
@@ -2812,7 +2822,8 @@ implementation
                           { the type of the original integer constant is irrelevant,
                             it should be automatically adapted to the new value
                             (except when inlining) }
-                          result:=create_simplified_ord_const(vl,resultdef,forinline,cs_check_range in localswitches)
+                          result:=create_simplified_ord_const(vl,resultdef,
+                            forinline,cs_check_range in localswitches)
                         else
                           { check the range for enums, chars, booleans }
                           result:=cordconstnode.create(vl,left.resultdef,
@@ -3112,8 +3123,11 @@ implementation
                               is taken }
                             result:=hp2.getcopy()
                           else if (trealconstnode(hp).value_real = MathNegInf.value) then
-                            { Nothing is less than than -oo }
-                            result:=crealconstnode.create(MathNegInf.value,resultdef)
+                            begin
+                              { Nothing is less than than -oo }
+                              if minmax_operand_is_droppable(hp2) then
+                                result:=crealconstnode.create(MathNegInf.value,resultdef);
+                            end
                           else if (trealconstnode(hp).value_real = MathInf.value) then
                             { Everything is less than +oo }
                             result:=hp2.getcopy()
@@ -3130,12 +3144,18 @@ implementation
                       else if (hp2.nodetype=realconstn) then
                         begin
                           if (trealconstnode(hp2).value_real = MathQNaN.value) then
-                            { If one of the inputs is NaN, the second parameter
-                              is taken (even if it is NaN) }
-                            result:=crealconstnode.create(MathQNaN.value,resultdef)
+                            begin
+                              { If one of the inputs is NaN, the second parameter
+                                is taken (even if it is NaN) }
+                              if minmax_operand_is_droppable(hp) then
+                                result:=crealconstnode.create(MathQNaN.value,resultdef);
+                            end
                           else if (trealconstnode(hp2).value_real = MathNegInf.value) then
-                            { Nothing is less than than -oo }
-                            result:=crealconstnode.create(MathNegInf.value,resultdef)
+                            begin
+                              { Nothing is less than than -oo }
+                              if minmax_operand_is_droppable(hp) then
+                                result:=crealconstnode.create(MathNegInf.value,resultdef);
+                            end
                           else if (trealconstnode(hp2).value_real = MathInf.value) then
                             { Everything is less than +oo }
                             result:=hp.getcopy();
@@ -3161,8 +3181,11 @@ implementation
                             { Everything is greater than than -oo }
                             result:=hp2.getcopy()
                           else if (trealconstnode(hp).value_real = MathInf.value) then
-                            { Nothing is greater than +oo }
-                            result:=crealconstnode.create(MathInf.value,resultdef)
+                            begin
+                              { Nothing is greater than +oo }
+                              if minmax_operand_is_droppable(hp2) then
+                                result:=crealconstnode.create(MathInf.value,resultdef);
+                            end
                           else if (hp2.nodetype=realconstn) then
                             begin
                               { Both actual parameters are constants, so take
@@ -3176,15 +3199,21 @@ implementation
                       else if (hp2.nodetype=realconstn) then
                         begin
                           if (trealconstnode(hp2).value_real = MathQNaN.value) then
-                            { If one of the inputs is NaN, the second parameter
-                              is taken (even if it is NaN) }
-                            result:=crealconstnode.create(MathQNaN.value,resultdef)
+                            begin
+                              { If one of the inputs is NaN, the second parameter
+                                is taken (even if it is NaN) }
+                              if minmax_operand_is_droppable(hp) then
+                                result:=crealconstnode.create(MathQNaN.value,resultdef);
+                            end
                           else if (trealconstnode(hp2).value_real = MathNegInf.value) then
                             { Everything is greater than than -oo }
                             result:=hp.getcopy()
                           else if (trealconstnode(hp2).value_real = MathInf.value) then
-                            { Nothing is greater than +oo }
-                            result:=crealconstnode.create(MathInf.value,resultdef);
+                            begin
+                              { Nothing is greater than +oo }
+                              if minmax_operand_is_droppable(hp) then
+                                result:=crealconstnode.create(MathInf.value,resultdef);
+                            end;
                         end;
                     end;
                 end;
@@ -3211,20 +3240,20 @@ implementation
 
                           if is_minmax_deterministic(tordconstnode(hp), False, helperres) then
                             begin
-                              if helperres then
-                                result:=cordconstnode.create(tordconstnode(hp).value,resultdef,false)
-                              else
-                                result:=hp2.getcopy();
+                              if not helperres then
+                                result:=hp2.getcopy()
+                              else if minmax_operand_is_droppable(hp2) then
+                                result:=cordconstnode.create(tordconstnode(hp).value,resultdef,false);
                             end;
                         end
                       else if (hp2.nodetype=ordconstn) then
                         begin
                           if is_minmax_deterministic(tordconstnode(hp2), False, helperres) then
                             begin
-                              if helperres then
-                                result:=cordconstnode.create(tordconstnode(hp2).value,resultdef,false)
-                              else
-                                result:=hp.getcopy();
+                              if not helperres then
+                                result:=hp.getcopy()
+                              else if minmax_operand_is_droppable(hp) then
+                                result:=cordconstnode.create(tordconstnode(hp2).value,resultdef,false);
                             end;
                         end;
                     end;
@@ -3252,20 +3281,20 @@ implementation
 
                           if is_minmax_deterministic(tordconstnode(hp), True, helperres) then
                             begin
-                              if helperres then
-                                result:=cordconstnode.create(tordconstnode(hp).value,resultdef,false)
-                              else
-                                result:=hp2.getcopy();
+                              if not helperres then
+                                result:=hp2.getcopy()
+                              else if minmax_operand_is_droppable(hp2) then
+                                result:=cordconstnode.create(tordconstnode(hp).value,resultdef,false);
                             end;
                         end
                       else if (hp2.nodetype=ordconstn) then
                         begin
                           if is_minmax_deterministic(tordconstnode(hp2), True, helperres) then
                             begin
-                              if helperres then
-                                result:=cordconstnode.create(tordconstnode(hp2).value,resultdef,false)
-                              else
-                                result:=hp.getcopy();
+                              if not helperres then
+                                result:=hp.getcopy()
+                              else if minmax_operand_is_droppable(hp) then
+                                result:=cordconstnode.create(tordconstnode(hp2).value,resultdef,false);
                             end;
                         end;
                     end;
@@ -3293,20 +3322,20 @@ implementation
 
                           if is_minmax_deterministic(tordconstnode(hp), False, helperres) then
                             begin
-                              if helperres then
-                                result:=cordconstnode.create(tordconstnode(hp).value,resultdef,false)
-                              else
-                                result:=hp2.getcopy();
+                              if not helperres then
+                                result:=hp2.getcopy()
+                              else if minmax_operand_is_droppable(hp2) then
+                                result:=cordconstnode.create(tordconstnode(hp).value,resultdef,false);
                             end;
                         end
                       else if (hp2.nodetype=ordconstn) then
                         begin
                           if is_minmax_deterministic(tordconstnode(hp2), False, helperres) then
                             begin
-                              if helperres then
-                                result:=cordconstnode.create(tordconstnode(hp2).value,resultdef,false)
-                              else
-                                result:=hp.getcopy();
+                              if not helperres then
+                                result:=hp.getcopy()
+                              else if minmax_operand_is_droppable(hp) then
+                                result:=cordconstnode.create(tordconstnode(hp2).value,resultdef,false);
                             end;
                         end;
                     end;
@@ -3334,20 +3363,20 @@ implementation
 
                           if is_minmax_deterministic(tordconstnode(hp), True, helperres) then
                             begin
-                              if helperres then
-                                result:=cordconstnode.create(tordconstnode(hp).value,resultdef,false)
-                              else
-                                result:=hp2.getcopy();
+                              if not helperres then
+                                result:=hp2.getcopy()
+                              else if minmax_operand_is_droppable(hp2) then
+                                result:=cordconstnode.create(tordconstnode(hp).value,resultdef,false);
                             end;
                         end
                       else if (hp2.nodetype=ordconstn) then
                         begin
                           if is_minmax_deterministic(tordconstnode(hp2), True, helperres) then
                             begin
-                              if helperres then
-                                result:=cordconstnode.create(tordconstnode(hp2).value,resultdef,false)
-                              else
-                                result:=hp.getcopy();
+                              if not helperres then
+                                result:=hp.getcopy()
+                              else if minmax_operand_is_droppable(hp) then
+                                result:=cordconstnode.create(tordconstnode(hp2).value,resultdef,false);
                             end;
                         end;
                     end;
@@ -4600,6 +4629,7 @@ implementation
       var
          hp: tnode;
          shiftconst: longint;
+         maskconst: qword;
          objdef: tobjectdef;
          sym : tsym;
          hdef: tdef;
@@ -4647,14 +4677,28 @@ implementation
                   cordconstnode.create(shiftconst,sinttype,false))
               else
                 hp:=left;
-              left := nil;
-              { Delphi gives a runtime Hi/Lo expression a Word type, but its
-                value is still exactly one selected byte.  The old Byte result
-                truncated implicitly; keep that semantic truncation explicit
-                now that the observable result type is wider. }
+              left:=nil;
+              { Hi/Lo extract a part of the operand.  Represent the extraction
+                explicitly: a narrowing type conversion alone can disappear
+                when this tree is serialized and inlined through another unit. }
               if m_delphi in current_settings.modeswitches then
-                hp:=caddnode.create(andn,hp,
-                  cordconstnode.create($ff,hdef,false));
+                maskconst:=$ff
+              else
+                case inlinenumber of
+                  in_lo_word,
+                  in_hi_word:
+                    maskconst:=$ff;
+                  in_lo_long,
+                  in_hi_long:
+                    maskconst:=$ffff;
+                  in_lo_qword,
+                  in_hi_qword:
+                    maskconst:=$ffffffff;
+                  else
+                    internalerror(2026090901);
+                end;
+              hp:=caddnode.create(andn,hp,
+                cordconstnode.create(maskconst,hdef,false));
               result:=ctypeconvnode.create_internal(hp,resultdef);
               firstpass(result);
             end;
@@ -6516,11 +6560,50 @@ implementation
            in_finalize_x,in_new_x,in_dispose_x,in_exit,in_copy_x,in_initialize_x,in_leave,in_cycle,
            in_and_assign_x_y,in_or_assign_x_y,in_xor_assign_x_y,in_sar_assign_x_y,in_shl_assign_x_y,
            in_shr_assign_x_y,in_rol_assign_x_y,in_ror_assign_x_y,in_neg_assign_x,in_not_assign_x]) or
+          (inlinenumber=in_volatile_x) or
+          (inlinenumber=in_atomic_inc) or
+          (inlinenumber=in_atomic_dec) or
+          (inlinenumber=in_atomic_xchg) or
+          (inlinenumber=in_atomic_cmp_xchg) or
           ((inlinenumber = in_assert_x_y) and
            (cs_do_assertion in localswitches));
        end;
 
 
+     function tinlinenode.may_raise_exception_norecurse: boolean;
+       begin
+         result:=
+          ((inlinenumber in [in_pred_x,in_succ_x,in_abs_long]) and
+           (localswitches*[cs_check_overflow,cs_check_range]<>[])) or
+          observes_fp_environment_norecurse;
+       end;
+
+
+     function tinlinenode.observes_fp_environment_norecurse: boolean;
+       begin
+         result:=inlinenumber in [in_exp_real,in_trunc_real,in_round_real,
+           in_frac_real,in_int_real,in_cos_real,in_sin_real,in_arctan_real,
+           in_sqr_real,in_sqrt_real,in_ln_real,
+           in_fma_single,in_fma_double,in_fma_extended,in_fma_float128,
+           in_min_single,in_min_double,in_max_single,in_max_double,
+           in_min_quad,in_max_quad];
+       end;
+
+
+     { An FP intrinsic over constants that the program evaluates at run time:
+       the constant that takes its place when the operands and the result are
+       ordinary numbers of their formats (ncon.is_ordinary_real), nil when
+       the intrinsic stays at run time.  Sqr and Sqrt are computed in the
+       format of the result, as the instruction computes them; Exp, Ln, Sin,
+       Cos, ArcTan, Frac and Int by the RTL routines of the compiler, the ones
+       the program calls when the compiler runs on its target (a cross
+       compiler uses the RTL of its host, as for the constants of the source),
+       and only their normal non-zero results are taken (a zero or tiny result
+       differs in sign or underflows between their implementations; an
+       underflow inside a routine whose result is ordinary - genmath's Sin
+       squares a tiny argument - belongs to the routine and is not kept); Min
+       and Max select as minsd and maxsd do; Round, FMA and float128 stay at
+       run time. }
      function tinlinenode.may_ignore_result:boolean;
        begin
          case inlinenumber of

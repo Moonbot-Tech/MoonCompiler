@@ -58,8 +58,17 @@ interface
 
 
     tmhs_flag = (
-      { exceptions (overflow, sigfault etc.) are considered as side effect }
-      mhs_exceptions
+      { an exception the program asked for: an enabled range or overflow
+        check, a checked cast (as), heaptrc pointer checking, an integer
+        division (by zero) and a floating point operation (its unmasked
+        exceptions) }
+      mhs_exceptions,
+      { a read through memory (a pointer, an element, a class field): it
+        faults on a nil or dangling pointer or outside its storage, and code
+        run between two of its evaluations can change its value.  A program
+        cannot rely on the fault of a read whose value it does not use; it can
+        rely on a read it guards not being executed }
+      mhs_memory_reads
     );
     tmhs_flags = set of tmhs_flag;
     pmhs_flags = ^tmhs_flags;
@@ -138,8 +147,19 @@ interface
       represented by n }
     function genloadfield(n: tnode; const fieldname: string): tnode;
 
-    { returns true, if the tree given might have side effects }
-    function might_have_sideeffects(n : tnode;const flags : tmhs_flags = []) : boolean;
+    { returns true, if the tree given might have side effects (a call, an
+      assignment, a volatile access) or one of the kinds in flags.
+      Every caller states what its transform does with the evaluation:
+      - one evaluation where the source has two, or two where it has one:
+        [] - the first evaluation raises whatever the source raises
+        (mhs_memory_reads too where code between the two evaluations can
+        change what is read, or where a repeated read costs more than the
+        transform saves);
+      - no evaluation where the source has one: [mhs_exceptions];
+      - an evaluation where the source has none (a short-circuit operand
+        made unconditional): [mhs_exceptions,mhs_memory_reads]. }
+    function might_have_sideeffects(n : tnode;
+      const flags : tmhs_flags) : boolean;
 
     { returns true, if n contains nodes which might be conditionally executed }
     function has_conditional_nodes(n : tnode) : boolean;
@@ -1441,20 +1461,47 @@ implementation
       end;
 
 
+    function vector_access_needs_runtime_check(n: tvecnode): boolean;
+      begin
+        result:=false;
+        if not(cs_check_range in n.localswitches) or
+           not assigned(n.left.resultdef) then
+          exit;
+        { A regular static array never emits a helper at the vec node: its
+          index conversion owns the complete range check and is visited as a
+          child by this analysis.  Dynamic/open arrays and strings compare
+          against a runtime bound in tcgvecnode and can call an RTL helper. }
+        if (n.left.resultdef.typ=arraydef) and
+           not is_special_array(n.left.resultdef) then
+          exit;
+        result:=true;
+      end;
+
+
     function check_for_sideeffect(var n: tnode; arg: pointer): foreachnoderesult;
       begin
         result:=fen_false;
         if (n.nodetype in [assignn,calln,asmn,finalizetempsn]) or
            ((n.nodetype=inlinen) and
-            tinlinenode(n).may_have_sideeffect_norecurse
+            (tinlinenode(n).may_have_sideeffect_norecurse or
+             ((mhs_exceptions in pmhs_flags(arg)^) and
+              tinlinenode(n).may_raise_exception_norecurse))
            ) or
            ((mhs_exceptions in pmhs_flags(arg)^) and
-            ((n.nodetype in [derefn,vecn,divn,slashn]) or
-             ((n.nodetype=subscriptn) and is_implicit_pointer_object_type(tsubscriptnode(n).left.resultdef)) or
+            ((n.nodetype in [divn,modn,slashn,asn]) or
              ((n.nodetype in [addn,subn,muln,unaryminusn]) and (n.localswitches*[cs_check_overflow,cs_check_range]<>[])) or
+             ((n.nodetype=typeconvn) and ordinal_conversion_needs_runtime_check(n)) or
+             ((n.nodetype=vecn) and vector_access_needs_runtime_check(tvecnode(n))) or
+             { pointer checking of heaptrc (-gc) validates each access }
+             ((n.nodetype in [derefn,subscriptn]) and (cs_checkpointer in n.localswitches) and
+              (cs_use_heaptrc in current_settings.globalswitches)) or
              { float operations could throw an exception }
              ((n.nodetype in [addn,subn,muln,slashn,unaryminusn,equaln,unequaln,gten,gtn,lten,ltn]) and is_real_or_cextended(tunarynode(n).left.resultdef))
             )
+           ) or
+           ((mhs_memory_reads in pmhs_flags(arg)^) and
+            ((n.nodetype in [derefn,vecn]) or
+             ((n.nodetype=subscriptn) and is_implicit_pointer_object_type(tsubscriptnode(n).left.resultdef)))
            ) or
            ((n.nodetype=loadn) and
             (

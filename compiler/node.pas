@@ -271,9 +271,10 @@ interface
 
          tnf_processing,
 
-         { constant operands made adjacent by an internal reassociation still
-           belong to an already typechecked runtime expression }
-         tnf_runtime_const_reassociation,
+         { An optimizer-produced node still belongs to an already typechecked
+           runtime expression.  Its constants are not source constant
+           expressions and may retain checks or FP-environment effects. }
+         tnf_runtime_expression,
 
          { internal flag to indicate that this node has been removed from the tree or must otherwise not be
            execute.  Running it through firstpass etc. will raise an internal error }

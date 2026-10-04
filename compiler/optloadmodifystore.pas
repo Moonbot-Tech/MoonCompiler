@@ -77,7 +77,7 @@ unit optloadmodifystore;
               ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
               ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
               valid_for_var(tinlinenode(right).left,false) and
-              not(might_have_sideeffects(tinlinenode(right).left)) then
+              not(might_have_sideeffects(tinlinenode(right).left,[])) then
               begin
                 if tinlinenode(right).inlinenumber=in_succ_x then
                   newinlinenodetype:=in_inc_x
@@ -104,7 +104,7 @@ unit optloadmodifystore;
               ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
               ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
               valid_for_var(taddnode(right).left,false) and
-              not(might_have_sideeffects(taddnode(right).left)) then
+              not(might_have_sideeffects(taddnode(right).left,[])) then
               begin
                 case right.nodetype of
                   addn:
@@ -160,7 +160,7 @@ unit optloadmodifystore;
                ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
                ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
                valid_for_var(ttypeconvnode(taddnode(ttypeconvnode(right).left).left).left,false) and
-               not(might_have_sideeffects(ttypeconvnode(taddnode(ttypeconvnode(right).left).left).left)) then
+               not(might_have_sideeffects(ttypeconvnode(taddnode(ttypeconvnode(right).left).left).left,[])) then
               begin
                 case ttypeconvnode(right).left.nodetype of
                   addn:
@@ -203,7 +203,7 @@ unit optloadmodifystore;
               ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
               ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
               valid_for_var(taddnode(right).right,false) and
-              not(might_have_sideeffects(taddnode(right).right)) then
+              not(might_have_sideeffects(taddnode(right).right,[])) then
               begin
                 case right.nodetype of
                   addn:
@@ -256,7 +256,7 @@ unit optloadmodifystore;
                ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
                ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
                valid_for_var(ttypeconvnode(taddnode(ttypeconvnode(right).left).right).left,false) and
-               not(might_have_sideeffects(ttypeconvnode(taddnode(ttypeconvnode(right).left).right).left)) then
+               not(might_have_sideeffects(ttypeconvnode(taddnode(ttypeconvnode(right).left).right).left,[])) then
               begin
                 case ttypeconvnode(right).left.nodetype of
                   addn:
@@ -296,7 +296,7 @@ unit optloadmodifystore;
               ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
               ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
               valid_for_var(tunarynode(right).left,false) and
-              not(might_have_sideeffects(tunarynode(right).left)) then
+              not(might_have_sideeffects(tunarynode(right).left,[])) then
               begin
                 if right.nodetype=notn then
                   newinlinenodetype:=in_not_assign_x
@@ -331,7 +331,7 @@ unit optloadmodifystore;
                ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
                ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
                valid_for_var(ttypeconvnode(tunarynode(ttypeconvnode(right).left).left).left,false) and
-               not(might_have_sideeffects(ttypeconvnode(tunarynode(ttypeconvnode(right).left).left).left)) then
+               not(might_have_sideeffects(ttypeconvnode(tunarynode(ttypeconvnode(right).left).left).left,[])) then
               begin
                 if ttypeconvnode(right).left.nodetype=notn then
                   newinlinenodetype:=in_not_assign_x
@@ -366,7 +366,7 @@ unit optloadmodifystore;
               ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
               ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
               valid_for_var(tshlshrnode(right).left,false) and
-              not(might_have_sideeffects(tshlshrnode(right).left)) then
+              not(might_have_sideeffects(tshlshrnode(right).left,[])) then
               begin
                 case right.nodetype of
                   shln:
@@ -413,7 +413,7 @@ unit optloadmodifystore;
                ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
                ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
                valid_for_var(ttypeconvnode(tshlshrnode(ttypeconvnode(right).left).left).left,false) and
-               not(might_have_sideeffects(ttypeconvnode(tshlshrnode(ttypeconvnode(right).left).left).left)) then
+               not(might_have_sideeffects(ttypeconvnode(tshlshrnode(ttypeconvnode(right).left).left).left,[])) then
               begin
                 case ttypeconvnode(right).left.nodetype of
                   shln:
@@ -458,7 +458,7 @@ unit optloadmodifystore;
                ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
                ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
                valid_for_var(tinlinenode(right).left,false) and
-               not(might_have_sideeffects(tinlinenode(right).left)) then
+              not(might_have_sideeffects(tinlinenode(right).left,[])) then
               begin
                 case tinlinenode(right).inlinenumber of
                   in_sar_x:
@@ -509,7 +509,7 @@ unit optloadmodifystore;
                ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
                ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
                valid_for_var(ttypeconvnode(tinlinenode(ttypeconvnode(right).left).left).left,false) and
-               not(might_have_sideeffects(ttypeconvnode(tinlinenode(ttypeconvnode(right).left).left).left)) then
+               not(might_have_sideeffects(ttypeconvnode(tinlinenode(ttypeconvnode(right).left).left).left,[])) then
               begin
                 case tinlinenode(ttypeconvnode(right).left).inlinenumber of
                   in_sar_x:
@@ -554,7 +554,7 @@ unit optloadmodifystore;
                ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
                ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
                valid_for_var(tcallparanode(tcallparanode(tinlinenode(right).left).right).left,false) and
-               not(might_have_sideeffects(tcallparanode(tcallparanode(tinlinenode(right).left).right).left)) then
+               not(might_have_sideeffects(tcallparanode(tcallparanode(tinlinenode(right).left).right).left,[])) then
               begin
                 case tinlinenode(right).inlinenumber of
                   in_sar_x_y:
@@ -609,7 +609,7 @@ unit optloadmodifystore;
                ((localswitches*[cs_check_overflow,cs_check_range])=[]) and
                ((right.localswitches*[cs_check_overflow,cs_check_range])=[]) and
                valid_for_var(ttypeconvnode(tcallparanode(tcallparanode(tinlinenode(ttypeconvnode(right).left).left).right).left).left,false) and
-               not(might_have_sideeffects(ttypeconvnode(tcallparanode(tcallparanode(tinlinenode(ttypeconvnode(right).left).left).right).left).left)) then
+               not(might_have_sideeffects(ttypeconvnode(tcallparanode(tcallparanode(tinlinenode(ttypeconvnode(right).left).left).right).left).left,[])) then
               begin
                 case tinlinenode(ttypeconvnode(right).left).inlinenumber of
                   in_sar_x_y:

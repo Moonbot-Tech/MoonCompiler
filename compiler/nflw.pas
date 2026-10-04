@@ -1715,6 +1715,9 @@ implementation
         thenstmnt, elsestmnt: tnode;
         in_nr: tinlinenumber;
         paratype: tdef;
+        assignment: tassignmentnode;
+        statements: tstatementnode;
+        valuetemp: ttempcreatenode;
 {$endif defined(HAS_MINMAX_INTRINSICS)}
       begin
         result:=nil;
@@ -1758,6 +1761,10 @@ implementation
           into appropriate min/max intrinsics
 
           }
+        { Both forms evaluate both operands unconditionally. The target must
+          not change them between the comparison and the selected assignment.
+          Reads through fields/elements/pointers are allowed; the intrinsic's
+          own simplifier checks exceptions before dropping an operand. }
         elsestmnt:=nil;
         in_nr:=Default(tinlinenumber);
         if (cs_opt_level2 in current_settings.optimizerswitches) and
@@ -1766,7 +1773,8 @@ implementation
              (taddnode(left).left.resultdef.typ=floatdef)) and
            ((t1=nil) or IsSingleStatement(t1,elsestmnt)) and
           (thenstmnt.nodetype=assignn) and ((t1=nil) or (elsestmnt.nodetype=assignn)) and
-          not(might_have_sideeffects(left)) and
+          not might_have_sideeffects(left,[]) and
+          not might_have_sideeffects(tassignmentnode(thenstmnt).left,[]) and
           ((t1=nil) or tassignmentnode(thenstmnt).left.isequal(tassignmentnode(elsestmnt).left)) and
 {$if defined(i386) or defined(x86_64)}
 {$ifdef i386}
@@ -1879,6 +1887,21 @@ implementation
                 cinlinenode.create(in_nr,false,ccallparanode.create(tassignmentnode(elsestmnt).right.getcopy,
                       ccallparanode.create(tassignmentnode(thenstmnt).right.getcopy,nil)))
                 );
+            { Assignment codegen may evaluate a complex target first. If both
+              sides can raise, keep the original condition's exception first
+              without losing the min/max operation. }
+            if might_have_sideeffects(tassignmentnode(thenstmnt).left,[mhs_exceptions]) and
+               might_have_sideeffects(left,[mhs_exceptions]) then
+              begin
+                assignment:=tassignmentnode(Result);
+                Result:=internalstatements(statements);
+                valuetemp:=ctempcreatenode.create(paratype,paratype.size,tt_persistent,true);
+                addstatement(statements,valuetemp);
+                addstatement(statements,cassignmentnode.create_internal(ctemprefnode.create(valuetemp),assignment.right));
+                assignment.right:=ctemprefnode.create(valuetemp);
+                addstatement(statements,assignment);
+                addstatement(statements,ctempdeletenode.create(valuetemp));
+              end;
             node_reset_pass1_write(Result);
           end;
 {$endif defined(HAS_MINMAX_INTRINSICS)}
@@ -2456,7 +2479,11 @@ implementation
         ifblock:=internalstatements(ifstatements);
         loopblock:=internalstatements(loopstatements);
 
-        usefromtemp:=(might_have_sideeffects(t1) and not(is_const(right))) or (node_complexity(right)>1);
+        { the upper bound is evaluated before the lower one below: the lower
+          bound goes into a temp when the upper one has effects or an
+          exception (the source evaluates the lower bound first), and when the
+          upper one reads memory, where the temp gives the shorter loop entry }
+        usefromtemp:=(might_have_sideeffects(t1,[mhs_exceptions,mhs_memory_reads]) and not(is_const(right))) or (node_complexity(right)>1);
         usetotemp:=not(is_const(t1));
 
         if needsifblock then

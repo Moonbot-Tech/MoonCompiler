@@ -264,12 +264,18 @@ interface
            the allocated memory must be disposed
            If a temp. node has this flag set, the life time of the temp. data must be determined by reg. life, the temp.
            location (in the sense of stack space/register) is never release }
-         ti_cleanup_only
+         ti_cleanup_only,
+         { the temp preserves a source run-time value boundary.  Propagating
+           its constant initializer would turn a checked operation back into
+           a source-like constant expression and change a run-time exception
+           into a compile-time diagnostic }
+         ti_no_constprop
          );
        ttempinfoflags = set of ttempinfoflag;
 
      const
-       tempinfostoreflags = [ti_may_be_in_reg,ti_addr_taken,ti_reference,ti_readonly,ti_no_final_regsync,ti_nofini,ti_const];
+       tempinfostoreflags = [ti_may_be_in_reg,ti_addr_taken,ti_reference,ti_readonly,ti_no_final_regsync,ti_nofini,ti_const,
+         ti_no_constprop];
 
      type
        { to allow access to the location by temp references even after the temp has }
@@ -484,11 +490,15 @@ implementation
       end;
 
 
+    { n is either evaluated once into a temp or repeated by the caller, and
+      the callers repeat it around code that may call (the comparisons of
+      tuple fields): an access through memory is kept in the temp, whose
+      value no call in between can change }
     function maybereplacewithtempref(var n: tnode; var block: tblocknode; var stat: tstatementnode; size: ASizeInt; readonly: boolean): ttempcreatenode;
       begin
         result:=nil;
         if (node_complexity(n)>4) or
-           might_have_sideeffects(n) then
+           might_have_sideeffects(n,[mhs_exceptions,mhs_memory_reads]) then
           begin
             result:=ctempcreatenode.create_reference(n.resultdef,size,tt_persistent,true,n,readonly);
             typecheckpass(tnode(result));
@@ -504,7 +514,7 @@ implementation
       begin
         result:=nil;
         if (node_complexity(n)>4) or
-           might_have_sideeffects(n) then
+           might_have_sideeffects(n,[mhs_exceptions,mhs_memory_reads]) then
           begin
             result:=ctempcreatenode.create_value(n.resultdef,size,tt_persistent,allowreg,n);
             typecheckpass(tnode(result));

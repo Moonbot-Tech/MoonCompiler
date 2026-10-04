@@ -5766,7 +5766,7 @@ implementation
                       else no error detection is done }
                      is_array_of_const(para.parasym.vardef) or
                      not(cs_opt_dead_values in current_settings.optimizerswitches) or
-                     might_have_sideeffects(para.left)) then
+                     might_have_sideeffects(para.left,[mhs_exceptions])) then
                      break;
                   para:=tcallparanode(para.right);
                end;
@@ -6012,6 +6012,10 @@ implementation
                   if assigned(paras) then
                     begin
                       temp:=paras.left.getcopy;
+                      { The actual may be a source constant, but after it
+                        replaces a formal parameter every operation consuming
+                        it belongs to the already typechecked callee body. }
+                      include(temp.transientflags,tnf_runtime_expression);
                       { Preserve access semantics of the replaced load. In
                         particular, nf_load_procvar keeps an invokable value
                         from being called while its hidden carriers are built. }
@@ -6175,6 +6179,56 @@ implementation
       end;
 
 
+    function inline_tree_uses_para(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        if (n.nodetype=loadn) and
+           (tloadnode(n).symtableentry=tsym(arg)) then
+          result:=fen_norecurse_true
+        else
+          result:=fen_false;
+      end;
+
+
+    function inline_checked_expression_uses_para(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_false;
+        if (n.localswitches*[cs_check_overflow,cs_check_range]<>[]) and
+           foreachnodestatic(n,@inline_tree_uses_para,arg) then
+          result:=fen_norecurse_true;
+      end;
+
+
+    function inline_constant_needs_runtime_temp(para: tcallparanode;
+      pushconstaddr: boolean; procdefinition: tabstractprocdef): boolean;
+      begin
+        result:=is_constnode(para.left) and
+          (para.parasym.varspez in [vs_value,vs_const]) and
+          not pushconstaddr and
+          is_ordinal(para.parasym.vardef) and
+          foreachnodestatic(tprocdef(procdefinition).inlininginfo^.code,
+            @inline_checked_expression_uses_para,para.parasym);
+      end;
+
+
+    function inline_checked_para_blocks_constprop(var n: tnode;
+      arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_false;
+        if (n.localswitches*[cs_check_overflow,cs_check_range]<>[]) and
+           (n.nodetype in [typeconvn,inlinen,unaryminusn,divn,modn,slashn,vecn]) and
+           foreachnodestatic(n,@inline_tree_uses_para,arg) then
+          result:=fen_norecurse_true;
+      end;
+
+
+    function inline_constant_requires_constprop_barrier(para: tcallparanode;
+      procdefinition: tabstractprocdef): boolean;
+      begin
+        result:=foreachnodestatic(tprocdef(procdefinition).inlininginfo^.code,
+          @inline_checked_para_blocks_constprop,para.parasym);
+      end;
+
+
     function tcallnode.paraneedsinlinetemp(para: tcallparanode; const pushconstaddr, complexpara: boolean): boolean;
       begin
         { if it's an assignable call-by-reference parameter, we cannot pass a
@@ -6186,6 +6240,12 @@ implementation
         if para.parasym.vardef.typ=formaldef then
           exit(false);
 
+        { Keep the checked operation as a runtime expression until the
+          evaluator has classified the substituted constants.  Safe values
+          are then propagated and folded; a value that would trap leaves the
+          original checked operation intact. }
+        if inline_constant_needs_runtime_temp(para,pushconstaddr,procdefinition) then
+          exit(true);
 
         { A constant actual is spliced into the body as the constant node
           itself, so an expression selecting part of it (s[1] of a string
@@ -6381,6 +6441,9 @@ implementation
                 tprocdef(procdefinition).inlininginfo^.flags));
             tempnode:=ctempcreatenode.create(para.parasym.vardef,para.parasym.vardef.size,
               tt_persistent,regabletemp);
+            if inline_constant_needs_runtime_temp(para,pushconstaddr,procdefinition) and
+               inline_constant_requires_constprop_barrier(para,procdefinition) then
+              tempnode.includetempflag(ti_no_constprop);
             addstatement(inlineinitstatement,tempnode);
 
             addstatement(inlinecleanupstatement,ctempdeletenode.create(tempnode));
@@ -6442,7 +6505,7 @@ implementation
             if (para.parasym.typ = paravarsym) and
                ((para.parasym.refs>0) or
                 not(cs_opt_dead_values in current_settings.optimizerswitches) or
-                might_have_sideeffects(para.left)) then
+                might_have_sideeffects(para.left,[mhs_exceptions])) then
               begin
                 { must take copy of para.left, because if it contains a       }
                 { temprefn pointing to a copied temp (e.g. methodpointer),    }
@@ -6953,6 +7016,10 @@ implementation
           editstmt:=tstatementnode(stmts[stmts.count-1]);
           editstmt.left.free;
           editstmt.left:=ctypeconvnode.create_internal(srcnode,destdef);
+          { This conversion replaces an executed callee result assignment; a
+            constant exposed by substitution therefore remains a runtime FP
+            conversion rather than becoming a source constant expression. }
+          include(editstmt.left.transientflags,tnf_runtime_expression);
 
           result:=inlineblock;
           node_reset_flags(result,[],[tnf_pass1_done]);

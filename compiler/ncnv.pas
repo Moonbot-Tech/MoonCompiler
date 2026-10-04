@@ -1708,8 +1708,8 @@ implementation
          begin
            rv:=tordconstnode(left).value;
            if is_currency(resultdef) and
-              not(nf_internal in flags) then
-             rv:=rv*10000.0
+               not(nf_internal in flags) then
+              rv:=rv*10000.0
            else if is_currency(left.resultdef) and
               not(nf_internal in flags) then
              rv:=rv/10000.0;
@@ -5548,7 +5548,8 @@ implementation
               (oo_is_sealed in tobjectdef(tloadvmtaddrnode(right).left.resultdef).objectoptions) and
               equal_defs(left.resultdef,tclassrefdef(right.resultdef).pointeddef) then
               begin
-                if might_have_sideeffects(left) or
+                { left is repeated below unless it has effects or costs }
+                if might_have_sideeffects(left,[]) or
                   (node_complexity(left)>2) then
                   begin
                     result:=internalstatements(statement);

@@ -276,7 +276,7 @@ unit optconstprop;
                 result:=false;
                 exit;
               end
-            else if might_have_sideeffects(n) then
+            else if might_have_sideeffects(n,[mhs_exceptions]) then
               exit(false);
 
             result:=replaceBasicAssign(tunarynode(n).left, arg, tree_modified);
@@ -370,7 +370,8 @@ unit optconstprop;
                            (tloadnode(l).symtable=current_procinfo.procdef.parast)
                           )
                          )) or
-                        (l.nodetype = temprefn)) and
+                        ((l.nodetype = temprefn) and
+                         not(ti_no_constprop in ttemprefnode(l).tempflags))) and
                        (is_constintnode(a.right) or
                         is_constboolnode(a.right) or
                         is_constcharnode(a.right) or

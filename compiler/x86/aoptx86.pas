@@ -3411,6 +3411,17 @@ unit aoptx86;
       begin
         Result:=false;
 
+        { A volatile memory transaction is observable independently of the
+          register value it produces or consumes.  Later MOV rewrites may see
+          that register overwritten or dead, but must not merge or remove the
+          memory access itself. }
+        if (taicpu(p).ops=2) and
+          (((taicpu(p).oper[0]^.typ=top_ref) and
+            (vol_read in taicpu(p).oper[0]^.ref^.volatility)) or
+           ((taicpu(p).oper[1]^.typ=top_ref) and
+            (vol_write in taicpu(p).oper[1]^.ref^.volatility))) then
+          exit;
+
         {  remove mov reg1,reg1? }
         if MatchOperand(taicpu(p).oper[0]^,taicpu(p).oper[1]^)
         then
