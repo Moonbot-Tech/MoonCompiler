@@ -144,6 +144,9 @@ interface
 
    function geninlinenode(number : tinlinenumber;is_const:boolean;l : tnode) : tinlinenode;
 
+   { the RTL routine behind SetLength of the dynamic array type def }
+   function dynarray_setlength_procname(def : tdef) : string;
+
 implementation
 
     uses
@@ -155,6 +158,34 @@ implementation
       ncal,ncon,ncnv,nadd,nld,nbas,nflw,nmem,nmat,nutils,ngenutil,
       nobjc,objcdef,
       cgbase,procinfo;
+
+   { Only records, objects and static arrays can carry a custom Initialize or
+     Copy operator, that is user code that may raise inside SetLength.  The RTL
+     has a transactional routine for them and a straight one for every other
+     element type.  The element type is known here, so the transactional
+     routine is called directly and no array pays for a decision at run time.
+     The choice is about speed only: fpc_dynarray_setlength still hands a
+     record-like element type over to the transactional routine by its RTTI
+     (DynArraySetLength and the inner dimensions of SetLength(a,n,m) arrive
+     there without this choice), and the transactional routine is correct for
+     every element type.  The operators are not the only user code: _AddRef,
+     _Release and the copy of a custom Variant are as well, and neither RTL
+     routine rolls those back (dynarr.inc says what happens then). }
+   function dynarray_setlength_procname(def : tdef) : string;
+     var
+       eledef : tdef;
+     begin
+       result:='fpc_dynarray_setlength';
+       if not is_dynamic_array(def) then
+         exit;
+       eledef:=tarraydef(def).elementdef;
+       if not is_managed_type(eledef) then
+         exit;
+       if (eledef.typ=recorddef) or is_object(eledef) or
+          ((eledef.typ=arraydef) and not is_dynamic_array(eledef)) then
+         result:='fpc_dynarray_setlength_record';
+     end;
+
 
    function geninlinenode(number : tinlinenumber;is_const:boolean;l : tnode) : tinlinenode;
 
@@ -5773,7 +5804,8 @@ implementation
                   ccallparanode.create(caddrnode.create_internal
                      (crttinode.create(tstoreddef(destppn.resultdef),initrtti,rdt_normal)),
                   ccallparanode.create(ctypeconvnode.create_internal(destppn,voidpointertype),nil))));
-           addstatement(newstatement,ccallnode.createintern('fpc_dynarray_setlength',npara));
+           addstatement(newstatement,ccallnode.createintern(
+             dynarray_setlength_procname(destppn.resultdef),npara));
            addstatement(newstatement,ctempdeletenode.create(temp));
          end
         else if is_ansistring(destppn.resultdef) then
@@ -6123,8 +6155,8 @@ implementation
          iscomparray,
          iscompelem : boolean;
          datatemp : ttempcreatenode;
-         insertblock : tblocknode;
-         insertstatement : tstatementnode;
+         insertblock,sourceblock,cleanupblock : tblocknode;
+         insertstatement,sourcestatement,cleanupstatement : tstatementnode;
        begin
          if not assigned(left) or
              not assigned(tcallparanode(left).right) or
@@ -6173,7 +6205,22 @@ implementation
              datatemp:=nil;
              if iscomparray then
                begin
-                 datatemp:=ctempcreatenode.create_value(first,first.size,tt_normal,false,firstn);
+                 if not is_dynamic_array(first) and is_managed_type(first) then
+                   begin
+                     { A managed static snapshot uses an array owner: clearing
+                       it also disarms the ordinary epilogue finalization. }
+                     newn:=ccallparanode.create(caddrnode.create_internal(
+                       crttinode.create(tstoreddef(tarraydef(first).elementdef),initrtti,rdt_normal)),
+                       ccallparanode.create(cordconstnode.create(tarraydef(first).elesize,sinttype,false),
+                       ccallparanode.create(cordconstnode.create(tarraydef(first).highrange-tarraydef(first).lowrange+1,sinttype,false),
+                       ccallparanode.create(cordconstnode.create(tarraydef(first).highrange-tarraydef(first).lowrange+1,sinttype,false),
+                       ccallparanode.create(cordconstnode.create(0,sinttype,false),
+                       ccallparanode.create(caddrnode.create_internal(crttinode.create(tstoreddef(second),initrtti,rdt_normal)),
+                       ccallparanode.create(caddrnode.create_internal(firstn),nil)))))));
+                     firstn:=ccallnode.createinternres('fpc_array_to_dynarray_copy',newn,second);
+                     first:=second;
+                   end;
+                 datatemp:=ctempcreatenode.create(first,first.size,tt_persistent,false);
                  addstatement(insertstatement,datatemp);
                  if is_dynamic_array(first) then
                    datan:=ctypeconvnode.create_internal(ctemprefnode.create(datatemp),voidpointertype)
@@ -6184,7 +6231,7 @@ implementation
              else if isconstr then
                begin
                  inserttypeconv(firstn,second);
-                 datatemp:=ctempcreatenode.create_value(second,second.size,tt_normal,false,firstn);
+                 datatemp:=ctempcreatenode.create(second,second.size,tt_persistent,false);
                  addstatement(insertstatement,datatemp);
                  datan:=ctypeconvnode.create_internal(ctemprefnode.create(datatemp),voidpointertype);
                  datacountn:=cinlinenode.create(in_length_x,false,ctemprefnode.create(datatemp));
@@ -6193,7 +6240,7 @@ implementation
                begin
                  if is_const(firstn) then
                    begin
-                     datatemp:=ctempcreatenode.create_value(tarraydef(second).elementdef,tarraydef(second).elementdef.size,tt_normal,false,firstn);
+                     datatemp:=ctempcreatenode.create(tarraydef(second).elementdef,tarraydef(second).elementdef.size,tt_persistent,false);
                      addstatement(insertstatement,datatemp);
                      datan:=caddrnode.create_internal(ctemprefnode.create(datatemp));
                    end
@@ -6212,9 +6259,33 @@ implementation
                        ccallparanode.create(datan,
                          ccallparanode.create(tcallparanode(left).left,
                            ccallparanode.create(ctypeconvnode.create_internal(secondn,voidpointertype),nil)))));
-             addstatement(insertstatement,ccallnode.createintern(procname,newn));
+             newn:=ccallnode.createintern(procname,newn);
              if assigned(datatemp) then
-               addstatement(insertstatement,ctempdeletenode.create(datatemp));
+               begin
+                 { Finish producing the owner before preparing Insert's
+                   outgoing arguments; nested calls use the same Win64 area. }
+                 sourceblock:=internalstatements(sourcestatement);
+                 addstatement(sourcestatement,cassignmentnode.create(ctemprefnode.create(datatemp),firstn));
+                 addstatement(sourcestatement,newn);
+                 newn:=sourceblock;
+               end;
+             if assigned(datatemp) and is_managed_type(datatemp.tempinfo^.typedef) then
+               begin
+                 { The source owns a snapshot until Insert has finished, also
+                   when acquiring an element or growing the carrier raises. }
+                 cleanupblock:=internalstatements(cleanupstatement);
+                 addstatement(cleanupstatement,cnodeutils.finalize_data_node(ctemprefnode.create(datatemp)));
+                 addstatement(insertstatement,ctryfinallynode.create_implicit(newn,cleanupblock));
+                 include(current_procinfo.flags,pi_uses_exceptions);
+                 { Win64 generates the finally funclet after the body. }
+                 addstatement(insertstatement,ctempdeletenode.create_normal_temp(datatemp));
+               end
+             else
+               begin
+                 addstatement(insertstatement,newn);
+                 if assigned(datatemp) then
+                   addstatement(insertstatement,ctempdeletenode.create(datatemp));
+               end;
              tcallparanode(tcallparanode(tcallparanode(left).right).right).left:=nil; // insert idx
              tcallparanode(tcallparanode(left).right).left:=nil; // dyn array
              tcallparanode(left).left:=nil; // insert element/array

@@ -94,6 +94,138 @@ begin
     end;
 end;
 
+{ Copy into zeroed storage whenever acquiring an element
+  can enter user code or allocate a separate WideString. }
+function dynarray_copy_complex_may_raise(typeinfo : pointer) : boolean;
+  var
+    ri : PRecordInfoInit;
+    field : PRecordElement;
+    i : SizeInt;
+  begin
+    result:=false;
+    case PTypeKind(typeinfo)^ of
+      tkArray:
+        result:=dynarray_copy_may_raise(PArrayInfo(aligntoqword(typeinfo+2+PByte(typeinfo)[1]))^.ElInfo^);
+{$ifdef FPC_HAS_FEATURE_OBJECTS}
+      tkObject,
+{$endif}
+      tkRecord:
+        begin
+          ri:=RTTIRecordInfoInit(typeinfo);
+          if assigned(ri^.RecordOp) and (assigned(ri^.RecordOp^.Copy) or assigned(ri^.RecordOp^.AddRef)) then
+            exit(true);
+          field:=AlignTypeData(Pointer(@ri^.Count)+SizeOf(ri^.Count));
+          for i:=1 to ri^.Count do
+            begin
+              if dynarray_copy_may_raise(field^.TypeInfo^) then
+                exit(true);
+              inc(field);
+            end;
+        end;
+    end;
+  end;
+
+{ Construct one value in zeroed storage.  Unlike assignment, the raw-copy
+  record path must preserve FPC AddRef after its managed fields are acquired. }
+function dynarray_copy_element(source,dest,typeinfo : pointer) : sizeint;
+  var
+    ri : PRecordInfoInit;
+    field : PRecordElement;
+    ai : PArrayInfo;
+    i,offset,nextoffset,elementsize,copied : sizeint;
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+    intf : pointer;
+{$endif}
+  begin
+    case PTypeKind(typeinfo)^ of
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+      tkInterface:
+        begin
+          intf:=PPointer(source)^;
+          if assigned(intf) then
+            IUnknown(intf)._AddRef;
+          PPointer(dest)^:=intf;
+          result:=sizeof(pointer);
+        end;
+{$endif}
+      tkArray:
+        begin
+          ai:=aligntoqword(typeinfo+2+PByte(typeinfo)[1]);
+          result:=ai^.Size;
+          if ai^.ElCount=0 then
+            exit;
+          elementsize:=result div ai^.ElCount;
+          copied:=0;
+          try
+            for i:=0 to ai^.ElCount-1 do
+              begin
+                dynarray_copy_element(source+i*elementsize,dest+i*elementsize,ai^.ElInfo^);
+                inc(copied);
+              end;
+          except
+            if copied>0 then
+              int_FinalizeArray(dest,ai^.ElInfo^,copied);
+            raise;
+          end;
+        end;
+{$ifdef FPC_HAS_FEATURE_OBJECTS}
+      tkObject,
+{$endif}
+      tkRecord:
+        begin
+          ri:=RTTIRecordInfoInit(typeinfo);
+          result:=ri^.Size;
+          if assigned(ri^.RecordOp) and assigned(ri^.RecordOp^.Copy) then
+            begin
+              try
+                ri^.RecordOp^.Copy(source,dest);
+              except
+                int_Finalize(dest,typeinfo);
+                raise;
+              end;
+            end
+          else
+            begin
+              field:=AlignTypeData(Pointer(@ri^.Count)+SizeOf(ri^.Count));
+              nextoffset:=0;
+              copied:=0;
+              try
+                for i:=1 to ri^.Count do
+                  begin
+                    offset:=field^.Offset;
+                    if offset>nextoffset then
+                      move((source+nextoffset)^,(dest+nextoffset)^,offset-nextoffset);
+                    nextoffset:=offset+dynarray_copy_element(source+offset,dest+offset,field^.TypeInfo^);
+                    inc(field);
+                    inc(copied);
+                  end;
+                if result>nextoffset then
+                  move((source+nextoffset)^,(dest+nextoffset)^,result-nextoffset);
+                if assigned(ri^.RecordOp) and assigned(ri^.RecordOp^.AddRef) then
+                  ri^.RecordOp^.AddRef(dest);
+              except
+                { Only completed fields own references.  A failed AddRef
+                  callback must undo its own opaque acquisitions. }
+                while copied>0 do
+                  begin
+                    dec(field);
+                    dec(copied);
+                    int_Finalize(dest+field^.Offset,field^.TypeInfo^);
+                  end;
+                raise;
+              end;
+            end;
+        end;
+    else
+      try
+        result:=int_Copy(source,dest,typeinfo);
+      except
+        int_Finalize(dest,typeinfo);
+        raise;
+      end;
+    end;
+  end;
+
 procedure AddRefRecordFields(Data:Pointer;Ri:PRecordInfoInit);
 var
   i : longint;

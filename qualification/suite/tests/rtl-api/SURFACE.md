@@ -61,6 +61,58 @@ rest of the matrix. Delphi 12.2 executes both overloads, including a managed
 destination. Moon RTL exports the same two overloads through one existing
 generic helper; Win64/Linux Debug/Release pass the same oracle.
 
+`rtl_api_stringbuilder_contracts.dpr` checks the relationships which a simple
+method call cannot prove: replacement matches must fit entirely inside the
+requested slice, embedded NUL is data rather than a terminator, and reading an
+enumerator's `Current` must not advance it. Unicode and binary builders share
+the same state and differential oracles.
+
+`rtl_api_variant_dictionary_contracts.dpr` verifies value-based hashing across
+independent Variant carriers, ordinary and extended hash factories, scalar
+representations, and dictionary lookup, removal, and rehash. It specifically
+prevents a hidden conversion exception from degrading into a hash of the
+Variant's storage address.
+
+`rtl_api_encoding_contracts.dpr` verifies the capacity law
+`actual bytes <= GetMaxByteCount` for representative single-byte, DBCS,
+GB18030, Unicode, default, cloned, and unsupported-page paths. The advertised
+capacity and `IsSingleByte` classification must come from the same platform
+codec backend that performs the conversion.
+
+`rtl_api_queue_contracts.dpr` verifies that `TQueue<T>.ToArray` snapshots its
+logical live range rather than the backing array prefix. It covers empty,
+steady, dequeued, reused, compacted, and managed-element states, including a
+call dispatched through the `TEnumerable<T>` base class.
+
+`rtl_api_dynarray_managed_contracts.dpr` separates value copying from ownership
+transfer for dynamic arrays containing custom-managed records. It covers
+shared `SetLength`, slices, nested static-array elements, `Delete`, `Insert`,
+two- and multi-input concatenation, an `Assign` exception during construction,
+and an `Initialize` exception before or after `ReallocMem`. The failure cases
+also prove that unpublished carriers do not leak and the caller retains a
+valid array with its previous logical length. The surface gate runs this case
+once more with the diagnostic MM so allocator ownership errors fail closed
+instead of being inferred only from semantic counters.
+
+`SetLength` has two routines behind it since the transactional one turned out
+to cost every array: only records, objects and static arrays can carry a custom
+`Initialize` or `Assign` operator, so only those element types enter the
+transactional routine, `fpc_dynarray_setlength_record`. The compiler calls it
+directly for such an element type; a caller that only has RTTI is handed over
+by one test of the type kind at the top of `fpc_dynarray_setlength`
+(doc/COMPILER_FIXES.md). Every other element type runs the straight routine
+again because it is faster. That routine has no rollback, and interfaces
+(`_AddRef`, `_Release`) and custom Variants do run user code in it. On a failed
+shared copy the caller still points at its old array and the new carrier is
+lost; on a failed shrink some elements may already be finalized. The
+transactional routine does not roll these cases back either. Pulse `hot-rtl`,
+Ryzen 5800X, families of four RTL placements, cycles per operation: a fresh
+array of 16 strings 105.5 -> 95.4 (95.3 without the transactional change at
+all), of 64 `Double` 73.2 -> 70.8. `RTL-test/semantic/
+dynarray_setlength_paths_semantic.dpr` takes every element kind through fresh,
+growing, shrinking and shared arrays and checks contents, reference counts and
+the number of operator calls, whichever routine served it.
+
 `rtl_api_fphttp_nodelay.dpr` creates a real loopback TCP connection and applies
 `TFPHTTPConnection.SetupSocket` to its accepted keep-alive socket. It then
 reads `TCP_NODELAY` back from the kernel. This pins the latency contract which

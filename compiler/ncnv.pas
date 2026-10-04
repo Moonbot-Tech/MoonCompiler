@@ -2211,7 +2211,7 @@ implementation
             cordconstnode.create
                (tarraydef(left.resultdef).highrange+1,s32inttype,true)));
         { create call to fpc_dynarr_setlength }
-        addstatement(newstatement,ccallnode.createintern('fpc_dynarray_setlength',
+        addstatement(newstatement,ccallnode.createintern(dynarray_setlength_procname(resultdef),
             ccallparanode.create(caddrnode.create_internal
                   (ctemprefnode.create(temp2)),
                ccallparanode.create(cordconstnode.create
@@ -2322,7 +2322,7 @@ implementation
         addstatement(newstatement,temp2);
 
         { create call to fpc_dynarr_setlength }
-        addstatement(newstatement,ccallnode.createintern('fpc_dynarray_setlength',
+        addstatement(newstatement,ccallnode.createintern(dynarray_setlength_procname(totypedef),
             ccallparanode.create(caddrnode.create_internal
                   (ctemprefnode.create(temp2)),
                ccallparanode.create(cordconstnode.create
