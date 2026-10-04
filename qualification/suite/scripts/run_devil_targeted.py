@@ -13,6 +13,7 @@ import argparse
 from dataclasses import dataclass
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -122,21 +123,34 @@ def main_switches(areas: list[str]) -> tuple[str, ...]:
     return tuple(switch for switch in MAIN_SWITCH_ORDER if switch in requested)
 
 
-STAGE_ORDER = (
-    "registry", "codegen", "asm-oracle", "main", "chimera", "stress",
-    "reject", "resident",
-)
+# The stages in run order, each with the verdict line it prints only when it
+# passed: exit code 0 without that line is not a pass.
+STAGE_ORDER = {
+    "registry": "DEVIL_REGISTRY OK",
+    "codegen": "DEVIL_CODEGEN OK",
+    "asm-oracle": "ASM_ORACLE_GATE OK",
+    "main": "DEVIL_GATE OK",
+    "chimera": "CHIMERA_GATE OK",
+    "stress": "DEVIL_STRESS OK",
+    "reject": "DEVIL_REJECT OK",
+    "resident": "RESIDENT_DIAGNOSTIC OK",
+}
 MAIN_SWITCH_ORDER = (
     "--separate-units", "--second-program", "--determinism", "--ppu-reuse",
 )
-LIGHT_STAGES = STAGE_ORDER[:-1]
+LIGHT_STAGES = tuple(STAGE_ORDER)[:-1]
 
 
 def run(command: list[str], timeout: int) -> tuple[int, str, float]:
     started = time.monotonic()
     try:
+        # A stage prints in the encoding its caller's environment chose (the
+        # locale code page, or UTF-8 under PYTHONIOENCODING); fix it to UTF-8
+        # so that the text read here is the text the stage wrote.
         result = subprocess.run(
-            command, cwd=tc.ROOT, capture_output=True, text=True, timeout=timeout
+            command, cwd=tc.ROOT, capture_output=True, encoding="utf-8",
+            errors="replace", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+            timeout=timeout,
         )
         output = (result.stdout or "") + (result.stderr or "")
         return result.returncode, output, time.monotonic() - started
@@ -310,13 +324,17 @@ def main() -> int:
         (run_root / f"{name}.log").write_text(output, encoding="utf-8")
         terminal = [line for line in output.splitlines() if line.startswith(
             ("DEVIL_", "ASM_ORACLE_", "CHIMERA_", "RESIDENT_"))][-8:]
+        passed = code == 0 and any(line.startswith(STAGE_ORDER[name])
+                                   for line in output.splitlines())
         rows.append({"stage": name, "code": code,
                      "seconds": round(seconds, 1), "command": command,
                      "terminal": terminal})
         print(f"=== {name}: exit {code} in {seconds:.1f}s")
+        if code == 0 and not passed:
+            print(f"    no '{STAGE_ORDER[name]}' line: the stage did not report a pass")
         for line in terminal:
             print("    " + line)
-        if code != 0:
+        if not passed:
             failed.append(name)
             if not args.keep_going:
                 break

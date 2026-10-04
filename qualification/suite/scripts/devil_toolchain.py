@@ -62,6 +62,8 @@ NAMESPACES = [
     "-UaSystem.IniFiles=IniFiles",
     "-UaSystem.SysConst=SysConst",
     "-UaSystem.RTLConsts=RTLConsts",
+    "-UaZLib=System.ZLib",
+    "-UaZip=System.Zip",
 ]
 
 # what the driver calls debug and release, plus the two levels in between
@@ -76,12 +78,15 @@ DEFAULT_PROFILES = "debug,o1,o2,release"
 
 def toolchain() -> tuple[Path, Path, list[str], str]:
     """Compiler, config, target options and executable suffix for this host."""
+    # RTL profile stand: MOONBOT_TOOLCHAIN selects an alternative installed
+    # toolchain directory (same layout as toolchain).
+    stand = Path(os.environ["MOONBOT_TOOLCHAIN"]) if os.environ.get("MOONBOT_TOOLCHAIN") else None
     if os.name == "nt":
-        base = ROOT / ".moonbot" / "toolchain" / "bin" / "x86_64-win64"
-        return base / "fpc.exe", base / "fpc.cfg", ["-Px86_64", "-Twin64"], ".exe"
+        base = (stand or ROOT / "toolchain") / "bin" / "x86_64-win64"
+        return base / "fpc.exe", base / "moon-base.cfg", ["-Px86_64", "-Twin64"], ".exe"
     if sys.platform == "linux" and os.uname().machine == "x86_64":
-        base = ROOT / ".moonbot" / "toolchain"
-        return (base / "bin" / "fpc", base / "etc" / "fpc.cfg",
+        base = stand or ROOT / "toolchain"
+        return (base / "bin" / "fpc", base / "etc" / "moon-base.cfg",
                 ["-Px86_64", "-Tlinux", "-dPOSIX"], "")
     raise RuntimeError("Devil supports only Win64 and Linux x86-64")
 
@@ -102,7 +107,7 @@ def compile_command(source: Path, output: Path, profile: str,
     command = [str(compiler), "-n", f"@{config}",
                *LANGUAGE, *target, "-Rintel", "-B",
                "-dMOONBOT_MM_PROFILE_REQUIRED", "-dFPCMM_BOOSTER",
-               "-dFPCMM_MOONSHARD",
+               "-dFPCMM_MOONSHARD", "-dNOPATCHRTL",
                f"--pinned-unit={MM_UNIT}={MM_SOURCE}",
                required_first_unit(),
                *NAMESPACES]

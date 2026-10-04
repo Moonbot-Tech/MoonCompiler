@@ -28,7 +28,8 @@ from pathlib import Path
 
 import devil_toolchain as tc
 from run_devil_gate import (DEVIL, GENERATOR, Build, build_delphi, build_fpc,
-                            run)
+                            check_sequence, instrument_contract_errors,
+                            note_sequence, run)
 
 
 # файлы, которые в рабочем каталоге пишет генератор; всё остальное там - чужое
@@ -65,17 +66,17 @@ def generate(work: Path, seed: int, cases: int, layers: list[str]) -> None:
         raise SystemExit("generator refused:\n" + log[-2000:])
 
 
-def observed(build: Build, target: str) -> str | None:
-    """Что сборка сказала про целевое наблюдение или проверку.
+def observed(build: Build, target: str) -> object | None:
+    """Return the target observation or check reported by this build.
 
-    Прошедшая проверка не печатает ничего, поэтому её молчание — это тоже
-    ответ: «сошлось». Возвращать None здесь нельзя, иначе пара «у одного
-    упало, у другого прошло» выглядит как отсутствие цели.
+    The full CHECK stream keeps every execution, including successes. Bisect
+    therefore distinguishes a missing target, reordered repeated calls, and
+    PASS/FAIL transitions instead of reducing them to the last value.
     """
     if target in build.notes:
-        return build.notes[target]
-    if target in build.failures:
-        return "FAIL:" + build.failures[target][0]
+        return ("NOTE", note_sequence(build, target))
+    if target in build.check_events or target in build.failures:
+        return ("CHECK", check_sequence(build, target))
     layer = target.split("-")[1] if target.startswith("dvl-") else ""
     if build.layers and layer in build.layers:
         return "ok"
@@ -90,7 +91,7 @@ def alive(work: Path, seed: int, cases: int, layers: list[str],
         generate(work, seed, cases, layers)
     except SystemExit:
         return False
-    ours = build_fpc(work, profile, [], timeout)
+    ours = build_fpc(work, profile, [], timeout, min(timeout, 300))
     theirs = build_delphi(work, dcc, lib, timeout)
     if not ours.compiled:
         print("    ours did not compile", flush=True)
@@ -98,6 +99,14 @@ def alive(work: Path, seed: int, cases: int, layers: list[str],
     if not theirs.compiled:
         print("    delphi did not compile", flush=True)
         return False
+    ours.expected_seed = seed
+    theirs.expected_seed = seed
+    for label, build in (("ours", ours), ("delphi", theirs)):
+        invalid = instrument_contract_errors(build)
+        if build.run_exit != 0 or invalid:
+            print("    %s runtime invalid: exit=%s %s"
+                  % (label, build.run_exit, "; ".join(invalid)), flush=True)
+            return False
     a, b = observed(ours, target), observed(theirs, target)
     if a is None or b is None:
         print("    target missing: ours=%s delphi=%s" % (a, b), flush=True)

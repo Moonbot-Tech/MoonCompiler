@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -20,6 +21,8 @@ def main() -> None:
                         default=ROOT / "results" / "runs" /
                         "devil-zeroext-focused")
     parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument("--toolchain", type=Path,
+                        help="installed compiler, RTL, packages and MM tree; overrides lab environment")
     args = parser.parse_args()
 
     work = args.work.resolve()
@@ -34,8 +37,12 @@ def main() -> None:
         "--work", str(work),
         "--report", str(report),
     ]
+    env = os.environ.copy()
+    if args.toolchain:
+        installed = str(args.toolchain.resolve())
+        env.update(MOONBOT_TOOLCHAIN=installed, DEVIL_TOOLCHAIN_ROOT=installed)
     result = subprocess.run(command, cwd=ROOT.parent.parent,
-                            timeout=args.timeout, text=True)
+                            timeout=args.timeout, text=True, env=env)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 

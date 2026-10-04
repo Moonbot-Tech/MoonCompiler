@@ -28,7 +28,8 @@ import time
 from pathlib import Path
 
 import devil_toolchain as tc
-from run_devil_gate import Build, DEVIL, GENERATOR, run
+from run_devil_gate import (Build, DEVIL, GENERATOR, check_sequence,
+                            instrument_contract_errors, note_sequence, run)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -65,8 +66,19 @@ def build_failure_detail(log: str) -> str:
     return " | ".join(selected)[:500] if selected else "?"
 
 
+def runtime_failure(build: Build) -> str:
+    """Reject an abnormal or incomplete sample before comparing behaviour."""
+    if build.run_exit != 0:
+        return f"process exit={build.run_exit}"
+    invalid = instrument_contract_errors(build)
+    if invalid:
+        return "; ".join(invalid)
+    return ""
+
+
 def behaviour(work: Path, label: str, extra: list[str], profile: str,
-              timeout: int, rebuild: bool = True) -> tuple[Build | None, str]:
+              timeout: int, expected_seed: int,
+              rebuild: bool = True) -> tuple[Build | None, str]:
     """Собрать с добавленными ключами и снять поведение программы."""
     build = Build(label)
     out = work / ("out-mode-" + label)
@@ -86,7 +98,12 @@ def behaviour(work: Path, label: str, extra: list[str], profile: str,
     if code == 124:
         return None, "REJECTED: timeout while running"
     build.compiled = True
+    build.run_exit = code
+    build.expected_seed = expected_seed
     build.parse(output)
+    failure = runtime_failure(build)
+    if failure:
+        return None, "REJECTED: " + failure
     return build, ""
 
 
@@ -111,14 +128,17 @@ def compare(reference: Build, other: Build, label: str) -> list[dict]:
                              "builds": {"baseline": a, label: b}})
     names = set(reference.notes) | set(other.notes)
     split = sorted(n for n in names
-                   if reference.notes.get(n) != other.notes.get(n))
+                   if note_sequence(reference, n) != note_sequence(other, n))
     if split:
         findings.append({"kind": "observation-depends-on-mode", "mode": label,
                          "notes": split[:8], "count": len(split)})
-    fresh = sorted(set(other.failures) - set(reference.failures))
-    if fresh:
-        findings.append({"kind": "check-fails-only-in-mode", "mode": label,
-                         "checks": fresh[:8], "count": len(fresh)})
+    check_names = (set(reference.check_events) | set(other.check_events)
+                   | set(reference.failures) | set(other.failures))
+    split = sorted(n for n in check_names
+                   if check_sequence(reference, n) != check_sequence(other, n))
+    if split:
+        findings.append({"kind": "check-depends-on-mode", "mode": label,
+                         "checks": split[:8], "count": len(split)})
     return findings
 
 
@@ -159,7 +179,7 @@ def main() -> None:
     for label, extra in MODES:
         rebuild = label != "no-rebuild"
         got, failure = behaviour(work, label, extra, args.profile,
-                                 args.timeout, rebuild)
+                                 args.timeout, args.seed, rebuild)
         if got is None:
             say("%-16s %s" % (label, failure))
             findings.append({"kind": "build-failed-in-mode", "mode": label,

@@ -106,7 +106,7 @@ def main() -> None:
 
     known_issues_text = (known_issues.read_text(encoding="utf-8")
                          if known_issues.is_file() else "")
-    accepted_marker = "## Devil: accepted deviations"
+    accepted_marker = "## Accepted language and runtime differences"
     if accepted_marker not in known_issues_text:
         problems.append("KNOWN_ISSUES misses the Devil accepted-deviations section")
         accepted_ids: set[str] = set()

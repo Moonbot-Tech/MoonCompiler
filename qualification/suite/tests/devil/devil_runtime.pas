@@ -43,6 +43,7 @@ var
   DevilChecks: Int64 = 0;
   DevilDigest: UInt64 = FnvOffset;
   DevilFailures: Integer = 0;
+  DevilLayerSteps: Int64 = 0;
   { stays zero at runtime; the compiler cannot prove it }
   DevilZero: UInt64 = 0;
 
@@ -94,6 +95,10 @@ procedure DevilNoteLoose(const Name: AnsiString; Value: UInt64);
 procedure DevilLayerBegin(const Layer: AnsiString);
 procedure DevilLayerEnd;
 function DevilReport(const Prefix: AnsiString; Seed: UInt64): Integer;
+{ Arm the terminal report only after the program body completed.  The report
+  itself is emitted from this dependency unit's finalization, after every
+  generated unit had a chance to add shutdown checks. }
+procedure DevilArmReport(const Prefix: AnsiString; Seed: UInt64);
 
 { Lifetime tracing: a tagged object appends its tag when it is destroyed, so
   the order of finalization becomes an observable string.  The order itself is
@@ -217,34 +222,33 @@ end;
 
 procedure DevilCheckU(const Name: AnsiString; Actual, Expected: UInt64);
 begin
-  Inc(DevilChecks);
-  { a check is a feed as well: otherwise a layer that only asserts and never
-    observes would look like a dead bloodstream }
-  Inc(DevilFeeds);
-  DevilDigest := (DevilDigest xor Actual) * FnvPrime;
-  DevilLayerDigest := (DevilLayerDigest xor Actual) * FnvPrime;
-  if Actual = Expected then
-    Exit;
-  if DevilFailures < DevilMaxFailures then
-    DevilTrailLock.Enter;
-    try
-      WriteLn('DEVIL_FAILURE ', string(Name), ' actual=', IntToHex(Actual, 16),
+  DevilTrailLock.Enter;
+  try
+    { One lock covers bookkeeping and both wire records.  Otherwise concurrent
+      checks can print a complete stream while racing the terminal counts and
+      digest, producing an invalid sample from a correct program. }
+    Inc(DevilChecks);
+    { Named values have their own complete wire channel.  The digest records
+      the check identity/model, not Actual: otherwise an accepted Delphi/Moon
+      difference contaminates the anonymous digest and makes it impossible to
+      prove whether a second, unnamed difference moved as well. }
+    DevilFeedText(Name);
+    DevilFeed(Expected);
+    WriteLn('DEVIL_CHECK ', string(Name), ' actual=', IntToHex(Actual, 16),
       ' expected=', IntToHex(Expected, 16));
-    finally
-      DevilTrailLock.Leave;
-    end;
-  Inc(DevilFailures);
+    if (Actual <> Expected) and (DevilFailures < DevilMaxFailures) then
+      WriteLn('DEVIL_FAILURE ', string(Name), ' actual=', IntToHex(Actual, 16),
+        ' expected=', IntToHex(Expected, 16));
+    if Actual <> Expected then
+      Inc(DevilFailures);
+  finally
+    DevilTrailLock.Leave;
+  end;
 end;
 
 procedure DevilCheckBool(const Name: AnsiString; Condition: Boolean);
 begin
-  Inc(DevilChecks);
-  DevilDigest := (DevilDigest xor UInt64(Ord(Condition))) * FnvPrime;
-  if Condition then
-    Exit;
-  if DevilFailures < DevilMaxFailures then
-    WriteLn('DEVIL_FAILURE ', string(Name), ' actual=0 expected=1');
-  Inc(DevilFailures);
+  DevilCheckU(Name, UInt64(Ord(Condition)), 1);
 end;
 
 procedure DevilFeed(Value: UInt64);
@@ -266,15 +270,22 @@ end;
 procedure DevilStep(const Tag: AnsiString);
 var
   I: Integer;
-  Mixed: UInt64;
+  Mixed, LayerMixed: UInt64;
 begin
   Inc(DevilSteps);
-  { метка сворачивается тем же биективным шагом, что и всё остальное: место
-    события в последовательности становится частью корня }
+  Inc(DevilLayerSteps);
+  { Mix the tag with the same bijective step as the other events so its
+    position in the sequence becomes part of the root digest. }
   Mixed := UInt64(DevilSteps);
+  LayerMixed := UInt64(DevilLayerSteps);
   for I := 1 to Length(Tag) do
+  begin
     Mixed := (Mixed xor UInt64(Ord(Tag[I]))) * FnvPrime;
-  DevilFeed(Mixed);
+    LayerMixed := (LayerMixed xor UInt64(Ord(Tag[I]))) * FnvPrime;
+  end;
+  Inc(DevilFeeds);
+  DevilDigest := (DevilDigest xor Mixed) * FnvPrime;
+  DevilLayerDigest := (DevilLayerDigest xor LayerMixed) * FnvPrime;
 end;
 
 function DevilStepCount: Int64;
@@ -286,6 +297,7 @@ procedure DevilLayerBegin(const Layer: AnsiString);
 begin
   DevilLayerName := Layer;
   DevilLayerDigest := FnvOffset;
+  DevilLayerSteps := 0;
 end;
 
 procedure DevilLayerEnd;
@@ -311,9 +323,13 @@ end;
 
 procedure DevilNote(const Name: AnsiString; Value: UInt64);
 begin
-  DevilFeed(Value);
   DevilTrailLock.Enter;
   try
+    { Value is compared through the ordered DEVIL_NOTE stream.  Feed the stable
+      identity only, so a known value split cannot hide an unrelated digest
+      split in the same layer.  Keep feed and record in one transaction just
+      like DevilCheckU. }
+    DevilFeedText(Name);
     WriteLn('DEVIL_NOTE ', string(Name), '=', IntToHex(Value, 16));
   finally
     DevilTrailLock.Leave;
@@ -324,9 +340,11 @@ constructor TDvlTagged.Create(ATag: AnsiChar);
 begin
   inherited Create;
   FTag := ATag;
-  Inc(Alive);
-  Inc(Born);
-  Inc(EverBorn);
+  { worker threads create tagged objects at the same time (the thread layer
+    builds them in its workers); only one thread ever releases them }
+  AtomicIncrement(Alive);
+  AtomicIncrement(Born);
+  AtomicIncrement(EverBorn);
 end;
 
 destructor TDvlTagged.Destroy;
@@ -420,18 +438,47 @@ begin
   end;
 end;
 
+var
+  DevilReportArmed: Boolean = False;
+  DevilReportPrefix: AnsiString;
+  DevilReportSeed: UInt64;
+
+procedure DevilArmReport(const Prefix: AnsiString; Seed: UInt64);
+begin
+  DevilReportPrefix:=Prefix;
+  DevilReportSeed:=Seed;
+  DevilReportArmed:=True;
+end;
+
 {$ifdef FPC}{$pop}{$endif}
 
 initialization
   DevilTrailLock := TCriticalSection.Create;
 
 finalization
-  { one invariant over the whole program: every tagged object any layer ever
-    created has to be gone by the time the program shuts down. A leak anywhere
-    - a chain that dropped a frame, a record that was finalized twice, an
-    interface the optimizer released early - lands here. }
-  DevilCheckU('devil-tagged-balance',
-    UInt64(Cardinal(TDvlTagged.EverBorn - TDvlTagged.EverGone)), 0);
+  { Keep the process-exit channel independent from the semantic report.  In
+    particular, never overwrite an exit status already produced by Halt or an
+    exception in another finalizer.  The Python runner turns reported semantic
+    disagreements into its own non-zero exit after classification. }
+  if DevilReportArmed then
+    begin
+      { one invariant over the whole program: every tagged object any layer
+        ever created has to be gone by the time the program shuts down. A leak
+        anywhere lands here, after all generated units have finalized. }
+      DevilCheckU('devil-tagged-balance',
+        UInt64(Cardinal(TDvlTagged.EverBorn - TDvlTagged.EverGone)), 0);
+      { The runner requires this marker, its exact check count, and its
+        position before the terminal summary.  A report accidentally moved
+        back into the program body therefore fails even when every shutdown
+        check happens to pass. }
+      DevilTrailLock.Enter;
+      try
+        WriteLn('DEVIL_FINALIZATION checks=',DevilChecks);
+      finally
+        DevilTrailLock.Leave;
+      end;
+      DevilReport(DevilReportPrefix,DevilReportSeed);
+    end;
   FreeAndNil(DevilTrailLock);
 
 end.

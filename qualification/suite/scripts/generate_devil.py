@@ -37,6 +37,8 @@ DEVIL = ROOT / "tests" / "devil"
 # куда генератор кладёт файлы этого прогона: слои, пишущие собственные юниты,
 # обязаны спрашивать здесь, а не у каталога комплекта
 OUTPUT_DIR = DEVIL
+RUNNER_LIMITS: dict[str, int] = {}
+RUNNER_CALL_COUNTS: dict[str, int] = {}
 
 
 # --------------------------------------------------------------------------
@@ -465,45 +467,69 @@ class FormBuilder:
 
     # -- context nesting ---------------------------------------------------
 
-    def wrap(self, body: list[str], contexts: list[str], indent: str,
-             target: str) -> list[str]:
+    def wrap(self, body: list[str], contexts: list[str],
+             indent: str) -> list[str]:
+        """Wrap one case and prove that its innermost body ran exactly once.
+
+        A result sentinel cannot prove execution: skipped code may leave the
+        sentinel at the expected value.  Entry and completion are separate so
+        swallowed exceptions are distinguishable from skipped/doubled bodies.
+        """
+        effective = [context for context in contexts if context != "none"]
+        if not effective:
+            return list(body)
+        entered = self.var(f"ContextEntered{self.uniq()}", "Integer")
+        completed = self.var(f"ContextCompleted{self.uniq()}", "Integer")
+        self.setup.extend((f"  {entered} := 0;", f"  {completed} := 0;"))
+        guarded = ([f"{indent}Inc({entered});"] + list(body)
+                   + [f"{indent}Inc({completed});"])
+        wrapped = self._wrap_contexts(guarded, effective, indent)
+        wrapped.extend((
+            f"{indent}DevilCheckU('{self.name}-context-entered', "
+            f"UInt64(Cardinal({entered})), 1);",
+            f"{indent}DevilCheckU('{self.name}-context-completed', "
+            f"UInt64(Cardinal({completed})), 1);",
+        ))
+        return wrapped
+
+    def _wrap_contexts(self, body: list[str], contexts: list[str],
+                       indent: str) -> list[str]:
+        failure = f"DevilCheckBool('{self.name}-context', False);"
         if not contexts:
             return list(body)
         head, rest = contexts[0], contexts[1:]
         i = indent
-        if head == "none":
-            return self.wrap(body, rest, indent, target)
         if head == "runtime-if":
-            inner = self.wrap(body, rest, i + "  ", target)
+            inner = self._wrap_contexts(body, rest, i + "  ")
             return ([f"{i}if OpaqueU(1) = 1 then", f"{i}begin"] + inner +
-                    [f"{i}end", f"{i}else", f"{i}  {target} := High(UInt64);"])
+                    [f"{i}end", f"{i}else", f"{i}  {failure}"])
         if head == "for-loop":
             guard = f"Guard{self.uniq()}"
-            inner = self.wrap(body, rest, i + "  ", target)
+            inner = self._wrap_contexts(body, rest, i + "  ")
             return ([f"{i}for var {guard} := 0 to Integer(OpaqueU(0)) do",
                      f"{i}begin"] + inner + [f"{i}end;"])
         if head == "while-loop":
             guard = self.var(f"G{self.uniq()}", "Integer")
-            inner = self.wrap(body, rest, i + "  ", target)
+            inner = self._wrap_contexts(body, rest, i + "  ")
             return ([f"{i}{guard} := 0;",
                      f"{i}while {guard} <= Integer(OpaqueU(0)) do",
                      f"{i}begin"] + inner + [f"{i}  Inc({guard});", f"{i}end;"])
         if head == "repeat-until":
-            inner = self.wrap(body, rest, i + "  ", target)
+            inner = self._wrap_contexts(body, rest, i + "  ")
             return [f"{i}repeat"] + inner + [f"{i}until OpaqueU(1) = 1;"]
         if head == "try-finally":
             marker = self.var(f"M{self.uniq()}", "Integer")
-            inner = self.wrap(body, rest, i + "  ", target)
+            inner = self._wrap_contexts(body, rest, i + "  ")
             return ([f"{i}{marker} := 0;", f"{i}try"] + inner +
                     [f"{i}finally", f"{i}  Inc({marker});", f"{i}end;",
                      f"{i}if {marker} <> 1 then",
-                     f"{i}  {target} := High(UInt64);"])
+                     f"{i}  {failure}"])
         if head == "try-except":
-            inner = self.wrap(body, rest, i + "  ", target)
+            inner = self._wrap_contexts(body, rest, i + "  ")
             return ([f"{i}try"] + inner +
-                    [f"{i}except", f"{i}  {target} := High(UInt64);", f"{i}end;"])
+                    [f"{i}except", f"{i}  {failure}", f"{i}end;"])
         if head == "raise-catch":
-            inner = self.wrap(body, rest, i + "    ", target)
+            inner = self._wrap_contexts(body, rest, i + "    ")
             return ([f"{i}try",
                      f"{i}  if OpaqueU(1) = 1 then",
                      f"{i}    raise EDvlSignal.Create('dvl');",
@@ -511,29 +537,29 @@ class FormBuilder:
                      f"{i}  on EDvlSignal do",
                      f"{i}  begin"] + inner + [f"{i}  end;", f"{i}end;"])
         if head == "case-branch":
-            inner = self.wrap(body, rest, i + "    ", target)
+            inner = self._wrap_contexts(body, rest, i + "    ")
             return ([f"{i}case Integer(OpaqueU(1)) of",
                      f"{i}  1:", f"{i}  begin"] + inner +
                     [f"{i}  end;", f"{i}else",
-                     f"{i}  {target} := High(UInt64);", f"{i}end;"])
+                     f"{i}  {failure}", f"{i}end;"])
         if head == "with-record":
             box = self.var(f"W{self.uniq()}", "TDvlBox")
-            inner = self.wrap(body, rest, i + "  ", target)
+            inner = self._wrap_contexts(body, rest, i + "  ")
             return ([f"{i}{box}.Fi32 := Integer(OpaqueI(1));",
                      f"{i}with {box} do", f"{i}begin"] + inner +
                     [f"{i}  if Fi32 <> 1 then",
-                     f"{i}    {target} := High(UInt64);", f"{i}end;"])
+                     f"{i}    {failure}", f"{i}end;"])
         if head == "nested-proc":
             slot = len(self.nested)
             proc = f"Nested{slot}"
             self.nested.append([])
-            inner = self.wrap(body, rest, "    ", target)
+            inner = self._wrap_contexts(body, rest, "    ")
             self.nested[slot] = ([f"  procedure {proc};", "  begin"] + inner +
                                  ["  end;", ""])
             return [f"{i}{proc};"]
         if head == "closure":
             proc = self.var(f"Closure{self.uniq()}", "TDvlProc")
-            inner = self.wrap(body, rest, i + "    ", target)
+            inner = self._wrap_contexts(body, rest, i + "    ")
             return ([f"{i}{proc} :=", f"{i}  procedure", f"{i}  begin"] + inner +
                     [f"{i}  end;", f"{i}{proc}();", f"{i}{proc} := nil;"])
         if head == "managed-scope":
@@ -542,15 +568,15 @@ class FormBuilder:
             g = self.var(f"Guard{n}", "IInterface")
             alive = self.var(f"Alive{n}", "Integer")
             tag = f"dvl-{n:05d}"
-            inner = self.wrap(body, rest, i, target)
+            inner = self._wrap_contexts(body, rest, i)
             return ([f"{i}{alive} := TDvlGuard.Alive;",
                      f"{i}{g} := TDvlGuard.Create;",
                      f"{i}{s} := AnsiString('{tag}');"] + inner +
                     [f"{i}if Length({s}) <> {len(tag)} then",
-                     f"{i}  {target} := High(UInt64);",
+                     f"{i}  {failure}",
                      f"{i}{g} := nil;",
                      f"{i}if TDvlGuard.Alive <> {alive} then",
-                     f"{i}  {target} := High(UInt64);"])
+                     f"{i}  {failure}"])
         raise ValueError(head)
 
     # -- assembly ---------------------------------------------------------
@@ -817,7 +843,7 @@ def layer_expr(e: Emitter, rng: random.Random, count: int,
         sa = fb.var("ModelA", "UInt64")
         sb = fb.var("ModelB", "UInt64")
         body = fb.consume(t, expression, consumer, form, "  ")
-        statements = fb.wrap(body, contexts, "  ", form)
+        statements = fb.wrap(body, contexts, "  ")
         statements += model_binary(t, op, a, b, model, sa, sb)
         statements += model_consumer(consumer, model)
         expected = fb.consumer_transform(consumer, t.raw(eval_binary(t, op, a, b)))
@@ -924,7 +950,7 @@ def layer_unary(e: Emitter, rng: random.Random, count: int,
 
         form = fb.var("FormRaw", "UInt64")
         body = fb.consume(t, expression, consumer, form, "  ")
-        statements = fb.wrap(body, contexts, "  ", form)
+        statements = fb.wrap(body, contexts, "  ")
         expected = fb.consumer_transform(consumer, t.raw(eval_unary(t, op, a)))
         checks = [
             f"  DevilCheckU('{fb.name}', {form}, UInt64(${expected:016X}));",
@@ -1038,7 +1064,7 @@ def layer_fold(e: Emitter, rng: random.Random, count: int,
             f"  {runtime} := {raw}({rt_v});",
             f"  {halfway} := {raw}({half_v});",
         ]
-        statements = fb.wrap(body, contexts, "  ", folded)
+        statements = fb.wrap(body, contexts, "  ")
         checks = [
             f"  DevilCheckU('{fb.name}-fold-vs-runtime', {folded}, {runtime});",
             f"  DevilCheckU('{fb.name}-half-vs-runtime', {halfway}, {runtime});",
@@ -1093,7 +1119,7 @@ def layer_compare(e: Emitter, rng: random.Random, count: int,
             f"  {folded} := UInt64(Ord({lit_a} {token} {lit_b}));",
             f"  {identity} := UInt64(Ord(not ({opq_a} {token} {opq_b})));",
         ]
-        statements = fb.wrap(body, contexts, "  ", rt)
+        statements = fb.wrap(body, contexts, "  ")
         checks = [
             f"  DevilCheckU('{fb.name}-fold-vs-runtime', {folded}, {rt});",
             f"  DevilCheckU('{fb.name}-negation', {identity}, 1 - {rt});",
@@ -1131,7 +1157,100 @@ LIFE_SHAPES = (
     "string-cow",
     "interface-swap",
     "exception-unwind-deep",
+    "finally-managed-result",
 )
+
+
+def emit_finally_result_case(e: Emitter, rng: random.Random, index: int) -> CaseRecord:
+    """Cross result ownership with inline expansion and exceptional control flow.
+
+    Helpers are top-level: nested-routine inlining is not supported equally by
+    the compilers and would silently bypass the transformation under test.
+    The lifetime oracle runs after Scenario returns, not at a guessed temporary
+    destruction point. Strings additionally have an independent content check.
+    """
+    kind = rng.choice(("AnsiString", "UnicodeString", "WideString",
+                       "IInterface", "TDvlTaggedRec", "TArray<IInterface>"))
+    mode = rng.choice(("normal", "exit", "raise-body", "raise-consumer"))
+    depth = rng.choice((1, 2, 3))
+    held = rng.choice((False, True))
+    fb = FormBuilder(index, "life")
+    prefix = fb.proc + "Result"
+    consume = prefix + "Consume"
+    result_type = prefix + "Type"
+    source_type = prefix + "Source"
+    e.block(["type", f"  {result_type} = {kind};", f"  {source_type} = class",
+             f"    function Make: {result_type}; inline;"])
+    for level in range(depth):
+        e.line(f"    function Forward{level}: {result_type}; inline;")
+    e.block([f"    property Value: {result_type} read Forward{depth - 1};", "  end;", ""])
+    e.block([f"function {source_type}.Make: {result_type};", "begin"])
+    if kind.endswith("String"):
+        e.block(["  SetLength(Result, 3);", "  Result[1] := 'a';",
+                 "  Result[2] := 'b';", "  Result[3] := 'c';"])
+        check = "(Length(V) = 3) and (V[1] = 'a') and (V[2] = 'b') and (V[3] = 'c')"
+        born = 0
+    elif kind == "IInterface":
+        e.line("  Result := TDvlTagged.Create('a');")
+        check, born = "V <> nil", 1
+    elif kind == "TDvlTaggedRec":
+        e.block(["  Result.A := TDvlTagged.Create('a');",
+                 "  Result.S := AnsiString('abc');", "  Result.N := 37;"])
+        check, born = "(V.A <> nil) and (V.S = 'abc') and (V.N = 37)", 1
+    else:
+        e.block(["  SetLength(Result, 2);", "  Result[0] := TDvlTagged.Create('a');",
+                 "  Result[1] := TDvlTagged.Create('b');"])
+        check, born = "(Length(V) = 2) and (V[0] <> nil) and (V[1] <> nil)", 2
+    e.block(["end;", ""])
+    previous = "Make"
+    for level in range(depth):
+        helper = f"Forward{level}"
+        e.block([f"function {source_type}.{helper}: {result_type};", "begin"])
+        if kind.endswith("String"):
+            # A second managed conversion temp, not just the caller-owned result.
+            e.line(f"  Result := {result_type}(UTF8Decode(UTF8Encode({previous})));")
+        else:
+            e.line(f"  Result := {previous};")
+        e.block(["end;", ""])
+        previous = helper
+    e.block([f"procedure {consume}(const V: {result_type});", "begin",
+             f"  DevilCheckU('{fb.name}-content', Ord({check}), 1);"])
+    if mode == "raise-consumer":
+        e.line("  raise EDvlSignal.Create('consumer');")
+    e.block(["end;", ""])
+    scenario = [f"  function Scenario: {result_type};", "  var", f"    Source: {source_type};"]
+    if held:
+        scenario += ["    Hold: IInterface;"]
+    scenario += ["  begin", f"    Source := {source_type}.Create;"]
+    if held:
+        scenario += ["    Hold := TDvlTagged.Create('h');"]
+        born += 1
+    scenario += ["    try", "      DevilTrailAdd('b');"]
+    if mode == "exit":
+        scenario += ["      if OpaqueU(1) = 1 then Exit;"]
+    elif mode == "raise-body":
+        scenario += ["      raise EDvlSignal.Create('body');"]
+    scenario += ["    finally", "      try", "        Result := Source.Value;",
+                 "      finally", "        Source.Free;", "        DevilTrailAdd('f');", "      end;",
+                 "    end;", "  end;", "",
+                 "  procedure Run;", "  begin", f"    {consume}(Scenario);", "  end;", ""]
+    fb.nested.append(scenario)
+    caught = fb.var("Caught", "Integer")
+    call = ["  Caught := 0;", "  try", "    Run;", "  except",
+            "    on E: EDvlSignal do", "    begin", "      Inc(Caught);"]
+    if mode.startswith("raise-"):
+        message = "body" if mode == "raise-body" else "consumer"
+        call += [f"      DevilCheckU('{fb.name}-exception', Ord(E.Message = '{message}'), 1);"]
+    call += ["    end;", "  end;"]
+    checks = [f"  DevilCheckU('{fb.name}-caught', {caught}, {int(mode.startswith('raise-'))});",
+              f"  DevilCheckU('{fb.name}-born', TDvlTagged.Born, {born});",
+              f"  DevilCheckU('{fb.name}-balance', TDvlTagged.Alive, 0);",
+              f"  DevilCheckU('{fb.name}-finally', Ord(Pos('f', DevilTrailText) > 0), 1);"]
+    fb.emit(e, call, checks, ["  TDvlTagged.Alive := 0;", "  TDvlTagged.Born := 0;",
+                             "  DevilTrailReset;"])
+    return CaseRecord(fb.name, "life", {"shape": "finally-managed-result", "result": kind,
+                      "origin": "property", "consumer": "function-result-to-const-parameter",
+                      "exit": mode, "inline_depth": depth, "existing_cleanup": held})
 
 
 def layer_life(e: Emitter, rng: random.Random, count: int,
@@ -1151,12 +1270,22 @@ def layer_life(e: Emitter, rng: random.Random, count: int,
     records: list[CaseRecord] = []
     calls: list[str] = []
     for index in range(start, start + count):
-        shape = rng.choice(LIFE_SHAPES)
+        # Keep the new direction reachable even in a small impact-scoped run.
+        shape = "finally-managed-result" if (index - start) % 8 == 0 else rng.choice(LIFE_SHAPES)
+        if shape == "finally-managed-result":
+            records.append(emit_finally_result_case(e, rng, index))
+            calls.append(f"DvlLife{index:05d}")
+            continue
         n = rng.choice((2, 3, 4))
         # the scenario body lives in its own routine, so contexts that emit
         # their own declarations (nested routine, closure) cannot wrap it here
         contexts = [c for c in pick_contexts(rng, rng.choice((0, 0, 1, 1, 2)))
                     if c not in ("nested-proc", "closure")]
+        if shape == "locals-exception":
+            # This case measures cleanup while an exception leaves Scenario.
+            # A random catch-all wrapper would consume the very edge under
+            # test and silently skip both the caller handler and its oracle.
+            contexts = [c for c in contexts if c != "try-except"]
         fb = FormBuilder(index, "life")
         name = fb.name
         tags = [chr(ord("a") + k) for k in range(n)]
@@ -1392,7 +1521,7 @@ def layer_life(e: Emitter, rng: random.Random, count: int,
                     "    DevilCheckU('%s-unwound', "
                     "UInt64(TDvlTagged.Alive), 0);" % name]
 
-        wrapped = fb.wrap(body, contexts, "    ", "DevilFailures")
+        wrapped = fb.wrap(body, contexts, "    ")
         scenario = ["  procedure Scenario;"]
         if svars:
             scenario.append("  var")
@@ -2047,7 +2176,7 @@ def layer_float(e: Emitter, rng: random.Random, count: int,
         contexts = pick_contexts(rng, rng.choice((0, 0, 1, 1, 2)))
         statements = fb.wrap(body, [c for c in contexts
                                     if c not in ("nested-proc", "closure")],
-                             "  ", "DevilFailures")
+                             "  ")
         fb.proc = proc
         fb.name = name
         fb.emit(e, statements, checks)
@@ -2237,7 +2366,7 @@ def layer_string(e: Emitter, rng: random.Random, count: int,
             continue
         contexts = [c for c in pick_contexts(rng, rng.choice((0, 0, 1, 2)))
                     if c not in ("nested-proc", "closure")]
-        statements = fb.wrap(body, contexts, "  ", "DevilFailures")
+        statements = fb.wrap(body, contexts, "  ")
         fb.emit(e, statements, checks)
         calls.append(proc)
         records.append(CaseRecord(name, "str", detail))
@@ -2481,7 +2610,7 @@ def layer_dispatch(e: Emitter, rng: random.Random, count: int,
 
         contexts = [c for c in pick_contexts(rng, rng.choice((0, 0, 1, 2)))
                     if c not in ("nested-proc", "closure")]
-        statements = fb.wrap(body, contexts, "  ", "DevilFailures")
+        statements = fb.wrap(body, contexts, "  ")
         fb.emit(e, statements, checks)
         calls.append(proc)
         records.append(CaseRecord(name, "disp", {"shape": shape}))
@@ -2594,7 +2723,7 @@ def layer_generic(e: Emitter, rng: random.Random, count: int,
             continue
         contexts = [c for c in pick_contexts(rng, rng.choice((0, 0, 1)))
                     if c not in ("nested-proc", "closure")]
-        statements = fb.wrap(body, contexts, "  ", "DevilFailures")
+        statements = fb.wrap(body, contexts, "  ")
         fb.emit(e, statements, checks)
         calls.append(proc)
         records.append(CaseRecord(name, "gen", {"shape": shape, "type": t.slug}))
@@ -2763,7 +2892,7 @@ def layer_array(e: Emitter, rng: random.Random, count: int,
 
         contexts = [c for c in pick_contexts(rng, rng.choice((0, 0, 1, 2)))
                     if c not in ("nested-proc", "closure")]
-        statements = fb.wrap(body, contexts, "  ", "DevilFailures")
+        statements = fb.wrap(body, contexts, "  ")
         fb.emit(e, statements, checks)
         calls.append(proc)
         records.append(CaseRecord(name, "arr", {"shape": shape, "n": n}))
@@ -3954,6 +4083,33 @@ def emit_cbool_operator_matrix(e: Emitter) -> CaseRecord:
     })
 
 
+def emit_mixed_boolean_matrix(e: Emitter) -> CaseRecord:
+    """Mixed evaluation modes with equal loads, independent of inline policy."""
+    name = "dvl-flow-mixed-boolean-availability"
+    e.block(["type", "  TDvlBoolPair = record A, B: Integer; end;",
+             "  PDvlBoolPair = ^TDvlBoolPair;", "var",
+             "  DvlBoolPair: PDvlBoolPair;", "  DvlBoolGate, DvlBoolTail: Boolean;", ""])
+    for op in ("and", "or"):
+        e.block([f"function DvlMixed{op.title()}(Unused1, Unused2, Unused3: NativeUInt): Boolean;",
+                 "{$ifdef FPC}noinline;{$endif}", "begin",
+                 f"  Result := ((DvlBoolGate {{$B-}} {op} (DvlBoolPair^.B = 17)) {{$B-}}",
+                 f"    {op} ((DvlBoolPair^.A = 31) {{$B+}})) {{$B-}} {op} DvlBoolTail;", "end;", ""])
+    e.block(["procedure DvlFlowMixedBooleanMatrix;", "begin",
+             f"  DevilStep('{name}');", "  New(DvlBoolPair);", "  try"])
+    # Complete truth table, including a skipped first load followed by a full
+    # evaluation. Expected values come from Python, not the Pascal expression.
+    for mask in range(16):
+        g, t, a, b = (bool(mask & (1 << bit)) for bit in range(4))
+        e.block([f"    DvlBoolGate := {str(g)};", f"    DvlBoolTail := {str(t)};",
+                 f"    DvlBoolPair^.A := {31 if a else 30};",
+                 f"    DvlBoolPair^.B := {17 if b else 16};",
+                 f"    DevilCheckU('{name}-and-{mask}', Ord(DvlMixedAnd(0, 0, 0)), {int(g and t and a and b)});",
+                 f"    DevilCheckU('{name}-or-{mask}', Ord(DvlMixedOr(0, 0, 0)), {int(g or t or a or b)});"])
+    e.block(["  finally", "    Dispose(DvlBoolPair);", "  end;", "end;", ""])
+    return CaseRecord(name, "flow", {"shape": "mixed-boolean-availability", "truth_rows": 16,
+                      "operators": ["and", "or"], "inline_required": False})
+
+
 def layer_flow(e: Emitter, rng: random.Random, count: int,
                start: int) -> list[CaseRecord]:
     """Control flow: every branch, jump and early exit has a counted trail, so
@@ -3962,9 +4118,10 @@ def layer_flow(e: Emitter, rng: random.Random, count: int,
         emit_runtime_loop_bound_matrix(e),
         emit_seh_loop_matrix(e),
         emit_cbool_operator_matrix(e),
+        emit_mixed_boolean_matrix(e),
     ]
     calls: list[str] = ["DvlFlowRuntimeBoundMatrix", "DvlFlowSehLoopMatrix",
-                        "DvlFlowCBoolOperatorMatrix"]
+                        "DvlFlowCBoolOperatorMatrix", "DvlFlowMixedBooleanMatrix"]
     for index in range(start, start + count):
         name = "dvl-flow-%05d" % index
         proc = "DvlFlow%05d" % index
@@ -4138,7 +4295,7 @@ def layer_flow(e: Emitter, rng: random.Random, count: int,
                 checks = ["  DevilCheckU('%s-short-left', "
                           "UInt64(Cardinal(%s)), 1);" % (name, calls_v)]
 
-        statements = fb.wrap(body, [], "  ", "DevilFailures")
+        statements = fb.wrap(body, [], "  ")
         fb.emit(e, statements, checks)
         calls.append(proc)
         records.append(CaseRecord(name, "flow", detail))
@@ -4241,8 +4398,9 @@ def layer_int128(e: Emitter, rng: random.Random, count: int,
     e.line()
     e.line("procedure RunDevilI128Layer;")
     e.line("begin")
-    e.line("  DvlI128Convert;")
-    for call in calls:
+    runner_calls = ["DvlI128Convert", *calls]
+    RUNNER_CALL_COUNTS["i128"] = len(runner_calls)
+    for call in runner_calls[:RUNNER_LIMITS.get("i128", len(runner_calls))]:
         e.line("  %s;" % call)
     e.line("end;")
     e.line("{$else}")
@@ -5095,9 +5253,12 @@ def layer_lang(e: Emitter, rng: random.Random, count: int,
 
 
 def emit_runner(e: Emitter, layer: str, calls: list[str]) -> None:
+    key = layer.lower()
+    RUNNER_CALL_COUNTS[key] = len(calls)
+    emitted = calls[:RUNNER_LIMITS.get(key, len(calls))]
     e.line(f"procedure RunDevil{layer}Layer;")
     e.line("begin")
-    for call in calls:
+    for call in emitted:
         e.line(f"  {call};")
     e.line("end;")
     e.line()
@@ -10090,7 +10251,7 @@ def layer_assembler(e: Emitter, rng: random.Random, count: int,
 # language and the least exercised by modern code, which is exactly why they
 # are worth checking - a wrong element size corrupts a file silently.
 IO_SHAPES = ("typed-record", "typed-seek", "untyped-blocks", "text-lines",
-             "typed-truncate", "element-size", "eof-behaviour", "text-append")
+             "typed-truncate", "element-size", "eof-behaviour", "text-append", "text-builtins")
 
 
 def layer_io(e: Emitter, rng: random.Random, count: int,
@@ -10102,7 +10263,7 @@ def layer_io(e: Emitter, rng: random.Random, count: int,
         name = "dvl-io-%05d" % index
         proc = "DvlIo%05d" % index
         tag = "%05d" % index
-        shape = rng.choice(IO_SHAPES)
+        shape = "text-builtins" if (index - start) % 8 == 0 else rng.choice(IO_SHAPES)
         rows = rng.randrange(3, 8)
         seed = index % 40 + 1
 
@@ -10229,6 +10390,35 @@ def layer_io(e: Emitter, rng: random.Random, count: int,
                    "UInt64(Bytes[0]), %d);" % (name, seed % 100))
             e.line("    finally")
             e.line("      CloseFile(Raw);")
+            e.line("    end;")
+
+        elif shape == "text-builtins":
+            # Builtin lowering is a separate consumer from string arithmetic
+            # and RTL calls. Keep both pointer widths and all string kinds in
+            # every small corpus. ASCII isolates dispatch/padding from the
+            # Delphi/FPC distinction in UTF-8 field-width accounting.
+            width = rng.choice((0, 1, 5))
+            expected = " " * max(0, width - 2) + "az"
+            e.line("    AssignFile(T, Path);")
+            e.line("    Rewrite(T);")
+            e.line("    try")
+            for kind in ("PAnsiChar", "PWideChar", "PChar", "AnsiString", "UnicodeString", "WideString"):
+                value = "'az'#0'ignored'" if kind.startswith("P") else "'az'"
+                e.line(f"      WriteLn(T, {kind}({value}):{width});")
+            e.line("    finally")
+            e.line("      CloseFile(T);")
+            e.line("    end;")
+            e.line("    AssignFile(T, Path);")
+            e.line("    Reset(T);")
+            e.line("    try")
+            e.line("      for var I := 1 to 6 do")
+            e.line("      begin")
+            e.line("        ReadLn(T, Line);")
+            e.line(f"        DevilCheckU('{name}-builtin-text', Ord(Line = '{expected}'), 1);")
+            e.line("      end;")
+            e.line(f"      DevilCheckU('{name}-builtin-eof', Ord(Eof(T)), 1);")
+            e.line("    finally")
+            e.line("      CloseFile(T);")
             e.line("    end;")
 
         elif shape == "text-append":
@@ -16571,6 +16761,7 @@ CAPTURE_SHAPES = ("classic-loop-var", "inline-loop-var", "for-in-var",
                   "local-changed-after", "local-per-iteration",
                   "nested-closure", "closure-in-closure", "field-of-object",
                   "with-scoped", "with-composite-lvalue",
+                  "with-produced-object", "with-produced-record",
                   "nested-expression-new",
                   "captured-managed", "captured-record",
                   "captured-array-slot", "self-in-method", "const-param",
@@ -16772,6 +16963,36 @@ def emit_capture_case(e: Emitter, shape: str, tag: str) -> list[str]:
         e.line("  Result := Step();")
         e.line("end;")
         e.line()
+    elif shape in ("with-produced-object", "with-produced-record"):
+        # A compiler-created with target, shared by two escaping closures.
+        # An object pointer and a record value follow different capture paths.
+        value_type = "TDvlCapValue" + tag
+        step_type = "TDvlCapStep" + tag
+        is_object = shape == "with-produced-object"
+        e.block(["type", f"  {value_type} = {'class' if is_object else 'record'}",
+                 "    Slot: Integer;", "  end;", "",
+                 f"function DvlCapProduce{tag}(Held: {value_type}; var Counter: Integer): {value_type};",
+                 "begin", "  Inc(Counter);", "  Result := Held;", "end;", "",
+                 f"procedure DvlCapMake{tag}(Held: {value_type}; var Counter: Integer;",
+                 f"  out First, Second: {step_type});", "begin",
+                 f"  with DvlCapProduce{tag}(Held, Counter) do", "  begin",
+                 "    First := function: Integer begin Result := Slot; end;",
+                 "    Second := function: Integer begin Result := Slot + 10; end;",
+                 "  end;", "end;", "",
+                 f"function DvlCapAsk{tag}: Integer;", "var",
+                 f"  Held: {value_type};", f"  First, Second: {step_type};",
+                 "  Counter: Integer;", "begin", "  Counter := 0;"])
+        if is_object:
+            e.line(f"  Held := {value_type}.Create;")
+        e.block(["  try", "    Held.Slot := 2;",
+                 f"    DvlCapMake{tag}(Held, Counter, First, Second);",
+                 "    Held.Slot := 7;",
+                 "    Result := First() * 100 + Second() + Counter;",
+                 f"    DevilCheckU('dvl-capture-{shape}-value', Result, {718 if is_object else 213});",
+                 "  finally", "    First := nil;", "    Second := nil;"])
+        if is_object:
+            e.line("    Held.Free;")
+        e.block(["  end;", "end;", ""])
     elif shape == "with-composite-lvalue":
         e.line("type")
         e.line("  TDvlCapRec%s = record" % tag)
@@ -18860,7 +19081,11 @@ begin
   {{ порядковый канал есть не в каждом наборе слоёв: требовать шагов
      безусловно значит краснеть там, где их нет по построению.  Сравнение
      числа шагов между сборками делает гейт, и оно работает всегда. }}
-  Halt(DevilReport('DEVIL', {seed}));
+  {{ devil_runtime is a dependency of every generated unit, so its
+     finalization runs last and can include shutdown checks in the terminal
+     count and digest.  Arming here also prevents an exception in the program
+     body from being hidden by a later report. }}
+  DevilArmReport('DEVIL', {seed});
 end.
 """
 
@@ -19032,12 +19257,35 @@ def main() -> None:
     parser.add_argument("--shuffle-order", action="store_true",
                         help="emit the same forms in a different order: the "
                              "values must not depend on it")
+    parser.add_argument(
+        "--runner-prefix-manifest", type=Path,
+        help="declare the enlarged corpus but execute exactly the runner "
+             "prefix recorded by a previous manifest",
+    )
+    parser.add_argument(
+        "--extra-cases-per-layer", type=int, default=0,
+        help="add cases after per-family scaling; fixed-matrix layers may "
+             "legitimately ignore this while the whole program must grow",
+    )
     parser.add_argument("--out", type=Path,
                         default=ROOT / "results" / "runs" / "devil-generated")
     args = parser.parse_args()
+    if args.extra_cases_per_layer < 0:
+        parser.error("--extra-cases-per-layer must not be negative")
 
-    global OUTPUT_DIR
+    global OUTPUT_DIR, RUNNER_LIMITS, RUNNER_CALL_COUNTS
     OUTPUT_DIR = args.out
+    RUNNER_LIMITS = {}
+    RUNNER_CALL_COUNTS = {}
+    if args.runner_prefix_manifest:
+        prefix = json.loads(
+            args.runner_prefix_manifest.read_text(encoding="utf-8")
+        )
+        limits = prefix.get("runner_call_counts")
+        if not isinstance(limits, dict) or not limits:
+            raise SystemExit("runner prefix manifest has no call counts")
+        RUNNER_LIMITS = {str(layer): int(count)
+                         for layer, count in limits.items()}
     selected = list(LAYERS) if args.layers == "all" else args.layers.split(",")
     if args.shuffle_order:
         random.Random(args.seed ^ 0x5A5A).shuffle(selected)
@@ -19062,6 +19310,7 @@ def main() -> None:
         e.line()
         cases = (max(8, int(args.cases * ARITHMETIC_SHARE))
                  if layer in ARITHMETIC_LAYERS else args.cases)
+        cases += args.extra_cases_per_layer
         records += LAYERS[layer](e, rng, cases, 0)
         (out / f"devil_{layer}.inc").write_text(e.text(), encoding="utf-8")
         # 128-bit integers are an extension of this compiler; Delphi has
@@ -19077,6 +19326,23 @@ def main() -> None:
             # this says which layer it happened in
             runs.append(LAYER_RUN_TEMPLATE
                         % (layer, LAYER_RUNNERS[layer]))
+
+    if RUNNER_LIMITS:
+        if set(RUNNER_LIMITS) != set(selected):
+            raise SystemExit("runner prefix layers do not match generated layers")
+        overflow = [
+            layer for layer, limit in RUNNER_LIMITS.items()
+            if limit < 0 or limit > RUNNER_CALL_COUNTS.get(layer, -1)
+        ]
+        if overflow:
+            raise SystemExit("runner prefix exceeds generated calls: "
+                             + ", ".join(sorted(overflow)))
+        grown = [
+            layer for layer, limit in RUNNER_LIMITS.items()
+            if limit < RUNNER_CALL_COUNTS.get(layer, -1)
+        ]
+        if not grown:
+            raise SystemExit("whole-program perturbation did not grow")
 
     check_unique_declarations(out, selected)
     check_case_names(records)
@@ -19147,6 +19413,7 @@ def main() -> None:
 
     manifest = {
         "schema": 2,
+        "runner_call_counts": dict(sorted(RUNNER_CALL_COUNTS.items())),
         "composite": {
             "triples_possible": composite_total,
             "triples_this_seed": len(composite_seen),
@@ -19161,6 +19428,7 @@ def main() -> None:
         "generator": "scripts/generate_devil.py",
         "seed": args.seed,
         "cases_per_layer": args.cases,
+        "extra_cases_per_layer": args.extra_cases_per_layer,
         "layers": selected,
         "case_count": len(records),
         "cases": [{"name": r.name, "layer": r.layer, **r.detail} for r in records],

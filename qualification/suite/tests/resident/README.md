@@ -22,6 +22,12 @@ does not touch it.
 **State survives between laps**: slots accumulate across hundreds of laps, grow
 to a ceiling, are cleared, and occupy memory again.
 
+The two `edge` inline-effect stages keep their ordinary unit-global counter
+under one lock for the entire calculation and its observations. They can run
+simultaneously even with one worker per stage; carrier ownership alone does
+not protect this shared scratch. The counter remains a global, so the oracle
+still checks ordinary global side effects of inlined bodies.
+
 ## Oracles
 
 | oracle | what it detects |

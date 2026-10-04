@@ -78,7 +78,7 @@ an existing divergence unrelated to carrier type.
 The matrix also exposed and documented a separate axis — Variant arithmetic
 (domain overflow and narrowing conversions): DCC divergences and facts are
 pinned by `variant_int_arith_semantic`; the deliberately deferred performance
-remainder for numeric Variant operations is described as PB-007 in the root
+remainder for numeric Variant operations is described in the root
 [`BACKLOG.md`](../../../../../../doc/BACKLOG.md).
 
 Pin: `RTL-test/semantic/variant_int_carrier_semantic.dpr` (green under DCC64 as

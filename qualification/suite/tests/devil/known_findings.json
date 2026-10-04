@@ -6,42 +6,62 @@
       "id": "dvl-0004",
       "kind": "model-mismatch",
       "check": "^dvl-abi-[0-9]+-value-[0-9]+$",
+      "failing_side": "moon",
+      "actual": "^FFFFFFFFFFFFFFFF$",
+      "expected": "^0000000000000001$",
       "note": "comparison with a C-style Boolean is not normalized to 0/1"
     },
     {
       "id": "dvl-0004",
       "kind": "observation-split",
       "note_name": "^dvl-abi-[0-9]+-boolraw-[0-9]+$",
+      "split": "delphi-vs-moon",
+      "moon_value": "^FFFFFFFFFFFFFFFF$",
+      "delphi_value": "^000000000000FFFF$",
       "note": "Ord(WordBool/ByteBool) is extended outside the logical domain of the type"
     },
     {
       "id": "dvl-0006",
       "kind": "model-mismatch",
       "check": "^dvl-cmp-[0-9]+-fold-vs-runtime$",
+      "failing_side": "delphi",
+      "actual": "^0000000000000001$",
+      "expected": "^0000000000000000$",
       "note": "Delphi contradicts itself when folding a mixed signed/unsigned constant comparison"
     },
     {
       "id": "dvl-0008",
       "kind": "model-mismatch",
       "check": "^dvl-rtti-[0-9]+-finds-self$",
+      "failing_side": "delphi",
+      "actual": "^0000000000000000$",
+      "expected": "^0000000000000001$",
       "note": "Delphi GetTypes omits a type without explicit RTTI; MoonCompiler's static catalog is deliberately more complete"
     },
     {
       "id": "dvl-0009",
       "kind": "model-mismatch",
       "check": "^dvl-float-[0-9]+-inf-minus-inf-nan$",
+      "failing_side": "delphi",
+      "actual": "^0000000000000000$",
+      "expected": "^0000000000000001$",
       "note": "Delphi folds Inf-Inf to zero instead of NaN; MoonCompiler preserves the IEEE result"
     },
     {
       "id": "dvl-0008",
       "kind": "observation-split",
       "note_name": "^dvl-rtti-[0-9]+-gettypes$",
+      "split": "delphi-vs-moon",
+      "relation": "moon-unsigned-gt-delphi",
       "note": "GetTypes catalog size: MoonCompiler's static catalog is deliberately more complete than Delphi's"
     },
     {
       "id": "dvl-0010",
       "kind": "model-mismatch",
       "check": "^dvl-flow-[0-9]+-case$",
+      "failing_side": "delphi",
+      "actual": "^000000000000000[135]$",
+      "expected": "^0000000000000009$",
       "note": "Delphi truncates an Int64 case selector to 32 bits; MoonCompiler preserves the full value"
     },
     {
@@ -88,37 +108,55 @@
       "id": "dvl-0016",
       "kind": "observation-split",
       "note_name": "^dvl-chain-[0-9]+-variant-real$",
+      "split": "delphi-vs-moon",
+      "moon_value": "^0000000000000005$",
+      "delphi_value": "^0000000000000006$",
       "note": "a real literal in Variant is stored as Double instead of Currency; registry entry reconstructed after directory loss"
     },
     {
       "id": "dvl-0056",
       "kind": "observation-split",
       "note_name": "^dvl-inl-[0-9]+-total$",
+      "split": "delphi-vs-moon",
+      "moon_value": "^000000000000001E$",
+      "delphi_value": "^0000000000000028$",
       "note": "two inlined side-effecting calls in one expression: DCC hoists both effects, MoonCompiler preserves the sequential non-inlined behavior"
     },
     {
       "id": "dvl-0014",
       "kind": "observation-split",
-      "note_name": "^dvl-uni-[0-9]+-(typename|char-kind|wide-kind)$",
+      "note_name": "^dvl-uni-[0-9]+-typename$",
+      "split": "delphi-vs-moon",
+      "moon_value": "^UnicodeString$",
+      "delphi_value": "^string$",
       "note": "RTTI names and kinds of string types differ from Delphi; registry entry reconstructed after directory loss"
     },
     {
       "id": "dvl-0014",
       "kind": "observation-split",
-      "note_name": "^dvl-lang-[0-9]+-(type|real-type|real-element-type)$",
-      "note": "the same boundary for type names visible through RTTI; registry entry reconstructed after directory loss"
+      "note_name": "^dvl-uni-[0-9]+-wide-kind$",
+      "split": "delphi-vs-moon",
+      "moon_value": "^0000000000000012$",
+      "delphi_value": "^0000000000000011$",
+      "note": "UnicodeString is carried through array of const with a different TVarRec tag"
+    },
+    {
+      "id": "dvl-0014",
+      "kind": "observation-split",
+      "note_name": "^dvl-lang-[0-9]+-real-element-type$",
+      "split": "delphi-vs-moon",
+      "moon_value": "^0000000000000005$",
+      "delphi_value": "^0000000000000006$",
+      "note": "a real literal in a Variant array has the same known carrier difference"
     },
     {
       "id": "dvl-0014",
       "kind": "model-mismatch",
-      "check": "^dvl-lang-[0-9]+-(type|real-type|real-element-type)$",
+      "check": "^dvl-lang-[0-9]+-real-type$",
+      "failing_side": "moon",
+      "actual": "^0000000000000005$",
+      "expected": "^0000000000000006$",
       "note": "a type name visible through RTTI differs from Delphi; registry entry reconstructed after directory loss"
-    },
-    {
-      "id": "dvl-0014",
-      "kind": "model-mismatch",
-      "check": "^dvl-uni-[0-9]+-(typename|char-kind|wide-kind)$",
-      "note": "the same boundary for string types; registry entry reconstructed after directory loss"
     }
   ]
 }

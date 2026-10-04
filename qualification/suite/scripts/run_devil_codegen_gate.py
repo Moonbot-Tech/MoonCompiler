@@ -41,6 +41,31 @@ uses
 
 # name, option, body, must_match, must_not_match
 PROBES = [
+    ("int_to_double_breaks_dependency", "release", """
+function Convert(Value: Int64): Double; noinline;
+begin
+  Result := Value;
+end;
+
+begin
+  WriteLn(Convert(Length(ParamStr(0))):0:0);
+end.""",
+     [r"xorps\s+(%xmm\d+),\s*\1\s*\n\s*cvtsi2sdq\s+[^,\n]+,\s*\1\b"], []),
+
+    ("uint64_to_single_breaks_dependency", "release", """
+function Convert(Value: UInt64): Single; noinline;
+begin
+  Result := Value;
+end;
+
+begin
+  WriteLn(Convert(High(UInt64)-UInt64(Length(ParamStr(0)))):0:0);
+end.""",
+     # One definition must precede both signed conversions of the UInt64 split.
+     [r"xorps\s+(%xmm\d+),\s*\1(?:(?!\.section)[\s\S])*?"
+      r"cvtsi2ssq\s+[^,\n]+,\s*\1\b(?:(?!\.section)[\s\S])*?"
+      r"cvtsi2ssq\s+[^,\n]+,\s*\1\b"], []),
+
     ("inline_is_inlined", "release", """
 function Add3(X: Integer): Integer; inline;
 begin

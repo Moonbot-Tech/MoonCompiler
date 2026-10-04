@@ -33,7 +33,7 @@ unit resident_edge;
 interface
 
 uses
-  SysUtils, resident_core;
+  SysUtils, SyncObjs, resident_core;
 
 implementation
 
@@ -41,6 +41,9 @@ var
   { Состояние, которое меняют вставляемые тела. Живёт в юните, а не в стадии:
     вставка обязана менять именно его, где бы её ни раскрыли. }
   InlineTicks: Integer;
+  { Both inline stages share this ordinary unit global. Keep ownership through
+    the calculation and its final observations. }
+  InlineGate: TCriticalSection;
 
 { Помечено `inline` намеренно: интерес именно в том, что вставленное тело
   несёт побочный эффект, а место вставки — цикл. }
@@ -295,23 +298,28 @@ begin
   State := Carrier.Seed xor UInt64(Carrier.Lap * 13 + 7);
   Steps := 6 + Integer(ResidentNext(State) and 7);
 
-  InlineTicks := 0;
-  Live := 0;
-  for I := 1 to Steps do
-    begin
-      Live := Live + Int64(I) * InlineTicks;
-      TickOnce;
-    end;
+  InlineGate.Enter;
+  try
+    InlineTicks := 0;
+    Live := 0;
+    for I := 1 to Steps do
+      begin
+        Live := Live + Int64(I) * InlineTicks;
+        TickOnce;
+      end;
 
-  Mirror := 0;
-  for I := 1 to Steps do
-    Mirror := Mirror + Int64(I) * (I - 1);
+    Mirror := 0;
+    for I := 1 to Steps do
+      Mirror := Mirror + Int64(I) * (I - 1);
 
-  Carrier.Feed(UInt64(Live));
-  Carrier.Feed(UInt64(Mirror));
-  Carrier.Feed(UInt64(Cardinal(InlineTicks)));
-  Carrier.Claim(Live = Mirror, 'edge: state changed by an inlined body read as invariant');
-  Carrier.Claim(InlineTicks = Steps, 'edge: inlined body ran the wrong number of times');
+    Carrier.Feed(UInt64(Live));
+    Carrier.Feed(UInt64(Mirror));
+    Carrier.Feed(UInt64(Cardinal(InlineTicks)));
+    Carrier.Claim(Live = Mirror, 'edge: state changed by an inlined body read as invariant');
+    Carrier.Claim(InlineTicks = Steps, 'edge: inlined body ran the wrong number of times');
+  finally
+    InlineGate.Leave;
+  end;
 end;
 
 { Две вставки с побочным эффектом в одном выражении. Порядок операндов язык не
@@ -326,18 +334,23 @@ begin
   State := Carrier.Seed xor UInt64(Carrier.Lap * 17 + 9);
   Steps := 4 + Integer(ResidentNext(State) and 3);
 
-  InlineTicks := 0;
-  Total := 0;
-  for I := 1 to Steps do
-    Total := Total + TickAndTake(I) + TickAndTake(I + 1);
+  InlineGate.Enter;
+  try
+    InlineTicks := 0;
+    Total := 0;
+    for I := 1 to Steps do
+      Total := Total + TickAndTake(I) + TickAndTake(I + 1);
 
-  Carrier.Feed(UInt64(Total));
-  Carrier.Feed(UInt64(Cardinal(InlineTicks)));
-  Carrier.Claim(InlineTicks = Steps * 2, 'edge: inlined body ran a different number of times');
+    Carrier.Feed(UInt64(Total));
+    Carrier.Feed(UInt64(Cardinal(InlineTicks)));
+    Carrier.Claim(InlineTicks = Steps * 2, 'edge: inlined body ran a different number of times');
 
-  { Сумма от порядка не зависит: оба слагаемых считаются полностью. }
-  Carrier.Claim(Total = Int64(Steps) * (Steps + 1) + Int64(Steps) * (Steps + 3),
-    'edge: sum of two inlined calls is wrong');
+    { Сумма от порядка не зависит: оба слагаемых считаются полностью. }
+    Carrier.Claim(Total = Int64(Steps) * (Steps + 1) + Int64(Steps) * (Steps + 3),
+      'edge: sum of two inlined calls is wrong');
+  finally
+    InlineGate.Leave;
+  end;
 end;
 
 { Аргументы с побочными эффектами. Порядок их вычисления не обещан, число
@@ -585,6 +598,7 @@ begin
 end;
 
 initialization
+  InlineGate := TCriticalSection.Create;
   ResidentRegisterStage('edge-argument-order', @StageArgumentOrder);
   ResidentRegisterStage('edge-branch-with-effect', @StageBranchWithEffect);
   ResidentRegisterStage('edge-divmod-contract', @StageDivModContract);
@@ -599,5 +613,8 @@ initialization
   ResidentRegisterStage('edge-unsigned-boundary', @StageUnsignedBoundary);
   ResidentRegisterStage('edge-widening-chain', @StageWideningChain);
   ResidentRegisterStage('edge-wrap-multiply', @StageWrapMultiply);
+
+finalization
+  FreeAndNil(InlineGate);
 
 end.
