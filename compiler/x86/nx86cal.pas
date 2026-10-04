@@ -39,6 +39,9 @@ interface
        tx86callnode = class(tcgcallnode)
         protected
          procedure do_release_unused_return_value;override;
+{$ifdef x86_64}
+         procedure extra_post_call_code;override;
+{$endif x86_64}
          procedure set_result_location(realresdef: tstoreddef);override;
          function can_call_ref(var ref: treference):boolean;override;
          function do_call_ref(ref: treference): tcgpara;override;
@@ -48,14 +51,48 @@ interface
 implementation
 
     uses
-      globtype,cgobj,
+      globtype,cgobj,symconst,
       cgbase,cpubase,cgx86,cga,aasmdata,aasmcpu,
-      hlcgobj;
+      hlcgobj,aasmtai,paramgr,ncal;
 
 
 {*****************************************************************************
                              TX86CALLNODE
 *****************************************************************************}
+
+{$ifdef x86_64}
+    procedure tx86callnode.extra_post_call_code;
+      var
+        ins: taicpu;
+        i: longint;
+        loc: pcgparalocation;
+      begin
+        inherited;
+        if (cnf_uses_varargs in callnodeflags) or
+           (procdefinition.procoptions*[po_varargs,po_assembler]<>[]) or
+           not assigned(current_asmdata.CurrAsmList.last) or
+           (tai(current_asmdata.CurrAsmList.last).typ<>ait_instruction) then
+          exit;
+        ins:=taicpu(current_asmdata.CurrAsmList.last);
+        if ins.opcode<>A_CALL then
+          exit;
+        ins.call_int_reads:=[0..first_int_imreg-1]-
+          paramanager.get_volatile_registers_int(procdefinition.proccalloption);
+        for i:=0 to high(paralocs) do
+          begin
+            loc:=paralocs[i]^.location;
+            while assigned(loc) do
+              begin
+                if (loc^.loc in [LOC_REGISTER,LOC_CREGISTER]) and
+                   (getregtype(loc^.register)=R_INTREGISTER) then
+                  include(ins.call_int_reads,getsupreg(loc^.register));
+                loc:=loc^.next;
+              end;
+          end;
+        ins.call_int_reads_known:=true;
+      end;
+{$endif x86_64}
+
 
     procedure tx86callnode.do_release_unused_return_value;
       begin

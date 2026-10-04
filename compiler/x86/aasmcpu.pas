@@ -588,6 +588,12 @@ interface
 
       taicpu = class(tai_cpu_abstract_sym)
          opsize    : topsize;
+{$ifdef x86_64}
+         { Call-node ABI information for post-RA lifetime analysis only.
+           Preserved registers are included; absent volatile registers die. }
+         call_int_reads: tcpuregisterset;
+         call_int_reads_known: boolean;
+{$endif x86_64}
          constructor op_none(op : tasmop);
          constructor op_none(op : tasmop;_size : topsize);
 
