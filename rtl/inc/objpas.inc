@@ -1045,13 +1045,19 @@ end;
         begin
         end;
 
-      function IsGUIDEqual(const guid1, guid2: tguid): boolean;
+      function IsGUIDEqual(constref guid1, guid2: tguid): boolean; inline;
         begin
+{$ifdef CPUX86_64}
+          IsGUIDEqual:=
+            (PQWord(@guid1.D1)^=PQWord(@guid2.D1)^) and
+            (PQWord(@guid1.D4[0])^=PQWord(@guid2.D4[0])^);
+{$else}
           IsGUIDEqual:=
             (guid1.D1=guid2.D1) and
             (PDWORD(@guid1.D2)^=PDWORD(@guid2.D2)^) and
             (PDWORD(@guid1.D4[0])^=PDWORD(@guid2.D4[0])^) and
             (PDWORD(@guid1.D4[4])^=PDWORD(@guid2.D4[4])^);
+{$endif}
         end;
 
       // Use of managed types should be avoided here; implicit _Addref/_Release
@@ -1200,6 +1206,7 @@ end;
       class function TObject.GetInterfaceEntry(const iid : tguid) : pinterfaceentry;
         var
           i: sizeuint;
+          entryiid: pguid;
           intftable: pinterfacetable;
           ovmt: PVmt;
         begin
@@ -1211,7 +1218,8 @@ end;
             result:=@intftable^.Entries[0];
             while i>0 do
             begin
-              if assigned(Result^.iid) and IsGUIDEqual(Result^.iid^,iid) then
+              entryiid:=Result^.iid;
+              if assigned(entryiid) and IsGUIDEqual(entryiid^,iid) then
                 Exit;
               inc(Result);
               dec(i);
