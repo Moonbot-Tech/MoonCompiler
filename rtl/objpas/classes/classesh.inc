@@ -1495,6 +1495,46 @@ type
     property FileName : String Read FFilename;
   end;
 
+{ TBufferedFileStream class }
+
+  { A TFileStream with one buffer window of BufferSize bytes that serves
+    reading and writing alike.  Observably it behaves exactly like
+    TFileStream for the same sequence of Read/Write/Seek/Size calls: Position
+    and Size (unflushed writes included) always equal the plain stream's, and
+    the file after FlushBuffer/Destroy is byte for byte the same.  Small
+    consecutive reads or writes do not each reach the OS.  Delphi contract of
+    System.Classes.TBufferedFileStream, written from the behaviour only. }
+  TBufferedFileStream = class(TFileStream)
+  private
+    FBuffer: PByte;
+    FBufferSize: Integer;
+    { the window holds the file's bytes [FBufStart, FBufStart+FBufValid);
+      [FDirtyLo, FDirtyHi) of it are not yet written to the OS }
+    FBufStart: Int64;
+    FBufValid: Integer;
+    FDirtyLo, FDirtyHi: Integer;
+    FPosition: Int64;
+    FSize: Int64;
+    procedure InitBuffer(ABufferSize: Integer);
+    procedure StartWindow(At: Int64);
+    procedure FillWindow;
+    procedure WriteDirty;
+  protected
+    function GetPosition: Int64; override;
+    procedure SetPosition(const Pos: Int64); override;
+    function GetSize: Int64; override;
+    procedure SetSize(NewSize: Longint); override;
+    procedure SetSize(const NewSize: Int64); override;
+  public
+    constructor Create(const AFileName: string; Mode: Word; BufferSize: Integer = 32768); overload;
+    constructor Create(const AFileName: string; Mode: Word; Rights: Cardinal; BufferSize: Integer = 32768); overload;
+    destructor Destroy; override;
+    procedure FlushBuffer;
+    function Read(var Buffer; Count: Longint): Longint; override;
+    function Write(const Buffer; Count: Longint): Longint; override;
+    function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+  end;
+
 { TCustomMemoryStream abstract class }
 
   TCustomMemoryStream = class(TStream)

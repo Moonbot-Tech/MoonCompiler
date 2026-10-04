@@ -1400,6 +1400,301 @@ begin
 end;
 
 {****************************************************************************}
+{*                          TBufferedFileStream                             *}
+{****************************************************************************}
+
+{ Invariant: the window mirrors the file bytes [FBufStart, FBufStart+FBufValid)
+  as the program sees them (unflushed writes included), contiguous from
+  FBufStart; the OS file holds everything except [FDirtyLo, FDirtyHi) of that
+  range.  Every OS access seeks the handle first, so the handle position is
+  irrelevant in between and FlushBuffer can leave it at Position. }
+
+constructor TBufferedFileStream.Create(const AFileName: string; Mode: Word; BufferSize: Integer);
+begin
+  inherited Create(AFileName,Mode);
+  InitBuffer(BufferSize);
+end;
+
+
+constructor TBufferedFileStream.Create(const AFileName: string; Mode: Word; Rights: Cardinal; BufferSize: Integer);
+begin
+  inherited Create(AFileName,Mode,Rights);
+  InitBuffer(BufferSize);
+end;
+
+
+destructor TBufferedFileStream.Destroy;
+begin
+  { an unflushed write that cannot be written is an error, not silence; the
+    handle and the window are released either way }
+  try
+    if assigned(FBuffer) then
+      WriteDirty;
+  finally
+    if assigned(FBuffer) then
+      FreeMem(FBuffer);
+    inherited Destroy;
+  end;
+end;
+
+
+procedure TBufferedFileStream.InitBuffer(ABufferSize: Integer);
+begin
+  if ABufferSize<1 then
+    raise EStreamError.CreateFmt(SInvalidBufferSize,[ABufferSize]);
+  FBufferSize:=ABufferSize;
+  { the handle is at the start after Create; the size is where the end is }
+  FSize:=FileSeek(Handle,Int64(0),fsFromEnd);
+  if FSize<0 then
+    FSize:=0;
+  FPosition:=0;
+  GetMem(FBuffer,FBufferSize);
+end;
+
+
+{ Make the window empty at file offset At; pending bytes are written first. }
+procedure TBufferedFileStream.StartWindow(At: Int64);
+begin
+  WriteDirty;
+  FBufStart:=At;
+  FBufValid:=0;
+end;
+
+
+{ Append file data behind the valid part of the window, as much as the file
+  has and the window can take.  Pending bytes lie inside the valid part and
+  are not touched. }
+procedure TBufferedFileStream.FillWindow;
+var
+  got: Longint;
+begin
+  if FBufValid>=FBufferSize then
+    exit;
+  if FileSeek(Handle,FBufStart+FBufValid,fsFromBeginning)<0 then
+    exit;
+  got:=FileRead(Handle,FBuffer[FBufValid],FBufferSize-FBufValid);
+  if got>0 then
+    inc(FBufValid,got);
+end;
+
+
+procedure TBufferedFileStream.WriteDirty;
+var
+  written: Longint;
+begin
+  if FDirtyHi<=FDirtyLo then
+    exit;
+  if FileSeek(Handle,FBufStart+FDirtyLo,fsFromBeginning)<0 then
+    raise EWriteError.Create(SWriteError);
+  written:=FileWrite(Handle,FBuffer[FDirtyLo],FDirtyHi-FDirtyLo);
+  if written<>FDirtyHi-FDirtyLo then
+    raise EWriteError.Create(SWriteError);
+  FDirtyLo:=0;
+  FDirtyHi:=0;
+end;
+
+
+procedure TBufferedFileStream.FlushBuffer;
+begin
+  WriteDirty;
+  FileSeek(Handle,FPosition,fsFromBeginning);
+end;
+
+
+function TBufferedFileStream.Read(var Buffer; Count: Longint): Longint;
+var
+  p: PByte;
+  ofs: Int64;
+  chunk: Longint;
+begin
+  Result:=0;
+  if Count<=0 then
+    exit;
+  p:=@Buffer;
+  if Count>=FBufferSize then
+    begin
+      { too large for the window: read from the OS directly; the window keeps
+        its bytes, but must not hold pending ones the file does not have yet }
+      WriteDirty;
+      if FileSeek(Handle,FPosition,fsFromBeginning)>=0 then
+        Result:=FileRead(Handle,Buffer,Count);
+      if Result<0 then
+        Result:=0;
+      inc(FPosition,Result);
+      exit;
+    end;
+  while Result<Count do
+    begin
+      ofs:=FPosition-FBufStart;
+      if (ofs<0) or (ofs>=FBufferSize) then
+        StartWindow(FPosition)
+      else if ofs>=FBufValid then
+        begin
+          { inside the window but behind its data: fetch more of the file }
+          FillWindow;
+          if ofs>=FBufValid then
+            begin
+              { the file ends inside the window }
+              if ofs>0 then
+                exit;
+              StartWindow(FPosition);
+            end;
+        end;
+      if FBufValid=0 then
+        begin
+          FillWindow;
+          if FBufValid=0 then
+            exit;
+        end;
+      ofs:=FPosition-FBufStart;
+      if ofs>=FBufValid then
+        exit;
+      chunk:=Count-Result;
+      if chunk>FBufValid-ofs then
+        chunk:=FBufValid-ofs;
+      Move(FBuffer[ofs],p[Result],chunk);
+      inc(Result,chunk);
+      inc(FPosition,chunk);
+    end;
+end;
+
+
+function TBufferedFileStream.Write(const Buffer; Count: Longint): Longint;
+var
+  p: PByte;
+  ofs: Int64;
+  chunk: Longint;
+begin
+  Result:=0;
+  if Count<=0 then
+    exit;
+  p:=@Buffer;
+  if Count>=FBufferSize then
+    begin
+      { too large for the window: pending bytes first (they may precede this
+        block), then the block itself; the window is stale afterwards }
+      WriteDirty;
+      if FileSeek(Handle,FPosition,fsFromBeginning)>=0 then
+        Result:=FileWrite(Handle,Buffer,Count);
+      if Result<0 then
+        Result:=0;
+      inc(FPosition,Result);
+      if FPosition>FSize then
+        FSize:=FPosition;
+      { an empty window right behind the block: the usual small writes that
+        follow a large one append to it }
+      FBufStart:=FPosition;
+      FBufValid:=0;
+      exit;
+    end;
+  while Result<Count do
+    begin
+      ofs:=FPosition-FBufStart;
+      if (ofs<0) or (ofs>=FBufferSize) then
+        begin
+          StartWindow(FPosition);
+          ofs:=0;
+        end
+      else if ofs>FBufValid then
+        begin
+          { a gap between the window's data and the write: the bytes in
+            between are the file's (or, past its end, zero as the OS will
+            make them), so take them from the file where it has them }
+          FillWindow;
+          if ofs>FBufValid then
+            begin
+              StartWindow(FPosition);
+              ofs:=0;
+            end;
+        end;
+      chunk:=Count-Result;
+      if chunk>FBufferSize-ofs then
+        chunk:=FBufferSize-ofs;
+      Move(p[Result],FBuffer[ofs],chunk);
+      if FDirtyHi<=FDirtyLo then
+        begin
+          FDirtyLo:=ofs;
+          FDirtyHi:=ofs+chunk;
+        end
+      else
+        begin
+          if ofs<FDirtyLo then
+            FDirtyLo:=ofs;
+          if ofs+chunk>FDirtyHi then
+            FDirtyHi:=ofs+chunk;
+        end;
+      if ofs+chunk>FBufValid then
+        FBufValid:=ofs+chunk;
+      inc(Result,chunk);
+      inc(FPosition,chunk);
+      if FPosition>FSize then
+        FSize:=FPosition;
+    end;
+end;
+
+
+function TBufferedFileStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
+var
+  target: Int64;
+begin
+  case Origin of
+    soBeginning: target:=Offset;
+    soCurrent: target:=FPosition+Offset;
+    soEnd: target:=FSize+Offset;
+  else
+    target:=-1;
+  end;
+  { a plain handle stream leaves its position alone and answers -1 }
+  if target<0 then
+    exit(-1);
+  if (Origin=soEnd) or (target<FBufStart) or (target>=FBufStart+FBufferSize) then
+    WriteDirty;
+  FPosition:=target;
+  Result:=FPosition;
+end;
+
+
+function TBufferedFileStream.GetPosition: Int64;
+begin
+  Result:=FPosition;
+end;
+
+
+procedure TBufferedFileStream.SetPosition(const Pos: Int64);
+begin
+  Seek(Pos,soBeginning);
+end;
+
+
+function TBufferedFileStream.GetSize: Int64;
+begin
+  Result:=FSize;
+end;
+
+
+procedure TBufferedFileStream.SetSize(NewSize: Longint);
+begin
+  SetSize(Int64(NewSize));
+end;
+
+
+procedure TBufferedFileStream.SetSize(const NewSize: Int64);
+begin
+  { pending bytes go out first so that a truncation cuts them as it would cut
+    the plain stream's writes; the window then keeps only what still exists }
+  WriteDirty;
+  if not FileTruncate(Handle,NewSize) then
+    raise EInOutError.Create(SStreamSetSize);
+  FSize:=NewSize;
+  if FBufStart>=NewSize then
+    FBufValid:=0
+  else if FBufStart+FBufValid>NewSize then
+    FBufValid:=NewSize-FBufStart;
+  FPosition:=NewSize;
+end;
+
+
+{****************************************************************************}
 {*                             TCustomMemoryStream                          *}
 {****************************************************************************}
 

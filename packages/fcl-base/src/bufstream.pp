@@ -114,6 +114,7 @@ Type
     procedure WriteDirtyPages;
     procedure EmergencyWriteDirtyPages;
     procedure FreePage(const aPage: PStreamCacheEntry; const aFreeBuffer: Boolean); inline;
+    procedure ExtendPageWithZeros(const aPage: PStreamCacheEntry);
     function  LookForPositionInPages: Boolean;
     function  ReadPageForPosition: Boolean;
     function  ReadPageBeforeWrite: Boolean;
@@ -445,6 +446,31 @@ begin
   end;
 end;
 
+{ The bytes of a slot behind the page's data are the file's zeros: the page
+  was filled from the file when it was created, and everything written into
+  the slot since went through this page.  So while the logical size reaches
+  behind the data, the page may grow with zeros up to that size or the slot
+  end, whichever comes first.  Not marked dirty: the OS makes those bytes
+  zero itself when the file grows past them. }
+procedure TBufferedFileStream.ExtendPageWithZeros(const aPage: PStreamCacheEntry);
+var
+  lNewSize: int64;
+begin
+  lNewSize:=FCacheStreamSize-aPage^.PageBegin;
+  if lNewSize>FStreamCachePageSize then
+    lNewSize:=FStreamCachePageSize;
+  if lNewSize>aPage^.PageRealSize then begin
+    FillByte((PBYTE(aPage^.Buffer)+aPage^.PageRealSize)^,lNewSize-aPage^.PageRealSize,0);
+    aPage^.PageRealSize:=lNewSize;
+  end;
+end;
+
+{ Pages are aligned slots of FStreamCachePageSize bytes, so a position belongs
+  to the page whose slot contains it, whether or not the page already holds
+  data that far: matching on PageRealSize instead created a second page for
+  the same slot as soon as a write landed behind the data of the first one
+  (write frame, seek back to patch its header, seek to the frame end, write
+  the next frame), and the two pages then overwrote each other on flush. }
 function TBufferedFileStream.LookForPositionInPages: Boolean;
 var
   j: integer;
@@ -454,7 +480,7 @@ begin
   for j := 0 to Pred(FStreamCachePageMaxCount) do begin
     pCache:=FCachePages[j];
     if Assigned(pCache^.Buffer) then begin
-      if (FCacheStreamPosition>=pCache^.PageBegin) and (FCacheStreamPosition<pCache^.PageBegin+pCache^.PageRealSize) then begin
+      if (FCacheStreamPosition>=pCache^.PageBegin) and (FCacheStreamPosition<pCache^.PageBegin+FStreamCachePageSize) then begin
         FCacheLastUsedPage:=j;
         Result:=true;
         exit;
@@ -492,6 +518,8 @@ begin
     pCache^.LastTick:=GetOpCounter;
     Result:=true;
   end else begin
+    { data written further on but not yet flushed leaves a hole here }
+    ExtendPageWithZeros(pCache);
     if FCacheStreamPosition<lStreamPosition+pCache^.PageRealSize then begin
       pCache^.LastTick:=GetOpCounter;
       Result:=true;
@@ -590,17 +618,23 @@ begin
         end else begin
           move((PBYTE(pCache^.Buffer)+lPositionInPage)^,Buffer,lAvailableInThisPage);
           inc(FCacheStreamPosition,lAvailableInThisPage);
-          if pCache^.PageRealSize=FStreamCachePageSize then begin
-            lNewBuffer:=PBYTE(@Buffer)+lAvailableInThisPage;
-            Result:=lAvailableInThisPage+DoCacheRead(lNewBuffer^,Count-lAvailableInThisPage);
-          end else begin
-            // This cache page is not filled, so it is the last one
-            // in the file, nothing more to read...
-            pCache^.LastTick:=GetOpCounter;
-            Result:=lAvailableInThisPage;
-          end;
+          pCache^.LastTick:=GetOpCounter;
+          // The rest: the next slot, the file's zeros behind this page's
+          // data while the logical size reaches there, or nothing at the end
+          // of the file - the recursive call decides, it returns 0 at the end.
+          lNewBuffer:=PBYTE(@Buffer)+lAvailableInThisPage;
+          Result:=lAvailableInThisPage+DoCacheRead(lNewBuffer^,Count-lAvailableInThisPage);
           exit;
         end;
+      end else if (FCacheStreamPosition>=pCache^.PageBegin) and (FCacheStreamPosition<pCache^.PageBegin+FStreamCachePageSize) then begin
+        // Inside this page's slot but behind its data: the file's zeros up to
+        // the logical size, nothing beyond it.
+        ExtendPageWithZeros(pCache);
+        if FCacheStreamPosition<pCache^.PageBegin+pCache^.PageRealSize then
+          Result:=DoCacheRead(Buffer,Count)
+        else
+          Result:=0;
+        exit;
       end else begin
         // The position is in other cache page or not in cache at all, so look for
         // position in cached pages or allocate a new page.
@@ -645,6 +679,10 @@ begin
         // Position is in range, so write data up to end of page
         lPositionInPage:=(FCacheStreamPosition-pCache^.PageBegin);
         lAvailableInThisPage:=FStreamCachePageSize - lPositionInPage;
+        // Bytes between the page's data and this write are the file's zeros,
+        // not whatever the buffer held before.
+        if lPositionInPage>pCache^.PageRealSize then
+          FillByte((PBYTE(pCache^.Buffer)+pCache^.PageRealSize)^,lPositionInPage-pCache^.PageRealSize,0);
         if lAvailableInThisPage>=Count then begin
           move(Buffer,(PBYTE(pCache^.Buffer)+lPositionInPage)^,Count);
           if not pCache^.IsDirty then pCache^.IsDirty:=true;

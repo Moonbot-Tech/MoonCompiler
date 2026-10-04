@@ -160,6 +160,7 @@ ResourceString
   SInvalidActionRegistration    = 'Invalid action registration';
   SInvalidActionUnregistration  = 'Invalid action unregistration';
   SInvalidBinary                = 'Invalid binary value';
+  SInvalidBufferSize            = 'Invalid buffer size %d';
   SInvalidBitmap                = 'Invalid Bitmap';
   SInvalidClipFmt               = 'Invalid clipboard format';
   SInvalidCurrentItem           = 'Invalid item';
