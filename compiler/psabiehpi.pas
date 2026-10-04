@@ -572,7 +572,7 @@ implementation
             (current_procinfo as tpsabiehprocinfo).CurrentAction.AddAction(tobjectdef(-1));
 
         flowcontrol:=[fc_inflowcontrol,fc_catching_exceptions];
-        if exceptframekind<>tek_except then
+        if not(exceptframekind in [tek_except,tek_normalfinallycopy]) then
           begin
             reg:=hlcg.getintregister(list,ossinttype);
             hlcg.a_load_const_reg(list,ossinttype,1,reg);
@@ -604,7 +604,9 @@ implementation
       var
         reg: TRegister;
       begin
-        if exceptframekind<>tek_except then
+        if (exceptframekind<>tek_except) and
+           ((exceptframekind<>tek_normalfinallycopy) or
+            (flowcontrol*[fc_exit,fc_break,fc_continue]<>[])) then
           begin
             { record that no exception happened in the reason buf, in case we are in a try block of a finally statement }
             reg:=hlcg.getintregister(list,ossinttype);

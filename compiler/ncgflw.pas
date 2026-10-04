@@ -1036,7 +1036,12 @@ implementation
          breakfinallylabel:=nil;
 
          if not implicitframe then
-           exceptframekind:=tek_normalfinally
+           begin
+             if assigned(third) and (tf_use_psabieh in target_info.flags) then
+               exceptframekind:=tek_normalfinallycopy
+             else
+               exceptframekind:=tek_normalfinally;
+           end
          else
            exceptframekind:=tek_implicitfinally;
 
@@ -1091,9 +1096,15 @@ implementation
                exit;
              if not implicitframe then
                current_asmdata.CurrAsmList.concat(tai_marker.create(mark_NoLineInfoStart));
-             reasonreg:=hlcg.getintregister(current_asmdata.CurrAsmList,exceptionreasontype);
-             hlcg.g_exception_reason_load(current_asmdata.CurrAsmList,exceptionreasontype,exceptionreasontype,excepttemps.reasonbuf,reasonreg);
-             handle_breakcontinueexit(finallyNoExceptionLabel,false);
+             if (exceptframekind=tek_normalfinallycopy) and
+                (finallyexceptionstate.newflowcontrol*[fc_exit,fc_break,fc_continue]=[]) then
+               hlcg.a_jmp_always(current_asmdata.CurrAsmList,endfinallylabel)
+             else
+               begin
+                 reasonreg:=hlcg.getintregister(current_asmdata.CurrAsmList,exceptionreasontype);
+                 hlcg.g_exception_reason_load(current_asmdata.CurrAsmList,exceptionreasontype,exceptionreasontype,excepttemps.reasonbuf,reasonreg);
+                 handle_breakcontinueexit(finallyNoExceptionLabel,false);
+               end;
 
              current_asmdata.CurrAsmList.concatList(tmplist);
              tmplist.free;

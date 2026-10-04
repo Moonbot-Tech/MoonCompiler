@@ -394,8 +394,10 @@ procedure tx64tryfinallynode.pass_generate_code;
     { generate finally code as a separate procedure }
     if not implicitframe then
       tcgprocinfo(current_procinfo).generate_exceptfilter(finalizepi);
-    { right is a call to finalizer procedure }
-    secondpass(right);
+    if assigned(third) then
+      secondpass(third)
+    else
+      secondpass(right);
 
     if codegenerror then
       exit;

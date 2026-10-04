@@ -56,7 +56,7 @@ unit cgexcept;
           finallycodelabel  : TAsmLabel;
         end;
 
-        texceptframekind = (tek_except, tek_implicitfinally, tek_normalfinally);
+        texceptframekind = (tek_except, tek_implicitfinally, tek_normalfinally, tek_normalfinallycopy);
 
         class procedure get_exception_temps(list:TAsmList;var t:texceptiontemps); virtual;
         class procedure unget_exception_temps(list:TAsmList;const t:texceptiontemps); virtual;

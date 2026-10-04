@@ -262,9 +262,7 @@ interface
        end;
        ttryexceptnodeclass = class of ttryexceptnode;
 
-       { the third node is to store a copy of the finally code for llvm:
-         it needs one copy to execute in case an exception occurs, and
-         one in case no exception occurs }
+       { The third node holds a separate normal-path copy of the finally code. }
        ttryfinallynode = class(ttertiarynode)
           implicitframe : boolean;
           constructor create(l,r:tnode);virtual;reintroduce;
@@ -3431,7 +3429,64 @@ implementation
       end;
 
 
+    function large_or_complex_finally(var n: tnode; arg: pointer): foreachnoderesult;
+      begin
+        result:=fen_true;
+        case n.nodetype of
+          blockn,
+          statementn,
+          nothingn:
+            begin
+              result:=fen_false;
+              exit;
+            end;
+          loadn,
+          ordconstn,
+          derefn,
+          subscriptn,
+          vecn,
+          typeconvn,
+          addn,
+          subn,
+          muln,
+          orn,
+          xorn,
+          andn,
+          shrn,
+          shln,
+          notn,
+          unaryminusn,
+          unaryplusn:
+            ;
+          assignn:
+            if not(tassignmentnode(n).left.resultdef.typ in [orddef,pointerdef]) then
+              exit;
+          inlinen:
+            if not(tinlinenode(n).inlinenumber in [in_inc_x,in_dec_x]) then
+              exit;
+          callparan:
+            ;
+          else
+            exit;
+        end;
+        { No calls, managed temporaries or copied lifetime hooks.  Keep the
+          duplicated body small; larger cleanup still shares its cold body. }
+        if n.localswitches*[cs_check_overflow,cs_check_range]<>[] then
+          exit;
+        if assigned(n.resultdef) and
+           not(n.resultdef.typ in [orddef,pointerdef,recorddef,arraydef,undefineddef]) and
+           not is_class(n.resultdef) then
+          exit;
+        inc(plongint(arg)^);
+        if plongint(arg)^<=16 then
+          result:=fen_false;
+      end;
+
+
    function ttryfinallynode.simplify(forinline : boolean): tnode;
+     var
+       cost: longint;
+       statements: tstatementnode;
      begin
        result:=nil;
        { if the try contains no code, we can kill
@@ -3448,6 +3503,24 @@ implementation
          begin
            result:=left;
            left:=nil;
+         end;
+       if not assigned(result) and not implicitframe and not assigned(third) and
+          (cs_opt_level2 in current_settings.optimizerswitches) and
+          ((target_info.system in systems_x86_64_seh) or
+           ((target_info.cpu=cpu_x86_64) and (tf_use_psabieh in target_info.flags))) then
+         begin
+           cost:=0;
+           if not foreachnodestatic(right,@large_or_complex_finally,@cost) then
+             third:=right.getcopy;
+         end;
+       if not assigned(result) and forinline and assigned(third) and
+          not implicitframe and try_body_cannot_raise(left) then
+         begin
+           result:=internalstatements(statements);
+           addstatement(statements,left);
+           addstatement(statements,third);
+           left:=nil;
+           third:=nil;
          end;
      end;
 
