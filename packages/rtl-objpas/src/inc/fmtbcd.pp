@@ -883,9 +883,11 @@ IMPLEMENTATION
 {$ENDIF}
 
   type
-    TFMTBcdFactory = CLASS(TPublishableVarianttype)
+    TFMTBcdFactory = CLASS(TPublishableVarianttype, IVarKeyComparer)
     PROTECTED
       function GetInstance(const v : TVarData): tObject; OVERRIDE;
+      function KeyEquals(const Left, Right: TVarData): Boolean;
+      function GetKeyHashCode(const Value: TVarData): SizeUInt;
     PUBLIC
       function LeftPromotion(const V: TVarData; const Operation: TVarOp; out RequiredVarType: TVarType): Boolean; override;
       procedure BinaryOp(var Left: TVarData; const Right: TVarData; const Operation: TVarOp); override;
@@ -1280,122 +1282,108 @@ IMPLEMENTATION
 {$endif}
      end;
 
-{ returns -1 if BCD1 < BCD2, 0 if BCD1 = BCD2, 1 if BCD1 > BCD2 }
-  function BCDCompare ( const BCD1,
-                              BCD2 : tBCD ) : Integer;
+  function BcdValueDigit(const BCD: TBCD; I: Integer): Byte; inline;
+  begin
+    if Odd(I) then
+      Result:=BCD.Fraction[I div 2] and $f
+    else
+      Result:=BCD.Fraction[I div 2] shr 4;
+  end;
 
-    var
-      pl1 :   {$ifopt r+} 0..maxfmtbcdfractionsize - 1 {$else} Integer {$endif};
-      pl2 :   {$ifopt r+} 0..maxfmtbcdfractionsize - 1 {$else} Integer {$endif};
-      pr1 :   {$ifopt r+} 0..maxfmtbcdfractionsize {$else} Integer {$endif};
-      pr2 :   {$ifopt r+} 0..maxfmtbcdfractionsize {$else} Integer {$endif};
-      pr :    {$ifopt r+} 0..maxfmtbcdfractionsize {$else} Integer {$endif};
-      idig1 : {$ifopt r+} 0..maxfmtbcdfractionsize {$else} Integer {$endif};
-      idig2 : {$ifopt r+} 0..maxfmtbcdfractionsize {$else} Integer {$endif};
-      i :     {$ifopt r+} __low_Fraction..__high_Fraction + 1 {$else} Integer {$endif};
-      f1 :    {$ifopt r+} $00..$99 {$else} Integer {$endif};
-      f2 :    {$ifopt r+} $00..$99 {$else} Integer {$endif};
-      res :   {$ifopt r+} -1..1 {$else} Integer {$endif};
-      neg1,
-      neg2 : Boolean;
-
-      // real/reduced precision if there are on left side insignificant zero digits
-      function BCDPrec(const BCD: tBCD): word;
-      var scale: word;
+  procedure BcdValueBounds(const BCD: TBCD; out First,Precision,Scale: Integer); inline;
+  begin
+    First:=0;
+    Precision:=BCD.Precision;
+    Scale:=BCDScale(BCD);
+    while (First<Precision) and (BcdValueDigit(BCD,First)=0) do Inc(First);
+    if First=Precision then
       begin
-        Result := BCD.Precision;
-        scale := BCDScale(BCD);
-        i := Low(BCD.Fraction);
-        while (Result>0) and (Result>scale) do begin
-          // high nibble
-          if BCD.Fraction[i] shr 4 <> 0 then Exit;
-          Dec(Result);
-          if Result <= scale then Exit;
-          // low nibble
-          if BCD.Fraction[i] <> 0 then Exit;
-          Dec(Result);
-          Inc(i);
-        end;
+        First:=0;
+        Precision:=0;
+        Scale:=0;
+        Exit;
       end;
+    while (Scale>0) and (BcdValueDigit(BCD,Precision-1)=0) do
+      begin
+        Dec(Precision);
+        Dec(Scale);
+      end;
+    Dec(Precision,First);
+  end;
 
-    begin
-{$ifndef bigger_BCD}
-      neg1 := ( BCD1.SignSpecialPlaces AND NegBit ) <> 0;
-      neg2 := ( BCD2.SignSpecialPlaces AND NegBit ) <> 0;
-{$else}
-      neg1 := BCD1.Negativ;
-      neg2 := BCD2.Negativ;
-{$endif}
-      _SELECT
-        _WHEN neg1 AND ( NOT neg2 )
-          _THEN result := -1;
-        _WHEN ( NOT neg1 ) AND neg2
-          _THEN result := +1;
-        _WHENOTHER
-          pr1 := BCDPrec(BCD1);
-          pr2 := BCDPrec(BCD2);
-{$ifndef bigger_BCD}
-          pl1 := BCD1.SignSpecialPlaces AND PlacesMask;
-          pl2 := BCD2.SignSpecialPlaces AND PlacesMask;
-{$else}
-          pl1 := BCD1.Places;
-          pl2 := BCD2.Places;
-{$endif}
-          idig1 := pr1 - pl1;
-          idig2 := pr2 - pl2;
-          if idig1 <> idig2
-            then begin
-              if ( idig1 > idig2 ) = neg1
-                then result := -1
-                else result := +1;
-             end
-            else begin
-              if pr1 < pr2
-                then pr := pr1
-                else pr := pr2;
-
-              res := 0;
-              i := __low_Fraction;
-              while ( res = 0 ) AND ( i < ( __low_Fraction + ( pr DIV 2 ) ) ) do
-                begin
-                  _SELECT
-                    _WHEN BCD1.Fraction[i] < BCD2.Fraction[i]
-                      _THEN res := -1
-                    _WHEN BCD1.Fraction[i] > BCD2.Fraction[i]
-                      _THEN res := +1;
-                    _WHENOTHER
-                   _endSELECT;
-                  Inc ( i );
-                 end;
-
-              if res = 0
-                then begin
-                  if Odd ( pr )
-                    then begin
-                      f1 := BCD1.Fraction[i] AND $f0;
-                      f2 := BCD2.Fraction[i] AND $f0;
-                      _SELECT
-                        _WHEN f1 < f2
-                          _THEN res := -1
-                        _WHEN f1 > f2
-                          _THEN res := +1;
-                      _endSELECT;
-                     end;
-
-                  if res = 0 then
-                    if pr1 > pr2 then
-                      res := +1
-                    else if pr1 < pr2 then
-                      res := -1;
-                 end;
-
-              if neg1
-                then result := 0 - res
-                else result := res;
-             end;
-       _endSELECT
-     end;
-
+  function BCDCompare(const BCD1,BCD2: TBCD): Integer;
+  var
+    First1,First2,Precision1,Precision2,Scale1,Scale2,Precision,I: Integer;
+    Digit1,Digit2: Byte;
+    Negative1,Negative2: Boolean;
+  begin
+    { Equal-width carriers need no normalization: the packed digit prefix
+      already orders their values, including any leading or fractional zero. }
+    if (BCD1.Precision=BCD2.Precision) and (BCD1.SignSpecialPlaces=BCD2.SignSpecialPlaces) then
+      begin
+        Precision:=BCD1.Precision;
+        Result:=CompareByte(BCD1.Fraction,BCD2.Fraction,Precision div 2);
+        if Result=0 then
+          if Odd(Precision) then
+            Result:=Integer(BCD1.Fraction[Precision div 2] and $f0)-Integer(BCD2.Fraction[Precision div 2] and $f0);
+        if Result<0 then Result:=-1 else if Result>0 then Result:=1;
+        if IsBCDNegative(BCD1) then Result:=-Result;
+        Exit;
+      end;
+    BcdValueBounds(BCD1,First1,Precision1,Scale1);
+    BcdValueBounds(BCD2,First2,Precision2,Scale2);
+    Negative1:=(Precision1<>0) and IsBCDNegative(BCD1);
+    Negative2:=(Precision2<>0) and IsBCDNegative(BCD2);
+    if Negative1<>Negative2 then
+      begin
+        if Negative1 then Exit(-1) else Exit(1);
+      end;
+    if Precision1=0 then
+      begin
+        if Precision2=0 then Exit(0) else Exit(-1);
+      end;
+    if Precision2=0 then Exit(1);
+    if Precision1-Scale1<>Precision2-Scale2 then
+      begin
+        if Precision1-Scale1<Precision2-Scale2 then Result:=-1 else Result:=1;
+      end
+    else
+      begin
+        if Precision1<Precision2 then Precision:=Precision1 else Precision:=Precision2;
+        Result:=0;
+        if not Odd(First1 or First2) then
+          begin
+            I:=0;
+            while (I<Precision div 2) and (Result=0) do
+              begin
+                Digit1:=BCD1.Fraction[First1 div 2+I];
+                Digit2:=BCD2.Fraction[First2 div 2+I];
+                if Digit1<Digit2 then Result:=-1 else if Digit1>Digit2 then Result:=1;
+                Inc(I);
+              end;
+            if (Result=0) and Odd(Precision) then
+              begin
+                Digit1:=BCD1.Fraction[First1 div 2+I] and $f0;
+                Digit2:=BCD2.Fraction[First2 div 2+I] and $f0;
+                if Digit1<Digit2 then Result:=-1 else if Digit1>Digit2 then Result:=1;
+              end;
+          end
+        else
+          begin
+            I:=0;
+            while (I<Precision) and (Result=0) do
+              begin
+                Digit1:=BcdValueDigit(BCD1,First1+I);
+                Digit2:=BcdValueDigit(BCD2,First2+I);
+                if Digit1<Digit2 then Result:=-1 else if Digit1>Digit2 then Result:=1;
+                Inc(I);
+              end;
+          end;
+        if Result=0 then
+          if Precision1<Precision2 then Result:=-1 else if Precision1>Precision2 then Result:=1;
+      end;
+    if Negative1 then Result:=-Result;
+  end;
 { Convert string/Double/Integer to BCD struct }
 
   function TryStrToBCD ( const aValue : FmtBCDStringtype;
@@ -4436,6 +4424,44 @@ constructor TFMTBcdVarData.create(const BCD : tBCD);
     inherited create;
     FBcd:=BCD;
   end;
+
+function BcdKeyInstance(const Value: TVarData): TFMTBcdVarData; inline;
+begin
+  if (Value.VType and varByRef)<>0 then
+    Result:=TFMTBcdVarData(PPointer(Value.VPointer)^)
+  else
+    Result:=TFMTBcdVarData(Value.VPointer);
+end;
+
+function TFMTBcdFactory.KeyEquals(const Left, Right: TVarData): Boolean;
+begin
+  Result:=BCDCompare(BcdKeyInstance(Left).FBcd,BcdKeyInstance(Right).FBcd)=0;
+end;
+
+{$push}{$Q-}{$R-}
+function TFMTBcdFactory.GetKeyHashCode(const Value: TVarData): SizeUInt;
+var
+  Hash: LongWord;
+  BCD: PBcd;
+  First,Precision,Scale,I: Integer;
+begin
+  BCD:=@BcdKeyInstance(Value).FBcd;
+  BcdValueBounds(BCD^,First,Precision,Scale);
+  Hash:=(LongWord(2166136261) xor LongWord(Precision))*16777619;
+  Hash:=(Hash xor LongWord(Scale))*16777619;
+  Hash:=(Hash xor LongWord(Ord((Precision<>0) and IsBCDNegative(BCD^))))*16777619;
+  if Odd(First) then
+    for I:=0 to Precision div 2-1 do
+      Hash:=(Hash xor LongWord((BcdValueDigit(BCD^,First+I*2) shl 4) or
+        BcdValueDigit(BCD^,First+I*2+1)))*16777619
+  else
+    for I:=0 to Precision div 2-1 do
+      Hash:=(Hash xor BCD^.Fraction[First div 2+I])*16777619;
+  if Odd(Precision) then
+    Hash:=(Hash xor (LongWord(BcdValueDigit(BCD^,First+Precision-1)) shl 4))*16777619;
+  Result:=Hash;
+end;
+{$pop}
 
 function TFMTBcdFactory.GetInstance(const v : TVarData): tObject;
   begin

@@ -252,6 +252,16 @@ type
     function GetInstance(const V: TVarData): TObject;
   end;
 
+  { Optional dictionary-key contract for custom values.  Equality is an
+    equivalence relation and equal values must have the same stable hash.
+    Arguments belong to this handler, with outer varVariant wrappers removed;
+    the handler must interpret varByRef as in its ordinary Copy operation. }
+  IVarKeyComparer = interface
+    ['{4865577C-F68E-4EB2-BAAB-95F56F4CDF98}']
+    function KeyEquals(const Left, Right: TVarData): Boolean;
+    function GetKeyHashCode(const Value: TVarData): SizeUInt;
+  end;
+
   TPublishableVariantType = class(TInvokeableVariantType, IVarInstanceReference)
   protected
     { IVarInstanceReference }

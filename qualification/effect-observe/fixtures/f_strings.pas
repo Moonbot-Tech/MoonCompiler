@@ -27,8 +27,11 @@ end;
 // at the observe point the string stores are already lowered to compilerproc
 // calls (fpc_ansistr_assign / fpc_ansistr_unique taking S by var): the
 // ansistring descriptor symbol escapes (addr_taken) and the element store is
-// managed-opaque with the COW reason
-// EXPECT: proc=StrElemWrite r=EHGTP w=EHGTP ie=smt reason=string_cow
+// managed-opaque with the COW reason. The descriptor (E) and payload (H)
+// must be invalidated, alongside the opaque helper's other wide classes.
+// Inlining can conservatively add unbounded locals; that fallback is not a
+// required precision limit of the model.
+// EXPECT: proc=StrElemWrite r=EHGTP w_contains=EHGTP ie=smt reason=string_cow
 procedure StrElemWrite;
 var
   S: AnsiString;
@@ -37,10 +40,9 @@ begin
   S[1] := 'x';
 end;
 
-// the unicodestring uniquify helper has a typed var formal (proven
-// non-capturing): S keeps its exact identity and the descriptor write is an
-// exact local write - the COW hole closed with symbol precision
-// EXPECT: proc=UniElemWrite r=LEHGTP w=LEHGTP ie=smt reason=string_cow
+// both uniquify helpers take var Pointer: the descriptor address escapes,
+// and Unicode has the same descriptor/payload invalidation contract as Ansi
+// EXPECT: proc=UniElemWrite r=EHGTP w_contains=EHGTP ie=smt reason=string_cow
 procedure UniElemWrite;
 var
   S: UnicodeString;

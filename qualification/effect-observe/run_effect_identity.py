@@ -243,8 +243,9 @@ def check_ppu_replay_observe(compiler: Path, rtl: Path, tmp: Path,
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--compiler", type=Path, default=default_compiler())
-    ap.add_argument("--rtl", type=Path, default=default_rtl())
+    ap.add_argument("--rtl", type=Path)
     args = ap.parse_args()
+    args.rtl = args.rtl or default_rtl()
 
     if not args.compiler.exists():
         raise SystemExit(f"compiler not found: {args.compiler}")

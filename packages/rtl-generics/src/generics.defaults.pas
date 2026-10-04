@@ -1130,6 +1130,377 @@ Type
 
 implementation
 
+type
+  TVariantNumericKind = (vnkZero, vnkFiniteBinary, vnkPositiveInfinity,
+    vnkNegativeInfinity, vnkNan, vnkCurrencyDecimal);
+
+  TVariantNumericKey = packed record
+    Kind: TVariantNumericKind;
+    Negative: Byte;
+    Exponent: SmallInt;
+    Mantissa: QWord;
+    CurrencyMantissa: Int64;
+  end;
+
+procedure NormalizeVariantBinaryKey(var Key: TVariantNumericKey);
+var
+  Shift: Cardinal;
+begin
+  if Key.Mantissa=0 then
+    begin
+      Key.Kind:=vnkZero;
+      Key.Negative:=0;
+      Key.Exponent:=0;
+      Exit;
+    end;
+  Shift:=BsfQWord(Key.Mantissa);
+  Key.Mantissa:=Key.Mantissa shr Shift;
+  Inc(Key.Exponent,Shift);
+end;
+
+procedure SetVariantSignedIntegerKey(Value: Int64; var Key: TVariantNumericKey);
+begin
+  Key.Kind:=vnkFiniteBinary;
+  if Value<0 then
+    begin
+      Key.Negative:=1;
+      Key.Mantissa:=QWord(-(Value+1))+1;
+    end
+  else
+    Key.Mantissa:=QWord(Value);
+  NormalizeVariantBinaryKey(Key);
+end;
+
+procedure SetVariantUnsignedIntegerKey(Value: QWord; var Key: TVariantNumericKey);
+begin
+  Key.Kind:=vnkFiniteBinary;
+  Key.Mantissa:=Value;
+  NormalizeVariantBinaryKey(Key);
+end;
+
+procedure SetVariantSingleKey(Value: Single; var Key: TVariantNumericKey);
+var
+  Bits,RawExponent: DWord;
+begin
+  Move(Value,Bits,SizeOf(Bits));
+  Key.Negative:=Byte(Bits shr 31);
+  RawExponent:=(Bits shr 23) and $ff;
+  Key.Mantissa:=Bits and $007fffff;
+  if RawExponent=$ff then
+    begin
+      if Key.Mantissa<>0 then
+        Key.Kind:=vnkNan
+      else if Key.Negative=0 then
+        Key.Kind:=vnkPositiveInfinity
+      else
+        Key.Kind:=vnkNegativeInfinity;
+      Key.Negative:=0;
+      Key.Mantissa:=0;
+      Exit;
+    end;
+  Key.Kind:=vnkFiniteBinary;
+  if RawExponent=0 then
+    Key.Exponent:=-149
+  else
+    begin
+      Key.Mantissa:=Key.Mantissa or (QWord(1) shl 23);
+      Key.Exponent:=SmallInt(RawExponent)-150;
+    end;
+  NormalizeVariantBinaryKey(Key);
+end;
+
+procedure SetVariantDoubleKey(Value: Double; var Key: TVariantNumericKey);
+var
+  Bits: QWord;
+  RawExponent: DWord;
+begin
+  Move(Value,Bits,SizeOf(Bits));
+  Key.Negative:=Byte(Bits shr 63);
+  RawExponent:=(Bits shr 52) and $7ff;
+  Key.Mantissa:=Bits and QWord($000fffffffffffff);
+  if RawExponent=$7ff then
+    begin
+      if Key.Mantissa<>0 then
+        Key.Kind:=vnkNan
+      else if Key.Negative=0 then
+        Key.Kind:=vnkPositiveInfinity
+      else
+        Key.Kind:=vnkNegativeInfinity;
+      Key.Negative:=0;
+      Key.Mantissa:=0;
+      Exit;
+    end;
+  Key.Kind:=vnkFiniteBinary;
+  if RawExponent=0 then
+    Key.Exponent:=-1074
+  else
+    begin
+      Key.Mantissa:=Key.Mantissa or (QWord(1) shl 52);
+      Key.Exponent:=SmallInt(RawExponent)-1075;
+    end;
+  NormalizeVariantBinaryKey(Key);
+end;
+
+function IsVariantStringType(AType: TVarType): Boolean; inline;
+begin
+  case AType of
+    varOleStr,
+    varUString,
+    varString:
+      Result:=True;
+    else
+      Result:=False;
+  end;
+end;
+
+function CanonicalVariantTextEquals(const Left,Right: Variant): Boolean; noinline;
+var
+  LeftText,RightText: UnicodeString;
+begin
+  LeftText:=Left;
+  RightText:=Right;
+  Result:=LeftText=RightText;
+end;
+
+function TryVariantNumericKey(const Value: Variant;
+  out Key: TVariantNumericKey): Boolean;
+var
+  RawType,BaseType: TVarType;
+  Direct: Boolean;
+  CurrencyValue: Currency;
+  CurrencyBits: Int64;
+begin
+  FillChar(Key,SizeOf(Key),0);
+  RawType:=TVarData(Value).vType;
+  Direct:=(RawType and varByRef)=0;
+  if Direct then
+    BaseType:=RawType
+  else
+    BaseType:=VarTypeDeRef(Value);
+  Result:=True;
+  case BaseType of
+    varSmallInt:
+      if Direct then
+        SetVariantSignedIntegerKey(TVarData(Value).vSmallInt,Key)
+      else
+        SetVariantSignedIntegerKey(Int64(Value),Key);
+    varInteger:
+      if Direct then
+        SetVariantSignedIntegerKey(TVarData(Value).vInteger,Key)
+      else
+        SetVariantSignedIntegerKey(Int64(Value),Key);
+    varShortInt:
+      if Direct then
+        SetVariantSignedIntegerKey(TVarData(Value).vShortInt,Key)
+      else
+        SetVariantSignedIntegerKey(Int64(Value),Key);
+    varInt64:
+      if Direct then
+        SetVariantSignedIntegerKey(TVarData(Value).vInt64,Key)
+      else
+        SetVariantSignedIntegerKey(Int64(Value),Key);
+    varByte:
+      if Direct then
+        SetVariantUnsignedIntegerKey(TVarData(Value).vByte,Key)
+      else
+        SetVariantUnsignedIntegerKey(QWord(Value),Key);
+    varWord:
+      if Direct then
+        SetVariantUnsignedIntegerKey(TVarData(Value).vWord,Key)
+      else
+        SetVariantUnsignedIntegerKey(QWord(Value),Key);
+    varLongWord:
+      if Direct then
+        SetVariantUnsignedIntegerKey(TVarData(Value).vLongWord,Key)
+      else
+        SetVariantUnsignedIntegerKey(QWord(Value),Key);
+    varQWord:
+      if Direct then
+        SetVariantUnsignedIntegerKey(TVarData(Value).vQWord,Key)
+      else
+        SetVariantUnsignedIntegerKey(QWord(Value),Key);
+    varSingle:
+      if Direct then
+        SetVariantSingleKey(TVarData(Value).vSingle,Key)
+      else
+        SetVariantSingleKey(Single(Value),Key);
+    varDouble:
+      if Direct then
+        SetVariantDoubleKey(TVarData(Value).vDouble,Key)
+      else
+        SetVariantDoubleKey(Double(Value),Key);
+    varCurrency:
+      begin
+        if Direct then
+          CurrencyValue:=TVarData(Value).vCurrency
+        else
+          CurrencyValue:=Value;
+        Move(CurrencyValue,CurrencyBits,SizeOf(CurrencyBits));
+        if CurrencyBits mod 625=0 then
+          begin
+            SetVariantSignedIntegerKey(CurrencyBits div 625,Key);
+            Dec(Key.Exponent,4);
+            NormalizeVariantBinaryKey(Key);
+          end
+        else
+          begin
+            Key.Kind:=vnkCurrencyDecimal;
+            Key.CurrencyMantissa:=CurrencyBits;
+          end;
+      end;
+    else
+      Result:=False;
+  end;
+end;
+
+function VariantKeyData(const Value: Variant): PVarData; inline;
+begin
+  Result:=@TVarData(Value);
+  while (Result^.vType and not varByRef)=varVariant do
+    Result:=PVarData(Result^.vPointer);
+end;
+
+function CustomVariantKeyEquals(const Left,Right: Variant; BaseType: TVarType): Boolean;
+var
+  Handler: TCustomVariantType;
+  Comparer: IVarKeyComparer;
+begin
+  if FindCustomVariantType(BaseType,Handler) and Supports(Handler,IVarKeyComparer,Comparer) then
+    Result:=Comparer.KeyEquals(VariantKeyData(Left)^,VariantKeyData(Right)^)
+  else
+    Result:=False;
+end;
+
+function TryCustomVariantKeyHash(const Value: Variant; BaseType: TVarType; out Hash: QWord): Boolean;
+var
+  Handler: TCustomVariantType;
+  Comparer: IVarKeyComparer;
+begin
+  Result:=FindCustomVariantType(BaseType,Handler) and Supports(Handler,IVarKeyComparer,Comparer);
+  if Result then
+    Hash:=Comparer.GetKeyHashCode(VariantKeyData(Value)^);
+end;
+
+function VariantKeyEquals(const Left,Right: Variant): Boolean;
+var
+  LeftType,RightType: TVarType;
+  LeftKey,RightKey: TVariantNumericKey;
+begin
+  { The common UTF-16 carriers already are in the canonical text domain and
+    need no Variant conversion.  AnsiString cannot use this shortcut: distinct
+    byte sequences may decode to the same Unicode key. }
+  if TVarData(Left).vType=TVarData(Right).vType then
+    case TVarData(Left).vType of
+      varUString:
+        Exit(UnicodeString(TVarData(Left).vUString)=
+          UnicodeString(TVarData(Right).vUString));
+      varOleStr:
+        Exit(WideString(Pointer(TVarData(Left).vOleStr))=
+          WideString(Pointer(TVarData(Right).vOleStr)));
+    end;
+  LeftType:=VarTypeDeRef(Left);
+  RightType:=VarTypeDeRef(Right);
+  if IsVariantStringType(LeftType) or IsVariantStringType(RightType) then
+    begin
+      if not (IsVariantStringType(LeftType) and
+              IsVariantStringType(RightType)) then
+        Exit(False);
+      { Dictionary equality must be an equivalence relation.  Variant string
+        comparison is not: two byte sequences in one code page may decode to
+        the same Unicode text while remaining unequal as AnsiStrings.  Hashing
+        already uses Unicode text, so equality must use the same domain. }
+      Exit(CanonicalVariantTextEquals(Left,Right));
+    end;
+  if (LeftType=varBoolean) or (RightType=varBoolean) then
+    begin
+      if (LeftType<>varBoolean) or (RightType<>varBoolean) then
+        Exit(False);
+      Exit(Boolean(Left)=Boolean(Right));
+    end;
+  if TryVariantNumericKey(Left,LeftKey) then
+    begin
+      if not TryVariantNumericKey(Right,RightKey) then
+        Exit(False);
+      Exit(CompareMem(@LeftKey,@RightKey,SizeOf(LeftKey)));
+    end;
+  if TryVariantNumericKey(Right,RightKey) then
+    Exit(False);
+  if LeftType<>RightType then
+    Exit(False);
+  if LeftType>=CMinVarType then
+    begin
+      if CompareMem(@Left,@Right,SizeOf(Variant)) then
+        Exit(True);
+      Exit(CustomVariantKeyEquals(Left,Right,LeftType));
+    end;
+  case LeftType of
+    varEmpty,
+    varNull:
+      Result:=True;
+    varDate:
+      begin
+        SetVariantDoubleKey(Double(Left),LeftKey);
+        SetVariantDoubleKey(Double(Right),RightKey);
+        Result:=CompareMem(@LeftKey,@RightKey,SizeOf(LeftKey));
+      end;
+    else
+      Result:=CompareMem(@Left,@Right,SizeOf(Variant));
+  end;
+end;
+
+procedure VariantKeyHashPayload(const Value: Variant;
+  out NumericKey: TVariantNumericKey; out Scalar: QWord;
+  out Text: UnicodeString; out Data: Pointer; out DataSize: SizeInt);
+var
+  BaseType: TVarType;
+begin
+  Scalar:=0;
+  Text:='';
+  BaseType:=VarTypeDeRef(Value);
+  if IsVariantStringType(BaseType) then
+    begin
+      Text:=Value;
+      if Text<>'' then
+        Data:=@Text[1]
+      else
+        Data:=nil;
+      DataSize:=Length(Text)*SizeOf(UnicodeChar);
+    end
+  else if BaseType=varBoolean then
+    begin
+      Scalar:=Ord(Boolean(Value));
+      Data:=@Scalar;
+      DataSize:=1;
+    end
+  else if TryVariantNumericKey(Value,NumericKey) then
+    begin
+      Data:=@NumericKey;
+      DataSize:=SizeOf(NumericKey);
+    end
+  else if BaseType=varDate then
+    begin
+      SetVariantDoubleKey(Double(Value),NumericKey);
+      Data:=@NumericKey;
+      DataSize:=SizeOf(NumericKey);
+    end
+  else if BaseType in [varEmpty,varNull] then
+    begin
+      Data:=nil;
+      DataSize:=0;
+    end
+  else
+    begin
+      if (BaseType>=CMinVarType) and TryCustomVariantKeyHash(Value,BaseType,Scalar) then
+        begin
+          Data:=@Scalar;
+          DataSize:=SizeOf(Scalar);
+          Exit;
+        end;
+      Data:=@Value;
+      DataSize:=SizeOf(Variant);
+    end;
+end;
+
 { TComparer<T> }
 
 class function TComparer<T>.Default: IComparer<T>;
@@ -1782,7 +2153,7 @@ end;
 
 class function TEquals.Variant(const ALeft, ARight: PVariant): Boolean;
 begin
-  Result := VarCompareValue(ALeft^, ARight^) = vrEqual;
+  Result := VariantKeyEquals(ALeft^, ARight^);
 end;
 
 {-----------------------------------------------------------------------------------------------------------------------
@@ -1985,12 +2356,17 @@ end;
 {----------------------------------------------------------------------------------------------------------------------}
 
 class function THashFactory.Variant(const AValue: PVariant): UInt32;
+var
+  Factory: THashFactoryClass;
+  NumericKey: TVariantNumericKey;
+  Scalar: QWord;
+  Data: Pointer;
+  ValueText: UnicodeString;
+  DataSize: SizeInt;
 begin
-  try
-    Result := HASH_FACTORY.UnicodeString(AValue^);
-  except
-    Result := HASH_FACTORY.GetHashCode(AValue, SizeOf(System.Variant), 0);
-  end;
+  Factory := HASH_FACTORY;
+  VariantKeyHashPayload(AValue^,NumericKey,Scalar,ValueText,Data,DataSize);
+  Result := Factory.GetHashCode(Data,DataSize,0);
 end;
 
 {-----------------------------------------------------------------------------------------------------------------------
@@ -2202,12 +2578,17 @@ end;
 {----------------------------------------------------------------------------------------------------------------------}
 
 class procedure TExtendedHashFactory.Variant(const AValue: PVariant; AHashList: PUInt32);
+var
+  Factory: TExtendedHashFactoryClass;
+  NumericKey: TVariantNumericKey;
+  Scalar: QWord;
+  Data: Pointer;
+  ValueText: UnicodeString;
+  DataSize: SizeInt;
 begin
-  try
-    EXTENDED_HASH_FACTORY.UnicodeString(AValue^, AHashList);
-  except
-    EXTENDED_HASH_FACTORY.GetHashList(AValue, SizeOf(System.Variant), AHashList, []);
-  end;
+  Factory := EXTENDED_HASH_FACTORY;
+  VariantKeyHashPayload(AValue^,NumericKey,Scalar,ValueText,Data,DataSize);
+  Factory.GetHashList(Data,DataSize,AHashList,[]);
 end;
 
 {-----------------------------------------------------------------------------------------------------------------------

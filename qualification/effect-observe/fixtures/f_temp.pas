@@ -1,8 +1,8 @@
 unit f_temp;
 
-{ Compiler temporaries (Pascal-check hole 2): v1 has no identity carrier for
-  temps, so a temp-carrying tree must be flagged (temps=1) and a write
-  through a temp base is wide. }
+{ Class-with materialization uses an exact lexical local. The referenced
+  object field and the opaque producer still have wide effects. Actual
+  temprefn coverage lives in f_temp_record. }
 
 interface
 
@@ -26,9 +26,10 @@ begin
   Result := GO;
 end;
 
-// with on a call result stores the reference in a compiler temp: the
-// field write goes through the temp base
-// EXPECT: proc=WithTemp temps=1 reason=compiler_temp reason=opaque_call
+// the frontend creates a lexical $with_value local for the call result,
+// preserving its identity without disguising the object field as local
+// EXPECT: proc=WithTemp r=LEHGTP w=LEHGTP ie=st temps=0 reason=opaque_call
+// EXPECT-NOT: proc=WithTemp reason=compiler_temp
 procedure WithTemp;
 begin
   with GetObj do

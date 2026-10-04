@@ -13,7 +13,9 @@ EXPECT grammar (fixture line comments):
     // EXPECT-NOT: proc=Name reason=id      the reason must be absent
 
 Exact-match keys: r, w, ie, temps, nodes, reasons.  The key reason=id asserts
-presence (count > 0) of one reason.  Unlisted fields are unchecked.
+presence (count > 0) of one reason.  w_contains asserts required
+storage classes without freezing a conservative superset. Unlisted fields
+are unchecked.
 
 Every fixture runs under -O2 and -O- with the same expectations, plus one
 run without the flag that must emit no observe lines, plus a repeated -O2
@@ -159,11 +161,16 @@ def check_fixture(fixture: Path, summaries: dict, mode: str, failures: list):
         for key, want in fields.items():
             if key == "proc":
                 continue
+            if key == "w_contains":
+                got = summ.get("w", "")
+                if not set(want) <= set(got):
+                    failures.append(f"{tag}: w={got} must contain {want}")
+                continue
             got = summ.get(key)
             if got != want:
                 failures.append(f"{tag}: {key}={got} expected {want}")
         for reason in reasons:
-            if reason not in summ["reason_map"]:
+            if summ["reason_map"].get(reason, 0) <= 0:
                 failures.append(
                     f"{tag}: reason {reason} absent (reasons={summ['reasons']})")
 
@@ -171,9 +178,10 @@ def check_fixture(fixture: Path, summaries: dict, mode: str, failures: list):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--compiler", type=Path, default=default_compiler())
-    ap.add_argument("--rtl", type=Path, default=default_rtl())
+    ap.add_argument("--rtl", type=Path)
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
+    args.rtl = args.rtl or default_rtl()
 
     if not args.compiler.exists():
         raise SystemExit(f"compiler not found: {args.compiler}")
@@ -212,7 +220,9 @@ def main() -> int:
             outdir.mkdir(parents=True, exist_ok=True)
             code, out = compile_fixture(
                 args.compiler, args.rtl, fixture, outdir, "-O2", True)
-            if code == 0 and "-O2" in per_mode_observe:
+            if code != 0:
+                failures.append(f"{fixture.name} [repeat]: compile failed\n{out[-2000:]}")
+            elif "-O2" in per_mode_observe:
                 if observe_lines(out) != per_mode_observe["-O2"]:
                     failures.append(f"{fixture.name}: observe output not deterministic")
 
