@@ -4527,32 +4527,114 @@ procedure TFMTBcdFactory.Clear(var V: TVarData);
   end;
 
 procedure TFMTBcdFactory.Copy(var Dest: TVarData; const Source: TVarData; const Indirect: Boolean);
+  var SourceData: TFMTBcdVarData;
   begin
     if Indirect then
-      Dest.VPointer:=Source.VPointer
+      SourceData:=TFMTBcdVarData(PPointer(Source.VPointer)^)
     else
-      Dest.VPointer:=TFMTBcdVarData.Create(TFMTBcdVarData(Source.VPointer).BCD);
+      SourceData:=TFMTBcdVarData(Source.VPointer);
+    Dest.VPointer:=TFMTBcdVarData.Create(SourceData.BCD);
     Dest.VType:=VarType;
   end;
 
 procedure TFMTBcdFactory.Cast(var Dest: TVarData; const Source: TVarData);
+var
+  LSource, LTemp: TVarData;
+  BCD: TBCD;
 begin
-  not_implemented;
+  VarDataInit(LSource);
+  try
+    VarDataCopyNoInd(LSource, Source);
+    VarDataClear(Dest);
+    if VarDataIsStr(LSource) or ((LSource.VType and varTypeMask) = varUString) then
+      BCD := StrToBCD(VarDataToStr(LSource))
+    else
+    begin
+      VarDataInit(LTemp);
+      try
+        VarDataCastTo(LTemp, LSource, varDouble);
+        BCD := DoubleToBCD(LTemp.VDouble);
+      finally
+        VarDataClear(LTemp);
+      end;
+    end;
+    Dest.VPointer := TFMTBcdVarData.Create(BCD);
+    Dest.VType := VarType;
+  finally
+    VarDataClear(LSource);
+  end;
 end;
 
 procedure TFMTBcdFactory.CastTo(var Dest: TVarData; const Source: TVarData; const aVarType: TVarType);
-var v: TVarData;
+var
+  BCD: TBCD;
+  IntegerValue: Int64;
+  TextValue: FmtBCDStringtype;
+  v: TVarData;
 begin
   if Source.vType=VarType then
-    if aVarType = varString then
-      VarDataFromStr(Dest, BCDToStr(TFMTBcdVarData(Source.vPointer).BCD))
-    else
     begin
-      VarDataInit(v);
-      v.vType:=varDouble;
-      v.vDouble:=BCDToDouble(TFMTBcdVarData(Source.vPointer).BCD);
-      VarDataCastTo(Dest, v, aVarType); //now cast Double to any requested type
-      { finalizing v is not necessary here (Double is a simple type) }
+      { Copy the value before clearing a possibly aliased destination. }
+      BCD:=TFMTBcdVarData(Source.vPointer).BCD;
+      case aVarType of
+        varString:
+          begin
+            TextValue:=BCDToStr(BCD);
+            VarDataFromStr(Dest, TextValue);
+          end;
+        varOleStr:
+          begin
+            TextValue:=BCDToStr(BCD);
+            VarDataFromOleStr(Dest, WideString(TextValue));
+          end;
+        varUString:
+          begin
+            TextValue:=BCDToStr(BCD);
+            VarDataClear(Dest);
+            Dest.vType:=varUString;
+            Dest.vUString:=nil;
+            UnicodeString(Dest.vUString):=UnicodeString(TextValue);
+          end;
+        varShortInt,varByte,varSmallInt,varWord,varInteger,varLongWord,varInt64,varQWord:
+          begin
+            TextValue:=BCDToStr(BCD);
+            if not TryStrToInt64(TextValue,IntegerValue) then
+              RaiseCastError;
+            case aVarType of
+              varShortInt:
+                if (IntegerValue<Low(ShortInt)) or (IntegerValue>High(ShortInt)) then
+                  RaiseCastError;
+              varByte:
+                if (IntegerValue<Low(Byte)) or (IntegerValue>High(Byte)) then
+                  RaiseCastError;
+              varSmallInt:
+                if (IntegerValue<Low(SmallInt)) or (IntegerValue>High(SmallInt)) then
+                  RaiseCastError;
+              varWord:
+                if (IntegerValue<Low(Word)) or (IntegerValue>High(Word)) then
+                  RaiseCastError;
+              varInteger:
+                if (IntegerValue<Low(Integer)) or (IntegerValue>High(Integer)) then
+                  RaiseCastError;
+              varLongWord:
+                if (IntegerValue<Low(LongWord)) or (IntegerValue>High(LongWord)) then
+                  RaiseCastError;
+              varQWord:
+                if IntegerValue<0 then
+                  RaiseCastError;
+            end;
+            VarDataInit(v);
+            v.vType:=varInt64;
+            v.vInt64:=IntegerValue;
+            VarDataCastTo(Dest,v,aVarType);
+          end;
+      else
+        VarDataInit(v);
+        v.vType:=varDouble;
+        v.vDouble:=BCDToDouble(BCD);
+        VarDataCastTo(Dest, v, aVarType);
+        { finalizing v is not necessary here (Double is a simple type) }
+      end;
     end
   else
     inherited;
