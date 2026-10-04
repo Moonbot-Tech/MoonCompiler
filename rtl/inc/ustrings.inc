@@ -1050,18 +1050,90 @@ Function fpc_UnicodeStr_Compare_Equal(const S1,S2 : UnicodeString): SizeInt;[Pub
    0 if S1=S2
    <>0 if S1<>S2
 }
-Var
-  MaxI : SizeInt;
-begin
-  if pointer(S1)=pointer(S2) then
-    exit(0);
-  Maxi:=Length(S1);
-  If MaxI<>Length(S2) then
-    exit(-1)
-  else
-    exit(CompareWord(S1[1],S2[1],MaxI));
+{$ifdef CPUX86_64}
+{$push}{$codealign proc=64}      { layout: the entry on a 64-byte line }
+assembler; nostackframe;
+asm
+{$ifdef FPC_ABI_WIN64}
+  cmpq   %rdx,%rcx
+  je     .Lustrcompareequal_equal
+  xorq   %r8,%r8
+  testq  %rcx,%rcx
+  je     .Lustrcompareequal_left_length
+  movq   -8(%rcx),%r8
+.Lustrcompareequal_left_length:
+  xorq   %r9,%r9
+  testq  %rdx,%rdx
+  je     .Lustrcompareequal_right_length
+     .byte      0x3E,0x3E,0x3E // layout: the length compare pair below starts on byte 32
+  movq   -8(%rdx),%r9
+.Lustrcompareequal_right_length:
+  cmpq   %r9,%r8
+{$else FPC_ABI_WIN64}
+  cmpq   %rsi,%rdi
+  je     .Lustrcompareequal_equal
+  xorq   %rdx,%rdx
+  testq  %rdi,%rdi
+  je     .Lustrcompareequal_left_length
+  movq   -8(%rdi),%rdx
+.Lustrcompareequal_left_length:
+  xorq   %rcx,%rcx
+  testq  %rsi,%rsi
+  je     .Lustrcompareequal_right_length
+     .byte      0x3E,0x3E,0x3E // layout: the length compare pair below starts on byte 32
+  movq   -8(%rsi),%rcx
+.Lustrcompareequal_right_length:
+  cmpq   %rcx,%rdx
+{$endif FPC_ABI_WIN64}
+  jne    .Lustrcompareequal_different
+  jmp    CompareWord
+.Lustrcompareequal_equal:
+  xorl   %eax,%eax
+  ret
+.Lustrcompareequal_different:
+  movl   $1,%eax
 end;
+{$pop}
+{$else CPUX86_64}
+var
+  MaxI: SizeInt;
+begin
+  if Pointer(S1)=Pointer(S2) then
+    Exit(0);
+  MaxI:=Length(S1);
+  If MaxI<>Length(S2) then
+    Exit(-1)
+  else
+    Exit(CompareWord(S1[1],S2[1],MaxI));
+end;
+{$endif CPUX86_64}
 {$endif FPC_HAS_UNICODESTR_COMPARE_EQUAL}
+
+
+{$ifndef FPC_HAS_UNICODESTR_COMPARE_EQUAL_CONTENT}
+{$define FPC_HAS_UNICODESTR_COMPARE_EQUAL_CONTENT}
+Function fpc_UnicodeStr_Compare_Equal_Content(const S1,S2 : UnicodeString): SizeInt;
+  [Public,Alias : 'FPC_UNICODESTR_COMPARE_EQUAL_CONTENT']; compilerproc;
+{
+  Compares equal-length UnicodeString payloads.  Pointer identity and length
+  mismatches are handled by the compiler-generated caller fast path.
+}
+{$ifdef CPUX86_64}
+assembler; nostackframe;
+asm
+{$ifdef FPC_ABI_WIN64}
+  movq   -8(%rcx),%r8
+{$else FPC_ABI_WIN64}
+  movq   -8(%rdi),%rdx
+{$endif FPC_ABI_WIN64}
+  jmp    CompareWord
+end;
+{$else CPUX86_64}
+begin
+  fpc_UnicodeStr_Compare_Equal_Content:=CompareWord(S1[1],S2[1],Length(S1));
+end;
+{$endif CPUX86_64}
+{$endif FPC_HAS_UNICODESTR_COMPARE_EQUAL_CONTENT}
 
 
 {$ifndef FPC_HAS_UNICODESTR_RANGECHECK}

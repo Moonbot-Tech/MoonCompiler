@@ -449,6 +449,7 @@ procedure fpc_ansistr_to_widechararray(out res: array of widechar; const src: Ra
 procedure fpc_unicodestr_to_widechararray(out res: array of widechar; const src: UnicodeString); compilerproc;
 Function fpc_UnicodeStr_Compare(const S1,S2 : UnicodeString): SizeInt; compilerproc;
 Function fpc_UnicodeStr_Compare_equal(const S1,S2 : UnicodeString): SizeInt; compilerproc;
+Function fpc_UnicodeStr_Compare_equal_content(const S1,S2 : UnicodeString): SizeInt; compilerproc;
 Procedure fpc_UnicodeStr_RangeCheck(p: Pointer; index : SizeInt); compilerproc;
 Procedure fpc_UnicodeStr_ZeroBased_RangeCheck(p: Pointer; index : SizeInt); compilerproc;
 

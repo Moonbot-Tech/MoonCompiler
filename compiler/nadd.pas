@@ -4610,12 +4610,19 @@ const
 
     function taddnode.first_addstring: tnode;
       var
-        p: tnode;
+        p,
+        indexedchar: tnode;
         newstatement : tstatementnode;
         tempnode : ttempcreatenode;
         cmpfuncname: string;
         para: tcallparanode;
         concatcp: word;
+        literalchar: tcompilerwidechar;
+        stringindex: tcgint;
+        pointercomparison,
+        lengthcomparison,
+        contentcomparison,
+        remainingcomparison: taddnode;
       begin
         result:=nil;
         { when we get here, we are sure that both the left and the right }
@@ -4793,6 +4800,103 @@ const
               { for equality checks use optimized version }
               if nodetype in [equaln,unequaln] then
                 cmpfuncname := cmpfuncname + '_equal';
+
+              { UnicodeString equality is dominated by the helper call for
+                the two most common cases: identical pointers and different
+                lengths.  Lower those checks into the caller on x86-64, but
+                keep expressions with side effects on the old single-call
+                path so neither their evaluation count nor order changes.
+                The checks read each operand up to three times: an operand
+                read through memory (a field, an element, a dereference)
+                stays on the single call as well. }
+              if (target_info.cpu=systems.cpu_x86_64) and
+                 (nodetype in [equaln,unequaln]) and
+                 is_unicodestring(left.resultdef) and
+                 (node_complexity(left)<=4) and
+                 (node_complexity(right)<=4) and
+                 not might_have_sideeffects(left,[mhs_exceptions,mhs_memory_reads]) and
+                 not might_have_sideeffects(right,[mhs_exceptions,mhs_memory_reads]) then
+                begin
+                  { A one-code-unit Unicode literal has no need for the
+                    general content helper.  An exact length check makes the
+                    following indexed load bounded and nil-safe. }
+                  if ((left.nodetype=stringconstn) and
+                      (tstringconstnode(left).valuews.len=1)) or
+                     ((right.nodetype=stringconstn) and
+                      (tstringconstnode(right).valuews.len=1)) then
+                    begin
+                      if left.nodetype=stringconstn then
+                        begin
+                          literalchar:=getcharwidestring(tstringconstnode(left).valuews,0);
+                          left.free;
+                          left:=nil;
+                          p:=right;
+                          right:=nil;
+                        end
+                      else
+                        begin
+                          literalchar:=getcharwidestring(tstringconstnode(right).valuews,0);
+                          right.free;
+                          right:=nil;
+                          p:=left;
+                          left:=nil;
+                        end;
+                      if cs_zerobasedstrings in current_settings.localswitches then
+                        stringindex:=0
+                      else
+                        stringindex:=1;
+                      lengthcomparison:=caddnode.create(nodetype,
+                        cinlinenode.create(in_length_x,false,p.getcopy),
+                        cordconstnode.create(1,s8inttype,false));
+                      indexedchar:=cvecnode.create(p,
+                        cordconstnode.create(stringindex,sizesinttype,false));
+                      { The short-circuited exact length test above proves
+                        this generated access in range under range checking. }
+                      indexedchar.localswitches:=indexedchar.localswitches-
+                        [cs_check_range];
+                      contentcomparison:=caddnode.create(nodetype,indexedchar,
+                        cordconstnode.create(literalchar,cwidechartype,true));
+                      if nodetype=equaln then
+                        result:=caddnode.create(andn,
+                          lengthcomparison,contentcomparison)
+                      else
+                        result:=caddnode.create(orn,
+                          lengthcomparison,contentcomparison);
+                      include(taddnode(result).addnodeflags,anf_short_bool);
+                      exit;
+                    end;
+                  pointercomparison:=caddnode.create(nodetype,
+                    ctypeconvnode.create_internal(left.getcopy,voidpointertype),
+                    ctypeconvnode.create_internal(right.getcopy,voidpointertype));
+                  lengthcomparison:=caddnode.create(nodetype,
+                    cinlinenode.create(in_length_x,false,left.getcopy),
+                    cinlinenode.create(in_length_x,false,right.getcopy));
+                  contentcomparison:=caddnode.create(nodetype,
+                    ccallnode.createintern('fpc_unicodestr_compare_equal_content',
+                      ccallparanode.create(right,
+                      ccallparanode.create(left,nil))),
+                    cordconstnode.create(0,s8inttype,false));
+                  if nodetype=equaln then
+                    begin
+                      remainingcomparison:=caddnode.create(andn,
+                        lengthcomparison,contentcomparison);
+                      include(remainingcomparison.addnodeflags,anf_short_bool);
+                      result:=caddnode.create(orn,
+                        pointercomparison,remainingcomparison);
+                    end
+                  else
+                    begin
+                      remainingcomparison:=caddnode.create(orn,
+                        lengthcomparison,contentcomparison);
+                      include(remainingcomparison.addnodeflags,anf_short_bool);
+                      result:=caddnode.create(andn,
+                        pointercomparison,remainingcomparison);
+                    end;
+                  include(taddnode(result).addnodeflags,anf_short_bool);
+                  left:=nil;
+                  right:=nil;
+                  exit;
+                end;
 
               result := ccallnode.createintern(cmpfuncname,
                 ccallparanode.create(right,ccallparanode.create(left,nil)));
