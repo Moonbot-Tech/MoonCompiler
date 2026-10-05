@@ -69,11 +69,16 @@ versus `730 MiB` for glibc. Across 63–67 million small allocations, both
 `fpcx64mm` profiles entered OS sleep only 1–3 times. Full conditions and raw
 figures: [The Point about current mormot.core.fpcx64mm.pas unit](https://synopse.info/forum/viewtopic.php?id=7597).
 
-In the final Pulse run, the same MoonCompiler was built with the bundled MM and
-with the standard FPC MM. On the allocator group, the bundled MM achieved a
-`0.6069×` geometric mean: it completed the same work `1.65×` faster on
-average. The method and the full snapshot are in the
+In the 30 August 2026 Pulse snapshot, the same MoonCompiler was built with
+the bundled MM and with the standard FPC MM. On the allocator group, the
+bundled MM achieved a `0.6069×` geometric mean: it completed the same work
+`1.65×` faster on average. The method and the full snapshot are in the
 [release evidence](../qualification/performance/evidence/release-final-20260830/EVIDENCE.md).
+
+The second release's selected allocator and runtime measurements are recorded
+separately in the [release notes](RELEASE_NOTES.md) and their
+[measurement record](evidence/release2/README.md). The dated August snapshot
+does not describe the current compiler's complete performance.
 
 The product profile therefore uses `FPCMM_BOOSTER`, not the standard FPC MM or
 libc.
@@ -101,7 +106,7 @@ exercise OS rollback, unwind registers and lock ownership in private test copies
 Linux manual GetMem, AllocMem and ReallocMem frames carry DWARF unwind rules;
 metadata is not executed on successful calls.
 
-## What MoonCompiler adds over current upstream
+## Allocator extensions
 
 This section was checked against `mORMot2/master` `a333a689` from
 2 September 2026. Fixes already accepted upstream are not listed here as
@@ -344,15 +349,12 @@ allocator, one copy for everything, took 90. `_ReallocMemSlow` is entered only
 from the leaf `_ReallocMem` and starts from what the leaf has read (`P^` in
 `r8`, the block header in `r9`) instead of loading both again.
 
-What remains against the monolithic release are chains of medium reallocations
-that cannot stay in place (`mm/realloc-shrink` 1.05, `mm/realloc-grow` 1.03):
-the leaf front-end decodes the block before it hands over, and the framed
-routine has the Win64 shadow space and unwind frame the release routine lacked
-(it called its helpers without one). The same front-end answers a reallocation
-that fits the block in 6.6 cycles instead of 9.8 (7.3 against 11.2 for a medium
-block), which is what string and array growth mostly ask for. The extra cycle per
-call is still there, but the chains are now faster than the release (0.95 and
-0.98) because of the copying change below.
+When a medium reallocation cannot stay in place, the leaf front-end passes the
+decoded block to the framed routine. That routine supplies the Win64 shadow
+space and unwind metadata required by its helper calls. A request that fits
+the existing block returns directly through the leaf path; this is common in
+string and array growth. The copying changes below also improve the measured
+chains that require a new allocation.
 
 ### Zeroing and copying
 
@@ -402,8 +404,8 @@ under both values of the zeroing threshold (test hook
 checked against the processor vendor. Removing the masking of the last step
 makes the test fail (checked for both loops).
 
-Pulse, cycles per operation on the Ryzen 5800X (release / before / after) and
-TSC ticks on the Xeon W-2295 (before / after):
+The targeted zero/copy experiment measured cycles per operation on the Ryzen
+5800X (release / before / after) and TSC ticks on the Xeon W-2295 (before / after):
 
 | Case | Ryzen | Xeon |
 |---|---|---|
@@ -412,8 +414,7 @@ TSC ticks on the Xeon W-2295 (before / after):
 | `mm/realloc-shrink` | 27.4 / 29.2 / **26.9** | 36.7 / **34.7** |
 | every other `mm` and allocator-bound `hot-rtl` case | unchanged | unchanged |
 
-This also removes what was left of the realloc regression against the
-monolithic release (the chains were 1.03 and 1.07 of it, now 0.95 and 0.98).
+The measured growth and shrink chains also improve over the monolithic release.
 
 The product gate `qualification/memory-manager/mm_layout_gate.py` builds and
 runs `mm_probe.dpr`, checks 64-byte entries and 32-byte branch/fusion sites in

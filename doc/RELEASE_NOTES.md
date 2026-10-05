@@ -36,8 +36,9 @@ caches and state tables, rather than just faster construction of an empty object
 An ordinary list with reserved capacity can insert a simple element without
 the general notification setup when no observer or override needs it. An exact
 `TMemoryStream` can change its logical length without a buffer transaction when
-the existing capacity can be retained under its normal shrink policy. A uniquely owned string result of
-the required size can reuse its allocation for repeated `Copy` operations.
+the existing capacity can be retained under its normal shrink policy. A uniquely
+owned string result of the required size can reuse its allocation for repeated
+`Copy` operations.
 
 ## Loops and resource management
 
@@ -91,6 +92,15 @@ fragmented mixture and `ReallocMem` growth workloads require 64%, 41% and 36%
 less CPU respectively than the standard FPC memory manager. That comparison
 changes the allocator, not the compiler, and is separate from the release-to-
 release columns above.
+
+## Exact decimal rounding
+
+`RoundTo` now rounds the actual binary floating-point input to the requested
+decimal position under nearest/even rounding. The ordinary path uses hardware
+arithmetic; difficult half-boundaries use an exact fallback. This avoids a
+slightly inaccurate decimal scale changing which side of a rounding boundary
+the value lands on. The supported floating-point environment is described in
+[Known Deviations](KNOWN_ISSUES.md#floating-point-edge-cases).
 
 ## Faster compilation
 

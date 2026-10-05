@@ -48,8 +48,9 @@ restricts the scope; an omitted selector runs the complete corpus.
 One machine's standard pass is `pulse_full.py --baseline-toolchain <A>
 --candidate-toolchain <B> --output <dir>`: the whole corpus, 12 fresh pairs per
 case and independent confirmation of the selected headline changes and sentinels.
-On a free machine it takes minutes; main 1e040aa37 against itself on 29.09,
-including the build of the programs:
+The following historical timings compare main `1e040aa37` with itself on
+29 September 2026, including the build of the programs. They describe that
+corpus and sampling policy, not a time limit for a different host or run:
 
 | Machine | CPU | Pairs of cores | Cases run alone | Pass |
 | --- | --- | ---: | ---: | ---: |
@@ -158,6 +159,13 @@ next (`--core-rest-ms`). A process is rejected, and its pair repeated within the
 pair's three attempts, when the core admission or SMT sibling check fails. A
 core that stays busy is waited for at most 2 s plus the rest plus 1 s, then the
 process starts and is rejected. `MEASUREMENTS.md` counts the rejections.
+
+In a multi-case process batch, each case retains its first complete clean pair.
+Noise in another case does not discard that pair. A retry still executes the
+whole batch in the original order, preserving its memory and cache context;
+it can supply evidence only for cases that have no clean pair yet. The two
+sides of a pair always come from the same attempt. Every attempt has a separate
+log, and later, faster results cannot replace an already accepted pair.
 
 On Windows, single-core categories target 60 ms of total timed work across
 three samples. This gives a calibration margin above the existing 50 ms minimum

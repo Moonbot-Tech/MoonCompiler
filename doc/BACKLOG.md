@@ -1,155 +1,90 @@
 # Backlog
 
-This list contains measured, user-visible performance tails and tooling
-limitations that are correct today and deliberately deferred. Research ideas,
-test-suite expansion, and upstream contribution plans are not presented as
-product limitations. Runtime correctness defects, compiler crashes, ABI
-violations, and build failures are never moved here.
+This list describes possible follow-up work and the contracts it must preserve.
+Current observable compatibility boundaries are recorded in
+[Known Deviations](KNOWN_ISSUES.md); delivered improvements are described in the
+[second-release notes](RELEASE_NOTES.md).
 
-Ratios below come from the final 2026-08-30 Pulse snapshot. The complete data
-and methodology are in
-[`qualification/performance/CURRENT_RESULTS.md`](../qualification/performance/CURRENT_RESULTS.md).
+## Exception capture and unwinding
 
-## Exception raise and managed cleanup
+Further work on real exception handling must retain the original exception
+context and the diagnostic consumers that use it. Normal-path `try/finally`
+cleanup is already optimized separately. Removing diagnostic capture changes
+capability; it is not an interchangeable implementation of the same contract.
+Applications can configure capture through [Moon.Diagnostics](DIAGNOSTICS.md).
 
-A real raise/catch takes about 5702 CPU cycles versus 3618 in Delphi 12.2,
-roughly 2084 excess cycles. Assignment and `try` without an exception are
-already faster than Delphi; the remaining cost is in raise, unwind, handler
-dispatch, and managed cleanup. Exceptions are not a routine MoonBot or
-Arbitrage hot path, so a broad unwind repair is deferred.
+## Dispatch and temporary ownership
 
-## Reserved dictionary construction
+More selective lowering of `case` statements remains possible. A useful rule
+must account for selector distributions, branch cost and code size. Grouped
+labels that share one action already have their own optimized path; a general
+jump-table or tree policy needs evidence for distinct actions and `else` too.
 
-Building `TDictionary<UInt64,UnicodeString>` with `Capacity := 100` takes 307.4
-versus 175.7 cycles per element (`1.749x`), about 13,000 excess cycles for the
-one-time build. Lookup in the same table is at parity or faster. A future repair
-must separate allocation, zeroing, capacity policy, hashing, and managed-value
-lifetime without degrading lookup.
+Further elimination of managed temporaries must prove ownership across calls,
+mutation, custom Variant operations and exceptions. Dynamic-array value
+parameters keep reference ownership; their normal Win64 cleanup no longer needs
+the previous small outlined wrapper. Do not substitute `const` semantics for
+a value parameter to remove work.
 
-## Dense `case` dispatch
+For Variant arithmetic, a worthwhile transformation should remove an entire
+temporary, copy or manager call while preserving custom dispatch and
+finalization. Small instruction changes inside the existing ABI need stronger
+evidence before adoption.
 
-A uniform eight-way `case` takes 6.47 versus 3.89 cycles (`1.663x`). A direct
-jump-table experiment made an unpredictable selector `2.73x` slower, so no
-global strategy was accepted. Any revisit must compare the current lowering,
-a balanced tree, and a jump table across uniform, skewed, and sequential
-selectors, including code size.
+## Growing text and buffers
 
-## Dynamic array passed by value
+Possible improvements include formatting numeric pieces directly into an owned
+string's tail and reducing temporary strings in concatenation. They must keep
+evaluation order, formatting semantics, alias safety and exception behavior.
+Builder and container growth changes also need to account for retained memory,
+not just allocation counts. Existing reserved-capacity and reuse paths remain
+the first choice when the application already knows its output size.
 
-Inlining the direct refcount operation improved the case from `1.550x` to
-`1.180x` (about 18.4 versus 15.7 cycles). Assignment is faster than Delphi and
-`const` passing is at parity. The remaining approximately 2.8 cycles are in the
-call-site helper contour; changing compiler lowering is deferred until a
-material application consumer appears.
-
-## Infrequent `TStringBuilder` growth
-
-The common `Append(UnicodeString)` path is fixed. Reuse, reserve, and growth
-improved from `1.58/1.68/1.88x` to `1.119/1.253/1.444x`; ordinary quick growth
-is about `1.199x`. Only occasional buffer expansion remains, so another change
-needs a focused realloc-phase result rather than the aggregate case.
-
-## Short-piece string concatenation
-
-`rtl/unicode-concat-32` (`s := s + 'part-' + IntToStr(j)`, 32 pieces) costs
-61.7 cycles per piece on Zen 3 against Delphi's 85-103; the +17.6% of the
-Stage 2 review was the product placement (`fpc_unicodestr_concat_multi` and
-`DecimalString32` in the same op-cache sets, `qualification/performance/README.md`),
-the code is 8% faster than the 2026-09-06 baseline. Two RTL changes were
-measured and declined on 2026-09-21: skipping `MemSize` in `SetLength` when
-the string does not grow and copying pieces of up to 16 bytes inline in
-`concat_multi` give 54.2 cycles (-12%) with two extra branches on every call
-in the core string routines and a lazier shrink heuristic - not worth it for a
-path that is not hot in the product. The real ceiling is elsewhere: the same
-loop written into one preallocated buffer with the digits formatted in place
-costs 9.2 cycles per piece (7.7 with the buffer reused), so a compiler fusion
-of `s := s + <literal> + IntToStr(x)` that formats into the tail of `s`
-without the temporary string would be worth about 54 -> 25-30; the numbers
-and programs come from a local exploratory stand outside this repository.
-
-## Variant numeric operations
-
-The remaining `1.238x` is distributed across temporary Variant copying,
-operator dispatch, and finalization. A repair is worthwhile only if it removes
-an entire temporary, copy, or manager call; saving a few instructions inside
-the existing Variant ABI does not justify the risk.
-
-## Win64 MM five-stage scenario
-
-The bundled MM is 3–7% slower than the MM baseline only in `managed-five-hop`;
-Linux is at `0.999x`. The scenario combines ownership/COW, small and medium
-reallocation, and large realloc-copy. It must be decomposed into exact-volume
-phases before changing the allocator.
+Allocator experiments must also cover combined ownership and copy-on-write,
+small and medium growth, and large realloc-copy phases. Isolated allocation
+loops alone do not establish a benefit for that combined workload.
 
 ## Unified decimal formatting
 
-`FormatFloat`, `Format`, `FloatToStrF`, and `Str` still use different
-digit-generation paths and can diverge at decimal half-boundaries and signed
-zero. A local change to one formatter would only move the discrepancy. The
-proper repair is one digits/exponent/sign/guard/sticky core, a separate
-fixed-point path for `Currency`, and a complete Delphi/Win64/Linux matrix. The
-observable boundary is described in [Known Deviations](KNOWN_ISSUES.md#floating-point-edge-cases).
+`FormatFloat`, `Format`, `FloatToStrF`, and `Str` use different digit-generation
+paths. A coherent follow-up would share a digits/exponent/sign/guard/sticky core,
+retain a separate fixed-point path for `Currency`, and qualify all APIs on
+Delphi, Win64 and Linux. The observable boundary is described in
+[Known Deviations](KNOWN_ISSUES.md#floating-point-edge-cases).
 
 ## Debug location of captured locals
 
-Generated code reads and writes a captured local through its closure field,
-but DWARF can still describe the original stack slot after the capture remap.
-Runtime behaviour is correct; the limitation affects inspecting that variable
-in a debugger. A complete repair must emit the closure-based location before
-and after closure creation, for nested and escaped captures, without merely
-dropping the variable from debug information.
+Generated code accesses a captured local through its closure field, but DWARF
+can still describe the original stack slot after capture remapping. A complete
+repair must describe the closure-based location before and after closure
+creation, including nested and escaped captures, without dropping the variable
+from debug information. This concerns debugger inspection, not the generated
+program's access to the value.
 
-## A jump target of `TStringHelper.Split` stays in the last 12 bytes of a line (Linux)
+## Experimental code placement
 
-With the code placement draft switched on (off by default), the internal
-assembler keeps a label a jump reaches out of the last 12 bytes of a 64-byte
-line when the block in front of it can carry the pad as prefixes
-(doc/OPTIMIZER.md, "Code placement"). A pad that has changed eight times is
-kept as it is, so that the layout passes end, and for one code shape of the
-Linux RTL - `TStringHelper.Split` for `UnicodeString` and `WideString` - the
-limit finds the pad in the state that leaves the label on byte 59 of its
-line. The routine is cold, the gate of the stand chains carries the two as a
-ceiling (`--assert R4,RT=2`) and separately requires the exact Unicode/Wide
-`TStringHelper.Split` identities. A different violation cannot silently take
-the place of either one, and a third violation fails the gate.
+The code-placement draft is off by default. Its bounded relaxation can leave
+one internal jump target near a cache-line end in the Linux Unicode and wide
+`TStringHelper.Split` forms. The qualification fixture names those exact forms;
+it does not allow an arbitrary replacement or an additional violation.
 
-Three ways out were measured on both machines and none pays for itself: no
-change limit for target pads (the RTL's biggest unit then needs 63 of the 64
-allowed relaxation passes instead of 15), a kept pad that keeps its decision
-without the block rule (oscillates to the pass limit on the placement
-fixture), and eight more attempts for a pad kept in that one state (reaches
-zero violations on both systems, but the acceptance gate flags Win64
-`stringbuilder-replace` 1.109, `object-create-free-plain` 1.060,
-`variant-vartostr-int` 1.061 and Linux `random-double` 1.060 at a geomean of
-1.0002 and 0.9983). A repair has to make the pad's decision independent of
-the code behind it, so that it converges without a limit.
+A follow-up must make padding decisions converge without relying on a fortunate
+layout or excessive relaxation passes. Increasing the retry limit alone was not
+accepted as a general solution. See [Code placement](OPTIMIZER.md#code-placement).
 
 ## Deferred small-free backlog
 
-Under sustained contention on a small size class, queued frees can retain
-substantial pool storage even with few live application objects. The current
-allocator has no idle/background drain. The Win64 empty-pool handoff preserves
-this existing resource boundary; the single-block retention bound does not
-include pending queues.
-
-A bounded continuation through four retired pools processed more queued blocks
-but still left 3955 of 4095 blocks after the last user free in a deterministic
-stand. A long same-class contention case still accumulated over 700 MB with
-that candidate. It was not integrated: it adds slow-free state and work without
-defining when cleanup must finish or bounding retained memory. A further
-repair must choose and measure a completion/backpressure policy, including its
-allocation/free latency, contention and memory effects.
+The allocator has no idle or background drain for queued small frees. Under
+sustained contention on one size class, pools can retain storage after the live
+object population falls. The empty-pool handoff does not itself bound pending
+queues. A further repair needs a defined completion or backpressure policy and
+measurements of allocation/free latency, contention and retained memory. Merely
+processing several more pools in one slow free does not establish such a bound.
 
 ## Address hoisting in loops with writes
 
-The current static-address hoist is restricted to read-only inner loops.
-A general read/write candidate improved nonalias buffer updates by about
-5.5–15.1% in a shared-buffer placement matrix, but an alias case lost 0.26%
-with a stable A/A control. Removing an inner LEA changed SpanAlign padding:
-the function grew from 110 to 201 bytes and executed additional outer padding.
-
-A future profitability rule must account for the actual inner body, useful
-memory consumers and executed padding. Preserve the reduction, one/two/three/
-four-field matrices, alias/nonalias, histogram, pressure and short-trip controls
-at real placements with identical data buffers. A fixed magic pad or a general
-placement-policy switch based on one winning reduction is not a solution.
+The current static-address hoist is restricted to read-only inner loops. A
+broader rule must account for aliasing, useful memory operations, register
+pressure, short trips and executed padding. Its acceptance matrix must include
+both aliasing and nonaliasing buffers at controlled placements. Removing one
+address instruction does not by itself establish a profitable general rule.
