@@ -63,6 +63,7 @@ def run_compiler(
         cwd=str(cwd) if cwd else None,
         env=env,
         text=True,
+        encoding="utf-8",
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
@@ -538,18 +539,24 @@ def check_long_utf8_names(compiler: Path, root: Path, cwd: Path) -> str:
                 (directory / name).write_text(f"const {symbol} = {value};\n", encoding="utf-8")
             source = directory / ("\u044f" * 130 + ".dpr")
             source.write_text(
-                "program unicodeleaf;\n{$CODEPAGE UTF8}\n"
+                "program unicodeleaf;\n{$CODEPAGE UTF8}\n{$WARNING UNICODE_LOCATION_PROBE}\n"
                 f"{{$I {short}}}\n{{$I {long}}}\n"
                 "begin\n  if (SHORT_VALUE <> 117) or (LONG_VALUE <> 218) then Halt(1);\n"
                 "  WriteLn('UTF8_NAMES_OK');\nend.\n", encoding="utf-8")
             out = directory / "output"
             out.mkdir()
             executable = out / "unicodeleaf.exe"
-            run_compiler(compiler, ["-B", *(["-dRELEASE"] if profile == "RELEASE" else []),
-                                   f"-FU{out}", f"-o{executable}", str(source)], cwd=cwd)
+            compiled = run_compiler(compiler, ["-B", *(["-dRELEASE"] if profile == "RELEASE" else []),
+                                              f"-FU{out}", f"-o{executable}", str(source)], cwd=cwd)
+            if f"{source.name}(3," not in compiled.stdout:
+                fail(f"diagnostic lost the full UTF-8 source name: {compiled.stdout}")
             run = subprocess.run([str(executable)], capture_output=True, text=True)
             if run.returncode != 0 or run.stdout.strip() != "UTF8_NAMES_OK":
                 fail(f"long UTF-8 names {profile}/{reverse}: {run.stdout} {run.stderr}")
+            if profile == "DEBUG" and not reverse:
+                gcc = run_compiler(compiler, ["-B", "-Cn", "-vr", f"-FU{out}", str(source)], cwd=cwd)
+                if f"{source.name}:3:" not in gcc.stdout:
+                    fail(f"GCC diagnostic lost the full UTF-8 source name: {gcc.stdout}")
     return "255/256-byte colliding UTF-8 include names and 264-byte source leaf, both profiles OK"
 
 

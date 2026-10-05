@@ -593,6 +593,7 @@ begin
   New(KeyST, Init(R, '', Blue*16+White+longint($80+Blue*16+White)*256,true));
   Insert(KeyST);
   { Reset Status infos see bug 1585 }
+  Finalize(Status);
   Fillchar(Status,SizeOf(Status),#0);
 end;
 

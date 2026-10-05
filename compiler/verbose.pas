@@ -1014,6 +1014,7 @@ implementation
 {$else EXTERN_MSG}
         LoadMsgFile(exepath+'errore.msg');
 {$endif EXTERN_MSG}
+        Finalize(Status);
         FillChar(Status,sizeof(TCompilerStatus),0);
         status.verbosity:=V_Default;
         Status.MaxErrorCount:=50;

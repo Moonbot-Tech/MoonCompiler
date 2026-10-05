@@ -50,11 +50,11 @@ type
   PCompilerStatus = ^TCompilerStatus;
   TCompilerStatus = record
   { Current status }
-    currentmodule,
+    currentmodule : string;
     currentsourceppufilename, { the name of the ppu where the source file
                                 comes from where the error location is given }
     currentsourcepath,
-    currentsource : string;   { filename }
+    currentsource : TPathStr;   { filename }
     currentline,
     currentcolumn : longint;  { current line and column }
     currentmodulestate : string[32];
@@ -157,10 +157,11 @@ implementation
                           Helper Routines
 ****************************************************************************}
 
-function gccfilename(const s : string) : string;
+function gccfilename(const s : TPathStr) : TPathStr;
 var
   i : longint;
 begin
+  SetLength(Result,Length(s));
   for i:=1to length(s) do
    begin
      case s[i] of
@@ -174,7 +175,6 @@ begin
       gccfilename[i]:=s[i];
      end;
    end;
-  gccfilename[0]:=s[0];
 end;
 
 
