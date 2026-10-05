@@ -27,10 +27,10 @@ lookup avoids repeated searches, and rehashing can transfer ownership of plain
 managed values without incrementing and then decrementing their references.
 Custom comparison and managed-record operations retain their contracts.
 
-Measured Linux examples against the first release include 56% less CPU cost for
-numeric-key lookup, 52% for string-key lookup, 70% for `AddOrSetValue`, and 26–37%
+Measured Linux examples against the first release include 60% less CPU cost for
+numeric-key lookup, 44% for string-key lookup, 68% for `AddOrSetValue`, and 18–55%
 for enumeration. Growing dictionaries with numeric keys and string values use
-36–41% less CPU in the measured sizes. These are improvements to indexes,
+31–39% less CPU in the measured sizes. These are improvements to indexes,
 caches and state tables, rather than just faster construction of an empty object.
 
 An ordinary list with reserved capacity can insert a simple element without
@@ -65,29 +65,34 @@ its former cost; it is not a 25% whole-application speedup.
 
 | Operation | Versus Delphi 12.2, Win64 | Versus first Moon release, Win64 | Versus first Moon release, Linux |
 |---|---:|---:|---:|
-| Find a substring in a 64-character UTF-16 string | 24% | 53% | 59% |
+| Find a substring in a 64-character UTF-16 string | 24% | 52% | 56% |
 | Decode 32 Cyrillic characters with `TEncoding.UTF8.GetString` | 60% | 83% | 79% |
-| Decode the same text family with `UTF8ToString` | 48% | 62% | 64% |
-| Convert an integer `Variant` to text | 17% | 76% | 82% |
-| Find an ASCII key in a 128-entry `TStringList` | 90% | 91% | 94% |
-| Add or update a numeric dictionary entry | 69% | 69% | 70% |
-| Fill a reserved dictionary with 100 numeric keys and string values | 13% | 52% | 57% |
-| Resize `TMemoryStream` within its existing capacity | 71% | 75% | 75% |
-| Scan mixed JSON bytes, medium input | 32% | 38% | 34% |
-| Loop with a short `try/finally` | 37% | 29% | 28% |
+| Decode the same text family with `UTF8ToString` | 48% | 62% | 61% |
+| Convert an integer `Variant` to text | 17% | — | 74% |
+| Find an ASCII key in a 128-entry `TStringList` | 91% | 91% | 93% |
+| Add or update a numeric dictionary entry | 70% | 70% | 68% |
+| Fill a reserved dictionary with 100 numeric keys and string values | 13% | 51% | 50% |
+| Resize `TMemoryStream` within its existing capacity | 69% | 74% | 70% |
+| Scan mixed JSON bytes, medium input | 32% | 36% | 34% |
+| Loop with a short `try/finally` | 37% | 29% | 63% |
 
-These selected examples were measured on 4 October 2026 at the integrated
-release implementation `54b63f39b54e066c56e30f76625d26856370293e`. The first
-release baseline is `ccaa5fbaf5ec5bfeef09a3f3f049ffe603d9509c`. Windows comparisons
-use the local Ryzen system; Linux comparisons use Ryzen 7 7700. Each comparison
-builds the same workload with each side's complete Release profile and requires
-matching semantic digests and an accepted identical-program control. The
+These selected examples were measured on 5 October 2026 using the release 2.0
+product. The workloads were built at
+`83315fe3b92b2bafc478c9a16ec9424fa8a62382`. Each published runtime comparison has
+twelve accepted pairs; a dash means that no refreshed numerical claim is made.
+The first-release baseline is
+`ccaa5fbaf5ec5bfeef09a3f3f049ffe603d9509c`. Windows comparisons use Ryzen 7
+5800X; Linux comparisons use Intel Xeon W-2295. Each comparison builds the same
+workload with each side's complete Release profile and requires matching
+semantic digests and an accepted identical-program control. The
 [measurement record](evidence/release2/README.md) gives exact case identifiers,
 ratios and provenance. This is a selection of confirmed improvements, not a
-complete benchmark average or a prediction for an entire application.
+complete benchmark average, a full Windows Pulse qualification, or a prediction
+for an entire application.
 
 The bundled memory manager also remains useful independently of compiler
-optimizations. With the same Windows compiler, the measured live-block ring,
+optimizations. In the separate 4 October allocator comparison using the same
+Windows compiler, the measured live-block ring,
 fragmented mixture and `ReallocMem` growth workloads require 64%, 41% and 36%
 less CPU respectively than the standard FPC memory manager. That comparison
 changes the allocator, not the compiler, and is separate from the release-to-

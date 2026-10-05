@@ -1,105 +1,277 @@
 {
-  "scope": "Selected confirmed feature measurements; not the complete release qualification",
-  "measured_date": "2026-10-04",
-  "candidate": "54b63f39b54e066c56e30f76625d26856370293e",
+  "scope": "Preselected useful operations; not an application average or a full Windows Pulse qualification",
+  "measured_date": "2026-10-05",
   "baseline": "ccaa5fbaf5ec5bfeef09a3f3f049ffe603d9509c",
   "comparison_direction": "candidate CPU cost / reference CPU cost for equal work",
   "sources": {
-    "windows-confirm": {
-      "sha256": "f74ff7e87b630ac5f8572d8a6edc63b7f268a786ec56d4ea0caf4280336a323e",
-      "host": "BRO-3",
-      "comparison": "delphi",
-      "elapsed_seconds": 205.61524963378906,
+    "windows_old": {
+      "sha256": "e33ea4b35999812fe3eb9f3541847ba5e573ab418236bf1eaf77a74a3c4a4c4c",
+      "raw_sha256": "2c04c1ddae215d4927afcb7bbdf392b5489c69e78765585997eebf9aa79d4754",
+      "git_head": "83315fe3b92b2bafc478c9a16ec9424fa8a62382",
+      "machine": {
+        "platform": "Windows-11-10.0.26200-SP0",
+        "processor": "AMD64 Family 25 Model 33 Stepping 0, AuthenticAMD",
+        "logical_cpus": 16,
+        "single_affinity": [
+          4,
+          6,
+          12,
+          14
+        ],
+        "multithread_affinity": [
+          0,
+          2,
+          4,
+          6,
+          8,
+          10,
+          12,
+          14
+        ],
+        "cpu_work_unit": "process-cycles/op for multithread, core-cycles/op otherwise (thread cycles at the sample's chain clock)",
+        "multithread_topology": "8-core saturation; coordinator shares worker logical CPU"
+      },
+      "method": "pulse-fixed-work-median-v4",
+      "stack_plan": "grid",
+      "baseline_toolchain": {
+        "fpc_sha256": "eafe9312b2d1d8a14da8832094014177a35d4b0c657243bad29b296708d54c1a",
+        "config_sha256": "e389540e779450ca08e229b5ebcd9dd3a843cad52445455639c590a1558a03a6",
+        "backend_sha256": "695f7689bb4d29285105dbe24ca48d92bb0b750d4876b89ed377d6b424577f21",
+        "legacy_release_config_sha256": "914e1c405fddb244d09829b7eaff0955a8f485a5a96aec928389bb5072c407f2",
+        "unit_sha256": {
+          "system.ppu": "d1f1b25f64d9aa2d62e5359c9cb427985eee81369b7b0a3bf1d1127a8f454950",
+          "sysutils.o": "1aad65d59c5440515cd0ee72772457adf2b9c9169e2ac90f8848b27e5c60e063",
+          "math.o": "85b532638d19a92e1bb2b8a095c7ada1e206190ed74dc2e8e9450f34f305aa03",
+          "generics.hashes.o": "250c141b2b8e9a4ce7021ed702d20a358aef2e96d6156c39f1f1df1e6ef15caf"
+        }
+      },
+      "candidate_toolchain": {
+        "fpc_sha256": "c5b758ff05ee7b79b25311b121b535e9f7fb36d6a34f1f1364bad97aa243f03e",
+        "config_sha256": "9d34ad9b2cf979a95669e2fb5b46e8d266f7d1a5d829e6d9bc313ddde4ccd113",
+        "backend_sha256": "70c56017fe576667d27ffb07804df09806bf504eba8cf237cadffaceccfdbd2c",
+        "base_config_sha256": "bd7927a59eaa76b4e13b9eebd617f274e236fb46a21b191e2078da2fb453a4fb",
+        "profile_sha256": "d346e542e6eaaf789de080a8c6b9238be574ddbeaa01534c6109869c5f7a62cd",
+        "unit_sha256": {
+          "system.ppu": "91f1dcf0f755f9e97f91ec1b5cf826780db5c0c60ac8b8cdbda2011111a876e8",
+          "sysutils.o": "258676aa102dcfdb278b1a49cd15c5a7be83d4861743394fcd04fc45196be649",
+          "math.o": "a811fd94d4412ae8699850ec9ff7a418b903bc8b8b582a59e3f3b00ae058c8dc",
+          "generics.hashes.o": "a5d4a8530272563ea7219fa7def6fb6f9efaf898c8ecb2a6c80393087bf9058d"
+        }
+      },
+      "memory_managers": {
+        "moon-baseline": {
+          "sha256": "23df62053eaa942c8ca73fb932132e00c38ec1c3294cd850f721a9e29f0049b0"
+        },
+        "moon-candidate": {
+          "sha256": "634afed69127ce98d8a62b319cfe9f0e42e008e24c04d997c3b5d46255e4fb3a"
+        }
+      },
       "aa_passed": true,
-      "cpus": [
-        12,
-        12
-      ],
-      "stack_plan": "fixed"
+      "confirmation_aa_passed": false,
+      "full_cases": 1118,
+      "publication_scope": "Preselected rows with twelve valid pairs",
+      "full_corpus_qualified": false
     },
-    "windows-oldconfirm": {
-      "sha256": "881c6299173ebbdb514e85bf97646b798ce4da9aa09236dac7f3640f07749ec9",
-      "host": "BRO-3",
-      "comparison": "old",
-      "elapsed_seconds": 71.0459406375885,
+    "linux_old": {
+      "sha256": "913c4b06ae538598ab91703116d2cc494f9962bfd90ef1252cb25ef04635622e",
+      "raw_sha256": "8714c91650314500dcd6d1ef122901c01e3e19db6b348bc51052fdcbb6251e5f",
+      "git_head": "c78cc48c35ae0017036de58c8280ad06696ee9a0",
+      "machine": {
+        "platform": "Linux-6.8.12-damon-damon-x86_64-with-glibc2.39",
+        "processor": "x86_64",
+        "logical_cpus": 36,
+        "single_affinity": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ],
+        "multithread_affinity": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          7,
+          8,
+          9
+        ],
+        "cpu_work_unit": "process-cpu-ns/op for multithread, hardware-cycles/op otherwise",
+        "multithread_topology": "dedicated coordinator"
+      },
+      "method": "pulse-fixed-work-median-v4",
+      "stack_plan": "grid",
+      "baseline_toolchain": {
+        "fpc_sha256": "29b3e51ab900c42122e94ca59398a53453409b867193c5609ec294d4005f4440",
+        "config_sha256": "2231d800f2514429191e4c5884306841ad96a289afc13edc836a08b9a80c5f27",
+        "backend_sha256": "9c3d9ca31e1a5389a94cb19dd4305fbe33b18a6723b4cd32e31db59c2de9c947",
+        "legacy_release_config_sha256": "73937fc8348e5bc629ebef95db531486401dca374657e24edb66065d6bc32cfb",
+        "unit_sha256": {
+          "system.ppu": "4981d88320b7253e2557bc2f0eecde1af63d4a1a3eca6d4b5eb35cce47a856f2",
+          "sysutils.o": "262d16d210ac8eb5b0f77ea6ba5bb4aaa1fca8ea1516969fd3cc822a1d41e820",
+          "math.o": "20bf59ff02eeff30e0329449ef0b7de615e9d1b14d3d95a1a5914d595dcaef66",
+          "generics.hashes.o": "58b84845e930b3373ef40bcfa893fd95618d73f151396bf74083d676456f3f30"
+        }
+      },
+      "candidate_toolchain": {
+        "fpc_sha256": "0ab30920b47321f830e4d7012873db0b4525f5472cf29f5d680129b90a7476d7",
+        "config_sha256": "1dddc74aa4bf9cb1240615e98fe3f2327b5d52894b8619d59371240bc71ad6c1",
+        "backend_sha256": "a6ae51ab0b02a146f0c7bf93bbe23a1e89cfcc55c038abc268d3ba9d227e49b6",
+        "base_config_sha256": "c12a410de246201d6a90e1a6feaa90e7f95724f59fb20e9070a492b57c3ac408",
+        "profile_sha256": "0ffa3bb7bb2b9b75a24012c874a90eda58bd5252d7d2d77a752ec1f207f87651",
+        "unit_sha256": {
+          "system.ppu": "d7329a3dc0e6a510ce8c803e9cf5b9f1ee3208f1765982b64fed7a1cb157aed2",
+          "sysutils.o": "36291cc3907b4128cd2f0b754250252648428c1a23610c0d2def4768c9af2a9d",
+          "math.o": "89c7369e098374cabd4c44b6bdf8fb60d0e4ce2111123ae6d6423038691b0977",
+          "generics.hashes.o": "ea2a140282aba1296dc6eecf6c9187adf1a9a39750e44f8ddd4da84b277e7c2e"
+        }
+      },
+      "memory_managers": {
+        "moon-baseline": {
+          "sha256": "23df62053eaa942c8ca73fb932132e00c38ec1c3294cd850f721a9e29f0049b0"
+        },
+        "moon-candidate": {
+          "sha256": "634afed69127ce98d8a62b319cfe9f0e42e008e24c04d997c3b5d46255e4fb3a"
+        }
+      },
       "aa_passed": true,
-      "cpus": [
-        12,
-        12
-      ],
-      "stack_plan": "fixed"
+      "confirmation_aa_passed": true,
+      "full_cases": 1110,
+      "publication_scope": "Preselected rows with twelve valid pairs",
+      "full_corpus_qualified": true,
+      "completion": {
+        "source_head": "83315fe3b92b2bafc478c9a16ec9424fa8a62382",
+        "source_raw_sha256": "ca88950a0976f1cc33132d65466371084896abd3b611a5b7f5639dc53f6f70dc",
+        "source_log_manifest_sha256": "c909bd2deb43dacda9deab32e0e9a03ffc55ac543daa5325571f990e3c7cdd6a",
+        "completion_head": "c78cc48c35ae0017036de58c8280ad06696ee9a0",
+        "replaced_invalid_pairs": 90,
+        "fresh_aa_passed": true
+      }
     },
-    "linux-confirm": {
-      "sha256": "11ae48524698c19ea4929a8437393b0683164af06a95e5f90f18b4550a40fd8e",
-      "host": "amd4",
-      "comparison": "old",
-      "elapsed_seconds": 21.068089246749878,
+    "windows_delphi": {
+      "sha256": "117355c0bd833139068569d0d0f720db0b08d7c2de49a8462dc9189ffe1a3cd4",
+      "provenance": {
+        "head": "83315fe3b92b2bafc478c9a16ec9424fa8a62382",
+        "host": "BRO-3",
+        "comparison": "Delphi 12.2 Win64 Release versus MoonCompiler 2.0.0",
+        "cases": [
+          "dictionary/u64-string-build-reserved-100",
+          "hot-rtl/ustr-pos-str-hit-64",
+          "hot-rtl/encoding-utf8-getstring-32-cyrillic",
+          "hot-rtl/utf8tostring-32-cyrillic",
+          "hot-rtl/variant-vartostr-int",
+          "hot-rtl/memstream-setsize-reuse",
+          "json/byte-scan-medium-256",
+          "loops/loop-try-finally",
+          "rtl/stringlist-indexof-128",
+          "rtl-collections/dictionary-addorset"
+        ],
+        "pairs": 12,
+        "single_cpus": [
+          12,
+          14
+        ],
+        "stack_plan": "fixed"
+      },
+      "executables": {
+        "moon-baseline": {
+          "dictionary": {
+            "sha256": "f313b2c6f21e323b1a16376ad78ce597ecd13e4cd9652f214b460d54c90e3a78"
+          },
+          "hot-rtl": {
+            "sha256": "819c6790ef43490b9b82f670c248c9a9e9bacde3acc347b264e8fe40cb7e30bf"
+          },
+          "json": {
+            "sha256": "5670bddbd68f73cf2affe7303e592ca37cd0980df4f3c9dfbc067821d997fba3"
+          },
+          "loops": {
+            "sha256": "4635f9f405703bb1eb1332887faf53c361b9c8a3dd12e04bef78be1357755b79"
+          },
+          "rtl": {
+            "sha256": "b38574b37e566d73b69fa8d473ec308e6bb7eff4118816991aeea0d4539878d5"
+          },
+          "rtl-collections": {
+            "sha256": "3869bf547bf34de64f26c04f1f2bb967bfb90162c042314770d8d72e8b99d734"
+          }
+        },
+        "moon-candidate": {
+          "dictionary": {
+            "sha256": "2a9439fec588dd4ba20eb7ce107992b8a42a7838a47d94893d854151476f3db8"
+          },
+          "hot-rtl": {
+            "sha256": "c6b548f81ee6eccc3b8d2e173c5eabfe01563bd1bd7dba78ac0966e25b29b544"
+          },
+          "json": {
+            "sha256": "624c786de5da52df750f3acacd0fcca8f79ef8111d0156d43bde2f0f48c879b8"
+          },
+          "loops": {
+            "sha256": "34c6cdd7f032c7044b8d2eaa9a21506701e842260369a20c6082a0f16ed7f88f"
+          },
+          "rtl": {
+            "sha256": "e1050007d71c130b2d038a9a186acf06acf2dfd4196e3070ab1df3242af035ab"
+          },
+          "rtl-collections": {
+            "sha256": "81ac5f82f8716e71e6672713e3d3fe247b157fec73bc1b99adf7855109ee5da4"
+          },
+          "calibration": {
+            "sha256": "1ad6db580623ebd31e8b2a84ca9f3e56ff4c74e6f8dacb59251ab3fa4de6d193"
+          }
+        }
+      },
       "aa_passed": true,
-      "cpus": [
-        7,
-        6
-      ],
-      "stack_plan": "grid"
-    },
-    "windows-lossleads-delphi": {
-      "sha256": "304abdcf770b9b44bd4c5666986d630021fc1cd9557540349295f603e990d283",
-      "host": "BRO-3",
-      "comparison": "delphi",
-      "elapsed_seconds": 11.447442531585693,
-      "aa_passed": true,
-      "cpus": [
-        12,
-        12
-      ],
-      "stack_plan": "fixed"
-    },
-    "windows-lossleads-old": {
-      "sha256": "c862d3e020b1d39670cbb10fc9da62dfa324ab8d63b2b2df672a3788ad591c5c",
-      "host": "BRO-3",
-      "comparison": "old",
-      "elapsed_seconds": 9.759010791778564,
-      "aa_passed": true,
-      "cpus": [
-        12,
-        12
-      ],
-      "stack_plan": "fixed"
-    },
-    "linux-remaining": {
-      "sha256": "06bd72b840a6c994f95ed4ef7ca96cae1f243ba0d3c33db97f45ce5879557561",
-      "host": "amd4",
-      "comparison": "old",
-      "elapsed_seconds": 210.2186415195465,
-      "aa_passed": true,
-      "cpus": [
-        7,
-        6
-      ],
-      "stack_plan": "grid"
-    },
-    "linux-useful": {
-      "sha256": "52efbb36626d72d6acba4ce18dbc29a1fe62380c6424f51b75dc14fcde75d9d3",
-      "host": "amd4",
-      "comparison": "old",
-      "elapsed_seconds": 153.0039825439453,
-      "aa_passed": true,
-      "cpus": [
-        7,
-        6
-      ],
-      "stack_plan": "grid"
-    },
-    "windows-mm-default": {
-      "sha256": "7315fbd5129e13ca4aeb178c134f981f23cc291069589d2fa9c5de8809d72805",
-      "host": "BRO-3",
-      "comparison": "default",
-      "elapsed_seconds": 34.04093790054321,
-      "aa_passed": true,
-      "cpus": [
-        12,
-        12
-      ],
-      "stack_plan": "fixed"
+      "completion": {
+        "source_sha256": "8e2d2ced6d2f2355f1cb650504dfb617f5b162e7f684628e66d02a6dee2c2a10",
+        "fresh_aa_passed": true,
+        "replaced_invalid_pairs": [
+          {
+            "case": "loops/loop-try-finally",
+            "repeat": 11,
+            "variant_order": [
+              "moon-baseline",
+              "moon-candidate"
+            ],
+            "affinities": [
+              [
+                12
+              ],
+              [
+                14
+              ]
+            ],
+            "iterations": 81141,
+            "duration_ms": 60
+          },
+          {
+            "case": "rtl-collections/dictionary-addorset",
+            "repeat": 10,
+            "variant_order": [
+              "moon-candidate",
+              "moon-baseline"
+            ],
+            "affinities": [
+              [
+                12
+              ],
+              [
+                14
+              ]
+            ],
+            "iterations": 16045,
+            "duration_ms": 60
+          }
+        ]
+      }
     }
   },
   "cases": [
@@ -107,13 +279,13 @@
       "id": "hot-rtl/ustr-pos-str-hit-64",
       "comparisons": {
         "windows_delphi": {
-          "ratio": 0.7647310087467645,
+          "ratio": 0.7626352721330434,
           "interval95": [
-            0.7513295291331858,
-            0.7772012516338574
+            0.7574318487867254,
+            0.7689284898332192
           ],
           "decision": "BETTER",
-          "valid_pairs": 8,
+          "valid_pairs": 12,
           "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
@@ -127,16 +299,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 54.04835334047004,
-            "moon-candidate": 41.32231039985735
+            "moon-baseline": 54.073617473586495,
+            "moon-candidate": 41.197627955792875
           },
-          "source_record": "windows-confirm"
+          "source_record": "windows_delphi"
         },
         "windows_old": {
-          "ratio": 0.4743081180839104,
+          "ratio": 0.4759821662847542,
           "interval95": [
-            0.469347641838041,
-            0.4776959936768265
+            0.474363008598235,
+            0.47870533392498427
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -153,16 +325,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 86.7081661905741,
-            "moon-candidate": 41.19539126560216
+            "moon-baseline": 86.86447207330036,
+            "moon-candidate": 41.45452979184289
           },
-          "source_record": "windows-oldconfirm"
+          "source_record": "windows_old"
         },
         "linux_old": {
-          "ratio": 0.40802496029369895,
+          "ratio": 0.4391521386190551,
           "interval95": [
-            0.40628403053195433,
-            0.41760662289163525
+            0.4384648475801741,
+            0.44003239389190646
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -179,10 +351,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 77.67703787801908,
-            "moon-candidate": 31.647757255936675
+            "moon-baseline": 108.54652927899288,
+            "moon-candidate": 47.68365733087487
           },
-          "source_record": "linux-confirm"
+          "source_record": "linux_old"
         }
       }
     },
@@ -190,62 +362,10 @@
       "id": "hot-rtl/encoding-utf8-getstring-32-cyrillic",
       "comparisons": {
         "windows_delphi": {
-          "ratio": 0.40178888547795893,
+          "ratio": 0.4012111574468997,
           "interval95": [
-            0.39431626777390416,
-            0.409261225880137
-          ],
-          "decision": "BETTER",
-          "valid_pairs": 8,
-          "planned_pairs": 12,
-          "oracle": {
-            "moon-baseline": [
-              "0000000000000800"
-            ],
-            "moon-candidate": [
-              "0000000000000800"
-            ]
-          },
-          "semantic_match": true,
-          "aa_passed": true,
-          "cpu_price_qualified": true,
-          "work_centers": {
-            "moon-baseline": 552.6897031366193,
-            "moon-candidate": 222.71826065557104
-          },
-          "source_record": "windows-confirm"
-        },
-        "windows_old": {
-          "ratio": 0.16574110477688223,
-          "interval95": [
-            0.1645531027777091,
-            0.16691747872209203
-          ],
-          "decision": "BETTER",
-          "valid_pairs": 11,
-          "planned_pairs": 12,
-          "oracle": {
-            "moon-baseline": [
-              "0000000000000800"
-            ],
-            "moon-candidate": [
-              "0000000000000800"
-            ]
-          },
-          "semantic_match": true,
-          "aa_passed": true,
-          "cpu_price_qualified": true,
-          "work_centers": {
-            "moon-baseline": 1335.6412174127038,
-            "moon-candidate": 221.70478437414738
-          },
-          "source_record": "windows-oldconfirm"
-        },
-        "linux_old": {
-          "ratio": 0.205823469177699,
-          "interval95": [
-            0.2027843442230241,
-            0.2072620121200399
+            0.40014453728269905,
+            0.40194659159824486
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -262,10 +382,62 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 936.1637159378961,
-            "moon-candidate": 192.6743405418251
+            "moon-baseline": 551.21088861344,
+            "moon-candidate": 221.04946018010247
           },
-          "source_record": "linux-confirm"
+          "source_record": "windows_delphi"
+        },
+        "windows_old": {
+          "ratio": 0.16556964695185483,
+          "interval95": [
+            0.16522014476023308,
+            0.16635818405120742
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000800"
+            ],
+            "moon-candidate": [
+              "0000000000000800"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 1335.2337070464732,
+            "moon-candidate": 221.49938287750956
+          },
+          "source_record": "windows_old"
+        },
+        "linux_old": {
+          "ratio": 0.21186706262602462,
+          "interval95": [
+            0.211361113150818,
+            0.21278725755599068
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000800"
+            ],
+            "moon-candidate": [
+              "0000000000000800"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 1796.0580221036585,
+            "moon-candidate": 380.80859375
+          },
+          "source_record": "linux_old"
         }
       }
     },
@@ -273,13 +445,13 @@
       "id": "hot-rtl/utf8tostring-32-cyrillic",
       "comparisons": {
         "windows_delphi": {
-          "ratio": 0.5203917587077979,
+          "ratio": 0.5236993231693956,
           "interval95": [
-            0.518584404733026,
-            0.5376465830974524
+            0.5225802944014788,
+            0.5265087138712213
           ],
           "decision": "BETTER",
-          "valid_pairs": 10,
+          "valid_pairs": 12,
           "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
@@ -293,16 +465,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 307.98915577743554,
-            "moon-candidate": 160.9286521195784
+            "moon-baseline": 305.753931925753,
+            "moon-candidate": 160.2469593205346
           },
-          "source_record": "windows-confirm"
+          "source_record": "windows_delphi"
         },
         "windows_old": {
-          "ratio": 0.3762324029669044,
+          "ratio": 0.37513655113306965,
           "interval95": [
-            0.37166634410683186,
-            0.3806384253978075
+            0.3744940508718534,
+            0.37662248915878044
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -319,16 +491,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 428.35139757635034,
-            "moon-candidate": 161.0615206078344
+            "moon-baseline": 428.98219284140316,
+            "moon-candidate": 161.0283286681357
           },
-          "source_record": "windows-oldconfirm"
+          "source_record": "windows_old"
         },
         "linux_old": {
-          "ratio": 0.36391629815295035,
+          "ratio": 0.3891307984322599,
           "interval95": [
-            0.36115221205357545,
-            0.36595486669350585
+            0.387169188427789,
+            0.3899518864383452
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -345,10 +517,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 377.63073649627484,
-            "moon-candidate": 137.1403404387417
+            "moon-baseline": 700.7165861880467,
+            "moon-candidate": 272.57955994897964
           },
-          "source_record": "linux-confirm"
+          "source_record": "linux_old"
         }
       }
     },
@@ -356,36 +528,10 @@
       "id": "hot-rtl/variant-vartostr-int",
       "comparisons": {
         "windows_delphi": {
-          "ratio": 0.8302105786768365,
+          "ratio": 0.8311087073833542,
           "interval95": [
-            0.8244177433956054,
-            0.8320873826729795
-          ],
-          "decision": "BETTER",
-          "valid_pairs": 9,
-          "planned_pairs": 12,
-          "oracle": {
-            "moon-baseline": [
-              "000000000000AF40"
-            ],
-            "moon-candidate": [
-              "000000000000AF40"
-            ]
-          },
-          "semantic_match": true,
-          "aa_passed": true,
-          "cpu_price_qualified": true,
-          "work_centers": {
-            "moon-baseline": 114.04355524944529,
-            "moon-candidate": 94.57995816800383
-          },
-          "source_record": "windows-confirm"
-        },
-        "windows_old": {
-          "ratio": 0.2390234614062394,
-          "interval95": [
-            0.23755280269590393,
-            0.24071138650719312
+            0.8301519415700912,
+            0.8315951240417213
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -402,16 +548,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 395.83140516136945,
-            "moon-candidate": 94.53747153842998
+            "moon-baseline": 113.81380633515934,
+            "moon-candidate": 94.56897887627898
           },
-          "source_record": "windows-oldconfirm"
+          "source_record": "windows_delphi"
         },
         "linux_old": {
-          "ratio": 0.17940795236649398,
+          "ratio": 0.2562711944708082,
           "interval95": [
-            0.17789686259615461,
-            0.18157303958409196
+            0.2556748466122037,
+            0.25927676478931433
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -428,10 +574,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 563.7761737751912,
-            "moon-candidate": 101.58956415045171
+            "moon-baseline": 979.2082972645429,
+            "moon-candidate": 251.58223684210526
           },
-          "source_record": "linux-confirm"
+          "source_record": "linux_old"
         }
       }
     },
@@ -439,13 +585,13 @@
       "id": "rtl/stringlist-indexof-128",
       "comparisons": {
         "windows_delphi": {
-          "ratio": 0.09624218217952296,
+          "ratio": 0.0924150755822305,
           "interval95": [
-            0.09592015482328013,
-            0.09655792743512774
+            0.09220337784789637,
+            0.09247596440718421
           ],
           "decision": "BETTER",
-          "valid_pairs": 6,
+          "valid_pairs": 12,
           "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
@@ -459,16 +605,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 32054.895001478853,
-            "moon-candidate": 3082.756508266957
+            "moon-baseline": 31935.30143112181,
+            "moon-candidate": 2950.7370771619476
           },
-          "source_record": "windows-confirm"
+          "source_record": "windows_delphi"
         },
         "windows_old": {
-          "ratio": 0.09372839251268739,
+          "ratio": 0.09018090064642857,
           "interval95": [
-            0.09353808416587885,
-            0.09392594113269521
+            0.08979874608803844,
+            0.09030236093913326
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -485,16 +631,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 32859.853429294424,
-            "moon-candidate": 3082.280719050905
+            "moon-baseline": 32719.84229165576,
+            "moon-candidate": 2952.069456801754
           },
-          "source_record": "windows-oldconfirm"
+          "source_record": "windows_old"
         },
         "linux_old": {
-          "ratio": 0.05704277810276291,
+          "ratio": 0.06801629669477115,
           "interval95": [
-            0.05647452486803782,
-            0.0571569577150927
+            0.06773031640252347,
+            0.0682387127507316
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -511,10 +657,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 51632.81764914773,
-            "moon-candidate": 2947.260830965909
+            "moon-baseline": 85371.07682291666,
+            "moon-candidate": 5804.823567708334
           },
-          "source_record": "linux-confirm"
+          "source_record": "linux_old"
         }
       }
     },
@@ -522,13 +668,13 @@
       "id": "rtl-collections/dictionary-addorset",
       "comparisons": {
         "windows_delphi": {
-          "ratio": 0.3106976797518864,
+          "ratio": 0.3015006891076935,
           "interval95": [
-            0.299067535759551,
-            0.3274405125076266
+            0.299336236672173,
+            0.30322373366310224
           ],
           "decision": "BETTER",
-          "valid_pairs": 8,
+          "valid_pairs": 12,
           "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
@@ -542,16 +688,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 61.084192383987514,
-            "moon-candidate": 19.020620828952268
+            "moon-baseline": 61.003648884030646,
+            "moon-candidate": 18.323869987852603
           },
-          "source_record": "windows-confirm"
+          "source_record": "windows_delphi"
         },
         "windows_old": {
-          "ratio": 0.305046294209962,
+          "ratio": 0.2993236860078516,
           "interval95": [
-            0.30181718814045644,
-            0.3200845871810865
+            0.2990502361270656,
+            0.30037371816474895
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -568,16 +714,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 60.81871953576939,
-            "moon-candidate": 18.57662442775122
+            "moon-baseline": 61.219634151617456,
+            "moon-candidate": 18.33621652692306
           },
-          "source_record": "windows-oldconfirm"
+          "source_record": "windows_old"
         },
         "linux_old": {
-          "ratio": 0.2974182346276132,
+          "ratio": 0.3186815731150069,
           "interval95": [
-            0.296644157208121,
-            0.29958318940632184
+            0.31485391375214977,
+            0.3209734901864399
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -594,10 +740,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 55.41555626486165,
-            "moon-candidate": 16.47590301421314
+            "moon-baseline": 92.76886360012756,
+            "moon-candidate": 29.394132653061227
           },
-          "source_record": "linux-confirm"
+          "source_record": "linux_old"
         }
       }
     },
@@ -605,14 +751,14 @@
       "id": "dictionary/u64-string-build-reserved-100",
       "comparisons": {
         "windows_delphi": {
-          "ratio": 0.8654007413743707,
+          "ratio": 0.8689066744839506,
           "interval95": [
-            0.8383543353083535,
-            0.8838223971255026
+            0.8619524818507068,
+            0.8975329027893375
           ],
           "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
+          "valid_pairs": 12,
+          "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
               "0000000000000072"
@@ -625,20 +771,20 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 221.17354034432867,
-            "moon-candidate": 191.11567079469944
+            "moon-baseline": 222.179849374066,
+            "moon-candidate": 193.51408150860988
           },
-          "source_record": "windows-lossleads-delphi"
+          "source_record": "windows_delphi"
         },
         "windows_old": {
-          "ratio": 0.4799138834217229,
+          "ratio": 0.4931152155496853,
           "interval95": [
-            0.47485410637187453,
-            0.5090833719427443
+            0.4842716662680814,
+            0.4980186242114749
           ],
           "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
+          "valid_pairs": 12,
+          "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
               "0000000000000072"
@@ -651,20 +797,20 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 388.5048132040365,
-            "moon-candidate": 186.96431356043888
+            "moon-baseline": 393.7944359629441,
+            "moon-candidate": 194.20269766431863
           },
-          "source_record": "windows-lossleads-old"
+          "source_record": "windows_old"
         },
         "linux_old": {
-          "ratio": 0.4258349877393289,
+          "ratio": 0.49524186743574744,
           "interval95": [
-            0.4108290058983599,
-            0.4569045305042617
+            0.49249820981038767,
+            0.49794489645803924
           ],
           "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
+          "valid_pairs": 12,
+          "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
               "0000000000000072"
@@ -677,10 +823,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 320.33614209827357,
-            "moon-candidate": 136.8295683930943
+            "moon-baseline": 574.851421800948,
+            "moon-candidate": 285.11675355450234
           },
-          "source_record": "linux-remaining"
+          "source_record": "linux_old"
         }
       }
     },
@@ -688,13 +834,13 @@
       "id": "hot-rtl/memstream-setsize-reuse",
       "comparisons": {
         "windows_delphi": {
-          "ratio": 0.29047035292599527,
+          "ratio": 0.31096739745594487,
           "interval95": [
-            0.2898291136176599,
-            0.29346300866115066
+            0.3099956307621735,
+            0.3115412008611265
           ],
           "decision": "BETTER",
-          "valid_pairs": 9,
+          "valid_pairs": 12,
           "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
@@ -708,16 +854,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 46.32175869837724,
-            "moon-candidate": 13.468954788057367
+            "moon-baseline": 46.3668822921513,
+            "moon-candidate": 14.433425276058856
           },
-          "source_record": "windows-confirm"
+          "source_record": "windows_delphi"
         },
         "windows_old": {
-          "ratio": 0.24911063716845672,
+          "ratio": 0.2612241305538132,
           "interval95": [
-            0.24357662267708052,
-            0.26008083466491216
+            0.2602849581584113,
+            0.261644058686472
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -734,16 +880,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 55.29383979721133,
-            "moon-candidate": 13.767800024091478
+            "moon-baseline": 55.28640708060104,
+            "moon-candidate": 14.447615619260734
           },
-          "source_record": "windows-oldconfirm"
+          "source_record": "windows_old"
         },
         "linux_old": {
-          "ratio": 0.248567740175615,
+          "ratio": 0.30228774907516076,
           "interval95": [
-            0.2421509202240356,
-            0.2503474752979904
+            0.3013788214789324,
+            0.3025185142509448
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -760,10 +906,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 57.72000675449503,
-            "moon-candidate": 14.325729545237184
+            "moon-baseline": 58.38992763964899,
+            "moon-candidate": 17.648400641630495
           },
-          "source_record": "linux-confirm"
+          "source_record": "linux_old"
         }
       }
     },
@@ -771,13 +917,13 @@
       "id": "json/byte-scan-medium-256",
       "comparisons": {
         "windows_delphi": {
-          "ratio": 0.6840420647706793,
+          "ratio": 0.6841773476555906,
           "interval95": [
-            0.6513557465732966,
-            0.690093052543203
+            0.6807120849024307,
+            0.688884127291327
           ],
           "decision": "BETTER",
-          "valid_pairs": 8,
+          "valid_pairs": 12,
           "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
@@ -791,16 +937,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 5.163437469392376,
-            "moon-candidate": 3.5420886232990556
+            "moon-baseline": 5.178747838855019,
+            "moon-candidate": 3.540830425181735
           },
-          "source_record": "windows-confirm"
+          "source_record": "windows_delphi"
         },
         "windows_old": {
-          "ratio": 0.6214033993025139,
+          "ratio": 0.6388849806590016,
           "interval95": [
-            0.6172212821959014,
-            0.6302200269420746
+            0.6361732109532696,
+            0.6401236793653934
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -817,16 +963,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 5.69642702853276,
-            "moon-candidate": 3.5373632804982886
+            "moon-baseline": 5.5456829561303715,
+            "moon-candidate": 3.5393481402528266
           },
-          "source_record": "windows-oldconfirm"
+          "source_record": "windows_old"
         },
         "linux_old": {
-          "ratio": 0.6602654334849202,
+          "ratio": 0.6619969678339117,
           "interval95": [
-            0.6597605716501183,
-            0.6732463404011046
+            0.6612851834780483,
+            0.662231143758432
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -843,10 +989,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 4.548986590921537,
-            "moon-candidate": 3.0034832808993794
+            "moon-baseline": 6.696690036724377,
+            "moon-candidate": 4.432658686865073
           },
-          "source_record": "linux-confirm"
+          "source_record": "linux_old"
         }
       }
     },
@@ -854,13 +1000,13 @@
       "id": "loops/loop-try-finally",
       "comparisons": {
         "windows_delphi": {
-          "ratio": 0.6312658227848101,
+          "ratio": 0.6322282127608325,
           "interval95": [
-            0.630812484205206,
-            0.6318606921308687
+            0.632014729982253,
+            0.6325032607350379
           ],
           "decision": "BETTER",
-          "valid_pairs": 9,
+          "valid_pairs": 12,
           "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
@@ -874,16 +1020,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 5.738124416042212,
-            "moon-candidate": 3.6210548348992635
+            "moon-baseline": 5.7261647718329245,
+            "moon-candidate": 3.62025783474105
           },
-          "source_record": "windows-confirm"
+          "source_record": "windows_delphi"
         },
         "windows_old": {
-          "ratio": 0.7121144533971948,
+          "ratio": 0.711689564232638,
           "interval95": [
-            0.7106425177113194,
-            0.7124705546434434
+            0.7109888562795786,
+            0.7120736102384099
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -900,16 +1046,16 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 5.084470333756714,
-            "moon-candidate": 3.6208733147431165
+            "moon-baseline": 5.08918768145956,
+            "moon-candidate": 3.62181150553098
           },
-          "source_record": "windows-oldconfirm"
+          "source_record": "windows_old"
         },
         "linux_old": {
-          "ratio": 0.7180633365849463,
+          "ratio": 0.37057276289444874,
           "interval95": [
-            0.7162986887124475,
-            0.7190465495994346
+            0.37001465555710056,
+            0.37720733689570424
           ],
           "decision": "BETTER",
           "valid_pairs": 12,
@@ -926,10 +1072,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 4.947817296531284,
-            "moon-candidate": 3.5530168139199425
+            "moon-baseline": 10.074886672884052,
+            "moon-candidate": 3.7283060430936072
           },
-          "source_record": "linux-confirm"
+          "source_record": "linux_old"
         }
       }
     },
@@ -937,14 +1083,14 @@
       "id": "rtl/dictionary-get",
       "comparisons": {
         "linux_old": {
-          "ratio": 0.4394828082340673,
+          "ratio": 0.3979796377536775,
           "interval95": [
-            0.4388471623547364,
-            0.4398537521105005
+            0.39364183164994626,
+            0.40265796073257976
           ],
           "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
+          "valid_pairs": 12,
+          "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
               "000000000000558F"
@@ -957,10 +1103,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 39.045148846677236,
-            "moon-candidate": 17.14991977537104
+            "moon-baseline": 66.12920004953844,
+            "moon-candidate": 26.324450552067752
           },
-          "source_record": "linux-useful"
+          "source_record": "linux_old"
         }
       }
     },
@@ -968,14 +1114,14 @@
       "id": "rtl/dictionary-string-get",
       "comparisons": {
         "linux_old": {
-          "ratio": 0.47978221762474615,
+          "ratio": 0.5604736982855196,
           "interval95": [
-            0.47745686813802357,
-            0.4850830324425778
+            0.5590225083847644,
+            0.5672210664832626
           ],
           "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
+          "valid_pairs": 12,
+          "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
               "000000000000558F"
@@ -988,10 +1134,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 53.60815793232227,
-            "moon-candidate": 25.696383891495586
+            "moon-baseline": 87.24809524229931,
+            "moon-candidate": 48.96459755096275
           },
-          "source_record": "linux-useful"
+          "source_record": "linux_old"
         }
       }
     },
@@ -999,14 +1145,14 @@
       "id": "rtl-collections/dictionary-keys",
       "comparisons": {
         "linux_old": {
-          "ratio": 0.6278036931702136,
+          "ratio": 0.737424618144281,
           "interval95": [
-            0.6261184327301522,
-            0.630507553102247
+            0.7322579546646775,
+            0.7564653325612034
           ],
           "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
+          "valid_pairs": 12,
+          "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
               "0000000000622E80"
@@ -1019,10 +1165,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 15.358412932389937,
-            "moon-candidate": 9.64310976808176
+            "moon-baseline": 21.704841382575758,
+            "moon-candidate": 16.03418237775482
           },
-          "source_record": "linux-useful"
+          "source_record": "linux_old"
         }
       }
     },
@@ -1030,14 +1176,14 @@
       "id": "rtl-collections/dictionary-values",
       "comparisons": {
         "linux_old": {
-          "ratio": 0.6267053816065573,
+          "ratio": 0.4460255418754849,
           "interval95": [
-            0.6153279508656553,
-            0.6301148964392863
+            0.4416440890676945,
+            0.4525964949573843
           ],
           "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
+          "valid_pairs": 12,
+          "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
               "0000000000007F80"
@@ -1050,10 +1196,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 15.369435328699197,
-            "moon-candidate": 9.6300993246532
+            "moon-baseline": 35.81946715876945,
+            "moon-candidate": 15.993462418228429
           },
-          "source_record": "linux-useful"
+          "source_record": "linux_old"
         }
       }
     },
@@ -1061,14 +1207,14 @@
       "id": "rtl-collections/dictionary-pairs",
       "comparisons": {
         "linux_old": {
-          "ratio": 0.7381682568084804,
+          "ratio": 0.8166385522065953,
           "interval95": [
-            0.7269544345012378,
-            0.7405375398132468
+            0.8000927851857312,
+            0.8274791543817863
           ],
           "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
+          "valid_pairs": 12,
+          "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
               "000000000062AE00"
@@ -1081,10 +1227,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 18.150758515211642,
-            "moon-candidate": 13.399084408068784
+            "moon-baseline": 23.528561197916666,
+            "moon-candidate": 19.206601562499998
           },
-          "source_record": "linux-useful"
+          "source_record": "linux_old"
         }
       }
     },
@@ -1092,14 +1238,14 @@
       "id": "dictionary/u64-string-build-grow-100",
       "comparisons": {
         "linux_old": {
-          "ratio": 0.5927454797080671,
+          "ratio": 0.6137792406951028,
           "interval95": [
-            0.5824580974039979,
-            0.6353353400345542
+            0.606582111576437,
+            0.6155756859932929
           ],
           "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
+          "valid_pairs": 12,
+          "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
               "0000000000000072"
@@ -1112,10 +1258,10 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 445.46817694369975,
-            "moon-candidate": 261.90684986595176
+            "moon-baseline": 804.1467796610169,
+            "moon-candidate": 493.2616101694915
           },
-          "source_record": "linux-useful"
+          "source_record": "linux_old"
         }
       }
     },
@@ -1123,14 +1269,14 @@
       "id": "dictionary/u64-string-build-grow-10000",
       "comparisons": {
         "linux_old": {
-          "ratio": 0.6433875925529912,
+          "ratio": 0.6888853109583635,
           "interval95": [
-            0.6240103890509013,
-            0.6625282997313162
+            0.6853597604326487,
+            0.6923575005974114
           ],
           "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
+          "valid_pairs": 12,
+          "planned_pairs": 12,
           "oracle": {
             "moon-baseline": [
               "0000000000002706"
@@ -1143,106 +1289,126 @@
           "aa_passed": true,
           "cpu_price_qualified": true,
           "work_centers": {
-            "moon-baseline": 547.94785,
-            "moon-candidate": 353.33276666666666
+            "moon-baseline": 711.3567,
+            "moon-candidate": 489.64705000000004
           },
-          "source_record": "linux-remaining"
-        }
-      }
-    },
-    {
-      "id": "mm/ring-mixed-16-to-1m",
-      "comparisons": {
-        "windows_default": {
-          "ratio": 0.3578795013248272,
-          "interval95": [
-            0.35139751091573346,
-            0.3798159390242084
-          ],
-          "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
-          "oracle": {
-            "moon-baseline": [
-              "000000000000FF00"
-            ],
-            "moon-candidate": [
-              "000000000000FF00"
-            ]
-          },
-          "semantic_match": true,
-          "aa_passed": true,
-          "cpu_price_qualified": true,
-          "work_centers": {
-            "moon-baseline": 5926.117322291235,
-            "moon-candidate": 2115.1801242236024
-          },
-          "source_record": "windows-mm-default"
-        }
-      }
-    },
-    {
-      "id": "mm/fragmented-mixed",
-      "comparisons": {
-        "windows_default": {
-          "ratio": 0.5914394422775053,
-          "interval95": [
-            0.5714616234929177,
-            0.6983315392895588
-          ],
-          "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
-          "oracle": {
-            "moon-baseline": [
-              "0000000000017F00"
-            ],
-            "moon-candidate": [
-              "0000000000017F00"
-            ]
-          },
-          "semantic_match": true,
-          "aa_passed": true,
-          "cpu_price_qualified": true,
-          "work_centers": {
-            "moon-baseline": 2762.3771183191475,
-            "moon-candidate": 1636.3653094087877
-          },
-          "source_record": "windows-mm-default"
-        }
-      }
-    },
-    {
-      "id": "mm/realloc-grow",
-      "comparisons": {
-        "windows_default": {
-          "ratio": 0.6430528124497141,
-          "interval95": [
-            0.6211300789484563,
-            0.7296034039142905
-          ],
-          "decision": "BETTER",
-          "valid_pairs": 6,
-          "planned_pairs": 6,
-          "oracle": {
-            "moon-baseline": [
-              "000000000000010B"
-            ],
-            "moon-candidate": [
-              "000000000000010B"
-            ]
-          },
-          "semantic_match": true,
-          "aa_passed": true,
-          "cpu_price_qualified": true,
-          "work_centers": {
-            "moon-baseline": 91.38805913425415,
-            "moon-candidate": 58.09017823320358
-          },
-          "source_record": "windows-mm-default"
+          "source_record": "linux_old"
         }
       }
     }
   ],
-  "allocator_comparison": "windows_default compares the bundled MM with the default FPC MM under the same Moon compiler; it is separate from the compiler comparisons."
+  "historical_allocator_measurements": {
+    "measured_date": "2026-10-04",
+    "candidate": "54b63f39b54e066c56e30f76625d26856370293e",
+    "scope": "Bundled allocator versus standard FPC allocator with the same Windows compiler",
+    "sources": {
+      "windows-mm-default": {
+        "sha256": "7315fbd5129e13ca4aeb178c134f981f23cc291069589d2fa9c5de8809d72805",
+        "host": "BRO-3",
+        "comparison": "default",
+        "elapsed_seconds": 34.04093790054321,
+        "aa_passed": true,
+        "cpus": [
+          12,
+          12
+        ],
+        "stack_plan": "fixed"
+      }
+    },
+    "cases": [
+      {
+        "id": "mm/ring-mixed-16-to-1m",
+        "comparisons": {
+          "windows_default": {
+            "ratio": 0.3578795013248272,
+            "interval95": [
+              0.35139751091573346,
+              0.3798159390242084
+            ],
+            "decision": "BETTER",
+            "valid_pairs": 6,
+            "planned_pairs": 6,
+            "oracle": {
+              "moon-baseline": [
+                "000000000000FF00"
+              ],
+              "moon-candidate": [
+                "000000000000FF00"
+              ]
+            },
+            "semantic_match": true,
+            "aa_passed": true,
+            "cpu_price_qualified": true,
+            "work_centers": {
+              "moon-baseline": 5926.117322291235,
+              "moon-candidate": 2115.1801242236024
+            },
+            "source_record": "windows-mm-default"
+          }
+        }
+      },
+      {
+        "id": "mm/fragmented-mixed",
+        "comparisons": {
+          "windows_default": {
+            "ratio": 0.5914394422775053,
+            "interval95": [
+              0.5714616234929177,
+              0.6983315392895588
+            ],
+            "decision": "BETTER",
+            "valid_pairs": 6,
+            "planned_pairs": 6,
+            "oracle": {
+              "moon-baseline": [
+                "0000000000017F00"
+              ],
+              "moon-candidate": [
+                "0000000000017F00"
+              ]
+            },
+            "semantic_match": true,
+            "aa_passed": true,
+            "cpu_price_qualified": true,
+            "work_centers": {
+              "moon-baseline": 2762.3771183191475,
+              "moon-candidate": 1636.3653094087877
+            },
+            "source_record": "windows-mm-default"
+          }
+        }
+      },
+      {
+        "id": "mm/realloc-grow",
+        "comparisons": {
+          "windows_default": {
+            "ratio": 0.6430528124497141,
+            "interval95": [
+              0.6211300789484563,
+              0.7296034039142905
+            ],
+            "decision": "BETTER",
+            "valid_pairs": 6,
+            "planned_pairs": 6,
+            "oracle": {
+              "moon-baseline": [
+                "000000000000010B"
+              ],
+              "moon-candidate": [
+                "000000000000010B"
+              ]
+            },
+            "semantic_match": true,
+            "aa_passed": true,
+            "cpu_price_qualified": true,
+            "work_centers": {
+              "moon-baseline": 91.38805913425415,
+              "moon-candidate": 58.09017823320358
+            },
+            "source_record": "windows-mm-default"
+          }
+        }
+      }
+    ]
+  }
 }

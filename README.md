@@ -286,16 +286,16 @@ programs with many generated classes and provides a portable direct `fpc` build.
 Read [what changed in MoonCompiler 2.0](doc/RELEASE_NOTES.md) for the practical
 results, the measured workloads and upgrading instructions.
 
-Selected confirmed examples from the 4 October integration measurements:
+Selected confirmed examples from the 5 October release measurements:
 
 | Useful operation | CPU cost removed vs Delphi 12.2, Win64 | CPU cost removed vs first Moon release, Win64 / Linux |
 |---|---:|---:|
-| UTF-16 substring search in a 64-character string | 24% | 53% / 59% |
+| UTF-16 substring search in a 64-character string | 24% | 52% / 56% |
 | Decode 32 Cyrillic characters from UTF-8 | 60% | 83% / 79% |
-| Add or update a numeric dictionary entry | 69% | 69% / 70% |
-| Fill a reserved dictionary with numeric keys and string values | 13% | 52% / 57% |
-| Scan a mixed JSON byte buffer | 32% | 38% / 34% |
-| Loop with a short `try/finally` | 37% | 29% / 28% |
+| Add or update a numeric dictionary entry | 70% | 70% / 68% |
+| Fill a reserved dictionary with numeric keys and string values | 13% | 51% / 50% |
+| Scan a mixed JSON byte buffer | 32% | 36% / 34% |
+| Loop with a short `try/finally` | 37% | 29% / 63% |
 
 These are reductions in the cost of the named work, not whole-application speedups
 or a complete-matrix average. Linux comparisons use the previous Moon release;
