@@ -245,7 +245,7 @@ jobs:
             ../../toolchain/bin/ppcx64 ../../toolchain/etc/moon-base.cfg \
             ../.. ci-linux-repairs
       - name: Run RTL semantic matrix
-        run: python3 RTL-test/run.py
+        run: python3 RTL-test/run.py --jobs 4
       - name: Run HTTP, MIME, ZIP and optional Brotli contracts
         run: |
           python3 qualification/suite/scripts/run_runtime_mormot_gate.py \
@@ -592,7 +592,7 @@ jobs:
         shell: powershell
         run: |
           $env:MOONBOT_MAKE = "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\make.exe"
-          python .\RTL-test\run.py
+          python .\RTL-test\run.py --jobs 4
       - name: Run HTTP, MIME, ZIP and optional Brotli contracts
         shell: powershell
         run: |
