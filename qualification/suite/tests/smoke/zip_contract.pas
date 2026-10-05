@@ -265,16 +265,19 @@ begin
     Check((Length(Back) = Length(Big) - 1000) and CompareMem(@Back[0], @Big[1000], Length(Back)), 'big entry read back');
     Z.Read(1, S, H, True);
     try
+      Log.Calls := 0;
       Check((H.CompressionMethod = 0) and (H.UncompressedSize64 = Length(Small)), 'stored entry header');
       Check(H.UTF8Support, 'non-ASCII name flagged UTF-8 (bit 11)');
       SetLength(Back, Length(Small));
       S.ReadBuffer(Back[0], Length(Back));
       Check(SameBytes(Back, Small), 'stored entry content');
+      Check((Log.Calls = 1) and (Log.LastPosition = Length(Back)), 'returned stream read progress');
     finally
       S.Free;
     end;
     Z.Read('empty.txt', Back);
     Check(Length(Back) = 0, 'empty entry read back');
+    Check((Log.LastName = 'empty.txt') and (Log.LastPosition = 0), 'empty entry completion progress');
     Z.Read(0, S, H, False);
     S.Free;
     Check(Abs(Now - H.ModifiedTime) < 1, 'ModifiedTime is the time of writing');

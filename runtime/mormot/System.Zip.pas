@@ -265,6 +265,72 @@ type
     function Write(const Buffer; Count: Longint): Longint; override;
   end;
 
+  { The archive must remain open while its borrowed entry stream is read. }
+  TZipProgressStream = class(TStream)
+  private
+    FSource: TStream;
+    FArchive: TZipFile;
+    FHeader: TZipHeader;
+    FName: string;
+    FReported: Int64;
+  protected
+    function GetSize: Int64; override;
+  public
+    constructor Create(var Source: TStream; Archive: TZipFile; const Name: string; const Header: TZipHeader);
+    destructor Destroy; override;
+    function Read(var Buffer; Count: Longint): Longint; override;
+    function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+    function Write(const Buffer; Count: Longint): Longint; override;
+  end;
+
+constructor TZipProgressStream.Create(var Source: TStream; Archive: TZipFile; const Name: string;
+  const Header: TZipHeader);
+begin
+  inherited Create;
+  FHeader := Header;
+  FName := Name;
+  FArchive := Archive;
+  FReported := -1;
+  FSource := Source;
+  Source := nil;
+end;
+
+destructor TZipProgressStream.Destroy;
+begin
+  FSource.Free;
+  inherited Destroy;
+end;
+
+function TZipProgressStream.GetSize: Int64;
+begin
+  Result := FSource.Size;
+end;
+
+function TZipProgressStream.Read(var Buffer; Count: Longint): Longint;
+var
+  Current: Int64;
+begin
+  Result := FSource.Read(Buffer, Count);
+  Current := FSource.Position;
+  If (Count > 0) and (Current <> FReported) then begin
+    FReported := Current;
+    FArchive.DoProgress(FName, FHeader, Current);
+  end;
+end;
+
+function TZipProgressStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+  Result := FSource.Seek(Offset, Origin);
+  If Result < FReported then
+    FReported := -1;
+end;
+
+function TZipProgressStream.Write(const Buffer; Count: Longint): Longint;
+begin
+  Result := 0;
+  raise EStreamError.Create('ZIP entry stream is read-only');
+end;
+
 constructor TZipEntrySourceStream.Create(Data: Pointer; Size: Int64);
 begin
   inherited Create;
@@ -772,6 +838,7 @@ begin
     Source := TZipEntryReadStream.Create(Source, LocalHeader.CompressionMethod, LocalHeader.UncompressedSize64, FNames[Index]);
     If CheckCrc then
       Source := TZipCRCReadStream.Create(Source, LocalHeader.CRC32, LocalHeader.UncompressedSize64, FNames[Index]);
+    Source := TZipProgressStream.Create(Source, Self, FNames[Index], LocalHeader);
     Stream := Source;
     Source := nil;
   finally
