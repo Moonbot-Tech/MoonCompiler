@@ -1202,7 +1202,7 @@ end;
 
 function TJSONPathParser.GetIsEof: Boolean;
 begin
-  Result:=(FCurrent^=#0)
+  Result:=(FCurrent>=FEnd) or (FCurrent^=#0)
 end;
 
 constructor TJSONPathParser.Create(const aPath: UnicodeString);
@@ -1213,12 +1213,22 @@ end;
 
 constructor TJSONPathParser.Create(const aPath: PWideChar; aLen: Integer);
 begin
+  if (aPath=nil) or (aLen<0) then
+    aLen:=0;
   FPath:=aPath;
   FCurrent:=FPath;
-  FEnd:=@NullWideChar
+  FEnd:=FPath+aLen
 end;
 
 function TJSONPathParser.NextToken: TToken;
+
+  function Peek: WideChar;
+  begin
+    if FCurrent>=FEnd then
+      Result:=#0
+    else
+      Result:=FCurrent^;
+  end;
 
   Procedure Error(const Fmt : UnicodeString; Args : Array of const);
 
@@ -1229,7 +1239,7 @@ function TJSONPathParser.NextToken: TToken;
 
   Procedure SkipWhiteSpace;
   begin
-    While (Ord(FCurrent^)<>0) and (Ord(FCurrent^)<=32) do
+    While (Ord(Peek)<>0) and (Ord(Peek)<=32) do
       Inc(FCurrent)
   end;
 
@@ -1241,26 +1251,77 @@ function TJSONPathParser.NextToken: TToken;
   begin
     SetLength(FTokenName,aLen);
     PName:=PWideChar(FTokenName);
-    // Only called with aLen>0
-    Move(PStart^,PName^,aLen*SizeOf(UnicodeChar));
+    if aLen>0 then
+      Move(PStart^,PName^,aLen*SizeOf(UnicodeChar));
   end;
 
   Procedure ParseName(EndAt : TSysCharSet; SkipFirst : Boolean = True; IsQuoted : Boolean = False);
   var
     PStart : PWideChar;
-    Len : Integer;
+    Len, I, Digit, Code: Integer;
+    Quote, C: WideChar;
 
   begin
+    if IsQuoted then
+      begin
+      Quote:=Peek;
+      Inc(FCurrent);
+      FTokenName:='';
+      while Peek<>Quote do
+        begin
+        C:=Peek;
+        if Ord(C)<32 then
+          Error(SErrInvalidIndexAt,[FCurrent-FPath]);
+        Inc(FCurrent);
+        if C='\' then
+          begin
+          C:=Peek;
+          if C=#0 then
+            Error(SErrInvalidIndexAt,[FCurrent-FPath]);
+          Inc(FCurrent);
+          case C of
+            '"',#39,'\','/': ;
+            'b': C:=#8;
+            'f': C:=#12;
+            'n': C:=#10;
+            'r': C:=#13;
+            't': C:=#9;
+            'u':
+              begin
+              Code:=0;
+              for I:=1 to 4 do
+                begin
+                C:=Peek;
+                case C of
+                  '0'..'9': Digit:=Ord(C)-Ord('0');
+                  'a'..'f': Digit:=Ord(C)-Ord('a')+10;
+                  'A'..'F': Digit:=Ord(C)-Ord('A')+10;
+                else
+                  Error(SErrInvalidIndexAt,[FCurrent-FPath]);
+                end;
+                Code:=Code*16+Digit;
+                Inc(FCurrent);
+                end;
+              C:=WideChar(Code);
+              end;
+          else
+            Error(SErrInvalidIndexAt,[FCurrent-FPath]);
+          end;
+          end;
+        FTokenName:=FTokenName+C;
+        end;
+      Inc(FCurrent);
+      FToken:=TToken.Name;
+      Exit;
+      end;
     if SkipFirst then
       Inc(FCurrent); // Skip dot or quote
     SkipWhiteSpace;
     PStart:=FCurrent;
     // Endat always contains #0
-    While not CharInSet(FCurrent^,EndAt) do
+    While not CharInSet(Peek,EndAt) do
       Inc(FCurrent);
     Len:=FCurrent-PStart;
-    if IsQuoted then
-      Inc(FCurrent); // Move to character after quote
     if Len=0 then
       Error(SErrEmptyNameNotAllowed, [PStart-FPath]);
 
@@ -1275,11 +1336,11 @@ function TJSONPathParser.NextToken: TToken;
 
   begin
     PStart:=FCurrent;
-    if FCurrent^='-' then
+    if Peek='-' then
       Inc(FCurrent);
-    While (FCurrent^ in ['0'..'9']) do
+    While (Peek in ['0'..'9']) do
       Inc(FCurrent);
-    if FCurrent^<>']' then
+    if Peek<>']' then
       Error(SErrInvalidIndexAt, [PStart-FPath]);
     Len:=FCurrent-PStart;
     if Len=0 then
@@ -1295,17 +1356,17 @@ begin
   SkipWhiteSpace;
   FToken:=TToken.EOF;
   if IsEof then exit(FToken);
-  If FCurrent^='.' then
-    ParseName([#0,'.'])
-  else if FCurrent^='[' then
+  If Peek='.' then
+    ParseName([#0,'.','['])
+  else if Peek='[' then
     begin
     Inc(FCurrent);
     SkipWhiteSpace;
-    if FCurrent^ in [#39,'"'] then
+    if Peek in [#39,'"'] then
       begin
-      ParseName([#0,AnsiChar(Ord(FCurrent^))],True,True);
+      ParseName([#0,AnsiChar(Ord(Peek))],True,True);
       SkipWhiteSpace;
-      if (FCurrent^<>']') then
+      if (Peek<>']') then
         Error(SErrInvalidIndexAt, [FCurrent-FPath]);
       Inc(FCurrent);
       end
@@ -1313,7 +1374,7 @@ begin
       ParseIndex;
     end
   else
-    ParseName([#0,'.'],False);
+    ParseName([#0,'.','['],False);
   Result:=FToken;
 end;
 

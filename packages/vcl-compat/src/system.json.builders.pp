@@ -340,6 +340,8 @@ type
     function GetParentType: TParentType;
     function GetParentArray: TElements;
     function GetParentObject: TPairs;
+    procedure SetExtendedJsonMode(Value: TJsonExtendedJsonMode);
+    procedure SetDateTimeZoneHandling(Value: TJsonDateTimeZoneHandling);
   protected
     procedure DoResetWriter(aWriter: TJsonWriter); virtual;
     function DoGetReader(aWriter: TJsonWriter): TJsonReader; virtual;
@@ -359,9 +361,9 @@ type
     property ParentArray: TElements read GetParentArray;
     property ParentObject: TPairs read GetParentObject;
     property ExtendedJsonMode: TJsonExtendedJsonMode read FExtendedJsonMode
-      write FExtendedJsonMode default TJsonExtendedJsonMode.None;
+      write SetExtendedJsonMode default TJsonExtendedJsonMode.None;
     property DateTimeZoneHandling: TJsonDateTimeZoneHandling read FDateTimeZoneHandling
-      write FDateTimeZoneHandling default TJsonDateTimeZoneHandling.Local;
+      write SetDateTimeZoneHandling default TJsonDateTimeZoneHandling.Local;
   end;
 
   TJSONArrayBuilder = class(TJSONCollectionBuilder)
@@ -381,6 +383,7 @@ type
     TContext = record
       FToken: TJsonToken;
       FIndex: Integer;
+      FPath: string;
       constructor Create(aToken: TJsonToken);
     end;
   public type
@@ -395,7 +398,10 @@ type
     FStarting: Boolean;
     FFinished: Boolean;
     FRecursion: Boolean;
+    FContainerPending: Boolean;
+    FLevelEnded: Boolean;
     FRewindReader: TRewindReaderProc;
+    procedure SkipContainer;
     function GetAsBoolean: Boolean; inline;
     function GetAsString: String; inline;
     function GetAsInteger: Int32; inline;
@@ -473,11 +479,11 @@ implementation
 
 uses
   {$IFDEF FPC_DOTTEDUNITS}
-  System.TypInfo, System.Variants,
+  System.TypInfo, System.Variants, Fcl.Streams.Extra,
   {$ELSE}
-  TypInfo, Variants,
+  TypInfo, Variants, StreamEx,
   {$ENDIF}
-  System.JSONConsts;
+  System.JSONConsts, System.NetEncoding;
 
 { TJSONCollectionBuilder.TBaseCollection }
 
@@ -491,14 +497,12 @@ end;
 
 procedure TJSONCollectionBuilder.TBaseCollection.AddingElement;
 begin
-  // Called when adding an element to an array
-  // No special action needed for basic implementation
+  Owner.CheckParentType(FRootDepth,TParentType.Elements);
 end;
 
 procedure TJSONCollectionBuilder.TBaseCollection.AddingPair;
 begin
-  // Called when adding a pair to an object
-  // No special action needed for basic implementation
+  Owner.CheckParentType(FRootDepth,TParentType.Pairs);
 end;
 
 class procedure TJSONCollectionBuilder.TBaseCollection.ErrorInvalidSetOfItems;
@@ -568,13 +572,17 @@ procedure TJSONCollectionBuilder.TBaseCollection.WriteVariant(const aValue: Vari
   procedure addBytes;
   var
     pData: Pointer;
+    Bytes: TBytes;
   begin
+    SetLength(Bytes, VarArrayHighBound(aValue, 1) - VarArrayLowBound(aValue, 1) + 1);
     pData := VarArrayLock(aValue);
     try
-      Writer.WriteValue(TBytes(pData), TJsonBinaryType.Generic);
+      If Length(Bytes) <> 0 then
+        Move(pData^, Bytes[0], Length(Bytes));
     finally
       VarArrayUnlock(aValue);
     end;
+    Writer.WriteValue(Bytes, TJsonBinaryType.Generic);
   end;
 
   procedure addArray;
@@ -582,15 +590,15 @@ procedure TJSONCollectionBuilder.TBaseCollection.WriteVariant(const aValue: Vari
     I: Integer;
     LElems: TElements;
   begin
-    LElems := BeginArray;
-    for I := 0 to VarArrayHighBound(aValue, 1) do
+    LElems := Owner.BeginArray(FRootDepth);
+    for I := VarArrayLowBound(aValue, 1) to VarArrayHighBound(aValue, 1) do
       LElems.Add(aValue[I]);
     LElems.EndArray;
   end;
 
 begin
   if VarIsArray(aValue) then
-    if not ((VarArrayDimCount(aValue) = 1) and (VarArrayLowBound(aValue, 1) = 0)) then
+    if VarArrayDimCount(aValue) <> 1 then
       Error
     else if (VarType(aValue) and VarTypeMask) = varByte then
       addBytes
@@ -703,32 +711,68 @@ begin
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.WriteReader(const aReader: TJsonReader; aOnlyEnclosed: Boolean): Boolean;
+var
+  Nesting: Integer;
+  Expected: TJsonToken;
 begin
-  try
-    Writer.WriteToken(aReader, aOnlyEnclosed);
-    Result := True;
-  except
-    Result := False;
-  end;
+  if (aReader.TokenType=TJsonToken.None) and not aReader.Read then
+    raise EJSONCollectionBuilderError.Create('Empty JSON input');
+  if not aOnlyEnclosed then
+    begin
+    Writer.WriteToken(aReader,True);
+    Exit(True);
+    end;
+  if Owner.GetParentType=TParentType.Elements then
+    Expected:=TJsonToken.StartArray
+  else
+    Expected:=TJsonToken.StartObject;
+  if aReader.TokenType<>Expected then
+    raise EJSONCollectionBuilderError.Create('JSON collection type does not match the destination');
+  Nesting:=1;
+  while aReader.Read do
+    begin
+    case aReader.TokenType of
+      TJsonToken.StartArray,TJsonToken.StartObject: Inc(Nesting);
+      TJsonToken.EndArray,TJsonToken.EndObject: Dec(Nesting);
+    end;
+    if Nesting=0 then
+      Exit(True);
+    Writer.WriteToken(aReader,False);
+    end;
+  raise EJSONCollectionBuilderError.Create('Unterminated JSON collection');
 end;
 
 procedure TJSONCollectionBuilder.TBaseCollection.WriteBuilder(const aBuilder: TJSONCollectionBuilder);
 var
-  LReader: TJsonReader;
+  Reader: TJsonReader;
 begin
-  LReader := Owner.DoGetReader(aBuilder.FJSONWriter);
+  aBuilder.FJSONWriter.Flush;
+  Reader:=aBuilder.DoGetReader(aBuilder.FJSONWriter);
   try
-    Writer.WriteToken(LReader, True);
+    WriteReader(Reader,True);
   finally
-    Owner.DoReleaseReader(aBuilder.FJSONWriter, LReader);
+    aBuilder.DoReleaseReader(aBuilder.FJSONWriter,Reader);
   end;
 end;
 
 procedure TJSONCollectionBuilder.TBaseCollection.WriteJSON(const aJSON: string);
+var
+  Parsed: TJSONValue;
+  Reader: TJsonReader;
 begin
-  // Simple implementation: just write the JSON string as-is
-  // TODO: Parse and validate JSON properly
-  Writer.WriteRawValue(aJSON);
+  Parsed:=TJSONValue.ParseJSONValue(UnicodeString(aJSON),True,True);
+  if Parsed=nil then
+    raise EJSONCollectionBuilderError.Create('Empty JSON input');
+  try
+    Reader:=TJsonTextReader.Create(TStringReader.Create(Parsed.ToJSON));
+    try
+      WriteReader(Reader,True);
+    finally
+      Reader.Free;
+    end;
+  finally
+    Parsed.Free;
+  end;
 end;
 
 procedure TJSONCollectionBuilder.TBaseCollection.EndAll;
@@ -746,6 +790,8 @@ end;
 constructor TJSONCollectionBuilder.Create(const aJSONWriter: TJSONWriter);
 begin
   inherited Create;
+  if aJSONWriter=nil then
+    raise EJSONCollectionBuilderError.Create('A JSON writer is required');
   FEmpty := True;
   FJSONWriter := aJSONWriter;
   FParentTypes := specialize TStack<TParentType>.Create;
@@ -758,6 +804,8 @@ constructor TJSONCollectionBuilder.Create(const aJSONWriter: TJSONWriter;
   aResetWriter: TResetWriterProc);
 begin
   Create(aJSONWriter);
+  if Assigned(aGetReader)<>Assigned(aReleaseReader) then
+    raise EJSONCollectionBuilderError.Create('Reader acquisition and release callbacks must be paired');
   FGetReader := aGetReader;
   FReleaseReader := aReleaseReader;
   FResetWriter := aResetWriter;
@@ -786,7 +834,7 @@ end;
 
 function TJSONCollectionBuilder.Ended(aRootDepth: Integer): Boolean;
 begin
-  Result := aRootDepth = MaxInt;
+  Result := FParentTypes.Count<=aRootDepth;
 end;
 
 procedure TJSONCollectionBuilder.Complete(const aRootDepth: Integer);
@@ -838,12 +886,89 @@ begin
   end;
 end;
 
-function TJSONCollectionBuilder.GetAsJSON: string;
+function WriterJSONSnapshot(Writer: TJsonWriter): string;
+var
+  Output: TTextWriter;
+  StreamWriter: TStreamWriter;
+  Stream: TStream;
+  Saved: Int64;
+  Bytes, Preamble: TBytes;
+  Start: Integer;
 begin
+  Writer.Flush;
+  if Writer is TJsonObjectWriter then
+    begin
+    if TJsonObjectWriter(Writer).JSON=nil then
+      Exit('');
+    Exit(TJsonObjectWriter(Writer).JSON.ToJSON);
+    end;
+  if Writer is TJsonTextWriter then
+    begin
+    Output:=TJsonTextWriter(Writer).Writer;
+    if Output is TStringWriter then
+      Exit(Output.ToString);
+    if Output is TStreamWriter then
+      begin
+      StreamWriter:=TStreamWriter(Output);
+      Stream:=StreamWriter.BaseStream;
+      Saved:=Stream.Position;
+      try
+        if Stream.Size>High(Integer) then
+          raise EJSONCollectionBuilderError.Create('JSON content is too large for a string');
+        SetLength(Bytes,Stream.Size);
+        Stream.Position:=0;
+        if Length(Bytes)>0 then
+          Stream.ReadBuffer(Bytes[0],Length(Bytes));
+      finally
+        Stream.Position:=Saved;
+      end;
+      Start:=0;
+      Preamble:=StreamWriter.Encoding.GetPreamble;
+      if (Length(Preamble)>0) and (Length(Bytes)>=Length(Preamble)) and
+         CompareMem(@Bytes[0],@Preamble[0],Length(Preamble)) then
+        Start:=Length(Preamble);
+      Exit(StreamWriter.Encoding.GetString(Bytes,Start,Length(Bytes)-Start));
+      end;
+    end;
+  raise EJSONCollectionBuilderError.Create('This writer requires a reader callback');
+end;
+
+function TJSONCollectionBuilder.GetAsJSON: string;
+var
+  Reader: TJsonReader;
+  Output: TStringWriter;
+  Writer: TJsonTextWriter;
+begin
+  if not Assigned(FGetReader) then
+    Exit(WriterJSONSnapshot(FJSONWriter));
   FJSONWriter.Flush;
-  // Simple implementation: return empty string for now
-  // TODO: Implement proper JSON serialization
-  Result := '';
+  Reader:=DoGetReader(FJSONWriter);
+  try
+    Output:=TStringWriter.Create;
+    Writer:=TJsonTextWriter.Create(Output,True);
+    try
+      Writer.WriteToken(Reader,True);
+      Writer.Flush;
+      Result:=Output.ToString;
+    finally
+      Writer.Free;
+    end;
+  finally
+    DoReleaseReader(FJSONWriter,Reader);
+  end;
+end;
+
+procedure TJSONCollectionBuilder.SetExtendedJsonMode(Value: TJsonExtendedJsonMode);
+begin
+  FExtendedJsonMode := Value;
+  If FJSONWriter is TJsonTextWriter then
+    TJsonTextWriter(FJSONWriter).ExtendedJsonMode := Value;
+end;
+
+procedure TJSONCollectionBuilder.SetDateTimeZoneHandling(Value: TJsonDateTimeZoneHandling);
+begin
+  FDateTimeZoneHandling := Value;
+  FJSONWriter.DateTimeZoneHandling := Value;
 end;
 
 function TJSONCollectionBuilder.GetParentType: TParentType;
@@ -871,24 +996,51 @@ begin
 end;
 
 procedure TJSONCollectionBuilder.DoResetWriter(aWriter: TJsonWriter);
+var
+  Output: TTextWriter;
 begin
-  if not assigned(FResetWriter) then
-    raise EJSONCollectionBuilderError.Create('No reset writer callback defined');
-  FResetWriter(aWriter);
+  if Assigned(FResetWriter) then
+    begin
+    FResetWriter(aWriter);
+    Exit;
+    end;
+  if aWriter is TJsonObjectWriter then
+    Exit;
+  if aWriter is TJsonTextWriter then
+    begin
+    Output:=TJsonTextWriter(aWriter).Writer;
+    if Output is TStringWriter then
+      begin
+      TStringWriter(Output).GetStringBuilder.Clear;
+      Exit;
+      end;
+    if Output is TStreamWriter then
+      begin
+      Output.Flush;
+      TStreamWriter(Output).BaseStream.Size:=0;
+      TStreamWriter(Output).BaseStream.Position:=0;
+      Exit;
+      end;
+    end;
+  raise EJSONCollectionBuilderError.Create('This writer requires a reset callback');
 end;
 
 function TJSONCollectionBuilder.DoGetReader(aWriter: TJsonWriter): TJsonReader;
 begin
-  if not assigned(FGetReader) then
-    raise EJSONCollectionBuilderError.Create('No get reader callback defined');
-  Result := FGetReader(aWriter);
+  if Assigned(FGetReader) then
+    Result:=FGetReader(aWriter)
+  else
+    Result:=TJsonTextReader.Create(TStringReader.Create(WriterJSONSnapshot(aWriter)));
+  if Result=nil then
+    raise EJSONCollectionBuilderError.Create('Reader callback returned nil');
 end;
 
 procedure TJSONCollectionBuilder.DoReleaseReader(aWriter: TJsonWriter; aReader: TJsonReader);
 begin
-  if not assigned(FReleaseReader) then
-    raise EJSONCollectionBuilderError.Create('No release reader callback defined');
-  FReleaseReader(aWriter, aReader);
+  if Assigned(FReleaseReader) then
+    FReleaseReader(aWriter,aReader)
+  else
+    aReader.Free;
 end;
 
 procedure TJSONCollectionBuilder.DoWriteCustomVariant(aWriter: TJsonWriter; const aValue: Variant);
@@ -977,12 +1129,14 @@ end;
 
 function TJSONCollectionBuilder.PairsAsRoot: TPairs;
 begin
-  Result := GetPairs(FParentTypes.Count);
+  CheckParentType(0,TParentType.Pairs);
+  Result := GetPairs(FParentTypes.Count-1);
 end;
 
 function TJSONCollectionBuilder.ElementsAsRoot: TElements;
 begin
-  Result := GetElements(FParentTypes.Count);
+  CheckParentType(0,TParentType.Elements);
+  Result := GetElements(FParentTypes.Count-1);
 end;
 
 function TJSONCollectionBuilder.AsArray(aRootDepth: Integer): TElements;
@@ -1020,42 +1174,49 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: string): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: Int32): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: UInt32): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: Int64): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: UInt64): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: Single): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: Double): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
@@ -1063,6 +1224,7 @@ end;
 {$IFDEF FPC_HAS_TYPE_EXTENDED}
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: Extended): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
@@ -1070,126 +1232,147 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: Boolean): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: Char): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(string(aValue));
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: Byte): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: TDateTime): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: TGUID): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: TBytes; aBinaryType: TJsonBinaryType): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue, aBinaryType);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: TJsonOid): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: TJsonRegEx): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: TJsonDBRef): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: TJsonCodeWScope): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: TJsonDecimal128): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: TValue): TElements;
 begin
+  AddingElement;
   FWriter.WriteValue(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: TVarRec): TElements;
 begin
+  AddingElement;
   WriteVarRec(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aValue: Variant): TElements;
 begin
+  AddingElement;
   WriteVariant(aValue);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddElements(const aElements: array of const): TElements;
 begin
+  AddingElement;
   WriteOpenArray(aElements);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddElements(const aBuilder: TJSONCollectionBuilder): TElements;
 begin
+  AddingElement;
   WriteBuilder(aBuilder);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddElements(const aJSON: string): TElements;
 begin
+  AddingElement;
   WriteJSON(aJSON);
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddNull: TElements;
 begin
+  AddingElement;
   FWriter.WriteNull;
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddUndefined: TElements;
 begin
+  AddingElement;
   FWriter.WriteUndefined;
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddMinKey: TElements;
 begin
+  AddingElement;
   FWriter.WriteMinKey;
   Result := Owner.GetElements(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddMaxKey: TElements;
 begin
+  AddingElement;
   FWriter.WriteMaxKey;
   Result := Owner.GetElements(FRootDepth);
 end;
@@ -1197,6 +1380,7 @@ end;
 // Key-value pair methods
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: string): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1204,6 +1388,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: Int32): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1211,6 +1396,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: UInt32): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1218,6 +1404,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: Int64): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1225,6 +1412,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: UInt64): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1232,6 +1420,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: Single): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1239,6 +1428,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: Double): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1247,6 +1437,7 @@ end;
 {$IFDEF FPC_HAS_TYPE_EXTENDED}
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: Extended): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1255,6 +1446,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: Boolean): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1262,6 +1454,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: Char): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(string(aValue));
   Result := Owner.GetPairs(FRootDepth);
@@ -1269,6 +1462,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: Byte): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1276,6 +1470,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: TDateTime): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1283,6 +1478,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: TGUID): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1290,6 +1486,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: TBytes; aBinaryType: TJsonBinaryType): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue, aBinaryType);
   Result := Owner.GetPairs(FRootDepth);
@@ -1297,6 +1494,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: TJsonOid): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1304,6 +1502,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: TJsonRegEx): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1311,6 +1510,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: TJsonDBRef): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1318,6 +1518,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: TJsonCodeWScope): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1325,6 +1526,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: TJsonDecimal128): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1332,6 +1534,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: TValue): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteValue(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1339,6 +1542,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: TVarRec): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   WriteVarRec(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1346,6 +1550,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.Add(const aKey: string; const aValue: Variant): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   WriteVariant(aValue);
   Result := Owner.GetPairs(FRootDepth);
@@ -1353,24 +1558,28 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddPairs(const aPairs: array of const): TPairs;
 begin
+  AddingPair;
   WriteOpenArray(aPairs);
   Result := Owner.GetPairs(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddPairs(const aBuilder: TJSONCollectionBuilder): TPairs;
 begin
+  AddingPair;
   WriteBuilder(aBuilder);
   Result := Owner.GetPairs(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddPairs(const aJSON: string): TPairs;
 begin
+  AddingPair;
   WriteJSON(aJSON);
   Result := Owner.GetPairs(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddNull(const aKey: string): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteNull;
   Result := Owner.GetPairs(FRootDepth);
@@ -1378,6 +1587,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddUndefined(const aKey: string): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteUndefined;
   Result := Owner.GetPairs(FRootDepth);
@@ -1385,6 +1595,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddMinKey(const aKey: string): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteMinKey;
   Result := Owner.GetPairs(FRootDepth);
@@ -1392,6 +1603,7 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.AddMaxKey(const aKey: string): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   FWriter.WriteMaxKey;
   Result := Owner.GetPairs(FRootDepth);
@@ -1399,22 +1611,26 @@ end;
 
 function TJSONCollectionBuilder.TBaseCollection.BeginObject: TPairs;
 begin
+  AddingElement;
   Result := Owner.BeginObject(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.BeginArray: TElements;
 begin
+  AddingElement;
   Result := Owner.BeginArray(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.BeginObject(const aKey: string): TPairs;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   Result := Owner.BeginObject(FRootDepth);
 end;
 
 function TJSONCollectionBuilder.TBaseCollection.BeginArray(const aKey: string): TElements;
 begin
+  AddingPair;
   FWriter.WritePropertyName(aKey);
   Result := Owner.BeginArray(FRootDepth);
 end;
@@ -1460,7 +1676,8 @@ end;
 constructor TJSONIterator.TContext.Create(aToken: TJsonToken);
 begin
   FToken := aToken;
-  FIndex := 0;
+  FIndex := -1;
+  FPath := '';
 end;
 
 { TJSONIterator }
@@ -1474,6 +1691,8 @@ begin
   FStarting := True;
   FFinished := False;
   FRecursion := False;
+  FContainerPending := False;
+  FLevelEnded := False;
 end;
 
 constructor TJSONIterator.Create(aReader: TJsonReader; aRewindReader: TRewindReaderProc);
@@ -1490,8 +1709,9 @@ end;
 
 procedure TJSONIterator.DoRewindReader(aReader: TJsonReader);
 begin
-  if assigned(FRewindReader) then
-    FRewindReader(aReader);
+  if not Assigned(FRewindReader) then
+    raise EJSONIteratorError.Create('Rewind requires a reader rewind callback');
+  FRewindReader(aReader);
 end;
 
 procedure TJSONIterator.Rewind;
@@ -1504,169 +1724,247 @@ begin
   FStarting := True;
   FFinished := False;
   FRecursion := False;
+  FContainerPending := False;
+  FLevelEnded := False;
+end;
+
+procedure TJSONIterator.SkipContainer;
+var
+  Nesting: Integer;
+begin
+  if not FContainerPending then
+    Exit;
+  Nesting:=1;
+  while FReader.Read do
+    begin
+    case FReader.TokenType of
+      TJsonToken.StartObject,TJsonToken.StartArray: Inc(Nesting);
+      TJsonToken.EndObject,TJsonToken.EndArray: Dec(Nesting);
+    end;
+    if Nesting=0 then
+      begin
+      FContainerPending:=False;
+      Exit;
+      end;
+    end;
+  raise EJSONIteratorError.Create('Unterminated JSON container');
+end;
+
+function IteratorPropertyPath(const Parent, Key: string): string;
+var
+  Quoted: TJSONString;
+  I: Integer;
+  Simple: Boolean;
+begin
+  Simple:=Key<>'';
+  for I:=1 to Length(Key) do
+    if not (Key[I] in ['A'..'Z','a'..'z','0'..'9','_','$']) then
+      Simple:=False;
+  if Simple then
+    begin
+    if Parent='' then
+      Result:=Key
+    else
+      Result:=Parent+'.'+Key;
+    end
+  else
+    begin
+    Quoted:=TJSONString.Create(Key);
+    try
+      Result:=Parent+'['+Quoted.ToJSON+']';
+    finally
+      Quoted.Free;
+    end;
+    end;
 end;
 
 function TJSONIterator.Next(const aKey: String): Boolean;
 var
   Context: TContext;
+  HaveToken: Boolean;
 begin
-  Result := False;
-  FKey := '';
-
-  if FFinished then
+  Result:=False;
+  if FFinished or FLevelEnded then
     Exit;
-
-  while FReader.Read do
-  begin
-    FType := FReader.TokenType;
-
-    case FType of
-      TJsonToken.StartObject, TJsonToken.StartArray:
+  HaveToken:=False;
+  if FStarting then
+    begin
+    FStarting:=False;
+    if not FReader.Read then
       begin
-        Context := TContext.Create(FType);
-        FStack.Push(Context);
-        Result := True;
-        Break;
+      FFinished:=True;
+      Exit;
       end;
-      TJsonToken.EndObject, TJsonToken.EndArray:
+    FType:=FReader.TokenType;
+    FContainerPending:=FType in [TJsonToken.StartObject,TJsonToken.StartArray];
+    if FRecursion and FContainerPending then
       begin
-        if FStack.Count > 0 then
-          FStack.Pop;
-      end;
-      TJsonToken.PropertyName:
+      FRecursion:=False;
+      Recurse;
+      end
+    else
+      HaveToken:=True;
+    end;
+  repeat
+    if not HaveToken then
       begin
-        FKey := FReader.Value.AsString;
-        if FReader.Read then
+      SkipContainer;
+      if not FReader.Read then
         begin
-          FType := FReader.TokenType;
-          // Push to stack if the property value is a nested object or array
-          if FType in [TJsonToken.StartObject, TJsonToken.StartArray] then
-          begin
-            Context := TContext.Create(FType);
-            FStack.Push(Context);
-          end;
-          Result := True;
-          Break;
+        if FStack.Count<>0 then
+          raise EJSONIteratorError.Create('Unexpected end of JSON');
+        FFinished:=True;
+        Exit;
         end;
       end;
-    else
+    HaveToken:=False;
+    FType:=FReader.TokenType;
+    if FType=TJsonToken.Comment then
+      Continue;
+    if FType in [TJsonToken.EndObject,TJsonToken.EndArray] then
       begin
-        Result := True;
-        Break;
+      FLevelEnded:=True;
+      Exit;
       end;
-    end;
-  end;
-
-  if not Result then
-    FFinished := True;
+    FKey:='';
+    FPath:='';
+    if FType=TJsonToken.PropertyName then
+      begin
+      FKey:=FReader.Value.AsString;
+      if not FReader.Read then
+        raise EJSONIteratorError.Create('Object property has no value');
+      FType:=FReader.TokenType;
+      end;
+    if FStack.Count>0 then
+      begin
+      Context:=FStack.Pop;
+      if Context.FToken=TJsonToken.StartArray then
+        begin
+        Inc(Context.FIndex);
+        FPath:=Context.FPath+'['+IntToStr(Context.FIndex)+']';
+        end
+      else
+        FPath:=IteratorPropertyPath(Context.FPath,FKey);
+      FStack.Push(Context);
+      end;
+    FContainerPending:=FType in [TJsonToken.StartObject,TJsonToken.StartArray];
+    if (aKey='') or ((GetParentType=TJsonToken.StartArray) and (aKey=IntToStr(GetIndex))) or
+       ((GetParentType=TJsonToken.StartObject) and (aKey=FKey)) then
+      Exit(True);
+  until False;
 end;
 
 function TJSONIterator.Recurse: Boolean;
+var
+  Context: TContext;
 begin
-  Result := (FType = TJsonToken.StartObject) or (FType = TJsonToken.StartArray);
+  if FStarting then
+    begin
+    FRecursion:=True;
+    Exit(True);
+    end;
+  Result:=FContainerPending and not FFinished and not FLevelEnded;
   if Result then
-  begin
-    FRecursion := True;
-  end;
+    begin
+    Context:=TContext.Create(FType);
+    Context.FPath:=FPath;
+    FStack.Push(Context);
+    FContainerPending:=False;
+    end;
 end;
 
 procedure TJSONIterator.Return;
 var
-  lDepth: Integer;
+  Nesting: Integer;
   Context: TContext;
 begin
-  if FStack.Count = 0 then
+  if FStack.Count=0 then
     Exit;
-
-  lDepth := FStack.Count;
-
-  while FReader.Read and (FStack.Count >= lDepth) do
-  begin
-    case FReader.TokenType of
-      TJsonToken.StartObject, TJsonToken.StartArray:
-      begin
-        Context := TContext.Create(FReader.TokenType);
-        FStack.Push(Context);
+  if not FLevelEnded then
+    begin
+    SkipContainer;
+    Nesting:=1;
+    while (Nesting>0) and FReader.Read do
+      case FReader.TokenType of
+        TJsonToken.StartObject,TJsonToken.StartArray: Inc(Nesting);
+        TJsonToken.EndObject,TJsonToken.EndArray: Dec(Nesting);
       end;
-      TJsonToken.EndObject, TJsonToken.EndArray:
-      begin
-        if FStack.Count > 0 then
-          FStack.Pop;
-      end;
+    if Nesting<>0 then
+      raise EJSONIteratorError.Create('Unterminated JSON container');
     end;
-  end;
+  Context:=FStack.Pop;
+  FPath:=Context.FPath;
+  FKey:='';
+  FType:=FReader.TokenType;
+  FLevelEnded:=False;
+  FContainerPending:=False;
 end;
 
 function TJSONIterator.Find(const aPath: String): Boolean;
 var
-  PathParts: TStringDynArray;
-  PartIndex: Integer;
-  CurrentPart: String;
+  Parser: TJSONPathParser;
+  Token: TJSONPathToken;
+  SearchPath: UnicodeString;
+  KeyName: string;
 begin
-  Result := False;
-  PathParts := aPath.Split(['.']);
-  PartIndex := 0;
-
   Rewind;
-  while Next do
-  begin
-    if PartIndex < Length(PathParts) then
+  if not Next then
+    Exit(False);
+  SearchPath:=UnicodeString(aPath);
+  Parser:=TJSONPathParser.Create(SearchPath);
+  while not Parser.IsEof do
     begin
-      CurrentPart := PathParts[PartIndex];
-      if SameText(FKey, CurrentPart) then
-      begin
-        Inc(PartIndex);
-        if PartIndex >= Length(PathParts) then
+    Token:=Parser.NextToken;
+    case Token of
+      TJSONPathToken.Eof: Break;
+      TJSONPathToken.Name:
         begin
-          Result := True;
-          Break;
+        if FType<>TJsonToken.StartObject then
+          Exit(False);
+        KeyName:=Parser.TokenName;
         end;
-      end;
+      TJSONPathToken.ArrayIndex:
+        begin
+        if (FType<>TJsonToken.StartArray) or (Parser.TokenArrayIndex<0) then
+          Exit(False);
+        KeyName:=IntToStr(Parser.TokenArrayIndex);
+        end;
+      else
+        Exit(False);
     end;
-  end;
+    if not Recurse then
+      Exit(False);
+    repeat
+      if not Next(KeyName) then
+        Exit(False);
+    until (KeyName<>'') or (FKey='');
+    end;
+  Result:=True;
 end;
 
 procedure TJSONIterator.Iterate(aFunc: TIterateFunc);
 begin
-  Rewind;
+  if not Assigned(aFunc) then
+    raise EJSONIteratorError.Create('An iteration callback is required');
   while Next do
-  begin
     if not aFunc(Self) then
       Break;
-  end;
 end;
 
 function TJSONIterator.GetPath(aFromDepth: Integer): String;
 var
-  PathBuilder: TStringBuilder;
-  I: Integer;
-  Context: TContext;
-  StackArray: Array of TContext;
+  Frames: array of TContext;
+  Parent: string;
 begin
-  PathBuilder := TStringBuilder.Create;
-  try
-    StackArray := FStack.ToArray;
-    for I := High(StackArray) downto Low(StackArray) do
-    begin
-      if I <= aFromDepth then
-        Break;
-      Context := StackArray[I];
-      if PathBuilder.Length > 0 then
-        PathBuilder.Append('.');
-      PathBuilder.Append(IntToStr(Context.FIndex));
-    end;
-
-    if (FKey <> '') and (FStack.Count > aFromDepth) then
-    begin
-      if PathBuilder.Length > 0 then
-        PathBuilder.Append('.');
-      PathBuilder.Append(FKey);
-    end;
-
-    Result := PathBuilder.ToString;
-  finally
-    PathBuilder.Free;
-  end;
+  if aFromDepth<=0 then
+    Exit(FPath);
+  Frames:=FStack.ToArray;
+  if aFromDepth>Length(Frames) then
+    Exit('');
+  Parent:=Frames[aFromDepth-1].FPath;
+  Result:=Copy(FPath,Length(Parent)+1,MaxInt);
+  if (Result<>'') and (Result[1]='.') then
+    Delete(Result,1,1);
 end;
 
 function TJSONIterator.GetAsBoolean: Boolean;
@@ -1706,51 +2004,40 @@ end;
 
 function TJSONIterator.GetAsGUID: TGUID;
 begin
-  // TODO: FReader.Value.AsGUID not available in FPC implementation
-  // Result := FReader.Value.AsGUID;
-  FillChar(Result, SizeOf(Result), 0);
+  if FReader.Value.IsType(TypeInfo(TGUID)) then
+    Result:=FReader.Value.specialize AsType<TGUID>(False)
+  else
+    Result:=StringToGUID(FReader.Value.AsString);
 end;
 
 function TJSONIterator.GetAsBytes: TBytes;
 begin
-  // TODO: FReader.Value.AsBytes not available in FPC implementation
-  // Result := FReader.Value.AsBytes;
-  Result := nil;
+  Result:=FReader.Value.specialize AsType<TBytes>(False);
 end;
 
 function TJSONIterator.GetAsOid: TJsonOid;
 begin
-  // TODO: FReader.Value.AsOid not available in FPC implementation
-  // Result := FReader.Value.AsOid;
-  FillChar(Result, SizeOf(Result), 0);
+  Result:=FReader.Value.specialize AsType<TJsonOid>(False);
 end;
 
 function TJSONIterator.GetAsRegEx: TJsonRegEx;
 begin
-  // TODO: FReader.Value.AsRegEx not available in FPC implementation
-  // Result := FReader.Value.AsRegEx;
-  FillChar(Result, SizeOf(Result), 0);
+  Result:=FReader.Value.specialize AsType<TJsonRegEx>(False);
 end;
 
 function TJSONIterator.GetAsDBRef: TJsonDBRef;
 begin
-  // TODO: FReader.Value.AsDBRef not available in FPC implementation
-  // Result := FReader.Value.AsDBRef;
-  FillChar(Result, SizeOf(Result), 0);
+  Result:=FReader.Value.specialize AsType<TJsonDBRef>(False);
 end;
 
 function TJSONIterator.GetAsCodeWScope: TJsonCodeWScope;
 begin
-  // TODO: FReader.Value.AsCodeWScope not available in FPC implementation
-  // Result := FReader.Value.AsCodeWScope;
-  FillChar(Result, SizeOf(Result), 0);
+  Result:=FReader.Value.specialize AsType<TJsonCodeWScope>(False);
 end;
 
 function TJSONIterator.GetAsDecimal: TJsonDecimal128;
 begin
-  // TODO: FReader.Value.AsDecimal128 not available in FPC implementation
-  // Result := FReader.Value.AsDecimal128;
-  FillChar(Result, SizeOf(Result), 0);
+  Result:=FReader.Value.specialize AsType<TJsonDecimal128>(False);
 end;
 
 function TJSONIterator.GetAsVariant: Variant;
@@ -1768,20 +2055,13 @@ begin
     TJsonToken.Null:
       Result := Null;
   else
-    // Try direct conversion, may fail for complex types
-    try
-      Result := FReader.Value.AsVariant;
-    except
-      Result := Null;
-    end;
+    Result:=FReader.Value.AsVariant;
   end;
 end;
 
 function TJSONIterator.GetAsValue: TValue;
 begin
-  // TODO: FReader.Value.AsValue not available in FPC implementation
-  // Result := FReader.Value.AsValue;
-  Result := TValue.Empty;
+  Result:=FReader.Value;
 end;
 
 function TJSONIterator.GetIsNull: Boolean;
@@ -1824,7 +2104,10 @@ begin
   if FStack.Count > 0 then
   begin
     Context := FStack.Peek;
-    Result := Context.FIndex;
+    if Context.FToken=TJsonToken.StartArray then
+      Result:=Context.FIndex
+    else
+      Result:=-1;
   end
   else
     Result := -1;
@@ -1832,7 +2115,7 @@ end;
 
 function TJSONIterator.GetInRecurse: Boolean;
 begin
-  Result := FRecursion;
+  Result := FStack.Count>0;
 end;
 
 function TJSONIterator.GetDepth: Integer;
@@ -2376,7 +2659,7 @@ end;
 
 function TJSONCollectionBuilder.TElements.AsRoot: TElements;
 begin
-  Result := Self; // TODO: Implement properly
+  Result := Owner.ElementsAsRoot;
 end;
 
 { TJSONCollectionBuilder.TPairs }
@@ -2574,7 +2857,7 @@ end;
 
 function TJSONCollectionBuilder.TPairs.AsRoot: TPairs;
 begin
-  Result := Self; // TODO: Implement properly
+  Result := Owner.PairsAsRoot;
 end;
 
 end.

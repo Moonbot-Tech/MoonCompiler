@@ -266,6 +266,7 @@ type
     FRoot: TJSONAncestor;
     FContainerStack: TList;
     FCurrentPropertyName: string;
+    FHasPropertyName: Boolean;
     function GetContainer: TJSONAncestor;
     procedure SetContainer(AValue: TJSONAncestor);
     function GetCurrentContainer: TJSONAncestor;
@@ -587,7 +588,6 @@ begin
   repeat
     lValue:=aReader.Value;
     lToken:=aReader.TokenType;
-    lTypeData:=lValue.TypeData;
     case lToken of
       TJsonToken.None: ;
       TJsonToken.&String: WriteValue(lValue.AsString);
@@ -625,6 +625,8 @@ begin
       TJsonToken.PropertyName: WritePropertyName(lValue.AsString);
       TJsonToken.Raw: WriteRawValue(lValue.AsString);
       TJsonToken.Integer:
+        begin
+        lTypeData:=lValue.TypeData;
         if lValue.TypeInfo^.Kind = tkInteger then
           begin
           if lTypeData^.OrdType in [otUByte, otUWord, otULong] then
@@ -639,6 +641,7 @@ begin
           else
             WriteValue(lValue.AsInt64);
           end;
+        end;
       TJsonToken.Float:
         begin
         lExtended := lValue.AsExtended;
@@ -705,6 +708,9 @@ end;
 procedure TJsonWriter.Rewind;
 begin
   inherited Rewind;
+  FContainerCount := 0;
+  FPopping := False;
+  FCurrentState:=TState.Start;
 end;
 
 procedure TJsonWriter.Close;
@@ -1098,7 +1104,10 @@ begin
         if FFormatting = TJsonFormatting.Indented then
           WriteIndent;
       end;
-    TJsonToken.&String, TJsonToken.Integer, TJsonToken.Float, TJsonToken.Boolean, TJsonToken.Null:
+    TJsonToken.&String, TJsonToken.Integer, TJsonToken.Float, TJsonToken.Boolean, TJsonToken.Null,
+    TJsonToken.Bytes,TJsonToken.Oid,TJsonToken.RegEx,TJsonToken.DBRef,TJsonToken.CodeWScope,
+    TJsonToken.Decimal,TJsonToken.Date,TJsonToken.Timestamp,TJsonToken.Raw,TJsonToken.Undefined,
+    TJsonToken.MinKey,TJsonToken.MaxKey:
       begin
         // For array elements, write comma before the element (except for the first)
         if (FCurrentPosition.Position >= 0) and (FCurrentPosition.ContainerType = TJsonContainerType.&Array) then
@@ -1226,12 +1235,9 @@ begin
 end;
 
 procedure TJsonTextWriter.WriteValue(const aValue: string);
-var
-  EscapedValue: string;
 begin
   inherited WriteValue(aValue);
-  EscapedValue := EscapeJsonString(aValue);
-  FWriter.Write(DoQuote(EscapedValue));
+  FWriter.Write(DoQuote(aValue));
 end;
 
 procedure TJsonTextWriter.WriteValue(aValue: Integer);
@@ -1321,7 +1327,7 @@ end;
 
 function TJsonTextWriter.DoQuote(const aString : String) : String;
 begin
-  Result:=FQuoteChar+aString+FQuoteChar;
+  Result:=FQuoteChar+EscapeJsonString(aString)+FQuoteChar;
 end;
 
 procedure TJsonTextWriter.WriteValue(const aValue: TBytes; aBinaryType: TJsonBinaryType);
@@ -1366,14 +1372,14 @@ var
   lRaw,lWrite : String;
 begin
   inherited WriteValue(aValue);
-  lRaw:=DoQuote(EscapeJSONString(aValue.AsString));
+  lRaw:=DoQuote(aValue.AsString);
   case ExtendedJsonMode of
       TJsonExtendedJsonMode.None,
       TJsonExtendedJsonMode.MongoShell:
         lWrite:=lRaw;
       TJsonExtendedJsonMode.StrictMode:
         lWrite:='{'+DoQuote(JsonExtRegexPropertyName)+':'+lRaw+','+
-                    DoQuote(JsonExtOptionsPropertyName)+':'+DoQuote(EscapeJSONString(aValue.Options))+'}';
+                    DoQuote(JsonExtOptionsPropertyName)+':'+DoQuote(aValue.Options)+'}';
   end;
   WriteRaw(lWrite);
 end;
@@ -1467,8 +1473,16 @@ begin
 end;
 
 procedure TJsonTextWriter.WriteValue(const aValue: TJsonDecimal128);
+var
+  Text: string;
 begin
+  Text:=aValue.AsString;
   inherited WriteValue(aValue);
+  case ExtendedJsonMode of
+    TJsonExtendedJsonMode.None: WriteRaw(Text);
+    TJsonExtendedJsonMode.StrictMode: WriteRaw('{"$numberDecimal":'+DoQuote(Text)+'}');
+    TJsonExtendedJsonMode.MongoShell: WriteRaw('NumberDecimal('+DoQuote(Text)+')');
+  end;
 end;
 
 procedure TJsonTextWriter.WriteValue(const aValue: TJsonTimestamp);
@@ -1563,6 +1577,7 @@ begin
   FRoot := AValue;
   FContainerStack.Clear;
   FCurrentPropertyName := '';
+  FHasPropertyName := False;
 end;
 
 function TJsonObjectWriter.GetCurrentContainer: TJSONAncestor;
@@ -1582,10 +1597,11 @@ begin
   CurrentCont := GetCurrentContainer;
   if CurrentCont is TJSONObject then
   begin
-    if FCurrentPropertyName <> '' then
+    if FHasPropertyName then
     begin
       TJSONObject(CurrentCont).AddPair(FCurrentPropertyName, AValue);
       FCurrentPropertyName := '';
+      FHasPropertyName := False;
       Added := True;
     end;
   end
@@ -1639,6 +1655,7 @@ begin
   FRoot := nil;
   FContainerStack.Clear;
   FCurrentPropertyName := '';
+  FHasPropertyName := False;
   inherited Rewind;
 end;
 
@@ -1652,6 +1669,7 @@ procedure TJsonObjectWriter.WritePropertyName(const Name: string);
 begin
   inherited WritePropertyName(Name);
   FCurrentPropertyName := Name;
+  FHasPropertyName := True;
 end;
 
 procedure TJsonObjectWriter.WriteStartConstructor(const Name: string);

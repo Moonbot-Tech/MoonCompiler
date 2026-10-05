@@ -50,9 +50,9 @@ type
   end;
 
 
-  TJsonExtendedJsonMode = (None, StrictMode, MongoShell);
-  TJsonDateParseHandling = (None, DateTime);
-  TJsonDateTimeZoneHandling = (Local, Utc);
+  TJsonExtendedJsonMode = System.JSON.Types.TJsonExtendedJsonMode;
+  TJsonDateParseHandling = System.JSON.Types.TJsonDateParseHandling;
+  TJsonDateTimeZoneHandling = System.JSON.Types.TJsonDateTimeZoneHandling;
 
   TState = (Start, Complete, &Property, ObjectStart, &Object, arrayStart,
             &Array, Closed, PostValue, ConstructorStart, &Constructor,
@@ -94,6 +94,7 @@ type
     procedure SetToken(aNewToken: TJsonToken; const aValue: TValue); overload; inline;
     procedure SetToken(aNewToken: TJsonToken; const aValue: TValue;
       aUpdateIndex: boolean); overload; inline;
+    procedure SetNumberToken(const Text: string);
     generic procedure SetToken<T>(aNewToken: TJsonToken; const aValue: T; aUpdateIndex: boolean);
       overload; inline;
   public
@@ -151,6 +152,7 @@ type
     FExtendedJsonMode: TJsonExtendedJsonMode;
     FReader: TTextReader;
     FScanner: TJSONScanner;
+    FNeedSeparator, FAfterComma: Boolean;
     FContent: string;
   protected
     function ReadInternal: boolean; override;
@@ -187,6 +189,8 @@ type
        TJSONAncestorDataList = specialize TObjectList<TContainerData>;
   private
     FRoot: TContainerData;
+    FReadDone: Boolean;
+    FCurrentNode: TJSONAncestor;
     FAncestors : TJSONAncestorDataList;
     function GetCurrent: TJSONAncestor;
     function GetCurrentData : TContainerData;
@@ -481,6 +485,26 @@ begin
   SetToken(aNewToken, TValue.specialize From<T>(aValue), aUpdateIndex);
 end;
 
+procedure TJsonReader.SetNumberToken(const Text: string);
+var
+  SignedValue: Int64;
+  UnsignedValue: UInt64;
+  RealValue: Double;
+begin
+  if (Pos('.',Text)>0) or (Pos('e',Text)>0) or (Pos('E',Text)>0) then
+    begin
+    if not TryStrToFloat(Text,RealValue,TFormatSettings.Invariant) then
+      DoError('Invalid or overflowing JSON number');
+    specialize SetToken<Double>(TJsonToken.Float,RealValue,True);
+    end
+  else if TryStrToInt64(Text,SignedValue) then
+    specialize SetToken<Int64>(TJsonToken.Integer,SignedValue,True)
+  else if TryStrToQWord(Text,UnsignedValue) then
+    specialize SetToken<UInt64>(TJsonToken.Integer,UnsignedValue,True)
+  else
+    DoError('JSON integer is outside the 64-bit range');
+end;
+
 constructor TJsonReader.Create;
 begin
   inherited Create;
@@ -621,128 +645,115 @@ end;
 
 function TJsonTextReader.ReadInternal: boolean;
 var
-  ScannerToken: jscan.TJSONToken;
-  TokenValue: string;
-  ExpectingPropertyName: boolean;
+  Token: jscan.TJSONToken;
+  Text: string;
+  PropertyName: Boolean;
 begin
   Result:=False;
-  if not assigned(FScanner) then
+  if not Assigned(FScanner) or (FCurrentState in [TState.Closed,TState.Finished]) then
     Exit;
-
   try
     repeat
-      ScannerToken:=FScanner.FetchToken;
-
-      case ScannerToken of
-        jscan.tkEOF:
+      Token:=FScanner.FetchToken;
+      if Token in [jscan.tkWhitespace,jscan.tkComment] then
+        Continue;
+      if Token=jscan.tkEOF then
+        begin
+        if Peek<>TJsonContainerType.None then
+          DoError('Unexpected end of JSON');
+        SetToken(TJsonToken.None);
+        FCurrentState:=TState.Finished;
+        Exit;
+        end;
+      if Token=jscan.tkComma then
+        begin
+        if not FNeedSeparator or (Peek=TJsonContainerType.None) then
+          DoError('Unexpected JSON comma');
+        FNeedSeparator:=False;
+        FAfterComma:=True;
+        Continue;
+        end;
+      if Token in [jscan.tkCurlyBraceClose,jscan.tkSquaredBraceClose] then
+        begin
+        if FAfterComma or (FCurrentState=TState.&Property) then
+          DoError('Missing JSON value');
+        if Token=jscan.tkCurlyBraceClose then
           begin
-          SetToken(TJsonToken.None);
-          FCurrentState:=TState.Finished;
-          Exit;
+          if Peek<>TJsonContainerType.&Object then
+            DoError('Mismatched JSON object end');
+          SetToken(TJsonToken.EndObject);
+          end
+        else
+          begin
+          if Peek<>TJsonContainerType.&Array then
+            DoError('Mismatched JSON array end');
+          SetToken(TJsonToken.EndArray);
           end;
-
-        jscan.tkWhitespace,
-        jscan.tkComment:
+        FNeedSeparator:=True;
+        Exit(True);
+        end;
+      if FNeedSeparator then
+        begin
+        if (Peek<>TJsonContainerType.None) or not SupportMultipleContent then
+          DoError('Missing JSON separator');
+        end;
+      FAfterComma:=False;
+      PropertyName:=(Peek=TJsonContainerType.&Object) and (FCurrentState<>TState.&Property);
+      if PropertyName and not (Token in [jscan.tkString,jscan.tkIdentifier]) then
+        DoError('Object property name expected');
+      case Token of
+        jscan.tkString,jscan.tkIdentifier:
           begin
-          // Skip whitespace and comments
-          Continue;
-          end;
-
-        jscan.tkString:
-          begin
-          TokenValue:=FScanner.CurTokenString;
-          // Determine if this is a property name or string value
-          ExpectingPropertyName:=(Peek = TJsonContainerType.&Object) and
-            (FCurrentState in
-            [TState.ObjectStart, TState.&Object]);
-
-          if ExpectingPropertyName then
+          Text:=UTF8Decode(FScanner.CurTokenString);
+          if PropertyName then
             begin
-            specialize SetToken<string>(TJsonToken.PropertyName, TokenValue, True);
-            // read the colon
+            specialize SetToken<string>(TJsonToken.PropertyName,Text,True);
             repeat
-              ScannerToken:=FScanner.FetchToken;
-            until ScannerToken <> jscan.tkWhitespace;
-
-            if ScannerToken <> jscan.tkColon then
-              DoError(SParseErrorColonExpected);
+              Token:=FScanner.FetchToken;
+            until not (Token in [jscan.tkWhitespace,jscan.tkComment]);
+            if Token<>jscan.tkColon then
+              DoError('Property colon expected');
+            FNeedSeparator:=False;
             end
           else
-            specialize SetToken<string>(TJsonToken.&String, TokenValue, True);
-        end;
-
+            begin
+            if Token=jscan.tkIdentifier then
+              DoError('Unexpected JSON identifier');
+            specialize SetToken<string>(TJsonToken.&String,Text,True);
+            FNeedSeparator:=True;
+            end;
+          end;
         jscan.tkNumber:
           begin
-          TokenValue:=FScanner.CurTokenString;
-          if (Pos('.', TokenValue) > 0) or (Pos('e', LowerCase(TokenValue)) > 0) then
-            specialize SetToken<double>(TJsonToken.Float,
-              StrToFloatDef(TokenValue, 0.0, FFormatSettings), True)
-          else
-            specialize SetToken<int64>(TJsonToken.integer, StrToInt64Def(TokenValue, 0), True);
+          SetNumberToken(string(FScanner.CurTokenString));
+          FNeedSeparator:=True;
           end;
-
-        jscan.tkTrue:
-          specialize SetToken<boolean>(TJsonToken.boolean, True, True);
-
-        jscan.tkFalse:
-          specialize SetToken<boolean>(TJsonToken.boolean, False, True);
-
-        jscan.tkNull:
-          SetToken(TJsonToken.Null);
-
-        jscan.tkCurlyBraceOpen:
-          SetToken(TJsonToken.StartObject);
-
-        jscan.tkCurlyBraceClose:
-          SetToken(TJsonToken.EndObject);
-
-        jscan.tkSquaredBraceOpen:
-          SetToken(TJsonToken.StartArray);
-
-        jscan.tkSquaredBraceClose:
-          SetToken(TJsonToken.EndArray);
-
-        jscan.tkColon:
-          // Colon should be consumed when processing property names
-          Continue;
-
-        jscan.tkComma:
-          // Comma separator, continue to next token
-          Continue;
-
-        jscan.tkIdentifier:
+        jscan.tkTrue,jscan.tkFalse:
           begin
-          TokenValue:=FScanner.CurTokenString;
-          // In non-strict mode, identifiers can be property names
-          ExpectingPropertyName:=(Peek = TJsonContainerType.&Object) and
-            (FCurrentState in
-            [TState.ObjectStart, TState.&Object]);
-
-          if ExpectingPropertyName then
-            begin
-            specialize SetToken<string>(TJsonToken.PropertyName, TokenValue, True);
-            // Now we need to read the colon
-            repeat
-              ScannerToken:=FScanner.FetchToken;
-            until ScannerToken <> jscan.tkWhitespace;
-
-            if ScannerToken <> jscan.tkColon then
-              DoError(SParseErrorColonExpected);
-            end
+          specialize SetToken<Boolean>(TJsonToken.Boolean,Token=jscan.tkTrue,True);
+          FNeedSeparator:=True;
+          end;
+        jscan.tkNull:
+          begin
+          SetToken(TJsonToken.Null);
+          FNeedSeparator:=True;
+          end;
+        jscan.tkCurlyBraceOpen,jscan.tkSquaredBraceOpen:
+          begin
+          if (MaxDepth>0) and (Depth>=MaxDepth) then
+            DoError('Maximum JSON nesting depth exceeded');
+          if Token=jscan.tkCurlyBraceOpen then
+            SetToken(TJsonToken.StartObject)
           else
-            specialize SetToken<string>(TJsonToken.&String, TokenValue, True);
+            SetToken(TJsonToken.StartArray);
+          FNeedSeparator:=False;
           end;
         else
-          DoError(SUnexpectedToken,[FScanner.CurTokenString]);
+          DoError('Unexpected JSON token');
       end;
-
-      Break; // Exit the repeat loop when we have a valid token
+      Exit(True);
     until False;
-
-    Result:=True;
-
   except
-    // Convert FPC error to delphi-compatible error
     on E: EScannerError do
       DoError(E.Message);
   end;
@@ -755,18 +766,10 @@ begin
   FDateParseHandling:=TJsonDateParseHandling.DateTime;
   FExtendedJsonMode:=TJsonExtendedJsonMode.None;
 
-  // Read all content from the TextReader
-  // This is not really optimal. Needs changes in the jscan to support a TTextReader.
   FContent:='';
-  repeat
-  try
-    FContent:=FContent + FReader.ReadLine + sLineBreak;
-  except
-    Break;
-  end;
-  until FReader.EOF;
-  // Create scanner with the content
-  FScanner:=TJSONScanner.Create(FContent, [joUTF8]);
+  while not FReader.EOF do
+    FContent:=FContent+FReader.ReadLine+sLineBreak;
+  FScanner:=TJSONScanner.Create(UTF8Encode(FContent),[joUTF8]);
 end;
 
 destructor TJsonTextReader.Destroy;
@@ -791,7 +794,9 @@ begin
 
   // Recreate scanner to reset position
   FreeAndNil(FScanner);
-  FScanner:=TJSONScanner.Create(FContent, [joUTF8]);
+  FScanner:=TJSONScanner.Create(UTF8Encode(FContent),[joUTF8]);
+  FNeedSeparator:=False;
+  FAfterComma:=False;
 end;
 
 function TJsonTextReader.GetLineNumber: integer;
@@ -820,13 +825,14 @@ end;
 constructor TJsonObjectReader.TContainerData.Create(aAncestor: TJSONAncestor);
 begin
   Ancestor:=aAncestor;
+  CurrentIndex:=-2;
 end;
 
 { TJsonObjectReader }
 
 function TJsonObjectReader.GetCurrent: TJSONAncestor;
 begin
-  Result:=GetCurrentData.Ancestor;
+  Result:=FCurrentNode;
 end;
 
 function TJsonObjectReader.GetCurrentData: TContainerData;
@@ -839,105 +845,96 @@ end;
 
 function TJsonObjectReader.ReadInternal: boolean;
 var
-  lData : TContainerData;
-  lCurrent: TJSONAncestor;
-  JsonObj: TJSONObject;
-  JsonArr: TJSONArray;
-  Pair: TJSONPair;
+  Frame: TContainerData;
+  Node: TJSONAncestor;
+  Obj: TJSONObject;
+  Arr: TJSONArray;
+
+  procedure FinishFrame;
+  begin
+    if FAncestors.Count=0 then
+      FReadDone:=True
+    else
+      FAncestors.Delete(FAncestors.Count-1);
+  end;
+
 begin
-  Result:=False;
-  lData:=GetCurrentData;
-  lCurrent:=lData.Ancestor;
-
-  if not assigned(lCurrent) then
+  if FReadDone then
     begin
-    FCurrentState:=TState.Finished;
     SetToken(TJsonToken.None);
-    Exit;
+    FCurrentState:=TState.Finished;
+    Exit(False);
     end;
-
-  // Handle different JSON object types
-  if lCurrent is TJSONObject then
-    begin
-    JsonObj:=TJSONObject(lCurrent);
-    if FCurrentState = TState.Start then
+  repeat
+    Frame:=GetCurrentData;
+    Node:=Frame.Ancestor;
+    FCurrentNode:=Node;
+    if Node=nil then
       begin
-      SetToken(TJsonToken.StartObject);
-      FCurrentState:=TState.&Object;
-      lData.CurrentIndex:=0;
-      Result:=True;
-      end
-    else if lData.CurrentIndex < JsonObj.Count then
+      FReadDone:=True;
+      Exit(False);
+      end;
+    if Node is TJSONObject then
       begin
-      Pair:=JsonObj.Pairs[lData.CurrentIndex];
-      if FCurrentState = TState.&Object then
+      Obj:=TJSONObject(Node);
+      if Frame.CurrentIndex=-2 then
         begin
-        specialize SetToken<UnicodeString>(TJsonToken.PropertyName, Pair.JsonString.Value, True);
-        FCurrentState:=TState.&Property;
-        end
-      else
-        begin
-        // Push the value for reading
-        FAncestors.Add(TContainerData.Create(Pair.JsonValue));
-        Inc(lData.CurrentIndex);
-        Result:=ReadInternal(); // Read the value
-        FAncestors.Delete(FAncestors.Count - 1);
+        Frame.CurrentIndex:=0;
+        SetToken(TJsonToken.StartObject);
+        Exit(True);
         end;
-      Result:=True;
+      if Frame.CurrentIndex>=Obj.Count*2 then
+        begin
+        SetToken(TJsonToken.EndObject);
+        FinishFrame;
+        Exit(True);
+        end;
+      if (Frame.CurrentIndex and 1)=0 then
+        begin
+        specialize SetToken<UnicodeString>(TJsonToken.PropertyName,
+          Obj.Pairs[Frame.CurrentIndex div 2].JsonString.Value,True);
+        Inc(Frame.CurrentIndex);
+        Exit(True);
+        end;
+      Node:=Obj.Pairs[Frame.CurrentIndex div 2].JsonValue;
+      Inc(Frame.CurrentIndex);
+      FAncestors.Add(TContainerData.Create(Node));
+      end
+    else if Node is TJSONArray then
+      begin
+      Arr:=TJSONArray(Node);
+      if Frame.CurrentIndex=-2 then
+        begin
+        Frame.CurrentIndex:=0;
+        SetToken(TJsonToken.StartArray);
+        Exit(True);
+        end;
+      if Frame.CurrentIndex>=Arr.Count then
+        begin
+        SetToken(TJsonToken.EndArray);
+        FinishFrame;
+        Exit(True);
+        end;
+      Node:=Arr.Items[Frame.CurrentIndex];
+      Inc(Frame.CurrentIndex);
+      FAncestors.Add(TContainerData.Create(Node));
       end
     else
       begin
-      SetToken(TJsonToken.EndObject);
-      Result:=True;
+      if Node is TJSONNumber then
+        SetNumberToken(TJSONNumber(Node).Value)
+      else if Node is TJSONString then
+        specialize SetToken<UnicodeString>(TJsonToken.&String,TJSONString(Node).Value,True)
+      else if Node is TJSONBool then
+        specialize SetToken<Boolean>(TJsonToken.Boolean,TJSONBool(Node).Value='true',True)
+      else if Node is TJSONNull then
+        SetToken(TJsonToken.Null)
+      else
+        DoError('Unsupported JSON node type');
+      FinishFrame;
+      Exit(True);
       end;
-    end
-  else if lCurrent is TJSONArray then
-    begin
-    JsonArr:=TJSONArray(lCurrent);
-    if FCurrentState = TState.Start then
-      begin
-      SetToken(TJsonToken.StartArray);
-      LData.CurrentIndex:=0;
-      Result:=True;
-      end
-    else if LData.CurrentIndex < JsonArr.Count then
-      begin
-      FAncestors.Add(TContainerData.Create(JsonArr.Items[LData.CurrentIndex]));
-      Inc(LData.CurrentIndex);
-      Result:=ReadInternal(); // Read the array element
-      FAncestors.Delete(FAncestors.Count - 1);
-      Result:=True;
-      end
-    else
-      begin
-      SetToken(TJsonToken.EndArray);
-      Result:=True;
-      end;
-    end
-  else if lCurrent is TJSONNumber then
-    begin
-    // Try to determine if it's an integer or float
-    if Pos('.', TJSONNumber(lCurrent).Value) > 0 then
-      specialize SetToken<double>(TJsonToken.Float, StrToFloatDef(TJSONNumber(lCurrent).Value, 0.0), True)
-    else
-      specialize SetToken<int64>(TJsonToken.integer, StrToInt64Def(TJSONNumber(lCurrent).Value, 0), True);
-    Result:=True;
-    end
-  else if lCurrent is TJSONString then
-    begin
-    specialize SetToken<string>(TJsonToken.&String, TJSONString(lCurrent).Value, True);
-    Result:=True;
-    end
-  else if lCurrent is TJSONBool then
-    begin
-    specialize SetToken<boolean>(TJsonToken.boolean, TJSONBool(lCurrent).Value = 'true', True);
-    Result:=True;
-    end
-  else if lCurrent is TJSONNull then
-    begin
-    SetToken(TJsonToken.Null);
-    Result:=True;
-    end;
+  until False;
 end;
 
 constructor TJsonObjectReader.Create(const aRoot: TJSONAncestor);
@@ -963,6 +960,9 @@ procedure TJsonObjectReader.Rewind;
 begin
   inherited Rewind;
   FAncestors.Clear;
+  FRoot.CurrentIndex:=-2;
+  FReadDone:=False;
+  FCurrentNode:=nil;
   FCurrentState:=TState.Start;
 end;
 

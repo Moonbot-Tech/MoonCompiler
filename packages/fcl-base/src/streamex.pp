@@ -258,6 +258,7 @@ type
      procedure WriteLine(const aFmt: string; aArgs: array of const); override;
      procedure WriteLine(const aValue: TCharArray; aIndex, aCount: Integer); override;
      function ToString: string; override;
+     function GetStringBuilder: TStringBuilder;
    end;
 
    { TStreamWriter }
@@ -820,6 +821,11 @@ begin
 end;
 
 { TStringWriter }
+
+function TStringWriter.GetStringBuilder: TStringBuilder;
+begin
+  Result:=FBuilder;
+end;
 
 constructor TStringWriter.Create;
 begin
