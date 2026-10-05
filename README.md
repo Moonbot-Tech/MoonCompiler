@@ -21,6 +21,7 @@
 <p align="center">
   <a href="#what-mooncompiler-is-for">What it is for</a> ·
   <a href="#quick-start">Quick start</a> ·
+  <a href="#diagnostics-in-deployed-applications">Diagnostics</a> ·
   <a href="#the-build-profile">Build profile</a> ·
   <a href="#changes-from-unleashed">What changed</a> ·
   <a href="#performance">Performance</a> ·
@@ -63,6 +64,8 @@ In practice, this means:
   ready-made profile instead of being configured anew for each project;
 - the result is validated beyond “it compiled”: tests compare calculations,
   lifetime, ABI, and behaviour at different optimization levels;
+- optional diagnostic reports preserve the original exception context and source
+  locations, helping investigate failures in deployed Windows and Linux services;
 - compiler, RTL, and MM performance is measured together on application hot
   paths, and bottlenecks are fixed where they originate—in the compiler, RTL,
   or MM.
@@ -140,6 +143,43 @@ semantics:
 ```bash
 toolchain/bin/fpc -dFPCX64MM_DIAGNOSTIC hello.dpr
 ```
+
+## Diagnostics in Deployed Applications
+
+`Moon.Diagnostics` helps explain a failed request, crashed worker or stalled
+service from a report produced by the application itself. It runs on Win64 and
+Linux x86-64, including optimized Release builds.
+
+- **Find the failing code:** exception reports retain the original call stack,
+  function names and available source lines. Symbols travel inside the executable;
+  deployment needs no separate map file, debugger or crash-handler process.
+- **Understand hardware faults:** reports save registers, readable Intel ASM
+  around the failing instruction, bounded memory fragments and memory-access
+  information captured before exception unwinding.
+- **Investigate hangs:** a manual report requested from a responsive thread
+  samples all OS thread stacks, helping locate blocked workers and their callers.
+- **Keep application context:** attach operation IDs, relevant state and log
+  files. Reports are saved locally; ZIP delivery to an HTTP(S) endpoint is optional.
+
+Enable reporting once, before starting application work and worker threads:
+
+```pascal
+uses Moon.Diagnostics;
+
+begin
+  InitializeReports;
+  // Start the application here.
+end.
+```
+
+Unhandled main-thread and `TThread.Execute` exceptions are reported automatically.
+For a caught exception, call `WriteExceptionReport` inside `except`; use
+`WriteManualReport` for an on-demand thread snapshot. The default output directory
+is `BugReports` beside the executable. Linux requires `libunwind.so.8`; keep the
+executable's embedded debug information when deploying either profile.
+
+See the [diagnostic guide](doc/DIAGNOSTICS.md) for settings, capture costs and
+supported failure cases, or try the [working example](examples/diagnostics.dpr).
 
 ## The Build Profile
 
