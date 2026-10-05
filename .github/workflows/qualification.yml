@@ -584,7 +584,9 @@ jobs:
           If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
       - name: Run RTL semantic matrix
         shell: powershell
-        run: python .\RTL-test\run.py
+        run: |
+          $env:MOONBOT_MAKE = "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\make.exe"
+          python .\RTL-test\run.py
       - name: Run product smoke
         shell: powershell
         run: |
