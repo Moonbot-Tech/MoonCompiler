@@ -6302,7 +6302,7 @@ implementation
          ppufile.getderef(returndefderef);
          proctypeoption:=tproctypeoption(ppufile.getbyte);
          proccalloption:=tproccalloption(ppufile.getbyte);
-         ppufile.getset(tppuset8(procoptions));
+         ppufile.getset(tppuset9(procoptions));
 
          funcretloc[callerside].init;
          if po_explicitparaloc in procoptions then
@@ -6323,7 +6323,7 @@ implementation
          ppufile.putderef(returndefderef);
          ppufile.putbyte(ord(proctypeoption));
          ppufile.putbyte(ord(proccalloption));
-         ppufile.putset(tppuset8(procoptions));
+         ppufile.putset(tppuset9(procoptions));
 
          if (po_explicitparaloc in procoptions) then
            funcretloc[callerside].ppuwrite(ppufile);

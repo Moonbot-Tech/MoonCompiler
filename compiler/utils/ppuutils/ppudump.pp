@@ -3179,7 +3179,8 @@ const
      (mask:po_objc_related_result_type; str: 'Objective-C related result type'),
      (mask:po_anonymous;       str: 'Anonymous'),
      (mask:po_wasm_funcref;    str: 'WebAssembly funcref'),
-     (mask:po_wasm_suspending; str: 'WebAssembly suspending')
+     (mask:po_wasm_suspending; str: 'WebAssembly suspending'),
+     (mask:po_delayed;         str: 'Delayed DLL import')
   );
 var
   proctypeoption  : tproctypeoption;
@@ -3210,7 +3211,7 @@ begin
   writeln;
   proccalloption:=tproccalloption(ppufile.getbyte);
   writeln([space,'       CallOption : ',proccalloptionStr[proccalloption]]);
-  ppufile.getset(tppuset8(procoptions));
+  ppufile.getset(tppuset9(procoptions));
   if procoptions<>[] then
    begin
      if po_classmethod in procoptions then Include(ProcDef.Options, poClassMethod);

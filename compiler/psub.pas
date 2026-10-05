@@ -153,6 +153,9 @@ implementation
        { global }
        globtype,tokens,verbose,comphook,constexp,
        systems,cpubase,aasmbase,aasmtai,aasmcfi,
+{$ifdef x86_64}
+       aasmcpu,cgutils,
+{$endif}
        { symtable }
        symconst,symbase,symsym,symtype,symtable,defutil,defcmp,procdefutil,symcreat,
        paramgr,
@@ -3952,7 +3955,8 @@ implementation
 {$endif cpuhighleveltarget}
                    begin
                      create_hlcodegen;
-                     hlcg.handle_external_proc(
+                     if not (po_delayed in result.procoptions) then
+                       hlcg.handle_external_proc(
                        current_asmdata.asmlists[al_procedures],
                        result,
                        proc_get_importname(result));
@@ -3986,12 +3990,65 @@ implementation
       end;
 
 
+{$ifdef x86_64}
+    procedure emit_delayed_import(pd:tprocdef);
+      var
+        list: TAsmList;
+        entry,slow,dllname,exportname: TAsmLabel;
+        ref: treference;
+      begin
+        list:=current_asmdata.asmlists[al_procedures];
+        current_asmdata.getdatalabel(entry);
+        current_asmdata.getjumplabel(slow);
+        current_asmdata.getdatalabel(dllname);
+        current_asmdata.getdatalabel(exportname);
+        new_section(list,sec_code,pd.mangledname,16);
+        list.concat(tai_symbol.Createname_global(pd.mangledname,AT_FUNCTION,0,voidcodepointertype));
+        reference_reset_symbol(ref,entry,0,8,[]);
+        ref.base:=NR_RIP;
+        list.concat(taicpu.op_ref(A_JMP,S_NO,ref));
+        list.concat(tai_label.Create(slow));
+        list.concat(taicpu.op_ref_reg(A_LEA,S_Q,ref,NR_RAX));
+        list.concat(taicpu.op_sym(A_JMP,S_NO,current_asmdata.RefAsmSymbol('FPC_DELAY_LOAD',AT_FUNCTION)));
+        { Each module contributes fixed-size writable records, without a PE
+          eager-import descriptor. The runtime enumerates this section for
+          explicit preloading/unloading. See sysinit's TDelayedEntry. }
+        new_section(list,sec_user,'.mcdelay',8).secflags:=[SF_A,SF_W];
+        list.concat(tai_label.Create(entry));
+        list.concat(tai_const.Create_sym(slow));  { patched target }
+        list.concat(tai_const.Create_sym(slow));  { reset target }
+        list.concat(tai_const.Create_sym(dllname));
+        if assigned(pd.import_name) then
+          list.concat(tai_const.Create_sym(exportname))
+        else
+          list.concat(tai_const.Create_64bit(int64($8000000000000000) or pd.import_nr));
+        list.concat(tai_const.Create_64bit(0));    { module handle }
+        list.concat(tai_const.Create_64bit(0));    { resolving thread and padding }
+        new_section(list,sec_rodata,pd.mangledname,2);
+        list.concat(tai_label.Create(dllname));
+        list.concat(tai_string.Create(pd.import_dll^+#0));
+        if assigned(pd.import_name) then
+          begin
+            list.concat(tai_label.Create(exportname));
+            list.concat(tai_const.Create_16bit(0)); { IMAGE_IMPORT_BY_NAME hint }
+            list.concat(tai_string.Create(pd.import_name^+#0));
+          end;
+      end;
+{$endif x86_64}
+
     procedure import_external_proc(pd:tprocdef);
       var
         name : string;
       begin
         if not (po_external in pd.procoptions) then
           internalerror(2015121101);
+{$ifdef x86_64}
+        if po_delayed in pd.procoptions then
+          begin
+            emit_delayed_import(pd);
+            exit;
+          end;
+{$endif x86_64}
 
         { Import DLL specified? }
         if assigned(pd.import_dll) then

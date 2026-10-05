@@ -207,6 +207,7 @@ type
     _BASEREG,
     _CPPDECL,
     _DEFAULT,
+    _DELAYED,
     _DYNAMIC,
     _EXPORTS,
     _FINALLY,
@@ -568,6 +569,7 @@ var
       (str:'BASEREG'       ;special:false;keyword:[m_none];op:NOTOKEN),   { Syscall variation on Amiga-likes }
       (str:'CPPDECL'       ;special:false;keyword:[m_none];op:NOTOKEN),
       (str:'DEFAULT'       ;special:false;keyword:[m_none];op:NOTOKEN),
+      (str:'DELAYED'       ;special:false;keyword:[m_none];op:NOTOKEN),
       (str:'DYNAMIC'       ;special:false;keyword:[m_none];op:NOTOKEN),
       (str:'EXPORTS'       ;special:false;keyword:alllanguagemodes-[m_iso,m_extpas];op:NOTOKEN),
       (str:'FINALLY'       ;special:false;keyword:[m_except];op:NOTOKEN),

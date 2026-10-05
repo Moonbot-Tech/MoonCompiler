@@ -50,7 +50,7 @@ const
     (it's a cardinal) }
   { 44: tai_align_abstract serializes fixedfill and padbytes;
     45: tai_align_abstract additionally serializes its placement purpose. }
-  CurrentPPULongVersion = 45;
+  CurrentPPULongVersion = 46;
 
 { unit flags }
   uf_big_endian          = $000004;

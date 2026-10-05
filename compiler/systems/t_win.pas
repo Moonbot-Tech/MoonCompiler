@@ -1038,6 +1038,9 @@ implementation
             Concat('EXESECTION .pdata');
             Concat('  OBJSECTION .pdata*');
             Concat('ENDEXESECTION');
+            Concat('EXESECTION .mcdelay');
+            Concat('  OBJSECTION .mcdelay*');
+            Concat('ENDEXESECTION');
             Concat('EXESECTION .bss');
             Concat('  SYMBOL __bss_start__');
             Concat('  OBJSECTION .bss*');
@@ -1330,6 +1333,7 @@ implementation
             Add('    __RUNTIME_PSEUDO_RELOC_LIST_END__ = .;');
             Add('  }');
             Add('  .pdata BLOCK(__section_alignment__) : { *(.pdata*) }');
+            Add('  .mcdelay BLOCK(__section_alignment__) : { KEEP(*(.mcdelay*)) }');
             Add('  .bss BLOCK(__section_alignment__) :');
             Add('  {');
             Add('    __bss_start__ = . ;');

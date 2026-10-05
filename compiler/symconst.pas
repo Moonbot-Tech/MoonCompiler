@@ -467,7 +467,9 @@ type
       and returns and it can be called.) }
     po_wasm_funcref,
     { WebAssembly suspending external }
-    po_wasm_suspending
+    po_wasm_suspending,
+    { Windows DLL resolved by the runtime on first call }
+    po_delayed
   );
   tprocoptions=set of tprocoption;
 
@@ -1160,7 +1162,8 @@ inherited_objectoptions : tobjectoptions = [oo_has_virtual,oo_has_private,oo_has
       'objc-related-result-type', {po_objc_related_result_type}
       'po_anonymous', {po_anonymous}
       '"WASMFUNCREF"', {po_wasm_funcref}
-      '"SUSPENDING"' {po_wasm_suspending}
+      '"SUSPENDING"', {po_wasm_suspending}
+      '"DELAYED"' {po_delayed}
     );
 
 implementation

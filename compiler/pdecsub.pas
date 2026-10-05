@@ -2661,6 +2661,14 @@ begin
              else
                import_nr:=longint(v.svalue);
            end;
+          if current_scanner.idtoken=_DELAYED then
+            begin
+              consume(_DELAYED);
+              if target_info.system<>system_x86_64_win64 then
+                Message1(parser_e_dir_not_allowed,'DELAYED (requires Windows x64)')
+              else
+                include(procoptions,po_delayed);
+            end;
           if (current_scanner.idtoken=_SUSPENDING) then
            begin
              if (target_info.system in systems_wasm) then
@@ -3617,7 +3625,7 @@ var
           it because it can already be used somewhere (PFV) }
         if not(po_has_mangledname in pd.procoptions) then
           begin
-            if (po_external in pd.procoptions) and not (po_wasm_suspending in pd.procoptions) then
+            if (po_external in pd.procoptions) and (pd.procoptions*[po_wasm_suspending,po_delayed]=[]) then
               begin
                 { External Procedures are only allowed to change the mangledname
                   in their first declaration }

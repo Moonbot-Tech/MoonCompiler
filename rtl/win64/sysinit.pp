@@ -14,8 +14,12 @@
 
  **********************************************************************}
 unit sysinit;
+{$mode objfpc}{$H+}
 
   interface
+{$ifdef CPUX86_64}
+{$i delayedh.inc}
+{$endif}
 
   implementation
 
@@ -54,6 +58,9 @@ unit sysinit;
 
     function GetStdHandle(nStdHandle:DWORD) : THandle; stdcall; external 'kernel32' name 'GetStdHandle';
     function GetConsoleMode(hConsoleHandle: THandle; var lpMode: DWORD): Boolean; stdcall; external 'kernel32' name 'GetConsoleMode';
+{$ifdef CPUX86_64}
+{$i delayed.inc}
+{$endif}
 
     const
       STD_INPUT_HANDLE = dword(-10);
