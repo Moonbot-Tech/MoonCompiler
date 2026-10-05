@@ -7,7 +7,7 @@ programs=fpc ppufiles ppudump ppumove mka64ins mkarmins mkx86ins msg2inc mkx86in
 rst=fpcsubst
 
 [clean]
-units=ppu crc
+units=ppu crc chosttext
 programs=fpc ppufiles ppudump ppumove mka64ins mkarmins mkx86ins msg2inc mkx86inl mkz80ins gppc386 vppcx64
 
 [compiler]
@@ -70,6 +70,8 @@ ppumove$(EXEEXT): ppumove.pp ppu$(PPUEXT)
         $(COMPILER) ppumove.pp -Fu../llvm -Fu../generic -dGENERIC_CPU -Fi..
 
 endif
+
+fpc$(EXEEXT): fpc.pp ../chosttext.pas
 
 msg2inc$(EXEEXT): $(COMPILER_UNITTARGETDIR) msg2inc.pp
 

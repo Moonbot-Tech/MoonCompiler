@@ -23,6 +23,7 @@ program fpc;
 {$mode objfpc}{$H+}
 
   uses
+    chosttext in '../chosttext.pas',
      Sysutils;
 
   const
@@ -321,9 +322,9 @@ begin
   ExePath:=SetDirSeparators(ExtractFilePath(paramstr(0)));
   aSearchPath:='';
   { retrieve configpath }
-  configpath:=SetDirSeparators(GetEnvironmentVariable('PPC_CONFIG_PATH'));
+  configpath:=SetDirSeparators(HostEnvironmentVariable('PPC_CONFIG_PATH'));
 {$ifdef Unix}
-  hs:=SetDirSeparators(GetEnvironmentVariable('HOME'));
+  hs:=SetDirSeparators(HostEnvironmentVariable('HOME'));
   if (hs<>'') then
     begin
     Result:=IncludeTrailingPathDelimiter(hs)+'.'+aFile;
@@ -350,8 +351,8 @@ begin
 {$endif}
   AddToPath(ConfigPath);
 {$ifdef WINDOWS}
-  AddToPath(GetEnvironmentVariable('USERPROFILE'));
-  AddToPath(GetEnvironmentVariable('ALLUSERSPROFILE'));
+  AddToPath(HostEnvironmentVariable('USERPROFILE'));
+  AddToPath(HostEnvironmentVariable('ALLUSERSPROFILE'));
 {$endif WINDOWS}
 {$ifdef Unix}
   AddToPath('/etc/');
@@ -409,6 +410,8 @@ Procedure ProcessConfigFile(aFileName : String; var ExeSuffix : String);
 Var
   aFile : Text;
   aLine : String;
+  CodePage: TSystemCodePage;
+  FirstLine: Boolean;
 
 begin
   Assign(aFile,aFileName);
@@ -418,9 +421,12 @@ begin
   {$pop}
   if ioresult<>0 then
     Error('Cannot open config file: '+aFileName);
+  CodePage:=HostOptionsCodePage(aFileName);
+  FirstLine:=true;
   While not EOF(aFile) do
     begin
-    ReadLn(aFile,aLine);
+    ReadHostOptionsLine(aFile,aLine,CodePage,FirstLine);
+    FirstLine:=false;
     aLine:=StripLine(aLine);
     if aLine='' then
       continue;

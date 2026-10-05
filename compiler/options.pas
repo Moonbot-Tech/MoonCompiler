@@ -26,6 +26,7 @@ unit options;
 interface
 
 uses
+  chosttext,
   cfileutl,cclasses,versioncmp,
   globtype,globals,verbose,systems,cpuinfo,comprsrc;
 
@@ -985,7 +986,7 @@ begin
   if FPCHelpLines then
    Message1(option_usage,FixFileName(FPCBinaryPath))
   else
-   Message1(option_usage,FixFileName(system.paramstr(0)));
+   Message1(option_usage,FixFileName(objpas.paramstr(0)));
   lastident:=0;
   msg_str:=MessageStr(option_help_pages);
   p:=pchar(msg_str);
@@ -1399,7 +1400,7 @@ begin
   { check for deployment target set via environment variable }
   if not(target_info.system in [system_i386_iphonesim,system_arm_ios,system_aarch64_ios,system_x86_64_iphonesim,system_aarch64_iphonesim]) then
     begin
-      envstr:=GetEnvironmentVariable('MACOSX_DEPLOYMENT_TARGET');
+      envstr:=HostEnvironmentVariable('MACOSX_DEPLOYMENT_TARGET');
       if envstr<>'' then
         if not ParseMacVersionMin(MacOSXVersionMin,iPhoneOSVersionMin,'MAC_OS_X_VERSION_MIN_REQUIRED',envstr,false) then
           Message1(option_invalid_macosx_deployment_target,envstr)
@@ -1415,7 +1416,7 @@ begin
     end
   else
     begin
-      envstr:=GetEnvironmentVariable('IPHONEOS_DEPLOYMENT_TARGET');
+      envstr:=HostEnvironmentVariable('IPHONEOS_DEPLOYMENT_TARGET');
       if envstr<>'' then
         if not ParseMacVersionMin(iPhoneOSVersionMin,MacOSXVersionMin,'IPHONE_OS_VERSION_MIN_REQUIRED',envstr,true) then
           Message1(option_invalid_iphoneos_deployment_target,envstr)
@@ -1809,6 +1810,7 @@ var
   option_read : boolean;
   oldfilemode : byte;
   ConfigFile: TPathStr;
+  ConfigCodePage: TSystemCodePage;
 begin
 { avoid infinite loop }
   Inc(FileLevel);
@@ -1841,9 +1843,10 @@ begin
   fillchar(skip,sizeof(skip),0);
   level:=0;
   line:=0;
+  ConfigCodePage:=HostOptionsCodePage(ConfigFile);
   while not eof(f) do
    begin
-     readln(f,opts);
+     ReadHostOptionsLine(f,opts,ConfigCodePage,line=0);
      inc(line);
      RemoveSep(opts);
      if (opts<>'') and (opts[1]<>';') then
@@ -1872,7 +1875,7 @@ begin
                inc(Level);
                { environment variable? }
                if (opts[1]='$') and (opts[length(opts)]='$') then
-                 skip[level]:=skip[level-1] or (GetEnvironmentVariable(copy(opts,2,length(opts)-2))='')
+                 skip[level]:=skip[level-1] or (HostEnvironmentVariable(copy(opts,2,length(opts)-2))='')
                else
                  skip[level]:=(skip[level-1] or not defined_macro(upper(GetName(opts))));
              end
@@ -1888,7 +1891,7 @@ begin
                inc(Level);
                { environment variable? }
                if (opts[1]='$') and (opts[length(opts)]='$') then
-                 skip[level]:=skip[level-1] or (GetEnvironmentVariable(copy(opts,2,length(opts)-2))<>'')
+                 skip[level]:=skip[level-1] or (HostEnvironmentVariable(copy(opts,2,length(opts)-2))<>'')
                else
                  skip[level]:=skip[level-1] or defined_macro(upper(GetName(opts)));
              end
@@ -4667,7 +4670,7 @@ begin
   foundfn:=fn;
   check_configfile:=true;
   { retrieve configpath }
-  configpath:=FixPath(GetEnvironmentVariable('PPC_CONFIG_PATH'),false);
+  configpath:=FixPath(HostEnvironmentVariable('PPC_CONFIG_PATH'),false);
 {$ifdef Unix}
   if configpath='' then
    configpath:=ExpandFileName(FixPath(exepath+'../etc/',false));
@@ -4700,7 +4703,7 @@ begin
   if not FileExists(fn) then
    begin
 {$ifdef Unix}
-     hs:=GetEnvironmentVariable('HOME');
+     hs:=HostEnvironmentVariable('HOME');
      if (hs<>'') and CfgFileExists(FixPath(hs,false)+'.'+fn) then
       foundfn:=FixPath(hs,false)+'.'+fn
      else
@@ -4709,11 +4712,11 @@ begin
        foundfn:=configpath+fn
      else
 {$ifdef WINDOWS}
-       if (GetEnvironmentVariable('USERPROFILE')<>'') and CfgFileExists(FixPath(GetEnvironmentVariable('USERPROFILE'),false)+fn) then
-         foundfn:=FixPath(GetEnvironmentVariable('USERPROFILE'),false)+fn
+       if (HostEnvironmentVariable('USERPROFILE')<>'') and CfgFileExists(FixPath(HostEnvironmentVariable('USERPROFILE'),false)+fn) then
+         foundfn:=FixPath(HostEnvironmentVariable('USERPROFILE'),false)+fn
      else
-       if (GetEnvironmentVariable('ALLUSERSPROFILE')<>'') and CfgFileExists(FixPath(GetEnvironmentVariable('ALLUSERSPROFILE'),false)+fn) then
-         foundfn:=FixPath(GetEnvironmentVariable('ALLUSERSPROFILE'),false)+fn
+       if (HostEnvironmentVariable('ALLUSERSPROFILE')<>'') and CfgFileExists(FixPath(HostEnvironmentVariable('ALLUSERSPROFILE'),false)+fn) then
+         foundfn:=FixPath(HostEnvironmentVariable('ALLUSERSPROFILE'),false)+fn
      else
 {$endif WINDOWS}
 {$ifndef Unix}
@@ -5299,7 +5302,7 @@ begin
   Option.TargetOptions(true);
 
 { get default messagefile }
-  msgfilename:=GetEnvironmentVariable('PPC_ERROR_FILE');
+  msgfilename:=HostEnvironmentVariable('PPC_ERROR_FILE');
 
 { default configfile can be specified on the commandline,
    remove it first }
@@ -5722,13 +5725,13 @@ begin
    Unitsearchpath.AddPath(inputfilepath,true);
   if not disable_configfile then
     begin
-      env:=GetEnvironmentVariable(target_info.unit_env);
+      env:=HostEnvironmentVariable(target_info.unit_env);
       if env<>'' then
-        UnitSearchPath.AddPath(GetEnvironmentVariable(target_info.unit_env),false);
+        UnitSearchPath.AddPath(HostEnvironmentVariable(target_info.unit_env),false);
     end;
 
 {$ifdef Unix}
-  fpcdir:=FixPath(GetEnvironmentVariable('FPCDIR'),false);
+  fpcdir:=FixPath(HostEnvironmentVariable('FPCDIR'),false);
   if fpcdir='' then
     begin
       if PathExists('/usr/local/lib/fpc/'+version_string,true) then
@@ -5737,7 +5740,7 @@ begin
         fpcdir:='/usr/lib/fpc/'+version_string+'/';
     end;
 {$else unix}
-  fpcdir:=FixPath(GetEnvironmentVariable('FPCDIR'),false);
+  fpcdir:=FixPath(HostEnvironmentVariable('FPCDIR'),false);
   if fpcdir='' then
     begin
       fpcdir:=ExePath+'../';

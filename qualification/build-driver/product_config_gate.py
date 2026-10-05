@@ -553,6 +553,71 @@ def check_long_utf8_names(compiler: Path, root: Path, cwd: Path) -> str:
     return "255/256-byte colliding UTF-8 include names and 264-byte source leaf, both profiles OK"
 
 
+def check_host_text(compiler: Path, root: Path, cwd: Path) -> str:
+    """Paths are host Unicode; source text and legacy options keep their encoding."""
+    if os.name != "nt":
+        return "Windows host Unicode/ANSI boundary: Win64 only"
+    frontend = compiler.with_name("fpc.exe")
+    root.mkdir(parents=True)
+    include = root / "\u6f22\U0001f680 space"
+    include.mkdir()
+    (include / "value.inc").write_text("const V=117;\n", encoding="ascii")
+    source = root / "\u6f22.dpr"
+    source.write_text(
+        "program hosttext;\n{$I value.inc}\n"
+        "const F: UnicodeString={$I %FILE%}; E: UnicodeString={$I %MC_HOST_TEXT%};\n"
+        "begin\n"
+        "  if (V<>117) or (Ord(F[Length(F)-4])<>$6F22) or\n"
+        "     (Length(E)<>3) or (Ord(E[1])<>$6F22) or\n"
+        "     (Ord(E[2])<>$D83D) or (Ord(E[3])<>$DE80) then Halt(1);\n"
+        "  WriteLn('HOST_TEXT_OK');\nend.\n", encoding="ascii")
+    response = root / "options.rsp"
+    response.write_text(f'-Fi{include}\n', encoding="utf-8-sig")
+    env_config = root / "env.cfg"
+    env_config.write_text('-Fi$MC_HOST_EMPTY$$MC_HOST_INCLUDE$\n', encoding="ascii")
+    environment = {"MC_HOST_INCLUDE": str(include), "MC_HOST_TEXT": "\u6f22\U0001f680", "MC_HOST_EMPTY": "",
+                   "MC_HOST_OPTIONS": f'"-Fi{include}"'}
+
+    def check(executable: Path, profile: str, label: str, options: list[str], program: Path,
+              expected: str = "HOST_TEXT_OK") -> None:
+        output = root / f"{executable.stem}-{profile}-{label}.exe"
+        run_compiler(executable, ["-B", *(["-dRELEASE"] if profile == "RELEASE" else []),
+                                 f"-o{output}", *options, str(program)], cwd=cwd, env_override=environment)
+        run = subprocess.run([str(output)], text=True, capture_output=True)
+        if run.returncode != 0 or run.stdout.strip() != expected:
+            fail(f"host text {profile}/{label}: {run.returncode}: {run.stdout} {run.stderr}")
+
+    # Select a non-ASCII character representable by this host's ANSI code page.
+    legacy_char = next((c for c in "\u044f\u00e9\u6f22" if c.encode("mbcs", errors="replace").decode("mbcs") == c), "A")
+    legacy_include = root / legacy_char
+    legacy_include.mkdir()
+    (legacy_include / "value.inc").write_text("const V=117;\n", encoding="ascii")
+    legacy_source = root / "legacy.dpr"
+    legacy_source.write_text(
+        f"{{$mode delphiunicode}} program legacy; {{$I {legacy_char}/value.inc}}\n"
+        f"const S:UnicodeString='{legacy_char}';\n"
+        f"begin if (V<>117) or (Ord(S[1])<>{ord(legacy_char)}) then Halt(1); WriteLn('LEGACY_OK'); end.\n",
+        encoding="mbcs")
+    legacy_response = root / "legacy.cfg"
+    legacy_response.write_text(f'-Fi{legacy_include}\n', encoding="mbcs")
+    # An ACP config must actually supply an include search path, independently of source encoding.
+    plain_source = root / "plain.dpr"
+    plain_source.write_text("program plain; {$I value.inc} begin if V<>117 then Halt(1); WriteLn('LEGACY_OK'); end.\n",
+                            encoding="ascii")
+    for executable in (compiler, frontend):
+        for profile in ("DEBUG", "RELEASE"):
+            for label, options in (("direct", [f"-Fi{include}"]), ("response", [f"@{response}"]),
+                                   ("env-config", [f"@{env_config}"]), ("env-options", ["!MC_HOST_OPTIONS"])):
+                check(executable, profile, label, options, source)
+            project = source.with_suffix(".mooncompiler")
+            project.write_text(f'-Fi{include}\n', encoding="utf-8")
+            check(executable, profile, "project", [], source)
+            project.unlink()
+            check(executable, profile, "ansi-source", [], legacy_source, "LEGACY_OK")
+            check(executable, profile, "ansi-options", [f"@{legacy_response}"], plain_source, "LEGACY_OK")
+    return "Unicode host paths/env/macros, UTF-8 project/BOM response, ANSI source/config, frontend/backend and profiles OK"
+
+
 def check_source_input_paths(compiler: Path, root: Path, cwd: Path) -> str:
     frontend = compiler.with_name("fpc.exe" if os.name == "nt" else "fpc")
     for profile in ("DEBUG", "RELEASE"):
@@ -941,6 +1006,7 @@ def main() -> int:
         check_recursive_trees(linked_compiler, tmp / "trees", other_cwd, results)
         results.append(check_internal_linker_paths(linked_compiler, tmp / "linker", other_cwd))
         results.append(check_source_input_paths(linked_compiler, tmp / "input", other_cwd))
+        results.append(check_host_text(linked_compiler, tmp / "host-text", other_cwd))
         from static_linux_gate import check as check_static_linux
         results.append(check_static_linux(linked_compiler, tmp / "static", other_cwd))
 

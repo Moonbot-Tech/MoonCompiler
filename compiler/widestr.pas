@@ -28,6 +28,7 @@ unit widestr;
   interface
 
     uses
+      chosttext,
       charset,globtype;
 
 
@@ -190,8 +191,8 @@ unit widestr;
         if (current_settings.sourcecodepage=CP_UTF8) and
            (m_delphi in current_settings.modeswitches) and
            (m_default_unicodestring in current_settings.modeswitches) and
-           mappingavailable(DefaultSystemCodePage) then
-          result:=getmap(DefaultSystemCodePage)
+           mappingavailable(SourceSystemCodePage) then
+          result:=getmap(SourceSystemCodePage)
         else
           result:=nil;
       end;

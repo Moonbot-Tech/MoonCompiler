@@ -28,6 +28,7 @@ unit cfileutl;
 interface
 
     uses
+      chosttext,
 {$ifdef hasunix}
       Baseunix,unix,
 {$endif hasunix}
@@ -1586,9 +1587,9 @@ end;
       if not found then
        begin
 {$ifdef macos}
-         Path:=GetEnvironmentVariable('Commands');
+         Path:=HostEnvironmentVariable('Commands');
 {$else}
-         Path:=GetEnvironmentVariable('PATH');
+         Path:=HostEnvironmentVariable('PATH');
 {$endif}
          found:=FindFile(FixFileName(bin),Path,allowcache,foundfile);
        end;
@@ -1903,7 +1904,7 @@ end;
       var
         comspec : string;
       begin
-        comspec:=GetEnvironmentVariable('COMSPEC');
+        comspec:=HostEnvironmentVariable('COMSPEC');
         do_comment(V_Executable,'Executing "'+Command+'" using comspec "'
             +ComSpec+'"');
         result := RequotedExecuteProcess(comspec,' /C '+command);

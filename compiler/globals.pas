@@ -26,6 +26,7 @@ unit globals;
 interface
 
     uses
+      chosttext,
 {$ifdef windows}
       windows,
 {$endif}
@@ -1251,9 +1252,7 @@ implementation
     function GetEnvPChar(const envname:ansistring):pansichar;
       {$ifdef mswindows}
       var
-        s     : string;
-        i,len : longint;
-        hp,p,p2 : pansichar;
+        s : ansistring;
       {$endif}
       begin
       {$ifdef hasunix}
@@ -1261,25 +1260,22 @@ implementation
         {$define GETENVOK}
       {$endif}
       {$ifdef mswindows}
-        GetEnvPchar:=nil;
-        p:=GetEnvironmentStringsA;
-        hp:=p;
-        while hp^<>#0 do
-         begin
-           s:=strpas(hp);
-           i:=pos('=',s);
-           len:=strlen(hp);
-           if upper(copy(s,1,i-1))=upper(envname) then
-            begin
-              GetMem(p2,len-length(envname));
-              Move(hp[i],p2^,len-length(envname));
-              GetEnvPchar:=p2;
-              break;
-            end;
-           { next string entry}
-           hp:=hp+len+1;
-         end;
-        FreeEnvironmentStringsA(p);
+        s:=HostEnvironmentVariable(envname);
+        if s='' then
+          begin
+            { An existing empty variable must still replace $NAME$ with ''. }
+            SetLastError(0);
+            Windows.GetEnvironmentVariableW(PWideChar(UnicodeString(envname)),nil,0);
+            if GetLastError=ERROR_ENVVAR_NOT_FOUND then
+              GetEnvPChar:=nil
+            else
+              begin
+                GetMem(GetEnvPChar,1);
+                GetEnvPChar^:=#0;
+              end;
+          end
+        else
+          GetEnvPChar:=StrPNew(s);
         {$define GETENVOK}
       {$endif}
       {$ifdef os2}
@@ -1289,7 +1285,7 @@ implementation
       {$ifdef GETENVOK}
         {$undef GETENVOK}
       {$else}
-        GetEnvPchar:=StrPNew(GetEnvironmentVariable(envname));
+        GetEnvPchar:=StrPNew(HostEnvironmentVariable(envname));
         if (length(GetEnvPChar)=0) then
           begin
             FreeEnvPChar(GetEnvPChar);
@@ -1724,11 +1720,11 @@ implementation
        hs1 : TPathStr;
 {$endif need_path_search}
      begin
-       localexepath:=GetEnvironmentVariable('PPC_EXEC_PATH');
+       localexepath:=HostEnvironmentVariable('PPC_EXEC_PATH');
        exeName := '';
        if localexepath='' then
          begin
-           exeName := FixFileName(system.paramstr(0));
+           exeName := FixFileName(objpas.paramstr(0));
            localexepath := ExtractFilePath(exeName);
          end;
 {$ifdef need_path_search}
@@ -1737,9 +1733,9 @@ implementation
           hs1 := ExtractFileName(exeName);
           hs1 := ChangeFileExt(hs1,source_info.exeext);
 {$ifdef macos}
-          FindFile(hs1,GetEnvironmentVariable('Commands'),false,localExepath);
+          FindFile(hs1,HostEnvironmentVariable('Commands'),false,localExepath);
 {$else macos}
-          FindFile(hs1,GetEnvironmentVariable('PATH'),false,localExepath);
+          FindFile(hs1,HostEnvironmentVariable('PATH'),false,localExepath);
 {$endif macos}
           localExepath:=ExtractFilePath(localExepath);
         end;

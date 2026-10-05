@@ -30,6 +30,7 @@ unit compiler;
 interface
 
 uses
+  chosttext,
 {$ifdef GO32V2}
   emu387,
 {$endif GO32V2}
@@ -210,6 +211,7 @@ begin
 {$if defined(unix)}
   { Set default code page for ansistrings on unix-like systems }
   DefaultSystemCodePage:=GetSystemCodePage;
+  SourceSystemCodePage:=DefaultSystemCodePage;
 {$endif}
 { inits which need to be done before the arguments are parsed }
   InitSystems;
@@ -287,7 +289,7 @@ begin
        FreeLocalVerbosity(current_settings.pmessage);
 
        { show some info }
-       Message1(general_t_compilername,FixFileName(system.paramstr(0)));
+       Message1(general_t_compilername,FixFileName(objpas.paramstr(0)));
        Message1(general_d_sourceos,source_info.name);
        Message1(general_i_targetos,target_info.name);
        Message1(general_t_exepath,exepath);

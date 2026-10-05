@@ -26,6 +26,7 @@ unit scanner;
 interface
 
     uses
+      chosttext,
        cclasses,
        globtype,globals,constexp,version,tokens,
        symtype,symdef,symsym,
@@ -528,7 +529,7 @@ implementation
                 { m_systemcodepage gets enabled -> disable any -FcXXX and
                   "codepage XXX" settings (exclude cs_explicit_codepage), and
                   overwrite the source codepage }
-                current_settings.sourcecodepage:=DefaultSystemCodePage;
+                current_settings.sourcecodepage:=SourceSystemCodePage;
                 if (current_settings.sourcecodepage<>CP_UTF8) and not cpavailable(current_settings.sourcecodepage) then
                   begin
                     Message2(scan_w_unavailable_system_codepage,IntToStr(current_settings.sourcecodepage),IntToStr(default_settings.sourcecodepage));
@@ -3070,8 +3071,53 @@ type
         args  : ansistring;
         hp    : tinputfile;
         found : boolean;
-        macroIsString : boolean;
+        macroIsString, macroIsHostText : boolean;
+        macroText: RawByteString;
         fileext: string;
+
+{$ifdef windows}
+        function HostStringLiteral(const Value: AnsiString): RawByteString;
+          var
+            WideValue: UnicodeString;
+            SourceValue: RawByteString;
+            i: SizeInt;
+          begin
+            WideValue:=UnicodeString(Value);
+            if current_settings.sourcecodepage=CP_UTF8 then
+              SourceValue:=Value
+            else
+              WideStringManager.Unicode2AnsiMoveProc(PUnicodeChar(WideValue),
+                SourceValue,current_settings.sourcecodepage,Length(WideValue));
+            Result:='''';
+            { Preserve the ordinary source literal and its overload type when
+              the complete host text is representable in the source codepage. }
+            if UnicodeString(SourceValue)=WideValue then
+              begin
+                for i:=1 to Length(SourceValue) do
+                  if SourceValue[i]>=#32 then
+                    begin
+                      Result:=Result+SourceValue[i];
+                      if SourceValue[i]='''' then
+                        Result:=Result+'''';
+                    end
+                  else
+                    Result:=Result+'''#'+tostr(Ord(SourceValue[i]))+'''';
+              end
+            else
+              for i:=1 to Length(WideValue) do
+                if (WideValue[i]>=#32) and (WideValue[i]<=#126) then
+                  begin
+                    Result:=Result+AnsiChar(WideValue[i]);
+                    if WideValue[i]='''' then
+                      Result:=Result+'''';
+                  end
+                else
+                  { Four hex digits force a Unicode escape even below 256. }
+                  Result:=Result+'''#$'+hexstr(Ord(WideValue[i]),4)+'''';
+            Result:=Result+'''';
+          end;
+{$endif windows}
+
       begin
         current_scanner.skipspace;
         args:=current_scanner.readlongcomment;
@@ -3090,6 +3136,7 @@ type
            path:=hs;
          { first check for internal macros }
            macroIsString:=true;
+           macroIsHostText:=false;
            case hs of
              'TIME':
                if timestr<>'' then
@@ -3132,7 +3179,10 @@ type
                  macroIsString:=false;
                end;
              'FILE':
-               hs:=current_module.sourcefiles.get_file_name(current_filepos.fileindex);
+               begin
+                 hs:=current_module.sourcefiles.get_file_name(current_filepos.fileindex);
+                 macroIsHostText:=true;
+               end;
              'LINE':
                hs:=tostr(current_filepos.line);
              'LINENUM':
@@ -3153,14 +3203,24 @@ type
              'CURRENTROUTINE':
                hs:=current_procinfo.procdef.procsym.RealName;
              else
-               hs:=GetEnvironmentVariable(hs);
+               begin
+                 hs:=HostEnvironmentVariable(hs);
+                 macroIsHostText:=true;
+               end;
            end;
            if hs='' then
             Message1(scan_w_include_env_not_found,path);
            { make it a stringconst }
            if macroIsString then
-             hs:=''''+hs+'''';
-           current_scanner.substitutemacro(path,@hs[1],length(hs),
+{$ifdef windows}
+             if macroIsHostText then
+               macroText:=HostStringLiteral(hs)
+             else
+{$endif windows}
+               macroText:=''''+hs+''''
+           else
+             macroText:=hs;
+           current_scanner.substitutemacro(path,@macroText[1],length(macroText),
              current_scanner.line_no,current_scanner.inputfile.ref_index,false);
          end
         else

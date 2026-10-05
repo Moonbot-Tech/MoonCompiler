@@ -150,6 +150,16 @@ command line (Release branch of `fpc.cfg`, `release` unit directory, no
 and lines beginning with `#` are ignored. Relative paths are resolved from
 the file's own directory, whatever the current directory is.
 
+Windows command-line paths and environment variables support Unicode names
+independently of the system ANSI code page. This does not change the encoding
+of Pascal source files: use `{$CODEPAGE UTF8}` for UTF-8 source when needed.
+On Windows, the `.mooncompiler` reader accepts UTF-8 with or without a BOM.
+Other Windows config and response files (`@options.cfg`) retain the system
+encoding by default; save them as UTF-8 with a BOM to use names outside that
+encoding. Each included config file selects its own encoding by the same rules.
+Options occupy whole lines, so spaces within a path do not require shell
+quotes in these files.
+
 ```text
 # Project.mooncompiler
 -Fu./**
