@@ -36,7 +36,7 @@ uses SysUtils;
 function HostEnvironmentVariable(const Name: AnsiString): AnsiString;
 begin
 {$ifdef windows}
-  Result:=SysUtils.GetEnvironmentVariable(UnicodeString(Name));
+  Result:=AnsiString(SysUtils.GetEnvironmentVariable(UnicodeString(Name)));
 {$else}
   Result:=SysUtils.GetEnvironmentVariable(Name);
 {$endif}
