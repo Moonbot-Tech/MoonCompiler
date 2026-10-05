@@ -219,32 +219,45 @@ type
   TCustomVariantTypeClass = class of TCustomVariantType;
 
   TVarDataArray = array of TVarData;
+  TVarInvokeName = {$ifdef UNICODERTL}UnicodeString{$else}AnsiString{$endif};
   IVarInvokeable = interface
     ['{1CB65C52-BBCB-41A6-9E58-7FB916BEEB2D}']
     function DoFunction(var Dest: TVarData; const V: TVarData;
-      const Name: AnsiString; const Arguments: TVarDataArray): Boolean;
-    function DoProcedure(const V: TVarData; const Name: AnsiString;
+      const Name: TVarInvokeName; const Arguments: TVarDataArray): Boolean;
+    function DoProcedure(const V: TVarData; const Name: TVarInvokeName;
       const Arguments: TVarDataArray): Boolean;
     function GetProperty(var Dest: TVarData; const V: TVarData;
-      const Name: AnsiString): Boolean;
-    function SetProperty(var V: TVarData; const Name: AnsiString;
+      const Name: TVarInvokeName): Boolean;
+    function SetProperty(const V: TVarData; const Name: TVarInvokeName;
       const Value: TVarData): Boolean;
   end;
 
   TInvokeableVariantType = class(TCustomVariantType, IVarInvokeable)
   protected
+    function FixupIdent(const AText: TVarInvokeName): TVarInvokeName; virtual;
     procedure DispInvoke(Dest: PVarData; var Source: TVarData;
       CallDesc: PCallDesc; Params: Pointer); override;
   public
     { IVarInvokeable }
     function DoFunction(var Dest: TVarData; const V: TVarData;
-      const Name: AnsiString; const Arguments: TVarDataArray): Boolean; virtual;
-    function DoProcedure(const V: TVarData; const Name: AnsiString;
-      const Arguments: TVarDataArray): Boolean; virtual;
+      const Name: TVarInvokeName; const Arguments: TVarDataArray): Boolean; overload; virtual;
+    function DoProcedure(const V: TVarData; const Name: TVarInvokeName;
+      const Arguments: TVarDataArray): Boolean; overload; virtual;
     function GetProperty(var Dest: TVarData; const V: TVarData;
-      const Name: AnsiString): Boolean; virtual;
+      const Name: TVarInvokeName): Boolean; overload; virtual;
+    function SetProperty(const V: TVarData; const Name: TVarInvokeName;
+      const Value: TVarData): Boolean; overload; virtual;
+{$ifdef UNICODERTL}
+    { Existing FPC handlers can retain their ANSI overrides. }
+    function DoFunction(var Dest: TVarData; const V: TVarData;
+      const Name: AnsiString; const Arguments: TVarDataArray): Boolean; overload; virtual;
+    function DoProcedure(const V: TVarData; const Name: AnsiString;
+      const Arguments: TVarDataArray): Boolean; overload; virtual;
+    function GetProperty(var Dest: TVarData; const V: TVarData;
+      const Name: AnsiString): Boolean; overload; virtual;
     function SetProperty(var V: TVarData; const Name: AnsiString;
-      const Value: TVarData): Boolean; virtual;
+      const Value: TVarData): Boolean; overload; virtual;
+{$endif}
   end;
 
   IVarInstanceReference = interface
@@ -268,14 +281,14 @@ type
     function GetInstance(const V: TVarData): TObject; virtual; abstract;
   public
     function GetProperty(var Dest: TVarData; const V: TVarData;
-      const Name: AnsiString): Boolean; override;
-    function SetProperty(var V: TVarData; const Name: AnsiString;
+      const Name: TVarInvokeName): Boolean; override;
+    function SetProperty(const V: TVarData; const Name: TVarInvokeName;
       const Value: TVarData): Boolean; override;
   end;
 
   function FindCustomVariantType(const aVarType: TVarType;
     out CustomVariantType: TCustomVariantType): Boolean; overload;
-  function FindCustomVariantType(const TypeName: AnsiString;
+  function FindCustomVariantType(const TypeName: TVarInvokeName;
     out CustomVariantType: TCustomVariantType): Boolean; overload;
 
 type
@@ -4150,7 +4163,7 @@ function FindCustomVariantType(const aVarType: TVarType; out CustomVariantType: 
   end;
 
 
-function FindCustomVariantType(const TypeName: AnsiString;  out CustomVariantType: TCustomVariantType): Boolean; overload;
+function FindCustomVariantType(const TypeName: TVarInvokeName;  out CustomVariantType: TCustomVariantType): Boolean; overload;
   var
     i: Integer;
     tmp: TCustomVariantType;
@@ -4552,7 +4565,7 @@ end;
 procedure TInvokeableVariantType.DispInvoke(Dest: PVarData; var Source: TVarData;
   CallDesc: PCallDesc; Params: Pointer);
 var
-  method_name: ansistring;
+  method_name: TVarInvokeName;
   arg_count: byte;
   args: TVarDataArray;
   arg_idx: byte;
@@ -4572,7 +4585,9 @@ const
   argref_mask = $80;
 begin
   arg_count := CallDesc^.ArgCount;
-  method_name := ansistring(PAnsiChar(@CallDesc^.ArgTypes[arg_count]));
+  { Pascal member identifiers in the descriptor are ASCII. Unicode callers
+    of IVarInvokeable bypass this descriptor and keep their complete name. }
+  method_name:=FixupIdent(TVarInvokeName(AnsiString(PAnsiChar(@CallDesc^.ArgTypes[arg_count]))));
   setLength(args, arg_count);
   {$IFDEF USE_MSWINDOWS_OLE}
   nextstring:=0;
@@ -4751,6 +4766,38 @@ begin
   {$ENDIF}
 end;
 
+function TInvokeableVariantType.FixupIdent(const AText: TVarInvokeName): TVarInvokeName;
+begin
+  Result:=UpperCase(AText);
+end;
+
+{$ifdef UNICODERTL}
+function TInvokeableVariantType.DoFunction(var Dest: TVarData; const V: TVarData;
+  const Name: TVarInvokeName; const Arguments: TVarDataArray): Boolean;
+begin
+  Result:=DoFunction(Dest,V,AnsiString(Name),Arguments);
+end;
+
+function TInvokeableVariantType.DoProcedure(const V: TVarData; const Name: TVarInvokeName;
+  const Arguments: TVarDataArray): Boolean;
+begin
+  Result:=DoProcedure(V,AnsiString(Name),Arguments);
+end;
+
+function TInvokeableVariantType.GetProperty(var Dest: TVarData; const V: TVarData;
+  const Name: TVarInvokeName): Boolean;
+begin
+  Result:=GetProperty(Dest,V,AnsiString(Name));
+end;
+
+function TInvokeableVariantType.SetProperty(const V: TVarData; const Name: TVarInvokeName;
+  const Value: TVarData): Boolean;
+begin
+  { Legacy FPC setters used a var receiver. Preserve the actual carrier for
+    those overrides; the Delphi-compatible signature itself is const. }
+  Result:=SetProperty(PVarData(@V)^,AnsiString(Name),Value);
+end;
+
 function TInvokeableVariantType.DoFunction(var Dest: TVarData; const V: TVarData; const Name: AnsiString; const Arguments: TVarDataArray): Boolean;
 
 begin
@@ -4775,18 +4822,45 @@ function TInvokeableVariantType.SetProperty(var V: TVarData; const Name: AnsiStr
   end;
 
 
+{$else}
+function TInvokeableVariantType.DoFunction(var Dest: TVarData; const V: TVarData; const Name: TVarInvokeName; const Arguments: TVarDataArray): Boolean;
+
+begin
+  result := False;
+end;
+
+function TInvokeableVariantType.DoProcedure(const V: TVarData; const Name: TVarInvokeName; const Arguments: TVarDataArray): Boolean;
+begin
+  result := False
+end;
+
+
+function TInvokeableVariantType.GetProperty(var Dest: TVarData; const V: TVarData; const Name: TVarInvokeName): Boolean;
+  begin
+    result := False;
+  end;
+
+
+function TInvokeableVariantType.SetProperty(const V: TVarData; const Name: TVarInvokeName; const Value: TVarData): Boolean;
+  begin
+    result := False;
+  end;
+
+
+{$endif}
+
 { ---------------------------------------------------------------------
     TPublishableVariantType implementation
   ---------------------------------------------------------------------}
 
-function TPublishableVariantType.GetProperty(var Dest: TVarData; const V: TVarData; const Name: AnsiString): Boolean;
+function TPublishableVariantType.GetProperty(var Dest: TVarData; const V: TVarData; const Name: TVarInvokeName): Boolean;
   begin
     Result:=true;
     Variant(Dest):={$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}TypInfo.GetPropValue(getinstance(v),name);
   end;
 
 
-function TPublishableVariantType.SetProperty(var V: TVarData; const Name: AnsiString; const Value: TVarData): Boolean;
+function TPublishableVariantType.SetProperty(const V: TVarData; const Name: TVarInvokeName; const Value: TVarData): Boolean;
   begin
     Result:=true;
     {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}TypInfo.SetPropValue(getinstance(v),name,Variant(value));
