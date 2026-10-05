@@ -13,6 +13,25 @@ uses
 
 var
   Failures: Integer;
+  PartReads, PartDestroys: Integer;
+
+type
+  TTrackedPart = class(TMemoryStream)
+    destructor Destroy; override;
+    function Read(var Buffer; Count: Longint): Longint; override;
+  end;
+
+destructor TTrackedPart.Destroy;
+begin
+  Inc(PartDestroys);
+  inherited Destroy;
+end;
+
+function TTrackedPart.Read(var Buffer; Count: Longint): Longint;
+begin
+  Inc(PartReads);
+  Result := inherited Read(Buffer, Count);
+end;
 
 procedure Check(Cond: Boolean; const Msg: string);
 begin
@@ -108,6 +127,7 @@ var
   Closed: Boolean;
   S: TStream;
   Twice: TBytes;
+  PartHeaders: TStringList;
 begin
   Failures := 0;
   FileName := IncludeTrailingPathDelimiter(GetTempDir(False)) + 'mime-contract-' + IntToStr(GetProcessID) + '.png';
@@ -167,6 +187,16 @@ begin
     { a missing file fails at AddFile }
     with TMultipartFormData.Create do
       try
+        AddFile('inferred', FileName);
+        Body := ReadAll(Stream);
+        Parts := SplitParts(Body, Boundary, Closed);
+        Check((Length(Parts) = 1) and
+          (HeaderLine(Parts[0].Headers, 'Content-Type') = 'image/png'), 'AddFile infers MIME type from extension');
+      finally
+        Free;
+      end;
+    with TMultipartFormData.Create do
+      try
         try
           AddFile('missing', FileName + '.missing');
           Check(False, 'missing file accepted');
@@ -194,6 +224,51 @@ begin
     Check(Pos('name="a"', TEncoding.UTF8.GetString(Body)) > 0, 'unowned stream survives the object');
   finally
     S.Free;
+  end;
+  PartHeaders := TStringList.Create;
+  S := TTrackedPart.Create;
+  F := TMultipartFormData.Create;
+  try
+    S.WriteBuffer(FileBytes[0], 16);
+    S.Position := 4;
+    PartHeaders.Add('X-Part: retained');
+    F.AddStream('borrowed', S, False, 'body.bin', 'application/octet-stream', PartHeaders);
+    Check((PartReads = 0) and (PartDestroys = 0), 'AddStream neither materializes nor frees a borrowed part');
+    Body := ReadAll(F.Stream);
+    Parts := SplitParts(Body, F.Boundary, Closed);
+    Check((Length(Parts) = 1) and (HeaderLine(Parts[0].Headers, 'X-Part') = 'retained'), 'part headers');
+    Twice := ReadAll(F.Stream);
+    Check((Length(Body) = Length(Twice)) and CompareMem(@Body[0], @Twice[0], Length(Body)), 'streamed replay bytes');
+    F.Free;
+    F := nil;
+    Check((PartDestroys = 0) and (S.Size = 16), 'borrowed part survives body destruction');
+  finally
+    F.Free;
+    S.Free;
+    PartHeaders.Free;
+  end;
+  PartDestroys := 0;
+  F := TMultipartFormData.Create;
+  try
+    S := TTrackedPart.Create;
+    F.AddStream('owned', S, True);
+    Check(PartDestroys = 0, 'owned part remains alive before body destruction');
+  finally
+    F.Free;
+  end;
+  Check(PartDestroys = 1, 'owned part freed exactly once with body');
+  F := TMultipartFormData.Create;
+  try
+    try
+      F.AddField('bad'#13#10'Injected: value', 'x');
+      Check(False, 'multipart header injection accepted');
+    except
+      on EMultipartFormData do ;
+    end;
+    Body := ReadAll(F.Stream);
+    Check(TEncoding.UTF8.GetString(Body) = '--' + F.Boundary + '--'#13#10, 'empty multipart is closed and rejected part is absent');
+  finally
+    F.Free;
   end;
   If Failures <> 0 then begin
     WriteLn('FAILURES ', Failures);
