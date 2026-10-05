@@ -45,6 +45,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--baseline-mm-source", type=Path)
     parser.add_argument("--jobs", type=int, default=4)
+    parser.add_argument("--single-cpus", default="", help="physical CPU pairs for single-CPU Pulse cases")
     args = parser.parse_args()
     baseline = args.baseline_toolchain.resolve()
     # The release baseline is an installed archive, including its own bundled MM.
@@ -53,6 +54,8 @@ def main() -> int:
                "--baseline-mm-source", str(args.baseline_mm_source or baseline / "runtime/mm/mormot.core.fpcx64mm.pas"),
                "--candidate-mm-source", str(ROOT / "runtime/mm/mormot.core.fpcx64mm.pas"),
                "--output", str(args.output), "--pairs", "12", "--build-jobs", str(args.jobs)]
+    if args.single_cpus:
+        command += ["--single-cpus", args.single_cpus]
     code = subprocess.call(command, cwd=ROOT)
     if code:
         return code

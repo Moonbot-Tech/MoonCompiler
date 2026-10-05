@@ -50,6 +50,8 @@ def arguments(settings: dict, host: str, action: str, mode: str, final: bool, he
         result += ["--baseline-toolchain", settings["baseline_toolchain"]]
     if not skip_pulse and settings.get("baseline_mm_source"):
         result += ["--baseline-mm-source", settings["baseline_mm_source"]]
+    if not skip_pulse and settings.get("pulse_single_cpus"):
+        result += ["--pulse-single-cpus", settings["pulse_single_cpus"]]
     if head:
         result += ["--expect-head", head]
     if final:

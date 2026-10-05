@@ -80,6 +80,16 @@ class HostBarrierTests(unittest.TestCase):
         self.assertEqual(len(called), 8)
         self.assertIn("scope=correctness-without-pulse", output.getvalue())
 
+    def test_host_specific_single_cpu_selection_reaches_only_that_host(self):
+        config = self.config()
+        config["windows"]["pulse_single_cpus"] = "12,14"
+        windows = both.arguments(config["windows"], "windows", "run", "full", False)
+        linux = both.arguments(config["linux"], "linux", "run", "full", False)
+        self.assertEqual(windows[windows.index("--pulse-single-cpus") + 1], "12,14")
+        self.assertNotIn("--pulse-single-cpus", linux)
+        self.assertNotIn("--pulse-single-cpus", both.arguments(
+            config["windows"], "windows", "run", "full", False, skip_pulse=True))
+
 
 if __name__ == "__main__":
     unittest.main()

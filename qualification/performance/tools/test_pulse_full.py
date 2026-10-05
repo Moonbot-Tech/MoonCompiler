@@ -85,6 +85,18 @@ def records(candidate_values: list[float]) -> list[dict[str, object]]:
 
 
 class PulseFullTests(unittest.TestCase):
+    def test_single_cpu_override_keeps_eight_multithread_cores_and_rejects_bad_pairs(self) -> None:
+        physical = tuple(range(0, 16, 2))
+        with (mock.patch.object(FULL.method, "windows_physical_cpus", return_value=physical),
+              mock.patch.object(FULL.method, "linux_physical_cpus", return_value=physical)):
+            single, multithread = FULL.benchmark_cpu_sets("12,14")
+            self.assertEqual(single, (12, 14))
+            self.assertEqual(multithread, physical)
+            self.assertEqual(FULL.hostable(["threads"], multithread), (["threads"], {}))
+            for requested in ("12", "12,14,12", "12,12", "12,13", "12,,14", "0,2,4,6,8,10,12,14"):
+                with self.subTest(requested=requested), self.assertRaises(ValueError):
+                    FULL.benchmark_cpu_sets(requested)
+
     def test_case_selectors_preserve_wildcards_and_the_requested_program_scope(self) -> None:
         class BuildReached(Exception):
             pass

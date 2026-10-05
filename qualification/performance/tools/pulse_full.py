@@ -155,6 +155,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--build-jobs", type=int, default=4)
     parser.add_argument("--pairs", type=int, default=12, help="fixed fresh process pairs per case (minimum 6)")
+    parser.add_argument("--single-cpus", default="",
+                        help="comma-separated physical CPUs for single-CPU pairs; multithread CPUs stay unchanged")
     parser.add_argument(
         "--stack-phase",
         type=stack_phase_plan,
@@ -828,7 +830,7 @@ def run_preflight(
     return {"aa": aa, "negative_control": control, "passed": bool(aa["passed"] and control["passed"])}
 
 
-def benchmark_cpu_sets() -> tuple[tuple[int, ...], tuple[int, ...]]:
+def benchmark_cpu_sets(single_override: str = "") -> tuple[tuple[int, ...], tuple[int, ...]]:
     physical = (
         method.windows_physical_cpus(None)
         if os.name == "nt"
@@ -836,6 +838,15 @@ def benchmark_cpu_sets() -> tuple[tuple[int, ...], tuple[int, ...]]:
     )
     if len(physical) < 4:
         raise RuntimeError(f"Pulse needs at least four physical cores, found {physical}")
+    if single_override:
+        parts = [part.strip() for part in single_override.split(",")]
+        if any(not part.isascii() or not part.isdecimal() for part in parts):
+            raise ValueError(f"--single-cpus requires comma-separated physical CPU numbers: {single_override!r}")
+        selected = tuple(int(part) for part in parts)
+        if len(selected) < 2 or len(selected) % 2 or len(selected) > len(physical) - 2:
+            raise ValueError("--single-cpus needs complete pairs and two other physical cores for the runner")
+        if len(set(selected)) != len(selected) or any(cpu not in physical for cpu in selected):
+            raise ValueError(f"--single-cpus must name distinct available physical CPUs: {physical}")
     if os.name == "nt":
         single = physical[-min(6, len(physical) - 2) :]
         multithread = physical[: min(8, len(physical))]
@@ -846,6 +857,8 @@ def benchmark_cpu_sets() -> tuple[tuple[int, ...], tuple[int, ...]]:
         raise RuntimeError(f"Pulse needs two benchmark cores, found {physical}")
     if len(single) % 2:
         single = single[:-1]
+    if single_override:
+        single = selected
     return tuple(single), tuple(multithread)
 
 
@@ -1882,7 +1895,9 @@ def run() -> int:
         "moon-baseline": baseline_mm,
         "moon-candidate": candidate_mm,
     }
-    single_cpus, multithread_cpus = benchmark_cpu_sets()
+    single_cpus, multithread_cpus = benchmark_cpu_sets(args.single_cpus)
+    print(f"PULSE_CPU_PLAN single={single_cpus} multithread={multithread_cpus} "
+          f"single_pairs={len(single_cpus) // 2}", flush=True)
     programs, unhostable = hostable(programs, multithread_cpus)
     if not programs:
         raise ValueError(f"no selected program can run on this machine: {unhostable}")

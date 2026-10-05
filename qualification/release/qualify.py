@@ -54,7 +54,8 @@ def save(path: Path, state: dict) -> None:
 
 
 def load_matrix(path: Path, platform: str, mode: str,
-                final: bool = False, skip_pulse: bool = False) -> list[dict]:
+                final: bool = False, skip_pulse: bool = False,
+                pulse_single_cpus: str = "") -> list[dict]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("version") != 1:
         raise ValueError("matrix version must be 1")
@@ -65,6 +66,10 @@ def load_matrix(path: Path, platform: str, mode: str,
             and LEVELS[row["mode"]] <= LEVELS[mode]
             and (not skip_pulse or row["id"] != "pulse_report")
             and (final or not row.get("final_only", False))]
+    if pulse_single_cpus:
+        for row in jobs:
+            if row["id"] == "pulse_report":
+                row["commands"][platform] += ["--single-cpus", pulse_single_cpus]
     names = [row["id"] for row in jobs]
     if len(names) != len(set(names)):
         raise ValueError("duplicate job id")
@@ -282,18 +287,23 @@ def main() -> int:
     parser.add_argument("--baseline-toolchain", type=Path,
                         help="installed origin baseline for full B/C Pulse")
     parser.add_argument("--baseline-mm-source", type=Path, help="MM source for an older baseline archive")
+    parser.add_argument("--pulse-single-cpus", default="",
+                        help="physical CPU pairs for single-CPU Pulse cases; pass identically on resume")
     args = parser.parse_args()
     if args.jobs < 1 or args.memory_mb < 1:
         parser.error("worker and memory budgets must be positive")
     if args.final and args.mode != "light":
         parser.error("the final replay is Light; use --mode light --final")
+    if args.skip_pulse and args.pulse_single_cpus:
+        parser.error("--pulse-single-cpus requires Pulse scope")
     head = git("rev-parse", "HEAD")
     if args.expect_head and head != args.expect_head:
         parser.error("candidate HEAD differs from --expect-head")
     if args.action in ("init", "run") and git("status", "--porcelain", "--untracked-files=no"):
         parser.error("commit tracked changes before qualifying")
     run_dir = args.run_dir.resolve()
-    jobs = load_matrix(args.matrix, args.platform, args.mode, args.final, args.skip_pulse)
+    jobs = load_matrix(args.matrix, args.platform, args.mode, args.final, args.skip_pulse,
+                       args.pulse_single_cpus)
     if any(allocation(job, args.jobs, args.memory_mb) < 1 for job in jobs):
         parser.error("memory budget cannot fit one worker of every selected job")
     if args.action == "plan":
@@ -316,7 +326,8 @@ def main() -> int:
                           "baseline_toolchain": str(args.baseline_toolchain.resolve())
                           if args.baseline_toolchain else "",
                           "baseline_mm_source": str(args.baseline_mm_source.resolve()) if args.baseline_mm_source else "",
-                          "results": {}, "final_results": {}, "final_head": None, "skip_pulse": args.skip_pulse})
+                          "results": {}, "final_results": {}, "final_head": None, "skip_pulse": args.skip_pulse,
+                          "pulse_single_cpus": args.pulse_single_cpus})
         print(f"MATRIX_READY {run_dir} jobs={len(jobs)} head={head}")
         return 0
     if not state_path.exists():
@@ -327,12 +338,16 @@ def main() -> int:
                           "baseline_toolchain": str(args.baseline_toolchain.resolve())
                           if args.baseline_toolchain else "",
                           "baseline_mm_source": str(args.baseline_mm_source.resolve()) if args.baseline_mm_source else "",
-                          "results": {}, "final_results": {}, "final_head": None, "skip_pulse": args.skip_pulse})
+                          "results": {}, "final_results": {}, "final_head": None, "skip_pulse": args.skip_pulse,
+                          "pulse_single_cpus": args.pulse_single_cpus})
     state = json.loads(state_path.read_text(encoding="utf-8"))
     if state["platform"] != args.platform:
         parser.error("run state belongs to another platform")
     if state.get("skip_pulse", False) != args.skip_pulse:
         parser.error("Pulse scope changed; use a new run directory")
+    if state.get("pulse_single_cpus", "") != args.pulse_single_cpus:
+        parser.error("Pulse single-CPU selection changed; use a new run directory")
+    state["pulse_single_cpus"] = args.pulse_single_cpus
     location = {"host": host_platform.node(), "root": str(ROOT.resolve())}
     if state.get("location", location) != location:
         parser.error("run state belongs to another host or checkout")
@@ -370,7 +385,8 @@ def main() -> int:
         state["results"].pop("build", None)
         state["final_results"].pop("build", None)
     if args.final:
-        discovery = load_matrix(args.matrix, args.platform, "full", skip_pulse=args.skip_pulse)
+        discovery = load_matrix(args.matrix, args.platform, "full", skip_pulse=args.skip_pulse,
+                                pulse_single_cpus=args.pulse_single_cpus)
         discovery_signatures = input_signatures(discovery, args.platform, head, product, baseline_id)
         incomplete = [job["id"] for job in discovery
                       if state["results"].get(job["id"], {}).get("status") != "pass"

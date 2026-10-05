@@ -2,11 +2,27 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
+import sys
 
 from qualification.release import pulse_release
 
 
 class ReleaseReportTests(unittest.TestCase):
+    def test_release_keeps_full_pairs_when_selecting_quiet_single_cpu_cores(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "out"
+            argv = ["pulse_release.py", "--baseline-toolchain", directory, "--output", str(output),
+                    "--single-cpus", "12,14"]
+            with (mock.patch.object(sys, "argv", argv),
+                  mock.patch.object(pulse_release.subprocess, "call", return_value=0) as run,
+                  mock.patch.object(pulse_release, "validate_report")):
+                self.assertEqual(pulse_release.main(), 0)
+            command = run.call_args.args[0]
+            self.assertEqual(command[command.index("--single-cpus") + 1], "12,14")
+            self.assertEqual(command[command.index("--pairs") + 1], "12")
+            self.assertNotIn("--cases", command)
+
     def test_measured_regression_is_reported_but_failed_measurement_blocks_completion(self):
         final = {"semantic_match": True, "valid_pairs": 12,
                  "primary_metrics": ["work_cycles_per_op"],

@@ -84,6 +84,15 @@ uses the same stage barriers. Supply `--baseline-toolchain PATH` (and, when
 needed, `--baseline-mm-source FILE`) for Full. `--mode light --final` is allowed
 only after every Full job is green for current inputs. `status` reads its ledger.
 
+On a host with noisy single-CPU cores, set `pulse_single_cpus` in that host's
+ignored configuration (for example, `"12,14"`), or pass
+`--pulse-single-cpus 12,14` to the one-host runner. Pulse validates complete
+pairs of distinct available physical CPUs and keeps its runner off them. The
+multithread set still uses the normal full host selection, so eight-worker
+cases remain in the release corpus. The selection is part of the Pulse job's
+command fingerprint and ledger; repeat it on resume. It does not change the
+12 fresh pairs, semantic checks, A/A, idle guards or confirmation.
+
 ## Optimizer and object-format contracts
 
 Medium (including Light) and the two platform CI jobs run these installed-toolchain checks:

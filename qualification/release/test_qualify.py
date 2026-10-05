@@ -37,6 +37,36 @@ else:
 
 
 class MatrixRunTests(unittest.TestCase):
+    def test_old_ledger_cannot_acquire_new_pulse_cpu_selection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            (root / "source.txt").write_text("source\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "add", "source.txt"], check=True)
+            subprocess.run(["git", "-C", str(root), "-c", "user.name=Test", "-c",
+                            "user.email=test@example.invalid", "commit", "-qm", "input"], check=True)
+            matrix = root / "matrix.json"
+            matrix.write_text(json.dumps({"version": 1, "source_inputs": {"core": ["source.txt"]},
+                                          "jobs": [{"id": "core", "mode": "light", "platforms": ["linux"],
+                                                    "timeout": 10, "commands": {"linux": ["true"]}}]}), encoding="utf-8")
+            run_dir = root / "run"
+            run_dir.mkdir()
+            (run_dir / "state.json").write_text(json.dumps({"platform": "linux", "results": {},
+                                                             "final_results": {}, "skip_pulse": False}), encoding="utf-8")
+            argv = ["qualify.py", "status", "--run-dir", str(run_dir), "--matrix", str(matrix),
+                    "--platform", "linux", "--mode", "light", "--pulse-single-cpus", "12,14"]
+            with patch.object(qualify, "ROOT", root), patch.object(sys, "argv", argv):
+                with self.assertRaises(SystemExit):
+                    qualify.main()
+
+    def test_single_cpu_selection_changes_only_the_pulse_job_fingerprint(self):
+        ordinary = qualify.load_matrix(qualify.MATRIX, "win64", "full")
+        pinned = qualify.load_matrix(qualify.MATRIX, "win64", "full", pulse_single_cpus="12,14")
+        ordinary_by_id = {job["id"]: qualify.fingerprint(job, "win64") for job in ordinary}
+        pinned_by_id = {job["id"]: qualify.fingerprint(job, "win64") for job in pinned}
+        self.assertEqual({name for name in ordinary_by_id if ordinary_by_id[name] != pinned_by_id[name]},
+                         {"pulse_report"})
+
     def test_without_pulse_final_checks_correctness_and_cannot_reuse_full_scope(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
