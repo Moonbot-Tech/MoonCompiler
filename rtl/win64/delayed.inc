@@ -243,6 +243,7 @@ asm
   movdqu 96(%rsp), %xmm2
   movdqu 112(%rsp), %xmm3
   addq $136, %rsp
+  .byte 0x48 { REX.W marks the register tail jump as an epilogue for Windows unwinding. }
   jmp *%rax
 end;
 {$pop}

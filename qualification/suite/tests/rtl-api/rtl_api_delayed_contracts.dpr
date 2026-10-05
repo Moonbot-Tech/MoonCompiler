@@ -20,6 +20,60 @@ begin
     raise Exception.Create(Message);
 end;
 
+type
+  PUnwindEntry = ^TUnwindEntry;
+  TUnwindEntry = record
+    BeginAddress, EndAddress, UnwindData: Cardinal;
+  end;
+
+procedure DelayedEntry; external name 'FPC_DELAY_LOAD';
+function LookupEntry(PC: UInt64; out ImageBase: UInt64; History: Pointer): PUnwindEntry; stdcall;
+  external 'kernel32.dll' name 'RtlLookupFunctionEntry';
+function VirtualUnwind(Kind: Cardinal; ImageBase, PC: UInt64; Entry: PUnwindEntry;
+  var State: TContext; HandlerData: PPointer; Frame: PUInt64; Pointers: Pointer): Pointer; stdcall;
+  external 'kernel32.dll' name 'RtlVirtualUnwind';
+
+procedure CheckDelayedUnwind;
+const
+  RestoreStack: array[0..6] of Byte = ($48, $81, $C4, $88, 0, 0, 0);
+  ReturnPC = UInt64($12345678);
+var
+  Entry: PUnwindEntry;
+  ImageBase, Frame: UInt64;
+  State: TContext;
+  HandlerData: Pointer;
+  Code: PByte;
+  Stack: array[0..63] of UInt64;
+  Offset, I, RestoreOffset: Integer;
+begin
+  Entry := LookupEntry(UInt64(@DelayedEntry), ImageBase, nil);
+  Check(Entry <> nil, 'delay entry must have unwind metadata');
+  Code := PByte(ImageBase + Entry^.BeginAddress);
+  RestoreOffset := -1;
+  for Offset := 0 to Integer(Entry^.EndAddress - Entry^.BeginAddress) - Length(RestoreStack) do
+    If CompareMem(Code + Offset, @RestoreStack[0], SizeOf(RestoreStack)) then begin
+      Check(RestoreOffset = -1, 'unique delay-entry stack restore');
+      RestoreOffset := Offset;
+    end;
+  Check(RestoreOffset >= 0, 'delay-entry epilogue located');
+  for I := 0 to 2 do begin
+    FillChar(State, SizeOf(State), 0);
+    FillChar(Stack, SizeOf(Stack), 0);
+    Stack[32] := ReturnPC;
+    State.Rip := UInt64(Code + RestoreOffset);
+    State.Rsp := UInt64(@Stack[32]) - 136;
+    If I = 0 then
+      State.Rip := UInt64(Code + Length(RestoreStack))
+    else If I = 2 then begin
+      Inc(State.Rip, Length(RestoreStack));
+      Inc(State.Rsp, 136);
+    end;
+    VirtualUnwind(0, ImageBase, State.Rip, Entry, State, @HandlerData, @Frame, nil);
+    Check((State.Rip = ReturnPC) and (State.Rsp = UInt64(@Stack[33])),
+      'OS unwinder must recover the caller in the delay-entry body and both epilogue states');
+  end;
+end;
+
 var
   Starts, Ends, RaceStarts: Longint;
   Recover: Boolean;
@@ -72,6 +126,7 @@ var
   Failed: Boolean;
   P: function(A, B, C, D, E, F: Int64): Int64; stdcall;
 begin
+  CheckDelayedUnwind;
   Check(GetModuleHandleA('moon_delay_fixture.dll') = 0, 'DLL loaded before the first call');
   SavedNotify := SetDliNotifyHook2(Notify);
   SavedFailure := SetDliFailureHook2(RecoverFailure);
