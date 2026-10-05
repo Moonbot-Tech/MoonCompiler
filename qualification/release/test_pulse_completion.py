@@ -159,7 +159,7 @@ class CompletionContracts(unittest.TestCase):
             manifest.write_text(json.dumps({str(log): completion.sha256(log)}))
             source = {"record": {"log": str(log)}}
             self.assertEqual(completion.verify_log_manifest(source, root, completion.sha256(manifest))["path"],
-                             str(manifest))
+                             str(manifest.resolve()))
             log.write_bytes(b"changed")
             with self.assertRaisesRegex(ValueError, "original log changed"):
                 completion.verify_log_manifest(source, root, completion.sha256(manifest))
@@ -183,6 +183,26 @@ class CompletionContracts(unittest.TestCase):
                 right.write_bytes(b"changed")
                 with self.assertRaisesRegex(ValueError, "measured executable changed"):
                     completion.verify_binaries(raw, root, root, mm, mm)
+
+    def test_log_manifest_resolves_source_but_refuses_external_logs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            source.mkdir()
+            alias = source / ".." / source.name
+            log = source / "case.log"
+            log.write_bytes(b"original")
+            manifest = source / "SOURCE_LOGS_SHA256.json"
+            manifest.write_text(json.dumps({str(log): completion.sha256(log)}))
+            raw = {"record": {"log": str(log)}}
+            receipt = completion.verify_log_manifest(raw, alias, completion.sha256(manifest))
+            self.assertEqual(receipt["path"], str(manifest.resolve()))
+            outside = source / ".." / "outside.log"
+            outside.write_bytes(b"outside")
+            manifest.write_text(json.dumps({str(outside): completion.sha256(outside)}))
+            raw = {"record": {"log": str(outside)}}
+            with self.assertRaisesRegex(ValueError, "original log escapes its output"):
+                completion.verify_log_manifest(raw, alias, completion.sha256(manifest))
 
     def test_log_manifest_creation_is_bound_to_raw_and_preserves_existing_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:

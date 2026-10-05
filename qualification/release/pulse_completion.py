@@ -96,6 +96,7 @@ def create_log_manifest(source: Path) -> dict:
 
 
 def verify_log_manifest(raw: dict, source: Path, expected_sha: str) -> dict:
+    source = source.resolve()
     manifest_path = source / "SOURCE_LOGS_SHA256.json"
     if sha256(manifest_path) != expected_sha:
         refuse("original log manifest SHA changed")
