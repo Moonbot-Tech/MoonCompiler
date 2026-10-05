@@ -44,6 +44,44 @@ Const
 
 type
   TEndian =  Objpas.TEndian;
+  TWaitResult = (wrSignaled, wrTimeout, wrAbandoned, wrError, wrIOCompletion);
+
+  TMultiWaitEvent = class
+  private
+    FSignaled: Boolean;
+    constructor CreateEvent;
+    class function WaitEvents(const Events: array of TMultiWaitEvent; All: Boolean;
+      out Index: Integer; Timeout: Cardinal): TWaitResult; static;
+  public
+    class function Create: TMultiWaitEvent; static;
+    function WaitFor(Timeout: Cardinal = High(Cardinal)): TWaitResult; virtual;
+    procedure SetEvent;
+    procedure ResetEvent;
+    class function WaitForAll(const Events: array of TMultiWaitEvent;
+      Timeout: Cardinal = High(Cardinal)): TWaitResult; static;
+    class function WaitForAny(const Events: array of TMultiWaitEvent;
+      Timeout: Cardinal = High(Cardinal)): TWaitResult; overload; static;
+    class function WaitForAny(const Events: array of TMultiWaitEvent; out Index: Integer;
+      Timeout: Cardinal = High(Cardinal)): TWaitResult; overload; static;
+    class function WaitForAny(const Events: array of TMultiWaitEvent; out Event: TMultiWaitEvent;
+      Timeout: Cardinal = High(Cardinal)): TWaitResult; overload; static;
+  end;
+
+  IAsyncResult = interface(IInterface)
+    ['{9E73AD0B-1291-4D32-B410-59A01778919C}']
+    function GetAsyncContext: TObject;
+    function GetAsyncWaitEvent: TMultiWaitEvent;
+    function GetCompletedSynchronously: Boolean;
+    function GetIsCompleted: Boolean;
+    function GetIsCancelled: Boolean;
+    function Cancel: Boolean;
+    property AsyncContext: TObject read GetAsyncContext;
+    property AsyncWaitEvent: TMultiWaitEvent read GetAsyncWaitEvent;
+    property CompletedSynchronously: Boolean read GetCompletedSynchronously;
+    property IsCompleted: Boolean read GetIsCompleted;
+    property IsCancelled: Boolean read GetIsCancelled;
+  end;
+
   TDirection = (FromBeginning, FromEnd);
   TValueRelationship = -1..1;
 
@@ -593,10 +631,184 @@ Const
 implementation
 
 {$IFDEF FPC_DOTTEDUNITS}
-Uses System.Math;
+Uses System.Math, System.SysUtils;
 {$ELSE FPC_DOTTEDUNITS}
-Uses Math;
+Uses Math, SysUtils;
 {$ENDIF FPC_DOTTEDUNITS}
+
+{$ifdef FPC_HAS_FEATURE_THREADING}
+type
+  PMultiEventWait = ^TMultiEventWait;
+  TMultiEventWait = record
+    Wake: PEventState;
+    Next: PMultiEventWait;
+  end;
+var
+  MultiEventLock: TRTLCriticalSection;
+  MultiEventWaiters: PMultiEventWait;
+{$endif}
+
+constructor TMultiWaitEvent.CreateEvent;
+begin
+  inherited Create;
+end;
+
+class function TMultiWaitEvent.Create: TMultiWaitEvent;
+begin
+  Result:=TMultiWaitEvent.CreateEvent;
+end;
+
+procedure TMultiWaitEvent.SetEvent;
+{$ifdef FPC_HAS_FEATURE_THREADING}
+var
+  Waiter: PMultiEventWait;
+{$endif}
+begin
+{$ifdef FPC_HAS_FEATURE_THREADING}
+  EnterCriticalSection(MultiEventLock);
+  try
+{$endif}
+    FSignaled:=True;
+{$ifdef FPC_HAS_FEATURE_THREADING}
+    Waiter:=MultiEventWaiters;
+    while Assigned(Waiter) do
+      begin
+      BasicEventSetEvent(Waiter^.Wake);
+      Waiter:=Waiter^.Next;
+      end;
+  finally
+    LeaveCriticalSection(MultiEventLock);
+  end;
+{$endif}
+end;
+
+procedure TMultiWaitEvent.ResetEvent;
+begin
+{$ifdef FPC_HAS_FEATURE_THREADING}
+  EnterCriticalSection(MultiEventLock);
+  try
+{$endif}
+    FSignaled:=False;
+{$ifdef FPC_HAS_FEATURE_THREADING}
+  finally
+    LeaveCriticalSection(MultiEventLock);
+  end;
+{$endif}
+end;
+
+class function TMultiWaitEvent.WaitEvents(const Events: array of TMultiWaitEvent; All: Boolean;
+  out Index: Integer; Timeout: Cardinal): TWaitResult;
+var
+  I, SignaledCount: Integer;
+{$ifdef FPC_HAS_FEATURE_THREADING}
+  Waiter: TMultiEventWait;
+  Link: ^PMultiEventWait;
+  Started, Elapsed: QWord;
+  Remaining: Cardinal;
+  WaitCode: LongInt;
+{$endif}
+begin
+  Index:=-1;
+  if Length(Events)=0 then
+    raise EArgumentException.Create('An event list must not be empty');
+  for I:=0 to High(Events) do
+    if Events[I]=nil then
+      raise EArgumentNilException.Create('The event list contains nil');
+{$ifdef FPC_HAS_FEATURE_THREADING}
+  Waiter.Wake:=BasicEventCreate(nil,True,False,'');
+  if Waiter.Wake=nil then
+    Exit(wrError);
+  Started:=SysUtils.GetTickCount64;
+  EnterCriticalSection(MultiEventLock);
+  Waiter.Next:=MultiEventWaiters;
+  MultiEventWaiters:=@Waiter;
+  try
+{$endif}
+    repeat
+      SignaledCount:=0;
+      for I:=0 to High(Events) do
+        if Events[I].FSignaled then
+          begin
+          Inc(SignaledCount);
+          if Index<0 then
+            Index:=I;
+          end;
+      if (All and (SignaledCount=Length(Events))) or (not All and (Index>=0)) then
+        Exit(wrSignaled);
+      Index:=-1;
+{$ifdef FPC_HAS_FEATURE_THREADING}
+      Remaining:=Timeout;
+      if Timeout<>High(Cardinal) then
+        begin
+        Elapsed:=SysUtils.GetTickCount64-Started;
+        if Elapsed>=Timeout then
+          Exit(wrTimeout);
+        Remaining:=Timeout-Elapsed;
+        end;
+      { Check and arm under one lock: a signal cannot be lost between them. }
+      BasicEventResetEvent(Waiter.Wake);
+      LeaveCriticalSection(MultiEventLock);
+      try
+        WaitCode:=BasicEventWaitFor(Remaining,Waiter.Wake);
+      finally
+        EnterCriticalSection(MultiEventLock);
+      end;
+      if WaitCode=Ord(wrError) then
+        Exit(wrError);
+{$else}
+      Exit(wrTimeout);
+{$endif}
+    until False;
+{$ifdef FPC_HAS_FEATURE_THREADING}
+  finally
+    Link:=@MultiEventWaiters;
+    while Link^<>@Waiter do
+      Link:=@Link^^.Next;
+    Link^:=Waiter.Next;
+    LeaveCriticalSection(MultiEventLock);
+    BasicEventDestroy(Waiter.Wake);
+  end;
+{$endif}
+end;
+
+function TMultiWaitEvent.WaitFor(Timeout: Cardinal): TWaitResult;
+var
+  Index: Integer;
+begin
+  Result:=WaitEvents([Self],False,Index,Timeout);
+end;
+
+class function TMultiWaitEvent.WaitForAll(const Events: array of TMultiWaitEvent; Timeout: Cardinal): TWaitResult;
+var
+  Index: Integer;
+begin
+  Result:=WaitEvents(Events,True,Index,Timeout);
+end;
+
+class function TMultiWaitEvent.WaitForAny(const Events: array of TMultiWaitEvent; Timeout: Cardinal): TWaitResult;
+var
+  Index: Integer;
+begin
+  Result:=WaitEvents(Events,False,Index,Timeout);
+end;
+
+class function TMultiWaitEvent.WaitForAny(const Events: array of TMultiWaitEvent; out Index: Integer;
+  Timeout: Cardinal): TWaitResult;
+begin
+  Result:=WaitEvents(Events,False,Index,Timeout);
+end;
+
+class function TMultiWaitEvent.WaitForAny(const Events: array of TMultiWaitEvent; out Event: TMultiWaitEvent;
+  Timeout: Cardinal): TWaitResult;
+var
+  Index: Integer;
+begin
+  Event:=nil;
+  Result:=WaitEvents(Events,False,Index,Timeout);
+  if Result=wrSignaled then
+    Event:=Events[Index];
+end;
+
 
 {$if (not defined(win32)) and (not defined(win64)) and (not defined(wince))}
   {$i typshrd.inc}
@@ -2135,5 +2347,12 @@ class operator TScoped.:=(const aObj : TScoped) : T;
 begin
   Result:=aObj.Get();
 end;
+
+{$ifdef FPC_HAS_FEATURE_THREADING}
+initialization
+  InitCriticalSection(MultiEventLock);
+finalization
+  DoneCriticalSection(MultiEventLock);
+{$endif}
 
 end.

@@ -433,6 +433,44 @@ type
     property Duplicates: TDuplicates read FDuplicates write FDuplicates;
   end;
 
+  { A bounded FIFO. Call DoShutDown, join users, then destroy the queue. }
+  TThreadedQueue<T> = class
+  private
+    FBuffer: array of T;
+    FGuard: TRTLCriticalSection;
+    FReadable, FWritable: PEventState;
+    FHead, FCount: NativeInt;
+    FPushed, FPopped: UInt64;
+    FClosed: Boolean;
+    FPushTimeout, FPopTimeout: Cardinal;
+    function GetQueueSize: NativeInt;
+    function GetShutDown: Boolean;
+    function GetTotalItemsPushed: UInt64;
+    function GetTotalItemsPopped: UInt64;
+    function WaitReady(Event: PEventState; Timeout: Cardinal; Started: QWord): TWaitResult;
+  public
+    constructor Create(AQueueDepth: Integer = 10; PushTimeout: Cardinal = High(Cardinal);
+      PopTimeout: Cardinal = High(Cardinal));
+    destructor Destroy; override;
+    procedure Grow(ADelta: NativeInt);
+    function PushItem(const AItem: T): TWaitResult; overload;
+    function PushItem(const AItem: T; out AQueueSize: NativeInt): TWaitResult; overload;
+    function PopItem: T; overload;
+    function PopItem(out AQueueSize: NativeInt): T; overload;
+    function PopItem(out AQueueSize: NativeInt; var AItem: T): TWaitResult; overload;
+    function PopItem(var AItem: T): TWaitResult; overload;
+{$ifdef CPU64}
+    function PushItem(const AItem: T; out AQueueSize: Integer): TWaitResult; overload;
+    function PopItem(out AQueueSize: Integer): T; overload;
+    function PopItem(out AQueueSize: Integer; var AItem: T): TWaitResult; overload;
+{$endif}
+    procedure DoShutDown;
+    property QueueSize: NativeInt read GetQueueSize;
+    property ShutDown: Boolean read GetShutDown;
+    property TotalItemsPushed: UInt64 read GetTotalItemsPushed;
+    property TotalItemsPopped: UInt64 read GetTotalItemsPopped;
+  end;
+
   TQueue<T> = class(TCustomList<T>)
   public type
     TPointersEnumerator = class(TCustomPointersEnumerator<T, PT>)
@@ -2900,6 +2938,8 @@ begin
 end;
 
 { TQueue<T>.TPointersEnumerator }
+
+{$i generics.threadedqueue.inc}
 
 function TQueue<T>.TPointersEnumerator.DoMoveNext: boolean;
 begin

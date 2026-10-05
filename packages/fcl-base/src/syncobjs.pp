@@ -45,7 +45,7 @@ uses
   {$ENDIF}
   System.DateUtils,
   System.Classes,
-  System.SysUtils;
+  System.SysUtils, System.Types;
 
 {$ELSE FPC_DOTTEDUNITS}
   {$IFNDEF VER3_2}
@@ -59,7 +59,7 @@ uses
   {$ENDIF}
   DateUtils,
   Classes, // TThread
-  sysutils;
+  sysutils, Types;
 {$ENDIF FPC_DOTTEDUNITS}
 
 type
@@ -81,11 +81,22 @@ type
    ELockException = Class(ESyncObjectException);
    ELockRecursionException = Class(ESyncObjectException);
 
-   TWaitResult = (wrSignaled, wrTimeout, wrAbandoned, wrError);
+   TWaitResult = {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}Types.TWaitResult;
+const
+  wrSignaled = {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}Types.wrSignaled;
+  wrTimeout = {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}Types.wrTimeout;
+  wrAbandoned = {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}Types.wrAbandoned;
+  wrError = {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}Types.wrError;
+  wrIOCompletion = {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}Types.wrIOCompletion;
+type
 
    TSynchroObject = class(TObject)
       procedure Acquire;virtual;
       procedure Release;virtual;
+      function WaitFor(Timeout: Cardinal = INFINITE): TWaitResult; overload; virtual;
+      {$IFNDEF VER3_2}
+      function WaitFor(const Timeout: TTimeSpan): TWaitResult; overload;
+      {$ENDIF}
    end;
 
    { TLockGuard }
@@ -126,9 +137,8 @@ type
    public
       constructor Create(UseComWait : Boolean=false);
       destructor Destroy; override;
-      function WaitFor(Timeout : Cardinal=INFINITE) : TWaitResult;overload; virtual;
+      function WaitFor(Timeout : Cardinal=INFINITE) : TWaitResult;overload; override;
       {$IFNDEF VER3_2}
-      function WaitFor(const Timeout : TTimespan) : TWaitResult;overload;
       {$IFDEF MSWINDOWS}
         class function WaitForMultiple(const HandleObjs: THandleObjectArray; Timeout: Cardinal; AAll: Boolean; out SignaledObj: THandleObject; UseCOMWait: Boolean = False; Len: Integer = 0): TWaitResult;
       {$ENDIF MSWINDOWS}
@@ -154,6 +164,30 @@ type
 
    TSimpleEvent = class(TEventObject)
       constructor Create;
+   end;
+
+   TCountdownEvent = class(TSynchroObject)
+   private
+     FGuard: TCriticalSection;
+     FDone: TEvent;
+     FInitial, FRemaining, FSpinCount: Integer;
+     function GetCurrentCount: Integer;
+     function GetInitialCount: Integer;
+     function GetIsSet: Boolean;
+   public
+     constructor Create; overload;
+     constructor Create(Count: Integer); overload;
+     constructor Create(Count, SpinCount: Integer); overload;
+     destructor Destroy; override;
+     function Signal(Count: Integer = 1): Boolean;
+     procedure AddCount(Count: Integer = 1);
+     function TryAddCount(Count: Integer = 1): Boolean;
+     procedure Reset; overload;
+     procedure Reset(Count: Integer); overload;
+     function WaitFor(Timeout: Cardinal = INFINITE): TWaitResult; overload; override;
+     property CurrentCount: Integer read GetCurrentCount;
+     property InitialCount: Integer read GetInitialCount;
+     property IsSet: Boolean read GetIsSet;
    end;
 
 {$IFDEF CPU16}
@@ -400,6 +434,18 @@ procedure TSynchroObject.Release;
 begin
 end;
 
+function TSynchroObject.WaitFor(Timeout: Cardinal): TWaitResult;
+begin
+  Result := wrError;
+end;
+
+{$IFNDEF VER3_2}
+function TSynchroObject.WaitFor(const Timeout: TTimeSpan): TWaitResult;
+begin
+  Result := WaitFor(Round(Timeout.TotalMilliseconds));
+end;
+{$ENDIF}
+
 procedure TCriticalSection.Enter;
 begin
   Acquire;
@@ -443,6 +489,8 @@ end;
 
 { THandleObject }
 
+{$i countdown.inc}
+
 constructor THandleObject.Create(UseComWait : Boolean=false);
 // compatibility shortcut constructor, Com waiting not implemented yet
 begin
@@ -466,13 +514,6 @@ begin
   {$endif}
 {$ENDIF OS2}
 end;
-
-{$IFNDEF VER3_2}
-function THandleObject.WaitFor(const Timeout: TTimespan): TWaitResult;
-begin
-  result:=waitfor(round(timeout.TotalMilliseconds));
-end;
-{$ENDIF}
 
 {$IFNDEF VER3_2}
 {$IFDEF MSWINDOWS}

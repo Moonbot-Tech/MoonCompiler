@@ -2289,7 +2289,10 @@ type
   TThreadMethod = procedure of object;
 {$ifdef FPC_HAS_REFERENCE_PROCEDURE}
   TThreadProcedure = reference to procedure;
+  TAsyncCallback = reference to procedure(const AsyncResult: TYU.IAsyncResult);
 {$endif}
+  TAsyncProcedureEvent = procedure(const AsyncResult: TYU.IAsyncResult) of object;
+  TAsyncCallbackEvent = TAsyncProcedureEvent;
 
   TThreadReportStatus = Procedure(Const status : String) of Object;
 
