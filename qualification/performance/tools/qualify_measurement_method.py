@@ -1020,6 +1020,8 @@ def launch(
             if gate_barrier.wait(timeout=10.0) == 0:
                 start_gate.touch()
         output, own = finish(child, timeout_seconds)
+        if sibling is not None:
+            runner["sibling_idle"] = idle_since(sibling, sibling_mark)
     except subprocess.TimeoutExpired:
         raise RuntimeError(f"benchmark timed out after {timeout_seconds:.1f}s: {label}")
     except threading.BrokenBarrierError:
@@ -1039,8 +1041,6 @@ def launch(
     elapsed = time.perf_counter() - started
     if cpu is not None:
         runner["own_busy"] = own
-    if sibling is not None:
-        runner["sibling_idle"] = idle_since(sibling, sibling_mark)
     return output, child.returncode, child.pid, elapsed, runner
 
 

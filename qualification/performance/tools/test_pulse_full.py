@@ -851,7 +851,7 @@ class PulseFullTests(unittest.TestCase):
                 Path("t.exe"), "c", {}, "single-cpu", (12,), 5.0, None, None, None, "t")
             # No sleep of its own: the watch decides when the core may take the process.
             self.assertEqual(events, ["off 12", "before 12", "mark 13", "began 12", "spawn", "exit",
-                                      "after 12 (1.0, 10.0, 3) 42.0", "since 13"])
+                                      "since 13", "after 12 (1.0, 10.0, 3) 42.0"])
             self.assertEqual(runner, {"core_cpu": 12, "core_idle": [9, 10], "core_rest": [5, 5], "own_busy": 42.0,
                                       "sibling_cpu": 13, "sibling_idle": [9, 10]})
             self.assertEqual((code, pid), (0, 7))
@@ -859,6 +859,45 @@ class PulseFullTests(unittest.TestCase):
             *_, runner = FULL.method.launch(
                 Path("t.exe"), "c", {}, "multithread", (0, 2, 4), 5.0, None, None, None, "t")
             self.assertEqual((events, runner), (["spawn", "exit"], {}))
+
+    def test_sibling_guard_excludes_work_after_child_exit_but_keeps_work_during_it(self) -> None:
+        class Child:
+            pid, returncode = 7, 0
+
+        for busy_during_child in (False, True):
+            with self.subTest(busy_during_child=busy_during_child):
+                counts = {"idle": 0, "elapsed": 0}
+
+                class Watch:
+                    def before(self, cpu):
+                        return {"core_idle": [100, 100]}
+
+                    def mark(self, cpu):
+                        return (0, 0, 0)
+
+                    def after(self, cpu, began, own):
+                        counts["elapsed"] += 3  # foreign work after the child has exited
+
+                def finish(child, timeout):
+                    counts.update(idle=97 if busy_during_child else 100, elapsed=100)
+                    return "PULSE_END", 42.0
+
+                with (
+                    mock.patch.object(FULL.method, "keep_runner_off"),
+                    mock.patch.object(FULL.method, "processor_sibling", return_value=13),
+                    mock.patch.object(FULL.method, "CORE_WATCH", Watch()),
+                    mock.patch.object(FULL.method, "idle_mark", return_value=(0, 0)),
+                    mock.patch.object(FULL.method, "idle_since",
+                                      side_effect=lambda cpu, mark: [counts["idle"], counts["elapsed"]]),
+                    mock.patch.object(FULL.method, "spawn_benchmark", return_value=Child()),
+                    mock.patch.object(FULL.method, "finish", side_effect=finish),
+                ):
+                    *_, runner = FULL.method.launch(Path("t.exe"), "c", {}, "single-cpu", (12,),
+                                                     5.0, None, None, None, "t")
+                self.assertEqual(counts["elapsed"], 103)
+                self.assertEqual(runner["sibling_idle"], [97 if busy_during_child else 100, 100])
+                self.assertEqual(FULL.method.idle_enough(
+                    runner["sibling_idle"], FULL.method.MINIMUM_SIBLING_IDLE_RATIO), not busy_during_child)
 
     def test_a_process_that_fails_leaves_its_time_as_foreign_work(self) -> None:
         after = []
