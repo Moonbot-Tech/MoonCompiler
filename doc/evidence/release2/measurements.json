@@ -1,0 +1,1248 @@
+{
+  "scope": "Selected confirmed feature measurements; not the complete release qualification",
+  "measured_date": "2026-10-04",
+  "candidate": "54b63f39b54e066c56e30f76625d26856370293e",
+  "baseline": "ccaa5fbaf5ec5bfeef09a3f3f049ffe603d9509c",
+  "comparison_direction": "candidate CPU cost / reference CPU cost for equal work",
+  "sources": {
+    "windows-confirm": {
+      "sha256": "f74ff7e87b630ac5f8572d8a6edc63b7f268a786ec56d4ea0caf4280336a323e",
+      "host": "BRO-3",
+      "comparison": "delphi",
+      "elapsed_seconds": 205.61524963378906,
+      "aa_passed": true,
+      "cpus": [
+        12,
+        12
+      ],
+      "stack_plan": "fixed"
+    },
+    "windows-oldconfirm": {
+      "sha256": "881c6299173ebbdb514e85bf97646b798ce4da9aa09236dac7f3640f07749ec9",
+      "host": "BRO-3",
+      "comparison": "old",
+      "elapsed_seconds": 71.0459406375885,
+      "aa_passed": true,
+      "cpus": [
+        12,
+        12
+      ],
+      "stack_plan": "fixed"
+    },
+    "linux-confirm": {
+      "sha256": "11ae48524698c19ea4929a8437393b0683164af06a95e5f90f18b4550a40fd8e",
+      "host": "amd4",
+      "comparison": "old",
+      "elapsed_seconds": 21.068089246749878,
+      "aa_passed": true,
+      "cpus": [
+        7,
+        6
+      ],
+      "stack_plan": "grid"
+    },
+    "windows-lossleads-delphi": {
+      "sha256": "304abdcf770b9b44bd4c5666986d630021fc1cd9557540349295f603e990d283",
+      "host": "BRO-3",
+      "comparison": "delphi",
+      "elapsed_seconds": 11.447442531585693,
+      "aa_passed": true,
+      "cpus": [
+        12,
+        12
+      ],
+      "stack_plan": "fixed"
+    },
+    "windows-lossleads-old": {
+      "sha256": "c862d3e020b1d39670cbb10fc9da62dfa324ab8d63b2b2df672a3788ad591c5c",
+      "host": "BRO-3",
+      "comparison": "old",
+      "elapsed_seconds": 9.759010791778564,
+      "aa_passed": true,
+      "cpus": [
+        12,
+        12
+      ],
+      "stack_plan": "fixed"
+    },
+    "linux-remaining": {
+      "sha256": "06bd72b840a6c994f95ed4ef7ca96cae1f243ba0d3c33db97f45ce5879557561",
+      "host": "amd4",
+      "comparison": "old",
+      "elapsed_seconds": 210.2186415195465,
+      "aa_passed": true,
+      "cpus": [
+        7,
+        6
+      ],
+      "stack_plan": "grid"
+    },
+    "linux-useful": {
+      "sha256": "52efbb36626d72d6acba4ce18dbc29a1fe62380c6424f51b75dc14fcde75d9d3",
+      "host": "amd4",
+      "comparison": "old",
+      "elapsed_seconds": 153.0039825439453,
+      "aa_passed": true,
+      "cpus": [
+        7,
+        6
+      ],
+      "stack_plan": "grid"
+    },
+    "windows-mm-default": {
+      "sha256": "7315fbd5129e13ca4aeb178c134f981f23cc291069589d2fa9c5de8809d72805",
+      "host": "BRO-3",
+      "comparison": "default",
+      "elapsed_seconds": 34.04093790054321,
+      "aa_passed": true,
+      "cpus": [
+        12,
+        12
+      ],
+      "stack_plan": "fixed"
+    }
+  },
+  "cases": [
+    {
+      "id": "hot-rtl/ustr-pos-str-hit-64",
+      "comparisons": {
+        "windows_delphi": {
+          "ratio": 0.7647310087467645,
+          "interval95": [
+            0.7513295291331858,
+            0.7772012516338574
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 8,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000E40"
+            ],
+            "moon-candidate": [
+              "0000000000000E40"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 54.04835334047004,
+            "moon-candidate": 41.32231039985735
+          },
+          "source_record": "windows-confirm"
+        },
+        "windows_old": {
+          "ratio": 0.4743081180839104,
+          "interval95": [
+            0.469347641838041,
+            0.4776959936768265
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000E40"
+            ],
+            "moon-candidate": [
+              "0000000000000E40"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 86.7081661905741,
+            "moon-candidate": 41.19539126560216
+          },
+          "source_record": "windows-oldconfirm"
+        },
+        "linux_old": {
+          "ratio": 0.40802496029369895,
+          "interval95": [
+            0.40628403053195433,
+            0.41760662289163525
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000E40"
+            ],
+            "moon-candidate": [
+              "0000000000000E40"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 77.67703787801908,
+            "moon-candidate": 31.647757255936675
+          },
+          "source_record": "linux-confirm"
+        }
+      }
+    },
+    {
+      "id": "hot-rtl/encoding-utf8-getstring-32-cyrillic",
+      "comparisons": {
+        "windows_delphi": {
+          "ratio": 0.40178888547795893,
+          "interval95": [
+            0.39431626777390416,
+            0.409261225880137
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 8,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000800"
+            ],
+            "moon-candidate": [
+              "0000000000000800"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 552.6897031366193,
+            "moon-candidate": 222.71826065557104
+          },
+          "source_record": "windows-confirm"
+        },
+        "windows_old": {
+          "ratio": 0.16574110477688223,
+          "interval95": [
+            0.1645531027777091,
+            0.16691747872209203
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 11,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000800"
+            ],
+            "moon-candidate": [
+              "0000000000000800"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 1335.6412174127038,
+            "moon-candidate": 221.70478437414738
+          },
+          "source_record": "windows-oldconfirm"
+        },
+        "linux_old": {
+          "ratio": 0.205823469177699,
+          "interval95": [
+            0.2027843442230241,
+            0.2072620121200399
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000800"
+            ],
+            "moon-candidate": [
+              "0000000000000800"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 936.1637159378961,
+            "moon-candidate": 192.6743405418251
+          },
+          "source_record": "linux-confirm"
+        }
+      }
+    },
+    {
+      "id": "hot-rtl/utf8tostring-32-cyrillic",
+      "comparisons": {
+        "windows_delphi": {
+          "ratio": 0.5203917587077979,
+          "interval95": [
+            0.518584404733026,
+            0.5376465830974524
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 10,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000800"
+            ],
+            "moon-candidate": [
+              "0000000000000800"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 307.98915577743554,
+            "moon-candidate": 160.9286521195784
+          },
+          "source_record": "windows-confirm"
+        },
+        "windows_old": {
+          "ratio": 0.3762324029669044,
+          "interval95": [
+            0.37166634410683186,
+            0.3806384253978075
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000800"
+            ],
+            "moon-candidate": [
+              "0000000000000800"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 428.35139757635034,
+            "moon-candidate": 161.0615206078344
+          },
+          "source_record": "windows-oldconfirm"
+        },
+        "linux_old": {
+          "ratio": 0.36391629815295035,
+          "interval95": [
+            0.36115221205357545,
+            0.36595486669350585
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000800"
+            ],
+            "moon-candidate": [
+              "0000000000000800"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 377.63073649627484,
+            "moon-candidate": 137.1403404387417
+          },
+          "source_record": "linux-confirm"
+        }
+      }
+    },
+    {
+      "id": "hot-rtl/variant-vartostr-int",
+      "comparisons": {
+        "windows_delphi": {
+          "ratio": 0.8302105786768365,
+          "interval95": [
+            0.8244177433956054,
+            0.8320873826729795
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 9,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "000000000000AF40"
+            ],
+            "moon-candidate": [
+              "000000000000AF40"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 114.04355524944529,
+            "moon-candidate": 94.57995816800383
+          },
+          "source_record": "windows-confirm"
+        },
+        "windows_old": {
+          "ratio": 0.2390234614062394,
+          "interval95": [
+            0.23755280269590393,
+            0.24071138650719312
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "000000000000AF40"
+            ],
+            "moon-candidate": [
+              "000000000000AF40"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 395.83140516136945,
+            "moon-candidate": 94.53747153842998
+          },
+          "source_record": "windows-oldconfirm"
+        },
+        "linux_old": {
+          "ratio": 0.17940795236649398,
+          "interval95": [
+            0.17789686259615461,
+            0.18157303958409196
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "000000000000AF40"
+            ],
+            "moon-candidate": [
+              "000000000000AF40"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 563.7761737751912,
+            "moon-candidate": 101.58956415045171
+          },
+          "source_record": "linux-confirm"
+        }
+      }
+    },
+    {
+      "id": "rtl/stringlist-indexof-128",
+      "comparisons": {
+        "windows_delphi": {
+          "ratio": 0.09624218217952296,
+          "interval95": [
+            0.09592015482328013,
+            0.09655792743512774
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000001FC0"
+            ],
+            "moon-candidate": [
+              "0000000000001FC0"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 32054.895001478853,
+            "moon-candidate": 3082.756508266957
+          },
+          "source_record": "windows-confirm"
+        },
+        "windows_old": {
+          "ratio": 0.09372839251268739,
+          "interval95": [
+            0.09353808416587885,
+            0.09392594113269521
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000001FC0"
+            ],
+            "moon-candidate": [
+              "0000000000001FC0"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 32859.853429294424,
+            "moon-candidate": 3082.280719050905
+          },
+          "source_record": "windows-oldconfirm"
+        },
+        "linux_old": {
+          "ratio": 0.05704277810276291,
+          "interval95": [
+            0.05647452486803782,
+            0.0571569577150927
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000001FC0"
+            ],
+            "moon-candidate": [
+              "0000000000001FC0"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 51632.81764914773,
+            "moon-candidate": 2947.260830965909
+          },
+          "source_record": "linux-confirm"
+        }
+      }
+    },
+    {
+      "id": "rtl-collections/dictionary-addorset",
+      "comparisons": {
+        "windows_delphi": {
+          "ratio": 0.3106976797518864,
+          "interval95": [
+            0.299067535759551,
+            0.3274405125076266
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 8,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000002"
+            ],
+            "moon-candidate": [
+              "0000000000000002"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 61.084192383987514,
+            "moon-candidate": 19.020620828952268
+          },
+          "source_record": "windows-confirm"
+        },
+        "windows_old": {
+          "ratio": 0.305046294209962,
+          "interval95": [
+            0.30181718814045644,
+            0.3200845871810865
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000002"
+            ],
+            "moon-candidate": [
+              "0000000000000002"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 60.81871953576939,
+            "moon-candidate": 18.57662442775122
+          },
+          "source_record": "windows-oldconfirm"
+        },
+        "linux_old": {
+          "ratio": 0.2974182346276132,
+          "interval95": [
+            0.296644157208121,
+            0.29958318940632184
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000002"
+            ],
+            "moon-candidate": [
+              "0000000000000002"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 55.41555626486165,
+            "moon-candidate": 16.47590301421314
+          },
+          "source_record": "linux-confirm"
+        }
+      }
+    },
+    {
+      "id": "dictionary/u64-string-build-reserved-100",
+      "comparisons": {
+        "windows_delphi": {
+          "ratio": 0.8654007413743707,
+          "interval95": [
+            0.8383543353083535,
+            0.8838223971255026
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000072"
+            ],
+            "moon-candidate": [
+              "0000000000000072"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 221.17354034432867,
+            "moon-candidate": 191.11567079469944
+          },
+          "source_record": "windows-lossleads-delphi"
+        },
+        "windows_old": {
+          "ratio": 0.4799138834217229,
+          "interval95": [
+            0.47485410637187453,
+            0.5090833719427443
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000072"
+            ],
+            "moon-candidate": [
+              "0000000000000072"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 388.5048132040365,
+            "moon-candidate": 186.96431356043888
+          },
+          "source_record": "windows-lossleads-old"
+        },
+        "linux_old": {
+          "ratio": 0.4258349877393289,
+          "interval95": [
+            0.4108290058983599,
+            0.4569045305042617
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000072"
+            ],
+            "moon-candidate": [
+              "0000000000000072"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 320.33614209827357,
+            "moon-candidate": 136.8295683930943
+          },
+          "source_record": "linux-remaining"
+        }
+      }
+    },
+    {
+      "id": "hot-rtl/memstream-setsize-reuse",
+      "comparisons": {
+        "windows_delphi": {
+          "ratio": 0.29047035292599527,
+          "interval95": [
+            0.2898291136176599,
+            0.29346300866115066
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 9,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000016000"
+            ],
+            "moon-candidate": [
+              "0000000000016000"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 46.32175869837724,
+            "moon-candidate": 13.468954788057367
+          },
+          "source_record": "windows-confirm"
+        },
+        "windows_old": {
+          "ratio": 0.24911063716845672,
+          "interval95": [
+            0.24357662267708052,
+            0.26008083466491216
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000016000"
+            ],
+            "moon-candidate": [
+              "0000000000016000"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 55.29383979721133,
+            "moon-candidate": 13.767800024091478
+          },
+          "source_record": "windows-oldconfirm"
+        },
+        "linux_old": {
+          "ratio": 0.248567740175615,
+          "interval95": [
+            0.2421509202240356,
+            0.2503474752979904
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000016000"
+            ],
+            "moon-candidate": [
+              "0000000000016000"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 57.72000675449503,
+            "moon-candidate": 14.325729545237184
+          },
+          "source_record": "linux-confirm"
+        }
+      }
+    },
+    {
+      "id": "json/byte-scan-medium-256",
+      "comparisons": {
+        "windows_delphi": {
+          "ratio": 0.6840420647706793,
+          "interval95": [
+            0.6513557465732966,
+            0.690093052543203
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 8,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000006C10134"
+            ],
+            "moon-candidate": [
+              "0000000006C10134"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 5.163437469392376,
+            "moon-candidate": 3.5420886232990556
+          },
+          "source_record": "windows-confirm"
+        },
+        "windows_old": {
+          "ratio": 0.6214033993025139,
+          "interval95": [
+            0.6172212821959014,
+            0.6302200269420746
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000006C10134"
+            ],
+            "moon-candidate": [
+              "0000000006C10134"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 5.69642702853276,
+            "moon-candidate": 3.5373632804982886
+          },
+          "source_record": "windows-oldconfirm"
+        },
+        "linux_old": {
+          "ratio": 0.6602654334849202,
+          "interval95": [
+            0.6597605716501183,
+            0.6732463404011046
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "0000000006C10134"
+            ],
+            "moon-candidate": [
+              "0000000006C10134"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 4.548986590921537,
+            "moon-candidate": 3.0034832808993794
+          },
+          "source_record": "linux-confirm"
+        }
+      }
+    },
+    {
+      "id": "loops/loop-try-finally",
+      "comparisons": {
+        "windows_delphi": {
+          "ratio": 0.6312658227848101,
+          "interval95": [
+            0.630812484205206,
+            0.6318606921308687
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 9,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "12FABA69AF04A900"
+            ],
+            "moon-candidate": [
+              "12FABA69AF04A900"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 5.738124416042212,
+            "moon-candidate": 3.6210548348992635
+          },
+          "source_record": "windows-confirm"
+        },
+        "windows_old": {
+          "ratio": 0.7121144533971948,
+          "interval95": [
+            0.7106425177113194,
+            0.7124705546434434
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "12FABA69AF04A900"
+            ],
+            "moon-candidate": [
+              "12FABA69AF04A900"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 5.084470333756714,
+            "moon-candidate": 3.6208733147431165
+          },
+          "source_record": "windows-oldconfirm"
+        },
+        "linux_old": {
+          "ratio": 0.7180633365849463,
+          "interval95": [
+            0.7162986887124475,
+            0.7190465495994346
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 12,
+          "planned_pairs": 12,
+          "oracle": {
+            "moon-baseline": [
+              "12FABA69AF04A900"
+            ],
+            "moon-candidate": [
+              "12FABA69AF04A900"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 4.947817296531284,
+            "moon-candidate": 3.5530168139199425
+          },
+          "source_record": "linux-confirm"
+        }
+      }
+    },
+    {
+      "id": "rtl/dictionary-get",
+      "comparisons": {
+        "linux_old": {
+          "ratio": 0.4394828082340673,
+          "interval95": [
+            0.4388471623547364,
+            0.4398537521105005
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "000000000000558F"
+            ],
+            "moon-candidate": [
+              "000000000000558F"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 39.045148846677236,
+            "moon-candidate": 17.14991977537104
+          },
+          "source_record": "linux-useful"
+        }
+      }
+    },
+    {
+      "id": "rtl/dictionary-string-get",
+      "comparisons": {
+        "linux_old": {
+          "ratio": 0.47978221762474615,
+          "interval95": [
+            0.47745686813802357,
+            0.4850830324425778
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "000000000000558F"
+            ],
+            "moon-candidate": [
+              "000000000000558F"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 53.60815793232227,
+            "moon-candidate": 25.696383891495586
+          },
+          "source_record": "linux-useful"
+        }
+      }
+    },
+    {
+      "id": "rtl-collections/dictionary-keys",
+      "comparisons": {
+        "linux_old": {
+          "ratio": 0.6278036931702136,
+          "interval95": [
+            0.6261184327301522,
+            0.630507553102247
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000622E80"
+            ],
+            "moon-candidate": [
+              "0000000000622E80"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 15.358412932389937,
+            "moon-candidate": 9.64310976808176
+          },
+          "source_record": "linux-useful"
+        }
+      }
+    },
+    {
+      "id": "rtl-collections/dictionary-values",
+      "comparisons": {
+        "linux_old": {
+          "ratio": 0.6267053816065573,
+          "interval95": [
+            0.6153279508656553,
+            0.6301148964392863
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000007F80"
+            ],
+            "moon-candidate": [
+              "0000000000007F80"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 15.369435328699197,
+            "moon-candidate": 9.6300993246532
+          },
+          "source_record": "linux-useful"
+        }
+      }
+    },
+    {
+      "id": "rtl-collections/dictionary-pairs",
+      "comparisons": {
+        "linux_old": {
+          "ratio": 0.7381682568084804,
+          "interval95": [
+            0.7269544345012378,
+            0.7405375398132468
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "000000000062AE00"
+            ],
+            "moon-candidate": [
+              "000000000062AE00"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 18.150758515211642,
+            "moon-candidate": 13.399084408068784
+          },
+          "source_record": "linux-useful"
+        }
+      }
+    },
+    {
+      "id": "dictionary/u64-string-build-grow-100",
+      "comparisons": {
+        "linux_old": {
+          "ratio": 0.5927454797080671,
+          "interval95": [
+            0.5824580974039979,
+            0.6353353400345542
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000000072"
+            ],
+            "moon-candidate": [
+              "0000000000000072"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 445.46817694369975,
+            "moon-candidate": 261.90684986595176
+          },
+          "source_record": "linux-useful"
+        }
+      }
+    },
+    {
+      "id": "dictionary/u64-string-build-grow-10000",
+      "comparisons": {
+        "linux_old": {
+          "ratio": 0.6433875925529912,
+          "interval95": [
+            0.6240103890509013,
+            0.6625282997313162
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000002706"
+            ],
+            "moon-candidate": [
+              "0000000000002706"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 547.94785,
+            "moon-candidate": 353.33276666666666
+          },
+          "source_record": "linux-remaining"
+        }
+      }
+    },
+    {
+      "id": "mm/ring-mixed-16-to-1m",
+      "comparisons": {
+        "windows_default": {
+          "ratio": 0.3578795013248272,
+          "interval95": [
+            0.35139751091573346,
+            0.3798159390242084
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "000000000000FF00"
+            ],
+            "moon-candidate": [
+              "000000000000FF00"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 5926.117322291235,
+            "moon-candidate": 2115.1801242236024
+          },
+          "source_record": "windows-mm-default"
+        }
+      }
+    },
+    {
+      "id": "mm/fragmented-mixed",
+      "comparisons": {
+        "windows_default": {
+          "ratio": 0.5914394422775053,
+          "interval95": [
+            0.5714616234929177,
+            0.6983315392895588
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "0000000000017F00"
+            ],
+            "moon-candidate": [
+              "0000000000017F00"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 2762.3771183191475,
+            "moon-candidate": 1636.3653094087877
+          },
+          "source_record": "windows-mm-default"
+        }
+      }
+    },
+    {
+      "id": "mm/realloc-grow",
+      "comparisons": {
+        "windows_default": {
+          "ratio": 0.6430528124497141,
+          "interval95": [
+            0.6211300789484563,
+            0.7296034039142905
+          ],
+          "decision": "BETTER",
+          "valid_pairs": 6,
+          "planned_pairs": 6,
+          "oracle": {
+            "moon-baseline": [
+              "000000000000010B"
+            ],
+            "moon-candidate": [
+              "000000000000010B"
+            ]
+          },
+          "semantic_match": true,
+          "aa_passed": true,
+          "cpu_price_qualified": true,
+          "work_centers": {
+            "moon-baseline": 91.38805913425415,
+            "moon-candidate": 58.09017823320358
+          },
+          "source_record": "windows-mm-default"
+        }
+      }
+    }
+  ],
+  "allocator_comparison": "windows_default compares the bundled MM with the default FPC MM under the same Moon compiler; it is separate from the compiler comparisons."
+}

@@ -31,7 +31,7 @@ lifetime usually need Debug/O2/O3; optimizer and codegen need O2/O3 on the
 affected target. After an RTL change, also run:
 
 ```text
-python RTL-test/run.py
+python RTL-test/run.py --jobs 8
 ```
 
 ## What counts as proof
@@ -95,10 +95,23 @@ platforms.
 Win64 with the Delphi 12.2 oracle:
 
 ```powershell
-python .\qualification\suite\scripts\run_devil_all.py `
+python .\qualification\suite\scripts\run_devil_all.py --jobs 8 `
   --dcc "C:\Program Files (x86)\Embarcadero\Studio\23.0\bin\dcc64.exe" `
   --dcc-lib "C:\Program Files (x86)\Embarcadero\Studio\23.0\lib\win64\release"
 ```
+
+`--jobs 8` is an example worker budget, not a requirement for every machine.
+Use a budget that fits the available cores and memory; the release controller
+passes its configured budget automatically. Independent stages and their nested
+compilers share that limit, so waiting on one worker does not serialize the whole
+suite. Cold-build and determinism checks keep their rebuilds. Later warm-PPU
+checks reuse the artifacts whose source and inputs have already been validated.
+
+On the 5 October 2026 integrated compiler, the complete Devil gate took 9 min
+21 s on the Windows host and 12 min 12 s on the Linux host, with eight and sixteen
+worker slots respectively. These are measured examples, not duration limits or
+a promise for another host; full release qualification also builds the product,
+checks its distribution and runs Pulse.
 
 The runner creates a separate directory in `qualification/suite/results/runs`,
 does not change the tracked corpus, and stops fail closed on an unknown finding,
@@ -532,8 +545,24 @@ Before release, run the following on one exact HEAD:
 8. Pulse only after semantic oracles match completely;
 9. a final check of the diff, documentation, and reproducibility of evidence.
 
-The full run is deliberately heavy. An ordinary repair uses a minimal
-Focused + Light + impact set; repeat Full only before a newly published revision.
+Run the complete route with:
+
+```text
+python qualification/release/qualify_both.py plan --config <hosts.json>
+python qualification/release/qualify_both.py run --config <hosts.json>
+```
+
+`plan` does not build or run tests. The full route uses fresh evidence where inputs
+changed and retains matching evidence with its original provenance. Final Light
+runs on the final committed source and verifies the exact installed artifact that
+passed Full; it does not replace that artifact with another build. Explicit
+compiler self-build and determinism tests still rebuild.
+
+`--skip-pulse` is available for an explicitly scoped correctness-only check. Its
+verdict says `correctness-without-pulse` and is not complete release qualification.
+A full release run uses a separate ledger with Pulse enabled. An ordinary repair
+uses Focused + Light + impact checks; there is no need to restart unchanged heavy
+corpora after a documentation-only edit.
 
 The Medium stage runs the regressions of compiler repairs on both targets with
 the product configuration: the focused repair gate

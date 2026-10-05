@@ -257,7 +257,10 @@ The checks cover stage/host barriers, failure collection, nested budgets,
 resume, changed source/product identities, PPU reuse and report validation.
 They also run in public CI and the Light controller stage.
 
-No new whole-release duration is claimed until the first authorized real run.
-The 24 September Pulse observation was about 10 minutes plus under one minute
-of confirmation per host. Historical sequential Full Devil timings are not
-used as estimates for the new parallel runner.
+Measured on 5 October 2026, the complete Devil gate took 561.1 seconds on
+Windows with eight worker slots and 731.9 seconds on Linux with sixteen. This
+includes its required cold builds, seeds, profiles and resident checks. It is
+not a whole-release duration: product builds, delivery checks, Pulse and final
+Light add their own work. Plan from the current host's receipts and effective
+Pulse calibration, and report stage progress rather than treating timeout
+ceilings as estimated running times.

@@ -50,9 +50,9 @@ planned.
 
 ## What MoonCompiler Is For
 
-MoonCompiler lets Delphi 12.2 code run on Linux without a rewrite—and, in our
-measurements, it will usually run faster than under Delphi. The same toolchain
-also builds native Win64 applications.
+MoonCompiler lets supported Delphi 12.2 code run on Linux without an application
+rewrite. The same toolchain builds native Win64 applications. Compiler and runtime
+optimizations target ordinary text, collection and server workloads.
 
 In practice, this means:
 
@@ -86,7 +86,7 @@ Linux:
 
 ```bash
 mkdir -p ~/moon/toolchain && cd ~/moon
-tar -xzf ~/Downloads/mooncompiler-toolchain-v1.0.0-linux-x86-64.tar.gz -C toolchain
+tar -xzf ~/Downloads/mooncompiler-toolchain-v2.0.0-linux-x86-64.tar.gz -C toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain/bin/fpc hello.dpr
 toolchain/bin/fpc -dRELEASE hello.dpr
@@ -96,7 +96,7 @@ Win64 PowerShell:
 
 ```powershell
 New-Item -ItemType Directory -Force C:\Moon | Set-Location
-Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v1.0.0-win64.zip -DestinationPath toolchain
+Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.0.0-win64.zip -DestinationPath toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain\bin\x86_64-win64\fpc.exe hello.dpr
 toolchain\bin\x86_64-win64\fpc.exe -dRELEASE hello.dpr
@@ -280,38 +280,42 @@ models of server and trading hot paths. Each case is built with both compilers
 from the same Pascal source; speed is considered only after their calculation
 results agree.
 
-The last published snapshot below is historical evidence from 2026-08-30,
-source HEAD `64067c9949c24f688c29c048ec3051ddce0b5847`. It predates the current
-Stage 2 compiler/RTL/MM work and the present fail-closed Pulse runner, so these
-numbers are not performance claims for the current HEAD. They remain useful as
-the frozen baseline that a fresh exact-HEAD run must replace before release.
-Stock FPC is absent from the table because it cannot compile the Delphi code
-under test.
+The second release reduces repeated work in string search, UTF-8 decoding,
+dictionaries, loops and resource cleanup. It also speeds up compilation of large
+programs with many generated classes and provides a portable direct `fpc` build.
+Read [what changed in MoonCompiler 2.0](doc/RELEASE_NOTES.md) for the practical
+results, the measured workloads and upgrading instructions.
 
-| Historical workload | Comparison | Cases | Result at `64067c994` |
-|---|---|---:|---:|
-| Compiler/RTL/MM optimization series | Moon now / Moon before work began | 243 shared | `1.31×` faster |
-| Full matrix: ABI, code generation, RTL, MM, and application workloads | Delphi 12.2 + FastMM4 | 744 | `1.20×` faster |
-| Heartbeat: server and trading hot paths | Delphi 12.2 + FastMM4 | 20 | `1.22×` faster |
-| RTL: strings, numbers, streams, and helpers | Delphi 12.2 + FastMM4 | 77 | `1.45×` faster |
-| Collections | Delphi 12.2 + FastMM4 | 48 | `1.37×` faster |
-| JSON through the mORMot API | Delphi 12.2 + FastMM4 | 18 | `1.16×` faster |
-| Memory allocation | Standard FPC MM with the same MoonCompiler | 15 | Bundled MM `1.65×` faster |
+Selected confirmed examples from the 4 October integration measurements:
 
-The historical report, including all cases and source numbers, is
-[release-final-20260830](qualification/performance/evidence/release-final-20260830/REPORT.md).
-Result changes after each optimization stage are retained in the
-[Pulse history](qualification/performance/PULSE_HISTORY.html). For methodology
-and calculation rules, see [Performance Qualification](doc/PERFORMANCE_QUALIFICATION.md).
-For the known slow tail, see [Backlog](doc/BACKLOG.md).
+| Useful operation | CPU cost removed vs Delphi 12.2, Win64 | CPU cost removed vs first Moon release, Win64 / Linux |
+|---|---:|---:|
+| UTF-16 substring search in a 64-character string | 24% | 53% / 59% |
+| Decode 32 Cyrillic characters from UTF-8 | 60% | 83% / 79% |
+| Add or update a numeric dictionary entry | 69% | 69% / 70% |
+| Fill a reserved dictionary with numeric keys and string values | 13% | 52% / 57% |
+| Scan a mixed JSON byte buffer | 32% | 38% / 34% |
+| Loop with a short `try/finally` | 37% | 29% / 28% |
 
-To reproduce the medium snapshot on Win64 from a RAD Studio command environment:
+These are reductions in the cost of the named work, not whole-application speedups
+or a complete-matrix average. Linux comparisons use the previous Moon release;
+Delphi comparisons are Windows-only. The [measurement record](doc/evidence/release2/README.md)
+identifies the tested source, machines, semantic checks and individual ratios.
+The bundled-MM comparison with the standard FPC allocator is a separate test
+using the same compiler; it is not a comparison of two compiler products.
 
-```powershell
-python qualification\performance\tools\pulse.py run `
-  --mode medium --systems delphi,moon,moon-default `
-  --tag local-medium
+To reproduce the complete current-versus-release comparison, configure the two
+hosts and their installed toolchains, then run:
+
+```text
+python qualification/performance/tools/pulse_both.py --config <hosts.json>
 ```
+
+For one host, use `pulse_full.py`; both commands use the fixed-work method,
+identical-program controls and independent confirmation described in
+[Performance Qualification](doc/PERFORMANCE_QUALIFICATION.md).
+Earlier measurements remain in the [Pulse history](qualification/performance/PULSE_HISTORY.html)
+and [dated snapshots](qualification/performance/CURRENT_RESULTS.md).
 
 ## How It Is Validated
 
@@ -382,6 +386,7 @@ the applications, and qualification fetches its own pinned checkout.
 
 ## Documentation
 
+- [Release notes](doc/RELEASE_NOTES.md) — what the second release changes and how to upgrade;
 - [Setup](doc/SETUP.md) — a clean Linux and Win64 installation;
 - [Project Build](doc/PROJECT_BUILD.md) — simple and multi-repository projects;
 - [Testing](doc/TESTING.md) — Light/full qualification and the role of each layer;

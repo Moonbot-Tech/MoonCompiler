@@ -1,4 +1,13 @@
-# Pulse: current results and optimization history
+# Pulse results and optimization history
+
+For the second release's user-facing results and measurement provenance, see
+[MoonCompiler 2.0 release notes](../../doc/RELEASE_NOTES.md) and the
+[selected measurements](../../doc/evidence/release2/README.md).
+
+The entries below are historical snapshots. Each retains its own source revision,
+workload and measurement method; descriptions such as "current" inside a snapshot
+refer to that snapshot's candidate, not automatically to the latest source tree.
+Do not combine their ratios into a new release-wide result.
 
 ## Remote to Current — 2026-09-24
 

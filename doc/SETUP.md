@@ -29,7 +29,7 @@ repository):
 
 ```bash
 mkdir -p ~/moon/toolchain && cd ~/moon
-tar -xzf ~/Downloads/mooncompiler-toolchain-v1.0.0-linux-x86-64.tar.gz -C toolchain
+tar -xzf ~/Downloads/mooncompiler-toolchain-v2.0.0-linux-x86-64.tar.gz -C toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain/bin/fpc hello.dpr && ./hello
 ```
@@ -38,7 +38,7 @@ Win64 x86-64 PowerShell:
 
 ```powershell
 New-Item -ItemType Directory -Force C:\Moon | Set-Location
-Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v1.0.0-win64.zip -DestinationPath toolchain
+Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.0.0-win64.zip -DestinationPath toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain\bin\x86_64-win64\fpc.exe hello.dpr; .\hello.exe
 ```
@@ -67,13 +67,13 @@ driver:
 sudo apt-get install --no-install-recommends git gcc libffi-dev
 git clone https://github.com/Moonbot-Tech/MoonCompiler.git
 cd MoonCompiler
-./build toolchain ~/Downloads/mooncompiler-toolchain-v1.0.0-linux-x86-64.tar.gz
+./build toolchain ~/Downloads/mooncompiler-toolchain-v2.0.0-linux-x86-64.tar.gz
 ```
 
 ```powershell
 git clone https://github.com/Moonbot-Tech/MoonCompiler.git
 Set-Location MoonCompiler
-.\build.ps1 toolchain $HOME\Downloads\mooncompiler-toolchain-v1.0.0-win64.zip
+.\build.ps1 toolchain $HOME\Downloads\mooncompiler-toolchain-v2.0.0-win64.zip
 ```
 
 The driver validates the target platform, extracts into a staging directory
@@ -83,6 +83,15 @@ absolute path, see below). It clones MoonORMot into `mormot` next to the
 toolchain when that directory does not exist yet, and never touches an
 existing one. FPC 3.2.2, GNU Make and binutils are not required when
 installing a release archive.
+
+## Upgrading from an earlier release
+
+Replace the complete toolchain, then cleanly rebuild your application and all
+third-party units. Do not copy old PPUs or object files into the new installation,
+and keep the Lazarus/IDE FPC-ABI units separate from the Unicode application units.
+Keep MoonORMot beside the toolchain and update it to satisfy the runtime's version
+requirement. The application build command remains plain `fpc`; see the
+[release notes](RELEASE_NOTES.md) for the changes in this release.
 
 ## Build from Source
 
