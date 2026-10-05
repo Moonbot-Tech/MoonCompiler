@@ -65,7 +65,7 @@ class MatrixRunTests(unittest.TestCase):
                 with self.assertRaises(SystemExit):
                     qualify.main()
 
-    def test_final_rebuild_changes_time_only(self) -> None:
+    def test_final_verifies_the_qualified_product_without_rebuilding(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             subprocess.run(["git", "init", "-q", str(root)], check=True)
@@ -96,7 +96,11 @@ class MatrixRunTests(unittest.TestCase):
                 first = (root / "toolchain/profile.txt").read_bytes()
                 argv.append("--final")
                 self.assertEqual(qualify.main(), 0)
-                self.assertNotEqual(first, (root / "toolchain/profile.txt").read_bytes())
+                self.assertEqual(first, (root / "toolchain/profile.txt").read_bytes())
+                state = json.loads((root / "run/state.json").read_text())
+                log = Path(state["final_results"]["build"]["log"]).read_text()
+                self.assertIn("VERIFY_QUALIFIED_PRODUCT", log)
+                self.assertIn(state["results"]["build"]["log_identity"], log)
                 (root / "toolchain/profile.txt").write_text("rtl_packages_opt=-O2\n", encoding="utf-8")
                 with self.assertRaises(SystemExit):
                     qualify.main()
@@ -263,13 +267,23 @@ class SchedulingTests(unittest.TestCase):
         self.run_dir = self.base / "memory-run"
         self.assertEqual(self.run_jobs(jobs, workers=4, memory=1024), 0)
 
-    def test_final_rebuild_cannot_silently_change_product_after_full(self):
+    def test_final_never_replaces_the_qualified_artifact_with_a_new_build(self):
         jobs = [self.job("build", code="Path('toolchain/compiler').write_text('after' if p.read_text() == 'xx' else 'before')"),
                 self.job("heavy", "full", needs=["build"])]
         self.assertEqual(self.run_jobs(jobs), 0)
-        self.assertEqual(self.run_jobs(jobs, final=True), 2)
+        self.assertEqual(self.run_jobs(jobs, final=True), 0)
+        self.assertEqual((self.base / "build.count").read_text(), "x")
+        self.assertEqual((self.root / "toolchain/compiler").read_text(), "before")
 
-    def test_final_rebuild_allows_only_the_profile_build_time_to_change(self):
+    def test_final_rejects_a_product_mutated_by_a_replayed_check(self):
+        jobs = [self.job("build"), self.job("consumer", needs=["build"], code=
+                "Path('toolchain/compiler').write_text('changed') if p.read_text() == 'xx' else None"),
+                self.job("heavy", "full", needs=["build"])]
+        self.assertEqual(self.run_jobs(jobs), 0)
+        self.assertEqual(self.run_jobs(jobs, final=True), 2)
+        self.assertEqual((self.base / "build.count").read_text(), "x")
+
+    def test_final_allows_only_the_profile_build_time_to_change(self):
         profile = self.root / "toolchain/profile.txt"
         jobs = [self.job("build", code=
                         "Path('toolchain/profile.txt').write_text("
@@ -278,9 +292,29 @@ class SchedulingTests(unittest.TestCase):
                 self.job("heavy", "full", needs=["build"])]
         self.assertEqual(self.run_jobs(jobs), 0)
         original = profile.read_bytes()
+        profile.write_bytes(original.replace(b"built_utc=x", b"built_utc=later"))
         self.assertEqual(self.run_jobs(jobs, final=True), 0)
         self.assertNotEqual(profile.read_bytes(), original)
+        self.assertIn(b"built_utc=later", profile.read_bytes())
+        self.assertEqual((self.base / "build.count").read_text(), "x")
         self.assertEqual((self.base / "heavy.count").read_text(), "x")
+
+    def test_final_preserves_build_provenance_after_an_unrelated_commit(self):
+        jobs = [self.job("build"), self.job("consumer", needs=["build"]),
+                self.job("heavy", "full", needs=["build"])]
+        self.assertEqual(self.run_jobs(jobs), 0)
+        original = json.loads((self.run_dir / "state.json").read_text())["results"]["build"]
+        (self.root / "notes.txt").write_text("documentation only")
+        subprocess.run(["git", "-C", str(self.root), "add", "notes.txt"], check=True)
+        self.commit()
+        self.assertEqual(self.run_jobs(jobs, final=True), 0)
+        state = json.loads((self.run_dir / "state.json").read_text())
+        final = state["final_results"]["build"]
+        self.assertNotEqual(final["head"], original["head"])
+        self.assertEqual(state["results"]["build"], original)
+        self.assertIn(original["head"], Path(final["log"]).read_text())
+        self.assertEqual((self.base / "build.count").read_text(), "x")
+        self.assertEqual((self.base / "consumer.count").read_text(), "xx")
 
     def test_changed_profile_flags_invalidate_the_expensive_pass(self):
         profile = self.root / "toolchain/profile.txt"

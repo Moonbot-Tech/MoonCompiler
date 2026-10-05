@@ -62,7 +62,10 @@ stage on Windows and Linux concurrently. Both must succeed before advancing:
 4. **Delivery:** archive consumer/install smoke and Lazarus.
 5. **Pulse:** the complete fixed-work comparison with short A/A controls and
    independent confirmation of the release shortlist, on an otherwise idle host.
-6. **Final Light:** replay on the frozen final HEAD, plus the history audit.
+6. **Final Light:** replay on the frozen final HEAD and the installed artifact
+   that passed Full, plus the history audit. The build prerequisite verifies
+   that artifact's complete content identity and original build evidence;
+   it does not replace the artifact with another build.
 
 The coordinator synchronizes the hosts at Light, Medium, Full and final Light.
 Inside Full, each host enforces functional -> delivery -> Pulse barriers.
@@ -210,9 +213,16 @@ changed logs prevent reuse and final completion; discovery repeats only the jobs
 whose evidence was lost. Final Light verifies the Full logs before and after
 replay, so a status entry alone cannot replace the original execution evidence.
 
-The final replay rejects source drift or a rebuilt product that differs from
-Full discovery. Carried observations retain their original HEAD; the final
-record establishes byte identity and fresh Light evidence at the final HEAD.
+The final replay rejects source drift or any installed product change from
+Full discovery. Its build verification log retains the original build HEAD,
+log and input signature; it records verification, not a new compilation.
+Rebuilding after Full can change archive timestamps, package receipts and tool
+metadata even when the compiler itself is identical, and would replace the
+artifact being qualified. Rebuilds belong to discovery and the explicit
+compiler self-build, cold-build, PPU and Devil determinism checks, which are
+unchanged. No new artifact fields are excluded from the content identity.
+Carried observations retain their original HEAD; the final record establishes
+byte identity and fresh Light evidence at the final HEAD.
 Repack/audit history once after repairs, then finish HEAD-bound delivery checks
 and final Light. Do not restart the heavy corpora solely to change commit IDs.
 

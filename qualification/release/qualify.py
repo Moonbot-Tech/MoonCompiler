@@ -204,26 +204,31 @@ def execute(job: dict, platform: str, head: str, run_dir: Path,
     log_path = phase_dir / "logs" / f"{name}-{attempt:04d}.log"
     started = time.monotonic()
     with log_path.open("w", encoding="utf-8", errors="replace") as log:
-        log.write("COMMAND " + json.dumps(command) + "\n")
-        log.flush()
-        flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
-        process = subprocess.Popen(command, cwd=cwd, stdout=log,
-                                   stderr=subprocess.STDOUT,
-                                   creationflags=flags,
-                                   start_new_session=os.name != "nt")
-        try:
-            code = process.wait(timeout=job["timeout"])
-        except subprocess.TimeoutExpired:
-            if os.name == "nt":
-                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                               capture_output=True)
-            else:
-                os.killpg(process.pid, signal.SIGKILL)
-            process.wait()
-            code = 124
-            log.write("\n<TIMEOUT>\n")
+        if "verify_build" in job:
+            # Replay against the artifact that passed Full, preserving its build provenance.
+            log.write("VERIFY_QUALIFIED_PRODUCT " + json.dumps(job["verify_build"]) + "\n")
+            code = 0 if product_identity(ROOT) == job["verify_build"]["product_identity"] else 2
+            log.write(f"PRODUCT_IDENTITY {'PASS' if code == 0 else 'FAIL'}\n")
+        else:
+            log.write("COMMAND " + json.dumps(command) + "\n")
+            log.flush()
+            flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+            process = subprocess.Popen(command, cwd=cwd, stdout=log,
+                                       stderr=subprocess.STDOUT,
+                                       creationflags=flags,
+                                       start_new_session=os.name != "nt")
+            try:
+                code = process.wait(timeout=job["timeout"])
+            except subprocess.TimeoutExpired:
+                if os.name == "nt":
+                    subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True)
+                else:
+                    os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+                code = 124
+                log.write("\n<TIMEOUT>\n")
     expected = job.get("expected")
-    if code == 0 and expected is not None:
+    if code == 0 and expected is not None and "verify_build" not in job:
         if expected not in log_path.read_text(encoding="utf-8", errors="replace"):
             code = 125
     return {"status": "pass" if code == 0 else "fail", "code": code,
@@ -390,6 +395,8 @@ def main() -> int:
     selected = {job["id"]: job for job in jobs}
     for job in jobs:
         job["baseline_mm"] = baseline_mm
+        if args.final and job["id"] == "build":
+            job["verify_build"] = {"product_identity": product, "source_build": state["results"]["build"]}
     pending = set(selected)
     active: dict = {}
     resources: set[str] = set()
@@ -524,7 +531,7 @@ def main() -> int:
         final_signatures = input_signatures(discovery, args.platform, head, product, baseline_id)
         if any(state["results"].get(job["id"], {}).get("input_signature") != final_signatures[job["id"]]
                for job in discovery):
-            return reject_changed_inputs("final build differs from the full discovery inputs")
+            return reject_changed_inputs("final product differs from the full discovery inputs")
         if any(not evidence_intact(state["results"][job["id"]]) for job in discovery):
             return reject_changed_inputs("full discovery log changed during final replay")
     show_status(jobs, results, head, signatures)
