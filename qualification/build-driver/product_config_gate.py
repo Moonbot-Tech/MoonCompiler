@@ -490,8 +490,8 @@ def check_internal_linker_paths(compiler: Path, root: Path, cwd: Path) -> str:
         encoding="utf-8",
     )
     for profile, options in (("DEBUG", []), ("RELEASE", ["-dRELEASE"])):
-        for length, quoted in ((244, False), (245, False), (245, True), (254, False), (254, True)):
-            case = root / f"{profile}-{length}{' space' if quoted else ''}"
+        for length, suffix in ((244, ""), (245, ""), (245, " space"), (254, ""), (254, " space"), (244, "~alias")):
+            case = root / f"{profile}-{length}{suffix}"
             # READOBJECT plus its space is 11 bytes: a 245-byte object path
             # crosses the former 255-byte command limit, below Win32 MAX_PATH.
             # A 254-byte object path puts the .exe and .map names at 256 bytes.
@@ -508,11 +508,14 @@ def check_internal_linker_paths(compiler: Path, root: Path, cwd: Path) -> str:
                 fail(f"linker did not write the requested executable: {exe}")
             run = subprocess.run([str(exe)], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             if run.returncode != 0 or run.stdout.strip() != f"LINK_SCRIPT_{profile}_OK":
-                fail(f"long linker path {profile}/{length}/{quoted}: {run.stdout}")
+                fail(f"long linker path {profile}/{length}/{suffix!r}: {run.stdout}")
             path = f'"{obj}"' if " " in str(obj) else str(obj)
             statement = "READOBJECT " + path
             mapfile = units / program.with_suffix(".map").name
-            if statement not in mapfile.read_text(encoding="utf-8").splitlines():
+            commands = mapfile.read_text(encoding="utf-8").splitlines()
+            # Shell-sensitive names, including CI's RUNNER~1, may be quoted
+            # without spaces. Require the complete path in either valid form.
+            if statement not in commands and f'READOBJECT "{obj}"' not in commands:
                 fail(f"map lost the full linker command: {statement}")
     return "internal linker 244/245/254-byte object paths, 256-byte outputs, quoting and both profiles OK"
 
