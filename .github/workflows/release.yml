@@ -312,14 +312,26 @@ jobs:
       - name: Publish GitHub Release
         if: github.event_name == 'push'
         run: |
+          cat > "$RUNNER_TEMP/release-notes.md" <<EOF
+          MoonCompiler $RELEASE_VERSION is a Delphi-compatible Pascal toolchain for Win64 and Linux x86-64.
+
+          - Less work in Unicode string search, case-insensitive comparisons and UTF-8 decoding.
+          - Faster dictionary lookup, updates, enumeration and growth.
+          - Better generated code for loops, byte-oriented scanners and resource cleanup.
+          - Faster compilation of large programs with many generated classes.
+          - Direct application builds with the installed fpc, Delphi-compatible runtime libraries and optional diagnostic reports.
+
+          Read the [release notes and measured results](https://github.com/$GH_REPO/blob/$RELEASE_TAG/doc/RELEASE_NOTES.md) for the changes, comparison conditions and upgrade instructions.
+
+          Download the archive for your platform and follow the [Quick Start](https://github.com/$GH_REPO/blob/$RELEASE_TAG/README.md#quick-start). SHA256SUMS and GitHub artifact attestations accompany the binaries.
+          EOF
           release_options=(
             "$RELEASE_TAG"
             dist/mooncompiler-toolchain-*
             dist/SHA256SUMS
             --verify-tag
             --title "MoonCompiler $RELEASE_VERSION"
-            --notes "Ready-to-install Win64 and Linux x86-64 toolchains. Clone the repository, download the matching archive, and follow the Quick Start in README.md. SHA256SUMS and GitHub artifact attestations are published with the binaries."
-            --generate-notes
+            --notes-file "$RUNNER_TEMP/release-notes.md"
           )
           [[ "$RELEASE_TAG" != *-* ]] || release_options+=(--prerelease)
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
