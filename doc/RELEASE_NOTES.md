@@ -1,3 +1,69 @@
+# MoonCompiler 2.1: Delphi runtime compatibility
+
+Release 2.1 extends the standard libraries used by server applications on Win64
+and Linux x86-64. It closes missing API and behavioral contracts while keeping
+the direct `fpc` build and the performance work from 2.0.
+
+## HTTP clients and streamed data
+
+The Delphi-compatible HTTP client over MoonORMot now provides the standard
+asynchronous request family, shared URL/client/request/response types, response
+metadata and file, string, stream and multipart uploads. Cancellation interrupts
+DNS waiting, TCP connection and TLS setup; the connection deadline covers all
+three. Resolver work that the OS cannot cancel is independently owned and bounded.
+
+Cookies retain domain, path, security and expiration rules across redirects and
+asynchronous requests. Basic authentication supports credentials and challenge
+callbacks; proxy credentials remain separate from server credentials. MIME parts
+can carry custom headers and borrowed or owned streams, with repeatable body reads.
+ZIP entry streams report read progress and retain CRC validation.
+
+Brotli decoding is optional. Add `Moon.HttpClient.Brotli` to `uses` when an
+application needs HTTP `br` content. Other HTTP applications do not link the
+decoder or its dictionary. The optional static decoder requires no Brotli DLL.
+See the [HTTP/runtime contracts](../runtime/mormot/README.md) and
+[third-party licensing](LICENSING.md).
+
+## Queues, completion and time
+
+`TThreadedQueue<T>` provides a bounded FIFO between producer and consumer threads,
+with push/pop timeouts, explicit capacity growth, shutdown and operation counters.
+`TCountdownEvent` waits for a batch of concurrent operations to finish without
+creating a thread pool. Both use existing synchronization primitives and are
+available on both targets. Their lifetime and shutdown rules are described in
+[Thread coordination](THREAD_COORDINATION.md).
+
+Time-zone conversion uses historical OS rules on Windows and Linux, including
+ambiguous autumn times, missing spring times and non-hour transitions. The RTL
+also completes Unicode custom-Variant dispatch, identifier customization and the
+collection-growth callback used by standard containers.
+
+## Source compatibility
+
+Win64 supports delayed DLL imports, including named and ordinal imports,
+notification/failure hooks and concurrent first calls. Record helpers resolve
+implicit and explicit `Self` while retaining local-variable precedence.
+
+The existing JSON builder and iterator API now handles nested values, raw JSON,
+typed values, snapshots, resetting and exact paths through quoted property names.
+These are the standard compatibility units; applications using MoonORMot JSON
+continue to use it directly.
+
+## Upgrade and validation
+
+Install the complete 2.1 toolchain and rebuild application and third-party units.
+The PPU payload version changes for delayed-import metadata; mixing old compiled
+units with the new compiler is unsupported. Keep MoonORMot next to the toolchain
+as described in [Setup](SETUP.md).
+
+The release checks cover the added contracts on Windows and Linux, Delphi
+behavioral comparisons for thread coordination, managed lifetimes, HTTP/TLS,
+archive installation and the normal GitHub qualification workflow. The 2.0
+performance results below belong to their original measured version; 2.1 does
+not claim a new Pulse campaign or new performance ratios.
+
+---
+
 # MoonCompiler 2.0: the second release
 
 This release makes ordinary Delphi code cheaper to execute and easier to build

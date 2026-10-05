@@ -9,6 +9,12 @@ $CompilerRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $SourceRoot = Join-Path $SuiteRoot 'tests\rtl-api'
 $Run = Join-Path $SuiteRoot "results\runs\$RunId\rtl-api-surface"
 $Cases = @(
+  @{ Name = 'rtl_api_threading_contracts'; Expected = 'RTL_API_THREADING_CONTRACTS_OK' },
+  @{ Name = 'rtl_api_delayed_contracts'; Expected = 'RTL_API_DELAYED_CONTRACTS_OK' },
+  @{ Name = 'rtl_api_url_async_contracts'; Expected = 'RTL_API_URL_ASYNC_CONTRACTS_OK' },
+  @{ Name = 'rtl_api_json_builder_contracts'; Expected = 'RTL_API_JSON_BUILDER_CONTRACTS_OK' },
+  @{ Name = 'rtl_api_release21_contracts'; Expected = 'RTL_API_RELEASE21_CONTRACTS_OK' },
+  @{ Name = 'rtl_api_timezone_provider_contracts'; Expected = 'RTL_API_TIMEZONE_PROVIDER_CONTRACTS_OK' },
   @{ Name = 'rtl_api_surface'; Expected = 'RTL_API_SURFACE_OK' },
   @{ Name = 'rtl_api_stringbuilder_contracts'; Expected = 'RTL_API_STRINGBUILDER_CONTRACTS_OK' },
   @{ Name = 'rtl_api_variant_dictionary_contracts'; Expected = 'RTL_API_VARIANT_DICTIONARY_CONTRACTS_OK' },
@@ -43,9 +49,14 @@ foreach ($Case in $Cases) {
     $Project = Join-Path $ProfileDir "$($Case.Name).dpr"
     Copy-Item -LiteralPath (Join-Path $SourceRoot "$($Case.Name).dpr") `
       -Destination $Project
-    $Options = @('-B', "-Fi$SourceRoot", "-FU$ProfileDir", "-FE$ProfileDir")
+    $Options = @('-B', "-Fi$SourceRoot", "-Fi$CompilerRoot/rtl/win", "-FU$ProfileDir", "-FE$ProfileDir")
     If ($Profile -ne 'debug') { $Options += '-dRELEASE' }
     If ($Profile -eq 'diagnostic-release') { $Options += '-dFPCX64MM_DIAGNOSTIC' }
+    If ($Case.Name -eq 'rtl_api_delayed_contracts') {
+      & (Join-Path $CompilerRoot 'toolchain\bin\x86_64-win64\fpc.exe') @Options `
+        (Join-Path $SourceRoot 'moon_delay_fixture.dpr') *> (Join-Path $ProfileDir 'dll-compile.log')
+      If ($LASTEXITCODE -ne 0) { throw 'delayed-import fixture did not compile' }
+    }
     & (Join-Path $CompilerRoot 'toolchain\bin\x86_64-win64\fpc.exe') @Options $Project `
       *> (Join-Path $ProfileDir 'compile.log')
     If ($LASTEXITCODE -ne 0) {
@@ -68,6 +79,13 @@ foreach ($Case in $Cases) {
 }
 
 $Inputs = @(
+  (Join-Path $SourceRoot 'rtl_api_delayed_contracts.dpr'),
+  (Join-Path $SourceRoot 'moon_delay_fixture.dpr'),
+  (Join-Path $SourceRoot 'rtl_api_url_async_contracts.dpr'),
+  (Join-Path $SourceRoot 'rtl_api_json_builder_contracts.dpr'),
+  (Join-Path $SourceRoot 'rtl_api_release21_contracts.dpr'),
+  (Join-Path $SourceRoot 'rtl_api_timezone_provider_contracts.dpr'),
+  (Join-Path $CompilerRoot 'rtl/win/timezone.inc'),
   (Join-Path $SourceRoot 'rtl_api_surface.dpr'),
   (Join-Path $SourceRoot 'rtl_api_stringbuilder_contracts.dpr'),
   (Join-Path $SourceRoot 'rtl_api_variant_dictionary_contracts.dpr'),
@@ -98,4 +116,4 @@ $Inputs | Sort-Object -Unique | ForEach-Object {
   "$Hash *$([IO.Path]::GetFullPath($_))"
 } | Set-Content -LiteralPath (Join-Path $Run 'SHA256SUMS') -Encoding ascii
 
-Write-Output 'RTL_API_SURFACE_GATE_OK cases=18 executions=37'
+Write-Output "RTL_API_SURFACE_GATE_OK cases=$($Cases.Count) executions=$($Cases.Count * 2 + 1)"

@@ -2608,8 +2608,8 @@ The compiler defines these macros for use in `{$IF}` / `{$IFDEF}`:
 
 | Macro | Value | Origin |
 |---|---|---|
-| `MOONCOMPILER_FULLVERSION` | `major*10000 + minor*100 + patch` (`20000` for `2.0.0`) | `mooncompiler_version` in `version.pas` |
-| `MOONCOMPILER_VERSION` | The version string itself (`2.0.0`) | same |
+| `MOONCOMPILER_FULLVERSION` | `major*10000 + minor*100 + patch` (`20100` for `2.1.0`) | `mooncompiler_version` in `version.pas` |
+| `MOONCOMPILER_VERSION` | The version string itself (`2.1.0`) | same |
 | `MOONCOMPILER_SYSTEM_ZLIB` | Defined on Win64 and Linux x86-64: `System.ZLib` of the RTL is the program's zlib; MoonORMot's `mormot.lib.z` compresses through it (`-u` gives mORMot's own choice back) | `options.pas`, next to `NOPATCHRTL` |
 | `MOONCOMPILER_UNICODE_DEFAULT` | Defined by the product `fpc.cfg` | config file |
 | `MOONBOT_MM_PROFILE_REQUIRED` | Defined by the product `fpc.cfg` | config file |

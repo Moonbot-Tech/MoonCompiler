@@ -16,13 +16,25 @@ run="$suite_root/results/runs/$1/rtl-api-surface"
   exit 1
 }
 mkdir -p "$run"
+cases=0
+executions=0
 
-for case_name in rtl_api_surface rtl_api_stringbuilder_contracts \
+for case_name in rtl_api_threading_contracts rtl_api_url_async_contracts rtl_api_json_builder_contracts rtl_api_release21_contracts rtl_api_timezone_provider_contracts rtl_api_surface rtl_api_stringbuilder_contracts \
     rtl_api_variant_dictionary_contracts rtl_api_bcd_value_contracts rtl_api_encoding_contracts rtl_api_utf8_decode_contracts rtl_api_datetime_unix_contracts rtl_api_sorted_find_contracts \
     rtl_api_queue_contracts rtl_api_dictionary_capacity_contracts rtl_api_comparer_factory_contracts \
     rtl_api_text_operations_contracts rtl_api_dictionary_scan_contracts rtl_api_unicode_copy_contracts rtl_api_array_copy \
     rtl_api_dynarray_managed_contracts rtl_api_fphttp_nodelay rtl_api_fphttp_overload_response; do
-  if [[ "$case_name" == rtl_api_surface ]]; then
+  if [[ "$case_name" == rtl_api_threading_contracts ]]; then
+    expected=RTL_API_THREADING_CONTRACTS_OK
+  elif [[ "$case_name" == rtl_api_url_async_contracts ]]; then
+    expected=RTL_API_URL_ASYNC_CONTRACTS_OK
+  elif [[ "$case_name" == rtl_api_json_builder_contracts ]]; then
+    expected=RTL_API_JSON_BUILDER_CONTRACTS_OK
+  elif [[ "$case_name" == rtl_api_release21_contracts ]]; then
+    expected=RTL_API_RELEASE21_CONTRACTS_OK
+  elif [[ "$case_name" == rtl_api_timezone_provider_contracts ]]; then
+    expected=RTL_API_TIMEZONE_PROVIDER_CONTRACTS_OK
+  elif [[ "$case_name" == rtl_api_surface ]]; then
     expected=RTL_API_SURFACE_OK
   elif [[ "$case_name" == rtl_api_stringbuilder_contracts ]]; then
     expected=RTL_API_STRINGBUILDER_CONTRACTS_OK
@@ -59,11 +71,13 @@ for case_name in rtl_api_surface rtl_api_stringbuilder_contracts \
   else
     expected=RTL_API_FPHTTP_OVERLOAD_RESPONSE_OK
   fi
+  cases=$((cases + 1))
   profiles=(debug release)
   if [[ "$case_name" == rtl_api_dynarray_managed_contracts ]]; then
     profiles+=(diagnostic-release)
   fi
   for profile in "${profiles[@]}"; do
+    executions=$((executions + 1))
     profile_dir="$run/$case_name/$profile"
     mkdir -p "$profile_dir"
     project="$profile_dir/$case_name.dpr"
@@ -90,7 +104,11 @@ for case_name in rtl_api_surface rtl_api_stringbuilder_contracts \
 done
 
 {
-  sha256sum "$source_root/rtl_api_surface.dpr" \
+  sha256sum "$source_root/rtl_api_url_async_contracts.dpr" "$source_root/rtl_api_surface.dpr" \
+    "$source_root/rtl_api_threading_contracts.dpr" \
+    "$source_root/rtl_api_json_builder_contracts.dpr" \
+    "$source_root/rtl_api_release21_contracts.dpr" \
+    "$source_root/rtl_api_timezone_provider_contracts.dpr" \
     "$source_root/rtl_api_stringbuilder_contracts.dpr" \
     "$source_root/rtl_api_variant_dictionary_contracts.dpr" \
     "$source_root/rtl_api_bcd_value_contracts.dpr" \
@@ -117,4 +135,4 @@ done
     sort -z | xargs -0 -r sha256sum
 } >"$run/SHA256SUMS"
 
-echo "RTL_API_SURFACE_GATE_OK cases=18 executions=37"
+echo "RTL_API_SURFACE_GATE_OK cases=$cases executions=$executions"

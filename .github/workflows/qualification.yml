@@ -246,6 +246,12 @@ jobs:
             ../.. ci-linux-repairs
       - name: Run RTL semantic matrix
         run: python3 RTL-test/run.py
+      - name: Run HTTP, MIME, ZIP and optional Brotli contracts
+        run: |
+          python3 qualification/suite/scripts/run_runtime_mormot_gate.py \
+            --compiler toolchain/bin/ppcx64 \
+            --rtl toolchain/lib/fpc/3.3.1/units/x86_64-linux/rtl \
+            --mormot mormot --product-mm --results .qualification/ci-linux-runtime
       - name: Run product smoke
         run: |
           # The product profile comes from the toolchain's own fpc.cfg: plain
@@ -587,6 +593,14 @@ jobs:
         run: |
           $env:MOONBOT_MAKE = "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\make.exe"
           python .\RTL-test\run.py
+      - name: Run HTTP, MIME, ZIP and optional Brotli contracts
+        shell: powershell
+        run: |
+          python .\qualification\suite\scripts\run_runtime_mormot_gate.py `
+            --compiler .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --rtl .\toolchain\units\x86_64-win64\rtl `
+            --mormot .\mormot --product-mm --results .\.qualification\ci-win64-runtime
+          If ($LASTEXITCODE -ne 0) { throw 'Runtime contracts failed' }
       - name: Run product smoke
         shell: powershell
         run: |

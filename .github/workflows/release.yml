@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v2.0.0
+        default: v2.1.0
 
 permissions:
   contents: read
@@ -315,13 +315,13 @@ jobs:
           cat > "$RUNNER_TEMP/release-notes.md" <<EOF
           MoonCompiler $RELEASE_VERSION is a Delphi-compatible Pascal toolchain for Win64 and Linux x86-64.
 
-          - Less work in Unicode string search, case-insensitive comparisons and UTF-8 decoding.
-          - Faster dictionary lookup, updates, enumeration and growth.
-          - Better generated code for loops, byte-oriented scanners and resource cleanup.
-          - Faster compilation of large programs with many generated classes.
-          - Direct application builds with the installed fpc, Delphi-compatible runtime libraries and optional diagnostic reports.
+          - More Delphi-compatible HTTP APIs over MoonORMot: asynchronous requests, streaming uploads, cookies, authentication, cancellation and timeouts.
+          - Bounded threaded queues and countdown events for producer/consumer services and batches of parallel work.
+          - Historical time-zone conversion, Unicode Variant dispatch and configurable collection growth.
+          - Windows delayed DLL imports and record-helper lookup compatibility.
+          - Completed JSON builder/iterator operations, MIME stream ownership and ZIP read progress. Brotli decoding is an explicit optional unit.
 
-          Read the [release notes and measured results](https://github.com/$GH_REPO/blob/$RELEASE_TAG/doc/RELEASE_NOTES.md) for the changes, comparison conditions and upgrade instructions.
+          Read the [release notes](https://github.com/$GH_REPO/blob/$RELEASE_TAG/doc/RELEASE_NOTES.md) for supported contracts and upgrade instructions. Performance measurements from release 2.0 remain separately labelled; this maintenance release makes no new benchmark claims.
 
           Download the archive for your platform and follow the [Quick Start](https://github.com/$GH_REPO/blob/$RELEASE_TAG/README.md#quick-start). SHA256SUMS and GitHub artifact attestations accompany the binaries.
           EOF
