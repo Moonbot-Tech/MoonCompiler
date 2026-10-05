@@ -708,6 +708,86 @@ class PulseFullTests(unittest.TestCase):
             )
         self.assertEqual(launched_phases, [0, 0])
 
+    def test_batch_retains_first_clean_case_pair_and_every_attempt_log(self) -> None:
+        cases = [FULL.Case("move", name, "rtl", "System", "memory-local") for name in ("a", "b")]
+        images = {(system, "move", 0): Path(f"{system}.exe") for system in FULL.SYSTEMS}
+
+        def run_many(executable, program, names, variant, repeat, duration, category, affinity,
+                     log_dir, *args, **kwargs):
+            attempt = int(log_dir.name.rsplit("-a", 1)[1])
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log = log_dir / f"{variant}.log"
+            log.write_text(f"attempt={attempt} variant={variant}")
+            return [{"case": name, "variant": variant, "log": str(log), "iterations": 100,
+                     "probe_price": 10 if attempt == 0 else 2,
+                     "clean": name == "a" if attempt == 0 else name == "b"}
+                    for name in names]
+
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            mock.patch.object(FULL.method, "run_many", side_effect=run_many),
+            mock.patch.object(FULL.method, "record_metrics", side_effect=lambda row, *a, **k: {"valid": row["clean"]}),
+        ):
+            pair = FULL.run_case_batch_pair(
+                cases, 0, 60, images, (12, 14), Path(directory), "tag", 0,
+                {("move", name): (100, 60) for name in ("a", "b")},
+            )
+            by_case = {name: [row for row in pair if row["case"] == name] for name in ("a", "b")}
+            self.assertEqual([row["pair_attempt"] for row in by_case["a"]], [0, 0])
+            self.assertEqual([row["probe_price"] for row in by_case["a"]], [10, 10])
+            self.assertEqual([row["pair_attempt"] for row in by_case["b"]], [1, 1])
+            self.assertEqual([row["probe_price"] for row in by_case["b"]], [2, 2])
+            self.assertEqual(len(by_case["b"][0]["rejected_pair_attempts"]), 2)
+            self.assertEqual(by_case["a"][0]["rejected_pair_attempts"], [])
+            self.assertEqual(len({row["log"] for row in pair}), 4)
+            self.assertTrue(all(Path(row["log"]).is_file() for row in pair))
+            self.assertEqual(Path(by_case["a"][0]["log"]).read_text(), "attempt=0 variant=moon-baseline")
+
+    def test_batch_does_not_combine_sides_from_different_attempts(self) -> None:
+        case = FULL.Case("move", "a", "rtl", "System", "memory-local")
+        images = {(system, "move", 0): Path(f"{system}.exe") for system in FULL.SYSTEMS}
+
+        def run_many(executable, program, names, variant, repeat, duration, category, affinity,
+                     log_dir, *args, **kwargs):
+            attempt = int(log_dir.name.rsplit("-a", 1)[1])
+            return [{"case": "a", "variant": variant, "log": str(log_dir / f"{variant}.log"),
+                     "iterations": 100, "clean": (attempt == 0) == (variant == "moon-baseline")}]
+
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            mock.patch.object(FULL.method, "run_many", side_effect=run_many),
+            mock.patch.object(FULL.method, "record_metrics", side_effect=lambda row, *a, **k: {"valid": row["clean"]}),
+        ):
+            pair = FULL.run_case_batch_pair(
+                [case], 0, 60, images, (12, 14), Path(directory), "tag", 0,
+                {("move", "a"): (100, 60)}, max_attempts=2,
+            )
+        self.assertEqual([row["pair_attempt"] for row in pair], [1, 1])
+        self.assertEqual([row["accepted"] for row in pair], [False, True])
+        self.assertEqual(len(pair[0]["rejected_pair_attempts"]), 4)
+
+    def test_batch_calibration_is_not_a_scored_pair(self) -> None:
+        case = FULL.Case("move", "a", "rtl", "System", "memory-local")
+        images = {(system, "move", 0): Path(f"{system}.exe") for system in FULL.SYSTEMS}
+
+        def run_many(executable, program, names, variant, repeat, duration, category, affinity,
+                     log_dir, *args, **kwargs):
+            attempt = int(log_dir.name.rsplit("-a", 1)[1])
+            return [{"case": "a", "variant": variant, "log": str(log_dir / f"{variant}.log"),
+                     "iterations": 100 if attempt == 0 else 101, "clean": True}]
+
+        cache = {}
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            mock.patch.object(FULL.method, "run_many", side_effect=run_many),
+            mock.patch.object(FULL.method, "record_metrics", side_effect=lambda row, *a, **k: {"valid": True}),
+        ):
+            pair = FULL.run_case_batch_pair([case], 0, 60, images, (12, 14), Path(directory), "tag", 0,
+                                            cache, max_attempts=2)
+        self.assertEqual(cache[("move", "a")], (100, 60))
+        self.assertEqual([row["pair_attempt"] for row in pair], [1, 1])
+        self.assertEqual(len(pair[0]["calibration_records"]), 2)
+
     def test_every_process_gets_the_runs_raw_events_and_the_chain(self) -> None:
         environments = []
 

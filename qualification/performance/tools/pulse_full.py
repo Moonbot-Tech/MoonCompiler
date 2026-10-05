@@ -965,6 +965,7 @@ def run_pair(
     concurrent: bool,
     orientation: int,
     stack_plan: str = "grid",
+    max_attempts: int = 3,
 ) -> list[dict[str, object]]:
     policy = POLICIES[case.category]
     phase = stack_phase(stack_plan, repeat)
@@ -974,7 +975,7 @@ def run_pair(
     rejected: list[dict[str, object]] = []
     calibration: list[dict[str, object]] = []
     case_id = hashlib.sha256(f"{case.program}/{case.name}".encode()).hexdigest()[:24]
-    for attempt in range(3):
+    for attempt in range(max_attempts):
         attempt_dir = output / "logs" / tag / f"{case_id}-r{repeat}-a{attempt}"
         attempt_dir.mkdir(parents=True, exist_ok=True)
         fixed = scaled_iterations(iteration_cache, case, duration_ms)
@@ -1073,6 +1074,7 @@ def run_case_batch_pair(
     swap_key: int,
     iteration_cache: dict[tuple[str, str], tuple[int, int]],
     stack_plan: str = "grid",
+    max_attempts: int = 3,
 ) -> list[dict[str, object]]:
     if not cases or len({case.program for case in cases}) != 1:
         raise ValueError("a process batch must contain cases from one program")
@@ -1085,18 +1087,17 @@ def run_case_batch_pair(
     variants = list(SYSTEMS)
     if swap_key % 2:
         variants.reverse()
-    rejected: list[dict[str, object]] = []
+    rejected: dict[str, list[dict[str, object]]] = {case.name: [] for case in cases}
     calibration: list[dict[str, object]] = []
-    pair: list[dict[str, object]] = []
+    accepted: dict[str, list[dict[str, object]]] = {}
+    last: dict[str, list[dict[str, object]]] = {}
     batch_id = hashlib.sha256(
         ",".join(case.name for case in cases).encode()
     ).hexdigest()[:8]
-    for attempt in range(3):
+    for attempt in range(max_attempts):
         fixed = {case.name: scaled_iterations(iteration_cache, case, duration_ms) for case in cases}
         fixed = fixed if all(value is not None for value in fixed.values()) else None
-        attempt_dir = output / "gates" / tag / (
-            f"{cases[0].program}-batch-{batch_id}-{repeat}-a{attempt}"
-        )
+        attempt_dir = output / "logs" / tag / f"{batch_id}-r{repeat}-a{attempt}"
         attempt_dir.mkdir(parents=True, exist_ok=True)
         gate = attempt_dir / "start.gate"
         gate.unlink(missing_ok=True)
@@ -1121,7 +1122,7 @@ def run_case_batch_pair(
                 duration_ms,
                 category,
                 (cpu,),
-                output / "logs" / tag,
+                attempt_dir,
                 policy.samples,
                 policy.warmup_ms,
                 30.0,
@@ -1152,40 +1153,39 @@ def run_case_batch_pair(
             record["derived"] = metrics
             record["accepted"] = bool(metrics["valid"])
             record["pair_attempt"] = attempt
-        grouped: dict[str, list[tuple[dict[str, object], dict[str, object]]]] = {}
-        for record, metrics in zip(pair, derived):
-            grouped.setdefault(str(record["case"]), []).append((record, metrics))
-        dirty = [
-            name
-            for name, rows in grouped.items()
-            if len(rows) != 2 or not all(bool(metrics["valid"]) for _, metrics in rows)
-        ]
-        if not dirty:
-            for record in pair:
-                record["rejected_pair_attempts"] = [
-                    row
-                    for row in rejected
-                    if row["case"] == record["case"]
-                ]
-            pair[0]["calibration_records"] = calibration
-            return pair
-        rejected.extend(
-            {
-                "attempt": attempt,
-                "variant": record["variant"],
-                "case": record["case"],
-                "log": record["log"],
-                "runner": record.get("runner"),
-                "derived": metrics,
-            }
-            for record, metrics in zip(pair, derived)
-            if str(record["case"]) in dirty
-        )
-    for record in pair:
-        record["rejected_pair_attempts"] = [
-            row for row in rejected if row["case"] == record["case"]
-        ]
-    return pair
+        grouped: dict[str, list[dict[str, object]]] = {}
+        for record in pair:
+            grouped.setdefault(str(record["case"]), []).append(record)
+        for case in cases:
+            name = case.name
+            rows = grouped.get(name, [])
+            if len(rows) != 2 or {row["variant"] for row in rows} != set(SYSTEMS):
+                raise RuntimeError(f"batch attempt has no complete pair: {name}")
+            last[name] = rows
+            if name in accepted:
+                continue
+            if all(row["derived"]["valid"] for row in rows):
+                accepted[name] = rows
+            else:
+                rejected[name].extend(
+                    {
+                        "attempt": attempt,
+                        "variant": row["variant"],
+                        "case": name,
+                        "log": row["log"],
+                        "runner": row.get("runner"),
+                        "derived": row["derived"],
+                    }
+                    for row in rows
+                )
+        if len(accepted) == len(cases):
+            break
+    result = [row for case in cases for row in (accepted.get(case.name) or last[case.name])]
+    for row in result:
+        row["rejected_pair_attempts"] = rejected[row["case"]]
+    if result:
+        result[0]["calibration_records"] = calibration
+    return result
 
 
 def run_stage(
