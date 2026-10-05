@@ -47,9 +47,9 @@ restricts the scope; an omitted selector runs the complete corpus.
 
 One machine's standard pass is `pulse_full.py --baseline-toolchain <A>
 --candidate-toolchain <B> --output <dir>`: the whole corpus, 12 fresh pairs per
-case and the confirmation of every changed row. On a free machine it takes
-minutes; main 1e040aa37 against itself on 29.09, the build of the programs
-included:
+case and independent confirmation of the selected headline changes and sentinels.
+On a free machine it takes minutes; main 1e040aa37 against itself on 29.09,
+including the build of the programs:
 
 | Machine | CPU | Pairs of cores | Cases run alone | Pass |
 | --- | --- | ---: | ---: | ---: |
@@ -80,7 +80,7 @@ the result's `left_out`, instead of failing. The release report accepts such a
 program when only the released toolchain left it out; the candidate builds
 every program.
 
-The release comparison has no Delphi side, and the release has no `System.ZLib`
+The release comparison has no Delphi side, and the first release has no `System.ZLib`
 to compare with. `zlib_delphi_gate.py` (Win64 full stage, next to the release
 report) measures the eight product forms of the `zlib` program against Delphi
 12.2 - the six of `System.ZLib` and the two ZIP forms of `System.Zip`, which
@@ -425,7 +425,8 @@ The following snapshot was recorded on 2026-08-30 at source HEAD
 `64067c9949c24f688c29c048ec3051ddce0b5847`. It predates Stage 2 and the
 current fail-closed runner. It is retained as a frozen comparison baseline,
 not as evidence or a performance claim for the current HEAD. Release requires
-a fresh exact-HEAD medium/long run after all semantic gates pass.
+the full fixed-work `pulse_full.py` route after the semantic gates pass, with
+source and installed-artifact provenance matching the qualified candidate.
 
 | Workload | Reference | Cases | MoonCompiler result |
 |---|---|---:|---:|
@@ -451,6 +452,38 @@ Full data:
 
 ## How to reproduce
 
+For a full release comparison on both configured hosts:
+
+```text
+python qualification/performance/tools/pulse_both.py --config <hosts.json>
+```
+
+For one host:
+
+```text
+python qualification/performance/tools/pulse_full.py --baseline-toolchain <A> --candidate-toolchain <B> --output <dir>
+```
+
+Use each toolchain's matching memory-manager source through `--baseline-mm-source`
+and `--candidate-mm-source` when it is not available at the default location.
+These commands cover the complete selected corpus with calibrated equal work,
+twelve pairs and independent confirmation. The complete release controller calls
+this same runner; it does not require a separate legacy `long` pass.
+
+On a busy desktop, `pulse_full.py --single-cpus 12,14` can select one quiet pair
+of available physical CPUs while retaining the normal multithread CPU set.
+The example numbers are specific to a machine: inspect its topology and idle
+state first. The selected CPUs must form complete pairs and leave two physical
+cores for the runner. The effective plan is printed and recorded. For the full
+release controller, use the host setting `pulse_single_cpus` described in the
+[release runner guide](../qualification/release/README.md).
+
+### Targeted diagnostic comparisons
+
+The following `pulse.py` commands retain the older multi-system workflow for
+focused investigations and reproduction of historical results. They do not
+replace the fixed-work release route above.
+
 Win64 medium slice from a RAD Studio command environment:
 
 ```powershell
@@ -468,10 +501,10 @@ python3 qualification/performance/tools/pulse.py run \
   --tag linux-long
 ```
 
-`quick` is for checking the direction of a local repair, `medium` for working
-A/B, and `long` for final evidence on an idle machine. First run the correctness
-gates for the affected area; a benchmark does not substitute for semantic
-qualification.
+In this diagnostic runner, `quick` is a preliminary check, while `medium` and
+`long` use progressively longer sampling. None of these names selects the
+current full release protocol. First run correctness gates for the affected
+area; a benchmark does not substitute for semantic qualification.
 
 If a completed `medium` or `long` run is rejected only for process drift, use
 `pulse.py retry <result-directory>`. It verifies the recorded executable hashes
@@ -513,12 +546,14 @@ A change is accepted only when all four conditions hold:
 
 1. the oracles and target ABI match;
 2. the claimed buyer becomes faster;
-3. neighbouring forms have no sustained regression;
+3. neighbouring forms are checked; any sustained extra cost has an explicitly
+   reviewed trade-off explained in terms of ordinary application work;
 4. ASM or a phase split shows exactly which work disappeared.
 
-If the ratio changes without a machine-code change, that is placement/noise, not
-a compiler repair. If a composite slows down, first separate allocation,
-copying, lifetime, and the algorithm itself; one aggregate number is not a
+A ratio change without a machine-code change does not by itself establish a
+compiler repair: inspect placement, data addresses and runtime state. If a
+composite slows down, first separate allocation, copying, lifetime and the
+algorithm itself; one aggregate number is not a
 license for an arbitrary RTL change.
 
 ## Comparable Pulse placement families
