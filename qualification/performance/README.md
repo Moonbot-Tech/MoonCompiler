@@ -6,7 +6,7 @@ Start with the [purpose of Pulse](../../doc/PERFORMANCE_QUALIFICATION.md#the-que
 Case counts are not a product verdict. `Move(X,X,N)` is no longer a performance
 case; its accepted cost buys the ordinary copy path an omitted equality check.
 
-One release comparison: `python qualification/performance/tools/pulse_both.py`
+One release comparison: `python qualification/performance/tools/pulse_both.py --config <hosts.json>`
 (host settings: `tools/pulse_both.example.json`). `REPORT.md` contains the top 10
 useful gains, top 10 practical regressions/TODO, accepted trade-offs and numerical
 open risks. Every case remains in `CASES.md`. The default plan uses 12 fresh pairs
@@ -89,7 +89,7 @@ Delphi, the RTL zlib behind both. The `zip-*` cases zip the market history
 into an archive in memory and read it back through `System.Zip`, as MoonBot
 stores a market's data. The data is generated
 alike for every compiler; a digest depends on what went in and came out, never
-on the compressed bytes. The release has no `System.ZLib`: the program is left
+on the compressed bytes. The first release has no `System.ZLib`: the program is left
 out of a release comparison; `tools/zlib_delphi_gate.py` holds the product forms
 to Delphi 12.2 in the Win64 full stage instead.
 
@@ -126,9 +126,11 @@ market by name through the list and the dictionary, the batch over all markets.
 The data are fields of the market objects and globals of that unit, not of the
 program; Delphi 12.2 and MoonCompiler give one digest per case.
 
-Each executable accepts `quick`, `medium`, or `long` mode. Only `quick` is used
-during development; `medium` runs at important checkpoints; `long` is for
-final qualification.
+Each executable retains `quick`, `medium`, and `long` modes for targeted
+diagnostics and reproduction of older results. Full release qualification uses
+`pulse_full.py` or `pulse_both.py`, with calibrated equal work, twelve process
+pairs and independent confirmation. Selecting the legacy `long` mode does not
+invoke that release route and is not required before a release.
 
 `repairs/pulse_repairs.dpr` is the compact causal performance gate for a repair
 series. It is intentionally Moon-only and is run against pinned
