@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v1.0.0
+        default: v2.0.0
 
 permissions:
   contents: read
