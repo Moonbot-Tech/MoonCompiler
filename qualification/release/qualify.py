@@ -55,7 +55,7 @@ def save(path: Path, state: dict) -> None:
 
 def load_matrix(path: Path, platform: str, mode: str,
                 final: bool = False, skip_pulse: bool = False,
-                pulse_single_cpus: str = "") -> list[dict]:
+                pulse_single_cpus: str = "", pulse_completion: tuple[str, str, str] = ("", "", "")) -> list[dict]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("version") != 1:
         raise ValueError("matrix version must be 1")
@@ -66,10 +66,14 @@ def load_matrix(path: Path, platform: str, mode: str,
             and LEVELS[row["mode"]] <= LEVELS[mode]
             and (not skip_pulse or row["id"] != "pulse_report")
             and (final or not row.get("final_only", False))]
-    if pulse_single_cpus:
-        for row in jobs:
-            if row["id"] == "pulse_report":
+    for row in jobs:
+        if row["id"] == "pulse_report":
+            if pulse_single_cpus:
                 row["commands"][platform] += ["--single-cpus", pulse_single_cpus]
+            if pulse_completion[0]:
+                row["commands"][platform] += ["--complete-from", pulse_completion[0],
+                                              "--complete-sha256", pulse_completion[1],
+                                              "--complete-logs-sha256", pulse_completion[2]]
     names = [row["id"] for row in jobs]
     if len(names) != len(set(names)):
         raise ValueError("duplicate job id")
@@ -289,13 +293,26 @@ def main() -> int:
     parser.add_argument("--baseline-mm-source", type=Path, help="MM source for an older baseline archive")
     parser.add_argument("--pulse-single-cpus", default="",
                         help="physical CPU pairs for single-CPU Pulse cases; pass identically on resume")
+    parser.add_argument("--pulse-complete-from", type=Path,
+                        help="previous full Pulse output to complete without replacing valid pairs")
+    parser.add_argument("--pulse-complete-sha256", default="", help="expected original raw gzip SHA-256")
+    parser.add_argument("--pulse-complete-logs-sha256", default="", help="expected original log manifest SHA-256")
     args = parser.parse_args()
+    pulse_completion = (str(args.pulse_complete_from.resolve()) if args.pulse_complete_from else "",
+                        args.pulse_complete_sha256, args.pulse_complete_logs_sha256)
+    if any(pulse_completion) != all(pulse_completion):
+        parser.error("Pulse completion requires source path, raw SHA-256, and log-manifest SHA-256 together")
+    if any(sha and (len(sha) != 64 or any(character not in "0123456789abcdef" for character in sha))
+           for sha in pulse_completion[1:]):
+        parser.error("Pulse completion SHA-256 values must be 64 lowercase hex characters")
     if args.jobs < 1 or args.memory_mb < 1:
         parser.error("worker and memory budgets must be positive")
     if args.final and args.mode != "light":
         parser.error("the final replay is Light; use --mode light --final")
     if args.skip_pulse and args.pulse_single_cpus:
         parser.error("--pulse-single-cpus requires Pulse scope")
+    if args.skip_pulse and pulse_completion[0]:
+        parser.error("Pulse completion requires Pulse scope")
     head = git("rev-parse", "HEAD")
     if args.expect_head and head != args.expect_head:
         parser.error("candidate HEAD differs from --expect-head")
@@ -303,7 +320,7 @@ def main() -> int:
         parser.error("commit tracked changes before qualifying")
     run_dir = args.run_dir.resolve()
     jobs = load_matrix(args.matrix, args.platform, args.mode, args.final, args.skip_pulse,
-                       args.pulse_single_cpus)
+                       args.pulse_single_cpus, pulse_completion)
     if any(allocation(job, args.jobs, args.memory_mb) < 1 for job in jobs):
         parser.error("memory budget cannot fit one worker of every selected job")
     if args.action == "plan":
@@ -327,7 +344,8 @@ def main() -> int:
                           if args.baseline_toolchain else "",
                           "baseline_mm_source": str(args.baseline_mm_source.resolve()) if args.baseline_mm_source else "",
                           "results": {}, "final_results": {}, "final_head": None, "skip_pulse": args.skip_pulse,
-                          "pulse_single_cpus": args.pulse_single_cpus})
+                          "pulse_single_cpus": args.pulse_single_cpus,
+                          "pulse_completion": pulse_completion})
         print(f"MATRIX_READY {run_dir} jobs={len(jobs)} head={head}")
         return 0
     if not state_path.exists():
@@ -339,7 +357,8 @@ def main() -> int:
                           if args.baseline_toolchain else "",
                           "baseline_mm_source": str(args.baseline_mm_source.resolve()) if args.baseline_mm_source else "",
                           "results": {}, "final_results": {}, "final_head": None, "skip_pulse": args.skip_pulse,
-                          "pulse_single_cpus": args.pulse_single_cpus})
+                          "pulse_single_cpus": args.pulse_single_cpus,
+                          "pulse_completion": pulse_completion})
     state = json.loads(state_path.read_text(encoding="utf-8"))
     if state["platform"] != args.platform:
         parser.error("run state belongs to another platform")
@@ -348,6 +367,9 @@ def main() -> int:
     if state.get("pulse_single_cpus", "") != args.pulse_single_cpus:
         parser.error("Pulse single-CPU selection changed; use a new run directory")
     state["pulse_single_cpus"] = args.pulse_single_cpus
+    if tuple(state.get("pulse_completion", ("", "", ""))) != pulse_completion:
+        parser.error("Pulse completion source changed; use a new run directory")
+    state["pulse_completion"] = pulse_completion
     location = {"host": host_platform.node(), "root": str(ROOT.resolve())}
     if state.get("location", location) != location:
         parser.error("run state belongs to another host or checkout")
@@ -386,7 +408,8 @@ def main() -> int:
         state["final_results"].pop("build", None)
     if args.final:
         discovery = load_matrix(args.matrix, args.platform, "full", skip_pulse=args.skip_pulse,
-                                pulse_single_cpus=args.pulse_single_cpus)
+                                pulse_single_cpus=args.pulse_single_cpus,
+                                pulse_completion=pulse_completion)
         discovery_signatures = input_signatures(discovery, args.platform, head, product, baseline_id)
         incomplete = [job["id"] for job in discovery
                       if state["results"].get(job["id"], {}).get("status") != "pass"

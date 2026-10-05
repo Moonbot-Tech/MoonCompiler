@@ -1201,6 +1201,7 @@ def run_stage(
     tag: str,
     batch_processes: bool = True,
     stack_plan: str = "grid",
+    max_attempts: int = 3,
 ) -> list[dict[str, object]]:
     if not cases or repeat_count <= 0:
         return []
@@ -1242,6 +1243,7 @@ def run_stage(
             not (POLICIES[category].exclusive or case.exclusive),
             repeat + case_index,
             stack_plan,
+            max_attempts,
         )
 
     def batch_pair(task: tuple[int, list[Case], int], cpu_pair: tuple[int, int]) -> list[dict[str, object]]:
@@ -1257,6 +1259,7 @@ def run_stage(
             repeat + batch_index,
             iteration_cache,
             stack_plan,
+            max_attempts,
         )
 
     def in_rounds(items: list, work) -> list[dict[str, object]]:

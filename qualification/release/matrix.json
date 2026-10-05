@@ -92,7 +92,7 @@
     "tftp": ["qualification/suite"],
     "keccak256": ["qualification/suite"],
     "history_audit": ["qualification/release/history_audit.py"],
-    "pulse_report": ["qualification/release/pulse_release.py", "qualification/performance"],
+    "pulse_report": ["qualification/release/pulse_release.py", "qualification/release/pulse_completion.py", "qualification/release/pulse_roundto_oracle.py", "qualification/performance"],
     "zlib_delphi": ["qualification/performance"],
     "controller_contracts": ["qualification/release", "qualification/suite/scripts", "qualification/effect-observe", "qualification/optimizer-core", ".github/workflows"],
     "effect_model": ["qualification/effect-observe"],
@@ -3234,7 +3234,7 @@
       "exclusive": true,
       "slots": 4,
       "resource": "pulse",
-      "timeout": 3600,
+      "timeout": 7200,
       "estimated_seconds_by_platform": {"win64": 650, "linux": 600},
       "expected": "PULSE_RELEASE_REPORT_READY"
     },

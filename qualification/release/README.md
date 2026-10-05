@@ -244,6 +244,40 @@ every release comparison; a failed control or mismatched semantic digest blocks
 completion. Useful slowdowns and open numerical risks remain in `REPORT.md` for
 human release review. A successful measurement is not approval of its trade-offs.
 
+If a full Pulse run has only rejected process attempts, bounded completion can
+fill its missing repeat pairs without reshooting accepted pairs. Keep the entire
+original output, including `result.raw.json.gz`, `result.json`, executables and
+logs. First bind every referenced log to its bytes:
+
+```text
+python qualification/release/pulse_completion.py manifest --source ORIGINAL_OUT
+```
+
+The command verifies the raw SHA recorded by `result.json`, writes
+`SOURCE_LOGS_SHA256.json` once, and prints both SHA-256 values. A pre-existing
+manifest is verified and left unchanged. Append `--pulse-complete-from
+ORIGINAL_OUT --pulse-complete-sha256 RAW_SHA --pulse-complete-logs-sha256
+LOGS_SHA` to the ordinary `qualify.py run --mode full` command, or set `pulse_complete_from`,
+`pulse_complete_sha256` and `pulse_complete_logs_sha256` for that host in the
+`qualify_both.py` host config. Use a new qualification run directory; do not edit
+the old result or qualification ledger to mark it passing.
+
+Completion freezes the missing repeat grid before measurement. It verifies the
+original and current source method, toolchains, memory managers, executable
+bytes, host and log hashes, then uses the same fixed work, stack phase, variant
+order and CPU assignment for each rejected pair. A Move retry includes its
+whole original ordered batch. Fresh A/A and any newly required confirmations
+run normally. Accepted original pairs remain byte-for-byte in the result; old
+invalid attempts and new attempts keep separate logs and provenance. The stock
+release validator still requires correct semantics and 12 valid pairs for every
+case and confirmation. Any remaining gap is a failed qualification.
+The completion budget is six attempts per missing pair. The source bridge accepts
+only the exact reviewed old/new Git blobs for batch aggregation and log naming;
+the workload and idle guards are unchanged. The historical RoundTo baseline
+digest difference is accepted only with a full mathematical proof of the
+candidate result: `semantic_match` remains false and that row has no speed
+comparison.
+
 Archive smoke packages the installed toolchain, unpacks outside the repository,
 places pinned MoonORMot beside it, builds/runs Debug and Release consumers, then
 installs the archive through `build toolchain` in a separate checkout. This is

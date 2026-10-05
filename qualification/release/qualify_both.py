@@ -52,6 +52,10 @@ def arguments(settings: dict, host: str, action: str, mode: str, final: bool, he
         result += ["--baseline-mm-source", settings["baseline_mm_source"]]
     if not skip_pulse and settings.get("pulse_single_cpus"):
         result += ["--pulse-single-cpus", settings["pulse_single_cpus"]]
+    if not skip_pulse and settings.get("pulse_complete_from"):
+        result += ["--pulse-complete-from", settings["pulse_complete_from"],
+                   "--pulse-complete-sha256", settings["pulse_complete_sha256"],
+                   "--pulse-complete-logs-sha256", settings["pulse_complete_logs_sha256"]]
     if head:
         result += ["--expect-head", head]
     if final:
