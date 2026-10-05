@@ -1797,9 +1797,17 @@ end;
 procedure TStringList.Grow;
 
 Var
-  NC : Integer;
+  NC : NativeInt;
 
 begin
+  if Assigned(GrowCollectionFunc) then
+    begin
+    NC:=GrowCollection(FCapacity,NativeInt(FCount)+1);
+    if NC>MaxListSize then
+      Error(SListCapacityError,MaxListSize);
+    SetCapacity(NC);
+    Exit;
+    end;
   NC:=FCapacity;
   If NC>=256 then
     NC:=NC+(NC Div 4)

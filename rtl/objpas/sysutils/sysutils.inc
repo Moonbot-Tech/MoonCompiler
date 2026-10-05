@@ -1329,4 +1329,39 @@ begin
   Result:=FFull;
 end;
 
+function SetGrowCollectionFunc(const Value: TGrowCollectionFunc): TGrowCollectionFunc;
+begin
+  Result:=TGrowCollectionFunc(InterlockedExchange(Pointer(GrowCollectionFunc),Pointer(Value)));
+end;
+
+function GrowCollection(OldCapacity, NewCount: NativeInt): NativeInt;
+var
+  Callback: TGrowCollectionFunc;
+  Extra: NativeInt;
+begin
+  if (OldCapacity<0) or (NewCount<0) then
+    raise EArgumentOutOfRangeException.Create('Collection size must not be negative');
+  if NewCount<=OldCapacity then
+    Exit(OldCapacity);
+  Callback:=GrowCollectionFunc;
+  if Assigned(Callback) then
+    begin
+    Result:=Callback(OldCapacity,NewCount);
+    if Result<NewCount then
+      raise EArgumentOutOfRangeException.Create('Collection growth callback returned insufficient capacity');
+    end
+  else
+    begin
+    Extra:=OldCapacity div 2;
+    if Extra<4 then
+      Extra:=4;
+    if OldCapacity>High(NativeInt)-Extra then
+      Result:=High(NativeInt)
+    else
+      Result:=OldCapacity+Extra;
+    if Result<NewCount then
+      Result:=NewCount;
+    end;
+end;
+
 

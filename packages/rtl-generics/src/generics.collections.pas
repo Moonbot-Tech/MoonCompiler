@@ -1754,6 +1754,10 @@ end;
 
 class function TCustomList<T>.GrowCapacity(ACapacity: SizeInt): SizeInt;
 begin
+  if ACapacity=High(SizeInt) then
+    OutOfMemoryError;
+  if Assigned(GrowCollectionFunc) then
+    Exit(GrowCollection(ACapacity,ACapacity+1));
   if ACapacity > 64 then
     Result := ACapacity + ACapacity div 2
   else if ACapacity > 8 then
@@ -1790,8 +1794,11 @@ begin
   LRequired := FLength + ACount;
 
   Result := Length(FItems);
-  while Result < LRequired do
-    Result := GrowCapacity(Result);
+  if (Result<LRequired) and Assigned(GrowCollectionFunc) then
+    Result:=GrowCollection(Result,LRequired)
+  else
+    while Result < LRequired do
+      Result := GrowCapacity(Result);
   if Result <> Length(FItems) then
     SetLength(FItems, Result);
 

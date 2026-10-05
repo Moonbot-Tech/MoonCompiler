@@ -179,8 +179,17 @@ end;
 function TFPList.Expand: TFPList;
 var
   IncSize : Longint;
+  NewCapacity: NativeInt;
 begin
   if FCount < FCapacity then exit(self);
+  if Assigned(GrowCollectionFunc) then
+    begin
+    NewCapacity:=GrowCollection(FCapacity,NativeInt(FCount)+1);
+    if NewCapacity>MaxListSize then
+      Error(SListCapacityError,MaxListSize);
+    SetCapacity(NewCapacity);
+    Exit(Self);
+    end;
   {
     For really big lists, (128Mb elements), increase with fixed amount: 16Mb elements (=1/8th of 128Mb).
     For big lists (8mb elements), increase with 1/8th of the size

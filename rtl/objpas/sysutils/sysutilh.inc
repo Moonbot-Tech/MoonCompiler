@@ -47,6 +47,14 @@
 function GetTickCount: LongWord; deprecated 'Use GetTickCount64 instead';
 function GetTickCount64: QWord;
 
+type
+  TGrowCollectionFunc = function(OldCapacity, NewCount: NativeInt): NativeInt;
+var
+  GrowCollectionFunc: TGrowCollectionFunc = nil;
+
+function GrowCollection(OldCapacity, NewCount: NativeInt): NativeInt;
+function SetGrowCollectionFunc(const Value: TGrowCollectionFunc): TGrowCollectionFunc;
+
   { Read String Handling functions declaration }
   {$i sysstrh.inc}
 
