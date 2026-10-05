@@ -115,7 +115,7 @@ var
 begin
   R := TURLRequest.Create('https://example.com/x?y=1', 'POST');
   try
-    Check((R.URL = 'https://example.com/x?y=1') and (R.MethodString = 'POST'), 'TURLRequest fields');
+    Check((R.URL.ToString = 'https://example.com/x?y=1') and (R.MethodString = 'POST'), 'TURLRequest fields');
   finally
     R.Free;
   end;
