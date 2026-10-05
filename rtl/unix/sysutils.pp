@@ -1921,24 +1921,108 @@ begin
 end;
 
 
-function GetLocalTimeOffset(const DateTime: TDateTime; const InputIsUTC: Boolean; out Offset: Integer; out IsDST : Boolean): Boolean;
+{$if defined(linux) and defined(cpu64)}
+{$push}
+{$packrecords c}
+type
+  { Linux libc struct tm: nine int fields followed by long and char*. }
+  TZoneCalendar = record
+    Second, Minute, Hour, Day, Month, Year, WeekDay, YearDay, Daylight: LongInt;
+    Offset: NativeInt;
+    Name: PAnsiChar;
+  end;
+  PZoneCalendar = ^TZoneCalendar;
+{$pop}
+function ZoneLocalTime(var Epoch: Int64; var Calendar: TZoneCalendar): PZoneCalendar;
+  cdecl; external 'c' name 'localtime_r';
+function ZoneMakeTime(var Calendar: TZoneCalendar): Int64; cdecl; external 'c' name 'mktime';
 
+function GetLocalTimeZoneInfo(const UTC: TDateTime; out OffsetSeconds: Int64;
+  out IsDST: Boolean; out ZoneName: string): Boolean;
 var
-  Year, Month, Day, Hour, Minute, Second, MilliSecond: word;
-  UnixTime: Int64;
-  lTZInfo: TTZInfo;
+  Year, Month, Day, Hour, Minute, Second, Millisecond: Word;
+  Epoch: Int64;
+  Calendar: TZoneCalendar;
 begin
-  DecodeDate(DateTime, Year, Month, Day);
-  DecodeTime(DateTime, Hour, Minute, Second, MilliSecond);
-  UnixTime:=UniversalToEpoch(Year, Month, Day, Hour, Minute, Second);
+  OffsetSeconds:=0;
+  IsDST:=False;
+  ZoneName:='';
+  DecodeDate(UTC,Year,Month,Day);
+  DecodeTime(UTC,Hour,Minute,Second,Millisecond);
+  Epoch:=UniversalToEpoch(Year,Month,Day,Hour,Minute,Second);
+  Result:=Assigned(ZoneLocalTime(Epoch,Calendar));
+  if Result then
+    begin
+    OffsetSeconds:=Calendar.Offset;
+    IsDST:=Calendar.Daylight>0;
+    if Assigned(Calendar.Name) then
+      ZoneName:=string(Calendar.Name);
+    end;
+end;
+{$endif}
+
+function GetLocalTimeOffset(const DateTime: TDateTime; const InputIsUTC: Boolean; out Offset: Integer; out IsDST: Boolean): Boolean;
+var
+  Year, Month, Day, Hour, Minute, Second, MilliSecond: Word;
+  UnixTime: Int64;
+{$if defined(linux) and defined(cpu64)}
+  Seconds: Int64;
+  Name: string;
+  Original, Calendar: TZoneCalendar;
+  Attempt: Integer;
+{$else}
+  Info: TTZInfo;
+{$endif}
+begin
+  Offset:=0;
+  IsDST:=False;
+  DecodeDate(DateTime,Year,Month,Day);
+  DecodeTime(DateTime,Hour,Minute,Second,MilliSecond);
+{$if defined(linux) and defined(cpu64)}
+  if InputIsUTC then
+    begin
+    Result:=GetLocalTimeZoneInfo(DateTime,Seconds,IsDST,Name);
+    if Result then
+      Offset:=-Seconds div 60;
+    Exit;
+    end;
+  Original:=Default(TZoneCalendar);
+  Original.Year:=Year-1900;
+  Original.Month:=Month-1;
+  Original.Day:=Day;
+  Original.Hour:=Hour;
+  Original.Minute:=Minute;
+  Original.Second:=Second;
+  { mktime normalizes gaps. Accept only a candidate preserving the input. }
+  for Attempt:=0 to 1 do
+    begin
+    Calendar:=Original;
+    Calendar.Daylight:=-Attempt;
+    UnixTime:=ZoneMakeTime(Calendar);
+    if Assigned(ZoneLocalTime(UnixTime,Calendar)) and
+       (Calendar.Year=Original.Year) and (Calendar.Month=Original.Month) and
+       (Calendar.Day=Original.Day) and (Calendar.Hour=Original.Hour) and
+       (Calendar.Minute=Original.Minute) and (Calendar.Second=Original.Second) then
+      begin
+      Offset:=-Calendar.Offset div 60;
+      IsDST:=Calendar.Daylight>0;
+      Exit(True);
+      end;
+    end;
+  Result:=False;
+{$else}
+  UnixTime:=UniversalToEpoch(Year,Month,Day,Hour,Minute,Second);
   {$if declared(GetLocalTimezone)}
-  GetLocalTimeOffset:=GetLocalTimezone(UnixTime,InputIsUTC,lTZInfo);
-  isDST:=lTZInfo.daylight;
-  if GetLocalTimeOffset then
-    Offset:=-lTZInfo.seconds div 60;
+  Result:=GetLocalTimezone(UnixTime,InputIsUTC,Info);
+  if Result then
+    begin
+    IsDST:=Info.daylight;
+    Offset:=-Info.seconds div 60;
+    end;
   {$else}
-  GetLocalTimeOffset:=False;
+  Result:=False;
   {$endif}
+{$endif}
 end;
 
 {$ifdef android}

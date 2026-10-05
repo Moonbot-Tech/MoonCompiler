@@ -1663,8 +1663,23 @@ var
   dst : Boolean;
 begin
   if not GetLocalTimeOffset(DateTime, InputIsUTC, Result,dst) then
-    Result:=GetLocalTimeOffset();
+    raise EConvertError.Create('Cannot resolve the local time zone for this date');
 end;
+
+{$if not defined(windows) and not (defined(linux) and defined(cpu64))}
+function GetLocalTimeZoneInfo(const UTC: TDateTime; out OffsetSeconds: Int64;
+  out IsDST: Boolean; out ZoneName: string): Boolean;
+var
+  Minutes: Integer;
+begin
+  OffsetSeconds:=0;
+  IsDST:=False;
+  ZoneName:='';
+  Result:=GetLocalTimeOffset(UTC,True,Minutes,IsDST);
+  if Result then
+    OffsetSeconds:=-Int64(Minutes)*60;
+end;
+{$endif}
 
 { Conversion of UTC to local time and vice versa }
 

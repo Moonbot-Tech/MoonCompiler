@@ -636,8 +636,8 @@ function GetUserObjectInformation(hObj: THandle; nIndex: Integer; pvInfo: Pointe
 function GetUserObjectInformationA(hObj: THandle; nIndex: Integer; pvInfo: Pointer; nLength: DWORD; var lpnLengthNeeded: DWORD): BOOL; external 'user32' name 'GetUserObjectInformationA';
 function GetUserObjectInformationW(hObj: THandle; nIndex: Integer; pvInfo: Pointer; nLength: DWORD; var lpnLengthNeeded: DWORD): BOOL; external 'user32' name 'GetUserObjectInformationW';
 function GetUserObjectSecurity(hObj: THandle; var pSIRequested: DWORD; pSID: PSecurityDescriptor; nLength: DWORD; var lpnLengthNeeded: DWORD): BOOL; external 'user32' name 'GetUserObjectSecurity';
-function GetVersionEx(var lpVersionInformation: TOSVersionInfo): BOOL;external 'kernel32' name 'GetVersionExA';
-function GetVersionExA(var lpVersionInformation: TOSVersionInfo): BOOL; external 'kernel32' name 'GetVersionExA';
+function GetVersionEx(var lpVersionInformation: TOSVersionInfo): BOOL;external 'kernel32' name {$ifdef UNICODE}'GetVersionExW'{$else}'GetVersionExA'{$endif};
+function GetVersionExA(var lpVersionInformation: TOSVersionInfoA): BOOL; external 'kernel32' name 'GetVersionExA';
 function GetVersionExW(var lpVersionInformation: TOSVersionInfoW): BOOL; external 'kernel32' name 'GetVersionExW';
 function GetViewportExtEx(DC: HDC; var Size: TSize): BOOL; external 'gdi32' name 'GetViewportExtEx';
 function GetViewportOrgEx(DC: HDC; var Point: TPoint): BOOL; external 'gdi32' name 'GetViewportOrgEx';

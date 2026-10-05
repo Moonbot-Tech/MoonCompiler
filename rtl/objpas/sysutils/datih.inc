@@ -208,6 +208,9 @@ procedure ReplaceTime(var dati:TDateTime; NewTime : TDateTime); inline;
 procedure ReplaceDate(var DateTime: TDateTime; const NewDate: TDateTime); inline;
 
 function GetLocalTimeOffset: Integer;
+{ The offset east of UTC, in seconds, at an unambiguous UTC instant. }
+function GetLocalTimeZoneInfo(const UTC: TDateTime; out OffsetSeconds: Int64;
+  out IsDST: Boolean; out ZoneName: string): Boolean;
 function GetLocalTimeOffset(const DateTime: TDateTime; const InputIsUTC: Boolean; out Offset: Integer): Boolean;
 function GetLocalTimeOffset(const DateTime: TDateTime; const InputIsUTC: Boolean; out Offset: Integer; out IsDST : Boolean): Boolean;
 function GetLocalTimeOffset(const DateTime: TDateTime; const InputIsUTC: Boolean = False): Integer;

@@ -1013,85 +1013,7 @@ begin
 end;
 
 
-type
-  TGetTimeZoneInformationForYear = function(wYear: USHORT; lpDynamicTimeZoneInformation: PDynamicTimeZoneInformation;
-    var lpTimeZoneInformation: TTimeZoneInformation): BOOL;stdcall;
-var
-  GetTimeZoneInformationForYear:TGetTimeZoneInformationForYear=nil;
-
-function GetLocalTimeOffset(const DateTime: TDateTime; const InputIsUTC: Boolean; out Offset: Integer; Out IsDST : boolean): Boolean;
-var
-  Year: Integer;
-const
-  DaysPerWeek = 7;
-
-  // MonthOf and YearOf are not available in SysUtils
-  function MonthOf(const AValue: TDateTime): Word;
-  var
-    Y,D : Word;
-  begin
-    DecodeDate(AValue,Y,Result,D);
-  end;
-  function YearOf(const AValue: TDateTime): Word;
-  var
-    D,M : Word;
-  begin
-    DecodeDate(AValue,Result,D,M);
-  end;
-
-  function RelWeekDayToDateTime(const SysTime: TSystemTime): TDateTime;
-  var
-    WeekDay, IncDays: Integer;
-  begin
-    // get first day in month
-    Result := EncodeDate(Year, SysTime.Month, 1);
-    WeekDay := DayOfWeek(Result)-1;
-    // get the correct first weekday in month
-    IncDays := SysTime.wDayOfWeek-WeekDay;
-    if IncDays<0 then
-      Inc(IncDays, DaysPerWeek);
-    // inc weeks
-    Result := Result+IncDays+DaysPerWeek*(SysTime.Day-1);
-    // SysTime.DayOfWeek=5 means the last one - check if we are not in the next month
-    while (MonthOf(Result)>SysTime.Month) do
-      Result := Result-DaysPerWeek;
-    Result := Result+EncodeTime(SysTime.Hour, SysTime.Minute, SysTime.Second, SysTime.Millisecond);
-  end;
-
-var
-  TZInfo: TTimeZoneInformation;
-  DSTStart, DSTEnd: TDateTime;
-
-begin
-  if not Assigned(GetTimeZoneInformationForYear) then
-    Exit(False);
-  Year := YearOf(DateTime);
-  TZInfo := Default(TTimeZoneInformation);
-  if not GetTimeZoneInformationForYear(Year, nil, TZInfo) then
-    Exit(False);
-
-  if (TZInfo.StandardDate.Month>0) and (TZInfo.DaylightDate.Month>0) then
-  begin // there is DST
-    // DaylightDate and StandardDate are local times
-    DSTStart := RelWeekDayToDateTime(TZInfo.DaylightDate);
-    DSTEnd := RelWeekDayToDateTime(TZInfo.StandardDate);
-    if InputIsUTC then
-    begin
-      DSTStart := DSTStart + (TZInfo.Bias+TZInfo.StandardBias)/MinsPerDay;
-      DSTEnd := DSTEnd + (TZInfo.Bias+TZInfo.DaylightBias)/MinsPerDay;
-    end;
-    IsDST:=(DSTStart<=DateTime) and (DateTime<DSTEnd);
-    if isDst then
-      Offset := TZInfo.Bias+TZInfo.DaylightBias
-    else
-      Offset := TZInfo.Bias+TZInfo.StandardBias;
-  end else // no DST
-    begin
-    Offset := TZInfo.Bias;
-    IsDST := False;
-    end;
-  Result := True;
-end;
+{$i timezone.inc}
 
 
 function GetTickCount: LongWord;
@@ -1113,11 +1035,6 @@ begin
 {$IFNDEF WINCE}
   if Assigned(WinGetTickCount64) then
     Exit(WinGetTickCount64());
-  { on Vista and newer there is a GetTickCount64 implementation }
-  if Win32MajorVersion >= 6 then begin
-    WinGetTickCount64 := TGetTickCount64(GetProcAddress(GetModuleHandle('kernel32.dll'), 'GetTickCount64'));
-    Result := WinGetTickCount64();
-  end else
 {$ENDIF}
     Result := {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Windows.GetTickCount;
 end;
@@ -1708,24 +1625,33 @@ Var
    versioninfo : TOSVERSIONINFO;
 begin
   GetDiskFreeSpaceEx:=nil;
+  versioninfo:=Default(TOSVERSIONINFO);
   versioninfo.dwOSVersionInfoSize:=sizeof(versioninfo);
-  GetVersionEx(versioninfo);
-  Win32Platform:=versionInfo.dwPlatformId;
-  Win32MajorVersion:=versionInfo.dwMajorVersion;
-  Win32MinorVersion:=versionInfo.dwMinorVersion;
-  Win32BuildNumber:=versionInfo.dwBuildNumber;
-  Move (versioninfo.szCSDVersion ,Win32CSDVersion[1],128);
-  win32CSDVersion[0]:=chr(strlen(PAnsiChar(@versioninfo.szCSDVersion)));
+  if GetVersionEx(versioninfo) then
+    begin
+    Win32Platform:=versionInfo.dwPlatformId;
+    Win32MajorVersion:=versionInfo.dwMajorVersion;
+    Win32MinorVersion:=versionInfo.dwMinorVersion;
+    Win32BuildNumber:=versionInfo.dwBuildNumber;
+    Win32CSDVersion:=ShortString({$ifdef UNICODE}UnicodeString(PWideChar{$else}AnsiString(PAnsiChar{$endif}(@versioninfo.szCSDVersion)));
+    end;
   kernel32dll:=GetModuleHandle('kernel32');
   if kernel32dll<>0 then
     GetDiskFreeSpaceEx:=TGetDiskFreeSpaceEx(GetProcAddress(kernel32dll,'GetDiskFreeSpaceExA'));
   if Win32MajorVersion<6 then
      FindExInfoDefaults := FindExInfoStandard; // also searches SFNs. XP only.
-  if (Win32MajorVersion>=6) and (Win32MinorVersion>=1) then
+  if (Win32MajorVersion>6) or ((Win32MajorVersion=6) and (Win32MinorVersion>=1)) then
     FindFirstAdditionalFlags := FIND_FIRST_EX_LARGE_FETCH; // win7 and 2008R2+
   // GetTimeZoneInformationForYear is supported only on Vista and newer
-  if (kernel32dll<>0) and (Win32MajorVersion>=6) then
+  if kernel32dll<>0 then
+    begin
     GetTimeZoneInformationForYear:=TGetTimeZoneInformationForYear(GetProcAddress(kernel32dll,'GetTimeZoneInformationForYear'));
+    GetDynamicTimeZoneInformation:=TGetDynamicTimeZoneInformation(GetProcAddress(kernel32dll,'GetDynamicTimeZoneInformation'));
+    ConvertDynamicLocalTime:=TConvertDynamicLocalTime(GetProcAddress(kernel32dll,'SystemTimeToTzSpecificLocalTimeEx'));
+{$ifndef WINCE}
+    WinGetTickCount64:=TGetTickCount64(GetProcAddress(kernel32dll,'GetTickCount64'));
+{$endif}
+    end;
   if (kernel32dll<>0) then
 {$IFDEF UNICODERTL}
     GetFinalPathNameByHandle:=TGetFinalPathNameByHandle(GetProcAddress(kernel32dll,'GetFinalPathNameByHandleW'));

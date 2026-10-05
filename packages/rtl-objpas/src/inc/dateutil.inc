@@ -609,6 +609,7 @@ type
     function GetCurrentUtcOffset: TTimeSpan;
   protected
     function DoGetID: string; virtual; abstract;
+    function DoGetUtcOffset(const UTC: TDateTime): Int64; virtual;
     function DoGetDisplayName(const aDateTime: TDateTime; const aForceDaylight: Boolean): string; virtual; abstract;
     procedure DoGetOffsetsAndType(const aDateTime: TDateTime; out aOffset, aDstSave: Int64; out aType: TLocalTimeType); virtual; abstract;
   public
@@ -2459,7 +2460,7 @@ Var
 begin
   T:=aValue;
   if Not aInputisUTC then
-    T:=IncMinute(T,GetLocalTimeOffset(AValue, AInputisUTC));
+    T:=TTimeZone.Local.ToUniversalTime(AValue);
   {$if defined(CPUX86_64) and defined(ENDIAN_LITTLE)}
   { Nonnegative finite binary64 values have the same unsigned bit order. }
   if PQWord(@T)^<=PQWord(@MaxDateTime)^ then
@@ -2478,7 +2479,7 @@ Function UnixToDateTime(const AValue: Int64; aReturnUTC : Boolean = true): TDate
 begin
   Result:=IncSecond(UnixEpoch, AValue);
   if Not aReturnUTC then
-    Result:=IncMinute(Result,-GetLocalTimeOffset(Result, True));
+    Result:=TTimeZone.Local.ToLocalTime(Result);
 end;
 
 
@@ -2902,7 +2903,7 @@ end;
 function UniversalTimeToLocal(UT: TDateTime): TDateTime;
 
 begin
-  Result:={$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.UniversalTimeToLocal(UT,-GetLocalTimeOffset(UT, True));
+  Result:=TTimeZone.Local.ToLocalTime(UT);
 end;
 
 function UniversalTimeToLocal(UT: TDateTime; TZOffset : Integer): TDateTime;
@@ -2914,7 +2915,7 @@ end;
 Function LocalTimeToUniversal(LT: TDateTime): TDateTime;
 
 begin
-  Result:={$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.LocalTimeToUniversal(LT,-GetLocalTimeOffset(LT, False));
+  Result:=TTimeZone.Local.ToUniversalTime(LT);
 end;
 
 Function LocalTimeToUniversal(LT: TDateTime;TZOffset: Integer): TDateTime;
@@ -2937,7 +2938,9 @@ var
   Offset: Integer;
 begin
   Result := FormatDateTime(FmtUTC, ADate);
-  Offset := GetLocalTimeOffset(ADate, AInputIsUTC);
+  Offset:=0;
+  if not AInputIsUTC then
+    Offset:=-TTimeZone.Local.GetUtcOffsetInSeconds(ADate,False) div SecsPerMin;
   if AInputIsUTC or (Offset=0) then
     Result:=Result+'Z'
   else
@@ -3662,23 +3665,33 @@ type
     procedure DoGetOffsetsAndType(const aDateTime: TDateTime; out aOffset, aDstSave: Int64; out aType: TLocalTimeType); override;
     function DoGetDisplayName(const aDateTime: TDateTime; const aForceDaylight: Boolean): string; override;
     function DoGetID(): string; override;
+    function DoGetUtcOffset(const UTC: TDateTime): Int64; override;
   end;
 
 { TTimeZone }
 
-function TTimeZone.ToLocalTime(const aDateTime: TDateTime): TDateTime;
-
+function TTimeZone.DoGetUtcOffset(const UTC: TDateTime): Int64;
 var
-  ltt: TLocalTimeType;
-  lOffset,lDst: Int64;
-
+  Base, Save, CandidateBase, CandidateSave: Int64;
+  Kind: TLocalTimeType;
+  LocalValue: TDateTime;
 begin
-  { UTC -> Local }
-  DoGetOffsetsAndType(aDateTime,lOffset,lDst,ltt);
-  Result:=IncSecond(aDateTime,lOffset);
-  DoGetOffsetsAndType(Result,lOffset,lDst,ltt);
-  if (ltt in [lttInvalid,lttDaylight]) then
-    Result:=IncSecond(Result,lDst);
+  { Derived zones retain control through the original local-time hook. }
+  DoGetOffsetsAndType(UTC,Base,Save,Kind);
+  LocalValue:=IncSecond(UTC,Base);
+  DoGetOffsetsAndType(LocalValue,CandidateBase,CandidateSave,Kind);
+  if (Kind in [lttStandard,lttAmbiguous]) and (CandidateBase=Base) then
+    Exit(Base);
+  LocalValue:=IncSecond(UTC,Base+Save);
+  DoGetOffsetsAndType(LocalValue,CandidateBase,CandidateSave,Kind);
+  if (Kind in [lttDaylight,lttAmbiguous]) and (CandidateBase+CandidateSave=Base+Save) then
+    Exit(Base+Save);
+  raise EDateTimeException.Create('Time zone did not resolve the UTC instant');
+end;
+
+function TTimeZone.ToLocalTime(const aDateTime: TDateTime): TDateTime;
+begin
+  Result:=IncSecond(aDateTime,DoGetUtcOffset(aDateTime));
 end;
 
 function TTimeZone.ToUniversalTime(const aDateTime: TDateTime; const aForceDaylight: Boolean): TDateTime;
@@ -3804,14 +3817,22 @@ begin
 end;
 
 function TTimeZone.HasDST(const aYear: TDateTime): Boolean;
-
 var
-  ltt: TLocalTimeType;
-  lOffset,lDst: Int64;
-
+  Kind: TLocalTimeType;
+  Offset, Save: Int64;
+  FirstDay, Probe: TDateTime;
+  DayIndex, Count: Integer;
 begin
-  DoGetOffsetsAndType(aYear,lOffset,lDst,ltt);
-  Result:=lDst<>0;
+  FirstDay:=EncodeDate(YearOf(aYear),1,1);
+  Count:=DaysInAYear(YearOf(aYear));
+  for DayIndex:=0 to Count-1 do
+    begin
+    Probe:=IncDay(FirstDay,DayIndex);
+    DoGetOffsetsAndType(Probe,Offset,Save,Kind);
+    if (Save<>0) or (Kind=lttDaylight) then
+      Exit(True);
+    end;
+  Result:=False;
 end;
 
 function TTimeZone.HasDST: Boolean;
@@ -3865,25 +3886,120 @@ begin
 end;
 
 
-function TLocalTimeZone.DoGetDisplayName(const aDateTime: TDateTime; const aForceDaylight: Boolean): string;
-
+function TLocalTimeZone.DoGetUtcOffset(const UTC: TDateTime): Int64;
+var
+  Daylight: Boolean;
+  Name: string;
 begin
-  Result:=ID;// For the moment, it is not clear what this should do.
+  if not GetLocalTimeZoneInfo(UTC,Result,Daylight,Name) then
+    raise EDateTimeException.Create('Cannot read local time zone rules');
+end;
+
+function TLocalTimeZone.DoGetDisplayName(const aDateTime: TDateTime; const aForceDaylight: Boolean): string;
+var
+  Seconds: Int64;
+  Daylight: Boolean;
+begin
+  if not GetLocalTimeZoneInfo(ToUniversalTime(aDateTime,aForceDaylight),Seconds,Daylight,Result) then
+    raise EDateTimeException.Create('Cannot read local time zone name');
+  if Result='' then
+    Result:=ID;
 end;
 
 procedure TLocalTimeZone.DoGetOffsetsAndType(const aDateTime: TDateTime;
   out aOffset, aDstSave: Int64; out aType: TLocalTimeType);
+type
+  TOffset = record
+    Seconds: Int64;
+    Daylight: Boolean;
+  end;
 var
-  lOffset : Integer;
-  lDst : Boolean;
+  Offsets: array[0..14] of TOffset;
+  Matches: array[0..14] of TOffset;
+  Count, MatchCount, I, Month, Standard: Integer;
+  Year: Word;
+  Actual: Int64;
+  Daylight: Boolean;
+  Name: string;
+
+  procedure Collect(const UTC: TDateTime);
+  var
+    Seconds: Int64;
+    DST: Boolean;
+    ZoneName: string;
+    J: Integer;
+  begin
+    if not GetLocalTimeZoneInfo(UTC,Seconds,DST,ZoneName) then
+      raise EDateTimeException.Create('Cannot read local time zone rules');
+    for J:=0 to Count-1 do
+      if (Offsets[J].Seconds=Seconds) and (Offsets[J].Daylight=DST) then
+        Exit;
+    Offsets[Count].Seconds:=Seconds;
+    Offsets[Count].Daylight:=DST;
+    Inc(Count);
+  end;
+
 begin
-  GetLocalTimeOffset(aDateTime,False,lOffset,lDst);
-  aOffSet:=-lOffset* 60;
-  aDSTSave:=0;
-  if lDST then
-    aType:=lttDaylight
-  else
-    aType:=lttStandard;
+  Count:=0;
+  MatchCount:=0;
+  Year:=YearOf(aDateTime);
+  { Neighbouring instants cover a transition; the year provides the matching
+    standard offset even when DST lasts through the southern summer. }
+  Collect(IncDay(aDateTime,-2));
+  Collect(aDateTime);
+  Collect(IncDay(aDateTime,2));
+  for Month:=1 to 12 do
+    Collect(EncodeDate(Year,Month,15));
+  Standard:=-1;
+  for I:=0 to Count-1 do
+    begin
+    if not Offsets[I].Daylight and (Standard<0) then
+      Standard:=I;
+    if not GetLocalTimeZoneInfo(IncSecond(aDateTime,-Offsets[I].Seconds),Actual,Daylight,Name) then
+      raise EDateTimeException.Create('Cannot read local time zone rules');
+    if (Actual=Offsets[I].Seconds) and (Daylight=Offsets[I].Daylight) then
+      begin
+      Matches[MatchCount]:=Offsets[I];
+      Inc(MatchCount);
+      end;
+    end;
+  aOffset:=0;
+  aDstSave:=0;
+  if Standard>=0 then
+    aOffset:=Offsets[Standard].Seconds;
+  if MatchCount=0 then
+    begin
+    aType:=lttInvalid;
+    Exit;
+    end;
+  if MatchCount=1 then
+    begin
+    if Matches[0].Daylight then
+      begin
+      aType:=lttDaylight;
+      if Standard<0 then
+        aOffset:=Matches[0].Seconds;
+      aDstSave:=Matches[0].Seconds-aOffset;
+      end
+    else
+      begin
+      aType:=lttStandard;
+      aOffset:=Matches[0].Seconds;
+      end;
+    Exit;
+    end;
+  aType:=lttAmbiguous;
+  { Normally one candidate is standard and one daylight. For a political
+    backward shift with no DST, prefer the later UTC occurrence by default. }
+  Standard:=0;
+  for I:=1 to MatchCount-1 do
+    if (not Matches[I].Daylight and Matches[Standard].Daylight) or
+       ((Matches[I].Daylight=Matches[Standard].Daylight) and (Matches[I].Seconds<Matches[Standard].Seconds)) then
+      Standard:=I;
+  aOffset:=Matches[Standard].Seconds;
+  for I:=0 to MatchCount-1 do
+    if I<>Standard then
+      aDstSave:=Matches[I].Seconds-aOffset;
 end;
 
 {$endif fpunone}
