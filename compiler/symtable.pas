@@ -3995,6 +3995,20 @@ implementation
             else if not((srsymtable.symtabletype=withsymtable) and assigned(srsymtable.defowner) and
               (srsymtable.defowner.typ=undefineddef)) then
               begin
+                { A bare name in a record method has the same helper scope as
+                  Self.Name. Locals and parameters have already been searched. }
+                if not(ssf_unit_or_namespace_only in flags) and
+                   not(ssf_search_option in flags) and
+                   (srsymtable.symtabletype in [recordsymtable,withsymtable]) and
+                   assigned(srsymtable.defowner) and
+                   (srsymtable.defowner.typ=recorddef) and
+                   search_objectpascal_helper(tdef(srsymtable.defowner),
+                     tabstractrecorddef(srsymtable.defowner),s,srsym,compose_st) then
+                  begin
+                    srsymtable:=compose_st;
+                    result:=true;
+                    exit;
+                  end;
                 srsym:=tsym(srsymtable.FindWithHash(hashedid));
                 { First check if it is a unit/namespace symbol.
                   They are visible only if they are from the current unit or
