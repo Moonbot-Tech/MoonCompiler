@@ -155,10 +155,23 @@ child's rusage), is within 5% of the window. A watch reads the idle of every CPU
 every 10 ms, and the window never starts inside one of the runner's own
 processes. After its own last process the core rests 50 ms, idle, before the
 next (`--core-rest-ms`). A process is rejected, and its pair repeated within the
-pair's three attempts, when either condition failed or its SMT sibling was under
-99% idle during its life; a core that stays busy is waited for at most 2 s plus
-the rest plus 1 s, then the process starts and is rejected. `MEASUREMENTS.md`
-counts the rejections. From 25.09 to 29.09 the runner slept 2 s before every
+pair's three attempts, when the core admission or SMT sibling check fails. A
+core that stays busy is waited for at most 2 s plus the rest plus 1 s, then the
+process starts and is rejected. `MEASUREMENTS.md` counts the rejections.
+
+On Windows, single-core categories target 60 ms of total timed work across
+three samples. This gives a calibration margin above the existing 50 ms minimum
+for observing sibling idle during useful work. When that window is observable
+and its counters are present, the sibling must be at least 99% idle across the
+timed samples. Process creation, exit and later runner bookkeeping are outside
+that work window. A shorter window or missing sample counters retains the
+whole-process sibling check; it does not receive an automatic pass. Linux keeps
+its existing durations and whole-process sibling check; the multithread policy
+is unchanged. The equal-work calibration,
+semantic checks, twelve process pairs and independent confirmation still
+apply.
+
+From 25.09 to 29.09 the runner slept 2 s before every
 process instead: it saw the same foreign work, and a full pass took 2.3 hours on
 HEL1 and 15-16 hours on a machine without a calibration section. The
 runner keeps itself off the measurement cores and their siblings and creates the

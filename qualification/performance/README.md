@@ -169,6 +169,11 @@ Each raw process log and result record retains the full program and case name.
 The per-attempt directory uses a stable program/case digest plus repeat and
 attempt numbers, avoiding a duplicate long case name in nested release output
 paths without merging distinct cases or retries.
+On Windows, single-core cases target 60 ms of timed work per process (three
+samples), giving the sibling idle counter a margin above its 50 ms
+observability threshold. An observable timed window must keep the sibling at
+least 99% idle; shorter or unavailable windows retain the conservative
+whole-process idle check. Linux and multithread work targets are unchanged.
 
 ## Why a row goes red with the same code
 

@@ -1603,11 +1603,18 @@ def record_metrics(
     core_idle_valid = idle_enough(runner.get("core_idle"), MEASUREMENT_CORE_IDLE_RATIO) and idle_enough(
         runner.get("core_rest"), MEASUREMENT_CORE_IDLE_RATIO)
     lifetime_sibling_valid = idle_enough(runner.get("sibling_idle"), MINIMUM_SIBLING_IDLE_RATIO)
+    # Windows can observe a sufficiently long timed window directly.  Its
+    # process envelope remains the fallback for short or absent counters;
+    # Linux retains its existing whole-process guard.
+    sibling_guard_valid = (
+        sibling_idle_valid if os.name == "nt" and sibling_counter_present and sibling_idle_observable
+        else lifetime_sibling_valid
+    )
     valid = (
         len(accepted) >= minimum_accepted
         and (work_only or wall_valid)
         and core_idle_valid
-        and lifetime_sibling_valid
+        and sibling_guard_valid
     )
     return {
         "work_cycles_per_op": median("work_cycles_per_op"),
@@ -1636,6 +1643,7 @@ def record_metrics(
         "sibling_idle_observable": sibling_idle_observable,
         "core_idle_valid": core_idle_valid,
         "lifetime_sibling_valid": lifetime_sibling_valid,
+        "sibling_guard_valid": sibling_guard_valid,
         "measurement_seconds": sum(int(sample["wall_ns"]) for sample in record["samples"]) / 1e9,
         "accepted_samples": len(accepted),
         "sample_count": len(samples),
@@ -1650,7 +1658,7 @@ def rejection_reason(metrics: dict[str, object]) -> str:
     reasons = []
     if not metrics.get("core_idle_valid", True):
         reasons.append("core-not-clean-before")
-    if not metrics.get("lifetime_sibling_valid", True):
+    if not metrics.get("sibling_guard_valid", metrics.get("lifetime_sibling_valid", True)):
         reasons.append("sibling-busy")
     if metrics.get("accepted_samples", 0) < max(2, math.ceil(metrics.get("sample_count", 0) * 0.60)):
         reasons.append("samples")

@@ -584,6 +584,54 @@ class PulseFullTests(unittest.TestCase):
         row = (directory / "SWEEP_PROCESSES.tsv").read_text(encoding="utf-8").splitlines()[1].split("\t")
         self.assertEqual(row[-3], "not observed")
 
+    def test_sibling_guard_uses_observed_work_and_keeps_short_fallback(self) -> None:
+        sample = dict.fromkeys((
+            "operations", "tsc_ticks", "core_cycles", "process_cycles", "thread_cycles", "core_enabled",
+            "core_running", "memory_before_private", "memory_after_private", "memory_cooldown_private",
+            "memory_peak_resident", "iterations", "sibling_idle_cycles",
+        ), 100)
+        sample.update(wall_ns=20_000_000, thread_cpu_ns=20_000_000, process_cpu_ns=20_000_000,
+                      context_switches=0, sibling_cpu=1)
+
+        def judged(wall_ns: int, sibling_idle: int, lifetime: list[float]) -> dict[str, object]:
+            measured = {**sample, "wall_ns": wall_ns, "sibling_idle_cycles": sibling_idle}
+            return FULL.method.record_metrics({
+                "duration_ms": 60, "samples": [measured] * 3, "fixed_work": True,
+                "runner": {"core_idle": [100, 100], "core_rest": [100, 100], "sibling_idle": lifetime},
+            }, False, work_only=True)
+
+        with mock.patch.object(FULL.method.os, "name", "nt"):
+            observed_clean = judged(20_000_000, 100, [97, 100])
+            self.assertTrue(observed_clean["sibling_idle_observable"])
+            self.assertFalse(observed_clean["lifetime_sibling_valid"])
+            self.assertTrue(observed_clean["sibling_guard_valid"])
+            self.assertTrue(observed_clean["valid"])
+
+            observed_busy = judged(20_000_000, 95, [100, 100])
+            self.assertFalse(observed_busy["sibling_idle_valid"])
+            self.assertFalse(observed_busy["sibling_guard_valid"])
+            self.assertFalse(observed_busy["valid"])
+
+            short = judged(2_000_000, 100, [97, 100])
+            self.assertFalse(short["sibling_idle_observable"])
+            self.assertFalse(short["sibling_guard_valid"])
+            self.assertFalse(short["valid"])
+
+            missing = {**sample, "sibling_cpu": -1}
+            no_counter = FULL.method.record_metrics({
+                "duration_ms": 60, "samples": [missing] * 3, "fixed_work": True,
+                "runner": {"sibling_idle": [97, 100]},
+            }, False, work_only=True)
+            self.assertFalse(no_counter["sibling_guard_valid"])
+            self.assertFalse(no_counter["valid"])
+
+        with mock.patch.object(FULL.method.os, "name", "posix"), \
+                mock.patch.object(FULL.method.os, "sysconf", return_value=100, create=True):
+            linux = judged(20_000_000, 100, [97, 100])
+            self.assertTrue(linux["sibling_idle_observable"])
+            self.assertFalse(linux["sibling_guard_valid"])
+            self.assertFalse(linux["valid"])
+
     @unittest.skipIf(os.name == "nt", "Linux counts the sibling's idle in clock ticks")
     def test_an_idle_sibling_is_not_short_by_the_ticks_of_its_samples(self) -> None:
         def record(ticks: list[int], wall_ns: int = 19_430_000) -> dict[str, object]:

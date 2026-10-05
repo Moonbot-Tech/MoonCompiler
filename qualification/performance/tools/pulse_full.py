@@ -60,12 +60,13 @@ class Policy:
     exclusive: bool
 
 
+WINDOWS_OBSERVABLE_WORK_MS = 60 if os.name == "nt" else 0  # 50 ms counter window plus calibration margin.
 POLICIES = {
-    "single-cpu": Policy(6, 3, 2, False),
-    "memory-local": Policy(6, 3, 2, False),
-    "memory-global": Policy(15, 3, 5, True),
-    "memory-manager": Policy(9, 3, 3, False),
-    "fragmentation": Policy(15, 3, 5, True),
+    "single-cpu": Policy(max(6, WINDOWS_OBSERVABLE_WORK_MS), 3, 2, False),
+    "memory-local": Policy(max(6, WINDOWS_OBSERVABLE_WORK_MS), 3, 2, False),
+    "memory-global": Policy(max(15, WINDOWS_OBSERVABLE_WORK_MS), 3, 5, True),
+    "memory-manager": Policy(max(9, WINDOWS_OBSERVABLE_WORK_MS), 3, 3, False),
+    "fragmentation": Policy(max(15, WINDOWS_OBSERVABLE_WORK_MS), 3, 5, True),
     "multithread": Policy(20, 2, 10, True),
 }
 
@@ -1397,7 +1398,8 @@ def runner_rejections(result: dict[str, Any]) -> dict[str, int] | None:
             return
         seen.add(process["log"])
         derived = process["derived"]
-        core, sibling = derived["core_idle_valid"], derived["lifetime_sibling_valid"]
+        core = derived["core_idle_valid"]
+        sibling = derived.get("sibling_guard_valid", derived["lifetime_sibling_valid"])
         counts["processes"] += 1
         counts["rejected"] += not (core and sibling)
         counts["core_not_idle"] += not core
