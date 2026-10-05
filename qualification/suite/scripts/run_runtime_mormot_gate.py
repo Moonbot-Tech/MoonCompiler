@@ -18,6 +18,8 @@ import re
 from pathlib import Path
 import shutil
 import socket
+import socketserver
+import select
 import ssl
 import subprocess
 import sys
@@ -29,7 +31,7 @@ import zlib
 from email import policy
 from email.parser import BytesParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlsplit
 
 
 def main():
@@ -66,7 +68,7 @@ def main():
                                  f'exit {p.returncode}, expected {expected}; {logfile}\n{text[-2500:]}')
         return text
 
-    def compile_source(source, dest, opt):
+    def compile_source(source, dest, opt, extra_options=(), reuse=None):
         dest.mkdir(parents=True)
         mormot = (args.mormot or root / '.qualification/deps/moonormot').resolve()
         if not (mormot / 'core/mormot.core.base.pas').is_file():
@@ -77,7 +79,8 @@ def main():
         packages = sorted(p for p in rtl.parent.iterdir() if p.is_dir() and p != rtl)
         # runtime/mormot first: the units under test come from source, ahead
         # of any installed unit of the same name
-        command = [compiler, '-n', '-B', f'-Fu{root / "runtime/mormot"}',
+        command = [compiler, '-n', *(['-B'] if reuse is None else [f'-Fu{reuse}']),
+                   f'-Fu{root / "runtime/mormot"}',
                    f'-Fu{rtl}', *[f'-Fu{p}' for p in packages],
                    *[f'-Fu{mormot / name}' for name in ('core', 'net', 'lib', 'crypt')],
                    f'-Fo{mormot}', f'-Fi{mormot}',
@@ -87,7 +90,7 @@ def main():
                    *link_options,
                    *(['-dMOONBOT_MM_PROFILE_REQUIRED', '-dFPCMM_BOOSTER', '-dFPCMM_MOONSHARD', '-dNOPATCHRTL',
                       f'--pinned-unit=mormot.core.fpcx64mm={root / "runtime/mm/mormot.core.fpcx64mm.pas"}']
-                     if args.product_mm else ['-dMOONCOMPILER_VANILLA_RUNTIME']), *args.option,
+                     if args.product_mm else ['-dMOONCOMPILER_VANILLA_RUNTIME']), *args.option, *extra_options,
                    root / 'qualification/suite/tests/smoke' / source]
         log = run(command, out, dest / 'compile.log', timeout=600)
         if args.product_mm and re.search(r'Warning:.*"OldMM".*initialized', log):
@@ -171,8 +174,19 @@ def main():
             with lock:
                 requests.append(record)
             path = self.path
+            if path.startswith('http://'):
+                # An HTTP proxy fixture: the target name deliberately has no
+                # DNS record. Returning the origin representation proves that
+                # the client connected to this proxy and used absolute form.
+                path = urlsplit(path).path
             if path == '/processed-noresponse':
                 self.close_connection = True
+            elif path == '/auth21':
+                if self.headers.get('Authorization') == 'Basic dXNlcjIxOnBhc3MyMQ==':
+                    self.reply(200, b'authenticated', [('Content-Type', 'text/plain')])
+                else:
+                    self.reply(401, b'challenge', [('WWW-Authenticate',
+                        'Digest realm="noise, Basic realm=wrong", nonce="x", Basic realm="realm21", charset="UTF-8"')])
             elif path.startswith('/compressed-boundary/'):
                 _, _, kind, size = path.split('/')
                 payload = b'x' * int(size)
@@ -226,6 +240,20 @@ def main():
             elif path.startswith('/redirect/'):
                 code = int(path.split('/')[2])
                 self.reply(code, b'moved', [('Location', '/echo'), ('Content-Type', 'text/plain')])
+            elif path.startswith('/brotli21'):
+                # Fixed output of the official Brotli encoder. No Python codec
+                # dependency in qualification. Plain text spans two decode buffers.
+                payload = bytes.fromhex('5b903282df9160c74e6cc3825139b550199a9c06d161a3936c696f65cb6d75001bf28bd7a8084866')
+                if path.endswith('/cut'):
+                    payload = payload[:20]
+                elif path.endswith('/invalid'):
+                    payload = b'\xff\xff\xff\xff'
+                elif path.endswith('/trailing'):
+                    payload += b'extra'
+                elif path.endswith('/empty'):
+                    payload = b'\x3b'
+                self.reply(200, payload, [('Content-Encoding', 'br'), ('Content-Type', 'text/plain; charset=utf-8'),
+                                         ('X-Accept-Encoding', self.headers.get('Accept-Encoding', ''))])
             elif path == '/gzip':
                 self.reply(200, gzip.compress(text), [('Content-Encoding', 'gzip'), ('Content-Type', 'text/plain'),
                                                        ('X-Accept-Encoding', self.headers.get('Accept-Encoding', ''))])
@@ -246,6 +274,9 @@ def main():
                 self.reply(200, 'Привет'.encode('utf-8'), [('Content-Type', 'text/plain; charset="UTF-8"')])
             elif path == '/bom':
                 self.reply(200, '﻿abc'.encode('utf-8'), [('Content-Type', 'text/plain')])
+            elif path == '/meta21':
+                self.reply(200, b'meta', [('Content-Type', 'text/plain; charset=utf-8'),
+                    ('Content-Language', 'en'), ('Last-Modified', 'Sun, 04 Oct 2026 12:00:00 GMT')])
             elif path == '/cookies/set':
                 self.reply(200, b'ok', [
                     ('Set-Cookie', 'sid=abc; Path=/; HttpOnly'),
@@ -336,7 +367,7 @@ def main():
                 except OSError:
                     pass
                 self.close_connection = True
-            elif path == '/upload':
+            elif path in ('/upload', '/upload21'):
                 message = BytesParser(policy=policy.default).parsebytes(
                     b'Content-Type: ' + self.headers['Content-Type'].encode() + b'\r\n\r\n' + data)
                 parts = list(message.iter_parts())
@@ -350,6 +381,26 @@ def main():
                 self.reply(200, answer.encode('utf-8'), [('Content-Type', 'text/plain; charset=utf-8')])
             else:
                 self.reply(404, b'no such path')
+
+        def do_CONNECT(self):
+            host, port = self.path.rsplit(':', 1)
+            if host not in ('localhost', '127.0.0.1'):
+                self.reply(403)
+                return
+            with socket.create_connection((host, int(port)), timeout=2) as upstream:
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.flush()
+                self.close_connection = True
+                while True:
+                    ready, _, _ = select.select([self.connection, upstream], [], [], 3)
+                    if not ready:
+                        return
+                    for source in ready:
+                        data = source.recv(65536)
+                        if not data:
+                            return
+                        (upstream if source is self.connection else self.connection).sendall(data)
 
         do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = do_HEAD = handle_any
 
@@ -378,6 +429,17 @@ def main():
         server.socket = context.wrap_socket(server.socket, server_side=True)
         return server
 
+    class HeldTLS(socketserver.BaseRequestHandler):
+        def handle(self):
+            self.request.settimeout(3)
+            try:
+                while self.request.recv(65536):
+                    pass  # TCP accepts, but TLS never answers ClientHello.
+            except OSError:
+                pass
+
+    held_tls = socketserver.ThreadingTCPServer(('127.0.0.1', 0), HeldTLS)
+    held_tls.daemon_threads = True
     plain = QuietServer(('127.0.0.1', 0), Handler)
     cross_http = QuietServer(('127.0.0.1', 0), Handler)
     key, certificate = make_certificate('loopback-certificate', 'DNS:localhost,IP:127.0.0.1')
@@ -388,7 +450,7 @@ def main():
     refused.bind(('127.0.0.1', 0))
     refused_port = refused.getsockname()[1]
     refused.close()   # nothing listens there any more
-    threads = [threading.Thread(target=s.serve_forever, daemon=True) for s in (plain, cross_http, secure, other)]
+    threads = [threading.Thread(target=s.serve_forever, daemon=True) for s in (plain, cross_http, secure, other, held_tls)]
     for t in threads:
         t.start()
     results = []
@@ -431,7 +493,7 @@ def main():
                     stdout = run([executable, f'http://127.0.0.1:{plain.server_port}',
                                   f'https://localhost:{secure.server_port}',
                                   f'https://localhost:{other.server_port}' if trust == 'trusted' else '-',
-                                  trust, str(refused_port)], directory, directory / 'run.log', env=env)
+                                  trust, str(refused_port), str(held_tls.server_address[1])], directory, directory / 'run.log', env=env)
                 except AssertionError:
                     for r in requests[before:]:
                         print('DEBUG', f"{r['time']:.3f}", r['method'], r['path'], r['conn'], file=sys.stderr)
@@ -475,8 +537,22 @@ def main():
                                    and 'Content-Length' in r['headers']]
                 assert not redirected_post, 'a GET after a redirect carried Content-Length'
                 results.append(f'{opt}/{trust}: requests={len(observed)} elapsed={elapsed:.1f}s')
+            if not args.http_executable:
+                for enabled in (False, True):
+                    label = 'enabled' if enabled else 'disabled'
+                    directory = out / f'brotli-{label}-{opt}'
+                    executable = compile_source('httpclient_brotli_contract.pas', directory, opt,
+                                                ['-Xm', *(['-dMOON_HTTP_BROTLI'] if enabled else [])],
+                                                reuse=out / f'contract-{opt}')
+                    link_map = executable.with_suffix('.map').read_text(encoding='utf-8', errors='replace')
+                    assert ('moon_brotli_BrotliDecoderCreateInstance' in link_map) == enabled, label
+                    before = len(requests)
+                    output = run([executable, f'http://127.0.0.1:{plain.server_port}'], directory, directory / 'run.log')
+                    assert f'HTTPCLIENT_BROTLI_{label.upper()}_PASS' in output, output[-2000:]
+                    assert not any(r['path'] == '/brotli-disabled-must-not-connect' for r in requests[before:])
+                    results.append(f'Brotli/{label}/{opt}: pass; executable={executable.stat().st_size} bytes')
     finally:
-        for s in (plain, cross_http, secure, other):
+        for s in (plain, cross_http, secure, other, held_tls):
             s.shutdown()
             s.server_close()
     (out / 'summary.txt').write_text('\n'.join(results) + '\n', encoding='utf-8')

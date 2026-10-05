@@ -65,6 +65,8 @@ The container - central directory, ZIP64, names (UTF-8 by bit 11, the
   that size, raises `EZipException` instead of returning a short success.
   Deflate must reach its end marker at exactly the declared output size;
   truncated streams and extra output are refused, including empty entries.
+  `OnProgress` also reports entry reads after each successful chunk and after
+  the final CRC check. Keep the archive open while an entry stream is alive.
 - `TZipHeader` is the central directory record per APPNOTE, field for field,
   with `UncompressedSize64`/`CompressedSize64`/`LocalHeaderOffset64` (ZIP64
   resolved), `ModifiedTime`, `UTF8Support`, `UseDataDescriptor`, `IsEncrypted`.
@@ -96,14 +98,19 @@ The container - central directory, ZIP64, names (UTF-8 by bit 11, the
 opened there, a missing file fails there, its bytes are streamed when the
 body is read; the type comes from the extension when not given),
 `AddBytes(name, bytes[, filename, type])` and `AddStream(name, stream[,
-owns][, filename, type])` (the stream from its `Position` to its end, freed
-after reading when owned), then
+owns][, filename, type])` (the stream from its initial `Position` to its end,
+freed with the multipart body when owned), then
 `Client.ContentType := MimeTypeHeader; Stream.Position := 0;
-Client.Post(URL, Stream)`. The body is a flat RFC 7578 multipart (fields
-before files, as mORMot writes them) closed once with the final boundary, so
+Client.Post(URL, Stream)`. The body is a flat RFC 7578 multipart in insertion
+order, closed once with the final boundary, so
 it can be read more than once; an `Add*` after the body was read raises
 `EMultipartFormData`. `Boundary` is the boundary of `MimeTypeHeader`.
 `Create(False)` leaves the stream to the caller.
+All part methods accept optional `TStrings` headers. CR/LF injection and
+overriding Content-Type/Content-Disposition through those headers are refused.
+Borrowed streams must stay alive until the body is freed; their initial byte
+window is retained for replay. The HTTP multipart overloads rewind the complete
+body before each request without changing the client's default ContentType.
 
 ## System.Net.HttpClient: what the contract fixes
 
@@ -118,8 +125,11 @@ it can be read more than once; an `Add*` after the body was read raises
   with that `Content-Length`; afterwards `ASource.Position` is its end. A
   body up to 1 MB is read once and sent as bytes, a small one in the same
   packet as the headers; a bigger one is streamed from the source.
-  `Post(TStrings)` builds `application/x-www-form-urlencoded` in `AEncoding`
+  `Post/Put(TStrings)` build `application/x-www-form-urlencoded` in `AEncoding`
   (UTF-8 by default) and sets `Content-Type` with the charset for that call.
+  Post/Put also accept a filename or `TMultipartFormData` directly. Upload
+  `OnSendData` reports zero, then bytes sent; requesting abort raises a client
+  exception and closes the connection.
 - Any status comes back as a response (4xx/5xx are not exceptions). The body
   goes to `AResponseContent` from its position (position restored) or to an
   internal stream. `Headers` lists what the server sent; `Content-Type`,
@@ -183,16 +193,33 @@ it can be read more than once; an `Add*` after the body was read raises
   `ContentStream` is already inflated, `ContentAsString` does not inflate
   again, and the `Content-Encoding` and `Content-Length` headers of the coded
   body are dropped (`ContentEncoding = ''`), so nothing describes a body that
-  is no longer there. Brotli is not implemented: such a body stays as received.
+  is no longer there.
+- Brotli is optional: add `Moon.HttpClient.Brotli` to the application's `uses`
+  clause to link its decoder. With that unit, `Any` includes `br`, and `Brotli`
+  selects it explicitly. Without the unit, `Any` includes only gzip/deflate;
+  an explicit `Brotli` selection raises `ENetHTTPClientException` before any
+  connection is opened. An unsolicited `br` response remains available as raw
+  bytes through `ContentStream`; `ContentAsString` requires the optional unit
+  and raises `ENetHTTPResponseException` with its name when it is absent.
+  With the unit, `ContentAsString` also decodes `br` when automatic decompression
+  is off. The bundled MIT-licensed decoder is static: no Brotli DLL is required.
+  Merely using `System.Net.HttpClient` does not link its code or dictionary.
 - `ContentAsString(nil)` decodes with the `charset=` of `Content-Type`
   (quotes removed, case ignored), UTF-8 when absent; a BOM is kept, an
   invalid UTF-8 sequence becomes U+FFFD (what `TEncoding.UTF8` gives).
-- Cookies: the `name=value` of every `Set-Cookie` is kept for the host that
-  set it (attributes such as `Path`, `Expires`, `Secure` are not interpreted)
-  and sent back to that host with every request, joined to the caller's own
-  `Cookie` header; the same name replaces. `AddServerCookie(Data, URL)` adds
-  one by hand. This is what MoonBot needs (one hand-set cookie per exchange
-  host); a full RFC 6265 jar is deliberately not here.
+- Cookies enforce host-only/domain scope, path boundaries, Secure, Expires,
+  Max-Age and deletion. Same-name cookies on different paths coexist, with
+  more specific paths sent first. Redirects and async requests share the jar.
+  `AddServerCookie(Data, URL)` uses the same rules. This is an HTTP-client jar:
+  it does not include a browser public-suffix database or browser navigation
+  context for SameSite enforcement.
+- HTTP Basic authentication supports per-request server credentials and a
+  single challenge retry through `CredentialsStorage`, `AuthEvent` or
+  `AuthCallback`; client-persistent credentials are shared with async clones.
+  Digest/NTLM/Negotiate challenges remain ordinary responses: their enum values
+  do not install protocol implementations. HTTP proxy credentials are sent to
+  the proxy, including CONNECT, and never as origin Authorization. Proxy
+  credentials on a request require configured ProxySettings.
 - `OnReceiveData` fires for 200/206 only: first with `AReadCount = 0` and
   the `Content-Length` (or -1 when chunked), then after every received piece.
   `AAbort := True` stops the body without an exception: the response keeps
@@ -215,11 +242,22 @@ it can be read more than once; an `Add*` after the body was read raises
   `ENetHTTPResponseException`. `ConnectionTimeout`, `SendTimeout` and
   `ResponseTimeout` default to 60000 ms; the response timeout governs the wait
   for the response line and each read of the body.
-- `BeginGet` runs the request in a thread on a copy of the client's
+- `BeginExecute` and the standard `BeginGet/Head/Post/Put/Patch/Delete/Options/Trace`
+  methods run the request in a thread on a copy of the client's
   settings; `IsCompleted` is set when it finished (with a response or an
   exception), `Cancel` returns `True` and aborts a running request (`False`
   once completed), `EndAsyncHTTP` waits and returns the response or raises
   the request's exception (`ENetHTTPClientException` for a cancelled one).
+  Callback/event overloads and `AsyncWaitEvent` use the shared `System.Types`
+  interface. Callbacks run on the worker thread. Releasing the last external
+  async result cancels unfinished work and waits for its callback to finish.
+  Caller-owned streams, event receivers and explicitly assigned credential
+  storage must remain alive until then. DNS providers may continue independently
+  after cancellation, bounded to eight resolver workers; they hold no caller
+  streams/client objects and cannot open a connection after cancellation.
+  ConnectionTimeout includes DNS, TCP and TLS setup. Cancellation shuts down
+  the active socket; its I/O owner closes the descriptor, preventing handle reuse
+  from redirecting cancellation to another connection.
 
 ## Differences from Delphi 12.2 kept on purpose
 

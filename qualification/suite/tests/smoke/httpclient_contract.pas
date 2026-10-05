@@ -14,7 +14,9 @@ program httpclient_contract;
 
 uses
   {$ifdef UNIX}cthreads, cwstring,{$endif}
-  SysUtils, Classes, System.ZLib, System.Net.URLClient, System.Net.HttpClient, System.Net.Mime;
+  SysUtils, Classes, Types,
+  {$ifdef FPC}mormot.core.base, mormot.net.sock,{$endif}
+  System.ZLib, System.Net.URLClient, System.Net.HttpClient, System.Net.Mime;
 
 var
   Failures: Integer;
@@ -1186,6 +1188,8 @@ begin
   end;
 end;
 
+{$ifdef FPC}{$i httpclient_release21.inc}{$endif}
+
 begin
   Failures := 0;
   If ParamCount < 5 then begin
@@ -1212,6 +1216,7 @@ begin
   ImmediateCancel;
   Tls;
   Multipart;
+  {$ifdef FPC}Release21Contracts;{$endif}
   If Failures <> 0 then begin
     WriteLn('FAILURES ', Failures);
     Halt(1);

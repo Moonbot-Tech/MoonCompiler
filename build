@@ -411,6 +411,8 @@ build_compiler() {
     "$new_toolchain/share/doc/mooncompiler/RTL-EXCEPTION.txt"
   cp "$ROOT/runtime/mm/LICENSE.md" \
     "$new_toolchain/share/doc/mooncompiler/MM-LICENSE.md"
+  cp "$ROOT/packages/vcl-compat/native/brotli/LICENSE-brotli.txt" \
+    "$new_toolchain/share/doc/mooncompiler/BROTLI-MIT.txt"
   cp "$ROOT/doc/LICENSING.md" \
     "$new_toolchain/share/doc/mooncompiler/LICENSING.md"
 

@@ -8,7 +8,8 @@
     Provenance: written for MoonCompiler from the behavioural contract in the
     planning document "DELPHI_SURFACE_ADDITIONS_20260920" (section 3.1) and
     RFC 9110.  No Embarcadero source, interface text or documentation excerpt
-    was consulted or copied.  Author: MoonCompiler team, 2026-09-21.
+    was consulted or copied for the original implementation. Release 2.1 additions
+    use public API declarations and RFC contracts, not Delphi implementation. Author: MoonCompiler team, 2026-09-21.
 
     See the file COPYING.FPC, included in this distribution,
     for details about the copyright.
@@ -20,14 +21,17 @@
  **********************************************************************}
 unit System.Net.URLClient;
 
-{$mode objfpc}
+{$mode delphi}
+{$modeswitch anonymousfunctions}
+{$modeswitch functionreferences}
+{$SCOPEDENUMS ON}
 {$H+}
 {$modeswitch advancedrecords}
 
 interface
 
 uses
-  SysUtils, Classes, RtlConsts;
+  SysUtils, Classes, Types, SyncObjs, RtlConsts;
 
 type
   TNameValuePair = record
@@ -84,16 +88,7 @@ type
     property Value[const AName: string]: string read GetValue write SetValue; default;
   end;
 
-  { the request an event handler is told about }
-  TURLRequest = class
-  private
-    FURL: string;
-    FMethodString: string;
-  public
-    constructor Create(const AURL, AMethodString: string);
-    property URL: string read FURL;
-    property MethodString: string read FMethodString;
-  end;
+  {$i urlclient.types.inc}
 
   TCertificate = record
     CertName: string;
@@ -114,6 +109,10 @@ type
   ENetURIResponseException = class(ENetException);
 
 implementation
+
+uses URIParser, System.NetEncoding;
+
+{$i urlclient.impl.inc}
 
 constructor TNameValuePair.Create(const AName, AValue: string);
 begin
@@ -295,11 +294,8 @@ begin
     Result := Result + H.Name + ': ' + H.Value + #13#10;
 end;
 
-constructor TURLRequest.Create(const AURL, AMethodString: string);
-begin
-  inherited Create;
-  FURL := AURL;
-  FMethodString := AMethodString;
-end;
-
+initialization
+  InitCriticalSection(URLSchemesLock);
+finalization
+  DoneCriticalSection(URLSchemesLock);
 end.

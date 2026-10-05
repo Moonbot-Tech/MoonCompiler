@@ -39,8 +39,8 @@ interface
 uses
   SysUtils,
   Classes,
-  SyncObjs,
-  System.Net.URLClient;
+  SyncObjs, Types, Generics.Collections,
+  System.Net.Mime, System.Net.URLClient;
 
 type
   ENetHTTPException = class(ENetURIException);
@@ -58,6 +58,7 @@ type
 
   THTTPCompressionMethod = (Deflate, GZip, Brotli, Any);
   THTTPCompressionMethods = set of THTTPCompressionMethod;
+  THTTPContentDecoder = procedure(Source, Destination: TStream; EncodedSize: Int64);
 
   { The ContentStream of a response received into the client's own stream:
     the body as the socket received it, without a copy.  The bytes stay in
@@ -79,76 +80,85 @@ type
     property Data: RawByteString read FData;
   end;
 
-  IHTTPResponse = interface(IInterface)
-    ['{BE94B273-0FD6-4A77-A79F-5D4E1782629F}']
+  THTTPProtocolVersion = (UNKNOWN_HTTP, HTTP_1_0, HTTP_1_1, HTTP_2_0);
+  TSendDataEvent = procedure(const Sender: TObject; AContentLength, AWriteCount: Int64;
+    var AAbort: Boolean) of object;
+  TCookie = record
+  private
+    FHostOnly: Boolean;
+  public
+    Name, Value, Domain, Path: string;
+    Expires: TDateTime;
+    Secure, HttpOnly: Boolean;
+    class function Create(const Data: string; const URI: System.Net.URLClient.TURI): TCookie; static;
+    function ToString: string;
+    function GetServerCookie: string;
+  end;
+  TCookies = class(TList<TCookie>);
+  TCookiesArray = array of TCookie;
+
+  IHTTPResponse = interface(IURLResponse)
+    ['{ED07313B-324B-448F-84AD-F199D38981DA}']
     function GetStatusCode: Integer;
     function GetStatusText: string;
-    function GetHeaders: TNetHeaders;
     function GetHeaderValue(const AName: string): string;
-    function GetContentStream: TStream;
     function GetContentEncoding: string;
-    { the body as text: the charset of Content-Type (utf-8 when absent), or
-      AnEncoding; a body still compressed as gzip/deflate is inflated here }
-    function ContentAsString(const AnEncoding: TEncoding = nil): string;
+    function GetContentCharSet: string;
+    function GetContentLanguage: string;
+    function GetContentLength: Int64;
+    function GetDate: string;
+    function GetLastModified: string;
+    function GetVersion: THTTPProtocolVersion;
+    function ContainsHeader(const AName: string): Boolean;
+    function GetCookies: TCookies;
+    property ContentCharSet: string read GetContentCharSet;
+    property ContentLanguage: string read GetContentLanguage;
+    property ContentLength: Int64 read GetContentLength;
+    property Date: string read GetDate;
+    property LastModified: string read GetLastModified;
+    property Version: THTTPProtocolVersion read GetVersion;
+    property Cookies: TCookies read GetCookies;
     property StatusCode: Integer read GetStatusCode;
     property StatusText: string read GetStatusText;
-    property Headers: TNetHeaders read GetHeaders;
     property HeaderValue[const AName: string]: string read GetHeaderValue;
-    property ContentStream: TStream read GetContentStream;
     property ContentEncoding: string read GetContentEncoding;
   end;
 
-  IAsyncResult = interface(IInterface)
-    ['{9E73AD0B-1291-4D32-B410-59A01778919C}']
-    function GetIsCompleted: Boolean;
-    function GetIsCancelled: Boolean;
-    { asks the running request to stop; False when it has already completed }
-    function Cancel: Boolean;
-    property IsCompleted: Boolean read GetIsCompleted;
-    property IsCancelled: Boolean read GetIsCancelled;
-  end;
+  IAsyncResult = Types.IAsyncResult;
 
-  { cookies per host: the name=value of a Set-Cookie (its attributes are
-    not interpreted) is kept for the host of the URL that set it and sent
-    back to that host; the same name replaces }
-  TCookieManager = class
-  private type
-    TCookie = record
-      Name, Value, Host: string;
-    end;
+  { RFC 6265 jar. Sync and async clients retain the same session object. }
+  TCookieManager = class(TInterfacedObject)
   private
-    FCookies: array of TCookie;
+    FCookies: TCookiesArray;
     FLock: TCriticalSection;
+    procedure PurgeExpired;
   public
     constructor Create;
     destructor Destroy; override;
     procedure AddServerCookie(const ACookieData, ACookieURL: string);
-    { the Cookie header value for a request to AURL, '' when nothing applies }
     function CookieHeader(const AURL: string): string;
     procedure Assign(Source: TCookieManager);
     function Count: Integer;
   end;
 
-  THTTPClient = class
+  THTTPClient = class(TURLClient)
   private
-    FConnectionTimeout: Integer;
-    FSendTimeout: Integer;
-    FResponseTimeout: Integer;
     FHandleRedirects: Boolean;
     FMaxRedirects: Integer;
     FAutomaticDecompression: THTTPCompressionMethods;
-    FCustomHeaders: TURLHeaders;
     FCookieManager: TCookieManager;
+    FSharedCookies: IInterface;
+    FActiveRequest: IURLRequest;
+    FOnSendData: TSendDataEvent;
     FOnReceiveData: TReceiveDataEvent;
     FOnValidateServerCertificate: TValidateCertificateEvent;
     FSocketGuard: TCriticalSection;
     FSocket: TObject;          { a TMoonHttpSocket }
     FSocketKey: string;
     FAbortRequested: Boolean;
-    function GetCustomHeader(const AName: string): string;
-    procedure SetCustomHeader(const AName, AValue: string);
-    function GetUserAgent: string;
-    procedure SetUserAgent(const AValue: string);
+    FConnectionDeadline: UInt64;
+    FConnectionExpired: Boolean;
+    procedure CheckRequest;
     function GetAccept: string;
     procedure SetAccept(const AValue: string);
     function GetAcceptLanguage: string;
@@ -157,13 +167,22 @@ type
     procedure SetAcceptEncoding(const AValue: string);
     function GetContentType: string;
     procedure SetContentType(const AValue: string);
-    function Execute(const AMethod, AURL: string; ASource, AResponseContent: TStream;
+    function ExecuteHTTP(const AMethod, AURL: string; ASource, AResponseContent: TStream;
       const AHeaders: TNetHeaders): IHTTPResponse;
-    function CloneForAsync: THTTPClient;
     procedure CloseSocket;
-    procedure Abort;
+  protected
+    procedure Abort; override;
+    function CloneClient(const Scheme: string): TURLClient; override;
+    function AsyncResultClass: TURLAsyncResultClass; override;
+    function DoExecute(const Request: IURLRequest; Content: TStream; const Headers: TNetHeaders): IURLResponse; override;
   public
-    constructor Create;
+    constructor Create; override;
+    function Execute(const Method, URL: string; const Source: TStream = nil;
+      const Content: TStream = nil; const Headers: TNetHeaders = nil): IHTTPResponse; reintroduce; overload;
+    function Execute(const Method: string; const URI: System.Net.URLClient.TURI; const Source: TStream = nil;
+      const Content: TStream = nil; const Headers: TNetHeaders = nil): IHTTPResponse; overload;
+    function Execute(const Request: IURLRequest; const Content: TStream = nil;
+      const Headers: TNetHeaders = nil): IURLResponse; overload; override;
     destructor Destroy; override;
     function Get(const AURL: string; const AResponseContent: TStream = nil;
       const AHeaders: TNetHeaders = nil): IHTTPResponse;
@@ -175,38 +194,35 @@ type
     function Post(const AURL: string; const ASource: TStrings; const AResponseContent: TStream = nil;
       const AEncoding: TEncoding = nil; const AHeaders: TNetHeaders = nil): IHTTPResponse; overload;
     function Put(const AURL: string; const ASource: TStream = nil; const AResponseContent: TStream = nil;
-      const AHeaders: TNetHeaders = nil): IHTTPResponse;
+      const AHeaders: TNetHeaders = nil): IHTTPResponse; overload;
     function Patch(const AURL: string; const ASource: TStream = nil; const AResponseContent: TStream = nil;
       const AHeaders: TNetHeaders = nil): IHTTPResponse;
-    { the request runs in its own thread on a copy of this client's settings }
-    function BeginGet(const AURL: string; const AResponseContent: TStream = nil;
-      const AHeaders: TNetHeaders = nil): IAsyncResult;
-    { waits for the request; its exception is raised here, a cancelled request
-      raises ENetHTTPClientException }
-    class function EndAsyncHTTP(const AAsyncResult: IAsyncResult): IHTTPResponse; static;
-    property ConnectionTimeout: Integer read FConnectionTimeout write FConnectionTimeout;
-    property SendTimeout: Integer read FSendTimeout write FSendTimeout;
-    property ResponseTimeout: Integer read FResponseTimeout write FResponseTimeout;
+    {$i httpclient.overloads.intf.inc}
+    class function EndAsyncHTTP(const AAsyncResult: IAsyncResult): IHTTPResponse; overload; static;
+    class function EndAsyncHTTP(const AResponse: IHTTPResponse): IHTTPResponse; overload; static;
     property HandleRedirects: Boolean read FHandleRedirects write FHandleRedirects;
     property MaxRedirects: Integer read FMaxRedirects write FMaxRedirects;
     property AutomaticDecompression: THTTPCompressionMethods read FAutomaticDecompression write FAutomaticDecompression;
-    property CustomHeaders[const AName: string]: string read GetCustomHeader write SetCustomHeader;
-    property CustHeaders: TURLHeaders read FCustomHeaders;
     property CookieManager: TCookieManager read FCookieManager;
-    property UserAgent: string read GetUserAgent write SetUserAgent;
     property Accept: string read GetAccept write SetAccept;
     property AcceptLanguage: string read GetAcceptLanguage write SetAcceptLanguage;
     property AcceptEncoding: string read GetAcceptEncoding write SetAcceptEncoding;
     property ContentType: string read GetContentType write SetContentType;
+    property OnSendData: TSendDataEvent read FOnSendData write FOnSendData;
     property OnReceiveData: TReceiveDataEvent read FOnReceiveData write FOnReceiveData;
     property OnValidateServerCertificate: TValidateCertificateEvent
       read FOnValidateServerCertificate write FOnValidateServerCertificate;
   end;
 
+{ Initialization-only extension hook for Moon.HttpClient.Brotli. Register before
+  starting HTTP work; nil removes the decoder during unit finalization. }
+procedure RegisterBrotliDecoder(Decoder: THTTPContentDecoder);
+
 implementation
 
 uses
-  System.ZLib,
+  System.ZLib, DateUtils, System.NetEncoding,
+  mormot.core.datetime,
   mormot.core.base,
   mormot.core.buffers,
   mormot.core.os,
@@ -222,6 +238,15 @@ const
   { a request body up to this size is sent as bytes with the headers (the
     socket would otherwise stage a stream through a 1 MB buffer) }
   SmallBodyLimit = 1 shl 20;
+  BrotliModuleRequired = 'Brotli support requires Moon.HttpClient.Brotli in the project uses clause';
+
+var
+  BrotliDecoder: THTTPContentDecoder;
+
+procedure RegisterBrotliDecoder(Decoder: THTTPContentDecoder);
+begin
+  BrotliDecoder := Decoder;
+end;
 
 { mormot.core.text declares RawUtf8 overloads of these names; declared here,
   the string versions win and no UTF-8 round trip happens }
@@ -492,112 +517,7 @@ end;
   TCookieManager
   ---------------------------------------------------------------------}
 
-constructor TCookieManager.Create;
-begin
-  inherited Create;
-  FLock := TCriticalSection.Create;
-end;
-
-destructor TCookieManager.Destroy;
-begin
-  FreeAndNil(FLock);
-  inherited Destroy;
-end;
-
-function TCookieManager.Count: Integer;
-begin
-  FLock.Acquire;
-  try
-    Result := Length(FCookies);
-  finally
-    FLock.Release;
-  end;
-end;
-
-function HostOfURL(const AURL: string): string;
-var
-  URI: TUri;
-begin
-  If URI.From(StringToUtf8(AURL)) then
-    Result := LowerCase(Utf8ToString(URI.Server))
-  else
-    Result := '';
-end;
-
-procedure TCookieManager.AddServerCookie(const ACookieData, ACookieURL: string);
-var
-  Data, Host: string;
-  P, I: Integer;
-  Cookie: TCookie;
-begin
-  { name=value up to the first ';', the attributes behind it are not used }
-  Data := Trim(ACookieData);
-  P := Pos(';', Data);
-  If P > 0 then
-    Data := Trim(Copy(Data, 1, P - 1));
-  P := Pos('=', Data);
-  If P <= 1 then
-    Exit;
-  Host := HostOfURL(ACookieURL);
-  If Host = '' then
-    Exit;
-  Cookie.Name := Trim(Copy(Data, 1, P - 1));
-  Cookie.Value := Trim(Copy(Data, P + 1, MaxInt));
-  Cookie.Host := Host;
-  FLock.Acquire;
-  try
-    for I := 0 to High(FCookies) do
-      If (FCookies[I].Name = Cookie.Name) and (FCookies[I].Host = Host) then begin
-        FCookies[I].Value := Cookie.Value;
-        Exit;
-      end;
-    SetLength(FCookies, Length(FCookies) + 1);
-    FCookies[High(FCookies)] := Cookie;
-  finally
-    FLock.Release;
-  end;
-end;
-
-function TCookieManager.CookieHeader(const AURL: string): string;
-var
-  Host: string;
-  I: Integer;
-begin
-  Result := '';
-  Host := HostOfURL(AURL);
-  If Host = '' then
-    Exit;
-  FLock.Acquire;
-  try
-    for I := 0 to High(FCookies) do
-      If FCookies[I].Host = Host then begin
-        If Result <> '' then
-          Result := Result + '; ';
-        Result := Result + FCookies[I].Name + '=' + FCookies[I].Value;
-      end;
-  finally
-    FLock.Release;
-  end;
-end;
-
-procedure TCookieManager.Assign(Source: TCookieManager);
-begin
-  FLock.Acquire;
-  try
-    If Source = nil then
-      FCookies := nil
-    else begin
-      Source.FLock.Acquire;
-      try
-        FCookies := Copy(Source.FCookies);
-      finally
-        Source.FLock.Release;
-      end;
-    end;
-  finally
-    FLock.Release;
-  end;
-end;
+{$i httpclient.cookies.inc}
 
 { ---------------------------------------------------------------------
   the socket: mORMot's client with two adjustments
@@ -605,6 +525,10 @@ end;
 
 type
   TMoonHttpSocket = class(THttpClientSocket)
+  private
+    FPlainProxy: Boolean;
+    FCancelGuard: TCriticalSection;
+    FCancelSocket: TNetSocket;
   protected
     { mORMot always sends User-Agent; the contract sends none when the
       client's UserAgent is '' }
@@ -613,22 +537,42 @@ type
     { the wait for the response line uses TCrtSocket.TimeOut, which only the
       constructor sets: the response timeout of the client goes here }
     procedure ApplyTimeouts(SendMs, ResponseMs: Integer);
+    procedure Abort; override;
+    procedure Close; override;
+    procedure ConnectCancelable(const URI: TUri; const Options: THttpRequestExtendedOptions; Client: THTTPClient);
   end;
 
+function HTTPHost(const Server: RawUtf8): RawUtf8;
+begin
+  If (Pos(':', Server) > 0) and (Server[1] <> '[') then
+    Result := '[' + Server + ']'
+  else
+    Result := Server;
+end;
+
+{$i httpclient.connect.inc}
+
 procedure TMoonHttpSocket.RequestSendHeader(const url, method: RawUtf8);
+var
+  Host: RawUtf8;
 begin
   If not SockIsDefined then
     Exit;
   If SockIn = nil then
     CreateSockIn;
-  If (url = '') or (url[1] <> '/') then
+  Host := HTTPHost(Server);
+  If FPlainProxy then
+    SockSend([method, ' http://', Host, ':', Port, url, ' HTTP/1.1'])
+  else If (url = '') or (url[1] <> '/') then
     SockSend([method, ' /', url, ' HTTP/1.1'])
   else
     SockSend([method, ' ', url, ' HTTP/1.1']);
   If Port = DEFAULT_PORT[TLS.Enabled] then
-    SockSend(['Host: ', Server])
+    SockSend(['Host: ', Host])
   else
-    SockSend(['Host: ', Server, ':', Port]);
+    SockSend(['Host: ', Host, ':', Port]);
+  If FPlainProxy and (Tunnel.User <> '') then
+    SockSend(['Proxy-Authorization: Basic ', Tunnel.UserPasswordBase64]);
   If Accept <> '' then
     SockSend(['Accept: ', Accept]);
   If UserAgent <> '' then
@@ -674,19 +618,23 @@ type
   private
     FSource: TStream;
     FStart, FLength, FPosition: Int64;
+    FClient: THTTPClient;
+    FLastReported: Int64;
   protected
     function GetSize: Int64; override;
   public
-    constructor Create(ASource: TStream);
+    constructor Create(ASource: TStream; AClient: THTTPClient = nil);
     function Read(var Buffer; Count: Longint): Longint; override;
     function Write(const Buffer; Count: Longint): Longint; override;
     function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
   end;
 
-constructor TBodyWindow.Create(ASource: TStream);
+constructor TBodyWindow.Create(ASource: TStream; AClient: THTTPClient);
 begin
   inherited Create;
   FSource := ASource;
+  FClient := AClient;
+  FLastReported := -1;
   FStart := ASource.Position;
   FLength := ASource.Size - FStart;
   If FLength < 0 then
@@ -699,7 +647,22 @@ begin
 end;
 
 function TBodyWindow.Read(var Buffer; Count: Longint): Longint;
+var
+  Stop: Boolean;
 begin
+  { The previous Read has been sent before mORMot asks for the next chunk.
+    Report here, rather than claiming newly read bytes were already sent. }
+  If (FClient <> nil) and Assigned(FClient.FOnSendData) and (FLastReported <> FPosition) then begin
+    Stop := False;
+    FClient.FOnSendData(FClient, FLength, FPosition, Stop);
+    FLastReported := FPosition;
+    If Stop then begin
+      FClient.Abort;
+      raise ENetHTTPClientException.Create('Upload was cancelled');
+    end;
+  end;
+  If (FClient <> nil) and (Count > 65536) then
+    Count := 65536;
   If Count > FLength - FPosition then
     Count := FLength - FPosition;
   If Count <= 0 then
@@ -834,9 +797,13 @@ end;
   ---------------------------------------------------------------------}
 
 type
-  THTTPResponse = class(TInterfacedObject, IHTTPResponse)
+  THTTPResponse = class(TInterfacedObject, IHTTPResponse, IURLResponse, IAsyncResult)
   private
     FStatusCode: Integer;
+    FVersion: THTTPProtocolVersion;
+    FCookies: TCookies;
+    FDone: TMultiWaitEvent;
+    FContext: TObject;
     FStatusText: string;
     FHeaders: TNetHeaders;
     FStream: TStream;
@@ -845,7 +812,7 @@ type
     FDecoded: Boolean;       { the body was inflated by AutomaticDecompression }
   public
     constructor Create(AStatusCode: Integer; const AStatusText: string; const AHeaders: TNetHeaders;
-      AStream: TStream; AOwnsStream: Boolean; AStart, AEnd: Int64; ADecoded: Boolean);
+      AStream: TStream; AOwnsStream: Boolean; AStart, AEnd: Int64; ADecoded: Boolean; const URL, StatusLine: string; Context: TObject);
     destructor Destroy; override;
     function GetStatusCode: Integer;
     function GetStatusText: string;
@@ -853,25 +820,64 @@ type
     function GetHeaderValue(const AName: string): string;
     function GetContentStream: TStream;
     function GetContentEncoding: string;
+    function GetMimeType: string;
+    function GetContentCharSet: string;
+    function GetContentLanguage: string;
+    function GetContentLength: Int64;
+    function GetDate: string;
+    function GetLastModified: string;
+    function GetVersion: THTTPProtocolVersion;
+    function ContainsHeader(const AName: string): Boolean;
+    function GetCookies: TCookies;
+    function GetAsyncResult: IAsyncResult;
+    function GetAsyncContext: TObject;
+    function GetAsyncWaitEvent: TMultiWaitEvent;
+    function GetCompletedSynchronously: Boolean;
+    function GetIsCompleted: Boolean;
+    function GetIsCancelled: Boolean;
+    function Cancel: Boolean;
     function ContentAsString(const AnEncoding: TEncoding = nil): string;
   end;
 
 constructor THTTPResponse.Create(AStatusCode: Integer; const AStatusText: string; const AHeaders: TNetHeaders;
-  AStream: TStream; AOwnsStream: Boolean; AStart, AEnd: Int64; ADecoded: Boolean);
+  AStream: TStream; AOwnsStream: Boolean; AStart, AEnd: Int64; ADecoded: Boolean;
+  const URL, StatusLine: string; Context: TObject);
+var
+  H: TNetHeader;
+  Cookie: TCookie;
+  URI: System.Net.URLClient.TURI;
 begin
   inherited Create;
   FStatusCode := AStatusCode;
   FStatusText := AStatusText;
   FHeaders := AHeaders;       { the caller's array, handed over }
   FStream := AStream;
-  FOwnsStream := AOwnsStream;
   FStart := AStart;
   FEnd := AEnd;
   FDecoded := ADecoded;
+  FContext := Context;
+  FDone := TMultiWaitEvent.Create;
+  FDone.SetEvent;
+  FVersion := THTTPProtocolVersion.UNKNOWN_HTTP;
+  If Copy(StatusLine, 1, 8) = 'HTTP/1.0' then
+    FVersion := THTTPProtocolVersion.HTTP_1_0
+  else If Copy(StatusLine, 1, 8) = 'HTTP/1.1' then
+    FVersion := THTTPProtocolVersion.HTTP_1_1;
+  FCookies := TCookies.Create;
+  URI := System.Net.URLClient.TURI.Create(URL);
+  for H in FHeaders do
+    If SameText(H.Name, 'Set-Cookie') then begin
+      Cookie := TCookie.Create(H.Value, URI);
+      If Cookie.Name <> '' then
+        FCookies.Add(Cookie);
+    end;
+  FOwnsStream := AOwnsStream;
 end;
 
 destructor THTTPResponse.Destroy;
 begin
+  FCookies.Free;
+  FDone.Free;
   If FOwnsStream then
     FreeAndNil(FStream);
   inherited Destroy;
@@ -1015,6 +1021,16 @@ begin
   until False;
 end;
 
+procedure DecodeBody(Source, Dest: TStream; SourceEnd: Int64; const Coding: string);
+begin
+  If SameText(Coding, 'br') then begin
+    If not Assigned(BrotliDecoder) then
+      raise ENetHTTPResponseException.Create(BrotliModuleRequired);
+    BrotliDecoder(Source, Dest, SourceEnd - Source.Position);
+  end else
+    InflateBody(Source, Dest, SourceEnd, SameText(Coding, 'gzip'));
+end;
+
 function THTTPResponse.ContentAsString(const AnEncoding: TEncoding): string;
 var
   Encoding: TEncoding;
@@ -1042,9 +1058,9 @@ begin
     Coding := Trim(GetContentEncoding);
     Raw := nil;
     try
-      If (not FDecoded) and (SameText(Coding, 'gzip') or SameText(Coding, 'deflate')) then begin
+      If (not FDecoded) and (SameText(Coding, 'gzip') or SameText(Coding, 'deflate') or SameText(Coding, 'br')) then begin
         Raw := TMemoryStream.Create;
-        InflateBody(FStream, Raw, FEnd, SameText(Coding, 'gzip'));
+        DecodeBody(FStream, Raw, FEnd, Coding);
         Exit(TEncodingFromMemory.Decode(Encoding, Raw.Memory, Raw.Size));
       end;
       Size := FEnd - FStart;
@@ -1077,9 +1093,9 @@ begin
   FResponseTimeout := 60000;
   FHandleRedirects := True;
   FMaxRedirects := 5;
-  FCustomHeaders := TURLHeaders.Create;
   FCustomHeaders.Value['User-Agent'] := DefaultUserAgent;
   FCookieManager := TCookieManager.Create;
+  FSharedCookies := FCookieManager;
   FSocketGuard := TCriticalSection.Create;
 end;
 
@@ -1087,29 +1103,9 @@ destructor THTTPClient.Destroy;
 begin
   CloseSocket;
   FreeAndNil(FSocketGuard);
-  FreeAndNil(FCookieManager);
-  FreeAndNil(FCustomHeaders);
+  FSharedCookies := nil;
+  FCookieManager := nil;
   inherited Destroy;
-end;
-
-function THTTPClient.GetCustomHeader(const AName: string): string;
-begin
-  Result := FCustomHeaders.Value[AName];
-end;
-
-procedure THTTPClient.SetCustomHeader(const AName, AValue: string);
-begin
-  FCustomHeaders.Value[AName] := AValue;
-end;
-
-function THTTPClient.GetUserAgent: string;
-begin
-  Result := GetCustomHeader('User-Agent');
-end;
-
-procedure THTTPClient.SetUserAgent(const AValue: string);
-begin
-  SetCustomHeader('User-Agent', AValue);
 end;
 
 function THTTPClient.GetAccept: string;
@@ -1159,6 +1155,8 @@ begin
   FSocketGuard.Acquire;
   try
     Socket := FSocket;
+    If Socket <> nil then
+      TMoonHttpSocket(Socket).Abort;
     FSocket := nil;
     FSocketKey := '';
   finally
@@ -1222,12 +1220,16 @@ begin
   Result := False;
 end;
 
-function THTTPClient.Execute(const AMethod, AURL: string; ASource, AResponseContent: TStream;
+{$i httpclient.auth.inc}
+
+function THTTPClient.ExecuteHTTP(const AMethod, AURL: string; ASource, AResponseContent: TStream;
   const AHeaders: TNetHeaders): IHTTPResponse;
 var
   Output: TStream;
   OwnsOutput: Boolean;
   OriginalPosition: Int64;
+  Proxy: TProxySettings;
+  ProxyCredential: TCredentialsStorage.TCredential;
   Method, URL, Location, StartURL: string;
   Body: TStream;
   RequestHeaders, ReplyHeaders: TNetHeaders;
@@ -1242,21 +1244,72 @@ var
   Data: RawByteString;       { the request body when it is small enough }
   HasBody, Adoptable: Boolean;
   Reused, Retried: Boolean;
+  AuthURL, AuthValue: string;
+  AuthTried: Boolean;
+
+  function Authenticate: Boolean;
+  var
+    Realm: string;
+    Credential: TCredentialsStorage.TCredential;
+    Persistence: TAuthPersistenceType;
+    AbortAuth: Boolean;
+  begin
+    Result := False;
+    If AuthTried or not BasicChallengeRealm(ReplyHeaders, Realm) then
+      Exit;
+    AuthTried := True;
+    Credential := Default(TCredentialsStorage.TCredential);
+    If FCredentialsStorage <> nil then
+      Credential := FCredentialsStorage.FindAccurateCredential(TAuthTargetType.Server, Realm, URL);
+    Persistence := TAuthPersistenceType.Request;
+    AbortAuth := False;
+    If Credential.IsEmpty then begin
+      Credential := TCredentialsStorage.TCredential.Create(TAuthTargetType.Server, Realm, URL, '', '');
+      If Assigned(FAuthEvent) then
+        FAuthEvent(Self, TAuthTargetType.Server, Realm, URL, Credential.UserName, Credential.Password, AbortAuth, Persistence)
+      else If Assigned(FAuthCallback) then
+        FAuthCallback(Self, TAuthTargetType.Server, Realm, URL, Credential.UserName, Credential.Password, AbortAuth, Persistence);
+    end;
+    If AbortAuth or Credential.IsEmpty then
+      Exit;
+    AuthValue := BasicAuthorization(Credential.UserName, Credential.Password);
+    AuthURL := URL;
+    If (Persistence = TAuthPersistenceType.Client) and (FCredentialsStorage <> nil) then
+      FCredentialsStorage.AddCredential(Credential);
+    Result := True;
+  end;
 
   function OpenSocket(const URI: TUri; IgnoreCertificate: Boolean; out TLS: TNetTlsContext): TMoonHttpSocket;
   var
     Options: THttpRequestExtendedOptions;
   begin
+    CheckRequest;
+    TLS := Default(TNetTlsContext);
     Options.Init;
-    Options.Proxy := 'none';
+    Options.Proxy := StringToUtf8(Proxy.ToString);
     Options.CreateTimeoutMS := FConnectionTimeout;
-    Options.RedirectMax := 0;                 { redirects are handled here }
+    Options.RedirectMax := 0;
     Options.UserAgent := StringToUtf8(UserAgent);
     Options.TLS.IgnoreCertificateErrors := IgnoreCertificate;
+    FSocketGuard.Acquire;
     try
-      Result := TMoonHttpSocket.OpenOptions(URI, Options);
+      Result := TMoonHttpSocket.Create(FConnectionTimeout);
+      FSocket := Result;
+      If (FConnectionDeadline = 0) and (FConnectionTimeout > 0) then
+        FConnectionDeadline := SysUtils.GetTickCount64 + UInt64(FConnectionTimeout);
     finally
-      TLS := Options.TLS;                     { peer info also after a failure }
+      FSocketGuard.Release;
+    end;
+    try
+      try
+        Result.ConnectCancelable(URI, Options, Self);
+        CheckRequest;
+      finally
+        TLS := Result.TLS;
+      end;
+    except
+      CloseSocket;
+      raise;
     end;
   end;
 
@@ -1271,7 +1324,7 @@ var
     Accepted: Boolean;
     Failure: string;
   begin
-    Key := LowerCase(Utf8ToString(URI.Server)) + ':' + Utf8ToString(URI.Port) + '|' + BoolToStr(URI.Https, True);
+    Key := LowerCase(Utf8ToString(URI.Server)) + ':' + Utf8ToString(URI.Port) + '|' + BoolToStr(URI.Https, True) + '|' + Proxy.ToString;
     FSocketGuard.Acquire;
     try
       Result := TMoonHttpSocket(FSocket);
@@ -1287,6 +1340,7 @@ var
         Result := OpenSocket(URI, False, TLS);
       except
         on E: Exception do begin
+          CheckRequest;
           If not (URI.Https and IsCertificateFailure(E, TLS)) then
             If E is ENetSock then
               raise ENetHTTPClientException.CreateFmt('Cannot connect to %s: %s (%s)',
@@ -1319,7 +1373,8 @@ var
               FreeAndNil(Request);
             end;
           except
-            FreeAndNil(Result);
+            CloseSocket;
+            Result := nil;
             raise;
           end;
         end;
@@ -1328,6 +1383,7 @@ var
       try
         FSocket := Result;
         FSocketKey := Key;
+        FConnectionDeadline := 0;
       finally
         FSocketGuard.Release;
       end;
@@ -1349,6 +1405,8 @@ var
       RemoveHeader(Result, 'Proxy-Authorization');
       RemoveHeader(Result, 'Cookie');
     end;
+    If (AuthValue <> '') and (AuthURL = URL) then
+      SetHeader(Result, 'Authorization', AuthValue);
     If (FAutomaticDecompression <> []) and (HeaderIndex(Result, 'Accept-Encoding') < 0) then begin
       Cookie := '';
       If (THTTPCompressionMethod.GZip in FAutomaticDecompression) or (THTTPCompressionMethod.Any in FAutomaticDecompression) then
@@ -1357,6 +1415,12 @@ var
         If Cookie <> '' then
           Cookie := Cookie + ', ';
         Cookie := Cookie + 'deflate';
+      end;
+      If Assigned(BrotliDecoder) and ((THTTPCompressionMethod.Brotli in FAutomaticDecompression) or
+        (THTTPCompressionMethod.Any in FAutomaticDecompression)) then begin
+        If Cookie <> '' then
+          Cookie := Cookie + ', ';
+        Cookie := Cookie + 'br';
       end;
       If Cookie <> '' then
         SetHeader(Result, 'Accept-Encoding', Cookie);
@@ -1489,6 +1553,17 @@ var
   BodyEnd: Int64;
 begin
   Result := nil;
+  Proxy := FProxySettings;
+  ProxyCredential := FActiveRequest.Credential;
+  If not ProxyCredential.IsEmpty and (ProxyCredential.AuthTarget = TAuthTargetType.Proxy) then begin
+    If Proxy.Host = '' then
+      raise ENetHTTPClientException.Create('Proxy credentials require a configured HTTP proxy');
+    BasicAuthorization(ProxyCredential.UserName, ProxyCredential.Password);
+    Proxy.UserName := ProxyCredential.UserName;
+    Proxy.Password := ProxyCredential.Password;
+  end;
+  If (THTTPCompressionMethod.Brotli in FAutomaticDecompression) and not Assigned(BrotliDecoder) then
+    raise ENetHTTPClientException.Create(BrotliModuleRequired);
   Method := UpperCase(AMethod);
   URL := AURL;
   StartURL := AURL;
@@ -1510,15 +1585,16 @@ begin
       the same packet as the headers and needs no 1 MB staging buffer; a
       bigger one is streamed from its source }
     If HasBody then begin
-      If ASource.Size - ASource.Position <= SmallBodyLimit then
+      If (ASource.Size - ASource.Position <= SmallBodyLimit) and not Assigned(FOnSendData) then
         Data := ReadRest(ASource)
       else
-        Body := TBodyWindow.Create(ASource);
+        Body := TBodyWindow.Create(ASource, Self);
     end;
     Hops := 0;
     Truncated := False;
     BodyDropped := False;
     Retried := False;
+    AuthTried := False;
     repeat
       { a URL without a scheme or a host is refused before any connection is
         tried ("localhost:8080/x" would otherwise be taken for a host name and
@@ -1527,6 +1603,7 @@ begin
         raise ENetURIException.CreateFmt('Invalid URL: "%s"', [URL]);
       If not (URI.Https or SameText(Utf8ToString(URI.Scheme), 'http')) then
         raise ENetHTTPClientException.Create('Unsupported URL scheme: ' + URL);
+      CheckRequest;
       Socket := EnsureSocket(URI, Reused);
       If FAbortRequested then begin
         CloseSocket;
@@ -1625,6 +1702,10 @@ begin
           FCookieManager.AddServerCookie(ReplyHeaders[I].Value, URL);
       If Truncated then
         Socket.Close;
+      If (Status = 401) and not Truncated and Authenticate then begin
+        RewindOutput;
+        Continue;
+      end;
       Redirect := FHandleRedirects and not Truncated and
         ((Status = 300) or (Status = 301) or (Status = 302) or (Status = 303) or (Status = 307) or (Status = 308));
       If Redirect then begin
@@ -1648,6 +1729,8 @@ begin
         BodyDropped := True;
       end;
       URL := ResolveRedirectURL(URL, Location);
+      AuthTried := False;
+      AuthValue := '';
     until False;
     { the body of ASource is consumed to its end }
     If ASource <> nil then
@@ -1664,12 +1747,14 @@ begin
        ((SameText(Coding, 'gzip') and ((THTTPCompressionMethod.GZip in FAutomaticDecompression) or
                                        (THTTPCompressionMethod.Any in FAutomaticDecompression))) or
         (SameText(Coding, 'deflate') and ((THTTPCompressionMethod.Deflate in FAutomaticDecompression) or
-                                          (THTTPCompressionMethod.Any in FAutomaticDecompression)))) then begin
+                                          (THTTPCompressionMethod.Any in FAutomaticDecompression))) or
+        (Assigned(BrotliDecoder) and SameText(Coding, 'br') and ((THTTPCompressionMethod.Brotli in FAutomaticDecompression) or
+                                     (THTTPCompressionMethod.Any in FAutomaticDecompression)))) then begin
       Inflated := TMemoryStream.Create;
       try
         BodyEnd := Output.Position;
         Output.Position := OriginalPosition;
-        InflateBody(Output, Inflated, BodyEnd, SameText(Coding, 'gzip'));
+        DecodeBody(Output, Inflated, BodyEnd, Coding);
         Output.Size := OriginalPosition;
         Output.Position := OriginalPosition;
         If Inflated.Size > 0 then
@@ -1685,7 +1770,7 @@ begin
     end;
     BodyEnd := Output.Position;
     Output.Position := OriginalPosition;
-    Result := THTTPResponse.Create(Status, StatusTextOf, ReplyHeaders, Output, OwnsOutput, OriginalPosition, BodyEnd, Decoded);
+    Result := THTTPResponse.Create(Status, StatusTextOf, ReplyHeaders, Output, OwnsOutput, OriginalPosition, BodyEnd, Decoded, URL, Utf8ToString(Socket.Http.CommandResp), Self);
     OwnsOutput := False;
   finally
     FreeAndNil(Body);
@@ -1715,40 +1800,6 @@ begin
   Result := Execute('POST', AURL, ASource, AResponseContent, AHeaders);
 end;
 
-function THTTPClient.Post(const AURL: string; const ASource: TStrings; const AResponseContent: TStream;
-  const AEncoding: TEncoding; const AHeaders: TNetHeaders): IHTTPResponse;
-var
-  BodyText: string;
-  Bytes: TBytes;
-  Headers: TNetHeaders;
-  Stream: TMemoryStream;
-  I, P: Integer;
-begin
-  BodyText := '';
-  If ASource <> nil then
-    for I := 0 to ASource.Count - 1 do begin
-      P := Pos('=', ASource[I]);
-      If P <= 0 then
-        Continue;
-      If BodyText <> '' then
-        BodyText := BodyText + '&';
-      BodyText := BodyText + FormEncode(Copy(ASource[I], 1, P - 1), AEncoding) + '=' +
-        FormEncode(Copy(ASource[I], P + 1, MaxInt), AEncoding);
-    end;
-  Bytes := TEncoding.ASCII.GetBytes(BodyText);
-  Headers := Copy(AHeaders);
-  SetHeader(Headers, 'Content-Type', 'application/x-www-form-urlencoded; charset=' + CharsetNameOf(AEncoding));
-  Stream := TMemoryStream.Create;
-  try
-    If Length(Bytes) > 0 then
-      Stream.WriteBuffer(Bytes[0], Length(Bytes));
-    Stream.Position := 0;
-    Result := Execute('POST', AURL, Stream, AResponseContent, Headers);
-  finally
-    FreeAndNil(Stream);
-  end;
-end;
-
 function THTTPClient.Put(const AURL: string; const ASource, AResponseContent: TStream; const AHeaders: TNetHeaders): IHTTPResponse;
 begin
   Result := Execute('PUT', AURL, ASource, AResponseContent, AHeaders);
@@ -1759,200 +1810,12 @@ begin
   Result := Execute('PATCH', AURL, ASource, AResponseContent, AHeaders);
 end;
 
-function THTTPClient.CloneForAsync: THTTPClient;
-begin
-  Result := THTTPClient.Create;
-  Result.FConnectionTimeout := FConnectionTimeout;
-  Result.FSendTimeout := FSendTimeout;
-  Result.FResponseTimeout := FResponseTimeout;
-  Result.FHandleRedirects := FHandleRedirects;
-  Result.FMaxRedirects := FMaxRedirects;
-  Result.FAutomaticDecompression := FAutomaticDecompression;
-  Result.FCustomHeaders.Assign(FCustomHeaders);
-  Result.FCookieManager.Assign(FCookieManager);
-  Result.FOnReceiveData := FOnReceiveData;
-  Result.FOnValidateServerCertificate := FOnValidateServerCertificate;
-end;
+{$i httpclient.overloads.impl.inc}
 
-{ ---------------------------------------------------------------------
-  asynchronous GET
-  ---------------------------------------------------------------------}
-
-type
-  IAsyncAwait = interface(IInterface)
-    ['{6C1B0E2B-3F5A-4E7D-9A8C-2D4F1B7E9C01}']
-    function AwaitResponse: IHTTPResponse;
-  end;
-
-  THTTPAsyncResult = class;
-
-  THTTPAsyncThread = class(TThread)
-  private
-    FOwner: THTTPAsyncResult;
-  protected
-    procedure Execute; override;
-  public
-    constructor Create(AOwner: THTTPAsyncResult);
-  end;
-
-  THTTPAsyncResult = class(TInterfacedObject, IAsyncResult, IAsyncAwait)
-  private
-    FGuard: TCriticalSection;
-    FClient: THTTPClient;
-    FThread: THTTPAsyncThread;
-    FURL: string;
-    FHeaders: TNetHeaders;
-    FResponseContent: TStream;
-    FResponse: IHTTPResponse;
-    FError: Exception;
-    FCompleted: Boolean;
-    FCancelled: Boolean;
-    FJoined: Boolean;
-    procedure Run;
-    procedure Join;
-  public
-    constructor Create(AClient: THTTPClient; const AURL: string; AResponseContent: TStream; const AHeaders: TNetHeaders);
-    destructor Destroy; override;
-    function GetIsCompleted: Boolean;
-    function GetIsCancelled: Boolean;
-    function Cancel: Boolean;
-    function AwaitResponse: IHTTPResponse;
-  end;
-
-constructor THTTPAsyncThread.Create(AOwner: THTTPAsyncResult);
-begin
-  inherited Create(True);
-  FreeOnTerminate := False;
-  FOwner := AOwner;
-end;
-
-procedure THTTPAsyncThread.Execute;
-begin
-  FOwner.Run;
-end;
-
-constructor THTTPAsyncResult.Create(AClient: THTTPClient; const AURL: string; AResponseContent: TStream;
-  const AHeaders: TNetHeaders);
-begin
-  inherited Create;
-  FGuard := TCriticalSection.Create;
-  FClient := AClient;
-  FURL := AURL;
-  FResponseContent := AResponseContent;
-  FHeaders := Copy(AHeaders);
-  FThread := THTTPAsyncThread.Create(Self);
-  FThread.Start;
-end;
-
-{ the thread is waited for once: a second WaitFor on a joined pthread is
-  undefined (the RTL guards it now, older toolchains do not) }
-procedure THTTPAsyncResult.Join;
-begin
-  If (FThread <> nil) and not FJoined then begin
-    FThread.WaitFor;
-    FJoined := True;
-  end;
-end;
-
-destructor THTTPAsyncResult.Destroy;
-begin
-  Cancel;
-  Join;
-  FreeAndNil(FThread);
-  FreeAndNil(FClient);
-  FreeAndNil(FError);
-  FreeAndNil(FGuard);
-  inherited Destroy;
-end;
-
-procedure THTTPAsyncResult.Run;
-var
-  Response: IHTTPResponse;
-  Error: Exception;
-begin
-  Response := nil;
-  Error := nil;
-  try
-    Response := FClient.Get(FURL, FResponseContent, FHeaders);
-  except
-    on Exception do
-      Error := Exception(AcquireExceptionObject);
-  end;
-  FGuard.Acquire;
-  try
-    FResponse := Response;
-    FError := Error;
-    FCompleted := True;
-  finally
-    FGuard.Release;
-  end;
-end;
-
-function THTTPAsyncResult.GetIsCompleted: Boolean;
-begin
-  FGuard.Acquire;
-  try
-    Result := FCompleted;
-  finally
-    FGuard.Release;
-  end;
-end;
-
-function THTTPAsyncResult.GetIsCancelled: Boolean;
-begin
-  FGuard.Acquire;
-  try
-    Result := FCancelled;
-  finally
-    FGuard.Release;
-  end;
-end;
-
-function THTTPAsyncResult.Cancel: Boolean;
-begin
-  FGuard.Acquire;
-  try
-    Result := not FCompleted and not FCancelled;
-    If Result then
-      FCancelled := True;
-  finally
-    FGuard.Release;
-  end;
-  If Result then
-    FClient.Abort;
-end;
-
-function THTTPAsyncResult.AwaitResponse: IHTTPResponse;
-var
-  Error: Exception;
-begin
-  Join;
-  If GetIsCancelled then
-    raise ENetHTTPClientException.Create('HTTP request was cancelled');
-  FGuard.Acquire;
-  try
-    Error := FError;
-    FError := nil;
-    Result := FResponse;
-  finally
-    FGuard.Release;
-  end;
-  If Error <> nil then
-    raise Error;
-end;
-
-function THTTPClient.BeginGet(const AURL: string; const AResponseContent: TStream; const AHeaders: TNetHeaders): IAsyncResult;
-begin
-  Result := THTTPAsyncResult.Create(CloneForAsync, AURL, AResponseContent, AHeaders);
-end;
-
-class function THTTPClient.EndAsyncHTTP(const AAsyncResult: IAsyncResult): IHTTPResponse;
-var
-  Await: IAsyncAwait;
-begin
-  If (AAsyncResult = nil) or not Supports(AAsyncResult, IAsyncAwait, Await) then
-    raise ENetHTTPClientException.Create('Async HTTP result is nil or not from THTTPClient.BeginGet');
-  Result := Await.AwaitResponse;
-end;
-
+initialization
+  TURLSchemes.RegisterURLClientScheme(THTTPClient, 'http');
+  TURLSchemes.RegisterURLClientScheme(THTTPClient, 'https');
+finalization
+  TURLSchemes.UnRegisterURLClientScheme('http');
+  TURLSchemes.UnRegisterURLClientScheme('https');
 end.

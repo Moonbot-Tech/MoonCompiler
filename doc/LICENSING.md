@@ -28,6 +28,14 @@ original license.
 header: a choice of MPL 1.1 / GPL 2+ / LGPL 2.1+ with the FPC linking exception.
 A copy of the notices is in [runtime/mm/LICENSE.md](../runtime/mm/LICENSE.md).
 
+## Bundled Brotli Decoder
+
+The optional `Moon.HttpClient.Brotli` unit links Google's Brotli 1.2.0 decoder
+under the MIT license. Using `System.Net.HttpClient` alone does not link it.
+Its unmodified source archive, build script and license are retained in
+[`packages/vcl-compat/native/brotli`](../packages/vcl-compat/native/brotli).
+Binary distributions include `share/doc/mooncompiler/BROTLI-MIT.txt`.
+
 ## Optional Diagnostic Reports
 
 `runtime/reporting` uses the RTL license and linking exception; see its

@@ -410,6 +410,8 @@ function Build-Compiler {
       -Destination (Join-Path $licenseDir 'RTL-EXCEPTION.txt')
     Copy-Item -LiteralPath (Join-Path $Root 'runtime\mm\LICENSE.md') `
       -Destination (Join-Path $licenseDir 'MM-LICENSE.md')
+    Copy-Item -LiteralPath (Join-Path $Root 'packages\vcl-compat\native\brotli\LICENSE-brotli.txt') `
+      -Destination (Join-Path $licenseDir 'BROTLI-MIT.txt')
     Copy-Item -LiteralPath (Join-Path $Root 'doc\LICENSING.md') `
       -Destination (Join-Path $licenseDir 'LICENSING.md')
     foreach ($tool in @('ar', 'as', 'ld', 'nm', 'objcopy', 'objdump', 'strip', 'windres')) {
