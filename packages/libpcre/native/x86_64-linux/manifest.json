@@ -1,0 +1,30 @@
+{
+  "source": "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.49/pcre2-10.49.tar.gz",
+  "source_sha256": "929f0b20e62879252a15886b06c89f1edef61a363cbd5826fb041080a5e557ae",
+  "compiler": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "options": "-O2 -DNDEBUG -ffreestanding -fno-builtin -fno-stack-protector -fasynchronous-unwind-tables -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fstack-usage -fPIC -fvisibility=hidden -fcf-protection=none",
+  "unresolved": [
+    "_GLOBAL_OFFSET_TABLE_",
+    "__ctype_b_loc",
+    "__ctype_tolower_loc",
+    "__ctype_toupper_loc",
+    "madvise",
+    "mmap",
+    "moon_pcre_free",
+    "moon_pcre_malloc",
+    "moon_pcre_memcmp",
+    "moon_pcre_memcpy",
+    "moon_pcre_memmove",
+    "moon_pcre_memset",
+    "moon_pcre_strchr",
+    "moon_pcre_strlen",
+    "munmap",
+    "posix_madvise",
+    "pthread_mutex_lock",
+    "pthread_mutex_unlock",
+    "sysconf"
+  ],
+  "files": {
+    "libmoonpcre2.a": "cbbe1f2044697014b1013c02f5c76fb32389878a017c7fed60013645103b1d02"
+  }
+}

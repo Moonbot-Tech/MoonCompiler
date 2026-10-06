@@ -406,6 +406,14 @@ function Build-Compiler {
       -Destination (Join-Path $licenseDir 'MM-LICENSE.md')
     Copy-Item -LiteralPath (Join-Path $Root 'packages\vcl-compat\native\brotli\LICENSE-brotli.txt') `
       -Destination (Join-Path $licenseDir 'BROTLI-MIT.txt')
+    Copy-Item -LiteralPath (Join-Path $Root 'packages\libpcre\native\LICENSE-PCRE2.txt') `
+      -Destination (Join-Path $licenseDir 'PCRE2-BSD.txt')
+    Copy-Item -LiteralPath (Join-Path $Root 'packages\libpcre\native\LICENSE-SLJIT.txt') `
+      -Destination (Join-Path $licenseDir 'PCRE2-SLJIT-BSD.txt')
+    Copy-Item -LiteralPath (Join-Path $Root 'packages\libpcre\native\LICENSE-GCC-GPL3.txt') `
+      -Destination (Join-Path $licenseDir 'PCRE2-STACK-PROBE-GPL3.txt')
+    Copy-Item -LiteralPath (Join-Path $Root 'packages\libpcre\native\LICENSE-GCC-RUNTIME-EXCEPTION.txt') `
+      -Destination (Join-Path $licenseDir 'PCRE2-STACK-PROBE-EXCEPTION.txt')
     Copy-Item -LiteralPath (Join-Path $Root 'packages\winunits-base\MPL-1.1.txt') `
       -Destination (Join-Path $licenseDir 'WINDOWS-SDK-MPL-1.1.txt')
     Copy-Item -LiteralPath (Join-Path $Root 'packages\winunits-base\NOTICE-WINDOWS-SDK.md') `

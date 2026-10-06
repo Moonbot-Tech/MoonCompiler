@@ -9,3 +9,4 @@ build text eol=lf
 *.inc diff=pascal
 runtime/mm/mormot.core.fpcx64mm.pas -text
 runtime/mm/LICENSE.md -text
+packages/libpcre/native/gcc/* -text

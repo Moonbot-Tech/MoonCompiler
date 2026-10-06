@@ -1,0 +1,4 @@
+!*.tar.gz
+!gcc/cygwin.S
+!x86_64-win64/*.a
+!x86_64-linux/*.a

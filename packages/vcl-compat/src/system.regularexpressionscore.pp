@@ -30,7 +30,7 @@ interface
 // We cannot detect the char size before the uses clause is parsed, it will return 1, the compiler default.
 // So we need a define here, maybe a compiler switch is needed to set the default size (-Sw ?) which would allow to set the default type.
 // The detection here is based on the assumption that the dotted units use widestring...
-{$IFDEF UNICODERTL}
+{$IF DEFINED(UNICODERTL) OR DEFINED(MOONCOMPILER_UNICODE_DEFAULT)}
 {$DEFINE USEWIDESTRING}
 {$ENDIF}
 
@@ -61,7 +61,7 @@ uses
     {$IFDEF USE_PCRE2_8}
       Api.PCRE2_8
     {$ELSE}
-      Api.PCRE2_16
+      Moon.Internal.Pcre2
     {$ENDIF},
   {$ELSE}
   wasm.pcrebridge,
@@ -73,7 +73,7 @@ uses
     {$IFDEF USE_PCRE2_8}
       libpcre2_8
     {$ELSE}
-      libpcre2_16
+      Moon.Internal.Pcre2
     {$ENDIF},
   {$ELSE}
   wasm.pcrebridge,
@@ -136,7 +136,6 @@ type
     FNameCount : cuint32;
     FNameTable : PCRE2_SPTR;
     FNameEntrySize : cuint32;
-    FLastModifiedEnd: SizeInt;
     FReplacement : TREString;
     FStoredGroups: array of TREString;
     FCrLFIsNewLine,
@@ -490,7 +489,9 @@ var
   astart,aLength : Ptrint;
 
 begin
-  // Writeln('AIndex ',aIndex,' ',FResultCount);
+  CheckMatch;
+  if (aIndex<0) or (aIndex>=Integer(FResultCount)) then
+    Exit('');
   aStart:=FResultVector[2*aIndex];
   aLength:=FResultVector[2*aIndex+1]-aStart;
   inc(aStart); // 1-based
@@ -581,6 +582,7 @@ procedure TPerlRegEx.SetRegEx(const aValue: TREString);
 begin
   if FRegEx=AValue then Exit;
   FRegEx:=aValue;
+  CleanUp;
 end;
 
 procedure TPerlRegEx.SetReplacement(const aValue: TREString);
@@ -607,7 +609,8 @@ begin
 {$IFDEF NEED_UTF_CONVERSION}
   FUTF8Subject:=UTF8Encode(FSubject);
 {$ENDIF}
-  CleanUp;
+  FreeMatchData;
+  ClearStoredGroups;
   FStart:=0;
   FStop:=Length(FSubject);
 end;
@@ -617,9 +620,6 @@ begin
   FreeMatchData;
   FreeCodeData;
   ClearStoredGroups;
-  FResultCount:=0;
-  FResultVector:=Nil;
-  FLastModifiedEnd:=0;
 end;
 
 procedure TPerlRegEx.ClearStoredGroups;
@@ -639,8 +639,10 @@ end;
 
 constructor TPerlRegEx.Create;
 begin
+{$IFNDEF USE_PCRE2_16}
   if not libpcre28loaded then
     Loadlibpcre28;
+{$ENDIF}
 end;
 
 destructor TPerlRegEx.Destroy;
@@ -696,7 +698,15 @@ function TPerlRegEx.MakeOptions(aOptions: TPerlRegExOptions): Integer;
   end;
 
 begin
-  Result:=PCRE2_NEWLINE_ANY or PCRE2_UTF;
+{$IFDEF USE_PCRE2_16}
+  // Delphi matches UTF-16 code units by default. (*UTF) explicitly selects
+  // scalar-value matching; returned offsets remain UTF-16 code-unit offsets.
+  Result:=0;
+  if not (preLiteral in aOptions) then
+    Result:=PCRE2_UCP;
+{$ELSE}
+  Result:=PCRE2_UTF;
+{$ENDIF}
   AddOption(preCaseLess,PCRE2_CASELESS);
   AddOption(preMultiLine,PCRE2_MULTILINE);
   AddOption(preSingleLine,PCRE2_DOTALL);
@@ -729,19 +739,28 @@ end;
 function TPerlRegEx.GetPCREErrorMsg(ErrorNr: Integer): TREString;
 
 var
-  Buffer : Array[0..255] of ansichar;
+{$IFDEF USE_PCRE2_16}
+  Buffer: array[0..255] of WideChar;
+{$ELSE}
+  Buffer: array[0..255] of AnsiChar;
+{$ENDIF}
 
 begin
   FillChar(Buffer,SizeOf(Buffer),0);
-  pcre2_get_error_message(ErrorNr,@Buffer,SizeOf(Buffer));
-  Result:=strpas(@Buffer);
+  pcre2_get_error_message(ErrorNr,@Buffer,Length(Buffer));
+{$IFDEF USE_PCRE2_16}
+  Result:=StrPas(PWideChar(@Buffer));
+{$ELSE}
+  Result:=StrPas(PAnsiChar(@Buffer));
+{$ENDIF}
 end;
 
 procedure TPerlRegEx.Compile;
 
 var
   ErrorNr: Integer;
-  ErrorPos: Integer;
+  ErrorPos: SizeUInt;
+  CompileContext: Pointer;
 {$IFDEF NEED_UTF_CONVERSION}
   UTF8Regex: RawByteString;
 {$ENDIF}
@@ -750,15 +769,33 @@ begin
   if (FRegEx='') then
     raise ERegularExpressionError.CreateRes(@SRegExMissingExpression);
   CleanUp;
+  CompileContext:=pcre2_compile_context_create(nil);
+  if CompileContext=nil then
+    raise EOutOfMemory.Create('Cannot allocate regular expression compile context');
+  try
+    pcre2_set_newline(CompileContext,PCRE2_NEWLINE_ANY);
+{$IFDEF USE_PCRE2_16}
+    // Unicode case folding with Delphi's ASCII shorthand character classes.
+    if not (preLiteral in FOptions) then
+      pcre2_set_compile_extra_options(CompileContext,
+        PCRE2_EXTRA_ASCII_BSD or PCRE2_EXTRA_ASCII_BSS or PCRE2_EXTRA_ASCII_BSW);
+{$ENDIF}
 {$IFDEF NEED_UTF_CONVERSION}
   UTF8Regex:=UTF8Encode(FRegEx);
-  FCode:=pcre2_compile(TPCRE2_SPTR8(PAnsiChar(UTF8Regex)),Length(UTF8Regex),MakeOptions(FOptions),@ErrorNr,@ErrorPos,Nil);
+  FCode:=pcre2_compile(TPCRE2_SPTR8(PAnsiChar(UTF8Regex)),Length(UTF8Regex),MakeOptions(FOptions),@ErrorNr,@ErrorPos,CompileContext);
 {$ELSE}
-  FCode:=pcre2_compile(TPCRE2_SPTR8(FRegEx),Length(FRegEx),MakeOptions(FOptions),@ErrorNr,@ErrorPos,Nil);
+{$IFDEF USE_PCRE2_16}
+  FCode:=pcre2_compile_w(PWideChar(FRegEx),Length(FRegEx),MakeOptions(FOptions),@ErrorNr,@ErrorPos,CompileContext);
+{$ELSE}
+  FCode:=pcre2_compile(TPCRE2_SPTR8(FRegEx),Length(FRegEx),MakeOptions(FOptions),@ErrorNr,@ErrorPos,CompileContext);
 {$ENDIF}
+{$ENDIF}
+  finally
+    pcre2_compile_context_free(CompileContext);
+  end;
   if (FCode=nil) then
     raise ERegularExpressionError.CreateFmt(SRegExExpressionError,[ErrorPos+1,GetPCREErrorMsg(ErrorNr)]);
-  FMatchData:=pcre2_match_data_create_from_pattern(FCode,Nil);
+
 end;
 
 procedure TPerlRegEx.Study;
@@ -772,11 +809,12 @@ var
   Data : ppcre2_match_data;
 
 begin
+  FResultCount:=0;
+  FResultVector:=Nil;
   if FMatchData=Nil then exit;
   Data:=FMatchData;
   FMatchData:=Nil;
   pcre2_match_data_free(Data);
-  FResultVector:=Nil;
 end;
 
 procedure TPerlRegEx.FreeCodeData;
@@ -825,7 +863,7 @@ var
 
 begin
   Ptr:=FNameTable;
-  if (aIndex<0) or (aIndex>FNameCount) then
+  if (aIndex<0) or (aIndex>=FNameCount) then
     Raise ERegularExpressionError.CreateFmt(SErrInvalidNameIndex,[aIndex,FNameCount]);
   for i:=0 to aIndex-1 do
     Inc(Ptr,FNameEntrySize);
@@ -846,7 +884,11 @@ begin
   ClearStoredGroups;
   if not Compiled then
     Compile;
+  if FMatchData=nil then begin
   FMatchData:=pcre2_match_data_create_from_pattern(FCode,Nil);
+  if FMatchData=nil then
+    raise EOutOfMemory.Create('Cannot allocate regular expression match data');
+  end;
   Result:=DoMatch(0)=mrFound;
   if Result  then
     begin
@@ -872,6 +914,9 @@ var
 
 begin
   Result:=mrNotFound;
+  if preNotBOL in FState then Opts:=Opts or PCRE2_NOTBOL;
+  if preNotEOL in FState then Opts:=Opts or PCRE2_NOTEOL;
+  if preNotEmpty in FState then Opts:=Opts or PCRE2_NOTEMPTY;
 {$IFDEF NEED_UTF_CONVERSION}
   UTF8Start:=CharOffsetToUTF8Offset(FUTF8Subject, FStart);
   rc:=pcre2_match(
@@ -883,13 +928,17 @@ begin
     FMatchData,                      (* block for storing the result *)
     Nil);
 {$ELSE}
-{$IF SIZEOF(CHAR)=2}
+{$IFDEF USE_PCRE2_16}
   rc:=pcre2_match_w(
 {$ELSE}
   rc:=pcre2_match(
 {$ENDIF}
     FCode,                   (* the compiled pattern *)
-    PChar(FSubject),         (* the subject TREString *)
+{$IFDEF USE_PCRE2_16}
+    PWideChar(FSubject),
+{$ELSE}
+    TPCRE2_SPTR8(FSubject),
+{$ENDIF}
     FSubjectLength,         (* the length of the subject *)
     FStart,                  (* start at offset 0 in the subject *)
     Opts,                    (* default options *)
@@ -920,7 +969,10 @@ begin
       FResultVector[I]:=UTF8OffsetToCharOffset(FUTF8Subject, FResultVector[I]);
 {$ENDIF}
   if FResultVector[0]>FStop then
+    begin
+    FreeMatchData;
     Exit(mrAfterStop);
+    end;
   {For i:=0 to FResultCount-1 do
     Writeln(I,': ',FResultVector[2*I],' - ',FResultVector[2*I+1]);}
   if (FResultVector[0]>FResultVector[1]) then
@@ -944,6 +996,8 @@ var
   StartChar,Opts : cuint32;
 begin
   Result:=False;
+  if FResultVector=nil then
+    Exit;
   Opts:=0;
   // Special case, empty TREString.
   if (FResultVector[0]=FResultVector[1]) then
@@ -972,7 +1026,7 @@ begin
         begin
         While (FStart<FSubjectLength) do
           begin
-{$IFDEF NEED_UTF_CONVERSION}
+{$IF defined(NEED_UTF_CONVERSION) or defined(USE_PCRE2_16)}
           // For UTF-16: skip past low surrogates (second half of a surrogate pair)
           if (Ord(FSubject[FStart+1]) < $DC00) or (Ord(FSubject[FStart+1]) > $DFFF) then
             Break;
@@ -1016,6 +1070,8 @@ begin
       if not Compiled then
         Break;
       FMatchData:=pcre2_match_data_create_from_pattern(FCode,Nil);
+      if FMatchData=nil then
+        raise EOutOfMemory.Create('Cannot allocate regular expression match data');
       FResultVector:=pcre2_get_ovector_pointer(FMatchData);
       end;
     FResultVector[1]:=FStart+1;             (* Advance one code unit *)
@@ -1026,9 +1082,9 @@ begin
        inc(FResultVector[1])                (* Advance by one more. *)
     else if (FIsUtf) then                     (* Otherwise, ensure we advance a whole UTF character. *)
       begin
-      while (FResultVector[1]<FSubjectLength-1) do
+      while (FResultVector[1]<FSubjectLength) do
         begin
-{$IFDEF NEED_UTF_CONVERSION}
+{$IF defined(NEED_UTF_CONVERSION) or defined(USE_PCRE2_16)}
         // For UTF-16: skip past low surrogates
         if (Ord(FSubject[FResultVector[1]+1]) < $DC00) or (Ord(FSubject[FResultVector[1]+1]) > $DFFF) then
           break;
@@ -1059,22 +1115,19 @@ end;
 
 
 function TPerlRegEx.Replace: TREString;
-
-var
-  NewSubject,Tmp : TREString;
-
 begin
   CheckMatch;
-  Result:=ComputeReplacement;
   if Assigned(OnReplace) then
-    OnReplace(Self, Result);
-  Tmp:=Result;
-  if FLastModifiedEnd=0 then
-    FLastModifiedEnd:=GetMatchedOffset-1;
-  NewSubject:=Copy(FModifiedSubject,1,FLastModifiedEnd)+Tmp;
-  FLastModifiedEnd:=Length(NewSubject)+1;
-  tmp:=GetSubjectRight;
-  FModifiedSubject:=NewSubject+tmp;
+    begin
+    Result:='';
+    OnReplace(Self,Result);
+    end
+  else
+    Result:=ComputeReplacement;
+  // Match offsets refer to the original subject. Previous replacements shift
+  // the corresponding prefix in the modified subject by its length delta.
+  FModifiedSubject:=Copy(FModifiedSubject,1,GetMatchedOffset-1+Length(FModifiedSubject)-FSubjectLength)
+    +Result+GetSubjectRight;
   ClearStoredGroups;
 end;
 

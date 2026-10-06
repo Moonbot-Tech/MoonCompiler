@@ -69,6 +69,7 @@ from pathlib import Path
 
 from winapi_scope_gate import alias_scope, winapi_scope
 from json_scope_gate import json_scope
+from pcre2_static_gate import static_regex
 
 ROOT = Path(__file__).resolve().parents[2]
 PROBE = Path(__file__).resolve().with_name("unit_scope_probe.dpr")
@@ -290,6 +291,7 @@ def main() -> int:
     args = parser.parse_args()
     toolchain = args.toolchain.resolve()
     fpc, config, bindir = toolchain_files(toolchain)
+    objdump = args.objdump or (str(toolchain / "bin" / "x86_64-win64" / "objdump.exe") if IS_WINDOWS else "objdump")
     failures: list[str] = []
     try:
         self_check()
@@ -318,8 +320,6 @@ def main() -> int:
                                      text=True, encoding="utf-8", errors="replace", timeout=300)
                 if run.returncode != 0 or "UNIT_SCOPE_PROBE_PASS" not in run.stdout:
                     failures.append(f"the probe does not run (exit {run.returncode}):\n{run.stdout[-2000:]}")
-                objdump = args.objdump or (str(toolchain / "bin" / "x86_64-win64" / "objdump.exe")
-                                           if IS_WINDOWS else "objdump")
                 problems, zlibs = carried_zlibs(executable, run.stdout, objdump)
                 failures += problems
             failures += own_units_win(fpc, work)
@@ -327,6 +327,7 @@ def main() -> int:
             try:
                 alias_scope(fpc, work)
                 json_scope(fpc, work)
+                static_regex(fpc, objdump, work)
             except RuntimeError as error:
                 failures.append(str(error))
             if IS_WINDOWS:

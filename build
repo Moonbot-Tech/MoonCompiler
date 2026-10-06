@@ -413,6 +413,8 @@ build_compiler() {
     "$new_toolchain/share/doc/mooncompiler/MM-LICENSE.md"
   cp "$ROOT/packages/vcl-compat/native/brotli/LICENSE-brotli.txt" \
     "$new_toolchain/share/doc/mooncompiler/BROTLI-MIT.txt"
+  cp "$ROOT/packages/libpcre/native/LICENSE-PCRE2.txt" "$new_toolchain/share/doc/mooncompiler/PCRE2-BSD.txt"
+  cp "$ROOT/packages/libpcre/native/LICENSE-SLJIT.txt" "$new_toolchain/share/doc/mooncompiler/PCRE2-SLJIT-BSD.txt"
   cp "$ROOT/doc/LICENSING.md" \
     "$new_toolchain/share/doc/mooncompiler/LICENSING.md"
 

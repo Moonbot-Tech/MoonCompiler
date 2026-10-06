@@ -110,12 +110,10 @@ type
     FGroup: TGroup;
     FGroups: TGroupCollection;
     FRegex : IObjectReference;
-    FNext: PMatch;
     function GetIndex: Integer;
     function GetLength: Integer;
     function GetSuccess: Boolean;
     function GetValue: TREString;
-    procedure SetNext(const aNext: PMatch);
   public
     constructor Create(const aRegex: IObjectReference; const aValue: TREString; aIndex, aLength: Integer; aSuccess: Boolean);
     function NextMatch: TMatch;
@@ -355,12 +353,6 @@ begin
   Result:=FGRoup.Value;
 end;
 
-procedure TMatch.SetNext(const aNext: PMatch);
-begin
-  FRegex:=Nil;
-  FNext:=aNext;
-end;
-
 constructor TMatch.Create(const aRegex: IObjectReference; const aValue: TREString; aIndex, aLength: Integer; aSuccess: Boolean);
 
 var
@@ -407,8 +399,6 @@ begin
     else
       Result:=TMatch.Create(FRegex,'',0,0,False);
     end
-  else if Assigned(FNext) then
-    Result:=FNext^
   else
     Result:=TMatch.Create(FRegex,'',0,0,False);
 end;
@@ -431,7 +421,7 @@ constructor TMatchCollection.Create(const aRegex: IObjectReference; const aInput
 
 var
   Found: Boolean;
-  Len : Integer;
+  Len: Integer;
   RE: TPerlRegEx;
 begin
   RE:=GetRegEx(aRegex);
@@ -446,12 +436,9 @@ begin
     if Len>=Length(FMatches) then
       SetLength(FMatches,Length(FMatches)+MatchGrowDelta);
     FMatches[Len]:=TMatch.Create(aRegex,RE.MatchedText,RE.MatchedOffset,RE.MatchedLength,Found);
-    if Len>0 then
-      FMatches[Len-1].SetNext(@FMatches[Len]);
     Found:=RE.MatchAgain;
     Inc(Len);
     end;
-  FMatches[Len-1].SetNext(Nil);
   if Len<Length(FMatches) then
     SetLength(FMatches,Len);
 end;
@@ -498,6 +485,8 @@ begin
   FRegEx:=TPerlRegEx.Create;
   Foptions:=aOPtions;
   FRegex.Options:=RegExOptionsToPCREOptions(aOptions);
+  if roNotEmpty in aOptions then
+    FRegex.State:=[preNotEmpty];
   FRegex.RegEx:=aPattern;
   FRef:=TObjectReference.Create(FRegex);
 end;
@@ -652,6 +641,7 @@ begin
     FRegEx.ReplaceAll;
     Result := FRegEx.Subject;
   finally
+    FRegEx.OnReplace:=nil;
     M.Free;
   end;
 end;
@@ -662,7 +652,7 @@ var
   I: Integer;
 
 begin
-  if aCount<0 then
+  if aCount<=0 then
     Exit(Replace(aInput,aReplacement));
   I:=0;
   FRegEx.Subject:=aInput;
@@ -682,11 +672,12 @@ var
   I : integer;
 
 begin
+  if aCount<=0 then
+    Exit(Replace(aInput,aEvaluator));
   FRegEx.Subject:=aInput;
   M:=TMatcher.Create(aEvaluator,FRef);
   try
     I:=0;
-    FRegEx.Subject:=aInput;
     FRegEx.OnReplace:=@M.ReplaceEvent;
     if FRegEx.Match then
       repeat
@@ -695,6 +686,7 @@ begin
       until (not FRegEx.MatchAgain) or (I>=aCount);
     Result:=FRegEx.Subject;
   finally
+    FRegEx.OnReplace:=nil;
     M.Free;
   end;
 end;
