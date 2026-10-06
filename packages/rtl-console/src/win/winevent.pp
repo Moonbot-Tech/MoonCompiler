@@ -69,7 +69,7 @@ interface
        InstalledHandlers : Byte = 0;
 
     var
-       HandlerChanging : TCriticalSection;
+       HandlerChanging : TRTLCriticalSection;
        EventThreadHandle : Handle;
        EventThreadID : DWord;
 

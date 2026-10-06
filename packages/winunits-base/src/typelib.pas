@@ -349,7 +349,8 @@ var
   BstrName : WideString;
   il:LongWord;
   i,idims:integer;
-  sl,sRefSrc,sKey:AnsiString;
+  sl: AnsiString;
+  sRefSrc,sKey: UnicodeString;
   Handle:HKEY;
   bWasPointer:boolean;
 begin
@@ -406,12 +407,15 @@ begin
       bIsExternalDecl:=true;
       il:=MAX_PATH;
       SetLength(sRefSrc,il);
+      il:=il*SizeOf(WideChar);
       sKey:=format('\TypeLib\%s\%d.%d\0\win32',[GUIDToString(LARef^.GUID),LARef^.wMajorVerNum,LARef^.wMinorVerNum]);
-      if (RegOpenKeyEx(HKEY_CLASSES_ROOT,PAnsiChar(sKey),0,KEY_READ,Handle) = ERROR_SUCCESS) then
+      if (RegOpenKeyExW(HKEY_CLASSES_ROOT,PWideChar(sKey),0,KEY_READ,Handle) = ERROR_SUCCESS) then
         begin
-        if RegQueryValue(Handle,nil,@sRefSrc[1],@il) = ERROR_SUCCESS then
+        if RegQueryValueW(Handle,nil,PWideChar(sRefSrc),@il) = ERROR_SUCCESS then
           begin
-          SetLength(sRefSrc,il-1);  // includes null terminator
+          SetLength(sRefSrc,il div SizeOf(WideChar));
+          if (Length(sRefSrc)>0) and (sRefSrc[Length(sRefSrc)]=#0) then
+            SetLength(sRefSrc,Length(sRefSrc)-1);
           i:=FDependencies.Indexof(sRefSrc);
           if i < 0 Then
             FDependencies.Add(sRefSrc);
@@ -1523,7 +1527,8 @@ Var
   ITF:WINT;
   RegHandle:HKEY;
   il,il2:LongWord;
-  sRefSrc,sKey,sl:AnsiString;
+  sl: AnsiString;
+  sRefSrc,sKey: UnicodeString;
   resHandle:hmodule;
   bmhandle:handle;
   pData:pByte;
@@ -1737,17 +1742,20 @@ begin
         //get image location from registry
         il:=MAX_PATH;
         SetLength(sRefSrc,il);
+        il:=il*SizeOf(WideChar);
         sKey:=format('\CLSID\%s\ToolboxBitmap32',[GUIDToString(TA^.GUID)]);
         bmhandle:=0;
-        if (RegOpenKeyEx(HKEY_CLASSES_ROOT,PAnsiChar(sKey),0,KEY_READ,RegHandle) = ERROR_SUCCESS) then
+        if (RegOpenKeyExW(HKEY_CLASSES_ROOT,PWideChar(sKey),0,KEY_READ,RegHandle) = ERROR_SUCCESS) then
           begin
-          if RegQueryValue(RegHandle,nil,@sRefSrc[1],@il) = ERROR_SUCCESS then
+          if RegQueryValueW(RegHandle,nil,PWideChar(sRefSrc),@il) = ERROR_SUCCESS then
             begin
-            SetLength(sRefSrc,il-1);  // includes null terminator
+            SetLength(sRefSrc,il div SizeOf(WideChar));
+            if (Length(sRefSrc)>0) and (sRefSrc[Length(sRefSrc)]=#0) then
+              SetLength(sRefSrc,Length(sRefSrc)-1);
             sl:=trim(copy(sRefSrc,pos(',',sRefSrc)+1,length(sRefSrc))); //format: filename, id
             sRefSrc:=copy(sRefSrc,1,pos(',',sRefSrc)-1);
             //Load bitmap
-            ResHandle:=LoadLibraryExA(PAnsiChar(sRefSrc),0,$00000022); //LOAD_LIBRARY_AS_IMAGE_RESOURCE or LOAD_LIBRARY_AS_DATAFILE
+            ResHandle:=LoadLibraryExW(PWideChar(sRefSrc),0,$00000022); //LOAD_LIBRARY_AS_IMAGE_RESOURCE or LOAD_LIBRARY_AS_DATAFILE
             if (ResHandle<>0) then
               begin
               bmhandle:=FindResource(ResHandle,makeintresource(StrToIntDef(sl,0)),RT_BITMAP);

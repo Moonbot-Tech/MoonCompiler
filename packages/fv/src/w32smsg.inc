@@ -26,7 +26,7 @@ uses
 {$ENDIF FPC_DOTTEDUNITS}
 
 var
-   ChangeSystemEvents : TCriticalSection;
+   ChangeSystemEvents : TRTLCriticalSection;
 Const
   SystemEventActive : Boolean = false;
 

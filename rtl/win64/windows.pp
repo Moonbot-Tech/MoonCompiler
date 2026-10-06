@@ -53,6 +53,25 @@ interface
 {$i func.inc}
 {$i redef.inc}
 
+{ SDK declarations used by ordinary service and diagnostics code. }
+type
+  TTopLevelExceptionFilter = function(Info: PEXCEPTION_POINTERS): LONG; stdcall;
+  LPTOP_LEVEL_EXCEPTION_FILTER = TTopLevelExceptionFilter;
+  TFNTopLevelExceptionFilter = TFarProc;
+function SetUnhandledExceptionFilter(Filter: TFNTopLevelExceptionFilter): TFNTopLevelExceptionFilter;
+  external 'kernel32' name 'SetUnhandledExceptionFilter';
+function SetDllDirectoryA(Path: LPCSTR): BOOL; external 'kernel32' name 'SetDllDirectoryA';
+function SetDllDirectoryW(Path: LPCWSTR): BOOL; external 'kernel32' name 'SetDllDirectoryW';
+function GetDllDirectoryA(Length: DWORD; Buffer: LPSTR): DWORD; external 'kernel32' name 'GetDllDirectoryA';
+function GetDllDirectoryW(Length: DWORD; Buffer: LPWSTR): DWORD; external 'kernel32' name 'GetDllDirectoryW';
+{$ifdef UNICODE}
+function SetDllDirectory(Path: LPCWSTR): BOOL; external 'kernel32' name 'SetDllDirectoryW';
+function GetDllDirectory(Length: DWORD; Buffer: LPWSTR): DWORD; external 'kernel32' name 'GetDllDirectoryW';
+{$else}
+function SetDllDirectory(Path: LPCSTR): BOOL; external 'kernel32' name 'SetDllDirectoryA';
+function GetDllDirectory(Length: DWORD; Buffer: LPSTR): DWORD; external 'kernel32' name 'GetDllDirectoryA';
+{$endif}
+
 implementation
 
 {$undef read_interface}

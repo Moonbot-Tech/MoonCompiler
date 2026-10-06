@@ -72,7 +72,7 @@ function LoadLibraryEx(lpLibFileName:LPCWSTR; hFile:HANDLE; dwFlags:DWORD):HINST
 function GetModuleFileName(hModule:HINST; lpFilename:LPWSTR; nSize:DWORD):DWORD; external 'kernel32' name 'GetModuleFileNameW';
 function GetModuleHandle(lpModuleName:LPCWSTR):HMODULE; external 'kernel32' name 'GetModuleHandleW';
 procedure FatalAppExit(uAction:UINT; lpMessageText:LPCWSTR); external 'kernel32' name 'FatalAppExitW';
-function GetCommandLine : LPWSTR; external 'kernel32' name 'GetCommandLineW';function GetEnvironmentVariable(lpName:LPCWSTR; lpBuffer:LPWSTR; nSize:DWORD):DWORD; external 'kernel32' name 'GetEnvironmentVariableW';
+function GetCommandLine : LPWSTR; external 'kernel32' name 'GetCommandLineW';function GetEnvironmentVariable(lpName:LPCWSTR; lpBuffer:LPWSTR; nSize:DWORD):DWORD; overload; external 'kernel32' name 'GetEnvironmentVariableW';
 function SetEnvironmentVariable(lpName:LPCWSTR; lpValue:LPCWSTR):WINBOOL; external 'kernel32' name 'SetEnvironmentVariableW';
 function ExpandEnvironmentStrings(lpSrc:LPCWSTR; lpDst:LPWSTR; nSize:DWORD):DWORD; external 'kernel32' name 'ExpandEnvironmentStringsW';
 procedure OutputDebugString(lpOutputString:LPCWSTR); external 'kernel32' name 'OutputDebugStringW';

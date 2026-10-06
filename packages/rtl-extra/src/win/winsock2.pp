@@ -620,9 +620,7 @@ const
   WSA_INVALID_PARAMETER = ERROR_INVALID_PARAMETER;
   WSA_NOT_ENOUGH_MEMORY = ERROR_NOT_ENOUGH_MEMORY;
   WSA_OPERATION_ABORTED = ERROR_OPERATION_ABORTED;
-{$ifndef FPC}{TODO}
-  WSA_INVALID_EVENT = WSAEVENT(nil);
-{$endif}
+  WSA_INVALID_EVENT = WSAEVENT(0);
   WSA_MAXIMUM_WAIT_EVENTS = MAXIMUM_WAIT_OBJECTS;
   WSA_WAIT_FAILED = $ffffffff;
   WSA_WAIT_EVENT_0 = WAIT_OBJECT_0;
@@ -744,6 +742,7 @@ type
                 ReceivingFlowspec: TFlowSpec;   { the flow spec for data receiving }
                 ProviderSpecific: WSABUF; { additional provider specific stuff }
         end {TQualityOfService};
+        QOS = TQualityOfService;
         PQOS = ^TQualityOfService;
         LPQOS = PQOS;
 

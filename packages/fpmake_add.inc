@@ -169,7 +169,6 @@
   add_webidl(ADirectory+IncludeTrailingPathDelimiter('webidl'));
   add_winceunits(ADirectory+IncludeTrailingPathDelimiter('winceunits'));
   add_winunits_base(ADirectory+IncludeTrailingPathDelimiter('winunits-base'));
-  add_winunits_jedi(ADirectory+IncludeTrailingPathDelimiter('winunits-jedi'));
   add_x11(ADirectory+IncludeTrailingPathDelimiter('x11'));
   add_xforms(ADirectory+IncludeTrailingPathDelimiter('xforms'));
   add_zlib(ADirectory+IncludeTrailingPathDelimiter('zlib'));

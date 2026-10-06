@@ -33,7 +33,7 @@ uses
 {$i mouse.inc}
 
 var
-   ChangeMouseEvents : TCriticalSection;
+   ChangeMouseEvents : TRTLCriticalSection;
    LastHandlerMouseEvent : TMouseEvent;
 
 procedure MouseEventHandler(var ir:INPUT_RECORD);

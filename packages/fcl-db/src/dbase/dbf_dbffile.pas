@@ -3351,7 +3351,7 @@ begin
 {$else}
   FUserNameLen := MAX_COMPUTERNAME_LENGTH+1;
   SetLength(FUserName, FUserNameLen);
-  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Windows.GetComputerName(PAnsiChar(FUserName),
+  {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Windows.GetComputerName(PChar(FUserName),
     {$ifdef DELPHI_3}Windows.DWORD({$endif}
       FUserNameLen
     {$ifdef DELPHI_3}){$endif}

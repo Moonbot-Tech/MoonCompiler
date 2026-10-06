@@ -32,10 +32,10 @@ interface
 
 {$IFDEF FPC_DOTTEDUNITS}
 uses
-  System.Classes, System.SysUtils, Fcl.CustApp, Winapi.Windows, Fcl.EventLog, WinApi.Jedi.Winsvc;
+  System.Classes, System.SysUtils, Fcl.CustApp, Winapi.Windows, Fcl.EventLog, WinSvc;
 {$ELSE FPC_DOTTEDUNITS}
 uses
-  Classes, SysUtils, custapp, windows, eventlog, jwawinsvc;
+  Classes, SysUtils, custapp, windows, eventlog, WinSvc;
 {$ENDIF FPC_DOTTEDUNITS}
 
 Type
@@ -133,10 +133,10 @@ begin
   Application.ServiceController(Command);
 end;
 
-procedure ServiceMainEntry(ArgC : DWord; ArgV : pchar); stdcall;
+procedure ServiceMainEntry(ArgC : DWord; ArgV : ppchar); stdcall;
 
 begin
-  Application.ServiceMain(ArgC,PPchar(ArgV));
+  Application.ServiceMain(ArgC,ArgV);
 end;
 
 Var
@@ -388,7 +388,7 @@ begin
   if (ArgV<>Nil) then
     FServiceParamStr := strpas(ArgV^);
   SetLastError(0);
-  FStatusHandle := RegisterServiceCtrlHandlerA(PAnsiChar(Name),@ServiceControllerEntry);
+  FStatusHandle := RegisterServiceCtrlHandler(PChar(Name),@ServiceControllerEntry);
   if FStatusHandle <> 0 then
     begin
     if ReportStartPending then

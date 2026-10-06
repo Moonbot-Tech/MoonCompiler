@@ -1470,7 +1470,9 @@ Const
      TCRITICAL_SECTION = TRTLCriticalSection;
      PCRITICAL_SECTION = PRTLCriticalSection;
      LPCRITICAL_SECTION = PRTLCriticalSection;
+{$ifndef FPC_OS_UNICODE}
      TCRITICALSECTION = TRTLCriticalSection;
+{$endif}
      PCRITICALSECTION = PRTLCriticalSection;
 
   { SECURITY_CONTEXT_TRACKING_MODE ContextTrackingMode;  }

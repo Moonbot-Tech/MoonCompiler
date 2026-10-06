@@ -166,7 +166,7 @@ const
 var
    savedscreen : hbitmap;
    graphrunning : boolean;
-   graphdrawing : tcriticalsection;
+   graphdrawing : TRTLCriticalSection;
    pens : array[0..15] of HPEN;
 {$ifdef DEBUG_WM_PAINT}
    graphdebug : text;

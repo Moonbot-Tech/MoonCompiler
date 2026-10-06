@@ -73,7 +73,7 @@ function GetModuleFileName(hModule:HINST; lpFilename:LPSTR; nSize:DWORD):DWORD; 
 function GetModuleHandle(lpModuleName:LPCSTR):HMODULE; external 'kernel32' name 'GetModuleHandleA';
 procedure FatalAppExit(uAction:UINT; lpMessageText:LPCSTR); external 'kernel32' name 'FatalAppExitA';
 function GetCommandLine : LPSTR; external 'kernel32' name 'GetCommandLineA';
-function GetEnvironmentVariable(lpName:LPCSTR; lpBuffer:LPSTR; nSize:DWORD):DWORD; external 'kernel32' name 'GetEnvironmentVariableA';
+function GetEnvironmentVariable(lpName:LPCSTR; lpBuffer:LPSTR; nSize:DWORD):DWORD; overload; external 'kernel32' name 'GetEnvironmentVariableA';
 function SetEnvironmentVariable(lpName:LPCSTR; lpValue:LPCSTR):WINBOOL; external 'kernel32' name 'SetEnvironmentVariableA';
 function ExpandEnvironmentStrings(lpSrc:LPCSTR; lpDst:LPSTR; nSize:DWORD):DWORD; external 'kernel32' name 'ExpandEnvironmentStringsA';
 procedure OutputDebugString(lpOutputString:LPCSTR); external 'kernel32' name 'OutputDebugStringA';

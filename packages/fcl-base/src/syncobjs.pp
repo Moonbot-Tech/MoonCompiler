@@ -133,6 +133,7 @@ type
       {$IFDEF MSWINDOWS}
        // Windows specific, use COWait* functions for com compatibility.
         FUseCOMWait: Boolean;
+        function GetHandle: THandle; inline;
       {$ENDIF MSWINDOWS}
    public
       constructor Create(UseComWait : Boolean=false);
@@ -143,7 +144,11 @@ type
         class function WaitForMultiple(const HandleObjs: THandleObjectArray; Timeout: Cardinal; AAll: Boolean; out SignaledObj: THandleObject; UseCOMWait: Boolean = False; Len: Integer = 0): TWaitResult;
       {$ENDIF MSWINDOWS}
       {$ENDIF VER3_2}
-      property Handle : TEventHandle read FHandle;
+      {$IFDEF MSWINDOWS}
+      property Handle: THandle read GetHandle;
+      {$ELSE}
+      property Handle: TEventHandle read FHandle;
+      {$ENDIF}
       property LastError : Integer read FLastError;
    end;
 
@@ -491,6 +496,13 @@ end;
 
 {$i countdown.inc}
 
+{$IFDEF MSWINDOWS}
+function THandleObject.GetHandle: THandle;
+begin
+  Result := THandle(FHandle);
+end;
+{$ENDIF}
+
 constructor THandleObject.Create(UseComWait : Boolean=false);
 // compatibility shortcut constructor, Com waiting not implemented yet
 begin
@@ -502,7 +514,7 @@ end;
 function THandleObject.WaitFor(Timeout : Cardinal) : TWaitResult;
 
 begin
-  Result := TWaitResult(basiceventWaitFor(Timeout, Handle));
+  Result := TWaitResult(basiceventWaitFor(Timeout, FHandle));
   if Result = wrError then
 {$IFDEF OS2}
     FLastError := PLocalEventRec (Handle)^.FLastError;
@@ -590,8 +602,8 @@ end;
 
 destructor THandleObject.Destroy;
 begin
-  if (Handle<>Nil) then
-    BasicEventDestroy(Handle);
+  if (FHandle<>Nil) then
+    BasicEventDestroy(FHandle);
 end;
 
 constructor TEventObject.Create(EventAttributes : PSecurityAttributes;
@@ -610,13 +622,13 @@ end;
 procedure TEventObject.ResetEvent;
 
 begin
-  BasicEventResetEvent(Handle);
+  BasicEventResetEvent(FHandle);
 end;
 
 procedure TEventObject.SetEvent;
 
 begin
-  BasicEventSetEvent(Handle);
+  BasicEventSetEvent(FHandle);
 end;
 
 constructor TSimpleEvent.Create;

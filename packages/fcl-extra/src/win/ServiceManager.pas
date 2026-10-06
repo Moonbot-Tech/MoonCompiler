@@ -21,10 +21,10 @@ interface
 
 {$IFDEF FPC_DOTTEDUNITS}
 uses
-  WinApi.Windows, System.SysUtils, System.Classes, WinApi.Jedi.Winnt, WinApi.Jedi.Winsvc;
+  WinApi.Windows, System.SysUtils, System.Classes, WinSvc;
 {$ELSE FPC_DOTTEDUNITS}
 uses
-  Windows, SysUtils, Classes, jwawinnt, jwawinsvc;
+  Windows, SysUtils, Classes, WinSvc;
 {$ENDIF FPC_DOTTEDUNITS}
 
 type
@@ -656,62 +656,28 @@ begin
   end;
 end;
 
-Function StringsToPCharList(List : TStrings) : PPAnsiChar;
-
-Var
-  I : Integer;
-  S : String;
-
-begin
-  I:=(List.Count)+1;
-  GetMem(Result,I*sizeOf(PAnsiChar));
-  PPCharArray(Result)^[List.Count]:=Nil;
-  For I:=0 to List.Count-1 do
-    begin
-    S:=List[i];
-    PPCharArray(Result)^[i]:=StrNew(PAnsiChar(S));
-    end;
-end;
-
-Procedure FreePCharList(List : PPAnsiChar);
-
-Var
-  I : integer;
-
-begin
-  I:=0;
-  While PPAnsiChar(List)[i]<>Nil do
-    begin
-    StrDispose(PPAnsiChar(List)[i]);
-    Inc(I);
-    end;
-  FreeMem(List);
-end;
-
 Procedure TServiceManager.StartService(SHandle : THandle; Args : TStrings);
-
-Var
-  Argc : DWord;
-  PArgs : PPAnsiChar;
-
+var
+  Values: array of String;
+  Pointers: array of PChar;
+  PArgs: PPChar;
+  I, Count: Integer;
 begin
-  If (Args=Nil) or (Args.Count>0) then
+  Count:=0;
+  if Assigned(Args) then
+    Count:=Args.Count;
+  SetLength(Values,Count);
+  SetLength(Pointers,Count);
+  for I:=0 to Count-1 do
     begin
-    Argc:=0;
-    Pargs:=Nil;
-    end
-  else
-    begin
-    ArgC:=Args.Count;
-    Pargs:=StringsToPcharList(Args);
+    Values[I]:=Args[I];
+    Pointers[I]:=PChar(Values[I]);
     end;
-  Try
-    If not {$IFDEF FPC_DOTTEDUNITS}WinApi.Jedi.WinSvc{$ELSE}jwawinsvc{$ENDIF}.StartService(SHandle,Argc,PChar(PArgs)) then
-      RaiseLastOSError;
-  Finally
-    If (PArgs<>Nil) then
-      FreePCharList(PArgs);
-  end;
+  PArgs:=nil;
+  if Count<>0 then
+    PArgs:=@Pointers[0];
+  if not WinSvc.StartService(SHandle,Count,PArgs) then
+    RaiseLastOSError;
 end;
 
 
@@ -732,7 +698,7 @@ end;
 Procedure TServiceManager.LockServiceDatabase;
 
 begin
-  FDBLock:={$IFDEF FPC_DOTTEDUNITS}WinApi.Jedi.WinSvc{$ELSE}jwawinsvc{$ENDIF}.LockServiceDatabase(Handle);
+  FDBLock:=WinSvc.LockServiceDatabase(Handle);
   If FDBLock=Nil then
     RaiseLastOSError;
 end;
@@ -742,7 +708,7 @@ begin
   If (FDBLock<>Nil) then
     begin
     Try
-      If Not {$IFDEF FPC_DOTTEDUNITS}WinApi.Jedi.WinSvc{$ELSE}jwawinsvc{$ENDIF}.UnLockServiceDatabase(FDBLock) then
+      If Not WinSvc.UnLockServiceDatabase(FDBLock) then
         RaiseLastOSError;
     Finally
       FDBLock:=Nil;
@@ -757,13 +723,13 @@ Var
   BytesNeeded, BytesSize : DWord;
 
 begin
-  {$IFDEF FPC_DOTTEDUNITS}WinApi.Jedi.WinSvc{$ELSE}jwawinsvc{$ENDIF}.QueryServiceConfig(SHandle,Nil,0,BytesNeeded);
+  WinSvc.QueryServiceConfig(SHandle,Nil,0,BytesNeeded);
   If (GetLastError<>ERROR_INSUFFICIENT_BUFFER) then
     RaiseLastOSError;
   BytesSize := BytesNeeded;
   GetMem(SvcCfg,BytesSize);
   Try
-    If Not {$IFDEF FPC_DOTTEDUNITS}WinApi.Jedi.WinSvc{$ELSE}jwawinsvc{$ENDIF}.QueryServiceConfig(SHandle,SvcCfg,BytesSize,BytesNeeded) then
+    If Not WinSvc.QueryServiceConfig(SHandle,SvcCfg,BytesSize,BytesNeeded) then
       RaiseLastOSError;
     With config,SvcCfg^ do
       begin

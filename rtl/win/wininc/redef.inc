@@ -267,23 +267,47 @@ function BackupRead(hFile: THandle; lpBuffer: PByte; nNumberOfBytesToRead: DWORD
 function BackupSeek(hFile: THandle; dwLowBytesToSeek, dwHighBytesToSeek: DWORD; var lpdwLowByteSeeked, lpdwHighByteSeeked: DWORD; lpContext: Pointer): BOOL; external 'kernel32' name 'BackupSeek';
 function BackupWrite(hFile: THandle; lpBuffer: PByte; nNumberOfBytesToWrite: DWORD; var lpNumberOfBytesWritten: DWORD; bAbort, bProcessSecurity: BOOL; var lpContext: Pointer): BOOL; external 'kernel32' name 'BackupWrite';
 function BeginPaint(hWnd: HWND; var lpPaint: TPaintStruct): HDC; external 'user32' name 'BeginPaint';
+{$ifdef UNICODE}
+function BuildCommDCB(lpDef: PWideChar; var lpDCB: TDCB): BOOL;external 'kernel32' name 'BuildCommDCBW';
+{$else}
 function BuildCommDCB(lpDef: PAnsiChar; var lpDCB: TDCB): BOOL;external 'kernel32' name 'BuildCommDCBA';
+{$endif}
 function BuildCommDCBA(lpDef: LPCSTR; var lpDCB: TDCB): BOOL; external 'kernel32' name 'BuildCommDCBA';
+{$ifdef UNICODE}
+function BuildCommDCBAndTimeouts(lpDef: PWideChar; var lpDCB: TDCB; var lpCommTimeouts: TCommTimeouts): BOOL;external 'kernel32' name 'BuildCommDCBAndTimeoutsW';
+{$else}
 function BuildCommDCBAndTimeouts(lpDef: PAnsiChar; var lpDCB: TDCB; var lpCommTimeouts: TCommTimeouts): BOOL;external 'kernel32' name 'BuildCommDCBAndTimeoutsA';
+{$endif}
 function BuildCommDCBAndTimeoutsA(lpDef: LPCSTR; var lpDCB: TDCB; var lpCommTimeouts: TCommTimeouts): BOOL; external 'kernel32' name 'BuildCommDCBAndTimeoutsA';
 function BuildCommDCBAndTimeoutsW(lpDef: LPWSTR; var lpDCB: TDCB; var lpCommTimeouts: TCommTimeouts): BOOL; external 'kernel32' name 'BuildCommDCBAndTimeoutsW';
 function BuildCommDCBW(lpDef: LPWSTR; var lpDCB: TDCB): BOOL; external 'kernel32' name 'BuildCommDCBW';
+{$ifdef UNICODE}
+function CallMsgFilter(var lpMsg: TMsg; nCode: Integer): BOOL;external 'user32' name 'CallMsgFilterW';
+{$else}
 function CallMsgFilter(var lpMsg: TMsg; nCode: Integer): BOOL;external 'user32' name 'CallMsgFilterA';
+{$endif}
 function CallMsgFilterA(var lpMsg: TMsg; nCode: Integer): BOOL; external 'user32' name 'CallMsgFilterA';
 function CallMsgFilterW(var lpMsg: TMsg; nCode: Integer): BOOL; external 'user32' name 'CallMsgFilterW';
+{$ifdef UNICODE}
+function CallNamedPipe(lpNamedPipeName: PWideChar; lpInBuffer: Pointer; nInBufferSize: DWORD; lpOutBuffer: Pointer; nOutBufferSize: DWORD; var lpBytesRead: DWORD; nTimeOut: DWORD): BOOL;external 'kernel32' name 'CallNamedPipeW';
+{$else}
 function CallNamedPipe(lpNamedPipeName: PAnsiChar; lpInBuffer: Pointer; nInBufferSize: DWORD; lpOutBuffer: Pointer; nOutBufferSize: DWORD; var lpBytesRead: DWORD; nTimeOut: DWORD): BOOL;external 'kernel32' name 'CallNamedPipeA';
+{$endif}
 function CallNamedPipeA(lpNamedPipeName: LPCSTR; lpInBuffer: Pointer; nInBufferSize: DWORD; lpOutBuffer: Pointer; nOutBufferSize: DWORD; var lpBytesRead: DWORD; nTimeOut: DWORD): BOOL; external 'kernel32' name 'CallNamedPipeA';
 function CallNamedPipeW(lpNamedPipeName: LPWSTR; lpInBuffer: Pointer; nInBufferSize: DWORD; lpOutBuffer: Pointer; nOutBufferSize: DWORD; var lpBytesRead: DWORD; nTimeOut: DWORD): BOOL; external 'kernel32' name 'CallNamedPipeW';
 function CoRegisterClassObject(const _para1:TCLSID; _para2:IUnknown; _para3:DWORD; _para4:DWORD; out_para5:DWORD):HRESULT;external 'ole32.dll' name 'CoRegisterClassObject';
+{$ifdef UNICODE}
+function ChangeDisplaySettings(var lpDevMode: TDeviceMode; dwFlags: DWORD): Longint;external 'user32' name 'ChangeDisplaySettingsW';
+{$else}
 function ChangeDisplaySettings(var lpDevMode: TDeviceMode; dwFlags: DWORD): Longint;external 'user32' name 'ChangeDisplaySettingsA';
+{$endif}
 function ChangeDisplaySettingsA(var lpDevMode: TDeviceModeA; dwFlags: DWORD): Longint; external 'user32' name 'ChangeDisplaySettingsA';
 {$ifndef NO_SMART_LINK}
+{$ifdef UNICODE}
+function ChangeDisplaySettingsEx(lpszDeviceName: PWideChar; var lpDevMode: TDeviceMode; wnd: HWND; dwFlags: DWORD; lParam: Pointer): Longint;external 'user32' name 'ChangeDisplaySettingsExW';
+{$else}
 function ChangeDisplaySettingsEx(lpszDeviceName: PAnsiChar; var lpDevMode: TDeviceMode; wnd: HWND; dwFlags: DWORD; lParam: Pointer): Longint;external 'user32' name 'ChangeDisplaySettingsExA';
+{$endif}
 function ChangeDisplaySettingsExA(lpszDeviceName: LPCSTR; var lpDevMode: TDeviceModeA; wnd: HWND; dwFlags: DWORD; lParam: Pointer): Longint;external 'user32' name 'ChangeDisplaySettingsExA';
 function ChangeDisplaySettingsExW(lpszDeviceName: LPWSTR; var lpDevMode: TDeviceModeW; wnd: HWND; dwFlags: DWORD; lParam: Pointer): Longint;external 'user32' name 'ChangeDisplaySettingsExW';
 {$endif NO_SMART_LINK}
@@ -294,26 +318,46 @@ function ClearCommError(hFile: THandle; var lpErrors: DWORD; lpStat: PComStat): 
 function ClientToScreen(hWnd: HWND; var lpPoint: TPoint): BOOL; external 'user32' name 'ClientToScreen';
 function ClipCursor(var lpRect:RECT):WINBOOL; external 'user32' name 'ClipCursor';
 //function CombineTransform(var p1: TXForm; const p2, p3: TXForm): BOOL; external 'gdi32' name 'CombineTransform';
+{$ifdef UNICODE}
+function CommConfigDialog(lpszName: PWideChar; hWnd: HWND; var lpCC: TCommConfig): BOOL;external 'kernel32' name 'CommConfigDialogW';
+{$else}
 function CommConfigDialog(lpszName: PAnsiChar; hWnd: HWND; var lpCC: TCommConfig): BOOL;external 'kernel32' name 'CommConfigDialogA';
+{$endif}
 function CommConfigDialogA(lpszName: LPCSTR; hWnd: HWND; var lpCC: TCommConfig): BOOL; external 'kernel32' name 'CommConfigDialogA';
 function CommConfigDialogW(lpszName: LPWSTR; hWnd: HWND; var lpCC: TCommConfig): BOOL; external 'kernel32' name 'CommConfigDialogW';
 //function CompareFileTime(const lpFileTime1, lpFileTime2: TFileTime): Longint; external 'kernel32' name 'CompareFileTime';
 //function ConvertToAutoInheritPrivateObjectSecurity(ParentDescriptor, CurrentSecurityDescriptor: PSecurityDescriptor; var NewDescriptor: PSecurityDescriptor; ObjectType: PGUID; IsDirectoryObject: BOOL; const GenericMapping: TGenericMapping): BOOL;
 //  external 'advapi32' name 'ConvertToAutoInheritPrivateObjectSecurity';
+{$ifdef UNICODE}
+function CopyAcceleratorTable(hAccelSrc: HACCEL; var lpAccelDst; cAccelEntries: Integer): Integer;external 'user32' name 'CopyAcceleratorTableW';
+{$else}
 function CopyAcceleratorTable(hAccelSrc: HACCEL; var lpAccelDst; cAccelEntries: Integer): Integer;external 'user32' name 'CopyAcceleratorTableA';
+{$endif}
 function CopyAcceleratorTableA(hAccelSrc: HACCEL; var lpAccelDst; cAccelEntries: Integer): Integer; external 'user32' name 'CopyAcceleratorTableA';
 function CopyAcceleratorTableW(hAccelSrc: HACCEL; var lpAccelDst; cAccelEntries: Integer): Integer; external 'user32' name 'CopyAcceleratorTableW';
 function CopyRect(var lprcDst: TRect; const lprcSrc: TRect): BOOL; external 'user32' name 'CopyRect';
+{$ifdef UNICODE}
+function CreateAcceleratorTable(var Accel; Count: Integer): HACCEL;external 'user32' name 'CreateAcceleratorTableW';
+{$else}
 function CreateAcceleratorTable(var Accel; Count: Integer): HACCEL;external 'user32' name 'CreateAcceleratorTableA';
+{$endif}
 function CreateAcceleratorTableA(var Accel; Count: Integer): HACCEL; external 'user32' name 'CreateAcceleratorTableA';
 function CreateAcceleratorTableW(var Accel; Count: Integer): HACCEL; external 'user32' name 'CreateAcceleratorTableW';
 //function CreateBitmapIndirect(const p1: TBitmap): HBITMAP; external 'gdi32' name 'CreateBitmapIndirect';
 //function CreateBrushIndirect(const p1: TLogBrush): HBRUSH; external 'gdi32' name 'CreateBrushIndirect';
+{$ifdef UNICODE}
+function CreateColorSpace(var ColorSpace: TLogColorSpace): HCOLORSPACE;external 'gdi32' name 'CreateColorSpaceW';
+{$else}
 function CreateColorSpace(var ColorSpace: TLogColorSpace): HCOLORSPACE;external 'gdi32' name 'CreateColorSpaceA';
+{$endif}
 function CreateColorSpaceA(var ColorSpace: TLogColorSpaceA): HCOLORSPACE; external 'gdi32' name 'CreateColorSpaceA';
 //function CreateColorSpaceW(var ColorSpace: TLogColorSpaceW): HCOLORSPACE; external 'gdi32' name 'CreateColorSpaceW';
 function CreateConsoleScreenBuffer(dwDesiredAccess:DWORD; dwShareMode:DWORD; var lpSecurityAttributes:SECURITY_ATTRIBUTES; dwFlags:DWORD; lpScreenBufferData:LPVOID):HANDLE; external 'kernel32' name 'CreateConsoleScreenBuffer';
+{$ifdef UNICODE}
+function CreateDialogIndirectParam(hInstance: HINST; const lpTemplate: TDlgTemplate; hWndParent: HWND; lpDialogFunc: TFNDlgProc; dwInitParam: LPARAM): HWND;external 'user32' name 'CreateDialogIndirectParamW';
+{$else}
 function CreateDialogIndirectParam(hInstance: HINST; const lpTemplate: TDlgTemplate; hWndParent: HWND; lpDialogFunc: TFNDlgProc; dwInitParam: LPARAM): HWND;external 'user32' name 'CreateDialogIndirectParamA';
+{$endif}
 //function CreateDialogIndirectParamA(hInstance: HINST; const lpTemplate: TDlgTemplate; hWndParent: HWND; lpDialogFunc: TFNDlgProc; dwInitParam: LPARAM): HWND; external 'user32' name 'CreateDialogIndirectParamA';
 //function CreateDialogIndirectParamW(hInstance: HINST; const lpTemplate: TDlgTemplate; hWndParent: HWND; lpDialogFunc: TFNDlgProc; dwInitParam: LPARAM): HWND; external 'user32' name 'CreateDialogIndirectParamW';
 //function CreateDIBitmap(DC: HDC; var InfoHeader: TBitmapInfoHeader; dwUsage: DWORD; InitBits: PAnsiChar; var InitInfo: TBitmapInfo; wUsage: UINT): HBITMAP; external 'gdi32' name 'CreateDIBitmap';
@@ -336,8 +380,13 @@ function CreatePolyPolygonRgn(const pPtStructs; const pIntArray; p3, p4: Integer
 //  external 'advapi32' name 'CreatePrivateObjectSecurity';
 //function CreatePrivateObjectSecurityEx(ParentDescriptor, CreatorDescriptor: PSecurityDescriptor; var NewDescriptor: PSecurityDescriptor; ObjectType: PGUID; IsContainerObject: BOOL; AutoInheritFlags: ULONG; Token: THandle;
 //  const GenericMapping: TGenericMapping): BOOL;external 'advapi32' name 'CreatePrivateObjectSecurityEx';
+{$ifdef UNICODE}
+function CreateProcess(lpApplicationName: PWideChar; lpCommandLine: PWideChar; lpProcessAttributes, lpThreadAttributes: PSecurityAttributes; bInheritHandles: BOOL; dwCreationFlags: DWORD; lpEnvironment: Pointer; lpCurrentDirectory: PWideChar;
+  const lpStartupInfo: TStartupInfo; var lpProcessInformation: TProcessInformation): BOOL;external 'kernel32' name 'CreateProcessW';
+{$else}
 function CreateProcess(lpApplicationName: PAnsiChar; lpCommandLine: PAnsiChar; lpProcessAttributes, lpThreadAttributes: PSecurityAttributes; bInheritHandles: BOOL; dwCreationFlags: DWORD; lpEnvironment: Pointer; lpCurrentDirectory: PAnsiChar;
   const lpStartupInfo: TStartupInfo; var lpProcessInformation: TProcessInformation): BOOL;external 'kernel32' name 'CreateProcessA';
+{$endif}
 function CreateProcessA(lpApplicationName: LPCSTR; lpCommandLine: LPCSTR; lpProcessAttributes, lpThreadAttributes: PSecurityAttributes; bInheritHandles: BOOL; dwCreationFlags: DWORD; lpEnvironment: Pointer; lpCurrentDirectory: LPCSTR;
   const lpStartupInfo: TStartupInfoA; var lpProcessInformation: TProcessInformation): BOOL; external 'kernel32' name 'CreateProcessA';
 //function CreateProcessAsUser(hToken: THandle; lpApplicationName: PAnsiChar; lpCommandLine: PAnsiChar; lpProcessAttributes: PSecurityAttributes; lpThreadAttributes: PSecurityAttributes; bInheritHandles: BOOL; dwCreationFlags: DWORD;
@@ -359,10 +408,18 @@ function DescribePixelFormat(DC: HDC; iPixelFormat: Integer; nBytes: UINT; var p
 //function DestroyPrivateObjectSecurity(var ObjectDescriptor: PSecurityDescriptor): BOOL; external 'advapi32' name 'DestroyPrivateObjectSecurity';
 function DeviceIoControl(hDevice: THandle; dwIoControlCode: DWORD; lpInBuffer: Pointer; nInBufferSize: DWORD; lpOutBuffer: Pointer; nOutBufferSize: DWORD; var lpBytesReturned: DWORD; lpOverlapped: POverlapped): BOOL;
   external 'kernel32' name 'DeviceIoControl';
+{$ifdef UNICODE}
+function DialogBoxIndirectParam(hInstance: HINST; const lpDialogTemplate: TDlgTemplate; hWndParent: HWND; lpDialogFunc: TFNDlgProc; dwInitParam: LPARAM): Integer;external 'user32' name 'DialogBoxIndirectParamW';
+{$else}
 function DialogBoxIndirectParam(hInstance: HINST; const lpDialogTemplate: TDlgTemplate; hWndParent: HWND; lpDialogFunc: TFNDlgProc; dwInitParam: LPARAM): Integer;external 'user32' name 'DialogBoxIndirectParamA';
+{$endif}
 function DialogBoxIndirectParamA(hInstance: HINST; const lpDialogTemplate: TDlgTemplate; hWndParent: HWND; lpDialogFunc: TFNDlgProc; dwInitParam: LPARAM): Integer; external 'user32' name 'DialogBoxIndirectParamA';
 function DialogBoxIndirectParamW(hInstance: HINST; const lpDialogTemplate: TDlgTemplate; hWndParent: HWND; lpDialogFunc: TFNDlgProc; dwInitParam: LPARAM): Integer; external 'user32' name 'DialogBoxIndirectParamW';
+{$ifdef UNICODE}
+function DispatchMessage(const lpMsg: TMsg): Longint;external 'user32' name 'DispatchMessageW';
+{$else}
 function DispatchMessage(const lpMsg: TMsg): Longint;external 'user32' name 'DispatchMessageA';
+{$endif}
 function DispatchMessageA(const lpMsg: TMsg): Longint; external 'user32' name 'DispatchMessageA';
 function DispatchMessageW(const lpMsg: TMsg): Longint; external 'user32' name 'DispatchMessageW';
 function DosDateTimeToFileTime(wFatDate, wFatTime: Word; var lpFileTime: TFileTime): BOOL; external 'kernel32' name 'DosDateTimeToFileTime';
@@ -372,9 +429,17 @@ function DPtoLP(DC: HDC; var Points; Count: Integer): BOOL; external 'gdi32' nam
 function DrawEdge(hdc: HDC; var qrc: TRect; edge: UINT; grfFlags: UINT): BOOL; external 'user32' name 'DrawEdge';
 //function DrawFocusRect(hDC: HDC; const lprc: TRect): BOOL; external 'user32' name 'DrawFocusRect';
 function DrawFrameControl(DC: HDC; const Rect: TRect; uType, uState: UINT): BOOL; external 'user32' name 'DrawFrameControl';
+{$ifdef UNICODE}
+function DrawText(hDC: HDC; lpString: PWideChar; nCount: Integer; var lpRect: TRect; uFormat: UINT): Integer;external 'user32' name 'DrawTextW';
+{$else}
 function DrawText(hDC: HDC; lpString: PAnsiChar; nCount: Integer; var lpRect: TRect; uFormat: UINT): Integer;external 'user32' name 'DrawTextA';
+{$endif}
 function DrawTextA(hDC: HDC; lpString: LPCSTR; nCount: Integer; var lpRect: TRect; uFormat: UINT): Integer; external 'user32' name 'DrawTextA';
+{$ifdef UNICODE}
+function DrawTextEx(DC: HDC; lpchText: PWideChar; cchText: Integer; var p4: TRect; dwDTFormat: UINT; DTParams: PDrawTextParams): Integer;external 'user32' name 'DrawTextExW';
+{$else}
 function DrawTextEx(DC: HDC; lpchText: PAnsiChar; cchText: Integer; var p4: TRect; dwDTFormat: UINT; DTParams: PDrawTextParams): Integer;external 'user32' name 'DrawTextExA';
+{$endif}
 function DrawTextExA(DC: HDC; lpchText: LPCSTR; cchText: Integer; var p4: TRect; dwDTFormat: UINT; DTParams: PDrawTextParams): Integer; external 'user32' name 'DrawTextExA';
 function DrawTextExW(DC: HDC; lpchText: LPWSTR; cchText: Integer; var p4: TRect; dwDTFormat: UINT; DTParams: PDrawTextParams): Integer; external 'user32' name 'DrawTextExW';
 function DrawTextW(hDC: HDC; lpString: LPWSTR; nCount: Integer; var lpRect: TRect; uFormat: UINT): Integer; external 'user32' name 'DrawTextW';
@@ -384,11 +449,19 @@ function EndPaint(hWnd: HWND; const lpPaint: TPaintStruct): BOOL; external 'user
 //function EnumDisplayDevices(Unused: Pointer; iDevNum: DWORD; var lpDisplayDevice: TDisplayDevice; dwFlags: DWORD): BOOL;external 'user32' name 'EnumDisplayDevicesA';
 //function EnumDisplayDevicesA(Unused: Pointer; iDevNum: DWORD; var lpDisplayDevice: TDisplayDeviceA; dwFlags: DWORD): BOOL;external 'user32' name 'EnumDisplayDevicesA';
 //function EnumDisplayDevicesW(Unused: Pointer; iDevNum: DWORD; var lpDisplayDevice: TDisplayDeviceW; dwFlags: DWORD): BOOL;external 'user32' name 'EnumDisplayDevicesW';
+{$ifdef UNICODE}
+function EnumDisplaySettings(lpszDeviceName: PWideChar; iModeNum: DWORD; var lpDevMode: TDeviceMode): BOOL;external 'user32' name 'EnumDisplaySettingsW';
+{$else}
 function EnumDisplaySettings(lpszDeviceName: PAnsiChar; iModeNum: DWORD; var lpDevMode: TDeviceMode): BOOL;external 'user32' name 'EnumDisplaySettingsA';
+{$endif}
 function EnumDisplaySettingsA(lpszDeviceName: LPCSTR; iModeNum: DWORD; var lpDevMode: TDeviceModeA): BOOL; external 'user32' name 'EnumDisplaySettingsA';
 function EnumDisplaySettingsW(lpszDeviceName: LPWSTR; iModeNum: DWORD; var lpDevMode: TDeviceModeW): BOOL; external 'user32' name 'EnumDisplaySettingsW';
 //function EnumEnhMetaFile(DC: HDC; p2: HENHMETAFILE; p3: TFNEnhMFEnumProc; p4: Pointer; const p5: TRect): BOOL; external 'gdi32' name 'EnumEnhMetaFile';
+{$ifdef UNICODE}
+function EnumFontFamiliesEx(DC: HDC; var p2: TLogFont; p3: FONTENUMEXPROC; p4: LPARAM; p5: DWORD): BOOL;external 'gdi32' name 'EnumFontFamiliesExW';
+{$else}
 function EnumFontFamiliesEx(DC: HDC; var p2: TLogFont; p3: FONTENUMEXPROC; p4: LPARAM; p5: DWORD): BOOL;external 'gdi32' name 'EnumFontFamiliesExA';
+{$endif}
 function EnumFontFamiliesExA(DC: HDC; var p2: TLogFontA; p3: FONTENUMEXPROCA; p4: LPARAM; p5: DWORD): BOOL; external 'gdi32' name 'EnumFontFamiliesExA';
 function EnumFontFamiliesExW(DC: HDC; var p2: TLogFontW; p3: FONTENUMEXPROCW; p4: LPARAM; p5: DWORD): BOOL; external 'gdi32' name 'EnumFontFamiliesExW';
 //function EqualRect(const lprc1, lprc2: TRect): BOOL; external 'user32' name 'EqualRect';
@@ -399,15 +472,27 @@ function FileTimeToDosDateTime(const lpFileTime: TFileTime; var lpFatDate, lpFat
 function FileTimeToLocalFileTime(const lpFileTime: TFileTime; var lpLocalFileTime: TFileTime): BOOL; external 'kernel32' name 'FileTimeToLocalFileTime';
 function FileTimeToSystemTime(const lpFileTime: TFileTime; var lpSystemTime: TSystemTime): BOOL; external 'kernel32' name 'FileTimeToSystemTime';
 function FillConsoleOutputAttribute(hConsoleOutput: THandle; wAttribute: Word; nLength: DWORD; dwWriteCoord: TCoord; var lpNumberOfAttrsWritten: DWORD): BOOL; external 'kernel32' name 'FillConsoleOutputAttribute';
+{$ifdef UNICODE}
+function FillConsoleOutputCharacter(hConsoleOutput: THandle; cCharacter: WideChar; nLength: DWORD; dwWriteCoord: TCoord; var lpNumberOfCharsWritten: DWORD): BOOL;external 'kernel32' name 'FillConsoleOutputCharacterW';
+{$else}
 function FillConsoleOutputCharacter(hConsoleOutput: THandle; cCharacter: AnsiChar; nLength: DWORD; dwWriteCoord: TCoord; var lpNumberOfCharsWritten: DWORD): BOOL;external 'kernel32' name 'FillConsoleOutputCharacterA';
+{$endif}
 function FillConsoleOutputCharacterA(hConsoleOutput: THandle; cCharacter: AnsiChar; nLength: DWORD; dwWriteCoord: TCoord; var lpNumberOfCharsWritten: DWORD): BOOL; external 'kernel32' name 'FillConsoleOutputCharacterA';
 function FillConsoleOutputCharacterW(hConsoleOutput: THandle; cCharacter: WideChar; nLength: DWORD; dwWriteCoord: TCoord; var lpNumberOfCharsWritten: DWORD): BOOL; external 'kernel32' name 'FillConsoleOutputCharacterW';
 //function FillRect(hDC: HDC; const lprc: TRect; hbr: HBRUSH): Integer; external 'user32' name 'FillRect';
+{$ifdef UNICODE}
+function FindFirstFile(lpFileName: PWideChar; var lpFindFileData: TWIN32FindData): THandle;external 'kernel32' name 'FindFirstFileW';
+{$else}
 function FindFirstFile(lpFileName: PAnsiChar; var lpFindFileData: TWIN32FindData): THandle;external 'kernel32' name 'FindFirstFileA';
+{$endif}
 function FindFirstFileA(lpFileName: LPCSTR; var lpFindFileData: TWIN32FindDataA): THandle; external 'kernel32' name 'FindFirstFileA';
 function FindFirstFileW(lpFileName: LPWSTR; var lpFindFileData: TWIN32FindDataW): THandle; external 'kernel32' name 'FindFirstFileW';
 //function FindFirstFreeAce(var pAcl: TACL; var pAce: Pointer): BOOL; external 'advapi32' name 'FindFirstFreeAce';
+{$ifdef UNICODE}
+function FindNextFile(hFindFile: THandle; var lpFindFileData: TWIN32FindData): BOOL;external 'kernel32' name 'FindNextFileW';
+{$else}
 function FindNextFile(hFindFile: THandle; var lpFindFileData: TWIN32FindData): BOOL;external 'kernel32' name 'FindNextFileA';
+{$endif}
 function FindNextFileA(hFindFile: THandle; var lpFindFileData: TWIN32FindDataA): BOOL; external 'kernel32' name 'FindNextFileA';
 function FindNextFileW(hFindFile: THandle; var lpFindFileData: TWIN32FindDataW): BOOL; external 'kernel32' name 'FindNextFileW';
 //function FlushInstructionCache(hProcess: THandle; const lpBaseAddress: Pointer; dwSize: PTRUINT): BOOL; external 'kernel32' name 'FlushInstructionCache';
@@ -419,36 +504,72 @@ function FindNextFileW(hFindFile: THandle; var lpFindFileData: TWIN32FindDataW):
 //function GetAltTabInfoA(hwnd: HWND; iItem: Integer; var pati: TAltTabInfo; pszItemText: LPCSTR; cchItemText: UINT): BOOL;external 'user32' name 'GetAltTabInfoA';
 //function GetAltTabInfoW(hwnd: HWND; iItem: Integer; var pati: TAltTabInfo; pszItemText: LPWSTR; cchItemText: UINT): BOOL;external 'user32' name 'GetAltTabInfoW';
 function GetAspectRatioFilterEx(DC: HDC; var p2: TSize): BOOL; external 'gdi32' name 'GetAspectRatioFilterEx';
+{$ifdef UNICODE}
+function GetBinaryType(lpApplicationName: PWideChar; var lpBinaryType: DWORD): BOOL;external 'kernel32' name 'GetBinaryTypeW';
+{$else}
 function GetBinaryType(lpApplicationName: PAnsiChar; var lpBinaryType: DWORD): BOOL;external 'kernel32' name 'GetBinaryTypeA';
+{$endif}
 function GetBinaryTypeA(lpApplicationName: LPCSTR; var lpBinaryType: DWORD): BOOL; external 'kernel32' name 'GetBinaryTypeA';
 function GetBinaryTypeW(lpApplicationName: LPWSTR; var lpBinaryType: DWORD): BOOL; external 'kernel32' name 'GetBinaryTypeW';
 function GetBitmapDimensionEx(p1: HBITMAP; var p2: TSize): BOOL; external 'gdi32' name 'GetBitmapDimensionEx';
 function GetBoundsRect(DC: HDC; var p2: TRect; p3: UINT): UINT; external 'gdi32' name 'GetBoundsRect';
 function GetBrushOrgEx(DC: HDC; var p2: TPoint): BOOL; external 'gdi32' name 'GetBrushOrgEx';
 function GetCaretPos(var lpPoint: TPoint): BOOL; external 'user32' name 'GetCaretPos';
+{$ifdef UNICODE}
+function GetCharABCWidths(DC: HDC; p2, p3: UINT; const ABCStructs): BOOL;external 'gdi32' name 'GetCharABCWidthsW';
+{$else}
 function GetCharABCWidths(DC: HDC; p2, p3: UINT; const ABCStructs): BOOL;external 'gdi32' name 'GetCharABCWidthsA';
+{$endif}
 function GetCharABCWidthsA(DC: HDC; p2, p3: UINT; const ABCStructs): BOOL; external 'gdi32' name 'GetCharABCWidthsA';
+{$ifdef UNICODE}
+function GetCharABCWidthsFloat(DC: HDC; p2, p3: UINT; const ABCFloatSturcts): BOOL;external 'gdi32' name 'GetCharABCWidthsFloatW';
+{$else}
 function GetCharABCWidthsFloat(DC: HDC; p2, p3: UINT; const ABCFloatSturcts): BOOL;external 'gdi32' name 'GetCharABCWidthsFloatA';
+{$endif}
 function GetCharABCWidthsFloatA(DC: HDC; p2, p3: UINT; const ABCFloatSturcts): BOOL; external 'gdi32' name 'GetCharABCWidthsFloatA';
 function GetCharABCWidthsFloatW(DC: HDC; p2, p3: UINT; const ABCFloatSturcts): BOOL; external 'gdi32' name 'GetCharABCWidthsFloatW';
 //function GetCharABCWidthsI(DC: HDC; p2, p3: UINT; p4: PWORD; const Widths): BOOL;external 'gdi32' name 'GetCharABCWidthsI';
 function GetCharABCWidthsW(DC: HDC; p2, p3: UINT; const ABCStructs): BOOL; external 'gdi32' name 'GetCharABCWidthsW';
+{$ifdef UNICODE}
+function GetCharacterPlacement(DC: HDC; p2: PWideChar; p3, p4: BOOL; var p5: TGCPResults; p6: DWORD): DWORD;external 'gdi32' name 'GetCharacterPlacementW';
+{$else}
 function GetCharacterPlacement(DC: HDC; p2: PAnsiChar; p3, p4: BOOL; var p5: TGCPResults; p6: DWORD): DWORD;external 'gdi32' name 'GetCharacterPlacementA';
+{$endif}
 function GetCharacterPlacementA(DC: HDC; p2: LPCSTR; p3, p4: BOOL; var p5: TGCPResults; p6: DWORD): DWORD; external 'gdi32' name 'GetCharacterPlacementA';
 function GetCharacterPlacementW(DC: HDC; p2: LPWSTR; p3, p4: BOOL; var p5: TGCPResults; p6: DWORD): DWORD; external 'gdi32' name 'GetCharacterPlacementW';
+{$ifdef UNICODE}
+function GetCharWidth(DC: HDC; p2, p3: UINT; const Widths): BOOL;external 'gdi32' name 'GetCharWidthW';
+{$else}
 function GetCharWidth(DC: HDC; p2, p3: UINT; const Widths): BOOL;external 'gdi32' name 'GetCharWidthA';
+{$endif}
+{$ifdef UNICODE}
+function GetCharWidth32(DC: HDC; p2, p3: UINT; const Widths): BOOL;external 'gdi32' name 'GetCharWidth32W';
+{$else}
 function GetCharWidth32(DC: HDC; p2, p3: UINT; const Widths): BOOL;external 'gdi32' name 'GetCharWidth32A';
+{$endif}
 function GetCharWidth32A(DC: HDC; p2, p3: UINT; const Widths): BOOL; external 'gdi32' name 'GetCharWidth32A';
 function GetCharWidth32W(DC: HDC; p2, p3: UINT; const Widths): BOOL; external 'gdi32' name 'GetCharWidth32W';
 function GetCharWidthA(DC: HDC; p2, p3: UINT; const Widths): BOOL; external 'gdi32' name 'GetCharWidthA';
+{$ifdef UNICODE}
+function GetCharWidthFloat(DC: HDC; p2, p3: UINT; const Widths): BOOL;external 'gdi32' name 'GetCharWidthFloatW';
+{$else}
 function GetCharWidthFloat(DC: HDC; p2, p3: UINT; const Widths): BOOL;external 'gdi32' name 'GetCharWidthFloatA';
+{$endif}
 function GetCharWidthFloatA(DC: HDC; p2, p3: UINT; const Widths): BOOL; external 'gdi32' name 'GetCharWidthFloatA';
 function GetCharWidthFloatW(DC: HDC; p2, p3: UINT; const Widths): BOOL; external 'gdi32' name 'GetCharWidthFloatW';
 //function GetCharWidthI(DC: HDC; p2, p3: UINT; p4: PWORD; const Widths): BOOL;external 'gdi32' name 'GetCharWidthI';
 function GetCharWidthW(DC: HDC; p2, p3: UINT; const Widths): BOOL; external 'gdi32' name 'GetCharWidthW';
+{$ifdef UNICODE}
+function GetClassInfo(hInstance: HINST; lpClassName: PWideChar; var lpWndClass: TWndClass): BOOL;external 'user32' name 'GetClassInfoW';
+{$else}
 function GetClassInfo(hInstance: HINST; lpClassName: PAnsiChar; var lpWndClass: TWndClass): BOOL;external 'user32' name 'GetClassInfoA';
+{$endif}
 function GetClassInfoA(hInstance: HINST; lpClassName: LPCSTR; var lpWndClass: TWndClassA): BOOL; external 'user32' name 'GetClassInfoA';
+{$ifdef UNICODE}
+function GetClassInfoEx(Instance: HINST; Classname: PWideChar; var WndClass: TWndClassEx): BOOL;external 'user32' name 'GetClassInfoExW';
+{$else}
 function GetClassInfoEx(Instance: HINST; Classname: PAnsiChar; var WndClass: TWndClassEx): BOOL;external 'user32' name 'GetClassInfoExA';
+{$endif}
 //function GetClassInfoExA(Instance: HINST; Classname: LPCSTR; var WndClass: TWndClassExA): BOOL; external 'user32' name 'GetClassInfoExA';
 //function GetClassInfoExW(Instance: HINST; Classname: LPWSTR; var WndClass: TWndClassExW): BOOL; external 'user32' name 'GetClassInfoExW';
 //function GetClassInfoW(hInstance: HINST; lpClassName: LPWSTR; var lpWndClass: TWndClassW): BOOL; external 'user32' name 'GetClassInfoW';
@@ -462,7 +583,11 @@ function GetCommModemStatus(hFile: THandle; var lpModemStat: DWORD): BOOL; exter
 function GetCommProperties(hFile: THandle; var lpCommProp: TCommProp): BOOL; external 'kernel32' name 'GetCommProperties';
 function GetCommState(hFile: THandle; var lpDCB: TDCB): BOOL; external 'kernel32' name 'GetCommState';
 function GetCommTimeouts(hFile: THandle; var lpCommTimeouts: TCommTimeouts): BOOL; external 'kernel32' name 'GetCommTimeouts';
+{$ifdef UNICODE}
+function GetComputerName(lpBuffer: PWideChar; var nSize: DWORD): BOOL;external 'kernel32' name 'GetComputerNameW';
+{$else}
 function GetComputerName(lpBuffer: PAnsiChar; var nSize: DWORD): BOOL;external 'kernel32' name 'GetComputerNameA';
+{$endif}
 function GetComputerNameA(lpBuffer: LPCSTR; var nSize: DWORD): BOOL; external 'kernel32' name 'GetComputerNameA';
 function GetComputerNameW(lpBuffer: LPWSTR; var nSize: DWORD): BOOL; external 'kernel32' name 'GetComputerNameW';
 function GetConsoleCursorInfo(hConsoleOutput: THandle; var lpConsoleCursorInfo: TConsoleCursorInfo): BOOL; external 'kernel32' name 'GetConsoleCursorInfo';
@@ -484,19 +609,35 @@ function GetCursorInfo(var pci: TCursorInfo): BOOL;external 'user32' name 'GetCu
 {$endif NO_SMART_LINK}
 function GetCursorPos(out lpPoint: TPoint): BOOL; external 'user32' name 'GetCursorPos';
 function GetDCOrgEx(DC: HDC; var Origin: TPoint): BOOL; external 'gdi32' name 'GetDCOrgEx';
+{$ifdef UNICODE}
+function GetDefaultCommConfig(lpszName: PWideChar; var lpCC: TCommConfig; var lpdwSize: DWORD): BOOL;external 'kernel32' name 'GetDefaultCommConfigW';
+{$else}
 function GetDefaultCommConfig(lpszName: PAnsiChar; var lpCC: TCommConfig; var lpdwSize: DWORD): BOOL;external 'kernel32' name 'GetDefaultCommConfigA';
+{$endif}
 function GetDefaultCommConfigA(lpszName: LPCSTR; var lpCC: TCommConfig; var lpdwSize: DWORD): BOOL; external 'kernel32' name 'GetDefaultCommConfigA';
 function GetDefaultCommConfigW(lpszName: LPWSTR; var lpCC: TCommConfig; var lpdwSize: DWORD): BOOL; external 'kernel32' name 'GetDefaultCommConfigW';
 function GetDeviceGammaRamp(DC: HDC; var Ramp): BOOL; external 'gdi32' name 'GetDeviceGammaRamp';
 function GetDIBColorTable(DC: HDC; p2, p3: UINT; var RGBQuadStructs): UINT; external 'gdi32' name 'GetDIBColorTable';
 function GetDIBits(DC: HDC; Bitmap: HBitmap; StartScan, NumScans: UINT; Bits: Pointer; var BitInfo: TBitmapInfo; Usage: UINT): Integer; external 'gdi32' name 'GetDIBits';
+{$ifdef UNICODE}
+function GetDiskFreeSpace(lpRootPathName: PWideChar; var lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters: DWORD): BOOL;external 'kernel32' name 'GetDiskFreeSpaceW';
+{$else}
 function GetDiskFreeSpace(lpRootPathName: PAnsiChar; var lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters: DWORD): BOOL;external 'kernel32' name 'GetDiskFreeSpaceA';
+{$endif}
 function GetDiskFreeSpaceA(lpRootPathName: LPCSTR; var lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters: DWORD): BOOL; external 'kernel32' name 'GetDiskFreeSpaceA';
+{$ifdef UNICODE}
+function GetDiskFreeSpaceEx(lpDirectoryName: PWideChar; var lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: TLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
+{$else}
 function GetDiskFreeSpaceEx(lpDirectoryName: PAnsiChar; var lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: TLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
+{$endif}
 function GetDiskFreeSpaceExA(lpDirectoryName: LPCSTR; var lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: TLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
 function GetDiskFreeSpaceExW(lpDirectoryName: LPWSTR; var lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: TLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
 function GetDiskFreeSpaceW(lpRootPathName: LPWSTR; var lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters: DWORD): BOOL; external 'kernel32' name 'GetDiskFreeSpaceW';
+{$ifdef UNICODE}
+function GetDiskFreeSpaceEx(lpDirectoryName: PWideChar;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes:pLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
+{$else}
 function GetDiskFreeSpaceEx(lpDirectoryName: PAnsiChar;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes:pLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
+{$endif}
 function GetDiskFreeSpaceExA(lpDirectoryName: LPCSTR;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: pLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
 function GetDiskFreeSpaceExW(lpDirectoryName: LPWSTR;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: pLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
 //function GetEnhMetaFilePixelFormat(p1: HENHMETAFILE; p2: Cardinal; var p3: TPixelFormatDescriptor): UINT;external 'gdi32' name 'GetEnhMetaFilePixelFormat';
@@ -506,7 +647,11 @@ function GetFileInformationByHandle(hFile: THandle; var lpFileInformation: TByHa
 //function GetFileSecurity(lpFileName: PAnsiChar; RequestedInformation: SECURITY_INFORMATION; pSecurityDescriptor: PSecurityDescriptor; nLength: DWORD; var lpnLengthNeeded: DWORD): BOOL;external 'advapi32' name 'GetFileSecurityA';
 //function GetFileSecurityA(lpFileName: LPCSTR; RequestedInformation: SECURITY_INFORMATION; pSecurityDescriptor: PSecurityDescriptor; nLength: DWORD; var lpnLengthNeeded: DWORD): BOOL; external 'advapi32' name 'GetFileSecurityA';
 //function GetFileSecurityW(lpFileName: LPWSTR; RequestedInformation: SECURITY_INFORMATION; pSecurityDescriptor: PSecurityDescriptor; nLength: DWORD; var lpnLengthNeeded: DWORD): BOOL; external 'advapi32' name 'GetFileSecurityW';
+{$ifdef UNICODE}
+function GetFileVersionInfoSize(lptstrFilename: PWideChar; var lpdwHandle: DWORD): DWORD;external 'version' name 'GetFileVersionInfoSizeW';
+{$else}
 function GetFileVersionInfoSize(lptstrFilename: PAnsiChar; var lpdwHandle: DWORD): DWORD;external 'version' name 'GetFileVersionInfoSizeA';
+{$endif}
 function GetFileVersionInfoSizeA(lptstrFilename: LPCSTR; var lpdwHandle: DWORD): DWORD; external 'version' name 'GetFileVersionInfoSizeA';
 function GetFileVersionInfoSizeW(lptstrFilename: LPWSTR; var lpdwHandle: DWORD): DWORD; external 'version' name 'GetFileVersionInfoSizeW';
 
@@ -518,7 +663,11 @@ function GetFileVersionInfoSizeW(lptstrFilename: LPWSTR; var lpdwHandle: DWORD):
  function GetFullPathNameW(lpFileName: LPCWSTR; nBufferLength: DWORD; lpBuffer: LPWSTR; var lpFilePart: LPWSTR): DWORD; external 'kernel32' name 'GetFullPathNameW';
  function GetFullPathNameA(lpFileName: LPCSTR;  nBufferLength: DWORD; lpBuffer: LPSTR;  var lpFilePart: LPSTR):  DWORD; external 'kernel32' name 'GetFullPathNameA';
 
+{$ifdef UNICODE}
+function GetGlyphOutline(DC: HDC; p2, p3: UINT; const p4: TGlyphMetrics; p5: DWORD; p6: Pointer; const p7: TMat2): DWORD;external 'gdi32' name 'GetGlyphOutlineW';
+{$else}
 function GetGlyphOutline(DC: HDC; p2, p3: UINT; const p4: TGlyphMetrics; p5: DWORD; p6: Pointer; const p7: TMat2): DWORD;external 'gdi32' name 'GetGlyphOutlineA';
+{$endif}
 function GetGlyphOutlineA(DC: HDC; p2, p3: UINT; const p4: TGlyphMetrics; p5: DWORD; p6: Pointer; const p7: TMat2): DWORD; external 'gdi32' name 'GetGlyphOutlineA';
 function GetGlyphOutlineW(DC: HDC; p2, p3: UINT; const p4: TGlyphMetrics; p5: DWORD; p6: Pointer; const p7: TMat2): DWORD; external 'gdi32' name 'GetGlyphOutlineW';
 //function GetGUIThreadInfo(idThread: DWORD; var pgui: TGUIThreadinfo): BOOL;external 'user32' name 'GetGUIThreadInfo';
@@ -537,17 +686,29 @@ procedure GetLocalTime(var SystemTime: SYSTEMTIME); external 'kernel32' name 'Ge
 procedure GetSystemInfo(var SystemInfo:SYSTEM_INFO); external 'kernel32' name 'GetSystemInfo';
 function SetSystemTime(var lpSystemTime:SYSTEMTIME):WINBOOL; external 'kernel32' name 'SetSystemTime';
 function SetLocalTime(var lpSystemTime:SYSTEMTIME):WINBOOL; external 'kernel32' name 'SetLocalTime';
+{$ifdef UNICODE}
+function GetLogColorSpace(p1: HCOLORSPACE; var ColorSpace: TLogColorSpace; Size: DWORD): BOOL;external 'gdi32' name 'GetLogColorSpaceW';
+{$else}
 function GetLogColorSpace(p1: HCOLORSPACE; var ColorSpace: TLogColorSpace; Size: DWORD): BOOL;external 'gdi32' name 'GetLogColorSpaceA';
+{$endif}
 function GetLogColorSpaceA(p1: HCOLORSPACE; var ColorSpace: TLogColorSpaceA; Size: DWORD): BOOL; external 'gdi32' name 'GetLogColorSpaceA';
 //function GetLogColorSpaceW(p1: HCOLORSPACE; var ColorSpace: TLogColorSpaceW; Size: DWORD): BOOL; external 'gdi32' name 'GetLogColorSpaceW';
 function GetMailslotInfo(hMailslot: THandle; lpMaxMessageSize: Pointer; var lpNextSize: DWORD; lpMessageCount, lpReadTimeout: Pointer): BOOL; external 'kernel32' name 'GetMailslotInfo';
 //function GetMenuBarInfo(hand: HWND; idObject, idItem: Longint; var pmbi: TMenuBarInfo): BOOL;external 'user32' name 'GetMenuBarInfo';
 //function GetMenuInfo(hMenu: HMENU; var lpmi: TMenuInfo): BOOL;external 'user32' name 'GetMenuInfo';
+{$ifdef UNICODE}
+function GetMenuItemInfo(p1: HMENU; p2: UINT; p3: BOOL; var p4: TMenuItemInfo): BOOL;external 'user32' name 'GetMenuItemInfoW';
+{$else}
 function GetMenuItemInfo(p1: HMENU; p2: UINT; p3: BOOL; var p4: TMenuItemInfo): BOOL;external 'user32' name 'GetMenuItemInfoA';
+{$endif}
 function GetMenuItemInfoA(p1: HMENU; p2: UINT; p3: BOOL; var p4: TMenuItemInfoA): BOOL; external 'user32' name 'GetMenuItemInfoA';
 //function GetMenuItemInfoW(p1: HMENU; p2: UINT; p3: BOOL; var p4: TMenuItemInfoW): BOOL; external 'user32' name 'GetMenuItemInfoW';
 function GetMenuItemRect(hWnd: HWND; hMenu: HMENU; uItem: UINT; var lprcItem: TRect): BOOL; external 'user32' name 'GetMenuItemRect';
+{$ifdef UNICODE}
+function GetMessage(var lpMsg: TMsg; hWnd: HWND; wMsgFilterMin, wMsgFilterMax: UINT): BOOL;external 'user32' name 'GetMessageW';
+{$else}
 function GetMessage(var lpMsg: TMsg; hWnd: HWND; wMsgFilterMin, wMsgFilterMax: UINT): BOOL;external 'user32' name 'GetMessageA';
+{$endif}
 function GetMessageA(var lpMsg: TMsg; hWnd: HWND; wMsgFilterMin, wMsgFilterMax: UINT): BOOL; external 'user32' name 'GetMessageA';
 function GetMessageW(var lpMsg: TMsg; hWnd: HWND; wMsgFilterMin, wMsgFilterMax: UINT): BOOL; external 'user32' name 'GetMessageW';
 function GetMiterLimit(DC: HDC; var Limit: Single): BOOL; external 'gdi32' name 'GetMiterLimit';
@@ -565,10 +726,18 @@ function GetPriorityClipboardFormat(var paFormatPriorityList; cFormats: Integer)
 //  external 'advapi32' name 'GetPrivateObjectSecurity';
 function GetPrivateProfileSectionNamesA(lpszReturnBuffer: LPSTR; nSize: DWORD; lpFileName: LPCSTR): DWORD; external 'kernel32' name 'GetPrivateProfileSectionNamesA';
 function GetPrivateProfileSectionNamesW(lpszReturnBuffer: LPWSTR; nSize: DWORD; lpFileName: LPCWSTR): DWORD; external 'kernel32' name 'GetPrivateProfileSectionNamesW';
+{$ifdef UNICODE}
+function GetPrivateProfileSectionNames(lpszReturnBuffer: LPTSTR; nSize: DWORD; lpFileName: LPCTSTR): DWORD; external 'kernel32' name 'GetPrivateProfileSectionNamesW';
+{$else}
 function GetPrivateProfileSectionNames(lpszReturnBuffer: LPTSTR; nSize: DWORD; lpFileName: LPCTSTR): DWORD; external 'kernel32' name 'GetPrivateProfileSectionNamesA';
+{$endif}
 function GetPrivateProfileStructA(lpszSection, lpszKey: LPCSTR; lpStruct: LPVOID; uSizeStruct: UINT; szFile: LPCSTR): BOOL; external 'kernel32' name 'GetPrivateProfileStructA';
 function GetPrivateProfileStructW(lpszSection, lpszKey: LPCWSTR; lpStruct: LPVOID; uSizeStruct: UINT; szFile: LPCWSTR): BOOL; external 'kernel32' name 'GetPrivateProfileStructW';
+{$ifdef UNICODE}
+function GetPrivateProfileStruct(lpszSection, lpszKey: LPCTSTR; lpStruct: LPVOID; uSizeStruct: UINT; szFile: LPCTSTR): BOOL; external 'kernel32' name 'GetPrivateProfileStructW';
+{$else}
 function GetPrivateProfileStruct(lpszSection, lpszKey: LPCTSTR; lpStruct: LPVOID; uSizeStruct: UINT; szFile: LPCTSTR): BOOL; external 'kernel32' name 'GetPrivateProfileStructA';
+{$endif}
 function GetProcessAffinityMask(hProcess: THandle; var lpProcessAffinityMask, lpSystemAffinityMask: DWORD_PTR): BOOL; external 'kernel32' name 'GetProcessAffinityMask';
 function GetProcessHeaps(NumberOfHeaps: DWORD; var ProcessHeaps: THandle): DWORD;external 'kernel32' name 'GetProcessHeaps';
 {$ifndef NO_SMART_LINK}
@@ -588,33 +757,61 @@ function GetScrollRange(hWnd: HWND; nBar: Integer; var lpMinPos, lpMaxPos: Integ
 //function GetSecurityDescriptorGroup(pSecurityDescriptor: PSecurityDescriptor; var pGroup: PSID; var lpbGroupDefaulted: BOOL): BOOL; external 'advapi32' name 'GetSecurityDescriptorGroup';
 //function GetSecurityDescriptorOwner(pSecurityDescriptor: PSecurityDescriptor; var pOwner: PSID; var lpbOwnerDefaulted: BOOL): BOOL; external 'advapi32' name 'GetSecurityDescriptorOwner';
 //function GetSecurityDescriptorSacl(pSecurityDescriptor: PSecurityDescriptor; var lpbSaclPresent: BOOL; var pSacl: PACL; var lpbSaclDefaulted: BOOL): BOOL; external 'advapi32' name 'GetSecurityDescriptorSacl';
+{$ifdef UNICODE}
+procedure GetStartupInfo(var lpStartupInfo:TSTARTUPINFO); external 'kernel32' name 'GetStartupInfoW';
+{$else}
 procedure GetStartupInfo(var lpStartupInfo:TSTARTUPINFO); external 'kernel32' name 'GetStartupInfoA';
-function GetStringTypeA(Locale: LCID; dwInfoType: DWORD; const lpSrcStr: LPCSTR; cchSrc: BOOL; var lpCharType: Word): BOOL;external 'kernel32' name 'GetStringTypeA';
+{$endif}
+function GetStringTypeA(Locale: LCID; dwInfoType: DWORD; const lpSrcStr: LPCSTR; cchSrc: Integer; var lpCharType: Word): BOOL;external 'kernel32' name 'GetStringTypeA';
+{$ifdef UNICODE}
+function GetStringTypeEx(Locale: LCID; dwInfoType: DWORD; lpSrcStr: PWideChar; cchSrc: Integer; var lpCharType): BOOL;external 'kernel32' name 'GetStringTypeExW';
+{$else}
 function GetStringTypeEx(Locale: LCID; dwInfoType: DWORD; lpSrcStr: PAnsiChar; cchSrc: Integer; var lpCharType): BOOL;external 'kernel32' name 'GetStringTypeExA';
+{$endif}
 function GetStringTypeExA(Locale: LCID; dwInfoType: DWORD; lpSrcStr: LPCSTR; cchSrc: Integer; var lpCharType): BOOL; external 'kernel32' name 'GetStringTypeExA';
 function GetStringTypeExW(Locale: LCID; dwInfoType: DWORD; lpSrcStr: LPWSTR; cchSrc: Integer; var lpCharType): BOOL; external 'kernel32' name 'GetStringTypeExW';
-function GetStringTypeW(dwInfoType: DWORD; const lpSrcStr: WCHAR; cchSrc: BOOL; var lpCharType: Word): BOOL;external 'kernel32' name 'GetStringTypeW';
+function GetStringTypeW(dwInfoType: DWORD; const lpSrcStr: LPCWSTR; cchSrc: Integer; var lpCharType: Word): BOOL;external 'kernel32' name 'GetStringTypeW';
 function GetSystemPaletteEntries(DC: HDC; StartIndex, NumEntries: UINT; var PaletteEntries): UINT; external 'gdi32' name 'GetSystemPaletteEntries';
 function GetSystemPowerStatus(var lpSystemPowerStatus: TSystemPowerStatus): BOOL;external 'kernel32' name 'GetSystemPowerStatus';
 function GetSystemTimeAdjustment(var lpTimeAdjustment, lpTimeIncrement: DWORD; var lpTimeAdjustmentDisabled: BOOL): BOOL; external 'kernel32' name 'GetSystemTimeAdjustment';
 procedure GetSystemTimeAsFileTime(var lpSystemTimeAsFileTime:TFILETIME); external 'kernel32' name 'GetSystemTimeAsFileTime';
+{$ifdef UNICODE}
+function GetTabbedTextExtent(hDC: HDC; lpString: PWideChar; nCount, nTabPositions: Integer; var lpnTabStopPositions): DWORD;external 'user32' name 'GetTabbedTextExtentW';
+{$else}
 function GetTabbedTextExtent(hDC: HDC; lpString: PAnsiChar; nCount, nTabPositions: Integer; var lpnTabStopPositions): DWORD;external 'user32' name 'GetTabbedTextExtentA';
+{$endif}
 function GetTabbedTextExtentA(hDC: HDC; lpString: LPCSTR; nCount, nTabPositions: Integer; var lpnTabStopPositions): DWORD; external 'user32' name 'GetTabbedTextExtentA';
 function GetTabbedTextExtentW(hDC: HDC; lpString: LPWSTR; nCount, nTabPositions: Integer; var lpnTabStopPositions): DWORD; external 'user32' name 'GetTabbedTextExtentW';
 function GetTapeParameters(hDevice: THandle; dwOperation: DWORD; var lpdwSize: DWORD; lpTapeInformation: Pointer): DWORD; external 'kernel32' name 'GetTapeParameters';
 function GetTapePosition(hDevice: THandle; dwPositionType: DWORD; var lpdwPartition, lpdwOffsetLow: DWORD; lpdwOffsetHigh: Pointer): DWORD; external 'kernel32' name 'GetTapePosition';
+{$ifdef UNICODE}
+function GetTextExtentExPoint(DC: HDC; p2: PWideChar; p3, p4: Integer; p5, p6: PInteger; var p7: TSize): BOOL;external 'gdi32' name 'GetTextExtentExPointW';
+{$else}
 function GetTextExtentExPoint(DC: HDC; p2: PAnsiChar; p3, p4: Integer; p5, p6: PInteger; var p7: TSize): BOOL;external 'gdi32' name 'GetTextExtentExPointA';
+{$endif}
 function GetTextExtentExPointA(DC: HDC; p2: LPCSTR; p3, p4: Integer; p5, p6: PInteger; var p7: TSize): BOOL; external 'gdi32' name 'GetTextExtentExPointA';
 //function GetTextExtentExPointI(DC: HDC; p2: PWORD; p3, p4: Integer; p5, p6: PINT; var p7: TSize): BOOL;external 'gdi32' name 'GetTextExtentExPointI';
 function GetTextExtentExPointW(DC: HDC; p2: LPWSTR; p3, p4: Integer; p5, p6: PInteger; var p7: TSize): BOOL; external 'gdi32' name 'GetTextExtentExPointW';
+{$ifdef UNICODE}
+function GetTextExtentPoint(DC: HDC; Str: PWideChar; Count: Integer; var Size: TSize): BOOL;external 'gdi32' name 'GetTextExtentPointW';
+{$else}
 function GetTextExtentPoint(DC: HDC; Str: PAnsiChar; Count: Integer; var Size: TSize): BOOL;external 'gdi32' name 'GetTextExtentPointA';
+{$endif}
+{$ifdef UNICODE}
+function GetTextExtentPoint32(DC: HDC; Str: PWideChar; Count: Integer; var Size: TSize): BOOL;external 'gdi32' name 'GetTextExtentPoint32W';
+{$else}
 function GetTextExtentPoint32(DC: HDC; Str: PAnsiChar; Count: Integer; var Size: TSize): BOOL;external 'gdi32' name 'GetTextExtentPoint32A';
+{$endif}
 function GetTextExtentPoint32A(DC: HDC; Str: LPCSTR; Count: Integer; var Size: TSize): BOOL; external 'gdi32' name 'GetTextExtentPoint32A';
 function GetTextExtentPoint32W(DC: HDC; Str: LPWSTR; Count: Integer; var Size: TSize): BOOL; external 'gdi32' name 'GetTextExtentPoint32W';
 function GetTextExtentPointA(DC: HDC; Str: LPCSTR; Count: Integer; var Size: TSize): BOOL; external 'gdi32' name 'GetTextExtentPointA';
 //function GetTextExtentPointI(DC: HDC; p2: PWORD; p3: Integer; var p4: TSize): BOOL;external 'gdi32' name 'GetTextExtentPointI';
 function GetTextExtentPointW(DC: HDC; Str: LPWSTR; Count: Integer; var Size: TSize): BOOL; external 'gdi32' name 'GetTextExtentPointW';
+{$ifdef UNICODE}
+function GetTextMetrics(DC: HDC; var TM: TTextMetric): BOOL;external 'gdi32' name 'GetTextMetricsW';
+{$else}
 function GetTextMetrics(DC: HDC; var TM: TTextMetric): BOOL;external 'gdi32' name 'GetTextMetricsA';
+{$endif}
 //function GetTextMetricsA(DC: HDC; var TM: TTextMetricA): BOOL; external 'gdi32' name 'GetTextMetricsA';
 //function GetTextMetricsW(DC: HDC; var TM: TTextMetricW): BOOL; external 'gdi32' name 'GetTextMetricsW';
 function GetThreadContext(hThread: THandle; var lpContext: TContext): BOOL; external 'kernel32' name 'GetThreadContext';
@@ -629,10 +826,18 @@ function GetTimeZoneInformation(var lpTimeZoneInformation: TTimeZoneInformation)
 //function GetTitleBarInfo(hwnd: HWND; var pti: TTitleBarInfo): BOOL;external 'user32' name 'GetTitleBarInfo';
 function GetTokenInformation(TokenHandle: THandle; TokenInformationClass: TTokenInformationClass; TokenInformation: Pointer; TokenInformationLength: DWORD; var ReturnLength: DWORD): BOOL; external 'advapi32' name 'GetTokenInformation';
 function GetUpdateRect(hWnd: HWND; var lpRect: TRect; bErase: BOOL): BOOL; external 'user32' name 'GetUpdateRect';
+{$ifdef UNICODE}
+function GetUserName(lpBuffer: PWideChar; var nSize: DWORD): BOOL;external 'advapi32' name 'GetUserNameW';
+{$else}
 function GetUserName(lpBuffer: PAnsiChar; var nSize: DWORD): BOOL;external 'advapi32' name 'GetUserNameA';
+{$endif}
 function GetUserNameA(lpBuffer: LPCSTR; var nSize: DWORD): BOOL; external 'advapi32' name 'GetUserNameA';
 function GetUserNameW(lpBuffer: LPWSTR; var nSize: DWORD): BOOL; external 'advapi32' name 'GetUserNameW';
+{$ifdef UNICODE}
+function GetUserObjectInformation(hObj: THandle; nIndex: Integer; pvInfo: Pointer; nLength: DWORD; var lpnLengthNeeded: DWORD): BOOL;external 'user32' name 'GetUserObjectInformationW';
+{$else}
 function GetUserObjectInformation(hObj: THandle; nIndex: Integer; pvInfo: Pointer; nLength: DWORD; var lpnLengthNeeded: DWORD): BOOL;external 'user32' name 'GetUserObjectInformationA';
+{$endif}
 function GetUserObjectInformationA(hObj: THandle; nIndex: Integer; pvInfo: Pointer; nLength: DWORD; var lpnLengthNeeded: DWORD): BOOL; external 'user32' name 'GetUserObjectInformationA';
 function GetUserObjectInformationW(hObj: THandle; nIndex: Integer; pvInfo: Pointer; nLength: DWORD; var lpnLengthNeeded: DWORD): BOOL; external 'user32' name 'GetUserObjectInformationW';
 function GetUserObjectSecurity(hObj: THandle; var pSIRequested: DWORD; pSID: PSecurityDescriptor; nLength: DWORD; var lpnLengthNeeded: DWORD): BOOL; external 'user32' name 'GetUserObjectSecurity';
@@ -641,8 +846,13 @@ function GetVersionExA(var lpVersionInformation: TOSVersionInfoA): BOOL; externa
 function GetVersionExW(var lpVersionInformation: TOSVersionInfoW): BOOL; external 'kernel32' name 'GetVersionExW';
 function GetViewportExtEx(DC: HDC; var Size: TSize): BOOL; external 'gdi32' name 'GetViewportExtEx';
 function GetViewportOrgEx(DC: HDC; var Point: TPoint): BOOL; external 'gdi32' name 'GetViewportOrgEx';
+{$ifdef UNICODE}
+function GetVolumeInformation(lpRootPathName: PWideChar; lpVolumeNameBuffer: PWideChar; nVolumeNameSize: DWORD; lpVolumeSerialNumber: PDWORD; var lpMaximumComponentLength, lpFileSystemFlags: DWORD;
+  lpFileSystemNameBuffer: PWideChar; nFileSystemNameSize: DWORD): BOOL; external 'kernel32' name 'GetVolumeInformationW';
+{$else}
 function GetVolumeInformation(lpRootPathName: PAnsiChar; lpVolumeNameBuffer: PAnsiChar; nVolumeNameSize: DWORD; lpVolumeSerialNumber: PDWORD; var lpMaximumComponentLength, lpFileSystemFlags: DWORD;
   lpFileSystemNameBuffer: PAnsiChar; nFileSystemNameSize: DWORD): BOOL; external 'kernel32' name 'GetVolumeInformationA';
+{$endif}
 function GetVolumeInformationA(lpRootPathName: LPCSTR; lpVolumeNameBuffer: LPSTR; nVolumeNameSize: DWORD; lpVolumeSerialNumber: PDWORD; var lpMaximumComponentLength, lpFileSystemFlags: DWORD;
   lpFileSystemNameBuffer: LPSTR; nFileSystemNameSize: DWORD): BOOL; external 'kernel32' name 'GetVolumeInformationA';
 function GetVolumeInformationW(lpRootPathName: LPWSTR; lpVolumeNameBuffer: LPWSTR; nVolumeNameSize: DWORD; lpVolumeSerialNumber: PDWORD; var lpMaximumComponentLength, lpFileSystemFlags: DWORD;
@@ -662,34 +872,66 @@ function InitializeAcl(var pAcl: TACL; nAclLength, dwAclRevision: DWORD): BOOL; 
 //function InitializeCriticalSectionAndSpinCount(var lpCriticalSection: TRTLCriticalSection; dwSpinCount: DWORD): BOOL;external 'kernel32' name 'InitializeCriticalSectionAndSpinCount';
 {$endif NO_SMART_LINK}
 function InitializeSid(Sid: Pointer; const pIdentifierAuthority: TSIDIdentifierAuthority; nSubAuthorityCount: Byte): BOOL; external 'advapi32' name 'InitializeSid';
+{$ifdef UNICODE}
+function InsertMenuItem(p1: HMENU; p2: UINT; p3: BOOL; const p4: TMenuItemInfo): BOOL;external 'user32' name 'InsertMenuItemW';
+{$else}
 function InsertMenuItem(p1: HMENU; p2: UINT; p3: BOOL; const p4: TMenuItemInfo): BOOL;external 'user32' name 'InsertMenuItemA';
+{$endif}
 function InsertMenuItemA(p1: HMENU; p2: UINT; p3: BOOL; const p4: TMenuItemInfoA): BOOL; external 'user32' name 'InsertMenuItemA';
 //function InsertMenuItemW(p1: HMENU; p2: UINT; p3: BOOL; const p4: TMenuItemInfoW): BOOL; external 'user32' name 'InsertMenuItemW';
 function IntersectRect(var lprcDst: TRect; const lprcSrc1, lprcSrc2: TRect): BOOL; external 'user32' name 'IntersectRect';
 //function InvertRect(hDC: HDC; const lprc: TRect): BOOL; external 'user32' name 'InvertRect';
+{$ifdef UNICODE}
+function IsDialogMessage(hDlg: HWND; var lpMsg: TMsg): BOOL;external 'user32' name 'IsDialogMessageW';
+{$else}
 function IsDialogMessage(hDlg: HWND; var lpMsg: TMsg): BOOL;external 'user32' name 'IsDialogMessageA';
+{$endif}
 function IsDialogMessageA(hDlg: HWND; var lpMsg: TMsg): BOOL; external 'user32' name 'IsDialogMessageA';
 function IsDialogMessageW(hDlg: HWND; var lpMsg: TMsg): BOOL; external 'user32' name 'IsDialogMessageW';
 //function IsRectEmpty(const lprc: TRect): BOOL; external 'user32' name 'IsRectEmpty';
 function IsValidAcl(const pAcl: TACL): BOOL; external 'advapi32' name 'IsValidAcl';
 function LocalFileTimeToFileTime(const lpLocalFileTime: TFileTime; var lpFileTime: TFileTime): BOOL; external 'kernel32' name 'LocalFileTimeToFileTime';
 function LockFileEx(hFile: THandle; dwFlags, dwReserved: DWORD; nNumberOfBytesToLockLow, nNumberOfBytesToLockHigh: DWORD; const lpOverlapped: TOverlapped): BOOL; external 'kernel32' name 'LockFileEx';
+{$ifdef UNICODE}
+function LogonUser(lpszUsername, lpszDomain, lpszPassword: PWideChar; dwLogonType, dwLogonProvider: DWORD; var phToken: THandle): BOOL;external 'advapi32' name 'LogonUserW';
+{$else}
 function LogonUser(lpszUsername, lpszDomain, lpszPassword: PAnsiChar; dwLogonType, dwLogonProvider: DWORD; var phToken: THandle): BOOL;external 'advapi32' name 'LogonUserA';
+{$endif}
 function LogonUserA(lpszUsername, lpszDomain, lpszPassword: LPCSTR; dwLogonType, dwLogonProvider: DWORD; var phToken: THandle): BOOL; external 'advapi32' name 'LogonUserA';
 function LogonUserW(lpszUsername, lpszDomain, lpszPassword: LPWSTR; dwLogonType, dwLogonProvider: DWORD; var phToken: THandle): BOOL; external 'advapi32' name 'LogonUserW';
+{$ifdef UNICODE}
+function LookupAccountName(lpSystemName, lpAccountName: PWideChar; Sid: PSID; var cbSid: DWORD; ReferencedDomainName: PWideChar; var cbReferencedDomainName: DWORD; var peUse: SID_NAME_USE): BOOL;external 'advapi32' name 'LookupAccountNameW';
+{$else}
 function LookupAccountName(lpSystemName, lpAccountName: PAnsiChar; Sid: PSID; var cbSid: DWORD; ReferencedDomainName: PAnsiChar; var cbReferencedDomainName: DWORD; var peUse: SID_NAME_USE): BOOL;external 'advapi32' name 'LookupAccountNameA';
+{$endif}
 function LookupAccountNameA(lpSystemName, lpAccountName: LPCSTR; Sid: PSID; var cbSid: DWORD; ReferencedDomainName: LPCSTR; var cbReferencedDomainName: DWORD; var peUse: SID_NAME_USE): BOOL; external 'advapi32' name 'LookupAccountNameA';
 function LookupAccountNameW(lpSystemName, lpAccountName: LPWSTR; Sid: PSID; var cbSid: DWORD; ReferencedDomainName: LPWSTR; var cbReferencedDomainName: DWORD; var peUse: SID_NAME_USE): BOOL; external 'advapi32' name 'LookupAccountNameW';
+{$ifdef UNICODE}
+function LookupAccountSid(lpSystemName: PWideChar; Sid: PSID; Name: PWideChar; var cbName: DWORD; ReferencedDomainName: PWideChar; var cbReferencedDomainName: DWORD; var peUse: SID_NAME_USE): BOOL;external 'advapi32' name 'LookupAccountSidW';
+{$else}
 function LookupAccountSid(lpSystemName: PAnsiChar; Sid: PSID; Name: PAnsiChar; var cbName: DWORD; ReferencedDomainName: PAnsiChar; var cbReferencedDomainName: DWORD; var peUse: SID_NAME_USE): BOOL;external 'advapi32' name 'LookupAccountSidA';
+{$endif}
 function LookupAccountSidA(lpSystemName: LPCSTR; Sid: PSID; Name: LPCSTR; var cbName: DWORD; ReferencedDomainName: LPCSTR; var cbReferencedDomainName: DWORD; var peUse: SID_NAME_USE): BOOL; external 'advapi32' name 'LookupAccountSidA';
 function LookupAccountSidW(lpSystemName: LPWSTR; Sid: PSID; Name: LPWSTR; var cbName: DWORD; ReferencedDomainName: LPWSTR; var cbReferencedDomainName: DWORD; var peUse: SID_NAME_USE): BOOL; external 'advapi32' name 'LookupAccountSidW';
+{$ifdef UNICODE}
+function LookupPrivilegeDisplayName(lpSystemName, lpName: LPCWSTR; lpDisplayName: PWideChar; var cbDisplayName, lpLanguageId: DWORD): BOOL;external 'advapi32' name 'LookupPrivilegeDisplayNameW';
+{$else}
 function LookupPrivilegeDisplayName(lpSystemName, lpName: LPCSTR; lpDisplayName: PAnsiChar; var cbDisplayName, lpLanguageId: DWORD): BOOL;external 'advapi32' name 'LookupPrivilegeDisplayNameA';
+{$endif}
 function LookupPrivilegeDisplayNameA(lpSystemName, lpName: LPCSTR; lpDisplayName: LPCSTR; var cbDisplayName, lpLanguageId: DWORD): BOOL; external 'advapi32' name 'LookupPrivilegeDisplayNameA';
-function LookupPrivilegeDisplayNameW(lpSystemName, lpName: LPCSTR; lpDisplayName: LPWSTR; var cbDisplayName, lpLanguageId: DWORD): BOOL; external 'advapi32' name 'LookupPrivilegeDisplayNameW';
+function LookupPrivilegeDisplayNameW(lpSystemName, lpName: LPCWSTR; lpDisplayName: LPWSTR; var cbDisplayName, lpLanguageId: DWORD): BOOL; external 'advapi32' name 'LookupPrivilegeDisplayNameW';
+{$ifdef UNICODE}
+function LookupPrivilegeName(lpSystemName: PWideChar; var lpLuid: TLargeInteger; lpName: PWideChar; var cbName: DWORD): BOOL;external 'advapi32' name 'LookupPrivilegeNameW';
+{$else}
 function LookupPrivilegeName(lpSystemName: PAnsiChar; var lpLuid: TLargeInteger; lpName: PAnsiChar; var cbName: DWORD): BOOL;external 'advapi32' name 'LookupPrivilegeNameA';
+{$endif}
 function LookupPrivilegeNameA(lpSystemName: LPCSTR; var lpLuid: TLargeInteger; lpName: LPCSTR; var cbName: DWORD): BOOL; external 'advapi32' name 'LookupPrivilegeNameA';
 function LookupPrivilegeNameW(lpSystemName: LPWSTR; var lpLuid: TLargeInteger; lpName: LPWSTR; var cbName: DWORD): BOOL; external 'advapi32' name 'LookupPrivilegeNameW';
+{$ifdef UNICODE}
+function LookupPrivilegeValue(lpSystemName, lpName: PWideChar; var lpLuid: TLargeInteger): BOOL;external 'advapi32' name 'LookupPrivilegeValueW';
+{$else}
 function LookupPrivilegeValue(lpSystemName, lpName: PAnsiChar; var lpLuid: TLargeInteger): BOOL;external 'advapi32' name 'LookupPrivilegeValueA';
+{$endif}
 function LookupPrivilegeValueA(lpSystemName, lpName: LPCSTR; var lpLuid: TLargeInteger): BOOL; external 'advapi32' name 'LookupPrivilegeValueA';
 function LookupPrivilegeValueW(lpSystemName, lpName: LPWSTR; var lpLuid: TLargeInteger): BOOL; external 'advapi32' name 'LookupPrivilegeValueW';
 function LPtoDP(DC: HDC; var Points; Count: Integer): BOOL; external 'gdi32' name 'LPtoDP';
@@ -698,7 +940,11 @@ function MakeAbsoluteSD(pSelfRelativeSecurityDescriptor: PSecurityDescriptor; pA
 function MakeSelfRelativeSD(pAbsoluteSecurityDescriptor: PSecurityDescriptor; pSelfRelativeSecurityDescriptor: PSecurityDescriptor; var lpdwBufferLength: DWORD): BOOL; external 'advapi32' name 'MakeSelfRelativeSD';
 function MapDialogRect(hDlg: HWND; var lpRect: TRect): BOOL; external 'user32' name 'MapDialogRect';
 function MapWindowPoints(hWndFrom, hWndTo: HWND; var lpPoints; cPoints: UINT): Integer; external 'user32' name 'MapWindowPoints';
+{$ifdef UNICODE}
+function MessageBoxIndirect(const MsgBoxParams: TMsgBoxParams): BOOL;external 'user32' name 'MessageBoxIndirectW';
+{$else}
 function MessageBoxIndirect(const MsgBoxParams: TMsgBoxParams): BOOL;external 'user32' name 'MessageBoxIndirectA';
+{$endif}
 function MessageBoxIndirectA(const MsgBoxParams: TMsgBoxParamsA): BOOL; external 'user32' name 'MessageBoxIndirectA';
 //function MessageBoxIndirectW(const MsgBoxParams: TMsgBoxParamsW): BOOL; external 'user32' name 'MessageBoxIndirectW';
 function ModifyWorldTransform(_para1:HDC; var _para2:XFORM; _para3:DWORD):WINBOOL; external 'gdi32' name 'ModifyWorldTransform';
@@ -707,13 +953,22 @@ function MsgWaitForMultipleObjects(nCount: DWORD; var pHandles; fWaitAll: BOOL; 
 function MsgWaitForMultipleObjectsEx(nCount: DWORD; var pHandles; dwMilliseconds, dwWakeMask, dwFlags: DWORD): DWORD;external 'user32' name 'MsgWaitForMultipleObjectsEx';
 {$endif NO_SMART_LINK}
 // function MultiByteToWideChar(CodePage: UINT; dwFlags: DWORD; const lpMultiByteStr: LPCSTR; cchMultiByte: Integer; lLPWSTRStr: LPWSTR; cchWideChar: Integer): Integer; external 'kernel32' name 'MultiByteToWideChar';
+{$ifdef UNICODE}
+function ObjectOpenAuditAlarm(SubsystemName: PWideChar; HandleId: Pointer; ObjectTypeName: PWideChar; ObjectName: PWideChar; pSecurityDescriptor: PSecurityDescriptor; ClientToken: THandle; DesiredAccess, GrantedAccess: DWORD; var Privileges: TPrivilegeSet;
+  ObjectCreation, AccessGranted: BOOL; var GenerateOnClose: BOOL): BOOL;external 'advapi32' name 'ObjectOpenAuditAlarmW';
+{$else}
 function ObjectOpenAuditAlarm(SubsystemName: PAnsiChar; HandleId: Pointer; ObjectTypeName: PAnsiChar; ObjectName: PAnsiChar; pSecurityDescriptor: PSecurityDescriptor; ClientToken: THandle; DesiredAccess, GrantedAccess: DWORD; var Privileges: TPrivilegeSet;
   ObjectCreation, AccessGranted: BOOL; var GenerateOnClose: BOOL): BOOL;external 'advapi32' name 'ObjectOpenAuditAlarmA';
+{$endif}
 function ObjectOpenAuditAlarmA(SubsystemName: LPCSTR; HandleId: Pointer; ObjectTypeName: LPCSTR; ObjectName: LPCSTR; pSecurityDescriptor: PSecurityDescriptor; ClientToken: THandle; DesiredAccess, GrantedAccess: DWORD; var Privileges: TPrivilegeSet;
   ObjectCreation, AccessGranted: BOOL; var GenerateOnClose: BOOL): BOOL; external 'advapi32' name 'ObjectOpenAuditAlarmA';
 function ObjectOpenAuditAlarmW(SubsystemName: LPWSTR; HandleId: Pointer; ObjectTypeName: LPWSTR; ObjectName: LPWSTR; pSecurityDescriptor: PSecurityDescriptor; ClientToken: THandle; DesiredAccess, GrantedAccess: DWORD; var Privileges: TPrivilegeSet;
   ObjectCreation, AccessGranted: BOOL; var GenerateOnClose: BOOL): BOOL; external 'advapi32' name 'ObjectOpenAuditAlarmW';
+{$ifdef UNICODE}
+function ObjectPrivilegeAuditAlarm(SubsystemName: PWideChar; HandleId: Pointer; ClientToken: THandle; DesiredAccess: DWORD; var Privileges: TPrivilegeSet; AccessGranted: BOOL): BOOL;external 'advapi32' name 'ObjectPrivilegeAuditAlarmW';
+{$else}
 function ObjectPrivilegeAuditAlarm(SubsystemName: PAnsiChar; HandleId: Pointer; ClientToken: THandle; DesiredAccess: DWORD; var Privileges: TPrivilegeSet; AccessGranted: BOOL): BOOL;external 'advapi32' name 'ObjectPrivilegeAuditAlarmA';
+{$endif}
 function ObjectPrivilegeAuditAlarmA(SubsystemName: LPCSTR; HandleId: Pointer; ClientToken: THandle; DesiredAccess: DWORD; var Privileges: TPrivilegeSet; AccessGranted: BOOL): BOOL; external 'advapi32' name 'ObjectPrivilegeAuditAlarmA';
 function ObjectPrivilegeAuditAlarmW(SubsystemName: LPWSTR; HandleId: Pointer; ClientToken: THandle; DesiredAccess: DWORD; var Privileges: TPrivilegeSet; AccessGranted: BOOL): BOOL; external 'advapi32' name 'ObjectPrivilegeAuditAlarmW';
 
@@ -723,10 +978,18 @@ function OffsetWindowOrgEx(DC: HDC; X, Y: Integer; var Points): BOOL; external '
 function OpenFile(const lpFileName: LPCSTR; var lpReOpenBuff: TOFStruct; uStyle: UINT): HFILE; external 'kernel32' name 'OpenFile';
 function OpenProcessToken(ProcessHandle: THandle; DesiredAccess: DWORD; var TokenHandle: THandle): BOOL; external 'advapi32' name 'OpenProcessToken';
 function OpenThreadToken(ThreadHandle: THandle; DesiredAccess: DWORD; OpenAsSelf: BOOL; var TokenHandle: THandle): BOOL; external 'advapi32' name 'OpenThreadToken';
+{$ifdef UNICODE}
+function PeekConsoleInput(hConsoleInput: THandle; var lpBuffer: TInputRecord; nLength: DWORD; var lpNumberOfEventsRead: DWORD): BOOL;external 'kernel32' name 'PeekConsoleInputW';
+{$else}
 function PeekConsoleInput(hConsoleInput: THandle; var lpBuffer: TInputRecord; nLength: DWORD; var lpNumberOfEventsRead: DWORD): BOOL;external 'kernel32' name 'PeekConsoleInputA';
+{$endif}
 function PeekConsoleInputA(hConsoleInput: THandle; var lpBuffer: TInputRecord; nLength: DWORD; var lpNumberOfEventsRead: DWORD): BOOL; external 'kernel32' name 'PeekConsoleInputA';
 function PeekConsoleInputW(hConsoleInput: THandle; var lpBuffer: TInputRecord; nLength: DWORD; var lpNumberOfEventsRead: DWORD): BOOL; external 'kernel32' name 'PeekConsoleInputW';
+{$ifdef UNICODE}
+function PeekMessage(var lpMsg: TMsg; hWnd: HWND; wMsgFilterMin, wMsgFilterMax, wRemoveMsg: UINT): BOOL;external 'user32' name 'PeekMessageW';
+{$else}
 function PeekMessage(var lpMsg: TMsg; hWnd: HWND; wMsgFilterMin, wMsgFilterMax, wRemoveMsg: UINT): BOOL;external 'user32' name 'PeekMessageA';
+{$endif}
 function PeekMessageA(var lpMsg: TMsg; hWnd: HWND; wMsgFilterMin, wMsgFilterMax, wRemoveMsg: UINT): BOOL; external 'user32' name 'PeekMessageA';
 function PeekMessageW(var lpMsg: TMsg; hWnd: HWND; wMsgFilterMin, wMsgFilterMax, wRemoveMsg: UINT): BOOL; external 'user32' name 'PeekMessageW';
 //function PlayEnhMetaFile(DC: HDC; p2: HENHMETAFILE; const p3: TRect): BOOL; external 'gdi32' name 'PlayEnhMetaFile';
@@ -741,11 +1004,19 @@ function Polyline(DC: HDC; var Points; Count: Integer): BOOL; external 'gdi32' n
 function PolyLineTo(DC: HDC; const Points; Count: DWORD): BOOL; external 'gdi32' name 'PolylineTo';
 function PolyPolygon(DC: HDC; var Points; var nPoints; p4: Integer): BOOL; external 'gdi32' name 'PolyPolygon';
 function PolyPolyline(DC: HDC; const PointStructs; const Points; p4: DWORD): BOOL; external 'gdi32' name 'PolyPolyline';
+{$ifdef UNICODE}
+function PolyTextOut(DC: HDC; const PolyTextArray; Strings: Integer): BOOL;external 'gdi32' name 'PolyTextOutW';
+{$else}
 function PolyTextOut(DC: HDC; const PolyTextArray; Strings: Integer): BOOL;external 'gdi32' name 'PolyTextOutA';
+{$endif}
 function PolyTextOutA(DC: HDC; const PolyTextArray; Strings: Integer): BOOL; external 'gdi32' name 'PolyTextOutA';
 function PolyTextOutW(DC: HDC; const PolyTextArray; Strings: Integer): BOOL; external 'gdi32' name 'PolyTextOutW';
 function PrivilegeCheck(ClientToken: THandle; const RequiredPrivileges: TPrivilegeSet; var pfResult: BOOL): BOOL; external 'advapi32' name 'PrivilegeCheck';
+{$ifdef UNICODE}
+function PrivilegedServiceAuditAlarm(SubsystemName, ServiceName: PWideChar; ClientToken: THandle; var Privileges: TPrivilegeSet; AccessGranted: BOOL): BOOL;external 'advapi32' name 'PrivilegedServiceAuditAlarmW';
+{$else}
 function PrivilegedServiceAuditAlarm(SubsystemName, ServiceName: PAnsiChar; ClientToken: THandle; var Privileges: TPrivilegeSet; AccessGranted: BOOL): BOOL;external 'advapi32' name 'PrivilegedServiceAuditAlarmA';
+{$endif}
 function PrivilegedServiceAuditAlarmA(SubsystemName, ServiceName: LPCSTR; ClientToken: THandle; var Privileges: TPrivilegeSet; AccessGranted: BOOL): BOOL; external 'advapi32' name 'PrivilegedServiceAuditAlarmA';
 function PrivilegedServiceAuditAlarmW(SubsystemName, ServiceName: LPWSTR; ClientToken: THandle; var Privileges: TPrivilegeSet; AccessGranted: BOOL): BOOL; external 'advapi32' name 'PrivilegedServiceAuditAlarmW';
 //function PtInRect(const lprc: TRect; pt: TPoint): BOOL; external 'user32' name 'PtInRect';
@@ -756,71 +1027,148 @@ function QueryPerformanceFrequency(out lpFrequency: TLargeInteger): BOOL; extern
 //function QueryRecoveryAgentsW(p1: LPWSTR; var p2: Pointer; var p3: TRecoveryAgentInformationW): DWORD;external 'kernel32' name 'QueryRecoveryAgentsW';
 procedure RaiseException(dwExceptionCode:DWORD; dwExceptionFlags:DWORD; nNumberOfArguments:DWORD; var lpArguments:DWORD); external 'kernel32' name 'RaiseException';
 function UnhandledExceptionFilter(var ExceptionInfo:emptyrecord):LONG; external 'kernel32' name 'UnhandledExceptionFilter';
+{$ifdef UNICODE}
+function ReadConsole(hConsoleInput: THandle; lpBuffer: Pointer; nNumberOfCharsToRead: DWORD; var lpNumberOfCharsRead: DWORD; lpReserved: Pointer): BOOL;external 'kernel32' name 'ReadConsoleW';
+{$else}
 function ReadConsole(hConsoleInput: THandle; lpBuffer: Pointer; nNumberOfCharsToRead: DWORD; var lpNumberOfCharsRead: DWORD; lpReserved: Pointer): BOOL;external 'kernel32' name 'ReadConsoleA';
+{$endif}
 function ReadConsoleA(hConsoleInput: THandle; lpBuffer: Pointer; nNumberOfCharsToRead: DWORD; var lpNumberOfCharsRead: DWORD; lpReserved: Pointer): BOOL; external 'kernel32' name 'ReadConsoleA';
+{$ifdef UNICODE}
+function ReadConsoleInput(hConsoleInput: THandle; var lpBuffer: TInputRecord; nLength: DWORD; var lpNumberOfEventsRead: DWORD): BOOL;external 'kernel32' name 'ReadConsoleInputW';
+{$else}
 function ReadConsoleInput(hConsoleInput: THandle; var lpBuffer: TInputRecord; nLength: DWORD; var lpNumberOfEventsRead: DWORD): BOOL;external 'kernel32' name 'ReadConsoleInputA';
+{$endif}
 function ReadConsoleInputA(hConsoleInput: THandle; var lpBuffer: TInputRecord; nLength: DWORD; var lpNumberOfEventsRead: DWORD): BOOL; external 'kernel32' name 'ReadConsoleInputA';
 function ReadConsoleInputW(hConsoleInput: THandle; var lpBuffer: TInputRecord; nLength: DWORD; var lpNumberOfEventsRead: DWORD): BOOL; external 'kernel32' name 'ReadConsoleInputW';
+{$ifdef UNICODE}
+function ReadConsoleOutput(hConsoleOutput: THandle; lpBuffer: Pointer; dwBufferSize, dwBufferCoord: TCoord; var lpReadRegion: TSmallRect): BOOL;external 'kernel32' name 'ReadConsoleOutputW';
+{$else}
 function ReadConsoleOutput(hConsoleOutput: THandle; lpBuffer: Pointer; dwBufferSize, dwBufferCoord: TCoord; var lpReadRegion: TSmallRect): BOOL;external 'kernel32' name 'ReadConsoleOutputA';
+{$endif}
 function ReadConsoleOutputA(hConsoleOutput: THandle; lpBuffer: Pointer; dwBufferSize, dwBufferCoord: TCoord; var lpReadRegion: TSmallRect): BOOL; external 'kernel32' name 'ReadConsoleOutputA';
 function ReadConsoleOutputAttribute(hConsoleOutput: THandle; lpAttribute: Pointer; nLength: DWORD; dwReadCoord: TCoord; var lpNumberOfAttrsRead: DWORD): BOOL;external 'kernel32' name 'ReadConsoleOutputAttribute';
+{$ifdef UNICODE}
+function ReadConsoleOutputCharacter(hConsoleOutput: THandle; lpCharacter: LPCWSTR; nLength: DWORD; dwReadCoord: TCoord; var lpNumberOfCharsRead: DWORD): BOOL;external 'kernel32' name 'ReadConsoleOutputCharacterW';
+{$else}
 function ReadConsoleOutputCharacter(hConsoleOutput: THandle; lpCharacter: LPCSTR; nLength: DWORD; dwReadCoord: TCoord; var lpNumberOfCharsRead: DWORD): BOOL;external 'kernel32' name 'ReadConsoleOutputCharacterA';
+{$endif}
 function ReadConsoleOutputCharacterA(hConsoleOutput: THandle; lpCharacter: LPCSTR; nLength: DWORD; dwReadCoord: TCoord; var lpNumberOfCharsRead: DWORD): BOOL; external 'kernel32' name 'ReadConsoleOutputCharacterA';
-function ReadConsoleOutputCharacterW(hConsoleOutput: THandle; lpCharacter: LPCSTR; nLength: DWORD; dwReadCoord: TCoord; var lpNumberOfCharsRead: DWORD): BOOL; external 'kernel32' name 'ReadConsoleOutputCharacterW';
+function ReadConsoleOutputCharacterW(hConsoleOutput: THandle; lpCharacter: LPWSTR; nLength: DWORD; dwReadCoord: TCoord; var lpNumberOfCharsRead: DWORD): BOOL; external 'kernel32' name 'ReadConsoleOutputCharacterW';
 function ReadConsoleOutputW(hConsoleOutput: THandle; lpBuffer: Pointer; dwBufferSize, dwBufferCoord: TCoord; var lpReadRegion: TSmallRect): BOOL; external 'kernel32' name 'ReadConsoleOutputW';
 function ReadConsoleW(hConsoleInput: THandle; lpBuffer: Pointer; nNumberOfCharsToRead: DWORD; var lpNumberOfCharsRead: DWORD; lpReserved: Pointer): BOOL; external 'kernel32' name 'ReadConsoleW';
+{$ifdef UNICODE}
+function ReadEventLog(hEventLog: THandle; dwReadFlags, dwRecordOffset: DWORD; lpBuffer: Pointer; nNumberOfBytesToRead: DWORD; var pnBytesRead, pnMinNumberOfBytesNeeded: DWORD): BOOL;external 'advapi32' name 'ReadEventLogW';
+{$else}
 function ReadEventLog(hEventLog: THandle; dwReadFlags, dwRecordOffset: DWORD; lpBuffer: Pointer; nNumberOfBytesToRead: DWORD; var pnBytesRead, pnMinNumberOfBytesNeeded: DWORD): BOOL;external 'advapi32' name 'ReadEventLogA';
+{$endif}
 function ReadEventLogA(hEventLog: THandle; dwReadFlags, dwRecordOffset: DWORD; lpBuffer: Pointer; nNumberOfBytesToRead: DWORD; var pnBytesRead, pnMinNumberOfBytesNeeded: DWORD): BOOL; external 'advapi32' name 'ReadEventLogA';
 function ReadEventLogW(hEventLog: THandle; dwReadFlags, dwRecordOffset: DWORD; lpBuffer: Pointer; nNumberOfBytesToRead: DWORD; var pnBytesRead, pnMinNumberOfBytesNeeded: DWORD): BOOL; external 'advapi32' name 'ReadEventLogW';
 function ReadFile(hFile: THandle; var Buffer; nNumberOfBytesToRead: DWORD; var lpNumberOfBytesRead: DWORD; lpOverlapped: POverlapped): BOOL; external 'kernel32' name 'ReadFile';
 function ReadProcessMemory(hProcess: THandle; const lpBaseAddress: Pointer; lpBuffer: Pointer; nSize: PTRUINT; var lpNumberOfBytesRead: PTRUINT): BOOL; external 'kernel32' name 'ReadProcessMemory';
 //function RectInRegion(RGN: HRGN; const p2: TRect): BOOL; external 'gdi32' name 'RectInRegion';
 //function RectVisible(DC: HDC; const Rect: TRect): BOOL; external 'gdi32' name 'RectVisible';
+{$ifdef UNICODE}
+function RegConnectRegistry(lpMachineName: PWideChar; hKey: HKEY; var phkResult: HKEY): Longint;external 'advapi32' name 'RegConnectRegistryW';
+{$else}
 function RegConnectRegistry(lpMachineName: PAnsiChar; hKey: HKEY; var phkResult: HKEY): Longint;external 'advapi32' name 'RegConnectRegistryA';
+{$endif}
 function RegConnectRegistryA(lpMachineName: LPCSTR; hKey: HKEY; var phkResult: HKEY): Longint; external 'advapi32' name 'RegConnectRegistryA';
 function RegConnectRegistryW(lpMachineName: LPWSTR; hKey: HKEY; var phkResult: HKEY): Longint; external 'advapi32' name 'RegConnectRegistryW';
+{$ifdef UNICODE}
+function RegCreateKey(hKey: HKEY; lpSubKey: PWideChar; var phkResult: HKEY): Longint;external 'advapi32' name 'RegCreateKeyW';
+{$else}
 function RegCreateKey(hKey: HKEY; lpSubKey: PAnsiChar; var phkResult: HKEY): Longint;external 'advapi32' name 'RegCreateKeyA';
+{$endif}
 function RegCreateKeyA(hKey: HKEY; lpSubKey: LPCSTR; var phkResult: HKEY): Longint; external 'advapi32' name 'RegCreateKeyA';
+{$ifdef UNICODE}
+function RegCreateKeyEx(hKey: HKEY; lpSubKey: PWideChar; Reserved: DWORD; lpClass: PWideChar; dwOptions: DWORD; samDesired: REGSAM; lpSecurityAttributes: PSecurityAttributes; var phkResult: HKEY; lpdwDisposition: PDWORD): Longint;
+  external 'advapi32' name 'RegCreateKeyExW';
+{$else}
 function RegCreateKeyEx(hKey: HKEY; lpSubKey: PAnsiChar; Reserved: DWORD; lpClass: PAnsiChar; dwOptions: DWORD; samDesired: REGSAM; lpSecurityAttributes: PSecurityAttributes; var phkResult: HKEY; lpdwDisposition: PDWORD): Longint;
   external 'advapi32' name 'RegCreateKeyExA';
+{$endif}
 function RegCreateKeyExA(hKey: HKEY; lpSubKey: LPCSTR; Reserved: DWORD; lpClass: LPCSTR; dwOptions: DWORD; samDesired: REGSAM; lpSecurityAttributes: PSecurityAttributes; var phkResult: HKEY; lpdwDisposition: PDWORD): Longint;
   external 'advapi32' name 'RegCreateKeyExA';
 function RegCreateKeyExW(hKey: HKEY; lpSubKey: LPWSTR; Reserved: DWORD; lpClass: LPWSTR; dwOptions: DWORD; samDesired: REGSAM; lpSecurityAttributes: PSecurityAttributes; var phkResult: HKEY; lpdwDisposition: PDWORD): Longint;
   external 'advapi32' name 'RegCreateKeyExW';
 function RegCreateKeyW(hKey: HKEY; lpSubKey: LPWSTR; var phkResult: HKEY): Longint; external 'advapi32' name 'RegCreateKeyW';
+{$ifdef UNICODE}
+function RegEnumKeyEx(hKey: HKEY; dwIndex: DWORD; lpName: PWideChar; var lpcbName: DWORD; lpReserved: Pointer; lpClass: PWideChar; lpcbClass: PDWORD; lpftLastWriteTime: PFileTime): Longint;external 'advapi32' name 'RegEnumKeyExW';
+{$else}
 function RegEnumKeyEx(hKey: HKEY; dwIndex: DWORD; lpName: PAnsiChar; var lpcbName: DWORD; lpReserved: Pointer; lpClass: PAnsiChar; lpcbClass: PDWORD; lpftLastWriteTime: PFileTime): Longint;external 'advapi32' name 'RegEnumKeyExA';
+{$endif}
 function RegEnumKeyExA(hKey: HKEY; dwIndex: DWORD; lpName: LPCSTR; var lpcbName: DWORD; lpReserved: Pointer; lpClass: LPCSTR; lpcbClass: PDWORD; lpftLastWriteTime: PFileTime): Longint; external 'advapi32' name 'RegEnumKeyExA';
 function RegEnumKeyExW(hKey: HKEY; dwIndex: DWORD; lpName: LPWSTR; var lpcbName: DWORD; lpReserved: Pointer; lpClass: LPWSTR; lpcbClass: PDWORD; lpftLastWriteTime: PFileTime): Longint; external 'advapi32' name 'RegEnumKeyExW';
+{$ifdef UNICODE}
+function RegEnumValue(hKey: HKEY; dwIndex: DWORD; lpValueName: LPCWSTR; var lpcbValueName: DWORD; lpReserved: Pointer; lpType: PDWORD; lpData: PByte; lpcbData: PDWORD): Longint;external 'advapi32' name 'RegEnumValueW';
+{$else}
 function RegEnumValue(hKey: HKEY; dwIndex: DWORD; lpValueName: LPCSTR; var lpcbValueName: DWORD; lpReserved: Pointer; lpType: PDWORD; lpData: PByte; lpcbData: PDWORD): Longint;external 'advapi32' name 'RegEnumValueA';
+{$endif}
 function RegEnumValueA(hKey: HKEY; dwIndex: DWORD; lpValueName: LPCSTR; var lpcbValueName: DWORD; lpReserved: Pointer; lpType: PDWORD; lpData: PByte; lpcbData: PDWORD): Longint; external 'advapi32' name 'RegEnumValueA';
 function RegEnumValueW(hKey: HKEY; dwIndex: DWORD; lpValueName: LPWSTR; var lpcbValueName: DWORD; lpReserved: Pointer; lpType: PDWORD; lpData: PByte; lpcbData: PDWORD): Longint; external 'advapi32' name 'RegEnumValueW';
 function RegGetKeySecurity(hKey: HKEY; SecurityInformation: SECURITY_INFORMATION; pSecurityDescriptor: PSecurityDescriptor; var lpcbSecurityDescriptor: DWORD): Longint; external 'advapi32' name 'RegGetKeySecurity';
+{$ifdef UNICODE}
+function RegSetValueEx(hKey:HKEY; lpValueName:LPCWSTR; Reserved:DWORD; dwType:DWORD; lpData:pointer;cbData:DWORD):LONG; external 'advapi32' name 'RegSetValueExW';
+{$else}
 function RegSetValueEx(hKey:HKEY; lpValueName:LPCSTR; Reserved:DWORD; dwType:DWORD; lpData:pointer;cbData:DWORD):LONG; external 'advapi32' name 'RegSetValueExA';
+{$endif}
 function RegSetValueExA(hKey:HKEY; lpValueName:LPCSTR; Reserved:DWORD; dwType:DWORD; lpData:pointer;cbData:DWORD):LONG; external 'advapi32' name 'RegSetValueExA';
 function RegSetValueExW(hKey:HKEY; lpValueName:LPCWSTR; Reserved:DWORD; dwType:DWORD; lpData:pointer;cbData:DWORD):LONG; external 'advapi32' name 'RegSetValueExW';
+{$ifdef UNICODE}
+function RegisterClass(const lpWndClass: TWndClass): ATOM;external 'user32' name 'RegisterClassW';
+{$else}
 function RegisterClass(const lpWndClass: TWndClass): ATOM;external 'user32' name 'RegisterClassA';
+{$endif}
 function RegisterClassA(const lpWndClass: TWndClassA): ATOM; external 'user32' name 'RegisterClassA';
+{$ifdef UNICODE}
+function RegisterClassEx(const WndClass: TWndClassEx): ATOM;external 'user32' name 'RegisterClassExW';
+{$else}
 function RegisterClassEx(const WndClass: TWndClassEx): ATOM;external 'user32' name 'RegisterClassExA';
+{$endif}
 function RegisterClassExA(const WndClass: TWndClassExA): ATOM; external 'user32' name 'RegisterClassExA';
 function RegisterClassExW(const WndClass: TWndClassExW): ATOM; external 'user32' name 'RegisterClassExW';
 function RegisterClassW(const lpWndClass: TWndClassW): ATOM; external 'user32' name 'RegisterClassW';
+{$ifdef UNICODE}
+function RegOpenKey(hKey: HKEY; lpSubKey: PWideChar; var phkResult: HKEY): Longint;external 'advapi32' name 'RegOpenKeyW';
+{$else}
 function RegOpenKey(hKey: HKEY; lpSubKey: PAnsiChar; var phkResult: HKEY): Longint;external 'advapi32' name 'RegOpenKeyA';
+{$endif}
 function RegOpenKeyA(hKey: HKEY; lpSubKey: LPCSTR; var phkResult: HKEY): Longint; external 'advapi32' name 'RegOpenKeyA';
+{$ifdef UNICODE}
+function RegOpenKeyEx(hKey: HKEY; lpSubKey: PWideChar; ulOptions: DWORD; samDesired: REGSAM; var phkResult: HKEY): Longint;external 'advapi32' name 'RegOpenKeyExW';
+{$else}
 function RegOpenKeyEx(hKey: HKEY; lpSubKey: PAnsiChar; ulOptions: DWORD; samDesired: REGSAM; var phkResult: HKEY): Longint;external 'advapi32' name 'RegOpenKeyExA';
+{$endif}
 function RegOpenKeyExA(hKey: HKEY; lpSubKey: LPCSTR; ulOptions: DWORD; samDesired: REGSAM; var phkResult: HKEY): Longint; external 'advapi32' name 'RegOpenKeyExA';
 function RegOpenKeyExW(hKey: HKEY; lpSubKey: LPWSTR; ulOptions: DWORD; samDesired: REGSAM; var phkResult: HKEY): Longint; external 'advapi32' name 'RegOpenKeyExW';
 function RegOpenKeyW(hKey: HKEY; lpSubKey: LPWSTR; var phkResult: HKEY): Longint; external 'advapi32' name 'RegOpenKeyW';
+{$ifdef UNICODE}
+function RegQueryMultipleValues(hKey: HKEY; var ValList; NumVals: DWORD; lpValueBuf: PWideChar; var ldwTotsize: DWORD): Longint;external 'advapi32' name 'RegQueryMultipleValuesW';
+{$else}
 function RegQueryMultipleValues(hKey: HKEY; var ValList; NumVals: DWORD; lpValueBuf: PAnsiChar; var ldwTotsize: DWORD): Longint;external 'advapi32' name 'RegQueryMultipleValuesA';
+{$endif}
 function RegQueryMultipleValuesA(hKey: HKEY; var ValList; NumVals: DWORD; lpValueBuf: LPCSTR; var ldwTotsize: DWORD): Longint; external 'advapi32' name 'RegQueryMultipleValuesA';
 function RegQueryMultipleValuesW(hKey: HKEY; var ValList; NumVals: DWORD; lpValueBuf: LPWSTR; var ldwTotsize: DWORD): Longint; external 'advapi32' name 'RegQueryMultipleValuesW';
+{$ifdef UNICODE}
+function RegQueryValue(hKey: HKEY; lpSubKey: PWideChar; lpValue: PWideChar; var lpcbValue: Longint): Longint;external 'advapi32' name 'RegQueryValueW';
+{$else}
 function RegQueryValue(hKey: HKEY; lpSubKey: PAnsiChar; lpValue: PAnsiChar; var lpcbValue: Longint): Longint;external 'advapi32' name 'RegQueryValueA';
+{$endif}
 function RegQueryValueA(hKey: HKEY; lpSubKey: LPCSTR; lpValue: LPCSTR; var lpcbValue: Longint): Longint; external 'advapi32' name 'RegQueryValueA';
 function RegQueryValueW(hKey: HKEY; lpSubKey: LPWSTR; lpValue: LPWSTR; var lpcbValue: Longint): Longint; external 'advapi32' name 'RegQueryValueW';
+{$ifdef UNICODE}
+function ResetDC(DC: HDC; const p2: TDeviceMode): HDC;external 'gdi32' name 'ResetDCW';
+{$else}
 function ResetDC(DC: HDC; const p2: TDeviceMode): HDC;external 'gdi32' name 'ResetDCA';
+{$endif}
 function ResetDCA(DC: HDC; const p2: TDeviceModeA): HDC; external 'gdi32' name 'ResetDCA';
 //function ResetDCW(DC: HDC; const p2: TDeviceModeW): HDC; external 'gdi32' name 'ResetDCW';
 function ScreenToClient(hWnd: HWND; var lpPoint: TPoint): BOOL; external 'user32' name 'ScreenToClient';
+{$ifdef UNICODE}
+function ScrollConsoleScreenBuffer(hConsoleOutput: THandle; const lpScrollRectangle: TSmallRect; const lpClipRectangle: TSmallRect; dwDestinationOrigin: TCoord; var lpFill: TCharInfo): BOOL;external 'kernel32' name 'ScrollConsoleScreenBufferW';
+{$else}
 function ScrollConsoleScreenBuffer(hConsoleOutput: THandle; const lpScrollRectangle: TSmallRect; const lpClipRectangle: TSmallRect; dwDestinationOrigin: TCoord; var lpFill: TCharInfo): BOOL;external 'kernel32' name 'ScrollConsoleScreenBufferA';
+{$endif}
 function ScrollConsoleScreenBufferA(hConsoleOutput: THandle; const lpScrollRectangle: TSmallRect; const lpClipRectangle: TSmallRect; dwDestinationOrigin: TCoord; var lpFill: TCharInfo): BOOL; external 'kernel32' name 'ScrollConsoleScreenBufferA';
 function ScrollConsoleScreenBufferW(hConsoleOutput: THandle; const lpScrollRectangle: TSmallRect; const lpClipRectangle: TSmallRect; dwDestinationOrigin: TCoord; var lpFill: TCharInfo): BOOL; external 'kernel32' name 'ScrollConsoleScreenBufferW';
 function ScrollWindow(hWnd:HWND; XAmount:longint; YAmount:longint;lpRect:lpRECT; lpClipRect:lpRECT):WINBOOL; external 'user32' name 'ScrollWindow';
@@ -830,7 +1178,11 @@ function ScrollWindowEx(hWnd:HWND; dx:longint; dy:longint; prcScroll:lpRECT; prc
 //function SearchPathA(lpPath, lpFileName, lpExtension: LPCSTR; nBufferLength: DWORD; lpBuffer: LPCSTR; var lpFilePart: LPCSTR): DWORD; external 'kernel32' name 'SearchPathA';
 //function SearchPathW(lpPath, lpFileName, lpExtension: LPWSTR; nBufferLength: DWORD; lpBuffer: LPWSTR; var lpFilePart: LPWSTR): DWORD; external 'kernel32' name 'SearchPathW';
 //function SendInput(cInputs: UINT; var pInputs: TInput; cbSize: Integer): UINT;external 'user32' name 'SendInput';
+{$ifdef UNICODE}
+function SendMessageTimeout(hWnd: HWND; Msg: UINT; wParam: WPARAM; lParam: LPARAM; fuFlags, uTimeout: UINT; var lpdwResult: DWORD_PTR): LRESULT;external 'user32' name 'SendMessageTimeoutW';
+{$else}
 function SendMessageTimeout(hWnd: HWND; Msg: UINT; wParam: WPARAM; lParam: LPARAM; fuFlags, uTimeout: UINT; var lpdwResult: DWORD_PTR): LRESULT;external 'user32' name 'SendMessageTimeoutA';
+{$endif}
 function SendMessageTimeoutA(hWnd: HWND; Msg: UINT; wParam: WPARAM; lParam: LPARAM; fuFlags, uTimeout: UINT; var lpdwResult: DWORD_PTR): LRESULT; external 'user32' name 'SendMessageTimeoutA';
 function SendMessageTimeoutW(hWnd: HWND; Msg: UINT; wParam: WPARAM; lParam: LPARAM; fuFlags, uTimeout: UINT; var lpdwResult: DWORD_PTR): LRESULT; external 'user32' name 'SendMessageTimeoutW';
 //function SetAclInformation(var pAcl: TACL; pAclInformation: Pointer; nAclInformationLength: DWORD; dwAclInformationClass: TAclInformationClass): BOOL; external 'advapi32' name 'SetAclInformation';
@@ -852,7 +1204,11 @@ function SetFileTime(hFile:HANDLE; var lpCreationTime:FILETIME; var lpLastAccess
 //function SetKeyboardState(var KeyState: TKeyboardState): BOOL; external 'user32' name 'SetKeyboardState';
 //function SetLocalTime(const lpSystemTime: TSystemTime): BOOL; external 'kernel32' name 'SetLocalTime';
 //function SetMenuInfo(hMenu: HMENU; const lpcmi: TMenuInfo): BOOL;external 'user32' name 'SetMenuInfo';
+{$ifdef UNICODE}
+function SetMenuItemInfo(p1: HMENU; p2: UINT; p3: BOOL; const p4: TMenuItemInfo): BOOL;external 'user32' name 'SetMenuItemInfoW';
+{$else}
 function SetMenuItemInfo(p1: HMENU; p2: UINT; p3: BOOL; const p4: TMenuItemInfo): BOOL;external 'user32' name 'SetMenuItemInfoA';
+{$endif}
 function SetMenuItemInfoA(p1: HMENU; p2: UINT; p3: BOOL; const p4: TMenuItemInfoA): BOOL; external 'user32' name 'SetMenuItemInfoA';
 //function SetMenuItemInfoW(p1: HMENU; p2: UINT; p3: BOOL; const p4: TMenuItemInfoW): BOOL; external 'user32' name 'SetMenuItemInfoW';
 function SetMetaFileBitsEx(p1: UINT; const p2: PAnsiChar): HMETAFILE; external 'gdi32' name 'SetMetaFileBitsEx';
@@ -873,14 +1229,22 @@ function SetUserObjectSecurity(hObj: THandle; var pSIRequested: DWORD; pSID: PSe
 function SetWaitableTimer(hTimer: THandle; var lpDueTime: TLargeInteger; lPeriod: Longint; pfnCompletionRoutine: TFNTimerAPCRoutine; lpArgToCompletionRoutine: Pointer; fResume: BOOL): BOOL;external 'kernel32' name 'SetWaitableTimer';
 function SetWinMetaFileBits(p1: UINT; p2: PAnsiChar; p3: HDC; const p4: TMetaFilePict): HENHMETAFILE; external 'gdi32' name 'SetWinMetaFileBits';
 //function SetWorldTransform(DC: HDC; const p2: TXForm): BOOL; external 'gdi32' name 'SetWorldTransform';
+{$ifdef UNICODE}
+function StartDoc(DC: HDC; const p2: TDocInfo): Integer;external 'gdi32' name 'StartDocW';
+{$else}
 function StartDoc(DC: HDC; const p2: TDocInfo): Integer;external 'gdi32' name 'StartDocA';
+{$endif}
 function StartDocA(DC: HDC; const p2: TDocInfoA): Integer; external 'gdi32' name 'StartDocA';
 //function StartDocW(DC: HDC; const p2: TDocInfoW): Integer; external 'gdi32' name 'StartDocW';
 //function StretchDIBits(DC: HDC; DestX, DestY, DestWidth, DestHeight, SrcX, SrcY, SrcWidth, SrcHeight: Integer; Bits: Pointer; var BitsInfo: TBitmapInfo; Usage: UINT; Rop: DWORD): Integer; external 'gdi32' name 'StretchDIBits';
 function SubtractRect(var lprcDst: TRect; const lprcSrc1, lprcSrc2: TRect): BOOL; external 'user32' name 'SubtractRect';
 function SystemTimeToFileTime(const lpSystemTime: TSystemTime; var lpFileTime: TFileTime): BOOL; external 'kernel32' name 'SystemTimeToFileTime';
 function SystemTimeToTzSpecificLocalTime(lpTimeZoneInformation: PTimeZoneInformation; var lpUniversalTime, lpLocalTime: TSystemTime): BOOL; external 'kernel32' name 'SystemTimeToTzSpecificLocalTime';
+{$ifdef UNICODE}
+function TabbedTextOut(hDC: HDC; X, Y: Integer; lpString: PWideChar; nCount, nTabPositions: Integer; var lpnTabStopPositions; nTabOrigin: Integer): Longint;external 'user32' name 'TabbedTextOutW';
+{$else}
 function TabbedTextOut(hDC: HDC; X, Y: Integer; lpString: PAnsiChar; nCount, nTabPositions: Integer; var lpnTabStopPositions; nTabOrigin: Integer): Longint;external 'user32' name 'TabbedTextOutA';
+{$endif}
 function TabbedTextOutA(hDC: HDC; X, Y: Integer; lpString: LPCSTR; nCount, nTabPositions: Integer; var lpnTabStopPositions; nTabOrigin: Integer): Longint; external 'user32' name 'TabbedTextOutA';
 function TabbedTextOutW(hDC: HDC; X, Y: Integer; lpString: LPWSTR; nCount, nTabPositions: Integer; var lpnTabStopPositions; nTabOrigin: Integer): Longint; external 'user32' name 'TabbedTextOutW';
 //function ToAscii(uVirtKey, uScanCode: UINT; const KeyState: TKeyboardState; lpChar: PAnsiChar; uFlags: UINT): Integer; external 'user32' name 'ToAscii';
@@ -891,7 +1255,11 @@ function TrackMouseEvent(var EventTrack: TTrackMouseEvent): BOOL;external 'user3
 function TrackMouseEvent(lpEventTrack: PTrackMouseEvent): BOOL;external 'user32' name 'TrackMouseEvent';
 function TrackPopupMenu(hMenu:HMENU; uFlags:UINT; x:longint; y:longint; nReserved:longint;hWnd:HWND; prcRect: PRect):WINBOOL;  external 'user32' name 'TrackPopupMenu';
 function TransactNamedPipe(hNamedPipe: THandle; lpInBuffer: Pointer; nInBufferSize: DWORD; lpOutBuffer: Pointer; nOutBufferSize: DWORD; var lpBytesRead: DWORD; lpOverlapped: POverlapped): BOOL; external 'kernel32' name 'TransactNamedPipe';
+{$ifdef UNICODE}
+function TranslateAccelerator(hWnd: HWND; hAccTable: HACCEL; var lpMsg: TMsg): Integer;external 'user32' name 'TranslateAcceleratorW';
+{$else}
 function TranslateAccelerator(hWnd: HWND; hAccTable: HACCEL; var lpMsg: TMsg): Integer;external 'user32' name 'TranslateAcceleratorA';
+{$endif}
 function TranslateAcceleratorA(hWnd: HWND; hAccTable: HACCEL; var lpMsg: TMsg): Integer; external 'user32' name 'TranslateAcceleratorA';
 function TranslateAcceleratorW(hWnd: HWND; hAccTable: HACCEL; var lpMsg: TMsg): Integer; external 'user32' name 'TranslateAcceleratorW';
 function TranslateCharsetInfo(var lpSrc: DWORD; var lpCs: TCharsetInfo; dwFlags: DWORD): BOOL; external 'gdi32' name 'TranslateCharsetInfo';
@@ -904,13 +1272,25 @@ function TranslateMessage(const lpMsg: TMsg): BOOL; external 'user32' name 'Tran
 function UnhandledExceptionFilter(const ExceptionInfo: TExceptionPointers): Longint; external 'kernel32' name 'UnhandledExceptionFilter';
 function UnionRect(var lprcDst: TRect; const lprcSrc1, lprcSrc2: TRect): BOOL; external 'user32' name 'UnionRect';
 function UnlockFileEx(hFile: THandle; dwReserved, nNumberOfBytesToUnlockLow: DWORD; nNumberOfBytesToUnlockHigh: DWORD; const lpOverlapped: TOverlapped): BOOL; external 'kernel32' name 'UnlockFileEx';
+{$ifdef UNICODE}
+function VerFindFile(uFlags: DWORD; szFileName, szWinDir, szAppDir, szCurDir: PWideChar; var lpuCurDirLen: UINT; szDestDir: PWideChar; var lpuDestDirLen: UINT): DWORD;external 'version' name 'VerFindFileW';
+{$else}
 function VerFindFile(uFlags: DWORD; szFileName, szWinDir, szAppDir, szCurDir: PAnsiChar; var lpuCurDirLen: UINT; szDestDir: PAnsiChar; var lpuDestDirLen: UINT): DWORD;external 'version' name 'VerFindFileA';
+{$endif}
 function VerFindFileA(uFlags: DWORD; szFileName, szWinDir, szAppDir, szCurDir: LPCSTR; var lpuCurDirLen: UINT; szDestDir: LPCSTR; var lpuDestDirLen: UINT): DWORD; external 'version' name 'VerFindFileA';
 function VerFindFileW(uFlags: DWORD; szFileName, szWinDir, szAppDir, szCurDir: LPWSTR; var lpuCurDirLen: UINT; szDestDir: LPWSTR; var lpuDestDirLen: UINT): DWORD; external 'version' name 'VerFindFileW';
+{$ifdef UNICODE}
+function VerInstallFile(uFlags: DWORD; szSrcFileName, szDestFileName, szSrcDir, szDestDir, szCurDir, szTmpFile: PWideChar; var lpuTmpFileLen: UINT): DWORD;external 'version' name 'VerInstallFileW';
+{$else}
 function VerInstallFile(uFlags: DWORD; szSrcFileName, szDestFileName, szSrcDir, szDestDir, szCurDir, szTmpFile: PAnsiChar; var lpuTmpFileLen: UINT): DWORD;external 'version' name 'VerInstallFileA';
+{$endif}
 function VerInstallFileA(uFlags: DWORD; szSrcFileName, szDestFileName, szSrcDir, szDestDir, szCurDir, szTmpFile: LPCSTR; var lpuTmpFileLen: UINT): DWORD; external 'version' name 'VerInstallFileA';
 function VerInstallFileW(uFlags: DWORD; szSrcFileName, szDestFileName, szSrcDir, szDestDir, szCurDir, szTmpFile: LPWSTR; var lpuTmpFileLen: UINT): DWORD; external 'version' name 'VerInstallFileW';
+{$ifdef UNICODE}
+function VerQueryValue(pBlock: Pointer; lpSubBlock: PWideChar; var lplpBuffer: Pointer; var puLen: UINT): BOOL;external 'version' name 'VerQueryValueW';
+{$else}
 function VerQueryValue(pBlock: Pointer; lpSubBlock: PAnsiChar; var lplpBuffer: Pointer; var puLen: UINT): BOOL;external 'version' name 'VerQueryValueA';
+{$endif}
 function VerQueryValueA(pBlock: Pointer; lpSubBlock: LPCSTR; var lplpBuffer: Pointer; var puLen: UINT): BOOL; external 'version' name 'VerQueryValueA';
 function VerQueryValueW(pBlock: Pointer; lpSubBlock: LPWSTR; var lplpBuffer: Pointer; var puLen: UINT): BOOL; external 'version' name 'VerQueryValueW';
 function VirtualProtect(lpAddress:LPVOID; dwSize:PTRUINT; flNewProtect:DWORD; var lpflOldProtect:DWORD):WINBOOL; external 'kernel32' name 'VirtualProtect';
@@ -924,57 +1304,129 @@ function wglSetLayerPaletteEntries(DC: HDC; iLayerPlane, iStart, cEntries: Integ
 //function wglSwapMultipleBuffers(p1: UINT; const p2: PWGLSwap): DWORD;external 'opengl32' name 'wglSwapMultipleBuffers';
 //function WinSubmitCertificate(var lpCertificate: TWinCertificate): BOOL;external 'imaghlp' name 'WinSubmitCertificate';
 //function WinVerifyTrust(hwnd: HWND; const ActionID: TGUID; ActionData: Pointer): Longint;external 'imaghlp' name 'WinVerifyTrust';
+{$ifdef UNICODE}
+function WNetAddConnection2(var lpNetResource: TNetResource; lpPassword, lpUserName: PWideChar; dwFlags: DWORD): DWORD;external 'mpr' name 'WNetAddConnection2W';
+{$else}
 function WNetAddConnection2(var lpNetResource: TNetResource; lpPassword, lpUserName: PAnsiChar; dwFlags: DWORD): DWORD;external 'mpr' name 'WNetAddConnection2A';
+{$endif}
 function WNetAddConnection2A(var lpNetResource: TNetResourceA; lpPassword, lpUserName: LPCSTR; dwFlags: DWORD): DWORD; external 'mpr' name 'WNetAddConnection2A';
 //function WNetAddConnection2W(var lpNetResource: TNetResourceW; lpPassword, lpUserName: LPWSTR; dwFlags: DWORD): DWORD; external 'mpr' name 'WNetAddConnection2W';
+{$ifdef UNICODE}
+function WNetAddConnection3(hwndOwner: HWND; var lpNetResource: TNetResource; lpPassword, lpUserName: PWideChar; dwFlags: DWORD): DWORD;external 'mpr' name 'WNetAddConnection3W';
+{$else}
 function WNetAddConnection3(hwndOwner: HWND; var lpNetResource: TNetResource; lpPassword, lpUserName: PAnsiChar; dwFlags: DWORD): DWORD;external 'mpr' name 'WNetAddConnection3A';
+{$endif}
 function WNetAddConnection3A(hwndOwner: HWND; var lpNetResource: TNetResourceA; lpPassword, lpUserName: LPCSTR; dwFlags: DWORD): DWORD; external 'mpr' name 'WNetAddConnection3A';
 //function WNetAddConnection3W(hwndOwner: HWND; var lpNetResource: TNetResourceW; lpPassword, lpUserName: LPWSTR; dwFlags: DWORD): DWORD; external 'mpr' name 'WNetAddConnection3W';
+{$ifdef UNICODE}
+function WNetConnectionDialog1(var lpConnDlgStruct: TConnectDlgStruct): DWORD;external 'mpr' name 'WNetConnectionDialog1W';
+{$else}
 function WNetConnectionDialog1(var lpConnDlgStruct: TConnectDlgStruct): DWORD;external 'mpr' name 'WNetConnectionDialog1A';
+{$endif}
 function WNetConnectionDialog1A(var lpConnDlgStruct: TConnectDlgStruct): DWORD; external 'mpr' name 'WNetConnectionDialog1A';
 //function WNetConnectionDialog1W(var lpConnDlgStruct: TConnectDlgStruct): DWORD; external 'mpr' name 'WNetConnectionDialog1W';
+{$ifdef UNICODE}
+function WNetDisconnectDialog1(var lpConnDlgStruct: TDiscDlgStruct): DWORD;external 'mpr' name 'WNetDisconnectDialog1W';
+{$else}
 function WNetDisconnectDialog1(var lpConnDlgStruct: TDiscDlgStruct): DWORD;external 'mpr' name 'WNetDisconnectDialog1A';
+{$endif}
 function WNetDisconnectDialog1A(var lpConnDlgStruct: TDiscDlgStructA): DWORD; external 'mpr' name 'WNetDisconnectDialog1A';
 //function WNetDisconnectDialog1W(var lpConnDlgStruct: TDiscDlgStructW): DWORD; external 'mpr' name 'WNetDisconnectDialog1W';
+{$ifdef UNICODE}
+function WNetEnumResource(hEnum: THandle; var lpcCount: DWORD; lpBuffer: Pointer; var lpBufferSize: DWORD): DWORD;external 'mpr' name 'WNetEnumResourceW';
+{$else}
 function WNetEnumResource(hEnum: THandle; var lpcCount: DWORD; lpBuffer: Pointer; var lpBufferSize: DWORD): DWORD;external 'mpr' name 'WNetEnumResourceA';
+{$endif}
 function WNetEnumResourceA(hEnum: THandle; var lpcCount: DWORD; lpBuffer: Pointer; var lpBufferSize: DWORD): DWORD; external 'mpr' name 'WNetEnumResourceA';
 function WNetEnumResourceW(hEnum: THandle; var lpcCount: DWORD; lpBuffer: Pointer; var lpBufferSize: DWORD): DWORD; external 'mpr' name 'WNetEnumResourceW';
+{$ifdef UNICODE}
+function WNetGetConnection(lpLocalName: PWideChar; lpRemoteName: PWideChar; var lpnLength: DWORD): DWORD;external 'mpr' name 'WNetGetConnectionW';
+{$else}
 function WNetGetConnection(lpLocalName: PAnsiChar; lpRemoteName: PAnsiChar; var lpnLength: DWORD): DWORD;external 'mpr' name 'WNetGetConnectionA';
+{$endif}
 function WNetGetConnectionA(lpLocalName: LPCSTR; lpRemoteName: LPCSTR; var lpnLength: DWORD): DWORD; external 'mpr' name 'WNetGetConnectionA';
 function WNetGetConnectionW(lpLocalName: LPWSTR; lpRemoteName: LPWSTR; var lpnLength: DWORD): DWORD; external 'mpr' name 'WNetGetConnectionW';
+{$ifdef UNICODE}
+function WNetGetLastError(var lpError: DWORD; lpErrorBuf: PWideChar; nErrorBufSize: DWORD; lpNameBuf: PWideChar; nNameBufSize: DWORD): DWORD;external 'mpr' name 'WNetGetLastErrorW';
+{$else}
 function WNetGetLastError(var lpError: DWORD; lpErrorBuf: PAnsiChar; nErrorBufSize: DWORD; lpNameBuf: PAnsiChar; nNameBufSize: DWORD): DWORD;external 'mpr' name 'WNetGetLastErrorA';
+{$endif}
 function WNetGetLastErrorA(var lpError: DWORD; lpErrorBuf: LPCSTR; nErrorBufSize: DWORD; lpNameBuf: LPCSTR; nNameBufSize: DWORD): DWORD; external 'mpr' name 'WNetGetLastErrorA';
 function WNetGetLastErrorW(var lpError: DWORD; lpErrorBuf: LPWSTR; nErrorBufSize: DWORD; lpNameBuf: LPWSTR; nNameBufSize: DWORD): DWORD; external 'mpr' name 'WNetGetLastErrorW';
+{$ifdef UNICODE}
+function WNetGetNetworkInformation(lpProvider: PWideChar; var lpNetInfoStruct: TNetInfoStruct): DWORD;external 'mpr' name 'WNetGetNetworkInformationW';
+{$else}
 function WNetGetNetworkInformation(lpProvider: PAnsiChar; var lpNetInfoStruct: TNetInfoStruct): DWORD;external 'mpr' name 'WNetGetNetworkInformationA';
+{$endif}
 function WNetGetNetworkInformationA(lpProvider: LPCSTR; var lpNetInfoStruct: TNetInfoStruct): DWORD; external 'mpr' name 'WNetGetNetworkInformationA';
 function WNetGetNetworkInformationW(lpProvider: LPWSTR; var lpNetInfoStruct: TNetInfoStruct): DWORD; external 'mpr' name 'WNetGetNetworkInformationW';
+{$ifdef UNICODE}
+function WNetGetProviderName(dwNetType: DWORD; lpProviderName: PWideChar; var lpBufferSize: DWORD): DWORD;external 'mpr' name 'WNetGetProviderNameW';
+{$else}
 function WNetGetProviderName(dwNetType: DWORD; lpProviderName: PAnsiChar; var lpBufferSize: DWORD): DWORD;external 'mpr' name 'WNetGetProviderNameA';
+{$endif}
 function WNetGetProviderNameA(dwNetType: DWORD; lpProviderName: LPCSTR; var lpBufferSize: DWORD): DWORD; external 'mpr' name 'WNetGetProviderNameA';
 function WNetGetProviderNameW(dwNetType: DWORD; lpProviderName: LPWSTR; var lpBufferSize: DWORD): DWORD; external 'mpr' name 'WNetGetProviderNameW';
+{$ifdef UNICODE}
+function WNetGetResourceParent(lpNetResource: PNetResource; lpBuffer: Pointer; var cbBuffer: DWORD): DWORD;external 'mpr' name 'WNetGetResourceParentW';
+{$else}
 function WNetGetResourceParent(lpNetResource: PNetResource; lpBuffer: Pointer; var cbBuffer: DWORD): DWORD;external 'mpr' name 'WNetGetResourceParentA';
+{$endif}
 function WNetGetResourceParentA(lpNetResource: PNetResourceA; lpBuffer: Pointer; var cbBuffer: DWORD): DWORD;external 'mpr' name 'WNetGetResourceParentA';
 //function WNetGetResourceParentW(lpNetResource: PNetResourceW; lpBuffer: Pointer; var cbBuffer: DWORD): DWORD;external 'mpr' name 'WNetGetResourceParentW';
+{$ifdef UNICODE}
+function WNetGetUniversalName(lpLocalPath: PWideChar; dwInfoLevel: DWORD; lpBuffer: Pointer; var lpBufferSize: DWORD): DWORD;external 'mpr' name 'WNetGetUniversalNameW';
+{$else}
 function WNetGetUniversalName(lpLocalPath: PAnsiChar; dwInfoLevel: DWORD; lpBuffer: Pointer; var lpBufferSize: DWORD): DWORD;external 'mpr' name 'WNetGetUniversalNameA';
+{$endif}
 function WNetGetUniversalNameA(lpLocalPath: LPCSTR; dwInfoLevel: DWORD; lpBuffer: Pointer; var lpBufferSize: DWORD): DWORD; external 'mpr' name 'WNetGetUniversalNameA';
 function WNetGetUniversalNameW(lpLocalPath: LPWSTR; dwInfoLevel: DWORD; lpBuffer: Pointer; var lpBufferSize: DWORD): DWORD; external 'mpr' name 'WNetGetUniversalNameW';
+{$ifdef UNICODE}
+function WNetGetUser(lpName: PWideChar; lpUserName: PWideChar; var lpnLength: DWORD): DWORD;external 'mpr' name 'WNetGetUserW';
+{$else}
 function WNetGetUser(lpName: PAnsiChar; lpUserName: PAnsiChar; var lpnLength: DWORD): DWORD;external 'mpr' name 'WNetGetUserA';
+{$endif}
 function WNetGetUserA(lpName: LPCSTR; lpUserName: LPCSTR; var lpnLength: DWORD): DWORD; external 'mpr' name 'WNetGetUserA';
 function WNetGetUserW(lpName: LPWSTR; lpUserName: LPWSTR; var lpnLength: DWORD): DWORD; external 'mpr' name 'WNetGetUserW';
+{$ifdef UNICODE}
+function WNetOpenEnum(dwScope, dwType, dwUsage: DWORD; lpNetResource: PNetResource; var lphEnum: THandle): DWORD;external 'mpr' name 'WNetOpenEnumW';
+{$else}
 function WNetOpenEnum(dwScope, dwType, dwUsage: DWORD; lpNetResource: PNetResource; var lphEnum: THandle): DWORD;external 'mpr' name 'WNetOpenEnumA';
+{$endif}
 function WNetOpenEnumA(dwScope, dwType, dwUsage: DWORD; lpNetResource: PNetResourceA; var lphEnum: THandle): DWORD; external 'mpr' name 'WNetOpenEnumA';
 //function WNetOpenEnumW(dwScope, dwType, dwUsage: DWORD; lpNetResource: PNetResourceW; var lphEnum: THandle): DWORD; external 'mpr' name 'WNetOpenEnumW';
+{$ifdef UNICODE}
+function WNetUseConnection(hwndOwner: HWND; var lpNetResource: TNetResource; lpUserID: PWideChar; lpPassword: PWideChar; dwFlags: DWORD; lpAccessName: PWideChar; var lpBufferSize: DWORD; var lpResult: DWORD): DWORD;external 'mpr' name 'WNetUseConnectionW';
+{$else}
 function WNetUseConnection(hwndOwner: HWND; var lpNetResource: TNetResource; lpUserID: PAnsiChar; lpPassword: PAnsiChar; dwFlags: DWORD; lpAccessName: PAnsiChar; var lpBufferSize: DWORD; var lpResult: DWORD): DWORD;external 'mpr' name 'WNetUseConnectionA';
+{$endif}
 function WNetUseConnectionA(hwndOwner: HWND; var lpNetResource: TNetResourceA; lpUserID: LPCSTR; lpPassword: LPCSTR; dwFlags: DWORD; lpAccessName: LPCSTR; var lpBufferSize: DWORD; var lpResult: DWORD): DWORD; external 'mpr' name 'WNetUseConnectionA';
 //function WNetUseConnectionW(hwndOwner: HWND; var lpNetResource: TNetResourceW; lpUserID: LPWSTR; lpPassword: LPWSTR; dwFlags: DWORD; lpAccessName: LPWSTR; var lpBufferSize: DWORD; var lpResult: DWORD): DWORD; external 'mpr' name 'WNetUseConnectionW';
+{$ifdef UNICODE}
+function WriteConsole(hConsoleOutput: THandle; const lpBuffer: Pointer; nNumberOfCharsToWrite: DWORD; var lpNumberOfCharsWritten: DWORD; lpReserved: Pointer): BOOL;external 'kernel32' name 'WriteConsoleW';
+{$else}
 function WriteConsole(hConsoleOutput: THandle; const lpBuffer: Pointer; nNumberOfCharsToWrite: DWORD; var lpNumberOfCharsWritten: DWORD; lpReserved: Pointer): BOOL;external 'kernel32' name 'WriteConsoleA';
+{$endif}
 function WriteConsoleA(hConsoleOutput: THandle; const lpBuffer: Pointer; nNumberOfCharsToWrite: DWORD; var lpNumberOfCharsWritten: DWORD; lpReserved: Pointer): BOOL; external 'kernel32' name 'WriteConsoleA';
+{$ifdef UNICODE}
+function WriteConsoleInput(hConsoleInput: THandle; const lpBuffer: TInputRecord; nLength: DWORD; var lpNumberOfEventsWritten: DWORD): BOOL;external 'kernel32' name 'WriteConsoleInputW';
+{$else}
 function WriteConsoleInput(hConsoleInput: THandle; const lpBuffer: TInputRecord; nLength: DWORD; var lpNumberOfEventsWritten: DWORD): BOOL;external 'kernel32' name 'WriteConsoleInputA';
+{$endif}
 function WriteConsoleInputA(hConsoleInput: THandle; const lpBuffer: TInputRecord; nLength: DWORD; var lpNumberOfEventsWritten: DWORD): BOOL; external 'kernel32' name 'WriteConsoleInputA';
 function WriteConsoleInputW(hConsoleInput: THandle; const lpBuffer: TInputRecord; nLength: DWORD; var lpNumberOfEventsWritten: DWORD): BOOL; external 'kernel32' name 'WriteConsoleInputW';
+{$ifdef UNICODE}
+function WriteConsoleOutput(hConsoleOutput: THandle; lpBuffer: Pointer; dwBufferSize, dwBufferCoord: TCoord; var lpWriteRegion: TSmallRect): BOOL;external 'kernel32' name 'WriteConsoleOutputW';
+{$else}
 function WriteConsoleOutput(hConsoleOutput: THandle; lpBuffer: Pointer; dwBufferSize, dwBufferCoord: TCoord; var lpWriteRegion: TSmallRect): BOOL;external 'kernel32' name 'WriteConsoleOutputA';
+{$endif}
 function WriteConsoleOutputA(hConsoleOutput: THandle; lpBuffer: Pointer; dwBufferSize, dwBufferCoord: TCoord; var lpWriteRegion: TSmallRect): BOOL; external 'kernel32' name 'WriteConsoleOutputA';
 function WriteConsoleOutputAttribute(hConsoleOutput: THandle; lpAttribute: Pointer; nLength: DWORD; dwWriteCoord: TCoord; var lpNumberOfAttrsWritten: DWORD): BOOL; external 'kernel32' name 'WriteConsoleOutputAttribute';
+{$ifdef UNICODE}
+function WriteConsoleOutputCharacter(hConsoleOutput: THandle;lpCharacter: PWideChar; nLength: DWORD; dwWriteCoord: TCoord; var lpNumberOfCharsWritten: DWORD): BOOL;external 'kernel32' name 'WriteConsoleOutputCharacterW';
+{$else}
 function WriteConsoleOutputCharacter(hConsoleOutput: THandle;lpCharacter: PAnsiChar; nLength: DWORD; dwWriteCoord: TCoord; var lpNumberOfCharsWritten: DWORD): BOOL;external 'kernel32' name 'WriteConsoleOutputCharacterA';
+{$endif}
 function WriteConsoleOutputCharacterA(hConsoleOutput: THandle;lpCharacter: LPCSTR; nLength: DWORD; dwWriteCoord: TCoord; var lpNumberOfCharsWritten: DWORD): BOOL; external 'kernel32' name 'WriteConsoleOutputCharacterA';
 function WriteConsoleOutputCharacterW(hConsoleOutput: THandle;lpCharacter: LPWSTR; nLength: DWORD; dwWriteCoord: TCoord; var lpNumberOfCharsWritten: DWORD): BOOL; external 'kernel32' name 'WriteConsoleOutputCharacterW';
 function WriteConsoleOutputW(hConsoleOutput: THandle; lpBuffer: Pointer; dwBufferSize, dwBufferCoord: TCoord; var lpWriteRegion: TSmallRect): BOOL; external 'kernel32' name 'WriteConsoleOutputW';
@@ -983,7 +1435,11 @@ function WriteFile(hFile: THandle; const Buffer; nNumberOfBytesToWrite: DWORD; v
 function WriteFileEx(hFile: THandle; lpBuffer: Pointer; nNumberOfBytesToWrite: DWORD; const lpOverlapped: TOverlapped; lpCompletionRoutine: FARPROC): BOOL; external 'kernel32' name 'WriteFileEx';
 function WritePrivateProfileStructA(lpszSection, lpszKey: LPCSTR; lpStruct: LPVOID; uSizeStruct: UINT; szFile: LPCSTR): BOOL; external 'kernel32' name 'WritePrivateProfileStructA';
 function WritePrivateProfileStructW(lpszSection, lpszKey: LPCWSTR; lpStruct: LPVOID; uSizeStruct: UINT; szFile: LPCWSTR): BOOL; external 'kernel32' name 'WritePrivateProfileStructW';
+{$ifdef UNICODE}
+function WritePrivateProfileStruct(lpszSection, lpszKey: LPCTSTR; lpStruct: LPVOID; uSizeStruct: UINT; szFile: LPCTSTR): BOOL; external 'kernel32' name 'WritePrivateProfileStructW';
+{$else}
 function WritePrivateProfileStruct(lpszSection, lpszKey: LPCTSTR; lpStruct: LPVOID; uSizeStruct: UINT; szFile: LPCTSTR): BOOL; external 'kernel32' name 'WritePrivateProfileStructA';
+{$endif}
 function WriteProcessMemory(hProcess: THandle; const lpBaseAddress: Pointer; lpBuffer: Pointer; nSize: PTRUINT; var lpNumberOfBytesWritten: PTRUINT): BOOL; external 'kernel32' name 'WriteProcessMemory';
 function SHFileOperation(Var para1: SHFILEOPSTRUCT):longint; external 'shell32' name 'SHFileOperation';
 // these are old Win16 funcs that under win32 are aliases for several AnsiChar* funcs.
@@ -1004,8 +1460,16 @@ function SetKeyboardState(var KeyState:TKeyboardState):WINBOOL; external 'user32
 function GetWindowThreadProcessId(hWnd:HWND;var lpdwProcessId:DWORD):DWORD; external 'user32' name 'GetWindowThreadProcessId';
 function HwndMSWheel(var puiMsh_MsgMouseWheel, puiMsh_Msg3DSupport,puiMsh_MsgScrollLines: UINT;
   var pf3DSupport: BOOL; var piScrollLines: Integer): HWND;
+{$ifdef UNICODE}
+function CreateWaitableTimer(lpTimerAttributes :LPSECURITY_ATTRIBUTES; bManualReset:BOOl;lpTimerName:LPCTSTR):THandle;external 'kernel32' name 'CreateWaitableTimerW';
+{$else}
 function CreateWaitableTimer(lpTimerAttributes :LPSECURITY_ATTRIBUTES; bManualReset:BOOl;lpTimerName:LPCTSTR):THandle;external 'kernel32' name 'CreateWaitableTimerA';
+{$endif}
+{$ifdef UNICODE}
+function OpenWaitableTimer(dwDesiredAccess:DWORD;bInheritHandle:BOOL;lpTimerName:LPCTSTR):THandle;external 'kernel32' name 'OpenWaitableTimerW';
+{$else}
 function OpenWaitableTimer(dwDesiredAccess:DWORD;bInheritHandle:BOOL;lpTimerName:LPCTSTR):THandle;external 'kernel32' name 'OpenWaitableTimerA';
+{$endif}
 //function PropertySheetA(p:TPROPSHEETHEADER):longint; external 'comctl32' name 'PropertySheetA';
 
 // native int64 typed overload.

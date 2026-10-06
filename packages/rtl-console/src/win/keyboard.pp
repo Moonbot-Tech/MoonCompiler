@@ -67,7 +67,7 @@ var
    keyboardeventqueue : array[0..maxqueuesize] of TFPKeyEventRecord;
    nextkeyevent,nextfreekeyevent : longint;
    newKeyEvent    : THandle;            {signaled if key is available}
-   lockVar        : TCriticalSection;   {for queue access}
+   lockVar        : TRTLCriticalSection;   {for queue access}
    lastShiftState : byte;               {set by handler for PollShiftStateEvent}
    altNumActive   : boolean;            {for alt+0..9}
    altNumBuffer   : string [3];

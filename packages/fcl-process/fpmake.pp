@@ -38,7 +38,7 @@ begin
     P.IncludePath.Add('src/$(OS)',AllOSes-[win32,win64]-AllUnixOSes-AllAmigaLikeOSes);
     P.IncludePath.Add('src/dummy',AllOSes-[win32,win64]-AllUnixOSes-AllAmigaLikeOSes);
 
-    P.Dependencies.add('winunits-jedi',[win32,win64]);
+    P.Dependencies.add('winunits-base',[win32,win64]);
     P.Dependencies.add('morphunits',[morphos]);
     P.Dependencies.add('arosunits',[aros]);
     if Defaults.CPU=powerpc then

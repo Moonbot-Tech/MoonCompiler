@@ -34,6 +34,27 @@ begin
     P.SourcePath.Add('src');
     P.IncludePath.Add('src');
 
+    T:=P.Targets.AddUnit('winapi.support.pp');
+    T:=P.Targets.AddUnit('accctrl.pp');
+    T:=P.Targets.AddUnit('aclapi.pp');
+    T:=P.Targets.AddUnit('cpl.pp');
+    T:=P.Targets.AddUnit('dlgs.pp');
+    T:=P.Targets.AddUnit('ipexport.pp');
+    T:=P.Targets.AddUnit('iphlpapi.pp');
+    T:=P.Targets.AddUnit('iprtrmib.pp');
+    T:=P.Targets.AddUnit('iptypes.pp');
+    T:=P.Targets.AddUnit('psapi.pp');
+    T:=P.Targets.AddUnit('qos.pp');
+    T:=P.Targets.AddUnit('regstr.pp');
+    T:=P.Targets.AddUnit('tlhelp32.pp');
+    T:=P.Targets.AddUnit('userenv.pp');
+    T:=P.Targets.AddUnit('wincred.pp');
+    T:=P.Targets.AddUnit('winsafer.pp');
+    T:=P.Targets.AddUnit('winsvc.pp');
+    T:=P.Targets.AddUnit('wtsapi32.pp');
+    T:=P.Targets.AddUnit('profinfo.pp');
+    T:=P.Targets.AddUnit('wbemcli.pp');
+
     T:=P.Targets.AddUnit('buildwinutilsbase.pp');
       T.Install:=False;
       with T.Dependencies do

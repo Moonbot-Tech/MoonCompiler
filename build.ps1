@@ -353,41 +353,24 @@ function Build-Compiler {
       '-UaWinapi.WinHTTP=WinHTTP',
       '-UaWinapi.WinInet=WinInet',
       '-UaWinapi.WinSpool=WinSpool',
-      # These headers are shipped by FPC under their JEDI names.
-      '-UaWinapi.AccCtrl=JwaAccCtrl',
-      '-UaAccCtrl=JwaAccCtrl',
-      '-UaWinapi.AclAPI=JwaAclAPI',
-      '-UaAclAPI=JwaAclAPI',
-      '-UaWinapi.Cpl=JwaCpl',
-      '-UaCpl=JwaCpl',
-      '-UaWinapi.Dlgs=JwaDlgs',
-      '-UaDlgs=JwaDlgs',
-      '-UaWinapi.IpExport=JwaIpExport',
-      '-UaIpExport=JwaIpExport',
-      '-UaWinapi.IpHlpApi=JwaIpHlpApi',
-      '-UaIpHlpApi=JwaIpHlpApi',
-      '-UaWinapi.IpRtrMib=JwaIpRtrMib',
-      '-UaIpRtrMib=JwaIpRtrMib',
-      '-UaWinapi.IpTypes=JwaIpTypes',
-      '-UaIpTypes=JwaIpTypes',
-      '-UaWinapi.PsAPI=JwaPsAPI',
-      '-UaPsAPI=JwaPsAPI',
-      '-UaWinapi.Qos=JwaQos',
-      '-UaQos=JwaQos',
-      '-UaWinapi.RegStr=JwaRegStr',
-      '-UaRegStr=JwaRegStr',
-      '-UaWinapi.TlHelp32=JwaTlHelp32',
-      '-UaTlHelp32=JwaTlHelp32',
-      '-UaWinapi.UserEnv=JwaUserEnv',
-      '-UaUserEnv=JwaUserEnv',
-      '-UaWinapi.WinCred=JwaWinCred',
-      '-UaWinCred=JwaWinCred',
-      '-UaWinapi.Winsafer=JwaWinsafer',
-      '-UaWinsafer=JwaWinsafer',
-      '-UaWinapi.WinSvc=JwaWinSvc',
-      '-UaWinSvc=JwaWinSvc',
-      '-UaWinapi.WTSApi32=JwaWTSApi32',
-      '-UaWTSApi32=JwaWTSApi32',
+      # Standard Winapi spellings share the direct SDK units.
+      '-UaWinapi.AccCtrl=AccCtrl',
+      '-UaWinapi.AclAPI=AclAPI',
+      '-UaWinapi.Cpl=Cpl',
+      '-UaWinapi.Dlgs=Dlgs',
+      '-UaWinapi.IpExport=IpExport',
+      '-UaWinapi.IpHlpApi=IpHlpApi',
+      '-UaWinapi.IpRtrMib=IpRtrMib',
+      '-UaWinapi.IpTypes=IpTypes',
+      '-UaWinapi.PsAPI=PsAPI',
+      '-UaWinapi.Qos=Qos',
+      '-UaWinapi.RegStr=RegStr',
+      '-UaWinapi.TlHelp32=TlHelp32',
+      '-UaWinapi.UserEnv=UserEnv',
+      '-UaWinapi.WinCred=WinCred',
+      '-UaWinapi.Winsafer=Winsafer',
+      '-UaWinapi.WinSvc=WinSvc',
+      '-UaWinapi.WTSApi32=WTSApi32',
       '-Fu$FPCBINDIR/../../runtime/reporting',
       '-Fl$FPCBINDIR/../../runtime/reporting/native',
       '-Fu$FPCBINDIR/../../runtime/mormot',
@@ -423,6 +406,10 @@ function Build-Compiler {
       -Destination (Join-Path $licenseDir 'MM-LICENSE.md')
     Copy-Item -LiteralPath (Join-Path $Root 'packages\vcl-compat\native\brotli\LICENSE-brotli.txt') `
       -Destination (Join-Path $licenseDir 'BROTLI-MIT.txt')
+    Copy-Item -LiteralPath (Join-Path $Root 'packages\winunits-base\MPL-1.1.txt') `
+      -Destination (Join-Path $licenseDir 'WINDOWS-SDK-MPL-1.1.txt')
+    Copy-Item -LiteralPath (Join-Path $Root 'packages\winunits-base\NOTICE-WINDOWS-SDK.md') `
+      -Destination (Join-Path $licenseDir 'WINDOWS-SDK-NOTICE.md')
     Copy-Item -LiteralPath (Join-Path $Root 'doc\LICENSING.md') `
       -Destination (Join-Path $licenseDir 'LICENSING.md')
     foreach ($tool in @('ar', 'as', 'ld', 'nm', 'objcopy', 'objdump', 'strip', 'windres')) {

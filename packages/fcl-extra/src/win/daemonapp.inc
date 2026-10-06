@@ -14,9 +14,9 @@
 { Win32 implementation of service application }
 
 {$IFDEF FPC_DOTTEDUNITS}
-uses WinApi.Windows,WinApi.Jedi.Winsvc;
+uses WinApi.Windows,WinSvc;
 {$ELSE FPC_DOTTEDUNITS}
-uses windows,jwawinsvc;
+uses windows,WinSvc;
 {$ENDIF FPC_DOTTEDUNITS}
 
 Const
@@ -26,12 +26,6 @@ Resourcestring
   SErrRegisterHandler  = 'Could not register control handler, error code %d';
   SErrNoControlContext = 'Not handling Control message without control context: (%d %d %d).';
   SControlCodeReceived = 'Control message received: (%d %d %d).';
-
-{$IF SIZEOF(CHAR)=1}
-function StartServiceCtrlDispatcher(lpServiceStartTable: LPSERVICE_TABLE_ENTRY): BOOL; stdcall; external 'advapi32.dll' name 'StartServiceCtrlDispatcherA';
-function RegisterServiceCtrlHandlerEx(lpServiceName: LPCSTR;lpHandlerProc: LPHANDLER_FUNCTION_EX; lpContext: LPVOID): SERVICE_STATUS_HANDLE; stdcall;external 'advapi32.dll' name 'RegisterServiceCtrlHandlerExA';
-{$ENDIF}
-function SetServiceStatus(hServiceStatus: SERVICE_STATUS_HANDLE; const lpServiceStatus: SERVICE_STATUS): BOOL; stdcall; external 'advapi32.dll' name 'SetServiceStatus';
 
 { ---------------------------------------------------------------------
   Win32 entry points
@@ -46,11 +40,11 @@ begin
     Application.Log(etError,Format(SerrNoControlContext,[dwControl,dwEventType,ptrint(lpEventData)]));
 end;
 
-Procedure ServiceMainEntry(Argc : DWord; Args : PChar); stdcall;
+Procedure ServiceMainEntry(Argc : DWord; Args : PPChar); stdcall;
 
 begin
   If Assigned(Application) then
-    Application.Main(Argc,PPChar(Args));
+    Application.Main(Argc,Args);
 {$ifdef svcdebug}Debuglog('Main end');{$endif}
 end;
 

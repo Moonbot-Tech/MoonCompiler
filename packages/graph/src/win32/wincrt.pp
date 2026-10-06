@@ -55,7 +55,7 @@ unit WinCRT;
        keybuffersize = 32;
 
     var
-       keyboardhandling : TCriticalSection;
+       keyboardhandling : TRTLCriticalSection;
        keybuffer : array[1..keybuffersize] of AnsiChar;
        nextfree,nexttoread : longint;
 

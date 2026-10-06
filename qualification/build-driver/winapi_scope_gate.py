@@ -2,7 +2,7 @@
 
 Called by unit_scope_gate with the plain product fpc, also for release archives.
 The public list is the Delphi 12.2 Winapi headers implemented by rtl,
-rtl-extra, winunits-base and winunits-jedi, not all of Delphi's Windows API.
+rtl-extra and winunits-base, not all of Delphi's Windows API.
 """
 
 from pathlib import Path
