@@ -24,6 +24,19 @@ interface
 {$modeswitch functionreferences}
 {$modeswitch anonymousfunctions}
 {$modeswitch advancedrecords}
+{$macro on}
+{$ifdef MOONCOMPILER_DELPHI_CALLBACK_TYPES}
+{$modeswitch implicitgenerics}
+{$define THREADING_GENERIC:=}
+{$define THREADING_SPECIALIZE:=}
+{$define THREADING_PARAMS:=<T>}
+{$define THREADING_PROC2:=TProc}
+{$else}
+{$define THREADING_GENERIC:=generic}
+{$define THREADING_SPECIALIZE:=specialize}
+{$define THREADING_PARAMS:=}
+{$define THREADING_PROC2:=TProc2}
+{$endif}
 
 { $DEFINE DEBUGTHREADPOOL}
 
@@ -42,11 +55,19 @@ uses
 type
   TLightweightEvent = TEvent;
   
-  Generic TFunctionEvent<T> = function (Sender: TObject): T of object;
-  Generic TProc<T> = reference to procedure (arg : T);
-  Generic TProc2<T1,T2> = reference to procedure (arg1 : T1;arg2 : T2);
-  Generic TFunc<T> = Reference to function : T;
+  THREADING_GENERIC TFunctionEvent<T> = function (Sender: TObject): T of object;
+{$IFDEF MOONCOMPILER_DELPHI_CALLBACK_TYPES}
+{$IFDEF FPC_DOTTEDUNITS}
+  TProcRef = System.SysUtils.TProc;
+{$ELSE}
+  TProcRef = SysUtils.TProc;
+{$ENDIF}
+{$ELSE}
+  THREADING_GENERIC TProc<T> = reference to procedure (arg : T);
+  THREADING_GENERIC TProc2<T1,T2> = reference to procedure (arg1 : T1;arg2 : T2);
+  THREADING_GENERIC TFunc<T> = Reference to function : T;
   TProcRef = Reference to Procedure;
+{$ENDIF}
 
   TExceptionHandlerEvent = procedure (const aException: Exception; var aHandled: Boolean) of object;
   TExceptionHandlerProc = reference to procedure (const aException: Exception; var aHandled: Boolean);
@@ -112,10 +133,10 @@ type
 
   { TSparseArray }
 
-  generic TSparseArray<T: class> = class
+  THREADING_GENERIC TSparseArray<T: class> = class
   public
     Type
-      TArrayOfT = specialize TArray<T>;
+      TArrayOfT = THREADING_SPECIALIZE TArray<T>;
   private
     FArray: TArrayOfT;
     FLock: TSpinLock;
@@ -131,10 +152,10 @@ type
 
   { TWorkStealingQueue }
 
-  generic TWorkStealingQueue<T> = class
+  THREADING_GENERIC TWorkStealingQueue<T> = class
   Private
     Type
-      TItemList = specialize TList<T>;
+      TItemList = THREADING_SPECIALIZE TList<T>;
   Private
     FItems : TItemList;
     FLock : TSpinLock;
@@ -176,7 +197,7 @@ type
 
   { TObjectCaches }
 
-  TObjectCaches = class(specialize TObjectDictionary<TClass, TObjectCache>)
+  TObjectCaches = class(THREADING_SPECIALIZE TObjectDictionary<TClass, TObjectCache>)
   public
     procedure AddObjectCache(aClass: TClass);
   end;
@@ -192,7 +213,7 @@ type
       function Increment: Integer;
       function Value: Integer;
     end;
-    TProcThread = specialize TProc<TThread>;
+    TProcThread = THREADING_SPECIALIZE TProc<TThread>;
   private
     class var FDefaultPool: TThreadPool;
     const
@@ -306,12 +327,12 @@ type
       destructor Destroy; override;
       procedure BeforeDestruction; override;
     end;
-    TBaseWorkerThreadList = Specialize TThreadList<TBaseWorkerThread>;
+    TBaseWorkerThreadList = THREADING_SPECIALIZE TThreadList<TBaseWorkerThread>;
 
     { TQueueWorkerThread }
 
     Type
-      TWorkStealingQueueThreadPoolWorkItem =  specialize TWorkStealingQueue<IThreadPoolWorkItem>;
+      TWorkStealingQueueThreadPoolWorkItem =  THREADING_SPECIALIZE TWorkStealingQueue<IThreadPoolWorkItem>;
 
     TQueueWorkerThread = class(TBaseWorkerThread)
     Protected
@@ -353,11 +374,11 @@ type
       MonitorCreated = 1;
 
     Type
-      TWorkStealingQueueThreadPoolWorkItemArray = specialize TSparseArray<TWorkStealingQueueThreadPoolWorkItem>;
+      TWorkStealingQueueThreadPoolWorkItemArray = THREADING_SPECIALIZE TSparseArray<TWorkStealingQueueThreadPoolWorkItem>;
       // The global work queue must retain a reference to the queued items. A raw
       // pointer queue (Contnrs.TQueue) does not, so a work item could be destroyed
       // while still enqueued, leading to a use-after-free on the worker threads.
-      TWorkItemQueue = specialize TQueue<IThreadPoolWorkItem>;
+      TWorkItemQueue = THREADING_SPECIALIZE TQueue<IThreadPoolWorkItem>;
       TMonitorResult = (mrTerminate,mrContinue,mrIdle);
     var
       FWorkQueue : TWorkItemQueue;
@@ -465,11 +486,11 @@ type
     property Status: TTaskStatus read GetStatus;
   end;
   TITaskArray = array of ITask;
-  TITaskProc = specialize TProc<ITask>;
+  TITaskProc = THREADING_SPECIALIZE TProc<ITask>;
   TITaskProcArray = Array of TITaskProc;
 
-  generic IFuture<T> = interface(ITask)
-    function StartFuture: specialize IFuture<T>; overload;
+  THREADING_GENERIC IFuture<T> = interface(ITask)
+    function StartFuture: THREADING_SPECIALIZE IFuture<T>; overload;
     function GetValue: T;
     property Value: T read GetValue;
   end;
@@ -623,10 +644,10 @@ type
     class function Create(const aProc: TProcRef): ITask; overload; static;
     class function Create(aSender: TObject; aEvent: TNotifyEvent; const aPool: TThreadPool): ITask; overload; static;
     class function Create(const aProc: TProcref; aPool: TThreadPool): ITask; overload; static;
-    generic class function Future<T>(aSender: TObject; aEvent: specialize TFunctionEvent<T>): Specialize IFuture<T>; overload; static; inline;
-    generic class function Future<T>(aSender: TObject; aEvent: specialize TFunctionEvent<T>; aPool: TThreadPool): Specialize IFuture<T>; overload; static; inline;
-    generic class function Future<T>(const aFunc: specialize TFunc<T>): Specialize IFuture<T>; overload; static; inline;
-    generic class function Future<T>(const aFunc: specialize TFunc<T>; aPool: TThreadPool): Specialize IFuture<T>; overload; static; inline;
+    THREADING_GENERIC class function Future<T>(aSender: TObject; aEvent: THREADING_SPECIALIZE TFunctionEvent<T>): THREADING_SPECIALIZE IFuture<T>; overload; static; inline;
+    THREADING_GENERIC class function Future<T>(aSender: TObject; aEvent: THREADING_SPECIALIZE TFunctionEvent<T>; aPool: TThreadPool): THREADING_SPECIALIZE IFuture<T>; overload; static; inline;
+    THREADING_GENERIC class function Future<T>(const aFunc: THREADING_SPECIALIZE TFunc<T>): THREADING_SPECIALIZE IFuture<T>; overload; static; inline;
+    THREADING_GENERIC class function Future<T>(const aFunc: THREADING_SPECIALIZE TFunc<T>; aPool: TThreadPool): THREADING_SPECIALIZE IFuture<T>; overload; static; inline;
     class function Run(aSender: TObject; aEvent: TNotifyEvent): ITask; overload; static; inline;
     class function Run(aSender: TObject; aEvent: TNotifyEvent; aPool: TThreadPool): ITask; overload; static; inline;
     class function Run(const aFunc: TProcRef): ITask; overload; static; inline;
@@ -641,17 +662,17 @@ type
 
   { TFuture }
 
-  generic TFuture<T> = class sealed(TTask, specialize IFuture<T>)
+  THREADING_GENERIC TFuture<T> = class sealed(TTask, THREADING_SPECIALIZE IFuture<T>)
   Type
-    TFunctionEventT = specialize TFunctionEvent<T>;
-    TFunctionRefT = specialize TFunc<T>;
+    TFunctionEventT = THREADING_SPECIALIZE TFunctionEvent<T>;
+    TFunctionRefT = THREADING_SPECIALIZE TFunc<T>;
   Var
     FResult : T;
     FFuncRef : TFunctionRefT;
     FFuncEvent : TFunctionEventT;
     procedure RunFunc(Sender: TObject);
   Protected
-    function StartFuture: specialize IFuture<T>;
+    function StartFuture: THREADING_SPECIALIZE IFuture<T>;
     function GetValue: T;
   Public
     constructor Create(aSender: TObject; aEvent: TFunctionEventT; const aFunc: TFunctionRefT; aPool: TThreadPool); overload;
@@ -682,10 +703,10 @@ type
     TIteratorStateEvent64 = procedure (aSender: TObject; aIndex: Int64; const aLoopState: TLoopState) of object;
     TIteratorEvent = TIteratorEvent32;
     TIteratorStateEvent = TIteratorStateEvent32;
-    TInt32LoopStateProc = specialize TProc2<Integer, TLoopState>;
-    TInt32Proc = specialize TProc<Integer>;
-    TInt64LoopStateProc = specialize TProc2<Int64, TLoopState>;
-    TInt64Proc = specialize TProc<Int64>;
+    TInt32LoopStateProc = THREADING_SPECIALIZE THREADING_PROC2<Integer, TLoopState>;
+    TInt32Proc = THREADING_SPECIALIZE TProc<Integer>;
+    TInt64LoopStateProc = THREADING_SPECIALIZE THREADING_PROC2<Int64, TLoopState>;
+    TInt64Proc = THREADING_SPECIALIZE TProc<Int64>;
 
     // Global, for the whole loop
 
@@ -905,10 +926,10 @@ type
     {$ENDIF}
   public
     Type
-      TProcInteger = specialize TProc<Integer>;
-      TProcIntegerLoopState = specialize TProc2<Integer,TLoopState>;
-      TProcInt64 = specialize TProc<Int64>;
-      TProcInt64LoopState = specialize TProc2<Int64,TLoopState>;
+      TProcInteger = THREADING_SPECIALIZE TProc<Integer>;
+      TProcIntegerLoopState = THREADING_SPECIALIZE THREADING_PROC2<Integer,TLoopState>;
+      TProcInt64 = THREADING_SPECIALIZE TProc<Int64>;
+      TProcInt64LoopState = THREADING_SPECIALIZE THREADING_PROC2<Int64,TLoopState>;
     class function &For(aSender: TObject; aLowInclusive, aHighInclusive: Integer; aIteratorEvent: TIteratorEvent): TLoopResult; overload; static; inline;
     class function &For(aSender: TObject; aLowInclusive, aHighInclusive: Integer; aIteratorEvent: TIteratorEvent; aPool: TThreadPool): TLoopResult; overload; static; inline;
     class function &For(aSender: TObject; aLowInclusive, aHighInclusive: Integer; aIteratorEvent: TIteratorStateEvent): TLoopResult; overload; static; inline;
@@ -1317,7 +1338,7 @@ end;
   TSparseArray
   *********************************************************************}
 
-constructor TSparseArray.Create(aInitialSize: Integer);
+constructor TSparseArray THREADING_PARAMS.Create(aInitialSize: Integer);
 begin
   FLock:=TSpinLock.Create(False);
   if aInitialSize < 1 then
@@ -1325,22 +1346,22 @@ begin
   SetLength(FArray,aInitialSize);
 end;
 
-destructor TSparseArray.Destroy;
+destructor TSparseArray THREADING_PARAMS.Destroy;
 begin
   inherited Destroy;
 end;
 
-procedure TSparseArray.Lock;
+procedure TSparseArray THREADING_PARAMS.Lock;
 begin
   FLock.Enter;
 end;
 
-procedure TSparseArray.Unlock;
+procedure TSparseArray THREADING_PARAMS.Unlock;
 begin
   FLock.Exit;
 end;
 
-function TSparseArray.Add(const aItem: T): Integer;
+function TSparseArray THREADING_PARAMS.Add(const aItem: T): Integer;
 
 var
   I,Len: Integer;
@@ -1372,7 +1393,7 @@ begin
 end;
 
 
-function TSparseArray.Remove(const aItem: T): Boolean;
+function TSparseArray THREADING_PARAMS.Remove(const aItem: T): Boolean;
 
 var
   I: Integer;
@@ -1396,17 +1417,17 @@ end;
   *********************************************************************}
 
 
-function TWorkStealingQueue.GetCount: Integer;
+function TWorkStealingQueue THREADING_PARAMS.GetCount: Integer;
 begin
   Result:=FItems.Count;
 end;
 
-function TWorkStealingQueue.GetIsEmpty: Boolean;
+function TWorkStealingQueue THREADING_PARAMS.GetIsEmpty: Boolean;
 begin
   Result:=FItems.Count=0;
 end;
 
-procedure TWorkStealingQueue.Lock;
+procedure TWorkStealingQueue THREADING_PARAMS.Lock;
 begin
   {$IFDEF USE_THREADLOG}ThreadLog('TWorkStealingQueue.Lock','Enter %d',[PtrInt(Self)]);{$ENDIF USE_THREADLOG}
   try
@@ -1420,14 +1441,14 @@ begin
   {$IFDEF USE_THREADLOG}ThreadLog('TWorkStealingQueue.Lock','Leave %d',[PtrInt(Self)]);{$ENDIF USE_THREADLOG}
 end;
 
-procedure TWorkStealingQueue.UnLock;
+procedure TWorkStealingQueue THREADING_PARAMS.UnLock;
 begin
   {$IFDEF USE_THREADLOG}ThreadLog('TWorkStealingQueue.UnLock','Enter %d',[PtrInt(Self)]);{$ENDIF USE_THREADLOG}
   FLock.Exit;
   {$IFDEF USE_THREADLOG}ThreadLog('TWorkStealingQueue.UnLock','Leave %d',[PtrInt(Self)]);{$ENDIF USE_THREADLOG}
 end;
 
-constructor TWorkStealingQueue.Create;
+constructor TWorkStealingQueue THREADING_PARAMS.Create;
 begin
   {$IFDEF USE_THREADLOG}ThreadLog('TWorkStealingQueue.Create',IntToStr(PtrInt(Self)));{$ENDIF USE_THREADLOG}
   FItems:=TItemList.Create;
@@ -1435,7 +1456,7 @@ begin
   FEvent:=TEvent.Create(False);
 end;
 
-destructor TWorkStealingQueue.Destroy;
+destructor TWorkStealingQueue THREADING_PARAMS.Destroy;
 begin
   {$IFDEF USE_THREADLOG}ThreadLog('TWorkStealingQueue.Destroy',IntToStr(PtrInt(Self)));{$ENDIF USE_THREADLOG}
   FreeAndNil(FItems);
@@ -1443,7 +1464,7 @@ begin
   inherited Destroy;
 end;
 
-function TWorkStealingQueue.LocalFindAndRemove(const aItem: T): Boolean;
+function TWorkStealingQueue THREADING_PARAMS.LocalFindAndRemove(const aItem: T): Boolean;
 
 begin
   Lock;
@@ -1454,7 +1475,7 @@ begin
   end;
 end;
 
-procedure TWorkStealingQueue.LocalPush(const aItem: T);
+procedure TWorkStealingQueue THREADING_PARAMS.LocalPush(const aItem: T);
 begin
   Lock;
   try
@@ -1465,7 +1486,7 @@ begin
   end;
 end;
 
-function TWorkStealingQueue.LocalPop(out aItem: T): Boolean;
+function TWorkStealingQueue THREADING_PARAMS.LocalPop(out aItem: T): Boolean;
 
 begin
   Lock;
@@ -1478,7 +1499,7 @@ begin
   end;
 end;
 
-function TWorkStealingQueue.TrySteal(out aItem: T; aTimeout: Cardinal): Boolean;
+function TWorkStealingQueue THREADING_PARAMS.TrySteal(out aItem: T; aTimeout: Cardinal): Boolean;
 begin
   Result:=LocalPop(aItem);
   // Without a timeout there is nothing to wait for: no event calls.
@@ -1490,7 +1511,7 @@ begin
   // We can miss one if another thread got the item. Normally we'd need to wait again till timeout is really over.
 end;
 
-function TWorkStealingQueue.Remove(const aItem: T): Boolean;
+function TWorkStealingQueue THREADING_PARAMS.Remove(const aItem: T): Boolean;
 begin
   Lock;
   try
@@ -1766,7 +1787,7 @@ procedure TThreadPool.WaitForThreads;
 
 var
   T : TThread;
-  List : specialize TList<TBaseWorkerThread>;
+  List : THREADING_SPECIALIZE TList<TBaseWorkerThread>;
   Empty : Boolean;
 
 begin
@@ -2053,7 +2074,7 @@ end;
 function TThreadPool.HaveNoWorkers : boolean;
 
 var
-  List: specialize TList<TBaseWorkerThread>;
+  List: THREADING_SPECIALIZE TList<TBaseWorkerThread>;
   Worker: TBaseWorkerThread;
 
 begin
@@ -2873,7 +2894,7 @@ end;
 
 procedure TTask.ProcessCompleteEvents;
 
-  function MakeProc(const ATask: ITask; const AProc: specialize TProc<ITask>): TProcRef;
+  function MakeProc(const ATask: ITask; const AProc: THREADING_SPECIALIZE TProc<ITask>): TProcRef;
   begin
     Result :=
       procedure
@@ -3552,29 +3573,29 @@ begin
   Result:=WaitForAny(aTasks,TimespanToMilliseconds(aTimeOut));
 end;
 
-generic class function TTask.Future<T>(aSender: TObject; aEvent: specialize TFunctionEvent<T>) : specialize IFuture<T>;
+THREADING_GENERIC class function TTask.Future<T>(aSender: TObject; aEvent: THREADING_SPECIALIZE TFunctionEvent<T>) : THREADING_SPECIALIZE IFuture<T>;
 begin
-  Result:=specialize TFuture<T>.Create(aSender,aEvent,Nil,TThreadPool.Default);
+  Result:=THREADING_SPECIALIZE TFuture<T>.Create(aSender,aEvent,Nil,TThreadPool.Default);
   Result.StartFuture;
 end;
 
-generic class function TTask.Future<T>(aSender: TObject; aEvent: specialize TFunctionEvent<T>; aPool: TThreadPool): Specialize IFuture<T>;
+THREADING_GENERIC class function TTask.Future<T>(aSender: TObject; aEvent: THREADING_SPECIALIZE TFunctionEvent<T>; aPool: TThreadPool): THREADING_SPECIALIZE IFuture<T>;
 begin
-  Result:=specialize TFuture<T>.Create(aSender,aEvent,Nil,aPool);
+  Result:=THREADING_SPECIALIZE TFuture<T>.Create(aSender,aEvent,Nil,aPool);
   Result.StartFuture;
 end;
 
-generic class function TTask.Future<T>(const aFunc: specialize TFunc<T>): Specialize IFuture<T>; overload; static; inline;
+THREADING_GENERIC class function TTask.Future<T>(const aFunc: THREADING_SPECIALIZE TFunc<T>): THREADING_SPECIALIZE IFuture<T>; overload; static; inline;
 
 begin
-  Result:=specialize TFuture<T>.Create(Nil,Nil,aFunc,TThreadPool.Default);
+  Result:=THREADING_SPECIALIZE TFuture<T>.Create(Nil,Nil,aFunc,TThreadPool.Default);
   Result.StartFuture;
 end;
 
-generic class function TTask.Future<T>(const aFunc: specialize TFunc<T>; aPool: TThreadPool): Specialize IFuture<T>; overload; static; inline;
+THREADING_GENERIC class function TTask.Future<T>(const aFunc: THREADING_SPECIALIZE TFunc<T>; aPool: TThreadPool): THREADING_SPECIALIZE IFuture<T>; overload; static; inline;
 
 begin
-  Result:=specialize TFuture<T>.Create(Nil,Nil,aFunc,aPool);
+  Result:=THREADING_SPECIALIZE TFuture<T>.Create(Nil,Nil,aFunc,aPool);
   Result.StartFuture;
 end;
 
@@ -3594,7 +3615,7 @@ end;
   TFuture
   *********************************************************************}
 
-procedure TFuture.RunFunc(Sender: TObject);
+procedure TFuture THREADING_PARAMS.RunFunc(Sender: TObject);
 begin
   FResult:=Default(T);
   if Assigned(FFuncRef) then
@@ -3603,19 +3624,19 @@ begin
     FResult:=FFuncEvent(Sender);
 end;
 
-function TFuture.StartFuture: specialize IFuture<T>;
+function TFuture THREADING_PARAMS.StartFuture: THREADING_SPECIALIZE IFuture<T>;
 begin
   inherited Start;
   Result:=Self;
 end;
 
-Generic function TFuture.GetValue: T;
+THREADING_GENERIC function TFuture THREADING_PARAMS.GetValue: T;
 begin
   Wait;
   Result:=FResult;
 end;
 
-constructor TFuture.Create(aSender: TObject; aEvent: TFunctionEventT; const aFunc: specialize TFunc<T>; aPool: TThreadPool);
+constructor TFuture THREADING_PARAMS.Create(aSender: TObject; aEvent: TFunctionEventT; const aFunc: THREADING_SPECIALIZE TFunc<T>; aPool: TThreadPool);
 
 var
   Params : TTaskParams;

@@ -2338,6 +2338,7 @@ type
     FTerminated: Boolean;
     FFreeOnTerminate: Boolean;
     FFinished: Boolean;
+    FStarted: Boolean;
     FSuspended: LongBool;
     FReturnValue: Integer;
     FOnTerminate: TNotifyEvent;
@@ -2466,6 +2467,7 @@ type
     property Priority: TThreadPriority read GetPriority write SetPriority;
     property Suspended: Boolean read GetSuspended write SetSuspended;
     property Finished: Boolean read FFinished;
+    property Started: Boolean read FStarted;
     property ThreadID: TThreadID read FThreadID;
     property OnTerminate: TNotifyEvent read FOnTerminate write FOnTerminate;
     property FatalException: TObject read FFatalException;

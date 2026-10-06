@@ -195,6 +195,7 @@ end;
 constructor TExternalThread.Create;
 begin
   FExternalThread := True;
+  FStarted := True;
   { the parameter is unimportant if FExternalThread is True }
   inherited Create(False);
   with ExternalThreads.LockList do
@@ -233,6 +234,7 @@ function ThreadProc(ThreadObjPtr: Pointer): PtrInt;
     // (since that one may check our VTM in case of $R+, and
     //  will call the AfterConstruction method in all cases)
 //    Thread.Suspend;
+    Thread.FStarted := True;
     try
       { The thread may be already terminated at this point, e.g. if it was initially
         suspended, or if it wasn't ever scheduled for execution for whatever reason.

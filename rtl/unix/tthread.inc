@@ -84,6 +84,7 @@ begin
       begin
         WRITE_DEBUG('thread ', ptruint(LThread), ' waiting for RTLEvent ', ptruint(LThread.FSuspendEvent));
         RtlEventWaitFor(LThread.FSuspendEvent);
+        LThread.FStarted := True;
         if not(LThread.FTerminated) then
           begin
             if not LThread.FSuspended then
@@ -104,6 +105,7 @@ begin
          LThread.FSuspendedInternal := true;
          WRITE_DEBUG('waiting for SuspendedInternal - ', LThread.ClassName);
          RtlEventWaitFor(LThread.FSuspendEvent);
+         LThread.FStarted := True;
          CurrentThreadVar := LThread;
          WRITE_DEBUG('going into LThread.Execute - ', LThread.ClassName);
          LThread.Execute;
