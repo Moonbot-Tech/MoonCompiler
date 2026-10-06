@@ -1206,70 +1206,29 @@ end;
  *       Miscellaneous procedures and functions                       *
  **********************************************************************}
 
-function ExtractStrings(Separators, WhiteSpace: TSysCharSet; Content: PAnsiChar; Strings: TStrings; AddEmptyStrings : Boolean = False): Integer;
-var
-  b, c : PAnsiChar;
+{$push}
+{$macro on}
+{$define EXTRACTPOINTER:=PAnsiChar}
+{$define EXTRACTCHAR:=AnsiChar}
+{$define EXTRACTSTRING:=AnsiString}
+{$i extractstrings.inc}
+{$undef EXTRACTPOINTER}
+{$undef EXTRACTCHAR}
+{$undef EXTRACTSTRING}
+{$pop}
 
-  procedure SkipWhitespace;
-    begin
-      while (c^ in Whitespace) do
-        inc (c);
-    end;
-
-  procedure AddString;
-    var
-      l : integer;
-      s : string;
-    begin
-      l := c-b;
-      if (l > 0) or AddEmptyStrings then
-        begin
-          if assigned(Strings) then
-            begin
-              setlength(s, l);
-              if l>0 then
-                move (b^, s[1],l*SizeOf(AnsiChar));
-              Strings.Add (s);
-            end;
-          inc (result);
-        end;
-    end;
-
-var
-  quoted : AnsiChar;
-begin
-  result := 0;
-  c := Content;
-  Quoted := #0;
-  Separators := Separators + [#13, #10] - ['''','"'];
-  SkipWhitespace;
-  b := c;
-  while (c^ <> #0) do
-    begin
-      if (c^ = Quoted) then
-        begin
-          if ((c+1)^ = Quoted) then
-            inc (c)
-          else
-            Quoted := #0
-        end
-      else if (Quoted = #0) and (c^ in ['''','"']) then
-        Quoted := c^;
-      if (Quoted = #0) and (c^ in Separators) then
-        begin
-          AddString;
-          inc (c);
-          SkipWhitespace;
-          b := c;
-        end
-      else
-        inc (c);
-    end;
-  if (c <> b) then
-    AddString;
-end;
-
-
+{$push}
+{$macro on}
+{$define EXTRACTPOINTER:=PWideChar}
+{$define EXTRACTCHAR:=WideChar}
+{$define EXTRACTSTRING:=UnicodeString}
+{$define EXTRACTWIDE}
+{$i extractstrings.inc}
+{$undef EXTRACTWIDE}
+{$undef EXTRACTPOINTER}
+{$undef EXTRACTCHAR}
+{$undef EXTRACTSTRING}
+{$pop}
 
 { Point and rectangle constructors }
 

@@ -3041,5 +3041,6 @@ function TestStreamFormat(const Stream: TStream): TStreamOriginalFormat;
 function LineStart(Buffer, BufPos: PAnsiChar): PAnsiChar;
 procedure BinToHex(BinValue, HexValue: PAnsiChar; BinBufSize: Integer); deprecated 'use procedures from unit StrUtils';
 function HexToBin(HexValue, BinValue: PAnsiChar; BinBufSize: Integer): Integer; deprecated 'use procedures from unit StrUtils';
-function ExtractStrings(Separators, WhiteSpace: TSysCharSet; Content: PAnsiChar; Strings: TStrings; AddEmptyStrings : Boolean = False): Integer;
+function ExtractStrings(Separators, WhiteSpace: TSysCharSet; Content: PAnsiChar; Strings: TStrings; AddEmptyStrings : Boolean = False): Integer overload;
+function ExtractStrings(Separators, WhiteSpace: TSysCharSet; Content: PWideChar; Strings: TStrings; AddEmptyStrings : Boolean = False): Integer overload;
 Function IfThen(AValue: Boolean; const ATrue: TStringList; const AFalse: TStringList = nil): TStringList; overload;
