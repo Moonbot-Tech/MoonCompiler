@@ -50,6 +50,7 @@ jobs:
       tip: ${{ steps.check.outputs.tip }}
     env:
       GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -166,6 +167,8 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
+          .\qualification\build-driver\moonormot_clone_contract.ps1
+          If ($LASTEXITCODE -ne 0) { throw 'MoonORMot clone contract failed' }
           python .\qualification\suite\tests\test_runner_contracts.py
           If ($LASTEXITCODE -ne 0) { throw 'runner contracts failed' }
           python .\qualification\suite\tests\test_sync_moonormot.py
@@ -262,6 +265,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/download-artifact@v4
         with:

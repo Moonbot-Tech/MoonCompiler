@@ -343,6 +343,8 @@ jobs:
           If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           python .\qualification\suite\tests\test_sync_moonormot.py
           If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          .\qualification\build-driver\moonormot_clone_contract.ps1
+          If ($LASTEXITCODE -ne 0) { throw 'MoonORMot clone contract failed' }
           python .\qualification\suite\tests\test_issue_tracker_runner.py
           If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           python .\qualification\suite\tests\test_qualification_contracts.py

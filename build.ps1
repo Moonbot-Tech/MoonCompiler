@@ -92,8 +92,19 @@ function Ensure-MoonORMot {
     return
   }
   Write-Output 'Cloning MoonORMot...'
-  & $git.Source clone 'https://github.com/Moonbot-Tech/MoonORMot' $mormotDir
-  If ($LASTEXITCODE -ne 0) {
+  # Windows PowerShell 5.1 turns native stderr into ErrorRecords when a
+  # caller redirects this script through Tee-Object. Git progress is not
+  # a failure: normalize its output and judge the command by its exit code.
+  $savedPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = 'Continue'
+    & $git.Source clone 'https://github.com/Moonbot-Tech/MoonORMot' $mormotDir 2>&1 |
+      ForEach-Object { $_.ToString() }
+    $cloneExitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $savedPreference
+  }
+  If ($cloneExitCode -ne 0) {
     Write-Warning "MoonORMot clone failed."
     Write-Warning "Clone https://github.com/Moonbot-Tech/MoonORMot into $mormotDir or pass -Fu to use your own."
   }
