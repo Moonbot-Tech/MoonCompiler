@@ -16,7 +16,7 @@
 {$h+}
 { $INLINE ON}
 
-{$IFNDEF FPC_DOTTEDUNITS}
+{$if not defined(FPC_DOTTEDUNITS) and not defined(MOON_JSON_PRIVATE)}
 unit JsonScanner;
 {$ENDIF FPC_DOTTEDUNITS}
 

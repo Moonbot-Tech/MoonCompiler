@@ -68,6 +68,7 @@ import tempfile
 from pathlib import Path
 
 from winapi_scope_gate import alias_scope, winapi_scope
+from json_scope_gate import json_scope
 
 ROOT = Path(__file__).resolve().parents[2]
 PROBE = Path(__file__).resolve().with_name("unit_scope_probe.dpr")
@@ -325,6 +326,7 @@ def main() -> int:
             failures += stale_units_ignored(fpc, work)
             try:
                 alias_scope(fpc, work)
+                json_scope(fpc, work)
             except RuntimeError as error:
                 failures.append(str(error))
             if IS_WINDOWS:

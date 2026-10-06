@@ -26,7 +26,7 @@ uses
 {$IFDEF FPC_DOTTEDUNITS}
   System.Types, System.SysUtils, System.DateUtils, System.Classes, System.Rtti, System.TypInfo, System.Generics.Collections, FpJson.Data;
 {$ELSE}
-  Types, SysUtils, DateUtils, Classes, Rtti, TypInfo, Generics.Collections, fpjson;
+  Types, SysUtils, DateUtils, Classes, Rtti, TypInfo, Generics.Collections, Moon.Internal.Json.Data;
 {$ENDIF}
 
 type
@@ -471,7 +471,7 @@ uses
 {$IFDEF FPC_DOTTEDUNITS}
   Fcl.Streams.Extra, FpJson.Scanner, FpJson.Reader;
 {$ELSE FPC_DOTTEDUNITS}
-  streamex, jsonscanner, jsonreader;
+  streamex, Moon.Internal.Json.Scanner, Moon.Internal.Json.Reader;
 {$ENDIF FPC_DOTTEDUNITS}
 
 var

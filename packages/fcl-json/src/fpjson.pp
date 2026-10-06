@@ -12,7 +12,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
  **********************************************************************}
-{$IFNDEF FPC_DOTTEDUNITS}
+{$if not defined(FPC_DOTTEDUNITS) and not defined(MOON_JSON_PRIVATE)}
 unit fpJson;
 {$ENDIF FPC_DOTTEDUNITS}
 

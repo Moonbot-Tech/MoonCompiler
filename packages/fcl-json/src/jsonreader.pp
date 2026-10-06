@@ -12,7 +12,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
  **********************************************************************}
-{$IFNDEF FPC_DOTTEDUNITS}
+{$if not defined(FPC_DOTTEDUNITS) and not defined(MOON_JSON_PRIVATE)}
 unit JsonReader;
 {$ENDIF FPC_DOTTEDUNITS}
 
@@ -25,7 +25,12 @@ uses
   System.Classes, System.SysUtils, FpJson.Data, FpJson.Scanner;
 {$ELSE FPC_DOTTEDUNITS}
 uses
-  Classes, SysUtils, fpJSON, jsonscanner;
+  Classes, SysUtils,
+{$IFDEF MOON_JSON_PRIVATE}
+  Moon.Internal.Json.Data, Moon.Internal.Json.Scanner;
+{$ELSE}
+  fpJSON, jsonscanner;
+{$ENDIF}
 {$ENDIF FPC_DOTTEDUNITS}
 
 Type

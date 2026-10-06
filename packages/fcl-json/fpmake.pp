@@ -33,6 +33,15 @@ begin
 
     P.SourcePath.Add('src');
 
+    T:=P.Targets.AddUnit('moon.internal.json.data.pp');
+    T.ResourceStrings:=true;
+    T:=P.Targets.AddUnit('moon.internal.json.scanner.pp');
+    T.ResourceStrings:=true;
+    T:=P.Targets.AddUnit('moon.internal.json.reader.pp');
+    T.ResourceStrings:=true;
+    T.Dependencies.AddUnit('moon.internal.json.data');
+    T.Dependencies.AddUnit('moon.internal.json.scanner');
+
     T:=P.Targets.AddUnit('fpjson.pp');
     T.ResourceStrings:=true;
 

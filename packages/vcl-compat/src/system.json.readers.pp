@@ -29,14 +29,14 @@ uses
   System.TypInfo, FpJson.Scanner,
   {$ELSE}
   SysUtils, Classes, Generics.Collections, Rtti, StreamEx, TypInfo,
-  jsonscanner,
+  Moon.Internal.Json.Scanner,
   {$ENDIF}
   System.JSON.Utils, System.JSON,  System.NetEncoding, System.JSON.Types;
 
 {$IFDEF FPC_DOTTEDUNITS}
 {$define jscan:=FpJson.Scanner}
 {$ELSE}
-{$define jscan:=jsonscanner}
+{$define jscan:=Moon.Internal.Json.Scanner}
 {$ENDIF}
 
 type
