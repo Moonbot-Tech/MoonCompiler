@@ -361,25 +361,26 @@ begin
   for I := -40 to 40 do begin
     V := I * 977;
     IntegerKey(I * 977, Key);
-    Got := Comparer.GetHashCode(V);
+    { Public comparer hashes are signed; this oracle compares their 32 raw bits. }
+    Got := Cardinal(Comparer.GetHashCode(V));
     Want := Factory.GetHashCode(@Key, SizeOf(Key), 0);
     If Exact then
       Check(Got = Want, 'a Variant key through ' + Name + ': number ' + IntToStr(I * 977) + ' got=' +
         IntToHex(Got, 8) + ' factory=' + IntToHex(Want, 8));
     V := Double(I * 977);
-    Check(Comparer.GetHashCode(V) = Got, 'a Variant key through ' + Name + ': the number as Double hashes apart');
+    Check(Cardinal(Comparer.GetHashCode(V)) = Got, 'a Variant key through ' + Name + ': the number as Double hashes apart');
     V := Int64(I * 977);
-    Check(Comparer.GetHashCode(V) = Got, 'a Variant key through ' + Name + ': the number as Int64 hashes apart');
+    Check(Cardinal(Comparer.GetHashCode(V)) = Got, 'a Variant key through ' + Name + ': the number as Int64 hashes apart');
   end;
   Text := 'BTC-USDT-12345';
   V := Text;
-  Got := Comparer.GetHashCode(V);
+  Got := Cardinal(Comparer.GetHashCode(V));
   Want := Factory.GetHashCode(@Text[1], Length(Text) * SizeOf(WideChar), 0);
   If Exact then
     Check(Got = Want, 'a Variant key through ' + Name + ': text got=' + IntToHex(Got, 8) + ' factory=' +
       IntToHex(Want, 8));
   V := AnsiString('BTC-USDT-12345');
-  Check(Comparer.GetHashCode(V) = Got, 'a Variant key through ' + Name + ': the text as AnsiString hashes apart');
+  Check(Cardinal(Comparer.GetHashCode(V)) = Got, 'a Variant key through ' + Name + ': the text as AnsiString hashes apart');
 end;
 
 procedure TestComparers;
