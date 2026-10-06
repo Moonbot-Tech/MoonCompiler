@@ -1450,6 +1450,30 @@ end;
 ****************************************************************************}
 
 
+{$if defined(linux) and defined(cpu64)}
+{$push}
+{$packrecords c}
+type
+  { Linux libc struct tm: nine int fields followed by long and char*. }
+  TZoneCalendar = record
+    Second, Minute, Hour, Day, Month, Year, WeekDay, YearDay, Daylight: LongInt;
+    Offset: NativeInt;
+    Name: PAnsiChar;
+  end;
+  PZoneCalendar = ^TZoneCalendar;
+{$pop}
+function ZoneCLocalTime(var Epoch: Int64; var Calendar: TZoneCalendar): PZoneCalendar;
+  cdecl; external 'c' name 'localtime_r';
+function ZoneMakeTime(var Calendar: TZoneCalendar): Int64; cdecl; external 'c' name 'mktime';
+
+procedure ZoneRefresh; cdecl; external 'c' name 'tzset';
+function ZoneLocalTime(var Epoch: Int64; var Calendar: TZoneCalendar): PZoneCalendar;
+begin
+  ZoneRefresh;
+  Result := ZoneCLocalTime(Epoch, Calendar);
+end;
+{$endif}
+
 Function GetEpochTime: time_t;
 {
   Get the number of seconds since 00:00, January 1 1970, GMT
@@ -1476,9 +1500,23 @@ Procedure DoGetLocalDateTime(var year, month, day, hour, min,  sec, msec, usec :
 
 var
   tz:timeval;
+{$if defined(linux) and defined(cpu64)}
+  Calendar: TZoneCalendar;
+{$endif}
 begin
   fpgettimeofday(@tz,nil);
+{$if defined(linux) and defined(cpu64)}
+  if not Assigned(ZoneLocalTime(tz.tv_sec, Calendar)) then
+    RaiseLastOSError;
+  year := Calendar.Year + 1900;
+  month := Calendar.Month + 1;
+  day := Calendar.Day;
+  hour := Calendar.Hour;
+  min := Calendar.Minute;
+  sec := Calendar.Second;
+{$else}
   EpochToLocal(tz.tv_sec,year,month,day,hour,min,sec);
+{$endif}
   msec:=tz.tv_usec div 1000;
   usec:=tz.tv_usec mod 1000;
 end;
@@ -1915,28 +1953,24 @@ begin
 end;
 
 function GetLocalTimeOffset: Integer;
-
+{$if defined(linux) and defined(cpu64)}
+var
+  Epoch: Int64;
+  Calendar: TZoneCalendar;
+{$endif}
 begin
- Result := -Tzseconds div 60;
+{$if defined(linux) and defined(cpu64)}
+  Epoch := GetEpochTime;
+  if not Assigned(ZoneLocalTime(Epoch, Calendar)) then
+    RaiseLastOSError;
+  Result := -Calendar.Offset div 60;
+{$else}
+  Result := -Tzseconds div 60;
+{$endif}
 end;
 
 
 {$if defined(linux) and defined(cpu64)}
-{$push}
-{$packrecords c}
-type
-  { Linux libc struct tm: nine int fields followed by long and char*. }
-  TZoneCalendar = record
-    Second, Minute, Hour, Day, Month, Year, WeekDay, YearDay, Daylight: LongInt;
-    Offset: NativeInt;
-    Name: PAnsiChar;
-  end;
-  PZoneCalendar = ^TZoneCalendar;
-{$pop}
-function ZoneLocalTime(var Epoch: Int64; var Calendar: TZoneCalendar): PZoneCalendar;
-  cdecl; external 'c' name 'localtime_r';
-function ZoneMakeTime(var Calendar: TZoneCalendar): Int64; cdecl; external 'c' name 'mktime';
-
 function GetLocalTimeZoneInfo(const UTC: TDateTime; out OffsetSeconds: Int64;
   out IsDST: Boolean; out ZoneName: string): Boolean;
 var

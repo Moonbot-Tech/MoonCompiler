@@ -139,11 +139,55 @@ begin
   TZSet;
 end;
 
+type
+  TClockValue = record Seconds, Microseconds: Int64; end;
+function ClockValue(var Value: TClockValue; Zone: Pointer): Integer; cdecl; external 'c' name 'gettimeofday';
+
+procedure CheckLiveClocks(const ZoneName: AnsiString);
+var
+  Before, After: TClockValue;
+  LocalNow, LocalSystem, UTC, U0, U1, LocalBefore, LocalAfter, LocalDate, LocalTime: TDateTime;
+  Calendar: TSystemTime;
+  Offset: Int64;
+  DST: Boolean;
+  Name: string;
+begin
+  // Deliberately omit explicit tzset: changing TZ is observed by all public clocks.
+  Check(SetEnv('TZ', PAnsiChar(ZoneName), 1) = 0, 'set live TZ');
+  Check(ClockValue(Before, nil) = 0, 'clock before');
+  LocalNow := Now;
+  GetLocalTime(Calendar);
+  LocalSystem := SystemTimeToDateTime(Calendar);
+  UTC := TTimeZone.Local.ToUniversalTime(LocalNow);
+  Check(ClockValue(After, nil) = 0, 'clock after');
+  U0 := UnixToDateTime(Before.Seconds, True) + Before.Microseconds / (1000000.0 * SecsPerDay);
+  U1 := UnixToDateTime(After.Seconds, True) + After.Microseconds / (1000000.0 * SecsPerDay);
+  Check((UTC >= U0 - 0.002 / SecsPerDay) and (UTC <= U1 + 0.002 / SecsPerDay), 'Now uses same TZ as TTimeZone');
+  Check(Abs(LocalSystem - LocalNow) <= (U1 - U0) + 0.002 / SecsPerDay, 'GetLocalTime agrees with Now');
+  Check(GetLocalTimeZoneInfo(UTC, Offset, DST, Name), 'current offset');
+  Check(GetLocalTimeOffset = -Offset div 60, 'plain offset agrees with dated offset');
+  LocalBefore := Now;
+  LocalDate := Date;
+  LocalTime := Time;
+  LocalAfter := Now;
+  Check((LocalDate >= Trunc(LocalBefore)) and (LocalDate <= Trunc(LocalAfter)), 'Date is local');
+  // Reconstruct both possible dates when the measurements straddle midnight.
+  Check(((Trunc(LocalBefore) + LocalTime >= LocalBefore) and
+         (Trunc(LocalBefore) + LocalTime <= LocalAfter)) or
+        ((Trunc(LocalAfter) + LocalTime >= LocalBefore) and
+         (Trunc(LocalAfter) + LocalTime <= LocalAfter)), 'Time is local');
+end;
+
 procedure LinuxRules;
 var
   Local, UTC, Other: TDateTime;
   Z: TTimeZone;
 begin
+  CheckLiveClocks('UTC0');
+  CheckLiveClocks('MSK-3');
+  CheckLiveClocks(':Europe/Moscow');
+  CheckLiveClocks('America/New_York');
+  CheckLiveClocks('<+0545>-5:45');
   Z := TTimeZone.Local;
   Zone('Europe/Berlin');
   Check(Z.HasDST(EncodeDate(2026, 1, 1)), 'Berlin HasDST in winter');

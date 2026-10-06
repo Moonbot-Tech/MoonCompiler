@@ -90,6 +90,23 @@ begin
     P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_zutil.o',[Linux],'$(unitinstalldir)');
 
 
+    T:=P.Targets.AddUnit('posix.systypes.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.time.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.systime.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.errno.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.unistd.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.fcntl.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.sysstat.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.sysmman.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.dlfcn.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.syssocket.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.netinetin.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.arpainet.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.netdb.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.poll.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.pthread.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.signal.pp',[Linux]);
+
     T:=P.Targets.AddUnit('system.permissions.pp');
     T:=P.Targets.AddUnit('system.messaging.pp');
     T:=P.Targets.AddUnit('system.netencoding.pp');
