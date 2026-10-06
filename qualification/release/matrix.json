@@ -16,6 +16,7 @@
     "rtl_profile": ["qualification/build-driver"],
     "compiler_selfbuild": ["qualification/build-driver"],
     "atomic_swap": ["qualification/build-driver"],
+    "moonormot_clone_contract": ["build.ps1", "qualification/build-driver/moonormot_clone_contract.ps1"],
     "pinned_unit": ["qualification/pinned-unit"],
     "mm_profile_contract": ["qualification/memory-manager"],
     "medium_arenas": ["qualification/memory-manager"],
@@ -545,6 +546,23 @@
       "resource": "atomic_swap",
       "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
       "timeout": 3600
+    },
+    {
+      "id": "moonormot_clone_contract",
+      "mode": "medium",
+      "platforms": ["win64"],
+      "commands": {
+        "win64": [
+          "{shell}",
+          "-NoProfile",
+          "-File",
+          "{root}/qualification/build-driver/moonormot_clone_contract.ps1"
+        ]
+      },
+      "needs": [],
+      "resource": "moonormot_clone_contract",
+      "estimated_seconds_by_platform": {"win64": 1},
+      "timeout": 60
     },
     {
       "id": "pinned_unit",
