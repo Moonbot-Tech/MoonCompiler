@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v2.1.0
+        default: v2.3.0
 
 permissions:
   contents: read
@@ -315,11 +315,12 @@ jobs:
           cat > "$RUNNER_TEMP/release-notes.md" <<EOF
           MoonCompiler $RELEASE_VERSION is a Delphi-compatible Pascal toolchain for Win64 and Linux x86-64.
 
-          - More Delphi-compatible HTTP APIs over MoonORMot: asynchronous requests, streaming uploads, cookies, authentication, cancellation and timeouts.
-          - Bounded threaded queues and countdown events for producer/consumer services and batches of parallel work.
-          - Historical time-zone conversion, Unicode Variant dispatch and configurable collection growth.
-          - Windows delayed DLL imports and record-helper lookup compatibility.
-          - Completed JSON builder/iterator operations, MIME stream ownership and ZIP read progress. Brotli decoding is an explicit optional unit.
+          - Direct Windows SDK bindings with consistent Unicode overloads, shared types and native-sized outputs; standard Winapi names no longer redirect to Jwa units.
+          - Linux x86-64 Posix units for clocks, files, sockets, memory, threads and signals, with checked C ABI layouts.
+          - Compatible comparer hashes, callback types, thread startup state, event handles and ANSI/Unicode string extraction.
+          - Private JSON parser dependencies let applications keep their own JsonReader, JsonScanner and fpjson units.
+          - Statically linked PCRE2-16 regular expressions, including repaired matcher reuse and replacements, without a deployment-time PCRE2 library.
+          - MoonCompiler version constants and a synchronized MoonORMot 13 requirement. Rebuild application and third-party PPUs when upgrading.
 
           Read the [release notes](https://github.com/$GH_REPO/blob/$RELEASE_TAG/doc/RELEASE_NOTES.md) for supported contracts and upgrade instructions. Performance measurements from release 2.0 remain separately labelled; this maintenance release makes no new benchmark claims.
 

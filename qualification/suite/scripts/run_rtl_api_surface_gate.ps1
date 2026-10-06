@@ -9,6 +9,10 @@ $CompilerRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $SourceRoot = Join-Path $SuiteRoot 'tests\rtl-api'
 $Run = Join-Path $SuiteRoot "results\runs\$RunId\rtl-api-surface"
 $Cases = @(
+  @{ Name = 'rtl_api_portability_contracts'; Expected = 'RTL_API_PORTABILITY_PASS' },
+  @{ Name = 'rtl_api_regex_contracts'; Expected = 'RTL_API_REGEX_CONTRACTS_OK' },
+  @{ Name = 'rtl_api_windows_contracts'; Expected = 'RTL_API_WINDOWS_CONTRACTS_OK' },
+  @{ Name = 'rtl_api_compiler_identity'; Expected = 'RTL_API_COMPILER_IDENTITY_OK' },
   @{ Name = 'rtl_api_threading_contracts'; Expected = 'RTL_API_THREADING_CONTRACTS_OK' },
   @{ Name = 'rtl_api_delayed_contracts'; Expected = 'RTL_API_DELAYED_CONTRACTS_OK' },
   @{ Name = 'rtl_api_url_async_contracts'; Expected = 'RTL_API_URL_ASYNC_CONTRACTS_OK' },
@@ -40,9 +44,10 @@ New-Item -ItemType Directory -Path $Run | Out-Null
 
 foreach ($Case in $Cases) {
   $Profiles = @('debug', 'release')
-  If ($Case.Name -eq 'rtl_api_dynarray_managed_contracts') {
+  If ($Case.Name -in @('rtl_api_dynarray_managed_contracts', 'rtl_api_regex_contracts')) {
     $Profiles += 'diagnostic-release'
   }
+  If ($Case.Name -eq 'rtl_api_portability_contracts') { $Profiles += 'reverse-uses' }
   foreach ($Profile in $Profiles) {
     $ProfileDir = Join-Path $Run "$($Case.Name)\$Profile"
     New-Item -ItemType Directory -Path $ProfileDir | Out-Null
@@ -50,6 +55,7 @@ foreach ($Case in $Cases) {
     Copy-Item -LiteralPath (Join-Path $SourceRoot "$($Case.Name).dpr") `
       -Destination $Project
     $Options = @('-B', "-Fi$SourceRoot", "-Fi$CompilerRoot/rtl/win", "-FU$ProfileDir", "-FE$ProfileDir")
+    If ($Profile -eq 'reverse-uses') { $Options += '-dRTL_API_WINDOWS_FIRST' }
     If ($Profile -ne 'debug') { $Options += '-dRELEASE' }
     If ($Profile -eq 'diagnostic-release') { $Options += '-dFPCX64MM_DIAGNOSTIC' }
     If ($Case.Name -eq 'rtl_api_delayed_contracts') {
@@ -79,6 +85,10 @@ foreach ($Case in $Cases) {
 }
 
 $Inputs = @(
+  (Join-Path $SourceRoot 'rtl_api_portability_contracts.dpr'),
+  (Join-Path $SourceRoot 'rtl_api_regex_contracts.dpr'),
+  (Join-Path $SourceRoot 'rtl_api_windows_contracts.dpr'),
+  (Join-Path $SourceRoot 'rtl_api_compiler_identity.dpr'),
   (Join-Path $SourceRoot 'rtl_api_delayed_contracts.dpr'),
   (Join-Path $SourceRoot 'moon_delay_fixture.dpr'),
   (Join-Path $SourceRoot 'rtl_api_url_async_contracts.dpr'),
@@ -116,4 +126,4 @@ $Inputs | Sort-Object -Unique | ForEach-Object {
   "$Hash *$([IO.Path]::GetFullPath($_))"
 } | Set-Content -LiteralPath (Join-Path $Run 'SHA256SUMS') -Encoding ascii
 
-Write-Output "RTL_API_SURFACE_GATE_OK cases=$($Cases.Count) executions=$($Cases.Count * 2 + 1)"
+Write-Output "RTL_API_SURFACE_GATE_OK cases=$($Cases.Count) executions=$($Cases.Count * 2 + 3)"

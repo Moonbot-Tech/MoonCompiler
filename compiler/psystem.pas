@@ -41,7 +41,7 @@ implementation
 
     uses
       globals,globtype,verbose,constexp,cpuinfo,compinnr,
-      systems,
+      systems,version,
       symconst,symtype,symsym,symdef,symcpu,symtable,
       aasmtai,aasmcpu,
       fmodule,
@@ -52,6 +52,10 @@ implementation
       {
         all intern procedures for the system unit
       }
+      var
+        productreal: pbestreal;
+        producttext: string;
+        dotpos,err: longint;
       begin
         systemunit.insertsym(csyssym.create('Concat',in_concat_x));
         systemunit.insertsym(csyssym.create('Write',in_write_x));
@@ -121,6 +125,20 @@ implementation
         systemunit.insertsym(csyssym.create('AtomicCmpExchange',in_atomic_cmp_xchg));
         systemunit.insertsym(cconstsym.create_ord('False',constord,0,pasbool1type));
         systemunit.insertsym(cconstsym.create_ord('True',constord,1,pasbool1type));
+        { The product version is independent of the FPC base/PPU ABI version.
+          MOONCOMPILER_FULLVERSION remains the ordered major/minor/patch test. }
+        producttext:=mooncompiler_version;
+        dotpos:=Pos('.',producttext);
+        if dotpos>0 then
+          begin
+            dotpos:=dotpos+Pos('.',Copy(producttext,dotpos+1,Length(producttext)));
+            SetLength(producttext,dotpos-1);
+          end;
+        new(productreal);
+        Val(producttext,productreal^,err);
+        if err<>0 then
+          internalerror(2026100601);
+        systemunit.insertsym(cconstsym.create_ptr('CompilerVersion',constreal,productreal,pbestrealtype^));
       end;
 
 

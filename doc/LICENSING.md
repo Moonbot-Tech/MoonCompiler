@@ -14,8 +14,10 @@ license applies to the compiler itself and its derivatives.
 
 ## RTL and Packages
 
-The Runtime Library and packages retain LGPL v2.1 or later with the FPC
-static-linking exception. The license text is in
+The Runtime Library and FPC packages carrying the FPC linking notice retain
+LGPL v2.1 or later with that static-linking exception. Other bundled components
+retain their individual licenses, listed below; the exception does not apply
+automatically to every package. The RTL license text is in
 [rtl/COPYING.txt](../rtl/COPYING.txt), and the exception is in
 [rtl/COPYING.FPC](../rtl/COPYING.FPC). The exception permits linking the RTL
 into an application without making that application an LGPL derivative solely
@@ -35,6 +37,25 @@ under the MIT license. Using `System.Net.HttpClient` alone does not link it.
 Its unmodified source archive, build script and license are retained in
 [`packages/vcl-compat/native/brotli`](../packages/vcl-compat/native/brotli).
 Binary distributions include `share/doc/mooncompiler/BROTLI-MIT.txt`.
+
+## Static Regular Expression Engine
+
+The Delphi compatibility regex units link PCRE2 10.49 under its BSD license and
+exception. The source archive includes the separate BSD notice for its SLJIT
+backend. Windows also links the GCC stack-probe runtime fragment under GPLv3
+with the GCC Runtime Library Exception. Its original source, license and
+exception are retained with the [native build recipe](../packages/libpcre/native).
+The binary toolchain includes the applicable notices in `share/doc/mooncompiler`.
+
+## Windows SDK Declarations
+
+The direct SDK units derived from the existing open FPC/JEDI headers retain
+their individual MPL 1.1 / LGPL notices and attribution. We distribute these
+under the MPL 1.1 option. Removing Jwa unit dependencies does not remove those
+licenses. The [source map and dated modifications](../packages/winunits-base/NOTICE-WINDOWS-SDK.md)
+and [full MPL text](../packages/winunits-base/MPL-1.1.txt) accompany the Win64
+toolchain. The declarations and small SDK macro translations are not copied
+from Embarcadero's proprietary RTL.
 
 ## Optional Diagnostic Reports
 

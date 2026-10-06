@@ -6555,6 +6555,7 @@ begin
       mc_patch:=0;
     end;
     set_system_macro('MOONCOMPILER_FULLVERSION',tostr(mc_major*10000+mc_minor*100+mc_patch));
+    set_system_macro('COMPILERVERSION',tostr(mc_major)+'.'+tostr(mc_minor));
   end;
 
   if target_info.system in systems_indirect_entry_information then

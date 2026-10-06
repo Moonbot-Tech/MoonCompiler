@@ -1,3 +1,64 @@
+# MoonCompiler 2.3: consistent runtime and platform APIs
+
+Release 2.3 makes standard units work together without application workarounds
+for conflicting names, string widths, callback types or missing runtime libraries.
+It supports Win64 and Linux x86-64 and retains the performance work from 2.0.
+
+## Platform APIs
+
+Windows API units now use direct bindings and canonical Windows types. Standard
+`Winapi.*` names no longer redirect to Jwa units. Generic string functions use
+UTF-16 in the product profile; explicit ANSI and wide entry points remain
+available. The bindings correct pointer depth, native-sized outputs, callbacks
+and record layout in process, service, credential and access-control APIs.
+
+Linux gains a documented `Posix.*` surface for time, files, memory mapping,
+sockets, DNS, loading libraries, threads and signals. These declarations follow
+the Linux x86-64 glibc ABI. See the exact supported families and boundaries in
+[Platform and runtime API contracts](PLATFORM_API.md).
+
+## Standard units used together
+
+`TCriticalSection` remains the synchronization class even when `Windows` appears
+later in `uses`; the low-level record is `TRTLCriticalSection`. Task and future
+APIs accept the common `SysUtils.TProc`/`TFunc` family. `TThread.Started` exposes
+the thread startup state, and Windows event handles can be passed to OS waits.
+
+Public equality comparers return signed `Integer` hashes, while dictionaries
+retain all 32 hash bits. `ExtractStrings` supports both UTF-16 and ANSI inputs
+without corrupting character lengths. `TVarData.VUInt64` names the existing
+unsigned storage. Linux local clocks and timezone conversion now share libc
+rules, including changes to `TZ` during a process's lifetime.
+
+The standard JSON units isolate their internal parsers. A project can contain
+its own `JsonReader`, `JsonScanner` or `fpjson` without breaking the installed
+`System.JSON` units or changing the order of search paths.
+
+## Regular expressions without deployment dependencies
+
+`System.RegularExpressions` links a pinned PCRE2-16 engine into programs that
+use it. No PCRE2 DLL/shared library or additional compiler-runtime DLL is needed;
+programs without regular expressions do not link the engine. Unicode case
+folding, UTF-16 indexes, groups, lookaround, replacement callbacks and empty
+matches have explicit tests. Reusing a matcher after a replacement or an error
+preserves its valid state. Native sources, build manifests and license notices
+ship with the repository and applicable notices with the toolchain.
+
+## Upgrade and validation
+
+Install the complete 2.3 toolchain and rebuild application and third-party PPUs.
+`CompilerVersion` identifies MoonCompiler 2.3, not a Delphi version number.
+Use `MOONCOMPILER_FULLVERSION` (20300) for ordered version checks. The required
+MoonORMot runtime version is 13; [Setup](SETUP.md) describes its location.
+
+The added tests cover mixed unit names, high-bit hashes with range/overflow
+checks, Unicode paths, C ABI layouts, actual OS calls, matcher reuse and installed
+package isolation on both platforms. Separate audits cover correctness and
+source provenance. This release makes no new Pulse performance claims; the
+dated 2.0 measurements remain unchanged below.
+
+---
+
 # MoonCompiler 2.1: Delphi runtime compatibility
 
 Release 2.1 extends the standard libraries used by server applications on Win64

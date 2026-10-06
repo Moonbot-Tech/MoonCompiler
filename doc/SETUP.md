@@ -29,7 +29,7 @@ repository):
 
 ```bash
 mkdir -p ~/moon/toolchain && cd ~/moon
-tar -xzf ~/Downloads/mooncompiler-toolchain-v2.1.0-linux-x86-64.tar.gz -C toolchain
+tar -xzf ~/Downloads/mooncompiler-toolchain-v2.3.0-linux-x86-64.tar.gz -C toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain/bin/fpc hello.dpr && ./hello
 ```
@@ -38,7 +38,7 @@ Win64 x86-64 PowerShell:
 
 ```powershell
 New-Item -ItemType Directory -Force C:\Moon | Set-Location
-Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.1.0-win64.zip -DestinationPath toolchain
+Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.3.0-win64.zip -DestinationPath toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain\bin\x86_64-win64\fpc.exe hello.dpr; .\hello.exe
 ```
@@ -67,13 +67,13 @@ driver:
 sudo apt-get install --no-install-recommends git gcc libffi-dev
 git clone https://github.com/Moonbot-Tech/MoonCompiler.git
 cd MoonCompiler
-./build toolchain ~/Downloads/mooncompiler-toolchain-v2.1.0-linux-x86-64.tar.gz
+./build toolchain ~/Downloads/mooncompiler-toolchain-v2.3.0-linux-x86-64.tar.gz
 ```
 
 ```powershell
 git clone https://github.com/Moonbot-Tech/MoonCompiler.git
 Set-Location MoonCompiler
-.\build.ps1 toolchain $HOME\Downloads\mooncompiler-toolchain-v2.1.0-win64.zip
+.\build.ps1 toolchain $HOME\Downloads\mooncompiler-toolchain-v2.3.0-win64.zip
 ```
 
 The driver validates the target platform, extracts into a staging directory

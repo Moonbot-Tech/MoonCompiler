@@ -7,20 +7,14 @@ explicitly names it.
 
 ## Selection rule
 
-An API belongs in the matrix only if all three conditions hold:
+The matrix covers public, non-visual Delphi application contracts and supported
+Windows/Linux API families. Current consumers provide examples, not a boundary:
+a missing API can prevent a new consumer from compiling at all. Select tests by
+the contract and its failure modes, including mixed units, signed/unsigned and
+bytes/Unicode boundaries, OS handles, namespace isolation and archive delivery.
 
-1. the family is actually used in current MoonBot or Arbitrage;
-2. it is a shared Win64/Linux application contract rather than a GUI,
-   design-time, or platform wrapper;
-3. a stable compile/runtime oracle can be defined for the call.
-
-The source inventory on 2026-08-25 showed the main families: `TMemoryStream` —
-905 references, `TThread` — 761, `TList` — 715, `TArray` — 491, `TStringList`
-— 379, `TDictionary` — 350, `TMonitor` — 143, `TFileStream` — 137,
-`TCriticalSection` — 79, `TEvent` — 50, `TBytesStream` — 23,
-`TObjectList` — 21, `TStringBuilder` — 14, `TStack` — 3. `TStopwatch` has
-83 references, including production WebSocket rather than only benchmarks.
-The counts serve only as the selection boundary and are not a coverage metric.
+Every case needs a stable compile or runtime oracle. Platform-specific cases
+run on their target instead of being omitted from the product test matrix.
 
 The matrix checks:
 
@@ -37,10 +31,9 @@ The matrix checks:
 - the most common conversion/string/date helpers, `TStopwatch`, enum TypInfo,
   `TRttiContext.GetType`, `TValue`, and `FreeAndNil`.
 
-VCL/FMX, COM, database/XML, design-time streaming, deprecated thread APIs, rare
-encodings, platform handles, and methods absent from every product are
-intentionally excluded. They do not become a supported contract merely because
-they are present in the Delphi RTL.
+GUI/design-time frameworks remain outside the compiler's headless product
+scope. Supported OS APIs, mixed unit names and distribution dependencies are
+explicitly in scope; their contracts are exercised by platform probes.
 
 The same source is built in Debug and Release by the real product build driver.
 The product compiler injects the bundled MM before its `uses`, then Linux

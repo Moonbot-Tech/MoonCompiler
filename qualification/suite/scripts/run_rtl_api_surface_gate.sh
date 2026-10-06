@@ -19,12 +19,20 @@ mkdir -p "$run"
 cases=0
 executions=0
 
-for case_name in rtl_api_threading_contracts rtl_api_url_async_contracts rtl_api_json_builder_contracts rtl_api_release21_contracts rtl_api_timezone_provider_contracts rtl_api_surface rtl_api_stringbuilder_contracts \
+for case_name in rtl_api_portability_contracts rtl_api_regex_contracts rtl_api_posix_contracts rtl_api_compiler_identity rtl_api_threading_contracts rtl_api_url_async_contracts rtl_api_json_builder_contracts rtl_api_release21_contracts rtl_api_timezone_provider_contracts rtl_api_surface rtl_api_stringbuilder_contracts \
     rtl_api_variant_dictionary_contracts rtl_api_bcd_value_contracts rtl_api_encoding_contracts rtl_api_utf8_decode_contracts rtl_api_datetime_unix_contracts rtl_api_sorted_find_contracts \
     rtl_api_queue_contracts rtl_api_dictionary_capacity_contracts rtl_api_comparer_factory_contracts \
     rtl_api_text_operations_contracts rtl_api_dictionary_scan_contracts rtl_api_unicode_copy_contracts rtl_api_array_copy \
     rtl_api_dynarray_managed_contracts rtl_api_fphttp_nodelay rtl_api_fphttp_overload_response; do
-  if [[ "$case_name" == rtl_api_threading_contracts ]]; then
+  if [[ "$case_name" == rtl_api_portability_contracts ]]; then
+    expected=RTL_API_PORTABILITY_PASS
+  elif [[ "$case_name" == rtl_api_regex_contracts ]]; then
+    expected=RTL_API_REGEX_CONTRACTS_OK
+  elif [[ "$case_name" == rtl_api_posix_contracts ]]; then
+    expected=RTL_API_POSIX_CONTRACTS_OK
+  elif [[ "$case_name" == rtl_api_compiler_identity ]]; then
+    expected=RTL_API_COMPILER_IDENTITY_OK
+  elif [[ "$case_name" == rtl_api_threading_contracts ]]; then
     expected=RTL_API_THREADING_CONTRACTS_OK
   elif [[ "$case_name" == rtl_api_url_async_contracts ]]; then
     expected=RTL_API_URL_ASYNC_CONTRACTS_OK
@@ -73,7 +81,7 @@ for case_name in rtl_api_threading_contracts rtl_api_url_async_contracts rtl_api
   fi
   cases=$((cases + 1))
   profiles=(debug release)
-  if [[ "$case_name" == rtl_api_dynarray_managed_contracts ]]; then
+  if [[ "$case_name" == rtl_api_dynarray_managed_contracts || "$case_name" == rtl_api_regex_contracts ]]; then
     profiles+=(diagnostic-release)
   fi
   for profile in "${profiles[@]}"; do
@@ -104,6 +112,10 @@ for case_name in rtl_api_threading_contracts rtl_api_url_async_contracts rtl_api
 done
 
 {
+  sha256sum "$source_root/rtl_api_portability_contracts.dpr"
+  sha256sum "$source_root/rtl_api_regex_contracts.dpr"
+  sha256sum "$source_root/rtl_api_posix_contracts.dpr"
+  sha256sum "$source_root/rtl_api_compiler_identity.dpr"
   sha256sum "$source_root/rtl_api_url_async_contracts.dpr" "$source_root/rtl_api_surface.dpr" \
     "$source_root/rtl_api_threading_contracts.dpr" \
     "$source_root/rtl_api_json_builder_contracts.dpr" \

@@ -89,7 +89,7 @@ Linux:
 
 ```bash
 mkdir -p ~/moon/toolchain && cd ~/moon
-tar -xzf ~/Downloads/mooncompiler-toolchain-v2.1.0-linux-x86-64.tar.gz -C toolchain
+tar -xzf ~/Downloads/mooncompiler-toolchain-v2.3.0-linux-x86-64.tar.gz -C toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain/bin/fpc hello.dpr
 toolchain/bin/fpc -dRELEASE hello.dpr
@@ -99,7 +99,7 @@ Win64 PowerShell:
 
 ```powershell
 New-Item -ItemType Directory -Force C:\Moon | Set-Location
-Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.1.0-win64.zip -DestinationPath toolchain
+Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.3.0-win64.zip -DestinationPath toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain\bin\x86_64-win64\fpc.exe hello.dpr
 toolchain\bin\x86_64-win64\fpc.exe -dRELEASE hello.dpr
@@ -269,6 +269,11 @@ sources:
   growth callbacks; Win64 delayed DLL imports and record-helper lookup;
 - completed `System.JSON.Builders` builder/iterator operations with managed
   ownership, typed values, reset and exact quoted property paths;
+- direct Windows SDK bindings with consistent Unicode overloads and a documented
+  Linux `Posix.*` surface; shared task callbacks, signed comparer hashes and
+  `TThread.Started` ([platform and runtime contracts](doc/PLATFORM_API.md));
+- `System.RegularExpressions` over a privately linked PCRE2 engine: no PCRE2 DLL
+  or shared library to deploy, and no regex engine in programs that do not use it;
 - `Sockets.sockaddr_storage` (`TSockAddrStorage`, `PSockAddrStorage`) and
   `socklen_t`: the 128-byte, `sockaddr_in6`-aligned peer buffer for
   `fprecvfrom`/`fpaccept` of any family;
@@ -434,7 +439,7 @@ the applications, and qualification fetches its own pinned checkout.
 
 ## Documentation
 
-- [Release notes](doc/RELEASE_NOTES.md) — what the second release changes and how to upgrade;
+- [Release notes](doc/RELEASE_NOTES.md) — current changes and upgrade requirements;
 - [Setup](doc/SETUP.md) — a clean Linux and Win64 installation;
 - [Project Build](doc/PROJECT_BUILD.md) — simple and multi-repository projects;
 - [Testing](doc/TESTING.md) — Light/full qualification and the role of each layer;
