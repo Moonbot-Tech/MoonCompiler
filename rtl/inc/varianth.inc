@@ -124,6 +124,7 @@ type
                      varint64 : (vint64 : int64);
                      varqword : (vqword : qword);
                      varword64 : (vword64 : qword);
+                     varuint64 : (vuint64 : qword);
                      varstring : (vstring : pointer);
                      varany :  (vany : pointer);
                      vararray : (varray : pvararray);
