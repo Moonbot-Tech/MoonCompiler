@@ -19,7 +19,7 @@ type
     IEqualityComparer<Integer>)
   public
     function Equals(const ALeft, ARight: Integer): Boolean;
-    function GetHashCode(const AValue: Integer): UInt32;
+    function GetHashCode(const AValue: Integer): Integer;
   end;
 
 function TConstantIntegerComparer.Equals(
@@ -29,7 +29,7 @@ begin
 end;
 
 function TConstantIntegerComparer.GetHashCode(
-  const AValue: Integer): UInt32;
+  const AValue: Integer): Integer;
 begin
   Result := 1;
 end;

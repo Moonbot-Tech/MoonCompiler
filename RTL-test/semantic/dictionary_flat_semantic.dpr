@@ -53,7 +53,7 @@ type
   TConstantHashComparer = class(TInterfacedObject, IEqualityComparer<Integer>)
   public
     function Equals(const ALeft, ARight: Integer): Boolean; reintroduce;
-    function GetHashCode(const AValue: Integer): UInt32; reintroduce;
+    function GetHashCode(const AValue: Integer): Integer; reintroduce;
   end;
 
   TNotifyLog = class
@@ -187,7 +187,7 @@ begin
   Result := ALeft = ARight;
 end;
 
-function TConstantHashComparer.GetHashCode(const AValue: Integer): UInt32;
+function TConstantHashComparer.GetHashCode(const AValue: Integer): Integer;
 begin
   Result := 1;
 end;

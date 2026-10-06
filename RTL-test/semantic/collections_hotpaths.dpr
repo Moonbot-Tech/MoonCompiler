@@ -62,7 +62,7 @@ type
     IEqualityComparer<Integer>)
   public
     function Equals(const ALeft, ARight: Integer): Boolean; reintroduce;
-    function GetHashCode(const AValue: Integer): UInt32; reintroduce;
+    function GetHashCode(const AValue: Integer): Integer; reintroduce;
   end;
 
   TMinusOneIsEmptyComparer = class(TInterfacedObject, IComparer<Integer>)
@@ -142,7 +142,7 @@ begin
 end;
 
 function TConstantIntegerHashComparer.GetHashCode(
-  const AValue: Integer): UInt32;
+  const AValue: Integer): Integer;
 begin
   Result:=$FFFFFFFE;
 end;

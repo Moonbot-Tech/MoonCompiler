@@ -1034,7 +1034,7 @@ type
       FComparer: IComparer<T>;
       FEqualityComparer: IEqualityComparer<T>;
       function Equals(const ALeft, ARight: PT): Boolean;
-      function GetHashCode(const AValue: PT): UInt32;
+      function GetHashCode(const AValue: PT): Integer;
     public
       constructor Create(const AComparer: IComparer<T>); overload;
       constructor Create(const AEqualityComparer: IEqualityComparer<T>); overload;
@@ -5034,7 +5034,7 @@ begin
     Result := FEqualityComparer.Equals(ALeft^, ARight^);
 end;
 
-function TSortedHashSet<T>.TSortedHashSetEqualityComparer.GetHashCode(const AValue: PT): UInt32;
+function TSortedHashSet<T>.TSortedHashSetEqualityComparer.GetHashCode(const AValue: PT): Integer;
 begin
   Result := FEqualityComparer.GetHashCode(AValue^);
 end;

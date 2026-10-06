@@ -4,7 +4,7 @@ uses SysUtils, Generics.Collections, Generics.Defaults;
 type
   TModuloComparer = class(TEqualityComparer<Integer>)
     function Equals(const Left,Right: Integer): Boolean; override;
-    function GetHashCode(const Value: Integer): UInt32; override;
+    function GetHashCode(const Value: Integer): Integer; override;
   end;
   TDerivedFactory = class(TGenericsHashFactory);
   TDerivedDictionary = TOpenAddressingLP<Integer,Integer,TDerivedFactory>;
@@ -26,7 +26,7 @@ begin
   Inc(EqualsCalls);
   Result := (Left and 7)=(Right and 7);
 end;
-function TModuloComparer.GetHashCode(const Value: Integer): UInt32;
+function TModuloComparer.GetHashCode(const Value: Integer): Integer;
 begin
   Result := UInt32(Value and 7);
 end;

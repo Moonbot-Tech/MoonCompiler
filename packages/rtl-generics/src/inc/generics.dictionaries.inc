@@ -1125,7 +1125,7 @@ end;
 function TOpenAddressingLP<OPEN_ADDRESSING_CONSTRAINTS>.FindBucketIndex(const AItems: TArray<TItem>;
   const AKey: TKey; out AHash: UInt32): SizeInt;
 begin
-  AHash := FEqualityComparer.GetHashCode(AKey);
+  AHash := UInt32(FEqualityComparer.GetHashCode(AKey));
   AHash := AHash or UInt32.GetSignMask;
   Result := FindBucketIndexForHash(AItems, AKey, AHash);
 end;
@@ -1558,7 +1558,7 @@ end;
 function TOpenAddressingSH<OPEN_ADDRESSING_CONSTRAINTS>.FindBucketIndex(const AItems: TArray<TItem>;
   const AKey: TKey; out AHash: UInt32): SizeInt;
 begin
-  AHash := FEqualityComparer.GetHashCode(AKey);
+  AHash := UInt32(FEqualityComparer.GetHashCode(AKey));
   AHash := AHash or UInt32.GetSignMask;
   Result := FindBucketIndexForHash(AItems, AKey, AHash);
 end;
@@ -1607,7 +1607,7 @@ begin
   m := Length(AItems);
   LLengthMask := m - 1;
 
-  LHash := FEqualityComparer.GetHashCode(AKey);
+  LHash := UInt32(FEqualityComparer.GetHashCode(AKey));
 
   i := 0;
   LHash := LHash or UInt32.GetSignMask;
@@ -1655,7 +1655,7 @@ end;
 function TOpenAddressingQP<OPEN_ADDRESSING_CONSTRAINTS>.FindBucketIndex(const AItems: TArray<TItem>;
   const AKey: TKey; out AHash: UInt32): SizeInt;
 begin
-  AHash := FEqualityComparer.GetHashCode(AKey);
+  AHash := UInt32(FEqualityComparer.GetHashCode(AKey));
   AHash := AHash or UInt32.GetSignMask;
   Result := FindBucketIndexForHash(AItems, AKey, AHash);
 end;
@@ -1695,7 +1695,7 @@ var
   i: SizeInt;
   LHash: UInt32;
 begin
-  LHash := FEqualityComparer.GetHashCode(AKey);
+  LHash := UInt32(FEqualityComparer.GetHashCode(AKey));
 
   i := 0;
   LHash := LHash or UInt32.GetSignMask;
@@ -2624,7 +2624,7 @@ begin
   for i := 0 to LOldQueue.FIdx.Count - 1 do
   begin
    LItem := @LOldQueue.FItems[LOldQueue.FIdx[i]].Pair.Value;
-   LHashList[1] := FEqualityComparer.GetHashCode(LItem.Pair.Key);
+   LHashList[1] := UInt32(FEqualityComparer.GetHashCode(LItem.Pair.Key));
    AddItem(LNewItems, LItem.Pair.Key, LItem.Pair.Value, @LHashList[0]);
   end;
   LOldQueue.Free;
@@ -2645,7 +2645,7 @@ begin
       end
       else
       begin
-        LHashList[1] := FEqualityComparer.GetHashCode(LItem.Pair.Key);
+        LHashList[1] := UInt32(FEqualityComparer.GetHashCode(LItem.Pair.Key));
         AddItem(LNewItems, LItem.Pair.Key, LItem.Pair.Value, @LHashList[0]);
       end;
     end;

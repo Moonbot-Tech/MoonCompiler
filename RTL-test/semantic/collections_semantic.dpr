@@ -39,7 +39,7 @@ type
   TConstantHashComparer = class(TEqualityComparer<Integer>)
   public
     function Equals(const ALeft, ARight: Integer): Boolean; override;
-    function GetHashCode(const AValue: Integer): UInt32; override;
+    function GetHashCode(const AValue: Integer): Integer; override;
   end;
 
   TQuadraticLPDictionary = TOpenAddressingLP<Integer, UnicodeString,
@@ -124,7 +124,7 @@ begin
   Result := ALeft = ARight;
 end;
 
-function TConstantHashComparer.GetHashCode(const AValue: Integer): UInt32;
+function TConstantHashComparer.GetHashCode(const AValue: Integer): Integer;
 begin
   // Start the collision cluster at the end of a power-of-two table so that
   // removal has to shift managed entries across the physical wraparound.

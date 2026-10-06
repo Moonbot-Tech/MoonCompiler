@@ -20,7 +20,7 @@ type
   public
     destructor Destroy; override;
     function Equals(const ALeft, ARight: Integer): Boolean; reintroduce;
-    function GetHashCode(const AValue: Integer): UInt32; reintroduce;
+    function GetHashCode(const AValue: Integer): Integer; reintroduce;
   end;
 
   TChangingService = class(THashService)
@@ -64,7 +64,7 @@ begin
   Result := ALeft mod 10 = ARight mod 10;
 end;
 
-function TModuloComparer.GetHashCode(const AValue: Integer): UInt32;
+function TModuloComparer.GetHashCode(const AValue: Integer): Integer;
 begin
   Result := AValue mod 10;
 end;

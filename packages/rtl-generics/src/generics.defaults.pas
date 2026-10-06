@@ -93,7 +93,7 @@ type
 
   IEqualityComparer<T> = interface
     function Equals(const ALeft, ARight: T): Boolean;
-    function GetHashCode(const AValue: T): UInt32;
+    function GetHashCode(const AValue: T): Integer;
   end;
 
   IExtendedEqualityComparer<T> = interface(IEqualityComparer<T>)
@@ -788,9 +788,9 @@ type
   TEqualityComparisonFunc<T> = function(const ALeft, ARight: T): Boolean;
   TEqualityComparison<T> = reference to function(const ALeft, ARight: T): Boolean;
 
-  TOnHasher<T> = function(const AValue: T): UInt32 of object;
+  TOnHasher<T> = function(const AValue: T): Integer of object;
   TOnExtendedHasher<T> = procedure(const AValue: T; AHashList: PUInt32) of object;
-  THasherFunc<T> = function(const AValue: T): UInt32;
+  THasherFunc<T> = function(const AValue: T): Integer;
   THasher<T> = reference to function(const AValue: T): Integer;
   TExtendedHasherFunc<T> = procedure(const AValue: T; AHashList: PUInt32);
 
@@ -807,7 +807,7 @@ type
       const AHasher: THasher<T>): IEqualityComparer<T>; overload;
 
     function Equals(const ALeft, ARight: T): Boolean; virtual; overload; abstract;
-    function GetHashCode(const AValue: T): UInt32;  virtual; overload; abstract;
+    function GetHashCode(const AValue: T): Integer;  virtual; overload; abstract;
   end;
 
   { TDelegatedEqualityComparerEvent }
@@ -818,7 +818,7 @@ type
     FHasher: TOnHasher<T>;
   public
     function Equals(const ALeft, ARight: T): Boolean; override;
-    function GetHashCode(const AValue: T): UInt32; override;
+    function GetHashCode(const AValue: T): Integer; override;
 
     constructor Create(const AEqualityComparison: TOnEqualityComparison<T>;
       const AHasher: TOnHasher<T>);
@@ -830,7 +830,7 @@ type
     FHasher: THasherFunc<T>;
   public
     function Equals(const ALeft, ARight: T): Boolean; override;
-    function GetHashCode(const AValue: T): UInt32; override;
+    function GetHashCode(const AValue: T): Integer; override;
 
     constructor Create(const AEqualityComparison: TEqualityComparisonFunc<T>;
       const AHasher: THasherFunc<T>);
@@ -842,7 +842,7 @@ type
     FHasher: THasher<T>;
   public
     function Equals(const ALeft, ARight: T): Boolean; override;
-    function GetHashCode(const AValue: T): UInt32; override;
+    function GetHashCode(const AValue: T): Integer; override;
 
     constructor Create(const AEqualityComparison: TEqualityComparison<T>;
       const AHasher: THasher<T>);
@@ -873,10 +873,10 @@ type
     FHasher: TOnHasher<T>;
     FExtendedHasher: TOnExtendedHasher<T>;
 
-    function GetHashCodeMethod(const AValue: T): UInt32;
+    function GetHashCodeMethod(const AValue: T): Integer;
   public
     function Equals(const ALeft, ARight: T): Boolean; override;
-    function GetHashCode(const AValue: T): UInt32; override;
+    function GetHashCode(const AValue: T): Integer; override;
     procedure GetHashList(const AValue: T; AHashList: PUInt32); override;
 
     constructor Create(const AEqualityComparison: TOnEqualityComparison<T>;
@@ -892,7 +892,7 @@ type
     FExtendedHasher: TExtendedHasherFunc<T>;
   public
     function Equals(const ALeft, ARight: T): Boolean; override;
-    function GetHashCode(const AValue: T): UInt32; override;
+    function GetHashCode(const AValue: T): Integer; override;
     procedure GetHashList(const AValue: T; AHashList: PUInt32); override;
 
     constructor Create(const AEqualityComparison: TEqualityComparisonFunc<T>;
@@ -912,7 +912,7 @@ type
   public
     constructor Create(AHashFactoryClass: THashFactoryClass);
     function Equals(const ALeft, ARight: T): Boolean; reintroduce;
-    function GetHashCode(const AValue: T): UInt32; reintroduce;
+    function GetHashCode(const AValue: T): Integer; reintroduce;
   end;
 
   TBinaryExtendedEqualityComparer<T> = class(TBinaryEqualityComparer<T>, IExtendedEqualityComparer<T>)
@@ -1028,7 +1028,7 @@ type
   protected
     function Compare(const Left, Right: T): Integer; virtual; abstract;
     function Equals(const Left, Right: T): Boolean; reintroduce; overload; virtual; abstract;
-    function GetHashCode(const Value: T): UInt32; reintroduce; overload; virtual; abstract;
+    function GetHashCode(const Value: T): Integer; reintroduce; overload; virtual; abstract;
     procedure GetHashList(const Value: T; AHashList: PUInt32); virtual; abstract;
   end;
 
@@ -1071,7 +1071,7 @@ type
   public
     function Compare(const ALeft, ARight: T): Integer; override;
     function Equals(const ALeft, ARight: T): Boolean; overload; override;
-    function GetHashCode(const AValue: T): UInt32; overload; override;
+    function GetHashCode(const AValue: T): Integer; overload; override;
     procedure GetHashList(const AValue: T; AHashList: PUInt32); override;
   end;
 
@@ -1103,7 +1103,7 @@ type
   public
     function Compare(const ALeft, ARight: T): Integer; override;
     function Equals(const ALeft, ARight: T): Boolean; overload; override;
-    function GetHashCode(const AValue: T): UInt32; overload; override;
+    function GetHashCode(const AValue: T): Integer; overload; override;
     procedure GetHashList(const AValue: T; AHashList: PUInt32); override;
   end;
 
@@ -3228,7 +3228,7 @@ begin
   Result := FEqualityComparison(ALeft, ARight);
 end;
 
-function TDelegatedEqualityComparerEvents<T>.GetHashCode(const AValue: T): UInt32;
+function TDelegatedEqualityComparerEvents<T>.GetHashCode(const AValue: T): Integer;
 begin
   Result := FHasher(AValue);
 end;
@@ -3247,7 +3247,7 @@ begin
   Result := FEqualityComparison(ALeft, ARight);
 end;
 
-function TDelegatedEqualityComparerFunc<T>.GetHashCode(const AValue: T): UInt32;
+function TDelegatedEqualityComparerFunc<T>.GetHashCode(const AValue: T): Integer;
 begin
   Result := FHasher(AValue);
 end;
@@ -3266,9 +3266,9 @@ begin
   Result := FEqualityComparison(ALeft, ARight);
 end;
 
-function TDelegatedEqualityComparer<T>.GetHashCode(const AValue: T): UInt32;
+function TDelegatedEqualityComparer<T>.GetHashCode(const AValue: T): Integer;
 begin
-  Result := UInt32(FHasher(AValue));
+  Result := FHasher(AValue);
 end;
 
 constructor TDelegatedEqualityComparer<T>.Create(
@@ -3281,7 +3281,7 @@ end;
 
 { TDelegatedExtendedEqualityComparerEvents<T> }
 
-function TDelegatedExtendedEqualityComparerEvents<T>.GetHashCodeMethod(const AValue: T): UInt32;
+function TDelegatedExtendedEqualityComparerEvents<T>.GetHashCodeMethod(const AValue: T): Integer;
 var
   LHashList: array[0..1] of Int32;
   LHashListParams: array[0..3] of Int16 absolute LHashList;
@@ -3296,7 +3296,7 @@ begin
   Result := FEqualityComparison(ALeft, ARight);
 end;
 
-function TDelegatedExtendedEqualityComparerEvents<T>.GetHashCode(const AValue: T): UInt32;
+function TDelegatedExtendedEqualityComparerEvents<T>.GetHashCode(const AValue: T): Integer;
 begin
   Result := FHasher(AValue);
 end;
@@ -3327,7 +3327,7 @@ begin
   Result := FEqualityComparison(ALeft, ARight);
 end;
 
-function TDelegatedExtendedEqualityComparerFunc<T>.GetHashCode(const AValue: T): UInt32;
+function TDelegatedExtendedEqualityComparerFunc<T>.GetHashCode(const AValue: T): Integer;
 var
   LHashList: array[0..1] of Int32;
   LHashListParams: array[0..3] of Int16 absolute LHashList;
@@ -3431,7 +3431,7 @@ begin
   Result := CompareMem(@ALeft, @ARight, SizeOf(T));
 end;
 
-function TBinaryEqualityComparer<T>.GetHashCode(const AValue: T): UInt32;
+function TBinaryEqualityComparer<T>.GetHashCode(const AValue: T): Integer;
 begin
   Result := FHashFactory.GetHashCode(@AValue, SizeOf(T), 0);
 end;
@@ -3903,7 +3903,7 @@ begin
   Result := FEqualityComparer.Equals(ALeft, ARight);
 end;
 
-function TGOrdinalStringComparer<T, THashFactory>.GetHashCode(const AValue: T): UInt32;
+function TGOrdinalStringComparer<T, THashFactory>.GetHashCode(const AValue: T): Integer;
 begin
   Result := FEqualityComparer.GetHashCode(AValue);
 end;
@@ -3940,7 +3940,7 @@ begin
   Result := FEqualityComparer.Equals(ALeft.ToLower, ARight.ToLower);
 end;
 
-function TGOrdinalIStringComparer<T, THashFactory>.GetHashCode(const AValue: T): UInt32;
+function TGOrdinalIStringComparer<T, THashFactory>.GetHashCode(const AValue: T): Integer;
 begin
   Result := FEqualityComparer.GetHashCode(AValue.ToLower);
 end;

@@ -11,7 +11,7 @@ type
   TParity = class(TEqualityComparer<Integer>)
     Calls: Integer;
     function Equals(const Left, Right: Integer): Boolean; override;
-    function GetHashCode(const Value: Integer): UInt32; override;
+    function GetHashCode(const Value: Integer): Integer; override;
   end;
 
 function TParity.Equals(const Left, Right: Integer): Boolean;
@@ -20,7 +20,7 @@ begin
   Result := (Left and 1) = (Right and 1);
 end;
 
-function TParity.GetHashCode(const Value: Integer): UInt32;
+function TParity.GetHashCode(const Value: Integer): Integer;
 begin
   Result := Value and 1;
 end;
