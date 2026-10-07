@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v2.3.0
+        default: v2.3.1
 
 permissions:
   contents: read
@@ -102,6 +102,7 @@ jobs:
           git clone --quiet --depth 1 https://github.com/Moonbot-Tech/MoonORMot "$smoke/mormot"
           cp examples/hello.dpr examples/zip.dpr "$smoke/app/"
           cp RTL-test/semantic/file_resource_semantic.dpr "$smoke/app/"
+          cp qualification/suite/tests/rtl-api/rtl_api_release231_contracts.dpr "$smoke/app/"
           cp tests/test/units/system/tres4.res "$smoke/app/"
           sed -i 's|{\$R \.\./\.\./tests/test/units/system/tres4\.res}|{$R tres4.res}|' \
             "$smoke/app/file_resource_semantic.dpr"
@@ -118,6 +119,9 @@ jobs:
             "$fpc" $profile file_resource_semantic.dpr
             output=$(./file_resource_semantic)
             [[ "$output" == FILE_RESOURCE_PASS ]]
+            "$fpc" $profile rtl_api_release231_contracts.dpr
+            output=$(timeout 30 ./rtl_api_release231_contracts)
+            [[ "$output" == RTL_API_RELEASE231_CONTRACTS_OK ]]
           done
           test -d units/x86_64-linux/debug
           test -d units/x86_64-linux/release
@@ -206,6 +210,7 @@ jobs:
           If ($LASTEXITCODE -ne 0) { throw 'MoonORMot clone failed' }
           Copy-Item examples\hello.dpr, examples\zip.dpr, `
             RTL-test\semantic\file_resource_semantic.dpr, `
+            qualification\suite\tests\rtl-api\rtl_api_release231_contracts.dpr, `
             tests\test\units\system\tres4.res "$Smoke\app"
           $Resource = "$Smoke\app\file_resource_semantic.dpr"
           $Text = Get-Content -Raw $Resource
@@ -233,6 +238,12 @@ jobs:
               $Output = & .\file_resource_semantic.exe
               If ($LASTEXITCODE -ne 0 -or $Output -ne 'FILE_RESOURCE_PASS') {
                 throw "resource smoke returned: $Output"
+              }
+              & $Fpc @Profile rtl_api_release231_contracts.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'RTL compatibility smoke did not compile' }
+              $Output = & .\rtl_api_release231_contracts.exe
+              If ($LASTEXITCODE -ne 0 -or $Output -ne 'RTL_API_RELEASE231_CONTRACTS_OK') {
+                throw "RTL compatibility smoke returned: $Output"
               }
             }
             If (-not (Test-Path units\x86_64-win64\debug) -or
@@ -315,12 +326,12 @@ jobs:
           cat > "$RUNNER_TEMP/release-notes.md" <<EOF
           MoonCompiler $RELEASE_VERSION is a Delphi-compatible Pascal toolchain for Win64 and Linux x86-64.
 
-          - Direct Windows SDK bindings with consistent Unicode overloads, shared types and native-sized outputs; standard Winapi names no longer redirect to Jwa units.
-          - Linux x86-64 Posix units for clocks, files, sockets, memory, threads and signals, with checked C ABI layouts.
-          - Compatible comparer hashes, callback types, thread startup state, event handles and ANSI/Unicode string extraction.
-          - Private JSON parser dependencies let applications keep their own JsonReader, JsonScanner and fpjson units.
-          - Statically linked PCRE2-16 regular expressions, including repaired matcher reuse and replacements, without a deployment-time PCRE2 library.
-          - MoonCompiler version constants and a synchronized MoonORMot 13 requirement. Rebuild application and third-party PPUs when upgrading.
+          - Windows socket and disk-space APIs accept Delphi-compatible record, signed/unsigned output and typed function-pointer forms.
+          - POSIX file-operation names preserve ordinary Pascal I/O; Posix.Stdio supplies native rename, removal and error reporting.
+          - File APIs read procfs and FIFOs, preserve UTF-16 when appending, honor encoding preambles, and report copy/replace failures instead of silently ignoring them.
+          - The optional FreeType binding has corrected native layouts, complete function loading and safe concurrent loader ownership.
+          - Linux catches failed indirect calls without recursive unwinder faults; incomplete diagnostic traces are marked honestly.
+          - Expanded Windows/Linux consumer tests, negative cases, independent C ABI checks and extracted-archive checks cover these contracts. Rebuild application and third-party PPUs when upgrading. MoonORMot 13 remains required.
 
           Read the [release notes](https://github.com/$GH_REPO/blob/$RELEASE_TAG/doc/RELEASE_NOTES.md) for supported contracts and upgrade instructions. Performance measurements from release 2.0 remain separately labelled; this maintenance release makes no new benchmark claims.
 

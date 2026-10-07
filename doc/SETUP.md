@@ -29,7 +29,7 @@ repository):
 
 ```bash
 mkdir -p ~/moon/toolchain && cd ~/moon
-tar -xzf ~/Downloads/mooncompiler-toolchain-v2.3.0-linux-x86-64.tar.gz -C toolchain
+tar -xzf ~/Downloads/mooncompiler-toolchain-v2.3.1-linux-x86-64.tar.gz -C toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain/bin/fpc hello.dpr && ./hello
 ```
@@ -38,7 +38,7 @@ Win64 x86-64 PowerShell:
 
 ```powershell
 New-Item -ItemType Directory -Force C:\Moon | Set-Location
-Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.3.0-win64.zip -DestinationPath toolchain
+Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.3.1-win64.zip -DestinationPath toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain\bin\x86_64-win64\fpc.exe hello.dpr; .\hello.exe
 ```
@@ -67,13 +67,13 @@ driver:
 sudo apt-get install --no-install-recommends git gcc libffi-dev
 git clone https://github.com/Moonbot-Tech/MoonCompiler.git
 cd MoonCompiler
-./build toolchain ~/Downloads/mooncompiler-toolchain-v2.3.0-linux-x86-64.tar.gz
+./build toolchain ~/Downloads/mooncompiler-toolchain-v2.3.1-linux-x86-64.tar.gz
 ```
 
 ```powershell
 git clone https://github.com/Moonbot-Tech/MoonCompiler.git
 Set-Location MoonCompiler
-.\build.ps1 toolchain $HOME\Downloads\mooncompiler-toolchain-v2.3.0-win64.zip
+.\build.ps1 toolchain $HOME\Downloads\mooncompiler-toolchain-v2.3.1-win64.zip
 ```
 
 The driver validates the target platform, extracts into a staging directory
@@ -101,12 +101,14 @@ archive matches the current commit.
 ### Linux x86-64
 
 Ubuntu/Debian requires Git, GNU Make, binutils, gcc and FPC 3.2.2, and the
-RTL tests need `libffi-dev` (RTTI `Invoke`, see above):
+RTL tests need `libffi-dev` (RTTI `Invoke`, see above). The native API gate also
+uses FreeType development headers and the DejaVu test font:
 
 ```bash
 sudo apt-get update
 sudo apt-get install --no-install-recommends \
-  git make binutils gcc fp-compiler-3.2.2 coreutils util-linux libffi-dev
+  git make binutils gcc fp-compiler-3.2.2 coreutils util-linux libffi-dev \
+  libfreetype6-dev fonts-dejavu-core
 test "$(fpc -iV)" = 3.2.2
 
 git clone https://github.com/Moonbot-Tech/MoonCompiler.git

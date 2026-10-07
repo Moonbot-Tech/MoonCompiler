@@ -1,3 +1,41 @@
+# MoonCompiler 2.3.1: file I/O and native-library reliability
+
+This maintenance release completes common Windows and POSIX call forms and
+fixes runtime failures found while porting server applications.
+
+- Windows socket-event enumeration accepts both a record and a pointer.
+  Disk-space APIs support signed and unsigned 64-bit outputs, generic/A/W
+  names and optional pointer outputs.
+- POSIX file operations use Delphi's `__read`, `__write`, `__close`, `__open`,
+  `__chdir`, `__rmdir` and `__rename` names. Importing these units preserves
+  ordinary Pascal file I/O. `Posix.Stdio` supplies file rename/removal and
+  error reporting; the documented POSIX surface remains a supported subset.
+- `TFile` reads readable pseudo-files and FIFOs without trusting their reported
+  size. Text writes honor explicit encoding preambles, while default UTF-8
+  writes and appends omit a BOM. Appending to a BOM-marked UTF-16 file preserves
+  its encoding. Line and text APIs share the same decoding path. Copy and replace
+  operations report failures; Windows replacement uses the Unicode native API.
+- The optional FreeType binding resolves and clears every required function,
+  rejects incomplete libraries, and protects concurrent loader ownership.
+  Its scalar widths, bitmap structures, encoding tags and callbacks follow
+  the C ABI on Win64 and Linux x86-64.
+- Linux turns failed indirect calls into catchable access violations without
+  recursively faulting inside the unwinder. Tests exercise cleanup, rethrow,
+  managed locals, stack arguments and worker threads alongside ordinary data faults.
+  Diagnostic reports retain raw fault registers and mark an unavailable Linux
+  trace as incomplete instead of claiming a complete empty stack.
+
+The runtime API gates now include these consumer scenarios in Debug and Release,
+loader failure/reload fixtures, and a real FreeType rendering cycle on Linux.
+No additional library is linked into applications that do not use FreeType.
+This release introduces no new Pulse performance claims.
+
+Install the complete 2.3.1 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20301; `CompilerVersion` remains 2.3. MoonORMot 13
+remains the required runtime version.
+
+---
+
 # MoonCompiler 2.3: consistent runtime and platform APIs
 
 Release 2.3 makes standard units work together without application workarounds

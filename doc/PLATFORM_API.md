@@ -41,7 +41,7 @@ Windows API calls into Linux calls.
 | --- | --- | --- |
 | Fundamental types and errors | `SysTypes`, `Errno` | pointer-sized sizes, 64-bit file/time values, thread-local libc errno |
 | Time | `Time`, `SysTime` | wall/monotonic clocks, `timeval`, `timespec`, calendar conversion, sleep |
-| Files and process identity | `Unistd`, `Fcntl`, `SysStat` | open/read/write/seek/close, descriptor flags, directories, access/stat, IDs |
+| Files and process identity | `Unistd`, `Fcntl`, `SysStat`, `Stdio` | open/read/write/seek/close, descriptor flags, directories, access/stat, IDs |
 | Memory and shared memory | `SysMman` | mmap/munmap, protection, synchronization and shared-memory handles |
 | Dynamic loading | `Dlfcn` | dlopen/dlsym/dlclose/dlerror |
 | Sockets and names | `SysSocket`, `NetinetIn`, `ArpaInet`, `Netdb`, `Poll` | socket operations, IPv4/IPv6 conversion, DNS/address resolution and poll |
@@ -55,9 +55,38 @@ records must not be substituted for FPC's kernel-level signal records or used
 on another architecture/libc. ABI assertions cover sizes, field offsets and
 real file, socket, memory, thread and signal operations.
 
+Pascal names that would hide `System` I/O use Delphi's prefixes:
+`__read`, `__write`, `__close`, `__chdir`, `__rmdir` in `Posix.Unistd`,
+`__open` in `Posix.Fcntl`, and `__rename` in `Posix.Stdio`. The latter also
+provides `remove` and `perror`; it is not a complete buffered C I/O binding.
+The unprefixed conflicting declarations from 2.3.0 have been replaced.
+
+`TFile.ReadAllBytes` and `ReadAllText` read to EOF when a readable file does not
+provide a seekable size, including procfs and FIFOs. A failed read raises an
+exception; it is not reported as an empty file. Explicit text encodings write
+preambles, while default writes use UTF-8 without a BOM. Default append detects
+and preserves an existing BOM encoding. Explicit nil encodings are invalid.
+
+`TFile.Replace` requires existing source/destination and a nonempty backup path.
+It replaces an existing backup. Windows uses `ReplaceFileW`; Linux copies the
+backup and renames the source over the destination on the same filesystem.
+Linux rejects aliased source/destination/backup files, including hard links,
+before writing the backup. These are filesystem operations, not a transaction
+against concurrent external path changes.
+
 `Now`, `Date`, `Time`, `GetLocalTime`, the current UTC offset and `TTimeZone`
 share libc timezone rules. The tests change `TZ` within one process and check
 UTC round trips, named zones, POSIX zone strings, DST and non-hour offsets.
+
+## FreeType
+
+`freetypehdyn` remains an explicitly loaded external library binding. It does
+not add FreeType to programs that do not use it. Initialization publishes all
+22 required entry points together, rejects incomplete libraries, and serializes
+loader ownership. Keep an initialization reference for as long as any library,
+face, glyph or function pointer is in use; release those objects before the last
+`ReleaseFreetype`. Final release clears every function pointer. LP64 metric
+widths, bitmap fields, encoding tags and outline callbacks follow FreeType's C ABI.
 
 ## Shared runtime contracts
 
@@ -98,9 +127,9 @@ The source archive, native build recipe, binary manifests and notices are in
 ## Compiler identity
 
 `System.CompilerVersion` and `{$IF CompilerVersion ...}` identify MoonCompiler:
-2.3 in release 2.3.0. They do not pretend to be Delphi 36. Use
+2.3 in release 2.3.1. They do not pretend to be Delphi 36. Use
 `MOONCOMPILER_FULLVERSION` for ordered version comparisons: major × 10000 +
-minor × 100 + patch, or 20300 for 2.3.0. A real number cannot distinguish
+minor × 100 + patch, or 20301 for 2.3.1. A real number cannot distinguish
 2.10 from 2.1. `FPC_FULLVERSION` and `fpc -iV` continue to report the underlying
 FPC ABI version. Existing Delphi feature checks must distinguish the compiler
 instead of interpreting the Moon version as a Delphi release number.
