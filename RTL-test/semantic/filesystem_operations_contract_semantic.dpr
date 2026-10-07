@@ -108,6 +108,11 @@ begin
   Check(Failed and not TDirectory.Exists(Root+'/src/nested/new'),'alias self-copy rejected before creating destination');
   Check(TFile.CreateSymLink(Root+'/src/relative.txt','nested/a.txt'),'relative link');
   Check(TFile.ReadAllText(Root+'/src/relative.txt')='changed','relative link resolves before copying');
+  Check(TFile.CreateSymLink(Root+'/src/relative-dir','nested'),'relative directory link');
+  {$IFDEF MSWINDOWS}
+  Check(TFileAttribute.faDirectory in TFile.GetAttributes(Root+'/src/relative-dir',False),'relative link directory kind');
+  {$ENDIF}
+  Check(TFile.ReadAllText(Root+'/src/relative-dir/a.txt')='changed','relative directory resolves from link parent');
   Check(TFile.CreateSymLink(Root+'/src/dangling.txt','not-created.txt'),'dangling link');
   Check(TFile.CreateSymLink(Root+'/src/cycle',Root+'/src'),'directory cycle');
   Check(Length(TDirectory.GetFiles(Root+'/src','a.txt',TSearchOption.soAllDirectories))=1,'enumeration does not follow directory links');
@@ -115,6 +120,7 @@ begin
   Check(TFile.GetSymLinkTarget(Root+'/link-copy/linked.txt',Rec),'copy preserves link kind');
   TFile.WriteAllText(Root+'/link-copy/nested/a.txt','copied target');
   Check(TFile.ReadAllText(Root+'/link-copy/relative.txt')='copied target','relative link stays relative');
+  Check(TFile.ReadAllText(Root+'/link-copy/relative-dir/a.txt')='copied target','relative directory link stays relative');
   TFile.WriteAllText(Root+'/link-copy/not-created.txt','late target');
   Check(TFile.ReadAllText(Root+'/link-copy/dangling.txt')='late target','dangling link preserved');
   Check(TDirectory.Exists(Root+'/link-copy/cycle'),'copied directory link remains usable');

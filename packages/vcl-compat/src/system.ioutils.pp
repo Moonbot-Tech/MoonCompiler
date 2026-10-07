@@ -660,14 +660,14 @@ function IOCreateSymbolicLinkW(Link, Target: PWideChar; Flags: DWORD): ByteBool;
   stdcall; external 'kernel32' name 'CreateSymbolicLinkW';
 {$endif}
 
-function CreatePathLink(const Link,Target: string; IsDirectory: Boolean): Boolean;
+function CreatePathLink(const Link,Target: string): Boolean;
 {$ifdef unix}
 var
   LinkPath,TargetPath: RawByteString;
 {$endif}
 {$ifdef windows}
 var
-  LinkPath,TargetPath: UnicodeString;
+  LinkPath,TargetPath,TargetProbe: UnicodeString;
   Flags: DWORD;
 {$endif}
 begin
@@ -680,7 +680,10 @@ begin
   { Relative reparse targets are stored verbatim by CreateSymbolicLinkW.
     Normalize separators without resolving the target against the process CWD. }
   TargetPath:=UnicodeString(SetDirSeparators(Target));
-  Flags:=Ord(IsDirectory);
+  TargetProbe:=TargetPath;
+  if not TPath.IsPathRooted(string(TargetProbe)) then
+    TargetProbe:=ExtractFilePath(LinkPath)+TargetProbe;
+  Flags:=Ord(DirectoryExists(TargetProbe));
   Result:=IOCreateSymbolicLinkW(PWideChar(LinkPath),PWideChar(TargetPath),Flags or 2);
   if not Result and (GetLastError=ERROR_INVALID_PARAMETER) then
     Result:=IOCreateSymbolicLinkW(PWideChar(LinkPath),PWideChar(TargetPath),Flags);
@@ -2092,7 +2095,7 @@ end;
 
 class function TFile.CreateSymLink(const Link, Target: string): Boolean;
 begin
-  Result:=CreatePathLink(Link,Target,DirectoryExists(Target));
+  Result:=CreatePathLink(Link,Target);
 end;
 
 class function TFile.CreateText(const aPath: string): TStreamWriter;
