@@ -6,6 +6,7 @@ uses
   SysUtils, Classes, Moon.Diagnostics;
 
 type
+  TInvalidCall = procedure;
   TWorker = class(TThread)
     Mode: Integer;
     ReportPath: string;
@@ -291,6 +292,7 @@ end;
 
 var
   Mode: string;
+  InvalidCall: TInvalidCall;
 begin
   Mode := ParamStr(1);
   If ParamCount >= 4 then Attachment := ParamStr(4);
@@ -311,6 +313,15 @@ begin
       raise EAccessViolation.Create('explicit software exception');
     except
       WriteExceptionReport('not a hardware fault');
+    end;
+  end
+  else If (Mode = 'call-nil') or (Mode = 'call-one') then begin
+    If Mode = 'call-nil' then InvalidCall := nil else InvalidCall := TInvalidCall(Pointer(1));
+    try
+      InvalidCall();
+      raise Exception.Create('Invalid call unexpectedly returned');
+    except
+      on E: EAccessViolation do WriteLn('REPORT ', WriteExceptionReport('invalid call'));
     end;
   end
   else If Mode = 'hardware' then begin

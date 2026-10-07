@@ -97,6 +97,10 @@ begin
   If RaiseFrame >= StackBytes div 2 then Raw.MemoryStart := RaiseFrame - StackBytes div 2;
   Raw.MemoryCount := ReadOwnMemory(Pointer(Raw.MemoryStart), @Raw.Memory, SizeOf(Raw.Memory));
   If not WalkStack then Exit;
+  If Ctx^.rip=0 then begin
+    Raw.UnwindStatus := -10; { UNW_ENOINFO: no code at the captured PC }
+    Exit;
+  end;
   Status := UnwindInit(@Cursor, Context, Ord(SignalContext));
   If Status < 0 then begin
     Raw.UnwindStatus := Status;

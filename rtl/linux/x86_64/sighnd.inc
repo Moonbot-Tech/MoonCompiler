@@ -161,8 +161,19 @@ procedure SignalToRunerror(sig : longint; SigInfo: PSigInfo; SigContext: PSigCon
           a raw RIP would land the lookup BEFORE the routine, in a foreign
           or missing FDE, and the exception escapes every handler.  The
           reported fault address (rsi below) stays the exact RIP. }
-        SigContext^.rsp := SigContext^.rsp - sizeof(ptruint);
-        PPtrUInt(SigContext^.rsp)^ := SigContext^.rip + 1;
+        { A failed indirect call has no callee frame. CALL already left the
+          caller's return address on the stack. Reuse that slot on an
+          instruction-fetch page fault: a synthetic frame at the invalid
+          target makes libgcc's signal-frame fallback fault recursively.
+          This also covers ABI-correct frameless tail jumps. A jump with a
+          live, unbalanced caller frame is outside that contract.
+          Data faults still need the interrupted routine's own CFI. }
+        if (sig<>SIGSEGV) or (SigContext^.trapno<>14) or
+           ((SigContext^.err and $10)=0) then
+          begin
+            SigContext^.rsp := SigContext^.rsp - sizeof(ptruint);
+            PPtrUInt(SigContext^.rsp)^ := SigContext^.rip + 1;
+          end;
         SigContext^.rdi := res;
         SigContext^.rsi := SigContext^.rip;
         SigContext^.rdx := SigContext^.rbp;

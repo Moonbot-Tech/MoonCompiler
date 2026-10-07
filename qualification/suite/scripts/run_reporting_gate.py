@@ -37,6 +37,7 @@ def main():
     parser.add_argument('--rtl', type=Path, required=True)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[3])
     parser.add_argument('--results', type=Path, required=True)
+    parser.add_argument('--mormot', type=Path, help='MoonORMot source used by the product toolchain')
     parser.add_argument('--option', action='append', default=[])
     parser.add_argument('--jobs', type=int, default=1, help='parallel independent correctness cases')
     parser.add_argument('--product-mm', action='store_true', help='use bundled product MM and automatic runtime prefix')
@@ -73,7 +74,7 @@ def main():
 
     def compile_source(source, dest, opt, defines=()):
         dest.mkdir()
-        mormot = root / '.qualification/deps/moonormot'
+        mormot = args.mormot.resolve() if args.mormot else root / '.qualification/deps/moonormot'
         mormot_src = mormot
         # runtime/mormot: MoonORMot.Need, the version floor the Moon.Diagnostics
         # units name in their uses (it lives with the other units over mORMot)
@@ -281,7 +282,7 @@ def main():
         attachment = deploy / 'application-data.bin'
         attachment.write_bytes(bytes(range(256)))
         modes = ['caught', 'worker', 'manual', 'busy-main', 'hardware', 'unhandled',
-                 'deep', 'reusable', 'concurrent', 'report-failure', 'software-external']
+                 'deep', 'reusable', 'concurrent', 'report-failure', 'software-external', 'call-nil', 'call-one']
         if os.name != 'nt':
             modes.extend(['blocked', 'native-thread'])
         for mode in modes:
@@ -311,6 +312,8 @@ def main():
                 assert bytes(range(256)).hex().upper() in text, (opt, mode, 'attachment')
                 if mode == 'blocked':
                     assert 'complete=False' in text and 'unavailable or exited' in text
+                elif mode in ('call-nil', 'call-one') and os.name != 'nt':
+                    assert 'complete=False' in text and re.search(r'unwind_status=-\d+', text), (opt, mode)
                 else:
                     assert 'complete=True' in text and 'unavailable or exited' not in text, (opt, mode, text[:600])
                     assert not re.search(r'unwind_status=[^0]', text), (opt, mode)
@@ -321,6 +324,13 @@ def main():
                 else:
                     assert 'exception_message=' in text and 'RIP=$' in text, (opt, mode)
             text = '\n'.join(contents)
+            if mode in ('call-nil', 'call-one'):
+                expected_pc = 0 if mode == 'call-nil' else 1
+                assert re.search(rf'^RIP=\$0*{expected_pc}\b', text, re.M), (opt, mode, 'raw fault PC')
+                if mode == 'call-nil' and os.name != 'nt':
+                    assert not re.search(r'^pc\[', text, re.M), (opt, mode, 'must not invent frames')
+                else:
+                    assert re.search(r'^pc\[', text, re.M), (opt, mode, 'available trace retained')
             if mode == 'caught':
                 # O3 legitimately inlines both tiny wrappers into RunCaught.
                 assert any(f' {name} ' in text for name in ('OriginLeaf', 'OriginParent', 'RunCaught'))
