@@ -179,7 +179,25 @@ def main():
                 # DNS record. Returning the origin representation proves that
                 # the client connected to this proxy and used absolute form.
                 path = urlsplit(path).path
-            if path == '/processed-noresponse':
+            if path.startswith('/privacy232/'):
+                case = urlsplit(path).path.split('/')[2]
+                if case == 'timeout':
+                    time.sleep(0.3)
+                    self.reply(200, b'late')
+                elif case == 'redirect':
+                    self.reply(302, b'', [('Location', '/privacy232/redirect/FAKE_REDIRECT_SECRET?key=FAKE_REDIRECT_KEY')])
+                elif case == 'malformed':
+                    self.connection.sendall(b'FAKE_REPLY_SECRET\r\nContent-Length: 0\r\n\r\n')
+                    self.close_connection = True
+                elif case == 'empty':
+                    self.close_connection = True
+                elif case == 'echo':
+                    self.reply(200, self.path.encode())
+                elif case == 'charset':
+                    self.reply(200, b'body', [('Content-Type', 'text/plain; charset=FAKE_REPLY_CHARSET')])
+                else:
+                    raise AssertionError(f'unknown privacy fixture: {case}')
+            elif path == '/processed-noresponse':
                 self.close_connection = True
             elif path == '/auth21':
                 if self.headers.get('Authorization') == 'Basic dXNlcjIxOnBhc3MyMQ==':

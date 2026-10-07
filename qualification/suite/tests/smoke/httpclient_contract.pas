@@ -854,7 +854,7 @@ begin
       Check(False, 'refused port accepted');
     except
       on E: ENetHTTPClientException do
-        Check(Pos('127.0.0.1:' + RefusedPort, E.Message) > 0, 'refused message names the URL: ' + E.Message);
+        Check(E.Message <> '', 'refused connection explains the failure');
     end;
     { bad URLs: an unsupported scheme is the client's error; no scheme, no
       host or nothing at all is a URI error (ENetURIException, as in Delphi)
@@ -1189,6 +1189,7 @@ begin
 end;
 
 {$ifdef FPC}{$i httpclient_release21.inc}{$endif}
+{$ifdef FPC}{$i httpclient_privacy.inc}{$endif}
 
 begin
   Failures := 0;
@@ -1217,6 +1218,7 @@ begin
   Tls;
   Multipart;
   {$ifdef FPC}Release21Contracts;{$endif}
+  {$ifdef FPC}ErrorPrivacy;{$endif}
   If Failures <> 0 then begin
     WriteLn('FAILURES ', Failures);
     Halt(1);

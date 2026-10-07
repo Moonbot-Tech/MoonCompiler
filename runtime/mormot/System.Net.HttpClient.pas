@@ -1048,7 +1048,12 @@ begin
   If Encoding = nil then begin
     Charset := ContentCharset(GetHeaderValue('Content-Type'));
     If (Charset <> '') and not SameText(Charset, 'utf-8') and not SameText(Charset, 'utf8') then begin
-      Encoding := TEncoding.GetEncoding(Charset);
+      try
+        Encoding := TEncoding.GetEncoding(Charset);
+      except
+        on EEncodingError do
+          raise EEncodingError.Create('Unsupported HTTP response charset');
+      end;
       OwnsEncoding := True;
     end else
       Encoding := TEncoding.UTF8;
@@ -1222,6 +1227,15 @@ end;
 
 {$i httpclient.auth.inc}
 
+{ Lower-layer messages may contain credentials or peer-controlled text. Keep
+  the error category and the socket's fixed result name, never its message. }
+function TransportErrorKind(E: Exception): string;
+begin
+  Result := E.ClassName;
+  If E is ENetSock then
+    Result := Result + ': ' + string(ToText(ENetSock(E).LastError)^);
+end;
+
 function THTTPClient.ExecuteHTTP(const AMethod, AURL: string; ASource, AResponseContent: TStream;
   const AHeaders: TNetHeaders): IHTTPResponse;
 var
@@ -1230,7 +1244,7 @@ var
   OriginalPosition: Int64;
   Proxy: TProxySettings;
   ProxyCredential: TCredentialsStorage.TCredential;
-  Method, URL, Location, StartURL: string;
+  Method, URL, Location, StartURL, RequestURL: string;
   Body: TStream;
   RequestHeaders, ReplyHeaders: TNetHeaders;
   Hops: Integer;
@@ -1322,7 +1336,6 @@ var
     Request: TURLRequest;
     Certificate: TCertificate;
     Accepted: Boolean;
-    Failure: string;
   begin
     Key := LowerCase(Utf8ToString(URI.Server)) + ':' + Utf8ToString(URI.Port) + '|' + BoolToStr(URI.Https, True) + '|' + Proxy.ToString;
     FSocketGuard.Acquire;
@@ -1341,25 +1354,25 @@ var
       except
         on E: Exception do begin
           CheckRequest;
-          If not (URI.Https and IsCertificateFailure(E, TLS)) then
-            If E is ENetSock then
-              raise ENetHTTPClientException.CreateFmt('Cannot connect to %s: %s (%s)',
-                [URL, E.Message, string(ToText(ENetSock(E).LastError)^)])
-            else
-              raise ENetHTTPClientException.CreateFmt('Cannot connect to %s: %s', [URL, E.Message]);
-          Failure := E.Message;
-          If TLS.LastError <> '' then
-            Failure := Failure + ' [' + Utf8ToString(TLS.LastError) + ']';
+          If not (URI.Https and IsCertificateFailure(E, TLS)) then begin
+            If E is ENetHTTPClientException then
+              raise;
+            raise ENetHTTPClientException.Create('HTTP connection failed (' + TransportErrorKind(E) + ')');
+          end;
           If not Assigned(FOnValidateServerCertificate) then
-            raise ENetHTTPCertificateException.CreateFmt('Server certificate of %s was not accepted: %s', [URL, Failure]);
+            raise ENetHTTPCertificateException.Create('Server certificate was not accepted');
           { a second connection, this time ignoring the verification, gives
             the handler the certificate; when it accepts, that connection
             serves the request }
           try
             Result := OpenSocket(URI, True, TLS);
           except
-            on E2: Exception do
-              raise ENetHTTPClientException.CreateFmt('Cannot connect to %s: %s', [URL, E2.Message]);
+            on E2: Exception do begin
+              CheckRequest;
+              If E2 is ENetHTTPClientException then
+                raise;
+              raise ENetHTTPClientException.Create('HTTP connection failed (' + TransportErrorKind(E2) + ')');
+            end;
           end;
           try
             Certificate := CertificateOf(TLS);
@@ -1368,7 +1381,7 @@ var
             try
               FOnValidateServerCertificate(Self, Request, Certificate, Accepted);
               If not Accepted then
-                raise ENetHTTPCertificateException.CreateFmt('Server certificate of %s was not accepted: %s', [URL, Failure]);
+                raise ENetHTTPCertificateException.Create('Server certificate was not accepted');
             finally
               FreeAndNil(Request);
             end;
@@ -1541,9 +1554,9 @@ var
   begin
     CloseSocket;
     If ClientSide then
-      raise ENetHTTPClientException.CreateFmt('%s %s %s', [What, AMethod, URL])
+      raise ENetHTTPClientException.Create(What)
     else
-      raise ENetHTTPResponseException.CreateFmt('%s %s %s', [What, AMethod, URL]);
+      raise ENetHTTPResponseException.Create(What);
   end;
 
 var
@@ -1599,10 +1612,16 @@ begin
       { a URL without a scheme or a host is refused before any connection is
         tried ("localhost:8080/x" would otherwise be taken for a host name and
         wait out ConnectionTimeout); it is a URI error, as in Delphi }
-      If (Pos('://', URL) = 0) or not URI.From(StringToUtf8(URL)) or (URI.Server = '') then
-        raise ENetURIException.CreateFmt('Invalid URL: "%s"', [URL]);
+      { URI fragments are client-side identifiers, never part of an HTTP target.
+        Keep the original URL for response/request APIs and redirect resolution. }
+      RequestURL := URL;
+      I := Pos('#', RequestURL);
+      If I > 0 then
+        SetLength(RequestURL, I - 1);
+      If (Pos('://', RequestURL) = 0) or not URI.From(StringToUtf8(RequestURL)) or (URI.Server = '') then
+        raise ENetURIException.Create('Invalid request URI');
       If not (URI.Https or SameText(Utf8ToString(URI.Scheme), 'http')) then
-        raise ENetHTTPClientException.Create('Unsupported URL scheme: ' + URL);
+        raise ENetHTTPClientException.Create('Unsupported HTTP request scheme');
       CheckRequest;
       Socket := EnsureSocket(URI, Reused);
       If FAbortRequested then begin
@@ -1654,13 +1673,13 @@ begin
           Truncated := True;
         end;
         on E: ENetSock do
-          FailTransport('HTTP transport failed (' + E.Message + ') for', Socket.Http.CommandResp = '');
+          FailTransport('HTTP transport failed (' + TransportErrorKind(E) + ')', Socket.Http.CommandResp = '');
         on E: EHttpSocket do
-          FailTransport('HTTP transport failed (' + E.Message + ') for', Socket.Http.CommandResp = '');
+          FailTransport('HTTP transport failed (' + TransportErrorKind(E) + ')', Socket.Http.CommandResp = '');
         on E: ENetException do
           raise;
         on E: Exception do
-          FailTransport('HTTP request failed (' + E.ClassName + ': ' + E.Message + ') for', Socket.Http.CommandResp = '');
+          FailTransport('HTTP request failed (' + TransportErrorKind(E) + ')', Socket.Http.CommandResp = '');
       end;
       If FAbortRequested then begin
         CloseSocket;
@@ -1668,7 +1687,7 @@ begin
       end;
       If Socket.Http.CommandResp = '' then begin
         If Status = HTTP_TIMEOUT then
-          FailTransport(Format('Timeout after %d ms waiting for the response of', [FResponseTimeout]), True);
+          FailTransport(Format('Timeout after %d ms waiting for HTTP response', [FResponseTimeout]), True);
         { An empty answer does not prove the server did not act on the
           request. Only idempotent methods can be replayed (RFC 9110 9.2.2). }
         If Reused and not Retried and
@@ -1678,15 +1697,15 @@ begin
           RewindOutput;
           Continue;
         end;
-        FailTransport('No response for', True);
+        FailTransport('No HTTP response', True);
       end;
       If Status = HTTP_CLIENTERROR then
-        FailTransport('Connection lost while receiving', False);
+        FailTransport('Connection lost while receiving HTTP response', False);
       { what came back must be an HTTP status line; anything else is a
         connection out of step (a body longer than its Content-Length left
         bytes behind) and is dropped with the connection }
       If not IdemPChar(Pointer(Socket.Http.CommandResp), 'HTTP/') then
-        FailTransport('Not an HTTP response (' + Utf8ToString(Copy(Socket.Http.CommandResp, 1, 40)) + ') for', False);
+        FailTransport('Invalid HTTP response status line', False);
       { a body the socket kept in memory: every body on the adoptable path,
         otherwise any status but 200/206 (those went to the stream) }
       If Socket.Http.Content <> '' then
@@ -1715,7 +1734,7 @@ begin
       If not Redirect then
         Break;
       If Hops >= FMaxRedirects then
-        raise ENetHTTPRequestException.CreateFmt('Too many redirects (%d) for %s', [Hops, AURL]);
+        raise ENetHTTPRequestException.CreateFmt('Too many HTTP redirects (%d)', [Hops]);
       Inc(Hops);
       RewindOutput;
       { RFC 9110: a POST redirected with 301/302/303 becomes a GET without

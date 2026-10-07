@@ -3,7 +3,12 @@ var
   Parsed: URIParser.TURI;
 begin
   Self := Default(TURI);
-  Parsed := URIParser.ParseURI(AURIStr, False);
+  try
+    Parsed := URIParser.ParseURI(AURIStr, False);
+  except
+    on EConvertError do
+      raise ENetURIException.Create('Invalid URI port');
+  end;
   If Parsed.Protocol = '' then
     raise ENetURIException.Create('A URI requires a scheme');
   FScheme := LowerCase(Parsed.Protocol);
@@ -556,7 +561,7 @@ begin
     LeaveCriticalSection(URLSchemesLock);
   end;
   If Factory = nil then
-    raise ENetURIClientException.Create('No URL client registered for ' + Scheme);
+    raise ENetURIClientException.Create('No URL client registered for request scheme');
   Result := Factory.Create;
 end;
 

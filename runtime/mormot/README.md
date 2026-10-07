@@ -237,11 +237,17 @@ body before each request without changing the client's default ContentType.
   `localhost:8080/x`, `http://`) raises `ENetURIException` at once, before
   any connection is tried; an unsupported scheme, connection, DNS, handshake
   and timeout failures before the response line raise
-  `ENetHTTPClientException` (with the URL and the socket library's text where
-  it raised one); a failure while the body is being received raises
+  `ENetHTTPClientException`; a failure while the body is being received raises
   `ENetHTTPResponseException`. `ConnectionTimeout`, `SendTimeout` and
   `ResponseTimeout` default to 60000 ms; the response timeout governs the wait
   for the response line and each read of the body.
+- Generated HTTP exception messages identify the failure without including
+  request URLs, credentials, raw socket/TLS messages or malformed response text.
+  Socket result names, exception categories, timeout durations and redirect
+  counts remain available. This applies to synchronous and asynchronous calls.
+  Application-owned callback exceptions and explicit logging of request/response
+  URLs remain the application's responsibility. URI fragments (`#...`) are kept
+  in URI APIs but never sent in the HTTP request target; escaped `%23` is preserved.
 - `BeginExecute` and the standard `BeginGet/Head/Post/Put/Patch/Delete/Options/Trace`
   methods run the request in a thread on a copy of the client's
   settings; `IsCompleted` is set when it finished (with a response or an
@@ -278,8 +284,7 @@ against the gate's servers; each one is the contract's explicit choice.
   the jar; ours joins the two.
 - Delphi (WinHTTP) did not enforce `ResponseTimeout = 400` against a 1.5 s
   delay of the response line or of the body on the loopback; ours raises
-  after the timeout. Delphi's connection-refused message is WinHTTP's text
-  without the URL; ours names the URL.
+  after the timeout.
 - `Cancel` of a completed request answers `True` in Delphi (its own comment
   says it cannot cancel a completed operation); ours answers `False`.
   `EndAsyncHTTP` after `Cancel` returns a half-filled response in Delphi;

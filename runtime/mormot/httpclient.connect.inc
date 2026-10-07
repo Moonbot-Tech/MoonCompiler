@@ -155,7 +155,7 @@ begin
       Client.CheckRequest;
     Client.CheckRequest;
     If State.Error <> nrOK then
-      raise ENetHTTPClientException.Create('Cannot resolve host ' + Utf8ToString(Host));
+      raise ENetHTTPClientException.Create('Cannot resolve HTTP host');
     Result := State.Address;
   finally
     State._Release;
@@ -200,18 +200,12 @@ begin
 end;
 
 procedure THTTPClient.CheckRequest;
-var
-  RequestURL: System.Net.URLClient.TURI;
 begin
   FSocketGuard.Acquire;
   try
     If FConnectionExpired or ((FConnectionDeadline <> 0) and
-      (SysUtils.GetTickCount64 >= FConnectionDeadline)) then begin
-      RequestURL := FActiveRequest.URL;
-      RequestURL.UserName := '';
-      RequestURL.Password := '';
-      raise ENetHTTPClientException.Create('HTTP connection deadline expired for ' + RequestURL.ToString);
-    end;
+      (SysUtils.GetTickCount64 >= FConnectionDeadline)) then
+      raise ENetHTTPClientException.Create('HTTP connection deadline expired');
     If FAbortRequested or ((FActiveRequest <> nil) and FActiveRequest.IsCancelled) then
       raise ENetHTTPClientException.Create('HTTP request was cancelled');
   finally
