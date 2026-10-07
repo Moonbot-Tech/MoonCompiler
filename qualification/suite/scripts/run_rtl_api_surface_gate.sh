@@ -16,6 +16,11 @@ run="$suite_root/results/runs/$1/rtl-api-surface"
   exit 1
 }
 mkdir -p "$run"
+failure_log="$run/freetype-abi.log"
+trap 'status=$?
+  echo "RTL_API_SURFACE_GATE_FAILED exit=$status log=$failure_log" >&2
+  if [[ -f "$failure_log" ]]; then tail -n 80 "$failure_log" >&2; fi
+  exit "$status"' ERR
 cc -std=c11 -I/usr/include/freetype2 "$source_root/freetype_abi_oracle.c" -o "$run/freetype-abi"
 "$run/freetype-abi" >"$run/freetype-abi.log"
 grep -qx FREETYPE_C_ABI_OK "$run/freetype-abi.log"
@@ -113,17 +118,16 @@ for case_name in rtl_api_release231_contracts rtl_api_freetype_contracts rtl_api
         if [[ "$kind" == tail ]]; then
           fixture_options+=(-dMISSING_FREETYPE_TAIL)
         fi
+        failure_log="$profile_dir/$kind-compile.log"
         "$compiler_root/toolchain/bin/fpc" "${fixture_options[@]}" "$source_root/moon_freetype_fixture.dpr" \
-          >"$profile_dir/$kind-compile.log" 2>&1
+          >"$failure_log" 2>&1
       done
     fi
-    if ! "$compiler_root/toolchain/bin/fpc" "${build_options[@]}" "$project" \
-        >"$profile_dir/compile.log" 2>&1; then
-      echo "$case_name/$profile did not compile" >&2
-      exit 1
-    fi
+    failure_log="$profile_dir/compile.log"
+    "$compiler_root/toolchain/bin/fpc" "${build_options[@]}" "$project" >"$failure_log" 2>&1
+    failure_log="$profile_dir/run.log"
     timeout 30 "$profile_dir/$case_name" \
-      >"$profile_dir/run.log" 2>&1
+      >"$failure_log" 2>&1
     grep -qx "$expected" "$profile_dir/run.log"
     if [[ "$profile" == diagnostic-release ]]; then
       grep -q '^FPCX64MM_DIAGNOSTIC live-blocks=0 ' "$profile_dir/run.log"
