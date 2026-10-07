@@ -2936,3 +2936,5 @@ constructor ComponentPlatformsAttribute.Create(const aPlatforms: TPlatformIds);
 begin
   FPlatForms:=aPlatForms;
 end;
+
+{$i textstream.inc}

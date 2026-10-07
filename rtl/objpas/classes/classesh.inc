@@ -3044,3 +3044,5 @@ function HexToBin(HexValue, BinValue: PAnsiChar; BinBufSize: Integer): Integer; 
 function ExtractStrings(Separators, WhiteSpace: TSysCharSet; Content: PAnsiChar; Strings: TStrings; AddEmptyStrings : Boolean = False): Integer overload;
 function ExtractStrings(Separators, WhiteSpace: TSysCharSet; Content: PWideChar; Strings: TStrings; AddEmptyStrings : Boolean = False): Integer overload;
 Function IfThen(AValue: Boolean; const ATrue: TStringList; const AFalse: TStringList = nil): TStringList; overload;
+
+{$i textstreamh.inc}
