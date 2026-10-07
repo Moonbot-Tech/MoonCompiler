@@ -48,6 +48,54 @@ begin
     CredFree(TextW);
   end;
 end;
+procedure CheckDiskOverloads;
+type
+  TSignedWideQuery = function(Path: PWideChar; A,B,C: PLargeInteger): BOOL; stdcall;
+  TUnsignedWideQuery = function(Path: PWideChar; A,B,C: PULargeInteger): BOOL; stdcall;
+  TSignedAnsiQuery = function(Path: PAnsiChar; A,B,C: PLargeInteger): BOOL; stdcall;
+  TUnsignedAnsiQuery = function(Path: PAnsiChar; A,B,C: PULargeInteger): BOOL; stdcall;
+var
+  SignedWideQuery: TSignedWideQuery;
+  UnsignedWideQuery: TUnsignedWideQuery;
+  SignedAnsiQuery: TSignedAnsiQuery;
+  UnsignedAnsiQuery: TUnsignedAnsiQuery;
+  SignedFree, SignedTotal, SignedAll: Int64;
+  FreeBytes, TotalBytes, AllBytes: TULargeInteger;
+  SignedPointer: PLargeInteger;
+  UnsignedPointer: PULargeInteger;
+  Path: string;
+  PathA: AnsiString;
+begin
+  Path:=GetEnvironmentVariable('TEMP');
+  PathA:=AnsiString(Path);
+  SignedPointer:=@SignedFree;
+  UnsignedPointer:=@FreeBytes;
+  Check(GetDiskFreeSpaceEx(PChar(Path),FreeBytes,TotalBytes,@AllBytes),'unsigned generic var disk space');
+  Check((FreeBytes>0) and (TotalBytes>=AllBytes) and (AllBytes>=FreeBytes),'unsigned disk values');
+  Check(GetDiskFreeSpaceExW(PWideChar(Path),FreeBytes,TotalBytes,nil),'unsigned wide var with nil');
+  Check(GetDiskFreeSpaceExA(PAnsiChar(PathA),FreeBytes,TotalBytes,@AllBytes),'unsigned ANSI var disk space');
+  Check(GetDiskFreeSpaceEx(PChar(Path),SignedFree,SignedTotal,@SignedAll),'signed generic var disk space');
+  Check(GetDiskFreeSpaceExW(PWideChar(Path),SignedFree,SignedTotal,nil),'signed wide var with nil');
+  Check(GetDiskFreeSpaceExA(PAnsiChar(PathA),SignedFree,SignedTotal,@SignedAll),'signed ANSI var disk space');
+  Check((SignedFree>0) and (SignedTotal=Int64(TotalBytes)),'same disk through signed and unsigned ABI');
+  Check(GetDiskFreeSpaceEx(PChar(Path),SignedPointer,nil,nil),'typed signed pointer');
+  Check(GetDiskFreeSpaceExW(PWideChar(Path),UnsignedPointer,nil,nil),'typed unsigned pointer');
+  Check(GetDiskFreeSpaceExA(PAnsiChar(PathA),nil,@TotalBytes,nil),'optional pointer outputs');
+  Check(GetDiskFreeSpaceEx(PChar(Path),nil,nil,nil),'all disk outputs optional');
+  SignedWideQuery:=GetDiskFreeSpaceEx;
+  UnsignedWideQuery:=GetDiskFreeSpaceEx;
+  Check(SignedWideQuery(PWideChar(Path),SignedPointer,nil,nil),'signed generic function pointer');
+  Check(UnsignedWideQuery(PWideChar(Path),UnsignedPointer,nil,nil),'unsigned generic function pointer');
+  SignedWideQuery:=GetDiskFreeSpaceExW;
+  UnsignedWideQuery:=GetDiskFreeSpaceExW;
+  Check(SignedWideQuery(PWideChar(Path),SignedPointer,nil,nil),'signed wide function pointer');
+  Check(UnsignedWideQuery(PWideChar(Path),UnsignedPointer,nil,nil),'unsigned wide function pointer');
+  SignedAnsiQuery:=GetDiskFreeSpaceExA;
+  UnsignedAnsiQuery:=GetDiskFreeSpaceExA;
+  Check(SignedAnsiQuery(PAnsiChar(PathA),SignedPointer,nil,nil),'signed ANSI function pointer');
+  Check(UnsignedAnsiQuery(PAnsiChar(PathA),UnsignedPointer,nil,nil),'unsigned ANSI function pointer');
+end;
+
 procedure CheckNativeOutputWidths;
 var
   Source, Dest: Integer;
@@ -93,11 +141,14 @@ var
   Buffer: array[0..32767] of Char;
   Event: WSAEVENT;
   Network: TWSAData;
+  SocketHandle: TSocket;
+  Events: TWSANetworkEvents;
   OldFilter: TFNTopLevelExceptionFilter; Credential: CREDENTIALW; Adapter: IP_ADAPTER_INFO;
   CharTypes: array[0..2] of Word;
   RegistryKey: HKEY;
   RegistryPath: string;
 begin
+  CheckDiskOverloads;
   CheckCredentialPointers;
   CheckNativeOutputWidths;
   Check(GetStringTypeW(CT_CTYPE1, PWideChar('aЖ9'), 3, CharTypes[0]), 'wide character classification');
@@ -177,7 +228,20 @@ begin
   try
     Event := WSACreateEvent;
     Check(Event <> WSA_INVALID_EVENT, 'Winsock event');
-    Check(WSACloseEvent(Event), 'Winsock event close');
+    SocketHandle:=socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+    Check(SocketHandle<>INVALID_SOCKET,'create event socket');
+    try
+      Check(WSAEventSelect(SocketHandle,Event,FD_READ or FD_CLOSE)=0,'subscribe socket events');
+      FillChar(Events,SizeOf(Events),$FF);
+      Check(WSAEnumNetworkEvents(SocketHandle,Event,Events)=0,'socket events var record');
+      Check(Events.lNetworkEvents=0,'no events on unconnected socket');
+      FillChar(Events,SizeOf(Events),$FF);
+      Check(WSAEnumNetworkEvents(SocketHandle,Event,@Events)=0,'socket events pointer');
+      Check(Events.lNetworkEvents=0,'pointer event record written');
+    finally
+      closesocket(SocketHandle);
+      Check(WSACloseEvent(Event), 'Winsock event close');
+    end;
   finally
     WSACleanup;
   end;

@@ -1295,6 +1295,7 @@ function WSADuplicateSocket( s : TSocket; dwProcessId : DWORD; lpProtocolInfo : 
 function WSADuplicateSocket( s : TSocket; dwProcessId : DWORD; lpProtocolInfo : LPWSAProtocol_InfoW ) : Longint; stdcall; external WINSOCK2_DLL name 'WSADuplicateSocketW';
 {$endif}
 function WSAEnumNetworkEvents( const s : TSocket; const hEventObject : WSAEVENT; lpNetworkEvents : LPWSANETWORKEVENTS ) :Longint; stdcall; external WINSOCK2_DLL name 'WSAEnumNetworkEvents';
+function WSAEnumNetworkEvents( const s : TSocket; const hEventObject : WSAEVENT; var lpNetworkEvents : TWSANetworkEvents ) :Longint; stdcall; external WINSOCK2_DLL name 'WSAEnumNetworkEvents';
 function WSAEnumProtocolsA( lpiProtocols : PLongint; lpProtocolBuffer : LPWSAProtocol_InfoA; var lpdwBufferLength : DWORD ) : Longint; stdcall; external WINSOCK2_DLL name 'WSAEnumProtocolsA';
 function WSAEnumProtocolsW( lpiProtocols : PLongint; lpProtocolBuffer : LPWSAProtocol_InfoW; var lpdwBufferLength : DWORD ) : Longint; stdcall; external WINSOCK2_DLL name 'WSAEnumProtocolsW';
 {$ifndef Unicode}

@@ -627,19 +627,31 @@ function GetDiskFreeSpace(lpRootPathName: PAnsiChar; var lpSectorsPerCluster, lp
 function GetDiskFreeSpaceA(lpRootPathName: LPCSTR; var lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters: DWORD): BOOL; external 'kernel32' name 'GetDiskFreeSpaceA';
 {$ifdef UNICODE}
 function GetDiskFreeSpaceEx(lpDirectoryName: PWideChar; var lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: TLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
+function GetDiskFreeSpaceEx(lpDirectoryName: PWideChar; var lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: TULargeInteger; lpTotalNumberOfFreeBytes: PULargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
 {$else}
 function GetDiskFreeSpaceEx(lpDirectoryName: PAnsiChar; var lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: TLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
+function GetDiskFreeSpaceEx(lpDirectoryName: PAnsiChar; var lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: TULargeInteger; lpTotalNumberOfFreeBytes: PULargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
 {$endif}
 function GetDiskFreeSpaceExA(lpDirectoryName: LPCSTR; var lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: TLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
+function GetDiskFreeSpaceExA(lpDirectoryName: LPCSTR; var lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: TULargeInteger; lpTotalNumberOfFreeBytes: PULargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
 function GetDiskFreeSpaceExW(lpDirectoryName: LPWSTR; var lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: TLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
+function GetDiskFreeSpaceExW(lpDirectoryName: LPWSTR; var lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: TULargeInteger; lpTotalNumberOfFreeBytes: PULargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
 function GetDiskFreeSpaceW(lpRootPathName: LPWSTR; var lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters: DWORD): BOOL; external 'kernel32' name 'GetDiskFreeSpaceW';
 {$ifdef UNICODE}
-function GetDiskFreeSpaceEx(lpDirectoryName: PWideChar;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes:pLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
+function GetDiskFreeSpaceEx(lpDirectoryName: PWideChar;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes:PLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
+function GetDiskFreeSpaceEx(lpDirectoryName: PWideChar;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes:PULargeInteger; lpTotalNumberOfFreeBytes: PULargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
+function GetDiskFreeSpaceEx(lpDirectoryName: PWideChar;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes:Pointer; lpTotalNumberOfFreeBytes: Pointer): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
 {$else}
-function GetDiskFreeSpaceEx(lpDirectoryName: PAnsiChar;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes:pLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
+function GetDiskFreeSpaceEx(lpDirectoryName: PAnsiChar;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes:PLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
+function GetDiskFreeSpaceEx(lpDirectoryName: PAnsiChar;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes:PULargeInteger; lpTotalNumberOfFreeBytes: PULargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
+function GetDiskFreeSpaceEx(lpDirectoryName: PAnsiChar;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes:Pointer; lpTotalNumberOfFreeBytes: Pointer): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
 {$endif}
-function GetDiskFreeSpaceExA(lpDirectoryName: LPCSTR;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: pLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
-function GetDiskFreeSpaceExW(lpDirectoryName: LPWSTR;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: pLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
+function GetDiskFreeSpaceExA(lpDirectoryName: LPCSTR;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: PLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
+function GetDiskFreeSpaceExA(lpDirectoryName: LPCSTR;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: PULargeInteger; lpTotalNumberOfFreeBytes: PULargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
+function GetDiskFreeSpaceExA(lpDirectoryName: LPCSTR;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: Pointer; lpTotalNumberOfFreeBytes: Pointer): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExA';
+function GetDiskFreeSpaceExW(lpDirectoryName: LPWSTR;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: PLargeInteger; lpTotalNumberOfFreeBytes: PLargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
+function GetDiskFreeSpaceExW(lpDirectoryName: LPWSTR;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: PULargeInteger; lpTotalNumberOfFreeBytes: PULargeInteger): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
+function GetDiskFreeSpaceExW(lpDirectoryName: LPWSTR;  lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes: Pointer; lpTotalNumberOfFreeBytes: Pointer): BOOL;external 'kernel32' name 'GetDiskFreeSpaceExW';
 //function GetEnhMetaFilePixelFormat(p1: HENHMETAFILE; p2: Cardinal; var p3: TPixelFormatDescriptor): UINT;external 'gdi32' name 'GetEnhMetaFilePixelFormat';
 function GetExitCodeProcess(hProcess: THandle; var lpExitCode: DWORD): BOOL; external 'kernel32' name 'GetExitCodeProcess';
 function GetExitCodeThread(hThread: THandle; var lpExitCode: DWORD): BOOL; external 'kernel32' name 'GetExitCodeThread';
