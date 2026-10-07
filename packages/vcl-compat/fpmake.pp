@@ -95,6 +95,7 @@ begin
     T:=P.Targets.AddUnit('posix.systime.pp',[Linux]);
     T:=P.Targets.AddUnit('posix.errno.pp',[Linux]);
     T:=P.Targets.AddUnit('posix.unistd.pp',[Linux]);
+    T:=P.Targets.AddUnit('posix.stdio.pp',[Linux]);
     T:=P.Targets.AddUnit('posix.fcntl.pp',[Linux]);
     T:=P.Targets.AddUnit('posix.sysstat.pp',[Linux]);
     T:=P.Targets.AddUnit('posix.sysmman.pp',[Linux]);

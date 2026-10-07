@@ -20,7 +20,7 @@ const
   F_SETFL = BaseUnix.F_SETFL;
   FD_CLOEXEC = 1;
 
-function open(Path: PAnsiChar; Flags: cint): cint; cdecl; varargs; external 'c';
+function __open(Path: PAnsiChar; Flags: cint): cint; cdecl; varargs; external 'c' name 'open';
 function fcntl(FD, Command: cint): cint; cdecl; varargs; external 'c';
 function creat(Path: PAnsiChar; Mode: mode_t): cint; cdecl; external 'c';
 implementation

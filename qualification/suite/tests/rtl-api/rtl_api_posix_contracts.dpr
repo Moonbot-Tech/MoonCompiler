@@ -53,23 +53,23 @@ begin
   Check(timegm(@Calendar) = Epoch, 'UTC round trip');
   Check(clock_gettime(CLOCK_MONOTONIC, @TS) = 0, 'monotonic time');
   Path := UTF8Encode(IncludeTrailingPathDelimiter(GetTempDir) + 'moon-posix-' + IntToStr(getpid));
-  FD := open(PAnsiChar(Path), O_RDWR or O_CREAT or O_EXCL, mode_t($180));
+  FD := __open(PAnsiChar(Path), O_RDWR or O_CREAT or O_EXCL, mode_t($180));
   Check(FD >= 0, 'create file');
   try
     Text[0] := 0; Text[1] := 127; Text[2] := 128; Text[3] := 255;
-    Check(write(FD, @Text, SizeOf(Text)) = SizeOf(Text), 'write file');
+    Check(__write(FD, @Text, SizeOf(Text)) = SizeOf(Text), 'write file');
     Check(fstat(FD, @Info) = 0, 'fstat');
     Check((Info.st_size = 4) and ((Info.st_mode and S_IFMT) = S_IFREG), 'stat layout values');
     Check(lseek(FD, 0, SEEK_SET) = 0, 'seek file');
-    Check(read(FD, @ReadBack, SizeOf(ReadBack)) = 4, 'read file');
+    Check(__read(FD, @ReadBack, SizeOf(ReadBack)) = 4, 'read file');
     Check(CompareMem(@Text, @ReadBack, 4), 'file round trip');
     Check(fcntl(FD, F_GETFD) >= 0, 'fcntl without optional argument');
     Check(fcntl(FD, F_SETFD, FD_CLOEXEC) = 0, 'fcntl with optional argument');
   finally
-    close(FD);
+    __close(FD);
     unlink(PAnsiChar(Path));
   end;
-  Check(open(PAnsiChar(Path), O_RDONLY) = -1, 'missing file fails');
+  Check(__open(PAnsiChar(Path), O_RDONLY) = -1, 'missing file fails');
   Check(errno = ENOENT, 'libc thread-local errno');
   Page := mmap(nil, 4096, PROT_READ or PROT_WRITE, MAP_PRIVATE or MAP_ANONYMOUS, -1, 0);
   Check(Page <> MAP_FAILED, 'anonymous mapping');
@@ -84,7 +84,7 @@ begin
     Check(recv(FDs[1], @ReadBack, 4, 0) = 4, 'receive socket');
     Check(CompareMem(@Text, @ReadBack, 4), 'socket round trip');
   finally
-    close(FDs[0]); close(FDs[1]);
+    __close(FDs[0]); __close(FDs[1]);
   end;
   Check(inet_pton(AF_INET6, '::1', @Address) = 1, 'parse IPv6');
   Check(inet_ntop(AF_INET6, @Address, @IP, SizeOf(IP)) <> nil, 'format IPv6');
