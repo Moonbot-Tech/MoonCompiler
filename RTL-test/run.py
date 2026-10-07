@@ -251,6 +251,7 @@ SOURCE_UNIT_ABI = [
 ]
 NAMESPACES = [
     "-FNSystem",
+    "-UaWinapi.Windows=Windows",
     "-UaSystem.SysUtils=SysUtils",
     "-UaSystem.Variants=Variants",
     "-UaSystem.Classes=Classes",

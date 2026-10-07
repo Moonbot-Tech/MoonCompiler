@@ -81,7 +81,8 @@ type
       const aSearchOption: TSearchOption; const SearchAttributes: TFileAttributes;
       const aPredicate: TFilterPredicateLocal): TStringDynArray;  static;
   public
-    class procedure Copy(const SourceDirName, DestDirName: string); static;
+    class procedure Copy(const SourceDirName, DestDirName: string); overload; static;
+    class procedure Copy(const SourceDirName, DestDirName: string; const IgnoreErrors: Boolean); overload; static;
     class procedure CreateDirectory(const aPath: string); static;
     class procedure Delete(const aPath: string); overload; static;
     class procedure Delete(const aPath: string; const Recursive: Boolean); overload; static;
@@ -510,6 +511,180 @@ begin
   Result:={$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.UniversalTimeToLocal(UTCDateTime,GetLocalTimeOffset);
  end;
 
+{$ifdef windows}
+function MakeWinApiPath(const Path: string): string; forward;
+{$endif}
+procedure RaisePathError(const Path: string; Code: Integer);
+var
+  Error: EInOutError;
+begin
+  Error:=EInOutError.CreateFmt('%s: %s',[Path,SysErrorMessage(Code)]);
+  Error.ErrorCode:=Code;
+  raise Error;
+end;
+
+function MissingPathError(Code: Integer): Boolean;
+begin
+{$ifdef unix}
+  Result:=(Code=ESysENOENT) or (Code=ESysENOTDIR);
+{$else}
+  Result:=(Code=ERROR_FILE_NOT_FOUND) or (Code=ERROR_PATH_NOT_FOUND);
+{$endif}
+end;
+
+procedure RequireDirectory(const Path: string);
+var
+  Attr,Code: Integer;
+begin
+  Attr:=FileGetAttr(Path);
+  if Attr<0 then
+    begin
+    Code:=GetLastOSError;
+    if not MissingPathError(Code) then
+      RaisePathError(Path,Code);
+    end;
+  if (Attr<0) or ((Attr and {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.faDirectory)=0) then
+    raise EDirectoryNotFoundException.CreateFmt('Directory not found: %s',[Path]);
+end;
+
+function CheckedFindFirst(const Pattern: string; Attr: LongInt; out Rec: TSearchRec): Integer;
+begin
+{$ifdef unix}
+  fpSetErrno(0);
+{$endif}
+  Result:=FindFirst(Pattern,Attr,Rec);
+  if Result=0 then
+    Exit;
+{$ifdef unix}
+  if MissingPathError(fpGetErrno) then
+    RequireDirectory(ExtractFileDir(Pattern))
+  else if fpGetErrno<>0 then
+    RaisePathError(Pattern,fpGetErrno);
+{$else}
+  if (Result<>ERROR_FILE_NOT_FOUND) and (Result<>ERROR_NO_MORE_FILES) then
+    RaisePathError(Pattern,Result);
+{$endif}
+end;
+
+function CheckedFindNext(var Rec: TSearchRec; const Path: string): Integer;
+begin
+{$ifdef unix}
+  fpSetErrno(0);
+{$endif}
+  Result:=FindNext(Rec);
+  if Result=0 then
+    Exit;
+{$ifdef unix}
+  if MissingPathError(fpGetErrno) then
+    RequireDirectory(Path)
+  else if fpGetErrno<>0 then
+    RaisePathError(Path,fpGetErrno);
+{$else}
+  if Result<>ERROR_NO_MORE_FILES then
+    RaisePathError(Path,Result);
+{$endif}
+end;
+
+function SameFileIdentity(const A,B: string): Boolean;
+{$ifdef unix}
+var
+  SA,SB: Stat;
+begin
+  Result:=(fpStat(A,SA)=0) and (fpStat(B,SB)=0) and
+    (SA.st_dev=SB.st_dev) and (SA.st_ino=SB.st_ino);
+end;
+{$else}
+var
+  HA,HB: THandle;
+  IA,IB: BY_HANDLE_FILE_INFORMATION;
+  PA,PB: UnicodeString;
+begin
+  Result:=False;
+  PA:=MakeWinApiPath(A);
+  PB:=MakeWinApiPath(B);
+  HA:=CreateFileW(PWideChar(PA),0,FILE_SHARE_READ or FILE_SHARE_WRITE or FILE_SHARE_DELETE,
+    nil,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,0);
+  if HA=INVALID_HANDLE_VALUE then
+    Exit;
+  try
+    HB:=CreateFileW(PWideChar(PB),0,FILE_SHARE_READ or FILE_SHARE_WRITE or FILE_SHARE_DELETE,
+      nil,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,0);
+    if HB=INVALID_HANDLE_VALUE then
+      Exit;
+    try
+      Result:=GetFileInformationByHandle(HA,IA) and GetFileInformationByHandle(HB,IB) and
+        (IA.dwVolumeSerialNumber=IB.dwVolumeSerialNumber) and
+        (IA.nFileIndexHigh=IB.nFileIndexHigh) and (IA.nFileIndexLow=IB.nFileIndexLow);
+    finally
+      CloseHandle(HB);
+    end;
+  finally
+    CloseHandle(HA);
+  end;
+end;
+{$endif}
+
+{$ifdef windows}
+function IOGetFinalPathNameByHandleW(Handle: THandle; Buffer: PWideChar; Size,Flags: DWORD): DWORD;
+  stdcall; external 'kernel32' name 'GetFinalPathNameByHandleW';
+
+function ResolvedDirectory(const Path: string): string;
+var
+  Handle: THandle;
+  Buffer: UnicodeString;
+  Count: DWORD;
+begin
+  Buffer:=MakeWinApiPath(Path);
+  Handle:=CreateFileW(PWideChar(Buffer),0,FILE_SHARE_READ or FILE_SHARE_WRITE or FILE_SHARE_DELETE,
+    nil,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,0);
+  if Handle=INVALID_HANDLE_VALUE then
+    RaisePathError(Path,GetLastOSError);
+  try
+    SetLength(Buffer,512);
+    repeat
+      Count:=IOGetFinalPathNameByHandleW(Handle,PWideChar(Buffer),Length(Buffer),0);
+      if Count=0 then
+        RaisePathError(Path,GetLastOSError);
+      if Count<Length(Buffer) then
+        Break;
+      SetLength(Buffer,Count);
+    until False;
+    SetLength(Buffer,Count);
+    Result:=string(Buffer);
+  finally
+    CloseHandle(Handle);
+  end;
+end;
+
+function IOCreateSymbolicLinkW(Link, Target: PWideChar; Flags: DWORD): ByteBool;
+  stdcall; external 'kernel32' name 'CreateSymbolicLinkW';
+{$endif}
+
+function CreatePathLink(const Link,Target: string; IsDirectory: Boolean): Boolean;
+{$ifdef unix}
+var
+  LinkPath,TargetPath: RawByteString;
+{$endif}
+{$ifdef windows}
+var
+  LinkPath,TargetPath: UnicodeString;
+  Flags: DWORD;
+{$endif}
+begin
+{$ifdef unix}
+  LinkPath:=ToSingleByteFileSystemEncodedFileName(Link);
+  TargetPath:=ToSingleByteFileSystemEncodedFileName(Target);
+  Result:=fpSymlink(PAnsiChar(TargetPath),PAnsiChar(LinkPath))=0;
+{$else}
+  LinkPath:=MakeWinApiPath(Link);
+  TargetPath:=UnicodeString(Target);
+  Flags:=Ord(IsDirectory);
+  Result:=IOCreateSymbolicLinkW(PWideChar(LinkPath),PWideChar(TargetPath),Flags or 2);
+  if not Result and (GetLastError=ERROR_INVALID_PARAMETER) then
+    Result:=IOCreateSymbolicLinkW(PWideChar(LinkPath),PWideChar(TargetPath),Flags);
+{$endif}
+end;
+
 { TPath }
 
 class constructor TPath.Create;
@@ -718,7 +893,7 @@ end;
 class function TPath.IsExtendedPrefixed(const aPath: string): Boolean;
 begin
 {$IfDef MSWINDOWS}
-  Result:=aPath.StartsWith(PathSeparator + PathSeparator + '?' + PathDelim);
+  Result:=aPath.StartsWith(PathDelim + PathDelim + '?' + PathDelim);
 {$Else}
   Result:=False;
 {$EndIf}
@@ -745,7 +920,7 @@ class function TPath.IsUNCRooted(const aPath: string): Boolean;
 begin
   {$IfDef MSWINDOWS}
   Result:=False;
-  if (Length(aPath)>=3) and (Copy(aPath,1,2)='//') then
+  if (Length(aPath)>=3) and ((Copy(aPath,1,2)=PathDelim+PathDelim) or (Copy(aPath,1,2)='//')) then
     If (aPath[3]='?') then
       Result:=GetExtendedPrefix(aPath) = TPathPrefixType.pptExtendedUNC
     else
@@ -1282,7 +1457,7 @@ begin
   if (Cfg='') then
     Cfg:=GetUserDir+'.config/user-dirs.dirs'
   else
-    CFG:=CFG+'user-dirs.dirs';
+    CFG:=IncludeTrailingPathDelimiter(CFG)+'user-dirs.dirs';
   if not FileExists(Cfg) then
     Exit;
   L:=TStringList.Create;
@@ -1674,13 +1849,13 @@ end;
 
 {$IFDEF UNIX}
 // We need full mode here, not just what TSearchRec has to offer
-function FileGetAttr(const FN: string; FollowLink: Boolean): Integer;
+function FileGetMode(const FN: string; FollowLink: Boolean): Integer;
 var
   st: tstat;
   Res : Integer;
 
 begin
-  Result:=0;
+  Result:=-1;
   if FollowLink then
     Res:=fpstat(FN,st)
   else
@@ -1822,6 +1997,12 @@ var
   ReadCount, WriteCount, TryCount: LongInt;
 begin
   Result:=False;
+  if SameFileIdentity(SrcFilename,DestFilename) then
+    begin
+    if ExceptionOnError then
+      raise EInOutError.Create('Source and destination refer to the same file');
+    Exit;
+    end;
   // check overwrite
   if (not (TCopyFileFlag.cffOverwriteFile in Flags)) and FileExists(DestFileName) then
     begin
@@ -1909,11 +2090,7 @@ end;
 
 class function TFile.CreateSymLink(const Link, Target: string): Boolean;
 begin
-{$IFDEF UNIX}
-  Result:=fpLink(Target,Link)=0;
-{$ELSE}
-  Result:=False;
-{$ENDIF}
+  Result:=CreatePathLink(Link,Target,DirectoryExists(Target));
 end;
 
 class function TFile.CreateText(const aPath: string): TStreamWriter;
@@ -1923,7 +2100,8 @@ end;
 
 class procedure TFile.Delete(const aPath: string);
 begin
-  {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.DeleteFile(aPath);
+  if not {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.DeleteFile(aPath) then
+    RaisePathError(aPath,GetLastOSError);
 end;
 
 class function TFile.Exists(const aPath: string; FollowLink: Boolean): Boolean;
@@ -2029,6 +2207,9 @@ function MakeWinApiPath(const Path: string): string;
 var
   Len: DWORD;
 begin
+  if TPath.IsExtendedPrefixed(Path) or
+     ((Length(Path)>=4) and (Copy(Path,1,4)='\\.\')) then
+    Exit(Path);
   Len:=GetFullPathNameW(PWideChar(Path),0,nil,nil);
   if Len=0 then
     exit(Path);
@@ -2100,8 +2281,18 @@ end;
 
 class function TFile.GetAttributes(const aPath: string; FollowLink: Boolean
   ): TFileAttributes;
+var
+  Attr,Code: Integer;
 begin
-  Result:=IntegerToFileAttributes(FileGetAttr(aPath{$ifdef unix},Followlink{$endif}));
+  Attr:={$ifdef unix}FileGetMode(aPath,FollowLink){$else}FileGetAttr(aPath){$endif};
+  if Attr<0 then
+    begin
+    Code:=GetLastOSError;
+    if MissingPathError(Code) then
+      raise EFileNotFoundException.CreateFmt('File not found: %s',[aPath]);
+    RaisePathError(aPath,Code);
+    end;
+  Result:=IntegerToFileAttributes(Attr);
 end;
 
 class function TFile.GetCreationTime(const aPath: string): TDateTime;
@@ -2287,7 +2478,16 @@ end;
 
 class function TFile.OpenWrite(const aPath: string): TFileStream;
 begin
-  Result:=TFileStream.Create(aPath,fmOpenWrite);
+  try
+    Result:=TFileStream.Create(aPath,fmOpenWrite);
+  except
+    on E: EFOpenError do
+      begin
+      if not FileExists(aPath) then
+        raise EFileNotFoundException.CreateFmt('File not found: %s',[aPath]);
+      raise;
+      end;
+  end;
 end;
 
 class function TFile.ReadAllBytes(const aPath: string): TBytes;
@@ -2532,14 +2732,22 @@ begin
 {$ENDIF}
 end;
 
-class procedure TFile.SetAttributes(const aPath: string;
-  const aAttributes: TFileAttributes);
+class procedure TFile.SetAttributes(const aPath: string; const aAttributes: TFileAttributes);
+var
+  Code: Integer;
 begin
 {$ifdef unix}
-  fpCHmod(aPath,FileAttributesToInteger(aAttributes));
+  if fpChmod(aPath,FileAttributesToInteger(aAttributes))=0 then
+    Exit;
+  Code:=GetLastOSError;
 {$else}
-  {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.FileSetAttr(aPath, FileAttributesToInteger(aAttributes));
+  Code:={$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.FileSetAttr(aPath,FileAttributesToInteger(aAttributes));
+  if Code=0 then
+    Exit;
 {$endif}
+  if MissingPathError(Code) then
+    raise EFileNotFoundException.CreateFmt('File not found: %s',[aPath]);
+  RaisePathError(aPath,Code);
 end;
 
 class procedure TFile.SetCreationTime(const aPath: string;
@@ -2674,23 +2882,26 @@ var
   SearchRec: TSearchRec;
   IntPath:   TFileName;
 begin
+  RequireDirectory(aPath);
   IntPath     :=IncludeTrailingPathDelimiter(aPath);
   Result      :=[];
-  if (FindFirst(IntPath + aSearchPattern, TFile.FileAttributesToInteger(SearchAttributes), SearchRec) = 0) then
+  if (CheckedFindFirst(IntPath + aSearchPattern, TFile.FileAttributesToInteger(SearchAttributes), SearchRec) = 0) then
     try
       repeat
         if FilterPredicate(aPath, SearchRec) then
           Result:=Result + [IntPath + SearchRec.Name];
-      until FindNext(SearchRec) <> 0;
+      until CheckedFindNext(SearchRec,aPath) <> 0;
     finally
       {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.FindClose(SearchRec);
     end;
-  if (aSearchOption=TSearchOption.soAllDirectories) and (FindFirst(IntPath + AllFilesMask, lfaDirectory, SearchRec) = 0) then
+  if (aSearchOption=TSearchOption.soAllDirectories) and (CheckedFindFirst(IntPath + AllFilesMask,
+    lfaDirectory or {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.faSymLink, SearchRec) = 0) then
     try
       repeat
-        if SearchRec.IsDirectory and not SearchRec.IsCurrentOrParentDir then
+        if SearchRec.IsDirectory and not SearchRec.IsCurrentOrParentDir and
+           ((SearchRec.Attr and {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.faSymLink)=0) then
            Result:=Result + GetFilesAndDirectories(IntPath + SearchRec.Name, aSearchPattern, aSearchOption, SearchAttributes, aPredicate)
-      until FindNext(SearchRec) <> 0;
+      until CheckedFindNext(SearchRec,aPath) <> 0;
    Finally
      {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.FindClose(SearchRec);
    end;
@@ -2698,12 +2909,124 @@ end;
 
 class procedure TDirectory.Copy(const SourceDirName, DestDirName: string);
 begin
-  CopyFile(SourceDirName, DestDirName,[],True);
+  Copy(SourceDirName,DestDirName,False);
+end;
+
+class procedure TDirectory.Copy(const SourceDirName, DestDirName: string; const IgnoreErrors: Boolean);
+var
+  Parent,NextParent: string;
+  Attr,Code: Integer;
+
+  procedure CopyTree(const Source,Destination: string);
+  var
+    Rec: TSearchRec;
+    FromPath,ToPath: string;
+{$ifdef unix}
+    LinkTarget: RawByteString;
+{$else}
+    WideSource,WideDestination: UnicodeString;
+    CopyFlags: DWORD;
+{$endif}
+  begin
+    CreateDirectory(Destination);
+    if CheckedFindFirst(IncludeTrailingPathDelimiter(Source)+AllFilesMask,
+      {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.faAnyFile or
+      {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.faSymLink,Rec)<>0 then
+      Exit;
+    try
+      repeat
+        if Rec.IsCurrentOrParentDir then
+          Continue;
+        FromPath:=TPath.Combine(Source,Rec.Name);
+        ToPath:=TPath.Combine(Destination,Rec.Name);
+        try
+          if (Rec.Attr and {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.faSymLink)<>0 then
+            begin
+{$ifdef unix}
+            LinkTarget:=fpReadLink(ToSingleByteFileSystemEncodedFileName(FromPath));
+            if LinkTarget='' then
+              RaisePathError(FromPath,GetLastOSError);
+            if fpSymlink(PAnsiChar(LinkTarget),PAnsiChar(ToSingleByteFileSystemEncodedFileName(ToPath)))<>0 then
+              RaisePathError(ToPath,GetLastOSError);
+{$else}
+            WideSource:=MakeWinApiPath(FromPath);
+            WideDestination:=MakeWinApiPath(ToPath);
+            CopyFlags:=COPY_FILE_COPY_SYMLINK;
+            if Rec.IsDirectory then
+              CopyFlags:=CopyFlags or $80; { COPY_FILE_DIRECTORY, Windows 10 build 19041+ }
+            if CopyFileExW(PWideChar(WideSource),PWideChar(WideDestination),nil,nil,nil,
+                CopyFlags)=0 then
+              RaisePathError(ToPath,GetLastOSError);
+{$endif}
+            end
+          else if Rec.IsDirectory then
+            CopyTree(FromPath,ToPath)
+          else
+            TFile.Copy(FromPath,ToPath,True);
+        except
+          on E: EInOutError do if not IgnoreErrors then raise;
+          on E: EStreamError do if not IgnoreErrors then raise;
+          on E: EDirectoryNotFoundException do if not IgnoreErrors then raise;
+        end;
+      until CheckedFindNext(Rec,Source)<>0;
+    finally
+      {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.FindClose(Rec);
+    end;
+  end;
+
+begin
+  RequireDirectory(SourceDirName);
+  if DestDirName='' then
+    raise EArgumentException.Create('Destination directory must not be empty');
+{$ifdef unix}
+  { Preserve native symlink/.. traversal; lexical ExpandFileName would erase it. }
+  if TPath.IsPathRooted(DestDirName) then
+    Parent:=DestDirName
+  else
+    Parent:=IncludeTrailingPathDelimiter(GetCurrentDir)+DestDirName;
+{$else}
+  Parent:=ExpandFileName(DestDirName);
+{$endif}
+  Parent:=ExcludeTrailingPathDelimiter(Parent);
+  { Find the existing prefix without creating any destination directory. }
+  repeat
+    Attr:=FileGetAttr(Parent);
+    if Attr>=0 then
+      Break;
+    Code:=GetLastOSError;
+    if not MissingPathError(Code) then
+      RaisePathError(Parent,Code);
+    NextParent:=ExtractFileDir(Parent);
+    if (NextParent=Parent) or (NextParent='') then
+      RaisePathError(Parent,Code);
+    Parent:=NextParent;
+  until False;
+  RequireDirectory(Parent);
+{$ifdef windows}
+  Parent:=ResolvedDirectory(Parent);
+{$endif}
+  repeat
+    if SameFileIdentity(SourceDirName,Parent) then
+      raise EArgumentException.Create('Cannot copy a directory into itself');
+{$ifdef unix}
+    NextParent:=IncludeTrailingPathDelimiter(Parent)+'..';
+    RequireDirectory(NextParent);
+    if SameFileIdentity(Parent,NextParent) then
+      Break;
+{$else}
+    NextParent:=ExtractFileDir(Parent);
+    if (NextParent=Parent) or (NextParent='') then
+      Break;
+{$endif}
+    Parent:=NextParent;
+  until False;
+  CopyTree(SourceDirName,DestDirName);
 end;
 
 class procedure TDirectory.CreateDirectory(const aPath: string);
 begin
-  ForceDirectories(aPath);
+  if not ForceDirectories(aPath) then
+    RaisePathError(aPath,GetLastOSError);
 end;
 
 function DeleteDirectory(const DirectoryName: string; OnlyChildren: boolean): boolean;
@@ -2716,9 +3039,24 @@ var
   CurFilename: String;
 begin
   Result:=false;
+{$ifdef unix}
+  if fpS_ISLNK(FileGetMode(DirectoryName,False)) then
+{$else}
+  if (FileGetAttr(DirectoryName) and {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.faSymLink)<>0 then
+{$endif}
+    begin
+    if OnlyChildren then
+      Exit;
+{$ifdef windows}
+    Result:=RemoveDir(DirectoryName);
+{$else}
+    Result:={$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.DeleteFile(DirectoryName);
+{$endif}
+    Exit;
+    end;
   CurSrcDir:=ExpandFileName(DirectoryName);
   CurSrcDir:=IncludeTrailingPathDelimiter(CurSrcDir);
-  if FindFirst(CurSrcDir+AllFilesMask,DeleteMask,FileInfo)=0 then
+  if CheckedFindFirst(CurSrcDir+AllFilesMask,DeleteMask,FileInfo)=0 then
     Try
       repeat
         // check if special file
@@ -2726,12 +3064,19 @@ begin
           continue;
         CurFilename:=CurSrcDir+FileInfo.Name;
         if ((FileInfo.Attr and {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}sysutils.faDirectory)>0)
-           {$ifdef unix} and ((FileInfo.Attr and {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}sysutils.faSymLink{%H-})=0) {$endif unix} then begin
+           and ((FileInfo.Attr and {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}sysutils.faSymLink)=0) then begin
           if not DeleteDirectory(CurFilename,false) then exit;
         end else begin
+{$ifdef windows}
+          if (FileInfo.Attr and {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.faDirectory)<>0 then
+            begin
+            if not RemoveDir(CurFilename) then Exit;
+            end
+          else
+{$endif}
           if not {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.DeleteFile(CurFilename) then exit;
         end;
-      until {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.FindNext(FileInfo)<>0;
+      until CheckedFindNext(FileInfo,DirectoryName)<>0;
     finally
       {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.FindClose(FileInfo);
     end;
@@ -2742,15 +3087,21 @@ end;
 
 class procedure TDirectory.Delete(const aPath: string);
 begin
-  RemoveDir(aPath);
+  RequireDirectory(aPath);
+  if not RemoveDir(aPath) then
+    RaisePathError(aPath,GetLastOSError);
 end;
 
 
 
 class procedure TDirectory.Delete(const aPath: string; const Recursive: Boolean);
 begin
+  RequireDirectory(aPath);
   if Recursive then
-    DeleteDirectory(aPath, False)
+    begin
+    if not DeleteDirectory(aPath,False) then
+      RaisePathError(aPath,GetLastOSError);
+    end
   else
     TDirectory.Delete(aPath);
 end;
