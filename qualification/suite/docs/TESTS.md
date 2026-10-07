@@ -126,6 +126,16 @@ is actually used: `task_wait_semantic`, `thread_pool_lifecycle_semantic`,
 They run separately in Debug/O2/O3 and require an exact PASS marker; successful
 package compilation does not replace these runtime oracles.
 
+The API gate also checks native API overloads and typed function pointers,
+file read/write/append/replace chains and failures, pseudo-files/FIFOs, invalid
+call recovery, and complete FreeType loader ownership. Linux requires
+`libfreetype6-dev` and `fonts-dejavu-core` for an independent C layout oracle
+and a real font rendering/callback cycle. The separate diagnostic report gate
+runs in CI on both platforms (Linux also needs `libunwind8`, zlib and OpenSSL)
+and checks report contents, including incomplete
+Linux traces for invalid call targets. Release archive checks repeat the file
+and fault scenarios with only the extracted toolchain.
+
 The gate builds the same source with the real product build driver in Debug and
 Release, simultaneously checking namespace aliases, Unicode `String`, the
 bundled MM, and the automatically inserted Linux prefix `MM, cthreads, cwstring,

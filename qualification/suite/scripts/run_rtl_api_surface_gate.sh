@@ -16,15 +16,22 @@ run="$suite_root/results/runs/$1/rtl-api-surface"
   exit 1
 }
 mkdir -p "$run"
+cc -std=c11 -I/usr/include/freetype2 "$source_root/freetype_abi_oracle.c" -o "$run/freetype-abi"
+"$run/freetype-abi" >"$run/freetype-abi.log"
+grep -qx FREETYPE_C_ABI_OK "$run/freetype-abi.log"
 cases=0
 executions=0
 
-for case_name in rtl_api_portability_contracts rtl_api_regex_contracts rtl_api_posix_contracts rtl_api_compiler_identity rtl_api_threading_contracts rtl_api_url_async_contracts rtl_api_json_builder_contracts rtl_api_release21_contracts rtl_api_timezone_provider_contracts rtl_api_surface rtl_api_stringbuilder_contracts \
+for case_name in rtl_api_release231_contracts rtl_api_freetype_contracts rtl_api_portability_contracts rtl_api_regex_contracts rtl_api_posix_contracts rtl_api_compiler_identity rtl_api_threading_contracts rtl_api_url_async_contracts rtl_api_json_builder_contracts rtl_api_release21_contracts rtl_api_timezone_provider_contracts rtl_api_surface rtl_api_stringbuilder_contracts \
     rtl_api_variant_dictionary_contracts rtl_api_bcd_value_contracts rtl_api_encoding_contracts rtl_api_utf8_decode_contracts rtl_api_datetime_unix_contracts rtl_api_sorted_find_contracts \
     rtl_api_queue_contracts rtl_api_dictionary_capacity_contracts rtl_api_comparer_factory_contracts \
     rtl_api_text_operations_contracts rtl_api_dictionary_scan_contracts rtl_api_unicode_copy_contracts rtl_api_array_copy \
     rtl_api_dynarray_managed_contracts rtl_api_fphttp_nodelay rtl_api_fphttp_overload_response; do
-  if [[ "$case_name" == rtl_api_portability_contracts ]]; then
+  if [[ "$case_name" == rtl_api_release231_contracts ]]; then
+    expected=RTL_API_RELEASE231_CONTRACTS_OK
+  elif [[ "$case_name" == rtl_api_freetype_contracts ]]; then
+    expected=RTL_API_FREETYPE_CONTRACTS_OK
+  elif [[ "$case_name" == rtl_api_portability_contracts ]]; then
     expected=RTL_API_PORTABILITY_PASS
   elif [[ "$case_name" == rtl_api_regex_contracts ]]; then
     expected=RTL_API_REGEX_CONTRACTS_OK
@@ -97,6 +104,19 @@ for case_name in rtl_api_portability_contracts rtl_api_regex_contracts rtl_api_p
     if [[ "$profile" == diagnostic-release ]]; then
       build_options+=(-dFPCX64MM_DIAGNOSTIC)
     fi
+    if [[ "$case_name" == rtl_api_freetype_contracts ]]; then
+      for kind in good incomplete tail; do
+        fixture_options=("${build_options[@]}" "-omoon-freetype-$kind.so")
+        if [[ "$kind" == incomplete ]]; then
+          fixture_options+=(-dMISSING_FREETYPE_EXPORT)
+        fi
+        if [[ "$kind" == tail ]]; then
+          fixture_options+=(-dMISSING_FREETYPE_TAIL)
+        fi
+        "$compiler_root/toolchain/bin/fpc" "${fixture_options[@]}" "$source_root/moon_freetype_fixture.dpr" \
+          >"$profile_dir/$kind-compile.log" 2>&1
+      done
+    fi
     if ! "$compiler_root/toolchain/bin/fpc" "${build_options[@]}" "$project" \
         >"$profile_dir/compile.log" 2>&1; then
       echo "$case_name/$profile did not compile" >&2
@@ -112,6 +132,9 @@ for case_name in rtl_api_portability_contracts rtl_api_regex_contracts rtl_api_p
 done
 
 {
+  sha256sum "$source_root/rtl_api_release231_contracts.dpr" \
+    "$source_root/rtl_api_freetype_contracts.dpr" "$source_root/moon_freetype_fixture.dpr" \
+    "$source_root/freetype_abi_oracle.c"
   sha256sum "$source_root/rtl_api_portability_contracts.dpr"
   sha256sum "$source_root/rtl_api_regex_contracts.dpr"
   sha256sum "$source_root/rtl_api_posix_contracts.dpr"

@@ -9,6 +9,8 @@ $CompilerRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $SourceRoot = Join-Path $SuiteRoot 'tests\rtl-api'
 $Run = Join-Path $SuiteRoot "results\runs\$RunId\rtl-api-surface"
 $Cases = @(
+  @{ Name = 'rtl_api_release231_contracts'; Expected = 'RTL_API_RELEASE231_CONTRACTS_OK' },
+  @{ Name = 'rtl_api_freetype_contracts'; Expected = 'RTL_API_FREETYPE_CONTRACTS_OK' },
   @{ Name = 'rtl_api_portability_contracts'; Expected = 'RTL_API_PORTABILITY_PASS' },
   @{ Name = 'rtl_api_regex_contracts'; Expected = 'RTL_API_REGEX_CONTRACTS_OK' },
   @{ Name = 'rtl_api_windows_contracts'; Expected = 'RTL_API_WINDOWS_CONTRACTS_OK' },
@@ -58,6 +60,16 @@ foreach ($Case in $Cases) {
     If ($Profile -eq 'reverse-uses') { $Options += '-dRTL_API_WINDOWS_FIRST' }
     If ($Profile -ne 'debug') { $Options += '-dRELEASE' }
     If ($Profile -eq 'diagnostic-release') { $Options += '-dFPCX64MM_DIAGNOSTIC' }
+    If ($Case.Name -eq 'rtl_api_freetype_contracts') {
+      foreach ($Kind in @('good', 'incomplete', 'tail')) {
+        $FixtureOptions = $Options + "-omoon-freetype-$Kind.dll"
+        If ($Kind -eq 'incomplete') { $FixtureOptions += '-dMISSING_FREETYPE_EXPORT' }
+        If ($Kind -eq 'tail') { $FixtureOptions += '-dMISSING_FREETYPE_TAIL' }
+        & (Join-Path $CompilerRoot 'toolchain\bin\x86_64-win64\fpc.exe') @FixtureOptions `
+          (Join-Path $SourceRoot 'moon_freetype_fixture.dpr') *> (Join-Path $ProfileDir "$Kind-compile.log")
+        If ($LASTEXITCODE -ne 0) { throw "FreeType $Kind fixture did not compile" }
+      }
+    }
     If ($Case.Name -eq 'rtl_api_delayed_contracts') {
       & (Join-Path $CompilerRoot 'toolchain\bin\x86_64-win64\fpc.exe') @Options `
         (Join-Path $SourceRoot 'moon_delay_fixture.dpr') *> (Join-Path $ProfileDir 'dll-compile.log')
@@ -68,9 +80,26 @@ foreach ($Case in $Cases) {
     If ($LASTEXITCODE -ne 0) {
       throw "$($Case.Name)/$Profile did not compile"
     }
-    & (Join-Path $ProfileDir "$($Case.Name).exe") `
-      *> (Join-Path $ProfileDir 'run.log')
-    $ExitCode = $LASTEXITCODE
+    $RunLog = Join-Path $ProfileDir 'run.log'
+    $StartInfo = New-Object Diagnostics.ProcessStartInfo
+    $StartInfo.FileName = Join-Path $ProfileDir "$($Case.Name).exe"
+    $StartInfo.UseShellExecute = $false
+    $StartInfo.CreateNoWindow = $true
+    $StartInfo.RedirectStandardOutput = $true
+    $StartInfo.RedirectStandardError = $true
+    $Process = New-Object Diagnostics.Process
+    $Process.StartInfo = $StartInfo
+    [void]$Process.Start()
+    $Stdout = $Process.StandardOutput.ReadToEndAsync()
+    $Stderr = $Process.StandardError.ReadToEndAsync()
+    If (-not $Process.WaitForExit(30000)) {
+      $Process.Kill()
+      $Process.WaitForExit()
+      throw "$($Case.Name)/$Profile timed out after 30 seconds"
+    }
+    $ExitCode = $Process.ExitCode
+    [IO.File]::WriteAllText($RunLog, $Stdout.Result + $Stderr.Result, [Text.UTF8Encoding]::new($false))
+    $Process.Dispose()
     $RunLines = @(Get-Content -LiteralPath (Join-Path $ProfileDir 'run.log'))
     If ($Profile -eq 'diagnostic-release') {
       $OutputIsValid = ($RunLines -contains $Case.Expected) -and
@@ -85,6 +114,9 @@ foreach ($Case in $Cases) {
 }
 
 $Inputs = @(
+  (Join-Path $SourceRoot 'rtl_api_release231_contracts.dpr'),
+  (Join-Path $SourceRoot 'rtl_api_freetype_contracts.dpr'),
+  (Join-Path $SourceRoot 'moon_freetype_fixture.dpr'),
   (Join-Path $SourceRoot 'rtl_api_portability_contracts.dpr'),
   (Join-Path $SourceRoot 'rtl_api_regex_contracts.dpr'),
   (Join-Path $SourceRoot 'rtl_api_windows_contracts.dpr'),

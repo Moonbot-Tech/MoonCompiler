@@ -24,7 +24,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends \
             make binutils gcc fp-compiler-3.2.2 python3 coreutils util-linux \
-            libffi-dev
+            libffi-dev libfreetype6-dev fonts-dejavu-core \
+            libunwind8 zlib1g libssl3t64 openssl ca-certificates
           test "$(fpc -iV)" = 3.2.2
       - name: Build product toolchain
         env:
@@ -244,6 +245,12 @@ jobs:
           python3 scripts/run_win64_repair_gate.py \
             ../../toolchain/bin/ppcx64 ../../toolchain/etc/moon-base.cfg \
             ../.. ci-linux-repairs
+      - name: Run diagnostic report contracts
+        run: |
+          python3 qualification/suite/scripts/run_reporting_gate.py \
+            --compiler toolchain/bin/ppcx64 \
+            --rtl toolchain/lib/fpc/3.3.1/units/x86_64-linux/rtl \
+            --mormot mormot --product-mm --jobs 4 --results .qualification/ci-linux-reporting
       - name: Run RTL semantic matrix
         run: python3 RTL-test/run.py --jobs 4
       - name: Run HTTP, MIME, ZIP and optional Brotli contracts
@@ -590,6 +597,14 @@ jobs:
           .\qualification\suite\scripts\run_forms_gate.ps1 `
             $Compiler $Config ci-win64-forms
           If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+      - name: Run diagnostic report contracts
+        shell: powershell
+        run: |
+          python .\qualification\suite\scripts\run_reporting_gate.py `
+            --compiler .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --rtl .\toolchain\units\x86_64-win64\rtl `
+            --mormot .\mormot --product-mm --jobs 4 --results .\.qualification\ci-win64-reporting
+          If ($LASTEXITCODE -ne 0) { throw 'Diagnostic report contracts failed' }
       - name: Run RTL semantic matrix
         shell: powershell
         run: |
