@@ -895,6 +895,10 @@ begin
       if clock_gettime(plocaleventstate(state)^.FClockID, @timespec) <> 0 then
       begin
         Result := Ord(wrError);
+        { Match the normal exit order: the last waiter keeps the state alive
+          until its mutex has been released. }
+        pthread_mutex_unlock(@plocaleventstate(state)^.FEventSection);
+        interlockeddecrement(plocaleventstate(state)^.FWaiters);
         Exit;
       end;
       timespec.tv_sec  := timespec.tv_sec + (clong(timeout) div 1000);
