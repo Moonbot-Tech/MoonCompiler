@@ -76,11 +76,11 @@ begin
     AContext+' query unsafe set');
   Check(TNetEncoding.URL.EncodePath(WideChar($0416)+'/'+WideChar($20ac),[])=
     '/%D0%96/%E2%82%AC',AContext+' Unicode path bytes');
-  Check(TNetEncoding.URL.EncodePath('a//b/',[])='/a/b',
-    AContext+' path normalization');
+  Check(TNetEncoding.URL.EncodePath('a//b/',[])='/a//b/',
+    AContext+' path separators');
   Check(TNetEncoding.URL.EncodePath('',[])='/',AContext+' empty path');
-  Check(TNetEncoding.URL.EncodePath('///',[])='',AContext+' separators-only path');
-  Check(TNetEncoding.URL.EncodePath('a b?c',[])='/a+b%3Fc',
+  Check(TNetEncoding.URL.EncodePath('///',[])='///',AContext+' separators-only path');
+  Check(TNetEncoding.URL.EncodePath('a b?c',[])='/a%20b%3Fc',
     AContext+' path unsafe and space policy');
   Check(TNetEncoding.URL.EncodePath('a'+#0+'b',[])='/a%00b',
     AContext+' path embedded NUL');

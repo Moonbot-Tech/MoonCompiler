@@ -165,8 +165,12 @@ type
       TDecodeOptions = set of TDecodeOption;
   Public
     function Encode(const aInput: string; const aSet: TUnsafeChars; const aOptions: TEncodeOptions; aEncoding: TEncoding = nil): string; overload;
-    function EncodeQuery(const aInput: string; const aExtraUnsafeChars: TUnsafeChars): string;
-    function EncodePath(const aPath: string; const aExtraUnsafeChars: TUnsafeChars): string;
+    function EncodeQuery(const aInput: string; const aExtraUnsafeChars: TUnsafeChars = []): string;
+    function EncodePath(const aPath: string; const aExtraUnsafeChars: TUnsafeChars = []): string;
+    function EncodeAuth(const aInput: string; const aExtraUnsafeChars: TUnsafeChars = []): string;
+    function EncodeForm(const aInput: string; const aExtraUnsafeChars: TUnsafeChars = []; aEncoding: TEncoding = nil): string;
+    function URLDecode(const aInput: string): string;
+    function FormDecode(const aInput: string; aEncoding: TEncoding = nil): string;
     class function URIDecode(const aValue: string; aPlusAsSpaces: Boolean): string;
   end;
 
@@ -877,37 +881,46 @@ begin
 end;
 
 function TURLEncoding.EncodePath(const aPath: string; const aExtraUnsafeChars: TUnsafeChars): string;
-
 const
-  { Preserve the pre-repair FPC path policy: each non-empty segment used
-    HTTPEncode's Delphi-compatible allow-list and spaces-as-plus mode. }
-  PathUnsafeChars: TUnsafeChars =
-    [Ord('"'),Ord('#'),Ord('&'),Ord('+'),Ord(','),Ord('/'),Ord(':'),Ord(';'),
-     Ord('<'),Ord('='),Ord('>'),Ord('?'),Ord('['),Ord('\'),Ord(']'),Ord('^'),
-     Ord('`'),Ord('{'),Ord('|'),Ord('}'),Ord('~')];
-
-var
-  I,SegmentStart: Integer;
-  Unsafe: TUnsafeChars;
-
+  Unsafe: TUnsafeChars = [34,35,60,62,63,92,94,96,123,124,125];
 begin
-  if APath = '' then
-    Exit('/');
-  Result:='';
-  Unsafe:=PathUnsafeChars+aExtraUnsafeChars;
-  I:=1;
-  while I<=Length(APath) do
-    begin
-    while (I<=Length(APath)) and (APath[I]='/') do
-      Inc(I);
-    if I>Length(APath) then
-      break;
-    SegmentStart:=I;
-    while (I<=Length(APath)) and (APath[I]<>'/') do
-      Inc(I);
-    Result:=Result+'/'+Encode(Copy(APath,SegmentStart,I-SegmentStart),
-      Unsafe,[TEncodeOption.SpacesAsPlus]);
-    end;
+  Result:=Encode(aPath,Unsafe+aExtraUnsafeChars,[]);
+  if (aPath='') or (aPath[1]<>'/') then
+    Result:='/'+Result;
+end;
+
+function TURLEncoding.EncodeAuth(const aInput: string; const aExtraUnsafeChars: TUnsafeChars): string;
+const
+  Unsafe: TUnsafeChars = [34,35,39,47,58,59,60,61,62,63,64,91,92,93,94,96,123,124,125];
+begin
+  Result:=Encode(aInput,Unsafe+aExtraUnsafeChars,[TEncodeOption.EncodePercent]);
+end;
+
+function TURLEncoding.EncodeForm(const aInput: string; const aExtraUnsafeChars: TUnsafeChars; aEncoding: TEncoding): string;
+const
+  Safe: TUnsafeChars = [Ord('a')..Ord('z'),Ord('A')..Ord('Z'),Ord('0')..Ord('9'),42,45,46,95];
+begin
+  Result:=Encode(aInput,([0..255]-Safe)+aExtraUnsafeChars,
+    [TEncodeOption.EncodePercent,TEncodeOption.SpacesAsPlus],aEncoding);
+end;
+
+function TURLEncoding.URLDecode(const aInput: string): string;
+begin
+  Result:=URIDecode(aInput,False);
+end;
+
+function TURLEncoding.FormDecode(const aInput: string; aEncoding: TEncoding): string;
+var
+  Raw: RawByteString;
+  Bytes: TBytes;
+begin
+  if aEncoding=nil then
+    aEncoding:=TEncoding.UTF8;
+  Raw:=DecodeURLBytes(UTF8Encode(aInput),True);
+  SetLength(Bytes,Length(Raw));
+  if Length(Raw)>0 then
+    Move(Raw[1],Bytes[0],Length(Raw));
+  Result:=aEncoding.GetString(Bytes);
 end;
 
 class function TURLEncoding.URIDecode(const aValue: string; aPlusAsSpaces: Boolean): string;
