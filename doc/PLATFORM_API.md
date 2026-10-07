@@ -97,6 +97,40 @@ widths, bitmap fields, encoding tags and outline callbacks follow FreeType's C A
 
 ## Shared runtime contracts
 
+`TDirectory.Copy` merges a source tree into the destination and overwrites existing
+regular files. The two-argument form reports failures; `IgnoreErrors=True` skips
+failed entries and continues siblings. Invalid roots and unsafe self-copy are
+still errors. Symbolic links are copied as links, including relative and dangling
+targets. Recursive enumeration/deletion does not traverse directory links.
+Windows link creation requires the appropriate OS privilege or Developer Mode.
+Native copying of Windows directory links requires Windows 10 build 19041 or
+later (including Windows Server 2022); an unsupported OS reports the copy failure.
+These operations do not provide atomic snapshots against concurrent path changes.
+`TFile.Copy` rejects aliased source/destination files before truncating either.
+Missing paths and access failures are not successful empty enumerations.
+
+`TTextReader`, `TStreamReader`, `TStringReader`, `TTextWriter`, `TStreamWriter` and
+`TStringWriter` are available from `System.Classes`/`Classes`. `StreamEx` refers
+to the same types, so existing JSON readers and FPC consumers can share them.
+Stream readers borrow caller streams unless `OwnStream` is requested; filename
+constructors own their streams. `DiscardBufferedData` discards read-ahead after an
+external seek without changing the selected encoding; `Rewind` seeks to the start
+and repeats BOM detection. Ordinary FPC and Unicode product profiles remain separate.
+This does not add Delphi binary reader/writer classes or full `System.Messaging`.
+
+`TURLEncoding.EncodePath` preserves path separators and escapes spaces as `%20`.
+`URLDecode` preserves literal `+`; `FormDecode` treats it as a space.
+`TryISO8601ToDate` returns `False` for malformed/out-of-range timezone offsets;
+the throwing conversion reports an error. Moon does not reproduce Delphi versions
+whose `Try` entry point throws for that malformed timezone input.
+
+`TJSONIterator.Next` enters root object/array contents automatically; `Recurse`
+explicitly enters a nested container. Exhausting that level resumes its parent;
+an immediate `Return` after exhaustion does not skip a second level. Serializer
+parse errors use `EJsonSerializationException`; application converter exceptions
+keep their type. New object cleanup pairs the selected creator's `Invoke` and
+`Release`; custom converters retain responsibility for their own ownership policy.
+
 - `IEqualityComparer<T>.GetHashCode`, comparer classes and public hash delegates
   return `Integer`. Dictionaries retain all 32 bits, including negative hashes.
   Internal hash algorithms remain unsigned.

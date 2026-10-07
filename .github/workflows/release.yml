@@ -104,6 +104,12 @@ jobs:
           cp RTL-test/semantic/file_resource_semantic.dpr "$smoke/app/"
           cp RTL-test/semantic/monitor_wait_contract_semantic.dpr "$smoke/app/"
           cp RTL-test/semantic/filesystem_unicode_contract_semantic.dpr "$smoke/app/"
+          cp RTL-test/semantic/classes_text_io_contract_semantic.dpr "$smoke/app/"
+          cp RTL-test/semantic/text_stream_type_identity_semantic.dpr "$smoke/app/"
+          cp RTL-test/semantic/url_components_contract_semantic.dpr "$smoke/app/"
+          cp RTL-test/semantic/iso8601_validation_semantic.dpr "$smoke/app/"
+          cp RTL-test/semantic/json_navigation_contract_semantic.dpr "$smoke/app/"
+          cp RTL-test/semantic/filesystem_operations_contract_semantic.dpr "$smoke/app/"
           cp qualification/suite/tests/rtl-api/rtl_api_release231_contracts.dpr "$smoke/app/"
           cp qualification/suite/tests/smoke/http_error_privacy.dpr "$smoke/app/"
           cp tests/test/units/system/tres4.res "$smoke/app/"
@@ -134,6 +140,24 @@ jobs:
             "$fpc" $profile filesystem_unicode_contract_semantic.dpr
             output=$(timeout 10 ./filesystem_unicode_contract_semantic)
             [[ "$output" == FILESYSTEM_UNICODE_CONTRACT_PASS ]]
+            "$fpc" $profile classes_text_io_contract_semantic.dpr
+            output=$(timeout 15 ./classes_text_io_contract_semantic)
+            [[ "$(printf '%s\n' "$output" | tail -n 1)" == CLASSES_TEXT_IO_CONTRACT_PASS ]]
+            "$fpc" $profile text_stream_type_identity_semantic.dpr
+            output=$(timeout 15 ./text_stream_type_identity_semantic)
+            [[ "$(printf '%s\n' "$output" | tail -n 1)" == TEXT_STREAM_TYPE_IDENTITY_PASS ]]
+            "$fpc" $profile url_components_contract_semantic.dpr
+            output=$(timeout 15 ./url_components_contract_semantic)
+            [[ "$(printf '%s\n' "$output" | tail -n 1)" == URL_COMPONENTS_CONTRACT_PASS ]]
+            "$fpc" $profile iso8601_validation_semantic.dpr
+            output=$(timeout 15 ./iso8601_validation_semantic)
+            [[ "$(printf '%s\n' "$output" | tail -n 1)" == ISO8601_VALIDATION_PASS ]]
+            "$fpc" $profile json_navigation_contract_semantic.dpr
+            output=$(timeout 15 ./json_navigation_contract_semantic)
+            [[ "$(printf '%s\n' "$output" | tail -n 1)" == JSON_NAVIGATION_CONTRACT_PASS ]]
+            "$fpc" $profile filesystem_operations_contract_semantic.dpr
+            output=$(timeout 15 ./filesystem_operations_contract_semantic)
+            [[ "$(printf '%s\n' "$output" | tail -n 1)" == FILESYSTEM_OPERATIONS_CONTRACT_PASS ]]
           done
           test -d units/x86_64-linux/debug
           test -d units/x86_64-linux/release
@@ -224,6 +248,12 @@ jobs:
             RTL-test\semantic\file_resource_semantic.dpr, `
             RTL-test\semantic\monitor_wait_contract_semantic.dpr, `
             RTL-test\semantic\filesystem_unicode_contract_semantic.dpr, `
+            RTL-test\semantic\classes_text_io_contract_semantic.dpr, `
+            RTL-test\semantic\text_stream_type_identity_semantic.dpr, `
+            RTL-test\semantic\url_components_contract_semantic.dpr, `
+            RTL-test\semantic\iso8601_validation_semantic.dpr, `
+            RTL-test\semantic\json_navigation_contract_semantic.dpr, `
+            RTL-test\semantic\filesystem_operations_contract_semantic.dpr, `
             qualification\suite\tests\rtl-api\rtl_api_release231_contracts.dpr, `
             qualification\suite\tests\smoke\http_error_privacy.dpr, `
             tests\test\units\system\tres4.res "$Smoke\app"
@@ -277,6 +307,42 @@ jobs:
               $Output = & .\filesystem_unicode_contract_semantic.exe
               If ($LASTEXITCODE -ne 0 -or $Output -ne 'FILESYSTEM_UNICODE_CONTRACT_PASS') {
                 throw "Unicode filesystem smoke returned: $Output"
+              }
+              & $Fpc @Profile classes_text_io_contract_semantic.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'classes_text_io_contract_semantic did not compile' }
+              $Output = @(& .\classes_text_io_contract_semantic.exe)
+              If ($LASTEXITCODE -ne 0 -or $Output[-1] -ne 'CLASSES_TEXT_IO_CONTRACT_PASS') {
+                throw "classes_text_io_contract_semantic returned: $Output"
+              }
+              & $Fpc @Profile text_stream_type_identity_semantic.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'text_stream_type_identity_semantic did not compile' }
+              $Output = @(& .\text_stream_type_identity_semantic.exe)
+              If ($LASTEXITCODE -ne 0 -or $Output[-1] -ne 'TEXT_STREAM_TYPE_IDENTITY_PASS') {
+                throw "text_stream_type_identity_semantic returned: $Output"
+              }
+              & $Fpc @Profile url_components_contract_semantic.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'url_components_contract_semantic did not compile' }
+              $Output = @(& .\url_components_contract_semantic.exe)
+              If ($LASTEXITCODE -ne 0 -or $Output[-1] -ne 'URL_COMPONENTS_CONTRACT_PASS') {
+                throw "url_components_contract_semantic returned: $Output"
+              }
+              & $Fpc @Profile iso8601_validation_semantic.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'iso8601_validation_semantic did not compile' }
+              $Output = @(& .\iso8601_validation_semantic.exe)
+              If ($LASTEXITCODE -ne 0 -or $Output[-1] -ne 'ISO8601_VALIDATION_PASS') {
+                throw "iso8601_validation_semantic returned: $Output"
+              }
+              & $Fpc @Profile json_navigation_contract_semantic.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'json_navigation_contract_semantic did not compile' }
+              $Output = @(& .\json_navigation_contract_semantic.exe)
+              If ($LASTEXITCODE -ne 0 -or $Output[-1] -ne 'JSON_NAVIGATION_CONTRACT_PASS') {
+                throw "json_navigation_contract_semantic returned: $Output"
+              }
+              & $Fpc @Profile filesystem_operations_contract_semantic.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'filesystem_operations_contract_semantic did not compile' }
+              $Output = @(& .\filesystem_operations_contract_semantic.exe)
+              If ($LASTEXITCODE -ne 0 -or $Output[-1] -ne 'FILESYSTEM_OPERATIONS_CONTRACT_PASS') {
+                throw "filesystem_operations_contract_semantic returned: $Output"
               }
             }
             If (-not (Test-Path units\x86_64-win64\debug) -or
@@ -363,6 +429,9 @@ jobs:
           - URI fragments stay local; real request paths, query strings and escaped characters are preserved.
           - Malformed URI ports and unsupported response charsets no longer echo their input in diagnostics.
           - Linux conditional rethrows preserve exception tables, outer handlers and managed cleanup, including branches that raise replacement exceptions.
+          - Linux monitor waits use the correct event lifecycle; filesystem names and current directories have a consistent Unicode API.
+          - Directory trees copy correctly, failed filesystem operations report errors, and link traversal cannot recursively consume a target tree.
+          - Text readers and writers are available from System.Classes. URL paths preserve separators, ISO timezone offsets are validated, and JSON navigation and failure cleanup follow their public contracts.
           - Windows/Linux tests cover secret-bearing failures, TLS, timeouts, redirects and streamed responses. Application callbacks and explicit URL logging remain the application's responsibility.
           - Dictionary implementation and existing optimizations are unchanged. Rebuild application and third-party PPUs when upgrading. MoonORMot 13 remains required.
 

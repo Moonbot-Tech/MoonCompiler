@@ -23,7 +23,7 @@ class SmokeExitCodes(unittest.TestCase):
         for workflow, step, calls in (
             ('qualification', 'Run product smoke', 3),
             ('moonormot-sync', f'Run the mORMot and memory-manager gates ({platform})', 2),
-            ('release', 'Smoke-test the archive as a user installs it', 14),
+            ('release', 'Smoke-test the archive as a user installs it', 26),
         ):
             source = (ROOT / f'.github/workflows/{workflow}.yml').read_text(encoding='utf-8')
             blocks = re.findall(r'      - name: ' + re.escape(step) +
@@ -65,7 +65,13 @@ class SmokeExitCodes(unittest.TestCase):
                             'rtl_api_release231_contracts': 'RTL_API_RELEASE231_CONTRACTS_OK',
                             'http_error_privacy': 'HTTP_ERROR_PRIVACY_PASS',
                             'monitor_wait_contract_semantic': 'MONITOR_WAIT_CONTRACT_PASS',
-                            'filesystem_unicode_contract_semantic': 'FILESYSTEM_UNICODE_CONTRACT_PASS'}}
+                            'filesystem_unicode_contract_semantic': 'FILESYSTEM_UNICODE_CONTRACT_PASS',
+                            'classes_text_io_contract_semantic': 'CLASSES_TEXT_IO_CONTRACT_PASS',
+                            'text_stream_type_identity_semantic': 'TEXT_STREAM_TYPE_IDENTITY_PASS',
+                            'url_components_contract_semantic': 'URL_COMPONENTS_CONTRACT_PASS',
+                            'iso8601_validation_semantic': 'ISO8601_VALIDATION_PASS',
+                            'json_navigation_contract_semantic': 'JSON_NAVIGATION_CONTRACT_PASS',
+                            'filesystem_operations_contract_semantic': 'FILESYSTEM_OPERATIONS_CONTRACT_PASS'}}
                 print('WRONG' if failed and {bad_output} else markers[sys.argv[1]])
                 sys.exit(73 if failed and not {bad_output} else 0)
                 '''), encoding='utf-8')
@@ -74,7 +80,7 @@ class SmokeExitCodes(unittest.TestCase):
                 compiler.parent.mkdir(parents=True)
                 compiler.write_text('@echo off\nexit /b 0\n')
                 body = body.replace('\\fpc.exe', '\\fpc.cmd')
-                body = re.sub(r'\.\\(build_smoke|zip|hello|file_resource_semantic|rtl_api_release231_contracts|http_error_privacy|monitor_wait_contract_semantic|filesystem_unicode_contract_semantic)\.exe',
+                body = re.sub(r'\.\\(build_smoke|zip|hello|file_resource_semantic|rtl_api_release231_contracts|http_error_privacy|monitor_wait_contract_semantic|filesystem_unicode_contract_semantic|classes_text_io_contract_semantic|text_stream_type_identity_semantic|url_components_contract_semantic|iso8601_validation_semantic|json_navigation_contract_semantic|filesystem_operations_contract_semantic)\.exe',
                               lambda m: f"'{sys.executable}' '{probe}' {m[1]}", body)
                 prefix = f"$ErrorActionPreference = 'Stop'\n$Smoke = '{work}'\n"
                 suffix = "\nWrite-Output 'SMOKE_STEP_COMPLETE'\nexit $LASTEXITCODE\n"
@@ -86,7 +92,7 @@ class SmokeExitCodes(unittest.TestCase):
                 compiler.write_text('#!/bin/sh\nexit 0\n')
                 compiler.chmod(0o755)
                 body = re.sub(r'\./(?:qualification/suite/tests/smoke/|examples/)?'
-                              r'(build_smoke|zip|hello|file_resource_semantic|rtl_api_release231_contracts|http_error_privacy|monitor_wait_contract_semantic|filesystem_unicode_contract_semantic)\b',
+                              r'(build_smoke|zip|hello|file_resource_semantic|rtl_api_release231_contracts|http_error_privacy|monitor_wait_contract_semantic|filesystem_unicode_contract_semantic|classes_text_io_contract_semantic|text_stream_type_identity_semantic|url_components_contract_semantic|iso8601_validation_semantic|json_navigation_contract_semantic|filesystem_operations_contract_semantic)\b',
                               lambda m: f'"{sys.executable}" "{probe}" {m[1]}', body)
                 prefix = f'smoke="{work}"\n'
                 suffix = "\nprintf '%s\\n' SMOKE_STEP_COMPLETE\n"

@@ -33,6 +33,34 @@ enumeration use the correct character representation. Explicit raw-byte APIs
 remain available. Both contracts are also checked against the installed release
 archive, outside the source checkout.
 
+Common RTL operations now preserve their public contracts across both platforms:
+
+- `TDirectory.Copy` copies directory trees, with a separate `IgnoreErrors` overload.
+  Copying into the source tree is rejected, including destinations reached through
+  aliases. Recursive traversal does not follow directory links; deleting a link
+  leaves its target intact. Failed file and directory operations report errors.
+  Linux creates real symbolic links and honors `XDG_CONFIG_HOME` without requiring
+  a trailing slash.
+- URL path encoding preserves repeated and trailing slashes and uses `%20` for
+  spaces. The URL, form, query and authentication helpers retain their distinct
+  escaping rules. ISO 8601 parsing rejects invalid timezone syntax and ranges;
+  `TryISO8601ToDate` returns `False` for those inputs.
+- `System.Classes` exposes the text reader/writer classes. Readers support
+  character, block, line and whole-text reads, peeking, rewind and enumeration.
+  Short stream reads and split UTF-8/BOM sequences are handled without forcing
+  a ready line to wait for a full buffer. `StreamEx` retains aliases to the same
+  types; the existing buffered writer implementation is preserved.
+- JSON iteration starts at the root's contents and maintains consistent nested
+  navigation. Serializer syntax failures use `EJsonSerializationException`.
+  Failed construction releases objects through their creator, including completed
+  elements of an incomplete array; custom converter ownership remains explicit.
+- A failed Linux event clock query releases its mutex and waiter registration.
+
+The tests use independent values, actual filesystem state, short-read streams,
+custom ownership callbacks and injected failures. New public API programs also
+run against unpacked release archives in Debug and Release. See
+[runtime contracts](PLATFORM_API.md) for the precise boundaries.
+
 Install the complete 2.3.2 toolchain and rebuild application and third-party PPUs.
 `MOONCOMPILER_FULLVERSION` is 20302; `CompilerVersion` remains 2.3. MoonORMot 13
 remains required.

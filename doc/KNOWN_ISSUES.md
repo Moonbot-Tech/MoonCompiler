@@ -9,15 +9,6 @@ belongs in the [Backlog](BACKLOG.md).
 
 ## Unsupported RTL surface
 
-### `System.JSON.Builders`
-
-The imported `vcl-compat` API is declared but not implemented completely.
-`TJSONCollectionBuilder.AsJSON` returns an empty string, `WriteJSON` accepts
-unchecked raw input, several typed getters are stubs, and `AsRoot` does not
-switch the root collection. MoonCompiler therefore does not claim this unit as
-functional merely because its package compiles. Product mORMot code uses its
-own JSON API.
-
 ### `TUCA_VariableKind.ucaIgnoreSP`
 
 `ucaIgnoreSP` currently follows the same Unicode Collation Algorithm path as

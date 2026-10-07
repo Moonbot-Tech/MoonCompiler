@@ -116,6 +116,12 @@ def consumer_smoke(asset: Path, pin: str, output: Path, steps: list[dict]) -> No
                        ROOT / "RTL-test/semantic/file_resource_semantic.dpr",
                        ROOT / "RTL-test/semantic/monitor_wait_contract_semantic.dpr",
                        ROOT / "RTL-test/semantic/filesystem_unicode_contract_semantic.dpr",
+                       ROOT / "RTL-test/semantic/classes_text_io_contract_semantic.dpr",
+                       ROOT / "RTL-test/semantic/text_stream_type_identity_semantic.dpr",
+                       ROOT / "RTL-test/semantic/url_components_contract_semantic.dpr",
+                       ROOT / "RTL-test/semantic/iso8601_validation_semantic.dpr",
+                       ROOT / "RTL-test/semantic/json_navigation_contract_semantic.dpr",
+                       ROOT / "RTL-test/semantic/filesystem_operations_contract_semantic.dpr",
                        ROOT / "tests/test/units/system/tres4.res"):
             shutil.copy2(source, app / source.name)
         resource = app / "file_resource_semantic.dpr"
@@ -133,7 +139,13 @@ def consumer_smoke(asset: Path, pin: str, output: Path, steps: list[dict]) -> No
                                  ("zip", "ZIP_EXAMPLE_OK"),
                                  ("file_resource_semantic", "FILE_RESOURCE_PASS"),
                                  ("monitor_wait_contract_semantic", "MONITOR_WAIT_CONTRACT_PASS"),
-                                 ("filesystem_unicode_contract_semantic", "FILESYSTEM_UNICODE_CONTRACT_PASS")):
+                                 ("filesystem_unicode_contract_semantic", "FILESYSTEM_UNICODE_CONTRACT_PASS"),
+                                 ("classes_text_io_contract_semantic", "CLASSES_TEXT_IO_CONTRACT_PASS"),
+                                 ("text_stream_type_identity_semantic", "TEXT_STREAM_TYPE_IDENTITY_PASS"),
+                                 ("url_components_contract_semantic", "URL_COMPONENTS_CONTRACT_PASS"),
+                                 ("iso8601_validation_semantic", "ISO8601_VALIDATION_PASS"),
+                                 ("json_navigation_contract_semantic", "JSON_NAVIGATION_CONTRACT_PASS"),
+                                 ("filesystem_operations_contract_semantic", "FILESYSTEM_OPERATIONS_CONTRACT_PASS")):
                 run(f"{profile}_{name}_build", [str(fpc), *options, name + ".dpr"],
                     app, output, steps)
                 run(f"{profile}_{name}_run", [str(app / (name + suffix))],

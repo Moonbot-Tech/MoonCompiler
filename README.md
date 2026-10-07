@@ -256,6 +256,8 @@ Delphi surface that Unleashed lacked and MoonBot/Arbitrage needed on Linux
 is written from behavioural contracts and standards, not from Embarcadero
 sources:
 
+- text reader/writer classes in `System.Classes`, with peeking, line/block reads,
+  rewind, short-read handling and compatible `StreamEx` aliases;
 - `Classes.TBufferedFileStream`, a `TFileStream` with one read/write window
   that is observably identical to the plain stream (the `bufstream` page
   cache, which corrupted seek-back write patterns, is repaired as well);
