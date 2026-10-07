@@ -3124,36 +3124,34 @@ begin
     outDateTime := 0;
 end;
 
-Function TryISOTZStrToTZOffset(const TZ : String; Out TZOffset : Integer) : boolean;
-
-Var
-  H,M : LongInt;
-
+Function TryISOTZStrToTZOffset(const TZ: String; out TZOffset: Integer): Boolean;
+var
+  H,M,I: Integer;
 begin
-  Result:=(TZ='Z') or (TZ='');
-  if Result then
-    TZOffset:=0
-  else
-    begin
-    Result:=TZ[1] in ['+','-'];
-    if Not Result then
+  TZOffset:=0;
+  if (TZ='') or (TZ='Z') then
+    Exit(True);
+  Result:=False;
+  if not (Length(TZ) in [3,5,6]) or not (TZ[1] in ['+','-']) then
+    Exit;
+  for I:=2 to Length(TZ) do
+    if (Length(TZ)=6) and (I=4) then
+      begin
+      if TZ[I]<>':' then
+        Exit;
+      end
+    else if not (TZ[I] in ['0'..'9']) then
       Exit;
-    case Length(TZ) of
-      3: begin
-        Result:=TryStrToInt(Copy(TZ,2,2),H);
-        M := 0;
-      end;
-      5: Result:=TryStrToInt(Copy(TZ,2,2),H) and TryStrToInt(Copy(TZ,4,2),M);
-      6: Result:=TryStrToInt(Copy(TZ,2,2),H) and TryStrToInt(Copy(TZ,5,2),M);
-    else
-      Result := False;
-    end;
-    if not Result then
-      exit;
-    TZOffset:=H*60+M;
-    if (TZ[1]='+') then
-      TZOffset:=-TZOffset;
-    end;
+  H:=(Ord(TZ[2])-Ord('0'))*10+Ord(TZ[3])-Ord('0');
+  M:=0;
+  if Length(TZ)>3 then
+    M:=(Ord(TZ[Length(TZ)-1])-Ord('0'))*10+Ord(TZ[Length(TZ)])-Ord('0');
+  if (H>23) or (M>59) then
+    Exit;
+  TZOffset:=H*60+M;
+  if TZ[1]='+' then
+    TZOffset:=-TZOffset;
+  Result:=True;
 end;
 
 Function ISOTZStrToTZOffset(TZ : String) : Integer;
