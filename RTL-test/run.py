@@ -165,6 +165,10 @@ CURRENT_TREE_UNIT_DIRS = {
     ),
 }
 CURRENT_TREE_UNIT_FILES = {
+    "monitor_wait_contract_semantic": (
+        ROOT / "packages" / "rtl-objpas" / "src" / "inc" / "fpmonitor.pp",
+        ROOT / "packages" / "rtl-objpas" / "src" / "win" / "fpwinmonitor.pp",
+    ),
     "monitor_data_publication_semantic": (
         ROOT / "packages" / "rtl-objpas" / "src" / "inc" / "fpmonitor.pp",
         ROOT / "packages" / "rtl-objpas" / "src" / "win" / "fpwinmonitor.pp",
