@@ -102,6 +102,8 @@ jobs:
           git clone --quiet --depth 1 https://github.com/Moonbot-Tech/MoonORMot "$smoke/mormot"
           cp examples/hello.dpr examples/zip.dpr "$smoke/app/"
           cp RTL-test/semantic/file_resource_semantic.dpr "$smoke/app/"
+          cp RTL-test/semantic/monitor_wait_contract_semantic.dpr "$smoke/app/"
+          cp RTL-test/semantic/filesystem_unicode_contract_semantic.dpr "$smoke/app/"
           cp qualification/suite/tests/rtl-api/rtl_api_release231_contracts.dpr "$smoke/app/"
           cp qualification/suite/tests/smoke/http_error_privacy.dpr "$smoke/app/"
           cp tests/test/units/system/tres4.res "$smoke/app/"
@@ -126,6 +128,12 @@ jobs:
             "$fpc" $profile http_error_privacy.dpr
             output=$(timeout 30 ./http_error_privacy)
             [[ "$output" == HTTP_ERROR_PRIVACY_PASS ]]
+            "$fpc" $profile monitor_wait_contract_semantic.dpr
+            output=$(timeout 10 ./monitor_wait_contract_semantic)
+            [[ "$output" == MONITOR_WAIT_CONTRACT_PASS ]]
+            "$fpc" $profile filesystem_unicode_contract_semantic.dpr
+            output=$(timeout 10 ./filesystem_unicode_contract_semantic)
+            [[ "$output" == FILESYSTEM_UNICODE_CONTRACT_PASS ]]
           done
           test -d units/x86_64-linux/debug
           test -d units/x86_64-linux/release
@@ -214,6 +222,8 @@ jobs:
           If ($LASTEXITCODE -ne 0) { throw 'MoonORMot clone failed' }
           Copy-Item examples\hello.dpr, examples\zip.dpr, `
             RTL-test\semantic\file_resource_semantic.dpr, `
+            RTL-test\semantic\monitor_wait_contract_semantic.dpr, `
+            RTL-test\semantic\filesystem_unicode_contract_semantic.dpr, `
             qualification\suite\tests\rtl-api\rtl_api_release231_contracts.dpr, `
             qualification\suite\tests\smoke\http_error_privacy.dpr, `
             tests\test\units\system\tres4.res "$Smoke\app"
@@ -255,6 +265,18 @@ jobs:
               $Output = & .\http_error_privacy.exe
               If ($LASTEXITCODE -ne 0 -or $Output -ne 'HTTP_ERROR_PRIVACY_PASS') {
                 throw "HTTP privacy smoke returned: $Output"
+              }
+              & $Fpc @Profile monitor_wait_contract_semantic.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'monitor wait smoke did not compile' }
+              $Output = & .\monitor_wait_contract_semantic.exe
+              If ($LASTEXITCODE -ne 0 -or $Output -ne 'MONITOR_WAIT_CONTRACT_PASS') {
+                throw "monitor wait smoke returned: $Output"
+              }
+              & $Fpc @Profile filesystem_unicode_contract_semantic.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'Unicode filesystem smoke did not compile' }
+              $Output = & .\filesystem_unicode_contract_semantic.exe
+              If ($LASTEXITCODE -ne 0 -or $Output -ne 'FILESYSTEM_UNICODE_CONTRACT_PASS') {
+                throw "Unicode filesystem smoke returned: $Output"
               }
             }
             If (-not (Test-Path units\x86_64-win64\debug) -or

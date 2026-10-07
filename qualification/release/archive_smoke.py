@@ -114,6 +114,8 @@ def consumer_smoke(asset: Path, pin: str, output: Path, steps: list[dict]) -> No
             raise RuntimeError(f"MoonORMot moved: archive pin {pin}, main {actual}")
         for source in (ROOT / "examples/hello.dpr", ROOT / "examples/zip.dpr",
                        ROOT / "RTL-test/semantic/file_resource_semantic.dpr",
+                       ROOT / "RTL-test/semantic/monitor_wait_contract_semantic.dpr",
+                       ROOT / "RTL-test/semantic/filesystem_unicode_contract_semantic.dpr",
                        ROOT / "tests/test/units/system/tres4.res"):
             shutil.copy2(source, app / source.name)
         resource = app / "file_resource_semantic.dpr"
@@ -129,7 +131,9 @@ def consumer_smoke(asset: Path, pin: str, output: Path, steps: list[dict]) -> No
         for profile, options in (("debug", []), ("release", ["-dRELEASE"])):
             for name, marker in (("hello", "3 prices, sum = "),
                                  ("zip", "ZIP_EXAMPLE_OK"),
-                                 ("file_resource_semantic", "FILE_RESOURCE_PASS")):
+                                 ("file_resource_semantic", "FILE_RESOURCE_PASS"),
+                                 ("monitor_wait_contract_semantic", "MONITOR_WAIT_CONTRACT_PASS"),
+                                 ("filesystem_unicode_contract_semantic", "FILESYSTEM_UNICODE_CONTRACT_PASS")):
                 run(f"{profile}_{name}_build", [str(fpc), *options, name + ".dpr"],
                     app, output, steps)
                 run(f"{profile}_{name}_run", [str(app / (name + suffix))],

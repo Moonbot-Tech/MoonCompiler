@@ -1,4 +1,4 @@
-# MoonCompiler 2.3.2: HTTP privacy and exception handling
+# MoonCompiler 2.3.2: HTTP privacy and runtime reliability
 
 `System.Net.HttpClient` no longer includes request URLs or raw transport/server
 messages in generated exceptions. Tokens in URL paths, query strings and user
@@ -22,6 +22,16 @@ Linux exception tables now remain valid when a handler conditionally reraises an
 exception and other branches raise a replacement. The original exception retains
 its identity on rethrow; replacement exceptions reach the correct outer handler,
 and `finally` blocks and managed locals are cleaned up normally.
+
+Linux `TMonitor.Wait` now creates and destroys the same event type used by its
+wait and pulse operations. Timed waits no longer depend on unrelated heap bytes;
+tests check elapsed time, allocation boundaries, recursive ownership and pulses.
+
+The Unicode RTL now exposes `GetCurrentDir`, `TSearchRec.Name` and
+`TSymLinkRec.TargetName` as Unicode strings. Direct `PChar` consumers and directory
+enumeration use the correct character representation. Explicit raw-byte APIs
+remain available. Both contracts are also checked against the installed release
+archive, outside the source checkout.
 
 Install the complete 2.3.2 toolchain and rebuild application and third-party PPUs.
 `MOONCOMPILER_FULLVERSION` is 20302; `CompilerVersion` remains 2.3. MoonORMot 13
