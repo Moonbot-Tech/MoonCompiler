@@ -84,6 +84,11 @@ Var
 {$ifdef FPC_HAS_FEATURE_CONSOLEIO}
         { Open all stdio fds again }
         SysFlushStdio;
+{$if defined(LINUX) and defined(CPUX86_64) and not defined(ANDROID)}
+        { A DSO's initializing thread may finish before the DSO itself. }
+        if IsLibrary and (MainThreadStdIO[0]=@Output) then
+          FillChar(MainThreadStdIO,SizeOf(MainThreadStdIO),0);
+{$endif}
 {$endif FPC_HAS_FEATURE_CONSOLEIO}
         { Support platforms where threadvar memory is managed outside of the RTL:
           reset ThreadID and allow ReleaseThreadVars to be unassigned }

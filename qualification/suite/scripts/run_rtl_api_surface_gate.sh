@@ -24,6 +24,19 @@ trap 'status=$?
 cc -std=c11 -I/usr/include/freetype2 "$source_root/freetype_abi_oracle.c" -o "$run/freetype-abi"
 "$run/freetype-abi" >"$run/freetype-abi.log"
 grep -qx FREETYPE_C_ABI_OK "$run/freetype-abi.log"
+cc -std=c11 -Wall -Wextra -Werror -pthread "$source_root/tls_lifetime_host.c" -ldl -o "$run/tls-lifetime-host"
+for profile in debug release; do
+  profile_dir="$run/tls-lifetime/$profile"
+  mkdir -p "$profile_dir"
+  options=(-B "-Fu$source_root" "-FU$profile_dir" "-FE$profile_dir" -otls_lifetime_fixture.so)
+  if [[ "$profile" == release ]]; then options+=(-dRELEASE); fi
+  failure_log="$profile_dir/compile.log"
+  "$compiler_root/toolchain/bin/fpc" "${options[@]}" "$source_root/tls_lifetime_fixture.dpr" >"$failure_log" 2>&1
+  failure_log="$profile_dir/run.log"
+  timeout 30 "$run/tls-lifetime-host" "$profile_dir/tls_lifetime_fixture.so" >"$failure_log" 2>&1
+  grep -qx TLS_LIBRARY_LIFETIME_OK "$failure_log"
+done
+echo 'TLS_LIBRARY_LIFETIME_GATE_OK profiles=2'
 cases=0
 executions=0
 
@@ -111,16 +124,16 @@ for case_name in rtl_api_release231_contracts rtl_api_freetype_contracts rtl_api
     fi
     if [[ "$case_name" == rtl_api_freetype_contracts ]]; then
       for kind in good incomplete tail; do
-        fixture_options=("${build_options[@]}" "-omoon-freetype-$kind.so")
+        fixture_options=(-std=c11 -Wall -Wextra -Werror -shared -fPIC)
         if [[ "$kind" == incomplete ]]; then
-          fixture_options+=(-dMISSING_FREETYPE_EXPORT)
+          fixture_options+=(-DMISSING_FREETYPE_EXPORT)
         fi
         if [[ "$kind" == tail ]]; then
-          fixture_options+=(-dMISSING_FREETYPE_TAIL)
+          fixture_options+=(-DMISSING_FREETYPE_TAIL)
         fi
         failure_log="$profile_dir/$kind-compile.log"
-        "$compiler_root/toolchain/bin/fpc" "${fixture_options[@]}" "$source_root/moon_freetype_fixture.dpr" \
-          >"$failure_log" 2>&1
+        cc "${fixture_options[@]}" "$source_root/moon_freetype_fixture.c" \
+          -o "$profile_dir/moon-freetype-$kind.so" >"$failure_log" 2>&1
       done
     fi
     failure_log="$profile_dir/compile.log"
@@ -137,7 +150,9 @@ done
 
 {
   sha256sum "$source_root/rtl_api_release231_contracts.dpr" \
-    "$source_root/rtl_api_freetype_contracts.dpr" "$source_root/moon_freetype_fixture.dpr" \
+    "$source_root/tls_lifetime_host.c" "$source_root/tls_lifetime_fixture.dpr" \
+    "$source_root/tls_lifetime_fixture_unit.pas" \
+    "$source_root/rtl_api_freetype_contracts.dpr" "$source_root/moon_freetype_fixture.c" \
     "$source_root/freetype_abi_oracle.c"
   sha256sum "$source_root/rtl_api_portability_contracts.dpr"
   sha256sum "$source_root/rtl_api_regex_contracts.dpr"

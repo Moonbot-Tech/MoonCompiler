@@ -835,6 +835,10 @@ const
   { assume that this program will not spawn other threads, when the
     first thread is started the following constants need to be filled }
   IsMultiThread : longbool = FALSE;
+{$if defined(LINUX) and defined(CPUX86_64) and not defined(ANDROID)}
+  { Suppress new DSO lifetime references while a library is being finalized. }
+  IsLibraryFinalizing : boolean = false;
+{$endif}
   { set to true, if a threading helper is used before a thread
     manager has been installed }
   ThreadingAlreadyUsed : boolean = FALSE;

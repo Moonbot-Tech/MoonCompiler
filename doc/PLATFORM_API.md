@@ -61,6 +61,13 @@ Pascal names that would hide `System` I/O use Delphi's prefixes:
 provides `remove` and `perror`; it is not a complete buffered C I/O binding.
 The unprefixed conflicting declarations from 2.3.0 have been replaced.
 
+On Linux x86-64 glibc, Pascal shared libraries retain their code while the
+initializing thread or foreign threads still own RTL thread-local state.
+`dlclose` may therefore defer physical unloading until those threads finish;
+a `dlopen` before then can reuse the live module. Cleanup runs on the owning
+thread, and final library teardown releases its TLS keys. Applications must
+still stop library-owned worker threads and finish active calls before unloading.
+
 `TFile.ReadAllBytes` and `ReadAllText` read to EOF when a readable file does not
 provide a seekable size, including procfs and FIFOs. A failed read raises an
 exception; it is not reported as an empty file. Explicit text encodings write

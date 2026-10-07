@@ -24,6 +24,9 @@ fixes runtime failures found while porting server applications.
   managed locals, stack arguments and worker threads alongside ordinary data faults.
   Diagnostic reports retain raw fault registers and mark an unavailable Linux
   trace as incomplete instead of claiming a complete empty stack.
+- Linux shared-library cleanup keeps code alive until its thread-local cleanup
+  callbacks finish. Native C host tests cover cross-thread unload, explicit
+  thread cleanup, real reload and TLS-key recovery.
 
 The runtime API gates now include these consumer scenarios in Debug and Release,
 loader failure/reload fixtures, and a real FreeType rendering cycle on Linux.

@@ -134,6 +134,12 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
       TLSKey,
       CleanupKey : pthread_key_t;
 
+{$if defined(LINUX) and defined(CPUX86_64) and not defined(ANDROID)}
+    { glibc retains the defining DSO until its last TLS destructor returns. }
+    function cxa_thread_atexit_impl(func, obj, dso: pointer): longint; cdecl;
+      external 'c' name '__cxa_thread_atexit_impl';
+{$endif}
+
     procedure CInitThreadvar(var offset : dword;size : dword);
       begin
         {$ifdef cpusparc}
@@ -235,6 +241,12 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
         s: string[100]; // not an ansistring
 {$endif DEBUG_MT}
       begin
+{$if defined(LINUX) and defined(CPUX86_64) and not defined(ANDROID)}
+        { A library-owned thread or an explicit DoneThread may have already
+          released this block. glibc TLS callbacks precede pthread cleanup. }
+        if IsLibrary and (pthread_getspecific(tlskey)<>p) then
+          exit;
+{$endif}
 {$ifdef DEBUG_MT}
         s := 'finishing externally started thread'#10;
         fpwrite(0,s[1],length(s));
@@ -248,10 +260,21 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
         pthread_setspecific(tlskey,p);
         { clean up }
         DoneThread;
-        { the pthread routine that calls us is supposed to do this, but doesn't
-          at least on Mac OS X 10.6 }
-        pthread_setspecific(CleanupKey,nil);
-        pthread_setspecific(tlskey,nil);
+      end;
+
+
+    procedure RegisterThreadCleanup;
+      begin
+{$if defined(LINUX) and defined(CPUX86_64) and not defined(ANDROID)}
+        if IsLibrary then
+          begin
+            if not IsLibraryFinalizing then
+              if cxa_thread_atexit_impl(@CthreadCleanup,pthread_getspecific(tlskey),@CthreadCleanup)<>0 then
+                RunError(203);
+            exit;
+          end;
+{$endif}
+        pthread_setspecific(CleanupKey,pthread_getspecific(tlskey));
       end;
 
 
@@ -268,7 +291,7 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
           CleanupKey is called, we still know its value (the order in which
           pthread tls data is zeroed by pthreads is undefined, and under some
           systems the tlskey is cleared first) }
-        pthread_setspecific(CleanupKey,pthread_getspecific(tlskey));
+        RegisterThreadCleanup;
       end;
 
 
@@ -293,6 +316,9 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
 {$ifndef FPC_SECTION_THREADVARS}
         Fpmunmap(pointer(pthread_getspecific(tlskey)),threadvarblocksize);
 {$endif FPC_SECTION_THREADVARS}
+        { Explicit DoneThread and destructor cleanup share the same release. }
+        pthread_setspecific(tlskey,nil);
+        pthread_setspecific(CleanupKey,nil);
       end;
 
 { Include OS independent Threadvar initialization }
@@ -394,7 +420,16 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
          -> we will set it to 1 if the threadvar relocation routine is
             called from a thread we did not create, so that we can
             clean up everything at the end }
-        pthread_key_create(@CleanupKey,@CthreadCleanup);
+{$if defined(LINUX) and defined(CPUX86_64) and not defined(ANDROID)}
+        if IsLibrary then
+          pthread_key_create(@CleanupKey,nil)
+        else
+{$endif}
+          pthread_key_create(@CleanupKey,@CthreadCleanup);
+{$if defined(LINUX) and defined(CPUX86_64) and not defined(ANDROID)}
+        if IsLibrary then
+          RegisterThreadCleanup;
+{$endif}
       end
   end;
 
@@ -1036,6 +1071,14 @@ end;
 Function CDoneThreads : Boolean;
 
 begin
+{$if defined(LINUX) and defined(CPUX86_64) and not defined(ANDROID)}
+  if IsLibraryFinalizing then
+    begin
+      CReleaseThreadVars;
+      pthread_key_delete(CleanupKey);
+      pthread_key_delete(TLSKey);
+    end;
+{$endif}
 {$ifndef dynpthreads}
   Result:=True;
 {$else}

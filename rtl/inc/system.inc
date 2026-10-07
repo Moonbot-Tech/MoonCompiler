@@ -1351,6 +1351,9 @@ end;
 Procedure InternalExit;
 var
   current_exit : Procedure;
+{$if defined(LINUX) and defined(CPUX86_64) and not defined(ANDROID) and defined(FPC_HAS_FEATURE_THREADING)}
+  exit_thread_manager: TThreadManager;
+{$endif}
 {$ifdef FPC_HAS_FEATURE_CONSOLEIO}
   pstdout : ^Text;
 {$endif}
@@ -1446,6 +1449,16 @@ Begin
 {$if defined(FPC_HAS_FEATURE_HEAP) and not defined(HAS_MEMORYMANAGER)}
   FinalizeHeap;
 {$endif FPC_HAS_FEATURE_HEAP and not HAS_MEMORYMANAGER}
+{$if defined(LINUX) and defined(CPUX86_64) and not defined(ANDROID) and defined(FPC_HAS_FEATURE_THREADING)}
+  { Unit finalizers, stdio and the memory manager still use threadvars.
+    Only now may a shared library release its terminal TLS and pthread keys. }
+  if IsLibraryFinalizing then
+    begin
+      GetThreadManager(exit_thread_manager);
+      if assigned(exit_thread_manager.DoneManager) then
+        exit_thread_manager.DoneManager();
+    end;
+{$endif}
 End;
 
 
@@ -1460,6 +1473,9 @@ procedure internal_do_exit; external name 'FPC_DO_EXIT';
 
 Procedure fpc_lib_exit;[Public,Alias:'FPC_LIB_EXIT'];
 begin
+{$if defined(LINUX) and defined(CPUX86_64) and not defined(ANDROID)}
+  IsLibraryFinalizing:=true;
+{$endif}
   InternalExit;
 end;
 

@@ -331,6 +331,7 @@ jobs:
           - File APIs read procfs and FIFOs, preserve UTF-16 when appending, honor encoding preambles, and report copy/replace failures instead of silently ignoring them.
           - The optional FreeType binding has corrected native layouts, complete function loading and safe concurrent loader ownership.
           - Linux catches failed indirect calls without recursive unwinder faults; incomplete diagnostic traces are marked honestly.
+          - Linux Pascal shared libraries retain their code until thread-local cleanup finishes, preventing callbacks into unloaded code.
           - Expanded Windows/Linux consumer tests, negative cases, independent C ABI checks and extracted-archive checks cover these contracts. Rebuild application and third-party PPUs when upgrading. MoonORMot 13 remains required.
 
           Read the [release notes](https://github.com/$GH_REPO/blob/$RELEASE_TAG/doc/RELEASE_NOTES.md) for supported contracts and upgrade instructions. Performance measurements from release 2.0 remain separately labelled; this maintenance release makes no new benchmark claims.
