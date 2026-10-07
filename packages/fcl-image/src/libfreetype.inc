@@ -48,7 +48,7 @@ Const
 {$endif}
 
 type
-  FT_Encoding = array[0..3] of AnsiChar;
+  FT_Encoding = LongWord;
 
 const
   FT_FACE_FLAG_SCALABLE = 1 shl 0;
@@ -87,19 +87,19 @@ const
   ft_glyph_format_outline   = $6F75746C; //outl 111 117 116 108
   ft_glyph_format_plotter   = $706C6F74; //plot 112 108 111 116
 
-  FT_ENCODING_MS_SYMBOL : FT_Encoding = 'symb';
-  FT_ENCODING_UNICODE : FT_Encoding = 'unic';
-  FT_ENCODING_MS_SJIS : FT_Encoding = 'sjis';
-  FT_ENCODING_MS_GB2312 : FT_Encoding = 'gb  ';
-  FT_ENCODING_MS_BIG5 : FT_Encoding = 'big5';
-  FT_ENCODING_MS_WANSUNG : FT_Encoding = 'wans';
-  FT_ENCODING_MS_JOHAB : FT_Encoding = 'joha';
-  FT_ENCODING_ADOBE_STANDARD : FT_Encoding = 'ADOB';
-  FT_ENCODING_ADOBE_EXPERT : FT_Encoding = 'ADBE';
-  FT_ENCODING_ADOBE_CUSTOM : FT_Encoding = 'ADBC';
-  FT_ENCODING_ADOBE_LATIN_1 : FT_Encoding = 'lat1';
-  FT_ENCODING_OLD_LATIN_2 : FT_Encoding = 'lat2';
-  FT_ENCODING_APPLE_ROMAN : FT_Encoding = 'armn';
+  FT_ENCODING_MS_SYMBOL : FT_Encoding = $73796D62;
+  FT_ENCODING_UNICODE : FT_Encoding = $756E6963;
+  FT_ENCODING_MS_SJIS : FT_Encoding = $736A6973;
+  FT_ENCODING_MS_GB2312 : FT_Encoding = $67622020;
+  FT_ENCODING_MS_BIG5 : FT_Encoding = $62696735;
+  FT_ENCODING_MS_WANSUNG : FT_Encoding = $77616E73;
+  FT_ENCODING_MS_JOHAB : FT_Encoding = $6A6F6861;
+  FT_ENCODING_ADOBE_STANDARD : FT_Encoding = $41444F42;
+  FT_ENCODING_ADOBE_EXPERT : FT_Encoding = $41444245;
+  FT_ENCODING_ADOBE_CUSTOM : FT_Encoding = $41444243;
+  FT_ENCODING_ADOBE_LATIN_1 : FT_Encoding = $6C617431;
+  FT_ENCODING_OLD_LATIN_2 : FT_Encoding = $6C617432;
+  FT_ENCODING_APPLE_ROMAN : FT_Encoding = $61726D6E;
 
   ft_glyph_bbox_unscaled  = 0; //* return unscaled font units           */
   ft_glyph_bbox_subpixels = 0; //* return unfitted 26.6 coordinates     */
@@ -574,7 +574,7 @@ type
   FT_Pos = longint;
   {$ENDIF}
   FT_F2Dot14 = smallint;
-  FT_F26Dot6 = longint;
+  FT_F26Dot6 = FT_Long;
   FT_Fixed = FT_Long;
   FT_Error = longint;
   FT_Pointer = pointer;
@@ -625,6 +625,7 @@ type
   FT_Bitmap_Size = record
     height : FT_Short;
     width : FT_Short;
+    size, x_ppem, y_ppem : FT_Pos;
   end;
   AFT_Bitmap_Size = array [0..1023] of FT_Bitmap_Size;
   PFT_Bitmap_Size = ^AFT_Bitmap_Size;
@@ -646,7 +647,7 @@ type
     width : integer;
     pitch : integer;
     buffer : pointer;
-    num_grays : shortint;
+    num_grays : FT_UShort;
     pixel_mode : AnsiChar;
     palette_mode : AnsiChar;
     palette : pointer;
@@ -662,10 +663,10 @@ type
   end;
   PFT_Outline = ^FT_Outline;
 
-  FT_Outline_MoveToFunc = function(const to_: PFT_Vector; user: Pointer): integer;
-  FT_Outline_LineToFunc = function(const to_: PFT_Vector; user: Pointer): integer;
-  FT_Outline_ConicToFunc = function(const control, to_: PFT_Vector; user: Pointer): integer;
-  FT_Outline_CubicToFunc = function(const control1, control2, to_: PFT_Vector; user: Pointer): integer;
+  FT_Outline_MoveToFunc = function(const to_: PFT_Vector; user: Pointer): integer; cdecl;
+  FT_Outline_LineToFunc = function(const to_: PFT_Vector; user: Pointer): integer; cdecl;
+  FT_Outline_ConicToFunc = function(const control, to_: PFT_Vector; user: Pointer): integer; cdecl;
+  FT_Outline_CubicToFunc = function(const control1, control2, to_: PFT_Vector; user: Pointer): integer; cdecl;
 
   FT_Outline_Funcs = record
     move_to: FT_Outline_MoveToFunc;
@@ -742,8 +743,10 @@ type
     num_subglyphs : FT_UInt;
     subglyphs : PFT_SubGlyph;
     control_data : pointer;
-    control_len : longint;
+    control_len : FT_Long;
+    lsb_delta, rsb_delta : FT_Pos;
     other : pointer;
+    internal : pointer;
   end;
 
   TFT_Face = record
@@ -928,7 +931,7 @@ function FT_Get_Kerning(face: PFT_Face; left_glyph, right_glyph, kern_mode: FT_U
 function FT_Init_FreeType(var alibrary: PFT_Library): integer; cdecl; external FreeTypeDLL Name 'FT_Init_FreeType';
 function FT_Load_Char(face: PFT_Face; charcode: FT_ULong; load_flags: longint): integer; cdecl; external FreeTypeDLL Name 'FT_Load_Char';
 function FT_Load_Glyph(face: PFT_Face; glyph_index: FT_UInt; load_flags: longint): integer; cdecl; external FreeTypeDLL Name 'FT_Load_Glyph';
-function FT_New_Face(alibrary: PFT_Library; filepathname: PAnsiChar; face_index: integer; var aface: PFT_Face): integer; cdecl; external FreeTypeDLL Name 'FT_New_Face';
+function FT_New_Face(alibrary: PFT_Library; filepathname: PAnsiChar; face_index: FT_Long; var aface: PFT_Face): integer; cdecl; external FreeTypeDLL Name 'FT_New_Face';
 function FT_Set_Char_Size(face: PFT_Face; char_width, char_height: FT_F26dot6; horz_res, vert_res: FT_UInt): integer; cdecl; external FreeTypeDLL Name 'FT_Set_Char_Size';
 function FT_Set_Pixel_Sizes(face: PFT_Face; pixel_width, pixel_height: FT_UInt): integer; cdecl; external FreeTypeDLL Name 'FT_Set_Pixel_Sizes';
 procedure FT_Set_Transform(face: PFT_Face; matrix: PFT_Matrix; delta: PFT_Vector); cdecl; external FreeTypeDLL Name 'FT_Set_Transform';
@@ -962,7 +965,7 @@ Type
   TFT_Init_FreeType = function(var alibrary: PFT_Library): integer; cdecl;
   TFT_Load_Char = function(face: PFT_Face; charcode: FT_ULong; load_flags: longint): integer; cdecl;
   TFT_Load_Glyph = function(face: PFT_Face; glyph_index: FT_UInt; load_flags: longint): integer; cdecl;
-  TFT_New_Face = function(alibrary: PFT_Library; filepathname: PAnsiChar; face_index: integer; var aface: PFT_Face): integer; cdecl;
+  TFT_New_Face = function(alibrary: PFT_Library; filepathname: PAnsiChar; face_index: FT_Long; var aface: PFT_Face): integer; cdecl;
   TFT_Set_Char_Size = function(face: PFT_Face; char_width, char_height: FT_F26dot6; horz_res, vert_res: FT_UInt): integer; cdecl;
   TFT_Set_Pixel_Sizes = function(face: PFT_Face; pixel_width, pixel_height: FT_UInt): integer; cdecl;
   TFT_Set_Transform = procedure(face: PFT_Face; matrix: PFT_Matrix; delta: PFT_Vector); cdecl;
@@ -1036,91 +1039,104 @@ var
   FreetypeDefaultLibrary: String = FreeTypeDLL;
   FreetypeLoadedLibrary: UnicodeString = '';
   RefCount: Integer = 0;
+  FreetypeLock: TRTLCriticalSection;
 
 resourcestring
   SErrLoadFailed     = 'Can not load Freetype library "%s". Check your installation.';
-  SErrAlreadyLoaded  = 'Freetype interface already initialized from library %s.';
 
-procedure LoadAddresses(LibHandle: TLibHandle);
-
-begin
-  pointer(FT_Done_FreeType) := GetProcedureAddress(LibHandle,'FT_Done_FreeType');
-  pointer(FT_Get_Char_Index) := GetProcedureAddress(LibHandle,'FT_Get_Char_Index');
-  pointer(FT_Get_Kerning) := GetProcedureAddress(LibHandle,'FT_Get_Kerning');
-  pointer(FT_Init_FreeType) := GetProcedureAddress(LibHandle,'FT_Init_FreeType');
-  pointer(FT_Load_Char) := GetProcedureAddress(LibHandle,'FT_Load_Char');
-  pointer(FT_Load_Glyph) := GetProcedureAddress(LibHandle,'FT_Load_Glyph');
-  pointer(FT_New_Face) := GetProcedureAddress(LibHandle,'FT_New_Face');
-  pointer(FT_Set_Char_Size) := GetProcedureAddress(LibHandle,'FT_Set_Char_Size');
-  pointer(FT_Set_Pixel_Sizes) := GetProcedureAddress(LibHandle,'FT_Set_Pixel_Sizes');
-  pointer(FT_Set_Transform) := GetProcedureAddress(LibHandle,'FT_Set_Transform');
-  pointer(FT_Get_Sfnt_Name_Count) := GetProcedureAddress(LibHandle,'FT_Get_Sfnt_Name_Count');
-  pointer(FT_Get_Sfnt_Name) := GetProcedureAddress(LibHandle,'FT_Get_Sfnt_Name');
-  pointer(FT_Get_Sfnt_Table) := GetProcedureAddress(LibHandle,'FT_Get_Sfnt_Table');
-  pointer(FT_Outline_Decompose) := GetProcedureAddress(LibHandle,'FT_Outline_Decompose');
-  pointer(FT_Library_Version) := GetProcedureAddress(LibHandle,'FT_Library_Version');
-  pointer(FT_Get_Glyph) := GetProcedureAddress(LibHandle,'FT_Get_Glyph');
-  pointer(FT_Glyph_Copy) := GetProcedureAddress(LibHandle,'FT_Glyph_Copy');
-  pointer(FT_Glyph_To_Bitmap) := GetProcedureAddress(LibHandle,'FT_Glyph_To_Bitmap');
-  pointer(FT_Glyph_Transform) := GetProcedureAddress(LibHandle,'FT_Glyph_Transform');
-  pointer(FT_Done_Glyph) := GetProcedureAddress(LibHandle,'FT_Done_Glyph');
-  pointer(FT_Glyph_Get_CBox) := GetProcedureAddress(LibHandle,'FT_Glyph_Get_CBox');
-end;
+{ One list defines both publication and reset, so an exported function cannot
+  silently be omitted from one half of the loader lifecycle. }
+type
+  TFreetypeExport = record
+    Address: PPointer;
+    Name: PAnsiChar;
+  end;
+const
+  FreetypeExports: array[0..21] of TFreetypeExport = (
+    (Address: @Pointer(FT_Done_Face); Name: 'FT_Done_Face'),
+    (Address: @Pointer(FT_Done_FreeType); Name: 'FT_Done_FreeType'),
+    (Address: @Pointer(FT_Get_Char_Index); Name: 'FT_Get_Char_Index'),
+    (Address: @Pointer(FT_Get_Kerning); Name: 'FT_Get_Kerning'),
+    (Address: @Pointer(FT_Init_FreeType); Name: 'FT_Init_FreeType'),
+    (Address: @Pointer(FT_Load_Char); Name: 'FT_Load_Char'),
+    (Address: @Pointer(FT_Load_Glyph); Name: 'FT_Load_Glyph'),
+    (Address: @Pointer(FT_New_Face); Name: 'FT_New_Face'),
+    (Address: @Pointer(FT_Set_Char_Size); Name: 'FT_Set_Char_Size'),
+    (Address: @Pointer(FT_Set_Pixel_Sizes); Name: 'FT_Set_Pixel_Sizes'),
+    (Address: @Pointer(FT_Set_Transform); Name: 'FT_Set_Transform'),
+    (Address: @Pointer(FT_Get_Sfnt_Name_Count); Name: 'FT_Get_Sfnt_Name_Count'),
+    (Address: @Pointer(FT_Get_Sfnt_Name); Name: 'FT_Get_Sfnt_Name'),
+    (Address: @Pointer(FT_Get_Sfnt_Table); Name: 'FT_Get_Sfnt_Table'),
+    (Address: @Pointer(FT_Outline_Decompose); Name: 'FT_Outline_Decompose'),
+    (Address: @Pointer(FT_Library_Version); Name: 'FT_Library_Version'),
+    (Address: @Pointer(FT_Get_Glyph); Name: 'FT_Get_Glyph'),
+    (Address: @Pointer(FT_Glyph_Copy); Name: 'FT_Glyph_Copy'),
+    (Address: @Pointer(FT_Glyph_To_Bitmap); Name: 'FT_Glyph_To_Bitmap'),
+    (Address: @Pointer(FT_Glyph_Transform); Name: 'FT_Glyph_Transform'),
+    (Address: @Pointer(FT_Done_Glyph); Name: 'FT_Done_Glyph'),
+    (Address: @Pointer(FT_Glyph_Get_CBox); Name: 'FT_Glyph_Get_CBox'));
 
 procedure NilAllAddresses;
-
+var
+  I: Integer;
 begin
-  pointer(FT_Done_FreeType) := Nil;
-  pointer(FT_Get_Char_Index) := Nil;
-  pointer(FT_Get_Kerning) := Nil;
-  pointer(FT_Init_FreeType) := Nil;
-  pointer(FT_Load_Char) := Nil;
-  pointer(FT_Load_Glyph) := Nil;
-  pointer(FT_New_Face) := Nil;
-  pointer(FT_Set_Char_Size) := Nil;
-  pointer(FT_Set_Pixel_Sizes) := Nil;
-  pointer(FT_Set_Transform) := Nil;
-  pointer(FT_Get_Sfnt_Name_Count) := Nil;
-  pointer(FT_Get_Sfnt_Name) := Nil;
-  pointer(FT_Get_Sfnt_Table) := Nil;
-  pointer(FT_Outline_Decompose) := Nil;
-  pointer(FT_Library_Version) := Nil;
-  pointer(FT_Get_Glyph) := Nil;
-  pointer(FT_Glyph_Copy) := Nil;
-  pointer(FT_Glyph_To_Bitmap) := Nil;
-  pointer(FT_Glyph_Transform) := Nil;
-  pointer(FT_Done_Glyph) := Nil;
-  pointer(FT_Glyph_Get_CBox) := Nil;
+  for I:=Low(FreetypeExports) to High(FreetypeExports) do
+    FreetypeExports[I].Address^:=nil;
 end;
 
+function LoadAddresses(LibHandle: TLibHandle): Boolean;
+var
+  I: Integer;
+begin
+  for I:=Low(FreetypeExports) to High(FreetypeExports) do
+    begin
+    FreetypeExports[I].Address^:=GetProcedureAddress(LibHandle,FreetypeExports[I].Name);
+    if FreetypeExports[I].Address^=nil then
+      begin
+      NilAllAddresses;
+      Exit(False);
+      end;
+    end;
+  Result:=True;
+end;
 
 function TryInitializeFreetype(const LibraryName: UnicodeString): Integer;
-
-Var
-  N  : UnicodeString;
+var
+  N: UnicodeString;
 begin
   N:=LibraryName;
-  if (N='') then
+  if N='' then
     N:=FreetypeDefaultLibrary;
-  result:=InterlockedIncrement(RefCount);
-  if result=1 then
-    begin
-    FreetypeLibraryHandle := LoadLibrary(N);
-    if (FreetypeLibraryHandle = NilHandle) then
+  EnterCriticalSection(FreetypeLock);
+  try
+    if RefCount>0 then
       begin
-      RefCount:=0;
-      Result:=0;
+      if (LibraryName<>'') and (FreetypeLoadedLibrary<>N) then
+        Exit(0);
+      end
+    else
+      begin
+      FreetypeLibraryHandle:=LoadLibrary(N);
+      if FreetypeLibraryHandle=NilHandle then
+        Exit(0);
+      if not LoadAddresses(FreetypeLibraryHandle) then
+        begin
+        UnloadLibrary(FreetypeLibraryHandle);
+        FreetypeLibraryHandle:=NilHandle;
+        Exit(0);
+        end;
+      FreetypeLoadedLibrary:=N;
       end;
-    FreetypeLoadedLibrary := N;
-    LoadAddresses(FreetypeLibraryHandle);
-    end;
+    Inc(RefCount);
+    Result:=RefCount;
+  finally
+    LeaveCriticalSection(FreetypeLock);
+  end;
 end;
 
 function  InitializeFreetype(const LibraryName: UnicodeString) :integer;
 
 begin
-  if (LibraryName<>'') and (FreetypeLoadedLibrary <> '') and (FreetypeLoadedLibrary <> LibraryName) then
-    Raise EInoutError.CreateFmt(SErrAlreadyLoaded,[FreetypeLoadedLibrary]);
   Result:=TryInitializeFreetype(LibraryName);
   if result=0 then
     if LibraryName='' then
@@ -1136,15 +1152,20 @@ end;
 
 procedure ReleaseFreetype;
 begin
-  if InterlockedDecrement(RefCount) <= 0 then
-    begin
-    if FreetypeLibraryHandle <> NilHandle then
+  EnterCriticalSection(FreetypeLock);
+  try
+    if RefCount=0 then
+      Exit;
+    Dec(RefCount);
+    if RefCount=0 then
+      begin
+      NilAllAddresses;
       UnloadLibrary(FreetypeLibraryHandle);
-    NilAllAddresses;
-    FreetypeLibraryHandle := NilHandle;
-    FreetypeLoadedLibrary := '';
-    RefCount := 0;
-    end;
+      FreetypeLibraryHandle:=NilHandle;
+      FreetypeLoadedLibrary:='';
+      end;
+  finally
+    LeaveCriticalSection(FreetypeLock);
+  end;
 end;
 {$ENDIF}
-
