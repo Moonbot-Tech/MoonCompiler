@@ -308,6 +308,24 @@ jobs:
             -Value '-A__MOONCOMPILER_HOST_CONFIG_LEAK__'
           .\build.ps1 compiler `
             -Bootstrap "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\fpc.exe"
+      - name: Check native filesystem contracts before the full suite
+        shell: powershell
+        run: |
+          $Fpc = (Resolve-Path toolchain\bin\x86_64-win64\fpc.exe).Path
+          foreach ($Profile in @('debug', 'release')) {
+            $Out = Join-Path $env:RUNNER_TEMP "filesystem-contracts\$Profile"
+            New-Item -ItemType Directory -Force -Path $Out | Out-Null
+            $Options = @("-FU$Out", "-FE$Out")
+            If ($Profile -eq 'release') { $Options += '-dRELEASE' }
+            & $Fpc @Options RTL-test\semantic\filesystem_operations_contract_semantic.dpr
+            If ($LASTEXITCODE -ne 0) { throw 'Filesystem contracts did not compile' }
+            $Output = @(& "$Out\filesystem_operations_contract_semantic.exe")
+            $ExitCode = $LASTEXITCODE
+            $Output | Write-Output
+            If ($ExitCode -ne 0 -or $Output[-1] -ne 'FILESYSTEM_OPERATIONS_CONTRACT_PASS') {
+              throw 'Native filesystem contracts failed'
+            }
+          }
       - name: Run platform contracts
         shell: powershell
         run: |

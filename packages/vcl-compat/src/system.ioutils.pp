@@ -677,7 +677,9 @@ begin
   Result:=fpSymlink(PAnsiChar(TargetPath),PAnsiChar(LinkPath))=0;
 {$else}
   LinkPath:=MakeWinApiPath(Link);
-  TargetPath:=UnicodeString(Target);
+  { Relative reparse targets are stored verbatim by CreateSymbolicLinkW.
+    Normalize separators without resolving the target against the process CWD. }
+  TargetPath:=UnicodeString(SetDirSeparators(Target));
   Flags:=Ord(IsDirectory);
   Result:=IOCreateSymbolicLinkW(PWideChar(LinkPath),PWideChar(TargetPath),Flags or 2);
   if not Result and (GetLastError=ERROR_INVALID_PARAMETER) then

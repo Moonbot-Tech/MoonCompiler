@@ -86,6 +86,7 @@ begin
     Code:=GetLastOSError;
     {$IFDEF MSWINDOWS}
     if Code=ERROR_PRIVILEGE_NOT_HELD then begin
+      Check(GetEnvironmentVariable('GITHUB_ACTIONS')<>'true','Windows CI must execute native link contracts');
       Writeln('SYMLINK_PERMISSION_UNAVAILABLE');
       Exit;
     end;
@@ -106,6 +107,7 @@ begin
   except on E:EArgumentException do Failed:=True; end;
   Check(Failed and not TDirectory.Exists(Root+'/src/nested/new'),'alias self-copy rejected before creating destination');
   Check(TFile.CreateSymLink(Root+'/src/relative.txt','nested/a.txt'),'relative link');
+  Check(TFile.ReadAllText(Root+'/src/relative.txt')='changed','relative link resolves before copying');
   Check(TFile.CreateSymLink(Root+'/src/dangling.txt','not-created.txt'),'dangling link');
   Check(TFile.CreateSymLink(Root+'/src/cycle',Root+'/src'),'directory cycle');
   Check(Length(TDirectory.GetFiles(Root+'/src','a.txt',TSearchOption.soAllDirectories))=1,'enumeration does not follow directory links');
@@ -118,6 +120,7 @@ begin
   Check(TDirectory.Exists(Root+'/link-copy/cycle'),'copied directory link remains usable');
   TDirectory.Delete(Root+'/link-copy',True);
   Check(TFile.ReadAllText(Target)='new','delete copy does not delete target');
+  Writeln('FILESYSTEM_LINKS_PASS');
 end;
 
 {$IFDEF UNIX}
