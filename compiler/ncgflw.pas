@@ -1230,7 +1230,9 @@ implementation
             if psabiehprocinfo.PopLandingPad(CurrentLandingPad) then
               exclude(flowcontrol,fc_catching_exceptions);
             CurrentAction:=psabiehprocinfo.CurrentAction;
-            psabiehprocinfo.FinalizeAndPopAction(CurrentAction);
+            { Temporarily leave the handler for this call only. It is restored
+              below; finalizing here would consume its table before later raises. }
+            psabiehprocinfo.PopAction(CurrentAction);
 
             if not(fc_catching_exceptions in flowcontrol) then
               begin
