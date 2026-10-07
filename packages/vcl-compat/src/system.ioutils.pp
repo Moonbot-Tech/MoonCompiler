@@ -1744,17 +1744,18 @@ class function TFile.DetectFileEncoding(const aPath: String; out
 
 Var
   B : TBytes;
+  Count: LongInt;
 
 begin
-  B:=[];
-  BOMLength:=0;
-  Result:=TEncoding.Default;
   With TFileStream.Create(aPath,fmOpenRead or fmShareDenyWrite) do
     try
       SetLength(B,4);
-      if Read(B[0],4)<2 then
-        Exit;
-      BOMLength:=TEncoding.GetBufferEncoding(B, Result);
+      Count:=FileRead(Handle,B[0],4);
+      If Count<0 then
+        raise EReadError.CreateFmt('Could not read file: %s',[aPath]);
+      SetLength(B,Count);
+      Result:=nil;
+      BOMLength:=TEncoding.GetBufferEncoding(B,Result,TEncoding.UTF8);
     finally
       Free;
     end;
@@ -1770,7 +1771,7 @@ begin
   if FileExists(aPath) then
     Encoding:=DetectFileEncoding(aPath,BOMlength)
   else
-    Encoding:=TENcoding.Default;
+    Encoding:=TEncoding.UTF8;
   AppendAllText(aPath,aContents,Encoding);
 end;
 
@@ -1782,6 +1783,8 @@ Var
   F : TFileStream;
 
 begin
+  If Encoding=nil then
+    raise EInOutArgumentException.Create('Encoding must not be nil',aPath);
   F:=OpenOrCreate(aPath);
   try
     {$IF SIZEOF(CHAR)=1}
@@ -1790,7 +1793,8 @@ begin
     B:=Encoding.GetBytes(Contents);
     {$ENDIF}
     F.Seek(0,soEnd);
-    F.WriteBuffer(B[0],Length(B));
+    If Length(B)>0 then
+      F.WriteBuffer(B[0],Length(B));
   finally
     F.Free;
   end;
@@ -1820,7 +1824,11 @@ begin
   Result:=False;
   // check overwrite
   if (not (TCopyFileFlag.cffOverwriteFile in Flags)) and FileExists(DestFileName) then
-    exit;
+    begin
+    If ExceptionOnError then
+      raise EInOutError.CreateFmt(SErrFileExists,[DestFileName]);
+    Exit;
+    end;
   // check directory
   if (TCopyFileFlag.cffCreateDestDirectory in Flags)
      and (not DirectoryExists(ExtractFilePath(DestFileName)))
@@ -1857,7 +1865,13 @@ begin
     try
       repeat
         ReadCount:=FileRead(SrcHandle,Buffer[1],High(Buffer));
-        if ReadCount<=0 then break;
+        If ReadCount<0 then
+          begin
+          If ExceptionOnError then
+            raise EReadError.CreateFmt('Unable to read file "%s"',[SrcFilename]);
+          Exit;
+          end;
+        If ReadCount=0 then Break;
         WriteCount:=FileWrite(DestHandle,Buffer[1],ReadCount);
         if WriteCount<ReadCount then
         begin
@@ -2277,25 +2291,72 @@ begin
 end;
 
 class function TFile.ReadAllBytes(const aPath: string): TBytes;
-
+const
+  InitialCapacity = 16384;
+var
+  Stream: TFileStream;
+  SizeHint: Int64;
+  Used, Capacity, NewCapacity: SizeInt;
+  Count: LongInt;
+  NextByte: Byte;
 begin
   Result:=[];
-  With OpenRead(aPath) do
-    try
-       SetLength(Result,Size);
-       ReadBuffer(Result,Size);
-    finally
-      Free;
-    end;
+  Stream:=OpenRead(aPath);
+  try
+    { Size is only a capacity hint: procfs/FIFOs may reject seeking, and a
+      readable pseudo-file can report zero despite containing data. }
+    SizeHint:=Stream.Size;
+    If SizeHint>0 then
+      Capacity:=SizeHint
+    else
+      Capacity:=InitialCapacity;
+    SetLength(Result,Capacity);
+    Used:=0;
+    repeat
+      If Used=Capacity then
+        begin
+        { Do not reallocate an ordinary file just to discover EOF. }
+        Count:=FileRead(Stream.Handle,NextByte,1);
+        If Count<=0 then
+          Break;
+        If Capacity>High(SizeInt) div 2 then
+          raise EReadError.CreateFmt('File is too large: %s',[aPath]);
+        NewCapacity:=Capacity*2;
+        If NewCapacity<InitialCapacity then
+          NewCapacity:=InitialCapacity;
+        SetLength(Result,NewCapacity);
+        Capacity:=NewCapacity;
+        Result[Used]:=NextByte;
+        Inc(Used);
+        end;
+      If Capacity-Used>High(LongInt) then
+        Count:=High(LongInt)
+      else
+        Count:=Capacity-Used;
+      { THandleStream.Read maps an OS read error to zero. Use FileRead here
+        so ReadAllBytes can distinguish a failed read from a real EOF. }
+      Count:=FileRead(Stream.Handle,Result[Used],Count);
+      If Count<=0 then
+        Break;
+      Inc(Used,Count);
+    until False;
+    If Count<0 then
+      raise EReadError.CreateFmt('Could not read file: %s',[aPath]);
+    SetLength(Result,Used);
+  finally
+    Stream.Free;
+  end;
 end;
 
 class function TFile.ReadAllLines(const aPath: string): TStringDynArray;
-
-Var
-  aBOMLength : Integer;
-
 begin
-  Result:=ReadAllLines(aPath,DetectFileEncoding(aPath,aBomLength));
+  With TStringList.Create do
+    try
+      Text:=ReadAllText(aPath);
+      Result:=ToStringArray;
+    finally
+      Free;
+    end;
 end;
 
 class function TFile.ReadAllLines(const aPath: string; const aEncoding: TEncoding
@@ -2303,20 +2364,14 @@ class function TFile.ReadAllLines(const aPath: string; const aEncoding: TEncodin
 begin
   With TStringList.Create do
     try
-      LoadFromFile(aPath,aEncoding);
+      Text:=ReadAllText(aPath,aEncoding);
       Result:=ToStringArray;
     finally
       Free;
     end;
 end;
 
-class function TFile.ReadAllText(const aPath: string): string;
-begin
-  Result:=ReadAllText(aPath,nil);
-end;
-
-class function TFile.ReadAllText(const aPath: string; const aEncoding: TEncoding
-  ): string;
+function ReadFileText(const aPath: string; const aEncoding: TEncoding): string;
 
   function IsValidUTF8(const Bytes: TBytes; StartIndex: Integer): Boolean;
   var
@@ -2369,7 +2424,7 @@ Var
   Encoding, FoundEncoding: TEncoding;
 
 begin
-  B:=ReadAllBytes(aPath);
+  B:=TFile.ReadAllBytes(aPath);
   FoundEncoding:=aEncoding;
   BOMLength:=TEncoding.GetBufferEncoding(B,FoundEncoding,TEncoding.UTF8);
   Encoding:=FoundEncoding;
@@ -2385,41 +2440,96 @@ begin
 {$endif}
 end;
 
-{$IFDEF MSWINDOWS}
+class function TFile.ReadAllText(const aPath: string): string;
+begin
+  Result:=ReadFileText(aPath,nil);
+end;
 
-function ReplaceFileA(lpReplacedFileName, lpReplacementFileName, lpBackupFileName: LPCSTR; dwReplaceFlags: DWORD; lpExclude: LPVOID; lpReserved: LPVOID): BOOL; stdcall; external 'kernel32' name 'ReplaceFileA';
+class function TFile.ReadAllText(const aPath: string; const aEncoding: TEncoding): string;
+begin
+  If aEncoding=nil then
+    raise EInOutArgumentException.Create('Encoding must not be nil',aPath);
+  Result:=ReadFileText(aPath,aEncoding);
+end;
+
+procedure RaiseReplaceError;
+var
+  Code: Integer;
+  Error: EInOutError;
+begin
+  Code:=GetLastOSError;
+  Error:=EInOutError.Create(SysErrorMessage(Code));
+  Error.ErrorCode:=Code;
+  raise Error;
+end;
+
+procedure CheckReplacePaths(const Source, Destination, Backup: string);
+begin
+  If (Source='') or (Destination='') or (Backup='') then
+    raise EInOutArgumentException.Create('Replacement paths must not be empty',Backup);
+  If not FileExists(Source) then
+    raise EFileNotFoundException.CreateFmt('File not found: %s',[Source]);
+  If not FileExists(Destination) then
+    raise EFileNotFoundException.CreateFmt('File not found: %s',[Destination]);
+  If not DirectoryExists(ExtractFilePath(ExpandFileName(Backup))) then
+    raise EDirectoryNotFoundException.CreateFmt('Directory not found: %s',[Backup]);
+end;
+
+{$IFDEF MSWINDOWS}
 function ReplaceFileW(lpReplacedFileName, lpReplacementFileName, lpBackupFileName: LPCWSTR; dwReplaceFlags: DWORD; lpExclude: LPVOID; lpReserved: LPVOID): BOOL; stdcall; external 'kernel32' name 'ReplaceFileW';
 
-class procedure TFile.Replace(const aSource, aDestination, aBackup: string; const aIgnoreMetadataErrors: Boolean); overload;
-
+class procedure TFile.Replace(const aSource, aDestination, aBackup: string; const aIgnoreMetadataErrors: Boolean);
 var
-  lBackup,lDest,lSrc : String;
-  ReplaceFlags : DWord;
-
+  Source, Destination, Backup: UnicodeString;
+  Flags: DWORD;
 begin
-  lDest:=ExpandFileName(aDestination);
-  lSrc:=ExpandFileName(aSource);
-  lBackup:=ExpandFileName(aBackup);
-  ReplaceFlags:=REPLACEFILE_WRITE_THROUGH;
-  if aIgnoreMetadataErrors then
-      ReplaceFlags:=ReplaceFlags or REPLACEFILE_IGNORE_MERGE_ERRORS;
-  ReplaceFileA(PAnsiChar(lDest),PAnsiChar(lSrc),PAnsiChar(lBackup),ReplaceFlags,nil,nil);
+  CheckReplacePaths(aSource,aDestination,aBackup);
+  Source:=MakeWinApiPath(aSource);
+  Destination:=MakeWinApiPath(aDestination);
+  Backup:=MakeWinApiPath(aBackup);
+  Flags:=0;
+  If aIgnoreMetadataErrors then
+    Flags:=REPLACEFILE_IGNORE_MERGE_ERRORS;
+  If not ReplaceFileW(PWideChar(Destination),PWideChar(Source),PWideChar(Backup),Flags,nil,nil) then
+    RaiseReplaceError;
 end;
 {$ENDIF MSWINDOWS}
 
-
-class procedure TFile.Replace(const aSource, aDestination,
-  aBackup: string);
+class procedure TFile.Replace(const aSource, aDestination, aBackup: string);
+{$IFDEF UNIX}
 var
-  lBackup,lDest,lSrc : String;
+  SourceInfo, DestinationInfo, BackupInfo: TStat;
+  SourceBytes, DestinationBytes, BackupBytes: RawByteString;
 
+  function SameFile(const First, Second: TStat): Boolean;
+  begin
+    Result:=(First.st_dev=Second.st_dev) and (First.st_ino=Second.st_ino);
+  end;
+{$ENDIF}
 begin
-  lDest:=ExpandFileName(aDestination);
-  lSrc:=ExpandFileName(aSource);
-  lBackup:=ExpandFileName(aBackup);
-  if CopyFile(lDest,lBackup,[],False) then
-    if CopyFile(lSrc,lDest,[TCopyFileFlag.cffOverwriteFile],False) then
-      Delete(lSrc);
+{$IFDEF MSWINDOWS}
+  Replace(aSource,aDestination,aBackup,False);
+{$ELSE}
+  CheckReplacePaths(aSource,aDestination,aBackup);
+{$IFDEF UNIX}
+  SourceBytes:=UTF8Encode(aSource);
+  DestinationBytes:=UTF8Encode(aDestination);
+  BackupBytes:=UTF8Encode(aBackup);
+  If (fpStat(PAnsiChar(SourceBytes),SourceInfo)<>0) or
+     (fpStat(PAnsiChar(DestinationBytes),DestinationInfo)<>0) then
+    RaiseReplaceError;
+  If SameFile(SourceInfo,DestinationInfo) then
+    raise EInOutError.Create('Replacement source and destination must be distinct');
+  If (fpStat(PAnsiChar(BackupBytes),BackupInfo)=0) and
+     (SameFile(BackupInfo,SourceInfo) or SameFile(BackupInfo,DestinationInfo)) then
+    raise EInOutError.Create('Replacement backup must be distinct');
+{$ENDIF}
+  CopyFile(aDestination,aBackup,[TCopyFileFlag.cffOverwriteFile],True);
+  { Rename replaces the destination without truncating a live reader's file.
+    A failed rename leaves the source and destination intact, with a backup. }
+  If not RenameFile(aSource,aDestination) then
+    RaiseReplaceError;
+{$ENDIF}
 end;
 
 class procedure TFile.SetAttributes(const aPath: string;
@@ -2472,7 +2582,8 @@ class procedure TFile.WriteAllBytes(const aPath: string; const aBytes: TBytes);
 begin
   With Create(aPath) do
     try
-      WriteBuffer(aBytes,Length(aBytes));
+      If Length(aBytes)>0 then
+        WriteBuffer(aBytes,Length(aBytes));
     finally
       Free
     end;
@@ -2480,8 +2591,17 @@ end;
 
 class procedure TFile.WriteAllLines(const aPath: string;
   const aContents: TStringDynArray);
+var
+  Lines: TStringList;
 begin
-  WriteAllLines(aPath,aContents,TEncoding.UTF8);
+  Lines:=TStringList.Create;
+  try
+    Lines.SetStrings(aContents);
+    Lines.WriteBOM:=False;
+    Lines.SaveToFile(aPath,TEncoding.UTF8);
+  finally
+    Lines.Free;
+  end;
 end;
 
 class procedure TFile.WriteAllLines(const aPath: string;
@@ -2489,6 +2609,8 @@ class procedure TFile.WriteAllLines(const aPath: string;
 var
   L : TStringList;
 begin
+  If aEncoding=nil then
+    raise EInOutArgumentException.Create('Encoding must not be nil',aPath);
   L:=TStringList.Create;
   try
     L.SetStrings(aContents);
@@ -2501,17 +2623,36 @@ end;
 
 class procedure TFile.WriteAllText(const aPath, aContents: string);
 begin
-   WriteAllText(aPath,aContents,TEncoding.UTF8);
+{$IF SIZEOF(CHAR)=1}
+  WriteAllBytes(aPath,TEncoding.UTF8.GetAnsiBytes(aContents));
+{$ELSE}
+  WriteAllBytes(aPath,TEncoding.UTF8.GetBytes(aContents));
+{$ENDIF}
 end;
 
 class procedure TFile.WriteAllText(const aPath, aContents: string;
   const aEncoding: TEncoding);
+var
+  Bytes, Preamble: TBytes;
+  Stream: TFileStream;
 begin
+  If aEncoding=nil then
+    raise EInOutArgumentException.Create('Encoding must not be nil',aPath);
 {$IF SIZEOF(CHAR)=1}
-  WriteAllBytes(aPath,aEncoding.GetAnsiBytes(aContents));
+  Bytes:=aEncoding.GetAnsiBytes(aContents);
 {$ELSE}
-  WriteAllBytes(aPath,aEncoding.GetBytes(aContents));
+  Bytes:=aEncoding.GetBytes(aContents);
 {$ENDIF}
+  Preamble:=aEncoding.GetPreamble;
+  Stream:=Create(aPath);
+  try
+    If Length(Preamble)>0 then
+      Stream.WriteBuffer(Preamble[0],Length(Preamble));
+    If Length(Bytes)>0 then
+      Stream.WriteBuffer(Bytes[0],Length(Bytes));
+  finally
+    Stream.Free;
+  end;
 end;
 
 { TDirectory }
