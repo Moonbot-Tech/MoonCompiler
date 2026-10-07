@@ -397,7 +397,6 @@ type
     FType: TJsonToken;
     FStarting: Boolean;
     FFinished: Boolean;
-    FRecursion: Boolean;
     FContainerPending: Boolean;
     FLevelEnded: Boolean;
     FRewindReader: TRewindReaderProc;
@@ -1690,7 +1689,6 @@ begin
   FType := TJsonToken.None;
   FStarting := True;
   FFinished := False;
-  FRecursion := False;
   FContainerPending := False;
   FLevelEnded := False;
 end;
@@ -1723,7 +1721,6 @@ begin
   FType := TJsonToken.None;
   FStarting := True;
   FFinished := False;
-  FRecursion := False;
   FContainerPending := False;
   FLevelEnded := False;
 end;
@@ -1784,8 +1781,9 @@ var
   HaveToken: Boolean;
 begin
   Result:=False;
-  if FFinished or FLevelEnded then
+  if FFinished then
     Exit;
+  FLevelEnded:=False;
   HaveToken:=False;
   if FStarting then
     begin
@@ -1795,13 +1793,8 @@ begin
       FFinished:=True;
       Exit;
       end;
-    FType:=FReader.TokenType;
-    FContainerPending:=FType in [TJsonToken.StartObject,TJsonToken.StartArray];
-    if FRecursion and FContainerPending then
-      begin
-      FRecursion:=False;
-      Recurse;
-      end
+    if FReader.TokenType in [TJsonToken.StartObject,TJsonToken.StartArray] then
+      FStack.Push(TContext.Create(FReader.TokenType))
     else
       HaveToken:=True;
     end;
@@ -1818,23 +1811,28 @@ begin
         end;
       end;
     HaveToken:=False;
-    FType:=FReader.TokenType;
-    if FType=TJsonToken.Comment then
+    if FReader.TokenType=TJsonToken.Comment then
       Continue;
-    if FType in [TJsonToken.EndObject,TJsonToken.EndArray] then
+    if FReader.TokenType in [TJsonToken.EndObject,TJsonToken.EndArray] then
       begin
+      if FStack.Count=0 then
+        raise EJSONIteratorError.Create('Unexpected end of JSON container');
+      Context:=FStack.Pop;
+      FPath:=Context.FPath;
+      FContainerPending:=False;
       FLevelEnded:=True;
+      FFinished:=FStack.Count=0;
       Exit;
       end;
     FKey:='';
     FPath:='';
-    if FType=TJsonToken.PropertyName then
+    if FReader.TokenType=TJsonToken.PropertyName then
       begin
       FKey:=FReader.Value.AsString;
       if not FReader.Read then
         raise EJSONIteratorError.Create('Object property has no value');
-      FType:=FReader.TokenType;
       end;
+    FType:=FReader.TokenType;
     if FStack.Count>0 then
       begin
       Context:=FStack.Pop;
@@ -1858,12 +1856,7 @@ function TJSONIterator.Recurse: Boolean;
 var
   Context: TContext;
 begin
-  if FStarting then
-    begin
-    FRecursion:=True;
-    Exit(True);
-    end;
-  Result:=FContainerPending and not FFinished and not FLevelEnded;
+  Result:=FContainerPending and not FStarting and not FFinished and not FLevelEnded;
   if Result then
     begin
     Context:=TContext.Create(FType);
@@ -1878,68 +1871,63 @@ var
   Nesting: Integer;
   Context: TContext;
 begin
-  if FStack.Count=0 then
+  { Next already leaves a naturally exhausted level. Return in the common
+    while Next / Return idiom must not leave the parent a second time. }
+  if FLevelEnded or (FStack.Count=0) then
     Exit;
-  if not FLevelEnded then
-    begin
-    SkipContainer;
-    Nesting:=1;
-    while (Nesting>0) and FReader.Read do
-      case FReader.TokenType of
-        TJsonToken.StartObject,TJsonToken.StartArray: Inc(Nesting);
-        TJsonToken.EndObject,TJsonToken.EndArray: Dec(Nesting);
-      end;
-    if Nesting<>0 then
-      raise EJSONIteratorError.Create('Unterminated JSON container');
+  SkipContainer;
+  Nesting:=1;
+  while (Nesting>0) and FReader.Read do
+    case FReader.TokenType of
+      TJsonToken.StartObject,TJsonToken.StartArray: Inc(Nesting);
+      TJsonToken.EndObject,TJsonToken.EndArray: Dec(Nesting);
     end;
+  if Nesting<>0 then
+    raise EJSONIteratorError.Create('Unterminated JSON container');
   Context:=FStack.Pop;
   FPath:=Context.FPath;
-  FKey:='';
-  FType:=FReader.TokenType;
-  FLevelEnded:=False;
   FContainerPending:=False;
+  FLevelEnded:=True;
+  FFinished:=FStack.Count=0;
 end;
 
 function TJSONIterator.Find(const aPath: String): Boolean;
 var
   Parser: TJSONPathParser;
   Token: TJSONPathToken;
-  SearchPath: UnicodeString;
   KeyName: string;
+  First: Boolean;
 begin
   Rewind;
-  if not Next then
-    Exit(False);
-  SearchPath:=UnicodeString(aPath);
-  Parser:=TJSONPathParser.Create(SearchPath);
+  Result:=False;
+  Parser:=TJSONPathParser.Create(UnicodeString(aPath));
+  First:=True;
   while not Parser.IsEof do
     begin
     Token:=Parser.NextToken;
     case Token of
       TJSONPathToken.Eof: Break;
-      TJSONPathToken.Name:
-        begin
-        if FType<>TJsonToken.StartObject then
-          Exit(False);
-        KeyName:=Parser.TokenName;
-        end;
+      TJSONPathToken.Name: KeyName:=Parser.TokenName;
       TJSONPathToken.ArrayIndex:
         begin
-        if (FType<>TJsonToken.StartArray) or (Parser.TokenArrayIndex<0) then
-          Exit(False);
+        if Parser.TokenArrayIndex<0 then
+          Exit;
         KeyName:=IntToStr(Parser.TokenArrayIndex);
         end;
-      else
-        Exit(False);
+      else Exit;
     end;
-    if not Recurse then
-      Exit(False);
+    if not First and not Recurse then
+      Exit;
+    First:=False;
     repeat
       if not Next(KeyName) then
-        Exit(False);
+        Exit;
     until (KeyName<>'') or (FKey='');
+    if ((Token=TJSONPathToken.Name) and (GetParentType<>TJsonToken.StartObject)) or
+       ((Token=TJSONPathToken.ArrayIndex) and (GetParentType<>TJsonToken.StartArray)) then
+      Exit;
     end;
-  Result:=True;
+  Result:=not First;
 end;
 
 procedure TJSONIterator.Iterate(aFunc: TIterateFunc);

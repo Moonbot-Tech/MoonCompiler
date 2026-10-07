@@ -141,9 +141,6 @@ begin
     Iterator := TJSONIterator.Create(Reader);
     try
       HasNext := Iterator.Next;
-      CheckTrue(HasNext, 'First Next should return True');
-
-      HasNext := Iterator.Next;
       CheckTrue(HasNext, 'Second Next should return True');
       CheckEquals('name', Iterator.Key, 'Key should be "name"');
       CheckEquals('test', Iterator.asString, 'Value should be "test"');
@@ -170,9 +167,6 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      // Skip to start
-      Iterator.Next;
-
       // Find second key
       Found := False;
       while Iterator.Next do
@@ -203,13 +197,11 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader, @RewindCallback);
     try
-      Iterator.Next; // Start object
       Iterator.Next; // name: test
       FirstKey := Iterator.Key;
 
       Iterator.Rewind;
 
-      Iterator.Next; // Start object again
       Iterator.Next; // name: test again
       CheckEquals(FirstKey, Iterator.Key, 'After rewind, should get same key');
     finally
@@ -254,13 +246,10 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start outer object
+      CheckTrue(Iterator.Next); // outer
       InitialDepth := Iterator.Depth;
-
-      // Go deeper
-      Iterator.Next; // outer
-      Iterator.Next; // inner object start
-      Iterator.Next; // deep: 1
+      CheckTrue(Iterator.Recurse);
+      CheckTrue(Iterator.Next); // inner
 
       CheckTrue(Iterator.Depth > InitialDepth, 'Should be deeper than initial');
 
@@ -268,11 +257,9 @@ begin
       Iterator.Return;
 
       // Should be able to continue to "after"
-      if Iterator.Next then
-      begin
-        CheckEquals('after', Iterator.Key, 'Should reach "after" key');
-        CheckEquals(2, Iterator.asInteger, 'Value of "after" should be 2');
-      end;
+      CheckTrue(Iterator.Next, 'Return must resume the parent');
+      CheckEquals('after', Iterator.Key);
+      CheckEquals(2, Iterator.asInteger);
     finally
       Iterator.Free;
     end;
@@ -335,8 +322,7 @@ begin
     try
       Iterator.Iterate(@IterateCallback);
 
-      // Object start + 3 key-value pairs = 4 items (but we get only values after keys)
-      CheckTrue(FIterateCount >= 3, 'Should iterate at least 3 times for 3 properties');
+      CheckEquals(3, FIterateCount, 'One callback per property');
     finally
       Iterator.Free;
     end;
@@ -355,12 +341,12 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start object
       Iterator.Next; // outer: { inner }
+      CheckTrue(Iterator.Recurse);
       Iterator.Next; // inner: 1
 
       PathStr := Iterator.GetPath(0);
-      CheckTrue(Length(PathStr) > 0, 'Path should not be empty');
+      CheckEquals('outer.inner', PathStr);
     finally
       Iterator.Free;
     end;
@@ -397,7 +383,6 @@ begin
     Iterator := TJSONIterator.Create(Reader);
     try
       CheckEquals('', Iterator.Key, 'Initial key should be empty');
-      Iterator.Next; // Start object
       Iterator.Next; // myKey: myValue
       CheckEquals('myKey', Iterator.Key, 'Key should be "myKey"');
     finally
@@ -417,12 +402,11 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start object
       Iterator.Next; // level1
+      CheckTrue(Iterator.Recurse);
       Iterator.Next; // level2
 
-      // Path property should return something meaningful
-      CheckTrue(Length(Iterator.Path) >= 0, 'Path property should be accessible');
+      CheckEquals('level1.level2', Iterator.Path);
     finally
       Iterator.Free;
     end;
@@ -440,9 +424,6 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start object
-      CheckEquals(Ord(TJsonToken.StartObject), Ord(Iterator.&Type), 'Type should be StartObject');
-
       Iterator.Next; // str: hello
       CheckEquals(Ord(TJsonToken.&String), Ord(Iterator.&Type), 'Type should be String');
 
@@ -471,10 +452,9 @@ begin
       Iterator.Next; // Start object
       CheckEquals(Ord(TJsonToken.StartObject), Ord(Iterator.ParentType), 'Parent should be StartObject');
 
-      Iterator.Next; // items: [...]
-      // After reading array start, parent should still be object
-      CheckTrue(Iterator.ParentType in [TJsonToken.StartObject, TJsonToken.StartArray],
-        'Parent should be object or array');
+      CheckTrue(Iterator.Recurse);
+      CheckTrue(Iterator.Next);
+      CheckEquals(Ord(TJsonToken.StartArray), Ord(Iterator.ParentType));
     finally
       Iterator.Free;
     end;
@@ -495,8 +475,9 @@ begin
       CheckEquals(-1, Iterator.Index, 'Initial index should be -1');
 
       Iterator.Next; // Start array
-      // Index starts at 0 for array contexts
-      CheckTrue(Iterator.Index >= 0, 'Index should be >= 0 inside array');
+      CheckEquals(0, Iterator.Index);
+      CheckTrue(Iterator.Next);
+      CheckEquals(1, Iterator.Index);
     finally
       Iterator.Free;
     end;
@@ -544,9 +525,9 @@ begin
       Iterator.Next; // Start object - depth 1
       CheckTrue(Iterator.Depth > InitialDepth, 'Depth should increase');
 
-      Iterator.Next; // level1
+      CheckTrue(Iterator.Recurse);
       Iterator.Next; // level2
-      CheckTrue(Iterator.Depth >= 2, 'Depth should be at least 2');
+      CheckTrue(Iterator.Depth = 2, 'Depth should be at least 2');
     finally
       Iterator.Free;
     end;
@@ -564,7 +545,6 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start object
       Iterator.Next; // message: "Hello, World!"
       CheckEquals('Hello, World!', Iterator.asString, 'asString should return the string value');
     finally
@@ -584,7 +564,6 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start object
       Iterator.Next; // count: 12345
       CheckEquals(12345, Iterator.asInteger, 'asInteger should return 12345');
     finally
@@ -604,7 +583,6 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start object
       Iterator.Next; // bignum
       CheckEquals(9223372036854775807, Iterator.asInt64, 'asInt64 should return max Int64');
     finally
@@ -624,7 +602,6 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start object
       Iterator.Next; // pi: 3.14159
       CheckTrue(Abs(Iterator.asDouble - 3.14159) < 0.0001, 'asDouble should return approximately 3.14159');
     finally
@@ -644,7 +621,6 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start object
       Iterator.Next; // e: 2.718281828
       CheckTrue(Abs(Iterator.asExtended - 2.718281828) < 0.0000001, 'asExtended should return approximately e');
     finally
@@ -664,7 +640,6 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start object
       Iterator.Next; // active: true
       CheckTrue(Iterator.asBoolean, 'asBoolean should return True');
 
@@ -688,7 +663,6 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start object
       Iterator.Next; // value: "test variant"
       V := Iterator.asVariant;
       CheckEquals('test variant', string(V), 'asVariant should return correct value');
@@ -709,7 +683,6 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start object
       Iterator.Next; // empty: null
       CheckTrue(Iterator.IsNull, 'IsNull should return True for null value');
 
@@ -733,7 +706,6 @@ begin
   try
     Iterator := TJSONIterator.Create(Reader);
     try
-      Iterator.Next; // Start object
       Iterator.Next; // value: 1
       CheckFalse(Iterator.IsUndefined, 'IsUndefined should return False for regular value');
     finally
@@ -807,6 +779,8 @@ begin
       FoundDeep := False;
       while Iterator.Next do
       begin
+        if Iterator.&Type in [TJsonToken.StartObject,TJsonToken.StartArray] then
+          CheckTrue(Iterator.Recurse);
         if (Iterator.Key = 'level3') and (Iterator.asString = 'deep value') then
         begin
           FoundDeep := True;
@@ -846,7 +820,7 @@ begin
             Inc(TypeCount);
         end;
       end;
-      CheckTrue(TypeCount >= 7, 'Should encounter at least 7 different value types');
+      CheckEquals(7, TypeCount, 'One value per direct property');
     finally
       Iterator.Free;
     end;

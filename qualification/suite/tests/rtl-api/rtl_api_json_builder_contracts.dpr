@@ -105,9 +105,7 @@ begin
       R.Rewind;
     end);
   try
-    Check(Iter.Next and (Iter.&Type = TJsonToken.StartObject) and (Iter.Depth = 0), 'root token');
-    Check(Iter.Recurse and (Iter.Depth = 1), 'enter root');
-    Check(Iter.Next('items') and (Iter.&Type = TJsonToken.StartArray), 'Next exact key');
+    Check(Iter.Next('items') and (Iter.&Type = TJsonToken.StartArray) and (Iter.Depth = 1), 'first property');
     Check(Iter.Recurse, 'enter array');
     Check(Iter.Next('1') and (Iter.Index = 1) and (Iter.AsInteger = 22), 'Next array index');
     Check(Iter.Path = 'items[1]', 'array path');
@@ -123,8 +121,8 @@ begin
     Check(Iter.AsValue.AsString = Iter.AsString, 'AsValue retains actual value');
     Check(not Iter.Find('nested.Name'), 'keys are case sensitive');
     Iter.Rewind;
-    Iter.Recurse;
-    Check(Iter.Next('nested') and (Iter.&Type = TJsonToken.StartObject), 'armed root recursion');
+    Check(not Iter.Recurse, 'no pending container before first Next');
+    Check(Iter.Next('nested') and (Iter.&Type = TJsonToken.StartObject), 'root property search');
     Check(Iter.Next('end') and Iter.AsBoolean, 'Next skips nested container');
   finally
     Iter.Free;
@@ -196,7 +194,6 @@ begin
     end;
     Iter := TJSONIterator.Create(Reader, procedure(R: TJsonReader) begin R.Rewind; end);
     try
-      Check(Iter.Next and Iter.Recurse, 'quoted paths root');
       for I := 0 to High(Paths) do begin
         Check(Iter.Next, 'quoted paths item');
         Paths[I] := Iter.Path;

@@ -530,6 +530,7 @@ type
     function DeserializePrimitive(const aReader: TJsonReader; aContract: TJsonPrimitiveContract): TValue;
     function DeserializeObject(const aReader: TJsonReader; aContract: TJsonObjectContract): TValue;
     function DeserializeArray(const aReader: TJsonReader; aContract: TJsonArrayContract): TValue;
+    procedure DiscardDeserializedValue(const aValue: TValue; aTypeInfo: PTypeInfo);
   protected
     function GetContractResolver: IJsonContractResolver; virtual;
     function GetConverters: TJsonConverterList; virtual;
@@ -1961,14 +1962,15 @@ begin
     Result := TValue.Empty;
     Exit;
   end;
+  if aReader.TokenType <> TJsonToken.StartObject then
+    raise EJsonSerializationException.Create(SUnexpectedTokenDeserializeObject);
+
   if aContract.DefaultCreator <> nil then
     Result := aContract.DefaultCreator.Invoke([])
   else
     TValue.Make(nil, aContract.TypeInf, Result);
 
-  if aReader.TokenType <> TJsonToken.StartObject then
-    raise EJsonSerializationException.Create(SUnexpectedTokenDeserializeObject);
-
+  try
   while aReader.Read do
   begin
     case aReader.TokenType of
@@ -1996,6 +1998,41 @@ begin
     end;
   end;
   raise EJsonSerializationException.Create(SUnexpectedEndDeserializeObject);
+  except
+    if aContract.DefaultCreator<>nil then
+      aContract.DefaultCreator.Release(Result);
+    raise;
+  end;
+end;
+
+procedure TJsonSerializer.DiscardDeserializedValue(const aValue: TValue; aTypeInfo: PTypeInfo);
+var
+  Contract: TJsonContract;
+  Conv: TJsonConverter;
+  I: Integer;
+  Value: TValue;
+begin
+  if aValue.IsEmpty then
+    Exit;
+  Contract:=ContractResolver.ResolveContract(aTypeInfo);
+  Conv:=Contract.Converter;
+  if Conv=nil then
+    Conv:=MatchConverter(FConverters,aTypeInfo);
+  { A custom converter may return a borrowed object. Its ownership contract
+    is not inferred from the TValue's shape. }
+  if (Conv<>nil) and Conv.CanRead then
+    Exit;
+  if Contract is TJsonObjectContract then
+  begin
+    if TJsonObjectContract(Contract).DefaultCreator<>nil then
+    begin
+      Value:=aValue;
+      TJsonObjectContract(Contract).DefaultCreator.Release(Value);
+    end;
+  end
+  else if aValue.IsArray then
+    for I:=0 to aValue.GetArrayLength-1 do
+      DiscardDeserializedValue(aValue.GetArrayElement(I),TJsonArrayContract(Contract).arrayType);
 end;
 
 function TJsonSerializer.DeserializeArray(const aReader: TJsonReader; aContract: TJsonArrayContract): TValue;
@@ -2003,7 +2040,7 @@ var
   ElemList: specialize TList<TValue>;
   ElemTypeInf: PTypeInfo;
   ElemValue: TValue;
-  ArrLen, I: Integer;
+  I: Integer;
 begin
   if aReader.TokenType <> TJsonToken.StartArray then
     raise EJsonSerializationException.Create(SUnexpectedTokenPopulateArray);
@@ -2011,16 +2048,28 @@ begin
   ElemTypeInf := aContract.arrayType;
   ElemList := specialize TList<TValue>.Create;
   try
-    while aReader.Read do
-    begin
-      if aReader.TokenType = TJsonToken.EndArray then
-        Break;
-      ElemValue := InternalDeserialize(aReader, ElemTypeInf);
-      ElemList.Add(ElemValue);
+    try
+      while aReader.Read do
+      begin
+        if aReader.TokenType = TJsonToken.EndArray then
+        begin
+          Result := TValue.FromArray(aContract.TypeInf, ElemList.ToArray);
+          Exit;
+        end;
+        ElemValue := InternalDeserialize(aReader, ElemTypeInf);
+        try
+          ElemList.Add(ElemValue);
+        except
+          DiscardDeserializedValue(ElemValue,ElemTypeInf);
+          raise;
+        end;
+      end;
+      raise EJsonSerializationException.Create(SUnexpectedEndDeserializeObject);
+    except
+      for I:=0 to ElemList.Count-1 do
+        DiscardDeserializedValue(ElemList[I],ElemTypeInf);
+      raise;
     end;
-    // Build dynamic array TValue
-    ArrLen := ElemList.Count;
-    Result := TValue.FromArray(aContract.TypeInf, ElemList.ToArray);
   finally
     ElemList.Free;
   end;
@@ -2070,6 +2119,7 @@ var
   Contract: TJsonContract;
   Conv: TJsonConverter;
 begin
+  try
   if aReader.TokenType = TJsonToken.None then
     aReader.Read;
 
@@ -2104,6 +2154,10 @@ begin
       else
         Result := TValue.Empty;
   end;
+  except
+    on E: EJsonReaderException do
+      raise EJsonSerializationException.Create(E.Message);
+  end;
 end;
 
 procedure TJsonSerializer.InternalPopulate(const Reader: TJsonReader; var aValue: TValue; aUseConverter: Boolean);
@@ -2115,6 +2169,7 @@ var
   PropValue: TValue;
   PropName: string;
 begin
+  try
   if aValue.IsEmpty then
     Exit;
 
@@ -2163,6 +2218,10 @@ begin
       TJsonToken.EndObject:
         Exit;
     end;
+  end;
+  except
+    on E: EJsonReaderException do
+      raise EJsonSerializationException.Create(E.Message);
   end;
 end;
 
