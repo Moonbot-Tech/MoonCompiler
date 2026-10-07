@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v2.3.1
+        default: v2.3.2
 
 permissions:
   contents: read
@@ -103,6 +103,7 @@ jobs:
           cp examples/hello.dpr examples/zip.dpr "$smoke/app/"
           cp RTL-test/semantic/file_resource_semantic.dpr "$smoke/app/"
           cp qualification/suite/tests/rtl-api/rtl_api_release231_contracts.dpr "$smoke/app/"
+          cp qualification/suite/tests/smoke/http_error_privacy.dpr "$smoke/app/"
           cp tests/test/units/system/tres4.res "$smoke/app/"
           sed -i 's|{\$R \.\./\.\./tests/test/units/system/tres4\.res}|{$R tres4.res}|' \
             "$smoke/app/file_resource_semantic.dpr"
@@ -122,6 +123,9 @@ jobs:
             "$fpc" $profile rtl_api_release231_contracts.dpr
             output=$(timeout 30 ./rtl_api_release231_contracts)
             [[ "$output" == RTL_API_RELEASE231_CONTRACTS_OK ]]
+            "$fpc" $profile http_error_privacy.dpr
+            output=$(timeout 30 ./http_error_privacy)
+            [[ "$output" == HTTP_ERROR_PRIVACY_PASS ]]
           done
           test -d units/x86_64-linux/debug
           test -d units/x86_64-linux/release
@@ -211,6 +215,7 @@ jobs:
           Copy-Item examples\hello.dpr, examples\zip.dpr, `
             RTL-test\semantic\file_resource_semantic.dpr, `
             qualification\suite\tests\rtl-api\rtl_api_release231_contracts.dpr, `
+            qualification\suite\tests\smoke\http_error_privacy.dpr, `
             tests\test\units\system\tres4.res "$Smoke\app"
           $Resource = "$Smoke\app\file_resource_semantic.dpr"
           $Text = Get-Content -Raw $Resource
@@ -244,6 +249,12 @@ jobs:
               $Output = & .\rtl_api_release231_contracts.exe
               If ($LASTEXITCODE -ne 0 -or $Output -ne 'RTL_API_RELEASE231_CONTRACTS_OK') {
                 throw "RTL compatibility smoke returned: $Output"
+              }
+              & $Fpc @Profile http_error_privacy.dpr
+              If ($LASTEXITCODE -ne 0) { throw 'HTTP privacy smoke did not compile' }
+              $Output = & .\http_error_privacy.exe
+              If ($LASTEXITCODE -ne 0 -or $Output -ne 'HTTP_ERROR_PRIVACY_PASS') {
+                throw "HTTP privacy smoke returned: $Output"
               }
             }
             If (-not (Test-Path units\x86_64-win64\debug) -or
@@ -326,13 +337,12 @@ jobs:
           cat > "$RUNNER_TEMP/release-notes.md" <<EOF
           MoonCompiler $RELEASE_VERSION is a Delphi-compatible Pascal toolchain for Win64 and Linux x86-64.
 
-          - Windows socket and disk-space APIs accept Delphi-compatible record, signed/unsigned output and typed function-pointer forms.
-          - POSIX file-operation names preserve ordinary Pascal I/O; Posix.Stdio supplies native rename, removal and error reporting.
-          - File APIs read procfs and FIFOs, preserve UTF-16 when appending, honor encoding preambles, and report copy/replace failures instead of silently ignoring them.
-          - The optional FreeType binding has corrected native layouts, complete function loading and safe concurrent loader ownership.
-          - Linux catches failed indirect calls without recursive unwinder faults; incomplete diagnostic traces are marked honestly.
-          - Linux Pascal shared libraries retain their code until thread-local cleanup finishes, preventing callbacks into unloaded code.
-          - Expanded Windows/Linux consumer tests, negative cases, independent C ABI checks and extracted-archive checks cover these contracts. Rebuild application and third-party PPUs when upgrading. MoonORMot 13 remains required.
+          - Generated HTTP exceptions no longer expose request URLs, credentials, raw transport messages or malformed server replies. Error families and useful failure categories remain available for synchronous and asynchronous calls.
+          - URI fragments stay local; real request paths, query strings and escaped characters are preserved.
+          - Malformed URI ports and unsupported response charsets no longer echo their input in diagnostics.
+          - Linux conditional rethrows preserve exception tables, outer handlers and managed cleanup, including branches that raise replacement exceptions.
+          - Windows/Linux tests cover secret-bearing failures, TLS, timeouts, redirects and streamed responses. Application callbacks and explicit URL logging remain the application's responsibility.
+          - Dictionary implementation and existing optimizations are unchanged. Rebuild application and third-party PPUs when upgrading. MoonORMot 13 remains required.
 
           Read the [release notes](https://github.com/$GH_REPO/blob/$RELEASE_TAG/doc/RELEASE_NOTES.md) for supported contracts and upgrade instructions. Performance measurements from release 2.0 remain separately labelled; this maintenance release makes no new benchmark claims.
 

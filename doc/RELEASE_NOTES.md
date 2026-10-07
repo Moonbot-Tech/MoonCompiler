@@ -1,3 +1,34 @@
+# MoonCompiler 2.3.2: HTTP privacy and exception handling
+
+`System.Net.HttpClient` no longer includes request URLs or raw transport/server
+messages in generated exceptions. Tokens in URL paths, query strings and user
+credentials therefore do not leak through these messages into application logs.
+Exception families and useful failure categories are preserved, including
+timeouts, certificate rejection, redirect limits and socket result names.
+The same rules apply to synchronous calls and `EndAsyncHTTP`.
+Malformed URI ports and unsupported server charsets also produce fixed diagnostic
+text without echoing the supplied value.
+
+URI fragments (`#...`) are no longer sent to HTTP servers. The real request path,
+query and escaped characters are preserved, as are URI values exposed to callers.
+Application callbacks and explicit URL logging still need their own privacy policy.
+
+Tests exercise fake secrets, failed connections and TLS handshakes, response
+timeouts, redirects, malformed replies and wrapped stream errors on Windows and
+Linux. Dictionary implementation and existing optimizations are unchanged. This
+maintenance release makes no new performance claims.
+
+Linux exception tables now remain valid when a handler conditionally reraises an
+exception and other branches raise a replacement. The original exception retains
+its identity on rethrow; replacement exceptions reach the correct outer handler,
+and `finally` blocks and managed locals are cleaned up normally.
+
+Install the complete 2.3.2 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20302; `CompilerVersion` remains 2.3. MoonORMot 13
+remains required.
+
+---
+
 # MoonCompiler 2.3.1: file I/O and native-library reliability
 
 This maintenance release completes common Windows and POSIX call forms and

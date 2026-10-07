@@ -34,7 +34,7 @@ interface
 
        { MoonCompiler release version.  Keep the FPC base version above
          unchanged: it is part of the PPU, tool and installation ABI. }
-       mooncompiler_version = '2.3.1';
+       mooncompiler_version = '2.3.2';
 
        { word version for ppu file }
        wordversion = ((ord(version_nr)-ord('0')) shl 14)+

@@ -23,7 +23,7 @@ class SmokeExitCodes(unittest.TestCase):
         for workflow, step, calls in (
             ('qualification', 'Run product smoke', 3),
             ('moonormot-sync', f'Run the mORMot and memory-manager gates ({platform})', 2),
-            ('release', 'Smoke-test the archive as a user installs it', 8),
+            ('release', 'Smoke-test the archive as a user installs it', 10),
         ):
             source = (ROOT / f'.github/workflows/{workflow}.yml').read_text(encoding='utf-8')
             blocks = re.findall(r'      - name: ' + re.escape(step) +
@@ -62,7 +62,8 @@ class SmokeExitCodes(unittest.TestCase):
                 failed = len(prior.splitlines()) + 1 == {failing}
                 markers = {{'build_smoke': 'MOONBOT_BUILD_OK', 'zip': 'ZIP_EXAMPLE_OK',
                             'hello': '3 prices, sum = 42', 'file_resource_semantic': 'FILE_RESOURCE_PASS',
-                            'rtl_api_release231_contracts': 'RTL_API_RELEASE231_CONTRACTS_OK'}}
+                            'rtl_api_release231_contracts': 'RTL_API_RELEASE231_CONTRACTS_OK',
+                            'http_error_privacy': 'HTTP_ERROR_PRIVACY_PASS'}}
                 print('WRONG' if failed and {bad_output} else markers[sys.argv[1]])
                 sys.exit(73 if failed and not {bad_output} else 0)
                 '''), encoding='utf-8')
@@ -71,7 +72,7 @@ class SmokeExitCodes(unittest.TestCase):
                 compiler.parent.mkdir(parents=True)
                 compiler.write_text('@echo off\nexit /b 0\n')
                 body = body.replace('\\fpc.exe', '\\fpc.cmd')
-                body = re.sub(r'\.\\(build_smoke|zip|hello|file_resource_semantic|rtl_api_release231_contracts)\.exe',
+                body = re.sub(r'\.\\(build_smoke|zip|hello|file_resource_semantic|rtl_api_release231_contracts|http_error_privacy)\.exe',
                               lambda m: f"'{sys.executable}' '{probe}' {m[1]}", body)
                 prefix = f"$ErrorActionPreference = 'Stop'\n$Smoke = '{work}'\n"
                 suffix = "\nWrite-Output 'SMOKE_STEP_COMPLETE'\nexit $LASTEXITCODE\n"
@@ -83,7 +84,7 @@ class SmokeExitCodes(unittest.TestCase):
                 compiler.write_text('#!/bin/sh\nexit 0\n')
                 compiler.chmod(0o755)
                 body = re.sub(r'\./(?:qualification/suite/tests/smoke/|examples/)?'
-                              r'(build_smoke|zip|hello|file_resource_semantic|rtl_api_release231_contracts)\b',
+                              r'(build_smoke|zip|hello|file_resource_semantic|rtl_api_release231_contracts|http_error_privacy)\b',
                               lambda m: f'"{sys.executable}" "{probe}" {m[1]}', body)
                 prefix = f'smoke="{work}"\n'
                 suffix = "\nprintf '%s\\n' SMOKE_STEP_COMPLETE\n"
