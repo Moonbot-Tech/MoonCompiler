@@ -16,7 +16,7 @@
 
 Function  DiskFree(drive: byte) : int64;
 Function  DiskSize(drive: byte) : int64;
-Function GetCurrentDir : {$ifdef FPC_UNICODE_RTL}UnicodeString{$else}AnsiString{$endif};
+Function GetCurrentDir : {$if defined(FPC_UNICODE_RTL) or defined(UNICODERTL)}UnicodeString{$else}AnsiString{$endif};
 
 Function SetCurrentDir (Const NewDir : RawByteString) : Boolean;
 Function CreateDir (Const NewDir : RawByteString) : Boolean;

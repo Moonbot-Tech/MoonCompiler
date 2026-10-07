@@ -798,7 +798,7 @@ end;
     Diskh functions, OS independent.
   ---------------------------------------------------------------------}
 
-Function GetCurrentDir: {$ifdef FPC_UNICODE_RTL}UnicodeString{$else}AnsiString{$endif};
+Function GetCurrentDir: {$if defined(FPC_UNICODE_RTL) or defined(UNICODERTL)}UnicodeString{$else}AnsiString{$endif};
 begin
   GetDir(0,Result);
 end;
