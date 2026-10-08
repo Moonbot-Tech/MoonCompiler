@@ -523,11 +523,106 @@ end;
 
 { TMBCSEncoding }
 
+procedure TMBCSEncoding.ConvertToBytes(Chars: PUnicodeChar; CharCount: Integer; out Value: RawByteString);
+var
+  I: Integer;
+begin
+  if FWCharToMBFlags<>0 then
+    begin
+    {$IFDEF MSWINDOWS}
+    Value:='';
+    if CharCount=0 then
+      Exit;
+    I:=WideCharToMultiByte(CodePage,FWCharToMBFlags,Chars,CharCount,nil,0,nil,nil);
+    if I=0 then
+      raise EEncodingError.Create('Invalid characters or conversion flags');
+    SetLength(Value,I);
+    if WideCharToMultiByte(CodePage,FWCharToMBFlags,Chars,CharCount,PAnsiChar(Value),I,nil,nil)=0 then
+      raise EEncodingError.Create('Character conversion failed');
+    Exit;
+    {$ELSE}
+    if (CodePage<>CP_UTF8) or (FWCharToMBFlags<>$80) then
+      raise EEncodingError.Create('These conversion flags are unsupported on this platform');
+    I:=0;
+    while I<CharCount do
+      begin
+      if (Ord(Chars[I])>=$D800) and (Ord(Chars[I])<=$DBFF) then
+        begin
+        Inc(I);
+        if (I=CharCount) or (Ord(Chars[I])<$DC00) or (Ord(Chars[I])>$DFFF) then
+          raise EEncodingError.Create('Incomplete UTF-16 surrogate pair');
+        end
+      else if (Ord(Chars[I])>=$DC00) and (Ord(Chars[I])<=$DFFF) then
+        raise EEncodingError.Create('Unpaired UTF-16 low surrogate');
+      Inc(I);
+      end;
+    {$ENDIF}
+    end;
+  widestringmanager.Unicode2AnsiMoveProc(Chars,Value,CodePage,CharCount);
+end;
+
+procedure TMBCSEncoding.ConvertToChars(Bytes: PByte; ByteCount: Integer; out Value: UnicodeString);
+var
+  I: Integer;
+  {$IFNDEF MSWINDOWS}
+  J, Count: Integer;
+  CodePoint, Minimum: Cardinal;
+  {$ENDIF}
+begin
+  if FMBToWCharFlags<>0 then
+    begin
+    {$IFDEF MSWINDOWS}
+    Value:='';
+    if ByteCount=0 then
+      Exit;
+    I:=MultiByteToWideChar(CodePage,FMBToWCharFlags,PAnsiChar(Bytes),ByteCount,nil,0);
+    if I=0 then
+      raise EEncodingError.Create('Invalid bytes or conversion flags');
+    SetLength(Value,I);
+    if MultiByteToWideChar(CodePage,FMBToWCharFlags,PAnsiChar(Bytes),ByteCount,PWideChar(Value),I)=0 then
+      raise EEncodingError.Create('Byte conversion failed');
+    Exit;
+    {$ELSE}
+    if (CodePage<>CP_UTF8) or (FMBToWCharFlags<>8) then
+      raise EEncodingError.Create('These conversion flags are unsupported on this platform');
+    I:=0;
+    while I<ByteCount do
+      begin
+      CodePoint:=Bytes[I];
+      if CodePoint<$80 then
+        begin
+        Inc(I);
+        Continue;
+        end;
+      case CodePoint of
+        $C2..$DF: begin Count:=2; Minimum:=$80; CodePoint:=CodePoint and $1F; end;
+        $E0..$EF: begin Count:=3; Minimum:=$800; CodePoint:=CodePoint and $0F; end;
+        $F0..$F4: begin Count:=4; Minimum:=$10000; CodePoint:=CodePoint and $07; end;
+        else raise EEncodingError.Create('Invalid UTF-8 lead byte');
+      end;
+      if Count>ByteCount-I then
+        raise EEncodingError.Create('Incomplete UTF-8 character');
+      for J:=1 to Count-1 do
+        begin
+        if (Bytes[I+J] and $C0)<>$80 then
+          raise EEncodingError.Create('Invalid UTF-8 continuation byte');
+        CodePoint:=(CodePoint shl 6) or (Bytes[I+J] and $3F);
+        end;
+      if (CodePoint<Minimum) or (CodePoint>$10FFFF) or
+         ((CodePoint>=$D800) and (CodePoint<=$DFFF)) then
+        raise EEncodingError.Create('Invalid UTF-8 code point');
+      Inc(I,Count);
+      end;
+    {$ENDIF}
+    end;
+  widestringmanager.Ansi2UnicodeMoveProc(PAnsiChar(Bytes),CodePage,Value,ByteCount);
+end;
+
 function TMBCSEncoding.GetByteCount(Chars: PUnicodeChar; CharCount: Integer): Integer;
 var
   S: RawByteString;
 begin
-  widestringmanager.Unicode2AnsiMoveProc(Chars, S, CodePage, CharCount);
+  ConvertToBytes(Chars,CharCount,S);
   Result := Length(S);
 end;
 
@@ -536,7 +631,7 @@ function TMBCSEncoding.GetBytes(Chars: PUnicodeChar; CharCount: Integer; Bytes: 
 var
   S: RawByteString;
 begin
-  widestringmanager.Unicode2AnsiMoveProc(Chars, S, CodePage, CharCount);
+  ConvertToBytes(Chars,CharCount,S);
   Result := Length(S);
   if ByteCount < Result then
     Result := ByteCount;
@@ -548,7 +643,7 @@ function TMBCSEncoding.GetCharCount(Bytes: PByte; ByteCount: Integer): Integer;
 var
   U: UnicodeString;
 begin
-  widestringmanager.Ansi2UnicodeMoveProc(PAnsiChar(Bytes), CodePage, U, ByteCount);
+  ConvertToChars(Bytes,ByteCount,U);
   Result := Length(U);
 end;
 
@@ -557,7 +652,7 @@ function TMBCSEncoding.GetChars(Bytes: PByte; ByteCount: Integer; Chars: PUnicod
 var
   U: UnicodeString;
 begin
-  widestringmanager.Ansi2UnicodeMoveProc(PAnsiChar(Bytes), CodePage, U, ByteCount);
+  ConvertToChars(Bytes,ByteCount,U);
   Result := Length(U);
   if CharCount < Result then
     Result := CharCount;

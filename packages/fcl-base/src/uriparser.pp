@@ -80,31 +80,39 @@ const
 
 function Escape(const s: String; const Allowed: TSysCharSet): String;
 var
-  i, L: Integer;
-  P: PChar;
+  i, L, Dest: SizeInt;
+  Bytes: RawByteString;
+  B: Byte;
+const
+  Hex: array[0..15] of Char = '0123456789abcdef';
 begin
-  L := Length(s);
-  for i := 1 to Length(s) do
-    if not (s[i] in Allowed) then Inc(L,2);
-  if L = Length(s) then
-  begin
-    Result := s;
-    Exit;
-  end;
-
-  SetLength(Result, L);
-  P := @Result[1];
-  for i := 1 to Length(s) do
-  begin
-    if not (s[i] in Allowed) then
+{$IF SIZEOF(CHAR)=2}
+  Bytes:=UTF8Encode(s);
+{$ELSE}
+  Bytes:=s;
+{$ENDIF}
+  L:=Length(Bytes);
+  for i:=1 to Length(Bytes) do
+    if not (Bytes[i] in Allowed) then
+      Inc(L,2);
+  if L=Length(Bytes) then
+    Exit(s);
+  SetLength(Result,L);
+  Dest:=1;
+  for i:=1 to Length(Bytes) do
     begin
-      P^ := '%'; Inc(P);
-      StrFmt(P, '%.2x', [ord(s[i])]); Inc(P);
-    end
+    B:=Ord(Bytes[i]);
+    if Bytes[i] in Allowed then
+      Result[Dest]:=Char(B)
     else
-      P^ := s[i];
-    Inc(P);
-  end;
+      begin
+      Result[Dest]:='%';
+      Result[Dest+1]:=Hex[B shr 4];
+      Result[Dest+2]:=Hex[B and 15];
+      Inc(Dest,2);
+      end;
+    Inc(Dest);
+    end;
 end;
 
 function EncodeURI(const URI: TURI): String;
@@ -152,33 +160,47 @@ begin
     'A'..'F': Result := ord(c) - (ord('A') - 10);
     'a'..'f': Result := ord(c) - (ord('a') - 10);
   else
-    Result := 0;
+    Result := -1;
   end;
 end;
 
 function Unescape(const s: String): String;
 var
-  i, RealLength: Integer;
-  P: PChar;
+  i, RealLength: SizeInt;
+  Hi, Lo: Integer;
+  Bytes, Decoded: RawByteString;
 begin
-  SetLength(Result, Length(s));
-  i := 1;
-  P := PChar(Result);  { use PChar to prevent numerous calls to UniqueString }
-  RealLength := 0;
-  while i <= Length(s) do
-  begin
-    if s[i] = '%' then
+{$IF SIZEOF(CHAR)=2}
+  Bytes:=UTF8Encode(s);
+{$ELSE}
+  Bytes:=s;
+{$ENDIF}
+  SetLength(Decoded,Length(Bytes));
+  i:=1;
+  RealLength:=0;
+  while i<=Length(Bytes) do
     begin
-      P[RealLength] := Chr(HexValue(s[i + 1]) shl 4 or HexValue(s[i + 2]));
-      Inc(i, 3);
-    end else
-    begin
-      P[RealLength] := s[i];
-      Inc(i);
-    end;
     Inc(RealLength);
-  end;
-  SetLength(Result, RealLength);
+    if (Bytes[i]='%') and (i+2<=Length(Bytes)) then
+      begin
+      Hi:=HexValue(Char(Bytes[i+1]));
+      Lo:=HexValue(Char(Bytes[i+2]));
+      if (Hi>=0) and (Lo>=0) then
+        begin
+        Decoded[RealLength]:=AnsiChar((Hi shl 4) or Lo);
+        Inc(i,3);
+        Continue;
+        end;
+      end;
+    Decoded[RealLength]:=Bytes[i];
+    Inc(i);
+    end;
+  SetLength(Decoded,RealLength);
+{$IF SIZEOF(CHAR)=2}
+  Result:=UTF8Decode(Decoded);
+{$ELSE}
+  Result:=Decoded;
+{$ENDIF}
 end;
 
 function ParseURI(const URI, DefaultProtocol: String; DefaultPort: Word;Decode : Boolean = True):  TURI;

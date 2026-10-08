@@ -358,6 +358,8 @@ begin
   // Note: this method only works on Seekable Sources (for bdmStrict we also get the Size property)
   if DecodedSize<>-1 then Exit(DecodedSize);
   ipos := Source.Position; // save position in input stream
+  c:=#0;
+  try
   case Mode of
     bdmMIME:  begin
       // read until end of input stream or first occurrence of a '='
@@ -371,15 +373,10 @@ begin
           else if c = '=' then // end marker '='
             Break;
         end;
-      until count = 0;
-      // we are now either at the end of the stream, or encountered our first '=', stored in c
-      if c = '=' then begin // '=' found
-        if Result mod 4 <= 1 then // badly placed '=', disregard last block
-          Result := (Result div 4) * 3
-        else // 4 byte block ended with '=' or '=='
-          Result := (Result div 4) * 3 + Result mod 4 - 1;
-      end else // end of stream
-        Result := (Result div 4) * 3; // number of valid 4 byte blocks times 3
+      until (count = 0) or (c = '=');
+      // Two or three unpadded sextets contribute one or two bytes, just
+      // as in Read. A lone sextet cannot produce an output byte.
+      Result := (Result div 4) * 3 + (Result mod 4) * 6 div 8;
     end;
     bdmStrict:begin
       // seek to end of input stream, read last two bytes and determine size
@@ -388,8 +385,15 @@ begin
       ipos  := Source.Position;
       isize := Source.Size;
       Result := ((ReadBase64ByteCount + (isize - ipos) + 3) div 4) * 3;
-      Source.Seek(-2, soFromEnd);
-      Source.Read(endBytes, 2);
+      endBytes[0]:=#0;
+      endBytes[1]:=#0;
+      if isize-ipos>=2 then
+        begin
+        Source.Seek(-2, soFromEnd);
+        Source.ReadBuffer(endBytes,2);
+        end
+      else if isize>ipos then
+        Source.ReadBuffer(endBytes[1],1);
       if endBytes[1] = '=' then begin // last byte
         Dec(Result);
       if endBytes[0] = '=' then       // second to last byte
@@ -397,7 +401,9 @@ begin
       end;
     end;
   end;
+  finally
   Source.Position := ipos; // restore position in input stream
+  end;
   // store calculated DecodedSize
   DecodedSize := Result;
 end;
@@ -433,7 +439,7 @@ var
   p: PByte;
   b: byte;
   ReadBuf: array[0..3] of Byte; // buffer to store last read 4 input bytes
-  ToRead, OrgToRead, HaveRead, ReadOK, i: Integer;
+  ToRead, HaveRead, ReadOK, i: Integer;
 
   procedure DetectedEnd(ASize:Int64);
   begin
@@ -461,7 +467,6 @@ begin
       ToRead := 4; // number of base64 bytes left to read into ReadBuf
       ReadOK := 0; // number of base64 bytes already read into ReadBuf
       while ToRead > 0 do begin
-        OrgToRead := ToRead;
         HaveRead := Source.Read(ReadBuf[ReadOK], ToRead);
         //WriteLn('ToRead = ', ToRead, ', HaveRead = ', HaveRead, ', ReadOK=', ReadOk);
         if HaveRead > 0 then begin // if any new bytes; in ReadBuf[ReadOK .. ReadOK + HaveRead-1]
@@ -477,7 +482,7 @@ begin
           end;
         end;
 
-        if HaveRead <> OrgToRead then begin // less than 4 base64 bytes could be read; end of input stream
+        if HaveRead = 0 then begin // a short positive read is not end of stream
           //WriteLn('End: ReadOK=', ReadOK, ', count=', Count);
           for i := ReadOK to 3 do
             ReadBuf[i] := 0; // pad buffer with zeros so decoding of 4-bytes will be correct
@@ -515,7 +520,8 @@ begin
             DetectedEnd(CurPos + 1)  // only one byte left to read;  BB=B or BB==
           end else if (ReadBuf[3] = PC) then begin
             DetectedEnd(CurPos + 2); // only two bytes left to read; BBB=
-          end;
+          end else if ReadOK < 4 then
+            DetectedEnd(CurPos + (ReadOK * 6) div 8);
         end;
       end;
 

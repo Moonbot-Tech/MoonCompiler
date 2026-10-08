@@ -133,6 +133,7 @@ type
   { TBase64URLEncoding }
 
   TBase64URLEncoding = class(TBase64Encoding)
+    constructor Create; override;
     function CreateDecoder(const aInput: TStream) : TBase64DecodingStream; override;
     function CreateEncoder(const aOutput: TStream) : TBase64EncodingStream; override;
   end;
@@ -233,6 +234,8 @@ function TCustomBase64Encoding.DoDecode(const aInput, aOutput: TStream): Integer
 Var
   S : TBase64DecodingStream;
   P,Sz : Int64;
+  Buffer: array[0..4095] of Byte;
+  Count: Integer;
 
 begin
   { the decoder wraps the source at its CURRENT position - the measured
@@ -245,8 +248,13 @@ begin
     exit;
   S:=CreateDecoder(aInput);
   try
-    Result:=S.Size;
-    aOutput.CopyFrom(S,Result);
+    repeat
+      Count:=S.Read(Buffer,SizeOf(Buffer));
+      if Count=0 then
+        break;
+      aOutput.WriteBuffer(Buffer,Count);
+      Inc(Result,Count);
+    until False;
   finally
     S.Free;
   end;
@@ -256,28 +264,18 @@ function TCustomBase64Encoding.DoDecode(const aInput: array of Byte): TBytes;
 var
   Instream  : TBytesStream;
   Outstream : TBytesStream;
-  Decoder   : TBase64DecodingStream;
-const
-  cPad: AnsiChar = '=';
 begin
   if Length(aInput)=0 then
     Exit(nil);
   Instream:=TBytesStream.Create;
   try
     Instream.WriteBuffer(aInput[0], Length(aInput));
-    while Instream.Size mod 4 > 0 do
-      Instream.WriteBuffer(cPad, 1);
     Instream.Position:=0;
     Outstream:=TBytesStream.Create;
     try
-      Decoder:=CreateDecoder(Instream);
-      try
-         Outstream.CopyFrom(Decoder,Decoder.Size);
-         Result:=Outstream.Bytes;
-         SetLength(Result,Outstream.Size);
-      finally
-        Decoder.Free;
-      end;
+      DoDecode(Instream,Outstream);
+      Result:=Outstream.Bytes;
+      SetLength(Result,Outstream.Size);
     finally
       Outstream.Free;
     end;
@@ -334,8 +332,28 @@ begin
 end;
 
 function TCustomBase64Encoding.DoDecode(const aInput: RawByteString): RawByteString;
+var
+  Source, Dest: TBytesStream;
 begin
-  Result:=DecodeStringBase64(aInput,False);
+  Result:='';
+  if aInput='' then
+    Exit;
+  Source:=TBytesStream.Create;
+  try
+    Source.WriteBuffer(aInput[1],Length(aInput));
+    Source.Position:=0;
+    Dest:=TBytesStream.Create;
+    try
+      DoDecode(Source,Dest);
+      SetLength(Result,Dest.Size);
+      if Dest.Size>0 then
+        Move(Dest.Bytes[0],Result[1],Dest.Size);
+    finally
+      Dest.Free;
+    end;
+  finally
+    Source.Free;
+  end;
 end;
 
 function TCustomBase64Encoding.DoEncode(const aInput: RawByteString): RawByteString;
@@ -385,6 +403,12 @@ begin
 end;
 
 { TBase64URLEncoding }
+
+constructor TBase64URLEncoding.Create;
+begin
+  inherited Create(0,UnicodeString(''));
+  FPadEnd:=False;
+end;
 
 function TBase64URLEncoding.CreateDecoder(const aInput: TStream): TBase64DecodingStream;
 begin

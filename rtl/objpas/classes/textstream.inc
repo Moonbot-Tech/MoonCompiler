@@ -903,6 +903,25 @@ begin
         If (ExpectedCount>0) and (ExpectedCount>ContinuationCount+1) then
           Result:=I;
       end;
+    932, 936, 949, 950, 1361, 54936:
+      begin
+        I:=0;
+        while I<Count do
+          begin
+          Lead:=Bytes[I];
+          case FEncoding.CodePage of
+            932: ExpectedCount:=1+Ord((Lead in [$81..$9F,$E0..$FC]));
+            1361: ExpectedCount:=1+Ord((Lead in [$84..$D3,$D8..$DE,$E0..$F9]));
+            else ExpectedCount:=1+Ord(Lead in [$81..$FE]);
+          end;
+          if (FEncoding.CodePage=54936) and (ExpectedCount=2) and (I+1<Count) and
+             (Bytes[I+1] in [$30..$39]) then
+            ExpectedCount:=4;
+          if ExpectedCount>Count-I then
+            Exit(I);
+          Inc(I,ExpectedCount);
+          end;
+      end;
   end;
 end;
 

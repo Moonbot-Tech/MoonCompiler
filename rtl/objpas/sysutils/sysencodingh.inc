@@ -120,6 +120,8 @@ type
     FCodePage: Integer;
     FMBToWCharFlags: Integer;
     FWCharToMBFlags: Integer;
+    procedure ConvertToBytes(Chars: PUnicodeChar; CharCount: Integer; out Value: RawByteString);
+    procedure ConvertToChars(Bytes: PByte; ByteCount: Integer; out Value: UnicodeString);
   strict protected
     function GetByteCount(Chars: PUnicodeChar; CharCount: Integer): Integer; overload; override;
     function GetBytes(Chars: PUnicodeChar; CharCount: Integer; Bytes: PByte; ByteCount: Integer): Integer; overload; override;
