@@ -1,3 +1,46 @@
+# MoonCompiler 2.4.0: runtime boundaries and lightweight synchronization
+
+This minor release completes common runtime contracts used by Delphi applications
+and adds lightweight synchronization primitives on Windows and Linux.
+
+- `SyncObjs.TLightweightEvent` supplies manual-reset signaling;
+  `TLightweightSemaphore` supplies counted permits and returns the previous count
+  when releasing them. Ready waits avoid blocking. `TLightweightMREW` records now
+  initialize automatically, including local variables and nested records.
+  Tracked spin locks reject recursive acquisition, and `TTimeSpan` waits validate
+  their range before acquiring a resource.
+- Windows library loading, environment enumeration, configuration-directory
+  storage, named events and timezone identifiers preserve Unicode. Native waits
+  report abandoned mutex ownership correctly, and the requested COM wait mode
+  reaches the backend. Registry keys close after flushing when lazy writes are
+  disabled.
+- `TFile.Open` honors read/write sharing and creates new files atomically.
+  `TPath.GetTempFileName` returns a reserved empty file with a distinct name.
+  Root-relative Windows paths keep their meaning when combined.
+- Base64URL uses its URL alphabet consistently across strings, bytes and streams,
+  without default padding or line breaks. Decoding preserves short reads and
+  unpadded tails. Text readers preserve multibyte characters split across reads;
+  URI helpers escape Unicode as UTF-8 bytes. Explicit strict UTF-8 conversion
+  rejects malformed input instead of silently replacing it.
+- JSON deserialization invokes the object's parameterless constructor and
+  preserves its initialization and cleanup. Typed readers report failed numeric
+  and date conversions, use invariant JSON defaults and respect local/UTC date
+  handling. ISO date parsing validates decimal fields and separators.
+  Regex group names are exact and remain accessible beside unnamed captures.
+  Updating a finalized hash raises `EHashException`; `Reset` starts a fresh hash.
+
+Tests cover API call forms, invalid inputs, stream partitions, native handle
+ownership, constructor failures and concurrent wakeups. No new performance
+claims or additional third-party runtime dependencies are introduced.
+See [runtime contracts](PLATFORM_API.md) and
+[thread coordination](THREAD_COORDINATION.md) for supported behavior.
+
+Install the complete 2.4.0 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20400 and `CompilerVersion` is 2.4. MoonORMot 13
+remains required.
+
+---
+
 # MoonCompiler 2.3.2: HTTP privacy and runtime reliability
 
 `System.Net.HttpClient` no longer includes request URLs or raw transport/server

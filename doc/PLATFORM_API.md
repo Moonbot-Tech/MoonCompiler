@@ -118,6 +118,23 @@ external seek without changing the selected encoding; `Rewind` seeks to the star
 and repeats BOM detection. Ordinary FPC and Unicode product profiles remain separate.
 This does not add Delphi binary reader/writer classes or full `System.Messaging`.
 
+`TMBCSEncoding` honors explicit Windows conversion flags through the native API.
+On Linux, strict UTF-8 decoding (`MB_ERR_INVALID_CHARS`, 8) and encoding
+(`WC_ERR_INVALID_CHARS`, 128) reject invalid byte sequences and unpaired UTF-16
+surrogates. Other nonzero Windows-specific flags raise an explicit unsupported
+conversion error on Linux. Zero flags retain the ordinary replacement behavior.
+Stream readers retain incomplete CP932/936/949/950/1361 and GB18030 characters
+between reads, as well as UTF-8 and UTF-16 tails.
+
+`TNetEncoding.Base64URL` defaults to unpadded, unwrapped URL-safe Base64. Its
+string, byte-array and stream overloads share the same decoder. URIParser uses
+UTF-8 percent-encoded bytes for Unicode URI components.
+
+`TPath.GetTempFileName` creates and closes a new empty file before returning its
+name; the caller owns its cleanup. `TFile.Open(..., fmCreateNew, ...)` uses an
+exclusive native create operation and never truncates an existing file. Windows
+share flags describe which access is allowed to other handles.
+
 `TURLEncoding.EncodePath` preserves path separators and escapes spaces as `%20`.
 `URLDecode` preserves literal `+`; `FormDecode` treats it as a space.
 `TryISO8601ToDate` returns `False` for malformed/out-of-range timezone offsets;
@@ -168,9 +185,9 @@ The source archive, native build recipe, binary manifests and notices are in
 ## Compiler identity
 
 `System.CompilerVersion` and `{$IF CompilerVersion ...}` identify MoonCompiler:
-2.3 in release 2.3.1. They do not pretend to be Delphi 36. Use
+2.4 in release 2.4.0. They do not pretend to be Delphi 36. Use
 `MOONCOMPILER_FULLVERSION` for ordered version comparisons: major × 10000 +
-minor × 100 + patch, or 20301 for 2.3.1. A real number cannot distinguish
+minor × 100 + patch, or 20400 for 2.4.0. A real number cannot distinguish
 2.10 from 2.1. `FPC_FULLVERSION` and `fpc -iV` continue to report the underlying
 FPC ABI version. Existing Delphi feature checks must distinguish the compiler
 instead of interpreting the Moon version as a Delphi release number.

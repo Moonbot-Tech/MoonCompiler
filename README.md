@@ -89,7 +89,7 @@ Linux:
 
 ```bash
 mkdir -p ~/moon/toolchain && cd ~/moon
-tar -xzf ~/Downloads/mooncompiler-toolchain-v2.3.2-linux-x86-64.tar.gz -C toolchain
+tar -xzf ~/Downloads/mooncompiler-toolchain-v2.4.0-linux-x86-64.tar.gz -C toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain/bin/fpc hello.dpr
 toolchain/bin/fpc -dRELEASE hello.dpr
@@ -99,7 +99,7 @@ Win64 PowerShell:
 
 ```powershell
 New-Item -ItemType Directory -Force C:\Moon | Set-Location
-Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.3.2-win64.zip -DestinationPath toolchain
+Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.4.0-win64.zip -DestinationPath toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain\bin\x86_64-win64\fpc.exe hello.dpr
 toolchain\bin\x86_64-win64\fpc.exe -dRELEASE hello.dpr
@@ -262,8 +262,10 @@ sources:
   that is observably identical to the plain stream (the `bufstream` page
   cache, which corrupted seek-back write patterns, is repaired as well);
 - `SyncObjs.TLightweightMREW`, the readers/writer lock over the OS primitive
-  (SRW lock, pthread rwlock): a zero-filled record is a ready lock, with the
+  (SRW lock, pthread rwlock): records initialize automatically, with the
   Linux-only timed `TryBeginRead/TryBeginWrite` as in Delphi;
+- `SyncObjs.TLightweightEvent` and `TLightweightSemaphore` provide manual-reset
+  signaling and counted permits, with immediate acquisition when already ready;
 - `Generics.Collections.TThreadedQueue<T>` and `SyncObjs.TCountdownEvent` for
   bounded producer/consumer queues and completion of parallel batches, including
   timeouts and shutdown ([thread coordination](doc/THREAD_COORDINATION.md));

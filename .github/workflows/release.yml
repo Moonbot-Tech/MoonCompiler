@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v2.3.2
+        default: v2.4.0
 
 permissions:
   contents: read
@@ -161,6 +161,8 @@ jobs:
           done
           test -d units/x86_64-linux/debug
           test -d units/x86_64-linux/release
+          python3 "$GITHUB_WORKSPACE/qualification/release/rtl_boundaries_smoke.py" \
+            --compiler "$fpc" --out "$smoke/rtl-boundaries"
       - name: Install the archive with the driver
         # ./build toolchain ARCHIVE: the driver's own install path (archive
         # checks, the IDE configuration for this clone, atomic swap), then the
@@ -263,6 +265,8 @@ jobs:
           If ($Patched -eq $Text) { throw 'the resource smoke source no longer names tres4.res as expected' }
           Set-Content -LiteralPath $Resource -Value $Patched -Encoding Ascii -NoNewline
           $Fpc = "$Smoke\toolchain\bin\x86_64-win64\fpc.exe"
+          python qualification\release\rtl_boundaries_smoke.py --compiler $Fpc --out "$Smoke\rtl-boundaries"
+          If ($LASTEXITCODE -ne 0) { throw 'RTL boundary archive contracts failed' }
           Push-Location "$Smoke\app"
           try {
             foreach ($Profile in @(@(), @('-dRELEASE'))) {
