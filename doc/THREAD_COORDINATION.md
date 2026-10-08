@@ -56,3 +56,35 @@ Delphi 12.2 and MoonCompiler. It checks wrapped growth, every queue overload,
 timeouts, zero capacity, shutdown wakeups, interface lifetime, multiple producers
 and consumers, and concurrent countdown signaling/waiting. The ordinary RTL API
 gate runs it in Debug and Release on Windows and Linux.
+
+## Lightweight events and semaphores
+
+`TLightweightEvent.Create(InitialState, SpinCount)` creates a manual-reset event.
+The default initial state is false. `SetEvent` releases current waiters and keeps
+later waits ready until `ResetEvent`. A waiter already released by a signal stays
+released if another thread resets the event before that waiter resumes.
+`Acquire` waits indefinitely; use `SetEvent` to signal (`Release` is the inherited
+base-class method). `SpinCount` is read-only and accepts 0..4095 at construction.
+
+`TLightweightSemaphore.Create(InitialCount, MaximumCount)` maintains a bounded
+permit count; the optional maximum is `MaxInt`. A successful `WaitFor` consumes
+one permit. `Release(Count)` adds positive permits atomically and returns the
+previous count; parameterless `Release` adds one. Exceeding the maximum raises
+without changing the count. Use the concrete semaphore type for this operation.
+
+Both types return `TWaitResult`, accept zero/infinite millisecond waits, and expose
+`BlockedCount` as a cumulative diagnostic count. Available resources use an atomic
+fast path; contention uses a bounded spin followed by a blocking monitor wait.
+Free them only after all users have finished. `TTimeSpan` overloads truncate to
+whole milliseconds and accept 0..MaxInt; the Cardinal overload retains `INFINITE`.
+
+`TLightweightMREW` records initialize automatically in locals, fields and arrays.
+Readers share access; writers are exclusive. Do not copy or reinitialize a lock
+while it is in use. The native SRW/pthread primitive determines scheduling;
+writer fairness is not promised. Timed `TryBeginRead/TryBeginWrite` are Linux-only.
+
+## Lightweight validation
+
+`RTL-test/semantic/lightweight_boundaries_semantic.dpr` checks record initialization,
+tracked recursion, timeout validation, event Set/Reset wakeups and permit accounting.
+The same contracts run in Debug, O2 and O3 on both platforms.

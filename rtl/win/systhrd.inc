@@ -70,6 +70,7 @@ procedure WinLeaveCriticalSection(var cs : TRTLCriticalSection);
 
 CONST
    WAIT_OBJECT_0 = 0;
+   WAIT_ABANDONED = $80;
    WAIT_TIMEOUT = $102;
 
 function WinTryEnterCriticalSection(var cs : TRTLCriticalSection):longint;
@@ -692,6 +693,7 @@ begin
    else
      case WaitForSingleObject(THandle(state), Timeout) of
        WAIT_OBJECT_0: Result := wrSignaled;
+       WAIT_ABANDONED: Result := wrAbandoned;
        WAIT_TIMEOUT: Result := wrTimeout;
        else result := wrError; { WAIT_FAILED or any other value. Note that only mutex waits can return WAIT_ABANDONED. }
      end;

@@ -53,7 +53,6 @@ uses
 {$ENDIF}
 
 type
-  TLightweightEvent = TEvent;
   
   THREADING_GENERIC TFunctionEvent<T> = function (Sender: TObject): T of object;
 {$IFDEF MOONCOMPILER_DELPHI_CALLBACK_TYPES}
@@ -301,8 +300,6 @@ type
       constructor Create(aFlag : IControlFlag; aSender : TObject; aEvent : TNotifyEvent);
       constructor Create(aFlag : IControlFlag; aProc: TProcRef);
     end;
-
-    TLightweightEvent = TEvent;
 
     { TBaseWorkerThread }
 
@@ -3321,7 +3318,7 @@ begin
   if TCreateFlag.Replica in aParams.CreateFlags then
     Include(FStateFlags, TOptionStateFlag.Replica);
   FStateLock:=TSpinLock.Create(False);
-  FDoneEvent:=TEvent.Create;
+  FDoneEvent:=TLightweightEvent.Create;
 end;
 
 class function TTask.DoWaitForAll(const aTasks: array of ITask; aTimeout: Cardinal): Boolean;

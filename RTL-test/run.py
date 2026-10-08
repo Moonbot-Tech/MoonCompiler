@@ -178,10 +178,12 @@ CURRENT_TREE_UNIT_FILES = {
     "lightweight_mrew_semantic": (
         ROOT / "packages" / "fcl-base" / "src" / "syncobjs.pp",
         ROOT / "packages" / "fcl-base" / "src" / "countdown.inc",
+        ROOT / "packages" / "fcl-base" / "src" / "lightweight.inc",
     ),
     "spin_overloads_semantic": (
         ROOT / "packages" / "fcl-base" / "src" / "syncobjs.pp",
         ROOT / "packages" / "fcl-base" / "src" / "countdown.inc",
+        ROOT / "packages" / "fcl-base" / "src" / "lightweight.inc",
     ),
     # Stage only StrUtils itself.  Exposing its whole source directory would
     # also shadow unrelated installed units such as Variants.

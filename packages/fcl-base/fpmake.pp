@@ -109,6 +109,8 @@ begin
       T.ResourceStrings:=true;
     T:=P.Targets.AddUnit('syncobjs.pp',AllOSes-[go32v2,nativent,atari]);
       T.ResourceStrings:=true;
+      T.Dependencies.AddInclude('countdown.inc');
+      T.Dependencies.AddInclude('lightweight.inc');
     T:=P.Targets.AddUnit('uriparser.pp');
     T:=P.Targets.AddUnit('wformat.pp');
     T:=P.Targets.AddUnit('whtml.pp');

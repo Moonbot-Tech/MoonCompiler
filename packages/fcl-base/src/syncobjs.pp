@@ -171,6 +171,42 @@ type
       constructor Create;
    end;
 
+   TLightweightEvent = class(TSynchroObject)
+   private
+     FGuard: TObject;
+     FSignaled, FSpinCount, FBlockedCount: Integer;
+     FGeneration: QWord;
+     function GetIsSet: Boolean;
+   public
+     constructor Create; overload;
+     constructor Create(InitialState: Boolean); overload;
+     constructor Create(InitialState: Boolean; SpinCount: Integer); overload;
+     destructor Destroy; override;
+     procedure Acquire; override;
+     procedure SetEvent;
+     procedure ResetEvent;
+     function WaitFor(Timeout: Cardinal = INFINITE): TWaitResult; overload; override;
+     property IsSet: Boolean read GetIsSet;
+     property SpinCount: Integer read FSpinCount;
+     property BlockedCount: Integer read FBlockedCount;
+   end;
+
+   TLightweightSemaphore = class(TSynchroObject)
+   private
+     FGuard: TObject;
+     FCount, FMaximum, FWaiters, FBlockedCount: Integer;
+     function TryAcquire: Boolean;
+     function GetCurrentCount: Integer;
+   public
+     constructor Create(InitialCount: Integer; MaximumCount: Integer = MaxInt);
+     destructor Destroy; override;
+     procedure Acquire; override;
+     function Release(Count: Integer = 1): Integer; reintroduce;
+     function WaitFor(Timeout: Cardinal = INFINITE): TWaitResult; overload; override;
+     property CurrentCount: Integer read GetCurrentCount;
+     property BlockedCount: Integer read FBlockedCount;
+   end;
+
    TCountdownEvent = class(TSynchroObject)
    private
      FGuard: TCriticalSection;
@@ -312,7 +348,6 @@ Type
   private
     FLock: LongInt;
     FOwningThread: TThreadID;
-    FRecursionCount: Integer;
     FThreadTracking: Boolean;
     function GetIsLocked: Boolean; inline;
     function GetIsLockedByCurrentThread: Boolean;
@@ -377,6 +412,7 @@ Type
     FLock: pthread_rwlock_t;
 {$ENDIF}
   public
+    class operator Initialize(var Lock: TLightweightMREW);
     procedure BeginRead;
     function TryBeginRead: Boolean; overload;
     procedure EndRead;
@@ -445,9 +481,19 @@ begin
 end;
 
 {$IFNDEF VER3_2}
+function CheckedTimeout(const Timeout: TTimeSpan): Cardinal;
+var
+  Milliseconds: Int64;
+begin
+  Milliseconds:=Trunc(Timeout.TotalMilliseconds);
+  if (Milliseconds<0) or (Milliseconds>MaxInt) then
+    raise EArgumentOutOfRangeException.Create('Timeout must be between 0 and MaxInt milliseconds');
+  Result:=Milliseconds;
+end;
+
 function TSynchroObject.WaitFor(const Timeout: TTimeSpan): TWaitResult;
 begin
-  Result := WaitFor(Round(Timeout.TotalMilliseconds));
+  Result := WaitFor(CheckedTimeout(Timeout));
 end;
 {$ENDIF}
 
@@ -495,6 +541,7 @@ end;
 { THandleObject }
 
 {$i countdown.inc}
+{$i lightweight.inc}
 
 {$IFDEF MSWINDOWS}
 function THandleObject.GetHandle: THandle;
@@ -504,8 +551,10 @@ end;
 {$ENDIF}
 
 constructor THandleObject.Create(UseComWait : Boolean=false);
-// compatibility shortcut constructor, Com waiting not implemented yet
 begin
+  {$IFDEF MSWINDOWS}
+  FUseCOMWait:=UseComWait;
+  {$ENDIF}
   FHandle := BasicEventCreate(nil, True,False,'');
   if (FHandle=Nil) then
     Raise ESyncObjectException.CreateFmt(SErrEventCreateFailed,['']);
@@ -514,7 +563,7 @@ end;
 function THandleObject.WaitFor(Timeout : Cardinal) : TWaitResult;
 
 begin
-  Result := TWaitResult(basiceventWaitFor(Timeout, FHandle));
+  Result := TWaitResult(basiceventWaitFor(Timeout, FHandle{$IFDEF MSWINDOWS}, FUseCOMWait{$ENDIF}));
   if Result = wrError then
 {$IFDEF OS2}
     FLastError := PLocalEventRec (Handle)^.FLastError;
@@ -538,10 +587,11 @@ var
   ret, CoWaitFlags, SignaledIndex: DWord;
   WOHandles: TWOHandleArray;
 begin
+  SignaledObj:=nil;
   if Len = 0 then
     Len := Length(HandleObjs);
 
-  if Len = 0 then
+  if Len <= 0 then
     raise ESyncObjectException.Create(SErrEventZeroNotAllowed);
 
   if Len > Length(HandleObjs) then
@@ -586,7 +636,7 @@ begin
   if (ret >= WAIT_ABANDONED_0) and (ret < (WAIT_ABANDONED_0 + Len)) then
     begin
       if not AAll then
-        SignaledObj := HandleObjs[ret];
+        SignaledObj := HandleObjs[ret-WAIT_ABANDONED_0];
       Exit(wrAbandoned);
     end;
 
@@ -613,7 +663,12 @@ begin
   {$IFDEF MSWINDOWS}
     FUseCOMWait:=UseComWait;
   {$endif}
-  FHandle := BasicEventCreate(EventAttributes, AManualReset, InitialState, Name);
+  {$IF DEFINED(MSWINDOWS) AND (SIZEOF(CHAR)=2)}
+  if Name<>'' then
+    FHandle:=TEventHandle(CreateEventW(EventAttributes,AManualReset,InitialState,PWideChar(Name)))
+  else
+  {$ENDIF}
+    FHandle := BasicEventCreate(EventAttributes, AManualReset, InitialState, Name);
   if (FHandle=Nil) then
     Raise ESyncObjectException.CreateFmt(SErrEventCreateFailed,[Name]);
   FManualReset:=AManualReset;
@@ -1416,13 +1471,8 @@ end;
 
 
 class function TSpinWait.SpinUntil(const aCondition: TSpinFunction; const aTimeout: TTimeSpan): Boolean; overload; static;
-var
-  Total: Int64;
 begin
-  Total:=Trunc(aTimeout.TotalMilliseconds);
-  if (Total<0) or (Total>MaxInt) then
-    raise EArgumentOutOfRangeException.Create('Timeout must be between 0 and MaxInt milliseconds');
-  Result:=SpinUntil(aCondition,Cardinal(Total));
+  Result:=SpinUntil(aCondition,CheckedTimeout(aTimeout));
 end;
 
 { ---------------------------------------------------------------------
@@ -1454,7 +1504,9 @@ end;
 function TSpinLock.GetIsLockedByCurrentThread: Boolean;
 
 begin
-  Result:=GetIsThreadTrackingEnabled and GetIsLocked and GetIsOwnedByCurrentThread
+  if not FThreadTracking then
+    raise EInvalidOpException.Create('Thread ownership tracking is disabled');
+  Result:=GetIsLocked and GetIsOwnedByCurrentThread;
 end;
 
 
@@ -1463,7 +1515,6 @@ constructor TSpinLock.Create(EnableThreadTracking: Boolean);
 begin
   FLock:=0;
   FOwningThread:=TThreadID(0);
-  FRecursionCount:=0;
   FThreadTracking:=EnableThreadTracking;
 end;
 
@@ -1479,10 +1530,7 @@ begin
     begin
     CT:=GetCurrentThreadId;
     if (FOwningThread=CT) then
-      begin
-      Inc(FRecursionCount);
-      System.Exit;
-      end;
+      raise ELockRecursionException.Create('Spin locks are not recursive');
     end;
 
   Spinner.Reset;
@@ -1492,7 +1540,6 @@ begin
   if FThreadTracking then
     begin
     FOwningThread:=GetCurrentThreadId;
-    FRecursionCount:=1;
     end;
 end;
 
@@ -1509,9 +1556,6 @@ begin
     if (FOwningThread<>CT) then
       raise ELockException.Create('Thread does not own the lock');
     
-    Dec(FRecursionCount);
-    if (FRecursionCount>0) then 
-      System.Exit;
     FOwningThread:=TThreadID(0);
     end;
   
@@ -1530,34 +1574,33 @@ function TSpinLock.TryEnter: Boolean;
 
 begin
   if FThreadTracking and IsOwnedByCurrentThread then
-    begin
-    Inc(FRecursionCount);
-    System.Exit(True);
-    end;
+    raise ELockRecursionException.Create('Spin locks are not recursive');
 
   Result:=TInterlocked.CompareExchange(FLock,1,0)=0;
   
   if Result and FThreadTracking then
   begin
     FOwningThread:=GetCurrentThreadId;
-    FRecursionCount:=1;
   end;
 end;
 
 function TSpinLock.TryEnter(const Timeout: TTimeSpan): Boolean;
+begin
+  Result:=TryEnter(CheckedTimeout(Timeout));
+end;
+
+function TSpinLock.TryEnter(Timeout: Cardinal): Boolean;
 var
   LSpinner: TSpinWait;
   LStart: QWord;
-  LTotalMs: QWord;
 begin
   if TryEnter() then
     System.Exit(True);
 
-  LTotalMs:=Round(Timeout.TotalMilliseconds);
   LStart:=GetTickCount64;
   LSpinner.Reset;
 
-  while (GetTickCount64-LStart)<LTotalMs do
+  while (Timeout=INFINITE) or ((GetTickCount64-LStart)<Timeout) do
     begin
     LSpinner.SpinCycle;
     if TryEnter() then
@@ -1566,12 +1609,6 @@ begin
   Result:=False;
 end;
 
-
-function TSpinLock.TryEnter(Timeout: Cardinal): Boolean;
-
-begin
-  Result:=TryEnter(TTimeSpan.FromMilliseconds(Timeout));
-end;
 
 { ---------------------------------------------------------------------
   TGuardian
@@ -1591,6 +1628,11 @@ end;
 { ---------------------------------------------------------------------
   TLightweightMREW
   ---------------------------------------------------------------------}
+
+class operator TLightweightMREW.Initialize(var Lock: TLightweightMREW);
+begin
+  FillChar(Lock.FLock,SizeOf(Lock.FLock),0);
+end;
 
 {$IFDEF MSWINDOWS}
 { Slim reader/writer locks, Windows Vista and later.  A zeroed pointer is
