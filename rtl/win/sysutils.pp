@@ -1474,13 +1474,18 @@ end;
 Function GetEnvironmentString(Index : Integer) : RTLString;
 
 var
-  hp,p : PAnsiChar;
 {$if SIZEOF(CHAR)=2}
-  tmpstr : RawByteString;
+  hp,p : PWideChar;
+{$else}
+  hp,p : PAnsiChar;
 {$endif}
 begin
   Result:='';
+{$if SIZEOF(CHAR)=2}
+  p:=GetEnvironmentStringsW;
+{$else}
   p:=GetEnvironmentStringsA;
+{$endif}
   hp:=p;
   If (Hp<>Nil) then
     begin
@@ -1492,16 +1497,18 @@ begin
     If (hp^<>#0) then
       begin
 {$if SIZEOF(CHAR)=2}
-        tmpstr:=hp;
-        SetCodePage(tmpstr,CP_OEMCP,false);
-        Result:=tmpstr;
+        Result:=hp;
 {$else}
         Result:=hp;
         SetCodePage(RawByteString(Result),CP_OEMCP,false);
 {$endif}
       end;
     end;
+{$if SIZEOF(CHAR)=2}
+  FreeEnvironmentStringsW(p);
+{$else}
   FreeEnvironmentStringsA(p);
+{$endif}
 end;
 
 {$pop}
@@ -1692,7 +1699,11 @@ Procedure InitSysConfigDir;
 
 begin
   SetLength(SysConfigDir, MAX_PATH);
+{$if SIZEOF(CHAR)=2}
+  SetLength(SysConfigDir, GetWindowsDirectoryW(PWideChar(SysConfigDir), MAX_PATH));
+{$else}
   SetLength(SysConfigDir, GetWindowsDirectoryA(PAnsiChar(SysConfigDir), MAX_PATH));
+{$endif}
 end;
 
 {****************************************************************************

@@ -873,6 +873,30 @@ begin
 end;
 {$endif}
 
+{$IFDEF FPC_HAS_FEATURE_UNICODESTRINGS}
+function SafeLoadLibrary(const FileName: UnicodeString; ErrorMode: DWord): HMODULE;
+{$if defined(win64) or defined(win32)}
+var
+  Mode: DWord;
+begin
+  Mode:=SetErrorMode(ErrorMode);
+  try
+    Result:=System.SafeLoadLibrary(FileName);
+  finally
+    SetErrorMode(Mode);
+  end;
+end;
+{$else}
+begin
+{$ifdef FPC_HAS_FEATURE_DYNLIBS}
+  Result:=System.SafeLoadLibrary(FileName);
+{$else}
+  Result:=HModule(nil);
+{$endif}
+end;
+{$endif}
+{$ENDIF}
+
 {$if defined(win32) or defined(win64) or defined(wince)}
 function GetModuleName(Module: HMODULE): string;
 var

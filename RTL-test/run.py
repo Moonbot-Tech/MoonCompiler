@@ -453,6 +453,12 @@ def main() -> int:
             if compiled.returncode != 0:
                 print(compiled.stdout, file=sys.stderr)
                 raise RuntimeError(f"compile failed: {source.name} {mode}")
+            if source.stem == "loader_boundaries_semantic":
+                library_command = [*command[:-1], str(SEMANTIC / "support" / "loader_boundary_fixture.pas")]
+                library = execute(library_command, ROOT)
+                if library.returncode != 0:
+                    print(library.stdout, file=sys.stderr)
+                    raise RuntimeError(f"loader fixture build failed: {mode}")
             executable = output / f"{source.stem}{executable_suffix}"
             run = execute([str(executable)], output)
             if run.returncode != 0 or marker not in run.stdout:

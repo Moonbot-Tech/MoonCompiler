@@ -1488,6 +1488,8 @@ type
   Private
     FFileName : String;
   public
+    { Adopt an already opened file, without reopening it or changing its mode. }
+    constructor Create(AHandle: THandle; const AFileName: string);
     constructor Create(const AFileName: string; Mode: Word);
     constructor Create(const AFileName: string; Mode: Word; Rights: Cardinal);
     destructor Destroy; override;

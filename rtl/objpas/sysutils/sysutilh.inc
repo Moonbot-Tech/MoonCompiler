@@ -402,7 +402,11 @@ Type
 {$ENDIF}
 
   function SafeLoadLibrary(const FileName: AnsiString;
-    ErrorMode: DWord = {$ifdef windows}SEM_NOOPENFILEERRORBOX{$else windows}0{$endif windows}): HMODULE;
+    ErrorMode: DWord = {$ifdef windows}SEM_NOOPENFILEERRORBOX{$else windows}0{$endif windows}): HMODULE; overload;
+{$IFDEF FPC_HAS_FEATURE_UNICODESTRINGS}
+  function SafeLoadLibrary(const FileName: UnicodeString;
+    ErrorMode: DWord = {$ifdef windows}SEM_NOOPENFILEERRORBOX{$else windows}0{$endif windows}): HMODULE; overload;
+{$ENDIF}
 
   function GetModuleName(Module: HMODULE): string;
 

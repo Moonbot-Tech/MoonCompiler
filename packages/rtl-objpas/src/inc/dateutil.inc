@@ -3868,7 +3868,7 @@ begin
   {$IFDEF USE_WINDOWS_UNIT}
   lInfo:=Default(TTimeZoneInformation);
   GetTimeZoneInformation(lInfo);
-  Name:=StrPas(@lInfo.StandardName);
+  Name:=PWideChar(@lInfo.StandardName[0]);
   {$IF SIZEOF(CHAR)=1}
   Result:=UTF8Encode(Name);
   {$ELSE}

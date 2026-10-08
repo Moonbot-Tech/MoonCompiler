@@ -349,10 +349,9 @@ procedure TRegistry.CloseKey;
 begin
   If (CurrentKey<>0) then
     begin
-    if LazyWrite then
-      RegCloseKey(CurrentKey)
-    else
+    if not LazyWrite then
       RegFlushKey(CurrentKey);
+    RegCloseKey(CurrentKey);
     fCurrentKey:=0;
     end;
   fCurrentPath:='';

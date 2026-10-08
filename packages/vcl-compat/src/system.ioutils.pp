@@ -1215,7 +1215,6 @@ end;
 
 class function TPath.Combine(const Paths: array of string; const ValidateParams: Boolean = True): string;
 var
-{$ifdef mswindows} nRoot : SizeInt; {$endif}
   Path: String;
 begin
   Result := '';
@@ -1225,16 +1224,6 @@ begin
       continue;
     if ValidateParams and not TPath.HasValidPathChars(Path, False) then
       Raise EInOutArgumentException.CreateFmt(SErrInvalidCharsInPath,[Path],Path);
-  {$ifdef mswindows}
-    // Path starts with one \: root-relative.
-    if (Path[1] in AllowDirectorySeparators) and ((Length(Path) < 2) or not (Path[2] in AllowDirectorySeparators)) then
-    begin
-      nRoot := SkipRoot(Result);
-      if (nRoot > 0) and (Result[nRoot] in AllowDirectorySeparators) then
-        dec(nRoot); // Skip trailing \ if present, as Path already starts with a separator.
-      Result := Copy(Result, 1, nRoot) + Path;
-    end else
-  {$endif}
     if TPath.IsRelativePath(Path) then
       Result := AppendPathDelim(Result) + Path
     else
@@ -1427,8 +1416,29 @@ begin
 end;
 
 class function TPath.GetTempFileName: string;
+var
+  Stream: TFileStream;
+  ErrorCode: Integer;
 begin
-  Result:={$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.GetTempFileName;
+  repeat
+    Result:=Combine(GetTempPath,GetRandomFileName);
+    try
+      Stream:=TFile.Open(Result,TFileMode.fmCreateNew);
+      Stream.Free;
+      Exit;
+    except
+      on E: EInOutError do
+        begin
+        ErrorCode:=E.ErrorCode;
+{$IFDEF WINDOWS}
+        if (ErrorCode<>ERROR_FILE_EXISTS) and (ErrorCode<>ERROR_ALREADY_EXISTS) then
+{$ELSE}
+        if ErrorCode<>ESysEEXIST then
+{$ENDIF}
+          raise;
+        end;
+    end;
+  until False;
 end;
 
 class function TPath.GetTempPath: string;
@@ -2409,10 +2419,21 @@ Const
  // faRead, faWrite, faReadWrite
    AccessModes : Array[TFileAccess] of Word = ({$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.fmOpenRead, {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}SysUtils.fmOpenWrite,fmOpenReadWrite)  ;
    // fsNone, fsRead, fsWrite, fsReadWrite
-   ShareModes : Array[TFileShare] of word = (fmShareExclusive, fmShareDenyRead, fmShareDenyWrite,fmShareDenyNone);
+   ShareModes : Array[TFileShare] of word = (fmShareExclusive, fmShareDenyWrite, fmShareDenyRead,fmShareDenyNone);
 
 Var
   acMode,sMode,fMode : Word;
+  Handle: THandle;
+{$IFDEF WINDOWS}
+  NativePath: UnicodeString;
+const
+  NativeAccess: array[TFileAccess] of DWORD = (GENERIC_READ,GENERIC_WRITE,GENERIC_READ or GENERIC_WRITE);
+  NativeShare: array[TFileShare] of DWORD = (0,FILE_SHARE_READ,FILE_SHARE_WRITE,FILE_SHARE_READ or FILE_SHARE_WRITE);
+{$ELSE}
+  NativePath: RawByteString;
+const
+  NativeAccess: array[TFileAccess] of LongInt = (O_RDONLY,O_WRONLY,O_RDWR);
+{$ENDIF}
 
 begin
   acMode:=AccessModes[aAccess];
@@ -2421,9 +2442,24 @@ begin
   case aMode of
   TFileMode.fmCreateNew :
     begin
-    if Exists(aPath) then
-      Raise EInOutError.CreateFmt(SErrFileExists,[aPath]);
-    Result:=TFileStream.Create(aPath,fMode);
+{$IFDEF WINDOWS}
+    NativePath:=MakeWinApiPath(aPath);
+    Handle:=CreateFileW(PWideChar(NativePath),NativeAccess[aAccess],NativeShare[aShare],nil,
+      CREATE_NEW,FILE_ATTRIBUTE_NORMAL,0);
+{$ELSE}
+    NativePath:=UTF8Encode(aPath);
+    repeat
+      Handle:=fpOpen(PAnsiChar(NativePath),NativeAccess[aAccess] or O_CREAT or O_EXCL,&666);
+    until (Handle<>THandle(-1)) or (fpGetErrNo<>ESysEINTR);
+{$ENDIF}
+    if Handle=feInvalidHandle then
+      RaisePathError(aPath,GetLastOSError);
+    try
+      Result:=TFileStream.Create(Handle,aPath);
+    except
+      FileClose(Handle);
+      raise;
+    end;
     end;
   TFileMode.fmCreate:
     Result:=TFileStream.Create(aPath, {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}Classes.fmCreate or sMode);

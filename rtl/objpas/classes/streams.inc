@@ -1351,6 +1351,12 @@ end;
 {*                             TFileStream                                  *}
 {****************************************************************************}
 
+constructor TFileStream.Create(AHandle: THandle; const AFileName: string);
+begin
+  inherited Create(AHandle);
+  FFileName:=AFileName;
+end;
+
 constructor TFileStream.Create(const AFileName: string; Mode: Word);
 
 begin
