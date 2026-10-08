@@ -825,7 +825,7 @@ end;
 function TGroupCollection.IndexOfName(const aName: TREString): Integer;
 begin
   Result:=Length(FGroups)-1;
-  While (Result>=0) and (FGroups[Result].Name<>'') and Not SameText(aName,FGroups[Result].Name) do
+  While (Result>=0) and ((FGroups[Result].Name='') or (aName<>FGroups[Result].Name)) do
     Dec(Result);
 end;
 

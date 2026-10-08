@@ -2953,8 +2953,17 @@ end;
 
 function TryISOStrToDate(const aString: string; out outDate: TDateTime): Boolean;
 var
-  xYear, xMonth, xDay: LongInt;
+  xYear, xMonth, xDay, I: LongInt;
 begin
+  outDate:=0;
+  for I:=1 to Length(aString) do
+    if ((Length(aString)=7) or (Length(aString)=10)) and ((I=5) or (I=8)) then
+      begin
+      if aString[I]<>'-' then
+        Exit(False);
+      end
+    else if not (aString[I] in ['0'..'9']) then
+      Exit(False);
   case Length(aString) of
     4: Result :=                                        // YYYY
           TryStrToInt(aString, xYear) and
@@ -2987,10 +2996,11 @@ end;
 
 function TryISOStrToTime(const aString: string; Out outTime: TDateTime): Boolean;
 var
-  xHour, xMinute, xSecond, xLength, res: LongInt;
+  xHour, xMinute, xSecond, xLength, res, I: LongInt;
   xFractionalSecond: Extended;
   tmp: String;
 begin
+  outTime:=0;
   Result := True;
   xLength := Length(aString);
   if (xLength>0) and (aString[xLength] = 'Z') then
@@ -3024,9 +3034,17 @@ begin
     Exit;
   end;
 
+  { The numeric converters accept signs, exponents and hexadecimal input.
+    ISO fields accept decimal digits only, with separators in fixed positions. }
+  for I:=1 to xLength do
+    if not (aString[I] in ['0'..'9']) then
+      if not (((I=3) or (I=6)) and (aString[I]=':')) and
+         not (((I=7) or (I=9)) and (aString[I] in ['.',','])) then
+        Exit(False);
+
   case xLength of
     2: Result :=                                          // HH
-          TryStrToInt(aString, xHour) and
+          TryStrToInt(Copy(aString,1,2), xHour) and
           TryEncodeTime(xHour, 0, 0, 0, outTime);
     4: Result :=                                          // HHNN
           TryStrToInt(Copy(aString, 1, 2), xHour) and
@@ -3050,9 +3068,14 @@ begin
            TryStrToInt(Copy(aString, 4, 2), xMinute) and
            TryStrToInt(Copy(aString, 7, 2), xSecond) and
            TryEncodeTime(xHour, xMinute, xSecond, 0, outTime);
-         if Result and (xLength >= 9) then    // HH:NN:SS.[z] (0 or several z)
+         if Result and (xLength >= 9) then
          begin
+           if (xLength=9) or not (aString[9] in ['.',',']) then
+             Exit(False);
            tmp := copy(aString, 10, xLength-9);
+           for I:=1 to Length(tmp) do
+             if not (tmp[I] in ['0'..'9']) then
+               Exit(False);
            val('.' + tmp, xFractionalSecond, res);
            Result := (res = 0);
            if Result then
@@ -3067,6 +3090,11 @@ begin
            TryStrToInt(Copy(aString, 5, 2), xSecond) and
            TryEncodeTime(xHour, xMinute, xSecond, 0, outTime);
          tmp := copy(aString, 8, xLength-7);
+         if tmp='' then
+           Exit(False);
+         for I:=1 to Length(tmp) do
+           if not (tmp[I] in ['0'..'9']) then
+             Exit(False);
          if Result and (tmp <> '') then
          begin                           // HHNNSS.[z] (0 or several z)
            val('.'+tmp, xFractionalSecond, res);

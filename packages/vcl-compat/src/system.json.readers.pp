@@ -282,6 +282,7 @@ end;
 function TJsonReader.ReadAsDateTimeInternal: TDateTime;
 var
   S: string;
+  Parsed: Boolean;
 begin
   ReadInternal;
   if FTokenType = TJsonToken.Date then
@@ -289,8 +290,15 @@ begin
   else if FTokenType = TJsonToken.&String then
     begin
     S:=FValue.AsString;
-    if not TryStrToDateTime(S, Result, FFormatSettings) then
-      Result:=0;
+    Parsed:=False;
+    if (Length(S)<=10) or (S[11]='T') or (S[9]='T') then
+      Parsed:=TryISO8601ToDate(S,Result,True);
+    if not Parsed then
+      Parsed:=TryStrToDateTime(S,Result,FFormatSettings);
+    if not Parsed then
+      DoError('Invalid date');
+    if FDateTimeZoneHandling=TJsonDateTimeZoneHandling.Local then
+      Result:=TTimeZone.Local.ToLocalTime(Result);
     end
   else if FTokenType = TJsonToken.Null then
     Result:=0
@@ -312,7 +320,7 @@ begin
       begin
       S:=FValue.AsString;
       if not TryStrToFloat(S, Result, FFormatSettings) then
-        Result:=0.0;
+        DoError(SInputInvalidDouble,[S]);
       end;
     TJsonToken.Null:
       Result:=0.0;
@@ -335,7 +343,7 @@ begin
       begin
       S:=FValue.AsString;
       if not TryStrToInt(S, Result) then
-        Result:=0;
+        DoError(SInputInvalidInteger,[S]);
       end;
     TJsonToken.Null:
       Result:=0;
@@ -358,7 +366,7 @@ begin
       begin
       S:=FValue.AsString;
       if not TryStrToInt64(S, Result) then
-        Result:=0;
+        DoError(SInputInvalidInt64,[S]);
       end;
     TJsonToken.Null:
       Result:=0;
@@ -381,7 +389,7 @@ begin
       begin
       S:=FValue.AsString;
       if not TryStrToUInt64(S, Result) then
-        Result:=0;
+        DoError(SInputInvalidUInt64,[S]);
       end;
     TJsonToken.Null:
       Result:=0;
@@ -512,7 +520,7 @@ begin
   FMaxDepth:=64;
   FQuoteChar:='"';
   FDateTimeZoneHandling:=TJsonDateTimeZoneHandling.Local;
-  FFormatSettings:=TFormatSettings.Create;
+  FFormatSettings:=JSONFormatSettings;
   FCurrentState:=TState.Start;
   FSupportMultipleContent:=False;
 end;

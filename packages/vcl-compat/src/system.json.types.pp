@@ -890,4 +890,6 @@ end;
 
 initialization
   JSONFormatSettings:=TFormatSettings.Invariant;
+  JSONFormatSettings.ShortDateFormat:='MM/dd/yyyy';
+  JSONFormatSettings.DateSeparator:='/';
 end.

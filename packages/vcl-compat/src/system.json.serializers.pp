@@ -1074,6 +1074,7 @@ end;
 function TJsonDefaultContractResolver.CreateObjectContract(ATypeInf: PTypeInfo): TJsonObjectContract;
 var
   RttiType: TRttiType;
+  Method, DefaultConstructor: TRttiMethod;
   MemberSer: TJsonMemberSerialization;
   SerAttr: TCustomAttribute;
 begin
@@ -1097,7 +1098,17 @@ begin
     if ATypeInf^.Kind = tkRecord then
       Result.DefaultCreator := TJsonRecordCreator.Create(ATypeInf)
     else if ATypeInf^.Kind = tkClass then
-      Result.DefaultCreator := TJsonObjectCreator.Create(GetTypeData(ATypeInf)^.ClassType, nil);
+    begin
+      DefaultConstructor:=nil;
+      for Method in RttiType.GetMethods do
+        if Method.IsConstructor and (Method.Name='Create') and
+           (Length(Method.GetParameters)=0) then
+        begin
+          DefaultConstructor:=Method;
+          Break;
+        end;
+      Result.DefaultCreator := TJsonObjectCreator.Create(GetTypeData(ATypeInf)^.ClassType,DefaultConstructor);
+    end;
   end;
 end;
 

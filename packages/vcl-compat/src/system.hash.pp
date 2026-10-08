@@ -453,14 +453,21 @@ end;
 
 procedure THashMD5.Update(var aData; aLength: Cardinal);
 begin
+  if _DidFinal then
+    raise EHashException.Create(SHashCanNotUpdateMD5);
   MD5Update(_MD5,aData,aLength);
 end;
 
 procedure THashMD5.Update(const aData: TBytes; aLength: Cardinal);
 begin
+  if _DidFinal then
+    raise EHashException.Create(SHashCanNotUpdateMD5);
   if aLength=0 then
     aLength:=Length(aData);
-  MD5Update(_MD5,aData[0],aLength);
+  if aLength>Cardinal(Length(aData)) then
+    raise EArgumentOutOfRangeException.Create('Hash input length exceeds the byte array');
+  if aLength<>0 then
+    MD5Update(_MD5,aData[0],aLength);
 end;
 
 procedure THashMD5.Update(const aData: UnicodeString);
@@ -507,14 +514,21 @@ end;
 
 procedure THashSHA1.Update(var aData; aLength: Cardinal);
 begin
+  if _DidFinal then
+    raise EHashException.Create(SHashCanNotUpdateSHA1);
   SHA1Update(_SHA1,aData,aLength);
 end;
 
 procedure THashSHA1.Update(const aData: TBytes; aLength: Cardinal);
 begin
+  if _DidFinal then
+    raise EHashException.Create(SHashCanNotUpdateSHA1);
   if ALength=0 then
     ALength:=Length(aData);
-  Update(aData[0],aLength);
+  if aLength>Cardinal(Length(aData)) then
+    raise EArgumentOutOfRangeException.Create('Hash input length exceeds the byte array');
+  if aLength<>0 then
+    SHA1Update(_SHA1,aData[0],aLength);
 end;
 
 procedure THashSHA1.Update(const aData: UnicodeString);
@@ -846,6 +860,8 @@ end;
 
 procedure THashSHA2.Update(const aData: PByte; aLength: Cardinal);
 begin
+  if FDidFinal then
+    raise EHashException.Create(SHashCanNotUpdateSHA2);
   case FHashVersion of
     Sha224 : _S224.Update(aData,aLength);
     Sha256 : _S256.Update(aData,aLength);
@@ -858,6 +874,8 @@ procedure THashSHA2.Update(const aData: TBytes; aLength: Cardinal);
 begin
   if aLength=0 then
     aLength:=Length(aData);
+  if aLength>Cardinal(Length(aData)) then
+    raise EArgumentOutOfRangeException.Create('Hash input length exceeds the byte array');
   Update(PByte(aData),aLength);
 end;
 
