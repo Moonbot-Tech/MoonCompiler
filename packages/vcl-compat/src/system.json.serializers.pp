@@ -1913,25 +1913,92 @@ function TJsonSerializer.DeserializePrimitive(const aReader: TJsonReader; aContr
 var
   TmpStr: string;
   SetVal: Integer;
+  SignedValue: Int64;
+  UnsignedValue: UInt64;
+
+  procedure InvalidNumber;
+  begin
+    raise EJsonReaderException.Create(aReader,'Invalid or out-of-range JSON number for '+aContract.TypeInf^.Name);
+  end;
+
+  function SignedNumber: Int64;
+  begin
+    if aReader.TokenType=TJsonToken.&String then
+      begin
+      if not TryStrToInt64(aReader.Value.AsString,Result) then
+        InvalidNumber;
+      end
+    else
+      begin
+      if (aReader.TokenType<>TJsonToken.Integer) or
+        ((aReader.Value.Kind=tkQWord) and (aReader.Value.AsUInt64>UInt64(High(Int64)))) then
+        InvalidNumber;
+      Result:=aReader.Value.AsInt64;
+      end;
+  end;
+
+  function UnsignedNumber: UInt64;
+  begin
+    if aReader.TokenType=TJsonToken.&String then
+      begin
+      if not TryStrToUInt64(aReader.Value.AsString,Result) then
+        InvalidNumber;
+      end
+    else
+      begin
+      if (aReader.TokenType<>TJsonToken.Integer) or
+        ((aReader.Value.Kind<>tkQWord) and (aReader.Value.AsInt64<0)) then
+        InvalidNumber;
+      Result:=aReader.Value.AsUInt64;
+      end;
+  end;
+
+  function RealNumber: Extended;
+  begin
+    if aReader.TokenType=TJsonToken.&String then
+      begin
+      if not TryStrToFloat(aReader.Value.AsString,Result,aReader.FormatSettings) then
+        InvalidNumber;
+      end
+    else
+      begin
+      if not (aReader.TokenType in [TJsonToken.Integer,TJsonToken.Float]) then
+        InvalidNumber;
+      Result:=aReader.Value.AsExtended;
+      end;
+  end;
+
 begin
   case aContract.Kind of
-    TJsonPrimitiveKind.Int8, TJsonPrimitiveKind.Int16, TJsonPrimitiveKind.Int32,
+    TJsonPrimitiveKind.Int8, TJsonPrimitiveKind.Int16, TJsonPrimitiveKind.Int32:
+      begin
+        SignedValue:=SignedNumber;
+        if (SignedValue<GetTypeData(aContract.TypeInf)^.MinValue) or
+          (SignedValue>GetTypeData(aContract.TypeInf)^.MaxValue) then
+          InvalidNumber;
+        TValue.Make(@SignedValue, aContract.TypeInf, Result);
+      end;
     TJsonPrimitiveKind.UInt8, TJsonPrimitiveKind.UInt16, TJsonPrimitiveKind.UInt32:
       begin
-        TValue.Make(aReader.Value.AsInteger, aContract.TypeInf, Result);
+        UnsignedValue:=UnsignedNumber;
+        if UnsignedValue>UInt64(LongWord(GetTypeData(aContract.TypeInf)^.MaxValue)) then
+          InvalidNumber;
+        TValue.Make(@UnsignedValue, aContract.TypeInf, Result);
       end;
     TJsonPrimitiveKind.Int64:
-      Result := TValue.specialize From<Int64>(aReader.Value.AsInt64);
+      Result := TValue.specialize From<Int64>(SignedNumber);
     TJsonPrimitiveKind.UInt64:
-      Result := TValue.specialize From<UInt64>(aReader.Value.AsUInt64);
+      Result := TValue.specialize From<UInt64>(UnsignedNumber);
     TJsonPrimitiveKind.&Single:
-      Result := TValue.specialize From<Single>(Single(aReader.Value.AsExtended));
+      Result := TValue.specialize From<Single>(Single(RealNumber));
     TJsonPrimitiveKind.&Double:
-      Result := TValue.specialize From<Double>(Double(aReader.Value.AsExtended));
+      Result := TValue.specialize From<Double>(Double(RealNumber));
     TJsonPrimitiveKind.&Extended:
-      Result := TValue.specialize From<Extended>(aReader.Value.AsExtended);
-    TJsonPrimitiveKind.&Comp, TJsonPrimitiveKind.&Currency:
-      Result := TValue.specialize From<Extended>(aReader.Value.AsExtended);
+      Result := TValue.specialize From<Extended>(RealNumber);
+    TJsonPrimitiveKind.&Comp:
+      Result := TValue.specialize From<Comp>(Comp(RealNumber));
+    TJsonPrimitiveKind.&Currency:
+      Result := TValue.specialize From<Currency>(Currency(RealNumber));
     TJsonPrimitiveKind.&String:
       Result := TValue.specialize From<string>(aReader.Value.AsString);
     TJsonPrimitiveKind.&Char:

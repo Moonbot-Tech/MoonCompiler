@@ -74,6 +74,7 @@ type
     FTokenType: TJsonToken;
     FValue: TValue;
     function GetDepth: integer;
+    function SignedIntegerValue: Int64;
   protected
     FCurrentState: TState;
     Procedure DoError(const aMsg : String); overload;
@@ -312,10 +313,9 @@ var
 begin
   ReadInternal;
   case FTokenType of
-    TJsonToken.integer:
-      Result:=FValue.specialize AsType<integer>;
+    TJsonToken.integer,
     TJsonToken.Float:
-      Result:=FValue.specialize AsType<double>;
+      Result:=FValue.AsDouble;
     TJsonToken.&String:
       begin
       S:=FValue.AsString;
@@ -327,6 +327,18 @@ begin
     else
       DoError(SInputInvalidDouble,[GetEnumName(TypeInfo(TJsonToken), Ord(FTokenType))]);
   end;
+  if FTokenType<>TJsonToken.Null then
+    begin
+    FTokenType:=TJsonToken.Float;
+    FValue:=TValue.specialize From<Double>(Result);
+    end;
+end;
+
+function TJsonReader.SignedIntegerValue: Int64;
+begin
+  if (FValue.Kind=tkQWord) and (FValue.AsUInt64>UInt64(High(Int64))) then
+    DoError('JSON integer is outside the signed 64-bit range');
+  Result:=FValue.AsInt64;
 end;
 
 function TJsonReader.ReadAsIntegerInternal: integer;
@@ -336,9 +348,7 @@ begin
   ReadInternal;
   case FTokenType of
     TJsonToken.integer:
-      Result:=FValue.specialize AsType<integer>;
-    TJsonToken.Float:
-      Result:=Trunc(FValue.Specialize AsType<double>);
+      Result:=Integer(SignedIntegerValue);
     TJsonToken.&String:
       begin
       S:=FValue.AsString;
@@ -350,6 +360,11 @@ begin
     else
       DoError(SInputInvalidInteger,[GetEnumName(TypeInfo(TJsonToken), Ord(FTokenType))]);
   end;
+  if FTokenType<>TJsonToken.Null then
+    begin
+    FTokenType:=TJsonToken.Integer;
+    FValue:=TValue.specialize From<Integer>(Result);
+    end;
 end;
 
 function TJsonReader.ReadAsInt64Internal: int64;
@@ -359,9 +374,7 @@ begin
   ReadInternal;
   case FTokenType of
     TJsonToken.integer:
-      Result:=FValue.specialize AsType<int64>;
-    TJsonToken.Float:
-      Result:=Trunc(FValue.specialize AsType<double>);
+      Result:=SignedIntegerValue;
     TJsonToken.&String:
       begin
       S:=FValue.AsString;
@@ -373,6 +386,11 @@ begin
     else
       DoError(SInputInvalidInt64,[GetEnumName(TypeInfo(TJsonToken), Ord(FTokenType))]);
   end;
+  if FTokenType<>TJsonToken.Null then
+    begin
+    FTokenType:=TJsonToken.Integer;
+    FValue:=TValue.specialize From<Int64>(Result);
+    end;
 end;
 
 function TJsonReader.ReadAsUInt64Internal: uint64;
@@ -382,9 +400,11 @@ begin
   ReadInternal;
   case FTokenType of
     TJsonToken.integer:
-      Result:=FValue.specialize AsType<uint64>;
-    TJsonToken.Float:
-      Result:=Trunc(FValue.specialize AsType<double>);
+      begin
+      if (FValue.Kind<>tkQWord) and (FValue.AsInt64<0) then
+        DoError('A negative JSON integer cannot be read as UInt64');
+      Result:=FValue.AsUInt64;
+      end;
     TJsonToken.&String:
       begin
       S:=FValue.AsString;
@@ -396,6 +416,11 @@ begin
     else
       DoError(SInputInvalidUInt64,[GetEnumName(TypeInfo(TJsonToken), Ord(FTokenType))]);
   end;
+  if FTokenType<>TJsonToken.Null then
+    begin
+    FTokenType:=TJsonToken.Integer;
+    FValue:=TValue.specialize From<UInt64>(Result);
+    end;
 end;
 
 function TJsonReader.ReadAsStringInternal: string;
@@ -406,7 +431,10 @@ begin
     TJsonToken.PropertyName:
       Result:=FValue.AsString;
     TJsonToken.integer:
-      Result:=IntToStr(FValue.specialize AsType<integer>);
+      if FValue.Kind=tkQWord then
+        Result:=UIntToStr(FValue.AsUInt64)
+      else
+        Result:=IntToStr(FValue.AsInt64);
     TJsonToken.Float:
       Result:=FloatToStr(FValue.specialize AsType<double>, FFormatSettings);
     TJsonToken.boolean:
@@ -509,8 +537,10 @@ begin
     specialize SetToken<Int64>(TJsonToken.Integer,SignedValue,True)
   else if TryStrToQWord(Text,UnsignedValue) then
     specialize SetToken<UInt64>(TJsonToken.Integer,UnsignedValue,True)
+  else if TryStrToFloat(Text,RealValue,TFormatSettings.Invariant) then
+    specialize SetToken<Double>(TJsonToken.Float,RealValue,True)
   else
-    DoError('JSON integer is outside the 64-bit range');
+    DoError('Invalid or overflowing JSON number');
 end;
 
 constructor TJsonReader.Create;

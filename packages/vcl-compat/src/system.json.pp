@@ -2791,7 +2791,7 @@ end;
 
 procedure TJSONParser.FloatValue(const AValue: Double);
 begin
-  NewValue(TJSONNumber.Create(AValue));
+  NewValue(TJSONNumber.Create(UTF8Decode(CurrentTokenString)));
 end;
 
 procedure TJSONParser.BooleanValue(const AValue: Boolean);
@@ -2826,7 +2826,7 @@ end;
 
 procedure TJSONParser.QWordValue(const AValue: QWord);
 begin
-  NewValue(TJSONNumber.Create(Int64(AValue)));
+  NewValue(TJSONNumber.Create(UIntToStr(AValue)));
 end;
 
 procedure TJSONParser.StartArray;

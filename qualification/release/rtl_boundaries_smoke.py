@@ -12,7 +12,7 @@ SOURCES = ROOT / "RTL-test" / "semantic"
 CASES = (
     "base64_size_boundaries",
     "encoding_boundaries", "file_boundaries", "hash_regex_iso_boundaries",
-    "json_lifetime_boundaries", "lightweight_boundaries", "loader_boundaries",
+    "json_lifetime_boundaries", "json_numeric_boundaries", "lightweight_boundaries", "loader_boundaries",
     "uri_boundaries",
 )
 

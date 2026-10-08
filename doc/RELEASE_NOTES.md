@@ -25,7 +25,10 @@ and adds lightweight synchronization primitives on Windows and Linux.
 - JSON deserialization invokes the object's parameterless constructor and
   preserves its initialization and cleanup. Typed readers report failed numeric
   and date conversions, use invariant JSON defaults and respect local/UTC date
-  handling. ISO date parsing validates decimal fields and separators.
+  handling. Large unsigned numbers remain positive through DOM, reader,
+  serializer and RTTI conversions. Typed integer reads reject fractional tokens,
+  and signed 64-bit reads reject overflowing values.
+  ISO date parsing validates decimal fields and separators.
   Regex group names are exact and remain accessible beside unnamed captures.
   Updating a finalized hash raises `EHashException`; `Reset` starts a fresh hash.
 

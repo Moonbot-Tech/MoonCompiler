@@ -4521,7 +4521,9 @@ begin
       raise EInvalidCast.Create(SErrInvalidTypecast);
     end;
     end
-  else if Kind in [tkInteger, tkInt64, tkQWord] then
+  else if Kind = tkQWord then
+    Result := AsUInt64
+  else if Kind in [tkInteger, tkInt64] then
     Result := AsInt64
   else
     raise EInvalidCast.Create(SErrInvalidTypecast);
@@ -4719,7 +4721,9 @@ begin
       raise EInvalidCast.Create(SErrInvalidTypecast);
     end;
     end
-  else if Kind in [tkInteger, tkInt64, tkQWord] then
+  else if Kind = tkQWord then
+    Result := AsUInt64
+  else if Kind in [tkInteger, tkInt64] then
     Result := AsInt64
   else
     raise EInvalidCast.Create(SErrInvalidTypecast);
@@ -4749,7 +4753,9 @@ begin
       raise EInvalidCast.Create(SErrInvalidTypecast);
     end;
     end
-  else if Kind in [tkInteger, tkInt64, tkQWord] then
+  else if Kind = tkQWord then
+    Result := AsUInt64
+  else if Kind in [tkInteger, tkInt64] then
     Result := AsInt64
   else
     raise EInvalidCast.Create(SErrInvalidTypecast);
