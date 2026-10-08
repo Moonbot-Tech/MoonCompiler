@@ -408,6 +408,7 @@ jobs:
       RELEASE_TAG: ${{ needs.validate-tag.outputs.tag }}
       RELEASE_VERSION: ${{ needs.validate-tag.outputs.version }}
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           pattern: toolchain-*
@@ -426,23 +427,20 @@ jobs:
       - name: Publish GitHub Release
         if: github.event_name == 'push'
         run: |
-          cat > "$RUNNER_TEMP/release-notes.md" <<EOF
-          MoonCompiler $RELEASE_VERSION is a Delphi-compatible Pascal toolchain for Win64 and Linux x86-64.
-
-          - Generated HTTP exceptions no longer expose request URLs, credentials, raw transport messages or malformed server replies. Error families and useful failure categories remain available for synchronous and asynchronous calls.
-          - URI fragments stay local; real request paths, query strings and escaped characters are preserved.
-          - Malformed URI ports and unsupported response charsets no longer echo their input in diagnostics.
-          - Linux conditional rethrows preserve exception tables, outer handlers and managed cleanup, including branches that raise replacement exceptions.
-          - Linux monitor waits use the correct event lifecycle; filesystem names and current directories have a consistent Unicode API.
-          - Directory trees copy correctly, failed filesystem operations report errors, and link traversal cannot recursively consume a target tree.
-          - Text readers and writers are available from System.Classes. URL paths preserve separators, ISO timezone offsets are validated, and JSON navigation and failure cleanup follow their public contracts.
-          - Windows/Linux tests cover secret-bearing failures, TLS, timeouts, redirects and streamed responses. Application callbacks and explicit URL logging remain the application's responsibility.
-          - Dictionary implementation and existing optimizations are unchanged. Rebuild application and third-party PPUs when upgrading. MoonORMot 13 remains required.
-
-          Read the [release notes](https://github.com/$GH_REPO/blob/$RELEASE_TAG/doc/RELEASE_NOTES.md) for supported contracts and upgrade instructions. Performance measurements from release 2.0 remain separately labelled; this maintenance release makes no new benchmark claims.
-
-          Download the archive for your platform and follow the [Quick Start](https://github.com/$GH_REPO/blob/$RELEASE_TAG/README.md#quick-start). SHA256SUMS and GitHub artifact attestations accompany the binaries.
-          EOF
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          from urllib.parse import urljoin
+          version = os.environ['RELEASE_VERSION']
+          base = f"https://github.com/{os.environ['GH_REPO']}/blob/{os.environ['RELEASE_TAG']}/"
+          notes = Path('doc/RELEASE_NOTES.md').read_text(encoding='utf-8').split('\n---\n', 1)[0].strip()
+          if not notes.startswith(f'# MoonCompiler {version}:'):
+              raise SystemExit('Release notes do not match the release version')
+          notes = re.sub(r'(?<=\]\()(?!https?://|#)([^)]+)',
+                         lambda match: urljoin(base + 'doc/', match[0]), notes)
+          notes += f'\n\nDownload the archive for your platform and follow the [Quick Start]({base}README.md#quick-start). SHA256SUMS and GitHub artifact attestations accompany the binaries.\n'
+          Path(os.environ['RUNNER_TEMP'], 'release-notes.md').write_text(notes, encoding='utf-8')
+          PY
           release_options=(
             "$RELEASE_TAG"
             dist/mooncompiler-toolchain-*
