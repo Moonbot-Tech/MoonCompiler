@@ -1140,7 +1140,9 @@ implementation
       st.insertsym(sym);
 
       result.procsym:=sym;
-      proc_add_definition(result);
+      { This unique compiler-owned symbol is not a source declaration of
+        result.struct (which may belong to another unit). }
+      sym.ProcdefList.Add(result);
       { the code will be assigned directly to the "code" field later }
       result.forwarddef:=false;
       result.aliasnames.insert(result.mangledname);
