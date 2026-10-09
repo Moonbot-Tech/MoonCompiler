@@ -87,7 +87,7 @@
     "upstream": ["qualification/suite", "tests"],
     "mm_current": ["qualification/suite", "qualification/memory-manager"],
     "mormot_mm": ["qualification/suite", "qualification/memory-manager"],
-    "lazarus": ["build", "build.ps1", "lazarus", "lazarus.ps1"],
+    "lazarus": ["build", "build.ps1", "lazarus", "lazarus.ps1", "scripts/lazarus-mooncompiler.patch", "qualification/build-driver/lazarus_gate.py", "qualification/build-driver/lazarus_hash_contract.lpr"],
     "reporting": ["qualification/suite"],
     "runtime_mormot": ["qualification/suite"],
     "tftp": ["qualification/suite"],
@@ -3022,16 +3022,14 @@
       ],
       "commands": {
         "win64": [
-          "{shell}",
-          "-NoProfile",
-          "-File",
-          "{root}/build.ps1",
-          "lazarus"
+          "{python}",
+          "{root}/qualification/build-driver/lazarus_gate.py",
+          "--shell",
+          "{shell}"
         ],
         "linux": [
-          "bash",
-          "{root}/build",
-          "lazarus"
+          "{python}",
+          "{root}/qualification/build-driver/lazarus_gate.py"
         ]
       },
       "needs": [

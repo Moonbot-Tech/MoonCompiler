@@ -768,6 +768,16 @@ function Build-Lazarus {
     throw "managed Lazarus checkout is not at the supported commit $LazarusCommit"
   }
 
+  $compatPatch = Join-Path $Root 'scripts\lazarus-mooncompiler.patch'
+  $alreadyApplied = & {
+    $ErrorActionPreference = 'Continue'
+    & $git.Source -C $source apply --reverse --check $compatPatch 2>$null
+    $LASTEXITCODE -eq 0
+  }
+  If (-not $alreadyApplied) {
+    Invoke-Checked $git.Source @('-C', $source, 'apply', $compatPatch)
+  }
+
   $bootstrapPath = Find-Bootstrap
   $makePath = Find-Make $bootstrapPath
   $pcp = Join-Path $Root 'lazarus-config'

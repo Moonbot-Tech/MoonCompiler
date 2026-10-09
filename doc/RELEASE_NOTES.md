@@ -29,6 +29,8 @@ desktop applications and long-running services.
   Win64 `Classes` supplies object-method callbacks and hidden-window helpers;
   Unicode disk-space calls and `Math.Min/Max` retain their intended public types
   when Windows and SysUtils units are used together.
+- The pinned Lazarus IDE build adapts its comparer and event-handle declarations
+  to the existing Moon API and uses the direct Toolhelp32 binding for process attachment.
 
 Tests exercise observable values, generated instruction bytes, fresh and warm
 PPUs, callbacks, connection reuse, response framing and a shared trusted CA with

@@ -561,6 +561,10 @@ build_lazarus() {
     exit 1
   }
 
+  if ! git -C "$source" apply --reverse --check "$ROOT/scripts/lazarus-mooncompiler.patch" 2>/dev/null; then
+    git -C "$source" apply "$ROOT/scripts/lazarus-mooncompiler.patch"
+  fi
+
   pcp="$ROOT/lazarus-config"
   mkdir -p "$pcp"
   lazbuild_options='--lazarusdir=. --compiler=$(PP) --cpu=$(CPU_TARGET) --os=$(OS_TARGET) --opt="$(OPT)" --pcp="$(MOON_LAZARUS_PCP)"'

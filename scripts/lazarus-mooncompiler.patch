@@ -1,0 +1,66 @@
+--- a/components/lazedit/lazedithighlighterutils.pas
++++ b/components/lazedit/lazedithighlighterutils.pas
+@@ -219,7 +219,15 @@
+ 
+ implementation
+ 
++{$ifdef MOONCOMPILER_FULLVERSION}
++  {$if MOONCOMPILER_FULLVERSION >= 20300}
++    {$define LAZ_SIGNED_COMPARER_HASH}
++  {$endif}
++{$endif}
++
+ type
++  TLazRangeHashCode = {$ifdef LAZ_SIGNED_COMPARER_HASH}Integer{$else}UInt32{$endif};
++
+   TLazHighlighterRangesList = specialize TFPGMap<Pointer, TLazHighlighterRanges>;
+ 
+   ILazHighlighterRangeEqualityComparer = specialize IEqualityComparer<TLazHighlighterRangeForDictionary>;
+@@ -230,10 +238,10 @@
+   public
+     {$IF FPC_Fullversion>30202}
+     function Equals(const ALeft, ARight: TLazHighlighterRangeForDictionary): Boolean; reintroduce;
+-    function GetHashCode(const AValue: TLazHighlighterRangeForDictionary): UInt32; reintroduce;
++    function GetHashCode(const AValue: TLazHighlighterRangeForDictionary): TLazRangeHashCode; reintroduce;
+     {$ELSE}
+     function Equals(constref ALeft, ARight: TLazHighlighterRangeForDictionary): Boolean; reintroduce;
+-    function GetHashCode(constref AValue: TLazHighlighterRangeForDictionary): UInt32; reintroduce;
++    function GetHashCode(constref AValue: TLazHighlighterRangeForDictionary): TLazRangeHashCode; reintroduce;
+     {$ENDIF}
+   end;
+ 
+@@ -263,9 +271,9 @@
+ 
+ function TLazHighlighterRangeEqualityComparer.GetHashCode(
+   {$IF FPC_Fullversion>30202} const {$ELSE} constref {$ENDIF}
+-  AValue: TLazHighlighterRangeForDictionary): UInt32;
+-begin
+-  Result := AValue.GetHashCode;
++  AValue: TLazHighlighterRangeForDictionary): TLazRangeHashCode;
++begin
++  Result := TLazRangeHashCode(AValue.GetHashCode);
+ end;
+ 
+ { TLazHighlighterRange }
+--- a/components/virtualtreeview/laz.virtualtrees.pas
++++ b/components/virtualtreeview/laz.virtualtrees.pas
+@@ -5587,7 +5587,7 @@
+     WorkEvent := TEvent.Create(nil, False, False, '');
+     //todo: see how to check if a event was succesfully created under linux since handle is allways 0
+     {$ifdef Windows}
+-    if WorkEvent.Handle = TEventHandle(0) then
++    if PtrUInt(WorkEvent.Handle) = 0 then
+       Raise Exception.Create('VirtualTreeView - Error creating TEvent instance');
+     {$endif}
+     // Create worker thread, initialize it and send it to its wait loop.
+--- a/ide/packages/idedebugger/debugattachdialog.pas
++++ b/ide/packages/idedebugger/debugattachdialog.pas
+@@ -60,7 +60,7 @@
+ uses
+   Windows
+   {$ifndef WIN9XPLATFORM}
+-  ,JwaTlHelp32
++  ,TlHelp32
+   {$endif};
+ 
+ // Enumerate running processes.
