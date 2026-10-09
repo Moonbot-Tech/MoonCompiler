@@ -26,10 +26,10 @@ implementation
 
 {$IFDEF FPC_DOTTEDUNITS}
 uses
-  WinApi.Windows,TP.DOS,System.Unicode.Graphemebreakproperty,System.Unicode.Eastasianwidth,System.CharSet;
+  WinApi.Windows,TP.DOS,System.Unicode.Graphemebreakproperty,System.Unicode.Eastasianwidth,System.CharSet,System.Math;
 {$ELSE FPC_DOTTEDUNITS}
 uses
-  windows,dos,graphemebreakproperty,eastasianwidth,charset;
+  windows,dos,graphemebreakproperty,eastasianwidth,charset,math;
 {$ENDIF FPC_DOTTEDUNITS}
 
 {$i video.inc}

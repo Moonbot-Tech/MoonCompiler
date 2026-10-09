@@ -117,30 +117,115 @@ end;
 { OS - independent class implementations are in /inc directory. }
 {$i classes.inc}
 
-function MakeObjectInstance(Method: TWndMethod): Pointer;
-  begin
-    runerror(211);
-    MakeObjectInstance:=nil;
+type
+  PWndMethod = ^TWndMethod;
+  PObjectWindowThunk = ^TObjectWindowThunk;
+  TObjectWindowThunk = record
+    Code: array[0..21] of Byte;
+    Method: TWndMethod;
   end;
 
+function DispatchObjectMessage(Method: PWndMethod; Msg: UINT; WParam: WPARAM; LParam: LPARAM): LRESULT; stdcall;
+var
+  Message: TMessage;
+begin
+  Message:=Default(TMessage);
+  Message.Msg:=Msg;
+  Message.WParam:=WParam;
+  Message.LParam:=LParam;
+  Method^(Message);
+  Result:=Message.Result;
+end;
+
+function MakeObjectInstance(Method: TWndMethod): Pointer;
+var
+  Thunk: PObjectWindowThunk;
+  Address: Pointer;
+  OldProtect: DWORD;
+begin
+  if not Assigned(Method) then
+    raise EArgumentNilException.Create('Window method must be assigned');
+  Thunk:=VirtualAlloc(nil,SizeOf(TObjectWindowThunk),MEM_COMMIT or MEM_RESERVE,PAGE_READWRITE);
+  if Thunk=nil then
+    RaiseLastOSError;
+  try
+    Thunk^.Method:=Method;
+    { Win64 passes HWND, message, wParam, lParam in RCX, RDX, R8, R9.
+      A TWndMethod has no HWND argument. Replace only RCX by the method
+      descriptor and tail-jump to a normally compiled, unwindable function. }
+    Thunk^.Code[0]:=$48;
+    Thunk^.Code[1]:=$B9; { mov rcx, imm64 }
+    Address:=@Thunk^.Method;
+    Move(Address,Thunk^.Code[2],SizeOf(Address));
+    Thunk^.Code[10]:=$48;
+    Thunk^.Code[11]:=$B8; { mov rax, imm64 }
+    Address:=@DispatchObjectMessage;
+    Move(Address,Thunk^.Code[12],SizeOf(Address));
+    Thunk^.Code[20]:=$FF;
+    Thunk^.Code[21]:=$E0; { jmp rax -- no stack frame or return address added }
+    if not VirtualProtect(Thunk,SizeOf(TObjectWindowThunk),PAGE_EXECUTE_READ,OldProtect) then
+      RaiseLastOSError;
+    if not FlushInstructionCache(GetCurrentProcess,Thunk,SizeOf(Thunk^.Code)) then
+      RaiseLastOSError;
+    Result:=Thunk;
+  except
+    VirtualFree(Thunk,0,MEM_RELEASE);
+    raise;
+  end;
+end;
 
 procedure FreeObjectInstance(ObjectInstance: Pointer);
-  begin
-    runerror(211);
-  end;
-
+begin
+  if (ObjectInstance<>nil) and not VirtualFree(ObjectInstance,0,MEM_RELEASE) then
+    RaiseLastOSError;
+end;
 
 function AllocateHWnd(Method: TWndMethod): HWND;
-  begin
-    runerror(211);
-    AllocateHWnd:=0;
+const
+  WindowClassName = WideString('MoonCompiler.Classes.HiddenWindow');
+var
+  WindowClass: WNDCLASSW;
+  Instance: Pointer;
+  Error: DWORD;
+begin
+  Instance:=MakeObjectInstance(Method);
+  try
+    WindowClass:=Default(WNDCLASSW);
+    WindowClass.hInstance:=HInstance;
+    WindowClass.lpfnWndProc:=@DefWindowProcW;
+    WindowClass.cbWndExtra:=SizeOf(Pointer);
+    WindowClass.lpszClassName:=PWideChar(WindowClassName);
+    if (RegisterClassW(WindowClass)=0) and (GetLastError<>ERROR_CLASS_ALREADY_EXISTS) then
+      RaiseLastOSError;
+    Result:=CreateWindowExW(WS_EX_TOOLWINDOW,WindowClass.lpszClassName,'',WS_POPUP,
+      0,0,0,0,0,0,HInstance,nil);
+    if Result=0 then
+      RaiseLastOSError;
+    SetWindowLongPtrW(Result,0,LONG_PTR(Instance));
+    SetLastError(0);
+    if (SetWindowLongPtrW(Result,GWLP_WNDPROC,LONG_PTR(Instance))=0) and (GetLastError<>0) then
+      begin
+        Error:=GetLastError;
+        DestroyWindow(Result);
+        RaiseLastOSError(Error);
+      end;
+  except
+    FreeObjectInstance(Instance);
+    raise;
   end;
-
+end;
 
 procedure DeallocateHWnd(Wnd: HWND);
-  begin
-    runerror(211);
-  end;
+var
+  Instance: Pointer;
+begin
+  if Wnd=0 then
+    Exit;
+  Instance:=Pointer(GetWindowLongPtrW(Wnd,0));
+  if not DestroyWindow(Wnd) then
+    RaiseLastOSError;
+  FreeObjectInstance(Instance);
+end;
 
 
 initialization

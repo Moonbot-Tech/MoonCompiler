@@ -557,6 +557,7 @@
 
   function GET_Y_LPARAM(lp : {$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Windows.LParam) : longint; inline;
 
+  {$ifndef UNICODERTL}
   {$ifndef max}
   { was #define dname(params) def_expr }
   { argument types are unknown }
@@ -573,6 +574,7 @@
     { return type might be wrong }
 
 {$endif}
+  {$endif UNICODERTL}
   { was #define dname(params) def_expr }
   { argument types are unknown }
   function PALETTEINDEX(i : longint) : COLORREF; inline;
@@ -1061,6 +1063,7 @@ type
   { was #define dname(params) def_expr }
   { argument types are unknown }
   { return type might be wrong }
+  {$ifndef UNICODERTL}
   function max(a,b : longint) : longint;
     begin
        if a > b then
@@ -1079,6 +1082,7 @@ type
        else
          min:=b;
     end;
+  {$endif UNICODERTL}
 
   { was #define dname(params) def_expr }
   { argument types are unknown }

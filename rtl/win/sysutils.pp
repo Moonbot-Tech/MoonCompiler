@@ -96,6 +96,11 @@ var
   EraNames: array [1..MaxEraCount] of String;
   EraYearOffsets: array [1..MaxEraCount] of Integer;
 
+{$ifdef UNICODERTL}
+var
+  GetDiskFreeSpaceEx: function(Directory: PWideChar; var FreeAvailable, TotalSpace: TLargeInteger;
+    TotalFree: PLargeInteger): BOOL; stdcall = @{$IFDEF FPC_DOTTEDUNITS}WinApi.{$ENDIF}Windows.GetDiskFreeSpaceExW;
+{$endif}
 { Compatibility with Delphi }
 function Win32Check(res:boolean):boolean;inline;
 function WinCheck(res:boolean):boolean;
@@ -904,7 +909,7 @@ type
    TGetDiskFreeSpaceEx = function(drive:PAnsiChar;var availableforcaller,total,free):longbool;stdcall;
 
 var
- GetDiskFreeSpaceEx : TGetDiskFreeSpaceEx;
+ DiskSpaceExAnsi : TGetDiskFreeSpaceEx;
 
 function diskfree(drive : byte) : int64;
 var
@@ -925,9 +930,9 @@ begin
      disk[3]:='\';
      disk[4]:=#0;
    end;
-  if assigned(GetDiskFreeSpaceEx) then
+  if assigned(DiskSpaceExAnsi) then
     begin
-       if GetDiskFreeSpaceEx(@disk[1],qwcaller,qwtotal,qwfree) then
+       if DiskSpaceExAnsi(@disk[1],qwcaller,qwtotal,qwfree) then
          diskfree:=qwfree
        else
          diskfree:=-1;
@@ -961,9 +966,9 @@ begin
      disk[3]:='\';
      disk[4]:=#0;
    end;
-  if assigned(GetDiskFreeSpaceEx) then
+  if assigned(DiskSpaceExAnsi) then
     begin
-       if GetDiskFreeSpaceEx(@disk[1],qwcaller,qwtotal,qwfree) then
+       if DiskSpaceExAnsi(@disk[1],qwcaller,qwtotal,qwfree) then
          disksize:=qwtotal
        else
          disksize:=-1;
@@ -1631,7 +1636,7 @@ Procedure LoadVersionInfo;
 Var
    versioninfo : TOSVERSIONINFO;
 begin
-  GetDiskFreeSpaceEx:=nil;
+  DiskSpaceExAnsi:=nil;
   versioninfo:=Default(TOSVERSIONINFO);
   versioninfo.dwOSVersionInfoSize:=sizeof(versioninfo);
   if GetVersionEx(versioninfo) then
@@ -1644,7 +1649,7 @@ begin
     end;
   kernel32dll:=GetModuleHandle('kernel32');
   if kernel32dll<>0 then
-    GetDiskFreeSpaceEx:=TGetDiskFreeSpaceEx(GetProcAddress(kernel32dll,'GetDiskFreeSpaceExA'));
+    DiskSpaceExAnsi:=TGetDiskFreeSpaceEx(GetProcAddress(kernel32dll,'GetDiskFreeSpaceExA'));
   if Win32MajorVersion<6 then
      FindExInfoDefaults := FindExInfoStandard; // also searches SFNs. XP only.
   if (Win32MajorVersion>6) or ((Win32MajorVersion=6) and (Win32MinorVersion>=1)) then
