@@ -44,6 +44,7 @@ type
     opsize  : topsize;
     vopext  : smallint;      // bitmask: vector-operand extention AVX512 (e.g. vaddps xmm0 {k1} {z})
     vbcst   : byte;
+    absolute_ref: boolean;  // explicit Delphi ABS operand, never inferred RIP-relative
     Procedure SetSize(_size:longint;force:boolean);override;
     Procedure SetCorrectSize(opcode:tasmop);override;
     Function CheckOperand(ins : TInstruction): boolean; override;
@@ -2061,7 +2062,23 @@ begin
 
     case operands[i].opr.typ of
        OPR_CONSTANT :
-         ai.loadconst(i-1,operands[i].opr.val);
+         begin
+{$ifdef x86_64}
+           { Delphi spells an imm32 bit pattern as either signed or unsigned.
+             Only these 64-bit operations sign-extend their immediate. A MOV
+             to a register can encode imm64 and must retain its full value. }
+           if (m_delphi in current_settings.modeswitches) and
+              (current_settings.asmmode in asmmodes_x86_intel) and (i=1) and
+              ((siz=S_Q) or (opcode=A_PUSH)) and
+              (((opcode=A_ADD) or (opcode=A_ADC) or (opcode=A_AND) or (opcode=A_CMP) or
+                (opcode=A_OR) or (opcode=A_SBB) or (opcode=A_SUB) or (opcode=A_TEST) or
+                (opcode=A_XOR) or (opcode=A_PUSH)) or
+               ((opcode=A_MOV) and (ops=2) and (operands[2].opr.typ in [OPR_REFERENCE,OPR_LOCAL]))) and
+              (operands[i].opr.val>high(longint)) and (operands[i].opr.val<=high(dword)) then
+             operands[i].opr.val:=longint(dword(operands[i].opr.val));
+{$endif x86_64}
+           ai.loadconst(i-1,operands[i].opr.val);
+         end;
        OPR_REGISTER:
          ai.loadreg(i-1,operands[i].opr.reg);
        OPR_SYMBOL:

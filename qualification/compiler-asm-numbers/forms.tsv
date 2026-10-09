@@ -502,8 +502,8 @@ II010	intel	intel_imm	accept	mov rax, $123456789	48b88967452301000000
 II011	intel	intel_imm	accept	mov rax, $FFFFFFFFFFFFFFFF	48c7c0ffffffff
 II012	intel	intel_imm	accept	add eax, $80	0580000000
 II013	intel	intel_imm	accept	add eax, $FFFFFFFF	05ffffffff
-II014	intel	intel_imm	refuse	add rax, $FFFFFFFF	Asm: signed dword value exceeds bounds 4294967295
-II015	intel	intel_imm	refuse	and rax, $FFFFFFFF	Asm: signed dword value exceeds bounds 4294967295
+II014	intel	intel_imm	accept	add rax, $FFFFFFFF	4881c0ffffffff|4883c0ff
+II015	intel	intel_imm	accept	and rax, $FFFFFFFF	4881e0ffffffff|4883e0ff
 II016	intel	intel_imm	accept	and rax, $7FFFFFFF	4825ffffff7f
 II017	intel	intel_imm	accept	mov al, 255	b0ff
 II018	intel	intel_imm	refuse	mov al, 256	Asm: byte value exceeds bounds 256
@@ -521,7 +521,7 @@ II029	intel	intel_imm	accept	test eax, $80000000	a900000080
 II030	intel	intel_imm	accept	mov eax, 1010b	b80a000000
 II031	intel	intel_imm	accept	mov eax, 1 shl 31	b800000080
 II032	intel	intel_imm	accept	mov rax, 1 shl 31	48b80000008000000000
-II033	intel	intel_imm	refuse	or rax, $80000000	Asm: signed dword value exceeds bounds 2147483648
+II033	intel	intel_imm	accept	or rax, $80000000	4881c800000080|480d00000080
 II034	intel	intel_imm	accept	mov rax, -2147483648	48b800000080ffffffff
 II035	intel	intel_imm	accept	xor eax, $80000000	3500000080
 II036	intel	intel_imm	accept	add ax, $8000	66050080
@@ -529,7 +529,7 @@ II037	intel	intel_imm	accept	mov eax, 017	b811000000
 II038	intel	intel_imm	accept	ret 16	c21000
 II039	intel	intel_imm	accept	mov eax, 0FFFFFFFFh	b8ffffffff
 II040	intel	intel_imm	accept	mov r8d, -1	41b8ffffffff
-II041	intel	intel_imm	refuse	mov qword ptr [rax], $FFFFFFFF	Asm: signed dword value exceeds bounds 4294967295
+II041	intel	intel_imm	accept	mov qword ptr [rax], $FFFFFFFF	48c700ffffffff
 II042	intel	intel_imm	accept	mov dword ptr [rax], $FFFFFFFF	c700ffffffff
 II043	intel	intel_imm	refuse	mov byte ptr [rax], 256	Asm: byte value exceeds bounds 256
 II044	intel	intel_imm	refuse	mov dword ptr [rax], $100000000	Asm: dword value exceeds bounds 4294967296
@@ -687,8 +687,8 @@ AI072	att	att_imm	accept	xorq $0xFFFFFFFF80000000, %rax	483500000080
 II053	intel	intel_imm	accept	imul eax, eax, $80000000	69c000000080
 II054	intel	intel_imm	accept	imul rax, rax, -$80000000	4869c000000080
 II055	intel	intel_imm	refuse	add eax, $100000000	Asm: dword value exceeds bounds 4294967296
-II056	intel	intel_imm	refuse	test rax, $80000000	signed dword value exceeds bounds
-II057	intel	intel_imm	refuse	push $80000000	signed dword value exceeds bounds
+II056	intel	intel_imm	accept	test rax, $80000000	48a900000080|48f7c000000080
+II057	intel	intel_imm	accept	push $80000000	6800000080
 II058	intel	intel_imm	accept	mov eax, -4294967296	b800000000
 II059	intel	intel_imm	refuse	and eax, $1FFFFFFFF	Asm: dword value exceeds bounds 8589934591
 II060	intel	intel_imm	accept	mov r8, $80000000	49b80000008000000000
@@ -769,7 +769,7 @@ AD107	att	att_int	refuse	.byte 0b	Error converting binary
 AD108	att	att_int	refuse	.byte 0B	Error converting binary
 II062	intel	intel_imm	accept	push $7FFFFFFF	68ffffff7f
 II063	intel	intel_imm	accept	push -$80000000	6800000080
-II064	intel	intel_imm	refuse	push 0FFFFFFFFh	signed dword value exceeds bounds
+II064	intel	intel_imm	accept	push 0FFFFFFFFh	68ffffffff|6aff
 II065	intel	intel_imm	accept	mov eax, -4294967295	b801000000
 II066	intel	intel_imm	accept	mov eax, -4294967296	b800000000
 ID071	intel	intel_int	refuse	dd -4294967296	Constant value out of bounds
@@ -810,7 +810,7 @@ IM081	intel	intel_mem	refuse	mov eax, offset GVX + 5 and 3	Relocatable symbol ca
 IM082	intel	intel_mem	refuse	mov eax, fs:[rax + 5 and 3]	Invalid reference syntax
 IM083	intel	intel_mem	refuse	lea rax, [rax + 5 and not 3]	Invalid reference syntax
 IM084	intel	intel_mem	refuse	mov eax, [rax][5 and 3 + rcx]	Invalid reference syntax
-IM085	intel	intel_mem	accept	mov eax, GVX + (5 and 3)	a1@GVX:1
+IM085	intel	intel_mem	accept	mov eax, GVX + (5 and 3)	8b05@REL32GVX:1
 IM086	intel	intel_mem	accept	mov eax, [rax + rcx*(1 shl 1)]	8b0448
 IM087	intel	intel_mem	accept	mov eax, [rax + rcx*(2) + 8]	8b444808
 IM088	intel	intel_mem	accept	mov eax, [rax + rcx*(2) shl 1]	8b0488

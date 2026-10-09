@@ -3663,6 +3663,8 @@ link_w_unsupported_cross_endian_internal_linker=09223_W_Internal linker in cross
 % The internal linker does not correctly handle endianess conversion.
 link_f_executable_too_big_exceeds_X_by_Y_bytes=09224_F_Executable image size is too big for $1 target (exceeds $2 by $3 bytes).
 % The result File is too big
+link_e_absolute_reloc_overflow=09225_E_32-bit absolute relocation in "$1" cannot represent the address of "$2"
+% Use a full-width address or a supported position-relative addressing mode.
 % \end{description}
 # EndOfTeX
 

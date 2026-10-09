@@ -10,7 +10,8 @@ scale factors and alignments.  A form is either
           into one program, each between marker bytes, and the program compares its own code with the table.
           `a|b` names two encodings of the same instruction (with optimization on, the reader turns [idx*2+d]
           into the shorter [idx+idx+d]); `HEX@GVX:N` is HEX followed by the eight bytes of the address of the
-          variable GVX plus N, as the linker writes them; `align:N` means: the end of the form lies on N and
+          variable GVX plus N, as the linker writes them; `HEX@REL32GVX:N` uses a four-byte RIP displacement;
+          `align:N` means: the end of the form lies on N and
           the padding is shorter than N, `align:N:HEX` the same after the bytes HEX of the form;
   refuse  the form has no value the instruction or directive can carry, or no single reading; it must stop
           the compilation with the given message.
@@ -122,20 +123,28 @@ begin
   Result := True;
 end;
 
-function Relocated(const Expected: string): string;
-{{ HEX@GVX:N - the bytes HEX, then the eight bytes of the address of GVX plus N }}
+function Relocated(const Expected: string; CodeEnd: PByte): string;
+{{ @GVX:N is an absolute address; @REL32GVX:N is relative to instruction end. }}
 var
-  Mark, Error, I: Integer;
+  Mark, Error, I, Width, Prefix: Integer;
   Addend: Int64;
   Value: QWord;
 begin
   Mark := Pos('@GVX:', Expected);
+  Width := 8;
+  Prefix := 5;
   if Mark = 0 then
-    Exit(Expected);
-  Val(Copy(Expected, Mark + 5, Length(Expected)), Addend, Error);
+    begin
+      Mark := Pos('@REL32GVX:', Expected);
+      Width := 4;
+      Prefix := 10;
+    end;
+  if Mark = 0 then Exit(Expected);
+  Val(Copy(Expected, Mark + Prefix, Length(Expected)), Addend, Error);
   Value := QWord(PtrUInt(@GVX)) + QWord(Addend);
+  if Width = 4 then Value := Value - QWord(PtrUInt(CodeEnd));
   Result := Copy(Expected, 1, Mark - 1);
-  for I := 0 to 7 do
+  for I := 0 to Width - 1 do
     Result := Result + Digits[(Value shr (8 * I + 4)) and 15] + Digits[(Value shr (8 * I)) and 15];
 end;
 
@@ -179,9 +188,9 @@ begin
           Inc(Failures);
         end;
     end
-  else if Pos('|' + Got + '|', '|' + Relocated(Expected) + '|') = 0 then
+  else if Pos('|' + Got + '|', '|' + Relocated(Expected, P) + '|') = 0 then
     begin
-      WriteLn('FAIL ', Id, ' got ', Got, ' expected ', Relocated(Expected));
+      WriteLn('FAIL ', Id, ' got ', Got, ' expected ', Relocated(Expected, P));
       Inc(Failures);
     end;
 end;
@@ -258,6 +267,19 @@ def main() -> int:
                                 f"{output[-1500:]}")
             else:
                 refused += 1
+        if os.name == 'nt':
+            # Win64's product image is above 4 GB. Explicit absolute disp32
+            # cannot represent that address, even though RIP-relative can.
+            source = directory / 'absolute_overflow.pas'
+            source.write_text('program absolute_overflow;\n{$asmmode intel}\nvar G:Int64;\n'
+                              'function ReadGlobal:Int64;assembler;\n'
+                              'asm mov rcx,abs [G]; mov rax,rcx; end;\n'
+                              'begin WriteLn(ReadGlobal); end.\n')
+            built = compile_one(args.compiler, args.rtl, [], source)
+            output = built.stdout + built.stderr
+            (directory/'absolute_overflow.log').write_text(output)
+            if built.returncode == 0 or '32-bit absolute relocation' not in output or 'cannot represent' not in output:
+                failures.append('Absolute relocation overflow was not rejected at link time: '+output[-1500:])
     finally:
         if not args.output:
             shutil.rmtree(work, ignore_errors=True)

@@ -1569,6 +1569,17 @@ const pemagic : array[0..3] of byte = (
             else
               address:=0;  { Relocation in debug section points to unused section, which is eliminated by linker }
 
+{$ifdef cpu64bitaddr}
+            if (objreloc.typ=RELOC_ABSOLUTE32) and
+               (qword(address)>high(dword)) and not (oso_debug in objsec.secoptions) then
+              begin
+                if assigned(objreloc.symbol) then
+                  s:=objreloc.symbol.Name
+                else
+                  s:=objreloc.objsection.Name;
+                Message2(link_e_absolute_reloc_overflow,objsec.ObjData.Name,s);
+              end;
+{$endif cpu64bitaddr}
             data.Seek(objreloc.dataoffset);
             data.Write(address,address_size);
 {$ifdef cpu64bitaddr}

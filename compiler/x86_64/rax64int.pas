@@ -34,6 +34,7 @@ Unit rax64int;
         actsehdirective: TAsmSehDirective;
         actcfidirective: tcfikind;
         cfidirective: boolean;
+        noframedirective: boolean;
         function is_targetdirective(const s:string):boolean;override;
         procedure HandleTargetDirective;override;
       end;
@@ -43,6 +44,7 @@ Unit rax64int;
 
     uses
       globtype,
+      globals,
       cutils,
       systems,
       verbose,
@@ -72,6 +74,12 @@ Unit rax64int;
       begin
         result:=false;
         cfidirective:=false;
+        noframedirective:=(upper(s)='.NOFRAME') and (m_delphi in current_settings.modeswitches);
+        if noframedirective then
+          begin
+            result:=true;
+            exit;
+          end;
         if target_info.system=system_x86_64_linux then
           for cfikind in [cfi_def_cfa_offset,cfi_offset,cfi_restore] do
             if s=cfi2str[cfikind] then
@@ -120,6 +128,16 @@ Unit rax64int;
         if actasmtoken<>AS_TARGET_DIRECTIVE then
           InternalError(2011100203);
         Consume(AS_TARGET_DIRECTIVE);
+        if noframedirective then
+          begin
+            if not (po_assembler in current_procinfo.procdef.procoptions) then
+              Message(asmr_e_syntax_error)
+            else
+              include(current_procinfo.procdef.procoptions,po_nostackframe);
+            if not (actasmtoken in [AS_SEPARATOR,AS_END]) then
+              Message(asmr_e_syntax_error);
+            exit;
+          end;
         if cfidirective then
           begin
             if actcfidirective=cfi_def_cfa_offset then

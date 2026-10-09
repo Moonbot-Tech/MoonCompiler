@@ -2622,6 +2622,16 @@ Unit Rax86int;
 
             AS_ID : { A constant expression, or a Variable ref. }
               Begin
+{$ifdef x86_64}
+                if (actasmpattern='ABS') and (m_delphi in current_settings.modeswitches) then
+                  begin
+                    oper.absolute_ref:=true;
+                    Consume(AS_ID);
+                    if actasmtoken<>AS_LBRACKET then
+                      Message(asmr_e_invalid_reference_syntax);
+                    continue;
+                  end;
+{$endif x86_64}
                 inc(terms);
                 { Label or Special symbol reference? }
                 if actasmpattern[1] = '@' then
@@ -2893,6 +2903,21 @@ Unit Rax86int;
         if (oper.typesize<>0) and
            (oper.opr.typ in [OPR_REFERENCE,OPR_LOCAL]) then
           oper.SetSize(oper.typesize,true);
+{$ifdef x86_64}
+        { Delphi's unbased symbolic memory operands are RIP-relative. A full
+          absolute address only fits the accumulator moffs encoding; selecting
+          another register must not silently turn it into an absolute disp32. }
+        if (m_delphi in current_settings.modeswitches) and
+           not oper.absolute_ref and
+           (oper.opr.typ=OPR_REFERENCE) and assigned(oper.opr.ref.symbol) and
+           not assigned(oper.opr.ref.relsymbol) and
+           (oper.opr.ref.base=NR_NO) and (oper.opr.ref.index=NR_NO) and
+           (oper.opr.ref.segment=NR_NO) and (oper.opr.ref.refaddr=addr_no) then
+          begin
+            oper.opr.ref.base:=NR_RIP;
+            oper.opr.ref.refaddr:=addr_pic_no_got;
+          end;
+{$endif x86_64}
 {$ifdef i8086}
         { references to a procedure/function entry, without an explicit segment
           override, are added an CS: override by default (this is Turbo Pascal 7
@@ -2912,6 +2937,7 @@ Unit Rax86int;
         is_far_const:boolean;
         i:byte;
         tmp: toperand;
+        parenthesized: boolean;
         di_param, si_param: ShortInt;
         prefix_or_override_pending_concat: boolean = false;
 {$ifdef i8086}
@@ -3021,6 +3047,11 @@ Unit Rax86int;
         operandnum:=max_operands;
         is_far_const:=false;
         Consume(AS_OPCODE);
+        parenthesized:=(actasmtoken=AS_LPAREN) and
+          (m_delphi in current_settings.modeswitches) and
+          (instr.opcode in [A_INC,A_DEC,A_NEG,A_NOT,A_MUL,A_IMUL,A_DIV,A_IDIV,A_BSWAP]);
+        if parenthesized then
+          Consume(AS_LPAREN);
         { Zero operand opcode ?  }
         if actasmtoken in [AS_SEPARATOR,AS_END] then
           exit;
@@ -3098,8 +3129,15 @@ Unit Rax86int;
                end
                 else Message(asmr_e_syntax_error);
             else
-              BuildOperand(instr.Operands[operandnum] as tx86operand,false);
+              BuildOperand(instr.Operands[operandnum] as tx86operand,parenthesized);
           end; { end case }
+          if parenthesized then
+            begin
+              Consume(AS_RPAREN);
+              if not (actasmtoken in [AS_SEPARATOR,AS_END]) then
+                Message(asmr_e_syntax_error);
+              break;
+            end;
         until false;
 
         { shift operands to start from 1, exchange to make sure they are destroyed correctly }

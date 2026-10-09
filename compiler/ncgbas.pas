@@ -141,6 +141,9 @@ interface
         getoffset : boolean;
         indexreg : tregister;
         sofs : longint;
+{$ifdef x86_64}
+        framelesspara : boolean;
+{$endif x86_64}
       begin
         if (op.typ=top_local) then
           begin
@@ -157,6 +160,14 @@ interface
             case sym.localloc.loc of
               LOC_REFERENCE :
                 begin
+{$ifdef x86_64}
+                  framelesspara:=(sym.typ=paravarsym) and
+                    ((current_procinfo.procdef.procoptions*[po_assembler,po_nostackframe])=
+                      [po_assembler,po_nostackframe]) and
+                    (sym.localloc.reference.base=NR_FRAME_POINTER_REG);
+                  if framelesspara then
+                    dec(sofs,sizeof(pint)); { no saved frame pointer before the return address }
+{$endif x86_64}
                   if getoffset then
                     begin
                       if (indexreg=NR_NO)
@@ -186,6 +197,10 @@ interface
                       reference_reset_base(op.ref^,sym.localloc.reference.base,sym.localloc.reference.offset+sofs,
                         sym.localloc.reference.temppos,newalignment(sym.localloc.reference.alignment,sofs),[]);
                       op.ref^.index:=indexreg;
+{$ifdef x86_64}
+                      if framelesspara then
+                        op.ref^.base:=NR_STACK_POINTER_REG;
+{$endif x86_64}
 {$ifdef x86}
                       op.ref^.segment:=segment;
                       op.ref^.scalefactor:=scale;
