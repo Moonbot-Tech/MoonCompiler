@@ -625,6 +625,50 @@ def check_host_text(compiler: Path, root: Path, cwd: Path) -> str:
     return "Unicode host paths/env/macros, UTF-8 project/BOM response, ANSI source/config, frontend/backend and profiles OK"
 
 
+def check_long_ppu_paths(compiler: Path, root: Path, cwd: Path) -> str:
+    # A truncated name can either name a directory or silently overwrite a
+    # sibling PPU. Check the files themselves, then load them without sources.
+    for profile in ("DEBUG", "RELEASE"):
+        for length in (254, 262):
+            case = root / f"{profile}-{length}"
+            sources = case / "src"
+            sources.mkdir(parents=True)
+            units = case / "units"
+            padding = length - len(str(units)) - 1
+            if padding < 1:
+                fail(f"temporary path is too long for the PPU boundary probe: {case}")
+            while padding > 180:
+                units /= "p" * 179
+                padding -= 180
+            units /= "p" * padding
+            units.mkdir(parents=True)
+            assert len(str(units)) == length
+            for name, value in (("firstppu", 117), ("secondppu", 218)):
+                write_unit(sources / f"{name}.pas", name, f"const {name}_value = {value};")
+            program = write_program(case / "app" / "ppupath.dpr", "firstppu, secondppu",
+                                    "'PPU_PATH_OK=', firstppu_value + secondppu_value")
+            options = [f"-FU{units}", f"-Fu{units}", *(["-dRELEASE"] if profile == "RELEASE" else [])]
+            _, output = run_program(compiler, program, ["-B", f"-Fu{sources}", *options], cwd)
+            if output != "PPU_PATH_OK=335":
+                fail(f"long PPU path cold {profile}/{length}: {output}")
+            snapshots = {}
+            for name in ("firstppu", "secondppu"):
+                ppu = units / f"{name}.ppu"
+                if not ppu.is_file() or not (units / f"{name}.o").is_file():
+                    fail(f"full PPU/object output is missing: {ppu}")
+                snapshots[ppu] = (ppu.read_bytes(), ppu.stat().st_mtime_ns)
+                (sources / f"{name}.pas").rename(sources / f"{name}.hidden")
+            if snapshots[units / "firstppu.ppu"][0] == snapshots[units / "secondppu.ppu"][0]:
+                fail("different units produced identical PPUs")
+            _, output = run_program(compiler, program, options, cwd)
+            if output != "PPU_PATH_OK=335":
+                fail(f"long PPU path warm {profile}/{length}: {output}")
+            for ppu, before in snapshots.items():
+                if (ppu.read_bytes(), ppu.stat().st_mtime_ns) != before:
+                    fail(f"warm compile changed the source-free PPU: {ppu}")
+    return "long PPU paths preserve distinct units and reload without sources, both profiles OK"
+
+
 def check_source_input_paths(compiler: Path, root: Path, cwd: Path) -> str:
     frontend = compiler.with_name("fpc.exe" if os.name == "nt" else "fpc")
     for profile in ("DEBUG", "RELEASE"):
@@ -1013,6 +1057,7 @@ def main() -> int:
         check_recursive_trees(linked_compiler, tmp / "trees", other_cwd, results)
         results.append(check_internal_linker_paths(linked_compiler, tmp / "linker", other_cwd))
         results.append(check_source_input_paths(linked_compiler, tmp / "input", other_cwd))
+        results.append(check_long_ppu_paths(linked_compiler, tmp / "ppu", other_cwd))
         results.append(check_host_text(linked_compiler, tmp / "host-text", other_cwd))
         from static_linux_gate import check as check_static_linux
         results.append(check_static_linux(linked_compiler, tmp / "static", other_cwd))

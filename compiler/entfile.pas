@@ -252,7 +252,7 @@ type
 {$endif CHECK_INPUTPOINTER_LIMITS}
     mode     : byte; {0 - Closed, 1 - Reading, 2 - Writing}
     fisfile  : boolean;
-    fname    : string;
+    fname    : TPathStr;
     fsize    : integer;
     procedure newheader;virtual;abstract;
     function readheader:longint;virtual;abstract;
@@ -269,7 +269,7 @@ type
     has_more,
 {$endif not generic_cpu}
     error         : boolean;
-    constructor create(const fn:string
+    constructor create(const fn:TPathStr
 {$ifdef CHECK_INPUTPOINTER_LIMITS}
         ;aentryfilebufsize : longint = default_entryfilebufsize
 {$endif CHECK_INPUTPOINTER_LIMITS}
@@ -386,7 +386,7 @@ begin
 end;
 
 
-constructor tentryfile.create(const fn:string
+constructor tentryfile.create(const fn:TPathStr
 {$ifdef CHECK_INPUTPOINTER_LIMITS}
         ;aentryfilebufsize : longint = default_entryfilebufsize
 {$endif CHECK_INPUTPOINTER_LIMITS}

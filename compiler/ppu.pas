@@ -164,7 +164,7 @@ type
     do_interface_crc,
     do_indirect_crc  : boolean;
     crc_only         : boolean;    { used to calculate interface_crc before implementation }
-    constructor Create(const fn:string);
+    constructor Create(const fn:TPathStr);
     destructor destroy;override;
     function  CheckPPUId:boolean;
   {read}
@@ -214,7 +214,7 @@ end;
                                   TPPUFile
 *****************************************************************************}
 
-constructor tppufile.Create(const fn:string);
+constructor tppufile.Create(const fn:TPathStr);
 begin
   inherited Create(fn);
   crc_only:=false;
