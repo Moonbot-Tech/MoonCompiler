@@ -10,6 +10,16 @@ program pulse_rtl_collections;
 
 {$Q-}{$R-}
 
+{$ifndef FPC}
+  {$define PULSE_SIGNED_HASH}
+{$else}
+  {$ifdef MOONCOMPILER_FULLVERSION}
+    {$if MOONCOMPILER_FULLVERSION >= 20300}
+      {$define PULSE_SIGNED_HASH}
+    {$endif}
+  {$endif}
+{$endif}
+
 uses
   {$if defined(FPC) and not defined(PULSE_DEFAULT_MM)}
   mormot.core.fpcx64mm,
@@ -39,7 +49,7 @@ type
   public
     function Equals(const Left, Right: Integer): Boolean; reintroduce;
     function GetHashCode(const Value: Integer):
-      {$ifdef FPC}UInt32{$else}Integer{$endif}; reintroduce;
+      {$ifdef PULSE_SIGNED_HASH}Integer{$else}UInt32{$endif}; reintroduce;
   end;
 
   TPulseObject = class
@@ -68,7 +78,7 @@ begin
 end;
 
 function TConstantHashComparer.GetHashCode(const Value: Integer):
-  {$ifdef FPC}UInt32{$else}Integer{$endif};
+  {$ifdef PULSE_SIGNED_HASH}Integer{$else}UInt32{$endif};
 begin
   Result := 1;
 end;
