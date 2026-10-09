@@ -831,6 +831,17 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
         datadef   : tdef;
         datatcb   : ttai_typedconstbuilder;
       begin
+        { A cast of a literal character string still denotes static storage,
+          just as an uncast literal assigned to the same character pointer. }
+        if (node.nodetype=typeconvn) and equal_defs(def,node.resultdef) and
+           (is_char(def.pointeddef) or is_widechar(def.pointeddef)) and
+           (ttypeconvnode(node).left.nodetype=stringconstn) then
+          begin
+            hp:=ttypeconvnode(node).left;
+            ttypeconvnode(node).left:=nil;
+            node.free;
+            node:=hp;
+          end;
         { remove equal typecasts for pointer/nil addresses }
         if (node.nodetype=typeconvn) then
           with Ttypeconvnode(node) do
