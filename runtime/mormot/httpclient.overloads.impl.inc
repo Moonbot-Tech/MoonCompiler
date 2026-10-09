@@ -106,7 +106,7 @@ type
 function THTTPAsyncResult.Response: IHTTPResponse;
 begin
   If not Supports(AwaitResponse, IHTTPResponse, Result) then
-    raise ENetHTTPResponseException.Create('Expected an HTTP response');
+    raise ENetHTTPResponseException.CreateFailure('Expected an HTTP response', TNetFailureReason.InvalidParameter);
 end;
 
 function THTTPAsyncResult.GetStatusCode: Integer;
@@ -206,7 +206,7 @@ begin
   FSocketGuard.Acquire;
   try
     If FActiveRequest <> nil then
-      raise ENetHTTPClientException.Create('Use BeginExecute for concurrent requests on one client');
+      raise ENetHTTPClientException.CreateFailure('Use BeginExecute for concurrent requests on one client', TNetFailureReason.InvalidParameter);
     FActiveRequest := Request;
     FAbortRequested := Request.IsCancelled;
     FConnectionExpired := False;
@@ -244,7 +244,7 @@ var
 begin
   Response := inherited Execute(Method, URL, Source, Content, Headers);
   If not Supports(Response, IHTTPResponse, Result) then
-    raise ENetHTTPResponseException.Create('Expected an HTTP response');
+    raise ENetHTTPResponseException.CreateFailure('Expected an HTTP response', TNetFailureReason.InvalidParameter);
 end;
 
 function THTTPClient.Execute(const Method: string; const URI: System.Net.URLClient.TURI;
@@ -374,18 +374,18 @@ begin
   except
     on E: ENetURIRequestException do
       If (AAsyncResult <> nil) and AAsyncResult.IsCancelled then
-        raise ENetHTTPClientException.Create(E.Message)
+        raise ENetHTTPClientException.CreateFailure(E.Message, E.Reason, E.Outcome, E.NativeError)
       else
         raise;
   end;
   If not Supports(Response, IHTTPResponse, Result) then
-    raise ENetHTTPResponseException.Create('Async result is not an HTTP response');
+    raise ENetHTTPResponseException.CreateFailure('Async result is not an HTTP response', TNetFailureReason.InvalidParameter);
 end;
 
 class function THTTPClient.EndAsyncHTTP(const AResponse: IHTTPResponse): IHTTPResponse;
 begin
   If AResponse = nil then
-    raise ENetHTTPResponseException.Create('Response cannot be nil');
+    raise ENetHTTPResponseException.CreateFailure('Response cannot be nil', TNetFailureReason.InvalidParameter);
   AResponse.GetHeaders;
   Result := AResponse;
 end;

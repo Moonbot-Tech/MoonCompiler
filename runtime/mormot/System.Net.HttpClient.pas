@@ -158,7 +158,7 @@ type
     FAbortRequested: Boolean;
     FConnectionDeadline: UInt64;
     FConnectionExpired: Boolean;
-    procedure CheckRequest;
+    procedure CheckRequest(Outcome: TNetRequestOutcome = TNetRequestOutcome.NotSent);
     function GetAccept: string;
     procedure SetAccept(const AValue: string);
     function GetAcceptLanguage: string;
@@ -222,9 +222,11 @@ implementation
 
 uses
   System.ZLib, DateUtils, System.NetEncoding,
+  {$ifdef WINDOWS}WinSock2,{$else}Sockets, BaseUnix,{$endif}
   mormot.core.datetime,
   mormot.core.base,
   mormot.core.buffers,
+  mormot.core.text,
   mormot.core.os,
   mormot.core.unicode,
   mormot.lib.openssl11,
@@ -529,6 +531,9 @@ type
     FPlainProxy: Boolean;
     FCancelGuard: TCriticalSection;
     FCancelSocket: TNetSocket;
+    FResponseReceived: Boolean;
+    class function ReadText(var Buffer: TTextRec): Integer; static;
+    procedure ReadCloseDelimitedBody(Destination: TStream);
   protected
     { mORMot always sends User-Agent; the contract sends none when the
       client's UserAgent is '' }
@@ -537,6 +542,9 @@ type
     { the wait for the response line uses TCrtSocket.TimeOut, which only the
       constructor sets: the response timeout of the client goes here }
     procedure ApplyTimeouts(SendMs, ResponseMs: Integer);
+    function CanReuse: Boolean;
+    function FailureReason(E: Exception): TNetFailureReason;
+    procedure RequestInternal(var Context: THttpClientRequest); override;
     procedure Abort; override;
     procedure Close; override;
     procedure ConnectCancelable(const URI: TUri; const Options: THttpRequestExtendedOptions; Client: THTTPClient);
@@ -549,6 +557,31 @@ begin
   else
     Result := Server;
 end;
+
+function NetFailureReason(Code: TNetResult): TNetFailureReason;
+begin
+  case Code of
+    nrNotFound: Result := TNetFailureReason.DNS;
+    nrClosed: Result := TNetFailureReason.ConnectionClosed;
+    nrRefused: Result := TNetFailureReason.ConnectionRefused;
+    nrTimeout: Result := TNetFailureReason.Timeout;
+    nrInvalidParameter: Result := TNetFailureReason.InvalidParameter;
+  else
+    Result := TNetFailureReason.Connection;
+  end;
+end;
+
+function ExceptionFailureReason(E: Exception): TNetFailureReason;
+begin
+  If E is ENetException then
+    Result := ENetException(E).Reason
+  else If E is ENetSock then
+    Result := NetFailureReason(ENetSock(E).LastError)
+  else
+    Result := TNetFailureReason.Unknown;
+end;
+
+function IsCertificateFailure(E: Exception; const TLS: TNetTlsContext): Boolean; forward;
 
 {$i httpclient.connect.inc}
 
@@ -587,6 +620,53 @@ begin
     ReceiveTimeout := ResponseMs;
   end;
 end;
+
+function TMoonHttpSocket.CanReuse: Boolean;
+var
+  Socket: TNetSocket;
+  Events: TNetEvents;
+  Count: Integer;
+  Value: Byte;
+  Code: TNetResult;
+begin
+  Result := False;
+  If Aborted or not SockIsDefined then
+    Exit;
+  If (SockIn <> nil) and (TTextRec(SockIn^).BufPos <> TTextRec(SockIn^).BufEnd) then
+    Exit;
+  If (fSecure <> nil) and (fSecure.ReceivePending <> 0) then
+    Exit;
+  Socket := fSock;
+  Events := Socket.WaitFor(0, [neRead, neError]);
+  If Events * [neError, neClosed] <> [] then
+    Exit;
+  If not (neRead in Events) then
+    Exit(True);
+  { Read through TLS, so tickets/key updates are not mistaken for EOF. The
+    descriptor must be nonblocking: a readable partial TLS record is not a
+    complete record, regardless of the high-level socket timeout. }
+  If Socket.MakeAsync <> nrOK then
+    Exit;
+  try
+    try
+      Count := 1;
+      If fSecure <> nil then
+        Code := fSecure.Receive(@Value, Count)
+      else
+        Code := Socket.Recv(@Value, Count);
+      Result := (Code = nrRetry) and not Aborted;
+      If Result and (fSecure <> nil) then
+        Result := fSecure.ReceivePending = 0;
+    except
+      Result := False;
+    end;
+  finally
+    If Socket.MakeBlocking <> nrOK then
+      Result := False;
+  end;
+end;
+
+{$i httpclient.exchange.inc}
 
 { ---------------------------------------------------------------------
   streams
@@ -658,7 +738,7 @@ begin
     FLastReported := FPosition;
     If Stop then begin
       FClient.Abort;
-      raise ENetHTTPClientException.Create('Upload was cancelled');
+      raise ENetHTTPClientException.CreateFailure('Upload was cancelled', TNetFailureReason.Cancelled, TNetRequestOutcome.Unknown);
     end;
   end;
   If (FClient <> nil) and (Count > 65536) then
@@ -1017,7 +1097,8 @@ begin
     If (not GZip) and (WindowBits = 15) and (Code = Z_DATA_ERROR) then
       WindowBits := -15                 { raw deflate on the second attempt }
     else
-      raise ENetHTTPResponseException.Create('Cannot decode the compressed body (' + IntToStr(Code) + ')');
+      raise ENetHTTPResponseException.CreateFailure('Cannot decode the compressed body (' + IntToStr(Code) + ')',
+        TNetFailureReason.Protocol, TNetRequestOutcome.ResponseReceived);
   until False;
 end;
 
@@ -1025,7 +1106,8 @@ procedure DecodeBody(Source, Dest: TStream; SourceEnd: Int64; const Coding: stri
 begin
   If SameText(Coding, 'br') then begin
     If not Assigned(BrotliDecoder) then
-      raise ENetHTTPResponseException.Create(BrotliModuleRequired);
+      raise ENetHTTPResponseException.CreateFailure(BrotliModuleRequired, TNetFailureReason.InvalidParameter,
+        TNetRequestOutcome.ResponseReceived);
     BrotliDecoder(Source, Dest, SourceEnd - Source.Position);
   end else
     InflateBody(Source, Dest, SourceEnd, SameText(Coding, 'gzip'));
@@ -1305,6 +1387,7 @@ var
     Options.RedirectMax := 0;
     Options.UserAgent := StringToUtf8(UserAgent);
     Options.TLS.IgnoreCertificateErrors := IgnoreCertificate;
+    Options.TLS.HostNamesCsv := URI.Server;
     FSocketGuard.Acquire;
     try
       Result := TMoonHttpSocket.Create(FConnectionTimeout);
@@ -1346,6 +1429,8 @@ var
     finally
       FSocketGuard.Release;
     end;
+    If (Result <> nil) and not Result.CanReuse then
+      Result := nil;
     Reused := Result <> nil;
     If Result = nil then begin
       CloseSocket;
@@ -1354,13 +1439,13 @@ var
       except
         on E: Exception do begin
           CheckRequest;
-          If not (URI.Https and IsCertificateFailure(E, TLS)) then begin
+          If not (E is ENetHTTPCertificateException) then begin
             If E is ENetHTTPClientException then
               raise;
-            raise ENetHTTPClientException.Create('HTTP connection failed (' + TransportErrorKind(E) + ')');
+            raise ENetHTTPClientException.CreateFailure('HTTP connection failed (' + TransportErrorKind(E) + ')', ExceptionFailureReason(E));
           end;
           If not Assigned(FOnValidateServerCertificate) then
-            raise ENetHTTPCertificateException.Create('Server certificate was not accepted');
+            raise;
           { a second connection, this time ignoring the verification, gives
             the handler the certificate; when it accepts, that connection
             serves the request }
@@ -1371,7 +1456,7 @@ var
               CheckRequest;
               If E2 is ENetHTTPClientException then
                 raise;
-              raise ENetHTTPClientException.Create('HTTP connection failed (' + TransportErrorKind(E2) + ')');
+              raise ENetHTTPClientException.CreateFailure('HTTP connection failed (' + TransportErrorKind(E2) + ')', ExceptionFailureReason(E2));
             end;
           end;
           try
@@ -1381,7 +1466,7 @@ var
             try
               FOnValidateServerCertificate(Self, Request, Certificate, Accepted);
               If not Accepted then
-                raise ENetHTTPCertificateException.Create('Server certificate was not accepted');
+                raise ENetHTTPCertificateException.CreateFailure('Server certificate was not accepted', TNetFailureReason.TLS);
             finally
               FreeAndNil(Request);
             end;
@@ -1550,13 +1635,34 @@ var
     end;
   end;
 
-  procedure FailTransport(const What: string; ClientSide: Boolean);
+  function RetryConnection(Reason: TNetFailureReason): Boolean;
   begin
+    Result := Reused and not Retried and not Socket.FResponseReceived and
+      (Reason in [TNetFailureReason.ConnectionClosed, TNetFailureReason.Connection,
+        TNetFailureReason.ConnectionRefused]) and
+      ((Method = 'GET') or (Method = 'HEAD') or (Method = 'PUT') or (Method = 'DELETE'));
+    If Result then begin
+      CheckRequest(TNetRequestOutcome.Unknown);
+      CloseSocket;
+      Retried := True;
+      RewindOutput;
+    end;
+  end;
+
+  procedure FailTransport(const What: string; ClientSide: Boolean; Reason: TNetFailureReason);
+  var
+    Outcome: TNetRequestOutcome;
+  begin
+    If Socket.FResponseReceived then
+      Outcome := TNetRequestOutcome.ResponseReceived
+    else
+      Outcome := TNetRequestOutcome.Unknown;
+    CheckRequest(Outcome);
     CloseSocket;
     If ClientSide then
-      raise ENetHTTPClientException.Create(What)
+      raise ENetHTTPClientException.CreateFailure(What, Reason, Outcome)
     else
-      raise ENetHTTPResponseException.Create(What);
+      raise ENetHTTPResponseException.CreateFailure(What, Reason, Outcome);
   end;
 
 var
@@ -1570,13 +1676,13 @@ begin
   ProxyCredential := FActiveRequest.Credential;
   If not ProxyCredential.IsEmpty and (ProxyCredential.AuthTarget = TAuthTargetType.Proxy) then begin
     If Proxy.Host = '' then
-      raise ENetHTTPClientException.Create('Proxy credentials require a configured HTTP proxy');
+      raise ENetHTTPClientException.CreateFailure('Proxy credentials require a configured HTTP proxy', TNetFailureReason.InvalidParameter);
     BasicAuthorization(ProxyCredential.UserName, ProxyCredential.Password);
     Proxy.UserName := ProxyCredential.UserName;
     Proxy.Password := ProxyCredential.Password;
   end;
   If (THTTPCompressionMethod.Brotli in FAutomaticDecompression) and not Assigned(BrotliDecoder) then
-    raise ENetHTTPClientException.Create(BrotliModuleRequired);
+    raise ENetHTTPClientException.CreateFailure(BrotliModuleRequired, TNetFailureReason.InvalidParameter);
   Method := UpperCase(AMethod);
   URL := AURL;
   StartURL := AURL;
@@ -1619,14 +1725,14 @@ begin
       If I > 0 then
         SetLength(RequestURL, I - 1);
       If (Pos('://', RequestURL) = 0) or not URI.From(StringToUtf8(RequestURL)) or (URI.Server = '') then
-        raise ENetURIException.Create('Invalid request URI');
+        raise ENetURIException.CreateFailure('Invalid request URI', TNetFailureReason.InvalidParameter);
       If not (URI.Https or SameText(Utf8ToString(URI.Scheme), 'http')) then
-        raise ENetHTTPClientException.Create('Unsupported HTTP request scheme');
+        raise ENetHTTPClientException.CreateFailure('Unsupported HTTP request scheme', TNetFailureReason.InvalidParameter);
       CheckRequest;
       Socket := EnsureSocket(URI, Reused);
       If FAbortRequested then begin
         CloseSocket;
-        raise ENetHTTPClientException.Create('HTTP request was cancelled');
+        raise ENetHTTPClientException.CreateFailure('HTTP request was cancelled', TNetFailureReason.Cancelled);
       end;
       RequestHeaders := MergedHeaders;
       I := HeaderIndex(RequestHeaders, 'Accept');
@@ -1672,40 +1778,21 @@ begin
           Status := StrToIntDef(Copy(Utf8ToString(Socket.Http.CommandResp), 10, 3), HTTP_SUCCESS);
           Truncated := True;
         end;
-        on E: ENetSock do
-          FailTransport('HTTP transport failed (' + TransportErrorKind(E) + ')', Socket.Http.CommandResp = '');
+        on E: ENetSock do begin
+          If RetryConnection(Socket.FailureReason(E)) then
+            Continue;
+          FailTransport('HTTP response transport failed (' + TransportErrorKind(E) + ')', Socket.Http.CommandResp = '', Socket.FailureReason(E));
+        end;
         on E: EHttpSocket do
-          FailTransport('HTTP transport failed (' + TransportErrorKind(E) + ')', Socket.Http.CommandResp = '');
+          FailTransport('Invalid HTTP response (' + TransportErrorKind(E) + ')', Socket.Http.CommandResp = '', Socket.FailureReason(E));
         on E: ENetException do
           raise;
         on E: Exception do
-          FailTransport('HTTP request failed (' + TransportErrorKind(E) + ')', Socket.Http.CommandResp = '');
+          FailTransport('HTTP request failed (' + TransportErrorKind(E) + ')', Socket.Http.CommandResp = '', ExceptionFailureReason(E));
       end;
       If FAbortRequested then begin
-        CloseSocket;
-        raise ENetHTTPClientException.Create('HTTP request was cancelled');
+        FailTransport('HTTP request was cancelled', True, TNetFailureReason.Cancelled);
       end;
-      If Socket.Http.CommandResp = '' then begin
-        If Status = HTTP_TIMEOUT then
-          FailTransport(Format('Timeout after %d ms waiting for HTTP response', [FResponseTimeout]), True);
-        { An empty answer does not prove the server did not act on the
-          request. Only idempotent methods can be replayed (RFC 9110 9.2.2). }
-        If Reused and not Retried and
-           ((Method = 'GET') or (Method = 'HEAD') or (Method = 'PUT') or (Method = 'DELETE')) then begin
-          CloseSocket;
-          Retried := True;
-          RewindOutput;
-          Continue;
-        end;
-        FailTransport('No HTTP response', True);
-      end;
-      If Status = HTTP_CLIENTERROR then
-        FailTransport('Connection lost while receiving HTTP response', False);
-      { what came back must be an HTTP status line; anything else is a
-        connection out of step (a body longer than its Content-Length left
-        bytes behind) and is dropped with the connection }
-      If not IdemPChar(Pointer(Socket.Http.CommandResp), 'HTTP/') then
-        FailTransport('Invalid HTTP response status line', False);
       { a body the socket kept in memory: every body on the adoptable path,
         otherwise any status but 200/206 (those went to the stream) }
       If Socket.Http.Content <> '' then
@@ -1734,7 +1821,8 @@ begin
       If not Redirect then
         Break;
       If Hops >= FMaxRedirects then
-        raise ENetHTTPRequestException.CreateFmt('Too many HTTP redirects (%d)', [Hops]);
+        raise ENetHTTPRequestException.CreateFailure(Format('Too many HTTP redirects (%d)', [Hops]),
+          TNetFailureReason.Protocol, TNetRequestOutcome.ResponseReceived);
       Inc(Hops);
       RewindOutput;
       { RFC 9110: a POST redirected with 301/302/303 becomes a GET without

@@ -326,6 +326,31 @@ def main():
                 self.close_connection = True
             elif path == '/conn-after':
                 self.reply(200, b'c', [('X-Conn-Id', str(record['conn']))])
+            elif path == '/conn-race-warm':
+                self.race_warmed = True
+                self.reply(200, b'c', [('X-Conn-Id', str(record['conn']))])
+            elif path == '/conn-race':
+                # EOF after the reused GET arrived, beyond the idle probe.
+                # Its retry must use a fresh connection; POST/PATCH have their
+                # separate no-replay fixture below.
+                if getattr(self, 'race_warmed', False):
+                    self.close_connection = True
+                else:
+                    self.reply(200, b'c', [('X-Conn-Id', str(record['conn']))])
+            elif path in ('/chunk-cut-idle', '/chunk-cut-close'):
+                self.send_response(201)
+                self.send_header('Transfer-Encoding', 'chunked')
+                self.send_header('Connection', 'close')
+                self.end_headers()
+                self.wfile.write(b'5\r\nABCDE\r\n')  # no terminating zero chunk
+                self.wfile.flush()
+                if path == '/chunk-cut-idle':
+                    time.sleep(1.5)
+                self.close_connection = True
+            elif path == '/status-suffix':
+                self.wfile.write(b'HTTP/1.1 201xWrong\r\nContent-Length: 1\r\nConnection: close\r\n\r\nX')
+                self.wfile.flush()
+                self.close_connection = True
             elif path in ('/lie-long-idle', '/lie-long-close'):
                 # Content-Length promises 100 bytes, 50 arrive; then the server
                 # either keeps the connection idle or closes it
@@ -422,12 +447,27 @@ def main():
 
         do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = do_HEAD = handle_any
 
+    ca_key = root / 'packages/fcl-hash/tests/private-key.pem'
+    ca_certificate = out / 'test-ca.pem'
+    run([openssl_command(), 'req', '-x509', '-new', '-key', ca_key, '-out', ca_certificate,
+         '-days', '1', '-subj', '/CN=MoonCompiler test CA', '-addext', 'basicConstraints=critical,CA:TRUE',
+         '-addext', 'keyUsage=critical,keyCertSign,cRLSign'], out, out / 'test-ca.log')
+
     def make_certificate(name, subject_alt):
         key = root / 'packages/fcl-hash/tests/private-key.pem'
         certificate = out / f'{name}.pem'
-        run([openssl_command(), 'req', '-x509', '-new', '-key', key, '-out', certificate,
-             '-days', '1', '-subj', '/CN=localhost', '-addext', f'subjectAltName={subject_alt}'],
-            out, out / f'{name}.log')
+        csr = out / f'{name}.csr'
+        extensions = out / f'{name}.ext'
+        extensions.write_text('basicConstraints=critical,CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\n'
+                              f'extendedKeyUsage=serverAuth\nsubjectAltName={subject_alt}\n', encoding='ascii')
+        run([openssl_command(), 'req', '-new', '-key', key, '-out', csr, '-subj', '/CN=localhost'],
+            out, out / f'{name}-csr.log')
+        run([openssl_command(), 'x509', '-req', '-in', csr, '-CA', ca_certificate, '-CAkey', ca_key,
+             '-CAcreateserial', '-out', certificate, '-days', '1', '-extfile', extensions],
+            out, out / f'{name}-sign.log')
+        # This must succeed for BOTH leafs without a hostname check. Otherwise
+        # a trust failure could accidentally conceal missing hostname validation.
+        run([openssl_command(), 'verify', '-CAfile', ca_certificate, certificate], out, out / f'{name}-chain.log')
         return key, certificate
 
     class QuietServer(ThreadingHTTPServer):
@@ -505,7 +545,7 @@ def main():
                 env = dict(os.environ)
                 if trust == 'trusted':
                     # trust only this fixture, in this child process
-                    env['SSL_CERT_FILE'] = str(certificate)
+                    env['SSL_CERT_FILE'] = str(ca_certificate)
                 started = time.perf_counter()
                 try:
                     stdout = run([executable, f'http://127.0.0.1:{plain.server_port}',
@@ -537,7 +577,14 @@ def main():
                 # or too late is never sent a second time
                 for path in ('/slow-body', '/slow-headers', '/lie-long-idle', '/lie-long-close', '/lie-huge'):
                     assert len([r for r in observed if r['path'] == path]) == 1, (path, [r['path'] for r in observed])
-                assert len([r for r in observed if r['body'] == b'after-drop']) <= 1, 'the POST after a drop was replayed'
+                for path in ('/chunk-cut-idle', '/chunk-cut-close', '/status-suffix'):
+                    assert len([r for r in observed if r['path'] == path]) == 1, (path, [r['path'] for r in observed])
+                warm = [r for r in observed if r['path'] == '/conn-race-warm']
+                raced = [r for r in observed if r['path'] == '/conn-race']
+                assert len(warm) == 1 and len(raced) == 2, 'reused GET race was not retried exactly once'
+                assert raced[0]['conn'] == warm[0]['conn'], 'GET race did not exercise a reused connection'
+                assert raced[1]['conn'] != raced[0]['conn'], 'GET retry reused the broken connection'
+                assert len([r for r in observed if r['body'] == b'after-drop']) == 1, 'the POST after a drop was lost or replayed'
                 for request in observed:
                     if request['path'] == '/redirect/return-origin':
                         assert request['headers'].get('Authorization') is None

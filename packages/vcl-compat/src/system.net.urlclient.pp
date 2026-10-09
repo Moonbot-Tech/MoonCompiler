@@ -102,7 +102,29 @@ type
   TValidateCertificateEvent = procedure(const Sender: TObject; const ARequest: TURLRequest;
     const Certificate: TCertificate; var Accepted: Boolean) of object;
 
-  ENetException = class(Exception);
+  { Moon extension: stable transport diagnostics, independent of Message and OS.
+    Outcome describes delivery, not whether retrying the operation is safe. }
+  TNetFailureReason = (Unknown, DNS, TLS, Timeout, ConnectionRefused,
+    ConnectionClosed, Cancelled, InvalidParameter, Protocol, Connection);
+  TNetRequestOutcome = (Unknown, NotSent, ResponseReceived);
+
+  ENetException = class(Exception)
+  private
+    FReason: TNetFailureReason;
+    FOutcome: TNetRequestOutcome;
+    FNativeError: Integer;
+    function GetOutcomeCode: Integer;
+  public
+    constructor CreateFailure(const AMessage: string; AReason: TNetFailureReason;
+      AOutcome: TNetRequestOutcome = TNetRequestOutcome.NotSent; ANativeError: Integer = 0);
+    procedure AssignFailure(const Source: ENetException);
+    property Reason: TNetFailureReason read FReason;
+    property Outcome: TNetRequestOutcome read FOutcome;
+    property NativeError: Integer read FNativeError;
+    { 600 is a local unknown-outcome marker, never an HTTP server status.
+      Zero means this marker does not apply; inspect Outcome and Reason. }
+    property OutcomeCode: Integer read GetOutcomeCode;
+  end;
   ENetURIException = class(ENetException);
   ENetURIClientException = class(ENetException);
   ENetURIRequestException = class(ENetException);
@@ -111,6 +133,30 @@ type
 implementation
 
 uses URIParser, System.NetEncoding;
+
+constructor ENetException.CreateFailure(const AMessage: string; AReason: TNetFailureReason;
+  AOutcome: TNetRequestOutcome; ANativeError: Integer);
+begin
+  inherited Create(AMessage);
+  FReason := AReason;
+  FOutcome := AOutcome;
+  FNativeError := ANativeError;
+end;
+
+procedure ENetException.AssignFailure(const Source: ENetException);
+begin
+  FReason := Source.FReason;
+  FOutcome := Source.FOutcome;
+  FNativeError := Source.FNativeError;
+end;
+
+function ENetException.GetOutcomeCode: Integer;
+begin
+  If FOutcome = TNetRequestOutcome.Unknown then
+    Result := 600
+  else
+    Result := 0;
+end;
 
 {$i urlclient.impl.inc}
 

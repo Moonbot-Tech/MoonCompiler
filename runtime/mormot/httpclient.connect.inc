@@ -126,7 +126,7 @@ begin
     end;
   If AddressOnly then begin
     If Result.SetFrom(Host, Port, nlTcp) <> nrOK then
-      raise ENetHTTPClientException.Create('Invalid numeric socket address');
+      raise ENetHTTPClientException.CreateFailure('Invalid numeric socket address', TNetFailureReason.InvalidParameter);
     Exit;
   end;
   State := TResolveState.Create(Host, Port);
@@ -155,7 +155,7 @@ begin
       Client.CheckRequest;
     Client.CheckRequest;
     If State.Error <> nrOK then
-      raise ENetHTTPClientException.Create('Cannot resolve HTTP host');
+      raise ENetHTTPClientException.CreateFailure('Cannot resolve HTTP host', TNetFailureReason.DNS);
     Result := State.Address;
   finally
     State._Release;
@@ -199,15 +199,15 @@ begin
   end;
 end;
 
-procedure THTTPClient.CheckRequest;
+procedure THTTPClient.CheckRequest(Outcome: TNetRequestOutcome);
 begin
   FSocketGuard.Acquire;
   try
     If FConnectionExpired or ((FConnectionDeadline <> 0) and
       (SysUtils.GetTickCount64 >= FConnectionDeadline)) then
-      raise ENetHTTPClientException.Create('HTTP connection deadline expired');
+      raise ENetHTTPClientException.CreateFailure('HTTP connection deadline expired', TNetFailureReason.Timeout, Outcome);
     If FAbortRequested or ((FActiveRequest <> nil) and FActiveRequest.IsCancelled) then
-      raise ENetHTTPClientException.Create('HTTP request was cancelled');
+      raise ENetHTTPClientException.CreateFailure('HTTP request was cancelled', TNetFailureReason.Cancelled, Outcome);
   finally
     FSocketGuard.Release;
   end;
@@ -220,6 +220,10 @@ var
   Address: TNetAddr;
   Socket: TNetSocket;
   Code: TNetResult;
+  Events: TNetEvents;
+  NativeError: Integer;
+  ErrorSize: {$ifdef WINDOWS}Integer{$else}TSockLen{$endif};
+  Failure: TNetFailureReason;
   Line: RawUtf8;
   HeaderCount, ProxyStatus: Integer;
 begin
@@ -234,7 +238,7 @@ begin
   FPlainProxy := False;
   If Options.Proxy <> '' then begin
     If not Tunnel.From(Options.Proxy) or not SameText(Utf8ToString(Tunnel.Scheme), 'http') then
-      raise ENetHTTPClientException.Create('The socket transport requires an HTTP proxy');
+      raise ENetHTTPClientException.CreateFailure('The socket transport requires an HTTP proxy', TNetFailureReason.InvalidParameter);
     Target := Tunnel;
     FPlainProxy := not URI.Https;
     fProxyUrl := Options.Proxy;
@@ -243,7 +247,8 @@ begin
   Client.CheckRequest;
   Socket := Address.NewSocket(nlTcp);
   If Socket = nil then
-    raise ENetHTTPClientException.Create('Cannot create HTTP socket');
+    raise ENetHTTPClientException.CreateFailure('Cannot create HTTP socket', TNetFailureReason.Connection,
+      TNetRequestOutcome.NotSent, RawSocketErrNo);
   Client.FSocketGuard.Acquire;
   try
     fSock := Socket;
@@ -254,14 +259,38 @@ begin
   Client.CheckRequest;
   Code := Address.SocketConnect(Socket, -1);
   If Code <> nrOK then
-    raise ENetHTTPClientException.Create('Cannot start HTTP connection');
+    raise ENetHTTPClientException.CreateFailure('Cannot start HTTP connection', NetFailureReason(Code),
+      TNetRequestOutcome.NotSent, RawSocketErrNo);
   repeat
     Client.CheckRequest;
-    Code := NetEventsToNetResult(Socket.WaitFor(20, [neWrite, neError]));
-  until Code <> nrRetry;
+    Events := Socket.WaitFor(20, [neWrite, neError]);
+  until Events <> [];
   Client.CheckRequest;
-  If Code <> nrOK then
-    raise ENetHTTPClientException.Create('HTTP connection failed');
+  { Writable also signals a failed nonblocking connect. SO_ERROR is the
+    authoritative result and retains the native reason before any other call. }
+  NativeError := 0;
+  ErrorSize := SizeOf(NativeError);
+  {$ifdef WINDOWS}
+  If WinSock2.getsockopt(Socket.Socket, WinSock2.SOL_SOCKET, WinSock2.SO_ERROR,
+    Pointer(@NativeError), ErrorSize) <> 0 then
+    NativeError := RawSocketErrNo;
+  {$else}
+  If Sockets.fpGetSockOpt(Socket.Socket, Sockets.SOL_SOCKET, Sockets.SO_ERROR,
+    @NativeError, @ErrorSize) <> 0 then
+    NativeError := RawSocketErrNo;
+  {$endif}
+  If (NativeError <> 0) or (Events * [neError, neClosed] <> []) then begin
+    case NativeError of
+      {$ifdef WINDOWS}WSAECONNREFUSED{$else}ESysECONNREFUSED{$endif}:
+        Failure := TNetFailureReason.ConnectionRefused;
+      {$ifdef WINDOWS}WSAETIMEDOUT{$else}ESysETIMEDOUT{$endif}:
+        Failure := TNetFailureReason.Timeout;
+    else
+      Failure := TNetFailureReason.Connection;
+    end;
+    raise ENetHTTPClientException.CreateFailure('HTTP connection failed', Failure,
+      TNetRequestOutcome.NotSent, NativeError);
+  end;
   Socket.MakeBlocking;
   Socket.SetupConnection(nlTcp, Client.FConnectionTimeout, Client.FConnectionTimeout);
   Address.IP(fRemoteIP, True);
@@ -274,7 +303,7 @@ begin
     SockSendFlush(#13#10);
     SockRecvLn(Line);
     If Copy(Line, 1, 5) <> 'HTTP/' then
-      raise ENetHTTPClientException.Create('Invalid HTTP proxy response');
+      raise ENetHTTPClientException.CreateFailure('Invalid HTTP proxy response', TNetFailureReason.Protocol);
     ProxyStatus := StrToIntDef(string(Copy(Line, 10, 3)), 0);
     HeaderCount := 0;
     repeat
@@ -282,12 +311,23 @@ begin
       SockRecvLn(Line);
       Inc(HeaderCount);
       If HeaderCount > 1000 then
-        raise ENetHTTPClientException.Create('Too many HTTP proxy headers');
+        raise ENetHTTPClientException.CreateFailure('Too many HTTP proxy headers', TNetFailureReason.Protocol);
     until Line = '';
     If (ProxyStatus < 200) or (ProxyStatus >= 300) then
-      raise ENetHTTPClientException.CreateFmt('HTTP proxy rejected CONNECT (%d)', [ProxyStatus]);
+      raise ENetHTTPClientException.CreateFailure(Format('HTTP proxy rejected CONNECT (%d)', [ProxyStatus]), TNetFailureReason.Protocol);
   end;
   If URI.Https then
-    DoTlsAfter(cstaConnect);
+    try
+      DoTlsAfter(cstaConnect);
+    except
+      on E: Exception do begin
+        Client.CheckRequest;
+        If IsCertificateFailure(E, TLS) then
+          raise ENetHTTPCertificateException.CreateFailure('Server certificate was not accepted', TNetFailureReason.TLS);
+        If ExceptionFailureReason(E) = TNetFailureReason.Timeout then
+          raise ENetHTTPClientException.CreateFailure('TLS handshake timed out', TNetFailureReason.Timeout);
+        raise ENetHTTPClientException.CreateFailure('TLS handshake failed', TNetFailureReason.TLS);
+      end;
+    end;
   Client.CheckRequest;
 end;

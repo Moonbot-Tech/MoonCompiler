@@ -37,6 +37,16 @@ begin
   Result := R.ContentAsString;
 end;
 
+{$ifdef FPC}
+procedure CheckFailure(E: ENetException; Reason: TNetFailureReason; Outcome: TNetRequestOutcome);
+begin
+  Check(E.Reason = Reason, 'machine failure reason: ' + E.ClassName + ' ' + E.Message);
+  Check(E.Outcome = Outcome, 'request delivery outcome: ' + E.Message);
+  If Outcome = TNetRequestOutcome.Unknown then
+    Check(E.OutcomeCode = 600, 'local unknown-result code');
+end;
+{$endif}
+
 function HasLine(const Text, Line: string): Boolean;
 begin
   Result := Pos(#10 + Line + #10, #10 + StringReplace(Text, #13#10, #10, [rfReplaceAll]) + #10) > 0;
@@ -718,8 +728,8 @@ begin
         Ids := 'differ';
     end;
     Check((Ids <> '') and (Ids <> 'differ'), 'keep-alive: one connection for five requests');
-    { An idempotent GET can retry an idle connection; a POST without an
-      answer fails, because the client cannot prove it was not processed. }
+    { A connection already closed before the request is replaced for every
+      method. NoReplay separately proves the ambiguous, already-sent case. }
     R := C.Get(Base + '/conn-drop');
     Ids := R.HeaderValue['X-Conn-Id'];
     Sleep(100);
@@ -729,17 +739,14 @@ begin
     Sleep(100);
     S := TStringStream.Create('after-drop', TEncoding.UTF8);
     try
-      try
-        R := C.Post(Base + '/echo', S);
-        Check(False, 'POST automatically replayed after an empty answer');
-      except
-        on ENetHTTPClientException do ;
-      end;
+      R := C.Post(Base + '/echo', S);
+      Check((R.StatusCode = 200) and HasLine(Body(R), 'BODY=after-drop'),
+        'POST delivered after replacing a closed idle connection');
     finally
       S.Free;
     end;
     R := C.Get(Base + '/echo');
-    Check(R.StatusCode = 200, 'client usable after ambiguous POST failure');
+    Check(R.StatusCode = 200, 'client usable after replacing a closed idle connection');
   finally
     C.Free;
     P.Free;
@@ -762,8 +769,12 @@ begin
       R := C.Get(Base + '/slow-headers');
       Check(False, 'slow headers accepted');
     except
-      on E: ENetHTTPClientException do
+      on E: ENetHTTPClientException do begin
         Check(Pos('imeout', E.Message) > 0, 'response timeout message: ' + E.Message);
+        {$ifdef FPC}
+        CheckFailure(E, TNetFailureReason.Timeout, TNetRequestOutcome.Unknown);
+        {$endif}
+      end;
     end;
     Ms := Round(Abs(Now - Started) * MSecsPerDay);
     Check((Ms >= 300) and (Ms < 2500), 'response timeout elapsed: ' + IntToStr(Ms));
@@ -777,7 +788,9 @@ begin
       R := C.Get(Base + '/slow-body');
       Check(False, 'stalled body accepted');
     except
-      on ENetHTTPResponseException do ;
+      on E: ENetHTTPResponseException do begin
+        {$ifdef FPC}CheckFailure(E, TNetFailureReason.Timeout, TNetRequestOutcome.ResponseReceived);{$endif}
+      end;
       on E: Exception do
         Check(False, 'stalled body raised ' + E.ClassName + ': ' + E.Message);
     end;
@@ -786,16 +799,17 @@ begin
       wait ends with the response timeout, nothing truncated is handed out,
       the request is not repeated.  Too long with the server closing: an
       error at once, again no partial body, no repeat.  Too short: the body
-      is what the header says; the bytes beyond it are in front of the next
-      answer on that connection - that answer is refused as not HTTP and
-      the connection dropped; the request after it rides a new one. }
+      is what the header says. Surplus bytes must never become the next
+      answer: the client discards the dirty connection before sending. }
     C.ResponseTimeout := 400;
     Started := Now;
     try
       R := C.Get(Base + '/lie-long-idle');
       Check(False, 'Content-Length too long, server idle: accepted with ' + IntToStr(R.ContentStream.Size) + ' bytes');
     except
-      on ENetHTTPResponseException do ;
+      on E: ENetHTTPResponseException do begin
+        {$ifdef FPC}CheckFailure(E, TNetFailureReason.Timeout, TNetRequestOutcome.ResponseReceived);{$endif}
+      end;
       on E: Exception do
         Check(False, 'Content-Length too long, server idle, raised ' + E.ClassName + ': ' + E.Message);
     end;
@@ -806,7 +820,9 @@ begin
       R := C.Get(Base + '/lie-long-close');
       Check(False, 'Content-Length too long, server closed: accepted with ' + IntToStr(R.ContentStream.Size) + ' bytes');
     except
-      on ENetHTTPResponseException do ;
+      on E: ENetHTTPResponseException do begin
+        {$ifdef FPC}CheckFailure(E, TNetFailureReason.ConnectionClosed, TNetRequestOutcome.ResponseReceived);{$endif}
+      end;
       on E: Exception do
         Check(False, 'Content-Length too long, server closed, raised ' + E.ClassName + ': ' + E.Message);
     end;
@@ -814,14 +830,9 @@ begin
     Check(R.StatusCode = 200, 'usable after a lying Content-Length');
     R := C.Get(Base + '/lie-short');
     Check((R.StatusCode = 200) and (Body(R) = 'ABCDE'), 'Content-Length too short: the announced bytes: ' + Body(R));
-    try
-      R := C.Get(Base + '/echo');
-      Check(False, 'bytes beyond Content-Length taken for the next answer: ' + IntToStr(R.StatusCode));
-    except
-      on ENetHTTPResponseException do ;
-      on E: Exception do
-        Check(False, 'bytes beyond Content-Length raised ' + E.ClassName + ': ' + E.Message);
-    end;
+    R := C.Get(Base + '/echo');
+    Check((R.StatusCode = 200) and HasLine(Body(R), 'GET /echo'),
+      'surplus bytes discarded before requesting the next response');
     R := C.Get(Base + '/echo');
     Check((R.StatusCode = 200) and HasLine(Body(R), 'GET /echo'), 'usable after the out-of-step connection was dropped');
     { a Content-Length of 2 GB is refused before anything is allocated or
@@ -863,7 +874,11 @@ begin
       R := C.Get('ftp://127.0.0.1/x');
       Check(False, 'ftp accepted');
     except
-      on ENetHTTPClientException do ;
+      on E: ENetHTTPClientException do begin
+        {$ifdef FPC}
+        CheckFailure(E, TNetFailureReason.InvalidParameter, TNetRequestOutcome.NotSent);
+        {$endif}
+      end;
     end;
     Started := Now;
     try
@@ -945,15 +960,28 @@ begin
       R := THTTPClient.EndAsyncHTTP(A);
       Check(False, 'EndAsyncHTTP of a cancelled request returned');
     except
-      on ENetHTTPClientException do ;
+      on E: ENetHTTPClientException do begin
+        {$ifdef FPC}
+        Check(E.Reason = TNetFailureReason.Cancelled, 'async cancellation reason');
+        {$endif}
+      end;
     end;
-    { an error is rethrown by EndAsyncHTTP }
+    { Machine diagnostics survive repeated EndAsyncHTTP calls, including
+      after a caller changes its own copy of the error message. }
     A := C.BeginGet('http://127.0.0.1:' + RefusedPort + '/x');
-    try
-      R := THTTPClient.EndAsyncHTTP(A);
-      Check(False, 'EndAsyncHTTP returned for a refused connection');
-    except
-      on ENetHTTPClientException do ;
+    for I := 1 to 2 do begin
+      try
+        R := THTTPClient.EndAsyncHTTP(A);
+        Check(False, 'EndAsyncHTTP returned for a refused connection');
+      except
+        on E: ENetHTTPClientException do begin
+          {$ifdef FPC}
+          CheckFailure(E, TNetFailureReason.ConnectionRefused, TNetRequestOutcome.NotSent);
+          Check(E.NativeError <> 0, 'native connect error survives async');
+          {$endif}
+          E.Message := 'Changed by caller';
+        end;
+      end;
     end;
     { the synchronous client is untouched by the clones }
     R := C.Get(Base + '/echo');
@@ -1008,7 +1036,11 @@ begin
           R := C.Get(TlsOtherBase + '/echo');
           Check(False, 'certificate for another host accepted');
         except
-          on ENetHTTPCertificateException do ;
+          on E: ENetHTTPCertificateException do begin
+            {$ifdef FPC}
+            CheckFailure(E, TNetFailureReason.TLS, TNetRequestOutcome.NotSent);
+            {$endif}
+          end;
           on E: Exception do
             Check(False, 'other host raised ' + E.ClassName + ': ' + E.Message);
         end;
@@ -1017,7 +1049,11 @@ begin
         R := C.Get(TlsBase + '/echo');
         Check(False, 'untrusted certificate accepted');
       except
-        on ENetHTTPCertificateException do ;
+        on E: ENetHTTPCertificateException do begin
+          {$ifdef FPC}
+          CheckFailure(E, TNetFailureReason.TLS, TNetRequestOutcome.NotSent);
+          {$endif}
+        end;
         on E: Exception do
           Check(False, 'untrusted raised ' + E.ClassName + ': ' + E.Message);
       end;
@@ -1152,12 +1188,59 @@ begin
             R := C.Patch(Base + '/processed-noresponse', S);
           Check(False, 'empty response accepted for ' + Method);
         except
-          on ENetHTTPClientException do ;
+          on E: ENetHTTPClientException do begin
+            {$ifdef FPC}
+            CheckFailure(E, TNetFailureReason.ConnectionClosed, TNetRequestOutcome.Unknown);
+            {$endif}
+          end;
         end;
       finally
         S.Free;
       end;
     end;
+  finally
+    C.Free;
+  end;
+end;
+
+procedure FramingAndReuse;
+var
+  C: THTTPClient;
+  R: IHTTPResponse;
+  Connection, Path: string;
+begin
+  C := THTTPClient.Create;
+  try
+    C.ResponseTimeout := 400;
+    R := C.Get(Base + '/conn-race-warm');
+    Connection := R.HeaderValue['X-Conn-Id'];
+    R := C.Get(Base + '/conn-race');
+    Check((R.StatusCode = 200) and (R.HeaderValue['X-Conn-Id'] <> Connection),
+      'GET recovers when the reused connection closes before its response');
+    for Path in ['/chunk-cut-idle', '/chunk-cut-close'] do
+      try
+        R := C.Get(Base + Path);
+        Check(False, 'missing final chunk accepted: ' + Path);
+      except
+        on E: ENetException do begin
+          {$ifdef FPC}
+          If Path = '/chunk-cut-idle' then
+            CheckFailure(E, TNetFailureReason.Timeout, TNetRequestOutcome.ResponseReceived)
+          else
+            CheckFailure(E, TNetFailureReason.ConnectionClosed, TNetRequestOutcome.ResponseReceived);
+          {$endif}
+        end;
+      end;
+    try
+      R := C.Get(Base + '/status-suffix');
+      Check(False, 'HTTP status code without a following space accepted');
+    except
+      on E: ENetException do begin
+        {$ifdef FPC}CheckFailure(E, TNetFailureReason.Protocol, TNetRequestOutcome.Unknown);{$endif}
+      end;
+    end;
+    R := C.Get(Base + '/echo');
+    Check(R.StatusCode = 200, 'client recovers after incomplete framing');
   finally
     C.Free;
   end;
@@ -1209,6 +1292,7 @@ begin
   Compression;
   CompressionBoundaries;
   NoReplay;
+  FramingAndReuse;
   Forms;
   Cookies;
   Progress;

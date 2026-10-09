@@ -5,10 +5,10 @@ var
   Ch: Char;
 begin
   If Pos(':', UserName) <> 0 then
-    raise ENetHTTPClientException.Create('A Basic authentication user name cannot contain a colon');
+    raise ENetHTTPClientException.CreateFailure('A Basic authentication user name cannot contain a colon', TNetFailureReason.InvalidParameter);
   for Ch in UserName + Password do
     If (Ord(Ch) < 32) or (Ord(Ch) = 127) then
-      raise ENetHTTPClientException.Create('Basic authentication credentials contain a control character');
+      raise ENetHTTPClientException.CreateFailure('Basic authentication credentials contain a control character', TNetFailureReason.InvalidParameter);
   Result := 'Basic ' + TNetEncoding.Base64String.Encode(UserName + ':' + Password);
 end;
 

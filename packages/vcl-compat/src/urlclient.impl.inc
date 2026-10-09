@@ -7,10 +7,10 @@ begin
     Parsed := URIParser.ParseURI(AURIStr, False);
   except
     on EConvertError do
-      raise ENetURIException.Create('Invalid URI port');
+      raise ENetURIException.CreateFailure('Invalid URI port', TNetFailureReason.InvalidParameter);
   end;
   If Parsed.Protocol = '' then
-    raise ENetURIException.Create('A URI requires a scheme');
+    raise ENetURIException.CreateFailure('A URI requires a scheme', TNetFailureReason.InvalidParameter);
   FScheme := LowerCase(Parsed.Protocol);
   FHost := LowerCase(Parsed.Host);
   FUsername := URLDecode(Parsed.Username);
@@ -89,7 +89,7 @@ begin
     else
       Result := Result + FHost;
     If (FPort < 0) or (FPort > 65535) then
-      raise ENetURIException.Create('Invalid URI port');
+      raise ENetURIException.CreateFailure('Invalid URI port', TNetFailureReason.InvalidParameter);
     If (FPort <> 0) and not (((FScheme = 'http') and (FPort = 80)) or
       ((FScheme = 'https') and (FPort = 443))) then
       Result := Result + ':' + IntToStr(FPort);
@@ -245,7 +245,7 @@ end;
 class function TURI.PathRelativeToAbs(const RelPath: string; const Base: TURI): string;
 begin
   If not URIParser.ResolveRelativeURI(Base.ToString, RelPath, Result) then
-    raise ENetURIException.Create('Cannot resolve relative URI');
+    raise ENetURIException.CreateFailure('Cannot resolve relative URI', TNetFailureReason.InvalidParameter);
 end;
 
 class function TURI.FixupForREST(const AURL: string): string;
@@ -561,7 +561,7 @@ begin
     LeaveCriticalSection(URLSchemesLock);
   end;
   If Factory = nil then
-    raise ENetURIClientException.Create('No URL client registered for request scheme');
+    raise ENetURIClientException.CreateFailure('No URL client registered for request scheme', TNetFailureReason.InvalidParameter);
   Result := Factory.Create;
 end;
 
@@ -654,7 +654,7 @@ begin
   end else begin
     Transport := TransportFor(Scheme);
     If Transport.ClassType = TURLClient then
-      raise ENetURIClientException.Create('A scheme must register a transport subclass');
+      raise ENetURIClientException.CreateFailure('A scheme must register a transport subclass', TNetFailureReason.InvalidParameter);
     CopySettingsTo(Transport);
     Result := Transport.CloneClient(Scheme);
   end;
@@ -695,9 +695,9 @@ function TURLClient.Execute(const Request: IURLRequest; const Content: TStream;
   const Headers: TNetHeaders): IURLResponse;
 begin
   If Request = nil then
-    raise ENetURIRequestException.Create('Request cannot be nil');
+    raise ENetURIRequestException.CreateFailure('Request cannot be nil', TNetFailureReason.InvalidParameter);
   If Request.IsCancelled then
-    raise ENetURIRequestException.Create('Request was cancelled');
+    raise ENetURIRequestException.CreateFailure('Request was cancelled', TNetFailureReason.Cancelled);
   Result := DoExecute(Request, Content, Headers);
 end;
 
@@ -881,13 +881,21 @@ begin
 end;
 
 function TURLAsyncOperation.Await: IURLResponse;
+var
+  Error: Exception;
 begin
   If FDone.WaitFor <> Types.wrSignaled then
-    raise ENetURIResponseException.Create('Cannot wait for URL request');
+    raise ENetURIResponseException.CreateFailure('Cannot wait for URL request', TNetFailureReason.Unknown);
+  If FError <> nil then begin
+    { Await can be called repeatedly, including from the completion callback.
+      The operation keeps ownership of the original exception. }
+    Error := ExceptClass(FError.ClassType).Create(FError.Message);
+    If (FError is ENetException) and (Error is ENetException) then
+      ENetException(Error).AssignFailure(ENetException(FError));
+    raise Error;
+  end;
   If FCancelled or FRequest.IsCancelled then
-    raise ENetURIRequestException.Create('Request was cancelled');
-  If FError <> nil then
-    raise ExceptClass(FError.ClassType).Create(FError.Message);
+    raise ENetURIRequestException.CreateFailure('Request was cancelled', TNetFailureReason.Cancelled);
   Result := FResponse;
 end;
 
@@ -1058,7 +1066,7 @@ var
   Response: IURLResponse;
 begin
   If not Supports(AsyncResult, IURLResponse, Response) then
-    raise ENetURIResponseException.Create('Async result is not a URL response');
+    raise ENetURIResponseException.CreateFailure('Async result is not a URL response', TNetFailureReason.InvalidParameter);
   Response.GetHeaders;
   Result := Response;
 end;
@@ -1066,7 +1074,7 @@ end;
 class function TURLClient.EndAsyncURL(const AsyncResponse: IURLResponse): IURLResponse;
 begin
   If AsyncResponse = nil then
-    raise ENetURIResponseException.Create('Response cannot be nil');
+    raise ENetURIResponseException.CreateFailure('Response cannot be nil', TNetFailureReason.InvalidParameter);
   AsyncResponse.GetHeaders;
   Result := AsyncResponse;
 end;
