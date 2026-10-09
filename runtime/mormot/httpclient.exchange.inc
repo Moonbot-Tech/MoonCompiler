@@ -42,10 +42,6 @@ begin
     Exit;
   If not SockIsDefined then
     Exit(TNetFailureReason.ConnectionClosed);
-  If (fSockInEofError = WSAETIMEDOUT) or (fSockInEofError = -WSAETIMEDOUT) then
-    Exit(TNetFailureReason.Timeout);
-  If fSockInEofError <> 0 then
-    Exit(TNetFailureReason.Connection);
   If E is EHttpSocket then
     Result := TNetFailureReason.Protocol;
 end;
