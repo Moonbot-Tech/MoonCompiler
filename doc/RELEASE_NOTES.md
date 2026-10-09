@@ -23,8 +23,8 @@ desktop applications and long-running services.
   routines work across unit and external-class boundaries.
 - Incremental generic-unit compilation handles source/PPU dependency cycles and
   discards stale attribute and generated-helper state before reparsing a module.
-  PPU input and output paths retain their full names beyond 255 bytes, including
-  source-free reuse. Async lowering types its generated calls before optimizer analysis.
+  PPU and executable paths retain their full names beyond 255 bytes, including
+  source-free reuse and ELF postprocessing. Async lowering types its generated calls before optimizer analysis.
 - Queued main-thread work remains queued even before the first worker starts.
   Win64 `Classes` supplies object-method callbacks and hidden-window helpers;
   Unicode disk-space calls and `Math.Min/Max` retain their intended public types

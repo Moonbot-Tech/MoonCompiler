@@ -545,12 +545,14 @@ def check_long_utf8_names(compiler: Path, root: Path, cwd: Path) -> str:
                 "  WriteLn('UTF8_NAMES_OK');\nend.\n", encoding="utf-8")
             out = directory / "output"
             out.mkdir()
-            executable = out / "unicodeleaf.exe"
+            executable = out / ("\u044f" * 130 + ".exe")
             compiled = run_compiler(compiler, ["-B", *(["-dRELEASE"] if profile == "RELEASE" else []),
                                               f"-FU{out}", f"-o{executable}", str(source)], cwd=cwd)
             if f"{source.name}(3," not in compiled.stdout:
                 fail(f"diagnostic lost the full UTF-8 source name: {compiled.stdout}")
-            run = subprocess.run([str(executable)], capture_output=True, text=True)
+            runnable = out / "unicodeleaf.exe"
+            shutil.copyfile(executable, runnable)
+            run = subprocess.run([str(runnable)], capture_output=True, text=True)
             if run.returncode != 0 or run.stdout.strip() != "UTF8_NAMES_OK":
                 fail(f"long UTF-8 names {profile}/{reverse}: {run.stdout} {run.stderr}")
             if profile == "DEBUG" and not reverse:
@@ -631,8 +633,6 @@ def check_long_ppu_paths(compiler: Path, root: Path, cwd: Path) -> str:
     for profile in ("DEBUG", "RELEASE"):
         for length in (254, 262):
             case = root / f"{profile}-{length}"
-            sources = case / "src"
-            sources.mkdir(parents=True)
             units = case / "units"
             padding = length - len(str(units)) - 1
             if padding < 1:
@@ -643,6 +643,8 @@ def check_long_ppu_paths(compiler: Path, root: Path, cwd: Path) -> str:
             units /= "p" * padding
             units.mkdir(parents=True)
             assert len(str(units)) == length
+            sources = units / "src"
+            sources.mkdir()
             for name, value in (("firstppu", 117), ("secondppu", 218)):
                 write_unit(sources / f"{name}.pas", name, f"const {name}_value = {value};")
             program = write_program(case / "app" / "ppupath.dpr", "firstppu, secondppu",
@@ -651,6 +653,10 @@ def check_long_ppu_paths(compiler: Path, root: Path, cwd: Path) -> str:
             _, output = run_program(compiler, program, ["-B", f"-Fu{sources}", *options], cwd)
             if output != "PPU_PATH_OK=335":
                 fail(f"long PPU path cold {profile}/{length}: {output}")
+            for rebuild in ([], ["-B"]):
+                _, output = run_program(compiler, program, [*rebuild, *options, f"-Fu{sources}"], cwd)
+                if output != "PPU_PATH_OK=335":
+                    fail(f"long source reload {profile}/{length}/{rebuild}: {output}")
             snapshots = {}
             for name in ("firstppu", "secondppu"):
                 ppu = units / f"{name}.ppu"
@@ -666,7 +672,16 @@ def check_long_ppu_paths(compiler: Path, root: Path, cwd: Path) -> str:
             for ppu, before in snapshots.items():
                 if (ppu.read_bytes(), ppu.stat().st_mtime_ns) != before:
                     fail(f"warm compile changed the source-free PPU: {ppu}")
-    return "long PPU paths preserve distinct units and reload without sources, both profiles OK"
+            image = units / program.with_suffix(".exe" if os.name == "nt" else "").name
+            run_compiler(compiler, [*options, f"-o{image}", str(program)], cwd=cwd)
+            # Windows CreateProcess cannot launch the long path. Execute the
+            # same output bytes from the short application directory on both OSes.
+            runnable = program.with_suffix(image.suffix)
+            shutil.copyfile(image, runnable)
+            executed = subprocess.run([str(runnable)], text=True, capture_output=True)
+            if executed.returncode or executed.stdout.strip() != "PPU_PATH_OK=335":
+                fail(f"long executable path {profile}/{length}: {executed.stdout} {executed.stderr}")
+    return "long PPU/executable paths preserve distinct units and source-free reuse, both profiles OK"
 
 
 def check_source_input_paths(compiler: Path, root: Path, cwd: Path) -> str:
@@ -734,6 +749,9 @@ def check_source_input_paths(compiler: Path, root: Path, cwd: Path) -> str:
                     options += [f"@{response}"]
                 options += [str(source)]
                 run_compiler(executable, options, cwd=cwd)
+                if entry == "default-output":
+                    run_compiler(executable, [arg for arg in options if arg != "-B"], cwd=cwd)
+                    run_compiler(executable, options, cwd=cwd)
                 image = (directory if entry == "default-output" else target) / ("inputprobe.exe" if os.name == "nt" else "inputprobe")
                 if entry == "default-output":
                     object_path = directory / "units" / TARGET / profile.lower() / "inputprobe.o"

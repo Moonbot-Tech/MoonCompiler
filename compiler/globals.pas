@@ -324,7 +324,7 @@ Const
          directory differs from the process cwd }
        forcefullpaths    : boolean;
        { specified outputfile with -o parameter }
-       outputfilename    : string;
+       outputfilename    : TPathStr;
        outputprefix      : pshortstring;
        outputsuffix      : pshortstring;
        { selected subtarget }

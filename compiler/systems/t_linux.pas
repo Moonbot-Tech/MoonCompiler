@@ -27,7 +27,7 @@ unit t_linux;
 interface
 
   uses
-    aasmdata,
+    aasmdata,globtype,
     symsym,
     import,export,expunix,link;
 
@@ -49,7 +49,7 @@ interface
       reorder : boolean;
       linklibc: boolean;
       Function  WriteResponseFile(isdll:boolean) : Boolean;
-      function postprocessexecutable(const fn: string; isdll: boolean): boolean;
+      function postprocessexecutable(const fn: TPathStr; isdll: boolean): boolean;
     public
       constructor Create;override;
       procedure SetDefaultInfo;override;
@@ -78,7 +78,7 @@ implementation
   uses
     SysUtils,
     cutils,cfileutl,cclasses,
-    verbose,systems,globtype,globals,symtable,
+    verbose,systems,globals,symtable,
     cscript,
     fmodule,
     aasmbase,aasmtai,aasmcpu,cpubase,
@@ -1171,7 +1171,7 @@ begin
 end;
 
 
-function TLinkerLinux.postprocessexecutable(const fn : string;isdll:boolean):boolean;
+function TLinkerLinux.postprocessexecutable(const fn : TPathStr;isdll:boolean):boolean;
   begin
     Result:=PostProcessELFExecutable(fn,isdll);
   end;

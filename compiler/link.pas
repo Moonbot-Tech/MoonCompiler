@@ -97,8 +97,8 @@ interface
 
          Function UniqueName(const str:TCmdStr): TCmdStr;
 
-         function PostProcessELFExecutable(const fn: string; isdll: boolean): boolean;
-         function PostProcessMachExecutable(const fn: string; isdll: boolean): boolean;
+         function PostProcessELFExecutable(const fn: TPathStr; isdll: boolean): boolean;
+         function PostProcessMachExecutable(const fn: TPathStr; isdll: boolean): boolean;
        end;
 
       TBooleanArray = array [1..100000] of boolean;
@@ -1133,7 +1133,7 @@ Implementation
       end;
 
 
-    function TExternalLinker.PostProcessELFExecutable(const fn : string;isdll:boolean):boolean;
+    function TExternalLinker.PostProcessELFExecutable(const fn : TPathStr;isdll:boolean):boolean;
       type
         TElf32header=packed record
           magic0123         : array[0..3] of char;
@@ -1427,7 +1427,7 @@ Implementation
       end;
 
 
-    function TExternalLinker.PostProcessMachExecutable(const fn : string;isdll:boolean):boolean;
+    function TExternalLinker.PostProcessMachExecutable(const fn : TPathStr;isdll:boolean):boolean;
       type
         TMachHeader=record
           magic       : longword;

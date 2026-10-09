@@ -1286,8 +1286,8 @@ var
 
     procedure tppumodule.readsourcefiles;
       var
-        temp,hs       : string;
-        inc_path      : string;
+        temp          : string;
+        hs,inc_path   : TPathStr;
         temp_dir      : TCmdStr;
         main_dir      : TCmdStr;
         found,

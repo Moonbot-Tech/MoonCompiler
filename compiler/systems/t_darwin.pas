@@ -68,7 +68,7 @@ implementation
       function  MakeSharedLibrary:boolean;override;
       procedure LoadPredefinedLibraryOrder; override;
       procedure InitSysInitUnitName; override;
-      function postprocessexecutable(const fn : string;isdll:boolean):boolean;
+      function postprocessexecutable(const fn : TPathStr;isdll:boolean):boolean;
     end;
 
 {*****************************************************************************
@@ -751,7 +751,7 @@ implementation
     end;
 
 
-  function TLinkerDarwin.postprocessexecutable(const fn : string;isdll:boolean):boolean;
+  function TLinkerDarwin.postprocessexecutable(const fn : TPathStr;isdll:boolean):boolean;
     begin
       Result:=PostProcessMachExecutable(fn,isdll);
     end;

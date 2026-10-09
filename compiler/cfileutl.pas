@@ -1346,7 +1346,9 @@ end;
          else
           begin
             currPath:=FixPath(ExpandFileName(currpath),false);
-            if (not forcefullpaths) and
+            { Extended Windows paths must keep their absolute prefix; a
+              relative spelling loses access beyond the Win32 path limit. }
+            if (not forcefullpaths) and (Copy(currPath,1,4)<>'\\?\') and
                (CurrentDir<>'') and (Copy(currPath,1,length(CurrentDir))=CurrentDir) then
              begin
 {$ifdef hasamiga}

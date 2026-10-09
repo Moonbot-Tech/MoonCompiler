@@ -3614,7 +3614,7 @@ end;
 procedure TOption.Interpret_O_l(opt, more: TCmdStr);
 
 var
-  D : String;
+  D : TPathStr;
 
 begin
   if More<>'' then
