@@ -3412,6 +3412,36 @@ implementation
                      inc(hp^.ordinal_distance_secondary);
                  end
               else
+              { In Delphi, an integer conversion that cannot preserve the
+                source range competes with conversion to real. Preserve the
+                range distance as a tie-break rather than preferring a
+                narrowing ordinal conversion to every real overload. }
+               if assigned(currpara) and
+                  not(currpara.varspez in [vs_var,vs_out]) and
+                  (m_delphi in current_settings.modeswitches) and
+                  is_integer(def_from) and is_integer(def_to) then
+                 begin
+                   eq:=te_convert_l4;
+                   if torddef(def_from).low<torddef(def_to).low then
+                     hp^.increment_ordinal_distance(ordinal_spread(torddef(def_to).low-torddef(def_from).low));
+                   if torddef(def_from).high>torddef(def_to).high then
+                     hp^.increment_ordinal_distance(ordinal_spread(torddef(def_from).high-torddef(def_to).high));
+                 end
+              else
+              { Delphi compares integer-to-real candidates at the same rank;
+                an exact argument must win before the precision tie-break. }
+               if assigned(currpara) and
+                  not(currpara.varspez in [vs_var,vs_out]) and
+                  (m_delphi in current_settings.modeswitches) and
+                  is_integer(def_from) and is_real_or_cextended(def_to) then
+                 begin
+                   eq:=te_convert_l4;
+                   fp_precision_distance:=fp_precision_score(def_to)-1-ord(is_64bitint(def_from));
+                   if fp_precision_distance<0 then
+                     fp_precision_distance:=16*-fp_precision_distance;
+                   hp^.increment_ordinal_distance(fp_precision_distance);
+                 end
+              else
               { for value and const parameters check precision of real, give
                 penalty for loosing of precision. var and out parameters must match exactly }
                if assigned(currpara) and
