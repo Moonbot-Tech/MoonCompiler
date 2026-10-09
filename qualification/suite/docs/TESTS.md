@@ -73,7 +73,7 @@ python3 scripts/run_issue_tracker_corpus.py \
 ```
 
 With `--enforce`, 67 programs must pass; `QP-03` and `QP-24` must produce their
-exact expected compile-time rejections; and `QP-32`, `QP-53`, and `MB-06` must
+exact expected compile-time rejections; `MB-06` must compile; and `QP-32` and `QP-53` must
 produce the exact diagnostics of accepted Known Issues. Any other deviation
 makes the runner fail. Removed `QP-39` and `MB-01` remain listed in provenance:
 their oracles were disproved, so an allow-list does not mask them and they are

@@ -95,8 +95,11 @@ IDs are intentionally not reused.
 
 `MB-02` checks `finally` in a loop, `MB-03` range checking around mixed-width
 arithmetic, `MB-04` a reversed runtime set range, and `MB-05` mixed-UInt64
-equality. `MB-06` records the deliberately unaccepted Delphi contract
-`Random(High(UInt64))`: Delphi 12.2 accepts the call with a warning that the
-constant is out of range; MoonCompiler does not yet select an overload. These
+equality. `MB-06` checks compilation of `Random(High(UInt64))`: Delphi 12.2
+accepts the call with a warning that the constant is out of range. MoonCompiler
+2.4.1 now also resolves the ordinal overload; the previous expected ambiguity
+is no longer a Known Issue. A fresh DCC64/Moon probe compiles and prints 1 in
+both programs. This is not a promise of useful random sampling with an
+out-of-range bound. These
 are forms discovered by our lab, not external reports; their oracle is in the
 corresponding fixture and, for `MB-06`, confirmed by DCC64 36.0.

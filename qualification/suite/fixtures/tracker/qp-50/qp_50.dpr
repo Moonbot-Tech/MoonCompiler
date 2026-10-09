@@ -26,20 +26,12 @@ type
   public Value: Integer; class var DestroyedA, DestroyedB: Integer; constructor Create(AValue: Integer); destructor Destroy; override; end;
   TKeyComparer = class(TInterfacedObject, IEqualityComparer<TKey>)
     function Equals(const Left, Right: TKey): Boolean;
-    {$ifdef FPC}
     function GetHashCode(const Value: TKey): Integer;
-    {$else}
-    function GetHashCode(const Value: TKey): Integer;
-    {$endif}
   end;
 constructor TKey.Create(AValue: Integer); begin inherited Create; Value := AValue; end;
 destructor TKey.Destroy; begin if Self.Value = 101 then Inc(DestroyedA) else Inc(DestroyedB); inherited; end;
 function TKeyComparer.Equals(const Left, Right: TKey): Boolean; begin Result := Left.Value mod 100 = Right.Value mod 100; end;
-{$ifdef FPC}
 function TKeyComparer.GetHashCode(const Value: TKey): Integer;
-{$else}
-function TKeyComparer.GetHashCode(const Value: TKey): Integer;
-{$endif}
 begin Result := Value.Value mod 100; end;
 
 procedure Run;

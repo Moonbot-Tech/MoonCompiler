@@ -440,11 +440,9 @@
     {
       "id": "MB-06",
       "source": "fixtures/tracker/mb-06/mb_06.dpr",
-      "oracle": "compile-rejection",
+      "oracle": "compile-success",
       "compile_only": true,
-      "placement": "corpus",
-      "fpc_expected": "compile_error",
-      "expected_diagnostic": "Can't determine which overloaded function to call"
+      "placement": "corpus"
     }
   ]
 }
