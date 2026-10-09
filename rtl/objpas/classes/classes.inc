@@ -368,7 +368,7 @@ var
 begin
   { do we really need a synchronized call? }
 {$ifdef FPC_HAS_FEATURE_THREADING}
-  if (GetCurrentThreadID = MainThreadID) and (not aQueueIfMain or not IsMultiThread) then
+  if (GetCurrentThreadID = MainThreadID) and not aQueueIfMain then
 {$endif}
   begin
     try
@@ -616,12 +616,9 @@ var
 
 begin
   result:=false;
-  { first sanity check }
-  if Not IsMultiThread then
-    Exit
 {$ifdef FPC_HAS_FEATURE_THREADING}
-  { second sanity check }
-  else if GetCurrentThreadID<>MainThreadID then
+  { ForceQueue also schedules work before the first worker is started. }
+  if GetCurrentThreadID<>MainThreadID then
     raise EThread.CreateFmt(SCheckSynchronizeError,[GetCurrentThreadID]);
   if timeout>0 then
     RtlEventWaitFor(SynchronizeTimeoutEvent,timeout)
