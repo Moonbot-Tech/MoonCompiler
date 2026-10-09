@@ -7,6 +7,7 @@ import re
 import shutil
 import struct
 import subprocess
+from reload_cycles import check_reload_cycles
 
 
 def run(command, cwd, log):
@@ -50,6 +51,7 @@ def main():
     assert rows[0]['full_crc'] != rows[1]['full_crc'], rows
     assert rows[0]['full_crc'] == rows[2]['full_crc'], rows
     (output/'result.json').write_text(json.dumps(rows, indent=2))
+    check_reload_cycles(command, output/'reload-cycles', run)
     print('PPU_PRIVATE_CRC_GATE_PASS', len(rows))
 
 

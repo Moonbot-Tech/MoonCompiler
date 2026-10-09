@@ -816,7 +816,7 @@ var
 
     if (m.state=ms_compiling_waitfinish) and assigned(m.waitingforunit) then
       begin
-        for i:=0 to m.waitingforunit.Count do
+        for i:=0 to m.waitingforunit.Count-1 do
           begin
             um:=tmodule(m.waitingforunit[i]);
             if um=pas_mod then
@@ -851,7 +851,7 @@ begin
   pas_mod:=scc_root;
   while assigned(pas_mod) do
     begin
-      if pas_mod.fromppu then
+      if not pas_mod.fromppu then
         begin
           { dfs through the scc to find a ppu waiting for pas_mod and vice versus
             Note: already searched pas are skipped, resulting in linear time }

@@ -277,7 +277,7 @@ implementation
     begin
       pd.forwarddef:=true;
       if not assigned(current_module.async_thunks) then
-        current_module.async_thunks:=tfplist.create;
+        current_module.async_thunks:=tfpobjectlist.create(true);
       mpi:=tcgprocinfo(cprocinfo.create(nil));
       mpi.procdef:=pd;
       mpi.code:=body;
@@ -1068,8 +1068,10 @@ implementation
   function lower_async_node(var n:tnode;arg:pointer):foreachnoderesult;
     var
       ctx : pasynclowerctx absolute arg;
+      oldnode : tnode;
     begin
       result:=fen_true;
+      oldnode:=n;
       if n.nodetype=awaitn then
         n:=build_one_await(tawaitnode(n))
       else if n.nodetype=asyncn then
@@ -1079,6 +1081,10 @@ implementation
           else
             n:=build_one_async_call(tasyncnode(n),ctx);
         end;
+      { The surrounding tree is already typed.  Its next consumer is the
+        effect/loop analysis, so replacement calls must be typed here too. }
+      if n<>oldnode then
+        typecheckpass(n);
     end;
 
 

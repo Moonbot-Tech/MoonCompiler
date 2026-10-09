@@ -297,7 +297,7 @@ interface
           their bodies reference a routine-local impl class, so they are created
           forward and code-generated at module finish (entries are tcgprocinfo,
           owned - generated and freed there) }
-        async_thunks: tfplist;
+        async_thunks: tfpobjectlist;
 
         { the per-module generic thread-entry thunk (tprocdef) synthesized for
           `for parallel` loops; created forward on first use, implemented and
@@ -864,6 +864,8 @@ implementation
                 current_specializedef:=nil;
               end;
             { release procinfo tree }
+            if assigned(async_thunks) then
+              async_thunks.extract(procinfo);
             tprocinfo(procinfo).destroy_tree;
             procinfo := nil;
           end;
@@ -1020,8 +1022,12 @@ implementation
                 current_specializedef:=nil;
               end;
             { release procinfo tree }
+            if assigned(async_thunks) then
+              async_thunks.extract(procinfo);
             tprocinfo(procinfo).destroy_tree;
+            procinfo:=nil;
           end;
+        freeandnil(async_thunks);
         if assigned(asmdata) then
           begin
             if current_asmdata=asmdata then
@@ -1030,6 +1036,11 @@ implementation
             asmdata:=nil;
           end;
         DoneDebugInfo(self,current_debuginfo_reset);
+        { Drop non-owning references before their symbol tables are destroyed. }
+        used_rtti_attrs.clear;
+        lock_cs_syms.clear;
+        parfor_thunk_pd:=nil;
+        parfor_nested_pvd:=nil;
         { Retire registrations before symtable destruction can free defs with
           no module back-pointer. Shared aliases surviving the reset must also
           lose their back-pointer. }
