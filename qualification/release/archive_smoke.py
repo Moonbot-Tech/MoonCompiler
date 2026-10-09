@@ -133,6 +133,9 @@ def consumer_smoke(asset: Path, pin: str, output: Path, steps: list[dict]) -> No
         target = "x86_64-win64" if os.name == "nt" else "x86_64-linux"
         fpc = toolchain / ("bin/x86_64-win64/fpc.exe" if os.name == "nt"
                            else "bin/fpc")
+        run("rtl_boundaries", [sys.executable, str(ROOT / "qualification/release/rtl_boundaries_smoke.py"),
+                               "--compiler", str(fpc), "--out", str(consumer / "rtl-boundaries")],
+            consumer, output, steps, "RTL_BOUNDARIES_ARCHIVE_PASS")
         suffix = ".exe" if os.name == "nt" else ""
         for profile, options in (("debug", []), ("release", ["-dRELEASE"])):
             for name, marker in (("hello", "3 prices, sum = "),

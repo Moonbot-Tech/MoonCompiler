@@ -1,3 +1,45 @@
+# MoonCompiler 2.4.1: reliable HTTP transport and compiler compatibility
+
+This maintenance release fixes compiler and runtime contracts exercised by
+desktop applications and long-running services.
+
+- HTTPS on Linux verifies the requested host name or IP address, in addition
+  to certificate trust. Reused HTTP connections are checked before sending a
+  request, so a connection closed during an idle period is replaced before POST.
+  A POST whose delivery becomes uncertain is not automatically replayed.
+- Existing HTTP exception classes expose machine-readable failure reason,
+  delivery outcome and available native error codes. Async calls preserve those
+  fields. Applications can distinguish DNS, TLS, timeout, disconnection,
+  cancellation and invalid parameters without parsing exception text. Truncated
+  or malformed responses fail instead of becoming successful incomplete bodies.
+- Win64 inline ASM uses RIP-relative addressing for unqualified global symbols,
+  including images above 4 GB. Explicit absolute/segment addressing, parenthesized
+  unary operands and `.noframe` are supported. Frameless routines resolve named
+  stack parameters correctly; unrepresentable absolute relocations fail at link
+  time instead of silently truncating an address.
+- Numeric overload resolution handles integer/real argument combinations such
+  as `Max(0, DoubleValue)` without losing `Double` precision.
+  Typed character-pointer constants and compiler-generated anonymous cleanup
+  routines work across unit and external-class boundaries.
+- Incremental generic-unit compilation handles source/PPU dependency cycles and
+  discards stale attribute and generated-helper state before reparsing a module.
+  Async lowering types its generated calls before optimizer analysis.
+- Queued main-thread work remains queued even before the first worker starts.
+  Win64 `Classes` supplies object-method callbacks and hidden-window helpers;
+  Unicode disk-space calls and `Math.Min/Max` retain their intended public types
+  when Windows and SysUtils units are used together.
+
+Tests exercise observable values, generated instruction bytes, fresh and warm
+PPUs, callbacks, connection reuse, response framing and a shared trusted CA with
+both matching and mismatching server certificates. No new runtime dependency
+or Pulse performance claim is introduced. See [runtime contracts](PLATFORM_API.md).
+
+Install the complete 2.4.1 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20401; `CompilerVersion` remains 2.4. MoonORMot 13
+remains required.
+
+---
+
 # MoonCompiler 2.4.0: runtime boundaries and lightweight synchronization
 
 This minor release completes common runtime contracts used by Delphi applications

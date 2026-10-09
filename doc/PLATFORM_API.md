@@ -182,12 +182,40 @@ groups, lookaround, replacements, collection lifetimes and allocation balance.
 The source archive, native build recipe, binary manifests and notices are in
 [`packages/libpcre/native`](../packages/libpcre/native). See [Licensing](LICENSING.md).
 
+## HTTP transport diagnostics
+
+The existing `ENetException` descendants expose Moon-specific `Reason`, `Outcome`
+and `NativeError` properties. Classify failures by these fields rather than by
+localized `Message` text. `Reason` distinguishes DNS, TLS, timeout, connection
+refusal, connection closure, cancellation, invalid parameters, protocol errors
+and other connection failures; `Unknown` remains available when no reliable
+classification exists. `NativeError` preserves an available OS error number;
+zero means none was supplied. It is diagnostic information, not a portable enum.
+Async `Await` and `EndAsyncHTTP` preserve these properties and existing exception
+families, including repeated retrieval of a failed result.
+
+`Outcome=NotSent` means the request failed before transmission began.
+`ResponseReceived` means complete response headers arrived; reading the body
+can still fail. `Unknown` means neither guarantee is available. For code-based
+application diagnostics, `OutcomeCode=600` marks this unknown outcome; otherwise
+it is zero. This is a local marker, never a fabricated HTTP response or a value
+inserted into `IHTTPResponse.StatusCode`. Actual HTTP statuses remain unchanged.
+
+HTTPS validates the requested DNS name or IP address as well as certificate trust.
+Before reusing a connection, the client checks for peer closure without sending
+an HTTP probe or waiting for a TLS record to finish. A stale connection is replaced
+before transmitting any method, including POST. If the peer closes during a POST
+or PATCH already being sent, the client reports the failure and does not replay
+the request automatically. A timeout or cancellation alone does not prove that
+the server did not execute it. Applications need an idempotency key or another
+application-level confirmation mechanism before retrying such operations.
+
 ## Compiler identity
 
 `System.CompilerVersion` and `{$IF CompilerVersion ...}` identify MoonCompiler:
-2.4 in release 2.4.0. They do not pretend to be Delphi 36. Use
+2.4 in release 2.4.1. They do not pretend to be Delphi 36. Use
 `MOONCOMPILER_FULLVERSION` for ordered version comparisons: major × 10000 +
-minor × 100 + patch, or 20400 for 2.4.0. A real number cannot distinguish
+minor × 100 + patch, or 20401 for 2.4.1. A real number cannot distinguish
 2.10 from 2.1. `FPC_FULLVERSION` and `fpc -iV` continue to report the underlying
 FPC ABI version. Existing Delphi feature checks must distinguish the compiler
 instead of interpreting the Moon version as a Delphi release number.

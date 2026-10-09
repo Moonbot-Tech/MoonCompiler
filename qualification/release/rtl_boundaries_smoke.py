@@ -14,6 +14,8 @@ CASES = (
     "encoding_boundaries", "file_boundaries", "hash_regex_iso_boundaries",
     "json_lifetime_boundaries", "json_numeric_boundaries", "lightweight_boundaries", "loader_boundaries",
     "uri_boundaries",
+    "anonymous_cleanup_external_owner", "asm_delphi_operands", "forcequeue_first_thread",
+    "numeric_overload_precision", "typed_const_character_pointers",
 )
 
 
@@ -32,7 +34,7 @@ def main():
     args = parser.parse_args()
     compiler = args.compiler.resolve(strict=True)
     output = args.out.resolve()
-    cases = CASES + (("windows_boundaries",) if os.name == "nt" else ())
+    cases = CASES + (("windows_boundaries", "win64_classes_callbacks") if os.name == "nt" else ())
     suffix = ".exe" if os.name == "nt" else ""
     count = 0
     for profile, options in (("debug", []), ("release", ["-dRELEASE"])):
