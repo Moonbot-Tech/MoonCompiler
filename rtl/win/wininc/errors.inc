@@ -355,6 +355,7 @@ const
      ERROR_NO_ASSOCIATION                         = 1155;
      ERROR_DDE_FAIL                               = 1156;
      ERROR_DLL_NOT_FOUND                          = 1157;
+     ERROR_NOT_FOUND                              = 1168;
      ERROR_BAD_USERNAME                           = 2202;
      ERROR_NOT_CONNECTED                          = 2250;
      ERROR_OPEN_FILES                             = 2401;

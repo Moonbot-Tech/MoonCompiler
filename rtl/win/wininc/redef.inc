@@ -876,6 +876,7 @@ function GetWindowRect(hWnd: HWND; var lpRect: TRect): BOOL; external 'user32' n
 function GetWorldTransform(DC: HDC; var p2: TXForm): BOOL; external 'gdi32' name 'GetWorldTransform';
 //function GradientFill(DC: HDC; var p2: TTriVertex; p3: ULONG; p4: Pointer; p5, p6: ULONG): BOOL;external 'gdi32' name 'GradientFill';
 procedure GlobalMemoryStatus(var Buffer: MEMORYSTATUS); external 'kernel32' name 'GlobalMemoryStatus';
+function GlobalMemoryStatusEx(var Buffer: MEMORYSTATUSEX):WINBOOL; external 'kernel32' name 'GlobalMemoryStatusEx';
 function HeapWalk(hHeap: THandle; var lpEntry: TProcessHeapEntry): BOOL; external 'kernel32' name 'HeapWalk';
 //function ImageList_GetDragImage(var ppt:POINT; var pptHotspot:POINT):HIMAGELIST; external 'comctl32' name 'ImageList_GetDragImage';
 function InflateRect(var lprc: TRect; dx, dy: Integer): BOOL; external 'user32' name 'InflateRect';

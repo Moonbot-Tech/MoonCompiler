@@ -155,6 +155,13 @@ def winapi_scope(fpc: Path, work: Path) -> None:
             checked([*args, str(unit)], out)
         ppu_consumer(args, probe, out, sources)
         checked([str(out / 'winapi_scope_probe.exe')], out, 'WINAPI_SCOPE_PASS')
+        services = Path(__file__).with_name('winapi_services_probe.dpr').read_text()
+        for spelling in ('Windows', 'Winapi.Windows', 'Windows, Winapi.Windows'):
+            stem = 'services_' + str(len(spelling))
+            service_probe = source / (stem + '.dpr')
+            service_probe.write_text(services.replace('uses Windows;', 'uses ' + spelling + ';'))
+            checked([*args, str(service_probe)], out)
+            checked([str(out / (stem + '.exe'))], out, 'WINAPI_SERVICES_OK')
 
     # A configured alias must yield to the project's own qualified source unit.
     own = work / 'winapi-own'

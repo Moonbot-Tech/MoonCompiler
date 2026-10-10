@@ -13,7 +13,8 @@ the Jwa unit family. The direct bindings retain their open-source notices.
 | Family | Public units and contract |
 | --- | --- |
 | Files, directories, environment, version resources | `Winapi.Windows`; generic names take UTF-16 in the product profile; explicit `A` and `W` entry points remain available |
-| Processes, threads, waiting and memory counters | `Windows`, `PsAPI`, `TlHelp32`; native handles and pointer-sized fields; pointer form of `GetProcessMemoryInfo` |
+| Processes, threads, waiting and memory counters | `Windows`, `PsAPI`, `TlHelp32`; native handles and pointer-sized fields; `MEMORYSTATUSEX`/`GlobalMemoryStatusEx`, `CancelSynchronousIo`, pointer form of `GetProcessMemoryInfo` |
+| Clipboard notifications | `Windows`; `AddClipboardFormatListener`/`RemoveClipboardFormatListener`, including message-only windows (`HWND_MESSAGE`) |
 | Networking | `WinSock`, `WinSock2`, `IpHlpApi`, `IpTypes`, `IpRtrMib`, `IpExport`, `Qos`; OS socket, adapter and routing declarations |
 | Services, access control, credentials and profiles | `WinSvc`, `AccCtrl`, `AclAPI`, `WinCred`, `Winsafer`, `UserEnv`, `WTSApi32` |
 | Existing SDK families | `ActiveX`, `Messages`, `CommCtrl`, `CommDlg`, `DwmApi`, `FlatSB`, `ImageHlp`, `Imm`, `MMSystem`, `MultiMon`, `Nb30`, `Ole2`, `RichEdit`, `ShellAPI`, `SHFolder`, `ShlObj`, `ShLwApi`, `UrlMon`, `UxTheme`, `WinHTTP`, `WinInet`, `WinSpool`, `Cpl`, `Dlgs`, `RegStr` |

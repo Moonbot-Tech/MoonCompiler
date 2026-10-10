@@ -4701,6 +4701,22 @@ Const
      TMEMORYSTATUS = MEMORYSTATUS;
      PMEMORYSTATUS = ^MEMORYSTATUS;
 
+     MEMORYSTATUSEX = record
+          dwLength : DWORD;
+          dwMemoryLoad : DWORD;
+          ullTotalPhys : ULONGLONG;
+          ullAvailPhys : ULONGLONG;
+          ullTotalPageFile : ULONGLONG;
+          ullAvailPageFile : ULONGLONG;
+          ullTotalVirtual : ULONGLONG;
+          ullAvailVirtual : ULONGLONG;
+          ullAvailExtendedVirtual : ULONGLONG;
+       end;
+     LPMEMORYSTATUSEX = ^MEMORYSTATUSEX;
+     _MEMORYSTATUSEX = MEMORYSTATUSEX;
+     TMEMORYSTATUSEX = MEMORYSTATUSEX;
+     PMEMORYSTATUSEX = ^MEMORYSTATUSEX;
+
      MENUEX_TEMPLATE_HEADER = record
           wVersion : WORD;
           wOffset : WORD;

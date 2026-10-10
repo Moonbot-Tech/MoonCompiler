@@ -2993,6 +2993,7 @@ Type
      HWND_NOTOPMOST = HWND(-2);
      HWND_TOP = HWND(0);
      HWND_TOPMOST = HWND(-1);
+     HWND_MESSAGE = HWND(-3);
 
 
   const
