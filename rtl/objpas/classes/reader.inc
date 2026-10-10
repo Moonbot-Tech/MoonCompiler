@@ -295,7 +295,7 @@ var
       2: (c: currency);
   end;
 begin
-  r.c:=ReadQWord;
+  r.q:=ReadQWord;
   Result:=r.c;
 end;
 
@@ -489,87 +489,114 @@ begin
   ReadValue;
 end;
 
-procedure TBinaryObjectReader.SkipValue;
+procedure TBinaryObjectReader.TransferValue(Writer: TWriter);
+{ One binary grammar for skipping and copying. Preserve encodings and float
+  payloads verbatim; do not allocate strings or blobs just to move past them. }
 
-  procedure SkipBytes(Count: LongInt);
+  procedure TransferBytes(Count: Int64);
   var
-    Dummy: array[0..1023] of Byte;
-    SkipNow: Integer;
+    Buffer: array[0..1023] of Byte;
+    Chunk: LongInt;
   begin
     while Count > 0 do
-    begin
-      if Count > 1024 then
-        SkipNow := 1024
-      else
-        SkipNow := Count;
-      Read(Dummy, SkipNow);
-      Dec(Count, SkipNow);
-    end;
+      begin
+        Chunk:=SizeOf(Buffer);
+        if Count < Chunk then
+          Chunk:=Count;
+        Read(Buffer,Chunk);
+        if Assigned(Writer) then
+          Writer.Write(Buffer,Chunk);
+        Dec(Count,Chunk);
+      end;
+  end;
+
+  function TransferByte: Byte;
+  begin
+    Read(Result,1);
+    if Assigned(Writer) then
+      Writer.Write(Result,1);
+  end;
+
+  function TransferName: Byte;
+  begin
+    Result:=TransferByte;
+    TransferBytes(Result);
+  end;
+
+  procedure TransferEnd;
+  const
+    Tag: Byte = Ord(vaNull);
+  begin
+    if ReadValue <> vaNull then
+      raise EReadError.Create(SInvalidPropertyValue);
+    if Assigned(Writer) then
+      Writer.Write(Tag,1);
   end;
 
 var
-  Count: LongInt;
+  Value: TValueType;
+  Tag: Byte;
+  Count, EncodedCount: LongWord;
 begin
-  case ReadValue of
+  Value:=ReadValue;
+  if not (Value in [Low(TValueType)..High(TValueType)]) then
+    raise EReadError.Create(SInvalidPropertyValue);
+  if Assigned(Writer) then
+    begin
+      Tag:=Ord(Value);
+      { The resource tag is always one byte, independently of enum size. }
+      Writer.Write(Tag,1);
+    end;
+  case Value of
     vaNull, vaFalse, vaTrue, vaNil: ;
+    vaInt8: TransferBytes(1);
+    vaInt16: TransferBytes(2);
+    vaInt32, vaSingle: TransferBytes(4);
+    vaInt64, vaQWord, vaCurrency, vaDate, vaDouble: TransferBytes(8);
+    vaExtended: TransferBytes(10);
+    vaString, vaIdent:
+      TransferName;
+    vaBinary, vaLString, vaUTF8String, vaWString, vaUString:
+      begin
+        Read(EncodedCount,SizeOf(EncodedCount));
+        Count:=LEtoN(EncodedCount);
+        if Count > High(LongInt) then
+          raise EReadError.Create(SInvalidPropertyValue);
+        if Assigned(Writer) then
+          Writer.Write(EncodedCount,SizeOf(EncodedCount));
+        if Value in [vaWString,vaUString] then
+          TransferBytes(Int64(Count)*2)
+        else
+          TransferBytes(Count);
+      end;
+    vaSet:
+      while TransferName <> 0 do ;
     vaList:
       begin
         while NextValue <> vaNull do
-          SkipValue;
-        ReadValue;
+          TransferValue(Writer);
+        TransferEnd;
       end;
-    vaInt8:
-      SkipBytes(1);
-    vaInt16:
-      SkipBytes(2);
-    vaInt32:
-      SkipBytes(4);
-    vaExtended:
-      SkipBytes(10);
-    vaString, vaIdent:
-      ReadStr;
-    vaBinary, vaLString:
-      begin
-        Count:=LongInt(ReadDWord);
-        SkipBytes(Count);
-      end;
-    vaWString:
-      begin
-        Count:=LongInt(ReadDWord);
-        SkipBytes(Count*sizeof(widechar));
-      end;
-    vaUString:
-      begin
-        Count:=LongInt(ReadDWord);
-        SkipBytes(Count*sizeof(widechar));
-      end;
-    vaSet:
-      SkipSetBody;
     vaCollection:
       begin
         while NextValue <> vaNull do
-        begin
-          { Skip the order value if present }
-          if NextValue in [vaInt8, vaInt16, vaInt32] then
-            SkipValue;
-          SkipBytes(1);
-          while NextValue <> vaNull do
-            SkipProperty;
-          ReadValue;
-        end;
-        ReadValue;
+          begin
+            if NextValue in [vaInt8,vaInt16,vaInt32] then
+              TransferValue(Writer);
+            if TransferByte <> Ord(vaList) then
+              raise EReadError.Create(SInvalidPropertyValue);
+            { Item bodies contain property names followed by values. }
+            while TransferName <> 0 do
+              TransferValue(Writer);
+          end;
+        TransferEnd;
       end;
-    vaSingle:
-{$ifndef FPUNONE}
-      SkipBytes(Sizeof(Single));
-{$else}
-      SkipBytes(4);
-{$endif}
-    {!!!: vaCurrency:
-      SkipBytes(SizeOf(Currency));}
-    vaDate, vaInt64:
-      SkipBytes(8);
   end;
+end;
+
+procedure TBinaryObjectReader.SkipValue;
+begin
+  TransferValue(nil);
 end;
 
 { private methods }
@@ -1300,7 +1327,8 @@ begin
       end;
     vaQWord:
       begin
-        Result:=QWord(ReadInt64);
+        ReadValue;
+        Result:=QWord(FDriver.ReadInt64);
       end;
     vaFalse,vaTrue:
       begin
@@ -1754,7 +1782,9 @@ begin
     begin
       vt:=ReadValue;
       if vt=vaUTF8String then
-        Result := utf8decode(fDriver.ReadString(vaLString))
+        Result := utf8decode(fDriver.ReadString(vt))
+      else if vt=vaUString then
+        Result := FDriver.ReadUnicodeString
       else
         Result := FDriver.ReadWideString
     end
@@ -1781,7 +1811,9 @@ begin
     begin
       vt:=ReadValue;
       if vt=vaUTF8String then
-        Result := utf8decode(fDriver.ReadString(vaLString))
+        Result := utf8decode(fDriver.ReadString(vt))
+      else if vt=vaUString then
+        Result := FDriver.ReadUnicodeString
       else
         Result := FDriver.ReadWideString
     end
@@ -1803,76 +1835,45 @@ begin
 end;
 
 procedure TReader.CopyValue(Writer: TWriter);
-
-  procedure CopyBytes(Count: Integer);
-{  var
-    Buffer: array[0..1023] of Byte; }
-  begin
-{!!!:    while Count > 1024 do
-    begin
-      FDriver.Read(Buffer, 1024);
-      Writer.Driver.Write(Buffer, 1024);
-      Dec(Count, 1024);
-    end;
-    if Count > 0 then
-    begin
-      FDriver.Read(Buffer, Count);
-      Writer.Driver.Write(Buffer, Count);
-    end;}
-  end;
-
-{var
-  s: String;
-  Count: LongInt; }
 begin
+  if (FDriver is TBinaryObjectReader) and (Writer.Driver is TBinaryObjectWriter) then
+    begin
+      TBinaryObjectReader(FDriver).TransferValue(Writer);
+      Exit;
+    end;
+
+  { Keep semantic dispatch for nonbinary drivers; raw resource bytes cannot
+    be passed to an XML or another custom writer. }
   case FDriver.NextValue of
-    vaNull:
-      Writer.WriteIdent('NULL');
-    vaFalse:
-      Writer.WriteIdent('FALSE');
-    vaTrue:
-      Writer.WriteIdent('TRUE');
-    vaNil:
-      Writer.WriteIdent('NIL');
-    {!!!: vaList, vaCollection:
-      begin
-        Writer.WriteValue(FDriver.ReadValue);
-        while not EndOfList do
-          CopyValue(Writer);
-        ReadListEnd;
-        Writer.WriteListEnd;
-      end;}
+    vaNull, vaFalse, vaTrue, vaNil:
+      Writer.WriteIdent(ReadIdent);
     vaInt8, vaInt16, vaInt32:
       Writer.WriteInteger(ReadInteger);
 {$ifndef FPUNONE}
     vaExtended:
       Writer.WriteFloat(ReadFloat);
-{$endif}
-    {!!!: vaString:
-      Writer.WriteStr(ReadStr);}
-    vaIdent:
-      Writer.WriteIdent(ReadIdent);
-    {!!!: vaBinary, vaLString, vaWString:
-      begin
-        Writer.WriteValue(FDriver.ReadValue);
-        FDriver.Read(Count, SizeOf(Count));
-        Writer.Driver.Write(Count, SizeOf(Count));
-        CopyBytes(Count);
-      end;}
-    {!!!: vaSet:
-      Writer.WriteSet(ReadSet);}
-{$ifndef FPUNONE}
     vaSingle:
       Writer.WriteSingle(ReadSingle);
-{$endif}
-    {!!!: vaCurrency:
-      Writer.WriteCurrency(ReadCurrency);}
-{$ifndef FPUNONE}
+    vaDouble:
+      Writer.WriteFloat(ReadDouble);
     vaDate:
       Writer.WriteDate(ReadDate);
 {$endif}
+    vaIdent:
+      Writer.WriteIdent(ReadIdent);
     vaInt64:
       Writer.WriteInteger(ReadInt64);
+    vaQWord:
+      begin
+        ReadValue;
+        Writer.Driver.WriteUInt64(QWord(FDriver.ReadInt64));
+      end;
+    vaCurrency:
+      Writer.WriteCurrency(ReadCurrency);
+    vaString, vaLString, vaUTF8String, vaWString, vaUString:
+      Writer.WriteUnicodeString(ReadUnicodeString);
+  else
+    raise EReadError.Create(SInvalidPropertyValue);
   end;
 end;
 

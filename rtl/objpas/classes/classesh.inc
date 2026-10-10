@@ -1832,6 +1832,7 @@ type
 
   TBinaryObjectReader = class(TAbstractObjectReader)
   private
+    procedure TransferValue(Writer: TWriter);
   public
     {$ScopedEnums on}
     type
