@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -28,11 +29,13 @@ def run(compiler: Path, *args: str) -> str:
     result = subprocess.run(
         [str(compiler), *args],
         cwd=ROOT,
-        check=True,
+        timeout=60,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
+    if result.returncode:
+        raise RuntimeError(f"version probe failed ({result.returncode}): {result.stdout}")
     return result.stdout.strip()
 
 
@@ -68,6 +71,16 @@ def main() -> int:
     banner = run(compiler, "-h").splitlines()[0]
     if not banner.startswith(identity + " ["):
         raise RuntimeError(f"unexpected compiler banner: {banner!r}")
+
+    # Check public conditional/runtime identities here as well, before the long
+    # qualification suites. A release bump must update their consumer oracle.
+    probe = ROOT / "qualification/suite/tests/rtl-api/rtl_api_compiler_identity.dpr"
+    with tempfile.TemporaryDirectory(prefix="moon-version-") as directory:
+        run(compiler, "-FU" + directory, "-FE" + directory, str(probe))
+        executable = Path(directory) / ("rtl_api_compiler_identity.exe" if os.name == "nt"
+                                        else "rtl_api_compiler_identity")
+        if run(executable) != "RTL_API_COMPILER_IDENTITY_OK":
+            raise RuntimeError("public compiler identity probe failed")
 
     print(f"version contract PASS: {identity}; ABI {reported_base}")
     return 0
