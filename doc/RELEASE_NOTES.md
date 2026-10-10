@@ -1,3 +1,28 @@
+# MoonCompiler 2.4.2: incremental compilation and resource streaming
+
+- Incremental compilation resolves indirect source/PPU dependency cycles even
+  when several source units change together. The scheduler follows unfinished
+  dependency checksums through intermediate units and searches each source
+  target independently. Unchanged builds continue to reuse their PPUs.
+- `TReader.CopyValue` copies every binary resource value type, including strings,
+  binary data, sets, nested lists and collections. Encoded bytes are preserved,
+  including floating-point payloads; the reader advances to the next value.
+  `SkipValue` uses the same complete grammar. Truncated values, invalid tags and
+  invalid lengths raise a read error.
+- Resource readers preserve the sign and fractional scale of `Currency` and
+  read unsigned 64-bit variants without routing them through a signed tag check.
+
+Regression tests retain PPUs across successive edits and execute the resulting
+programs. Resource tests cover all 24 value tags, small fragmented reads, nested
+containers, malformed input and semantic scalar copying through custom writers.
+The resource test also runs against extracted Windows and Linux release archives.
+
+Install the complete 2.4.2 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20402; `CompilerVersion` remains 2.4. MoonORMot 13
+remains required. No new runtime dependency is introduced.
+
+---
+
 # MoonCompiler 2.4.1: reliable HTTP transport and compiler compatibility
 
 This maintenance release fixes compiler and runtime contracts exercised by
