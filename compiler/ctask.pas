@@ -646,8 +646,14 @@ begin
       and not um.interface_compiled then
     exit(true); { waiting for interface_compiled }
 
+  { A PPU header supplies its own CRC before its dependencies have finished.
+    Follow the same transitive wait as ppuloadcancontinue; otherwise a generic
+    source -> PPU -> intermediary PPU -> source cycle is invisible here. }
   if check_crc and not um.crc_final then
-    exit(true); { waiting for crc }
+    exit(true);
+  if ((m.state=ms_compiled_waitcrc) or ((m.state=ms_load) and m.ppu_waitingfor_crc))
+      and assigned(um.scc_tree_crc_wait) then
+    exit(true); { waiting for crc through another module }
 
   Result:=false;
 end;
@@ -847,14 +853,14 @@ begin
 
   { find one pas module (non ppu) }
   best:=nil;
-  tmodule.increase_cycle_stamp;
   pas_mod:=scc_root;
   while assigned(pas_mod) do
     begin
       if not pas_mod.fromppu then
         begin
-          { dfs through the scc to find a ppu waiting for pas_mod and vice versus
-            Note: already searched pas are skipped, resulting in linear time }
+          { A different source target is a different reachability question.
+            Reusing visited marks can hide a cycle through a previous target. }
+          tmodule.increase_cycle_stamp;
           search(pas_mod);
 
           if best<>nil then

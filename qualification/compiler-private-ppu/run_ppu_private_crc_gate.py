@@ -8,10 +8,11 @@ import shutil
 import struct
 import subprocess
 from reload_cycles import check_reload_cycles
+from indirect_reload_cycles import check_indirect_reload_cycles
 
 
 def run(command, cwd, log):
-    result = subprocess.run(command, cwd=cwd, capture_output=True, text=True, errors='replace')
+    result = subprocess.run(command, cwd=cwd, capture_output=True, text=True, errors='replace', timeout=60)
     text = result.stdout + result.stderr
     log.write_text(text)
     assert result.returncode == 0, (command, text[-3000:])
@@ -52,6 +53,7 @@ def main():
     assert rows[0]['full_crc'] == rows[2]['full_crc'], rows
     (output/'result.json').write_text(json.dumps(rows, indent=2))
     check_reload_cycles(command, output/'reload-cycles', run)
+    check_indirect_reload_cycles(command, output/'indirect-reload-cycles', run)
     print('PPU_PRIVATE_CRC_GATE_PASS', len(rows))
 
 

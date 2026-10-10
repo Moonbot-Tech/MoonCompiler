@@ -15,3 +15,12 @@ does not claim that the old compiler necessarily produced a wrong runtime result
 for this particular value.
 
 This gate does not measure full product qualification or compilation cost.
+
+The reload checks retain PPUs across source edits in direct and indirect generic
+dependency cycles. The indirect matrix crosses Delphi/Unleashed modes, one/three
+intermediary units and reversed uses order. Each graph exercises body changes,
+record layout changes, indirect interface changes, simultaneous changes in
+multiple units and reversal to the original sources. Runtime values must match
+each phase; an immediate unchanged rebuild must reuse the fixture PPUs. Initial
+PPUs and per-phase compiler/runtime logs remain in the output directory. Each
+process has a 60-second timeout.
