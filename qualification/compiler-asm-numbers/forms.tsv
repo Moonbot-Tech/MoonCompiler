@@ -876,3 +876,18 @@ IF011	intel	intel_float	refuse	dq 1.0e400	Invalid constant expression
 IF012	intel	intel_float	refuse	mov eax, 1.0	Invalid constant expression
 AF060	att	att_float	refuse	.tcfloat 1.5	Invalid floating point expression
 AF061	att	att_float	accept	.tcfloat 0d1.5	00000000000000c0ff3f0000|00000000000000c0ff3f000000000000
+
+# Delphi register-leading LEA expressions use the ordinary address parser.
+BL001	intel	intel_bare_lea	accept	lea rax, rax+8	488d4008
+BL002	intel	intel_bare_lea	accept	lea rax, rax-8	488d40f8
+BL003	intel	intel_bare_lea	accept	lea rax, rax+rcx*4-16	488d4488f0
+BL004	intel	intel_bare_lea	accept	lea rax, rcx*8+32	488d04cd20000000
+BL005	intel	intel_bare_lea	accept	lea eax, eax+8	678d4008
+BL006	intel	intel_bare_lea	accept	lea eax, rax+8	8d4008
+BL007	intel	intel_bare_lea	accept	lea rax, rax	488d00
+BL008	intel	intel_bare_lea	accept	lea rax, rax+(5 and 3)	488d4001
+BL009	intel	intel_bare_lea	refuse	lea rax, rax-rcx	Invalid reference syntax
+BL010	intel	intel_bare_lea	refuse	lea rax, rax+rcx*16	scale
+BL011	intel	intel_bare_lea	refuse	mov rax, rax+8	Invalid operand type
+BL012	intel	intel_bare_lea	refuse	lea rax+8, rax	Invalid operand type
+BL013	intel	intel_bare_lea	refuse	lea rax, rax+5 and 3	Invalid reference syntax

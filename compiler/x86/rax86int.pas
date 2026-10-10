@@ -3129,7 +3129,11 @@ Unit Rax86int;
                end
                 else Message(asmr_e_syntax_error);
             else
-              BuildOperand(instr.Operands[operandnum] as tx86operand,parenthesized);
+              if (instr.opcode=A_LEA) and (operandnum=max_operands-1) and
+                 (actasmtoken=AS_REGISTER) and (m_delphi in current_settings.modeswitches) then
+                BuildReference(instr.Operands[operandnum] as tx86operand)
+              else
+                BuildOperand(instr.Operands[operandnum] as tx86operand,parenthesized);
           end; { end case }
           if parenthesized then
             begin

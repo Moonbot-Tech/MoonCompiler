@@ -233,6 +233,40 @@ def main() -> int:
             if form["verdict"] == "accept":
                 groups.setdefault(form["group"], []).append(form)
         for mode in ("-O-", "-O3"):
+            directory = work / mode.strip("-") / 'lea-flags'
+            directory.mkdir(parents=True)
+            source = directory / 'lea_flags.pas'
+            source.write_text('''program lea_flags;
+{$asmmode intel}
+function CountLoop: NativeUInt; assembler; nostackframe;
+asm
+  mov ecx,3
+  xor eax,eax
+@@Again:
+  dec ecx
+  lea rax,rax+8
+  jnz @@Again
+end;
+function CarryPreserved: NativeUInt; assembler; nostackframe;
+asm
+  xor eax,eax
+  stc
+  lea rax,rax+8
+  adc rax,0
+end;
+begin
+  If (CountLoop <> 24) or (CarryPreserved <> 9) then Halt(1);
+  Writeln('LEA_FLAGS_OK');
+end.
+''')
+            built = compile_one(args.compiler, args.rtl, [mode], source)
+            if built.returncode:
+                failures.append(f'{mode} LEA flags: compile failed: {built.stdout}{built.stderr}')
+            else:
+                run = subprocess.run([str(source.with_suffix('.exe' if os.name == 'nt' else ''))],
+                                     capture_output=True, text=True, timeout=10)
+                if run.returncode or run.stdout.strip() != 'LEA_FLAGS_OK':
+                    failures.append(f'{mode} LEA flags: {run.returncode} {run.stdout} {run.stderr}')
             for group, members in groups.items():
                 directory = work / mode.strip("-") / group
                 directory.mkdir(parents=True)
