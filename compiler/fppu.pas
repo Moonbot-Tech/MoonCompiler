@@ -159,7 +159,7 @@ uses
   SysUtils,
   cfileutl,
   systems,version,options,
-  symtable, symsym,
+  symtable, symsym, symdef,
   wpoinfo,
   scanner,
   aasmbase,ogbase,
@@ -2779,6 +2779,8 @@ var
         do_reload:=false;
         set_current_module(self);
         re_resolve;
+        if not fromppu and assigned(symtablestack) then
+          tdefawaresymtablestack(symtablestack).rebuild_lookup_indexes;
       end;
 
     procedure tppumodule.discardppu;

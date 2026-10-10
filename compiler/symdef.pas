@@ -1195,6 +1195,7 @@ interface
          procedure remove_generics(st:tsymtable);
          procedure pushcommon(st:tsymtable);inline;
        public
+         procedure rebuild_lookup_indexes;
          procedure push(st: TSymtable); override;
          procedure pushafter(st,afterst:TSymtable); override;
          procedure pop(st: TSymtable); override;
@@ -2016,6 +2017,30 @@ implementation
           { nested helpers will be added as well }
           add_helpers_and_generics(st,true);
       end;
+
+    procedure tdefawaresymtablestack.rebuild_lookup_indexes;
+
+      procedure rebuild(item: psymtablestackitem);
+        begin
+          if not assigned(item) then
+            exit;
+          rebuild(item^.next);
+          { Match push: a generic dummy resolves against the outer scopes,
+            before its own table enters the stack. }
+          stack:=item^.next;
+          pushcommon(item^.symtable);
+          stack:=item;
+        end;
+
+      begin
+        { These are non-owning indexes. A used module may have replaced its
+          definitions while we waited for its interface. Never traverse the
+          old entries: their owners may already have been destroyed. }
+        current_module.extendeddefs.clear;
+        current_module.genericdummysyms.clear;
+        rebuild(stack);
+      end;
+
 
     procedure tdefawaresymtablestack.push(st: TSymtable);
       begin
@@ -8874,6 +8899,10 @@ implementation
                    the once in the interface must be saved to the ppu/visible
                    from other units }
             st.insertsym(psym,false);
+            { This lookup symbol is also created after loading a PPU. Its
+              overloads belong to the helper and are restored by derefimpl,
+              so a later reload must first restore its empty owned list. }
+            psym.buildderef;
           end
         else if (psym.typ<>procsym) then
           internalerror(2009111501);

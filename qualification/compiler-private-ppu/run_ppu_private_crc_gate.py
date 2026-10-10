@@ -7,6 +7,8 @@ import re
 import shutil
 import struct
 import subprocess
+from helper_reload_cycles import check_helper_reload_cycles
+from helper_generic_reload_cycles import check_helper_generic_reload_cycles
 from reload_cycles import check_reload_cycles
 from indirect_reload_cycles import check_indirect_reload_cycles
 
@@ -54,6 +56,8 @@ def main():
     (output/'result.json').write_text(json.dumps(rows, indent=2))
     check_reload_cycles(command, output/'reload-cycles', run)
     check_indirect_reload_cycles(command, output/'indirect-reload-cycles', run)
+    check_helper_reload_cycles(command, output/'helper-reload-cycles', run)
+    check_helper_generic_reload_cycles(command, output/'helper-generic-reload-cycles', run)
     print('PPU_PRIVATE_CRC_GATE_PASS', len(rows))
 
 
