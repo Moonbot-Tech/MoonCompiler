@@ -128,8 +128,10 @@ interface
         in_interface    : boolean;
         u               : tmodule;
         unitsym         : tunitsym;
+        aliases         : TCmdStrList; { additional spellings of this dependency }
         dependent_added : boolean;
         constructor create(_u : tmodule;intface,inuses:boolean;usym:tunitsym);
+        destructor destroy; override;
         procedure check_hints;
       end;
 
@@ -642,6 +644,13 @@ implementation
            interface_checksum:=0;
            indirect_checksum:=0;
          end;
+      end;
+
+
+    destructor tused_unit.destroy;
+      begin
+        aliases.free;
+        inherited destroy;
       end;
 
 

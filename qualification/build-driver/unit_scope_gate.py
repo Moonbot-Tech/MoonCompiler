@@ -67,6 +67,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from multiple_alias_gate import multiple_alias_scope
 from winapi_scope_gate import alias_scope, winapi_scope
 from json_scope_gate import json_scope
 from pcre2_static_gate import static_regex
@@ -326,6 +327,7 @@ def main() -> int:
             failures += stale_units_ignored(fpc, work)
             try:
                 alias_scope(fpc, work)
+                multiple_alias_scope([str(fpc)], work)
                 json_scope(fpc, work)
                 static_regex(fpc, objdump, work)
             except RuntimeError as error:

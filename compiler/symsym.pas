@@ -102,6 +102,9 @@ interface
        tlabelsymclass = class of tlabelsym;
 
        tunitsym = class(Tstoredsym)
+       private
+          moduleindex : longint; { index in the owning PPU's physical unit map }
+       public
           module : tobject; { tmodule }
           constructor create(const n : TSymStr;amodule : tobject);virtual;
           constructor ppuload(ppufile:tcompilerppufile);
@@ -109,6 +112,8 @@ interface
           { do not override this routine in platform-specific subclasses,
             override ppuwrite_platform instead }
           procedure ppuwrite(ppufile:tcompilerppufile);override;final;
+          procedure buildderef;override;
+          procedure deref;override;
        end;
        tunitsymclass = class of tunitsym;
 
@@ -911,6 +916,7 @@ implementation
       begin
          inherited create(unitsym,n);
          module:=amodule;
+         moduleindex:=-1;
       end;
 
     constructor tunitsym.ppuload(ppufile:tcompilerppufile);
@@ -918,6 +924,7 @@ implementation
       begin
          inherited ppuload(unitsym,ppufile);
          module:=nil;
+         moduleindex:=ppufile.getlongint;
          ppuload_platform(ppufile);
       end;
 
@@ -929,7 +936,26 @@ implementation
     procedure tunitsym.ppuwrite(ppufile:tcompilerppufile);
       begin
          inherited ppuwrite(ppufile);
+         ppufile.putlongint(moduleindex);
          writeentry(ppufile,ibunitsym);
+      end;
+
+    procedure tunitsym.buildderef;
+      begin
+        inherited buildderef;
+        if assigned(module) then
+          moduleindex:=current_module.derefidx_unit(tmodule(module).moduleid)
+        else
+          moduleindex:=-1;
+      end;
+
+    procedure tunitsym.deref;
+      begin
+        inherited deref;
+        if moduleindex>=0 then
+          module:=current_module.resolve_unit(moduleindex)
+        else
+          module:=nil;
       end;
 
 {****************************************************************************

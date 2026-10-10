@@ -2920,6 +2920,7 @@ implementation
             oldsym : TSymEntry;
           begin
             insertsym(UnitSym);
+            tsym(UnitSym).register_sym;
             n:=UnitSym.realname;
             p:=pos('.',n);
             ns:='';
@@ -2932,7 +2933,11 @@ implementation
                 system.delete(n,1,p);
                 oldsym:=findnamespace(upper(ns));
                 if not assigned(oldsym) then
-                  insertsym(cnamespacesym.create(ns));
+                  begin
+                    oldsym:=cnamespacesym.create(ns);
+                    insertsym(oldsym);
+                    tsym(oldsym).register_sym;
+                  end;
                 p:=pos('.',n);
               end;
           end;
@@ -4045,6 +4050,7 @@ implementation
                           in the static symtable, because then it can't be
                           inlined from outside this unit }
                         if assigned(current_procinfo) and
+                           not (srsym.typ in [unitsym,namespacesym]) and
                            (srsym.owner.symtabletype=staticsymtable) then
                           include(current_procinfo.flags,pi_uses_static_symtable);
                         if not (ssf_no_addsymref in flags) then
@@ -4141,6 +4147,7 @@ implementation
                       in the static symtable, because then it can't be
                       inlined from outside this unit }
                     if assigned(current_procinfo) and
+                       not (srsym.typ in [unitsym,namespacesym]) and
                        (srsym.owner.symtabletype=staticsymtable) then
                       include(current_procinfo.flags,pi_uses_static_symtable);
                     addsymref(srsym);
@@ -4174,13 +4181,16 @@ implementation
                 exit;
               end;
           end;
-        { If the module is the current unit we also need
-          to search the local symtable }
-        if (pmod=current_module) and
+        { A generic body also retains its implementation unit qualifiers.
+          This must not expose private data from that unit to its caller. }
+        if ((pmod=current_module) or
+            (assigned(current_specializedef) and
+             (current_specializedef.genericdef.owner.moduleid=pmod.moduleid))) and
            assigned(pmod.localsymtable) then
           begin
             srsym:=tsym(pmod.localsymtable.Find(s));
-            if assigned(srsym) then
+            if assigned(srsym) and
+               ((pmod=current_module) or (srsym.typ in [unitsym,namespacesym])) then
               begin
                 srsymtable:=pmod.localsymtable;
                 addsymref(srsym);

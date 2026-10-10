@@ -848,6 +848,9 @@ var
 
     procedure tppumodule.buildimplementationderefs;
       begin
+         { Implicit units (for example Variants) can be loaded after the uses
+           clause. Include them before serializing implementation unit symbols. }
+         updatemaps;
          tstoredsymtable(globalsymtable).buildderefimpl;
          tunitwpoinfo(wpoinfo).buildderef;
          tunitwpoinfo(wpoinfo).buildderefimpl;

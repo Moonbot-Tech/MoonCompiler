@@ -689,6 +689,29 @@ implementation
         until false;
       end;
 
+    procedure insert_unit_alias(curr, dependency: tmodule; const name: string);
+      var
+        st: tabstractunitsymtable;
+        sym: tsym;
+      begin
+        if assigned(curr.localsymtable) then
+          st:=tabstractunitsymtable(curr.localsymtable)
+        else
+          st:=tabstractunitsymtable(curr.globalsymtable);
+        sym:=tsym(st.find(Upper(name)));
+        if not assigned(sym) and assigned(curr.globalsymtable) then
+          sym:=tsym(curr.globalsymtable.find(Upper(name)));
+        if assigned(sym) and (sym.typ=namespacesym) then
+          sym:=tnamespacesym(sym).unitsym;
+        { insertunit may already have supplied a qualified reverse alias. }
+        if assigned(sym) and (sym.typ=unitsym) and
+           (tunitsym(sym).module=dependency) then
+          exit;
+        sym:=cunitsym.create(name,dependency);
+        st.insertunit(sym);
+      end;
+
+
     procedure parseusesclause(curr: tmodule);
 
       var
@@ -699,7 +722,9 @@ implementation
          unitsym : tunitsym;
          filepos : tfileposinfo;
          isnew,
+         aliasuse,
          implicitproductunit : boolean;
+         aliasitem: TCmdStrListItem;
 
 
       begin
@@ -763,20 +788,48 @@ implementation
                  end;
                 pu:=tused_unit(pu.next);
               end;
-             implicitproductunit:=assigned(hp2) and (fn='') and
+             if not assigned(hp2) then
+               begin
+                 hp2:=registerunit(curr,lookupname,fn,isnew);
+                 if isnew then
+                   usedunits.concat(tused_unit.create(hp2,curr.in_interface,true,nil));
+                 { Namespace expansion can resolve another spelling to a
+                   dependency that was already connected in the interface. }
+                 pu:=curr.findusedunit(hp2);
+               end;
+             implicitproductunit:=(fn='') and
                assigned(pu) and
                productruntimeprefixenabled and
                isproductruntimeunit(Upper(lookupname)) and
                (Upper(sorg)=hp2.modulename^);
-             if not assigned(hp2) then
+             aliasuse:=assigned(pu) and assigned(pu.unitsym) and
+               (fn='') and (Upper(pu.unitsym.realname)<>s);
+             if aliasuse then
                begin
-               hp2:=registerunit(curr,lookupname,fn,isnew);
-               if isnew then
-                 usedunits.concat(tused_unit.create(hp2,curr.in_interface,true,nil));
-               end
-             else if not implicitproductunit then
+                 if assigned(pu.aliases) then
+                   begin
+                     aliasitem:=TCmdStrListItem(pu.aliases.first);
+                     while assigned(aliasitem) do
+                       begin
+                         if Upper(aliasitem.str)=s then
+                           aliasuse:=false;
+                         aliasitem:=TCmdStrListItem(aliasitem.next);
+                       end;
+                   end;
+                 if aliasuse then
+                   begin
+                     if not assigned(pu.aliases) then
+                       pu.aliases:=TCmdStrList.Create;
+                     pu.aliases.concat(sorg);
+                     { An interface dependency is already connected when an
+                       implementation uses clause supplies another qualifier. }
+                     if pu.in_interface<>curr.in_interface then
+                       insert_unit_alias(curr,hp2,sorg);
+                   end;
+               end;
+             if assigned(pu) and not (implicitproductunit or aliasuse) then
                Message1(sym_e_duplicate_id,s);
-             if not implicitproductunit then
+             if not (implicitproductunit or aliasuse) then
                begin
                  { Create unitsym, we need to use the name as specified, we
                    can not use the modulename because that can be different
@@ -922,6 +975,7 @@ implementation
      var
        pu  : tused_unit;
        sorg,aliasname : ansistring;
+       aliasitem: TCmdStrListItem;
        unitsymtable: tabstractunitsymtable;
 
      begin
@@ -965,6 +1019,12 @@ implementation
              end
            else if tppumodule(pu.u).nsprefix<>'' then
              begin
+               { Keep the source spelling too: namespace expansion must not
+                 turn its repeated use into a distinct alias, or make generic
+                 PPU bodies depend on the consumer's namespace options. }
+               if not assigned(pu.aliases) then
+                 pu.aliases:=TCmdStrList.Create;
+               pu.aliases.concat(pu.unitsym.realname);
                { use the name as declared in the uses section for -Un }
                sorg:=tppumodule(pu.u).nsprefix+'.'+pu.unitsym.realname;
                { update unitsym now that we have access to the full name }
@@ -988,6 +1048,15 @@ implementation
              unitsymtable:=tabstractunitsymtable(_module.globalsymtable);
            // Writeln('Adding used unit sym ',pu.unitsym.realName,' to table ',unitsymtable.get_name);
            unitsymtable.insertunit(pu.unitsym);
+           if assigned(pu.aliases) then
+             begin
+               aliasitem:=TCmdStrListItem(pu.aliases.first);
+               while assigned(aliasitem) do
+                 begin
+                   insert_unit_alias(_module,pu.u,aliasitem.str);
+                   aliasitem:=TCmdStrListItem(aliasitem.next);
+                 end;
+             end;
            { add to symtable stack }
            // Writeln('Adding used unit symtable ',pu.u.globalsymtable.name^,' (',pu.u.globalsymtable.DefList.Count, ' defs) to stack');
            if assigned(preservest) then

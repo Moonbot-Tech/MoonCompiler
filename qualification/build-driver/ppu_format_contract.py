@@ -12,6 +12,7 @@ PPU = ROOT / "compiler" / "ppu.pas"
 AASMTai = ROOT / "compiler" / "aasmtai.pas"
 HEADER_VERSION = 208
 ALIGN_PAYLOAD_VERSION = 45
+UNIT_BINDING_PAYLOAD_VERSION = 47
 
 
 def constant(source: str, name: str) -> int:
@@ -35,6 +36,8 @@ def main() -> int:
             f"PPU payload version is {long}, but serialized placement "
             f"fields require at least {ALIGN_PAYLOAD_VERSION}"
         )
+    if long < UNIT_BINDING_PAYLOAD_VERSION:
+        raise RuntimeError('Unit symbol physical bindings require PPU payload version 47')
 
     aasmtai = AASMTai.read_text(encoding="utf-8")
     load = aasmtai.index("constructor tai_align_abstract.ppuload")

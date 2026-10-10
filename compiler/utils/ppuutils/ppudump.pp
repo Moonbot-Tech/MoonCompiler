@@ -3824,7 +3824,10 @@ begin
        case b of
 
          ibunitsym :
-           readcommonsym('Unit symbol ');
+           begin
+             readcommonsym('Unit symbol ');
+             Writeln([space,'  Physical unit map index: ',getlongint]);
+           end;
 
          ibnamespacesym :
            begin

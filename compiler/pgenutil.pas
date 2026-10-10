@@ -3043,39 +3043,7 @@ uses
     var
       pu : tused_unit;
       hmodule : tmodule;
-      unitsyms : TFPHashObjectList;
-      sym : tsym;
       symtable : tsymtable;
-      i : Integer;
-      n : string;
-
-      procedure ReconnectUnitAliases;
-        var
-          j : Integer;
-          AliasName : string;
-          AliasSym,TargetSym : tsym;
-        begin
-          if not assigned(hmodule.globalsymtable) then
-            exit;
-          for j:=0 to hmodule.globalsymtable.symlist.count-1 do
-            begin
-              AliasSym:=tsym(hmodule.globalsymtable.symlist[j]);
-              if (AliasSym.typ=unitsym) and
-                 not assigned(tunitsym(AliasSym).module) then
-                begin
-                  AliasName:=AliasSym.realname;
-                  if Copy(AliasName,1,7)='$hidden' then
-                    Delete(AliasName,1,7);
-                  TargetSym:=tsym(unitsyms.find(
-                    upper(getunitalias(AliasName))));
-                  if assigned(TargetSym) and
-                     (TargetSym.typ=unitsym) and
-                     assigned(tunitsym(TargetSym).module) then
-                    tunitsym(AliasSym).module:=
-                      tunitsym(TargetSym).module;
-                end;
-            end;
-        end;
 
     begin
       if not assigned(genericdef) then
@@ -3102,29 +3070,6 @@ uses
         hmodule:=find_module_from_symtable(genericdef.owner);
       if hmodule=nil then
         internalerror(200705152);
-      { collect all unit syms in the generic's unit as we need to establish
-        their unitsym.module link again so that unit identifiers can be used }
-      unitsyms:=tfphashobjectlist.create(false);
-      if (hmodule<>current_module) and assigned(hmodule.globalsymtable) then
-        for i:=0 to hmodule.globalsymtable.symlist.count-1 do
-          begin
-            sym:=tsym(hmodule.globalsymtable.symlist[i]);
-            if sym.typ=unitsym then
-              begin
-              n:=sym.realname;
-              if (Copy(n,1,7)='$hidden') then
-                Delete(n,1,7);
-              unitsyms.add(upper(n),sym);
-              n:=getunitalias(n);
-              if not assigned(unitsyms.find(upper(n))) then
-                unitsyms.add(upper(n),sym);
-              end;
-          end;
-      { PPU loading clears tunitsym.module. Reconnect the generic unit's own
-        symbol as well as the used-unit symbols handled below. }
-      sym:=tsym(unitsyms.find(hmodule.modulename^));
-      if assigned(sym) and not assigned(tunitsym(sym).module) then
-        tunitsym(sym).module:=hmodule;
       { add all units if we are specializing inside the current unit (as the
         generic could have been declared in the implementation part), but load
         only interface units, if we are in a different unit as then the generic
@@ -3154,14 +3099,8 @@ uses
               internalerror(200705153)
           else
             symtablestack.push(pu.u.globalsymtable);
-          sym:=tsym(unitsyms.find(pu.u.modulename^));
-          if assigned(sym) and not assigned(tunitsym(sym).module) then
-            tunitsym(sym).module:=pu.u;
           pu:=tused_unit(pu.next);
         end;
-      ReconnectUnitAliases;
-      unitsyms.free;
-      unitsyms := nil;
       if assigned(hmodule.globalsymtable) then
         symtablestack.push(hmodule.globalsymtable);
       symtable:=genericdef.owner;
