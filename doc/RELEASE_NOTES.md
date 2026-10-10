@@ -1,3 +1,33 @@
+# MoonCompiler 2.4.3: helper reload safety and Delphi source compatibility
+
+- Incremental builds restore helper and generic lookup indexes after reloading
+  a dependency. Suspended source units no longer retain helper pointers into a
+  freed symbol table. Repeated class-helper reloads also restore their synthetic
+  lookup symbols correctly. Unchanged builds continue to reuse PPUs.
+- Delphi inline ASM accepts bare LEA address expressions such as
+  `lea rax, rax + 8`, including index registers and scales. It uses the same
+  address encoding as the bracketed form and preserves processor flags.
+- A uses clause can name several aliases of the same physical unit. All names
+  share types and one initialization/finalization; the first physical occurrence
+  retains lookup precedence. Qualified names also survive generic specialization
+  from source-free PPUs, including implementation uses clauses. The library's
+  bindings remain stable when its consumer changes namespace or alias options.
+- Windows bindings add `MEMORYSTATUSEX`, both pointer and variable forms of
+  `GlobalMemoryStatusEx`, `CancelSynchronousIo`, clipboard format listeners,
+  `HWND_MESSAGE` and `ERROR_NOT_FOUND`. Short and `Winapi.*` unit names expose
+  the same declarations and types.
+
+Regression tests execute successive retained-PPU edits, reversals, helper and
+generic dependency cycles, source-free consumers, alias precedence and negative
+visibility cases. ASM tests check instruction bytes and flag preservation;
+Windows tests exercise SDK layouts and native API calls.
+
+Install the complete 2.4.3 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20403; `CompilerVersion` remains 2.4. MoonORMot 13
+remains required. No new runtime dependency is introduced.
+
+---
+
 # MoonCompiler 2.4.2: incremental compilation and resource streaming
 
 - Incremental compilation resolves indirect source/PPU dependency cycles even
