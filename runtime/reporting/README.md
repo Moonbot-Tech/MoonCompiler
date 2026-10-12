@@ -77,9 +77,9 @@ Linux report files are mode 0600. On Windows restrict the directory's ACL.
 
 ## Limit repeated reports
 
-By default, the module permits **10 report attempts per process run**, shared by
-all threads and by automatic, explicit exception and manual reports. Set the
-limit before initialization:
+By default, the module permits **10 exception-report attempts per process run**,
+shared by all threads and by automatic and explicit exception reports. Manual
+snapshots have no quota. Set the exception-report limit before initialization:
 
 ```pascal
 Options := Default(TDiagnosticOptions);
@@ -92,13 +92,19 @@ use the switches below. The quota does not reset when capture is disabled and
 re-enabled, nor when a manual report is requested. Only a new process starts
 with a fresh quota; repeated initialization is not allowed.
 
-Each permitted attempt reserves one slot under the existing report lock, before
-callbacks, manual thread enumeration/sampling or file creation. Failed/partial
-writes and failed uploads still consume that slot, so a broken disk or endpoint
-cannot cause unlimited attempts. Once exhausted, writers return `''` without
+Each admitted exception-report attempt reserves one slot under the report lock,
+before callbacks or file creation. Failed/partial writes and failed uploads still
+consume that slot, so a broken disk or endpoint cannot cause unlimited automatic
+attempts. Once exhausted, exception writers return `''` without
 creating files, sampling threads, invoking callbacks, packing or sending POSTs.
 Already admitted reports may finish, but concurrent failures cannot exceed the
 quota. There is no extra overflow report and no automatic retry.
+
+`WriteManualReport` neither checks nor increments this counter, even after the
+exception budget is exhausted. Manual and exception reports still use one
+monotonic filename sequence, so admitting a manual snapshot does not reuse a
+name or reopen the exception budget. Manual requests retain enable switches,
+serialization, recursion protection and normal I/O failure handling.
 
 This limits report production, not ordinary exception handling or early context
 capture. A caught exception that is not explicitly reported consumes no slot.

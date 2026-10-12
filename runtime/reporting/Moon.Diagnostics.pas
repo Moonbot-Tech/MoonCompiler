@@ -31,7 +31,7 @@ type
     FileName: TDiagnosticNameProc;
     PostURL, PostFieldName, PostSuccessText: string;
     PostTimeoutMS: LongInt;
-    MaxReportsPerRun: LongInt; { 0 = default 10; otherwise positive }
+    MaxReportsPerRun: LongInt; { automatic/exception attempts only; 0 = default 10 }
   end;
 
 { Call once before starting application threads. POST is opt-in, after local saving.
@@ -125,7 +125,8 @@ var
   StartedTick: QWord;
   OnData: TDiagnosticDataProc;
   ReportLock: TRTLCriticalSection;
-  ReportSequence: LongInt;
+  ReportSequence: UInt64;
+  AutomaticReportCount: LongInt;
   Initialized: Boolean;
   GloballyDisabled: LongInt;
   PreviousCapture: TExceptionContextProc;
@@ -564,12 +565,15 @@ begin
   for I := 0 to Raw.Count - 1 do WriteAddress(Report, Raw.Frames[I], I <> 0);
 end;
 
-function ReserveReport: Boolean;
+function ReserveAutomaticReport: Boolean;
 begin
   { Called under ReportLock, before callbacks, thread sampling or file creation.
     A failed attempt still consumes its slot; failures must not permit a flood. }
-  Result := ReportSequence < ReportOptions.MaxReportsPerRun;
-  If Result then Inc(ReportSequence);
+  Result := AutomaticReportCount < ReportOptions.MaxReportsPerRun;
+  If Result then begin
+    Inc(AutomaticReportCount);
+    Inc(ReportSequence);
+  end;
 end;
 
 function BeginReport(const Kind, Title: string; out Report: TDiagnosticReport): string;
@@ -599,7 +603,7 @@ begin
   Result := IncludeTrailingPathDelimiter(ReportOptions.Directory) + Prefix + '-' +
     UIntToStr(NativeProcessId) + '-' + UIntToStr(NativeThreadId) + '-' +
     FormatDateTime('yyyymmdd-hhnnss-zzz', Now) + '-' +
-    IntToStr(ReportSequence) + '.txt';
+    UIntToStr(ReportSequence) + '.txt';
   Handle := CreateReportFile(Result);
   If Handle = THandle(-1) then RaiseLastOSError;
   Report := nil;
@@ -731,7 +735,7 @@ begin
   try
     EnterCriticalSection(ReportLock);
     try
-      If not ReserveReport then Exit('');
+      If not ReserveAutomaticReport then Exit('');
       Result := BeginReport('exception', Title, Report);
       Snapshot := nil;
       try
@@ -772,7 +776,7 @@ begin
     EnterCriticalSection(ReportLock);
     Threads := nil;
     try
-      If not ReserveReport then Exit('');
+      Inc(ReportSequence); { Explicit manual requests do not consume the automatic quota. }
       Threads := TList.Create;
       EnumerateThreads(Threads);
       Result := BeginReport('manual', Title, Report);

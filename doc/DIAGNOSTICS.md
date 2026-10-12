@@ -34,7 +34,9 @@ when deploying it; stripping them leaves only addresses in the report.
 | Hang or requested snapshot | Call `WriteManualReport('description')` from a responsive thread to sample all OS threads. |
 
 Handled exceptions are not reported automatically. Explicit writers return the
-saved file path, or `''` when reporting is disabled or its quota is exhausted.
+saved file path, or `''` when no report is written. Exception reports obey the
+automatic quota; manual snapshots neither check nor consume it, including after
+exhaustion. Enable switches, recursion protection and I/O errors still apply.
 Exception reports retain the original context, including after `raise;` and
 `AcquireExceptionObject`; the application still owns an acquired exception.
 
@@ -58,7 +60,7 @@ end.
 |---|---|---|
 | `Directory` | `BugReports` beside the executable | Report directory. An explicit relative path is resolved against the working directory during initialization. |
 | `FileName` | No callback (`report` prefix) | Callback returning a filename prefix, not a path or extension. |
-| `MaxReportsPerRun` | 10 | Maximum report attempts per process across all threads and report kinds; failed attempts count too. |
+| `MaxReportsPerRun` | 10 | Maximum automatic and explicit exception-report attempts per process across all threads; failed attempts count too. Manual snapshots have no quota. |
 | `PostURL` | Empty | Enables synchronous ZIP upload by HTTP(S) after saving the local report. Empty means no upload. |
 | `PostFieldName` | `el_upload_file_0` | Multipart field name for the ZIP. |
 | `PostTimeoutMS` | 10000 | Socket connection/I/O timeout in milliseconds; not an end-to-end deadline. |

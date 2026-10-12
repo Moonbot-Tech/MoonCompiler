@@ -395,6 +395,25 @@ def main():
             rows.append({'optimization': opt, 'case': f'resilience-{mode}', 'reports': len(reports)})
             print(f'PASS {opt} resilience-{mode}', flush=True)
 
+        executable = compile_source('diagnostic_quota.pas', out / f'quota-{opt}', opt, ['MOON_DIAGNOSTICS_TEST'])
+        destination = out / f'quota-reports-{opt}'
+        stdout = run([executable, destination], out, out / f'quota-{opt}.log')
+        assert 'DIAGNOSTIC_QUOTA_PASS' in stdout
+        reports = list(destination.glob('*.txt'))
+        assert len(reports) == 14, (opt, reports)
+        for report in reports:
+            content = report.read_text(encoding='utf-8')
+            assert content.endswith('MOON_DIAGNOSTIC_END\n') and 'quota_test=present\n' in content
+        rows.append({'optimization': opt, 'case': 'quota', 'reports': len(reports)})
+        print(f'PASS {opt} quota', flush=True)
+        destination = out / f'quota-failure-{opt}'
+        stdout = run([executable, destination, 'failure'], out, out / f'quota-failure-{opt}.log')
+        assert 'DIAGNOSTIC_QUOTA_FAILURE_PASS' in stdout
+        reports = list(destination.glob('*.txt'))
+        assert len(reports) == 4, (opt, reports)
+        assert sum(p.read_text(encoding='utf-8').endswith('MOON_DIAGNOSTIC_END\n') for p in reports) == 1
+        rows.append({'optimization': opt, 'case': 'quota-failure', 'reports': len(reports)})
+
         delivery_checks(opt, rows)
 
         executable = compile_source('diagnostic_switches.pas', out / f'switches-{opt}', opt)
