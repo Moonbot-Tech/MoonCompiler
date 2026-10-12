@@ -1,11 +1,29 @@
-# Unreleased correction: Linux thread priority
+# MoonCompiler 2.4.5: faster Linux clocks and best-effort thread priority
 
-Linux `TThread.Priority` assignment is now best effort. An OS refusal, including
-restoring normal priority after lowering it, no longer raises `EThread` or skips
-application cleanup. The getter still reports actual OS state; the low-level
-`ThreadSetPriority` result and errno remain available for explicit diagnostics.
-Assignments to terminated/joined ordinary threads are ignored safely. Published
-2.4.4 retains its throwing setter; this correction requires the next toolchain.
+- Linux `Now`, `Date`, `Time` and `GetLocalTime` avoid repeated system-zone
+  file checks within one UTC second. Every call still reads the current clock
+  and its fractional part. Process `TZ` changes, DST transitions and clock
+  rollback remain effective immediately. Administrative changes to the default
+  system zone are observed within one monotonic second. On the Hel1 focused
+  test, `Now` took about 0.315 microseconds instead of 1.58 microseconds in
+  2.4.4 (about five times faster); this is not a new full Pulse result.
+- Linux `TThread.Priority` assignment is best effort. An OS refusal, including
+  restoring normal priority after lowering it, no longer raises `EThread` or
+  skips application cleanup. The getter still reports actual native state.
+  Assignments to terminated or joined ordinary threads are ignored safely;
+  the low-level `ThreadSetPriority` result remains available for diagnostics.
+
+Regression tests cover timezone forms and changes, fresh clock fractions,
+DST boundaries, clock rollback, concurrent callers, fork, unavailable monotonic
+clocks and local-to-UTC conversion during a system-zone change. Priority tests
+check permitted and denied changes and completion of application cleanup.
+Windows behavior is unchanged. Full Pulse is not repeated for this patch.
+
+Install the complete 2.4.5 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20405; `CompilerVersion` remains 2.4. MoonORMot 13
+remains required. No new runtime dependency is introduced.
+
+---
 
 # MoonCompiler 2.4.4: thread scheduling, queue notifications and diagnostics
 
