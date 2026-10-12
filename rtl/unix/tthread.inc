@@ -52,9 +52,12 @@
 var
   ThreadsInited: boolean = false;
 const
-  // stupid, considering its not even implemented...
   Priorities: array [TThreadPriority] of Integer =
+{$if defined(LINUX) and not defined(ANDROID)}
+   (-19,-10,-5,0,5,10,20);
+{$else}
    (-20,-19,-10,0,9,18,19);
+{$endif}
 
 
 procedure DoneThreads;
@@ -298,15 +301,31 @@ var
   P: Integer;
   I: TThreadPriority;
 begin
+{$if defined(LINUX) and not defined(ANDROID)}
+  if FThreadReaped then raise EThread.Create('Thread has already been joined');
+  P := ThreadGetPriority(FThreadID);
+  if P=High(Integer) then raise EThread.Create(SysErrorMessage(GetLastOSError));
+  { External renice and inheritance may produce values between enum levels. }
+  Result := Low(TThreadPriority);
+  for I := Succ(Low(TThreadPriority)) to High(TThreadPriority) do
+    if Abs(Priorities[I] - P) < Abs(Priorities[Result] - P) then Result := I;
+{$else}
   P := ThreadGetPriority(FHandle);
   Result := tpNormal;
   for I := Low(TThreadPriority) to High(TThreadPriority) do
     if Priorities[I] = P then
       Result := I;
+{$endif}
 end;
 
 
 procedure TThread.SetPriority(Value: TThreadPriority);
 begin
+{$if defined(LINUX) and not defined(ANDROID)}
+  if FThreadReaped then raise EThread.Create('Thread has already been joined');
+  if not ThreadSetPriority(FThreadID, Priorities[Value]) then
+    raise EThread.Create(SysErrorMessage(GetLastOSError));
+{$else}
   ThreadSetPriority(FHandle, Priorities[Value]);
+{$endif}
 end;

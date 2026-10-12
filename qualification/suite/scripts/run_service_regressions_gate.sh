@@ -269,6 +269,8 @@ run_cdecl_array_const_ppu_replay() {
   done
 }
 
+run_case thread_priority_linux THREAD_PRIORITY_LINUX_OK plain
+run_case thread_priority_lifecycle THREAD_PRIORITY_LIFECYCLE_OK plain
 run_case service_compiler_regressions SERVICE_COMPILER_REGRESSIONS_OK plain
 run_case message_client_list_clear MESSAGE_CLIENT_LIST_CLEAR_OK plain
 run_case fmtbcd_variant_cast FMTBCD_VARIANT_CAST_OK plain
@@ -372,6 +374,8 @@ run_rejected mode_delphi_noop 'Syntax error'
 python3 "$ROOT/scripts/run_exit_runtime_gate.py" --compiler "$FPC" --config "$CFG" --results "$RUN/exit-runtime"
 {
   sha256sum "$FPC" "$CFG" "$ROOT/scripts/run_exit_runtime_gate.py" "$ROOT/tests/smoke/exit_runtime_contract.pas" \
+    "$ROOT/tests/smoke/thread_priority_linux.pas" \
+    "$ROOT/tests/smoke/thread_priority_lifecycle.pas" \
     "$ROOT/tests/smoke/service_compiler_regressions.pas" \
     "$ROOT/tests/smoke/message_client_list_clear.pas" \
     "$ROOT/tests/smoke/fmtbcd_variant_cast.pas" \
@@ -455,4 +459,4 @@ python3 "$ROOT/scripts/run_exit_runtime_gate.py" --compiler "$FPC" --config "$CF
   find "$RUN" -type f ! -name SHA256SUMS -print0 |
     sort -z | xargs -0 -r sha256sum
 } >"$RUN/SHA256SUMS"
-echo "SERVICE_REGRESSIONS_GATE_OK positive=40 negative=15 modes=3"
+echo "SERVICE_REGRESSIONS_GATE_OK positive=42 negative=15 modes=3"

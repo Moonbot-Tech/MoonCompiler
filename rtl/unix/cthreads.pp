@@ -75,7 +75,7 @@ implementation
 {$IFDEF FPC_DOTTEDUNITS}
 Uses
 {$if defined(Linux) and not defined(Android)}
-  LinuxApi,
+  LinuxApi, UnixApi.SysCall,
 {$endif}
   UnixApi.Base,
   UnixApi.Unix,
@@ -88,7 +88,7 @@ Uses
 {$ELSE FPC_DOTTEDUNITS}
 Uses
 {$if defined(Linux) and not defined(Android)}
-  Linux,
+  Linux, Syscall,
 {$endif}
   BaseUnix,
   unix,
@@ -121,6 +121,140 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
        end;
 
       TTryWaitResult = (tw_error, tw_semwasunlocked, tw_semwaslocked);
+
+{$if defined(LINUX) and not defined(ANDROID)}
+type
+  PPriorityThread = ^TPriorityThread;
+  TPriorityThread = record
+    Next: PPriorityThread;
+    Handle: TThreadID;
+    Tid: cint;
+  end;
+  PPriorityState = ^TPriorityState;
+  TPriorityState = record
+    Threads: PPriorityThread;
+    Lock: pthread_mutex_t;
+    Ready: pthread_cond_t;
+  end;
+var
+  PriorityState: PPriorityState;
+  PriorityOwner: LongInt;
+const
+  PTHREAD_CANCEL_DISABLE = 1;
+
+{ Keep this storage independent of the Pascal heap: release runs after
+  MemoryManager.DoneThread. No glibc-private pthread layout is inspected. }
+function priority_alloc(Size: SizeUInt): Pointer; cdecl; external 'c' name 'malloc';
+procedure priority_free(P: Pointer); cdecl; external 'c' name 'free';
+function priority_gettid: cint;
+begin
+  Result:=cint(Do_SysCall(syscall_nr_gettid));
+end;
+
+function NewPriorityThread: PPriorityThread;
+begin
+  Result:=priority_alloc(SizeOf(TPriorityThread));
+  if Result=nil then RunError(203);
+  FillChar(Result^,SizeOf(TPriorityThread),0);
+end;
+
+{ Both libc fork and BaseUnix's raw fork inherit our address space. Never
+  reuse a parent's kernel TID or initialize over inherited synchronization.
+  As with the rest of the Pascal RTL, arbitrary work after a multithreaded
+  fork is not supported before exec. A single-threaded child is supported,
+  including concurrent first use by native pthreads it creates afterward. }
+procedure EnsurePriorityProcess;
+var
+  Pid, Owner: LongInt;
+  Old, Fresh: PPriorityState;
+  P, Next: PPriorityThread;
+begin
+  Pid:=fpGetPid;
+  repeat
+    Owner:=InterlockedCompareExchange(PriorityOwner,0,0);
+    if Owner=Pid then exit;
+    if Owner=-Pid then continue;
+    if InterlockedCompareExchange(PriorityOwner,-Pid,Owner)=Owner then break;
+  until false;
+  Old:=PriorityState;
+  Fresh:=priority_alloc(SizeOf(TPriorityState));
+  if Fresh=nil then RunError(203);
+  FillChar(Fresh^,SizeOf(TPriorityState),0);
+  if (pthread_mutex_init(@Fresh^.Lock,nil)<>0) or
+     (pthread_cond_init(@Fresh^.Ready,nil)<>0) then RunError(203);
+  if Old<>nil then begin
+    P:=Old^.Threads;
+    { The sole thread survives a single-threaded fork, even if another
+      newly created native thread is the first to enter this routine. }
+    if (P<>nil) and (P^.Next=nil) and (P^.Tid<>0) then begin
+      P^.Tid:=Pid;
+      Fresh^.Threads:=P;
+    end else
+      while P<>nil do begin
+        Next:=P^.Next;
+        priority_free(P);
+        P:=Next;
+      end;
+    { No other thread in this process can use the inherited snapshot. }
+    priority_free(Old);
+  end;
+  PriorityState:=Fresh;
+  InterlockedExchange(PriorityOwner,Pid);
+end;
+
+procedure RegisterPriorityThread;
+var
+  P, Existing: PPriorityThread;
+begin
+  EnsurePriorityProcess;
+  P:=NewPriorityThread;
+  P^.Handle:=TThreadID(pthread_self());
+  P^.Tid:=priority_gettid;
+  pthread_mutex_lock(@PriorityState^.Lock);
+  Existing:=PriorityState^.Threads;
+  while (Existing<>nil) and (Existing^.Handle<>P^.Handle) do Existing:=Existing^.Next;
+  if Existing=nil then begin
+    P^.Next:=PriorityState^.Threads;
+    PriorityState^.Threads:=P;
+    P:=nil;
+  end;
+  pthread_mutex_unlock(@PriorityState^.Lock);
+  priority_free(P);
+end;
+
+procedure ReleasePriorityThread;
+var
+  Link: ^PPriorityThread;
+  P: PPriorityThread;
+  Handle: TThreadID;
+begin
+  EnsurePriorityProcess;
+  { Pthread TLS keys may already have been cleared in any order. }
+  Handle:=TThreadID(pthread_self());
+  pthread_mutex_lock(@PriorityState^.Lock);
+  Link:=@PriorityState^.Threads;
+  while (Link^<>nil) and (Link^^.Handle<>Handle) do Link:=@Link^^.Next;
+  P:=Link^;
+  if P<>nil then Link^:=P^.Next;
+  pthread_mutex_unlock(@PriorityState^.Lock);
+  priority_free(P);
+end;
+{ Called with PriorityState^.Lock held; the lock pins Tid through the OS call.
+  Thread teardown removes the entry before Linux can recycle its TID. }
+function FindPriorityThread(Handle: TThreadID): PPriorityThread;
+begin
+  repeat
+    Result:=PriorityState^.Threads;
+    while (Result<>nil) and (Result^.Handle<>Handle) do Result:=Result^.Next;
+    if Result=nil then begin
+      fpSetErrno(ESysESRCH);
+      exit;
+    end;
+    if Result^.Tid<>0 then exit;
+    pthread_cond_wait(@PriorityState^.Ready,@PriorityState^.Lock);
+  until false;
+end;
+{$endif}
 
 {*****************************************************************************
                              Threadvar support
@@ -291,6 +425,9 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
           CleanupKey is called, we still know its value (the order in which
           pthread tls data is zeroed by pthreads is undefined, and under some
           systems the tlskey is cleared first) }
+{$if defined(LINUX) and not defined(ANDROID)}
+        RegisterPriorityThread;
+{$endif}
         RegisterThreadCleanup;
       end;
 
@@ -313,6 +450,9 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
 
     procedure CReleaseThreadVars;
       begin
+{$if defined(LINUX) and not defined(ANDROID)}
+        ReleasePriorityThread;
+{$endif}
 {$ifndef FPC_SECTION_THREADVARS}
         Fpmunmap(pointer(pthread_getspecific(tlskey)),threadvarblocksize);
 {$endif FPC_SECTION_THREADVARS}
@@ -335,11 +475,17 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
         f : tthreadfunc;
         p : pointer;
         stklen : cardinal;
+{$if defined(LINUX) and not defined(ANDROID)}
+        priority: PPriorityThread;
+{$endif}
       end;
 
     function ThreadMain(param : pointer) : pointer;cdecl;
       var
         ti : tthreadinfo;
+{$if defined(LINUX) and not defined(ANDROID)}
+        OldCancelState: cint;
+{$endif}
         nset: tsigset;
 {$if defined(linux) and not defined(FPC_USE_LIBC)}
         nlibcset: tlibc_sigset;
@@ -354,6 +500,11 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
         s: string[100]; // not an ansistring
 {$endif DEBUG_MT}
       begin
+{$if defined(LINUX) and not defined(ANDROID)}
+        { InitThread invokes replaceable MM/string-manager callbacks. Publish
+          cleanup before any pending cancellation can leave the entry behind. }
+        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,@OldCancelState);
+{$endif}
 {$ifdef DEBUG_MT}
         s := 'New thread started, initing threadvars'#10;
         fpwrite(0,s[1],length(s));
@@ -376,8 +527,13 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
 {$else linux}
         pthread_sigmask(SIG_UNBLOCK,@nset,nil);
 {$endif linux}
-        { Allocate local thread vars, this must be the first thing,
-          because the exception management and io depends on threadvars }
+{$if defined(LINUX) and not defined(ANDROID)}
+        pthread_mutex_lock(@PriorityState^.Lock);
+        pthreadinfo(param)^.priority^.Tid:=priority_gettid;
+        pthread_cond_broadcast(@PriorityState^.Ready);
+        pthread_mutex_unlock(@PriorityState^.Lock);
+{$endif}
+        { Allocate thread vars before Pascal exception management and I/O. }
         CAllocateThreadVars;
         { Copy parameter to local data }
 {$ifdef DEBUG_MT}
@@ -388,8 +544,14 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
 
         { Initialize thread }
         InitThread(ti.stklen);
+{$if defined(LINUX) and not defined(ANDROID)}
+        RegisterThreadCleanup;
+{$endif}
 
         dispose(pthreadinfo(param));
+{$if defined(LINUX) and not defined(ANDROID)}
+        pthread_setcancelstate(OldCancelState,nil);
+{$endif}
         { Start thread function }
 {$ifdef DEBUG_MT}
         writeln('Jumping to thread function');
@@ -410,7 +572,13 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
       begin
         { We're still running in single thread mode, setup the TLS }
         pthread_key_create(@TLSKey,nil);
+{$if defined(LINUX) and not defined(ANDROID)}
+        EnsurePriorityProcess;
+{$endif}
         InitThreadVars(@CRelocateThreadvar);
+{$if defined(LINUX) and not defined(ANDROID)}
+        RegisterPriorityThread;
+{$endif}
         { used to clean up threads that we did not create ourselves:
            a) the default value for a key (and hence also this one) in
               new threads is NULL, and if it's still like that when the
@@ -426,9 +594,8 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
         else
 {$endif}
           pthread_key_create(@CleanupKey,@CthreadCleanup);
-{$if defined(LINUX) and defined(CPUX86_64) and not defined(ANDROID)}
-        if IsLibrary then
-          RegisterThreadCleanup;
+{$if defined(LINUX) and not defined(ANDROID)}
+        RegisterThreadCleanup;
 {$endif}
       end
   end;
@@ -459,6 +626,10 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
       ti^.f:=ThreadFunction;
       ti^.p:=p;
       ti^.stklen:=stacksize;
+{$if defined(LINUX) and not defined(ANDROID)}
+      EnsurePriorityProcess;
+      ti^.priority:=NewPriorityThread;
+{$endif}
       { call pthread_create }
 {$ifdef DEBUG_MT}
       writeln('Starting new thread');
@@ -479,15 +650,32 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
       // the newly created thread!
       //pthread_attr_setdetachstate(@thread_attr, PTHREAD_CREATE_DETACHED);
 
+{$if defined(LINUX) and not defined(ANDROID)}
+      { Publish the handle before the child can enter user code. }
+      pthread_mutex_lock(@PriorityState^.Lock);
+{$endif}
       // set the stack size
       if ((stacksize<>0) and (pthread_attr_setstacksize(@thread_attr, stacksize)<>0)) or
          // and create the thread
          (pthread_create(ppthread_t(@threadid), @thread_attr, @ThreadMain,ti) <> 0) then
 
         begin
-          dispose(ti);
+{$if defined(LINUX) and not defined(ANDROID)}
+          priority_free(ti^.priority);
+{$endif}
           threadid := TThreadID(0);
-        end;
+        end
+{$if defined(LINUX) and not defined(ANDROID)}
+      else begin
+        ti^.priority^.Handle:=threadid;
+        ti^.priority^.Next:=PriorityState^.Threads;
+        PriorityState^.Threads:=ti^.priority;
+      end;
+      pthread_mutex_unlock(@PriorityState^.Lock)
+{$endif}
+      ;
+      { A replaceable heap callback must not run under the priority lock. }
+      if threadid=TThreadID(0) then dispose(ti);
       CBeginThread:=threadid;
       pthread_attr_destroy(@thread_attr);
 {$ifdef DEBUG_MT}
@@ -561,17 +749,67 @@ Type  PINTRTLEvent = ^TINTRTLEvent;
       CWaitForThreadTerminate := dword(LResultP);
     end;
 
-    function  CThreadSetPriority (threadHandle : TThreadID; Prio: longint): boolean; {-15..+15, 0=normal}
+    function CThreadSetPriority(threadHandle: TThreadID; Prio: longint): boolean;
+{$if defined(LINUX) and not defined(ANDROID)}
+    var
+      P: PPriorityThread;
+      OldCancelState: cint;
+    begin
+      { Linux nice is -20..19, with the opposite ordering to RTL priority. }
+      Result:=false;
+      if (Prio < -19) or (Prio > 20) then begin
+        fpSetErrno(ESysEINVAL);
+        exit;
+      end;
+      { Errno access can initialize a foreign thread: do so outside our lock. }
+      if pthread_getspecific(tlskey)=nil then HookThread;
+      EnsurePriorityProcess;
+      pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,@OldCancelState);
+      pthread_mutex_lock(@PriorityState^.Lock);
+      P:=FindPriorityThread(threadHandle);
+      if P<>nil then Result:=fpSetPriority(PRIO_PROCESS,P^.Tid,-Prio)=0;
+      pthread_mutex_unlock(@PriorityState^.Lock);
+      pthread_setcancelstate(OldCancelState,nil);
+{$else}
     begin
       {$Warning ThreadSetPriority needs to be implemented}
       result:=false;
+{$endif}
     end;
 
 
-  function  CThreadGetPriority (threadHandle : TThreadID): Integer;
+  function CThreadGetPriority(threadHandle: TThreadID): Integer;
+{$if defined(LINUX) and not defined(ANDROID)}
+    var
+      P: PPriorityThread;
+      OldCancelState: cint;
+      Raw: cint;
+    begin
+      Result:=High(Integer);
+      { Errno access can initialize a foreign thread: do so outside our lock. }
+      if pthread_getspecific(tlskey)=nil then HookThread;
+      EnsurePriorityProcess;
+      pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,@OldCancelState);
+      pthread_mutex_lock(@PriorityState^.Lock);
+      P:=FindPriorityThread(threadHandle);
+      if P<>nil then begin
+        fpSetErrno(0);
+        Raw:=fpGetPriority(PRIO_PROCESS,P^.Tid);
+        if (Raw<>-1) or (fpGetErrno=0) then
+{$ifdef FPC_USE_LIBC}
+          Result:=-Raw;
+{$else}
+          { Linux syscall returns 20-nice, unlike libc getpriority. }
+          Result:=Raw-20;
+{$endif}
+      end;
+      pthread_mutex_unlock(@PriorityState^.Lock);
+      pthread_setcancelstate(OldCancelState,nil);
+{$else}
     begin
       {$Warning ThreadGetPriority needs to be implemented}
       result:=0;
+{$endif}
     end;
 
 
@@ -1079,6 +1317,11 @@ begin
   if IsLibraryFinalizing then
     begin
       CReleaseThreadVars;
+      pthread_cond_destroy(@PriorityState^.Ready);
+      pthread_mutex_destroy(@PriorityState^.Lock);
+      priority_free(PriorityState);
+      PriorityState:=nil;
+      PriorityOwner:=0;
       pthread_key_delete(CleanupKey);
       pthread_key_delete(TLSKey);
     end;

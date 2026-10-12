@@ -44,7 +44,7 @@ type
   TThreadHandler = Function (threadHandle : TThreadID) : dword;
   TThreadSwitchHandler = Procedure;
   TWaitForThreadTerminateHandler = Function (threadHandle : TThreadID; TimeoutMs : longint) : dword;  {0=no timeout}
-  TThreadSetPriorityHandler = Function (threadHandle : TThreadID; Prio: longint): boolean;            {-15..+15, 0=normal}
+  TThreadSetPriorityHandler = Function (threadHandle : TThreadID; Prio: longint): boolean;            {platform-specific; Linux: -19..20, 0=normal}
   TThreadGetPriorityHandler = Function (threadHandle : TThreadID): longint;
   TGetCurrentThreadIdHandler = Function : TThreadID;
   TThreadSetThreadDebugNameHandlerA = procedure(threadHandle: TThreadID; const ThreadName: AnsiString);
@@ -155,7 +155,7 @@ function  CloseThread   (threadHandle : TThreadID) : dword;
 procedure ThreadSwitch;                                                                {give time to other threads}
 function  KillThread (threadHandle : TThreadID) : dword;
 function  WaitForThreadTerminate (threadHandle : TThreadID; TimeoutMs : longint) : dword;  {0=no timeout}
-function  ThreadSetPriority (threadHandle : TThreadID; Prio: longint): boolean;            {-15..+15, 0=normal}
+function  ThreadSetPriority (threadHandle : TThreadID; Prio: longint): boolean;            {platform-specific; Linux: -19..20, 0=normal}
 function  ThreadGetPriority (threadHandle : TThreadID): longint;
 function  GetCurrentThreadId : TThreadID;
 procedure SetThreadDebugName(threadHandle: TThreadID; const ThreadName: AnsiString);
