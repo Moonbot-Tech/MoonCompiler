@@ -1,3 +1,30 @@
+# MoonCompiler 2.4.4: thread scheduling, queue notifications and diagnostics
+
+- Linux `TThread.Priority` changes the target thread's native nice value, including
+  before `Start` and through `TThread.CurrentThread`. The getter reflects the OS
+  state; a denied change raises `EThread`. Increasing priority, including restoring
+  normal priority after lowering it, can require `CAP_SYS_NICE` or `RLIMIT_NICE`.
+- `TThreadedQueue<T>` directs notifications to waiting readers and writers instead
+  of broadcasting one item or slot to every waiter. Readiness is preserved through
+  assignment exceptions, growth, shutdown and timeout races. The uncontended path
+  avoids event signaling when no thread is waiting.
+- `Moon.Diagnostics.WriteManualReport` remains available after the exception-report
+  quota is exhausted. Manual snapshots neither check nor consume that quota and
+  retain unique filenames, enable switches, serialization and recursion protection.
+- `Windows` and `Winapi.Windows` expose `CheckRemoteDebuggerPresent` with pointer
+  and variable forms of its native `BOOL` output parameter. No JEDI unit is needed.
+
+Regression tests check actual Linux OS priorities, thread identity and lifetime,
+native threads, fork and cancellation; queue delivery and notification behavior,
+exception recovery and deadlines; diagnostic quotas, concurrent requests and I/O
+failure; and the Windows API signature and native calls.
+
+Install the complete 2.4.4 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20404; `CompilerVersion` remains 2.4. MoonORMot 13
+remains required. No new runtime dependency is introduced.
+
+---
+
 # MoonCompiler 2.4.3: helper reload safety and Delphi source compatibility
 
 - Incremental builds restore helper and generic lookup indexes after reloading

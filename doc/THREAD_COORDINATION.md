@@ -29,6 +29,42 @@ signal the queue, join its users, then free it. Do not destroy a queue while
 another thread is in a queue method, and do not use shutdown as a per-item
 acknowledgment protocol. Timeout also resets a pop's output to the default value.
 
+Notifications are directed to waiting readers or writers as data or space becomes
+available. A single item does not deliberately broadcast to every consumer.
+Ready work is passed to the next waiter even when a managed assignment raises;
+rechecking the predicate does not restart the original timeout budget.
+
+## Linux thread priority
+
+`TThread.Priority` changes the target Linux thread's native nice value, including
+before `Start`. It also works through `TThread.CurrentThread` for the main thread
+and native threads attached to the RTL. The mapping is:
+
+| Priority | nice |
+|---|---:|
+| `tpIdle` | 19 |
+| `tpLowest` | 10 |
+| `tpLower` | 5 |
+| `tpNormal` | 0 |
+| `tpHigher` | -5 |
+| `tpHighest` | -10 |
+| `tpTimeCritical` | -20 |
+
+This adjusts ordinary scheduling under contention; it does not set a CPU usage
+limit or enable a real-time scheduling policy. Increasing scheduling priority,
+including returning from `tpLowest` to `tpNormal`, may require `CAP_SYS_NICE` or
+an appropriate `RLIMIT_NICE`. A rejected assignment raises `EThread`; the getter
+reports the actual native state, using the nearest enum level after an external
+renice. Access to a terminated or joined ordinary `TThread` also raises `EThread`.
+For an externally created native thread, the `CurrentThread` wrapper borrows its
+native identity and is valid only while that thread is alive. Do not retain and
+use that wrapper after native exit/join: the OS may reuse its handle.
+
+Thread handles are resolved to live kernel thread IDs without depending on a
+private libc layout. Single-threaded fork children establish their own identity;
+as with the rest of the RTL, arbitrary Pascal work after a multithreaded fork is
+not supported before exec. Windows priority behavior is unchanged.
+
 ## Completion counters
 
 Construct `TCountdownEvent` with the number of outstanding operations (default
@@ -55,7 +91,11 @@ Free the object only after all signalers and waiters have finished.
 Delphi 12.2 and MoonCompiler. It checks wrapped growth, every queue overload,
 timeouts, zero capacity, shutdown wakeups, interface lifetime, multiple producers
 and consumers, and concurrent countdown signaling/waiting. The ordinary RTL API
-gate runs it in Debug and Release on Windows and Linux.
+gate runs it in Debug and Release on Windows and Linux. Additional queue tests
+exercise single-notification behavior, assignment exceptions and a deterministic
+timeout/notification race. Linux priority tests query the OS independently and
+cover pre-start changes, native threads, fork, cancellation, lifetime and denied
+priority increases in Debug, O2 and O3.
 
 ## Lightweight events and semaphores
 
