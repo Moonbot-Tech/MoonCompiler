@@ -15,6 +15,7 @@
     "algorithms",
     "memory-manager",
     "multithread",
+    "thread-lifecycle",
     "application-pipeline",
     "product-forms"
   ],
@@ -387,6 +388,20 @@
       }
     },
     {
+      "id": "thread-lifecycle",
+      "status": "implemented",
+      "source": "threads/pulse_thread_lifecycle.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": ["start-join-1", "start-join-4"],
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "type": ["signed-integer", "unsigned-integer"],
+        "lifetime": ["returned"],
+        "memory": ["heap"],
+        "concurrency": ["independent"]
+      }
+    },
+    {
       "id": "application-pipeline",
       "status": "implemented",
       "source": "heartbeat/pulse_heartbeat.dpr",
@@ -432,8 +447,12 @@
         "trade-recent-price",
         "trade-max-window",
         "trade-buy-sell",
+        "trade-max-window-changing",
+        "trade-buy-sell-changing",
         "trade-buy-sell-locked",
         "candle-hour-deltas",
+        "trade-value-locked",
+        "market-by-name-getter",
         "candle-rebuild",
         "market-by-int-name",
         "market-by-name-dict",

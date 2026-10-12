@@ -23,6 +23,7 @@ SYNC_FILES = (
     "qualification/performance/common/pulse_process_metrics.pas",
     "qualification/performance/repairs/pulse_repairs.dpr",
     "qualification/performance/threads/pulse_threads.dpr",
+    "qualification/performance/threads/pulse_thread_lifecycle.dpr",
     "qualification/performance/move/pulse_move.dpr",
     "qualification/performance/pulse_l2_misses.json",
     "qualification/performance/tools/pulse.py",

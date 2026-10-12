@@ -73,6 +73,14 @@ multithread set has cores (`threads`: eight, `PINNED_WORKERS` in
 `pulse_full.py`) is left out on a smaller machine and named in `REPORT.md` and
 in the result's `unhostable`.
 
+The separate `thread-lifecycle` program measures creating, starting, joining and
+freeing ordinary `TThread` objects, one at a time or in batches of four. Each
+worker writes a checked result; it does not pin itself or open a performance
+counter. Use elapsed time per completed thread for this OS/RTL cost. The older
+`threads/thread-start-join-4` case also includes worker affinity, synchronization
+and Linux performance-counter instrumentation, so its absolute time is a
+different contract. Neither case measures the steady-state cost of a thread pool.
+
 A program that needs a unit an older toolchain does not have
 (`PROGRAM_TOOLCHAIN_UNITS` in `pulse.py`: the `zlib` program and `System.ZLib`,
 which the release predates) is not built with that toolchain; the run compares
