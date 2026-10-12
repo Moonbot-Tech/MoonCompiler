@@ -7,6 +7,11 @@ var
   Raw: MEMORYSTATUSEX;
   InfoPointer: PMemoryStatusEx;
   Window: HWND;
+  Debug: record
+    Before: LongWord;
+    Present: BOOL;
+    After: LongWord;
+  end;
 begin
   If (SizeOf(Info) <> 64) or (SizeOf(Raw) <> 64) then Halt(1);
   If (NativeUInt(@Info.ullTotalPhys) - NativeUInt(@Info) <> 8) or
@@ -33,5 +38,14 @@ begin
   finally
     DestroyWindow(Window);
   end;
+  If SizeOf(Debug.Present) <> 4 then Halt(12);
+  Debug.Before := $12345678;
+  Debug.After := $FEDCBA98;
+  If not CheckRemoteDebuggerPresent(GetCurrentProcess, Debug.Present) then Halt(13);
+  If Boolean(Debug.Present) <> Boolean(IsDebuggerPresent) then Halt(14);
+  If not CheckRemoteDebuggerPresent(GetCurrentProcess, @Debug.Present) then Halt(15);
+  If (Debug.Before <> $12345678) or (Debug.After <> $FEDCBA98) then Halt(16);
+  SetLastError(0);
+  If CheckRemoteDebuggerPresent(0, @Debug.Present) or (GetLastError = 0) then Halt(17);
   Writeln('WINAPI_SERVICES_OK');
 end.
