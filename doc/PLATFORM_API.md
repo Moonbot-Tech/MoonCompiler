@@ -88,8 +88,14 @@ before writing the backup. These are filesystem operations, not a transaction
 against concurrent external path changes.
 
 `Now`, `Date`, `Time`, `GetLocalTime`, the current UTC offset and `TTimeZone`
-share libc timezone rules. The tests change `TZ` within one process and check
-UTC round trips, named zones, POSIX zone strings, DST and non-hour offsets.
+share libc timezone rules. On Linux, numeric local-clock conversion caches one
+exact UTC second per thread when `TZ` is unset. The clock and its fractional
+part are read on every call; DST transitions and clock rollback select a new
+conversion immediately. A system-zone configuration change is observed within
+one monotonic second; explicit process `TZ` changes are observed on the next
+call. Zone names and validation of local-to-UTC conversion use fresh libc rules.
+Tests cover environment changes, UTC round trips, named and POSIX zones, DST,
+non-hour offsets, fractional clock progress and clock-provider failure.
 
 ## FreeType
 

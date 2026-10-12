@@ -37,6 +37,21 @@ for profile in debug release; do
   grep -qx TLS_LIBRARY_LIFETIME_OK "$failure_log"
 done
 echo 'TLS_LIBRARY_LIFETIME_GATE_OK profiles=2'
+
+cc -std=c11 -Wall -Wextra -Werror -shared -fPIC "$source_root/zone_clock_fault.c" -ldl -o "$run/zone-clock-fault.so"
+for profile in debug release; do
+  profile_dir="$run/zone-cache/$profile"
+  mkdir -p "$profile_dir"
+  options=(-B "-Fi$compiler_root/rtl/unix" "-FU$profile_dir" "-FE$profile_dir")
+  if [[ "$profile" == release ]]; then options+=(-dRELEASE); fi
+  failure_log="$profile_dir/compile.log"
+  "$compiler_root/toolchain/bin/fpc" "${options[@]}" "$source_root/zone_cache_contracts.dpr" >"$failure_log" 2>&1
+  failure_log="$profile_dir/run.log"
+  timeout 30 env LD_PRELOAD="$run/zone-clock-fault.so" MOON_ZONE_FAULT_SHIM=1 "$profile_dir/zone_cache_contracts" >"$failure_log" 2>&1
+  grep -qx ZONE_CACHE_CONTRACTS_OK "$failure_log"
+done
+echo 'ZONE_CACHE_GATE_OK profiles=2'
+
 cases=0
 executions=0
 
@@ -165,6 +180,8 @@ done
   sha256sum "$source_root/rtl_api_regex_contracts.dpr"
   sha256sum "$source_root/rtl_api_posix_contracts.dpr"
   sha256sum "$source_root/rtl_api_compiler_identity.dpr"
+  sha256sum "$source_root/zone_cache_contracts.dpr" "$source_root/zone_clock_fault.c" \
+    "$compiler_root/rtl/unix/zonecalendar.inc"
   sha256sum "$source_root/rtl_api_url_async_contracts.dpr" "$source_root/rtl_api_surface.dpr" \
     "$source_root/rtl_api_threading_contracts.dpr" \
     "$source_root/thread_priority_best_effort.dpr" \

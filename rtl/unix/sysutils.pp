@@ -1451,27 +1451,7 @@ end;
 
 
 {$if defined(linux) and defined(cpu64)}
-{$push}
-{$packrecords c}
-type
-  { Linux libc struct tm: nine int fields followed by long and char*. }
-  TZoneCalendar = record
-    Second, Minute, Hour, Day, Month, Year, WeekDay, YearDay, Daylight: LongInt;
-    Offset: NativeInt;
-    Name: PAnsiChar;
-  end;
-  PZoneCalendar = ^TZoneCalendar;
-{$pop}
-function ZoneCLocalTime(var Epoch: Int64; var Calendar: TZoneCalendar): PZoneCalendar;
-  cdecl; external 'c' name 'localtime_r';
-function ZoneMakeTime(var Calendar: TZoneCalendar): Int64; cdecl; external 'c' name 'mktime';
-
-procedure ZoneRefresh; cdecl; external 'c' name 'tzset';
-function ZoneLocalTime(var Epoch: Int64; var Calendar: TZoneCalendar): PZoneCalendar;
-begin
-  ZoneRefresh;
-  Result := ZoneCLocalTime(Epoch, Calendar);
-end;
+{$i zonecalendar.inc}
 {$endif}
 
 Function GetEpochTime: time_t;
@@ -1984,7 +1964,7 @@ begin
   DecodeDate(UTC,Year,Month,Day);
   DecodeTime(UTC,Hour,Minute,Second,Millisecond);
   Epoch:=UniversalToEpoch(Year,Month,Day,Hour,Minute,Second);
-  Result:=Assigned(ZoneLocalTime(Epoch,Calendar));
+  Result:=Assigned(ZoneLocalTime(Epoch,Calendar,True));
   if Result then
     begin
     OffsetSeconds:=Calendar.Offset;
@@ -2033,7 +2013,7 @@ begin
     Calendar:=Original;
     Calendar.Daylight:=-Attempt;
     UnixTime:=ZoneMakeTime(Calendar);
-    if Assigned(ZoneLocalTime(UnixTime,Calendar)) and
+    if Assigned(ZoneLocalTime(UnixTime,Calendar,True)) and
        (Calendar.Year=Original.Year) and (Calendar.Month=Original.Month) and
        (Calendar.Day=Original.Day) and (Calendar.Hour=Original.Hour) and
        (Calendar.Minute=Original.Minute) and (Calendar.Second=Original.Second) then

@@ -132,6 +132,7 @@ end;
 {$ifdef linux}
 function SetEnv(Name, Value: PAnsiChar; Overwrite: Integer): Integer; cdecl; external 'c' name 'setenv';
 procedure TZSet; cdecl; external 'c' name 'tzset';
+function UnsetEnv(Name: PAnsiChar): Integer; cdecl; external 'c' name 'unsetenv';
 
 procedure Zone(const Value: AnsiString);
 begin
@@ -143,7 +144,7 @@ type
   TClockValue = record Seconds, Microseconds: Int64; end;
 function ClockValue(var Value: TClockValue; Zone: Pointer): Integer; cdecl; external 'c' name 'gettimeofday';
 
-procedure CheckLiveClocks(const ZoneName: AnsiString);
+procedure CheckLiveClocks(const ZoneName: AnsiString; SystemZone: Boolean = False);
 var
   Before, After: TClockValue;
   LocalNow, LocalSystem, UTC, U0, U1, LocalBefore, LocalAfter, LocalDate, LocalTime: TDateTime;
@@ -153,7 +154,10 @@ var
   Name: string;
 begin
   // Deliberately omit explicit tzset: changing TZ is observed by all public clocks.
-  Check(SetEnv('TZ', PAnsiChar(ZoneName), 1) = 0, 'set live TZ');
+  if SystemZone then
+    Check(UnsetEnv('TZ') = 0, 'unset live TZ')
+  else
+    Check(SetEnv('TZ', PAnsiChar(ZoneName), 1) = 0, 'set live TZ');
   Check(ClockValue(Before, nil) = 0, 'clock before');
   LocalNow := Now;
   GetLocalTime(Calendar);
@@ -183,11 +187,16 @@ var
   Local, UTC, Other: TDateTime;
   Z: TTimeZone;
 begin
+  CheckLiveClocks('', True);
+  CheckLiveClocks('');
   CheckLiveClocks('UTC0');
   CheckLiveClocks('MSK-3');
   CheckLiveClocks(':Europe/Moscow');
   CheckLiveClocks('America/New_York');
   CheckLiveClocks('<+0545>-5:45');
+  CheckLiveClocks(':/usr/share/zoneinfo/Asia/Tokyo');
+  CheckLiveClocks('UTC0');
+  CheckLiveClocks('', True);
   Z := TTimeZone.Local;
   Zone('Europe/Berlin');
   Check(Z.HasDST(EncodeDate(2026, 1, 1)), 'Berlin HasDST in winter');
@@ -225,10 +234,37 @@ begin
   Zone('Europe/Berlin');
   Check(Z.GetUtcOffset(EncodeDate(2099, 7, 15)).TotalSeconds = 7200, 'TZif future rule');
 end;
+
+procedure FreshSystemClock;
+var
+  I: Integer;
+  Before, After: TClockValue;
+  LocalNow, UTC, U0, U1, Previous: TDateTime;
+  Offset: Int64;
+  DST: Boolean;
+  Name: string;
+begin
+  Check(UnsetEnv('TZ') = 0, 'system zone for fractional clock');
+  Check(ClockValue(Before, nil) = 0, 'initial real clock');
+  Check(GetLocalTimeZoneInfo(UnixToDateTime(Before.Seconds, True), Offset, DST, Name), 'system offset');
+  Previous := Now;
+  for I := 1 to 8 do begin
+    Sleep(3);
+    Check(ClockValue(Before, nil) = 0, 'fresh clock before');
+    LocalNow := Now;
+    Check(ClockValue(After, nil) = 0, 'fresh clock after');
+    UTC := LocalNow - Offset / SecsPerDay;
+    U0 := UnixToDateTime(Before.Seconds, True) + Before.Microseconds / (1000000.0 * SecsPerDay);
+    U1 := UnixToDateTime(After.Seconds, True) + After.Microseconds / (1000000.0 * SecsPerDay);
+    Check((UTC >= U0 - 0.002 / SecsPerDay) and (UTC <= U1 + 0.002 / SecsPerDay), 'cached calendar keeps fresh fraction');
+    Check(LocalNow > Previous, 'Now advances within a second');
+    Previous := LocalNow;
+  end;
+end;
 {$endif}
 
 begin
   {$ifdef windows}WindowsRules;{$endif}
-  {$ifdef linux}LinuxRules;{$endif}
+  {$ifdef linux}LinuxRules; FreshSystemClock;{$endif}
   WriteLn('RTL_API_TIMEZONE_PROVIDER_CONTRACTS_OK');
 end.
