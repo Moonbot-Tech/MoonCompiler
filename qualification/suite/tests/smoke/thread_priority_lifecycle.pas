@@ -30,7 +30,7 @@ end;
 
 function ForeignEntry(Arg: Pointer): Pointer; cdecl;
 var
-  Missing, Code: Integer;
+  Missing, Code, Payload, ActualNice: Integer;
 begin
   { The first operation must exercise lazy RTL attachment before errno access. }
   Missing := ThreadGetPriority(0);
@@ -43,6 +43,16 @@ begin
     Check((NativeNice(0, 0) = 10) and (TThread.CurrentThread.Priority = tpLowest), 'foreign native nice');
     Check(NativeSetNice(0, 0, 12) = 0, 'external renice');
     Check(TThread.CurrentThread.Priority = tpLowest, 'nearest enum for native nice 12');
+    try
+      Payload := 41;
+    finally
+      TThread.CurrentThread.Priority := tpNormal;
+      Inc(Payload);
+    end;
+    Check(Payload = 42, 'foreign cleanup after best-effort restore');
+    ActualNice := NativeNice(0, 0);
+    If ActualNice = 12 then Check(TThread.CurrentThread.Priority = tpLowest, 'foreign getter retains refused nice')
+    else Check((ActualNice = 0) and (TThread.CurrentThread.Priority = tpNormal), 'foreign privileged restore');
     Result := nil;
   except
     on E: Exception do Writeln('FOREIGN_FAILURE ', E.Message);

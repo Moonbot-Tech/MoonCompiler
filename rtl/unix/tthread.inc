@@ -322,9 +322,9 @@ end;
 procedure TThread.SetPriority(Value: TThreadPriority);
 begin
 {$if defined(LINUX) and not defined(ANDROID)}
-  if FThreadReaped then raise EThread.Create('Thread has already been joined');
-  if not ThreadSetPriority(FThreadID, Priorities[Value]) then
-    raise EThread.Create(SysErrorMessage(GetLastOSError));
+  { Scheduling is best effort; a joined id may already belong to another thread. }
+  if FThreadReaped then exit;
+  ThreadSetPriority(FThreadID, Priorities[Value]);
 {$else}
   ThreadSetPriority(FHandle, Priorities[Value]);
 {$endif}

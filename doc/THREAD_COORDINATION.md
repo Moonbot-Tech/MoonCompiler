@@ -53,9 +53,13 @@ and native threads attached to the RTL. The mapping is:
 This adjusts ordinary scheduling under contention; it does not set a CPU usage
 limit or enable a real-time scheduling policy. Increasing scheduling priority,
 including returning from `tpLowest` to `tpNormal`, may require `CAP_SYS_NICE` or
-an appropriate `RLIMIT_NICE`. A rejected assignment raises `EThread`; the getter
+an appropriate `RLIMIT_NICE`. Assignment is best effort: an OS refusal does not
+raise, so cleanup and subsequent application code can still run. The getter
 reports the actual native state, using the nearest enum level after an external
-renice. Access to a terminated or joined ordinary `TThread` also raises `EThread`.
+renice; it does not report a refused request as successful. Assignment to a
+terminated or joined ordinary `TThread` is ignored; reading its priority raises
+`EThread` because no live native state remains. For explicit success/failure and
+errno diagnostics, use the low-level `ThreadSetPriority` Boolean result.
 For an externally created native thread, the `CurrentThread` wrapper borrows its
 native identity and is valid only while that thread is alive. Do not retain and
 use that wrapper after native exit/join: the OS may reuse its handle.

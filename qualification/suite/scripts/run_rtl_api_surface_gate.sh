@@ -40,7 +40,7 @@ echo 'TLS_LIBRARY_LIFETIME_GATE_OK profiles=2'
 cases=0
 executions=0
 
-for case_name in rtl_api_release231_contracts rtl_api_freetype_contracts rtl_api_portability_contracts rtl_api_regex_contracts rtl_api_posix_contracts rtl_api_compiler_identity rtl_api_threading_contracts queue244_assignment_contracts queue244_notification_contracts rtl_api_url_async_contracts rtl_api_json_builder_contracts rtl_api_release21_contracts rtl_api_timezone_provider_contracts rtl_api_surface rtl_api_stringbuilder_contracts \
+for case_name in rtl_api_release231_contracts rtl_api_freetype_contracts rtl_api_portability_contracts rtl_api_regex_contracts rtl_api_posix_contracts rtl_api_compiler_identity rtl_api_threading_contracts thread_priority_best_effort queue244_assignment_contracts queue244_notification_contracts rtl_api_url_async_contracts rtl_api_json_builder_contracts rtl_api_release21_contracts rtl_api_timezone_provider_contracts rtl_api_surface rtl_api_stringbuilder_contracts \
     rtl_api_variant_dictionary_contracts rtl_api_bcd_value_contracts rtl_api_encoding_contracts rtl_api_utf8_decode_contracts rtl_api_datetime_unix_contracts rtl_api_sorted_find_contracts \
     rtl_api_queue_contracts rtl_api_dictionary_capacity_contracts rtl_api_comparer_factory_contracts \
     rtl_api_text_operations_contracts rtl_api_dictionary_scan_contracts rtl_api_unicode_copy_contracts rtl_api_array_copy \
@@ -59,6 +59,8 @@ for case_name in rtl_api_release231_contracts rtl_api_freetype_contracts rtl_api
     expected=RTL_API_COMPILER_IDENTITY_OK
   elif [[ "$case_name" == rtl_api_threading_contracts ]]; then
     expected=RTL_API_THREADING_CONTRACTS_OK
+  elif [[ "$case_name" == thread_priority_best_effort ]]; then
+    expected=THREAD_PRIORITY_BEST_EFFORT_OK
   elif [[ "$case_name" == queue244_assignment_contracts ]]; then
     expected=QUEUE244_ASSIGNMENT_CONTRACTS_OK
   elif [[ "$case_name" == queue244_notification_contracts ]]; then
@@ -165,6 +167,7 @@ done
   sha256sum "$source_root/rtl_api_compiler_identity.dpr"
   sha256sum "$source_root/rtl_api_url_async_contracts.dpr" "$source_root/rtl_api_surface.dpr" \
     "$source_root/rtl_api_threading_contracts.dpr" \
+    "$source_root/thread_priority_best_effort.dpr" \
     "$source_root/queue244_assignment_contracts.dpr" \
     "$source_root/queue244_notification_contracts.dpr" \
     "$source_root/queue244hooks.pas" \

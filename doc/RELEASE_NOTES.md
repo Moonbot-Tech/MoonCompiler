@@ -1,3 +1,12 @@
+# Unreleased correction: Linux thread priority
+
+Linux `TThread.Priority` assignment is now best effort. An OS refusal, including
+restoring normal priority after lowering it, no longer raises `EThread` or skips
+application cleanup. The getter still reports actual OS state; the low-level
+`ThreadSetPriority` result and errno remain available for explicit diagnostics.
+Assignments to terminated/joined ordinary threads are ignored safely. Published
+2.4.4 retains its throwing setter; this correction requires the next toolchain.
+
 # MoonCompiler 2.4.4: thread scheduling, queue notifications and diagnostics
 
 - Linux `TThread.Priority` changes the target thread's native nice value, including

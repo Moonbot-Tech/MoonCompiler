@@ -37,7 +37,11 @@ begin
 end;
 var
   A, B: TWorker;
-  MainNice, I, LastNice: Integer;
+  MainNice, I, LastNice, Code: Integer;
+{$IFDEF STAND_REPORT}
+  Reused: Integer;
+{$ENDIF}
+  P: TThreadPriority;
   Started: QWord;
   Denied: Boolean;
 begin
@@ -58,17 +62,14 @@ begin
     Check((NativeNice(0, A.Tid) = 10) and (NativeNice(0, B.Tid) = 0), 'external OS query');
     A.Priority := tpIdle;
     Check((NativeNice(0, A.Tid) = 19) and (A.Priority = tpIdle), 'running priority change');
-    Denied := False;
-    try
-      A.Priority := tpNormal;
-    except
-      on E: EThread do Denied := True;
-    end;
+    Denied := not ThreadSetPriority(A.ThreadID, 0);
+    Code := fpGetErrno;
+    If Denied then Check((Code = ESysEACCES) or (Code = ESysEPERM), 'native refusal errno');
+    A.Priority := tpIdle;
+    A.Priority := tpNormal;
     LastNice := NativeNice(0, A.Tid);
-    If Denied then begin
-      Check((LastNice = 19) and (A.Priority = tpIdle), 'denial must not invent a new state');
-      Writeln('PRIORITY_RAISE_DENIED');
-    end else Check((LastNice = 0) and (A.Priority = tpNormal), 'privileged restoration');
+    If Denied then Check((LastNice = 19) and (A.Priority = tpIdle), 'denial must not invent a new state')
+    else Check((LastNice = 0) and (A.Priority = tpNormal), 'privileged restoration');
     Check(NativeNice(0, 0) = MainNice, 'main native priority unchanged');
     Check(not ThreadSetPriority(B.Handle, 21), 'reject invalid raw priority');
     Check(fpGetErrno = ESysEINVAL, 'invalid priority errno');
@@ -79,6 +80,9 @@ begin
     B.Free;
   end;
   { Repeated creation exercises entry teardown and pthread/TID reuse. }
+{$IFDEF STAND_REPORT}
+  Reused := 0;
+{$ENDIF}
   for I := 1 to 200 do begin
     A := TWorker.Create;
     try
@@ -92,15 +96,33 @@ begin
         Check(GetTickCount64 - Started < 2000, 'finished thread teardown deadline');
         TThread.Yield;
       end;
+      A.Priority := tpNormal;
+      Check(fpGetErrno = ESysESRCH, 'finished setter retains native refusal');
       Denied := False;
-      try A.Priority := tpNormal; except on E: EThread do Denied := True; end;
-      Check(Denied, 'finished but not joined thread is rejected');
+      try P := A.Priority; except on E: EThread do Denied := True; end;
+      Check(Denied, 'finished getter has no actual state');
       A.WaitFor;
       Check(A.FatalException = nil, 'worker exception');
-      Denied := False;
-      try A.Priority := tpNormal; except on E: EThread do Denied := True; end;
-      Check(Denied, 'joined handle is not reused');
+      B := TWorker.Create;
+      try
+        B.Start;
+        Check(B.Ready.WaitFor(5000) = wrSignaled, 'replacement worker ready');
+{$IFDEF STAND_REPORT}
+        If A.ThreadID = B.ThreadID then Inc(Reused);
+{$ENDIF}
+        A.Priority := tpIdle;
+        Check((NativeNice(0, B.Tid) = 0) and (B.Priority = tpNormal), 'joined setter must not renice replacement');
+        Denied := False;
+        try P := A.Priority; except on E: EThread do Denied := True; end;
+        Check(Denied, 'joined getter must not read replacement');
+      finally
+        B.Free;
+      end;
     finally A.Free; end;
   end;
+{$IFDEF STAND_REPORT}
+  Writeln('REAPED_REUSED_IDS=', Reused);
+{$ENDIF}
+  Check(NativeNice(0, 0) = MainNice, 'main native priority unchanged after lifecycle');
   Writeln('THREAD_PRIORITY_LINUX_OK');
 end.
