@@ -439,6 +439,7 @@ type
     FBuffer: array of T;
     FGuard: TRTLCriticalSection;
     FReadable, FWritable: PEventState;
+    FReaders, FWriters: NativeInt;
     FHead, FCount: NativeInt;
     FPushed, FPopped: UInt64;
     FClosed: Boolean;
@@ -447,7 +448,7 @@ type
     function GetShutDown: Boolean;
     function GetTotalItemsPushed: UInt64;
     function GetTotalItemsPopped: UInt64;
-    function WaitReady(Event: PEventState; Timeout: Cardinal; Started: QWord): TWaitResult;
+    function WaitReady(Event: PEventState; var Waiters: NativeInt; Timeout: Cardinal; Started: QWord): TWaitResult;
   public
     constructor Create(AQueueDepth: Integer = 10; PushTimeout: Cardinal = High(Cardinal);
       PopTimeout: Cardinal = High(Cardinal));

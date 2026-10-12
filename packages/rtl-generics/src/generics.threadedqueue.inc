@@ -9,8 +9,8 @@ begin
   SetLength(FBuffer, AQueueDepth);
   FPushTimeout := PushTimeout;
   FPopTimeout := PopTimeout;
-  FReadable := BasicEventCreate(nil, True, False, '');
-  FWritable := BasicEventCreate(nil, True, AQueueDepth > 0, '');
+  FReadable := BasicEventCreate(nil, False, False, '');
+  FWritable := BasicEventCreate(nil, False, False, '');
   If (FReadable = nil) or (FWritable = nil) then
     raise EInvalidOperation.Create('Cannot create queue events');
 end;
@@ -26,7 +26,7 @@ begin
   inherited Destroy;
 end;
 
-function TThreadedQueue<T>.WaitReady(Event: PEventState; Timeout: Cardinal; Started: QWord): TWaitResult;
+function TThreadedQueue<T>.WaitReady(Event: PEventState; var Waiters: NativeInt; Timeout: Cardinal; Started: QWord): TWaitResult;
 var
   Elapsed: QWord;
 begin
@@ -36,7 +36,15 @@ begin
       Exit(wrTimeout);
     Dec(Timeout, Elapsed);
   end;
-  Result := TWaitResult(BasicEventWaitFor(Timeout, Event));
+  { Called with FGuard held; registration and predicate changes share this lock. }
+  Inc(Waiters);
+  LeaveCriticalSection(FGuard);
+  try
+    Result := TWaitResult(BasicEventWaitFor(Timeout, Event));
+  finally
+    EnterCriticalSection(FGuard);
+    Dec(Waiters);
+  end;
 end;
 
 function TThreadedQueue<T>.PushItem(const AItem: T; out AQueueSize: NativeInt): TWaitResult;
@@ -45,12 +53,12 @@ var
   Tail: NativeInt;
 begin
   Started := GetTickCount64;
-  repeat
-    EnterCriticalSection(FGuard);
-    try
+  EnterCriticalSection(FGuard);
+  try
+    repeat
       AQueueSize := FCount;
       If FClosed then
-        Exit(wrSignaled); // Delphi signals shutdown without accepting another item.
+        Exit(wrSignaled); // Shutdown rejects new items.
       If FCount < Length(FBuffer) then begin
         Tail := FHead + FCount;
         If Tail >= Length(FBuffer) then
@@ -59,17 +67,18 @@ begin
         Inc(FCount);
         Inc(FPushed);
         AQueueSize := FCount;
-        If FCount = 1 then
+        If FReaders > 0 then
           BasicEventSetEvent(FReadable);
-        If FCount = Length(FBuffer) then
-          BasicEventResetEvent(FWritable);
         Exit(wrSignaled);
       end;
-    finally
-      LeaveCriticalSection(FGuard);
-    end;
-    Result := WaitReady(FWritable, FPushTimeout, Started);
-  until Result <> wrSignaled;
+      Result := WaitReady(FWritable, FWriters, FPushTimeout, Started);
+    until Result <> wrSignaled;
+  finally
+    { Coalesced readiness also passes on when assignment or waiting fails. }
+    If (FWriters > 0) and (FClosed or (FCount < Length(FBuffer))) then
+      BasicEventSetEvent(FWritable);
+    LeaveCriticalSection(FGuard);
+  end;
 end;
 
 function TThreadedQueue<T>.PopItem(out AQueueSize: NativeInt; var AItem: T): TWaitResult;
@@ -78,9 +87,9 @@ var
 begin
   AItem := Default(T);
   Started := GetTickCount64;
-  repeat
-    EnterCriticalSection(FGuard);
-    try
+  EnterCriticalSection(FGuard);
+  try
+    repeat
       AQueueSize := FCount;
       If FCount > 0 then begin
         AItem := FBuffer[FHead];
@@ -91,21 +100,20 @@ begin
         Dec(FCount);
         Inc(FPopped);
         AQueueSize := FCount;
-        If not FClosed then begin
-          If FCount = 0 then
-            BasicEventResetEvent(FReadable);
-          If FCount = Length(FBuffer) - 1 then
-            BasicEventSetEvent(FWritable);
-        end;
+        If FWriters > 0 then
+          BasicEventSetEvent(FWritable);
         Exit(wrSignaled);
       end;
       If FClosed then
         Exit(wrSignaled);
-    finally
-      LeaveCriticalSection(FGuard);
-    end;
-    Result := WaitReady(FReadable, FPopTimeout, Started);
-  until Result <> wrSignaled;
+      Result := WaitReady(FReadable, FReaders, FPopTimeout, Started);
+    until Result <> wrSignaled;
+  finally
+    { Do not strand another reader if assignment consumed the wakeup and raised. }
+    If (FReaders > 0) and (FClosed or (FCount > 0)) then
+      BasicEventSetEvent(FReadable);
+    LeaveCriticalSection(FGuard);
+  end;
 end;
 
 procedure TThreadedQueue<T>.Grow(ADelta: NativeInt);
@@ -130,10 +138,8 @@ begin
     end;
     FBuffer := Expanded;
     FHead := 0;
-    If FClosed or (FCount < Length(FBuffer)) then
-      BasicEventSetEvent(FWritable)
-    else
-      BasicEventResetEvent(FWritable);
+    If (FWriters > 0) and (FClosed or (FCount < Length(FBuffer))) then
+      BasicEventSetEvent(FWritable);
   finally
     LeaveCriticalSection(FGuard);
   end;
@@ -144,8 +150,10 @@ begin
   EnterCriticalSection(FGuard);
   try
     FClosed := True;
-    BasicEventSetEvent(FReadable);
-    BasicEventSetEvent(FWritable);
+    If FReaders > 0 then
+      BasicEventSetEvent(FReadable);
+    If FWriters > 0 then
+      BasicEventSetEvent(FWritable);
   finally
     LeaveCriticalSection(FGuard);
   end;

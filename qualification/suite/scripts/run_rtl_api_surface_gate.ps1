@@ -16,6 +16,8 @@ $Cases = @(
   @{ Name = 'rtl_api_windows_contracts'; Expected = 'RTL_API_WINDOWS_CONTRACTS_OK' },
   @{ Name = 'rtl_api_compiler_identity'; Expected = 'RTL_API_COMPILER_IDENTITY_OK' },
   @{ Name = 'rtl_api_threading_contracts'; Expected = 'RTL_API_THREADING_CONTRACTS_OK' },
+  @{ Name = 'queue244_assignment_contracts'; Expected = 'QUEUE244_ASSIGNMENT_CONTRACTS_OK' },
+  @{ Name = 'queue244_notification_contracts'; Expected = 'QUEUE244_NOTIFICATION_CONTRACTS_OK' },
   @{ Name = 'rtl_api_delayed_contracts'; Expected = 'RTL_API_DELAYED_CONTRACTS_OK' },
   @{ Name = 'rtl_api_url_async_contracts'; Expected = 'RTL_API_URL_ASYNC_CONTRACTS_OK' },
   @{ Name = 'rtl_api_json_builder_contracts'; Expected = 'RTL_API_JSON_BUILDER_CONTRACTS_OK' },
@@ -57,6 +59,7 @@ foreach ($Case in $Cases) {
     Copy-Item -LiteralPath (Join-Path $SourceRoot "$($Case.Name).dpr") `
       -Destination $Project
     $Options = @('-B', "-Fi$SourceRoot", "-Fi$CompilerRoot/rtl/win", "-FU$ProfileDir", "-FE$ProfileDir")
+    If ($Case.Name -like 'queue244_*') { $Options += "-Fu$SourceRoot" }
     If ($Profile -eq 'reverse-uses') { $Options += '-dRTL_API_WINDOWS_FIRST' }
     If ($Profile -ne 'debug') { $Options += '-dRELEASE' }
     If ($Profile -eq 'diagnostic-release') { $Options += '-dFPCX64MM_DIAGNOSTIC' }
@@ -121,6 +124,10 @@ $Inputs = @(
   (Join-Path $SourceRoot 'rtl_api_regex_contracts.dpr'),
   (Join-Path $SourceRoot 'rtl_api_windows_contracts.dpr'),
   (Join-Path $SourceRoot 'rtl_api_compiler_identity.dpr'),
+  (Join-Path $SourceRoot 'rtl_api_threading_contracts.dpr'),
+  (Join-Path $SourceRoot 'queue244_assignment_contracts.dpr'),
+  (Join-Path $SourceRoot 'queue244_notification_contracts.dpr'),
+  (Join-Path $SourceRoot 'queue244hooks.pas'),
   (Join-Path $SourceRoot 'rtl_api_delayed_contracts.dpr'),
   (Join-Path $SourceRoot 'moon_delay_fixture.dpr'),
   (Join-Path $SourceRoot 'rtl_api_url_async_contracts.dpr'),
