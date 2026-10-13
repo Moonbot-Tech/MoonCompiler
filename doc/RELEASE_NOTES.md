@@ -1,3 +1,33 @@
+# MoonCompiler 2.4.6: bounded native thread completion
+
+- `TThread.WaitFor(TimeoutMs): Boolean` provides bounded OS-thread completion on
+  Windows and Linux. Zero polls, `High(Cardinal)` waits indefinitely, and the
+  result distinguishes completion from timeout without consuming thread exit
+  codes. A timeout leaves the thread object alive for a later wait.
+- Linux waiting includes native TLS cleanup after `Finished` becomes true.
+  Successful joins are recorded so repeated waits and destruction cannot join
+  a recycled pthread ID. Native errors no longer mark the thread as reaped.
+- Linux `WaitForThreadTerminate` now honors positive timeouts. Its historical
+  zero-as-infinite convention remains; the new `WaitForThreadTerminateEx`
+  interface separates status, exit code and native error for raw thread owners.
+
+The timed overload deliberately does not dispatch main-thread callbacks or
+messages. The parameterless `WaitFor` retains synchronization dispatch and its
+integer result. See [thread coordination](THREAD_COORDINATION.md#bounded-thread-completion)
+for ownership, shutdown and custom-manager contracts.
+
+Regression tests cover timeouts, native teardown, repeated waits, exit-code
+boundaries, synchronized termination, missing native providers and native
+errors on both platforms. Linux uses monotonic deadlines and an older-libc
+fallback. The release does not introduce a new runtime library dependency or
+change compiler optimization. Full Pulse is not repeated for this patch.
+
+Install the complete 2.4.6 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20406; `CompilerVersion` remains 2.4. MoonORMot 13
+remains required.
+
+---
+
 # MoonCompiler 2.4.5: faster Linux clocks and best-effort thread priority
 
 - Linux `Now`, `Date`, `Time` and `GetLocalTime` avoid repeated system-zone
