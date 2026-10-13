@@ -41,6 +41,8 @@ function  WinResumeThread  (threadHandle : THandle) : dword; {$ifdef wince}cdecl
 function  WinCloseHandle  (threadHandle : THandle) : dword; {$ifdef wince}cdecl{$else}stdcall{$endif};external KernelDLL name 'CloseHandle';
 function  TerminateThread  (threadHandle : THandle; var exitCode : dword) : boolean; {$ifdef wince}cdecl{$else}stdcall{$endif};external KernelDLL name 'TerminateThread';
 function  WaitForSingleObject (hHandle : THandle;Milliseconds: dword): dword; {$ifdef wince}cdecl{$else}stdcall{$endif};external KernelDLL name 'WaitForSingleObject';
+function WinGetExitCodeThread(ThreadHandle: THandle; var ExitCode: DWord): LongBool;
+  {$ifdef wince}cdecl{$else}stdcall{$endif}; external KernelDLL name 'GetExitCodeThread';
 function  WinThreadSetPriority (threadHandle : THandle; Prio: longint): boolean; {$ifdef wince}cdecl{$else}stdcall{$endif};external KernelDLL name 'SetThreadPriority';
 function  WinThreadGetPriority (threadHandle : THandle): LongInt; {$ifdef wince}cdecl{$else}stdcall{$endif};external KernelDLL name 'GetThreadPriority';
 {$ifndef WINCE}
@@ -483,6 +485,23 @@ function WinTryEnterCriticalSection(var cs : TRTLCriticalSection):longint;
     end;
 
 
+    function SysWaitForThreadTerminateEx(ThreadHandle: TThreadID; TimeoutMs: Cardinal;
+      out ExitCode: DWord; out NativeError: LongInt): TThreadWaitResult;
+    begin
+      ExitCode:=0;
+      NativeError:=0;
+      Result:=twrError;
+      case WaitForSingleObject(ThreadHandle,TimeoutMs) of
+        WAIT_OBJECT_0:
+          if WinGetExitCodeThread(ThreadHandle,ExitCode) then
+            Result:=twrSignaled
+          else
+            NativeError:=GetLastError;
+        WAIT_TIMEOUT: Result:=twrTimeout;
+        else NativeError:=GetLastError;
+      end;
+    end;
+
     function  SysThreadSetPriority (threadHandle : TThreadID; Prio: longint): boolean;            {-15..+15, 0=normal}
     begin
       SysThreadSetPriority:=WinThreadSetPriority(threadHandle,Prio);
@@ -758,6 +777,7 @@ begin
     ThreadSwitch           :=@SysThreadSwitch;
     CloseThread            :=@SysCloseThread;
     WaitForThreadTerminate :=@SysWaitForThreadTerminate;
+    WaitForThreadTerminateEx:=@SysWaitForThreadTerminateEx;
     ThreadSetPriority      :=@SysThreadSetPriority;
     ThreadGetPriority      :=@SysThreadGetPriority;
     GetCurrentThreadId     :=@SysGetCurrentThreadId;

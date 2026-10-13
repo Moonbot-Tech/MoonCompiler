@@ -201,6 +201,11 @@ Var
     pthread_equal : Function(__thread1:pthread_t; __thread2:pthread_t):longint;cdecl;
     pthread_exit : procedure (__retval:pointer);cdecl;
     pthread_join : Function(__th:pthread_t; __thread_return:ppointer):longint;cdecl;
+{$ifndef ANDROID}
+    pthread_tryjoin_np: function(Thread: pthread_t; Value: PPointer): cint; cdecl;
+    pthread_clockjoin_np: function(Thread: pthread_t; Value: PPointer; Clock: clockid_t;
+      Deadline: PTimeSpec): cint; cdecl;
+{$endif}
     pthread_detach : Function(__th:pthread_t):longint;cdecl;
     pthread_attr_init : Function(__attr:ppthread_attr_t):longint;cdecl;
     pthread_attr_destroy : Function(__attr:ppthread_attr_t):longint;cdecl;
@@ -297,6 +302,10 @@ begin
   Pointer(pthread_equal) := dlsym(PthreadDLL,'pthread_equal');
   Pointer(pthread_exit) := dlsym(PthreadDLL,'pthread_exit');
   Pointer(pthread_join) := dlsym(PthreadDLL,'pthread_join');
+{$ifndef ANDROID}
+  Pointer(pthread_tryjoin_np):=dlsym(PThreadDLL,'pthread_tryjoin_np');
+  Pointer(pthread_clockjoin_np):=dlsym(PThreadDLL,'pthread_clockjoin_np');
+{$endif}
   Pointer(pthread_detach) := dlsym(PthreadDLL,'pthread_detach');
   Pointer(pthread_attr_init) := dlsym(PthreadDLL,'pthread_attr_init');
   Pointer(pthread_attr_destroy) := dlsym(PthreadDLL,'pthread_attr_destroy');

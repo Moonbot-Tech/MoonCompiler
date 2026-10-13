@@ -34,6 +34,56 @@ available. A single item does not deliberately broadcast to every consumer.
 Ready work is passed to the next waiter even when a managed assignment raises;
 rechecking the predicate does not restart the original timeout budget.
 
+## Bounded thread completion
+
+MoonCompiler 2.4.6 adds `TThread.WaitFor(TimeoutMs: Cardinal): Boolean` on
+Windows and Linux. It returns `True` after the OS thread has actually exited,
+including native thread-local cleanup; `False` means the timeout expired.
+Zero polls without waiting, and `High(Cardinal)` waits indefinitely. Native
+wait errors raise `EThread`; thread exit codes remain available from the
+parameterless `WaitFor` and are never interpreted as timeout/error codes.
+
+```pascal
+Worker.Terminate; // Cooperative request; it does not force the thread to stop.
+If Worker.WaitFor(1000) then
+  FreeAndNil(Worker);
+// On timeout, retain Worker and its dependencies for a later join.
+```
+
+The timed overload does not execute `Synchronize`, `OnTerminate` callbacks or
+window messages. A callback could itself block beyond the requested deadline.
+Use the ordinary parameterless `WaitFor` when main-thread callback dispatch is
+needed; its existing behavior and integer result are preserved. If a worker
+is waiting in `Synchronize`, the timed overload can time out until the main
+thread services that callback elsewhere.
+
+The object must have one owner, `FreeOnTerminate=False`, and must not represent
+the calling thread or a borrowed external thread. Do not call `WaitFor` and
+`Free` concurrently or join a `TThread.Handle` through another API. Successful
+Linux joins are recorded in the object: subsequent waits and destruction do
+not join a recycled pthread ID. Timeout neither terminates the worker nor makes
+it safe to free; destruction of a running thread still waits for completion.
+
+Linux uses a monotonic native join deadline. Older libc versions without that
+entry use a bounded try-join poll at intervals of at most one millisecond.
+Scheduler delays can postpone return; this is not a real-time scheduling API.
+No per-thread event, watcher thread or allocation is added by this API.
+
+For separately owned `BeginThread` handles, `System.WaitForThreadTerminateEx`
+returns `twrSignaled`, `twrTimeout` or `twrError` and separate `ExitCode` and
+`NativeError` outputs. It uses the same zero/infinite conventions as the timed
+overload. A successful Unix join consumes the native handle: do not join it
+again. Custom thread managers may provide the appended callback; if absent,
+the extended API returns `twrError` with error zero, while ordinary `WaitFor`
+retains their legacy implementation. Rebuild external PPUs with this release.
+
+The legacy low-level `WaitForThreadTerminate` keeps its historical conventions:
+zero is infinite; Linux nonpositive values are infinite, positive values now
+honor the timeout. On Linux it returns the exit code on success and clears
+errno; timeout/error returns `High(DWord)` and sets errno. Prefer the extended
+API because `High(DWord)` is also a valid successful exit code. Windows keeps
+the legacy native wait-status result.
+
 ## Linux thread priority
 
 `TThread.Priority` changes the target Linux thread's native nice value, including

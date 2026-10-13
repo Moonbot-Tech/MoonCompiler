@@ -20,9 +20,9 @@ CASES = (
 )
 
 
-def run(command, directory):
+def run(command, directory, env=None):
     result = subprocess.run(command, cwd=directory, capture_output=True, text=True,
-                            errors="replace", timeout=60)
+                            errors="replace", timeout=60, env=env)
     if result.returncode:
         raise RuntimeError(f"Command failed: {command}\n{result.stdout}\n{result.stderr}")
     return result.stdout
@@ -37,6 +37,14 @@ def main():
     output = args.out.resolve()
     cases = CASES + (("windows_boundaries", "win64_classes_callbacks") if os.name == "nt" else ())
     suffix = ".exe" if os.name == "nt" else ""
+    wait_sources = ROOT / "qualification" / "suite" / "tests" / "rtl-api"
+    wait_env = os.environ.copy()
+    if os.name != "nt":
+        output.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(wait_sources / "thread_wait_tls.c", output)
+        helper = output / "thread-wait-tls.so"
+        run(["cc", "-shared", "-fPIC", "-pthread", "thread_wait_tls.c", "-o", str(helper)], output)
+        wait_env["MOON_WAIT_TLS_HELPER"] = str(helper)
     count = 0
     for profile, options in (("debug", []), ("release", ["-dRELEASE"])):
         directory = output / profile
@@ -56,6 +64,13 @@ def main():
                 raise RuntimeError(f"Missing result for {name} {profile}: {result}")
             count += 1
             print(f"PASS {name} {profile}", flush=True)
+        shutil.copy2(wait_sources / "thread_wait_contracts.dpr", directory)
+        run([str(compiler), *options, "thread_wait_contracts.dpr"], directory)
+        result = run([str(directory / ("thread_wait_contracts" + suffix))], directory, wait_env)
+        if result.strip() != "THREAD_WAIT_CONTRACTS_OK":
+            raise RuntimeError(f"Thread wait contract {profile}: {result}")
+        count += 1
+        print(f"PASS thread_wait_contracts {profile}", flush=True)
     print(f"RTL_BOUNDARIES_ARCHIVE_PASS rows={count}")
 
 

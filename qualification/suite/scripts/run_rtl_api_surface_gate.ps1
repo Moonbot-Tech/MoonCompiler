@@ -9,6 +9,7 @@ $CompilerRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $SourceRoot = Join-Path $SuiteRoot 'tests\rtl-api'
 $Run = Join-Path $SuiteRoot "results\runs\$RunId\rtl-api-surface"
 $Cases = @(
+  @{ Name = 'thread_wait_contracts'; Expected = 'THREAD_WAIT_CONTRACTS_OK' },
   @{ Name = 'rtl_api_release231_contracts'; Expected = 'RTL_API_RELEASE231_CONTRACTS_OK' },
   @{ Name = 'rtl_api_freetype_contracts'; Expected = 'RTL_API_FREETYPE_CONTRACTS_OK' },
   @{ Name = 'rtl_api_portability_contracts'; Expected = 'RTL_API_PORTABILITY_PASS' },
@@ -118,6 +119,7 @@ foreach ($Case in $Cases) {
 }
 
 $Inputs = @(
+  (Join-Path $SourceRoot 'thread_wait_contracts.dpr'),
   (Join-Path $SourceRoot 'rtl_api_release231_contracts.dpr'),
   (Join-Path $SourceRoot 'rtl_api_freetype_contracts.dpr'),
   (Join-Path $SourceRoot 'moon_freetype_fixture.dpr'),

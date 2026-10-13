@@ -741,12 +741,106 @@ end;
       result:=0;
     end;
 
-  function  CWaitForThreadTerminate (threadHandle : TThreadID; TimeoutMs : longint) : dword;  {0=no timeout}
+{$if defined(LINUX) and not defined(ANDROID)}
+  function CWaitForThreadTerminateEx(ThreadHandle: TThreadID; TimeoutMs: Cardinal;
+    out ExitCode: DWord; out NativeError: LongInt): TThreadWaitResult;
     var
-      LResultP: Pointer;
+      Value: Pointer;
+      Deadline, Current, Pause: TTimeSpec;
+      Remaining: Int64;
     begin
-      pthread_join(pthread_t(threadHandle), @LResultP);
-      CWaitForThreadTerminate := dword(LResultP);
+      ExitCode:=0;
+      NativeError:=0;
+      Result:=twrError;
+      if ThreadHandle=0 then
+        NativeError:=ESysESRCH
+      else if pthread_equal(pthread_t(ThreadHandle),pthread_self())<>0 then
+        NativeError:=ESysEDEADLK
+      else if TimeoutMs=High(Cardinal) then
+        NativeError:=pthread_join(pthread_t(ThreadHandle),@Value)
+      else if not Assigned(pthread_tryjoin_np) then
+        NativeError:=ESysENOSYS
+      else if TimeoutMs=0 then
+        NativeError:=pthread_tryjoin_np(pthread_t(ThreadHandle),@Value)
+      else
+        begin
+          if clock_gettime(CLOCK_MONOTONIC,@Deadline)<>0 then
+            begin
+              NativeError:=fpGetErrno;
+              exit;
+            end;
+          Inc(Deadline.tv_sec,TimeoutMs div 1000);
+          Inc(Deadline.tv_nsec,(TimeoutMs mod 1000)*1000000);
+          if Deadline.tv_nsec>=1000000000 then
+            begin
+              Inc(Deadline.tv_sec);
+              Dec(Deadline.tv_nsec,1000000000);
+            end;
+          NativeError:=ESysENOSYS;
+          if Assigned(pthread_clockjoin_np) then
+            NativeError:=pthread_clockjoin_np(pthread_t(ThreadHandle),@Value,CLOCK_MONOTONIC,@Deadline);
+          if NativeError=ESysENOSYS then
+            repeat
+              { Older libc: bounded polling, without realtime-clock deadlines or
+                another thread/event. Deferred cancellation leaves the join owned. }
+              pthread_testcancel;
+              NativeError:=pthread_tryjoin_np(pthread_t(ThreadHandle),@Value);
+              if NativeError<>ESysEBUSY then
+                break;
+              if clock_gettime(CLOCK_MONOTONIC,@Current)<>0 then
+                begin
+                  NativeError:=fpGetErrno;
+                  break;
+                end;
+              Remaining:=Int64(Deadline.tv_sec-Current.tv_sec)*1000000000+Deadline.tv_nsec-Current.tv_nsec;
+              if Remaining<=0 then
+                begin
+                  NativeError:=ESysETIMEDOUT;
+                  break;
+                end;
+              Pause.tv_sec:=0;
+              if Remaining>1000000 then
+                Remaining:=1000000;
+              Pause.tv_nsec:=Remaining;
+              if (fpNanoSleep(@Pause,nil)<>0) and (fpGetErrno<>ESysEINTR) then
+                begin
+                  NativeError:=fpGetErrno;
+                  break;
+                end;
+            until false;
+        end;
+      if NativeError=0 then
+        begin
+          ExitCode:=DWord(PtrUInt(Value));
+          Result:=twrSignaled;
+        end
+      else if (NativeError=ESysETIMEDOUT) or (NativeError=ESysEBUSY) then
+        Result:=twrTimeout;
+    end;
+{$endif}
+
+  function CWaitForThreadTerminate(ThreadHandle: TThreadID; TimeoutMs: LongInt): DWord; {0=no timeout}
+    var
+      NativeError: LongInt;
+{$if defined(LINUX) and not defined(ANDROID)}
+      Timeout: Cardinal;
+    begin
+      if TimeoutMs<=0 then
+        Timeout:=High(Cardinal)
+      else
+        Timeout:=TimeoutMs;
+      if CWaitForThreadTerminateEx(ThreadHandle,Timeout,Result,NativeError)<>twrSignaled then
+        Result:=DWord(-1);
+{$else}
+      Value: Pointer;
+    begin
+      NativeError:=pthread_join(pthread_t(ThreadHandle),@Value);
+      if NativeError=0 then
+        Result:=DWord(PtrUInt(Value))
+      else
+        Result:=DWord(-1);
+{$endif}
+      fpSetErrno(NativeError);
     end;
 
     function CThreadSetPriority(threadHandle: TThreadID; Prio: longint): boolean;
@@ -1351,6 +1445,9 @@ begin
     ThreadSwitch           :=@CThreadSwitch;
     CloseThread	           :=@CCloseThread;
     WaitForThreadTerminate :=@CWaitForThreadTerminate;
+{$if defined(LINUX) and not defined(ANDROID)}
+    WaitForThreadTerminateEx:=@CWaitForThreadTerminateEx;
+{$endif}
     ThreadSetPriority      :=@CThreadSetPriority;
     ThreadGetPriority      :=@CThreadGetPriority;
     GetCurrentThreadId     :=@CGetCurrentThreadId;

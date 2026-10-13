@@ -190,6 +190,19 @@ begin
   Result:=CurrentTM.KillThread(ThreadHandle);
 end;
 
+function WaitForThreadTerminateEx(ThreadHandle: TThreadID; TimeoutMs: Cardinal;
+  out ExitCode: DWord; out NativeError: LongInt): TThreadWaitResult;
+begin
+  if Assigned(CurrentTM.WaitForThreadTerminateEx) then
+    Result:=CurrentTM.WaitForThreadTerminateEx(ThreadHandle,TimeoutMs,ExitCode,NativeError)
+  else
+    begin
+      ExitCode:=0;
+      NativeError:=0;
+      Result:=twrError; { This manager does not implement bounded native waits. }
+    end;
+end;
+
 function  WaitForThreadTerminate (threadHandle : TThreadID; TimeoutMs : longint) : dword;
 
 begin
@@ -663,6 +676,7 @@ const
          RTLEventWaitFor        : @NoRTLEvent;
          RTLEventWaitforTimeout : @NoRTLEventWaitForTimeout;
 {$endif EMBEDDED}
+         WaitForThreadTerminateEx: Nil;
       );
 
 Procedure SetNoThreadManager;

@@ -69,6 +69,10 @@ type
   TSemaphorePostHandler     = procedure (const sem: Pointer);
   TSemaphoreWaitHandler     = procedure (const sem: Pointer);
 
+  TThreadWaitResult = (twrSignaled, twrTimeout, twrError);
+  TWaitForThreadTerminateExHandler = function(ThreadHandle: TThreadID; TimeoutMs: Cardinal;
+    out ExitCode: DWord; out NativeError: LongInt): TThreadWaitResult;
+
   // TThreadManager interface.
   TThreadManager = Record
     InitManager            : Function : Boolean;
@@ -108,6 +112,7 @@ type
     RTLEventResetEvent     : TRTLEventHandler;
     RTLEventWaitFor        : TRTLEventHandler;
     RTLEventWaitForTimeout : TRTLEventHandlerTimeout;
+    WaitForThreadTerminateEx: TWaitForThreadTerminateExHandler;
   end;
 
 {*****************************************************************************
@@ -155,6 +160,10 @@ function  CloseThread   (threadHandle : TThreadID) : dword;
 procedure ThreadSwitch;                                                                {give time to other threads}
 function  KillThread (threadHandle : TThreadID) : dword;
 function  WaitForThreadTerminate (threadHandle : TThreadID; TimeoutMs : longint) : dword;  {0=no timeout}
+{ Zero polls; High(Cardinal) waits indefinitely. No callback dispatch. The caller
+  exclusively owns the join; a successful Unix join consumes the native handle. }
+function WaitForThreadTerminateEx(ThreadHandle: TThreadID; TimeoutMs: Cardinal;
+  out ExitCode: DWord; out NativeError: LongInt): TThreadWaitResult;
 function  ThreadSetPriority (threadHandle : TThreadID; Prio: longint): boolean;            {platform-specific; Linux: -19..20, 0=normal}
 function  ThreadGetPriority (threadHandle : TThreadID): longint;
 function  GetCurrentThreadId : TThreadID;

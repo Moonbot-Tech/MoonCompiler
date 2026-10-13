@@ -52,15 +52,21 @@ for profile in debug release; do
 done
 echo 'ZONE_CACHE_GATE_OK profiles=2'
 
+cc -std=c11 -Wall -Wextra -Werror -shared -fPIC -pthread "$source_root/thread_wait_tls.c" -o "$run/thread-wait-tls.so"
+cc -std=c11 -Wall -Wextra -Werror -shared -fPIC "$source_root/thread_wait_fault.c" -ldl -o "$run/thread-wait-fault.so"
+export MOON_WAIT_TLS_HELPER="$run/thread-wait-tls.so"
+
 cases=0
 executions=0
 
-for case_name in rtl_api_release231_contracts rtl_api_freetype_contracts rtl_api_portability_contracts rtl_api_regex_contracts rtl_api_posix_contracts rtl_api_compiler_identity rtl_api_threading_contracts thread_priority_best_effort queue244_assignment_contracts queue244_notification_contracts rtl_api_url_async_contracts rtl_api_json_builder_contracts rtl_api_release21_contracts rtl_api_timezone_provider_contracts rtl_api_surface rtl_api_stringbuilder_contracts \
+for case_name in thread_wait_contracts rtl_api_release231_contracts rtl_api_freetype_contracts rtl_api_portability_contracts rtl_api_regex_contracts rtl_api_posix_contracts rtl_api_compiler_identity rtl_api_threading_contracts thread_priority_best_effort queue244_assignment_contracts queue244_notification_contracts rtl_api_url_async_contracts rtl_api_json_builder_contracts rtl_api_release21_contracts rtl_api_timezone_provider_contracts rtl_api_surface rtl_api_stringbuilder_contracts \
     rtl_api_variant_dictionary_contracts rtl_api_bcd_value_contracts rtl_api_encoding_contracts rtl_api_utf8_decode_contracts rtl_api_datetime_unix_contracts rtl_api_sorted_find_contracts \
     rtl_api_queue_contracts rtl_api_dictionary_capacity_contracts rtl_api_comparer_factory_contracts \
     rtl_api_text_operations_contracts rtl_api_dictionary_scan_contracts rtl_api_unicode_copy_contracts rtl_api_array_copy \
     rtl_api_dynarray_managed_contracts rtl_api_fphttp_nodelay rtl_api_fphttp_overload_response; do
-  if [[ "$case_name" == rtl_api_release231_contracts ]]; then
+  if [[ "$case_name" == thread_wait_contracts ]]; then
+    expected=THREAD_WAIT_CONTRACTS_OK
+  elif [[ "$case_name" == rtl_api_release231_contracts ]]; then
     expected=RTL_API_RELEASE231_CONTRACTS_OK
   elif [[ "$case_name" == rtl_api_freetype_contracts ]]; then
     expected=RTL_API_FREETYPE_CONTRACTS_OK
@@ -164,6 +170,20 @@ for case_name in rtl_api_release231_contracts rtl_api_freetype_contracts rtl_api
     timeout 30 "$profile_dir/$case_name" \
       >"$failure_log" 2>&1
     grep -qx "$expected" "$profile_dir/run.log"
+    if [[ "$case_name" == thread_wait_contracts ]]; then
+      failure_log="$profile_dir/fallback.log"
+      timeout 30 env LD_PRELOAD="$run/thread-wait-fault.so" MOON_WAIT_FAULT=fallback \
+        "$profile_dir/$case_name" >"$failure_log" 2>&1
+      grep -qx THREAD_WAIT_CONTRACTS_OK "$failure_log"
+      failure_log="$profile_dir/errors-compile.log"
+      "$compiler_root/toolchain/bin/fpc" "${build_options[@]}" "$source_root/thread_wait_errors.dpr" >"$failure_log" 2>&1
+      for mode in native-error no-provider clock-error; do
+        failure_log="$profile_dir/$mode.log"
+        timeout 30 env LD_PRELOAD="$run/thread-wait-fault.so" MOON_WAIT_FAULT="$mode" \
+          "$profile_dir/thread_wait_errors" >"$failure_log" 2>&1
+        grep -qx THREAD_WAIT_ERRORS_OK "$failure_log"
+      done
+    fi
     if [[ "$profile" == diagnostic-release ]]; then
       grep -q '^FPCX64MM_DIAGNOSTIC live-blocks=0 ' "$profile_dir/run.log"
     fi
@@ -183,6 +203,10 @@ done
   sha256sum "$source_root/zone_cache_contracts.dpr" "$source_root/zone_clock_fault.c" \
     "$compiler_root/rtl/unix/zonecalendar.inc"
   sha256sum "$source_root/rtl_api_url_async_contracts.dpr" "$source_root/rtl_api_surface.dpr" \
+    "$source_root/thread_wait_contracts.dpr" \
+    "$source_root/thread_wait_errors.dpr" \
+    "$source_root/thread_wait_tls.c" \
+    "$source_root/thread_wait_fault.c" \
     "$source_root/rtl_api_threading_contracts.dpr" \
     "$source_root/thread_priority_best_effort.dpr" \
     "$source_root/queue244_assignment_contracts.dpr" \

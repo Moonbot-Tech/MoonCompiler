@@ -328,6 +328,33 @@ begin
   TerminatedSet;
 end;
 
+{$if defined(MSWINDOWS) or (defined(LINUX) and not defined(ANDROID))}
+function TThread.WaitFor(TimeoutMs: Cardinal): Boolean;
+var
+  Code: DWord;
+  NativeError: LongInt;
+begin
+{$ifdef UNIX}
+  if FThreadReaped then
+    exit(true);
+{$endif}
+  if FExternalThread or FFreeOnTerminate or (FThreadID=GetCurrentThreadID) then
+    raise EThread.Create('A bounded wait requires an owned, non-self thread with FreeOnTerminate=False');
+  case WaitForThreadTerminateEx(FHandle,TimeoutMs,Code,NativeError) of
+    twrSignaled:
+      begin
+        FReturnValue:=LongInt(Code);
+{$ifdef UNIX}
+        FThreadReaped:=true;
+{$endif}
+        Result:=true;
+      end;
+    twrTimeout: Result:=false;
+    else raise EThread.CreateFmt('Native thread wait failed (error %d)',[NativeError]);
+  end;
+end;
+{$endif}
+
 procedure TThread.TerminatedSet;
 
 begin

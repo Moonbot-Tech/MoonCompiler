@@ -260,6 +260,12 @@ end;
 
 
 function TThread.WaitFor: Integer;
+{$if defined(LINUX) and not defined(ANDROID)}
+var
+  Code: DWord;
+  NativeError: LongInt;
+  Manager: TThreadManager;
+{$endif}
 begin
   WRITE_DEBUG('waiting for thread ',ptruint(FHandle));
   { A joined pthread is gone and its id may already belong to a thread
@@ -276,9 +282,21 @@ begin
     }
     While not FFinished do
       CheckSynchronize(100);
-  WaitFor := WaitForThreadTerminate(FHandle, 0);
-  { should actually check for errors in WaitForThreadTerminate, but no }
-  { error api is defined for that function                             }
+{$if defined(LINUX) and not defined(ANDROID)}
+  if WaitForThreadTerminateEx(FHandle,High(Cardinal),Code,NativeError)<>twrSignaled then
+    begin
+      { An old custom manager still owns its ordinary blocking wait. A present
+        provider's error must never be mistaken for missing capability. }
+      GetThreadManager(Manager);
+      if Assigned(Manager.WaitForThreadTerminateEx) then
+        raise EThread.CreateFmt('Native thread wait failed (error %d)',[NativeError]);
+      Code:=WaitForThreadTerminate(FHandle,0);
+    end;
+  FReturnValue:=LongInt(Code);
+  Result:=FReturnValue;
+{$else}
+  Result:=WaitForThreadTerminate(FHandle,0);
+{$endif}
   FThreadReaped:=true;
   WRITE_DEBUG('thread terminated');
 end;

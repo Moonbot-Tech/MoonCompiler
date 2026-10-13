@@ -2458,7 +2458,10 @@ type
     procedure Resume; deprecated;
     procedure Suspend; deprecated;
     procedure Terminate;
-    function WaitFor: Integer;
+    function WaitFor: Integer; overload;
+{$if defined(MSWINDOWS) or (defined(LINUX) and not defined(ANDROID))}
+    function WaitFor(TimeoutMs: Cardinal): Boolean; overload;
+{$endif}
     class function CurrentIsMain : Boolean; static; inline;
     class property CurrentThread: TThread read GetCurrentThread;
     class property Current: TThread read GetCurrentThread;
