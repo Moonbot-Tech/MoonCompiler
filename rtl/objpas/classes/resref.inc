@@ -24,7 +24,7 @@ type
     FPropInfo: PPropInfo;  // Property to set.
     FGlobal,               // Global component.
     FRelative : string;    // Path relative to global component.
-    Function Resolve(Instance : TPersistent) : Boolean; // Resolve this reference
+    Function Resolve(var Instance : TPersistent) : Boolean; // Resolve this reference
     Function RootMatches(ARoot : TComponent) : Boolean; {$ifdef CLASSESINLINE} inline; {$endif CLASSESINLINE} // True if Froot matches or ARoot is nil.
     Function NextRef : TUnresolvedReference; {$ifdef CLASSESINLINE} inline; {$endif CLASSESINLINE}
   end;
@@ -40,26 +40,20 @@ type
   TUnResolvedInstance = Class(TLinkedListItem)
     Instance : TPersistent; // Instance we're handling unresolveds for
     FUnresolved : TLinkedList; // The list
+    FResolving : Boolean; // Skip this instance during a nested resolver call.
     Destructor Destroy; override;
     Function AddReference(ARoot : TComponent; APropInfo : PPropInfo; AGlobal,ARelative : String) : TUnresolvedReference;
     Function RootUnresolved : TUnresolvedReference; {$ifdef CLASSESINLINE} inline; {$endif CLASSESINLINE} // Return root element in list.
     Function ResolveReferences : Boolean; // Return true if all unresolveds were resolved.
   end;
 
-  // Builds a list of TUnResolvedInstances, removes them from global list on free.
-  TBuildListVisitor = Class(TLinkedListVisitor)
-    List : TFPList;
-    Procedure Add(Item : TlinkedListItem); // Add TUnResolvedInstance item to list. Create list if needed
-    Destructor Destroy; override; // All elements in list (if any) are removed from the global list.
-  end;
-
   // Visitor used to try and resolve instances in the global list
-  TResolveReferenceVisitor = Class(TBuildListVisitor)
+  TResolveReferenceVisitor = Class(TLinkedListVisitor)
     Function Visit(Item : TLinkedListItem) : Boolean; override;
   end;
 
   // Visitor used to remove all references to a certain component.
-  TRemoveReferenceVisitor = Class(TBuildListVisitor)
+  TRemoveReferenceVisitor = Class(TLinkedListVisitor)
     FRef : String;
     FRoot : TComponent;
     Constructor Create(ARoot : TComponent;Const ARef : String);
@@ -95,22 +89,29 @@ type
 var
   NeedResolving : TLinkedList;
   ResolveSection : TRTLCriticalSection;
+  ResolveListDepth : SizeInt;
 
-// Add an instance to the global list of instances which need resolving.
-Function FindUnresolvedInstance(AInstance: TPersistent) : TUnResolvedInstance;
-
+// Register the instance and its reference atomically with respect to global visitors.
+Procedure AddtoResolveList(AInstance: TPersistent; ARoot: TComponent;
+  APropInfo: PPropInfo; const AGlobal, ARelative: String);
+var
+  Item : TUnResolvedInstance;
 begin
-  Result:=Nil;
 {$ifdef FPC_HAS_FEATURE_THREADING}
   EnterCriticalSection(ResolveSection);
-  Try
+  try
 {$endif}
-    If Assigned(NeedResolving) then
+    If NeedResolving=Nil then
+      NeedResolving:=TLinkedList.Create(TUnResolvedInstance);
+    Item:=TUnResolvedInstance(NeedResolving.Root);
+    While (Item<>Nil) and (Item.Instance<>AInstance) do
+      Item:=TUnResolvedInstance(Item.Next);
+    If Item=Nil then
       begin
-      Result:=TUnResolvedInstance(NeedResolving.Root);
-      While (Result<>Nil) and (Result.Instance<>AInstance) do
-        Result:=TUnResolvedInstance(Result.Next);
+      Item:=TUnResolvedInstance(NeedResolving.Add);
+      Item.Instance:=AInstance;
       end;
+    Item.AddReference(ARoot,APropInfo,AGlobal,ARelative);
 {$ifdef FPC_HAS_FEATURE_THREADING}
   finally
     LeaveCriticalSection(ResolveSection);
@@ -118,25 +119,30 @@ begin
 {$endif}
 end;
 
-Function AddtoResolveList(AInstance: TPersistent) : TUnResolvedInstance;
-
+// Reentrant callbacks may destroy receivers. Keep list nodes alive until every visitor returns.
+Procedure CleanupResolveList;
+var
+  Item, Next : TUnResolvedInstance;
+  R, RN : TUnresolvedReference;
 begin
-  Result:=FindUnresolvedInstance(AInstance);
-  If (Result=Nil) then
+  Item:=TUnResolvedInstance(NeedResolving.Root);
+  While Item<>Nil do
     begin
-{$ifdef FPC_HAS_FEATURE_THREADING}
-    EnterCriticalSection(ResolveSection);
-    Try
-{$endif}
-      If not Assigned(NeedResolving) then
-        NeedResolving:=TLinkedList.Create(TUnResolvedInstance);
-      Result:=NeedResolving.Add as TUnResolvedInstance;
-      Result.Instance:=AInstance;
-{$ifdef FPC_HAS_FEATURE_THREADING}
-    finally
-      LeaveCriticalSection(ResolveSection);
-    end;
-{$endif}
+    Next:=TUnResolvedInstance(Item.Next);
+    If (Item.Instance<>Nil) and Assigned(Item.FUnresolved) then
+      begin
+      R:=TUnresolvedReference(Item.FUnresolved.Root);
+      While R<>Nil do
+        begin
+        RN:=TUnresolvedReference(R.Next);
+        If R.FPropInfo=Nil then
+          Item.FUnresolved.RemoveItem(R,True);
+        R:=RN;
+        end;
+      end;
+    If Item.Instance=Nil then
+      NeedResolving.RemoveItem(Item,True);
+    Item:=Next;
     end;
 end;
 
@@ -149,10 +155,14 @@ begin
   EnterCriticalSection(ResolveSection);
   Try
 {$endif}
+    Inc(ResolveListDepth);
     try
       NeedResolving.Foreach(V);
     Finally
       FreeAndNil(V);
+      Dec(ResolveListDepth);
+      If ResolveListDepth=0 then
+        CleanupResolveList;
     end;
 {$ifdef FPC_HAS_FEATURE_THREADING}
   Finally
@@ -212,40 +222,44 @@ begin
 end;
 
 procedure RemoveFixups(Instance: TPersistent);
-
+var
+  Item, Next : TUnResolvedInstance;
 begin
-  // This needs work.
-{
-  if not Assigned(GlobalFixupList) then
-    exit;
-
-  with GlobalFixupList.LockList do
-    try
-      for i := Count - 1 downto 0 do
+  If (Instance=Nil) or (NeedResolving=Nil) or (NeedResolving.Root=Nil) then
+    Exit;
+{$ifdef FPC_HAS_FEATURE_THREADING}
+  EnterCriticalSection(ResolveSection);
+  try
+{$endif}
+    Item:=TUnResolvedInstance(NeedResolving.Root);
+    While Item<>Nil do
       begin
-        CurFixup := TPropFixup(Items[i]);
-        if (CurFixup.FInstance = Instance) then
+      Next:=TUnResolvedInstance(Item.Next);
+      If Item.Instance=Instance then
         begin
-          Delete(i);
-          CurFixup.Free;
+        Item.Instance:=Nil;
+        If ResolveListDepth=0 then
+          NeedResolving.RemoveItem(Item,True);
         end;
+      Item:=Next;
       end;
-    finally
-      GlobalFixupList.UnlockList;
-    end;
-}
+{$ifdef FPC_HAS_FEATURE_THREADING}
+  finally
+    LeaveCriticalSection(ResolveSection);
+  end;
+{$endif}
 end;
 
 { TUnresolvedReference }
 
-Function TUnresolvedReference.Resolve(Instance : TPersistent) : Boolean;
+Function TUnresolvedReference.Resolve(var Instance : TPersistent) : Boolean;
 
 Var
   C : TComponent;
 
 begin
   C:=FindGlobalComponent(FGlobal);
-  Result:=(C<>Nil);
+  Result:=(C<>Nil) and (Instance<>Nil) and (FPropInfo<>Nil);
   If Result then
     begin
     C:=FindNestedComponent(C,FRelative);
@@ -265,6 +279,8 @@ Function TUnResolvedReference.NextRef : TUnresolvedReference;
 
 begin
   Result:=TUnresolvedReference(Next);
+  While (Result<>Nil) and (Result.FPropInfo=Nil) do
+    Result:=TUnresolvedReference(Result.Next);
 end;
 
 { TUnResolvedInstance }
@@ -291,25 +307,33 @@ Function TUnResolvedInstance.RootUnresolved : TUnresolvedReference;
 
 begin
   Result:=Nil;
-  If Assigned(FUnResolved) then
+  If (Instance<>Nil) and Assigned(FUnResolved) then
+    begin
     Result:=TUnresolvedReference(FUnResolved.Root);
+    While (Result<>Nil) and (Result.FPropInfo=Nil) do
+      Result:=TUnresolvedReference(Result.Next);
+    end;
 end;
 
 Function TUnResolvedInstance.ResolveReferences:Boolean;
-
-Var
-  R,RN : TUnresolvedReference;
-
+var
+  R : TUnresolvedReference;
 begin
-  R:=RootUnResolved;
-  While (R<>Nil) do
-    begin
-    RN:=R.NextRef;
-    If R.Resolve(Self.Instance) then
-      FUnresolved.RemoveItem(R,True);
-    R:=RN;
-    end;
-  Result:=RootUnResolved=Nil;
+  If FResolving then
+    Exit(False);
+  FResolving:=True;
+  try
+    R:=RootUnResolved;
+    While (R<>Nil) and (Instance<>Nil) do
+      begin
+      If R.Resolve(Self.Instance) then
+        R.FPropInfo:=Nil;
+      R:=R.NextRef;
+      end;
+    Result:=RootUnResolved=Nil;
+  finally
+    FResolving:=False;
+  end;
 end;
 
 { TReferenceNamesVisitor }
@@ -325,13 +349,15 @@ Function TReferenceNamesVisitor.Visit(Item : TLinkedListItem) : Boolean;
 
 Var
   R : TUnresolvedReference;
+  UI : TUnResolvedInstance;
 
 begin
-  R:=TUnResolvedInstance(Item).RootUnresolved;
-  While (R<>Nil) do
+  UI:=TUnResolvedInstance(Item);
+  R:=UI.RootUnresolved;
+  While (R<>Nil) and (UI.Instance<>Nil) do
     begin
     If R.RootMatches(FRoot) then
-      If (FList.IndexOf(R.FGlobal)=-1) then
+      If (FList.IndexOf(R.FGlobal)=-1) and (UI.Instance<>Nil) and (R.FPropInfo<>Nil) then
         FList.Add(R.FGlobal);
     R:=R.NextRef;
     end;
@@ -352,13 +378,15 @@ Function TReferenceInstancesVisitor.Visit(Item : TLinkedListItem) : Boolean;
 
 Var
   R : TUnresolvedReference;
+  UI : TUnResolvedInstance;
 
 begin
-  R:=TUnResolvedInstance(Item).RootUnresolved;
-  While (R<>Nil) do
+  UI:=TUnResolvedInstance(Item);
+  R:=UI.RootUnresolved;
+  While (R<>Nil) and (UI.Instance<>Nil) do
     begin
     If (FRoot=R.FRoot) and (FRef=UpperCase(R.FGLobal)) Then
-      If Flist.IndexOf(R.FRelative)=-1 then
+      If (FList.IndexOf(R.FRelative)=-1) and (UI.Instance<>Nil) and (R.FPropInfo<>Nil) then
         Flist.Add(R.FRelative);
     R:=R.NextRef;
     end;
@@ -401,69 +429,21 @@ begin
 end;
 
 Function TRemoveReferenceVisitor.Visit(Item : TLinkedListItem) : Boolean;
-
-Var
-  I : Integer;
+var
   UI : TUnResolvedInstance;
   R : TUnresolvedReference;
-  L : TFPList;
-
 begin
   UI:=TUnResolvedInstance(Item);
   R:=UI.RootUnresolved;
-  L:=Nil;
-  Try
-    // Collect all matches.
-    While (R<>Nil) do
-      begin
-      If R.RootMatches(FRoot) and ((FRef = '') or (FRef=UpperCase(R.FGLobal))) Then
-        begin
-        If Not Assigned(L) then
-          L:=TFPList.Create;
-        L.Add(R);
-        end;
-      R:=R.NextRef;
-      end;
-    // Remove all matches.
-    IF Assigned(L) then
-      begin
-      For I:=0 to L.Count-1 do
-        UI.FUnresolved.RemoveItem(TLinkedListitem(L[i]),True);
-      end;
-    // If any references are left, leave them.
-    If UI.FUnResolved.Root=Nil then
-      begin
-      If List=Nil then
-        List:=TFPList.Create;
-      List.Add(UI);
-      end;
-  Finally
-    L.Free;
-  end;
+  While R<>Nil do
+    begin
+    If R.RootMatches(FRoot) and ((FRef='') or (FRef=UpperCase(R.FGlobal))) then
+      R.FPropInfo:=Nil;
+    R:=R.NextRef;
+    end;
+  If UI.RootUnresolved=Nil then
+    UI.Instance:=Nil;
   Result:=True;
-end;
-
-{ TBuildListVisitor }
-
-Procedure TBuildListVisitor.Add(Item : TlinkedListItem);
-
-begin
-  If (List=Nil) then
-    List:=TFPList.Create;
-  List.Add(Item);
-end;
-
-Destructor TBuildListVisitor.Destroy;
-
-Var
-  I : Integer;
-
-begin
-  If Assigned(List) then
-    For I:=0 to List.Count-1 do
-      NeedResolving.RemoveItem(TLinkedListItem(List[I]),True);
-  FreeAndNil(List);
-  Inherited;
 end;
 
 { TResolveReferenceVisitor }
@@ -472,6 +452,6 @@ Function TResolveReferenceVisitor.Visit(Item : TLinkedListItem) : Boolean;
 
 begin
   If TUnResolvedInstance(Item).ResolveReferences then
-    Add(Item);
+    TUnResolvedInstance(Item).Instance:=Nil;
   Result:=True;
 end;

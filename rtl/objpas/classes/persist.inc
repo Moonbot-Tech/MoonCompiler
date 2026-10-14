@@ -52,6 +52,7 @@ end;
 
 destructor TPersistent.Destroy;
 begin
+  RemoveFixups(Self);
   If Assigned(FObservers) then
     begin
     FPONotifyObservers(Self,ooFree,Nil);

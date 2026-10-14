@@ -2892,12 +2892,12 @@ begin
   ClassList.Free;
   ClassAliasList.Free;
   RemoveFixupReferences(nil, '');
+  FreeAndNil(NeedResolving);
 {$ifdef FPC_HAS_FEATURE_THREADING}
   DoneCriticalsection(ResolveSection);
 {$endif}
   GlobalLists.Free;
   ComponentPages.Free;
-  FreeAndNil(NeedResolving);
 {$ifdef FPC_HAS_FEATURE_THREADING}
   GlobalNameSpace.EndWrite;
 {$endif}

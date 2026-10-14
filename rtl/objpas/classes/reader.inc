@@ -809,7 +809,6 @@ procedure TReader.DoFixupReferences;
 
 Var
   R,RN : TLocalUnresolvedReference;
-  G : TUnresolvedInstance;
   Ref : String;
   C : TComponent;
   P : integer;
@@ -849,8 +848,8 @@ begin
         P:=Pos('.',R.FRelative);
         If (P<>0) then
           begin
-          G:=AddToResolveList(R.FInstance);
-          G.Addreference(R.FRoot,R.FPropInfo,Copy(R.FRelative,1,P-1),Copy(R.FRelative,P+1,Length(R.FRelative)-P));
+          AddToResolveList(R.FInstance,R.FRoot,R.FPropInfo,
+            Copy(R.FRelative,1,P-1),Copy(R.FRelative,P+1,Length(R.FRelative)-P));
           end;
         end;
       L.RemoveItem(R,True);
