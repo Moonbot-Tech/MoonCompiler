@@ -1,3 +1,27 @@
+# MoonCompiler 2.4.7: safe lifetime of deferred component references
+
+- Destroying a `TPersistent` now cancels its pending global reader references.
+  A resource property such as `Ref = Later.Child` can no longer retain a
+  destroyed receiver for a later property assignment.
+- Cancellation remains safe when lookup callbacks or property setters destroy
+  objects, query references, or invoke nested resolution. Other live receivers
+  keep their references and can still resolve them. Registration and cancellation
+  use the existing registry lock; this does not make application objects
+  generally safe for concurrent destruction.
+- Regression tests cover the reported resource-loading sequence, multiple
+  receivers, nested persistent properties, explicit cancellation, callback
+  exceptions, reentrant resolution and concurrent independent registrations.
+  Both ordinary and product RTL profiles are checked on Windows and Linux.
+
+There is no public API or `TPersistent` layout change. Compiler optimization is
+unchanged; full Pulse is not repeated for this lifetime repair.
+
+Install the complete 2.4.7 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20407; `CompilerVersion` remains 2.4. MoonORMot 14
+is required, following the qualified dependency update already on `main`.
+
+---
+
 # MoonCompiler 2.4.6: bounded native thread completion
 
 - `TThread.WaitFor(TimeoutMs): Boolean` provides bounded OS-thread completion on
