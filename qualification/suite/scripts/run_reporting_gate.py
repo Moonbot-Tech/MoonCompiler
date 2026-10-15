@@ -414,6 +414,32 @@ def main():
         assert sum(p.read_text(encoding='utf-8').endswith('MOON_DIAGNOSTIC_END\n') for p in reports) == 1
         rows.append({'optimization': opt, 'case': 'quota-failure', 'reports': len(reports)})
 
+        executable = compile_source('diagnostic_transfer.pas', out / f'transfer-{opt}', opt)
+        for mode in ('queue-hardware', 'queue-software', 'synchronize', 'acquired', 'lifecycle'):
+            destination = out / f'transfer-{opt}-{mode}'
+            stdout = run([executable, mode, destination, '0'], out, out / f'transfer-{opt}-{mode}.log')
+            assert f'DIAGNOSTIC_TRANSFER_PASS {mode}' in stdout
+            contents = [p.read_text(encoding='utf-8') for p in destination.glob('*.txt')]
+            assert len(contents) == 3, (opt, mode, len(contents))
+            assert all(c.endswith('MOON_DIAGNOSTIC_END\n') for c in contents)
+            following = next(c for c in contents if 'title=following software exception\n' in c)
+            assert 'hardware=False' in following
+            assert any(name in following for name in ('SoftwareOrigin', 'Followup'))
+            if mode != 'lifecycle':
+                origin = next(c for c in contents if 'title=origin\n' in c)
+                delivered = next(c for c in contents if 'title=delivered\n' in c)
+                # Pointer equality alone can pass when the allocator reuses the
+                # discarded snapshot address. Compare all saved evidence too.
+                assert origin[origin.index('exception_address='):] == delivered[delivered.index('exception_address='):]
+                hardware = mode != 'queue-software'
+                assert f'hardware={hardware}' in delivered
+                names = ('HardwareOrigin', 'Fault') if hardware else ('SoftwareOrigin', 'Fault')
+                assert any(name in delivered for name in names)
+            else:
+                assert all('hardware=False' in c and 'original_context=unavailable' not in c for c in contents)
+            rows.append({'optimization': opt, 'case': f'transfer-{mode}', 'reports': len(contents)})
+            print(f'PASS {opt} transfer-{mode}', flush=True)
+
         delivery_checks(opt, rows)
 
         executable = compile_source('diagnostic_switches.pas', out / f'switches-{opt}', opt)

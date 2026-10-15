@@ -274,7 +274,9 @@ begin
   Capturing := True;
   try
     try
-      If Obj is Exception then begin
+      { Queue/Synchronize and explicit raise E deliver the same exception.
+        Its first snapshot belongs to the object, not to a delivery attempt. }
+      If (Obj is Exception) and not (Exception(Obj).DiagnosticContext is TExceptionSnapshot) then begin
         Snapshot := TExceptionSnapshot.Create;
         try
           Snapshot.Address := PtrUInt(Addr);
@@ -292,8 +294,6 @@ begin
             Inc(Snapshot.Raw.Count);
             If FrameCount >= RaiseMaxFrameCount then Snapshot.Raw.UnwindStatus := 1;
           end;
-          PendingHardware := False;
-          PendingBacktrace := False;
           Exception(Obj).DiagnosticContext := Snapshot;
           Snapshot := nil;
         finally
@@ -302,10 +302,10 @@ begin
       end;
     except
       { Capturing must never replace the application's exception. }
-      PendingHardware := False;
-      PendingBacktrace := False;
     end;
   finally
+    PendingHardware := False;
+    PendingBacktrace := False;
     Capturing := False;
   end;
   If Assigned(PreviousCapture) then PreviousCapture(Obj, Addr, Frame, FrameCount, Frames, Context, Hardware);

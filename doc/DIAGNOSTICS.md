@@ -37,8 +37,13 @@ Handled exceptions are not reported automatically. Explicit writers return the
 saved file path, or `''` when no report is written. Exception reports obey the
 automatic quota; manual snapshots neither check nor consume it, including after
 exhaustion. Enable switches, recursion protection and I/O errors still apply.
-Exception reports retain the original context, including after `raise;` and
-`AcquireExceptionObject`; the application still owns an acquired exception.
+Exception reports retain the first captured context for the lifetime of the
+exception, including `raise;`, explicit `raise E`, `AcquireExceptionObject`,
+queued callbacks and `Synchronize` delivery between threads. Rethrowing the same
+object preserves the original fault address, registers and stack; it does not
+replace them with the delivery site. The RTL's `ExceptAddr` semantics are unchanged.
+The application still owns an acquired exception. Destruction clears the snapshot,
+including for reusable RTL out-of-memory exceptions.
 
 ## Settings
 
