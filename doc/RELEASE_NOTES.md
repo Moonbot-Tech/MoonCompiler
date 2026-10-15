@@ -1,3 +1,24 @@
+# MoonCompiler 2.4.9: keep the original fault in diagnostic reports
+
+- `Moon.Diagnostics` preserves the first captured context when a queued callback
+  exception leaves `CheckSynchronize`, when `Synchronize` delivers an exception
+  to a worker, and when an acquired exception is explicitly raised again.
+  Reports retain the original faulting instruction, registers and stack instead
+  of replacing them with the delivery site.
+- New regression tests compare the saved report contents before and after
+  transfer. They also cover nested errors, capture switches, reusable out-of-memory
+  exceptions, context reset and existing exception hooks on Windows and Linux.
+
+The fix changes diagnostic capture only. Exception handling and `ExceptAddr`,
+thread scheduling, compiler optimization and application error policy stay the
+same. No new public API or dependency is required.
+
+Install the complete 2.4.9 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20409; `CompilerVersion` remains 2.4. MoonORMot 14
+remains required. Full Pulse is not repeated for this diagnostic repair.
+
+---
+
 # MoonCompiler 2.4.8: safe cleanup of unstarted threads
 
 - On Windows, freeing a suspended `TThread` with `FreeOnTerminate=True`
