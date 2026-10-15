@@ -17,6 +17,7 @@ CASES = (
     "anonymous_cleanup_external_owner", "asm_delphi_operands", "forcequeue_first_thread",
     "numeric_overload_precision", "typed_const_character_pointers",
     "reader_value_transfer", "reader_fixup_lifetime", "reader_fixup_registration",
+    "thread_destruction",
 )
 
 

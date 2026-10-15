@@ -25,10 +25,13 @@ begin
         to silently free the object and leave OS resources leaked. }
       if not FFinished {and not Suspended} then
         begin
+          { Claim cleanup before TerminatedSet can wake the thread. }
+          FFreeOnTerminate := False;
           Terminate;
           { Allow the thread function to perform the necessary cleanup. Since
-            we've just set Terminated flag, it won't call Execute. }
-          if FInitialSuspended then
+            we've just set Terminated flag, it won't call Execute. Failed
+            Create(False) also needs this wakeup: AfterConstruction did not run. }
+          if not FStarted then
             Start;
           WaitFor;
         end;
