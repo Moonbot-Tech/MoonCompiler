@@ -1,3 +1,22 @@
+# MoonCompiler 2.4.8: safe cleanup of unstarted threads
+
+- On Windows, freeing a suspended `TThread` with `FreeOnTerminate=True`
+  destroys the object once. Cleanup takes ownership before waking the thread,
+  preventing a second destructor and an access violation during finalization.
+- If a descendant constructor raises after `Create(False)`, Windows cleanup
+  releases the native thread instead of waiting forever. On Linux, the same
+  cleanup no longer calls `Execute` on the incompletely constructed object.
+- Regression tests cover suspended cancellation, constructor exceptions,
+  termination callbacks, ordinary self-freeing threads and the shared callback
+  queue. They run in the RTL matrix and against both packaged toolchains.
+
+Install the complete 2.4.8 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20408; `CompilerVersion` remains 2.4. MoonORMot 14
+remains required. Compiler optimization and the timed-wait API are unchanged;
+full Pulse is not repeated for this patch.
+
+---
+
 # MoonCompiler 2.4.7: safe lifetime of deferred component references
 
 - Destroying a `TPersistent` now cancels its pending global reader references.
