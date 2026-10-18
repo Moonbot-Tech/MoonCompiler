@@ -282,11 +282,6 @@ const
    Comment   : Char = ';';
    LF_Escape : Char = '\';
 
-function CharToBool(AChar: char): boolean;
-begin
-  Result := (Achar = '1');
-end;
-
 function BoolToChar(ABool: boolean): char;
 begin
   if ABool then
@@ -722,6 +717,9 @@ function TCustomIniFile.ReadBool(const Section, Ident: string; Default: Boolean)
 var
   s: string;
 begin
+  If (Length(FBoolTrueStrings)=0) and (Length(FBoolFalseStrings)=0) and
+     not (ifoWriteStringBoolean in FOptions) then
+    Exit(ReadInteger(Section,Ident,Ord(Default))<>0);
   Result := Default;
   s:=ReadString(Section, Ident, '');
   if s > '' then
@@ -732,15 +730,13 @@ begin
       else if IndexOfString(FBoolFalseStrings,S)>=0 then
         Result:=False
       end
-    else if (ifoWriteStringBoolean in FOptions) then
+    else
       begin
       if SameText(s,'true') then
         Result:=True
       else if SameText(s,'false') then
         Result:=False
-      end
-    else
-      Result := CharToBool(s[1]);
+      end;
 end;
 
 procedure TCustomIniFile.WriteBool(const Section, Ident: string; Value: Boolean);

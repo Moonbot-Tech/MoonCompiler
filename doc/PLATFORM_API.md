@@ -231,3 +231,14 @@ minor × 100 + patch, or 20401 for 2.4.1. A real number cannot distinguish
 2.10 from 2.1. `FPC_FULLVERSION` and `fpc -iV` continue to report the underlying
 FPC ABI version. Existing Delphi feature checks must distinguish the compiler
 instead of interpreting the Moon version as a Delphi release number.
+
+
+## INI Boolean values
+
+Ordinary `TCustomIniFile.ReadBool` delegates to
+`ReadInteger(Section, Ident, Ord(Default)) <> 0`, including virtual overrides.
+Zero is false; other valid integers are true. Missing, empty and nonnumeric
+values retain `Default`: `ReadBool(..., True)` returns True for both textual
+`true` and textual `false`. Prefer `0`/`1` for portable configuration files.
+The explicit FPC Boolean-string lists and `ifoWriteStringBoolean` option remain
+available; choose them or an application parser when text flags are intended.
