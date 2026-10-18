@@ -81,7 +81,9 @@
     "prepare": ["qualification/suite"],
     "fixtures": ["qualification/suite"],
     "mega": ["qualification/suite"],
-    "archive_smoke": ["qualification/release/archive_smoke.py", "qualification/build-driver", "examples", "RTL-test", "tests/test/units/system/tres4.res"],
+    "archive_smoke": ["qualification/release/archive_smoke.py", "qualification/release/rtl_boundaries_smoke.py", "qualification/suite/tests/sdk-boundaries", "qualification/suite/tests/rtl-api", "qualification/build-driver", "examples", "RTL-test", "tests/test/units/system/tres4.res"],
+    "sdk_boundaries": ["qualification/release/rtl_boundaries_smoke.py", "qualification/suite/tests/sdk-boundaries"],
+    "sdk_network": ["qualification/suite/tests/sdk-boundaries"],
     "devil_full": ["qualification/suite", "qualification/release/inputs.py"],
     "mormot_current": ["qualification/suite"],
     "upstream": ["qualification/suite", "tests"],
@@ -3088,6 +3090,32 @@
       "expected": "REPORTING_GATE_PASS",
       "slots": 4,
       "memory_mb_per_slot": 1024
+    },
+    {
+      "id": "sdk_boundaries",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/release/rtl_boundaries_smoke.py", "--compiler", "{fpc}", "--sdk-only", "--out", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/release/rtl_boundaries_smoke.py", "--compiler", "{fpc}", "--sdk-only", "--out", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "sdk_boundaries",
+      "timeout": 600,
+      "expected": "RTL_BOUNDARIES_ARCHIVE_PASS"
+    },
+    {
+      "id": "sdk_network",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/suite/tests/sdk-boundaries/run_contracts.py", "--compiler", "{fpc}", "--source", "{root}", "--mormot", "{root}/.qualification/deps/moonormot", "--out", "{job_dir}/out", "--modes", "debug", "release"],
+        "linux": ["{python}", "{root}/qualification/suite/tests/sdk-boundaries/run_contracts.py", "--compiler", "{fpc}", "--source", "{root}", "--mormot", "{root}/.qualification/deps/moonormot", "--out", "{job_dir}/out", "--modes", "debug", "release", "--exhaustion"]
+      },
+      "needs": ["build", "sync"],
+      "resource": "sdk_network",
+      "timeout": 600,
+      "expected": "SDK_CONTRACTS_PASS"
     },
     {
       "id": "runtime_mormot",
