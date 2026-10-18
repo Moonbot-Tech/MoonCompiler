@@ -1539,7 +1539,7 @@ function CreateComponentfromRes(const res : string;Inst : THandle;var Component 
 
     if Inst=0 then
       Inst:=HInstance;
-    ResId:=System.FindResource(Inst, Res, RT_RCDATA);
+    ResId:=System.FindResource(Inst, Res, PAnsiChar(RT_RCDATA));
     result:=ResID<>0;
     try
       if Result then
@@ -1622,7 +1622,7 @@ Var
 begin
   { Windows unit also has a FindResource function, use the one from
     system unit here.  }
-  H:=system.FindResource(HInstance,ResName,RT_RCDATA);
+  H:=system.FindResource(HInstance,ResName,PAnsiChar(RT_RCDATA));
   if (PtrInt(H)=0) then
     Result:=Nil
   else
@@ -1690,7 +1690,7 @@ begin
   for Delta in DeltaCandidates do
     begin
     ResName:=RootName+'_'+Delta;
-    H:=System.FindResource(HInst,ResName,RT_RCDATA);
+    H:=System.FindResource(HInst,ResName,PAnsiChar(RT_RCDATA));
     if PtrInt(H)<>0 then
       try
         S:=TResourceStream.Create(HInst,ResName,RT_RCDATA);

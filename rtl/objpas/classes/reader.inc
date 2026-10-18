@@ -1992,6 +1992,7 @@ begin
     Raise EArgumentNilException.Create(SArgumentNil);
   Result:=Instance;
   RootName:=Instance.ClassName;
+  ResHandle:=NilHandle;
   for Delta in DeltaCandidates do
      begin
      DeltaName:=RootName+'_'+Delta;

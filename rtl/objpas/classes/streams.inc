@@ -2319,9 +2319,15 @@ procedure TResourceStream.Initialize(Instance: TFPResourceHMODULE; Name, ResType
   end;
 
 constructor TResourceStream.Create(Instance: TFPResourceHMODULE; const ResName: string; ResType: PWideChar);
-
+var
+  TypeName: AnsiString;
 begin
-  Create(Instance,ResName,PAnsichar(ResType));
+  If Is_IntResource(PAnsiChar(ResType)) then
+    Create(Instance,ResName,PAnsiChar(ResType))
+  else begin
+    TypeName:=ResType;
+    Create(Instance,ResName,PAnsiChar(TypeName));
+  end;
 end;
 
 constructor TResourceStream.Create(Instance: TFPResourceHMODULE; const ResName: string; ResType: PAnsiChar);
@@ -2343,9 +2349,16 @@ constructor TResourceStream.CreateFromID(Instance: TFPResourceHMODULE; ResID: In
   end;
 
 constructor TResourceStream.CreateFromID(Instance: TFPResourceHMODULE; ResID: Integer; ResType: PWideChar);
-  begin
-    CreateFromID(Instance,ResID,PAnsiChar(ResType));
+var
+  TypeName: AnsiString;
+begin
+  If Is_IntResource(PAnsiChar(ResType)) then
+    CreateFromID(Instance,ResID,PAnsiChar(ResType))
+  else begin
+    TypeName:=ResType;
+    CreateFromID(Instance,ResID,PAnsiChar(TypeName));
   end;
+end;
 {$endif FPC_OS_UNICODE}
 
 
