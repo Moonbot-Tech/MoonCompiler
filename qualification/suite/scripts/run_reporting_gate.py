@@ -440,6 +440,26 @@ def main():
             rows.append({'optimization': opt, 'case': f'transfer-{mode}', 'reports': len(contents)})
             print(f'PASS {opt} transfer-{mode}', flush=True)
 
+        executable = compile_source('diagnostic_expected.pas', out / f'expected-{opt}', opt)
+        for mode in ('rules', 'unhandled', 'empty', 'filtered-av'):
+            destination = out / f'expected-{opt}-{mode}'
+            expected_exit = UNHANDLED_EXIT if mode == 'unhandled' else 0
+            text = run([executable, destination, mode, '0'], out, out / f'expected-{opt}-{mode}.log', expected_exit)
+            contents = [p.read_text(encoding='utf-8') for p in destination.glob('*.txt')]
+            assert len(contents) == {'rules': 3, 'filtered-av': 1}.get(mode, 0), (opt, mode, contents)
+            assert all(c.endswith('MOON_DIAGNOSTIC_END\n') for c in contents)
+            if mode == 'unhandled':
+                assert 'An unhandled exception occurred' in text and 'expected origin' in text
+            else:
+                assert 'EXPECTED_FILTER_PASS' in text
+            if mode == 'rules':
+                hardware = next(c for c in contents if 'title=unexpected AV\n' in c)
+                assert 'hardware=True' in hardware and 'HardwareOrigin'.upper() in hardware.upper()
+            elif mode == 'filtered-av':
+                assert 'hardware=False' in contents[0] and 'SoftwareOrigin'.upper() in contents[0].upper()
+            rows.append({'optimization': opt, 'case': f'expected-{mode}', 'reports': len(contents)})
+            print(f'PASS {opt} expected-{mode}', flush=True)
+
         delivery_checks(opt, rows)
 
         executable = compile_source('diagnostic_switches.pas', out / f'switches-{opt}', opt)
@@ -557,7 +577,7 @@ def main():
     # All correctness workers have joined before collecting timing samples.
     executables = {label: compile_source('diagnostic_raise_bench.pas', out / f'bench-{label}', 'O3', defines)
                    for label, defines in [('baseline', []), ('capture', ['REPORTING'])]}
-    samples = {label: [] for label in ('baseline', 'capture', 'thread-off', 'global-off', 'toggle')}
+    samples = {label: [] for label in ('baseline', 'capture', 'expected', 'thread-off', 'global-off', 'toggle')}
     for i in range(7):
         labels = list(samples)
         labels = labels[i % len(labels):] + labels[:i % len(labels)]

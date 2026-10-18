@@ -88,6 +88,41 @@ and [delivery details](../runtime/reporting/README.md#optional-zip-and-https-pos
 previous state for restoration in `finally`. The default is enabled. See
 [the switch details](../runtime/reporting/README.md#disable-capture-on-expected-error-paths).
 
+## Expected exception classes
+
+The application chooses which exception classes need no diagnostic snapshot or
+exception report. Configure the list before initialization:
+
+```pascal
+Options := Default(TDiagnosticOptions);
+Options.AddExpectedException(EOperationCancelled);
+Options.AddExpectedException(EExpectedNetworkError, True);
+InitializeReports(Options);
+```
+
+The two classes in this example are application-defined. Matching is by class
+identity, exact by default; `True` explicitly includes descendants. The default
+list is empty. Passing `nil` raises `EArgumentNilException`. There are no built-in
+exclusions, including `EAbort`, and no automatic import of EurekaLog settings.
+
+The active list is fixed at initialization. Adding entries to the original
+options record or its copies afterwards does not change it. No application
+callback, lock or allocation is used to match an exception.
+
+Expected software exceptions skip this module's early stack/context capture and
+snapshot allocation. Automatic and explicit exception reports are suppressed
+before quota reservation, callbacks, file output and upload; explicit writers
+return `''`. Manual reports are unaffected. Normal `try/except/finally`, acquired
+exceptions, rethrows, other installed hooks and unhandled termination still work.
+Filtering is a reporting policy; it does not handle or swallow an exception.
+
+The RTL's own exception/backtrace work remains. On Linux, hardware signals must
+save their initial context before the Pascal exception object exists: a class
+filter cannot avoid that first capture. Once its class is known, an expected
+hardware exception gets no owned snapshot or report, and its pending context
+cannot leak into the next software exception. Unexpected exceptions retain their
+original diagnostic evidence.
+
 ## Try the example
 
 The [example](../examples/diagnostics.dpr) runs with either profile. Omit
@@ -234,7 +269,7 @@ must live as long as its exception object. Three optional RTL hooks provide
 capture, replacement backtraces on Linux, and the existing `TThread` fatal
 boundary. `Exception` owns the snapshot, including reusable RTL exceptions.
 Without activation, hook pointers remain nil and no snapshots are allocated.
-With activation, each live exception adds roughly 6 KiB; capture TLS is also
+With activation, each captured live exception adds roughly 6 KiB; capture TLS is also
 roughly 6 KiB per participating thread. The extra fixed storage is shared by the
 exception's existing snapshot object, not separate heap allocations per register
 or memory fragment. The additional static decoder adds about half a MiB of code
@@ -257,7 +292,11 @@ The [reporting gate](../qualification/suite/scripts/run_reporting_gate.py)
 checks actual report contents, all-thread sampling, a hung main, hardware stack
 data, deep recursion, concurrent throws, nested/acquired/reraised exceptions,
 reusable RTL exceptions, callback failure, and existing exception/lifetime
-regressions with capture both off and on. See [Testing](TESTING.md#diagnostic-reports)
+regressions with capture both off and on. Expected-class coverage includes exact
+matching and descendants, immutable options, concurrent workers, prior hooks,
+Queue/Synchronize, quota isolation and a filtered hardware fault followed by an
+unexpected software exception. The raise benchmark also measures expected-class
+filtering against normal capture and the no-module baseline. See [Testing](TESTING.md#diagnostic-reports)
 for commands.
 
 The additional [resilience tests](../qualification/suite/tests/smoke/diagnostic_resilience.pas)

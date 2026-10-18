@@ -111,6 +111,20 @@ capture. A caught exception that is not explicitly reported consumes no slot.
 Automatic unhandled-exception reporting may therefore be suppressed after the
 quota is exhausted; the application's original termination behaviour is unchanged.
 
+## Expected exception classes
+
+Call `Options.AddExpectedException(ExceptionClass, IncludeDescendants)` before
+`InitializeReports(Options)`. `IncludeDescendants` defaults to `False`; matching
+uses actual classes, not class-name strings. No classes are excluded by default.
+The application owns this policy; the SDK does not import application/EurekaLog
+lists. Initialization fixes the active list; later changes to the caller's options do not alter it.
+
+Expected software exceptions bypass extra diagnostic capture and allocation.
+All exception writers suppress them before quota reservation or I/O. Manual
+snapshots and ordinary exception handling remain available. Linux hardware
+signals retain their initial pre-object capture, even for a subsequently filtered
+class. See [the contract and example](../../doc/DIAGNOSTICS.md#expected-exception-classes).
+
 ## Disable capture on expected-error paths
 
 `SetThreadReportsEnabled(False)` disables this module in the current thread;

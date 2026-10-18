@@ -83,7 +83,7 @@ begin
     ThrowLeaf;
   except
     on E: Exception do
-      If (E.DiagnosticContext <> nil) <> ((Mode <> 'thread-off') and (Mode <> 'global-off')) then Halt(5);
+      If (E.DiagnosticContext <> nil) <> ((Mode <> 'thread-off') and (Mode <> 'global-off') and (Mode <> 'expected')) then Halt(5);
   end;
   {$endif}
   RunLoop(1000);
@@ -98,9 +98,13 @@ begin
 end;
 
 var Worker: TBenchmark;
+  {$ifdef REPORTING}Options: TDiagnosticOptions;{$endif}
 begin
   {$ifdef REPORTING}
-  InitializeReports(ParamStr(2));
+  Options := Default(TDiagnosticOptions);
+  Options.Directory := ParamStr(2);
+  If ParamStr(3) = 'expected' then Options.AddExpectedException(Exception);
+  InitializeReports(Options);
   {$endif}
   {$ifdef EUREKA}
   If not IsEurekaLogActive then begin

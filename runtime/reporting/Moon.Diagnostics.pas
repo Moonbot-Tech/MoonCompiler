@@ -26,12 +26,21 @@ type
   TDiagnosticDataProc = procedure(Report: TDiagnosticReport);
   TDiagnosticNameProc = function(const Kind, Title: string): string;
 
+  TDiagnosticExpectedException = record
+    ExceptionClass: ExceptClass;
+    IncludeDescendants: Boolean;
+  end;
+
   TDiagnosticOptions = record
+  private
+    FExpectedExceptions: array of TDiagnosticExpectedException;
+  public
     Directory: string;
     FileName: TDiagnosticNameProc;
     PostURL, PostFieldName, PostSuccessText: string;
     PostTimeoutMS: LongInt;
     MaxReportsPerRun: LongInt; { automatic/exception attempts only; 0 = default 10 }
+    procedure AddExpectedException(ExceptionClass: ExceptClass; IncludeDescendants: Boolean = False);
   end;
 
 { Call once before starting application threads. POST is opt-in, after local saving.
@@ -186,6 +195,28 @@ begin
   NativeMemoryRegions(Raw.Regions);
 end;
 
+procedure TDiagnosticOptions.AddExpectedException(ExceptionClass: ExceptClass; IncludeDescendants: Boolean);
+var
+  Index: SizeInt;
+begin
+  If ExceptionClass = nil then raise EArgumentNilException.Create('Expected exception class is nil');
+  Index := Length(FExpectedExceptions);
+  SetLength(FExpectedExceptions, Index + 1);
+  FExpectedExceptions[Index].ExceptionClass := ExceptionClass;
+  FExpectedExceptions[Index].IncludeDescendants := IncludeDescendants;
+end;
+
+function IsExpectedException(Obj: TObject): Boolean;
+var
+  Rule: TDiagnosticExpectedException;
+begin
+  Result := False;
+  If Obj = nil then Exit;
+  for Rule in ReportOptions.FExpectedExceptions do
+    If (Obj.ClassType = Rule.ExceptionClass) or
+      (Rule.IncludeDescendants and Obj.InheritsFrom(Rule.ExceptionClass)) then Exit(True);
+end;
+
 function SetReportsEnabled(Enabled: Boolean): Boolean;
 begin
   Result := InterlockedExchange(GloballyDisabled, Ord(not Enabled)) = 0;
@@ -209,7 +240,8 @@ var
   I: Integer;
 begin
   Result := False;
-  If not ReportsEnabled then begin
+  { PushExceptObject has already published this exception in RaiseList. }
+  If not ReportsEnabled or IsExpectedException(ExceptObject) then begin
     PendingHardware := False;
     PendingBacktrace := False;
     If Assigned(PreviousBacktrace) then Result := PreviousBacktrace(Addr, Frame, FrameCount, Frames);
@@ -252,7 +284,7 @@ var
   Snapshot: TExceptionSnapshot;
   I: Integer;
 begin
-  If not ReportsEnabled then begin
+  If not ReportsEnabled or IsExpectedException(Obj) then begin
     PendingHardware := False;
     PendingBacktrace := False;
     If Assigned(PreviousCapture) then PreviousCapture(Obj, Addr, Frame, FrameCount, Frames, Context, Hardware);
@@ -730,6 +762,7 @@ begin
   If not ReportsEnabled then Exit('');
   If not Initialized then raise Exception.Create('InitializeReports must be called first');
   If E = nil then raise Exception.Create('Exception object is nil');
+  If IsExpectedException(E) then Exit('');
   If Reporting then Exit('');
   Reporting := True;
   try
