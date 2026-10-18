@@ -43,7 +43,7 @@ end;
 var
   Handle: THandle;
   Buffer: array[0..1023] of AnsiChar;
-  Values: array[1..4] of QWord;
+  Values: array[1..8] of QWord;
   Count, I, Field: Integer;
   Digits: Boolean;
 begin
@@ -74,19 +74,19 @@ begin
       begin
       Inc(Field);
       Digits:=False;
-      if Field>4 then
+      if Field>8 then
         Break;
       end;
     if Buffer[I]=#10 then
       Break;
     end;
-  if Field<=4 then
+  if Field<=8 then
     Exit;
   { user nice system idle: the kernel time includes the idle time }
   Times.UserTime:=Values[1];
   Times.NiceTime:=Values[2];
-  Times.IdleTime:=Values[4];
-  Times.KernelTime:=Values[3]+Values[4];
+  Times.IdleTime:=Values[4]+Values[5];
+  Times.KernelTime:=Values[3]+Times.IdleTime+Values[6]+Values[7]+Values[8];
   Result:=True;
 end;
 {$endif}

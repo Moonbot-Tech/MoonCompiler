@@ -989,15 +989,21 @@ var
 
 begin
   Result:=0;
-  if not GetSystemTimes(Act) then
+  If not GetSystemTimes(Act) then
     exit;
+  { Linux iowait can decrease; a reset counter cannot form an unsigned interval. }
+  If (Act.UserTime < Previous.UserTime) or (Act.KernelTime < Previous.KernelTime) or
+     (Act.NiceTime < Previous.NiceTime) or (Act.IdleTime < Previous.IdleTime) then begin
+    Previous:=Act;
+    exit;
+  end;
   Load:=(Act.UserTime-Previous.UserTime) +
         (Act.KernelTime-Previous.KernelTime) +
         (Act.NiceTime-Previous.NiceTime);
   Idle:=Act.IdleTime-Previous.IdleTime;
   Previous:=Act;
   { kernel time includes the idle time: the busy share of the interval, in % }
-  if Load>Idle then
+  If Load>Idle then
     Result:=(Load-Idle)*100 div Load;
 end;
 

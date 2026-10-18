@@ -4175,9 +4175,11 @@ have stopped before the idle field. And the percentage was
 
 As in Delphi 12.2, `GetSystemTimes` now returns the counters of all
 processors with the kernel time including the idle time (Windows
-`GetSystemTimes`; Linux `user nice system idle`), and `GetCPUUsage` the busy
+`GetSystemTimes`; Linux `user nice system idle iowait irq softirq steal`), and `GetCPUUsage` the busy
 share of the interval, `(Load-Idle)*100 div Load`. The thread pool monitor
-reads it (next section).
+reads it (next section). Linux includes I/O wait in idle and includes idle in
+kernel time; guest counters are already included in user/nice and are not added
+again. A decreasing counter resets the interval and returns zero for that sample.
 [`thread_cpu_usage_semantic.dpr`](../RTL-test/semantic/thread_cpu_usage_semantic.dpr)
 compares `GetSystemTimes` with the counters of the operating system read
 directly and checks `GetCPUUsage` on an interval of known share; the previous

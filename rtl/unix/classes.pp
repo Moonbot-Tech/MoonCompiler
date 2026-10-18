@@ -100,17 +100,19 @@ uses
 {$IFDEF LINUX}
 {$DEFINE HAS_TTHREAD_GETSYSTEMTIMES}
 class function TThread.GetSystemTimes(out aSystemTimes : TSystemTimes) : Boolean;
+var
+  Times: TSystemTimes;
 
   procedure StoreTime(aField : integer; aTime : QWord);
   begin
     case aField of
-      1: aSystemTimes.UserTime:=aTime;
-      2: aSystemTimes.NiceTime:=aTime;
-      3: aSystemTimes.KernelTime:=aTime;
-      4: begin
-         aSystemTimes.IdleTime:=aTime;
-         aSystemTimes.KernelTime:=aSystemTimes.KernelTime + aTime;
-         end;
+      1: Times.UserTime:=aTime;
+      2: Times.NiceTime:=aTime;
+      3,6,7,8: Inc(Times.KernelTime,aTime);
+      4,5: begin
+           Inc(Times.IdleTime,aTime);
+           Inc(Times.KernelTime,aTime);
+           end;
     end;
   end;
 
@@ -135,6 +137,7 @@ var
 begin
   Result := False;
   aSystemTimes := Default(TSystemTimes);
+  Times := Default(TSystemTimes);
   fd:=FileOpen(StatFile,fmOpenRead or fmShareDenyNone);
   if fd<0 then
     Exit;
@@ -148,7 +151,7 @@ begin
     if (Len<4) or (Buf[0]<>'c') or (Buf[1]<>'p') or (Buf[2]<>'u') or (Buf[3]<>' ') then
       Exit;
     Pos:=4;
-    // fields: user nice system idle
+    // user nice system idle iowait irq softirq steal; guest is already in user/nice
     lField:=1;
     V:=0;
     lDigits:=False;
@@ -162,25 +165,29 @@ begin
         lDigits:=True;
         V:=V*10+(Ord(Ch)-Ord('0'));
         end
-      else if lDigits then
-        begin
-        StoreTime(lField,V);
-        Inc(lField);
-        V:=0;
-        lDigits:=False;
-        if lField > 4 then
-          Break;
+      else begin
+        If not (Ch in [#9,' ']) then
+          Exit;
+        If lDigits then begin
+          StoreTime(lField,V);
+          Inc(lField);
+          V:=0;
+          lDigits:=False;
+          If lField > 8 then
+            Break;
         end;
+      end;
       Inc(Pos);
     end;
-    // Handle last field if line ended without trailing space
-    if lDigits and (lField<=4) then
+    { A number ending at the read boundary may be truncated. A newline ends a complete field. }
+    If lDigits and (lField<=8) and (Pos<Len) then
       begin
       StoreTime(lField,V);
       Inc(lField);
       end;
-    // all four fields, idle included: without it every sample reads as full load
-    Result:=lField>4;
+    Result:=lField>8;
+    If Result then
+      aSystemTimes:=Times;
   finally
     fpClose(fd);
   end;
