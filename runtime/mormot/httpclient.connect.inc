@@ -258,9 +258,11 @@ begin
   end;
   Client.CheckRequest;
   Code := Address.SocketConnect(Socket, -1);
-  If Code <> nrOK then
+  If Code <> nrOK then begin
+    NativeError := RawSocketErrNo;
     raise ENetHTTPClientException.CreateFailure('Cannot start HTTP connection', NetFailureReason(Code),
-      TNetRequestOutcome.NotSent, RawSocketErrNo);
+      TNetRequestOutcome.NotSent, NativeError);
+  end;
   repeat
     Client.CheckRequest;
     Events := Socket.WaitFor(20, [neWrite, neError]);
