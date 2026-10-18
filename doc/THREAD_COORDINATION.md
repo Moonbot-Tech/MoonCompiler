@@ -84,6 +84,14 @@ errno; timeout/error returns `High(DWord)` and sets errno. Prefer the extended
 API because `High(DWord)` is also a valid successful exit code. Windows keeps
 the legacy native wait-status result.
 
+## Windows current-thread handles
+
+The wrapper returned by `TThread.CurrentThread` for a native Windows thread owns
+a duplicated OS handle. A priority getter or setter through that wrapper targets
+the represented thread even when called by another thread. Releasing the wrapper
+closes this duplicate without terminating the native thread. The wrapper itself
+belongs to the RTL; callers should not free the borrowed object.
+
 ## Linux thread priority
 
 `TThread.Priority` changes the target Linux thread's native nice value, including

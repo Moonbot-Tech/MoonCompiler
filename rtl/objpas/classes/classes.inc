@@ -198,6 +198,12 @@ begin
   FStarted := True;
   { the parameter is unimportant if FExternalThread is True }
   inherited Create(False);
+{$ifdef MSWINDOWS}
+  { A pseudo handle would refer to the caller when this wrapper is used by another thread. }
+  If not DuplicateHandle(GetCurrentProcess, {$ifdef FPC_DOTTEDUNITS}WinApi.{$endif}Windows.GetCurrentThread, GetCurrentProcess,
+    @FHandle, 0, False, DUPLICATE_SAME_ACCESS) then
+    raise EThread.CreateFmt(SThreadCreateError, [SysErrorMessage(GetLastError)]);
+{$endif}
   with ExternalThreads.LockList do
     try
       Add(Self);
@@ -209,6 +215,10 @@ end;
 
 destructor TExternalThread.Destroy;
 begin
+{$ifdef MSWINDOWS}
+  If FHandle <> TThreadID(0) then
+    CloseThread(FHandle);
+{$endif}
   inherited;
   if not ExternalThreadsCleanup then
     with ExternalThreads.LockList do
