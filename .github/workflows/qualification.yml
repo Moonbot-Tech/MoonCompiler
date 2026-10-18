@@ -25,7 +25,7 @@ jobs:
           sudo apt-get install --no-install-recommends \
             make binutils gcc fp-compiler-3.2.2 python3 coreutils util-linux \
             libffi-dev libfreetype6-dev fonts-dejavu-core \
-            libunwind8 zlib1g libssl3t64 openssl ca-certificates
+            libunwind8 zlib1g libssl3t64 openssl ca-certificates libsqlite3-0 iproute2
           test "$(fpc -iV)" = 3.2.2
       - name: Build product toolchain
         env:
@@ -259,6 +259,13 @@ jobs:
             --compiler toolchain/bin/ppcx64 \
             --rtl toolchain/lib/fpc/3.3.1/units/x86_64-linux/rtl \
             --mormot mormot --product-mm --results .qualification/ci-linux-runtime
+      - name: Run installed SDK boundary and connection contracts
+        run: |
+          python3 qualification/release/rtl_boundaries_smoke.py \
+            --compiler toolchain/bin/fpc --sdk-only --out .qualification/ci-linux-sdk-boundaries
+          python3 qualification/suite/tests/sdk-boundaries/run_contracts.py \
+            --compiler toolchain/bin/fpc --source . --mormot mormot \
+            --out .qualification/ci-linux-sdk-network --modes debug release --exhaustion
       - name: Run product smoke
         run: |
           # The product profile comes from the toolchain's own fpc.cfg: plain
@@ -636,6 +643,17 @@ jobs:
             --rtl .\toolchain\units\x86_64-win64\rtl `
             --mormot .\mormot --product-mm --results .\.qualification\ci-win64-runtime
           If ($LASTEXITCODE -ne 0) { throw 'Runtime contracts failed' }
+      - name: Run installed SDK boundary and connection contracts
+        shell: powershell
+        run: |
+          python .\qualification\release\rtl_boundaries_smoke.py `
+            --compiler .\toolchain\bin\x86_64-win64\fpc.exe `
+            --sdk-only --out .\.qualification\ci-win64-sdk-boundaries
+          If ($LASTEXITCODE -ne 0) { throw 'SDK boundary contracts failed' }
+          python .\qualification\suite\tests\sdk-boundaries\run_contracts.py `
+            --compiler .\toolchain\bin\x86_64-win64\fpc.exe --source . --mormot mormot `
+            --out .\.qualification\ci-win64-sdk-network --modes debug release
+          If ($LASTEXITCODE -ne 0) { throw 'SDK connection contracts failed' }
       - name: Run product smoke
         shell: powershell
         run: |

@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v2.4.9
+        default: v2.4.10
 
 permissions:
   contents: read
@@ -70,7 +70,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends \
-            make binutils gcc fp-compiler-3.2.2
+            make binutils gcc fp-compiler-3.2.2 libsqlite3-0
           test "$(fpc -iV)" = 3.2.2
       - name: Build toolchain
         run: ./build compiler

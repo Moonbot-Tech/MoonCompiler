@@ -1,3 +1,36 @@
+# MoonCompiler 2.4.10: resources, configuration and runtime diagnostics
+
+- Component resources load safely with numeric resource types. Named and numeric
+  resource identifiers remain distinct, inherited components preserve their
+  initialization order, and an empty delta-resource list leaves the component alone.
+- `TCustomIniFile.ReadBool` uses the integer/default contract. Nonnumeric values
+  such as `true`, `false`, `yes` and `no` retain the supplied default. Use `0` and
+  `1` in portable INI files, or choose an explicit application text-flag parser.
+- SQLite SQLDB preserves Unicode SQL, identifiers, filenames, metadata and errors
+  across its UTF-8 API. Binary parameters retain their exact bytes. String and
+  memo fields preserve their declared encoding when exposed as Unicode or Variant.
+- Windows `TThread.CurrentThread` uses a real handle for the represented thread,
+  so priority access also works when another thread uses that wrapper.
+- Linux CPU usage includes IRQ, softirq, steal and I/O-wait accounting. Counter
+  rollback invalidates the sample instead of producing a false load spike.
+- Linux `CaptureBacktrace` uses existing unwind information in optimized builds.
+  Symbol lookup retains loaded executable and library identity after a working
+  directory change, including relative launches and library loads.
+- HTTP connection failures retain immediate native errors, including local port
+  exhaustion. Asynchronous delivery preserves the same reason and outcome.
+  Interrupted and pending connections continue through the existing wait path.
+
+Regression coverage includes both toolchains, optimized builds, ANSI and Unicode
+RTL profiles where applicable, and consumers built from installed SDK archives.
+The repair adds no new native runtime dependency or compiler optimization pass.
+
+Install the complete 2.4.10 toolchain and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20410; `CompilerVersion` remains 2.4. Update MoonORMot
+to version 15 or newer for the connection-error repair. Full Pulse is not repeated
+for this correctness release.
+
+---
+
 # MoonCompiler 2.4.9: keep the original fault in diagnostic reports
 
 - `Moon.Diagnostics` preserves the first captured context when a queued callback
