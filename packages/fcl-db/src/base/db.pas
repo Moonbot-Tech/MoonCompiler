@@ -1117,6 +1117,9 @@ type
   private
     FCodePage: TSystemCodePage;
   protected
+{$IF SIZEOF(Char)=2}
+    function GetAsVariant: Variant; override;
+{$ENDIF}
     function GetAsAnsiString: AnsiString; override;
     procedure SetAsAnsiString(const AValue: AnsiString); override;
     function GetAsUnicodeString: UnicodeString; override;

@@ -131,7 +131,6 @@ Type
     // See http://www.sqlite.org/c3ref/create_collation.html for detailed information
     // If eTextRep=0 a default UTF-8 compare function is used (UTF8CompareCallback)
     // Warning: UTF8CompareCallback needs a wide string manager on Linux such as cwstring
-    // Warning: CollationName has to be a UTF-8 string
     procedure CreateCollation(const CollationName: string; eTextRep: integer; Arg: Pointer=nil; Compare: xCompare=nil);
     procedure LoadExtension(const LibraryFile: string);
   Published
@@ -180,7 +179,6 @@ type
    fhandle : psqlite3;
    fconnection: TSQLite3Connection;
    fstatement: psqlite3_stmt;
-   ftail: PAnsiChar;
    fstate: integer;
    fparambinding: array of Integer;
    procedure checkerror(const aerror: integer);
@@ -192,9 +190,24 @@ type
  public
    RowsAffected : Largeint;
  end;
-procedure freebindstring(astring: pointer); cdecl;
+// SQLDB uses UTF-8 byte strings in the ANSI profile and Unicode text in
+// the product profile. Keep SQLite's C API UTF-8 in both profiles.
+function SQLiteUTF8(const S: string): UTF8String;
 begin
-  StrDispose(astring);
+{$IF SIZEOF(Char)=2}
+  Result:=UTF8Encode(S);
+{$ELSE}
+  RawByteString(Result):=S;
+{$ENDIF}
+end;
+
+function SQLiteString(S: PAnsiChar): string;
+begin
+{$IF SIZEOF(Char)=2}
+  Result:=UTF8Decode(S);
+{$ELSE}
+  Result:=StrPas(S);
+{$ENDIF}
 end;
 
 procedure TSQLite3Cursor.checkerror(const aerror: integer);
@@ -204,19 +217,13 @@ end;
 
 Procedure TSQLite3Cursor.bindparams(AParams : TParams);
 
-  Function PAllocStr(Const S : RawByteString) : PAnsiChar;
-  begin
-    Result:=StrAlloc(Length(S)+1);
-    If (Result<>Nil) then
-      StrPCopy(Result,S);
-  end;
-
 Var
   I : Integer;
   P : TParam;
   astr: AnsiString;
   ustr: UTF8String;
   wstr: WideString;
+  bytes: TBytes;
 
 begin
   for I:=1 to high(fparambinding)+1 do
@@ -251,13 +258,16 @@ begin
         ftFixedChar,
         ftMemo: begin // According to SQLite documentation, CLOB's (ftMemo) have the Text affinity
                 ustr:= P.AsUTF8String;
-                checkerror(sqlite3_bind_text(fstatement,I, PAllocStr(ustr), length(ustr), @freebindstring));
+                checkerror(sqlite3_bind_text(fstatement,I, PAnsiChar(ustr), length(ustr), sqlite3_destructor_type(SQLITE_TRANSIENT)));
                 end;
         ftBytes,
         ftVarBytes,
         ftBlob: begin
-                astr:= P.AsAnsiString;
-                checkerror(sqlite3_bind_blob(fstatement,I, PAllocStr(astr), length(astr), @freebindstring));
+                bytes:=P.AsBytes;
+                If Length(bytes)=0 then
+                  checkerror(sqlite3_bind_zeroblob(fstatement,I,0))
+                else
+                  checkerror(sqlite3_bind_blob(fstatement,I,@bytes[0],Length(bytes),sqlite3_destructor_type(SQLITE_TRANSIENT)));
                 end;
         ftWideString,
         ftFixedWideChar,
@@ -276,6 +286,7 @@ Procedure TSQLite3Cursor.Prepare(const Buf : String; AParams : TParams);
 
 var
   S : string;
+  SQL : UTF8String;
 
 begin
   S:=Buf;
@@ -283,7 +294,8 @@ begin
     S := AParams.ParseSQL(S,false,false,false,psInterbase,fparambinding);
   if (detActualSQL in fconnection.LogEvents) then
     fconnection.Log(detActualSQL,S);
-  checkerror(sqlite3_prepare(fhandle,PAnsiChar(S),length(S),@fstatement,@ftail));
+  SQL:=SQLiteUTF8(S);
+  checkerror(sqlite3_prepare(fhandle,PAnsiChar(SQL),Length(SQL)+1,@fstatement,nil));
   FPrepared:=True;
 end;
 
@@ -482,12 +494,12 @@ procedure TSQLite3Connection.AddFieldDefs(cursor: TSQLCursor; FieldDefs: TFieldD
 var
  st : psqlite3_stmt;
  i, j, NotNull : integer;
- FN, FD, PrimaryKeyFields : AnsiString;
+ FN, FD, PrimaryKeyFields : string;
  FT : TFieldType;
  size1, size2 : integer;
  CN: PAnsiChar;
 
- function GetPrimaryKeyFields: AnsiString;
+ function GetPrimaryKeyFields: string;
  var IndexDefs: TServerIndexDefs;
      i: integer;
  begin
@@ -504,7 +516,7 @@ var
    Result := '';
  end;
 
- function ExtractPrecisionAndScale(decltype: AnsiString; var precision, scale: integer): boolean;
+ function ExtractPrecisionAndScale(decltype: string; var precision, scale: integer): boolean;
  var p: integer;
  begin
    p:=pos('(', decltype);
@@ -533,8 +545,8 @@ begin
   st:=TSQLite3Cursor(cursor).fstatement;
   for i := 0 to sqlite3_column_count(st) - 1 do
     begin
-    FN := sqlite3_column_name(st,i);
-    FD := uppercase(sqlite3_column_decltype(st,i));
+    FN := SQLiteString(sqlite3_column_name(st,i));
+    FD := uppercase(SQLiteString(sqlite3_column_decltype(st,i)));
     FT := ftUnknown;
     for j := 1 to FieldMapCount do if pos(FieldMap[j].N,FD)=1 then
       begin
@@ -918,7 +930,7 @@ procedure TSQLite3Connection.DoInternalConnect;
 const
   PRAGMAS:array[0..1] of string=('foreign_keys','journal_mode');
 var
-  filename: ansistring;
+  filename, utf8vfs, key: UTF8String;
   pvfs: PAnsiChar;
   i,j: integer;
 begin
@@ -926,14 +938,18 @@ begin
   if DatabaseName = '' then
     DatabaseError(SErrNoDatabaseName,self);
   InitializeSQLite;
-  filename := DatabaseName;
-  if FVFS <> '' then
-    pvfs := PAnsiChar(FVFS)
+  filename:=SQLiteUTF8(DatabaseName);
+  utf8vfs:=SQLiteUTF8(FVFS);
+  if utf8vfs <> '' then
+    pvfs := PAnsiChar(utf8vfs)
   else
     pvfs := Nil;
   checkerror(sqlite3_open_v2(PAnsiChar(filename),@fhandle,GetSQLiteOpenFlags,pvfs));
   if (Length(Password)>0) and assigned(sqlite3_key) then
-    checkerror(sqlite3_key(fhandle,PAnsiChar(Password),StrLen(PAnsiChar(Password))));
+    begin
+    key:=SQLiteUTF8(Password);
+    checkerror(sqlite3_key(fhandle,PAnsiChar(key),Length(key)));
+    end;
   for i:=Low(PRAGMAS) to High(PRAGMAS) do begin
     j:=Params.IndexOfName(PRAGMAS[i]);
     if j <> -1 then
@@ -972,7 +988,7 @@ Var
 begin
  if (aerror<>sqlite_ok) then
    begin
-   ErrMsg := strpas(sqlite3_errmsg(fhandle));
+   ErrMsg := SQLiteString(sqlite3_errmsg(fhandle));
    ErrCode := sqlite3_extended_errcode(fhandle);
    raise ESQLDatabaseError.CreateFmt(ErrMsg, [], Self, ErrCode, '');
    end;
@@ -982,13 +998,15 @@ procedure TSQLite3Connection.execsql(const asql: string);
 var
  err  : PAnsiChar;
  str1 : string;
+ sql  : UTF8String;
  res  : integer;
 begin
  err:= nil;
- Res := sqlite3_exec(fhandle,PAnsiChar(asql),nil,nil,@err);
+ sql:=SQLiteUTF8(asql);
+ Res := sqlite3_exec(fhandle,PAnsiChar(sql),nil,nil,@err);
  if err <> nil then
    begin
-   str1:= strpas(err);
+   str1:=SQLiteString(err);
    sqlite3_free(err);
    end;
  if (res<>sqlite_ok) then
@@ -1028,14 +1046,17 @@ begin
  p:= @(PP^[N+1]); // newly added array, fill with data.
  setlength(p^,ncols);
  for i:= 0 to ncols - 1 do
-   p^[i]:= strPas(avalues[i]);
+   p^[i]:= SQLiteString(avalues[i]);
  result:= 0;
 end;
 
 function TSQLite3Connection.stringsquery(const asql: string): TArrayStringArray;
+var
+  SQL: UTF8String;
 begin
   SetLength(result,0);
-  checkerror(sqlite3_exec(fhandle,PAnsiChar(asql),@execscallback,@result,nil));
+  SQL:=SQLiteUTF8(asql);
+  checkerror(sqlite3_exec(fhandle,PAnsiChar(SQL),@execscallback,@result,nil));
 end;
 
 function TSQLite3Connection.GetSchemaInfoSQL(SchemaType: TSchemaType;
@@ -1168,7 +1189,7 @@ begin
       citClientVersion:
         Result:=inttostr(sqlite3_libversion_number());
       citServerVersionString:
-        Result:=sqlite3_libversion();
+        Result:=SQLiteString(sqlite3_libversion());
       citClientName:
         Result:=TSQLite3ConnectionDef.LoadedLibraryName;
     else
@@ -1180,13 +1201,13 @@ begin
 end;
 
 procedure TSQLite3Connection.CreateDB;
-var filename: ansistring;
+var filename: UTF8String;
 begin
   CheckDisConnected;
   try
     InitializeSQLite;
     try
-      filename := DatabaseName;
+      filename:=SQLiteUTF8(DatabaseName);
       checkerror(sqlite3_open(PAnsiChar(filename),@fhandle));
     finally
       sqlite3_close(fhandle);
@@ -1213,6 +1234,8 @@ end;
 
 procedure TSQLite3Connection.CreateCollation(const CollationName: string;
   eTextRep: integer; Arg: Pointer; Compare: xCompare);
+var
+  UTF8Name: UTF8String;
 begin
   if eTextRep = 0 then
   begin
@@ -1220,12 +1243,14 @@ begin
     Compare := @UTF8CompareCallback;
   end;
   CheckConnected;
-  CheckError(sqlite3_create_collation(fhandle, PAnsiChar(CollationName), eTextRep, Arg, Compare));
+  UTF8Name:=SQLiteUTF8(CollationName);
+  CheckError(sqlite3_create_collation(fhandle, PAnsiChar(UTF8Name), eTextRep, Arg, Compare));
 end;
 
 procedure TSQLite3Connection.LoadExtension(const LibraryFile: string);
 var
   LoadResult: integer;
+  FileName: UTF8String;
 begin
   CheckConnected; //Apparently we need a connection before we can load extensions.
   LoadResult:=SQLITE_ERROR; //Default to failed
@@ -1233,7 +1258,8 @@ begin
     LoadResult:=sqlite3_enable_load_extension(fhandle, 1); //Make sure we are allowed to load
     if LoadResult=SQLITE_OK then
       begin
-      LoadResult:=sqlite3_load_extension(fhandle, PAnsiChar(LibraryFile), nil, nil); //Actually load extension
+      FileName:=SQLiteUTF8(LibraryFile);
+      LoadResult:=sqlite3_load_extension(fhandle, PAnsiChar(FileName), nil, nil); //Actually load extension
       if LoadResult=SQLITE_ERROR then
         begin
         DatabaseError('LoadExtension: failed to load SQLite extension (SQLite returned an error while loading).',Self);

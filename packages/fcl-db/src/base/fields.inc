@@ -1253,10 +1253,15 @@ begin
 end;
 
 function TStringField.GetAsString: String;
+{$IF SIZEOF(Char)=2}
+var S: RawByteString;
+{$ENDIF}
 begin
 {$IF SIZEOF(Char)=2}
-  // Not GetAsWideString, because in TStringField AsWideString calls GetAsString
-  Result := GetAsAnsiString;
+  If GetValue(S) then
+    Result:=S
+  else
+    Result:='';
 {$ELSE}
   if GetValue(RawByteString(Result)) then
     SetCodePage(RawByteString(Result), CP_ACP, True)
@@ -1288,8 +1293,12 @@ var s : rawbytestring;
 begin
   If GetValue(s) then
     begin
+{$IF SIZEOF(Char)=2}
+    Result:=UnicodeString(s);
+{$ELSE}
     SetCodePage(s, CP_ACP, True);
-    Result:=s
+    Result:=s;
+{$ENDIF}
     end
   else
     Result:=Null;
@@ -1437,10 +1446,23 @@ begin
     end;
 end;
 
+function UnicodeToFieldBytes(const Value: UnicodeString; CodePage: TSystemCodePage): RawByteString;
+begin
+  If CodePage=CP_UTF8 then
+    Exit(UTF8Encode(Value));
+  case CodePage of
+    CP_NONE, CP_ACP: CodePage:=DefaultSystemCodePage;
+{$IFNDEF MSWINDOWS}
+    CP_OEMCP: CodePage:=DefaultSystemCodePage;
+{$ENDIF}
+  end;
+  WideStringManager.Unicode2AnsiMoveProc(PUnicodeChar(Value),Result,CodePage,Length(Value));
+end;
+
 procedure TStringField.SetAsString(const AValue: String);
 begin
 {$IF SIZEOF(CHAR)=2}
-  SetAsAnsiString(AValue);
+  SetAsAnsiString(UnicodeToFieldBytes(AValue,FCodePage));
 {$ELSE}
   SetValue(AValue);
 {$ENDIF}
@@ -3915,13 +3937,26 @@ begin
 end;
 
 function TMemoField.GetAsUnicodeString: UnicodeString;
+var S: RawByteString;
 begin
-  Result:=GetAsAnsiString;
+  S:=inherited GetAsAnsiString;
+  SetCodePage(S,FCodePage,False);
+  Result:=S;
 end;
+
+{$IF SIZEOF(Char)=2}
+function TMemoField.GetAsVariant: Variant;
+begin
+  If GetIsNull then
+    Result:=Null
+  else
+    Result:=GetAsUnicodeString;
+end;
+{$ENDIF}
 
 procedure TMemoField.SetAsUnicodeString(const AValue: UnicodeString);
 begin
-  SetAsAnsiString(AValue);
+  SetAsAnsiString(UnicodeToFieldBytes(AValue,FCodePage));
 end;
 
 function TMemoField.GetAsUTF8String: UTF8String;
@@ -3935,7 +3970,7 @@ end;
 
 procedure TMemoField.SetAsUTF8String(const AValue: UTF8String);
 begin
-  SetAsAnsiString(AValue);
+  SetAsAnsiString(RawByteString(AValue));
 end;
 
 { TWideMemoField }
