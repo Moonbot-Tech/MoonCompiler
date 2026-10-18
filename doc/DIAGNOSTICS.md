@@ -25,6 +25,12 @@ be able to write there. No map-generation step is needed: Debug and Release
 already embed the names and source lines in the executable. Keep those sections
 when deploying it; stripping them leaves only addresses in the report.
 
+On Linux x86-64, the public `CaptureBacktrace` routine also works in optimized
+code without frame pointers, using the unwinder already needed for exceptions.
+Frames need valid unwind metadata. Loaded module lookup continues to resolve
+relative executable/library names after a working-directory change; symbols
+still require the corresponding image and its debug information to be available.
+
 | Event | What the application does |
 |---|---|
 | Exception unhandled on the main thread | Nothing else; a report is written before normal termination. |

@@ -103,6 +103,55 @@ end;
 
 {$if defined(unix) and not defined(beos) and not defined(haiku)}
 
+{$ifdef linux}
+  { dladdr may retain the name passed to exec/dlopen. Resolve its mapped
+    image before returning a relative name to a caller that changed cwd. }
+  function MappedModuleName(Addr: Pointer): AnsiString;
+    var
+      Maps: Text;
+      Line: AnsiString;
+      First, Limit: PtrUInt;
+      I, J, Field, Error: SizeInt;
+    begin
+      MappedModuleName:='';
+      {$push}{$I-}
+      Assign(Maps,'/proc/self/maps');
+      Reset(Maps);
+      if IOResult<>0 then
+        exit;
+      while not EOF(Maps) do
+        begin
+          ReadLn(Maps,Line);
+          if IOResult<>0 then
+            break;
+          I:=Pos('-',Line);
+          J:=Pos(' ',Line);
+          if (I=0) or (J<=I) then
+            continue;
+          Val('$'+Copy(Line,1,I-1),First,Error);
+          if Error<>0 then
+            continue;
+          Val('$'+Copy(Line,I+1,J-I-1),Limit,Error);
+          if (Error<>0) or (PtrUInt(Addr)<First) or (PtrUInt(Addr)>=Limit) then
+            continue;
+          I:=1;
+          for Field:=1 to 5 do
+            begin
+              while (I<=Length(Line)) and (Line[I]<>' ') do
+                inc(I);
+              while (I<=Length(Line)) and (Line[I]=' ') do
+                inc(I);
+            end;
+          if (I<=Length(Line)) and (Line[I]='/') then
+            MappedModuleName:=Copy(Line,I,Length(Line)-I+1);
+          break;
+        end;
+      Close(Maps);
+      Error:=IOResult;
+      {$pop}
+    end;
+{$endif linux}
+
   procedure GetModuleByAddr(addr: pointer; var baseaddr: pointer; var filename: ansistring);
     begin
       if assigned(UnixGetModuleByAddrHook) then
@@ -112,6 +161,10 @@ end;
           baseaddr:=nil;
           filename:=ParamStr(0);
         end;
+{$ifdef linux}
+      if (filename<>'') and (filename[1]<>'/') then
+        filename:=MappedModuleName(addr);
+{$endif linux}
     end;
 
 {$elseif defined(windows)}
@@ -1777,6 +1830,7 @@ end;
 
 begin
 {$ifdef FIND_BASEADDR_ELF}
-  UnixGetModuleByAddrHook:=@GetExeInMemoryBaseAddr;
+  if not assigned(UnixGetModuleByAddrHook) then
+    UnixGetModuleByAddrHook:=@GetExeInMemoryBaseAddr;
 {$endif FIND_BASEADDR_ELF}
 end.

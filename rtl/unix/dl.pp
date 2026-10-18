@@ -153,7 +153,7 @@ uses
       FillChar(dlinfo, sizeof(dlinfo), 0);
       dladdr(addr, @dlinfo);
       baseaddr:=dlinfo.dli_fbase;
-      filename:=String(dlinfo.dli_fname);
+      filename:=dlinfo.dli_fname;
     end;
 
 {$ifdef aix}

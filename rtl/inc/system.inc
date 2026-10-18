@@ -1503,6 +1503,52 @@ end;
 
 
 {$ifndef FPC_SYSTEM_HAS_CAPTUREBACKTRACE}
+{$if defined(linux) and defined(cpux86_64) and defined(FPC_USE_PSABIEH)}
+type
+  PBacktraceCapture = ^TBacktraceCapture;
+  TBacktraceCapture = record
+    Frames: PCodePointer;
+    Index, Capacity: SizeInt;
+    LastIP, LastCFA: PtrUInt;
+  end;
+
+function CaptureUnwindFrame(Context: PFPC_Unwind_Context; Data: Pointer): FPC_Unwind_Reason_Code; cdecl;
+var
+  Capture: PBacktraceCapture;
+  IP, CFA: PtrUInt;
+begin
+  Capture:=PBacktraceCapture(Data);
+  IP:=_Unwind_GetIP(Context);
+  CFA:=_Unwind_GetCFA(Context);
+  if (IP=0) or ((IP=Capture^.LastIP) and (CFA=Capture^.LastCFA)) then
+    exit(FPC_URC_END_OF_STACK);
+  Capture^.LastIP:=IP;
+  Capture^.LastCFA:=CFA;
+  If Capture^.Index>=0 then
+    Capture^.Frames[Capture^.Index]:=CodePointer(IP);
+  Inc(Capture^.Index);
+  If Capture^.Index=Capture^.Capacity then
+    Exit(FPC_URC_END_OF_STACK);
+  Result:=FPC_URC_NO_REASON;
+end;
+
+function CaptureBacktrace(skipframes,count:sizeint;frames:PCodePointer):sizeint;
+var
+  Capture: TBacktraceCapture;
+begin
+  Result:=0;
+  if (frames=nil) or (count<=0) or (skipframes<0) then
+    exit;
+  Capture.Frames:=frames;
+  Capture.Index:=-skipframes-1; { Exclude this routine's own unwind frame. }
+  Capture.Capacity:=count;
+  Capture.LastIP:=0;
+  Capture.LastCFA:=0;
+  _Unwind_Backtrace(@CaptureUnwindFrame,@Capture);
+  If Capture.Index>0 then
+    Result:=Capture.Index;
+end;
+{$else}
 function CaptureBacktrace(skipframes,count:sizeint;frames:PCodePointer):sizeint;
 var
   curr_frame,prev_frame: pointer;
@@ -1531,6 +1577,7 @@ begin
   else
     result:=i;
 end;
+{$endif Linux x86-64 unwind}
 {$endif FPC_SYSTEM_HAS_CAPTUREBACKTRACE}
 
 
