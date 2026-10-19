@@ -48,6 +48,12 @@ injection for a bare program and for `TThread`/`TMonitor`. Legacy semantic
 sources with an explicit prefix simultaneously check backward compatibility
 without double loading.
 
+`event_wait_contract_semantic.dpr` checks auto/manual-reset signals, empty polls,
+real timeouts, multiple waiters and competing polls on both platforms. The
+[Linux event-wait gate](../qualification/event-wait/) also proves removal of
+unnecessary clock queries and expired condition waits, with clock-failure and
+registered-waiter destruction checks in a private instrumented RTL copy.
+
 Linux-only `linux_stack_contract_semantic.dpr` reads the actual pthread
 attributes of four thread types. The strict product oracle requires exactly
 1 MiB and a guard page for `TThread` and default `BeginThread`; main/raw

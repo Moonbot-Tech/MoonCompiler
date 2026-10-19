@@ -1220,7 +1220,9 @@ begin
       while (not plocaleventstate(state)^.FIsSet) and (not plocaleventstate(state)^.FDestroying) do
         pthread_cond_wait(@plocaleventstate(state)^.Fcondvar, @plocaleventstate(state)^.feventsection);
     end
-  else
+  else if Timeout = 0 then
+    errres := ESysETIMEDOUT
+  else if not plocaleventstate(state)^.FIsSet then
     begin
       //Wait with timeout using pthread_cond_timedwait
 {$if defined(Linux) and not defined(Android)}

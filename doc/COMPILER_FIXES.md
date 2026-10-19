@@ -13,6 +13,23 @@ compiler semantics.
 AUTOINLINE remains enabled in Release; the related defects were repaired at
 their specific producer, optimizer, and lifetime sites.
 
+## Ready and zero-timeout Unix event waits
+
+`TEvent.WaitFor` previously calculated an absolute deadline even when the event
+was already signalled. An empty `WaitFor(0)` additionally entered an expired
+condition wait, releasing and reacquiring its mutex. On Linux these paths paid
+for a clock syscall and, for the empty poll, a kernel wait.
+
+The existing mutex now protects a zero-timeout result and a ready-state check
+before deadline calculation. The shared result selection, auto-reset, waiter
+registration and `unlock` before waiter decrement are unchanged. Real finite
+and infinite blocking waits retain their previous algorithms.
+
+The [permanent event contract](../RTL-test/semantic/event_wait_contract_semantic.dpr)
+covers both platforms. The [Linux probe](../qualification/event-wait/) checks
+the absence of clock/timed-wait calls, clock failure cleanup and destruction
+with already registered waiters in O-/O2/O3.
+
 ## Dead register copies before typed x86-64 calls
 
 A virtual constructor followed by field initialization could retain a register

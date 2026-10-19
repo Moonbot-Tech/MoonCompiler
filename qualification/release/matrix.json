@@ -60,6 +60,7 @@
     "operand_forms": ["qualification/optimizer-core/operand-forms", "qualification/performance/tools"],
     "pool_delivery": ["qualification/thread-pool", "RTL-test/run.py", "packages/vcl-compat/src/system.threading.pp"],
     "pool_monitor": ["qualification/thread-pool", "RTL-test/run.py", "packages/vcl-compat/src/system.threading.pp"],
+    "event_wait": ["qualification/event-wait", "RTL-test/semantic/event_wait_contract_semantic.dpr", "rtl/unix/cthreads.pp", "rtl/linux/pthread.inc"],
     "divmod_pair": ["qualification/optimizer-core/divmod", "tests/test/cg/tdivmodpair1.pp"],
     "range_loop": ["qualification/optimizer-core/range-loop", "tests/test/cg/trangeprovenloop1.pp"],
     "memory_order": ["qualification/optimizer-core/memory-order", "qualification/performance/tools"],
@@ -1596,6 +1597,18 @@
       "resource": "operand_forms",
       "estimated_seconds_by_platform": {"win64": 6, "linux": 4},
       "timeout": 3600
+    },
+    {
+      "id": "event_wait",
+      "mode": "medium",
+      "platforms": ["linux"],
+      "commands": {
+        "linux": ["{python}", "{root}/qualification/event-wait/run_gate.py", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "event_wait",
+      "estimated_seconds_by_platform": {"linux": 5},
+      "timeout": 180
     },
     {
       "id": "pool_delivery",
