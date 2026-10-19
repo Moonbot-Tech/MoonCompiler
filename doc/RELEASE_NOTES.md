@@ -1,3 +1,32 @@
+# MoonCompiler 2.4.11: application-defined expected exceptions
+
+`Moon.Diagnostics` can skip additional capture and reporting for exception
+classes selected by the application. Register them before initialization with
+`Options.AddExpectedException(ExceptionClass)`. Matching is exact by default;
+pass `True` as the second argument to include descendants. No classes are
+excluded automatically, and the active list is fixed at initialization.
+
+- Expected software exceptions avoid the extra diagnostic stack/context capture
+  and snapshot allocation. Their exception reports consume no quota and perform
+  no callback, file write or upload. Manual snapshots remain available.
+- Normal exception handling, rethrows, acquired exceptions, queued callbacks,
+  worker termination and previously installed hooks retain their behaviour.
+  Unexpected exceptions keep their original diagnostic evidence.
+- Linux hardware faults still save their initial native context before an
+  exception class exists; a class filter cannot avoid that first capture.
+
+The reporting suite passed 240 Windows and 253 Linux checks across O-/O2/O3,
+including concurrent workers, quota isolation and a filtered hardware fault
+followed by an unexpected software exception. This patch reuses the qualified
+2.4.10 compiler/RTL baseline and checks the new API from both installed archives.
+Full qualification and Pulse are not repeated for this diagnostics-only change.
+
+Install the complete 2.4.11 SDK and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20411; `CompilerVersion` remains 2.4. MoonORMot 15
+remains required. See [the expected-exception API](DIAGNOSTICS.md#expected-exception-classes).
+
+---
+
 # MoonCompiler 2.4.10: resources, configuration and runtime diagnostics
 
 - Component resources load safely with numeric resource types. Named and numeric

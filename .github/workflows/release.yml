@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v2.4.10
+        default: v2.4.11
 
 permissions:
   contents: read
@@ -50,13 +50,23 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Require successful exact-SHA qualification
+        with:
+          fetch-depth: 0
+      - name: Verify qualification evidence and authorized release scope
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ needs.validate-tag.outputs.source_sha }}
+          RELEASE_TAG: ${{ needs.validate-tag.outputs.tag }}
         run: |
+          qualified_sha="$SOURCE_SHA"
+          if [[ "$RELEASE_TAG" == v2.4.11 ]]; then
+            # Owner-approved reuse: full 2.4.10 qualification plus the unchanged
+            # diagnostic delta tested on Windows/Linux. Archive checks below
+            # exercise the new API again; this is not a new full qualification.
+            qualified_sha=$(python3 qualification/release/verify_2411_scope.py --sha "$SOURCE_SHA")
+          fi
           python3 qualification/release/verify_qualification_run.py \
-            --repository "$GITHUB_REPOSITORY" --sha "$SOURCE_SHA"
+            --repository "$GITHUB_REPOSITORY" --sha "$qualified_sha"
 
   linux-x86-64:
     needs: [validate-tag, qualification-proof]
@@ -70,7 +80,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends \
-            make binutils gcc fp-compiler-3.2.2 libsqlite3-0
+            make binutils gcc fp-compiler-3.2.2 libsqlite3-0 libunwind8
           test "$(fpc -iV)" = 3.2.2
       - name: Build toolchain
         run: ./build compiler
@@ -163,6 +173,8 @@ jobs:
           test -d units/x86_64-linux/release
           python3 "$GITHUB_WORKSPACE/qualification/release/rtl_boundaries_smoke.py" \
             --compiler "$fpc" --out "$smoke/rtl-boundaries"
+          python3 "$GITHUB_WORKSPACE/qualification/release/diagnostics_expected_smoke.py" \
+            --compiler "$fpc" --out "$smoke/diagnostics-expected"
       - name: Install the archive with the driver
         # ./build toolchain ARCHIVE: the driver's own install path (archive
         # checks, the IDE configuration for this clone, atomic swap), then the
@@ -267,6 +279,8 @@ jobs:
           $Fpc = "$Smoke\toolchain\bin\x86_64-win64\fpc.exe"
           python qualification\release\rtl_boundaries_smoke.py --compiler $Fpc --out "$Smoke\rtl-boundaries"
           If ($LASTEXITCODE -ne 0) { throw 'RTL boundary archive contracts failed' }
+          python qualification\release\diagnostics_expected_smoke.py --compiler $Fpc --out "$Smoke\diagnostics-expected"
+          If ($LASTEXITCODE -ne 0) { throw 'Expected exception archive contracts failed' }
           Push-Location "$Smoke\app"
           try {
             foreach ($Profile in @(@(), @('-dRELEASE'))) {
