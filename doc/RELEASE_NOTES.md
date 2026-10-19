@@ -1,3 +1,26 @@
+# MoonCompiler 2.4.12: fast ready-event waits on Linux
+
+Linux `TEvent.WaitFor` no longer queries the clock when a signal is already
+available. An empty `WaitFor(0)` returns through the shared timeout path without
+entering an expired kernel wait. Auto/manual-reset behaviour, waiter accounting
+and destruction order are preserved under the existing mutex.
+
+On the Hel1 Linux x86-64 stand, median `SetEvent + WaitFor(200)` fell from about
+226 ns to 39 ns; an empty zero-timeout poll fell from 55.5 microseconds to
+31 ns. These are short event-operation measurements, not an application-wide
+speedup or a claim about time spent genuinely waiting for another thread.
+
+The permanent Windows/Linux semantic matrix covers signals, timeouts and
+multiple waiters. A Linux O-/O2/O3 probe additionally checks clock independence,
+real clock errors and destruction with registered waiters. Release publication
+requires successful Windows and Linux qualification of the exact release commit.
+
+Install the complete 2.4.12 SDK and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20412; `CompilerVersion` remains 2.4. MoonORMot 15
+remains required.
+
+---
+
 # MoonCompiler 2.4.11: application-defined expected exceptions
 
 `Moon.Diagnostics` can skip additional capture and reporting for exception
