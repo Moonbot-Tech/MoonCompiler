@@ -33,6 +33,7 @@
     "mm_failure": ["qualification/memory-manager"],
     "managed_array": ["qualification/managed-array-copy"],
     "private_ppu": ["qualification/compiler-private-ppu"],
+    "resource_case": ["qualification/compiler-resource-case", "compiler/comprsrc.pas", "compiler/scandir.pas", "compiler/cfileutl.pas", "compiler/fppu.pas"],
     "alias_lifetime": ["qualification/compiler-alias-lifetime"],
     "consttemp": ["qualification/optimizer-core/consttemp-lifetime"],
     "alias_reload": ["qualification/compiler-alias-lifetime"],
@@ -1021,6 +1022,42 @@
       "resource": "private_ppu",
       "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
       "timeout": 3600
+    },
+    {
+      "id": "resource_case",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/compiler-resource-case/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/compiler-resource-case/run_gate.py",
+          "--compiler",
+          "{pp}",
+          "--config",
+          "{cfg}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "resource_case",
+      "estimated_seconds_by_platform": {"win64": 20, "linux": 30},
+      "timeout": 180
     },
     {
       "id": "alias_lifetime",

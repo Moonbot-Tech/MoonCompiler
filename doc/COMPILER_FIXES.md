@@ -13,6 +13,23 @@ compiler semantics.
 AUTOINLINE remains enabled in Release; the related defects were repaired at
 their specific producer, optimizer, and lifetime sites.
 
+## Resource filenames inherited from Windows projects
+
+On a case-sensitive filesystem, a directive such as `{$R *.FMX}` could not find
+an existing `Form.fmx`. Resource lookup now checks the exact file first, then
+accepts a unique ASCII-case-insensitive filename in the same directory. Multiple
+matches produce an ambiguity error naming the conflicting files. Directory
+spelling and other compiler file searches are unchanged.
+
+The resolved filename is retained for resource collection, output copying and
+PPU reuse. Exact lookup checks the current filesystem: a previous unit may have
+copied a resource after the compiler cached its destination directory.
+
+The [resource lookup gate](../qualification/compiler-resource-case/) checks
+loaded values, ambiguity, exact-name priority, output relocation and reuse of
+PPUs without sources on Windows and Linux. The change adds no application runtime
+work.
+
 ## Ready and zero-timeout Unix event waits
 
 `TEvent.WaitFor` previously calculated an absolute deadline even when the event

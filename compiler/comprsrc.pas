@@ -457,6 +457,45 @@ begin
   Result:=true;
 end;
 
+
+{ An exact miss may be a Windows resource directive on a case-sensitive host.
+  Only the leaf is folded; directory resolution and other file searches stay
+  unchanged. Never choose a resource by directory enumeration order. }
+function FindResourceFileCaseInsensitive(var filename: TCmdStr): boolean;
+var
+  directory, folded, found: TCmdStr;
+  entry: TRawByteSearchRec;
+begin
+  Result:=false;
+  directory:=ExtractFilePath(filename);
+  folded:=Lower(ExtractFileName(filename));
+  found:='';
+  if SysUtils.FindFirst(directory+AllFilesMask,faAnyFile,entry)=0 then
+    try
+      repeat
+        if ((entry.Attr and faDirectory)=0) and (Lower(TCmdStr(entry.Name))=folded) and
+           FileExists(directory+entry.Name,false) then
+          begin
+            if found<>'' then
+              begin
+                Message3(exec_e_ambiguous_resource_file,filename,found,entry.Name);
+                exit;
+              end;
+            found:=entry.Name;
+          end;
+      until SysUtils.FindNext(entry)<>0;
+    finally
+      SysUtils.FindClose(entry);
+    end;
+  if found='' then
+    Message1(exec_e_cant_open_resource_file,filename)
+  else
+    begin
+      filename:=directory+found;
+      Result:=true;
+    end;
+end;
+
 procedure CompileResourceFiles;
 var
   resourcefile : tresourcefile;
@@ -479,11 +518,18 @@ begin
       s:=res.FPStr;
       if not path_absolute(s) then
         s:=p+s;
-      if not FileExists(s, True) then
+      { An earlier unit may have copied this exact resource into a directory
+        already cached by source lookup. Test its current filesystem state. }
+      if not FileExists(s, false) then
         begin
-          Message1(exec_e_cant_open_resource_file, s);
-          Include(current_settings.globalswitches, cs_link_nolink);
-          exit;
+          if not FindResourceFileCaseInsensitive(s) then
+            begin
+              Include(current_settings.globalswitches, cs_link_nolink);
+              exit;
+            end;
+          { Keep the resolved spelling for collection and PPU reuse, while
+            preserving the directive's relative or absolute path. }
+          res.FPStr:=ExtractFilePath(res.FPStr)+ExtractFileName(s);
         end;
       resourcefile:=TResourceFile(resinfos[target_info.res]^.resourcefileclass.create(s));
       if resourcefile.IsCompiled(s) then

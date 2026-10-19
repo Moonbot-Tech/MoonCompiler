@@ -3456,7 +3456,7 @@ asmw_e_registers_should_be_distinct=08039_E_Asm: $1 registers should be distinct
 #
 # Executing linker/assembler
 #
-# 09036 is the last used one
+# 09037 is the last used one
 #
 # BeginOfTeX
 %
@@ -3560,6 +3560,8 @@ exec_e_static_lib_not_supported=09035_E_Creation of Static Libraries not support
 exec_f_controllertype_expected=09036_F_To generate the correct linker call, a controller type must be set by the directive -Wp
 % Xtensa micro controller require a detailed specification linker command which depends on the target controller.
 % If no target controller is set, this command cannot be build and thus linking cannot be carried out.
+exec_e_ambiguous_resource_file=09037_E_Ambiguous resource file "$1": "$2" and "$3" differ only in case
+% Use the exact filename or remove the ambiguity in the resource directory.
 %
 % \end{description}
 # EndOfTeX
