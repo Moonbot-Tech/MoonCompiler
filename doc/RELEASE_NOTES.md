@@ -14,7 +14,7 @@
   pending handler record correctly. Hardware exceptions and normal
   Exit/Break/Continue unwinding remain distinct from pending Pascal exceptions.
 - `$R` resource lookup first tries the exact filename. If it is absent, a unique
-  case-insensitive match in the same directory is accepted using its actual
+  ASCII case-insensitive match in the same directory is accepted using its actual
   filename; ambiguous matches produce an error. Existing resource search order
   and PPU source-path handling are preserved.
 
