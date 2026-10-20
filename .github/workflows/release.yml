@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v2.4.12
+        default: v2.4.13
 
 permissions:
   contents: read
@@ -80,7 +80,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends \
-            make binutils gcc fp-compiler-3.2.2 libsqlite3-0 libunwind8
+            make binutils gcc fp-compiler-3.2.2 libsqlite3-0 libunwind8 libffi-dev
           test "$(fpc -iV)" = 3.2.2
       - name: Build toolchain
         run: ./build compiler
@@ -175,6 +175,11 @@ jobs:
             --compiler "$fpc" --out "$smoke/rtl-boundaries"
           python3 "$GITHUB_WORKSPACE/qualification/release/diagnostics_expected_smoke.py" \
             --compiler "$fpc" --out "$smoke/diagnostics-expected"
+      - name: Verify ownership using the unpacked archive
+        run: |
+          python3 qualification/rtl-ownership/run_gate.py \
+            --compiler "$RUNNER_TEMP/smoke/toolchain/bin/fpc" \
+            --output "$RUNNER_TEMP/smoke/rtl-ownership"
       - name: Install the archive with the driver
         # ./build toolchain ARCHIVE: the driver's own install path (archive
         # checks, the IDE configuration for this clone, atomic swap), then the
@@ -370,6 +375,13 @@ jobs:
           } finally {
             Pop-Location
           }
+      - name: Verify ownership using the unpacked archive
+        shell: powershell
+        run: |
+          python qualification/rtl-ownership/run_gate.py `
+            --compiler "$env:RUNNER_TEMP\smoke\toolchain\bin\x86_64-win64\fpc.exe" `
+            --output "$env:RUNNER_TEMP\smoke\rtl-ownership"
+          If ($LASTEXITCODE -ne 0) { throw 'RTL ownership archive contracts failed' }
       - name: Install the archive with the driver
         # .\build.ps1 toolchain ARCHIVE: the driver's own install path
         # (archive checks, atomic swap), then the contracts over the installed

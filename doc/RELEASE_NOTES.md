@@ -1,3 +1,36 @@
+# MoonCompiler 2.4.13: managed-value and exception lifetime repairs
+
+- RTTI writes use normal managed assignment when replacing a live value, releasing
+  its previous ownership. The repair covers strings, interfaces, dynamic arrays,
+  variants, managed records, field-backed properties and callback var/out
+  arguments. Self-assignment, custom record copy operators, failed casts and fresh
+  result buffers retain their respective contracts. Ordinary class-variable-backed
+  properties now reference their actual static storage, including from a PPU.
+- On Linux, leaving an exception handler releases its runtime wrapper and trace
+  even when `AcquireExceptionObject` transfers the exception object to the caller.
+  The acquired object remains valid until its new owner frees or raises it.
+  Completed handlers no longer leave stale records in the exception stack.
+- On Windows, an exception replaced by a throwing `finally` releases the old
+  pending handler record correctly. Hardware exceptions and normal
+  Exit/Break/Continue unwinding remain distinct from pending Pascal exceptions.
+- `$R` resource lookup first tries the exact filename. If it is absent, a unique
+  case-insensitive match in the same directory is accepted using its actual
+  filename; ambiguous matches produce an error. Existing resource search order
+  and PPU source-path handling are preserved.
+
+Permanent ownership checks cover Debug, Release O2 and Release O3 on Windows
+and Linux. Acceptance checks object destruction, restored exception stacks and
+zero residual memory-manager allocations, as well as returned values. The checks
+also run against both unpacked release archives. Publication requires successful
+Windows and Linux qualification of the exact release commit. Pulse is not part
+of this correctness release.
+
+Install the complete 2.4.13 SDK and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20413; `CompilerVersion` remains 2.4. MoonORMot 15
+remains required.
+
+---
+
 # MoonCompiler 2.4.12: fast ready-event waits on Linux
 
 Linux `TEvent.WaitFor` no longer queries the clock when a signal is already
