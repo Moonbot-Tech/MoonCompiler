@@ -1231,6 +1231,7 @@ implementation
            def : tdef;
            hpropsym : tpropertysym;
            propaccesslist : tpropaccesslist;
+           staticref : tsym;
         begin
            hpropsym:=tpropertysym(sym);
            repeat
@@ -1247,6 +1248,17 @@ implementation
            { also for accessing class fields }
            else if propaccesslist.firstsym^.sym.typ=fieldvarsym then
              begin
+                staticref:=nil;
+                if (sp_static in sym.symoptions) and (sp_static in propaccesslist.firstsym^.sym.symoptions) then
+                  begin
+                    staticref:=propaccesslist.firstsym^.sym;
+                    staticref:=tsym(staticref.owner.Find(lower(generate_nested_name(staticref.owner,'_'))+'_'+staticref.name));
+                    staticref:=tabsolutevarsym(staticref).ref.firstsym^.sym;
+                    { TLS metadata needs callable accessors; preserve its old
+                      offset representation until that mechanism exists. }
+                    if vo_is_thread_var in tstaticvarsym(staticref).varoptions then
+                      staticref:=nil;
+                  end;
                 address:=0;
                 hp:=propaccesslist.firstsym;
                 def:=nil;
@@ -1256,7 +1268,8 @@ implementation
                        sl_load :
                          begin
                            def:=tfieldvarsym(hp^.sym).vardef;
-                           inc(address,tfieldvarsym(hp^.sym).fieldoffset);
+                           if not assigned(staticref) then
+                             inc(address,tfieldvarsym(hp^.sym).fieldoffset);
                          end;
                        sl_subscript :
                          begin
@@ -1284,7 +1297,10 @@ implementation
                      end;
                      hp:=hp^.next;
                   end;
-                tcb.emit_tai(Tai_const.Create_int_codeptr(address),codeptruinttype);
+                if assigned(staticref) then
+                  tcb.emit_tai(Tai_const.Createname(staticref.mangledname,AT_DATA,address),codeptruinttype)
+                else
+                  tcb.emit_tai(Tai_const.Create_int_codeptr(address),codeptruinttype);
                 typvalue:=0;
              end
            else

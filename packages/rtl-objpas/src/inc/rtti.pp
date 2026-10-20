@@ -4540,7 +4540,7 @@ begin
     aResult:=TValue.Empty;
     if (aTypeInfo=nil) then
       exit;
-    AResult.FData.FTypeInfo:=aTypeInfo;
+    TValue.Make(nil, aTypeInfo, aResult);
     Exit(True);
     end;
   if not aEmptyAsAnyType and (Self.TypeInfo=nil) then
@@ -5183,6 +5183,16 @@ begin
     FData.FValueData.ExtractRawData(ABuffer)
   else if Assigned(FData.FTypeInfo) then
     Move((@FData.FAsPointer)^, ABuffer^, DataSize);
+end;
+
+{ Assign to initialized storage. ExtractRawData also serves fresh buffers and
+  must not release their unspecified previous bytes. }
+procedure AssignRttiValue(const AValue: TValue; ADestination: Pointer);
+begin
+  if IsManaged(AValue.TypeInfo) then
+    IntCopy(AValue.GetReferenceToRawData, ADestination, AValue.TypeInfo)
+  else
+    AValue.ExtractRawData(ADestination);
 end;
 
 procedure TValue.ExtractRawDataNoCopy(ABuffer: Pointer);
@@ -5932,7 +5942,7 @@ begin
 
   { copy back var/out parameters }
   for i := 0 to High(fRefArgs) do begin
-    args[fRefArgs[i]].ExtractRawData(aArgs[fRefArgs[i]]);
+    AssignRttiValue(args[fRefArgs[i]], aArgs[fRefArgs[i]]);
   end;
 
   if Assigned(fResult) then
@@ -7445,7 +7455,7 @@ var
 begin
   case FPropInfo^.PropProcs and 3 of
     ptField:
-      TValue.Make(PtrUInt(FPropInfo^.GetProc), FPropInfo^.PropType, Result);
+      TValue.Make(Pointer(FPropInfo^.GetProc), FPropInfo^.PropType, Result);
     ptStatic,
     ptVirtual:
       begin
@@ -7716,9 +7726,9 @@ begin
     ptField:
       {$ifdef cpui8086}
       { convert to the correct pointer type }
-      AValue.Cast(FPropInfo^.PropType).ExtractRawData(PPointer(@(FPropInfo^.SetProc))^);
+      AssignRttiValue(AValue.Cast(FPropInfo^.PropType), PPointer(@(FPropInfo^.SetProc))^);
       {$else}
-      AValue.Cast(FPropInfo^.PropType).ExtractRawData(FPropInfo^.SetProc);
+      AssignRttiValue(AValue.Cast(FPropInfo^.PropType), FPropInfo^.SetProc);
       {$endif}
     ptStatic,
     ptVirtual:
@@ -7781,9 +7791,9 @@ begin
       ptField:
         {$ifdef cpui8086}
         { convert to the correct pointer type }
-        AValue.Cast(FPropInfo^.PropType).ExtractRawData(Pointer(Instance)+CodePtrUInt(FPropInfo^.SetProc));
+        AssignRttiValue(AValue.Cast(FPropInfo^.PropType), Pointer(Instance)+CodePtrUInt(FPropInfo^.SetProc));
         {$else}
-        AValue.Cast(FPropInfo^.PropType).ExtractRawData(Pointer(Instance)+PtrUInt(FPropInfo^.SetProc));
+        AssignRttiValue(AValue.Cast(FPropInfo^.PropType), Pointer(Instance)+PtrUInt(FPropInfo^.SetProc));
         {$endif}
       ptStatic,
       ptVirtual:
@@ -7902,9 +7912,9 @@ begin
     raise EInsufficientRtti.Create(SErrNoFieldRtti);
   FldAddr:=PByte(aInstance)+Offset;
   if aValue.TypeInfo=FieldType.Handle then
-    aValue.ExtractRawData(FldAddr)
+    AssignRttiValue(aValue, FldAddr)
   else
-    aValue.Cast(FieldType.Handle).ExtractRawData(FldAddr);
+    AssignRttiValue(aValue.Cast(FieldType.Handle), FldAddr);
 end;
 
 function TRttiField.ToString: string;
@@ -8592,7 +8602,7 @@ begin
     begin
     ParamInfo:=ParamInfos[aData[i].idx];
     if (ParamInfo.Flags * [pfVar, pfOut] <> []) then
-       ParamValues[I].ExtractRawData(aData[i].addr);
+       AssignRttiValue(ParamValues[I], aData[i].addr);
     end;
   // Copy back result
   if Assigned(aData[0].addr) then
