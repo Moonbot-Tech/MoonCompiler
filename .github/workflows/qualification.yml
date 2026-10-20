@@ -45,6 +45,8 @@ jobs:
           python3 qualification/build-driver/zlib_objects_gate.py
           python3 qualification/build-driver/rtl_profile_gate.py
           python3 qualification/event-wait/run_gate.py
+          python3 qualification/rtl-ownership/test_gate.py
+          python3 qualification/rtl-ownership/run_gate.py
           python3 qualification/build-driver/compiler_selfbuild_gate.py \
             --compiler toolchain/bin/ppcx64 \
             --config toolchain/ide/etc/fpc.cfg \
@@ -319,6 +321,13 @@ jobs:
             -Value '-A__MOONCOMPILER_HOST_CONFIG_LEAK__'
           .\build.ps1 compiler `
             -Bootstrap "$env:RUNNER_TEMP\fpc-3.2.2\bin\i386-win32\fpc.exe"
+      - name: Run managed-value and exception ownership contracts
+        shell: powershell
+        run: |
+          python qualification/rtl-ownership/test_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'Ownership oracle tests failed' }
+          python qualification/rtl-ownership/run_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'RTL ownership contracts failed' }
       - name: Check native filesystem contracts before the full suite
         shell: powershell
         run: |

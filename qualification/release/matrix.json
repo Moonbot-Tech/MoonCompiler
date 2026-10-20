@@ -61,6 +61,8 @@
     "operand_forms": ["qualification/optimizer-core/operand-forms", "qualification/performance/tools"],
     "pool_delivery": ["qualification/thread-pool", "RTL-test/run.py", "packages/vcl-compat/src/system.threading.pp"],
     "pool_monitor": ["qualification/thread-pool", "RTL-test/run.py", "packages/vcl-compat/src/system.threading.pp"],
+    "rtl_ownership": ["qualification/rtl-ownership", "packages/rtl-objpas/src/inc/rtti.pp", "compiler/ncgrtti.pas", "rtl/inc/psabieh.inc", "rtl/win64/seh64.inc"],
+    "rtl_ownership_oracle": ["qualification/rtl-ownership"],
     "event_wait": ["qualification/event-wait", "RTL-test/semantic/event_wait_contract_semantic.dpr", "rtl/unix/cthreads.pp", "rtl/linux/pthread.inc"],
     "divmod_pair": ["qualification/optimizer-core/divmod", "tests/test/cg/tdivmodpair1.pp"],
     "range_loop": ["qualification/optimizer-core/range-loop", "tests/test/cg/trangeprovenloop1.pp"],
@@ -1634,6 +1636,53 @@
       "resource": "operand_forms",
       "estimated_seconds_by_platform": {"win64": 6, "linux": 4},
       "timeout": 3600
+    },
+    {
+      "id": "rtl_ownership_oracle",
+      "mode": "light",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/rtl-ownership/test_gate.py"],
+        "linux": ["{python}", "{root}/qualification/rtl-ownership/test_gate.py"]
+      },
+      "resource": "rtl_ownership_oracle",
+      "timeout": 30
+    },
+    {
+      "id": "rtl_ownership",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/rtl-ownership/run_gate.py",
+          "--compiler",
+          "{fpc}",
+          "--output",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/rtl-ownership/run_gate.py",
+          "--compiler",
+          "{fpc}",
+          "--output",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build"
+      ],
+      "resource": "rtl_ownership",
+      "timeout": 300,
+      "estimated_seconds_by_platform": {
+        "win64": 15,
+        "linux": 10
+      },
+      "expected": "RTL_OWNERSHIP PASS"
     },
     {
       "id": "event_wait",
