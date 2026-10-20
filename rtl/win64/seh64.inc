@@ -18,6 +18,8 @@ const
   EXCEPTION_UNWIND          = EXCEPTION_UNWINDING or EXCEPTION_EXIT_UNWIND or
                               EXCEPTION_TARGET_UNWIND or EXCEPTION_COLLIDED_UNWIND;
 
+  STATUS_UNWIND            = $C0000027;
+
   CONTEXT_UNWOUND_TO_CALL   = $20000000;
 
   UNWIND_HISTORY_TABLE_SIZE = 12;
@@ -316,8 +318,7 @@ type
   PSEHFinallyContext=^TSEHFinallyContext;
   TSEHFinallyContext=record
     Previous: PSEHFinallyContext;
-    ExceptionObject: TObject;
-    Frames: PPointer;
+    ExceptionEntry: PExceptObject;
   end;
 
 threadvar
@@ -580,19 +581,31 @@ var
   TargetAddr: Pointer;
   obj:TObject;
   FinallyContext: TSEHFinallyContext;
+  EntryLink: ^PExceptObject;
+  Entry: PExceptObject;
 begin
   if ((rec.ExceptionFlags and EXCEPTION_COLLIDED_UNWIND)<>0) and
      Assigned(ActiveSEHFinallyContext) then
   begin
-    obj:=ActiveSEHFinallyContext^.ExceptionObject;
-    if Assigned(ActiveSEHFinallyContext^.Frames) and
-       (ActiveSEHFinallyContext^.Frames<>Pointer(rec.ExceptionInformation[3])) then
-      FreeMem(ActiveSEHFinallyContext^.Frames);
-    ActiveSEHFinallyContext^.ExceptionObject:=nil;
-    ActiveSEHFinallyContext^.Frames:=nil;
+    Entry:=ActiveSEHFinallyContext^.ExceptionEntry;
     ActiveSEHFinallyContext:=ActiveSEHFinallyContext^.Previous;
-    if Assigned(obj) and (obj<>TObject(rec.ExceptionInformation[1])) then
+    { The selected catch was linked before its finally blocks were unwound.
+      Replacing that exception must release its pending catch record as well. }
+    EntryLink:=@ExceptObjectStack;
+    while Assigned(EntryLink^) and (EntryLink^<>Entry) do
+      EntryLink:=@EntryLink^^.Next;
+    if Assigned(EntryLink^) then
+    begin
+      EntryLink^:=Entry^.Next;
+      if Entry^.RefCount=0 then
+        obj:=Entry^.FObject
+      else
+        obj:=nil;
+      if Assigned(Entry^.Frames) then
+        FreeMem(Entry^.Frames);
+      Dispose(Entry);
       obj.Free;
+    end;
   end;
 {$ifdef DEBUG_SEH}
   if IsConsole then
@@ -682,8 +695,11 @@ begin
           writeln(stderr,'calling handler @',hexstr(dispatch.imagebase+scope^.RvaHandler,16));
 {$endif DEBUG_SEH}
         FinallyContext.Previous:=ActiveSEHFinallyContext;
-        FinallyContext.ExceptionObject:=TObject(rec.ExceptionInformation[1]);
-        FinallyContext.Frames:=rec.ExceptionInformation[3];
+        { A local unwind has no pending exception, even inside an active except. }
+        if rec.ExceptionCode=STATUS_UNWIND then
+          FinallyContext.ExceptionEntry:=nil
+        else
+          FinallyContext.ExceptionEntry:=ExceptObjectStack;
         ActiveSEHFinallyContext:=@FinallyContext;
         TUnwindProc(dispatch.ImageBase+scope^.RvaHandler)(ContextGetFP(context));
         ActiveSEHFinallyContext:=FinallyContext.Previous;

@@ -1244,23 +1244,15 @@ procedure FPC_psabi_end_catch; cdecl; compilerproc;
 {$ifdef excdebug}
         writeln('stop end_catch, not rethrown, new refcount: ',refcount);
 {$endif}
-        if refcount=0 then
-          begin
-            // Handling for this exception is complete.  Destroy the object.
-            ExceptObjectStack:=_ExceptObjectStack^.next;
-            _Unwind_DeleteException(@_ExceptObjectStack^.unwind_exception);
-            exit;
-          end
-        else if refcount<0 then
-          begin
-            // A bug in the exception handling library or compiler.
-{$ifdef excdebug}
-            writeln('refcount for exception is negative in end catch');
-{$endif}
-            RunError(217);
-          end;
+        if refcount<0 then
+          RunError(217);
       end;
-    _ExceptObjectStack^.refcount:=refcount;
+    { The handler has ended even when AcquireExceptionObject transferred the
+      object to its caller. Only that object survives, not its stack record. }
+    ExceptObjectStack:=_ExceptObjectStack^.next;
+    if refcount>0 then
+      _ExceptObjectStack^.FObject:=nil;
+    _Unwind_DeleteException(@_ExceptObjectStack^.unwind_exception);
   end;
 
 {$ifdef FPC_PSABIEH_CPLUSPLUSSUPPORT}
@@ -1352,12 +1344,11 @@ procedure fpc_raise_nested;compilerproc;
     writeln('raise_nested: raising nested wrapper ',hexstr(_ExceptObjectStack),' = fpc exception ',hexstr(_ExceptObjectStack^.FObject),' with refcount ',_ExceptObjectStack^.refcount{,' (will increase to ',_ExceptObjectStack^.refcount+1,')'});
     writeln('raise_nested: previous exception ',hexstr(hp),' = fpc exception ',hexstr(hp^.FObject),' with refcount ',hp^.refcount,' (will delete if refcount = 1, otherwise decrease to',hp^.refcount-1,')');
 {$endif}
-    if hp^.refcount=1 then
-      { we need to free the original exception object if its refcount=1
-        (means it was not acquired, only refcount increase by begin_catch) }
-      _Unwind_DeleteException(@hp^.unwind_exception)
-    else
-      dec(hp^.refcount);
+    { Replacement ends the old handler as well. An acquired object survives
+      independently of the wrapper that has just been unlinked. }
+    if hp^.refcount>1 then
+      hp^.FObject:=nil;
+    _Unwind_DeleteException(@hp^.unwind_exception);
     _Unwind_RaiseException(@_ExceptObjectStack^.unwind_exception);
     DoUnHandledException;
   end;
