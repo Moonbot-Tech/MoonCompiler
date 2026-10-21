@@ -72,6 +72,10 @@ implementation
 
 {$i rtldefs.inc}
 
+{$if defined(linux) and defined(cpux86_64)}
+  {$define direct_utf8_manager}
+{$endif}
+
 {$IFDEF FPC_DOTTEDUNITS}
 Uses
   UnixApi.Base,
@@ -272,6 +276,10 @@ var
   iconvname, toencoding: shortstring;
 begin
   current_DefaultSystemCodePage:=DefaultSystemCodePage;
+{$ifdef direct_utf8_manager}
+  { UTF-8 conversions use the final string buffer, without native descriptors. }
+  if DefaultSystemCodePage=CP_UTF8 then Exit;
+{$endif direct_utf8_manager}
 {$if declared(iconvindex)}
   iconvindex:=GetCodepageData(DefaultSystemCodePage);
   if iconvindex<>-1 then
@@ -302,10 +310,19 @@ end;
 
 procedure FiniThread;
 begin
+{$ifdef direct_utf8_manager}
+  if (iconv_wide2ansi<>nil) and (iconv_wide2ansi<>iconv_t(-1)) then
+    iconv_close(iconv_wide2ansi);
+  if (iconv_ansi2wide<>nil) and (iconv_ansi2wide<>iconv_t(-1)) then
+    iconv_close(iconv_ansi2wide);
+  iconv_wide2ansi:=nil;
+  iconv_ansi2wide:=nil;
+{$else}
   if (iconv_wide2ansi <> iconv_t(-1)) then
     iconv_close(iconv_wide2ansi);
   if (iconv_ansi2wide <> iconv_t(-1)) then
     iconv_close(iconv_ansi2wide);
+{$endif direct_utf8_manager}
 end;
 
 
@@ -370,6 +387,228 @@ function open_iconv_for_cps(cp: TSystemCodePage; const otherencoding: PAnsiChar;
 {$i cwstraix.inc}
 {$endif aix}
 
+{$ifdef direct_utf8_manager}
+function IsAsciiUTF16(Source: PWideChar; Count: SizeInt): Boolean;
+begin
+  while Count>=4 do
+    begin
+      if (PQWord(Source)^ and QWord($ff80ff80ff80ff80))<>0 then Exit(false);
+      Inc(Source,4);
+      Dec(Count,4);
+    end;
+  while Count<>0 do
+    begin
+      if Word(Source^)>$7f then Exit(false);
+      Inc(Source);
+      Dec(Count);
+    end;
+  Result:=true;
+end;
+
+procedure UTF16ToUTF8(Source: PWideChar; var Dest: RawByteString; Len: SizeInt);
+var
+  OutPos,Start: PAnsiChar;
+  C,C2: Cardinal;
+  Q: QWord;
+begin
+  { The ASCII preflight avoids a 3x allocation and its shrink/copy. It stops
+    at the first non-ASCII word; mixed text retains the old worst-case reserve. }
+  if IsAsciiUTF16(Source,Len) then
+    SetLength(Dest,Len)
+  else
+    SetLength(Dest,Len*3);
+  OutPos:=PAnsiChar(Dest);
+  Start:=OutPos;
+  while Len<>0 do
+    begin
+      C:=Word(Source^);
+      if C<=$7f then
+        begin
+          if Len>=4 then
+            begin
+              Q:=PQWord(Source)^;
+              if (Q and QWord($ff80ff80ff80ff80))=0 then
+                begin
+                  PCardinal(OutPos)^:=Cardinal(Q and $ff) or Cardinal((Q shr 8) and $ff00) or
+                    Cardinal((Q shr 16) and $ff0000) or Cardinal((Q shr 24) and $ff000000);
+                  Inc(Source,4);
+                  Inc(OutPos,4);
+                  Dec(Len,4);
+                  Continue;
+                end;
+            end;
+          OutPos^:=AnsiChar(C);
+          Inc(OutPos);
+        end
+      else if C<=$7ff then
+        begin
+          OutPos[0]:=AnsiChar($c0 or (C shr 6));
+          OutPos[1]:=AnsiChar($80 or (C and $3f));
+          Inc(OutPos,2);
+        end
+      else if (C<$d800) or (C>$dfff) then
+        begin
+          OutPos[0]:=AnsiChar($e0 or (C shr 12));
+          OutPos[1]:=AnsiChar($80 or ((C shr 6) and $3f));
+          OutPos[2]:=AnsiChar($80 or (C and $3f));
+          Inc(OutPos,3);
+        end
+      else
+        begin
+          if (C<$dc00) and (Len>=2) then
+            begin
+              C2:=Word(Source[1]);
+              if (C2>=$dc00) and (C2<=$dfff) then
+                begin
+                  C:=((C-$d7c0) shl 10)+(C2 xor $dc00);
+                  OutPos[0]:=AnsiChar($f0 or (C shr 18));
+                  OutPos[1]:=AnsiChar($80 or ((C shr 12) and $3f));
+                  OutPos[2]:=AnsiChar($80 or ((C shr 6) and $3f));
+                  OutPos[3]:=AnsiChar($80 or (C and $3f));
+                  Inc(OutPos,4);
+                  Inc(Source,2);
+                  Dec(Len,2);
+                  Continue;
+                end;
+            end;
+          OutPos^:='?';
+          Inc(OutPos);
+        end;
+      Inc(Source);
+      Dec(Len);
+    end;
+  SetLength(Dest,OutPos-Start);
+  SetCodePage(Dest,CP_UTF8,false);
+end;
+
+{ Preserve glibc iconv's EINVAL policy: one replacement for a truncated
+  sequence, including obsolete 5/6-byte prefixes; EILSEQ consumes one byte.
+  These prefixes are never accepted as valid Unicode. }
+function IncompleteUTF8Tail(Source: PAnsiChar; Count: SizeUInt): Boolean;
+var
+  Needed,I: SizeUInt;
+  B: Byte;
+begin
+  Result:=false;
+  B:=Byte(Source[0]);
+  case B of
+    $c2..$df:Needed:=2;
+    $e0..$ef:Needed:=3;
+    $f0..$f7:Needed:=4;
+    $f8..$fb:Needed:=5;
+    $fc..$fd:Needed:=6;
+    else Exit;
+  end;
+  if Count>=Needed then Exit;
+  for I:=1 to Count-1 do
+    if (Byte(Source[I]) and $c0)<>$80 then Exit;
+  Result:=true;
+end;
+
+{ Dest has at least Remaining UTF-16 slots. No count pass or short-buffer
+  fallback is needed; every load is bounded by the remaining source length. }
+function DecodeUTF8Buffer(Dest: PUnicodeChar; Source: PAnsiChar; Remaining: SizeUInt): SizeUInt;
+label
+  InvalidInput;
+var
+  Start: PUnicodeChar;
+  B0,B1,B2,B3,Pair,UC: Cardinal;
+begin
+  Start:=Dest;
+  while Remaining<>0 do
+    begin
+      B0:=Byte(Source^);
+      if B0<=$7f then
+        begin
+          if Remaining>=4 then
+            begin
+              Pair:=PCardinal(Source)^;
+              if (Pair and $80808080)=0 then
+                begin
+                  PCardinal(Dest)^:=(Pair shl 8 or (Pair and $ff)) and $00ff00ff;
+                  Pair:=Pair shr 16;
+                  PCardinal(Dest+2)^:=(Pair shl 8 or Pair) and $00ff00ff;
+                  Inc(Source,4);
+                  Inc(Dest,4);
+                  Dec(Remaining,4);
+                  Continue;
+                end;
+            end;
+          Dest^:=UnicodeChar(B0);
+          Inc(Source);
+          Inc(Dest);
+          Dec(Remaining);
+        end
+      else if B0<=$df then
+        begin
+          if (B0<$c2) or (Remaining<2) then goto InvalidInput;
+          if Remaining>=4 then
+            begin
+              Pair:=PCardinal(Source)^;
+              if ((Pair and $c0e0c0e0)=$80c080c0) and
+                ((Pair and $001e0000)<>0) then
+                begin
+                  PCardinal(Dest)^:=((Pair and $001f001f) shl 6) or ((Pair shr 8) and $003f003f);
+                  Inc(Source,4);
+                  Inc(Dest,2);
+                  Dec(Remaining,4);
+                  Continue;
+                end;
+            end;
+          B1:=Byte(Source[1]);
+          if (B1 and $c0)<>$80 then goto InvalidInput;
+          Dest^:=UnicodeChar((B0 and $1f) shl 6 or (B1 and $3f));
+          Inc(Source,2);
+          Inc(Dest);
+          Dec(Remaining,2);
+        end
+      else if B0<=$ef then
+        begin
+          if Remaining<3 then goto InvalidInput;
+          B1:=Byte(Source[1]);
+          B2:=Byte(Source[2]);
+          if ((B1 and $c0)<>$80) or ((B2 and $c0)<>$80) or
+            ((B0=$e0) and (B1<$a0)) or ((B0=$ed) and (B1>=$a0)) then goto InvalidInput;
+          Dest^:=UnicodeChar((B0 and $f) shl 12 or (B1 and $3f) shl 6 or (B2 and $3f));
+          Inc(Source,3);
+          Inc(Dest);
+          Dec(Remaining,3);
+        end
+      else
+        begin
+          if (B0>$f4) or (Remaining<4) then goto InvalidInput;
+          B1:=Byte(Source[1]);
+          B2:=Byte(Source[2]);
+          B3:=Byte(Source[3]);
+          if ((B1 and $c0)<>$80) or ((B2 and $c0)<>$80) or ((B3 and $c0)<>$80) or
+            ((B0=$f0) and (B1<$90)) or ((B0=$f4) and (B1>$8f)) then goto InvalidInput;
+          UC:=(B0 and $7) shl 18 or (B1 and $3f) shl 12 or (B2 and $3f) shl 6 or (B3 and $3f);
+          Dest^:=UnicodeChar($d7c0+(UC shr 10));
+          Dest[1]:=UnicodeChar($dc00+(UC and $3ff));
+          Inc(Source,4);
+          Inc(Dest,2);
+          Dec(Remaining,4);
+        end;
+      Continue;
+    InvalidInput:
+      Dest^:='?';
+      Inc(Dest);
+      if IncompleteUTF8Tail(Source,Remaining) then Break;
+      Inc(Source);
+      Dec(Remaining);
+    end;
+  Result:=Dest-Start;
+end;
+
+procedure UTF8ToUTF16(Source: PAnsiChar; var Dest: WideString; Len: SizeInt);
+begin
+  SetLength(Dest,Len);
+  if Len<>0 then SetLength(Dest,DecodeUTF8Buffer(PWideChar(Dest),Source,Len));
+end;
+
+{$endif direct_utf8_manager}
+
+
 procedure Wide2AnsiMove(source:pwidechar; var dest:RawByteString; cp:TSystemCodePage; len:SizeInt);
   var
     outlength,
@@ -398,6 +637,20 @@ procedure Wide2AnsiMove(source:pwidechar; var dest:RawByteString; cp:TSystemCode
           exit;
       end;
 {$endif aix}
+{$ifdef direct_utf8_manager}
+    if cp=CP_UTF8 then
+      begin
+        { Discard obsolete cached converters when the default changes to UTF-8.
+          An explicit UTF-8 cast must not open converters for another default. }
+        if (current_DefaultSystemCodePage<>CP_UTF8) and (DefaultSystemCodePage=CP_UTF8) then
+          begin
+            FiniThread;
+            current_DefaultSystemCodePage:=CP_UTF8;
+          end;
+        UTF16ToUTF8(source,dest,len);
+        Exit;
+      end;
+{$endif direct_utf8_manager}
     if (cp=DefaultSystemCodePage) then
       begin
         { update iconv converter in case the DefaultSystemCodePage has been
@@ -504,6 +757,20 @@ procedure Ansi2WideMove(source:PAnsiChar; cp:TSystemCodePage; var dest:widestrin
           source:=PAnsiChar(intermediate);
       end;
 {$endif aix}
+{$ifdef direct_utf8_manager}
+    if cp=CP_UTF8 then
+      begin
+        { Discard obsolete cached converters when the default changes to UTF-8.
+          An explicit UTF-8 cast must not open converters for another default. }
+        if (current_DefaultSystemCodePage<>CP_UTF8) and (DefaultSystemCodePage=CP_UTF8) then
+          begin
+            FiniThread;
+            current_DefaultSystemCodePage:=CP_UTF8;
+          end;
+        UTF8ToUTF16(source,dest,len);
+        Exit;
+      end;
+{$endif direct_utf8_manager}
     if (cp=DefaultSystemCodePage) then
       begin
         { update iconv converter in case the DefaultSystemCodePage has been

@@ -77,6 +77,21 @@ def sdk_boundaries(compiler, directory, options):
                 raise RuntimeError(f"Loaded image identity failed: {result}")
             count += 1
         print(f"PASS Linux frame and module contracts {directory.name}", flush=True)
+        utf_source = ROOT / "qualification/suite/tests/rtl-api"
+        for name in ("cwstring_utf8_contracts.dpr", "cwstring_iconv_counter.c"):
+            shutil.copy2(utf_source / name, directory)
+        run(["cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-shared", "-fPIC",
+             "cwstring_iconv_counter.c", "-ldl", "-o", "cwstring-iconv-counter.so"], directory)
+        run([str(compiler), *options, "cwstring_utf8_contracts.dpr"], directory)
+        utf_env = dict(os.environ, LC_ALL="C.UTF-8", LD_PRELOAD=str(directory / "cwstring-iconv-counter.so"))
+        for arguments in ([], ["--threads"]):
+            result = run([str(directory / "cwstring_utf8_contracts"), *arguments], directory, utf_env)
+            if "CWSTRING_UTF8_CONTRACTS_OK" not in result.splitlines():
+                raise RuntimeError(f"UTF manager contract failed: {result}")
+            if arguments and "CWSTRING_UTF8_THREAD_ICONV_OPENS=0" not in result.splitlines():
+                raise RuntimeError(f"UTF converters returned: {result}")
+            count += 1
+        print(f"PASS Linux UTF manager contracts {directory.name}", flush=True)
     return count
 
 

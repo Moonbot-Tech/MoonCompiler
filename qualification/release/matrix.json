@@ -86,7 +86,7 @@
     "fixtures": ["qualification/suite"],
     "mega": ["qualification/suite"],
     "archive_smoke": ["qualification/release/archive_smoke.py", "qualification/release/rtl_boundaries_smoke.py", "qualification/suite/tests/sdk-boundaries", "qualification/suite/tests/rtl-api", "qualification/build-driver", "examples", "RTL-test", "tests/test/units/system/tres4.res"],
-    "sdk_boundaries": ["qualification/release/rtl_boundaries_smoke.py", "qualification/suite/tests/sdk-boundaries"],
+    "sdk_boundaries": ["qualification/release/rtl_boundaries_smoke.py", "qualification/suite/tests/sdk-boundaries", "qualification/suite/tests/rtl-api/cwstring_utf8_contracts.dpr", "qualification/suite/tests/rtl-api/cwstring_iconv_counter.c"],
     "sdk_network": ["qualification/suite/tests/sdk-boundaries"],
     "devil_full": ["qualification/suite", "qualification/release/inputs.py"],
     "mormot_current": ["qualification/suite"],

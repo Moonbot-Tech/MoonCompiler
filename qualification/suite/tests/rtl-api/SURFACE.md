@@ -132,3 +132,16 @@ Strong Unicode typedefs, a typedef chain and SysV WideString take the same failu
 and ownership paths. Typed Copy wrappers retain their declared result type while
 the Copy expression keeps its canonical type for overload resolution. Win64
 WideString content and self-copy use its separate BSTR implementation.
+
+### Linux UTF string manager
+
+`cwstring_utf8_contracts.dpr` checks every Unicode scalar, malformed/truncated
+UTF-8 against the native iconv policy, unpaired UTF-16, explicit lengths and
+embedded NUL, COW, codepage changes, protected source boundaries and concurrent
+string assignments. Worker exceptions fail the test. The Linux surface gate
+also runs the diagnostic memory manager and requires zero live Pascal blocks.
+
+With `--threads`, `cwstring_iconv_counter.c` counts UTF-8/UTF-16 converter opens
+around thread creation, conversion and destruction. The required delta is zero;
+this detects the old eager-allocation behavior without a timing or RSS threshold.
+The release archive gate executes the same contracts against packaged units.
