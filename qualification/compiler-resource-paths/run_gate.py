@@ -212,6 +212,7 @@ def main():
         (source / 'payload.rc').write_text('#include "inc\\header.h"\nTEST RCDATA FILE_REF\n')
         app = source / 'consumer.dpr'
         app.write_text('''program consumer;
+{$mode delphiunicode}
 {$R payload.rc}
 uses Classes, SysUtils;
 var S: TResourceStream; I: Integer; B: Byte;
