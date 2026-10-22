@@ -5523,78 +5523,93 @@
     },
     {
       "id": "sol61_hostile_078",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(A,[U]));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(A,[U]));end.\n",
+      "compile": true,
+      "value": "2"
     },
     {
       "id": "sol61_hostile_079",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(A,['abc']));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(A,['abc']));end.\n",
+      "compile": true,
+      "value": "2"
     },
     {
       "id": "sol61_hostile_080",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(A,[A]));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(A,[A]));end.\n",
+      "compile": true,
+      "value": "1"
     },
     {
       "id": "sol61_hostile_081",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(A,[T]));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(A,[T]));end.\n",
+      "compile": true,
+      "value": "1"
     },
     {
       "id": "sol61_hostile_082",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(A,[]));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(A,[]));end.\n",
+      "compile": true,
+      "value": "1"
     },
     {
       "id": "sol61_hostile_083",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(U,[U]));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(U,[U]));end.\n",
+      "compile": true,
+      "value": "2"
     },
     {
       "id": "sol61_hostile_084",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(U,['abc']));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(U,['abc']));end.\n",
+      "compile": true,
+      "value": "2"
     },
     {
       "id": "sol61_hostile_085",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(U,[A]));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(U,[A]));end.\n",
+      "compile": true,
+      "value": "2"
     },
     {
       "id": "sol61_hostile_086",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(U,[T]));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(U,[T]));end.\n",
+      "compile": true,
+      "value": "2"
     },
     {
       "id": "sol61_hostile_087",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(U,[]));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(U,[]));end.\n",
+      "compile": true,
+      "value": "2"
     },
     {
       "id": "sol61_hostile_088",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(T,[U]));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(T,[U]));end.\n",
+      "compile": true,
+      "value": "2"
     },
     {
       "id": "sol61_hostile_089",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(T,['abc']));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(T,['abc']));end.\n",
+      "compile": true,
+      "value": "2"
     },
     {
       "id": "sol61_hostile_090",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(T,[A]));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(T,[A]));end.\n",
+      "compile": true,
+      "value": "1"
     },
     {
       "id": "sol61_hostile_091",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(T,[T]));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(T,[T]));end.\n",
+      "compile": true,
+      "value": "1"
     },
     {
       "id": "sol61_hostile_092",
-      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(T,[]));end.\n",
-      "compile": false
+      "source": "program Probe;\n{$APPTYPE CONSOLE}\nuses System.SysUtils;\ntype TA=type AnsiString(1251);\nfunction Pick(const S:TA; const V:array of TA):Integer;overload;begin Result:=1;end;\nfunction Pick(const S:UnicodeString; const V:array of UnicodeString):Integer;overload;begin Result:=2;end;\nvar U:UnicodeString; A:TA; T:UTF8String; I,J,L:Integer;\nbegin U:='abc'; A:='abc'; T:='abc'; I:=$78000000; J:=$20000000;\nWriteln(Pick(T,[]));end.\n",
+      "compile": true,
+      "value": "1"
     },
     {
       "id": "sol61_default_093",

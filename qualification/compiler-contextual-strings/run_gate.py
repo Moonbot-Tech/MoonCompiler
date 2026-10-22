@@ -16,7 +16,9 @@ def main():
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    command = [str(args.compiler.resolve()), '-n', '@' + str(args.config.resolve()), '-Mdelphiunicode']
+    command = [str(args.compiler.resolve()), '-n', '@' + str(args.config.resolve()),
+               '-Mdelphiunicode', '-Mimplicitgenerics', '-UaSystem.SysUtils=SysUtils',
+               '-UaSystem.Variants=Variants', '-UaSystem.StrUtils=StrUtils']
     fixtures = json.loads(Path(__file__).with_name('oracle.json').read_text(encoding='utf-8'))
 
     def run(case):
@@ -26,12 +28,16 @@ def main():
         source.write_text(case['source'], encoding='utf-8')
         flags = case.get('flags', ['-O2', '-dRELEASE'])
         try:
-            compiled = subprocess.run(command + flags + [str(source)], cwd=work, capture_output=True,
+            compiled = subprocess.run(command + flags + ['-FU' + str(work), '-FE' + str(work), str(source)],
+                                      cwd=work, capture_output=True,
                                       timeout=30, creationflags=0x08000000 if os.name == 'nt' else 0)
             log = (compiled.stdout + compiled.stderr).decode(errors='replace')
             (work / 'compile.log').write_text(log, encoding='utf-8')
             if not case['compile']:
-                passed = compiled.returncode != 0 and 'Internal error' not in log
+                rejected_call = any(message in log for message in
+                                    ("Error: Can't determine which overloaded function to call",
+                                     'Error: Incompatible type'))
+                passed = compiled.returncode != 0 and rejected_call and 'Internal error' not in log
                 return dict(id=case['id'], passed=passed, compile_exit=compiled.returncode)
             if compiled.returncode:
                 return dict(id=case['id'], passed=False, compile_exit=compiled.returncode)

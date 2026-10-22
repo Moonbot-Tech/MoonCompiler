@@ -75,7 +75,9 @@ end.
                     for file in work.iterdir():
                         if file.stem.lower() == 'witnessunit' and file.suffix.lower() in ('.ppu', '.o'):
                             file.unlink()
-                cmd = [str(compiler), '-n', f'@{config}', '-Mdelphiunicode', profile, '-Cn',
+                cmd = [str(compiler), '-n', f'@{config}', '-Mdelphiunicode',
+                       '-UaSystem.Generics.Collections=Generics.Collections',
+                       '-FU' + str(work), '-FE' + str(work), profile, '-Cn',
                        '-vw-' if name == 'cli-off' else '-vw']
                 if phase == 'cold':
                     cmd.append('-B')
