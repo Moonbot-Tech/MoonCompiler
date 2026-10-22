@@ -5947,5 +5947,121 @@
       },
       "description": "generic_method_1_['abc']"
     }
-  ]
+  ],
+  "linux": {
+    "oracle": "Delphi 12.2 dcc64 36.0 compiled and executed after exact WideString-to-UnicodeString token normalization; expected values are independent of Linux/Moon outputs.",
+    "source_contract": "compiler/psystem.pas:326-330; compiler/options.pas:6564-6565; unchanged from 4f6ae5709",
+    "windows_only_reason": "Distinct WideString/UnicodeString overload signatures collapse to identical signatures when both use the Linux UnicodeString family. Delphi rejects these normalized declarations with E2004.",
+    "windows_only_type_identity": [
+      "oracle_WideString_UnicodeString_a",
+      "oracle_WideString_UnicodeString_u",
+      "oracle_WideString_UnicodeString_w",
+      "oracle_WideString_UnicodeString_t",
+      "oracle_WideString_UnicodeString_ac",
+      "oracle_WideString_UnicodeString_wc",
+      "oracle_WideString_UnicodeString_char",
+      "oracle_WideString_UnicodeString_int",
+      "oracle_WideString_UnicodeString_ua",
+      "oracle_WideString_UnicodeString_aa",
+      "oracle_WideString_UnicodeString_mixed",
+      "oracle_WideString_UnicodeString_rev",
+      "multi_WideString_UnicodeString_a",
+      "multi_WideString_UnicodeString_aw",
+      "multi_WideString_UnicodeString_wa",
+      "multi_WideString_UnicodeString_a2",
+      "multi_WideString_UnicodeString_au2",
+      "multi_WideString_UnicodeString_ua2",
+      "multi_WideString_UnicodeString_u",
+      "multi_WideString_UnicodeString_t",
+      "multi_WideString_UnicodeString_s",
+      "multi_WideString_UnicodeString_ac",
+      "multi_WideString_UnicodeString_wc",
+      "multi_WideString_UnicodeString_p",
+      "multi_WideString_UnicodeString_ap",
+      "multi_WideString_UnicodeString_ca",
+      "multi_WideString_UnicodeString_wca",
+      "multi_WideString_UnicodeString_lit",
+      "multi_WideString_UnicodeString_char",
+      "multi_WideString_UnicodeString_empty",
+      "multi_WideString_UnicodeString_int",
+      "multi_WideString_UnicodeString_var",
+      "multi_WideString_UnicodeString_ua",
+      "multi_WideString_UnicodeString_aa",
+      "multi_WideString_UnicodeString_mixed",
+      "multi_WideString_UnicodeString_rev",
+      "multi_u_WideString_UnicodeString_a",
+      "multi_u_WideString_UnicodeString_aw",
+      "multi_u_WideString_UnicodeString_a2",
+      "multi_u_WideString_UnicodeString_au2",
+      "multi_u_WideString_UnicodeString_ua2",
+      "multi_u_WideString_UnicodeString_u",
+      "multi_u_WideString_UnicodeString_t",
+      "multi_u_WideString_UnicodeString_s",
+      "multi_u_WideString_UnicodeString_ac",
+      "multi_u_WideString_UnicodeString_wc",
+      "multi_u_WideString_UnicodeString_p",
+      "multi_u_WideString_UnicodeString_ap",
+      "multi_u_WideString_UnicodeString_ca",
+      "multi_u_WideString_UnicodeString_wca",
+      "multi_u_WideString_UnicodeString_lit",
+      "multi_u_WideString_UnicodeString_char",
+      "multi_u_WideString_UnicodeString_empty",
+      "multi_u_WideString_UnicodeString_int",
+      "multi_u_WideString_UnicodeString_var",
+      "multi_u_WideString_UnicodeString_ua",
+      "multi_u_WideString_UnicodeString_aa",
+      "multi_u_WideString_UnicodeString_mixed",
+      "multi_u_WideString_UnicodeString_rev",
+      "controls_triple_123_A",
+      "controls_triple_123_U",
+      "controls_triple_123_AU",
+      "controls_triple_123_R",
+      "controls_triple_132_A",
+      "controls_triple_132_U",
+      "controls_triple_132_AU",
+      "controls_triple_132_R",
+      "controls_triple_213_A",
+      "controls_triple_213_U",
+      "controls_triple_213_AU",
+      "controls_triple_213_R",
+      "controls_triple_231_A",
+      "controls_triple_231_U",
+      "controls_triple_231_AU",
+      "controls_triple_231_R",
+      "controls_triple_312_A",
+      "controls_triple_312_U",
+      "controls_triple_312_AU",
+      "controls_triple_312_R",
+      "controls_triple_321_A",
+      "controls_triple_321_U",
+      "controls_triple_321_AU",
+      "controls_triple_321_R"
+    ],
+    "expectation_overrides": {
+      "oracle_AnsiString_WideString_ua": {
+        "compile": true,
+        "value": "2"
+      },
+      "multi_AnsiString_WideString_ua": {
+        "compile": true,
+        "value": "2"
+      },
+      "multi_u_AnsiString_WideString_ua": {
+        "compile": true,
+        "value": "2"
+      },
+      "permuted_oracle_AnsiString_WideString_ua": {
+        "compile": true,
+        "value": "2"
+      },
+      "permuted_multi_AnsiString_WideString_ua": {
+        "compile": true,
+        "value": "2"
+      },
+      "permuted_multi_u_AnsiString_WideString_ua": {
+        "compile": true,
+        "value": "2"
+      }
+    }
+  }
 }

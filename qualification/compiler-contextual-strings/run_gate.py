@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 
 
 def main():
@@ -52,6 +53,12 @@ def main():
             return dict(id=case['id'], passed=False, error=str(error))
 
     cases = fixtures['cases']
+    if sys.platform == 'linux':
+        target = fixtures['linux']
+        windows_only = set(target['windows_only_type_identity'])
+        cases = [dict(case, **target['expectation_overrides'].get(case['id'], {}))
+                 for case in cases if case['id'] not in windows_only]
+        print(f'CONTEXTUAL_STRINGS_PLATFORM: {len(windows_only)} Windows-only type-identity cases')
     api_source = Path(__file__).with_name('rtl_calls.dpr').read_text(encoding='utf-8')
     for name, flags in [('debug', ['-O-', '-uRELEASE']), ('release-o2', ['-O2', '-dRELEASE']),
                         ('release-o3', ['-O3', '-dRELEASE'])]:

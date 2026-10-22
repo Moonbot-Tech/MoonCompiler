@@ -23,6 +23,19 @@ string-family preferences, Variant/empty-constructor ambiguity and competition
 between generic and non-generic methods; the gate
 does not claim complete Delphi overload compatibility.
 
+The Windows run has 948 checks including the three real RTL profiles. Linux
+has 865. In the compiler's existing Linux type model, both `WideString` and
+`UnicodeString` use the UnicodeString family (`psystem.pas`, `createtypes`).
+The Linux expectations were independently obtained by compiling and executing
+all 945 sources with Delphi after replacing the `WideString` type token with
+`UnicodeString`. This changes six typed-array expectations. Another 83 programs
+declare overload signatures that collapse to duplicates under that type model;
+Delphi rejects those normalized declarations with E2004. Those Windows-only
+type-identity comparisons remain enabled on Windows and are listed explicitly
+in the Linux metadata. The original ANSI/Unicode call cases, independent audit
+cases and all real RTL profiles run on both platforms. No expectation is taken
+from a MoonCompiler result.
+
 Warning restoration is checked separately by
 `qualification/suite/scripts/run_compiler_diagnostic_gate.py`. It uses an
 explicit Unicode-to-ANSI conversion independent of the repaired RTL calls,
