@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -13,6 +14,84 @@ def run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command, cwd=cwd, capture_output=True, text=True, timeout=120, check=False,
     )
+
+
+def check_replay_state(compiler: Path, config: Path, output: Path) -> tuple[list[dict], list[str]]:
+    """Generic definition switches must not escape into the following unit."""
+    trigger = '''unit TriggerUnit;
+interface
+function Value: Int64;
+implementation
+uses System.Generics.Collections, DependencyUnit;
+function Value: Int64;
+var D: TDictionary<string,string>;
+begin
+  Result:=1;
+  D:=TDictionary<string,string>.Create;
+  D.Add('a','b');
+  D.Free;
+end;
+end.
+'''
+    witness = '''unit WitnessUnit;
+interface
+function Narrow(const S: UnicodeString): AnsiString;
+implementation
+PRE
+function Narrow(const S: UnicodeString): AnsiString;
+begin Result:=S; end;
+MID
+function Quiet(const S: UnicodeString): AnsiString;
+begin Result:=S; end;
+POST
+function Again(const S: UnicodeString): AnsiString;
+begin Result:=S; end;
+end.
+'''
+    cases = {
+        'inherited': ('', '', '', [7, 10, 13]),
+        'push-pop': ('', '{$PUSH}{$WARNINGS OFF}', '{$POP}', [7, 13]),
+        'warnings-off': ('{$WARNINGS OFF}', '', '', []),
+        'specific-off': ('{$WARN IMPLICIT_STRING_CAST_LOSS OFF}', '', '', []),
+        'specific-push-pop': ('', '{$PUSH}{$WARN IMPLICIT_STRING_CAST_LOSS OFF}', '{$POP}', [7, 13]),
+        'off-then-on': ('{$WARNINGS OFF}', '', '{$WARNINGS ON}', [13]),
+        'cli-off': ('', '', '', []),
+    }
+    rows, failures = [], []
+    for profile in ('-O-', '-O3'):
+        for name, (pre, mid, post, expected) in cases.items():
+            work = output / f'replay-{profile}-{name}'
+            work.mkdir()
+            (work / 'TriggerUnit.pas').write_text(trigger, encoding='utf-8')
+            # Loading this source dependency after the generic definitions exposes
+            # the pending restoration; no mORMot or time function is required.
+            (work / 'DependencyUnit.pas').write_text('unit DependencyUnit; interface implementation end.\n')
+            (work / 'WitnessUnit.pas').write_text(
+                witness.replace('PRE', pre).replace('MID', mid).replace('POST', post), encoding='utf-8')
+            (work / 'Probe.dpr').write_text(
+                "program Probe; uses TriggerUnit,WitnessUnit; begin Writeln(Narrow('abc')); end.\n")
+            for phase in ('cold', 'cached', 'witness-rebuilt'):
+                if phase == 'witness-rebuilt':
+                    for file in work.iterdir():
+                        if file.stem.lower() == 'witnessunit' and file.suffix.lower() in ('.ppu', '.o'):
+                            file.unlink()
+                cmd = [str(compiler), '-n', f'@{config}', '-Mdelphiunicode', profile, '-Cn',
+                       '-vw-' if name == 'cli-off' else '-vw']
+                if phase == 'cold':
+                    cmd.append('-B')
+                compiled = run(cmd + ['Probe.dpr'], work)
+                log = compiled.stdout + compiled.stderr
+                (work / f'{phase}.log').write_text(log, encoding='utf-8')
+                found = [int(line) for line in re.findall(
+                    r'WitnessUnit\.pas\((\d+),\d+\) Warning: Implicit string type conversion with potential data loss',
+                    log, re.IGNORECASE)]
+                wanted = [] if phase == 'cached' else expected
+                passed = compiled.returncode == 0 and found == wanted
+                rows.append(dict(profile=profile, case=name, phase=phase, exit=compiled.returncode,
+                                 warnings=found, expected=wanted, passed=passed))
+                if not passed:
+                    failures.append(f'replay {profile}/{name}/{phase}: expected {wanted}, got {found}; exit {compiled.returncode}')
+    return rows, failures
 
 
 def main() -> int:
@@ -91,7 +170,9 @@ def main() -> int:
             "result_diagnostic": has_diagnostic,
         }
 
-    manifest = {"results": results, "failures": failures}
+    replay, replay_failures = check_replay_state(compiler, config, output)
+    failures.extend(replay_failures)
+    manifest = {"results": results, "replay": replay, "failures": failures}
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     if failures:
         print("COMPILER_DIAGNOSTIC_FAIL: " + "; ".join(failures))

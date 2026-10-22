@@ -4451,6 +4451,10 @@ type
         if not assigned(buf) then
           internalerror(200511175);
 
+        { A previous replay may have queued its caller's settings without
+          reading another source token. Save the effective caller state, as
+          when switching modules, rather than the previous replay's verbosity. }
+        flushpendingswitchesstate;
         { save current scanner state }
         replaystack:=treplaystack.create(token,idtoken,orgpattern,pattern,
           cstringpattern,patternw,current_settings,replaytokenbuf,change_endian_for_replay,
