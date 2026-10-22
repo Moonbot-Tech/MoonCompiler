@@ -1,3 +1,38 @@
+# MoonCompiler 2.4.14: Unicode overloads, reliable warnings and faster Linux text conversion
+
+- Calls such as `MatchText(Value, ['instrument_discovered', 'wallet_discovered'])`
+  preserve Unicode when choosing between corresponding ANSI and Unicode
+  open-array overloads. The repair also covers `MatchStr`, `IndexText`, `IndexStr`
+  and application overloads. Previously, an ANSI choice could lose characters
+  and produce a false match on a limited codepage. Typed arrays and unrelated
+  overload preferences retain their normal rules.
+- Warning settings are restored before saving a nested generic replay. A generic
+  dependency that disables its own warnings no longer silently disables warnings
+  in a subsequently compiled application unit. Explicit warning suppression and
+  push/pop remain effective.
+- Linux x86-64 UTF-8/UTF-16 conversions use a direct RTL path, avoiding two eager
+  iconv converters per thread and their intermediate native buffers. Other
+  codepages retain iconv support. Valid text, malformed-sequence replacement,
+  terminators, codepage tags and thread cleanup retain their existing contracts.
+
+In deterministic complete-string comparisons on the Hel1 Linux stand, the UTF
+path was about 1.7–5.9 times faster. A 120-worker idle-thread comparison used
+about 7.9 MiB less native allocated heap. These are conversion and thread-lifecycle
+measurements, not a claim of the same gain in whole-application speed or RSS.
+
+Permanent checks include an independently compiled Delphi 12.2 overload oracle,
+actual RTL calls under native/CP1251/UTF-8 codepages, warning-state tests with
+fresh and reused PPUs, and Linux UTF correctness and converter-allocation checks.
+The public calls and UTF checks also run against unpacked release archives.
+Publication requires Windows and Linux qualification of the exact release commit;
+Pulse is not part of this release's correctness qualification.
+
+Install the complete 2.4.14 SDK and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20414; `CompilerVersion` remains 2.4. MoonORMot 15
+remains required.
+
+---
+
 # MoonCompiler 2.4.13: managed-value and exception lifetime repairs
 
 - RTTI writes use normal managed assignment when replacing a live value, releasing
