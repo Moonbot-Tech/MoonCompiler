@@ -69,6 +69,9 @@ jobs:
           python3 qualification/suite/scripts/run_compiler_diagnostic_gate.py \
             toolchain/bin/fpc toolchain/etc/moon-base.cfg \
             . ci-linux-compiler-diagnostics
+          python3 qualification/compiler-contextual-strings/run_gate.py \
+            --compiler toolchain/bin/fpc --config toolchain/etc/moon-base.cfg \
+            --output .qualification/ci-linux-contextual-strings
           python3 qualification/suite/scripts/run_dwarf_format_interop_gate.py \
             toolchain/bin/fpc toolchain/etc/moon-base.cfg \
             . ci-linux-dwarf-format-interop
@@ -408,6 +411,11 @@ jobs:
             .\toolchain\bin\x86_64-win64\moon-base.cfg `
             . ci-win64-compiler-diagnostics
           If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\compiler-contextual-strings\run_gate.py `
+            --compiler .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --config .\toolchain\bin\x86_64-win64\moon-base.cfg `
+            --output .\.qualification\ci-win64-contextual-strings
+          If ($LASTEXITCODE -ne 0) { throw 'Contextual string overload gate failed' }
           python .\qualification\suite\scripts\run_dwarf_format_interop_gate.py `
             .\toolchain\bin\x86_64-win64\ppcx64.exe `
             .\toolchain\bin\x86_64-win64\moon-base.cfg `

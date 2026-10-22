@@ -55,6 +55,13 @@ def sdk_boundaries(compiler, directory, options):
             raise RuntimeError(f"Missing SDK result {name}: {result}")
         count += 1
         print(f"PASS {name} {directory.name}", flush=True)
+    shutil.copy2(ROOT / "qualification/compiler-contextual-strings/rtl_calls.dpr", directory / "contextual_strings.dpr")
+    run([str(compiler), *options, "contextual_strings.dpr"], directory)
+    result = run([str(directory / ("contextual_strings" + suffix))], directory)
+    if result.strip() != "RTL_STRING_OVERLOADS_PASS":
+        raise RuntimeError(f"Contextual string overloads failed: {result}")
+    count += 1
+    print(f"PASS contextual string overloads {directory.name}", flush=True)
     if os.name != "nt":
         for name in ("foreign_bridge.c", "backtrace_extra_contract.dpr", "module_fixture.dpr", "module_path_contract.dpr"):
             shutil.copy2(source / name, directory)

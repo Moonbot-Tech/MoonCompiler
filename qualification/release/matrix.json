@@ -28,7 +28,8 @@
     "test_devil_runner_contracts": ["qualification/suite"],
     "test_workflow_exit_codes": ["qualification/suite", ".github/workflows"],
     "argument_transport": ["qualification/suite"],
-    "compiler_diagnostics": ["qualification/suite"],
+    "compiler_diagnostics": ["qualification/suite", "compiler/scanner.pas"],
+    "contextual_strings": ["qualification/compiler-contextual-strings", "compiler/htypechk.pas"],
     "dwarf_interop": ["qualification/suite"],
     "mm_failure": ["qualification/memory-manager"],
     "managed_array": ["qualification/managed-array-copy"],
@@ -85,8 +86,8 @@
     "prepare": ["qualification/suite"],
     "fixtures": ["qualification/suite"],
     "mega": ["qualification/suite"],
-    "archive_smoke": ["qualification/release/archive_smoke.py", "qualification/release/rtl_boundaries_smoke.py", "qualification/suite/tests/sdk-boundaries", "qualification/suite/tests/rtl-api", "qualification/build-driver", "examples", "RTL-test", "tests/test/units/system/tres4.res"],
-    "sdk_boundaries": ["qualification/release/rtl_boundaries_smoke.py", "qualification/suite/tests/sdk-boundaries", "qualification/suite/tests/rtl-api/cwstring_utf8_contracts.dpr", "qualification/suite/tests/rtl-api/cwstring_iconv_counter.c"],
+    "archive_smoke": ["qualification/release/archive_smoke.py", "qualification/release/rtl_boundaries_smoke.py", "qualification/compiler-contextual-strings/rtl_calls.dpr", "qualification/suite/tests/sdk-boundaries", "qualification/suite/tests/rtl-api", "qualification/build-driver", "examples", "RTL-test", "tests/test/units/system/tres4.res"],
+    "sdk_boundaries": ["qualification/release/rtl_boundaries_smoke.py", "qualification/compiler-contextual-strings/rtl_calls.dpr", "qualification/suite/tests/sdk-boundaries", "qualification/suite/tests/rtl-api/cwstring_utf8_contracts.dpr", "qualification/suite/tests/rtl-api/cwstring_iconv_counter.c"],
     "sdk_network": ["qualification/suite/tests/sdk-boundaries"],
     "devil_full": ["qualification/suite", "qualification/release/inputs.py"],
     "mormot_current": ["qualification/suite"],
@@ -876,6 +877,20 @@
       "resource": "compiler_diagnostics",
       "estimated_seconds_by_platform": {"win64": 1, "linux": 1},
       "timeout": 3600
+    },
+    {
+      "id": "contextual_strings",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/compiler-contextual-strings/run_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/compiler-contextual-strings/run_gate.py", "--compiler", "{fpc}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "compiler_diagnostics",
+      "estimated_seconds_by_platform": {"win64": 120, "linux": 90},
+      "timeout": 600,
+      "expected": "CONTEXTUAL_STRINGS_PASS"
     },
     {
       "id": "dwarf_interop",

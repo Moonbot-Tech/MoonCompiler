@@ -87,6 +87,7 @@ interface
         function  proc_add(st:tsymtable;pd:tprocdef):pcandidate;
         function  compare_delphi_character_argument(currpd,bestpd:pcandidate):integer;
         function  compare_delphi_contextual_uint64(currpd,bestpd:pcandidate):integer;
+        function  compare_delphi_contextual_string_pair(currpd,bestpd:pcandidate):integer;
         function  compare_delphi_same_width_integer_pair(currpd,bestpd:pcandidate):integer;
       public
         constructor init(sym:tprocsym;st:TSymtable;ppn:tnode;flags:tcallcandidatesflags;spezcontext:tspecializationcontext);
@@ -3819,6 +3820,105 @@ implementation
       end;
 
 
+    { A contextual constructor does not have an independently fixed string
+      element type. For otherwise corresponding byte/wide string overloads,
+      Delphi preserves wide text across the whole call. Scalar conversion
+      levels cannot express this: byte->wide has a worse level than wide->byte.
+      Keep other type/family preferences with the ordinary comparator. }
+    function tcallcandidates.compare_delphi_contextual_string_pair(currpd,bestpd:pcandidate):integer;
+      function text_width(n:tnode):integer;
+        var
+          width:integer;
+        begin
+          if n.nodetype=arrayconstructorn then
+            begin
+              result:=0;
+              while assigned(n) do
+                begin
+                  if assigned(tarrayconstructornode(n).left) then
+                    begin
+                      width:=text_width(tarrayconstructornode(n).left);
+                      if width<0 then
+                        exit(-1);
+                      result:=result or width;
+                    end;
+                  n:=tarrayconstructornode(n).right;
+                end;
+              exit;
+            end;
+          if is_wide_or_unicode_string(n.resultdef) or is_widechar(n.resultdef) or
+             is_widechararray(n.resultdef) or is_pwidechar(n.resultdef) or
+             ((n.nodetype=stringconstn) and is_chararray(n.resultdef) and
+              (m_default_unicodestring in current_settings.modeswitches)) then
+            result:=1
+          else if is_ansistring(n.resultdef) or is_shortstring(n.resultdef) or
+                  is_char(n.resultdef) or is_chararray(n.resultdef) or is_pchar(n.resultdef) then
+            result:=0
+          else
+            result:=-1;
+        end;
+      var
+        ci,bi,preference,direction,width:integer;
+        cp,bp:tparavarsym;
+        cd,bd:tdef;
+        pt:tcallparanode;
+        contextual,wideinput:boolean;
+      begin
+        result:=0;
+        if not (m_delphi in current_settings.modeswitches) or currpd^.invalid or bestpd^.invalid then
+          exit;
+        ci:=currpd^.firstparaidx;
+        bi:=bestpd^.firstparaidx;
+        preference:=0;
+        contextual:=false;
+        wideinput:=false;
+        pt:=tcallparanode(FParaNode);
+        while assigned(pt) do
+          begin
+            while (ci>=0) and (vo_is_hidden_para in tparavarsym(currpd^.data.paras[ci]).varoptions) do
+              dec(ci);
+            while (bi>=0) and (vo_is_hidden_para in tparavarsym(bestpd^.data.paras[bi]).varoptions) do
+              dec(bi);
+            if (ci<0) or (bi<0) then
+              exit;
+            cp:=tparavarsym(currpd^.data.paras[ci]);
+            bp:=tparavarsym(bestpd^.data.paras[bi]);
+            cd:=cp.vardef;
+            bd:=bp.vardef;
+            if not equal_defs(cd,bd) then
+              begin
+                if (cp.varspez in [vs_var,vs_out]) or (bp.varspez in [vs_var,vs_out]) then
+                  exit;
+                if is_open_array(cd) and is_open_array(bd) and
+                   (pt.left.nodetype=arrayconstructorn) then
+                  begin
+                    cd:=tarraydef(cd).elementdef;
+                    bd:=tarraydef(bd).elementdef;
+                    contextual:=true;
+                  end;
+                if is_wide_or_unicode_string(cd) and is_ansistring(bd) then
+                  direction:=1
+                else if is_ansistring(cd) and is_wide_or_unicode_string(bd) then
+                  direction:=-1
+                else
+                  exit;
+                if (preference<>0) and (preference<>direction) then
+                  exit;
+                preference:=direction;
+                width:=text_width(pt.left);
+                if width<0 then
+                  exit;
+                wideinput:=wideinput or (width=1);
+              end;
+            dec(ci);
+            dec(bi);
+            pt:=tcallparanode(pt.right);
+          end;
+        if contextual and wideinput then
+          result:=preference;
+      end;
+
+
     function tcallcandidates.compare_delphi_same_width_integer_pair(currpd,bestpd:pcandidate):integer;
       function next_visible_para(const candidate:pcandidate;var paraidx:integer):tparavarsym;
         begin
@@ -3905,7 +4005,7 @@ implementation
 
 
     function is_better_candidate(currpd,bestpd:pcandidate;
-      delphi_integer_pair_preference:integer):integer;
+      delphi_integer_pair_preference,contextual_string_preference:integer):integer;
       begin
         {
           Return values:
@@ -3925,6 +4025,8 @@ implementation
         }
         if bestpd^.invalid or currpd^.invalid then
           exit(ord(bestpd^.invalid)-ord(currpd^.invalid)); { 1 if bestpd^.invalid, -1 if currpd^.invalid, 0 if both. }
+        if contextual_string_preference<>0 then
+          exit(contextual_string_preference);
         { less operator parameters? }
         is_better_candidate:=(bestpd^.te_count[te_convert_operator]-currpd^.te_count[te_convert_operator]);
         if is_better_candidate<>0 then
@@ -4047,7 +4149,7 @@ implementation
         if (currpara.vardef.typ = variantdef) or
            (bestpara.vardef.typ = variantdef) then
           begin
-            result:=is_better_candidate(currpd,bestpd,0);
+            result:=is_better_candidate(currpd,bestpd,0,0);
             exit;
           end;
 
@@ -4172,7 +4274,8 @@ implementation
             begin
               if not singlevariant then
                 res:=is_better_candidate(hp,besthpstart,
-                  compare_delphi_same_width_integer_pair(hp,besthpstart))
+                  compare_delphi_same_width_integer_pair(hp,besthpstart),
+                       compare_delphi_contextual_string_pair(hp,besthpstart))
               else
                 res:=is_better_candidate_single_variant(hp,besthpstart);
               if (res=0) and not hp^.invalid and not besthpstart^.invalid then
@@ -4348,7 +4451,8 @@ implementation
                    else if hp^.invalid then res := -1
                    else if not singlevariant then
                      res:=is_better_candidate(hp,besthpstart,
-                       compare_delphi_same_width_integer_pair(hp,besthpstart))
+                       compare_delphi_same_width_integer_pair(hp,besthpstart),
+                       compare_delphi_contextual_string_pair(hp,besthpstart))
                    else
                      res:=is_better_candidate_single_variant(hp,besthpstart);
                    if (res=0) and not hp^.invalid and not besthpstart^.invalid then
