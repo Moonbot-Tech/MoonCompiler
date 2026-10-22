@@ -35,6 +35,7 @@
     "managed_array": ["qualification/managed-array-copy"],
     "private_ppu": ["qualification/compiler-private-ppu"],
     "resource_case": ["qualification/compiler-resource-case", "compiler/comprsrc.pas", "compiler/scandir.pas", "compiler/cfileutl.pas", "compiler/fppu.pas"],
+    "resource_paths": ["qualification/compiler-resource-paths", "packages/fcl-res/src", "utils/fpcres", "compiler/comprsrc.pas"],
     "alias_lifetime": ["qualification/compiler-alias-lifetime"],
     "consttemp": ["qualification/optimizer-core/consttemp-lifetime"],
     "alias_reload": ["qualification/compiler-alias-lifetime"],
@@ -86,7 +87,7 @@
     "prepare": ["qualification/suite"],
     "fixtures": ["qualification/suite"],
     "mega": ["qualification/suite"],
-    "archive_smoke": ["qualification/release/archive_smoke.py", "qualification/release/rtl_boundaries_smoke.py", "qualification/compiler-contextual-strings/rtl_calls.dpr", "qualification/suite/tests/sdk-boundaries", "qualification/suite/tests/rtl-api", "qualification/build-driver", "examples", "RTL-test", "tests/test/units/system/tres4.res"],
+    "archive_smoke": ["qualification/compiler-resource-paths", "qualification/release/archive_smoke.py", "qualification/release/rtl_boundaries_smoke.py", "qualification/compiler-contextual-strings/rtl_calls.dpr", "qualification/suite/tests/sdk-boundaries", "qualification/suite/tests/rtl-api", "qualification/build-driver", "examples", "RTL-test", "tests/test/units/system/tres4.res"],
     "sdk_boundaries": ["qualification/release/rtl_boundaries_smoke.py", "qualification/compiler-contextual-strings/rtl_calls.dpr", "qualification/suite/tests/sdk-boundaries", "qualification/suite/tests/rtl-api/cwstring_utf8_contracts.dpr", "qualification/suite/tests/rtl-api/cwstring_iconv_counter.c"],
     "sdk_network": ["qualification/suite/tests/sdk-boundaries"],
     "devil_full": ["qualification/suite", "qualification/release/inputs.py"],
@@ -1075,6 +1076,19 @@
       "resource": "resource_case",
       "estimated_seconds_by_platform": {"win64": 20, "linux": 30},
       "timeout": 180
+    },
+    {
+      "id": "resource_paths",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/compiler-resource-paths/run_gate.py", "--compiler", "{fpc}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/compiler-resource-paths/run_gate.py", "--compiler", "{fpc}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "resource_paths",
+      "estimated_seconds_by_platform": {"win64": 3, "linux": 3},
+      "timeout": 120
     },
     {
       "id": "alias_lifetime",

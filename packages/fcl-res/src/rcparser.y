@@ -337,8 +337,8 @@ non_whitespace_string
     ;
 
 filename_string
-    : long_stringfn                                { $$:= TFileStream.Create($1.v^, fmOpenRead or fmShareDenyWrite); }
-    | non_whitespace_string                        { $$:= TFileStream.Create($1.v^, fmOpenRead or fmShareDenyWrite); }
+    : long_stringfn                                { $$:= TFileStream.Create(NormalizeResourcePath($1.v^), fmOpenRead or fmShareDenyWrite); }
+    | non_whitespace_string                        { $$:= TFileStream.Create(NormalizeResourcePath($1.v^), fmOpenRead or fmShareDenyWrite); }
     ;
 
 long_stringfn

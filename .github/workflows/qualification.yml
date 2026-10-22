@@ -96,6 +96,9 @@ jobs:
           python3 qualification/compiler-resource-case/run_gate.py \
             --compiler "$pp" --config "$cfg" \
             --output .qualification/ci-linux-resource-case
+          python3 qualification/compiler-resource-paths/run_gate.py \
+            --compiler "$pp" --config "$cfg" \
+            --output .qualification/ci-linux-resource-paths
           python3 qualification/compiler-alias-lifetime/run_alias_lifetime_gate.py \
             --compiler "$pp" --config "$cfg" \
             --output .qualification/ci-linux-alias-lifetime
@@ -450,6 +453,10 @@ jobs:
             --compiler $Compiler --config $Config `
             --output .\.qualification\ci-win64-resource-case
           If ($LASTEXITCODE -ne 0) { throw 'Resource-case gate failed' }
+          python .\qualification\compiler-resource-paths\run_gate.py `
+            --compiler $Compiler --config $Config `
+            --output .\.qualification\ci-win64-resource-paths
+          If ($LASTEXITCODE -ne 0) { throw 'Resource-paths gate failed' }
           python .\qualification\compiler-alias-lifetime\run_alias_lifetime_gate.py `
             --compiler $Compiler --config $Config `
             --output .\.qualification\ci-win64-alias-lifetime

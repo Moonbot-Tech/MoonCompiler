@@ -472,10 +472,10 @@ begin
          string_new(yyval.yyrcstrtype, yytext, opt_code_page); 
        end;
  144 : begin
-         yyval.yyTFileStream:= TFileStream.Create(yyv[yysp-0].yyrcstrtype.v^, fmOpenRead or fmShareDenyWrite); 
+         yyval.yyTFileStream:= TFileStream.Create(NormalizeResourcePath(yyv[yysp-0].yyrcstrtype.v^), fmOpenRead or fmShareDenyWrite);
        end;
  145 : begin
-         yyval.yyTFileStream:= TFileStream.Create(yyv[yysp-0].yyrcstrtype.v^, fmOpenRead or fmShareDenyWrite); 
+         yyval.yyTFileStream:= TFileStream.Create(NormalizeResourcePath(yyv[yysp-0].yyrcstrtype.v^), fmOpenRead or fmShareDenyWrite);
        end;
  146 : begin
          string_new_uni(yyval.yyrcstrtype, @strbuf[0], strbuflen, opt_code_page, false); 

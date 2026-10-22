@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v2.4.14
+        default: v2.4.15
 
 permissions:
   contents: read
@@ -173,6 +173,8 @@ jobs:
           test -d units/x86_64-linux/release
           python3 "$GITHUB_WORKSPACE/qualification/release/rtl_boundaries_smoke.py" \
             --compiler "$fpc" --out "$smoke/rtl-boundaries"
+          python3 "$GITHUB_WORKSPACE/qualification/compiler-resource-paths/run_gate.py" \
+            --compiler "$fpc" --output "$smoke/resource-paths"
           python3 "$GITHUB_WORKSPACE/qualification/release/diagnostics_expected_smoke.py" \
             --compiler "$fpc" --out "$smoke/diagnostics-expected"
       - name: Verify ownership using the unpacked archive
@@ -284,6 +286,8 @@ jobs:
           $Fpc = "$Smoke\toolchain\bin\x86_64-win64\fpc.exe"
           python qualification\release\rtl_boundaries_smoke.py --compiler $Fpc --out "$Smoke\rtl-boundaries"
           If ($LASTEXITCODE -ne 0) { throw 'RTL boundary archive contracts failed' }
+          python qualification\compiler-resource-paths\run_gate.py --compiler $Fpc --output "$Smoke\resource-paths"
+          If ($LASTEXITCODE -ne 0) { throw 'Resource path archive contracts failed' }
           python qualification\release\diagnostics_expected_smoke.py --compiler $Fpc --out "$Smoke\diagnostics-expected"
           If ($LASTEXITCODE -ne 0) { throw 'Expected exception archive contracts failed' }
           Push-Location "$Smoke\app"

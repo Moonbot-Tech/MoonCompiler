@@ -151,8 +151,7 @@ begin
             Defines.Remove(w);
           end;
           'include': begin
-            arg1:= yinclude.expand(w);
-            yinclude.push(arg1);
+            yinclude.push(yinclude.expand(w));
           end;
         end;
     end;

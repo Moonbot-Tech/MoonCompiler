@@ -35,9 +35,9 @@ type
     constructor Create;
     destructor Destroy; override;
     class function wrapone(): Boolean; static;
-    function push(const incfile: string): Boolean;
+    function push(const incfile: UnicodeString): Boolean;
     function pop(): Boolean;
-    function expand(fn: string): string;
+    function expand(raw: string): UnicodeString;
   end;
 
 var
@@ -50,8 +50,10 @@ begin
   Result:= yinclude.pop;
 end;
 
-function tyinclude.push(const incfile: string): Boolean;
+function tyinclude.push(const incfile: UnicodeString): Boolean;
 begin
+  if level > High(stack) then
+    raise EParserError.Create('Too many include levels');
   stack[level].yyinput:= yyinput;
   stack[level].yyline:= yyline;
   stack[level].yylineno:= yylineno;
@@ -90,25 +92,30 @@ begin
   end;
 end;
 
-function tyinclude.expand(fn: string): string;
+function tyinclude.expand(raw: string): UnicodeString;
 var
   i: integer;
-  f: string;
+  fn, f: UnicodeString;
 begin
-  result:= '';
-  if Length(fn) > 3 then begin
+  widestringmanager.Ansi2UnicodeMoveProc(PAnsiChar(raw), opt_code_page, fn, Length(raw));
+  fn:= NormalizeResourcePath(fn);
+  if Length(fn) > 2 then begin
     if (fn[1] = '<') and (fn[length(fn)] = '>') then begin
       fn:= copy(fn, 2, Length(fn)-2);
+      if CharInSet(fn[1], AllowDirectorySeparators) then
+        Delete(fn, 1, 1);
       for i:= 0 to SearchPaths.Count - 1 do begin
-        f:= ConcatPaths([SearchPaths[i], fn]);
+        f:= UnicodeString(IncludeTrailingPathDelimiter(SearchPaths[i])) + fn;
         if FileExists(f) then
           Exit(f);
       end;
-      yyerror('Include file not found on search paths: <'+fn+'>');
+      raise EParserError.Create('Include file not found on search paths: <'+fn+'>');
     end
     else if (fn[1] = '"') and (fn[length(fn)] = '"') then begin
       fn:= copy(fn, 2, Length(fn)-2);
-      f:= ConcatPaths([WorkDir, fn]);
+      if CharInSet(fn[1], AllowDirectorySeparators) then
+        Delete(fn, 1, 1);
+      f:= UnicodeString(IncludeTrailingPathDelimiter(WorkDir)) + fn;
       if FileExists(f) then
         Exit(f);
       if fn = 'windows.h' then begin
@@ -117,10 +124,10 @@ begin
         if FileExists(f) then
           Exit(f);
       end;
-      yyerror('Include file not found: "'+fn+'"');
+      raise EParserError.Create('Include file not found: "'+fn+'"');
     end;
   end;
-  yyerror('Invalid include directive: "'+fn+'"');
+  raise EParserError.Create('Invalid include directive: "'+fn+'"');
 end;
 
 constructor tyinclude.Create;

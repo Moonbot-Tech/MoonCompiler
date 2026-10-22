@@ -140,6 +140,22 @@ begin
   WriteLn(ErrOutput, '^':yycolno);
 end(*yyerrmsg*);
 
+function NormalizeResourcePath(FileName: UnicodeString): UnicodeString;
+{$IFDEF UNIX}
+var
+  i: SizeInt;
+{$ENDIF}
+begin
+  { RC file references use Windows separators on every host. Decode the
+    filename before normalization; ordinary resource text is not a path. }
+  {$IFDEF UNIX}
+  for i:= 1 to Length(FileName) do
+    if FileName[i] = '\' then
+      FileName[i]:= '/';
+  {$ENDIF}
+  Result:= FileName;
+end;
+
 {$I yyinclude.pp}
 {$I yypreproc.pp}
 

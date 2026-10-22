@@ -136,6 +136,9 @@ def consumer_smoke(asset: Path, pin: str, output: Path, steps: list[dict]) -> No
         run("rtl_boundaries", [sys.executable, str(ROOT / "qualification/release/rtl_boundaries_smoke.py"),
                                "--compiler", str(fpc), "--out", str(consumer / "rtl-boundaries")],
             consumer, output, steps, "RTL_BOUNDARIES_ARCHIVE_PASS")
+        run("resource_paths", [sys.executable, str(ROOT / "qualification/compiler-resource-paths/run_gate.py"),
+                               "--compiler", str(fpc), "--output", str(consumer / "resource-paths")],
+            consumer, output, steps, "FPCRES_PATHS PASS")
         suffix = ".exe" if os.name == "nt" else ""
         for profile, options in (("debug", []), ("release", ["-dRELEASE"])):
             for name, marker in (("hello", "3 prices, sum = "),

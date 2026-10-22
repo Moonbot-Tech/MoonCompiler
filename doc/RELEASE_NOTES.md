@@ -1,3 +1,29 @@
+# MoonCompiler 2.4.15: portable RC resource paths
+
+- The bundled `fpcres` accepts Windows path separators in RC file references
+  on Linux, including doubled and mixed separators. Delphi-generated RC files
+  can embed their existing resource files without rewriting those paths.
+  The common repair covers external RCDATA, custom resource types, bitmaps,
+  icons and cursors while preserving the RC directory used for relative paths.
+- Quoted and search-path `#include` references also accept Windows separators.
+  UTF-8 include filenames remain Unicode through filesystem lookup. Missing,
+  malformed or excessively nested includes now stop with a parser error instead
+  of reading standard input or overrunning the include stack.
+- Ordinary resource strings and their escapes retain their existing meaning.
+  This repair does not map Windows drive letters to Linux mount points or
+  change filename case and search-directory policies.
+
+Permanent Windows/Linux checks verify embedded bytes, path variants, includes,
+failure cases and clean Debug/Release compilation through `-FF`. The same
+checks run against the unpacked SDK archives. Publication requires successful
+qualification of the exact release commit on both platforms, without Pulse.
+
+Install the complete 2.4.15 SDK so its resource compiler is updated as well.
+`MOONCOMPILER_FULLVERSION` is 20415; `CompilerVersion` remains 2.4. MoonORMot 15
+remains required.
+
+---
+
 # MoonCompiler 2.4.14: Unicode overloads, reliable warnings and faster Linux text conversion
 
 - Calls such as `MatchText(Value, ['instrument_discovered', 'wallet_discovered'])`
