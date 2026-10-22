@@ -74,6 +74,7 @@ implementation
 
 {$if defined(linux) and defined(cpux86_64)}
   {$define direct_utf8_manager}
+  {$goto on}
 {$endif}
 
 {$IFDEF FPC_DOTTEDUNITS}
