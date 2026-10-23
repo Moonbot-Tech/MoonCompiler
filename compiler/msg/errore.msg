@@ -4392,6 +4392,7 @@ option_help_pages=11025_[
 F*0*_Only options valid for the default or selected platform are listed.
 **0*_Put + after a boolean switch option to enable it, - to disable it.
 **1@<x>_Read compiler options from <x> in addition to the default fpc.cfg
+**1-project-profile=<file>_Use this .mooncompiler profile instead of the source-side profile
 # Assembler related options
 **1a_The compiler does not delete the generated assembler file, automatically switches to external assembler writer
 **2a5_Don't generate Big Obj COFF files for GNU Binutils older than 2.25 (Windows, NativeNT)

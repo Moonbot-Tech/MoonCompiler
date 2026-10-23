@@ -98,8 +98,12 @@ def main() -> int:
         "program argument_transport_embed;\n\n"
         "{$i fpcdefs.inc}\n\n"
         "uses SysUtils, globals, compiler;\n\n"
+        "var Code: Integer; NextCommand: AnsiString;\n\n"
         "begin\n"
-        "  Halt(compiler.Compile(GetEnvironmentVariable('MOON_EMBED_COMMAND')));\n"
+        "  Code := compiler.Compile(GetEnvironmentVariable('MOON_EMBED_COMMAND'));\n"
+        "  NextCommand := GetEnvironmentVariable('MOON_EMBED_COMMAND_2');\n"
+        "  if (Code = 0) and (NextCommand <> '') then Code := compiler.Compile(NextCommand);\n"
+        "  Halt(Code);\n"
         "end.\n",
         encoding="utf-8",
     )
@@ -201,6 +205,50 @@ def main() -> int:
             trailing_executable = trailing_output / ("argument_target" + executable_suffix)
             if trailing.returncode != 0 or not trailing_executable.is_file():
                 failures.append(f"embedded command failed with {spaces} trailing spaces")
+
+        # One embedded compiler instance must select a new shared profile on
+        # each invocation, without retaining the previous profile or defines.
+        commands = []
+        images = []
+        for name, other in (("A", "B"), ("B", "A")):
+            directory = output / f"embedded-profile-{name}"
+            directory.mkdir()
+            profile = directory / "shared profile.mooncompiler"
+            profile.write_text(f"-dPROFILE_{name}\n", encoding="utf-8")
+            program = directory / "profile_target.pas"
+            program.write_text(
+                "program profile_target;\n"
+                f"{{$ifndef PROFILE_{name}}}{{$fatal profile not loaded}}{{$endif}}\n"
+                f"{{$ifdef PROFILE_{other}}}{{$fatal previous profile leaked}}{{$endif}}\n"
+                f"begin WriteLn('PROFILE_{name}_OK'); end.\n", encoding="utf-8",
+            )
+            commands.append(
+                f'[{config}] -B "--project-profile={profile}" '
+                f'-FU{directory} -FE{directory} {program}'
+            )
+            images.append(directory / ("profile_target" + executable_suffix))
+        embedded_env["MOON_EMBED_COMMAND"], embedded_env["MOON_EMBED_COMMAND_2"] = commands
+        repeated = run([str(harness)], root, 120, embedded_env)
+        write_log(output / "embedded-project-profiles.log", repeated)
+        if repeated.returncode != 0:
+            failures.append("embedded shared profiles failed across repeated Compile calls")
+        else:
+            for name, image in zip(("A", "B"), images):
+                executed = run([str(image)], image.parent, 30)
+                if executed.returncode != 0 or executed.stdout.strip() != f"PROFILE_{name}_OK":
+                    failures.append(f"embedded profile {name} produced the wrong program")
+
+        # Dropping the selector must restore automatic discovery on the next
+        # Compile call, not retain A's explicitly selected profile.
+        automatic_profile = program.with_suffix('.mooncompiler')
+        automatic_profile.write_text('-dPROFILE_B\n', encoding='utf-8')
+        embedded_env['MOON_EMBED_COMMAND_2'] = (
+            f'[{config}] -B -FU{directory} -FE{directory} {program}'
+        )
+        automatic = run([str(harness)], root, 120, embedded_env)
+        write_log(output / 'embedded-automatic-profile.log', automatic)
+        if automatic.returncode != 0:
+            failures.append('embedded compiler retained an explicit profile instead of automatic discovery')
 
     report = {
         "compiler": str(compiler),

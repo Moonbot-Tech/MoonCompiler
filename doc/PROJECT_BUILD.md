@@ -146,9 +146,33 @@ line, so a command-line option overrides the file and the file overrides the
 configuration. Its defines are read once more before the configuration, so a
 `-dRELEASE` in the file selects the Release profile exactly as it does on the
 command line (Release branch of `fpc.cfg`, `release` unit directory, no
-`DEBUG`), and a command-line `-uRELEASE` still turns that off. Blank lines
-and lines beginning with `#` are ignored. Relative paths are resolved from
-the file's own directory, whatever the current directory is.
+`DEBUG`), and a command-line `-uRELEASE` still turns that off. Blank lines and
+comments are ignored. Native configuration directives such as `#IFDEF`,
+`#IFNDEF`, `#ELSE`, `#ENDIF` and `#INCLUDE` are evaluated by the compiler.
+Relative paths, including `#INCLUDE` in both passes, are resolved from the
+profile's own directory, whatever the current directory is. `$PROJECTDIR`
+denotes the main source file's directory, including during the early pass.
+
+To build a helper program with an existing profile, select it explicitly:
+
+```sh
+fpc --project-profile=App.mooncompiler -B -dDEBUG -Fu. tests/ContractTest.dpr
+```
+
+`--project-profile=FILE` replaces the automatic source-side profile. The
+filename is relative to the invocation directory; paths inside it are relative
+to the profile directory. It retains profile path order, authoritative unit
+aliases, conditional directives and early defines. Command-line options still
+override the profile. Quote the whole argument when the filename contains spaces.
+Specify the selector directly on the command line, not inside a config file,
+response file or `!ENV` expansion. Missing profiles and conflicting selections
+are errors; repeating the same selection is harmless.
+
+`@file` remains an ordinary configuration/response input: its aliases yield
+to real project units and later path lines are prepended. It is therefore not
+an interchangeable way to select a `.mooncompiler` project profile. Build
+scripts should pass `--project-profile=FILE` instead of parsing profile lines
+or conditionals themselves.
 
 Windows command-line paths and environment variables support Unicode names
 independently of the system ANSI code page. This does not change the encoding

@@ -1077,6 +1077,8 @@ def main() -> int:
         results.append(check_source_input_paths(linked_compiler, tmp / "input", other_cwd))
         results.append(check_long_ppu_paths(linked_compiler, tmp / "ppu", other_cwd))
         results.append(check_host_text(linked_compiler, tmp / "host-text", other_cwd))
+        from project_profile_gate import check_project_profile
+        results.append(check_project_profile(linked_compiler, tmp / "project-profile"))
         from static_linux_gate import check as check_static_linux
         results.append(check_static_linux(linked_compiler, tmp / "static", other_cwd))
 

@@ -45,6 +45,7 @@ Type
     FileLevel : longint;
     QuickInfo : string;
     FPCBinaryPath: string;
+    ProjectProfile: TPathStr;
     ParaIncludeCfgPath,
     ParaIncludePath,
     ParaUnitPath,
@@ -1602,6 +1603,22 @@ begin
   if opt='' then
    exit;
 
+  if opt.StartsWith('--project-profile=') then
+    begin
+      more:=copy(opt,length('--project-profile=')+1);
+      if not ispara or (more='') then
+        IllegalPara(opt);
+      more:=ExpandFileName(more);
+      { Selection must be known before the configuration's conditional
+        blocks are read. Reject a different or late selection; the same
+        command line is read again after the project and configuration. }
+      if ((ProjectProfile<>'') and (ProjectProfile<>more)) or
+         (not FirstPass and (ProjectProfile='')) then
+        IllegalPara(opt);
+      ProjectProfile:=more;
+      exit;
+    end;
+
   if opt.StartsWith('--rttiexpose=') then begin
     rtti_expose_add_cli(copy(opt, length('--rttiexpose=')+1));
     exit;
@@ -2072,6 +2089,8 @@ begin
        arglen:=pc-argstart;
        setlength(hs,arglen);
        move(argstart^,hs[1],arglen);
+       if hs.StartsWith('--project-profile=') then
+         IllegalPara(hs);
        interpret_option(hs,true);
      { skip quote }
        if pc^ in quote then
@@ -5335,6 +5354,30 @@ begin
     project options before the second pass. }
   firstpass_param_file:=param_file;
 
+  { Set projectdir from first-pass param_file; available as $PROJECTDIR
+    in DefaultReplacements (config macros, project options). }
+  if firstpass_param_file<>'' then
+    begin
+      projectdir:=ExtractFilePath(ExpandFileName(firstpass_param_file));
+      if projectdir<>'' then
+        projectdir:=FixPath(projectdir,false);
+    end;
+
+  { Select once for both project passes. An explicit profile replaces the
+    automatic source-side profile and must not silently fall back. }
+  projectcfg:=option.ProjectProfile;
+  if projectcfg<>'' then
+    begin
+      if not FileExists(projectcfg) then
+        Message1(option_unable_open_file,projectcfg);
+    end
+  else if firstpass_param_file<>'' then
+    begin
+      projectcfg:=ChangeFileExt(ExpandFileName(firstpass_param_file),'.mooncompiler');
+      if not FileExists(projectcfg) then
+        projectcfg:='';
+    end;
+
   { First pass of the project options file (<Project>.mooncompiler): its
     defines must be known before the configuration is read, so that the
     #IFDEF blocks of the toolchain's fpc.cfg (the RELEASE profile) see them
@@ -5346,19 +5389,26 @@ begin
     command-line -d/-u still wins over the project file (the first-pass
     options are idempotent).  The full read of the project file stays after
     the configuration: config < project < command line. }
-  if firstpass_param_file<>'' then
+  if projectcfg<>'' then
     begin
-      projectcfg:=ChangeFileExt(ExpandFileName(firstpass_param_file),'.mooncompiler');
-      if FileExists(projectcfg) then
-        begin
-          option.firstpass:=true;
-          option.interpret_file(projectcfg);
-          if cmd<>'' then
-            option.parsecmd(cmd)
-          else
-            option.read_parameters;
-          option.firstpass:=false;
-        end;
+      saveddir:=cfileutl.GetCurrentDir;
+      SetCurrentDir(ExtractFilePath(projectcfg));
+      option.firstpass:=true;
+      forcefullpaths:=true;
+      try
+        option.interpret_file(projectcfg);
+      finally
+        forcefullpaths:=false;
+        SetCurrentDir(saveddir);
+      end;
+      try
+        if cmd<>'' then
+          option.parsecmd(cmd)
+        else
+          option.read_parameters;
+      finally
+        option.firstpass:=false;
+      end;
     end;
 
   { redefine target options so all defines are written even if no -Txxx is passed on the command line }
@@ -5520,15 +5570,6 @@ begin
   if read_subfile then
     option.interpret_file(subcfg);
 
-  { Set projectdir from first-pass param_file; available as $PROJECTDIR
-    in DefaultReplacements (config macros, project options). }
-  if firstpass_param_file<>'' then
-    begin
-      projectdir:=ExtractFilePath(ExpandFileName(firstpass_param_file));
-      if projectdir<>'' then
-        projectdir:=FixPath(projectdir,false);
-    end;
-
   { Read project options file (<Project>.mooncompiler).
     Placed after the toolchain config and before the second command-line
     pass so that: config < project < cmdline in override order.
@@ -5536,31 +5577,27 @@ begin
     directory.  Seed the cached original cwd before temporarily switching
     directories, and keep project paths absolute.  Merge after restoring cwd
     so that existing relative search paths retain their original meaning. }
-  if (firstpass_param_file<>'') then
+  if projectcfg<>'' then
     begin
-      projectcfg:=ChangeFileExt(ExpandFileName(firstpass_param_file),'.mooncompiler');
-      if FileExists(projectcfg) then
-        begin
-          Message1(option_using_file,projectcfg);
-          saved_outputunitdir:=OutputUnitDir;
-          saved_outputexedir:=OutputExeDir;
-          saveddir:=cfileutl.GetCurrentDir;
-          SetCurrentDir(ExtractFilePath(projectcfg));
-          forcefullpaths:=true;
-          option.ProjectPaths(true);
-          try
-            option.interpret_file(projectcfg);
-            { Expand OutputUnitDir/OutputExeDir while cwd is the project dir }
-            if (OutputUnitDir<>saved_outputunitdir) and (OutputUnitDir<>'') then
-              OutputUnitDir:=FixPath(ExpandFileName(OutputUnitDir),true);
-            if (OutputExeDir<>saved_outputexedir) and (OutputExeDir<>'') then
-              OutputExeDir:=FixPath(ExpandFileName(OutputExeDir),true);
-          finally
-            forcefullpaths:=false;
-            SetCurrentDir(saveddir);
-            option.ProjectPaths(false);
-          end;
-        end;
+      Message1(option_using_file,projectcfg);
+      saved_outputunitdir:=OutputUnitDir;
+      saved_outputexedir:=OutputExeDir;
+      saveddir:=cfileutl.GetCurrentDir;
+      SetCurrentDir(ExtractFilePath(projectcfg));
+      forcefullpaths:=true;
+      option.ProjectPaths(true);
+      try
+        option.interpret_file(projectcfg);
+        { Expand OutputUnitDir/OutputExeDir while cwd is the profile dir }
+        if (OutputUnitDir<>saved_outputunitdir) and (OutputUnitDir<>'') then
+          OutputUnitDir:=FixPath(ExpandFileName(OutputUnitDir),true);
+        if (OutputExeDir<>saved_outputexedir) and (OutputExeDir<>'') then
+          OutputExeDir:=FixPath(ExpandFileName(OutputExeDir),true);
+      finally
+        forcefullpaths:=false;
+        SetCurrentDir(saveddir);
+        option.ProjectPaths(false);
+      end;
     end;
 
   { read parameters again to override config file }

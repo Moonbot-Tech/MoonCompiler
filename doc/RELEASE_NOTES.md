@@ -1,3 +1,31 @@
+# MoonCompiler 2.4.16: shared project profiles
+
+Helper programs and tests can select an existing project profile directly:
+
+```sh
+fpc --project-profile=App.mooncompiler tests/ContractTest.dpr
+```
+
+The selected profile retains its unit aliases, path order, conditional
+directives and early defines. Its paths are relative to its own directory;
+command-line settings still take precedence. It replaces the automatic
+source-side profile, so build scripts no longer need to parse profile lines
+themselves. Ordinary `@file` response/configuration semantics are unchanged.
+
+Relative `#INCLUDE` and `$PROJECTDIR` now work during the early profile pass
+as well as the full pass. This also repairs automatic profiles whose included
+defines select the toolchain's Debug/Release configuration.
+
+Permanent Windows/Linux checks cover alias collisions, path precedence,
+relative outputs, Unicode paths, conditions, early defines, invalid selection,
+the `fpc` frontend and repeated embedded compiler invocations. Profile checks
+also run against the unpacked SDK. See [Project Build](PROJECT_BUILD.md#large-project-file).
+
+`MOONCOMPILER_FULLVERSION` is 20416; `CompilerVersion` remains 2.4 and the
+FPC base ABI remains 3.3.1. MoonORMot 15 remains required.
+
+---
+
 # MoonCompiler 2.4.15: portable RC resource paths
 
 - The bundled `fpcres` accepts Windows path separators in RC file references
