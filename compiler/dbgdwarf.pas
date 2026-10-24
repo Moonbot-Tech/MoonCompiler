@@ -852,6 +852,8 @@ implementation
 
 
     procedure TDebugInfoDwarf.append_attribute(attr: tdwarf_attribute; form: tdwarf_form; const value: tvarrec);
+      var
+        dwarfstr: ansistring;
       begin
         { attribute }
         AddConstToAbbrev(cardinal(attr));
@@ -862,15 +864,14 @@ implementation
         { info itself }
         case form of
           DW_FORM_string:
-            case value.VType of
-              vtChar:
-                current_asmdata.asmlists[al_dwarf_info].concat(tai_string.create(value.VChar));
-              vtString:
-                current_asmdata.asmlists[al_dwarf_info].concat(tai_string.create(value.VString^));
-              vtAnsistring:
-                current_asmdata.asmlists[al_dwarf_info].concat(tai_string.create(Ansistring(value.VAnsiString)));
-              else
-                internalerror(200601264);
+            begin
+              case value.VType of
+                vtChar: dwarfstr:=value.VChar;
+                vtString: dwarfstr:=value.VString^;
+                vtAnsistring: dwarfstr:=Ansistring(value.VAnsiString);
+                else internalerror(200601264);
+              end;
+              current_asmdata.asmlists[al_dwarf_info].concat(tai_string.create(dwarfstr+#0));
             end;
 
           DW_FORM_flag:
@@ -1263,7 +1264,7 @@ implementation
                 { base type such as byte/shortint/word/... }
                 if assigned(def.typesym) then
                   append_entry(DW_TAG_base_type,false,[
-                    DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+                    DW_AT_name,DW_FORM_string,symname(def.typesym, false),
                     DW_AT_encoding,DW_FORM_data1,sign,
                     DW_AT_byte_size,DW_FORM_data1,fullbytesize])
                 else
@@ -1277,7 +1278,7 @@ implementation
                   {       to be always clipped to s32bit for some reason }
                   if assigned(def.typesym) then
                     append_entry(DW_TAG_subrange_type,false,[
-                      DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+                      DW_AT_name,DW_FORM_string,symname(def.typesym, false),
                       DW_AT_lower_bound,signform,int64(def.low),
                       DW_AT_upper_bound,signform,int64(def.high)
                       ])
@@ -1297,7 +1298,7 @@ implementation
                 replace it with a unsigned type with size 0 (FK)
               }
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'Void'#0,
+                DW_AT_name,DW_FORM_string,'Void',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_unsigned,
                 DW_AT_byte_size,DW_FORM_data1,0
               ]);
@@ -1306,7 +1307,7 @@ implementation
           uchar :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'Char'#0,
+                DW_AT_name,DW_FORM_string,'Char',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_unsigned_char,
                 DW_AT_byte_size,DW_FORM_data1,1
                 ]);
@@ -1315,7 +1316,7 @@ implementation
           uwidechar :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'WideChar'#0,
+                DW_AT_name,DW_FORM_string,'WideChar',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_unsigned_char,
                 DW_AT_byte_size,DW_FORM_data1,2
                 ]);
@@ -1324,7 +1325,7 @@ implementation
           pasbool1 :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'Boolean'#0,
+                DW_AT_name,DW_FORM_string,'Boolean',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_boolean,
                 DW_AT_byte_size,DW_FORM_data1,1
                 ]);
@@ -1333,7 +1334,7 @@ implementation
           pasbool8 :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'Boolean8'#0,
+                DW_AT_name,DW_FORM_string,'Boolean8',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_boolean,
                 DW_AT_byte_size,DW_FORM_data1,1
                 ]);
@@ -1342,7 +1343,7 @@ implementation
           bool8bit :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'ByteBool'#0,
+                DW_AT_name,DW_FORM_string,'ByteBool',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_boolean,
                 DW_AT_byte_size,DW_FORM_data1,1
                 ]);
@@ -1351,7 +1352,7 @@ implementation
           pasbool16 :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'Boolean16'#0,
+                DW_AT_name,DW_FORM_string,'Boolean16',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_boolean,
                 DW_AT_byte_size,DW_FORM_data1,2
                 ]);
@@ -1360,7 +1361,7 @@ implementation
           bool16bit :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'WordBool'#0,
+                DW_AT_name,DW_FORM_string,'WordBool',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_boolean,
                 DW_AT_byte_size,DW_FORM_data1,2
                 ]);
@@ -1369,7 +1370,7 @@ implementation
           pasbool32 :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'Boolean32'#0,
+                DW_AT_name,DW_FORM_string,'Boolean32',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_boolean,
                 DW_AT_byte_size,DW_FORM_data1,4
                 ]);
@@ -1378,7 +1379,7 @@ implementation
           bool32bit :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'LongBool'#0,
+                DW_AT_name,DW_FORM_string,'LongBool',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_boolean,
                 DW_AT_byte_size,DW_FORM_data1,4
                 ]);
@@ -1387,7 +1388,7 @@ implementation
           pasbool64 :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'Boolean64'#0,
+                DW_AT_name,DW_FORM_string,'Boolean64',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_boolean,
                 DW_AT_byte_size,DW_FORM_data1,8
                 ]);
@@ -1396,7 +1397,7 @@ implementation
           bool64bit :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'QWordBool'#0,
+                DW_AT_name,DW_FORM_string,'QWordBool',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_boolean,
                 DW_AT_byte_size,DW_FORM_data1,8
                 ]);
@@ -1405,7 +1406,7 @@ implementation
           u64bit :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'QWord'#0,
+                DW_AT_name,DW_FORM_string,'QWord',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_unsigned,
                 DW_AT_byte_size,DW_FORM_data1,8
                 ]);
@@ -1415,7 +1416,7 @@ implementation
             begin
               { we should use DW_ATE_signed_fixed, however it isn't supported yet by GDB (FK) }
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'Currency'#0,
+                DW_AT_name,DW_FORM_string,'Currency',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_signed,
                 DW_AT_byte_size,DW_FORM_data1,8
                 ]);
@@ -1424,7 +1425,7 @@ implementation
           s64bit :
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'Int64'#0,
+                DW_AT_name,DW_FORM_string,'Int64',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_signed,
                 DW_AT_byte_size,DW_FORM_data1,8
                 ]);
@@ -1433,7 +1434,7 @@ implementation
           u128bit:
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'UInt128'#0,
+                DW_AT_name,DW_FORM_string,'UInt128',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_unsigned,
                 DW_AT_byte_size,DW_FORM_data1,16
                 ]);
@@ -1442,7 +1443,7 @@ implementation
           s128bit:
             begin
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,'Int128'#0,
+                DW_AT_name,DW_FORM_string,'Int128',
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_signed,
                 DW_AT_byte_size,DW_FORM_data1,16
                 ]);
@@ -1463,7 +1464,7 @@ implementation
             if assigned(def.typesym) then
               begin
                 append_entry(DW_TAG_base_type,false,[
-                  DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+                  DW_AT_name,DW_FORM_string,symname(def.typesym, false),
                   DW_AT_encoding,DW_FORM_data1,DW_ATE_float,
                   DW_AT_byte_size,DW_FORM_data1,def.size
                   ]);
@@ -1488,7 +1489,7 @@ implementation
             { we should use DW_ATE_signed_fixed, however it isn't supported yet by GDB (FK) }
             if assigned(def.typesym) then
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+                DW_AT_name,DW_FORM_string,symname(def.typesym, false),
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_signed,
                 DW_AT_byte_size,DW_FORM_data1,8
                 ])
@@ -1500,7 +1501,7 @@ implementation
           s64comp:
             if assigned(def.typesym) then
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+                DW_AT_name,DW_FORM_string,symname(def.typesym, false),
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_signed,
                 DW_AT_byte_size,DW_FORM_data1,8
                 ])
@@ -1524,7 +1525,7 @@ implementation
       begin
         if assigned(def.typesym) then
           append_entry(DW_TAG_enumeration_type,true,[
-            DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+            DW_AT_name,DW_FORM_string,symname(def.typesym, false),
             DW_AT_byte_size,DW_FORM_data1,def.size
             ])
         else
@@ -1584,7 +1585,7 @@ implementation
             if hp.value>def.maxval then
               break;
             append_entry(DW_TAG_enumerator,false,[
-              DW_AT_name,DW_FORM_string,symname(hp, false)+#0,
+              DW_AT_name,DW_FORM_string,symname(hp, false),
               DW_AT_const_value,entryform,hp.value
             ]);
             finish_entry;
@@ -1673,7 +1674,7 @@ implementation
               count instead of an empty/unbounded view }
             if assigned(def.typesym) then
               append_entry(DW_TAG_array_type,true,[
-                DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+                DW_AT_name,DW_FORM_string,symname(def.typesym, false),
                 elestrideattr,DW_FORM_udata,elesize
                 ])
             else
@@ -1705,7 +1706,7 @@ implementation
             { no known size, no known upper bound }
             if assigned(def.typesym) then
               append_entry(DW_TAG_array_type,true,[
-                DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+                DW_AT_name,DW_FORM_string,symname(def.typesym, false),
                 elestrideattr,DW_FORM_udata,elesize
                 ])
             else
@@ -1724,7 +1725,7 @@ implementation
             size:=def.size;
             if assigned(def.typesym) then
               append_entry(DW_TAG_array_type,true,[
-                DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+                DW_AT_name,DW_FORM_string,symname(def.typesym, false),
                 DW_AT_byte_size,DW_FORM_udata,size,
                 elestrideattr,DW_FORM_udata,elesize
                 ])
@@ -1760,7 +1761,7 @@ implementation
       begin
         if (name<>'') then
           append_entry(DW_TAG_structure_type,true,[
-            DW_AT_name,DW_FORM_string,name+#0,
+            DW_AT_name,DW_FORM_string,name,
             DW_AT_byte_size,DW_FORM_udata,def.size
             ])
         else
@@ -1810,14 +1811,14 @@ implementation
           else
             current_asmdata.getaddrlabel(arr);
           append_entry(DW_TAG_structure_type,true,[
-            DW_AT_name,DW_FORM_string,name+#0,
+            DW_AT_name,DW_FORM_string,name,
             DW_AT_byte_size,DW_FORM_udata,qword(lendef.size)+slen
             ]);
           finish_entry;
 
           { length entry }
           append_entry(DW_TAG_member,false,[
-            DW_AT_name,DW_FORM_string,'length'#0,
+            DW_AT_name,DW_FORM_string,'length',
             DW_AT_data_member_location,DW_FORM_block1,1+lengthuleb128(0)
             ]);
           current_asmdata.asmlists[al_dwarf_info].concat(tai_const.create_8bit(ord(DW_OP_plus_uconst)));
@@ -1827,7 +1828,7 @@ implementation
 
           { string data entry }
           append_entry(DW_TAG_member,false,[
-            DW_AT_name,DW_FORM_string,'st'#0,
+            DW_AT_name,DW_FORM_string,'st',
             DW_AT_data_member_location,DW_FORM_block1,1+lengthuleb128(1)
             ]);
           current_asmdata.asmlists[al_dwarf_info].concat(tai_const.create_8bit(ord(DW_OP_plus_uconst)));
@@ -1910,7 +1911,7 @@ implementation
         begin
           if assigned(def.typesym) then
             append_entry(DW_TAG_subroutine_type,true,[
-              DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+              DW_AT_name,DW_FORM_string,symname(def.typesym, false),
               DW_AT_prototyped,DW_FORM_flag,true
             ])
           else
@@ -1925,7 +1926,7 @@ implementation
           for i:=0 to def.paras.count-1 do
             begin
               append_entry(DW_TAG_formal_parameter,false,[
-                DW_AT_name,DW_FORM_string,symname(tsym(def.paras[i]), false)+#0
+                DW_AT_name,DW_FORM_string,symname(tsym(def.paras[i]), false)
               ]);
               append_labelentry_ref(DW_AT_type,def_dwarf_lab(tparavarsym(def.paras[i]).vardef));
               finish_entry;
@@ -1952,7 +1953,7 @@ implementation
 
             { proc entry }
             append_entry(DW_TAG_member,false,[
-              DW_AT_name,DW_FORM_string,'Proc'#0,
+              DW_AT_name,DW_FORM_string,'Proc',
               DW_AT_data_member_location,DW_FORM_block1,1+lengthuleb128(0)
               ]);
             current_asmdata.asmlists[al_dwarf_info].concat(tai_const.create_8bit(ord(DW_OP_plus_uconst)));
@@ -1962,7 +1963,7 @@ implementation
 
             { self entry }
             append_entry(DW_TAG_member,false,[
-              DW_AT_name,DW_FORM_string,'Self'#0,
+              DW_AT_name,DW_FORM_string,'Self',
               DW_AT_data_member_location,DW_FORM_block1,1+lengthuleb128(sizeof(pint))
               ]);
             current_asmdata.asmlists[al_dwarf_info].concat(tai_const.create_8bit(ord(DW_OP_plus_uconst)));
@@ -2060,7 +2061,7 @@ implementation
           begin
             current_asmdata.getaddrlabel(TAsmLabel(pointer(labsym)));
             append_entry(DW_TAG_typedef,false,[
-              DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0
+              DW_AT_name,DW_FORM_string,symname(def.typesym, false)
             ]);
             { if def.typesym.Owner.symtabletype=globalsymtable then
               append_attribute(DW_AT_external,DW_FORM_flag,[true]); }
@@ -2118,7 +2119,8 @@ implementation
 
       var
         procendlabel   : tasmlabel;
-        procentry,s    : string;
+        procentry      : ansistring;
+        s              : ansistring;
         cc             : Tdwarf_calling_convention;
         st             : tsymtable;
         vmtoffset      : pint;
@@ -2176,14 +2178,18 @@ implementation
         current_asmdata.asmlists[al_dwarf_info].concat(tai_comment.Create(strpnew('Procdef '+def.fullprocname(true))));
         if not is_objc_class_or_protocol(def.struct) then
           begin
-            s:=symname(def.procsym,false);
             if compact and (def.owner.symtabletype in [objectsymtable,recordsymtable]) then
-              s:=tabstractrecorddef(def.owner.defowner).RttiName+'.'+s;
-            append_entry(DW_TAG_subprogram,not compact,[DW_AT_name,DW_FORM_string,s+#0]);
+              s:=Ansistring(tabstractrecorddef(def.owner.defowner).RttiName)+'.'+symdebugname(def.procsym)
+            else if (ds_dwarf_method_class_prefix in current_settings.debugswitches) and
+                    (tprocsym(def.procsym).owner.symtabletype in [objectsymtable,recordsymtable]) then
+              s:=Ansistring(tprocsym(def.procsym).owner.name^)+'__'+symdebugname(def.procsym)
+            else
+              s:=symname(def.procsym,false);
+            append_entry(DW_TAG_subprogram,not compact,[DW_AT_name,DW_FORM_string,s]);
           end
         else
           append_entry(DW_TAG_subprogram,not compact,
-            [DW_AT_name,DW_FORM_string,def.mangledname+#0]);
+            [DW_AT_name,DW_FORM_string,def.mangledname]);
 
         if not compact then
           begin
@@ -2195,8 +2201,8 @@ implementation
                   instead of just "Method" in LLDB. }
                 s:=tabstractrecorddef(def.owner.defowner).objrealname^;
                 procentry:=Format('_ZN%d%s', [Length(s), s]);
-                s:=symname(def.procsym, false);
-                procentry:=Format('%s%d%sEv'#0, [procentry, Length(s), s]);
+                s:=symdebugname(def.procsym);
+                procentry:=Format('%s%d%sEv', [procentry, Length(s), s]);
                 append_attribute(DW_AT_linkage_name,DW_FORM_string, [procentry]);
               end;
 
@@ -2892,7 +2898,7 @@ implementation
             if (sym.owner.symtabletype<>parasymtable) then
               internalerror(2009101001);
             append_entry(tag,false,[
-              DW_AT_name,DW_FORM_string,name+#0
+              DW_AT_name,DW_FORM_string,name
               {
               DW_AT_decl_file,DW_FORM_data1,0,
               DW_AT_decl_line,DW_FORM_data1,
@@ -2905,7 +2911,7 @@ implementation
             (sp_static in sym.symoptions) or
             (vo_is_public in sym.varoptions)) then
           append_entry(tag,false,[
-            DW_AT_name,DW_FORM_string,name+#0,
+            DW_AT_name,DW_FORM_string,name,
             {
             DW_AT_decl_file,DW_FORM_data1,0,
             DW_AT_decl_line,DW_FORM_data1,
@@ -2920,7 +2926,7 @@ implementation
             not(vo_has_local_copy in sym.varoptions) and
             not is_open_string(sym.vardef) then
           append_entry(tag,false,[
-            DW_AT_name,DW_FORM_string,name+#0,
+            DW_AT_name,DW_FORM_string,name,
             DW_AT_variable_parameter,DW_FORM_flag,true,
             {
             DW_AT_decl_file,DW_FORM_data1,0,
@@ -2932,7 +2938,7 @@ implementation
 {$endif gdb_supports_DW_AT_variable_parameter}
         else
           append_entry(tag,false,[
-            DW_AT_name,DW_FORM_string,name+#0,
+            DW_AT_name,DW_FORM_string,name,
             {
             DW_AT_decl_file,DW_FORM_data1,0,
             DW_AT_decl_line,DW_FORM_data1,
@@ -3020,7 +3026,7 @@ implementation
               fieldoffset:=sym.fieldoffset div 8;
             inc(fieldoffset,offset);
             append_entry(DW_TAG_member,false,[
-              DW_AT_name,DW_FORM_string,name+#0,
+              DW_AT_name,DW_FORM_string,name,
               DW_AT_data_member_location,DW_FORM_block1,1+lengthuleb128(fieldoffset)
               ]);
           end
@@ -3040,7 +3046,7 @@ implementation
             if (target_info.endian=endian_little) then
               bitoffset:=(fieldnatsize*8)-bitoffset-sym.vardef.packedbitsize;
             append_entry(DW_TAG_member,false,[
-              DW_AT_name,DW_FORM_string,symname(sym, false)+#0,
+              DW_AT_name,DW_FORM_string,symname(sym, false),
               { gcc also generates both a bit and byte size attribute }
               { we don't support ordinals >= 256 bits }
               DW_AT_byte_size,DW_FORM_data1,fieldnatsize,
@@ -3085,7 +3091,7 @@ implementation
 
         if ismember then
           append_entry(DW_TAG_member,false,[
-            DW_AT_name,DW_FORM_string,symname(sym, false)+#0,
+            DW_AT_name,DW_FORM_string,symname(sym, false),
           { The DW_AT_declaration tag is invalid according to the DWARF specifications.
             But gcc adds this to static const members and gdb checks
             for this flag. So we have to set it also.
@@ -3095,7 +3101,7 @@ implementation
             ])
         else
           append_entry(DW_TAG_variable,false,[
-            DW_AT_name,DW_FORM_string,symname(sym, false)+#0
+            DW_AT_name,DW_FORM_string,symname(sym, false)
             ]);
         { for string constants, constdef isn't set because they have no real type }
         case sym.consttyp of
@@ -3345,7 +3351,7 @@ implementation
         end;
 
         append_entry(DW_TAG_variable,false,[
-          DW_AT_name,DW_FORM_string,symname(sym, false)+#0,
+          DW_AT_name,DW_FORM_string,symname(sym, false),
           {
           DW_AT_decl_file,DW_FORM_data1,0,
           DW_AT_decl_line,DW_FORM_data1,
@@ -3533,7 +3539,7 @@ implementation
             linelist.concat(tai_const.create_uleb128bit(ord(DW_LNCT_path)));
             linelist.concat(tai_const.create_uleb128bit(ord(DW_FORM_string)));
             { directory_entry count }
-            linelist.concat(tai_const.create_8bit(dirlist.Count - found_dot_dir + 1));
+            linelist.concat(tai_const.create_uleb128bit(dirlist.Count - found_dot_dir + 1));
             { directory_entry 0 / DWARF-5 needs current dir FIRST }
             linelist.concat(tai_string.create(BSToSlash(FixPath(GetCurrentDir,false))+#0));
           end;
@@ -3547,7 +3553,7 @@ implementation
               Continue;
             { Write without trailing path delimiter and also don't prefix with ./ for current dir (already done while adding to dirlist }
 
-            linelist.concat(tai_string.create(ditem.Name+#0));
+            linelist.concat(tai_string.create(Ansistring(ditem.Name)+#0));
           end;
         if dwarf_version < 5 then
           linelist.concat(tai_const.create_8bit(0));
@@ -3568,7 +3574,7 @@ implementation
             linelist.concat(tai_const.create_uleb128bit(ord(DW_FORM_udata)));
 
             { file count }
-            linelist.concat(tai_const.create_8bit(flist.Count+1));
+            linelist.concat(tai_const.create_uleb128bit(flist.Count+1));
             { file name }
             linelist.concat(tai_string.create(current_module.sourcefiles.get_file(1).name+#0));
             { directory index }
@@ -3584,7 +3590,7 @@ implementation
           begin
             fitem := TFileIndexItem(flist[n]);
             { file name }
-            linelist.concat(tai_string.create(fitem.Name+#0));
+            linelist.concat(tai_string.create(Ansistring(fitem.Name)+#0));
             { directory index }
             linelist.concat(tai_const.create_uleb128bit(fitem.DirIndex));
             { last modification }
@@ -3716,9 +3722,9 @@ implementation
           lang:=DW_LANG_Pascal83;
         { first manadatory compilation unit TAG }
         append_entry(DW_TAG_compile_unit,true,[
-          DW_AT_name,DW_FORM_string,relative_dwarf_path(current_module.sourcefiles.get_file(1).path+current_module.sourcefiles.get_file(1).name)+#0,
-          DW_AT_producer,DW_FORM_string,mooncompiler_identity_string+' '+date_string+#0,
-          DW_AT_comp_dir,DW_FORM_string,BSToSlash(FixPath(GetCurrentDir,false))+#0,
+          DW_AT_name,DW_FORM_string,relative_dwarf_path(current_module.sourcefiles.get_file(1).path+current_module.sourcefiles.get_file(1).name),
+          DW_AT_producer,DW_FORM_string,mooncompiler_identity_string+' '+date_string,
+          DW_AT_comp_dir,DW_FORM_string,BSToSlash(FixPath(GetCurrentDir,false)),
           DW_AT_language,DW_FORM_data1,lang,
           DW_AT_identifier_case,DW_FORM_data1,DW_ID_case_insensitive]);
 
@@ -4210,7 +4216,7 @@ implementation
           file recs. are less than 1k so using data2 is enough }
         if assigned(def.typesym) then
           append_entry(DW_TAG_structure_type,false,[
-           DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+           DW_AT_name,DW_FORM_string,symname(def.typesym, false),
            DW_AT_byte_size,DW_FORM_udata,def.size
           ])
         else
@@ -4226,7 +4232,7 @@ implementation
           replace it with a unsigned type with size 0 (FK)
         }
         append_entry(DW_TAG_base_type,false,[
-          DW_AT_name,DW_FORM_string,'FormalDef'#0,
+          DW_AT_name,DW_FORM_string,'FormalDef',
           DW_AT_encoding,DW_FORM_data1,DW_ATE_unsigned,
           DW_AT_byte_size,DW_FORM_data1,0
         ]);
@@ -4244,7 +4250,7 @@ implementation
           end;
         if assigned(objectname) then
           append_entry(DW_TAG_class_type,true,[
-            DW_AT_name,DW_FORM_string,objectname^+#0,
+            DW_AT_name,DW_FORM_string,objectname^,
             DW_AT_byte_size,DW_FORM_udata,tobjectsymtable(def.symtable).datasize
             ])
         else
@@ -4279,7 +4285,7 @@ implementation
             { vmt field }
             append_entry(DW_TAG_member,false,[
                 DW_AT_artificial,DW_FORM_flag,true,
-                DW_AT_name,DW_FORM_string,'_vptr$'+def.objname^+#0,
+                DW_AT_name,DW_FORM_string,'_vptr$'+def.objname^,
                 DW_AT_data_member_location,DW_FORM_block1,1+lengthuleb128(def.vmt_offset)
             ]);
             current_asmdata.asmlists[al_dwarf_info].concat(tai_const.create_8bit(ord(DW_OP_plus_uconst)));
@@ -4353,7 +4359,7 @@ implementation
 
             if assigned(def.typesym) then
               append_entry(DW_TAG_set_type,false,[
-                DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+                DW_AT_name,DW_FORM_string,symname(def.typesym, false),
                 DW_AT_byte_size,DW_FORM_data2,def.size
                 ])
             else
@@ -4389,7 +4395,7 @@ implementation
             { info of modules that contain set tags                          }
             if assigned(def.typesym) then
               append_entry(DW_TAG_base_type,false,[
-                DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+                DW_AT_name,DW_FORM_string,symname(def.typesym, false),
                 DW_AT_encoding,DW_FORM_data1,DW_ATE_unsigned,
                 DW_AT_byte_size,DW_FORM_data2,def.size
                 ])
@@ -4413,7 +4419,7 @@ implementation
           replace it with a unsigned type with size 0 (FK)
         }
         append_entry(DW_TAG_base_type,false,[
-          DW_AT_name,DW_FORM_string,'FormalDef'#0,
+          DW_AT_name,DW_FORM_string,'FormalDef',
           DW_AT_encoding,DW_FORM_data1,DW_ATE_unsigned,
           DW_AT_byte_size,DW_FORM_data1,0
         ]);
@@ -4457,7 +4463,7 @@ implementation
 
         if assigned(def.typesym) then
           append_entry(DW_TAG_array_type,true,[
-            DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+            DW_AT_name,DW_FORM_string,symname(def.typesym, false),
             DW_AT_byte_stride,DW_FORM_udata,def.elesize,
             DW_AT_data_location,DW_FORM_block1,2
             ])
@@ -4509,7 +4515,7 @@ implementation
           { deref=true -> ansi/unicode/widestring; deref = false -> short/longstring }
           if assigned(def.typesym) then
             append_entry(DW_TAG_array_type,true,[
-              DW_AT_name,DW_FORM_string,name+#0,
+              DW_AT_name,DW_FORM_string,name,
               DW_AT_data_location,DW_FORM_block1,2+ord(not(deref))
               ])
           else
@@ -4646,7 +4652,7 @@ implementation
       begin
         if assigned(def.typesym) then
           append_entry(DW_TAG_file_type,false,[
-            DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0,
+            DW_AT_name,DW_FORM_string,symname(def.typesym, false),
             DW_AT_byte_size,DW_FORM_data2,def.size
             ])
         else
@@ -4696,7 +4702,7 @@ implementation
         begin
           if assigned(def.objname) then
             append_entry(tag,has_children,[
-              DW_AT_name,DW_FORM_string,def.objrealname^+#0
+              DW_AT_name,DW_FORM_string,def.objrealname^
               ])
           else
             append_entry(DW_TAG_structure_type,has_children,[]);
@@ -4829,7 +4835,7 @@ implementation
         { ??? can a undefined def have a typename ? }
         if assigned(def.typesym) then
           append_entry(DW_TAG_unspecified_type,false,[
-            DW_AT_name,DW_FORM_string,symname(def.typesym, false)+#0
+            DW_AT_name,DW_FORM_string,symname(def.typesym, false)
             ])
         else
           append_entry(DW_TAG_unspecified_type,false,[
@@ -4883,7 +4889,7 @@ implementation
 
         { struct }
         append_entry(DW_TAG_structure_type,true,[
-          DW_AT_name,DW_FORM_string,'Variant'#0,
+          DW_AT_name,DW_FORM_string,'Variant',
           DW_AT_byte_size,DW_FORM_udata,vardatadef.size
           ]);
         finish_entry;

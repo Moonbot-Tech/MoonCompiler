@@ -115,9 +115,11 @@ def main():
     fullconfig = fullconfig.replace('-k--compress-debug-sections=zlib', '')
     fullcfg = out/'full.cfg'
     fullcfg.write_text(fullconfig, encoding='utf-8')
+    releasecfg = out/'release.cfg'
+    releasecfg.write_text(config, encoding='utf-8')
 
-    def run(argv, cwd, log):
-        p = subprocess.run([str(x) for x in argv], cwd=cwd, capture_output=True, timeout=120)
+    def run(argv, cwd, log, timeout=120):
+        p = subprocess.run([str(x) for x in argv], cwd=cwd, capture_output=True, timeout=timeout)
         log.write_bytes(p.stdout+p.stderr)
         assert p.returncode == 0, (argv, p.returncode, (p.stdout+p.stderr)[-3000:].decode(errors='replace'))
         return p.stdout
@@ -233,6 +235,12 @@ def main():
             parts = line.split('|')
             assert name in parts[1] and int(parts[3]) > 0, (mode,line)
         assert 'LOOKUP_PASS' in runtime
+
+    # Catch boundary names and DWARF5 ULEB counts in the installed compiler.
+    run([sys.executable,Path(__file__).with_name('release_metadata_regression.py'),
+         '--compiler',compiler,'--config',releasecfg,'--fullconfig',fullcfg,
+         '--objdump',objdump,'--results',out/'name-boundaries','--root',root],
+        out,out/'name-boundaries.log',timeout=600)
 
     # Automatic directories must not reuse old full-DWARF Release PPUs.
     cache = out/'cache'
