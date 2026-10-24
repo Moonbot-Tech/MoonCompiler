@@ -27,6 +27,8 @@ when deploying it; stripping them leaves only addresses in the report.
 
 On Linux x86-64, the public `CaptureBacktrace` routine also works in optimized
 code without frame pointers, using the unwinder already needed for exceptions.
+The x86-64 frame rules also track stack restoration between epilogue instructions,
+so a Linux thread sample at MOV/POP/LEAVE boundaries retains its callers.
 Frames need valid unwind metadata. Loaded module lookup continues to resolve
 relative executable/library names after a working-directory change; symbols
 still require the corresponding image and its debug information to be available.
@@ -169,6 +171,17 @@ The reporter reads these tables from the exact executable that failed;
 no adjacent map, PPU, source file or postprocessor is needed. The reporting
 gate also checks names with only the executable deployed. Keep that executable
 for each released version and do not strip its DWARF sections.
+
+For compact Release builds, the compiler also removes redundant method and line
+descriptions after linking. It combines records only when their names, address
+ranges and complete source-line information agree. Diagnostic ranges follow the
+actual selected copy of a shared generic method. Full Debug and unsupported
+mixed debug formats retain their original tables.
+
+This build step uses the SDK's `mccompact` helper and `objcopy`; no extra tool is
+needed on the deployed machine. Keep the helper beside its compiler when moving
+an SDK. The transformation preserves executable code, runtime RTTI and unwind
+sections and runs before signing or calculating application integrity hashes.
 
 External libraries without accessible symbols remain raw addresses. Optimized
 inline frames and local variables are not reconstructed. The metadata enlarges

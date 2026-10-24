@@ -2118,7 +2118,8 @@ implementation
         end;
 
       var
-        procendlabel   : tasmlabel;
+        procstartlabel, procendlabel : tasmlabel;
+        procstartsym   : tasmsymbol;
         procentry      : ansistring;
         s              : ansistring;
         cc             : Tdwarf_calling_convention;
@@ -2271,16 +2272,26 @@ implementation
             else
               procentry := def.mangledname;
 
+            if target_info.system in [system_x86_64_linux,system_x86_64_win64] then
+              begin
+                { Both boundaries belong to the same physical COMDAT copy. }
+                current_asmdata.getlabel(procstartlabel,alt_dbgtype);
+                current_asmdata.asmlists[al_procedures].insertafter(tai_label.create(procstartlabel),def.procstarttai);
+                procstartsym:=procstartlabel;
+              end
+            else
+              procstartsym:=current_asmdata.RefAsmSymbol(procentry,AT_FUNCTION);
+
 {$ifdef i8086}
             append_seg_name(procentry);
 {$endif i8086}
-            append_labelentry(DW_AT_low_pc,current_asmdata.RefAsmSymbol(procentry,AT_FUNCTION));
+            append_labelentry(DW_AT_low_pc,procstartsym);
             append_labelentry(DW_AT_high_pc,procendlabel);
 
             if not(target_info.system in systems_darwin) then
               begin
                 current_asmdata.asmlists[al_dwarf_aranges].Concat(
-                  tai_const.create_type_sym(aitconst_ptr_unaligned,current_asmdata.RefAsmSymbol(procentry,AT_FUNCTION)));
+                  tai_const.create_type_sym(aitconst_ptr_unaligned,procstartsym));
 {$ifdef i8086}
                 { bits 16..31 of the offset }
                 current_asmdata.asmlists[al_dwarf_aranges].concat(tai_const.Create_16bit_unaligned(0));
@@ -2288,7 +2299,7 @@ implementation
                 current_asmdata.asmlists[al_dwarf_aranges].concat(tai_const.Create_seg_name(procentry));
 {$endif i8086}
                 current_asmdata.asmlists[al_dwarf_aranges].Concat(
-                  tai_const.Create_rel_sym(aitconst_ptr_unaligned,current_asmdata.RefAsmSymbol(procentry,AT_FUNCTION),procendlabel));
+                  tai_const.Create_rel_sym(aitconst_ptr_unaligned,procstartsym,procendlabel));
 {$ifdef i8086}
                 { bits 16..31 of length }
                 current_asmdata.asmlists[al_dwarf_aranges].concat(tai_const.Create_16bit_unaligned(0));
@@ -3626,7 +3637,12 @@ implementation
         vardatatype: ttypesym;
         bind: tasmsymbind;
         lang: tdwarf_source_language;
+        compact_marker: ansistring;
       begin
+        compact_marker:='';
+        if (ds_dwarf_line_tables_only in current_settings.debugswitches) and
+           (target_info.system in [system_x86_64_linux,system_x86_64_win64]) then
+          compact_marker:=' [MCcompact1]';
         include(current_module.moduleflags,mf_has_dwarf_debuginfo);
         storefilepos:=current_filepos;
         current_filepos:=current_module.mainfilepos;
@@ -3723,7 +3739,7 @@ implementation
         { first manadatory compilation unit TAG }
         append_entry(DW_TAG_compile_unit,true,[
           DW_AT_name,DW_FORM_string,relative_dwarf_path(current_module.sourcefiles.get_file(1).path+current_module.sourcefiles.get_file(1).name),
-          DW_AT_producer,DW_FORM_string,mooncompiler_identity_string+' '+date_string,
+          DW_AT_producer,DW_FORM_string,mooncompiler_identity_string+' '+date_string+compact_marker,
           DW_AT_comp_dir,DW_FORM_string,BSToSlash(FixPath(GetCurrentDir,false)),
           DW_AT_language,DW_FORM_data1,lang,
           DW_AT_identifier_case,DW_FORM_data1,DW_ID_case_insensitive]);

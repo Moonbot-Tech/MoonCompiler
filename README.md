@@ -245,6 +245,9 @@ For the full catalogue of symptoms, causes, and regression tests, see
 Generic classes and records shared by independent units retain one copy of their
 methods, class tables and RTTI. This reduces executable size without removing
 reflection or report information; see [Generic Sharing](doc/GENERIC_SHARING.md).
+Immutable RTTI names and parameter-location descriptions are also shared across
+units. Compact Release links remove equivalent diagnostic records, and Linux
+uses smaller unwind encodings without removing frame descriptions.
 
 `inline; forward;` is accepted, and a unit's own `{$MODE Delphi}` is a no-op
 under the product profile instead of a reset of the driver's switches. A

@@ -2746,7 +2746,8 @@ type
                  { add the library of directly used packages }
                  add_package_libs(linker);
                  { and now link the package library }
-                 linker.MakeSharedLibrary
+                 linker.MakeSharedLibrary;
+                 CompactDwarfExecutable(curr.sharedlibfilename);
                end;
 
              { Give Fatal with error count for linker errors }
@@ -2822,6 +2823,10 @@ type
               linker.MakeSharedLibrary
             else
               linker.MakeExecutable;
+            if curr.islibrary then
+              CompactDwarfExecutable(curr.sharedlibfilename)
+            else
+              CompactDwarfExecutable(curr.exefilename);
 
             { collect all necessary information for whole-program optimization }
             wpoinfomanager.extractwpoinfofromprogram;

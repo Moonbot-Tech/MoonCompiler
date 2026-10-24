@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'qualification/suite/scripts'))
 from run_dwarf_sections_gate import sections
 from rtl_profile_gate import without_debug
+from compact_helper_gate import verify_helper
 from elf_link_bindings import check as check_link_bindings
 
 
@@ -92,6 +93,8 @@ def main():
     args = ap.parse_args()
     root, tc, out = (p.resolve() for p in (args.root, args.toolchain, args.results))
     out.mkdir(parents=True, exist_ok=False)
+    helper_evidence = verify_helper(tc)
+    (out/'compact-helper.json').write_text(json.dumps(helper_evidence, indent=2))
     win = os.name == 'nt'
     bindir = tc/('bin/x86_64-win64' if win else 'bin')
     compiler = bindir/('ppcx64.exe' if win else 'ppcx64')
@@ -259,6 +262,24 @@ def main():
     assert original == hashlib.sha256((old/'cacheunit.o').read_bytes()).hexdigest()
     run([compiler,source],cache,cache/'debug.log')
     assert (cache/'units'/target/'debug'/'cacheunit.ppu').is_file()
+    run([sys.executable, Path(__file__).with_name('compact_dwarf_gate.py'),
+         '--root', root, '--compiler', compiler, '--config', releasecfg,
+         '--objdump', objdump, '--results', out/'compact-dwarf'],
+        out, out/'compact-dwarf.log', timeout=600)
+    run([sys.executable, Path(__file__).with_name('immutable_rtti_pool_gate.py'),
+         '--compiler', compiler, '--config', releasecfg, '--output', out/'immutable-rtti',
+         '--expect-pooling', '--mormot-consumer', *(['--external-assembler'] if not win else [])],
+        out, out/'immutable-rtti.log', timeout=600)
+    if not win:
+        run([sys.executable, Path(__file__).with_name('unwind_encoding_gate.py'),
+             '--compiler', compiler, '--config', releasecfg, '--root', root,
+             '--results', out/'unwind-encoding'], out, out/'unwind-encoding.log', timeout=300)
+    crosschecks = root/'qualification/metadata-crosscheck'
+    run([sys.executable, crosschecks/'invoke_corpus_gate.py', '--compiler', compiler,
+         '--reports', '--results', out/'invoke-reports'], out, out/'invoke-reports.log', timeout=600)
+    if not win:
+        run([sys.executable, crosschecks/'unwind_traps_gate.py', '--compiler', compiler,
+             '--results', out/'unwind-instruction-pcs'], out, out/'unwind-instruction-pcs.log', timeout=300)
     (out/'summary.json').write_text(json.dumps(rows,indent=2),encoding='utf-8')
     print('RELEASE_METADATA_GATE_PASS',len(rows),'runtime cases; SDK metadata, stripping, compression, cache separation')
 

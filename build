@@ -127,6 +127,8 @@ build_developer_backend() {
   mkdir -p "$new_backend/bin/x86_64-linux"
   published="$new_backend/bin/x86_64-linux/ppcx64"
   cp "$candidate" "$published"
+  "$parent" -n "@$config" -O2 -dMOONCOMPILER_VANILLA_RUNTIME \
+    -FE"$new_backend/bin/x86_64-linux" "$ROOT/utils/mccompact/mccompact.pas"
   {
     echo 'format=1'
     echo 'platform=x86_64-linux'
@@ -136,6 +138,7 @@ build_developer_backend() {
     echo "compiler_source_sha256=$source_fingerprint"
     echo "parent_backend_sha256=$(sha256sum "$parent" | cut -d' ' -f1)"
     echo "parent_config_sha256=$(sha256sum "$config" | cut -d' ' -f1)"
+    echo "compact_helper_sha256=$(sha256sum "$new_backend/bin/x86_64-linux/mccompact" | cut -d' ' -f1)"
     echo "backend_sha256=$(sha256sum "$published" | cut -d' ' -f1)"
     echo "built_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   } > "$new_backend/provenance.txt"
@@ -251,6 +254,12 @@ build_compiler() {
     exit 1
   }
 
+  # Build the host helper against the still-vanilla SDK before either product
+  # profile. Bootstrap itself does not request compact DWARF, so has no helper dependency.
+  "$target_compiler" -n -O2 -dMOONCOMPILER_VANILLA_RUNTIME \
+    -Fu"$new_toolchain/lib/fpc/$version_dir/units/x86_64-linux/*" \
+    -FE"$new_toolchain/lib/fpc/$version_dir" "$ROOT/utils/mccompact/mccompact.pas"
+
   # Preserve the ordinary FPC ABI before the product Unicode RTL replaces
   # the installed units. Lazarus, LCL and compiler tools use this profile.
   cp -a "$new_toolchain" "$ide_profile"
@@ -289,6 +298,7 @@ build_compiler() {
     else
       echo 'placement_draft=0'
     fi
+    echo "compact_helper_sha256=$(sha256sum "$new_toolchain/lib/fpc/$version_dir/mccompact" | cut -d' ' -f1)"
     echo "compiler_sha256=$(sha256sum "$target_compiler" | cut -d' ' -f1)"
     echo "sysutils_o_sha256=$(sha256sum "$new_toolchain/lib/fpc/$version_dir/units/x86_64-linux/rtl/sysutils.o" | cut -d' ' -f1)"
     echo "generics_hashes_o_sha256=$(sha256sum "$new_toolchain/lib/fpc/$version_dir/units/x86_64-linux/rtl-generics/generics.hashes.o" | cut -d' ' -f1)"
@@ -310,6 +320,7 @@ build_compiler() {
   # from /proc/self/exe, so whichever path starts the compiler, $FPCBINDIR
   # is bin/, the automatic <bin>/../etc/fpc.cfg lookup works and every
   # relative path in the configurations resolves.
+  mv "$new_toolchain/lib/fpc/$version_dir/mccompact" "$new_toolchain/bin/mccompact"
   mv "$new_toolchain/lib/fpc/$version_dir/ppcx64" "$new_toolchain/bin/ppcx64"
   ln -s "../../../bin/ppcx64" "$new_toolchain/lib/fpc/$version_dir/ppcx64"
 
@@ -415,6 +426,7 @@ build_compiler() {
   # IDE profile: rendered from template with vanilla-runtime define.
   # same layout for the IDE profile (copied above with the real file in lib/)
   rm -f "$ide_profile/bin/ppcx64"
+  mv "$ide_profile/lib/fpc/$version_dir/mccompact" "$ide_profile/bin/mccompact"
   mv "$ide_profile/lib/fpc/$version_dir/ppcx64" "$ide_profile/bin/ppcx64"
   ln -s "../../../bin/ppcx64" "$ide_profile/lib/fpc/$version_dir/ppcx64"
   mkdir -p "$ide_profile/etc"
@@ -489,7 +501,9 @@ install_toolchain() {
   tar -xzf "$archive" --no-same-owner --no-same-permissions \
     -C "$new_toolchain"
 
-  [[ -x "$new_toolchain/bin/fpc" &&
+  [[ -x "$new_toolchain/bin/mccompact" &&
+     -x "$new_toolchain/ide/bin/mccompact" &&
+     -x "$new_toolchain/bin/fpc" &&
      -x "$new_toolchain/bin/fpcmkcfg" &&
      -x "$new_toolchain/bin/fpcres" &&
      -x "$new_toolchain/ide/bin/fpc" &&

@@ -18,6 +18,8 @@ import zipfile
 
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT/'qualification/build-driver'))
+from compact_helper_gate import verify_helper
 MM = Path("runtime/mm/mormot.core.fpcx64mm.pas")
 
 
@@ -101,6 +103,7 @@ def consumer_smoke(asset: Path, pin: str, output: Path, steps: list[dict]) -> No
         toolchain = consumer / "toolchain"
         app = consumer / "app"
         stage("unpack", lambda: unpack(asset, toolchain), steps)
+        stage('compact_helper', lambda: verify_helper(toolchain), steps)
         app.mkdir()
         if (consumer / ".git").exists() or (app / ".git").exists():
             raise RuntimeError("consumer smoke unexpectedly contains a checkout")
@@ -156,7 +159,7 @@ def consumer_smoke(asset: Path, pin: str, output: Path, steps: list[dict]) -> No
                     app, output, steps)
                 run(f"{profile}_{name}_run", [str(app / (name + suffix))],
                     app, output, steps, marker)
-        for profile in ("debug", "release"):
+        for profile in ("debug", "release-compact"):
             if not (app / "units" / target / profile).is_dir():
                 raise RuntimeError(f"missing {profile} unit directory")
 

@@ -206,6 +206,12 @@ function Build-Compiler {
       throw 'the Win64 resource compiler was not installed'
     }
 
+    # Host helper uses the installed vanilla RTL, before product ABI replacement.
+    Invoke-Checked $targetCompiler @('-n', "@$config", '-O2',
+      '-dMOONCOMPILER_VANILLA_RUNTIME', "-FE$(Split-Path -Parent $targetCompiler)",
+      (Join-Path $Root 'utils\mccompact\mccompact.pas'))
+    $compactHelper = Join-Path (Split-Path -Parent $targetCompiler) 'mccompact.exe'
+
     # Preserve the ordinary FPC ABI before the product Unicode RTL replaces
     # the installed units.  Lazarus, LCL and compiler tools are built against
     # this profile; product applications continue to use the default profile.
@@ -261,6 +267,7 @@ function Build-Compiler {
       ("release_sysutils_o_sha256=" + (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $newToolchain 'units-release\x86_64-win64\rtl\sysutils.o')).Hash.ToLowerInvariant()),
       ("release_generics_hashes_o_sha256=" + (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $newToolchain 'units-release\x86_64-win64\rtl-generics\generics.hashes.o')).Hash.ToLowerInvariant()),
       ("placement_draft=" + [int]($env:MOONCOMPILER_PLACEMENT -ceq '1' -and [string]::IsNullOrEmpty($env:MOONCOMPILER_NO_PLACEMENT))),
+      ("compact_helper_sha256=" + (Get-FileHash -Algorithm SHA256 -LiteralPath $compactHelper).Hash.ToLowerInvariant()),
       ("compiler_sha256=" + (Get-FileHash -Algorithm SHA256 -LiteralPath $targetCompiler).Hash.ToLowerInvariant()),
       ("sysutils_o_sha256=" + (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $newToolchain 'units\x86_64-win64\rtl\sysutils.o')).Hash.ToLowerInvariant()),
       ("generics_hashes_o_sha256=" + (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $newToolchain 'units\x86_64-win64\rtl-generics\generics.hashes.o')).Hash.ToLowerInvariant()),
@@ -641,6 +648,8 @@ function Build-DeveloperBackend {
     New-Item -ItemType Directory -Force -Path $bin | Out-Null
     $published = Join-Path $bin 'ppcx64.exe'
     Copy-Item -LiteralPath $candidate -Destination $published
+    Invoke-Checked $parent @('-n', "@$config", '-O2', '-dMOONCOMPILER_VANILLA_RUNTIME',
+      "-FE$bin", (Join-Path $Root 'utils\mccompact\mccompact.pas'))
     $provenance = @(
       'format=1',
       'platform=x86_64-win64',
@@ -650,6 +659,7 @@ function Build-DeveloperBackend {
       "compiler_source_sha256=$sourceFingerprint",
       "parent_backend_sha256=$((Get-FileHash $parent -Algorithm SHA256).Hash.ToLowerInvariant())",
       "parent_config_sha256=$((Get-FileHash $config -Algorithm SHA256).Hash.ToLowerInvariant())",
+      "compact_helper_sha256=$((Get-FileHash (Join-Path $bin 'mccompact.exe') -Algorithm SHA256).Hash.ToLowerInvariant())",
       "backend_sha256=$((Get-FileHash $published -Algorithm SHA256).Hash.ToLowerInvariant())",
       "built_at_utc=$([DateTime]::UtcNow.ToString('o'))")
     [IO.File]::WriteAllLines((Join-Path $newBackend 'provenance.txt'),
@@ -722,6 +732,8 @@ function Install-Toolchain([string]$Archive) {
         -not (Test-Path -LiteralPath $fpcres) -or
         -not (Test-Path -LiteralPath $ideFpc) -or
         -not (Test-Path -LiteralPath $ideFpcres) -or
+        -not (Test-Path -LiteralPath (Join-Path $bin 'mccompact.exe')) -or
+        -not (Test-Path -LiteralPath (Join-Path $ideBin 'mccompact.exe')) -or
         -not (Test-Path -LiteralPath $compilerLicense) -or
         -not (Test-Path -LiteralPath $rtlLicense) -or
         -not (Test-Path -LiteralPath $rtlException) -or

@@ -167,6 +167,7 @@ interface
 
     procedure InitLinker;
     procedure DoneLinker;
+    procedure CompactDwarfExecutable(const Filename: TPathStr);
 
 
 Implementation
@@ -2238,6 +2239,58 @@ Implementation
 {*****************************************************************************
                                  Init/Done
 *****************************************************************************}
+
+    procedure CompactDwarfExecutable(const Filename: TPathStr);
+      var
+        Runner: TExternalLinker;
+        Helper, Temporary, Backup: TCmdStr;
+        OwnTemporary: boolean;
+      begin
+        if (Errorcount<>0) or
+           not (ds_dwarf_line_tables_only in current_settings.debugswitches) or
+           not (target_info.system in [system_x86_64_linux,system_x86_64_win64]) or
+           (([cs_link_nolink,cs_link_on_target,cs_link_separate_dbg_file] * current_settings.globalswitches)<>[]) then
+          exit;
+        Runner:=TExternalLinker.Create;
+        OwnTemporary:=false;
+        try
+          Helper:=exepath+'mccompact'+source_info.exeext;
+          if not FileExists(Helper,false) then
+            begin
+              Comment(V_Error,'Compact DWARF helper is missing beside this compiler: '+Helper);
+              exit;
+            end;
+          Temporary:=Filename+'.mccompact-new';
+          Backup:=Filename+'.mccompact-original';
+          if FileExists(Temporary,false) or FileExists(Backup,false) then
+            begin
+              Comment(V_Error,'Compact DWARF temporary output already exists');
+              exit;
+            end;
+          OwnTemporary:=true;
+          if not Runner.DoExec(Helper,maybequoted(Filename)+' '+maybequoted(Temporary)+' '+
+            maybequoted(Runner.FindUtil(utilsprefix+'objcopy')),true,false) then
+            exit;
+          if not RenameFile(Filename,Backup) then
+            begin
+              Comment(V_Error,'Cannot preserve original executable before DWARF compaction');
+              exit;
+            end;
+          if not RenameFile(Temporary,Filename) then
+            begin
+              if not RenameFile(Backup,Filename) then
+                Comment(V_Error,'Original executable remains at '+Backup);
+              Comment(V_Error,'Cannot install compact DWARF executable');
+              exit;
+            end;
+          DeleteFile(Backup);
+        finally
+          if OwnTemporary then
+            DeleteFile(Temporary);
+          Runner.Free;
+        end;
+      end;
+
 
     procedure RegisterLinker(id:tlink;c:TLinkerClass);
       begin
