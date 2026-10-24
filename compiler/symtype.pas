@@ -457,6 +457,10 @@ implementation
           mangledparaname:=result+typesym.name
         else
           mangledparaname:=result+getmangledparaname;
+        { A nested generic owner may retain declaration spelling or a PPU's
+          uppercase spelling. Its linker identity must be the same. }
+        if pos('$MGS',result)>0 then
+          result:=upper(result);
       end;
 
 

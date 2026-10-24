@@ -242,6 +242,10 @@ example:
 For the full catalogue of symptoms, causes, and regression tests, see
 [Compiler Fixes](doc/COMPILER_FIXES.md).
 
+Generic classes and records shared by independent units retain one copy of their
+methods, class tables and RTTI. This reduces executable size without removing
+reflection or report information; see [Generic Sharing](doc/GENERIC_SHARING.md).
+
 `inline; forward;` is accepted, and a unit's own `{$MODE Delphi}` is a no-op
 under the product profile instead of a reset of the driver's switches. A
 Delphi Win64 assembler body used on Linux is declared `ms_abi_default` (see

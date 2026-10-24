@@ -1728,8 +1728,10 @@ implementation
         s,
         prefix : TSymStr;
         hash : qword;
+        canonical : boolean;
       begin
         prefix:='';
+        canonical:=pos('$mgs',lower(suffix))>0;
         if not assigned(st) then
          internalerror(200204212);
         repeat
@@ -1772,6 +1774,7 @@ implementation
                  hash:=UpdateFnv64(hash,prefix[1],length(prefix));
                  prefix:='$H'+Base64Mangle(hash);
                end;
+             canonical:=canonical or (pos('$MGS',tabstractrecorddef(st.defowner).objname^)>0);
              prefix:=tabstractrecorddef(st.defowner).objname^+'_$_'+prefix;
              st:=st.defowner.owner;
            end;
@@ -1802,7 +1805,10 @@ implementation
           result:=result+typeprefix+'_$';
         { Add P$ for program, which can have the same name as
           a unit }
-        if (TSymtable(main_module.localsymtable)=st) and
+        { DWARF type labels belong to the defining compilation unit. }
+        if canonical and (copy(typeprefix,1,3)<>'DBG') then
+          result:=result+'$MGS'
+        else if (TSymtable(main_module.localsymtable)=st) and
            (not main_module.is_unit) then
           result:=result+'P$'+st.name^
         else
@@ -2295,8 +2301,45 @@ implementation
 
 
     function tstoreddef.rtti_mangledname(rt : trttitype) : TSymStr;
+      function anonymous_field_key(def:tdef):ansistring;
+        var
+          i:longint;
+          sym:tsym;
+          parent:tdef;
+        begin
+          result:='';
+          if assigned(def.typesym) then
+            begin
+              result:=make_mangledname('',def.typesym.owner,def.typesym.name);
+              if pos('$MGS',result)=0 then result:='';
+              exit;
+            end;
+          if not assigned(def.owner) or not assigned(def.owner.defowner) then
+            exit;
+          parent:=tdef(def.owner.defowner);
+          if def.owner.symtabletype=arraysymtable then
+            begin
+              if tarraydef(parent).elementdef<>def then exit;
+              result:=anonymous_field_key(parent);
+              if result<>'' then result:=result+'$ELEMENT';
+            end
+          else if def.owner.symtabletype in [objectsymtable,recordsymtable] then
+            for i:=0 to def.owner.SymList.count-1 do
+              begin
+                sym:=tsym(def.owner.SymList[i]);
+                if (sym.typ=fieldvarsym) and (tfieldvarsym(sym).vardef=def) then
+                  begin
+                    result:=anonymous_field_key(parent);
+                    if result<>'' then result:=result+'$FIELD$'+sym.name;
+                    exit;
+                  end;
+              end;
+        end;
       var
         prefix : string[4];
+        rttiname : TSymStr;
+        fieldkey : ansistring;
+        fieldhash : qword;
       begin
         if (rt=fullrtti) or (not needs_separate_initrtti) then
           begin
@@ -2308,11 +2351,26 @@ implementation
             prefix:='INIT';
             include(defstates,ds_init_table_used);
           end;
-        if assigned(typesym) and
-           (owner.symtabletype in [staticsymtable,globalsymtable]) then
-          result:=make_mangledname(prefix,typesym.owner,typesym.name)
+        if assigned(typesym) then
+          begin
+            rttiname:=make_mangledname(prefix,typesym.owner,typesym.name);
+            { Named types inside a shared specialization must share their RTTI
+              with references from the owner's fields and method signatures. }
+            if (owner.symtabletype in [staticsymtable,globalsymtable]) or (pos('$MGS',rttiname)>0) then
+              exit(rttiname);
+          end
         else
-          result:=make_mangledname(prefix,findunitsymtable(owner),'def'+unique_id_str)
+          begin
+            { Anonymous field types use their declaration path, which remains
+              stable across consumers and PPU reloads without merging siblings. }
+            fieldkey:=anonymous_field_key(self);
+            if fieldkey<>'' then
+              begin
+                fieldhash:=UpdateFnv64(InitFnv64,fieldkey[1],length(fieldkey));
+                exit(make_mangledname(prefix,findunitsymtable(owner),'ANON$MGS'+hexstr(fieldhash,16)));
+              end;
+          end;
+        result:=make_mangledname(prefix,findunitsymtable(owner),'def'+unique_id_str)
       end;
 
 

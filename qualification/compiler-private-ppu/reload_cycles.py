@@ -70,7 +70,7 @@ def check_reload_cycles(command, output, run):
             source.write_text(SOURCE.replace('MODE', mode).replace('VALUE', str(value))
                               .replace('EXTRA', EXTRA if mode == 'unleashed' else ''))
             os.utime(source, (1700000000+4*phase, 1700000000+4*phase))
-            main = case / 'main.dpr'
+            main = case / f'main_{phase}.dpr'
             main.write_text('program main; uses {$ifdef unix}cthreads,{$endif}cycle_a,cycle_b; begin '
                             f'if Exercise<>{value} then Halt(20); WriteLn("CYCLE_OK"); end.'.replace('"', "'"))
             log = run(options+[str(main)], case, case/f'{phase}-build.log')
@@ -80,6 +80,8 @@ def check_reload_cycles(command, output, run):
             executable = main.with_suffix('.exe' if os.name == 'nt' else '')
             assert run([str(executable)], case, case/f'{phase}-run.log').strip() == 'CYCLE_OK'
             # A genuinely unchanged PPU-only consumer must remain usable too.
-            warm = run(options+[str(main)], case, case/f'{phase}-warm.log')
+            # Keep the PPU graph unchanged without overwriting a just-run Windows image.
+            warm_executable = case / ('warm_' + executable.name)
+            warm = run(options+['-o'+str(warm_executable),str(main)], case, case/f'{phase}-warm.log')
             assert 'parsing interface of unit cycle_' not in warm.lower(), 'Warm consumer rebuilt a fixture unit'
-            assert run([str(executable)], case, case/f'{phase}-warm-run.log').strip() == 'CYCLE_OK'
+            assert run([str(warm_executable)], case, case/f'{phase}-warm-run.log').strip() == 'CYCLE_OK'

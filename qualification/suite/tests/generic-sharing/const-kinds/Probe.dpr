@@ -1,0 +1,43 @@
+program Probe;
+{$mode objfpc}{$H+}
+uses Core,A,B;
+begin
+ Writeln('Bool_SAME=',TClass(A.Bool1)=TClass(B.Bool1));
+ Writeln('Bool_OUTER_SAME=',TClass(A.BoolOuter)=TClass(B.BoolOuter));
+ Writeln('Bool_DISTINCT=',TClass(A.Bool1)<>TClass(A.Bool2));
+ Writeln('Bool_VALUES=',Ord(A.Bool1.Value),'/',Ord(A.Bool2.Value),'/',Ord(B.Bool1.Value),'/',Ord(B.Bool2.Value));
+ Writeln('Int_SAME=',TClass(A.Int1)=TClass(B.Int1));
+ Writeln('Int_OUTER_SAME=',TClass(A.IntOuter)=TClass(B.IntOuter));
+ Writeln('Int_DISTINCT=',TClass(A.Int1)<>TClass(A.Int2));
+ Writeln('Int_VALUES=',A.Int1.Value,'/',A.Int2.Value,'/',B.Int1.Value,'/',B.Int2.Value);
+ Writeln('QWord_SAME=',TClass(A.QWord1)=TClass(B.QWord1));
+ Writeln('QWord_OUTER_SAME=',TClass(A.QWordOuter)=TClass(B.QWordOuter));
+ Writeln('QWord_DISTINCT=',TClass(A.QWord1)<>TClass(A.QWord2));
+ Writeln('QWord_VALUES=',A.QWord1.Value,'/',A.QWord2.Value,'/',B.QWord1.Value,'/',B.QWord2.Value);
+ Writeln('WideInt_SAME=',TClass(A.WideInt1)=TClass(B.WideInt1));
+ Writeln('WideInt_OUTER_SAME=',TClass(A.WideIntOuter)=TClass(B.WideIntOuter));
+ Writeln('WideInt_DISTINCT=',TClass(A.WideInt1)<>TClass(A.WideInt2));
+ Writeln('WideInt_VALUES=',Ord(A.WideInt1.Value=(UInt128(1) shl 64)),'/',Ord(A.WideInt2.Value=(UInt128(1) shl 64)),'/',Ord(B.WideInt1.Value=(UInt128(1) shl 64)),'/',Ord(B.WideInt2.Value=(UInt128(1) shl 64)));
+ Writeln('Enum_SAME=',TClass(A.Enum1)=TClass(B.Enum1));
+ Writeln('Enum_OUTER_SAME=',TClass(A.EnumOuter)=TClass(B.EnumOuter));
+ Writeln('Enum_DISTINCT=',TClass(A.Enum1)<>TClass(A.Enum2));
+ Writeln('Enum_VALUES=',Ord(A.Enum1.Value),'/',Ord(A.Enum2.Value),'/',Ord(B.Enum1.Value),'/',Ord(B.Enum2.Value));
+ Writeln('Char_SAME=',TClass(A.Char1)=TClass(B.Char1));
+ Writeln('Char_OUTER_SAME=',TClass(A.CharOuter)=TClass(B.CharOuter));
+ Writeln('Char_DISTINCT=',TClass(A.Char1)<>TClass(A.Char2));
+ Writeln('Char_VALUES=',Ord(A.Char1.Value),'/',Ord(A.Char2.Value),'/',Ord(B.Char1.Value),'/',Ord(B.Char2.Value));
+ Writeln('Text_SAME=',TClass(A.Text1)=TClass(B.Text1));
+ Writeln('Text_OUTER_SAME=',TClass(A.TextOuter)=TClass(B.TextOuter));
+ Writeln('Text_DISTINCT=',TClass(A.Text1)<>TClass(A.Text2));
+ Writeln('Text_VALUES=',A.Text1.Value,'/',A.Text2.Value,'/',B.Text1.Value,'/',B.Text2.Value);
+ Writeln('Unicode_SAME=',TClass(A.Unicode1)=TClass(B.Unicode1));
+ Writeln('Unicode_OUTER_SAME=',TClass(A.UnicodeOuter)=TClass(B.UnicodeOuter));
+ Writeln('Unicode_DISTINCT=',TClass(A.Unicode1)<>TClass(A.Unicode2));
+ Writeln('Unicode_VALUES=',Ord(A.Unicode1.Value[1]),'/',Ord(A.Unicode2.Value[1]),'/',Ord(B.Unicode1.Value[1]),'/',Ord(B.Unicode2.Value[1]));
+ Writeln('Nil_SAME=',TClass(A.Nil1)=TClass(B.Nil1));
+ Writeln('Nil_OUTER_SAME=',TClass(A.NilOuter)=TClass(B.NilOuter));
+ Writeln('Nil_DISTINCT=',TClass(A.Nil1)<>TClass(A.Nil2));
+ Writeln('Nil_VALUES=',Ord(A.Nil1.Value=nil),'/',Ord(A.Nil2.Value=nil),'/',Ord(B.Nil1.Value=nil),'/',Ord(B.Nil2.Value=nil));
+ Writeln('UNICODE_FULL_DISTINCT=',A.Unicode1.Value<>A.Unicode2.Value);
+ Writeln('UNICODE_FULL_SAME=',A.Unicode1.Value=B.Unicode1.Value);
+end.

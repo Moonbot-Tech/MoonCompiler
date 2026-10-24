@@ -194,6 +194,12 @@ begin
     exit;
 
   FXdataSec:=objdata.createsection('.xdata.n_'+lower(FName^),4,[oso_data,oso_load]);
+  if oso_comdat in FFrameStartSec.SecOptions then
+    begin
+      FXdataSec.SecOptions:=FXdataSec.SecOptions+[oso_comdat];
+      FXdataSec.ComdatSelection:=oscs_associative;
+      FXdataSec.AssociativeSection:=FFrameStartSec;
+    end;
   FXdataSym:=objdata.symboldefine('$unwind$'+FName^,AB_GLOBAL,AT_DATA);
   uwdata[0]:=(FFlags shl 3) or 1;
   uwdata[1]:=FPrologueEndPos-FFrameStartSym.address;
@@ -287,6 +293,12 @@ begin
   if not codegenerror then
     begin
       pdatasec:=objdata.createsection(sec_pdata,lower(FName^));
+      if oso_comdat in FFrameStartSec.SecOptions then
+        begin
+          pdatasec.SecOptions:=pdatasec.SecOptions+[oso_comdat];
+          pdatasec.ComdatSelection:=oscs_associative;
+          pdatasec.AssociativeSection:=FFrameStartSec;
+        end;
       objdata.writereloc(0,4,FFrameStartSym,RELOC_RVA);
       objdata.writereloc(FFrameStartSec.Size,4,FFrameStartSym,RELOC_RVA);
       objdata.writereloc(0,4,FXdataSym,RELOC_RVA);

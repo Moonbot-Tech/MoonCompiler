@@ -72,7 +72,7 @@ end.
                     previous = sources
                     units = 'generic_b, source_d, source_a' if reverse_uses else 'source_a, source_d, generic_b'
                     expected = a + d + offset + bonus + (16 if layout else 4)
-                    main = case/'main.dpr'
+                    main = case/f'main_{phase}.dpr'
                     main.write_text(f'''program main;
 {{$mode {mode}}}
 uses {units};
@@ -91,6 +91,8 @@ end.
                     run(options+[str(main)], case, case/f'{phase}-build.log')
                     executable = main.with_suffix('.exe' if os.name == 'nt' else '')
                     assert run([str(executable)], case, case/f'{phase}-run.log').strip() == 'INDIRECT_CYCLE_OK'
-                    warm = run(options+[str(main)], case, case/f'{phase}-warm.log').lower()
+                    # Match the helper-cycle gate: fresh images, the same incremental PPUs.
+                    warm_executable = case / ('warm_' + executable.name)
+                    warm = run(options+['-o'+str(warm_executable),str(main)], case, case/f'{phase}-warm.log').lower()
                     assert not any('parsing interface of unit '+name in warm for name in sources), 'Unchanged source rebuilt'
-                    assert run([str(executable)], case, case/f'{phase}-warm-run.log').strip() == 'INDIRECT_CYCLE_OK'
+                    assert run([str(warm_executable)], case, case/f'{phase}-warm-run.log').strip() == 'INDIRECT_CYCLE_OK'

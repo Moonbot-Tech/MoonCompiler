@@ -350,6 +350,102 @@ implementation
     end;
 
 
+  function shared_specialization(def:tdef):boolean;
+    begin
+      result:=false;
+      while assigned(def) do
+        begin
+          if (def.typ in [objectdef,recorddef]) and (pos('$MGS',tabstractrecorddef(def).objname^)>0) then
+            exit(true);
+          if assigned(def.owner) then def:=tdef(def.owner.defowner) else def:=nil;
+        end;
+    end;
+
+  function shared_lifetime_counter(def:tabstractrecorddef):tstaticvarsym;
+    var
+      name:TSymStr;
+    begin
+      name:=make_mangledname('LIFETIMES',def.symtable,'');
+      result:=tstaticvarsym(current_module.localsymtable.find(name));
+      if not assigned(result) then
+        begin
+          result:=cstaticvarsym.create('$'+name,vs_value,s64inttype,[vo_is_public,vo_is_internal]);
+          result.varregable:=vr_none;
+          include(result.symoptions,sp_internal);
+          result.varstate:=vs_initialised;
+          result.register_sym;
+          current_module.localsymtable.insertsym(result);
+          cnodeutils.insertbssdata(result);
+        end;
+    end;
+
+  function shared_lifetime_guard(def:tabstractrecorddef;body:tnode):tnode;
+    var
+      counter:tstaticvarsym;
+      expected:longint;
+    begin
+      if not shared_specialization(def) then
+        exit(body);
+      counter:=shared_lifetime_counter(def);
+      if current_procinfo.procdef.proctypeoption=potype_unitinit then expected:=0 else expected:=1;
+      result:=cifnode.create(caddnode.create(equaln,
+        cloadnode.create(counter,counter.owner),cordconstnode.create(expected,s64inttype,false)),body,nil);
+    end;
+
+  function shared_static_owner(sym:tsym):tabstractrecorddef;
+    begin
+      result:=nil;
+      if (sym.typ=staticvarsym) and assigned(tstaticvarsym(sym).fieldvarsym) then
+        result:=tabstractrecorddef(tstaticvarsym(sym).fieldvarsym.owner.defowner);
+    end;
+
+  procedure AddSharedLifetimes(p:TObject;arg:pointer);
+    var
+      def:tabstractrecorddef;
+      i:longint;
+      sym:tsym;
+      needed:boolean;
+    begin
+      if not (tdef(p).typ in [objectdef,recorddef]) or (df_generic in tdef(p).defoptions) then
+        exit;
+      def:=tabstractrecorddef(p);
+      if shared_specialization(def) then
+        begin
+          needed:=[oo_has_class_constructor,oo_has_class_destructor]*def.objectoptions<>[];
+          for i:=0 to def.symtable.SymList.count-1 do
+            begin
+              sym:=tsym(def.symtable.SymList[i]);
+              if (sym.typ=fieldvarsym) and (sp_static in sym.symoptions) and
+                 is_managed_type(tfieldvarsym(sym).vardef) then
+                needed:=true;
+            end;
+          if needed then
+            tfplist(arg).add(def);
+        end;
+      def.symtable.DefList.ForEachCall(@AddSharedLifetimes,arg);
+    end;
+
+  procedure update_shared_lifetimes(m:tmodule;var stat:tstatementnode;entering:boolean);
+    var
+      defs:tfplist;
+      counter:tstaticvarsym;
+      i:longint;
+      delta:longint;
+    begin
+      defs:=tfplist.create;
+      if assigned(m.globalsymtable) then
+        m.globalsymtable.DefList.ForEachCall(@AddSharedLifetimes,defs);
+      m.localsymtable.DefList.ForEachCall(@AddSharedLifetimes,defs);
+      if entering then delta:=1 else delta:=-1;
+      for i:=0 to defs.count-1 do
+        begin
+          counter:=shared_lifetime_counter(tabstractrecorddef(defs[i]));
+          addstatement(stat,cassignmentnode.create(cloadnode.create(counter,counter.owner),
+            caddnode.create(addn,cloadnode.create(counter,counter.owner),cordconstnode.create(delta,s64inttype,true))));
+        end;
+      defs.free;
+    end;
+
   class procedure tnodeutils.sym_maybe_initialize(p: TObject; arg: pointer);
     var
       hp : tnode;
@@ -393,7 +489,7 @@ implementation
           hp:=cloadnode.create(tsym(p),tsym(p).owner);
           { ensure that a function reference is not converted to a call }
           include(hp.flags,nf_load_procvar);
-          addstatement(tstatementnode(arg^),initialize_data_node(hp,false));
+          addstatement(tstatementnode(arg^),shared_lifetime_guard(shared_static_owner(tsym(p)),initialize_data_node(hp,false)));
         end;
     end;
 
@@ -474,7 +570,7 @@ implementation
         include(tloadnode(hp).loadnodeflags,loadnf_isinternal_ignoreconst);
       { ensure that a function reference interface is not converted to a call }
       include(hp.flags,nf_load_procvar);
-      addstatement(stat,finalize_data_node(hp));
+      addstatement(stat,shared_lifetime_guard(shared_static_owner(sym),finalize_data_node(hp)));
     end;
 
 
@@ -512,7 +608,8 @@ implementation
             begin
               { class constructors are private -> ignore visibility checks }
               addstatement(stat,
-                ccallnode.create(nil,tprocsym(pd.procsym),pd.owner,nil,[cnf_ignore_visibility],nil))
+                shared_lifetime_guard(tabstractrecorddef(structlist[i]),
+                  ccallnode.create(nil,tprocsym(pd.procsym),pd.owner,nil,[cnf_ignore_visibility],nil)))
             end;
         end;
       structlist.free;
@@ -570,6 +667,7 @@ implementation
              if assigned(current_module.globalsymtable) then
                TSymtable(current_module.globalsymtable).SymList.ForEachCall(@static_syms_finalize,@stat);
              TSymtable(current_module.localsymtable).SymList.ForEachCall(@static_syms_finalize,@stat);
+             update_shared_lifetimes(current_module,stat,false);
              if assigned(pd.blocklocalsymtables) then
                for blk_i:=0 to pd.blocklocalsymtables.count-1 do
                  TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@local_varsyms_finalize,@stat);
@@ -580,6 +678,7 @@ implementation
              if assigned(pd.blocklocalsymtables) then
                for blk_i:=0 to pd.blocklocalsymtables.count-1 do
                  TSymtable(pd.blocklocalsymtables[blk_i]).SymList.ForEachCall(@local_varsyms_finalize,@stat);
+             update_shared_lifetimes(current_module,stat,true);
            end;
          { program init/final is generated in separate procedure,
            but block-scoped local vars need explicit finalization }

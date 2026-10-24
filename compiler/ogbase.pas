@@ -349,6 +349,7 @@ interface
        { executable linking }
        ExeSection  : TExeSection;
        USed        : Boolean;
+       Discarded   : Boolean; { a different COMDAT instance owns this section }
        VTRefList : TFPObjectList;
        constructor create(AList:TFPHashObjectList;const Aname:string;Aalign:longint;Aoptions:TObjSectionOptions);virtual;
        destructor  destroy;override;
@@ -1664,6 +1665,11 @@ implementation
           begin
             result:=CObjSection.create(FObjSectionList,aname,aalign,aoptions);
             result.ObjData:=self;
+            if DiscardDuplicate and (pos('$mgs',lower(aname))>0) then
+              begin
+                result.SecOptions:=result.SecOptions+[oso_comdat];
+                result.ComdatSelection:=oscs_any;
+              end;
           end;
         FCurrObjSec:=result;
       end;
@@ -2993,7 +2999,7 @@ implementation
 
         procedure LoadObjDataSymbols(ObjData:TObjData);
         var
-          j      : longint;
+          j,k    : longint;
           hs     : string;
           exesym : TExeSymbol;
           tmpsym,
@@ -3038,8 +3044,19 @@ implementation
                     begin
                       if ComdatGroups.Find(grp.name)=nil then
                         ComdatGroups.Add(grp.name,grp)
-                      else
+                      else if TObjSectionGroup(ComdatGroups.Find(grp.name))<>grp then
                         begin
+                          for k:=0 to high(grp.members) do
+                            grp.members[k].Discarded:=true;
+                          { The selected leaf can have no unwind section at all.
+                            A symbol used only inside the discarded association
+                            must not become a new unresolved external. }
+                          if assigned(objsym.objsection.AssociativeSection) and
+                             not assigned(FExeSymbolList.Find(objsym.name)) then
+                            begin
+                              objsym.bind:=AB_LOCAL;
+                              continue;
+                            end;
                           { Undefine the symbol, causing relocations to it from same
                             objdata to be redirected to the symbol in the actually
                             linked group. }
@@ -3830,6 +3847,11 @@ implementation
 
         procedure AddToObjSectionWorkList(aobjsec:TObjSection);
         begin
+          if aobjsec.Discarded then
+            begin
+              Message1(link_e_undefined_symbol,aobjsec.FullName);
+              exit;
+            end;
           if not aobjsec.Used then
             begin
               aobjsec.Used:=true;
@@ -3991,7 +4013,7 @@ implementation
 { TODO: remove debug section always keep}
                 if oso_debug in objsec.secoptions then
                   objsec.Used:=true;
-                if (oso_keep in objsec.secoptions) then
+                if (oso_keep in objsec.secoptions) and not objsec.Discarded then
                   begin
                     AddToObjSectionWorkList(objsec);
                     if objsec.name='.fpc.n_links' then

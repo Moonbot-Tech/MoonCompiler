@@ -176,6 +176,27 @@ implementation
       end;
 
 
+    function generic_rtti_unitname(def:tdef):shortstring;
+      var
+        scope:tdef;
+        module:tmodule;
+      begin
+        result:=current_module.realmodulename^;
+        scope:=def;
+        while assigned(scope) do
+          begin
+            if (scope is tstoreddef) and (df_specialization in scope.defoptions) and
+               assigned(tstoreddef(scope).genericdef) then
+              begin
+                module:=find_module_from_symtable(tstoreddef(scope).genericdef.owner);
+                if assigned(module) then
+                  result:=module.realmodulename^;
+                exit;
+              end;
+            if assigned(scope.owner) then scope:=tdef(scope.owner.defowner) else scope:=nil;
+          end;
+      end;
+
     procedure write_persistent_type_info(st: tsymtable; is_global: boolean);
       var
         i : longint;
@@ -1642,7 +1663,7 @@ implementation
               tcb.emit_shortstring_const(rtti_string(hp.realname,nil,def));
             end;
           { write unit name }
-          tcb.emit_shortstring_const(rtti_string(current_module.realmodulename^));
+          tcb.emit_shortstring_const(rtti_string(generic_rtti_unitname(def)));
           { write zero which is required by RTL }
           tcb.emit_ord_const(0,u8inttype);
           { terminate all records }
@@ -1926,7 +1947,7 @@ implementation
                else
                  tcb.emit_tai(Tai_const.Create_nil_dataptr,voidpointertype);
                { write unit name }
-               tcb.emit_shortstring_const(rtti_string(current_module.realmodulename^));
+               tcb.emit_shortstring_const(rtti_string(generic_rtti_unitname(def)));
              end;
 
           tcb.end_anonymous_record;
@@ -2311,7 +2332,7 @@ implementation
             { write unit name }
 
             maybe_add_comment(tcb, #9'Unit name');
-            tcb.emit_shortstring_const(rtti_string(current_module.realmodulename^));
+            tcb.emit_shortstring_const(rtti_string(generic_rtti_unitname(def)));
 
             { write published properties for this object }
             properties_write_rtti_data(tcb,propnamelist,def.symtable,false,[vis_published]);
@@ -2364,7 +2385,7 @@ implementation
             write_rtti_reference(tcb,def.hiddenclassdef,fullrtti);
 
             { write unit name }
-            tcb.emit_shortstring_const(rtti_string(current_module.realmodulename^));
+            tcb.emit_shortstring_const(rtti_string(generic_rtti_unitname(def)));
 
             tcb.begin_anonymous_record('',defaultpacking,reqalign,
               targetinfos[target_info.system]^.alignment.recordalignmin);

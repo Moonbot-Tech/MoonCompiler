@@ -1,0 +1,1 @@
+unit Base; interface type TScope=class end; implementation end.

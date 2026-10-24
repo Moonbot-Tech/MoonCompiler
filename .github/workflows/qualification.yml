@@ -94,6 +94,8 @@ jobs:
           python3 qualification/compiler-private-ppu/run_ppu_private_crc_gate.py \
             --compiler "$pp" --config "$cfg" \
             --output .qualification/ci-linux-private-ppu
+          python3 qualification/build-driver/generic_sharing_gate.py \
+            --compiler "$pp" --results .qualification/ci-linux-generic-sharing
           python3 qualification/compiler-resource-case/run_gate.py \
             --compiler "$pp" --config "$cfg" \
             --output .qualification/ci-linux-resource-case
@@ -458,6 +460,9 @@ jobs:
             --compiler $Compiler --config $Config `
             --output .\.qualification\ci-win64-private-ppu
           If ($LASTEXITCODE -ne 0) { throw 'Private-PPU gate failed' }
+          python .\qualification\build-driver\generic_sharing_gate.py `
+            --compiler $Compiler --results .\.qualification\ci-win64-generic-sharing
+          If ($LASTEXITCODE -ne 0) { throw 'Generic sharing gate failed' }
           python .\qualification\compiler-resource-case\run_gate.py `
             --compiler $Compiler --config $Config `
             --output .\.qualification\ci-win64-resource-case

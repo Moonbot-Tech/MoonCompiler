@@ -8473,7 +8473,9 @@ function TRttiContext.GetTypes: specialize TArray<TRttiType>;
 var
   I,
   J,
-  TypeCount: SizeInt;
+  TypeCount, UniqueCount: SizeInt;
+  Seen: array of Pointer;
+  Capacity, Mask, Slot, Address: SizeUInt;
   Table: PRttiTypeTable;
   Tables,
   Types: PPointer;
@@ -8502,6 +8504,30 @@ begin
         end;
       Inc(Tables);
     end;
+  if TypeCount=0 then
+    exit;
+  Capacity:=1;
+  while Capacity<SizeUInt(TypeCount)*2 do
+    Capacity:=Capacity shl 1;
+  SetLength(Seen,Capacity);
+  Mask:=Capacity-1;
+  { Shared specializations can occur in several unit catalogs. Keep the
+    first occurrence; direct GetType calls must not populate this catalog. }
+  UniqueCount:=0;
+  for I:=0 to TypeCount-1 do
+    begin
+      Address:=PtrUInt(Result[I]);
+      Slot:=((Address shr 3) xor (Address shr 16)) and Mask;
+      while Assigned(Seen[Slot]) and (Seen[Slot]<>Pointer(Result[I])) do
+        Slot:=(Slot+1) and Mask;
+      if not Assigned(Seen[Slot]) then
+        begin
+          Seen[Slot]:=Pointer(Result[I]);
+          Result[UniqueCount]:=Result[I];
+          Inc(UniqueCount);
+        end;
+    end;
+  SetLength(Result,UniqueCount);
 end;
 
 { TVirtualInterface }

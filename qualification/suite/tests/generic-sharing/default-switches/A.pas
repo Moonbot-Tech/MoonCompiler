@@ -1,0 +1,1 @@
+unit A;interface procedure RangeRead(X:Integer);procedure AddRead(X:Integer);implementation uses Core;procedure RangeRead(X:Integer);begin if TBox<Integer>.ReadAt(X)=999 then Writeln(999);end;procedure AddRead(X:Integer);begin if TBox<Integer>.AddOne(X)=999 then Writeln(999);end;end.

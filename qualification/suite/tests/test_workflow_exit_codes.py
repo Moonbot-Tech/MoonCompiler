@@ -164,6 +164,7 @@ class StandChainContracts(unittest.TestCase):
         for gate in (
             'qualification/managed-array-copy/run_gate.py',
             'qualification/compiler-private-ppu/run_ppu_private_crc_gate.py',
+            'qualification/build-driver/generic_sharing_gate.py',
             'qualification/compiler-resource-paths/run_gate.py',
             'qualification/compiler-alias-lifetime/run_alias_lifetime_gate.py',
             'qualification/compiler-alias-lifetime/run_alias_reload_gate.py',

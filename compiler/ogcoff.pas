@@ -533,7 +533,8 @@ implementation
          checksum: longword;
          assoc   : word;
          select  : byte;
-         empty   : array[0..2] of char;
+         reserved: byte;
+         assoc_high: word;
        end;
        pcoffsectionrec=^coffsectionrec;
        coffreloc=packed record
@@ -802,6 +803,7 @@ implementation
             v.nlines:=SwapEndian(v.nlines);
             v.checksum:=SwapEndian(v.checksum);
             v.assoc:=SwapEndian(v.assoc);
+            v.assoc_high:=SwapEndian(v.assoc_high);
           end;
       end;
 (*
@@ -1194,6 +1196,8 @@ const pemagic : array[0..3] of byte = (
             else
               result:=PE_SCN_CNT_UNINITIALIZED_DATA;
           end;
+        if oso_comdat in aoptions then
+          result:=result or PE_SCN_LNK_COMDAT;
         if oso_write in aoptions then
           result:=result or PE_SCN_MEM_WRITE or PE_SCN_MEM_READ
         else
@@ -1624,7 +1628,7 @@ const pemagic : array[0..3] of byte = (
                not (target_info.system in systems_all_windows) then
               atype:=sec_data;
             secname:=coffsecnames[atype];
-            if create_smartlink_sections and
+            if (create_smartlink_sections or (pos('$mgs',lower(aname))>0)) and
                (aname<>'') then
               begin
                 case aorder of
@@ -1685,10 +1689,13 @@ const pemagic : array[0..3] of byte = (
                   symaddr:=0;
               end
             else
-              symaddr:=p.address;
+              if pos('$mgs',lower(p.name))>0 then
+                symaddr:=0
+              else
+                symaddr:=p.address;
             { no symbol relocation need inside a section }
             if (p.objsection=CurrObjSec) and
-               (p.bind<>AB_COMMON) then
+               (p.bind<>AB_COMMON) and (pos('$mgs',lower(p.name))=0) then
               begin
                 case reloctype of
                   RELOC_ABSOLUTE :
@@ -1728,7 +1735,7 @@ const pemagic : array[0..3] of byte = (
             else
               begin
                 if (p.objsection<>nil) and
-                   (p.bind<>AB_COMMON) then
+                   (p.bind<>AB_COMMON) and (pos('$mgs',lower(p.name))=0) then
                   CurrObjSec.addsectionreloc(curraddr,p.objsection,reloctype)
                 else
                   CurrObjSec.addsymreloc(curraddr,p,reloctype);
@@ -1892,6 +1899,18 @@ const pemagic : array[0..3] of byte = (
               secrec.nrelocs:=ObjRelocations.count
             else
               secrec.nrelocs:=65535;
+            case ComdatSelection of
+              oscs_any: secrec.select:=IMAGE_COMDAT_SELECT_ANY;
+              oscs_associative:
+                begin
+                  if not assigned(AssociativeSection) then
+                    internalerror(2026102401);
+                  secrec.select:=IMAGE_COMDAT_SELECT_ASSOCIATIVE;
+                  secrec.assoc:=AssociativeSection.index and $ffff;
+                  secrec.assoc_high:=AssociativeSection.index shr 16;
+                end;
+              else ;
+            end;
             inc(symidx);
 	    MaybeSwap(secrec);
             FCoffSyms.write(secrec,sizeof(secrec));
@@ -2058,6 +2077,9 @@ const pemagic : array[0..3] of byte = (
              filenamelen:=sizeof(coffsymbol);
            FCoffSyms.write(filename[1],filenamelen);
            { Sections }
+           { Associative records can reference a later section. }
+           for i:=0 to ObjSectionList.Count-1 do
+             TObjSection(ObjSectionList[i]).index:=i+1;
            secidx:=0;
            ObjSectionList.ForEachCall(@section_write_symbol,@secidx);
            { ObjSymbols }
@@ -2457,6 +2479,9 @@ const pemagic : array[0..3] of byte = (
         auxcount  : byte;
         symcls    : byte;
         comdatsel : TObjSectionComdatSelection;
+        rootsec : TObjSection;
+        grp : TObjSectionGroup;
+        depth : longint;
 
         { keeps string manipulations out of main routine }
         procedure UnsupportedSymbolType;
@@ -2633,10 +2658,7 @@ const pemagic : array[0..3] of byte = (
                     end;
                   end;
 
-                  if comdatsel in [oscs_associative] then
-                    { only temporary }
-                    Comment(V_Error,'Associative COMDAT sections are not yet supported (symbol: '+objsym.objsection.Name+')')
-                  else if (comdatsel=oscs_associative) and (secrec.assoc=0) then
+                  if (comdatsel=oscs_associative) and (secrec.assoc=0) and (secrec.assoc_high=0) then
                     Message1(link_e_comdat_associative_section_expected,objsym.objsection.name)
                   else if (objsym.objsection.ComdatSelection<>oscs_none) and (comdatsel<>oscs_none) and (objsym.objsection.ComdatSelection<>comdatsel) then
                     Message2(link_e_comdat_not_matching,objsym.objsection.Name,objsym.Name)
@@ -2644,9 +2666,9 @@ const pemagic : array[0..3] of byte = (
                     begin
                       objsym.objsection.ComdatSelection:=comdatsel;
 
-                      if (secrec.assoc<>0) and not assigned(objsym.objsection.AssociativeSection) then
+                      if (comdatsel=oscs_associative) and not assigned(objsym.objsection.AssociativeSection) then
                         begin
-                          objsym.objsection.AssociativeSection:=GetSection(secrec.assoc-1);
+                          objsym.objsection.AssociativeSection:=GetSection((longword(secrec.assoc_high) shl 16)+secrec.assoc);
                           if not assigned(objsym.objsection.AssociativeSection) then
                             Message1(link_e_comdat_associative_section_not_found,objsym.objsection.Name);
                         end;
@@ -2667,6 +2689,49 @@ const pemagic : array[0..3] of byte = (
               inc(symidx);
             end;
          end;
+        { A COMDAT leader and its associative sections are one selection unit.
+          Build all leaders first: an associative section may precede its leader. }
+        for i:=0 to objdata.ObjSymbolList.Count-1 do
+          begin
+            objsym:=TObjSymbol(objdata.ObjSymbolList[i]);
+            objsec:=objsym.objsection;
+            if (objsym.bind in [AB_GLOBAL,AB_WEAK_EXTERNAL]) and assigned(objsec) and
+               (objsec.ComdatSelection=oscs_any) and not assigned(objsec.group) then
+              begin
+                grp:=objdata.createsectiongroup(objsym.name);
+                grp.iscomdat:=true;
+                setlength(grp.members,1);
+                grp.members[0]:=objsec;
+                objsec.group:=grp;
+              end;
+          end;
+        for i:=0 to objdata.ObjSectionList.Count-1 do
+          begin
+            objsec:=TObjSection(objdata.ObjSectionList[i]);
+            if objsec.ComdatSelection<>oscs_associative then
+              continue;
+            rootsec:=objsec;
+            depth:=0;
+            while assigned(rootsec.AssociativeSection) do
+              begin
+                rootsec:=rootsec.AssociativeSection;
+                inc(depth);
+                if depth>objdata.ObjSectionList.Count then
+                  begin
+                    InputError('Cyclic associative COMDAT sections');
+                    exit;
+                  end;
+              end;
+            if not assigned(rootsec.group) then
+              begin
+                InputError('Associative COMDAT leader requires a named ANY selection: '+objsec.name+' -> '+rootsec.name+' selection='+tostr(ord(rootsec.ComdatSelection)));
+                exit;
+              end;
+            grp:=rootsec.group;
+            objsec.group:=grp;
+            setlength(grp.members,length(grp.members)+1);
+            grp.members[high(grp.members)]:=objsec;
+          end;
       end;
 
 
@@ -3525,8 +3590,17 @@ const pemagic : array[0..3] of byte = (
         for i:=0 to exesec.ObjSectionList.Count-1 do
           begin
             objsec:=TObjSection(exesec.ObjSectionList[i]);
-            if objsec.Used then
+            if objsec.Used or objsec.Discarded then
               continue;
+            if assigned(objsec.AssociativeSection) then
+              begin
+                if objsec.AssociativeSection.Used then
+                  begin
+                    WorkList.Add(objsec);
+                    objsec.Used:=true;
+                  end;
+                continue;
+              end;
             j:=0;
             while j<objsec.ObjRelocations.Count do
               begin

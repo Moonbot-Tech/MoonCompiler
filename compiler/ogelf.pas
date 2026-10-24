@@ -99,6 +99,8 @@ interface
          procedure createrelocsection(s:TElfObjSection;data:TObjData);
          procedure createshstrtab(data:TObjData);
          procedure createsymtab(data: TObjData);
+         procedure prepare_comdat_groups(data:TObjData);
+         procedure write_comdat_groups(data:TObjData);
          procedure writesectionheader(s:TElfObjSection);
          procedure section_write_symbol(p:TObject;arg:pointer);
          procedure section_count_sections(p:TObject;arg:pointer);
@@ -606,7 +608,7 @@ implementation
                   secname:='.tbss';
               end;
 
-            if create_smartlink_sections and (aname<>'') then
+            if (create_smartlink_sections or (pos('$mgs',lower(aname))>0)) and (aname<>'') then
               begin
                 case aorder of
                   secorder_begin :
@@ -949,6 +951,73 @@ implementation
       end;
 
 
+    procedure TElfObjectOutput.prepare_comdat_groups(data:TObjData);
+      var
+        sections,headers:tfplist;
+        names:array of TSymStr;
+        sec,header:TElfObjSection;
+        grp:TObjSectionGroup;
+        i:longint;
+      begin
+        sections:=tfplist.create;
+        headers:=tfplist.create;
+        for i:=0 to data.ObjSectionList.count-1 do
+          sections.add(data.ObjSectionList[i]);
+        for i:=0 to sections.count-1 do
+          begin
+            sec:=TElfObjSection(sections[i]);
+            if not (oso_comdat in sec.SecOptions) then
+              continue;
+            grp:=data.CreateSectionGroup('.group.'+sec.name);
+            grp.IsComdat:=true;
+            setlength(grp.members,1);
+            grp.members[0]:=sec;
+            sec.Group:=grp;
+            sec.shflags:=sec.shflags or SHF_GROUP;
+            header:=TElfObjSection.create_ext(data,grp.name,SHT_GROUP,0,4,4);
+            headers.add(header);
+          end;
+        if headers.count>0 then
+          begin
+            { Section names belong to the hash list. Preserve and rebind them
+              while moving group headers before their members. }
+            setlength(names,headers.count+sections.count);
+            for i:=0 to headers.count-1 do
+              names[i]:=TElfObjSection(headers[i]).name;
+            for i:=0 to sections.count-1 do
+              names[headers.count+i]:=TElfObjSection(sections[i]).name;
+            data.ObjSectionList.OwnsObjects:=false;
+            data.ObjSectionList.Clear;
+            for i:=0 to headers.count-1 do
+              TElfObjSection(headers[i]).ChangeOwnerAndName(data.ObjSectionList,names[i]);
+            for i:=0 to sections.count-1 do
+              TElfObjSection(sections[i]).ChangeOwnerAndName(data.ObjSectionList,names[headers.count+i]);
+            data.ObjSectionList.OwnsObjects:=true;
+          end;
+        headers.free;
+        sections.free;
+      end;
+
+    procedure TElfObjectOutput.write_comdat_groups(data:TObjData);
+      var
+        grp:TObjSectionGroup;
+        header:TElfObjSection;
+        i,j:longint;
+      begin
+        if not assigned(data.GroupsList) then
+          exit;
+        for i:=0 to data.GroupsList.count-1 do
+          begin
+            grp:=TObjSectionGroup(data.GroupsList[i]);
+            header:=TElfObjSection(data.ObjSectionList.Find(grp.name));
+            header.shlink:=symtabsect.index;
+            header.shinfo:=header.SecSymIdx;
+            header.writeUInt32LE(GRP_COMDAT);
+            for j:=0 to length(grp.members)-1 do
+              header.writeUInt32LE(grp.members[j].index);
+          end;
+      end;
+
     procedure TElfObjectOutput.createrelocsection(s:TElfObjSection;data:TObjData);
       var
         i    : longint;
@@ -961,6 +1030,13 @@ implementation
         relocsect:=TElfObjSection.create_reloc(data,s.name,false);
         relocsect.shlink:=symtabsect.index;
         relocsect.shinfo:=s.index;
+        if assigned(s.Group) then
+          begin
+            relocsect.Group:=s.Group;
+            relocsect.shflags:=relocsect.shflags or SHF_GROUP;
+            setlength(s.Group.members,length(s.Group.members)+1);
+            s.Group.members[high(s.Group.members)]:=relocsect;
+          end;
         { add the relocations }
         for i:=0 to s.Objrelocations.count-1 do
           begin
@@ -1132,6 +1208,7 @@ implementation
            { symbol for filename }
            symtabsect.fstrsec.writestr(ExtractFileName(current_module.mainsource));
            symtabsect.writeInternalSymbol(0,1,STT_FILE,SHN_ABS);
+           prepare_comdat_groups(data);
            { calc amount of sections we have }
            nsections:=1;
            { also create the index in the section header table }
@@ -1153,6 +1230,7 @@ implementation
            { recalc nsections to include the reloc sections }
            nsections:=1;
            ObjSectionList.ForEachCall(@section_count_sections,@nsections);
+           write_comdat_groups(data);
            { create .shstrtab }
            createshstrtab(data);
 

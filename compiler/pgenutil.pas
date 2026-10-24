@@ -1784,6 +1784,67 @@ uses
       end;
 
 
+    function generic_semantic_type_key(def:tdef):ansistring; forward;
+
+    function generic_semantic_symbol_key(sym:tsym):ansistring;
+      var
+        c:tconstsym;
+        i,len:longint;
+        data:pbyte;
+      begin
+        if sym.typ=typesym then
+          exit(generic_semantic_type_key(ttypesym(sym).typedef));
+        c:=tconstsym(sym);
+        result:=generic_semantic_type_key(c.constdef)+'#'+tostr(ord(c.consttyp))+':';
+        case c.consttyp of
+          constnone,constnil:;
+          constord:result:=result+hexstr(c.value.valueord.vhi,16)+hexstr(c.value.valueord.vlo,16);
+          constpointer:result:=result+hexstr(c.value.valueordptr,16);
+          else
+            begin
+              data:=pbyte(c.value.valueptr);
+              case c.consttyp of
+                constreal:len:=sizeof(bestreal);
+                constset:len:=sizeof(tconstset);
+                constguid:len:=sizeof(tguid);
+                constwstring,constwresourcestring:
+                  begin
+                    data:=pbyte(c.value.valuews.data);
+                    len:=c.value.valuews.len*sizeof(c.value.valuews.data[0]);
+                  end;
+                else len:=c.value.len;
+              end;
+              result:=result+tostr(len)+':';
+              for i:=0 to len-1 do
+                result:=result+hexstr(data[i],2);
+            end;
+        end;
+      end;
+
+    function generic_semantic_type_key(def:tdef):ansistring;
+      var
+        i:longint;
+        arg:tsym;
+        sd:tstoreddef;
+      begin
+        if (def is tstoreddef) and (df_specialization in def.defoptions) and
+           assigned(tstoreddef(def).genericdef) and assigned(tstoreddef(def).genericparas) then
+          begin
+            sd:=tstoreddef(def);
+            result:=generic_semantic_type_key(sd.genericdef)+'<';
+            for i:=0 to sd.genericparas.count-1 do
+              begin
+                arg:=tsym(sd.genericparas[i]);
+                result:=result+generic_semantic_symbol_key(arg)+';';
+              end;
+            result:=result+'>';
+          end
+        else if assigned(def.typesym) then
+          result:=make_mangledname('',def.typesym.owner,def.typesym.name)
+        else
+          result:=make_mangledname('',findunitsymtable(def.owner),'def'+def.unique_id_str);
+      end;
+
     function generate_specialization_phase2(context:tspecializationcontext;genericdef:tstoreddef;parse_class_parent:boolean;const _prettyname:ansistring):tdef;
 
         procedure unset_forwarddef(def: tdef);
@@ -1903,7 +1964,9 @@ uses
         finalspecializename,
         ufinalspecializename : tidstring;
         hierarchy,
+        canonicalkey,
         prettyname : ansistring;
+        canonicalhash : qword;
         generictypelist : tfphashobjectlist;
         srsymtable,
         specializest : tsymtable;
@@ -1915,6 +1978,7 @@ uses
         flags : thccflags;
         def : tdef;
         old_block_type : tblock_type;
+        old_rtti_directive : trtti_directive;
         state : tspecializationstate;
         old_current_structdef : tabstractrecorddef;
         old_current_specializedef,
@@ -1963,6 +2027,15 @@ uses
             hierarchy:=hmodule.modulename^+hierarchy;
           end;
         finalspecializename:=generate_generic_name(context.genname,context.specializename,hierarchy);
+        if not parse_generic and (genericdef.typ<>procdef) then
+          begin
+            canonicalkey:=generic_semantic_type_key(genericdef)+'<';
+            for i:=0 to context.paramlist.count-1 do
+              canonicalkey:=canonicalkey+generic_semantic_symbol_key(tsym(context.paramlist[i]))+';';
+            canonicalkey:=canonicalkey+'>';
+            canonicalhash:=UpdateFnv64(InitFnv64,canonicalkey[1],length(canonicalkey));
+            finalspecializename:=copy(context.genname,1,high(finalspecializename)-20)+'$MGS'+hexstr(canonicalhash,16);
+          end;
         ufinalspecializename:=upper(finalspecializename);
         if genericdef.typ=procdef then
           prettyname:=tprocdef(genericdef).procsym.prettyname
@@ -2294,33 +2367,42 @@ uses
                   end
                 else
                   begin
-                    current_scanner.startreplaytokens(genericdef.generictokenbuf,
-                      hmodule.change_endian,oldcurrent_filepos,oldcurrent_tokenpos);
-                    if assigned(context.forwarddef) then
-                      begin
-                        tsrsym:=nil;
-                        result:=parse_forward_declaration(context.forwarddef.typesym,ufinalspecializename,finalspecializename,genericdef,generictypelist,tsrsym);
-                        srsym:=tsrsym;
-                      end
-                    else
-                      begin
-                        hadtypetoken:=false;
+                    { A specialization keeps the RTTI policy of its declaration,
+                      including when replayed in a unit with another $RTTI policy. }
+                    old_rtti_directive:=current_module.rtti_directive;
+                    if genericdef.typ in [objectdef,recorddef] then
+                      current_module.rtti_directive:=tabstractrecorddef(genericdef).rtti;
+                    try
+                      current_scanner.startreplaytokens(genericdef.generictokenbuf,
+                        hmodule.change_endian,oldcurrent_filepos,oldcurrent_tokenpos);
+                      if assigned(context.forwarddef) then
+                        begin
+                          tsrsym:=nil;
+                          result:=parse_forward_declaration(context.forwarddef.typesym,ufinalspecializename,finalspecializename,genericdef,generictypelist,tsrsym);
+                          srsym:=tsrsym;
+                        end
+                      else
+                        begin
+                          hadtypetoken:=false;
 
-                        { ensure a pretty name for error messages, might be chanced below }
-                        if _prettyname<>'' then
-                          ttypesym(srsym).fprettyname:=_prettyname
-                        else
-                          ttypesym(srsym).fprettyname:=prettyname;
+                          { ensure a pretty name for error messages, might be chanced below }
+                          if _prettyname<>'' then
+                            ttypesym(srsym).fprettyname:=_prettyname
+                          else
+                            ttypesym(srsym).fprettyname:=prettyname;
 
-                        read_named_type(result,srsym,genericdef,generictypelist,false,hadtypetoken);
-                        ttypesym(srsym).typedef:=result;
-                        result.typesym:=srsym;
-                      end;
+                          read_named_type(result,srsym,genericdef,generictypelist,false,hadtypetoken);
+                          ttypesym(srsym).typedef:=result;
+                          result.typesym:=srsym;
+                        end;
 
-                    if _prettyname<>'' then
-                      ttypesym(result.typesym).fprettyname:=_prettyname
-                    else
-                      ttypesym(result.typesym).fprettyname:=prettyname;
+                      if _prettyname<>'' then
+                        ttypesym(result.typesym).fprettyname:=_prettyname
+                      else
+                        ttypesym(result.typesym).fprettyname:=prettyname;
+                    finally
+                      current_module.rtti_directive:=old_rtti_directive;
+                    end;
                   end;
                 current_filepos:=oldcurrent_filepos;
                 current_tokenpos:=oldcurrent_tokenpos;
