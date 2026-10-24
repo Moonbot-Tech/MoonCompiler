@@ -3942,10 +3942,21 @@ Implementation
                            internalerror(2019010301);
                        end
                      else
+                       begin
 {$push} {$R-}{$Q-}
-                       Tai_const(hp).value:=objsymend.address-objsym.address+Tai_const(hp).symofs;
-                   end;
+                         Tai_const(hp).value:=objsymend.address-objsym.address+Tai_const(hp).symofs;
 {$pop}
+                         { Compact Linux FDE ranges are signed 32-bit values, even though
+                           ordinary .long constants permit the unsigned upper half. }
+                         if ((Tai_const(hp).value<0) or (Tai_const(hp).value>high(longint))) and
+                            (Tai_const(hp).consttype=aitconst_32bit) and
+                            (target_info.system=system_x86_64_linux) and
+                            not (cs_large in current_settings.globalswitches) and
+                            (ObjData.CurrObjSec.Name='.eh_frame') and
+                            (objsym.objsection<>ObjData.CurrObjSec) then
+                           Comment(V_Fatal,'32-bit DWARF unwind range overflow; recompile with -Xa');
+                       end;
+                   end;
                  case tai_const(hp).consttype of
                    aitconst_64bit,
                    aitconst_32bit,

@@ -343,11 +343,83 @@ implementation
         cielabel,
         lenstartlabel,
         lenendlabel,
-        augendlabel,
-        augstartlabel,
         fdeofslabel, curpos: tasmlabel;
         tc             : tai_const;
+        compact_eh, split_eh, has_lsda : boolean;
+        cies : array[boolean] of tasmlabel;
+
+      procedure generate_cie(with_lsda: boolean; out cielabel: tasmlabel);
+        var
+          lenstartlabel, lenendlabel, augstartlabel, augendlabel: tasmlabel;
+        begin
+          current_asmdata.getlabel(cielabel,alt_dbgframe);
+          list.concat(tai_label.create(cielabel));
+          current_asmdata.getlabel(lenstartlabel,alt_dbgframe);
+          current_asmdata.getlabel(lenendlabel,alt_dbgframe);
+          list.concat(tai_const.create_rel_sym(aitconst_32bit,lenstartlabel,lenendlabel));
+          list.concat(tai_label.create(lenstartlabel));
+          if datatype=dt_eh_frame then
+            begin
+              list.concat(tai_const.create_32bit(0));
+              list.concat(tai_const.create_8bit(1));
+              list.concat(tai_const.create_8bit(ord('z')));
+              if with_lsda then
+                begin
+                  list.concat(tai_const.create_8bit(ord('P')));
+                  list.concat(tai_const.create_8bit(ord('L')));
+                end;
+              list.concat(tai_const.create_8bit(ord('R')));
+              list.concat(tai_const.create_8bit(0));
+            end
+          else
+            begin
+              list.concat(tai_const.create_32bit(longint($ffffffff)));
+              list.concat(tai_const.create_8bit(1));
+              list.concat(tai_const.create_8bit(0)); { empty string }
+            end;
+          list.concat(tai_const.create_uleb128bit(code_alignment_factor));
+          list.concat(tai_const.create_sleb128bit(data_alignment_factor));
+          list.concat(tai_const.create_8bit(dwarf_reg(NR_RETURN_ADDRESS_REG)));
+          { augmentation data }
+          if datatype=dt_eh_frame then
+            begin
+              current_asmdata.getlabel(augstartlabel,alt_dbgframe);
+              current_asmdata.getlabel(augendlabel,alt_dbgframe);
+              { size of augmentation data ('z') }
+              list.concat(tai_const.create_rel_sym(aitconst_uleb128bit,augstartlabel,augendlabel));
+              list.concat(tai_label.create(augstartlabel));
+              if with_lsda then
+                begin
+                  list.concat(tai_const.create_8bit(DW_EH_PE_absptr));
+                  list.concat(tai_const.Createname('_FPC_psabieh_personality_v0',AT_FUNCTION,0));
+                  if compact_eh then
+                    list.concat(tai_const.create_8bit(DW_EH_PE_pcrel or DW_EH_PE_sdata4))
+                  else
+                    list.concat(tai_const.create_8bit(DW_EH_PE_absptr));
+                end;
+              if compact_eh then
+                list.concat(tai_const.create_8bit(DW_EH_PE_pcrel or DW_EH_PE_sdata4))
+              else
+                list.concat(tai_const.create_8bit(DW_EH_PE_absptr));
+              list.concat(tai_label.create(augendlabel));
+            end;
+
+          { Generate standard code
+              def_cfa(stackpointer,sizeof(aint))
+              cfa_offset_extended(returnaddres,-sizeof(aint))
+          }
+          generate_initial_instructions(list);
+
+          list.concat(cai_align.create_zeros(sizeof(pint)));
+          list.concat(tai_label.create(lenendlabel));
+
+        end;
+
       begin
+        split_eh:=(datatype=dt_eh_frame) and (target_info.system=system_x86_64_linux);
+        { The internal assembler checks signed frame ranges before writing them. }
+        compact_eh:=split_eh and (af_outputbinary in target_asm.flags) and
+          not (cs_large in current_settings.globalswitches);
         if DwarfList.Empty then
           exit;
         CurrentLSDALabel:=nil;
@@ -359,89 +431,10 @@ implementation
           dt_eh_frame:
             new_section(list,sec_eh_frame,'',0);
         end;
-        { debug_frame:
-            CIE
-             DWORD   length
-             DWORD   CIE_Id = 0xffffffff
-             BYTE    version = 1
-             STRING  augmentation = "" = BYTE 0
-             ULEB128 code alignment factor = 1
-             ULEB128 data alignment factor = -1
-             BYTE    return address register
-             <...>   augmentation
-             <...>   start sequence
-
-          eh_frame:
-            CIE
-             DWORD   length
-             DWORD   CIE_Id = 0
-             BYTE    version = 1
-             STRING  augmentation = 'zPLR'#0
-             ULEB128 code alignment factor = 1
-             ULEB128 data alignment factor = -1
-             BYTE    return address register
-             <...>   start sequence
-
-        }
-        current_asmdata.getlabel(cielabel,alt_dbgframe);
-        list.concat(tai_label.create(cielabel));
-        current_asmdata.getlabel(lenstartlabel,alt_dbgframe);
-        current_asmdata.getlabel(lenendlabel,alt_dbgframe);
-        list.concat(tai_const.create_rel_sym(aitconst_32bit,lenstartlabel,lenendlabel));
-        list.concat(tai_label.create(lenstartlabel));
-        if datatype=dt_eh_frame then
-          begin
-            list.concat(tai_const.create_32bit(0));
-            list.concat(tai_const.create_8bit(1));
-            list.concat(tai_const.create_8bit(ord('z')));
-            list.concat(tai_const.create_8bit(ord('P')));
-            list.concat(tai_const.create_8bit(ord('L')));
-            list.concat(tai_const.create_8bit(ord('R')));
-            list.concat(tai_const.create_8bit(0));
-          end
-        else
-          begin
-            list.concat(tai_const.create_32bit(longint($ffffffff)));
-            list.concat(tai_const.create_8bit(1));
-            list.concat(tai_const.create_8bit(0)); { empty string }
-          end;
-        list.concat(tai_const.create_uleb128bit(code_alignment_factor));
-        list.concat(tai_const.create_sleb128bit(data_alignment_factor));
-        list.concat(tai_const.create_8bit(dwarf_reg(NR_RETURN_ADDRESS_REG)));
-        { augmentation data }
-        if datatype=dt_eh_frame then
-          begin
-            current_asmdata.getlabel(augstartlabel,alt_dbgframe);
-            current_asmdata.getlabel(augendlabel,alt_dbgframe);
-            { size of augmentation data ('z') }
-            list.concat(tai_const.create_rel_sym(aitconst_uleb128bit,augstartlabel,augendlabel));
-            list.concat(tai_label.create(augstartlabel));
-            { personality function ('P') }
-            { CreateName/Create_sym and the FDE range below emit native-sized
-              absolute values, not signed 32-bit values on a 64-bit target. }
-            list.concat(tai_const.create_8bit(DW_EH_PE_absptr));
-            { address of personality function }
-            list.concat(tai_const.Createname('_FPC_psabieh_personality_v0',AT_FUNCTION,0));
-
-            { LSDA encoding  ('L')}
-            list.concat(tai_const.create_8bit(DW_EH_PE_absptr));
-
-            { FDE encoding ('R') }
-            list.concat(tai_const.create_8bit(DW_EH_PE_absptr));
-            list.concat(tai_label.create(augendlabel));
-          end;
-
-        { Generate standard code
-            def_cfa(stackpointer,sizeof(aint))
-            cfa_offset_extended(returnaddres,-sizeof(aint))
-        }
-        generate_initial_instructions(list);
-
-        list.concat(cai_align.create_zeros(sizeof(pint)));
-        list.concat(tai_label.create(lenendlabel));
+        cies[false]:=nil;
+        cies[true]:=nil;
         lenstartlabel:=nil;
         lenendlabel:=nil;
-
         hp:=TDwarfItem(DwarfList.first);
         while assigned(hp) do
           begin
@@ -453,6 +446,11 @@ implementation
                   if (hp.ops<>1) or
                      (hp.oper[0].typ<>dop_reloffset) then
                     internalerror(200404126);
+                  { Frames without language-specific data need only register rules. }
+                  has_lsda:=not split_eh or assigned(CurrentLSDALabel);
+                  if not assigned(cies[has_lsda]) then
+                    generate_cie(has_lsda,cies[has_lsda]);
+                  cielabel:=cies[has_lsda];
                   current_asmdata.getlabel(lenstartlabel,alt_dbgframe);
                   current_asmdata.getlabel(lenendlabel,alt_dbgframe);
                   { FDE
@@ -480,25 +478,45 @@ implementation
                       list.concat(tc);
                     end;
 
-                  current_asmdata.getlabel(curpos,alt_dbgframe);
-                  list.concat(tai_label.create(curpos));
-                  list.concat(tai_const.Create_sym(hp.oper[0].beginsym));
+                  if compact_eh then
+                    begin
+                      current_asmdata.getlabel(curpos,alt_dbgframe);
+                      list.concat(tai_label.create(curpos));
+                      list.concat(tai_const.create_rel_sym(aitconst_32bit,curpos,hp.oper[0].beginsym));
+                    end
+                  else
+                    list.concat(tai_const.Create_sym(hp.oper[0].beginsym));
 {$if defined(avr)}
                   list.concat(tai_const.create_rel_sym(aitconst_32bit,hp.oper[0].beginsym,hp.oper[0].endsym));
 {$else defined(avr)}
-                  list.concat(tai_const.create_rel_sym(aitconst_ptr,hp.oper[0].beginsym,hp.oper[0].endsym));
+                  if compact_eh then
+                    list.concat(tai_const.create_rel_sym(aitconst_32bit,hp.oper[0].beginsym,hp.oper[0].endsym))
+                  else
+                    list.concat(tai_const.create_rel_sym(aitconst_ptr,hp.oper[0].beginsym,hp.oper[0].endsym));
 {$endif defined(avr)}
 
                   { we wrote a 'z' into the CIE augmentation data }
-                  if datatype=dt_eh_frame then
+                  if (datatype=dt_eh_frame) and not has_lsda then
+                    list.concat(tai_const.create_8bit(0))
+                  else if datatype=dt_eh_frame then
                     begin
                       { size of augmentation }
-                      list.concat(tai_const.create_8bit(sizeof(pint)));
+                      if compact_eh then
+                        list.concat(tai_const.create_8bit(4))
+                      else
+                        list.concat(tai_const.create_8bit(sizeof(pint)));
 {$ifdef debug_eh}
                       list.concat(tai_comment.Create(strpnew('LSDA')));
 {$endif debug_eh}
                       { address of LSDA}
-                      list.concat(tai_const.Create_sym(CurrentLSDALabel));
+                      if compact_eh then
+                        begin
+                          current_asmdata.getlabel(curpos,alt_dbgframe);
+                          list.concat(tai_label.create(curpos));
+                          list.concat(tai_const.create_rel_sym(aitconst_32bit,curpos,CurrentLSDALabel));
+                        end
+                      else
+                        list.concat(tai_const.Create_sym(CurrentLSDALabel));
                       { do not reuse LSDA label }
                       CurrentLSDALabel:=nil;
                     end;
