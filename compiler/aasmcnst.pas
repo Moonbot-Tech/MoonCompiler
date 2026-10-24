@@ -1941,7 +1941,8 @@ implementation
        pool : thashset;
        entry : phashsetitem;
        strlab : tasmlabel;
-       l : longint;
+       l, i : longint;
+       poolname : ansistring;
        datadef : tdef;
        strtcb : ttai_typedconstbuilder;
      begin
@@ -1953,6 +1954,22 @@ implementation
        if not assigned(entry^.Data) then
          begin
            current_asmdata.getglobaldatalabel(strlab);
+           if (target_info.system in [system_x86_64_linux,system_x86_64_win64]) and
+              (target_asm.id in (asms_int_elf+asms_int_coff)) then
+             begin
+               { Exact byte identity. Escape the escape character as well; no
+                 hash or identifier truncation may merge different RTTI names. }
+               poolname:='_$MGS$RN1$'+tostr(const_align(sizeof(pint)))+'$';
+               for i:=1 to length(str) do
+                 if str[i] in ['A'..'Z','a'..'z','0'..'9','_'] then
+                   poolname:=poolname+str[i]
+                 else
+                   poolname:=poolname+'$'+hexstr(ord(str[i]),2);
+               { Section names are shortstrings too. Reserve the longest
+                 wrapper: .group..rodata.n_ (17 bytes). }
+               if length(poolname)<=238 then
+                 strlab.Rename(poolname);
+             end;
 
            { include length and terminating zero for quick conversion to pchar }
            l:=length(str);

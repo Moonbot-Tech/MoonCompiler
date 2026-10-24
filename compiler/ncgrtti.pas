@@ -561,6 +561,7 @@ implementation
         loclab : TAsmLabel;
         loctcb : ttai_typedconstbuilder;
         datadef : tdef;
+        poolname : ansistring;
       begin
         locs:=paramanager.cgparalocs_to_rttiparalocs(para^.location);
         if length(locs)>high(byte) then
@@ -581,6 +582,23 @@ implementation
         if not assigned(entry^.Data) then
           begin
             current_asmdata.getglobaldatalabel(loclab);
+            if (target_info.system in [system_x86_64_linux,system_x86_64_win64]) and
+              (target_asm.id in (asms_int_elf+asms_int_coff)) then
+              begin
+                { The target is little-endian x86-64. Describe the emitted
+                  layout and logical fields, never host record padding. }
+                poolname:='_$MGS$RP1$'+hexstr(byte(defaultpacking),2)+'$'+
+                  tostr(min(reqalign,SizeOf(PInt)))+'$'+
+                  tostr(targetinfos[target_info.system]^.alignment.recordalignmin)+'$'+
+                  tostr(alusinttype.size)+'$'+tostr(const_align(sizeof(pint)));
+                for i:=low(locs) to high(locs) do
+                  poolname:=poolname+'$'+tostr(locs[i].loctype)+'_'+tostr(locs[i].regsub)+'_'+
+                    tostr(locs[i].regindex)+'_'+tostr(qword(locs[i].offset));
+                { Preserve the per-unit pool if the exact COMDAT key does not
+                  fit all symbol/section names without truncation. }
+                if length(poolname)<=238 then
+                  loclab.Rename(poolname);
+              end;
 
             loctcb:=ctai_typedconstbuilder.create([tcalo_is_lab,tcalo_make_dead_strippable]);
 
