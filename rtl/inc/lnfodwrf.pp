@@ -1792,7 +1792,9 @@ begin
       while (level>0) and (abbrev=0) do
         begin
           dec(level);
-          abbrev:=er.ReadULEB128;
+          { The root terminator can be the last byte in this compilation unit. }
+          if level>0 then
+            abbrev:=er.ReadULEB128;
         end;
     end;
 end;

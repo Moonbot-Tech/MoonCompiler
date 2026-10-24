@@ -754,7 +754,7 @@ def check_source_input_paths(compiler: Path, root: Path, cwd: Path) -> str:
                     run_compiler(executable, options, cwd=cwd)
                 image = (directory if entry == "default-output" else target) / ("inputprobe.exe" if os.name == "nt" else "inputprobe")
                 if entry == "default-output":
-                    object_path = directory / "units" / TARGET / profile.lower() / "inputprobe.o"
+                    object_path = directory / "units" / TARGET / ("release-compact" if profile == "RELEASE" else "debug") / "inputprobe.o"
                     for output in (object_path, source.with_suffix(".map"), image):
                         if not output.is_file():
                             fail(f"default output path was not preserved: {output}")
@@ -929,12 +929,12 @@ def main() -> int:
         check_probe(release_vals, PROFILE_RELEASE, "profile-unit release")
         again_vals = run_probe(linked_compiler, prof_prog, cwd=work)
         check_probe(again_vals, PROFILE_DEBUG, "profile-unit debug again (no -B)")
-        for profile in ("debug", "release"):
+        for profile in ("debug", "release-compact"):
             for suffix in (".ppu", ".o"):
                 if not (units_dir / profile / f"profunit{suffix}").is_file():
                     fail(f"debug+release: units/{TARGET}/{profile}/profunit{suffix} is missing")
         if (units_dir / "debug" / "profunit.o").read_bytes() == \
-                (units_dir / "release" / "profunit.o").read_bytes():
+                (units_dir / "release-compact" / "profunit.o").read_bytes():
             fail("debug+release: the Debug and Release objects of profunit are identical")
         results.append("debug+release separate unit directories OK")
 
@@ -1004,7 +1004,7 @@ def main() -> int:
         rel_vals = run_probe(linked_compiler, rel_prog, cwd=other_cwd)
         check_probe(rel_vals, PROFILE_RELEASE, "project-file -dRELEASE")
         rel_units = rel_dir / "units" / TARGET
-        if not (rel_units / "release" / "profunit.ppu").is_file():
+        if not (rel_units / "release-compact" / "profunit.ppu").is_file():
             fail("project-file -dRELEASE: profunit.ppu is not in the release unit directory")
         if (rel_units / "debug").exists():
             fail("project-file -dRELEASE: a debug unit directory was created")

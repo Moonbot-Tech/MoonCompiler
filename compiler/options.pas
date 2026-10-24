@@ -5677,6 +5677,8 @@ begin
             else
               profile_suffix:='debug';
           end;
+          if ds_dwarf_line_tables_only in init_settings.debugswitches then
+            profile_suffix:=profile_suffix+'-compact';
           OutputUnitDir:=FixPath(inputfilepath+'units'+DirectorySeparator+
             target_full_string+DirectorySeparator+profile_suffix,true);
         end;
@@ -5871,6 +5873,8 @@ begin
   if (option.paratargetdbg<>dbg_none) then
     if not set_target_dbg(option.paratargetdbg) then
       Message(option_w_unsupported_debug_format);
+  if not(option.paratargetdbg in [dbg_dwarf2,dbg_dwarf3,dbg_dwarf4,dbg_dwarf5]) then
+    exclude(init_settings.debugswitches,ds_dwarf_line_tables_only);
 
   { switch assembler if it's binary and we got -a on the cmdline }
   if (af_outputbinary in target_asm.flags) and
@@ -5911,9 +5915,10 @@ begin
       include(init_settings.globalswitches,cs_link_extern);
     end;
 
-  { turn off stripping if compiling with debuginfo or profile }
+  { Compact DWARF keeps the diagnostic sections while stripping static symbols. }
   if (
-      (cs_debuginfo in init_settings.moduleswitches) or
+      ((cs_debuginfo in init_settings.moduleswitches) and
+       not(ds_dwarf_line_tables_only in init_settings.debugswitches)) or
       (cs_profile in init_settings.moduleswitches)
      ) and
      not(cs_link_separate_dbg_file in init_settings.globalswitches) then

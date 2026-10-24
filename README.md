@@ -176,9 +176,10 @@ Unhandled main-thread and `TThread.Execute` exceptions are reported automaticall
 For a caught exception, call `WriteExceptionReport` inside `except`; use
 `WriteManualReport` for an on-demand thread snapshot. The default output directory
 is `BugReports` beside the executable. Linux requires `libunwind.so.8`; keep the
-executable's embedded debug information when deploying either profile.
-On Linux, that information can optionally be zlib-compressed to reduce the
-executable's disk size while retaining names and source lines in reports.
+executable's embedded diagnostic information when deploying either profile.
+Release keeps functions, files and lines for reports while omitting debugger-only
+type, variable and parameter descriptions. Runtime RTTI remains intact. Linux
+Release compresses the diagnostic tables automatically; Debug keeps full DWARF.
 
 See the [diagnostic guide](doc/DIAGNOSTICS.md) for settings, capture costs and
 supported failure cases, or try the [working example](examples/diagnostics.dpr).

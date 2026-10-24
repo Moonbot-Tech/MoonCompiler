@@ -1466,7 +1466,8 @@ implementation
           EntryStr:='--entry=_mainCRTStartup';
         if ImageBaseSetExplicity then
           ImageBaseStr:='--image-base=0x'+hexStr(imagebase, SizeOf(imagebase)*2);
-        if (cs_link_strip in current_settings.globalswitches) then
+        if (cs_link_strip in current_settings.globalswitches) and
+           not(ds_dwarf_line_tables_only in current_settings.debugswitches) then
           StripStr:='-s';
         if (cs_link_map in current_settings.globalswitches) then
           MapStr:='-Map '+maybequoted(ChangeFileExt(current_module.exefilename,'.map'));
@@ -1572,7 +1573,8 @@ implementation
           EntryStr:='--entry _DLLMainCRTStartup';
         if ImageBaseSetExplicity then
           ImageBaseStr:='--image-base=0x'+hexStr(imagebase, SizeOf(imagebase)*2);
-        if (cs_link_strip in current_settings.globalswitches) then
+        if (cs_link_strip in current_settings.globalswitches) and
+           not(ds_dwarf_line_tables_only in current_settings.debugswitches) then
           StripStr:='-s';
         if (cs_link_map in current_settings.globalswitches) then
           MapStr:='-Map '+maybequoted(ChangeFileExt(current_module.exefilename,'.map'));

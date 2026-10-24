@@ -162,7 +162,10 @@ rebuilt RTL.
 ## Names travel inside the executable
 
 The product build embeds DWARF3 names and source lines in applications and the
-RTL/packages. The reporter reads them from the exact executable that failed;
+RTL/packages. Release keeps function names, files, lines and address ranges,
+without debugger descriptions of types, variables or parameters. Runtime RTTI
+is separate and remains available to the application. Debug keeps full DWARF.
+The reporter reads these tables from the exact executable that failed;
 no adjacent map, PPU, source file or postprocessor is needed. The reporting
 gate also checks names with only the executable deployed. Keep that executable
 for each released version and do not strip its DWARF sections.
@@ -171,7 +174,7 @@ External libraries without accessible symbols remain raw addresses. Optimized
 inline frames and local variables are not reconstructed. The metadata enlarges
 the file without disabling Release optimization or inlining.
 
-### Optional compression on Linux
+### Compression on Linux
 
 Starting with 2.4.17, the runtime reader accepts zlib-compressed DWARF in Linux
 x86-64 executables. This covers both the ELF gABI `SHF_COMPRESSED` format and
@@ -179,7 +182,9 @@ the older GNU `.zdebug_*` format, as well as a mixture of compressed and ordinar
 sections. It works for ordinary RTL backtraces and `Moon.Diagnostics` without
 an additional application unit or runtime library.
 
-Compression is an explicit build step; the SDK does not enable it automatically:
+The standard Release profile now compresses its compact DWARF during linking
+with `--compress-debug-sections=zlib`. Debug remains uncompressed. An executable
+from an older SDK or a custom full-debug configuration can also be compressed:
 
 ```sh
 objcopy --compress-debug-sections=zlib App App.compressed

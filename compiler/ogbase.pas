@@ -3758,6 +3758,7 @@ implementation
                  (exesec.ObjSectionlist.count=0) or
                  (
                   (cs_link_strip in current_settings.globalswitches) and
+                  not(ds_dwarf_line_tables_only in current_settings.debugswitches) and
                   not(cs_link_separate_dbg_file in current_settings.globalswitches) and
                   (oso_debug in exesec.SecOptions)
                  )
@@ -4188,6 +4189,7 @@ implementation
             { Skip debug sections }
             if (oso_debug in sec.SecOptions) and
                (cs_link_strip in current_settings.globalswitches) and
+               not(ds_dwarf_line_tables_only in current_settings.debugswitches) and
                not(cs_link_separate_dbg_file in current_settings.globalswitches) then
               continue;
 

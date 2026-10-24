@@ -22,8 +22,8 @@ driver or script takes part: `fpc` is the product.
 
 The executable is created next to the `.dpr`; the compiled units go to
 `units/<target>/<profile>` under the project directory (`x86_64-win64` or
-`x86_64-linux`; `debug`, `release`, `debug-diagnostic`,
-`release-diagnostic`), created on demand. Each profile has its own directory
+`x86_64-linux`; `debug`, `release-compact`, `debug-diagnostic`,
+`release-diagnostic-compact`), created on demand. Each profile has its own directory
 because a PPU does not record the options it was compiled with: a shared
 directory would silently link a Release program from Debug units.
 
@@ -56,6 +56,8 @@ as in Delphi.
 | Assertions | enabled | disabled |
 | Overflow/range/stack checking | disabled | disabled |
 | Defines | `DEBUG` | `RELEASE` |
+| Diagnostic metadata | Full DWARF | Functions, source files, lines and address ranges |
+| SDK units | `units` | `units-release` |
 
 This set matches the validated profile of the original Delphi application.
 Qualification tests that require `-Co`, `-Cr`, or `-Ct` enable them only for
@@ -64,6 +66,27 @@ does not change program semantics. The profile is a `#IFDEF RELEASE` block in
 `fpc.cfg`: `-dRELEASE` on the command line selects the Release branch, and
 `DEBUG` is undefined there, so a Debug-only check cannot survive into a
 Release build.
+
+Release omits debugger-only type, variable and parameter descriptions and removes
+the static linker symbol table while retaining runtime stack lookup. On Linux the
+remaining DWARF is zlib-compressed during linking. Runtime RTTI, attributes,
+published properties, type discovery, virtual dispatch and managed-value cleanup
+are unchanged. Debug retains full debugger information, including the SDK units.
+
+The compact producer option is `-goDWARFLINETABLESONLY`; custom configurations must
+also use the matching `moon-release-base.cfg`. `-Xs` together with this option
+keeps diagnostic DWARF. Windows uses the internal linker by default; explicitly
+selecting the external linker (`-Xe`) retains its static symbol table as well.
+
+Build tools that inspect static symbols before packaging should pass `-Xs-` on
+their intermediate Release build. This retains symbols without restoring the
+debugger type/variable data. Extract their build-only map, then strip symbols
+while keeping `.debug_*`, before signing or calculating integrity hashes.
+
+The new `*-compact` default directories prevent reuse of old full-DWARF Release
+objects. Projects with explicit `-FU` paths must clean and rebuild those paths once
+when adopting this profile. Precompiled third-party units retain the metadata
+they were built with; rebuild them for compact Release when available.
 
 `-dFPCX64MM_DIAGNOSTIC` is an independent modifier: it keeps the profile and
 rebuilds the memory manager with an allocation registry, poison, structural

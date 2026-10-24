@@ -979,6 +979,7 @@ begin
   if (cs_link_staticflag in current_settings.globalswitches) then
    StaticStr:='-static';
   if (cs_link_strip in current_settings.globalswitches) and
+     not(ds_dwarf_line_tables_only in current_settings.debugswitches) and
      not(cs_link_separate_dbg_file in current_settings.globalswitches) then
    StripStr:='-s';
   if (cs_link_map in current_settings.globalswitches) then
@@ -1045,6 +1046,14 @@ begin
     binstr:=FindUtil(utilsprefix+BinStr);
 
   success:=DoExec(binstr,CmdStr,true,false);
+
+  { GNU ld cannot omit the static symbol table while retaining DWARF.
+    Do this after linking so dynamic symbols and loadable sections stay intact. }
+  if success and (cs_link_strip in current_settings.globalswitches) and
+     (ds_dwarf_line_tables_only in current_settings.debugswitches) and
+     not(cs_link_separate_dbg_file in current_settings.globalswitches) then
+    success:=DoExec(FindUtil(utilsprefix+'objcopy'),
+      '--strip-all --keep-section=.debug_* --keep-section=.zdebug_* '+maybequoted(current_module.exefilename),true,false);
 
   { Create external .dbg file with debuginfo }
   if success and (cs_link_separate_dbg_file in current_settings.globalswitches) then
@@ -1154,7 +1163,8 @@ begin
   success:=DoExec(FindUtil(utilsprefix+binstr),cmdstr,true,false);
 
 { Strip the library ? }
-  if success and (cs_link_strip in current_settings.globalswitches) then
+  if success and (cs_link_strip in current_settings.globalswitches) and
+     not(ds_dwarf_line_tables_only in current_settings.debugswitches) then
    begin
      { only remove non global symbols and debugging info for a library }
      Info.DllCmd[2]:='strip --discard-all --strip-debug $EXE';
@@ -1162,6 +1172,11 @@ begin
      Replace(cmdstr,'$EXE',maybequoted(current_module.sharedlibfilename));
      success:=DoExec(FindUtil(utilsprefix+binstr),cmdstr,true,false);
    end;
+  if success and (cs_link_strip in current_settings.globalswitches) and
+     (ds_dwarf_line_tables_only in current_settings.debugswitches) and
+     not(cs_link_separate_dbg_file in current_settings.globalswitches) then
+    success:=DoExec(FindUtil(utilsprefix+'objcopy'),
+      '--strip-all --keep-section=.debug_* --keep-section=.zdebug_* '+maybequoted(current_module.sharedlibfilename),true,false);
 
 { Remove ResponseFile }
   if (success) and not(cs_link_nolink in current_settings.globalswitches) then

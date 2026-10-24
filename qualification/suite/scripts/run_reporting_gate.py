@@ -472,7 +472,7 @@ def main():
             if reports:
                 report = reports[0].read_text(encoding='utf-8')
                 assert report.endswith('MOON_DIAGNOSTIC_END\n') and 'complete=True' in report
-                assert re.search(r' Execute .*diagnostic_switches\.pas:', report), \
+                assert re.search(r' (?:TProbe\.)?Execute .*diagnostic_switches\.pas:', report), \
                     'disabled worker excluded from explicit all-thread snapshot'
             if expected_exit:
                 assert 'An unhandled exception occurred' in text and 'disabled main fatal' in text, \

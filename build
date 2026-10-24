@@ -261,19 +261,29 @@ build_compiler() {
   # the code placement rules, line information); the exact string is
   # recorded in <toolchain>/profile.txt and rtl_profile_gate.py proves the
   # installed objects against it.
-  unicode_opt="$(read_rtl_profile) -n -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES"
-  make -C "$ROOT/rtl" clean FPC="$target_compiler"
-  make -C "$ROOT/rtl" -j1 all FPC="$target_compiler" OPT="$unicode_opt"
-  make -C "$ROOT/rtl" install FPC="$target_compiler" \
-    FPCMAKE="$target_fpcmake" OPT="$unicode_opt" INSTALL_PREFIX="$new_toolchain"
-  make -C "$ROOT/packages" clean FPC="$target_compiler" \
-    FPMAKEOPT=--NoIDE=1
-  make -C "$ROOT/packages" -j1 all FPC="$target_compiler" OPT="$unicode_opt" FPMAKEOPT=--NoIDE=1
-  make -C "$ROOT/packages" install FPC="$target_compiler" \
-    FPCMAKE="$target_fpcmake" OPT="$unicode_opt" FPMAKEOPT=--NoIDE=1 \
-    INSTALL_PREFIX="$new_toolchain"
+  # Keep compact Release and full Debug SDK objects in separate search trees.
+  for metadata_opt in -goDWARFLINETABLESONLY -goNODWARFLINETABLESONLY; do
+    unicode_opt="$(read_rtl_profile) $metadata_opt -n -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES"
+    make -C "$ROOT/rtl" clean FPC="$target_compiler"
+    make -C "$ROOT/rtl" -j1 all FPC="$target_compiler" OPT="$unicode_opt"
+    make -C "$ROOT/rtl" install FPC="$target_compiler" \
+      FPCMAKE="$target_fpcmake" OPT="$unicode_opt" INSTALL_PREFIX="$new_toolchain"
+    make -C "$ROOT/packages" clean FPC="$target_compiler" \
+      FPMAKEOPT=--NoIDE=1
+    make -C "$ROOT/packages" -j1 all FPC="$target_compiler" OPT="$unicode_opt" FPMAKEOPT=--NoIDE=1
+    make -C "$ROOT/packages" install FPC="$target_compiler" \
+      FPCMAKE="$target_fpcmake" OPT="$unicode_opt" FPMAKEOPT=--NoIDE=1 \
+      INSTALL_PREFIX="$new_toolchain"
+    if [[ "$metadata_opt" == -goDWARFLINETABLESONLY ]]; then
+      mv "$new_toolchain/lib/fpc/$version_dir/units" "$new_toolchain/lib/fpc/$version_dir/units-release"
+      release_unicode_opt=$unicode_opt
+    fi
+  done
   {
     echo "rtl_packages_opt=OPT=$unicode_opt"
+    echo "release_rtl_packages_opt=OPT=$release_unicode_opt"
+    echo "release_sysutils_o_sha256=$(sha256sum "$new_toolchain/lib/fpc/$version_dir/units-release/x86_64-linux/rtl/sysutils.o" | cut -d' ' -f1)"
+    echo "release_generics_hashes_o_sha256=$(sha256sum "$new_toolchain/lib/fpc/$version_dir/units-release/x86_64-linux/rtl-generics/generics.hashes.o" | cut -d' ' -f1)"
     if [[ "${MOONCOMPILER_PLACEMENT:-}" == 1 && -z "${MOONCOMPILER_NO_PLACEMENT:-}" ]]; then
       echo 'placement_draft=1'
     else
@@ -335,11 +345,17 @@ build_compiler() {
       '--pinned-unit=mormot.core.fpcx64mm=$FPCBINDIR/../runtime/mm/mormot.core.fpcx64mm.pas'
   } > "$new_toolchain/etc/moon-base.cfg"
 
+  sed 's@/units/@/units-release/@g' "$new_toolchain/etc/moon-base.cfg" > "$new_toolchain/etc/moon-release-base.cfg"
+
   # fpc.cfg: full product profile (Delphi mode, runtime paths, debug/release).
   {
     printf '%s\n' \
       '# MoonCompiler product configuration' \
+      '#IFDEF RELEASE' \
+      '#INCLUDE $FPCBINDIR/../etc/moon-release-base.cfg' \
+      '#ELSE' \
       '#INCLUDE $FPCBINDIR/../etc/moon-base.cfg' \
+      '#ENDIF' \
       '-Mdelphi' \
       '-Municodestrings' \
       '-MduplicateLocals' \
@@ -385,6 +401,9 @@ build_compiler() {
       '#IFDEF RELEASE' \
       '-uDEBUG' \
       '-O3' \
+      '-goDWARFLINETABLESONLY' \
+      '-Xs' \
+      '-k--compress-debug-sections=zlib' \
       '-Sa-' \
       '#ELSE' \
       '-dDEBUG' \
@@ -519,6 +538,13 @@ install_toolchain() {
     echo 'the archive is missing moon-base.cfg, fpc.cfg or the runtime MM source' >&2
     exit 1
   }
+  if grep -q 'moon-release-base.cfg' "$new_toolchain/etc/fpc.cfg"; then
+    [[ -f "$new_toolchain/etc/moon-release-base.cfg" &&
+       -f "$new_toolchain/lib/fpc/$version_dir/units-release/x86_64-linux/rtl/system.ppu" ]] || {
+      echo 'the archive is missing the compact Release configuration or RTL' >&2
+      exit 1
+    }
+  fi
   # The IDE profile's fpc.cfg names its toolchain by an absolute path (the
   # gates run the product compiler with this configuration, so it cannot be
   # relative to the compiler's own directory): render it for this clone.

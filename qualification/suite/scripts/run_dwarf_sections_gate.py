@@ -259,30 +259,34 @@ def main():
                          capture_output=True,timeout=15)
         assert p.returncode==0,(name,p.stdout,p.stderr)
         rows.append(dict(case='inflate-'+name,seconds=None))
-    build=out/'integer-forms'
-    build.mkdir()
-    source=root/'qualification/suite/tests/smoke/dwarf_integer_forms.pas'
-    command=[str(args.compiler.resolve()),'-n','-dMOONCOMPILER_VANILLA_RUNTIME',
-             '-gw3','-O-',f'-Fu{rtl}',*packages,f'-FU{build}',f'-FE{build}',
-             *binutils,*args.option,str(source)]
-    p=subprocess.run(command,capture_output=True,timeout=120)
-    (build/'compile.log').write_bytes(p.stdout+p.stderr)
-    assert p.returncode==0,(build/'compile.log').read_text(errors='replace')[-3000:]
-    exe=build/('dwarf_integer_forms.exe' if os.name=='nt' else 'dwarf_integer_forms')
-    variants={'raw':exe}
-    if os.name!='nt':
-        for method in ('zlib','zlib-gnu'):
-            target=build/('dwarf_integer_forms-'+method)
-            subprocess.run([objcopy,'--compress-debug-sections='+method,exe,target],check=True)
-            variants[method]=target
-    oracle=None
-    for name,target in variants.items():
-        p=subprocess.run([str(target)],capture_output=True,timeout=15)
-        output=(p.stdout+p.stderr).decode(errors='replace')
-        assert p.returncode==0 and 'INTEGER_FORMS=Marker|' in output,(name,output)
-        if oracle is None: oracle=output
-        else: assert output==oracle,(name,output,oracle)
-        rows.append(dict(case='integer-forms-'+name,seconds=None))
+    # Full DWARF exercises signed/unsigned constants. Compact makes Marker the
+    # final child DIE: consuming its CU terminator must not read past the CU.
+    for metadata in ('full','compact'):
+        build=out/('integer-forms-'+metadata)
+        build.mkdir()
+        source=root/'qualification/suite/tests/smoke/dwarf_integer_forms.pas'
+        option='-goDWARFLINETABLESONLY' if metadata=='compact' else '-goNODWARFLINETABLESONLY'
+        command=[str(args.compiler.resolve()),'-n','-dMOONCOMPILER_VANILLA_RUNTIME',
+                 '-gw3','-O-',f'-Fu{rtl}',*packages,f'-FU{build}',f'-FE{build}',
+                 *binutils,*args.option,option,str(source)]
+        p=subprocess.run(command,capture_output=True,timeout=120)
+        (build/'compile.log').write_bytes(p.stdout+p.stderr)
+        assert p.returncode==0,(build/'compile.log').read_text(errors='replace')[-3000:]
+        exe=build/('dwarf_integer_forms.exe' if os.name=='nt' else 'dwarf_integer_forms')
+        variants={'raw':exe}
+        if os.name!='nt':
+            for method in ('zlib','zlib-gnu'):
+                target=build/('dwarf_integer_forms-'+method)
+                subprocess.run([objcopy,'--compress-debug-sections='+method,exe,target],check=True)
+                variants[method]=target
+        oracle=None
+        for name,target in variants.items():
+            p=subprocess.run([str(target)],capture_output=True,timeout=15)
+            output=(p.stdout+p.stderr).decode(errors='replace')
+            assert p.returncode==0 and 'INTEGER_FORMS=Marker|' in output,(metadata,name,output)
+            if oracle is None: oracle=output
+            else: assert output==oracle,(metadata,name,output,oracle)
+            rows.append(dict(case='integer-forms-'+metadata+'-'+name,seconds=None))
     (out/'summary.json').write_text(json.dumps(dict(cases=rows, compiler=str(args.compiler), rtl=str(rtl)),indent=2),encoding='utf-8')
     print(f'DWARF_SECTIONS_GATE_PASS {len(rows)} cases')
 

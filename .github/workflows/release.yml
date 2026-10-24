@@ -170,7 +170,7 @@ jobs:
             [[ "$(printf '%s\n' "$output" | tail -n 1)" == FILESYSTEM_OPERATIONS_CONTRACT_PASS ]]
           done
           test -d units/x86_64-linux/debug
-          test -d units/x86_64-linux/release
+          test -d units/x86_64-linux/release-compact
           python3 "$GITHUB_WORKSPACE/qualification/release/rtl_boundaries_smoke.py" \
             --compiler "$fpc" --out "$smoke/rtl-boundaries"
           python3 "$GITHUB_WORKSPACE/qualification/compiler-resource-paths/run_gate.py" \
@@ -200,6 +200,7 @@ jobs:
           test -x toolchain/ide/bin/fpcres
           python3 qualification/build-driver/config_contract_gate.py
           python3 qualification/build-driver/product_config_gate.py
+          python3 qualification/build-driver/release_metadata_gate.py --results "$RUNNER_TEMP/release-metadata"
           python3 qualification/build-driver/unit_scope_gate.py
           python3 qualification/build-driver/zlib_objects_gate.py
           python3 qualification/build-driver/rtl_profile_gate.py
@@ -382,7 +383,7 @@ jobs:
               }
             }
             If (-not (Test-Path units\x86_64-win64\debug) -or
-                -not (Test-Path units\x86_64-win64\release)) {
+                -not (Test-Path units\x86_64-win64\release-compact)) {
               throw 'the profile unit directories are missing'
             }
           } finally {
@@ -417,6 +418,8 @@ jobs:
           If ($LASTEXITCODE -ne 0) { throw 'Installed configuration contract failed' }
           python .\qualification\build-driver\product_config_gate.py
           If ($LASTEXITCODE -ne 0) { throw 'Installed product configuration gate failed' }
+          python .\qualification\build-driver\release_metadata_gate.py --results "$env:RUNNER_TEMP\release-metadata"
+          If ($LASTEXITCODE -ne 0) { throw 'Installed Release metadata contract failed' }
           python .\qualification\build-driver\unit_scope_gate.py
           If ($LASTEXITCODE -ne 0) { throw 'Installed unit scope gate failed' }
           python .\qualification\build-driver\zlib_objects_gate.py

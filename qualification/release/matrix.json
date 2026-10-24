@@ -11,6 +11,7 @@
     "version_contract": ["qualification/build-driver"],
     "ppu_format_contract": ["qualification/build-driver"],
     "product_config_gate": ["qualification/build-driver"],
+    "release_metadata": ["qualification/build-driver", "qualification/suite/scripts", "qualification/suite/tests/smoke", "qualification/suite/tests/rtti", "RTL-test/semantic"],
     "unit_scope": ["qualification/build-driver"],
     "zlib_objects": ["qualification/build-driver", "qualification/performance/tools"],
     "rtl_profile": ["qualification/build-driver"],
@@ -411,6 +412,19 @@
       "resource": "product_config_gate",
       "estimated_seconds_by_platform": {"win64": 24, "linux": 5},
       "timeout": 3600
+    },
+    {
+      "id": "release_metadata",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/build-driver/release_metadata_gate.py", "--results", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/build-driver/release_metadata_gate.py", "--results", "{job_dir}/out"]
+      },
+      "needs": ["build", "sync"],
+      "resource": "release_metadata",
+      "timeout": 300,
+      "expected": "RELEASE_METADATA_GATE_PASS"
     },
     {
       "id": "unit_scope",

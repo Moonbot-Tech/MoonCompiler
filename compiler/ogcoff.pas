@@ -2677,6 +2677,7 @@ const pemagic : array[0..3] of byte = (
             { Skip debug sections }
             if (oso_debug in secoptions)  and
                (cs_link_strip in current_settings.globalswitches) and
+               not(ds_dwarf_line_tables_only in current_settings.debugswitches) and
                not(cs_link_separate_dbg_file in current_settings.globalswitches) then
               exit;
 
@@ -3257,7 +3258,11 @@ const pemagic : array[0..3] of byte = (
                      (ExeWriteMode=ewm_exefull) and
                      not(cs_link_strip in current_settings.globalswitches)
                     );
-        writeDbgStrings:=hassymbols or ((ExeWriteMode=ewm_exeonly) and (cs_link_separate_dbg_file in current_settings.globalswitches));
+        { PE debug section names use the COFF string table even without symbols. }
+        writeDbgStrings:=hassymbols or
+          ((ExeWriteMode=ewm_exeonly) and (cs_link_separate_dbg_file in current_settings.globalswitches)) or
+          ((ExeWriteMode=ewm_exefull) and (cs_link_strip in current_settings.globalswitches) and
+           (ds_dwarf_line_tables_only in current_settings.debugswitches));
         { Stub }
         if win32 then
           begin

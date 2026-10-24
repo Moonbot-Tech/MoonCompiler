@@ -41,6 +41,7 @@ jobs:
           python3 qualification/build-driver/ppu_format_contract.py
           python3 qualification/build-driver/config_contract_gate.py
           python3 qualification/build-driver/product_config_gate.py
+          python3 qualification/build-driver/release_metadata_gate.py --results "$RUNNER_TEMP/release-metadata"
           python3 qualification/build-driver/unit_scope_gate.py
           python3 qualification/build-driver/zlib_objects_gate.py
           python3 qualification/build-driver/rtl_profile_gate.py
@@ -371,6 +372,8 @@ jobs:
           If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           python .\qualification\build-driver\product_config_gate.py
           If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\build-driver\release_metadata_gate.py --results "$env:RUNNER_TEMP\release-metadata"
+          If ($LASTEXITCODE -ne 0) { throw 'Release metadata contract failed' }
           python .\qualification\build-driver\unit_scope_gate.py
           If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           python .\qualification\build-driver\zlib_objects_gate.py

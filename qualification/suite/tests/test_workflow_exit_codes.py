@@ -48,8 +48,8 @@ class SmokeExitCodes(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='moon-smoke-exit-') as directory:
             work = Path(directory)
             for name in ('qualification/suite/tests/smoke', 'examples', 'app',
-                         'app/units/x86_64-win64/debug', 'app/units/x86_64-win64/release',
-                         'units/x86_64-linux/debug', 'units/x86_64-linux/release'):
+                         'app/units/x86_64-win64/debug', 'app/units/x86_64-win64/release-compact',
+                         'units/x86_64-linux/debug', 'units/x86_64-linux/release-compact'):
                 (work / name).mkdir(parents=True, exist_ok=True)
             trace = work / 'calls.txt'
             probe = work / 'program.py'

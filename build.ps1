@@ -219,31 +219,47 @@ function Build-Compiler {
     # recorded in <toolchain>\profile.txt and rtl_profile_gate.py proves the
     # installed objects against it.
     $rtlProfile = Read-RtlProfile
-    $unicodeOptions = "OPT=$rtlProfile -n -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dFPC_OS_UNICODE -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES"
-    Invoke-Checked $makePath @(
-      '-C', (Join-Path $Root 'rtl'), 'clean', "FPC=$targetCompiler",
-      'CPU_TARGET=x86_64', 'OS_TARGET=win64')
-    Invoke-Checked $makePath @(
-      '-C', (Join-Path $Root 'rtl'), '-j1', 'all', "FPC=$targetCompiler",
-      $unicodeOptions, 'CPU_TARGET=x86_64', 'OS_TARGET=win64')
-    Invoke-Checked $makePath @(
-      '-C', (Join-Path $Root 'rtl'), 'install', "FPC=$targetCompiler",
-      $unicodeOptions, 'CPU_TARGET=x86_64', 'OS_TARGET=win64',
-      "INSTALL_PREFIX=$newToolchain", $makeInstall)
-    Invoke-Checked $makePath @(
-      '-C', (Join-Path $Root 'packages'), 'clean', "FPC=$targetCompiler",
-      'FPMAKEOPT=--NoIDE=1', 'CPU_TARGET=x86_64', 'OS_TARGET=win64')
-    Invoke-Checked $makePath @(
-      '-C', (Join-Path $Root 'packages'), '-j1', 'all',
-      "FPC=$targetCompiler", $unicodeOptions, 'FPMAKEOPT=--NoIDE=1',
-      'CPU_TARGET=x86_64', 'OS_TARGET=win64')
-    Invoke-Checked $makePath @(
-      '-C', (Join-Path $Root 'packages'), 'install',
-      "FPC=$targetCompiler", $unicodeOptions, 'FPMAKEOPT=--NoIDE=1',
-      'CPU_TARGET=x86_64', 'OS_TARGET=win64',
-      "INSTALL_PREFIX=$newToolchain", $makeInstall)
+    # Build compact Release first, then full Debug. Unit search paths never mix them.
+    foreach ($metadataOptions in @('-goDWARFLINETABLESONLY', '-goNODWARFLINETABLESONLY')) {
+      $unicodeOptions = "OPT=$rtlProfile $metadataOptions -n -dMOONCOMPILER_VANILLA_RUNTIME -dUNICODERTL -dFPC_OS_UNICODE -dENABLE_DELPHI_RTTI -dMOONCOMPILER_DELPHI_CALLBACK_TYPES"
+      Invoke-Checked $makePath @(
+        '-C', (Join-Path $Root 'rtl'), 'clean', "FPC=$targetCompiler",
+        'CPU_TARGET=x86_64', 'OS_TARGET=win64')
+      Invoke-Checked $makePath @(
+        '-C', (Join-Path $Root 'rtl'), '-j1', 'all', "FPC=$targetCompiler",
+        $unicodeOptions, 'CPU_TARGET=x86_64', 'OS_TARGET=win64')
+      Invoke-Checked $makePath @(
+        '-C', (Join-Path $Root 'rtl'), 'install', "FPC=$targetCompiler",
+        $unicodeOptions, 'CPU_TARGET=x86_64', 'OS_TARGET=win64',
+        "INSTALL_PREFIX=$newToolchain", $makeInstall)
+      Invoke-Checked $makePath @(
+        '-C', (Join-Path $Root 'packages'), 'clean', "FPC=$targetCompiler",
+        'FPMAKEOPT=--NoIDE=1', 'CPU_TARGET=x86_64', 'OS_TARGET=win64')
+      Invoke-Checked $makePath @(
+        '-C', (Join-Path $Root 'packages'), '-j1', 'all',
+        "FPC=$targetCompiler", $unicodeOptions, 'FPMAKEOPT=--NoIDE=1',
+        'CPU_TARGET=x86_64', 'OS_TARGET=win64')
+      Invoke-Checked $makePath @(
+        '-C', (Join-Path $Root 'packages'), 'install',
+        "FPC=$targetCompiler", $unicodeOptions, 'FPMAKEOPT=--NoIDE=1',
+        'CPU_TARGET=x86_64', 'OS_TARGET=win64',
+        "INSTALL_PREFIX=$newToolchain", $makeInstall)
+      If ($metadataOptions -eq '-goDWARFLINETABLESONLY') {
+        $unitRoot = [IO.Path]::GetFullPath((Join-Path $newToolchain 'units'))
+        $releaseRoot = [IO.Path]::GetFullPath((Join-Path $newToolchain 'units-release'))
+        $prefix = [IO.Path]::GetFullPath($newToolchain) + [IO.Path]::DirectorySeparatorChar
+        If (-not $unitRoot.StartsWith($prefix) -or -not $releaseRoot.StartsWith($prefix)) {
+          throw 'Release unit directories must remain inside the new toolchain'
+        }
+        Move-Item -LiteralPath $unitRoot -Destination $releaseRoot
+        $releaseOptions = $unicodeOptions
+      }
+    }
     Set-Content -LiteralPath (Join-Path $newToolchain 'profile.txt') -Encoding Ascii -Value @(
       "rtl_packages_opt=$unicodeOptions",
+      "release_rtl_packages_opt=$releaseOptions",
+      ("release_sysutils_o_sha256=" + (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $newToolchain 'units-release\x86_64-win64\rtl\sysutils.o')).Hash.ToLowerInvariant()),
+      ("release_generics_hashes_o_sha256=" + (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $newToolchain 'units-release\x86_64-win64\rtl-generics\generics.hashes.o')).Hash.ToLowerInvariant()),
       ("placement_draft=" + [int]($env:MOONCOMPILER_PLACEMENT -ceq '1' -and [string]::IsNullOrEmpty($env:MOONCOMPILER_NO_PLACEMENT))),
       ("compiler_sha256=" + (Get-FileHash -Algorithm SHA256 -LiteralPath $targetCompiler).Hash.ToLowerInvariant()),
       ("sysutils_o_sha256=" + (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $newToolchain 'units\x86_64-win64\rtl\sysutils.o')).Hash.ToLowerInvariant()),
@@ -292,10 +308,18 @@ function Build-Compiler {
       '-dNOPATCHRTL',
       "--pinned-unit=$MmUnit=`$FPCBINDIR/../../runtime/mm/$MmUnit.pas")
 
+    $releaseBase = Join-Path (Split-Path -Parent $config) 'moon-release-base.cfg'
+    (Get-Content -LiteralPath $baseCfg) -replace '/units/', '/units-release/' |
+      Set-Content -LiteralPath $releaseBase -Encoding Ascii
+
     # fpc.cfg: full product profile (Delphi mode, runtime paths, debug/release).
     Set-Content -LiteralPath $config -Encoding Ascii -Value @(
       '# MoonCompiler product configuration',
+      '#IFDEF RELEASE',
+      '#INCLUDE $FPCBINDIR/moon-release-base.cfg',
+      '#ELSE',
       '#INCLUDE $FPCBINDIR/moon-base.cfg',
+      '#ENDIF',
       '-Mdelphi',
       '-Municodestrings',
       '-MduplicateLocals',
@@ -385,6 +409,8 @@ function Build-Compiler {
       '#IFDEF RELEASE',
       '-uDEBUG',
       '-O3',
+      '-goDWARFLINETABLESONLY',
+      '-Xs',
       '-Sa-',
       '#ELSE',
       '-dDEBUG',
@@ -722,6 +748,11 @@ function Install-Toolchain([string]$Archive) {
         -not (Test-Path -LiteralPath $config) -or
         -not (Test-Path -LiteralPath $runtimeMm)) {
       throw 'the archive is missing moon-base.cfg, fpc.cfg or the runtime MM source'
+    }
+    If ((Get-Content -LiteralPath $config -Raw).Contains('moon-release-base.cfg') -and
+        (-not (Test-Path -LiteralPath (Join-Path $bin 'moon-release-base.cfg')) -or
+         -not (Test-Path -LiteralPath (Join-Path $newToolchain 'units-release\x86_64-win64\rtl\system.ppu')))) {
+      throw 'the archive is missing the compact Release configuration or RTL'
     }
     # The IDE profile's fpc.cfg names its toolchain by an absolute path (the
     # gates run the product compiler with this configuration, so it cannot be

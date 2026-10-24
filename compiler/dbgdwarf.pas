@@ -2122,7 +2122,7 @@ implementation
         cc             : Tdwarf_calling_convention;
         st             : tsymtable;
         vmtoffset      : pint;
-        in_currentunit : boolean;
+        in_currentunit, compact : boolean;
         blk_i, sym_i   : longint;
         blk_sym        : tsym;
         loc_i          : longint;
@@ -2134,9 +2134,10 @@ implementation
           except in case of methods (gcc-compatible)
         }
         in_currentunit:=def.in_currentunit;
+        compact:=ds_dwarf_line_tables_only in current_settings.debugswitches;
 
         if not in_currentunit and
-          not (def.owner.symtabletype in [objectsymtable,recordsymtable]) then
+          (compact or not (def.owner.symtabletype in [objectsymtable,recordsymtable])) then
           exit;
 
         { happens for init procdef of units without init section }
@@ -2154,7 +2155,7 @@ implementation
         defnumberlist.Add(def);
 
         { Write methods and only in the scope of their parent objectdefs.  }
-        if (def.owner.symtabletype in [objectsymtable,recordsymtable]) then
+        if not compact and (def.owner.symtabletype in [objectsymtable,recordsymtable]) then
           begin
             { this code can also work for nested procdefs, but is not yet
               activated for those because there is no clear advantage yet to
@@ -2174,73 +2175,81 @@ implementation
 
         current_asmdata.asmlists[al_dwarf_info].concat(tai_comment.Create(strpnew('Procdef '+def.fullprocname(true))));
         if not is_objc_class_or_protocol(def.struct) then
-          append_entry(DW_TAG_subprogram,true,
-            [DW_AT_name,DW_FORM_string,symname(def.procsym, false)+#0])
+          begin
+            s:=symname(def.procsym,false);
+            if compact and (def.owner.symtabletype in [objectsymtable,recordsymtable]) then
+              s:=tabstractrecorddef(def.owner.defowner).RttiName+'.'+s;
+            append_entry(DW_TAG_subprogram,not compact,[DW_AT_name,DW_FORM_string,s+#0]);
+          end
         else
-          append_entry(DW_TAG_subprogram,true,
+          append_entry(DW_TAG_subprogram,not compact,
             [DW_AT_name,DW_FORM_string,def.mangledname+#0]);
 
-        if (ds_dwarf_cpp in current_settings.debugswitches) and (def.owner.symtabletype in [objectsymtable,recordsymtable]) then
+        if not compact then
           begin
-            { If C++ emulation is enabled, add DW_AT_linkage_name attribute for methods.
-              LLDB uses it to display fully qualified method names.
-              Add a simple C++ mangled name without params to achieve at least "Class::Method()"
-              instead of just "Method" in LLDB. }
-            s:=tabstractrecorddef(def.owner.defowner).objrealname^;
-            procentry:=Format('_ZN%d%s', [Length(s), s]);
-            s:=symname(def.procsym, false);
-            procentry:=Format('%s%d%sEv'#0, [procentry, Length(s), s]);
-            append_attribute(DW_AT_linkage_name,DW_FORM_string, [procentry]);
-          end;
+            if (ds_dwarf_cpp in current_settings.debugswitches) and (def.owner.symtabletype in [objectsymtable,recordsymtable]) then
+              begin
+                { If C++ emulation is enabled, add DW_AT_linkage_name attribute for methods.
+                  LLDB uses it to display fully qualified method names.
+                  Add a simple C++ mangled name without params to achieve at least "Class::Method()"
+                  instead of just "Method" in LLDB. }
+                s:=tabstractrecorddef(def.owner.defowner).objrealname^;
+                procentry:=Format('_ZN%d%s', [Length(s), s]);
+                s:=symname(def.procsym, false);
+                procentry:=Format('%s%d%sEv'#0, [procentry, Length(s), s]);
+                append_attribute(DW_AT_linkage_name,DW_FORM_string, [procentry]);
+              end;
 
-        append_proc_frame_base(list,def);
+            append_proc_frame_base(list,def);
 
-        { Append optional flags. }
+            { Append optional flags. }
 
-        { All Pascal procedures are prototyped }
-        append_attribute(DW_AT_prototyped,DW_FORM_flag,[true]);
-        { Calling convention.  }
-        cc:=dwarf_calling_convention(def);
-        if (cc<>DW_CC_normal) then
-          append_attribute(DW_AT_calling_convention,DW_FORM_data1,[ord(cc)]);
-{$ifdef i8086}
-        { Call model (near or far). Open Watcom compatible. }
-        if tcpuprocdef(def).is_far then
-          append_attribute(DW_AT_address_class,DW_FORM_data1,[DW_ADDR_far16])
-        else
-          append_attribute(DW_AT_address_class,DW_FORM_data1,[DW_ADDR_none]);
-{$endif i8086}
-        { Externally visible.  }
-        if (po_global in def.procoptions) and
-           (def.parast.symtablelevel<=normal_function_level) then
-          append_attribute(DW_AT_external,DW_FORM_flag,[true]);
-        { Abstract or virtual/overriding method.  }
-        if (([po_abstractmethod, po_virtualmethod, po_overridingmethod] * def.procoptions) <> []) and
-           not is_objc_class_or_protocol(def.struct) and
-           not is_objectpascal_helper(def.struct) then
-          begin
-            if not(po_abstractmethod in def.procoptions) then
-              append_attribute(DW_AT_virtuality,DW_FORM_data1,[ord(DW_VIRTUALITY_virtual)])
+            { All Pascal procedures are prototyped }
+            append_attribute(DW_AT_prototyped,DW_FORM_flag,[true]);
+            { Calling convention.  }
+            cc:=dwarf_calling_convention(def);
+            if (cc<>DW_CC_normal) then
+              append_attribute(DW_AT_calling_convention,DW_FORM_data1,[ord(cc)]);
+    {$ifdef i8086}
+            { Call model (near or far). Open Watcom compatible. }
+            if tcpuprocdef(def).is_far then
+              append_attribute(DW_AT_address_class,DW_FORM_data1,[DW_ADDR_far16])
             else
-              append_attribute(DW_AT_virtuality,DW_FORM_data1,[ord(DW_VIRTUALITY_pure_virtual)]);
-            { Element number in the vmt (needs to skip stuff coming before the
-              actual method addresses in the vmt, so we use vmtmethodoffset()
-              and then divide by sizeof(pint)).  }
-            vmtoffset:=tobjectdef(def.owner.defowner).vmtmethodoffset(def.extnumber);
-            append_attribute(DW_AT_vtable_elem_location,DW_FORM_block1,[3+LengthUleb128(vmtoffset)]);
-            current_asmdata.asmlists[al_dwarf_info].concat(tai_const.create_8bit(ord(DW_OP_deref)));
-            current_asmdata.asmlists[al_dwarf_info].concat(tai_const.create_8bit(ord(DW_OP_constu)));
-            current_asmdata.asmlists[al_dwarf_info].concat(tai_const.Create_uleb128bit(vmtoffset));
-            current_asmdata.asmlists[al_dwarf_info].concat(tai_const.create_8bit(ord(DW_OP_plus)));
+              append_attribute(DW_AT_address_class,DW_FORM_data1,[DW_ADDR_none]);
+    {$endif i8086}
+            { Externally visible.  }
+            if (po_global in def.procoptions) and
+               (def.parast.symtablelevel<=normal_function_level) then
+              append_attribute(DW_AT_external,DW_FORM_flag,[true]);
+            { Abstract or virtual/overriding method.  }
+            if (([po_abstractmethod, po_virtualmethod, po_overridingmethod] * def.procoptions) <> []) and
+               not is_objc_class_or_protocol(def.struct) and
+               not is_objectpascal_helper(def.struct) then
+              begin
+                if not(po_abstractmethod in def.procoptions) then
+                  append_attribute(DW_AT_virtuality,DW_FORM_data1,[ord(DW_VIRTUALITY_virtual)])
+                else
+                  append_attribute(DW_AT_virtuality,DW_FORM_data1,[ord(DW_VIRTUALITY_pure_virtual)]);
+                { Element number in the vmt (needs to skip stuff coming before the
+                  actual method addresses in the vmt, so we use vmtmethodoffset()
+                  and then divide by sizeof(pint)).  }
+                vmtoffset:=tobjectdef(def.owner.defowner).vmtmethodoffset(def.extnumber);
+                append_attribute(DW_AT_vtable_elem_location,DW_FORM_block1,[3+LengthUleb128(vmtoffset)]);
+                current_asmdata.asmlists[al_dwarf_info].concat(tai_const.create_8bit(ord(DW_OP_deref)));
+                current_asmdata.asmlists[al_dwarf_info].concat(tai_const.create_8bit(ord(DW_OP_constu)));
+                current_asmdata.asmlists[al_dwarf_info].concat(tai_const.Create_uleb128bit(vmtoffset));
+                current_asmdata.asmlists[al_dwarf_info].concat(tai_const.create_8bit(ord(DW_OP_plus)));
+              end;
+
+            { accessibility: public/private/protected }
+            if (def.owner.symtabletype in [objectsymtable,recordsymtable]) then
+              append_visibility(def.visibility);
+
+            { Return type.  }
+            if not(is_void(tprocdef(def).returndef)) then
+              append_labelentry_ref(DW_AT_type,def_dwarf_lab(tprocdef(def).returndef));
+
           end;
-
-        { accessibility: public/private/protected }
-        if (def.owner.symtabletype in [objectsymtable,recordsymtable]) then
-          append_visibility(def.visibility);
-
-        { Return type.  }
-        if not(is_void(tprocdef(def).returndef)) then
-          append_labelentry_ref(DW_AT_type,def_dwarf_lab(tprocdef(def).returndef));
 
         { we can only write the start/end if this procedure is implemented in
           this module
@@ -2285,6 +2294,8 @@ implementation
           localsymtable and/or parasymtable.
         }
         finish_entry;
+        if compact then
+          exit;
 
         if assigned(def.parast) then
           begin
@@ -3762,11 +3773,15 @@ implementation
 
         finish_entry;
 
-        { write all global/local variables. This will flag all required tdefs  }
-        if assigned(current_module.globalsymtable) then
-          write_symtable_syms(current_asmdata.asmlists[al_dwarf_info],current_module.globalsymtable);
-        if assigned(current_module.localsymtable) then
-          write_symtable_syms(current_asmdata.asmlists[al_dwarf_info],current_module.localsymtable);
+        if not (ds_dwarf_line_tables_only in current_settings.debugswitches) then
+          begin
+            { write all global/local variables. This will flag all required tdefs  }
+            if assigned(current_module.globalsymtable) then
+              write_symtable_syms(current_asmdata.asmlists[al_dwarf_info],current_module.globalsymtable);
+            if assigned(current_module.localsymtable) then
+              write_symtable_syms(current_asmdata.asmlists[al_dwarf_info],current_module.localsymtable);
+
+          end;
 
         { write all procedures and methods. This will flag all required tdefs }
         if assigned(current_module.globalsymtable) then
@@ -3774,20 +3789,24 @@ implementation
         if assigned(current_module.localsymtable) then
           write_symtable_procdefs(current_asmdata.asmlists[al_dwarf_info],current_module.localsymtable);
 
-        { reset unit type info flag }
-        reset_unit_type_info;
+        if not (ds_dwarf_line_tables_only in current_settings.debugswitches) then
+          begin
+            { reset unit type info flag }
+            reset_unit_type_info;
 
-        { write used types from the used units }
-        write_used_unit_type_info(current_asmdata.asmlists[al_dwarf_info],current_module);
+            { write used types from the used units }
+            write_used_unit_type_info(current_asmdata.asmlists[al_dwarf_info],current_module);
 
-        { last write the types from this unit }
-        if assigned(current_module.globalsymtable) then
-          write_symtable_defs(current_asmdata.asmlists[al_dwarf_info],current_module.globalsymtable);
-        if assigned(current_module.localsymtable) then
-          write_symtable_defs(current_asmdata.asmlists[al_dwarf_info],current_module.localsymtable);
+            { last write the types from this unit }
+            if assigned(current_module.globalsymtable) then
+              write_symtable_defs(current_asmdata.asmlists[al_dwarf_info],current_module.globalsymtable);
+            if assigned(current_module.localsymtable) then
+              write_symtable_defs(current_asmdata.asmlists[al_dwarf_info],current_module.localsymtable);
 
-        { write defs not written yet }
-        write_remaining_defs_to_write(current_asmdata.asmlists[al_dwarf_info]);
+            { write defs not written yet }
+            write_remaining_defs_to_write(current_asmdata.asmlists[al_dwarf_info]);
+
+          end;
 
         { close compilation unit entry }
         finish_children;
