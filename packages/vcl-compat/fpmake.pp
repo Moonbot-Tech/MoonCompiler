@@ -41,11 +41,9 @@ begin
     P.Dependencies.Add('wasm-utils',[wasip1,wasip1threads]);
     P.SourcePath.Add('src');
     P.IncludePath.Add('src');
-    { System.ZLib: the native zlib objects of the target live beside the unit
-      in the installed package directory, where the linker of an application
-      looks for a unit's $L objects }
-    P.ObjectPath.Add('native/zlib/x86_64-win64',[Win64]);
-    P.ObjectPath.Add('native/zlib/x86_64-linux',[Linux]);
+    { System.ZLib shares the RTL reader's native zlib objects. }
+    P.ObjectPath.Add('../../rtl/inc/zlib/x86_64-win64',[Win64]);
+    P.ObjectPath.Add('../../rtl/inc/zlib/x86_64-linux',[Linux]);
     P.ObjectPath.Add('native/brotli/x86_64-win64',[Win64]);
     P.ObjectPath.Add('native/brotli/x86_64-linux',[Linux]);
     P.InstallFiles.Add('native/brotli/x86_64-win64/moonbrotli_common_constants.o',[Win64],'$(unitinstalldir)');
@@ -72,22 +70,6 @@ begin
     P.InstallFiles.Add('native/brotli/x86_64-linux/moonbrotli_dec_prefix.o',[Linux],'$(unitinstalldir)');
     P.InstallFiles.Add('native/brotli/x86_64-linux/moonbrotli_dec_state.o',[Linux],'$(unitinstalldir)');
     P.InstallFiles.Add('native/brotli/x86_64-linux/moonbrotli_dec_static_init.o',[Linux],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_adler32.o',[Win64],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_crc32.o',[Win64],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_deflate.o',[Win64],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_inffast.o',[Win64],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_inflate.o',[Win64],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_inftrees.o',[Win64],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_trees.o',[Win64],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-win64/moonzlib_zutil.o',[Win64],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_adler32.o',[Linux],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_crc32.o',[Linux],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_deflate.o',[Linux],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_inffast.o',[Linux],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_inflate.o',[Linux],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_inftrees.o',[Linux],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_trees.o',[Linux],'$(unitinstalldir)');
-    P.InstallFiles.Add('native/zlib/x86_64-linux/moonzlib_zutil.o',[Linux],'$(unitinstalldir)');
 
 
     T:=P.Targets.AddUnit('posix.systypes.pp',[Linux]);

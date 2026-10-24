@@ -667,8 +667,12 @@ begin
   try
     If not Report.FWriteFailed then Report.Flush;
   finally
-    NativeClose(Report.FHandle);
-    Report.Free;
+    try
+      CloseDwarf;
+    finally
+      NativeClose(Report.FHandle);
+      Report.Free;
+    end;
   end;
 end;
 

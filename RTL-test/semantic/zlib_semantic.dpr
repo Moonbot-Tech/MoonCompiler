@@ -664,7 +664,7 @@ end;
   runs out, from inside deflateInit/inflateInit), and a fault on input that is not there.
   The caller keeps four values in registers the callee has to save; after the except they
   are what they were.  On Win64 the unwinder finds its way through the zlib objects only by
-  their unwind tables (packages/vcl-compat/native/zlib/README.md). }
+  their unwind tables (rtl/inc/zlib/README.md). }
 type
   EAllocRefused = class(Exception);
 

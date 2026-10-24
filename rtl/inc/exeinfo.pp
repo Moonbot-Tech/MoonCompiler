@@ -57,6 +57,9 @@ type
 
 function OpenExeFile(var e:TExeFile;const fn:shortstring):boolean;
 function FindExeSection(var e:TExeFile;const secname:shortstring;var secofs,seclen:longint):boolean;
+{ Raw DWARF data location; unpacked=-1 for ordinary sections. }
+function FindDebugSection(var e:TExeFile;const secname:shortstring;var secofs,seclen,unpacked:longint):boolean;
+
 function CloseExeFile(var e:TExeFile):boolean;
 function ReadDebugLink(var e:TExeFile;var dbgfn:ansistring):boolean; overload;
 function ReadDebugLink(var e:TExeFile;var dbgfn:shortstring):boolean; overload;
@@ -1121,7 +1124,8 @@ var
   elfheader : telfheader;
   elfsec    : telfsechdr;
   phdr      : telfproghdr;
-  i         : longint;
+  i, count  : longint;
+  Available : QWord;
 {$ifdef MSDOS}
   DosHeader : tdosheader;
   BRead     : cardinal;
@@ -1143,17 +1147,35 @@ begin
   end;
 {$endif MSDOS}
   { read and check header }
-  if e.size<(sizeof(telfheader)+e.ImgOffset) then
-   exit;
+  if (e.size<0) or (QWord(e.ImgOffset)>QWord(e.size)) then exit;
+  Available:=QWord(e.size)-QWord(e.ImgOffset);
+  if Available<SizeOf(telfheader) then exit;
+  {$I-}
   seek(e.f,e.ImgOffset);
-  blockread(e.f,elfheader,sizeof(telfheader));
+  if IOResult<>0 then exit;
+  blockread(e.f,elfheader,sizeof(telfheader),count);
+  if (count<>SizeOf(telfheader)) or (IOResult<>0) then exit;
  if elfheader.magic0123<>{$ifdef ENDIAN_LITTLE}$464c457f{$else}$7f454c46{$endif} then
    exit;
-  if elfheader.e_shentsize<>sizeof(telfsechdr) then
-   exit;
+  if (elfheader.file_class<>{$ifdef ELF64}2{$else}1{$endif}) or
+    (elfheader.data_encoding<>{$ifdef ENDIAN_LITTLE}1{$else}2{$endif}) or
+    (elfheader.file_version<>1) or (elfheader.e_version<>1) or
+    (elfheader.e_ehsize<>SizeOf(telfheader)) or
+    (elfheader.e_shentsize<>SizeOf(telfsechdr)) or
+    (elfheader.e_shnum=0) or (elfheader.e_shstrndx>=elfheader.e_shnum) then exit;
+  if (QWord(elfheader.e_shoff)>Available) or
+    (QWord(elfheader.e_shnum)>(Available-QWord(elfheader.e_shoff)) div SizeOf(telfsechdr)) then exit;
+  if (elfheader.e_phnum<>0) and
+    ((elfheader.e_phentsize<>SizeOf(telfproghdr)) or
+     (QWord(elfheader.e_phoff)>Available) or
+     (QWord(elfheader.e_phnum)>(Available-QWord(elfheader.e_phoff)) div SizeOf(telfproghdr))) then exit;
   { read section names }
   seek(e.f,e.ImgOffset+elfheader.e_shoff+elfheader.e_shstrndx*cardinal(sizeof(telfsechdr)));
-  blockread(e.f,elfsec,sizeof(telfsechdr));
+  if IOResult<>0 then exit;
+  blockread(e.f,elfsec,sizeof(telfsechdr),count);
+  if (count<>SizeOf(telfsechdr)) or (IOResult<>0) then exit;
+  if (QWord(elfsec.sh_offset)>Available) or
+    (QWord(elfsec.sh_size)>Available-QWord(elfsec.sh_offset)) then exit;
   e.secstrofs:=elfsec.sh_offset;
   e.sechdrofs:=elfheader.e_shoff;
   e.nsects:=elfheader.e_shnum;
@@ -1165,9 +1187,11 @@ begin
   { scan program headers to find the image base address }
   e.processaddress:=High(e.processaddress);
   seek(e.f,e.ImgOffset+elfheader.e_phoff);
+  if IOResult<>0 then exit;
   for i:=1 to elfheader.e_phnum do
     begin
-      blockread(e.f,phdr,sizeof(phdr));
+      blockread(e.f,phdr,sizeof(phdr),count);
+      if (count<>SizeOf(phdr)) or (IOResult<>0) then exit;
       if (phdr.p_type = 1 {PT_LOAD}) and (ptruint(phdr.p_vaddr) < e.processaddress) then
         e.processaddress:=phdr.p_vaddr;
     end;
@@ -1177,36 +1201,47 @@ begin
 {$endif MSDOS}
 
   OpenElf:=true;
+  {$I+}
 end;
 
 
-function FindSectionElf(var e:TExeFile;const asecname:shortstring;var secofs,seclen:longint):boolean;
+function FindSectionElfInfo(var e:TExeFile;const asecname:shortstring;var secofs,seclen:longint;var flags:QWord):boolean;
 var
-  elfsec     : telfsechdr;
-  secname    : string;
-  secnamebuf : array[0..255] of ansichar;
-  oldofs,
-  bufsize,i  : longint;
+  elfsec: telfsechdr;
+  secnamebuf: array[0..255] of ansichar;
+  oldofs: Int64;
+  count,i: longint;
 begin
-  FindSectionElf:=false;
-  seek(e.f,e.ImgOffset+e.sechdrofs);
-  for i:=1 to e.nsects do
-   begin
-     blockread(e.f,elfsec,sizeof(telfsechdr));
-     fillchar(secnamebuf,sizeof(secnamebuf),0);
-     oldofs:=filepos(e.f);
-     seek(e.f,e.ImgOffset+e.secstrofs+elfsec.sh_name);
-     blockread(e.f,secnamebuf,sizeof(secnamebuf)-1,bufsize);
-     seek(e.f,oldofs);
-     secname:=strpas(secnamebuf);
-     if asecname=secname then
-       begin
-         secofs:=e.ImgOffset+elfsec.sh_offset;
-         seclen:=elfsec.sh_size;
-         FindSectionElf:=true;
-         exit;
-       end;
-   end;
+  FindSectionElfInfo:=false;
+  if (e.sechdrofs>QWord(e.size)) or (e.nsects<0) or
+    (QWord(e.nsects)>QWord(e.size-e.sechdrofs) div SizeOf(elfsec)) then exit;
+  for i:=0 to e.nsects-1 do
+    begin
+      seek(e.f,e.ImgOffset+e.sechdrofs+QWord(i)*SizeOf(elfsec));
+      blockread(e.f,elfsec,SizeOf(elfsec),count);
+      if count<>SizeOf(elfsec) then exit;
+      oldofs:=Int64(e.ImgOffset)+e.secstrofs+elfsec.sh_name;
+      if (oldofs<0) or (oldofs>=e.size) then exit;
+      fillchar(secnamebuf,SizeOf(secnamebuf),0);
+      seek(e.f,oldofs);
+      blockread(e.f,secnamebuf,SizeOf(secnamebuf)-1,count);
+      if asecname=strpas(secnamebuf) then
+        begin
+          if (elfsec.sh_offset>QWord(e.size)) or (elfsec.sh_size>QWord(e.size-elfsec.sh_offset)) or
+            (elfsec.sh_offset>High(LongInt)) or (elfsec.sh_size>High(LongInt)) then exit;
+          secofs:=e.ImgOffset+elfsec.sh_offset;
+          seclen:=elfsec.sh_size;
+          flags:=elfsec.sh_flags;
+          FindSectionElfInfo:=true;
+          exit;
+        end;
+    end;
+end;
+
+function FindSectionElf(var e:TExeFile;const asecname:shortstring;var secofs,seclen:longint):boolean;
+var flags: QWord;
+begin
+  FindSectionElf:=FindSectionElfInfo(e,asecname,secofs,seclen,flags);
 end;
 {$endif ELF32 or ELF64}
 
@@ -1653,8 +1688,10 @@ begin
   if not e.isopen then
     exit;
   e.isopen:=false;
+  {$I-}
   close(e.f);
-  CloseExeFile:=true;
+  CloseExeFile:=IOResult=0;
+  {$I+}
 end;
 
 
@@ -1665,6 +1702,69 @@ begin
     exit;
   if ExeProcs.FindProc<>nil then
     FindExeSection:=ExeProcs.FindProc(e,secname,secofs,seclen);
+end;
+
+
+function FindDebugSection(var e:TExeFile;const secname:shortstring;var secofs,seclen,unpacked:longint):boolean;
+{$if defined(ELF32) or defined(ELF64)}
+var
+  flags,usize,alignment: QWord;
+  hdr: array[0..23] of Byte;
+  count,hs,i: LongInt;
+  kind: LongWord;
+  gnu: Boolean;
+{$endif}
+begin
+  FindDebugSection:=false;
+  unpacked:=-1;
+  if not e.isopen then exit;
+{$if defined(ELF32) or defined(ELF64)}
+  gnu:=false;
+  if not FindSectionElfInfo(e,secname,secofs,seclen,flags) then
+    begin
+      if not FindSectionElfInfo(e,'.z'+Copy(secname,2,255),secofs,seclen,flags) then exit;
+      gnu:=true;
+    end;
+  if gnu or ((flags and $800)<>0) then
+    begin
+      if gnu then hs:=12 else
+        {$ifdef ELF64}hs:=24{$else}hs:=12{$endif};
+      if seclen<hs then exit;
+      seek(e.f,secofs);
+      blockread(e.f,hdr,hs,count);
+      if count<>hs then exit;
+      if gnu then
+        begin
+          if (flags and $800)<>0 then exit;
+          if (hdr[0]<>Ord('Z')) or (hdr[1]<>Ord('L')) or (hdr[2]<>Ord('I')) or (hdr[3]<>Ord('B')) then exit;
+          usize:=0;
+          for i:=4 to 11 do usize:=(usize shl 8) or hdr[i];
+        end
+      else
+        begin
+          Move(hdr[0],kind,4);
+          if kind<>1 then exit; { zlib; other formats are not DWARF bytes. }
+          {$ifdef ELF64}
+          Move(hdr[4],kind,4);
+          if kind<>0 then exit;
+          Move(hdr[8],usize,8);
+          Move(hdr[16],alignment,8);
+          {$else}
+          usize:=0; alignment:=0;
+          Move(hdr[4],usize,4);
+          Move(hdr[8],alignment,4);
+          {$endif}
+          if (alignment<>0) and ((alignment and (alignment-1))<>0) then exit;
+        end;
+      Inc(secofs,hs);
+      Dec(seclen,hs);
+      if (usize=0) or (usize>High(LongInt)) or (usize>QWord(seclen)*1032) then exit;
+      unpacked:=usize;
+    end;
+{$else}
+  if not FindExeSection(e,secname,secofs,seclen) then exit;
+{$endif}
+  FindDebugSection:=(secofs>=0) and (seclen>0) and (Int64(secofs)+seclen<=e.size);
 end;
 
 

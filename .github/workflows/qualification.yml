@@ -263,6 +263,12 @@ jobs:
             --compiler toolchain/bin/ppcx64 \
             --rtl toolchain/lib/fpc/3.3.1/units/x86_64-linux/rtl \
             --mormot mormot --product-mm --jobs 4 --results .qualification/ci-linux-reporting
+      - name: Run runtime DWARF section contracts
+        run: |
+          python3 qualification/suite/scripts/run_dwarf_sections_gate.py \
+            --compiler toolchain/bin/ppcx64 \
+            --rtl toolchain/lib/fpc/3.3.1/units/x86_64-linux/rtl \
+            --mormot mormot --results .qualification/ci-linux-dwarf-sections
       - name: Run RTL semantic matrix
         run: python3 RTL-test/run.py --jobs 4
       - name: Run HTTP, MIME, ZIP and optional Brotli contracts
@@ -662,6 +668,14 @@ jobs:
             --rtl .\toolchain\units\x86_64-win64\rtl `
             --mormot .\mormot --product-mm --jobs 4 --results .\.qualification\ci-win64-reporting
           If ($LASTEXITCODE -ne 0) { throw 'Diagnostic report contracts failed' }
+      - name: Run runtime DWARF section contracts
+        shell: powershell
+        run: |
+          python .\qualification\suite\scripts\run_dwarf_sections_gate.py `
+            --compiler .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --rtl .\toolchain\units\x86_64-win64\rtl `
+            --mormot .\mormot --results .\.qualification\ci-win64-dwarf-sections
+          If ($LASTEXITCODE -ne 0) { throw 'Runtime DWARF section contracts failed' }
       - name: Run RTL semantic matrix
         shell: powershell
         run: |

@@ -1,4 +1,4 @@
-# Private zlib objects of System.ZLib (Win64, Linux)
+# Shared RTL and System.ZLib zlib objects (Win64, Linux)
 
 `System.ZLib` (`packages/vcl-compat/src/system.zlib.pp`) is the Delphi
 `System.ZLib` surface written for MoonCompiler from its behavioural contract
@@ -14,9 +14,11 @@ objects; it is independent of the Pascal unit's licence.
 
 ## One zlib in a program
 
-The unit links the shipped objects of its target through `{$L}`:
-`x86_64-win64/moonzlib_*.o` on Win64, `x86_64-linux/moonzlib_*.o` on Linux.
-The package installs them next to `system.zlib.ppu`, where the compiler looks
+The RTL `zlibraw` unit links six shipped objects through `{$L}`; `System.ZLib`
+links the remaining `deflate` and `trees` objects. The installed RTL unit
+directories are `units/x86_64-win64/rtl` on Win64 and
+`lib/fpc/3.3.1/units/x86_64-linux/rtl` on Linux.
+The RTL installs them next to `zlibraw.ppu`, where the compiler looks
 for a unit's linked objects, so an application build needs no C compiler,
 DLL, `libz.so`, library path or `-Fl`, and runs on a machine without a zlib of
 its own. mORMot compresses through the same unit: the compiler defines

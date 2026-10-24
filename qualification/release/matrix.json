@@ -97,6 +97,7 @@
     "mormot_mm": ["qualification/suite", "qualification/memory-manager"],
     "lazarus": ["build", "build.ps1", "lazarus", "lazarus.ps1", "scripts/lazarus-mooncompiler.patch", "qualification/build-driver/lazarus_gate.py", "qualification/build-driver/lazarus_hash_contract.lpr"],
     "reporting": ["qualification/suite"],
+    "dwarf_sections": ["qualification/suite"],
     "runtime_mormot": ["qualification/suite"],
     "tftp": ["qualification/suite"],
     "keccak256": ["qualification/suite"],
@@ -3169,6 +3170,51 @@
       "estimated_seconds_by_platform": {"win64": 178, "linux": 133},
       "timeout": 7200,
       "stage": 3
+    },
+    {
+      "id": "dwarf_sections",
+      "mode": "medium",
+      "platforms": [
+        "win64",
+        "linux"
+      ],
+      "commands": {
+        "win64": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_dwarf_sections_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}",
+          "--root",
+          "{root}",
+          "--mormot",
+          "{root}/.qualification/deps/moonormot",
+          "--results",
+          "{job_dir}/out"
+        ],
+        "linux": [
+          "{python}",
+          "{root}/qualification/suite/scripts/run_dwarf_sections_gate.py",
+          "--compiler",
+          "{pp}",
+          "--rtl",
+          "{rtl}",
+          "--root",
+          "{root}",
+          "--mormot",
+          "{root}/.qualification/deps/moonormot",
+          "--results",
+          "{job_dir}/out"
+        ]
+      },
+      "needs": [
+        "build",
+        "sync"
+      ],
+      "resource": "dwarf_sections",
+      "timeout": 600,
+      "expected": "DWARF_SECTIONS_GATE_PASS"
     },
     {
       "id": "reporting",

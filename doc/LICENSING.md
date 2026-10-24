@@ -30,6 +30,13 @@ original license.
 header: a choice of MPL 1.1 / GPL 2+ / LGPL 2.1+ with the FPC linking exception.
 A copy of the notices is in [runtime/mm/LICENSE.md](../runtime/mm/LICENSE.md).
 
+## Bundled zlib Engine
+
+The RTL's compressed DWARF reader and `System.ZLib` share zlib 1.3.1 native
+objects under the zlib license. The source archive, build script and notice
+are retained in [rtl/inc/zlib](../rtl/inc/zlib). Binary distributions include
+`share/doc/mooncompiler/ZLIB-LICENSE.txt`.
+
 ## Bundled Brotli Decoder
 
 The optional `Moon.HttpClient.Brotli` unit links Google's Brotli 1.2.0 decoder

@@ -23,7 +23,7 @@ class SmokeExitCodes(unittest.TestCase):
         for workflow, step, calls in (
             ('qualification', 'Run product smoke', 3),
             ('moonormot-sync', f'Run the mORMot and memory-manager gates ({platform})', 2),
-            ('release', 'Smoke-test the archive as a user installs it', 29),
+            ('release', 'Smoke-test the archive as a user installs it', 30),
         ):
             source = (ROOT / f'.github/workflows/{workflow}.yml').read_text(encoding='utf-8')
             blocks = re.findall(r'      - name: ' + re.escape(step) +
@@ -74,10 +74,11 @@ class SmokeExitCodes(unittest.TestCase):
                             'filesystem_operations_contract_semantic': 'FILESYSTEM_OPERATIONS_CONTRACT_PASS',
                             'rtl_boundaries': 'RTL_BOUNDARIES_ARCHIVE_PASS',
                             'resource_paths': 'FPCRES_PATHS PASS',
-                            'diagnostics_expected': 'DIAGNOSTICS_EXPECTED_ARCHIVE_PASS'}}
+                            'diagnostics_expected': 'DIAGNOSTICS_EXPECTED_ARCHIVE_PASS',
+                            'dwarf_sections': 'DWARF_SECTIONS_GATE_PASS'}}
                 print('WRONG' if failed and {bad_output} else markers[sys.argv[1]])
                 # The helper validates its own consumer markers before returning.
-                sys.exit(73 if failed and (not {bad_output} or sys.argv[1] in ('rtl_boundaries', 'resource_paths', 'diagnostics_expected')) else 0)
+                sys.exit(73 if failed and (not {bad_output} or sys.argv[1] in ('rtl_boundaries', 'resource_paths', 'diagnostics_expected', 'dwarf_sections')) else 0)
                 '''), encoding='utf-8')
             if windows:
                 compiler = work / 'toolchain/bin/x86_64-win64/fpc.cmd'
@@ -87,6 +88,7 @@ class SmokeExitCodes(unittest.TestCase):
                 body = body.replace(r'qualification\release\rtl_boundaries_smoke.py', f'"{probe}" rtl_boundaries')
                 body = body.replace(r'qualification\compiler-resource-paths\run_gate.py', f'"{probe}" resource_paths')
                 body = body.replace(r'qualification\release\diagnostics_expected_smoke.py', f'"{probe}" diagnostics_expected')
+                body = body.replace(r'qualification\suite\scripts\run_dwarf_sections_gate.py', f'"{probe}" dwarf_sections')
                 body = re.sub(r'\.\\(build_smoke|zip|hello|file_resource_semantic|rtl_api_release231_contracts|http_error_privacy|monitor_wait_contract_semantic|filesystem_unicode_contract_semantic|classes_text_io_contract_semantic|text_stream_type_identity_semantic|url_components_contract_semantic|iso8601_validation_semantic|json_navigation_contract_semantic|filesystem_operations_contract_semantic)\.exe',
                               lambda m: f"'{sys.executable}' '{probe}' {m[1]}", body)
                 prefix = f"$ErrorActionPreference = 'Stop'\n$Smoke = '{work}'\n"
@@ -104,6 +106,8 @@ class SmokeExitCodes(unittest.TestCase):
                                     f'"{probe}" resource_paths')
                 body = body.replace('"$GITHUB_WORKSPACE/qualification/release/diagnostics_expected_smoke.py"',
                                     f'"{probe}" diagnostics_expected')
+                body = body.replace('"$GITHUB_WORKSPACE/qualification/suite/scripts/run_dwarf_sections_gate.py"',
+                                    f'"{probe}" dwarf_sections')
                 body = re.sub(r'\./(?:qualification/suite/tests/smoke/|examples/)?'
                               r'(build_smoke|zip|hello|file_resource_semantic|rtl_api_release231_contracts|http_error_privacy|monitor_wait_contract_semantic|filesystem_unicode_contract_semantic|classes_text_io_contract_semantic|text_stream_type_identity_semantic|url_components_contract_semantic|iso8601_validation_semantic|json_navigation_contract_semantic|filesystem_operations_contract_semantic)\b',
                               lambda m: f'"{sys.executable}" "{probe}" {m[1]}', body)

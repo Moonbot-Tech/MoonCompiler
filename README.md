@@ -89,7 +89,7 @@ Linux:
 
 ```bash
 mkdir -p ~/moon/toolchain && cd ~/moon
-tar -xzf ~/Downloads/mooncompiler-toolchain-v2.4.16-linux-x86-64.tar.gz -C toolchain
+tar -xzf ~/Downloads/mooncompiler-toolchain-v2.4.17-linux-x86-64.tar.gz -C toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain/bin/fpc hello.dpr
 toolchain/bin/fpc -dRELEASE hello.dpr
@@ -99,7 +99,7 @@ Win64 PowerShell:
 
 ```powershell
 New-Item -ItemType Directory -Force C:\Moon | Set-Location
-Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.4.16-win64.zip -DestinationPath toolchain
+Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.4.17-win64.zip -DestinationPath toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain\bin\x86_64-win64\fpc.exe hello.dpr
 toolchain\bin\x86_64-win64\fpc.exe -dRELEASE hello.dpr
@@ -177,6 +177,8 @@ For a caught exception, call `WriteExceptionReport` inside `except`; use
 `WriteManualReport` for an on-demand thread snapshot. The default output directory
 is `BugReports` beside the executable. Linux requires `libunwind.so.8`; keep the
 executable's embedded debug information when deploying either profile.
+On Linux, that information can optionally be zlib-compressed to reduce the
+executable's disk size while retaining names and source lines in reports.
 
 See the [diagnostic guide](doc/DIAGNOSTICS.md) for settings, capture costs and
 supported failure cases, or try the [working example](examples/diagnostics.dpr).

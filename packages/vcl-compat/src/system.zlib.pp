@@ -11,7 +11,7 @@
     Author: MoonCompiler team, 2026-09-21.
 
     The compressor is the native zlib 1.3.1 of the objects shipped in
-    ../native/zlib/<target> (symbols prefixed moon_zlib_ so that another
+    rtl/inc/zlib/<target> (symbols prefixed moon_zlib_ so that another
     zlib in the same program is not disturbed; on Win64 without a C runtime,
     on Linux copying through memcpy/memset of the C library every program
     links), the same code on Win64 and Linux; MoonORMot's mormot.lib.z
@@ -38,33 +38,15 @@ unit System.ZLib;
 interface
 
 uses
-  SysUtils, Classes, RtlConsts;
+  SysUtils, Classes, RtlConsts, zlibraw;
 
 type
   { uLong of the C library: 32 bits on Win64 (LLP64), 64 bits on Linux (LP64);
     z_stream goes to the library as it is, so these fields must match }
-  TZLong = {$ifdef WIN64}LongWord{$else}PtrUInt{$endif};
-
-  TZAlloc = function(opaque: Pointer; items, size: Cardinal): Pointer; cdecl;
-  TZFree = procedure(opaque, block: Pointer); cdecl;
-
-  { z_stream of zlib.h, C layout, zlib's field names }
-  z_stream = record
-    next_in: PByte;
-    avail_in: Cardinal;
-    total_in: TZLong;
-    next_out: PByte;
-    avail_out: Cardinal;
-    total_out: TZLong;
-    msg: MarshaledAString;
-    state: Pointer;
-    zalloc: TZAlloc;
-    zfree: TZFree;
-    opaque: Pointer;
-    data_type: Integer;
-    adler: TZLong;
-    reserved: TZLong;
-  end;
+  TZLong = zlibraw.TZLong;
+  TZAlloc = zlibraw.TZAlloc;
+  TZFree = zlibraw.TZFree;
+  z_stream = zlibraw.z_stream;
   TZStreamRec = z_stream;
   PZStreamRec = ^z_stream;
 
@@ -251,14 +233,8 @@ implementation
   ---------------------------------------------------------------------}
 
 {$macro on}
-{$L moonzlib_adler32.o}
-{$L moonzlib_crc32.o}
 {$L moonzlib_deflate.o}
-{$L moonzlib_inffast.o}
-{$L moonzlib_inflate.o}
-{$L moonzlib_inftrees.o}
 {$L moonzlib_trees.o}
-{$L moonzlib_zutil.o}
 const
   ZP = 'moon_zlib_';
   {$define ZEXT := cdecl; external name}

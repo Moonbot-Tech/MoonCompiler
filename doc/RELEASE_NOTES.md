@@ -1,3 +1,33 @@
+# MoonCompiler 2.4.17: smaller Linux executables with retained diagnostics
+
+Linux applications can keep runtime function names and source lines while using
+zlib-compressed DWARF. Both standard ELF compressed sections and GNU `.zdebug_*`
+sections are supported by the RTL reader, so ordinary exception backtraces and
+`Moon.Diagnostics` use the same implementation. Compression remains an explicit
+application build step; see [Diagnostics](DIAGNOSTICS.md#optional-compression-on-linux).
+
+The reader now bounds section and record reads, rejects damaged compression data
+and prevents malformed debug metadata from trapping report generation in a loop.
+Cleanup preserves pending I/O state, and concurrent backtraces no longer replace
+the process-wide symbol lookup hook. Original exception addresses remain available
+when names cannot be recovered.
+
+The existing statically linked zlib engine is shared with `System.ZLib`; no new
+runtime DLL/so or application `uses` entry is required. Decompression happens only
+when symbols are requested. It trades report-generation CPU and temporary memory
+for disk space, and `Moon.Diagnostics` frees decoded buffers after each report.
+Windows and uncompressed Linux executables retain their existing deployment form.
+
+Permanent checks transform real binaries, compare names and lines, damage section
+headers and compressed streams, and exercise report lifecycle and concurrent lookup.
+These checks also run against unpacked release archives.
+
+Install the complete SDK and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20417; `CompilerVersion` remains 2.4 and the FPC base
+ABI remains 3.3.1. MoonORMot 15 remains required.
+
+---
+
 # MoonCompiler 2.4.16: shared project profiles
 
 Helper programs and tests can select an existing project profile directly:

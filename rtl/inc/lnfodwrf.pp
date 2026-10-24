@@ -21,7 +21,7 @@
   dependent on objpas unit.
 }
 
-{$modeswitch advancedrecords} {$modeswitch class} {$modeswitch result} {$modeswitch out} {$typedaddress on}
+{$modeswitch advancedrecords} {$modeswitch class} {$modeswitch exceptions} {$modeswitch result} {$modeswitch out} {$typedaddress on}
 
 {$if not defined(FPUNONE) and not defined(FPUSOFT)}
   {$define can_use_ln_in_constants}
@@ -183,10 +183,10 @@ implementation
 
 {$IFDEF FPC_DOTTEDUNITS}
 uses
-  System.ExeInfo;
+  System.ExeInfo{$if defined(cpux86_64) and defined(linux)},zlibraw{$endif};
 {$ELSE FPC_DOTTEDUNITS}
 uses
-  exeinfo;
+  exeinfo{$if defined(cpux86_64) and defined(linux)},zlibraw{$endif};
 {$ENDIF FPC_DOTTEDUNITS}
 
 { Current issues:
@@ -244,6 +244,9 @@ var
 {$ifdef has_LineInfoCache}
   liCache: LineInfoCache;
 {$endif has_LineInfoCache}
+
+threadvar
+  ResolvingBackTrace: Boolean;
 
   procedure Lock(index: SizeUint); inline;
   begin
@@ -485,17 +488,71 @@ type
   tofar=Pointer;
 {$endif cpui8086}
 
-procedure CloseDwarf(needLock: boolean);
+type
+  PDebugSection = ^TDebugSection;
+  TDebugSection = record
+    Offset, Size: LongInt;
+    Data: PByte; { Only compressed sections own a buffer. }
+  end;
+var
+  LineSection, InfoSection, AbbrevSection, ArangesSection: TDebugSection;
+
+procedure ReleaseSection(var S: TDebugSection);
 begin
+  FreeMem(S.Data);
+  FillChar(S,SizeOf(S),0);
+end;
+
+function OpenSection(const Name: ShortString; var S: TDebugSection; var Offset, Size: LongInt): Boolean;
+var
+  PackedSize, Unpacked: LongInt;
+begin
+  Result:=false;
+  if not FindDebugSection(e,Name,S.Offset,PackedSize,Unpacked) then exit;
+  S.Size:=PackedSize;
+  if Unpacked>=0 then
+    begin
+      {$if defined(cpux86_64) and defined(linux)}
+      S.Data:=GetMem(Unpacked);
+      if S.Data=nil then exit;
+      System.Seek(e.f,S.Offset);
+      if not InflateFile(e.f,PackedSize,S.Data,Unpacked) then
+        begin
+          ReleaseSection(S);
+          exit;
+        end;
+      S.Size:=Unpacked;
+      {$else}
+      exit;
+      {$endif}
+    end;
+  Offset:=S.Offset;
+  Size:=S.Size;
+  Result:=true;
+end;
+
+procedure CloseDwarf(needLock: boolean);
+var
+  OldInOutRes: Word;
+begin
+  OldInOutRes:=InOutRes;
+  InOutRes:=0;
   if needLock then
     Lock(DwarfLock);
-  if e.isopen then
-    CloseExeFile(e);
-
-  // Reset last processed filename
-  lastfilename := '';
-  if needLock then
-    Unlock(DwarfLock);
+  try
+    try
+      if e.isopen then CloseExeFile(e);
+    finally
+      ReleaseSection(LineSection);
+      ReleaseSection(InfoSection);
+      ReleaseSection(AbbrevSection);
+      ReleaseSection(ArangesSection);
+      lastfilename:='';
+    end;
+  finally
+    if needLock then Unlock(DwarfLock);
+    InOutRes:=OldInOutRes;
+  end;
 end;
 
 function OpenDwarf(addr : codepointer) : boolean;
@@ -556,10 +613,10 @@ begin
 
   // Find debug data section
   e.processaddress:=ptruint(baseaddr)-e.processaddress;
-  if FindExeSection(e,'.debug_line',Dwarf_Debug_Line_Section_offset,dwarf_Debug_Line_Section_size) and
-    FindExeSection(e,'.debug_info',Dwarf_Debug_Info_Section_offset,dwarf_Debug_Info_Section_size) and
-    FindExeSection(e,'.debug_abbrev',Dwarf_Debug_Abbrev_Section_offset,dwarf_Debug_Abbrev_Section_size) and
-    FindExeSection(e,'.debug_aranges',Dwarf_Debug_Aranges_Section_offset,dwarf_Debug_Aranges_Section_size) then
+  if OpenSection('.debug_line',LineSection,Dwarf_Debug_Line_Section_offset,dwarf_Debug_Line_Section_size) and
+    OpenSection('.debug_info',InfoSection,Dwarf_Debug_Info_Section_offset,dwarf_Debug_Info_Section_size) and
+    OpenSection('.debug_abbrev',AbbrevSection,Dwarf_Debug_Abbrev_Section_offset,dwarf_Debug_Abbrev_Section_size) and
+    OpenSection('.debug_aranges',ArangesSection,Dwarf_Debug_Aranges_Section_offset,dwarf_Debug_Aranges_Section_size) then
   begin
     lastopendwarf:=true;
     OpenDwarf:=true;
@@ -569,7 +626,7 @@ begin
     DEBUG_WRITELN('.debug_aranges starts at offset $',hexstr(Dwarf_Debug_Aranges_Section_offset,8),' with a size of ',Dwarf_Debug_Aranges_Section_Size,' Bytes');
   end
   else
-    CloseExeFile(e);
+    CloseDwarf(false);
 end;
 
 
@@ -581,10 +638,14 @@ end;
 
 type
   TEReader = object
+    Section: PDebugSection;
+    Failed: Boolean;
     bufstart, base, limit: Int64; { All of these are absolute. }
-    bufp, bufe: pByte; { bufp = pointer into buf, bufe - bufp = available bytes. }
+    bufbase, bufp, bufe: pByte; { bufp = pointer into buf, bufe - bufp = available bytes. }
     buf: array[0 .. 1023] of byte;
     procedure Init;
+    procedure Bind(var S: TDebugSection);
+    function UnitLength(var Length32: DWord): QWord;
     procedure SetRange(aBase, aSize : Int64);
     function Pos : TFilePos; { Relative to base. }
     procedure Seek(newIndex : Int64); { Relative to base. }
@@ -606,29 +667,85 @@ type
 
 procedure TEReader.Init;
 begin
+  Section:=nil;
+  Failed:=false;
   bufstart := 0;
   base := 0;
   limit := 0;
-  bufp := pByte(buf);
+  bufbase := @buf[0];
+  bufp := bufbase;
   bufe := bufp;
+end;
+
+procedure TEReader.Bind(var S: TDebugSection);
+begin
+  Section:=@S;
+  SetRange(S.Offset,S.Size);
+end;
+
+function TEReader.UnitLength(var Length32: DWord): QWord;
+var
+  Extra: QWord;
+begin
+  Result:=0;
+  Extra:=4;
+  if not ReadNext(Length32,4) then exit;
+  if Length32=$ffffffff then
+    begin
+      Extra:=12;
+      if not ReadNext(Result,8) then exit;
+    end
+  else
+    begin
+      if Length32>=$fffffff0 then
+        begin Failed:=true; exit; end;
+      Result:=Length32;
+    end;
+  if (Result=0) or (Extra>QWord(limit-base)) or (Result>QWord(limit-base)-Extra) then
+    begin
+      Failed:=true;
+      Result:=0;
+    end
+  else
+    Inc(Result,Extra);
 end;
 
 procedure TEReader.SetRange(aBase, aSize : Int64);
 begin
-  base := aBase;
-  limit := base + aSize;
-  Seek(0);
-  if limit < bufstart + (bufe - pByte(buf)) then
+  if (Section=nil) or (aBase<Section^.Offset) or (aSize<0) or
+    (aBase>Int64(Section^.Offset)+Section^.Size) or
+    (aSize>Int64(Section^.Offset)+Section^.Size-aBase) then
     begin
-      bufe := pByte(buf) + (limit - bufstart); { Respect the limit if the buffer was reused. Probably unreachable, but just in case... }
-      System.Seek(e.f, limit);
+      Failed:=true;
+      exit;
     end;
-end;
+  base:=aBase;
+  limit:=base+aSize;
 
+  if Section^.Data<>nil then
+    begin
+      bufbase:=Section^.Data+(base-Section^.Offset);
+      bufe:=bufbase+aSize;
+    end
+  else if (bufbase=@buf[0]) and (base>=bufstart) and (base<=bufstart+(bufe-bufbase)) then
+    begin
+      { Keep bytes already read from this file; every refill seeks explicitly. }
+      if limit<bufstart+(bufe-bufbase) then bufe:=bufbase+(limit-bufstart);
+      bufp:=bufbase+(base-bufstart);
+      exit;
+    end
+  else
+    begin
+      bufbase:=@buf[0];
+      bufe:=bufbase;
+    end;
+  bufstart:=base;
+  bufp:=bufbase;
+end;
 
 function TEReader.Pos() : TFilePos;
 begin
-  Pos := (bufstart - base) + (bufp - pByte(buf));
+  Pos := (bufstart - base) + (bufp - bufbase);
 end;
 
 
@@ -636,24 +753,24 @@ procedure TEReader.Seek(newIndex : Int64);
 var
   gpos : Int64;
 begin
-  gpos := base + newIndex;
-  if (gpos >= bufstart) and (gpos <= bufstart + (bufe - pByte(buf))) then
-    bufp := pByte(buf) + (gpos - bufstart) { Reuse the buffer. }
+  if (newIndex<0) or (newIndex>limit-base) then
+    begin Failed:=true; exit; end;
+  gpos:=base+newIndex;
+  if (gpos>=bufstart) and (gpos<=bufstart+(bufe-bufbase)) then
+    bufp:=bufbase+(gpos-bufstart)
   else
     begin
-      bufstart := gpos;
-      System.Seek(e.f, gpos);
-      bufp := pByte(buf);
-      bufe := bufp;
+      bufstart:=gpos;
+      bufp:=bufbase;
+      bufe:=bufp;
     end;
 end;
-
 
 { Returns the next Byte from the input stream, or -1 if there has been
   an error }
 function TEReader.ReadNext() : Longint;
 begin
-  if (bufp = bufe) and (ReadNextBuffer <= 0) then
+  if Failed or ((bufp = bufe) and (ReadNextBuffer <= 0)) then
     exit(-1);
   ReadNext := bufp^;
   inc(bufp);
@@ -668,6 +785,12 @@ var
   d: PByte;
 begin
   d := @dest;
+  if Failed or (size<0) or (size>limit-base-Pos) then
+    begin
+      if Assigned(d) and (size>0) then FillChar(d^,size,0);
+      Failed:=true;
+      exit(false);
+    end;
   while (size > 0) and ((bufp < bufe) or (ReadNextBuffer > 0)) do
     begin
       bytesread := bufe - bufp;
@@ -681,71 +804,65 @@ begin
       dec(size, bytesread);
     end;
   ReadNext := size = 0;
+  if size<>0 then
+    begin
+      if Assigned(d) then FillChar(d^,size,0);
+      Failed:=true;
+    end;
 end;
 
 
 { Reads an unsigned LEB encoded number from the input stream }
 function TEReader.ReadULEB128() : QWord;
 var
-  shift : cardinal;
+  Shift: Cardinal;
+  B: LongInt;
 begin
-  shift := 0;
-  ReadULEB128 := 0;
+  Result:=0;
+  Shift:=0;
   repeat
-    if (bufp = bufe) and (ReadNextBuffer <= 0) then break;
-    ReadULEB128 := ReadULEB128 or (QWord(bufp^ and $7f) shl shift);
-    inc(bufp);
-    inc(shift, 7);
-  until ((bufp[-1] and $80) = 0);
+    B:=ReadNext;
+    if (B<0) or ((Shift=63) and (B>1)) then
+      begin Failed:=true; exit(0); end;
+    Result:=Result or (QWord(B and $7f) shl Shift);
+    if (B and $80)=0 then exit;
+    Inc(Shift,7);
+  until False;
 end;
 
-{ Reads a signed LEB encoded number from the input stream }
 function TEReader.ReadLEB128() : Int64;
 var
-  shift : cardinal;
+  Shift: Cardinal;
+  B: LongInt;
 begin
-  shift := 0;
-  ReadLEB128 := 0;
+  Result:=0;
+  Shift:=0;
   repeat
-    if (bufp = bufe) and (ReadNextBuffer <= 0) then break;
-    ReadLEB128 := ReadLEB128 or (Int64(bufp^ and $7f) shl shift);
-    inc(bufp);
-    inc(shift, 7);
-  until ((bufp[-1] and $80) = 0);
-  { extend sign. }
-  ReadLEB128 := ReadLEB128 or -(ReadLEB128 and (Int64(1) shl (shift-1)));
+    B:=ReadNext;
+    if (B<0) or ((Shift=63) and (B<>0) and (B<>$7f)) then
+      begin Failed:=true; exit(0); end;
+    Result:=Result or (Int64(B and $7f) shl Shift);
+    Inc(Shift,7);
+    if (B and $80)=0 then break;
+  until False;
+  if (Shift<64) and ((B and $40)<>0) then Result:=Result or (Int64(-1) shl Shift);
 end;
-
 
 procedure TEReader.SkipLEB128s(count : longint);
-{$ifdef DEBUG_DWARF_PARSER}
-var temp : QWord;
-{$endif DEBUG_DWARF_PARSER}
 begin
-  while count > 0 do
-  begin
-{$ifdef DEBUG_DWARF_PARSER}
-    temp := er.ReadLEB128();
-    DEBUG_WRITELN('Skipping LEB128 : ', temp);
-{$else DEBUG_DWARF_PARSER}
-    repeat
-      if (bufp = bufe) and (ReadNextBuffer <= 0) then exit;
-      inc(bufp);
-    until bufp[-1] and $80 = 0;
-{$endif DEBUG_DWARF_PARSER}
-    dec(count);
-  end;
+  while (count>0) and not Failed do
+    begin
+      ReadULEB128;
+      Dec(count);
+    end;
 end;
 
-
-{ Reads an address from the current input stream }
 function TEReader.ReadAddress(addr_size: smallint) : PtrUInt;
 begin
-{$ifdef CPUI8086}
-  ReadAddress := 0;
-  if (addr_size = 4) or (addr_size = 2) then
-{$endif}
-    ReadNext(ReadAddress, sizeof(ReadAddress));
+  Result:=0;
+  if (addr_size<=0) or (addr_size>SizeOf(Result)) then
+    begin Failed:=true; exit; end;
+  ReadNext(Result,addr_size);
 end;
 
 {$ifdef CPUI8086}
@@ -770,8 +887,9 @@ begin
     sp^[0] := #0;
   ReadString := 0;
   repeat
-    if (bufp = bufe) and (ReadNextBuffer <= 0) then
+    if Failed or ((bufp = bufe) and (ReadNextBuffer <= 0)) then
     begin
+      Failed:=true;
       if Assigned(sp) then
         sp^ := '';
       exit(0); { unexpected end of file occurred }
@@ -800,15 +918,22 @@ begin
 end;
 
 function TEReader.ReadNextBuffer : longint;
+var
+  Remaining: Int64;
+  Wanted: LongInt;
 begin
-  inc(bufstart, bufp - pByte(buf));
-  ReadNextBuffer := limit - bufstart;
-  if ReadNextBuffer > 0 then begin
-    if ReadNextBuffer > length(buf) then ReadNextBuffer := length(buf);
-    BlockRead(e.f, buf, ReadNextBuffer, ReadNextBuffer);
-  end;
-  bufp := pByte(buf);
-  bufe := pByte(buf) + ReadNextBuffer;
+  Result:=0;
+  if Failed or (Section^.Data<>nil) then exit;
+  Inc(bufstart,bufp-bufbase);
+  bufp:=bufbase;
+  bufe:=bufp;
+  Remaining:=limit-bufstart;
+  if Remaining<=0 then exit;
+  if Remaining>SizeOf(buf) then Wanted:=SizeOf(buf) else Wanted:=Remaining;
+  System.Seek(e.f,bufstart);
+  BlockRead(e.f,buf,Wanted,Result);
+  if (Result<>Wanted) or (IOResult<>0) then Failed:=true;
+  bufe:=bufp+Result;
 end;
 
 
@@ -955,13 +1080,8 @@ begin
 
   found := false;
 
-  er.ReadNext(temp_length, sizeof(temp_length));
-  if (temp_length <> $ffffffff) then begin
-    unit_length := temp_length + sizeof(temp_length)
-  end else begin
-    er.ReadNext(unit_length, sizeof(unit_length));
-    inc(unit_length, 12);
-  end;
+  unit_length:=er.UnitLength(temp_length);
+  if er.Failed then exit(er.limit);
 
   ParseCompilationUnit := file_offset + unit_length;
 
@@ -1030,6 +1150,10 @@ begin
       sizeof(header64.length) + sizeof(header64.unit_length);
   end;
 
+  if er.Failed or (header64.version<2) or (header64.version>5) or
+    (header64.line_range=0) or (header64.opcode_base=0) or
+    (QWord(header_length)>unit_length) or (header64.length>unit_length-QWord(header_length)) then
+    begin er.Failed:=true; exit; end;
   inc(header_length, header64.length);
 
   fillchar(numoptable, sizeof(numoptable), #0);
@@ -1099,12 +1223,14 @@ begin
     InitStateRegisters(state, default_is_stmt);
   end;
   opcode := er.ReadNext();
-  while (opcode <> -1) and (not found) do begin
+  while (opcode <> -1) and (not found) and not er.Failed do begin
     DEBUG_WRITELN('Next opcode: ');
     case (opcode) of
       { extended opcode }
       0 : begin
         extended_opcode_length := er.ReadULEB128();
+        if (extended_opcode_length<1) or (extended_opcode_length>er.limit-er.base-er.Pos) then
+          begin er.Failed:=true; exit; end;
         extended_opcode := er.ReadNext();
         case (extended_opcode) of
           -1: begin
@@ -1250,7 +1376,7 @@ begin
       end;
     end;
 
-    opcode := er.ReadNext();
+    if not found then opcode := er.ReadNext();
   end;
 
   if (found) then
@@ -1300,19 +1426,15 @@ procedure ReadAbbrevTable(var er: TEReader; var abbrevs: TAbbrevs);
     DEBUG_WRITELN('Starting to read abbrev. section at $',hexstr(Dwarf_Debug_Abbrev_Section_Offset+er.Pos,16));
     repeat
       nr:=er.ReadULEB128;
-      if nr=0 then
-        break;
+      if er.Failed or (nr=0) then break;
+      if (nr<0) or (nr>8*1024*1024) then
+        begin er.Failed:=true; exit; end;
 
       if nr>=abbrevs.nAbbrevs then
         begin
           abbrevs.nAbbrevs:=nr+1;
           if nr>high(abbrevs.Abbrevs) then
           begin
-            if nr>8*1024*1024 then { Safeguard. }
-            begin
-              DEBUG_WRITELN('Implausible abbreviation ID (', nr, ') — GIVING UP.');
-              exit;
-            end;
             SetLength(abbrevs.Abbrevs,SizeUint(nr)+128+SizeUint(nr) div 4);
           end;
         end;
@@ -1336,8 +1458,9 @@ procedure ReadAbbrevTable(var er: TEReader; var abbrevs: TAbbrevs);
         form:=er.ReadULEB128;
         if form>High(TAttrRec.form) then
           form:=High(TAttrRec.form);
-        if attr=0 then
-          break;
+        if er.Failed or (attr=0) then break;
+        if curAbbrev^.nAttrs=High(curAbbrev^.nAttrs) then
+          begin er.Failed:=true; exit; end;
         if SizeInt(abbrevs.nAttrs)>High(abbrevs.Attrs) then
           SetLength(abbrevs.Attrs, SizeInt(abbrevs.nAttrs)+128+SizeInt(SizeUint(abbrevs.nAttrs) div 4));
         curAttr:=@abbrevs.Attrs[abbrevs.nAttrs];
@@ -1372,13 +1495,8 @@ var
 begin
   found := false;
 
-  er.ReadNext(temp_length, sizeof(temp_length));
-  if (temp_length <> $ffffffff) then begin
-    unit_length := temp_length + sizeof(temp_length)
-  end else begin
-    er.ReadNext(unit_length, sizeof(unit_length));
-    inc(unit_length, 12);
-  end;
+  unit_length:=er.UnitLength(temp_length);
+  if er.Failed then exit(er.limit);
 
   ParseCompilationUnitForDebugInfoOffset := file_offset + unit_length;
 
@@ -1405,15 +1523,18 @@ begin
   DEBUG_WRITELN('debug_info_offset: ',header64.debug_info_offset);
   DEBUG_WRITELN('address_size: ', header64.address_size);
   DEBUG_WRITELN('segment_size: ', header64.segment_size);
+  if er.Failed or (header64.version<>2) or (header64.address_size=0) or
+    (header64.address_size>SizeOf(PtrUInt)) then
+    begin er.Failed:=true; exit; end;
   arange_start:=er.ReadAddress(header64.address_size);
 {$ifdef CPUI8086}
   arange_segment:=er.ReadSegment();
 {$endif CPUI8086}
   arange_size:=er.ReadAddress(header64.address_size);
 
-  while not((arange_start=0) and (arange_segment=0) and (arange_size=0)) and (not found) do
+  while not er.Failed and not((arange_start=0) and (arange_segment=0) and (arange_size=0)) and (not found) do
     begin
-      if (segment=arange_segment) and (addr>=arange_start) and (addr<=arange_start+arange_size) then
+      if (segment=arange_segment) and (addr>=arange_start) and (addr-arange_start<arange_size) then
         begin
           found:=true;
           debug_info_offset:=header64.debug_info_offset;
@@ -1448,9 +1569,12 @@ var
 
 procedure SkipAttr(var er: TEReader; form : QWord);
   var
-    dl,nskip : dword;
+    dl: DWord;
+    nskip: QWord;
   begin
     nskip := 0;
+    while (form=DW_FORM_indirect) and not er.Failed do form:=er.ReadULEB128;
+    if er.Failed then exit;
     case form of
       DW_FORM_addr:
         nskip := header64.address_size;
@@ -1508,8 +1632,6 @@ procedure SkipAttr(var er: TEReader; form : QWord);
         er.SkipLEB128s(1);
       DW_FORM_ref1, DW_FORM_ref2, DW_FORM_ref4, DW_FORM_ref8:
         nskip := 1 shl (form - DW_FORM_ref1);
-      DW_FORM_indirect:
-        SkipAttr(er, er.ReadULEB128);
       DW_FORM_flag_present: {none};
       DW_FORM_ref_sig8 : nskip := 8;
       DW_FORM_ref_sup4: nskip := 4;
@@ -1530,11 +1652,12 @@ procedure SkipAttr(var er: TEReader; form : QWord);
       DW_FORM_addrx4:   nskip := 4;
       else
         begin
-          writeln(stderr,'Internal error: unknown dwarf form: $',hexstr(form,2));
-          nskip := 1;
+          er.Failed:=true;
+          exit;
         end;
     end;
-    er.ReadNext(nil^, nskip);
+    if nskip>QWord(er.limit-er.base-er.Pos) then er.Failed:=true
+    else er.ReadNext(nil^, nskip);
   end;
 
 var
@@ -1546,13 +1669,8 @@ var
 begin
   found := false;
 
-  er.ReadNext(temp_length, sizeof(temp_length));
-  if (temp_length <> $ffffffff) then begin
-    unit_length := temp_length + sizeof(temp_length)
-  end else begin
-    er.ReadNext(unit_length, sizeof(unit_length));
-    inc(unit_length, 12);
-  end;
+  unit_length:=er.UnitLength(temp_length);
+  if er.Failed then exit(er.limit);
 
   ParseCompilationUnitForFunctionName := file_offset + unit_length;
 
@@ -1600,20 +1718,28 @@ begin
   DEBUG_WRITELN('debug_abbrev_offset: ',header64.debug_abbrev_offset);
   DEBUG_WRITELN('address_size: ',header64.address_size);
 
+  if er.Failed or (header64.version<2) or (header64.version>5) or
+    (header64.address_size=0) or (header64.address_size>SizeOf(low_pc)) or
+    (header64.debug_abbrev_offset>=QWord(Dwarf_Debug_Abbrev_Section_Size)) then
+    begin er.Failed:=true; exit; end;
+
   { not nice, but we have to read the abbrev section after the start of the debug_info section has been read }
   prev_size:=er.limit-er.base;
   prev_base:=er.base;
   prev_pos:=er.Pos;
-  er.SetRange(Dwarf_Debug_Abbrev_Section_Offset+header64.debug_abbrev_offset,Dwarf_Debug_Abbrev_Section_Size);
+  er.Bind(AbbrevSection);
+  er.SetRange(Int64(Dwarf_Debug_Abbrev_Section_Offset)+header64.debug_abbrev_offset,
+    Dwarf_Debug_Abbrev_Section_Size-header64.debug_abbrev_offset);
   ReadAbbrevTable(er, abbrevs);
 
   { restore previous reading state and position }
+  er.Bind(InfoSection);
   er.SetRange(prev_base,prev_size);
   er.Seek(prev_pos);
 
   abbrev:=er.ReadULEB128;
   level:=0;
-  while (abbrev <> 0) and (not found) do
+  while (abbrev <> 0) and (not found) and not er.Failed do
     begin
       if abbrev>=SizeUint(abbrevs.nAbbrevs) then { Safeguard. }
       begin
@@ -1702,10 +1828,10 @@ begin
   OldInOutRes:=InOutRes;
   InOutRes:=0;
   Lock(DwarfLock);
+  try
+  try
   if not OpenDwarf(codepointer(addr)) then
   begin
-    Unlock(DwarfLock);
-    InOutRes:=OldInOutRes;
   {$ifdef has_LineInfoCache}
     Lock(LiCacheLock);
     liCache.Put(CodePointer(addr), '', '', 0); { Cache the failure, too; in particular, on Win64 some frames above main() point into kernel32 or something. }
@@ -1726,21 +1852,23 @@ begin
   addr := addr - e.processaddress;
 
   current_offset := Dwarf_Debug_Line_Section_Offset;
-  end_offset := Dwarf_Debug_Line_Section_Offset + Dwarf_Debug_Line_Section_Size;
+  end_offset := Int64(Dwarf_Debug_Line_Section_Offset) + Dwarf_Debug_Line_Section_Size;
 
   er.Init;
+  er.Bind(LineSection);
   found := false;
-  while (current_offset < end_offset) and (not found) do begin
+  while (current_offset < end_offset) and (not found) and not er.Failed do begin
     er.SetRange(current_offset, end_offset - current_offset);
     current_offset := ParseCompilationUnit(er, addr, segment, current_offset,
       source, line, found);
   end;
 
   current_offset := Dwarf_Debug_Aranges_Section_Offset;
-  end_offset := Dwarf_Debug_Aranges_Section_Offset + Dwarf_Debug_Aranges_Section_Size;
+  end_offset := Int64(Dwarf_Debug_Aranges_Section_Offset) + Dwarf_Debug_Aranges_Section_Size;
 
+  er.Bind(ArangesSection);
   found_aranges := false;
-  while (current_offset < end_offset) and (not found_aranges) do begin
+  while (current_offset < end_offset) and (not found_aranges) and not er.Failed do begin
     er.SetRange(current_offset, end_offset - current_offset);
     current_offset := ParseCompilationUnitForDebugInfoOffset(er, addr, segment, current_offset, debug_info_offset_from_aranges, found_aranges);
   end;
@@ -1749,11 +1877,12 @@ begin
   found := false;
   abbrevs.nAbbrevs := 0; { For reuse between ParseCompilationUnitForFunctionName calls. Other things don’t require initialization. }
 
-  if found_aranges then
+  er.Bind(InfoSection);
+  if found_aranges and (debug_info_offset_from_aranges<QWord(Dwarf_Debug_Info_Section_Size)) then
     begin
       DEBUG_WRITELN('Found .debug_info offset $',hexstr(debug_info_offset_from_aranges,8),' from .debug_aranges');
       current_offset := Dwarf_Debug_Info_Section_Offset + debug_info_offset_from_aranges;
-      end_offset := Dwarf_Debug_Info_Section_Offset + debug_info_offset_from_aranges + Dwarf_Debug_Info_Section_Size;
+      end_offset := Int64(Dwarf_Debug_Info_Section_Offset) + Dwarf_Debug_Info_Section_Size;
 
       DEBUG_WRITELN('Reading .debug_info at section offset $',hexStr(current_offset-Dwarf_Debug_Info_Section_Offset,16));
 
@@ -1766,26 +1895,36 @@ begin
     DEBUG_WRITELN('No .debug_info offset found from .debug_aranges');
 
   current_offset := Dwarf_Debug_Info_Section_Offset;
-  end_offset := Dwarf_Debug_Info_Section_Offset + Dwarf_Debug_Info_Section_Size;
+  end_offset := Int64(Dwarf_Debug_Info_Section_Offset) + Dwarf_Debug_Info_Section_Size;
 
-  while (current_offset < end_offset) and (not found) do begin
+  while (current_offset < end_offset) and (not found) and not er.Failed do begin
     DEBUG_WRITELN('Reading .debug_info at section offset $',hexStr(current_offset-Dwarf_Debug_Info_Section_Offset,16));
 
     er.SetRange(current_offset, end_offset - current_offset);
     current_offset := ParseCompilationUnitForFunctionName(er, addr, segment, current_offset, abbrevs, func, found);
   end;
 
-  if not AllowReuseOfLineInfoData then
+  if er.Failed then
+    begin
+      func:=''; source:=''; line:=0;
+      CloseDwarf(false);
+    end;
+  except
     CloseDwarf(false);
-  Unlock(DwarfLock);
-  InOutRes:=OldInOutRes;
+    raise;
+  end;
+  finally
+    if not AllowReuseOfLineInfoData then CloseDwarf(false);
+    Unlock(DwarfLock);
+    InOutRes:=OldInOutRes;
+  end;
 
 {$ifdef has_LineInfoCache}
   Lock(LiCacheLock);
   liCache.Put(CodePointer(addr), func, source, line);
   Unlock(LiCacheLock);
 {$endif has_LineInfoCache}
-  GetLineInfo:=true;
+  GetLineInfo:=(func<>'') or (source<>'') or (line<>0);
 end;
 
 
@@ -1795,17 +1934,22 @@ var
   source,
   hs : shortstring;
   line   : longint;
-  Store  : TBackTraceStrFunc;
   Success : boolean;
 begin
   {$ifdef DEBUG_LINEINFO}
   writeln(stderr,'DwarfBackTraceStr called');
   {$endif DEBUG_LINEINFO}
-  { reset to prevent infinite recursion if problems inside the code }
-  Success:=false;
-  Store := BackTraceStrFunc;
-  BackTraceStrFunc := @SysBackTraceStr;
-  Success:=GetLineInfo(codeptruint(addr), func, source, line);
+  if ResolvingBackTrace then exit(SysBackTraceStr(addr));
+  ResolvingBackTrace:=true;
+  try
+    try
+      Success:=GetLineInfo(codeptruint(addr), func, source, line);
+    except
+      Success:=false;
+    end;
+  finally
+    ResolvingBackTrace:=false;
+  end;
   { create string }
   DwarfBackTraceStr :='  $' + HexStr(addr);
   if Success then
@@ -1824,7 +1968,6 @@ begin
       DwarfBackTraceStr := DwarfBackTraceStr + ' of ' + source;
     end;
   end;
-  BackTraceStrFunc := Store;
 end;
 
 

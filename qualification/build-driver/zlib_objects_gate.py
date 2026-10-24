@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""The zlib objects System.ZLib links unwind, and copy more than a byte a step.
+"""The shared RTL/System.ZLib zlib objects unwind and copy more than a byte a step.
 
-System.ZLib links zlib 1.3.1 compiled to freestanding objects
-(packages/vcl-compat/native/zlib/<target>, build.py), installed next to
-system.zlib.ppu - on Win64 and on Linux, and MoonORMot's mormot.lib.z
+The two units link zlib 1.3.1 compiled to freestanding objects
+(rtl/inc/zlib/<target>, build.py), installed next to
+zlibraw.ppu in the RTL - on Win64 and on Linux, and MoonORMot's mormot.lib.z
 compresses through the same unit.  Two defects of the first Win64 build went
 unnoticed, because nothing looked at the objects:
 
@@ -78,11 +78,11 @@ class GateError(Exception):
 
 
 def installed(toolchain: Path) -> Path:
-    """The vcl-compat unit directory of the toolchain for this platform: system.zlib.ppu and its objects."""
+    """The RTL unit directory of the toolchain for this platform: zlibraw.ppu and its objects."""
     if os.name == "nt":
-        return toolchain / "units" / "x86_64-win64" / "vcl-compat"
-    found = sorted(toolchain.glob("lib/fpc/*/units/x86_64-linux/vcl-compat"))
-    return found[0] if found else toolchain / "lib" / "fpc" / "units" / "x86_64-linux" / "vcl-compat"
+        return toolchain / "units" / "x86_64-win64" / "rtl"
+    found = sorted(toolchain.glob("lib/fpc/*/units/x86_64-linux/rtl"))
+    return found[0] if found else toolchain / "lib" / "fpc" / "units" / "x86_64-linux" / "rtl"
 
 
 def parse(text: str) -> dict[str, list[tuple[int, str, str, bool]]]:

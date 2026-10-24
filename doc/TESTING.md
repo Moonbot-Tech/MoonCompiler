@@ -293,12 +293,12 @@ cannot hide an explicit unit under a namespace; no unit on
 the product path takes the short name of a `System.X` unit the product ships
 unless the configuration aliases it, and `uses zLib, Zip` written as in Delphi
 builds, runs and carries one zlib: no zlib library imported - DLL on Windows,
-`NEEDED` on Linux - and no zlib build other than `System.ZLib`'s, by zlib's own
-version marks in the image; a program with units `ZLib` and `Zip` of its own
+`NEEDED` on Linux - and no zlib build other than the shared RTL/System.ZLib
+engine, by zlib's own version marks in the image; a program with units `ZLib` and `Zip` of its own
 runs with them - beside it, in a `-Fu` of its command line, in a `-Fu` of its
 project file, in a subdirectory of its `**` tree - and `zlib.ppu` and
 `zip.ppu` another build left in the tree do not take the names), the zlib
-objects of `System.ZLib` on Win64 and Linux
+objects shared by `zlibraw` (six) and `System.ZLib` (two) on Win64 and Linux
 (`zlib_objects_gate.py`: every object keeps `.pdata`/`.xdata` or `.eh_frame`
 and `unwind_frames.py` finds each routine described, and zlib's own `zmemcpy`
 and `zmemzero` each have a loop that stores 8 bytes or more a step, or zlib
@@ -454,6 +454,21 @@ Also build and run `examples/diagnostics.dpr` with the toolchain's `fpc`,
 without and with `-dRELEASE`; this checks profile integration independently
 of the focused runner. API,
 capture semantics and deployment requirements are in [Diagnostic Reports](DIAGNOSTICS.md).
+
+The separate runtime DWARF gate checks real executable sections, including Linux
+zlib compression and damaged metadata. It requires `objcopy` on Linux and rejects
+an existing results directory:
+
+```bash
+python3 qualification/suite/scripts/run_dwarf_sections_gate.py \
+  --compiler toolchain/bin/ppcx64 \
+  --rtl toolchain/lib/fpc/3.3.1/units/x86_64-linux/rtl \
+  --mormot mormot --results .qualification/dwarf-sections-linux
+```
+
+On Windows use `python`, `toolchain/bin/x86_64-win64/ppcx64.exe` and
+`toolchain/units/x86_64-win64/rtl`; PE sections are tested without compression.
+Both platform qualification jobs and unpacked release archive checks run this gate.
 
 ## runtime/mormot: System.Zip, System.Net.Mime, System.Net.HttpClient
 

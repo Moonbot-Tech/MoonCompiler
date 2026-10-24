@@ -171,6 +171,37 @@ External libraries without accessible symbols remain raw addresses. Optimized
 inline frames and local variables are not reconstructed. The metadata enlarges
 the file without disabling Release optimization or inlining.
 
+### Optional compression on Linux
+
+Starting with 2.4.17, the runtime reader accepts zlib-compressed DWARF in Linux
+x86-64 executables. This covers both the ELF gABI `SHF_COMPRESSED` format and
+the older GNU `.zdebug_*` format, as well as a mixture of compressed and ordinary
+sections. It works for ordinary RTL backtraces and `Moon.Diagnostics` without
+an additional application unit or runtime library.
+
+Compression is an explicit build step; the SDK does not enable it automatically:
+
+```sh
+objcopy --compress-debug-sections=zlib App App.compressed
+```
+
+Perform it before signing or calculating application integrity hashes. Keep the
+resulting executable for that build. Compression retains debug information;
+`--strip-debug` removes it and therefore removes runtime source lookup too.
+Zstandard-compressed DWARF is not supported.
+
+The saving is in executable disk size. A diagnostic lookup decompresses sections
+on demand into shared reader buffers, adding CPU time and temporary memory during
+report generation. There is no decompression on ordinary application startup or
+thread creation. `Moon.Diagnostics` releases those buffers when each report ends;
+direct users of the RTL reader can release them with `CloseDwarf`. Applications
+which already ZIP their distribution should not expect the same saving in the ZIP.
+
+Corrupt or unsupported debug sections stop symbol lookup and leave raw addresses
+available. The section gate transforms real executables and checks compressed/raw
+name and line equality, malformed input, concurrent lookup and report cleanup on
+Windows/Linux; PE debug sections on Windows remain uncompressed.
+
 ## What is captured and when
 
 Exception reports contain class/message, original address, thread ID, up to

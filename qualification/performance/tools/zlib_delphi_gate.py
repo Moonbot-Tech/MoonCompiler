@@ -6,7 +6,7 @@ candle blob deflated and inflated through TZCompressionStream and
 TZDecompressionStream, the history of a market, 256 permessage-deflate frames of
 an exchange websocket on one inflate stream, a market's data zipped into an
 archive in memory and read back through System.Zip.  On Win64 System.ZLib links
-zlib 1.3.1 built by the toolchain (packages/vcl-compat/native/zlib), and
+zlib 1.3.1 built by the toolchain (rtl/inc/zlib), and
 System.Zip compresses through it too (mormot.lib.z under
 MOONCOMPILER_SYSTEM_ZLIB); a build that copies a byte a step made the websocket
 1.25 times as slow as Delphi and passed every test.  zlib_objects_gate.py knows

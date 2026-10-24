@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v2.4.16
+        default: v2.4.17
 
 permissions:
   contents: read
@@ -177,6 +177,10 @@ jobs:
             --compiler "$fpc" --output "$smoke/resource-paths"
           python3 "$GITHUB_WORKSPACE/qualification/release/diagnostics_expected_smoke.py" \
             --compiler "$fpc" --out "$smoke/diagnostics-expected"
+          python3 "$GITHUB_WORKSPACE/qualification/suite/scripts/run_dwarf_sections_gate.py" \
+            --compiler "$smoke/toolchain/bin/ppcx64" \
+            --rtl "$smoke/toolchain/lib/fpc/3.3.1/units/x86_64-linux/rtl" \
+            --mormot "$smoke/mormot" --results "$smoke/dwarf-sections"
       - name: Verify ownership using the unpacked archive
         run: |
           python3 qualification/rtl-ownership/run_gate.py \
@@ -290,6 +294,11 @@ jobs:
           If ($LASTEXITCODE -ne 0) { throw 'Resource path archive contracts failed' }
           python qualification\release\diagnostics_expected_smoke.py --compiler $Fpc --out "$Smoke\diagnostics-expected"
           If ($LASTEXITCODE -ne 0) { throw 'Expected exception archive contracts failed' }
+          python qualification\suite\scripts\run_dwarf_sections_gate.py `
+            --compiler "$Smoke\toolchain\bin\x86_64-win64\ppcx64.exe" `
+            --rtl "$Smoke\toolchain\units\x86_64-win64\rtl" `
+            --mormot "$Smoke\mormot" --results "$Smoke\dwarf-sections"
+          If ($LASTEXITCODE -ne 0) { throw 'Runtime DWARF archive contracts failed' }
           Push-Location "$Smoke\app"
           try {
             foreach ($Profile in @(@(), @('-dRELEASE'))) {
