@@ -3752,10 +3752,26 @@ unit cgx86;
         href: treference;
         usedregs: tcpuregisterset;
         regs_to_save_int: tcpuregisterarray;
+{$if defined(x86_64)}
+        cfa_offset: longint;
+{$endif}
       begin
         href:=current_procinfo.save_regs_ref;
         usedregs:=rg[R_INTREGISTER].used_in_proc-paramanager.get_volatile_registers_int(current_procinfo.procdef.proccalloption);
         regs_to_save_int:=paramanager.get_saved_registers_int(current_procinfo.procdef.proccalloption);
+{$if defined(x86_64)}
+        cfa_offset:=0;
+        if use_pop and (current_procinfo.framepointer=NR_STACK_POINTER_REG) then
+          begin
+            cfa_offset:=sizeof(pint);
+            for r:=low(regs_to_save_int) to high(regs_to_save_int) do
+              if regs_to_save_int[r] in usedregs then
+                inc(cfa_offset,sizeof(pint));
+            { Local stack storage has already been released by the caller. }
+            if current_procinfo.final_localsize<>0 then
+              current_asmdata.asmcfi.cfa_def_cfa_offset(list,cfa_offset);
+          end;
+{$endif}
         for r:=high(regs_to_save_int) downto low(regs_to_save_int) do
           if regs_to_save_int[r] in usedregs then
             begin
@@ -3770,6 +3786,13 @@ unit cgx86;
                   inc(href.offset,sizeof(aint));
                 end;
               current_asmdata.asmcfi.cfa_restore(list,hreg);
+{$if defined(x86_64)}
+              if cfa_offset<>0 then
+                begin
+                  dec(cfa_offset,sizeof(pint));
+                  current_asmdata.asmcfi.cfa_def_cfa_offset(list,cfa_offset);
+                end;
+{$endif}
             end;
       end;
 
@@ -3777,15 +3800,21 @@ unit cgx86;
     procedure tcgx86.generate_leave(list: TAsmList);
       begin
         if UseLeave then
-          list.concat(taicpu.op_none(A_LEAVE,S_NO))
+          begin
+            list.concat(taicpu.op_none(A_LEAVE,S_NO));
+{$if defined(x86_64)}
+            current_asmdata.asmcfi.cfa_def_cfa(list,NR_RSP,8);
+            current_asmdata.asmcfi.cfa_restore(list,NR_RBP);
+{$endif}
+          end
         else
           begin
 {$if defined(x86_64)}
-            current_asmdata.asmcfi.cfa_def_cfa_register(list,NR_RSP);
             list.Concat(taicpu.op_reg_reg(A_MOV,S_Q,NR_RBP,NR_RSP));
+            current_asmdata.asmcfi.cfa_def_cfa_register(list,NR_RSP);
+            list.Concat(taicpu.op_reg(A_POP,S_Q,NR_RBP));
             current_asmdata.asmcfi.cfa_restore(list,NR_RBP);
             current_asmdata.asmcfi.cfa_def_cfa_offset(list,8);
-            list.Concat(taicpu.op_reg(A_POP,S_Q,NR_RBP));
 {$elseif defined(i386)}
             current_asmdata.asmcfi.cfa_def_cfa_register(list,NR_ESP);
             list.Concat(taicpu.op_reg_reg(A_MOV,S_L,NR_EBP,NR_ESP));

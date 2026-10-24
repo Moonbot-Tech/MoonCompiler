@@ -605,7 +605,8 @@ unit cgcpu;
 
                     if (current_procinfo.procdef.proctypeoption=potype_exceptfilter) then
                       list.concat(Taicpu.op_reg(A_POP,tcgsize2opsize[OS_ADDR],NR_FRAME_POINTER_REG));
-                    current_asmdata.asmcfi.cfa_def_cfa_offset(list,sizeof(pint));
+                    if current_procinfo.framepointer<>NR_STACK_POINTER_REG then
+                      current_asmdata.asmcfi.cfa_def_cfa_offset(list,sizeof(pint));
                   end
                 else if (target_info.system in systems_x86_64_ms_abi) then
                   begin
