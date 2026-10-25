@@ -277,6 +277,14 @@ def main():
     crosschecks = root/'qualification/metadata-crosscheck'
     run([sys.executable, crosschecks/'invoke_corpus_gate.py', '--compiler', compiler,
          '--reports', '--results', out/'invoke-reports'], out, out/'invoke-reports.log', timeout=600)
+    # External assembler generic COMDAT ownership has a separate known failure;
+    # do not count it as a passing native metadata configuration.
+    graph_modes = ['release', 'debug'] + ([] if win else ['full-dwarf', 'pie'])
+    run([sys.executable, crosschecks/'ownership_graph_gate.py', '--compiler', compiler,
+         '--results', out/'ownership-graph', *[arg for mode in graph_modes for arg in ('--mode', mode)]],
+        out, out/'ownership-graph.log', timeout=600)
+    run([sys.executable, crosschecks/'foreign_dso_gate.py', '--compiler', compiler,
+         '--results', out/'foreign-dso'], out, out/'foreign-dso.log', timeout=600)
     if not win:
         run([sys.executable, crosschecks/'unwind_traps_gate.py', '--compiler', compiler,
              '--results', out/'unwind-instruction-pcs'], out, out/'unwind-instruction-pcs.log', timeout=300)

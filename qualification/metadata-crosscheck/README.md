@@ -5,9 +5,10 @@ unwind-encoding and reporting gates. They use explicit runtime values and exact
 caller chains. A successful build, a positive line number or an unchanged CFI
 table alone is insufficient.
 
-`release_metadata_gate.py` runs the Invoke/report corpus on Win64 and Linux and
-the instruction-PC unwind sweep on Linux. Both scripts require a new results
-directory. The tests create private executables and never patch the SDK or an
+`release_metadata_gate.py` runs the Invoke/report, ownership and shared-library
+corpora on Win64 and Linux, and the instruction-PC unwind sweep on Linux.
+All runners require a new results directory. The tests create private executables
+and never patch the SDK or an
 application outside that directory.
 
 ## RTTI, ABI and reports
@@ -81,3 +82,32 @@ passed to an opaque C observer forces an eight-byte local slot in AuditLeaf,
 so its POP RCX release is checked separately. The observer changes no value.
 The original full caller-chain, checksum, cleanup and negative-control oracles
 remain active at each reached instruction boundary.
+
+## Ownership across independently compiled units
+
+`ownership_graph_gate.py` checks generic and nested type identity, catalog-based
+discovery, attributes, private field access, property Invoke, registered callbacks,
+managed global values, thread-local state, record hooks and exact initialization
+and finalization order. Producer sources are hidden before compiling the consumer;
+both unit orders must pass. A changed callback in one rebuilt producer must be
+rejected by the unchanged consumer's runtime oracle.
+
+Qualification selects `--mode release --mode debug` on Windows and additionally
+`--mode full-dwarf --mode pie` on Linux. The explicit selection matters: the
+runner's `--mode external` reproduces an existing Linux `-Aas` limitation where
+shared generic symbols from two producer units lack COMDAT groups. It fails on
+both the baseline and the CFI candidate and is not included in the passing count.
+
+## Shared libraries and foreign frames
+
+`foreign_dso_gate.py` exercises Pascal DLL/SO loading, reflective calls, attributes,
+managed values and finalization in three fresh processes per configuration.
+Linux also checks a C shared library's constructor/destructor, ELF TLS and exact
+address ranges in a C -> Pascal -> C -> Pascal stack. Exceptions cross the C frame
+and must execute both cleanups. A truncated stack must fail the chain oracle.
+Linux requires `gcc`, `nm` and the ordinary native linker tools.
+
+The shared-library corpus includes the external assembler path. It does not claim
+that the separate multi-unit generic COMDAT limitation above is fixed. Pascal SO
+finalization is checked at process completion; immediate physical unloading at
+`UnloadLibrary` is not asserted. Native C unload finalization is checked separately.
