@@ -32,6 +32,7 @@ def main():
     ap = argparse.ArgumentParser(__doc__)
     ap.add_argument('--compiler', type=Path, required=True)
     ap.add_argument('--config', type=Path)
+    ap.add_argument('--assembler', choices=('native', 'gas'), default='native')
     ap.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[2])
     ap.add_argument('--results', type=Path, required=True)
     args = ap.parse_args()
@@ -41,6 +42,8 @@ def main():
     common = [str(args.compiler.resolve())]
     if args.config:
         common += ['-n', '@'+str(args.config.resolve())]
+    if args.assembler == 'gas':
+        common.append('-Aas')
     rows = []
 
     def run(command, work, log, timeout=90):
@@ -250,7 +253,7 @@ def main():
         output = execute(work, src.stem)
         assert marker in output, output
         rows.append(dict(case=src.stem, output=output))
-    record = dict(compiler_sha256=hashlib.sha256(args.compiler.read_bytes()).hexdigest(), cases=rows)
+    record = dict(compiler_sha256=hashlib.sha256(args.compiler.read_bytes()).hexdigest(), assembler=args.assembler, cases=rows)
     (out/'results.json').write_text(json.dumps(record, indent=2))
     print('GENERIC_SHARING_PASS', len(rows), flush=True)
 

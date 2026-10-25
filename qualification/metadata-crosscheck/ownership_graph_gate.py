@@ -182,29 +182,40 @@ def main():
     ap=argparse.ArgumentParser(__doc__)
     ap.add_argument('--compiler',type=Path,required=True)
     ap.add_argument('--results',type=Path,required=True)
+    ap.add_argument('--config',type=Path)
     ap.add_argument('--mode',action='append')
     a=ap.parse_args(); cc=a.compiler.resolve(); out=a.results.resolve(); out.mkdir(parents=True,exist_ok=False)
     win=os.name=='nt'; rows=[]
     matrix=[('release',['-dRELEASE']),('debug',[])]
     if not win:
       matrix += [('full-dwarf',['-dRELEASE','-goNODWARFLINETABLESONLY']),
-                 ('external',['-dRELEASE','-Aas']),('pie',['-dRELEASE','-Cg','-k-pie'])]
+                 ('external',['-dRELEASE','-Aas']),('pie',['-dRELEASE','-Cg','-k-pie']),
+                 ('external-debug',['-Aas']),
+                 ('external-full',['-dRELEASE','-Aas','-goNODWARFLINETABLESONLY']),
+                 ('external-pie',['-dRELEASE','-Aas','-Cg','-k-pie']),
+                 ('external-no-smart',['-dRELEASE','-Aas','-CX-']),
+                 ('mixed-native-owner',['-dRELEASE','-Aas']),
+                 ('mixed-gas-owner',['-dRELEASE']),
+                 ('mixed-pie-native-owner',['-dRELEASE','-Aas','-Cg','-k-pie']),
+                 ('mixed-pie-gas-owner',['-dRELEASE','-Cg','-k-pie'])]
     if a.mode: matrix=[v for v in matrix if v[0] in a.mode]
     assert matrix,'no selected modes'
     for label,flags in matrix:
+      owner_assembler = (['-Aelf'] if label.endswith('native-owner') else
+                         ['-Aas'] if label.endswith('gas-owner') else [])
       for reverse in (False,True):
         work=out/(label+('-reverse' if reverse else '-forward')); work.mkdir()
         src=HOST.replace('GraphOwner, GraphPeer','GraphPeer, GraphOwner') if reverse else HOST
         for name,body in [('GraphTypes.pas',TYPES),('GraphOwner.pas',OWNER),('GraphPeer.pas',PEER),('OwnershipGraph.dpr',src)]:
           (work/name).write_text(body,encoding='utf-8')
-        common=[str(cc),*flags,'-Xs-','-Fu.','-FU.','-FE.']
+        common=[str(cc),*(['-n','@'+str(a.config.resolve())] if a.config else []),*flags,'-Xs-','-Fu.','-FU.','-FE.']
         def run(cmd,name,expected=0):
           p=subprocess.run([str(x) for x in cmd],cwd=work,capture_output=True,text=True,timeout=45)
           (work/name).write_text(p.stdout+p.stderr)
           assert p.returncode==expected,(label,name,p.returncode,(p.stdout+p.stderr)[-3500:])
           return p.stdout
         for unit in (('GraphPeer','GraphOwner') if reverse else ('GraphOwner','GraphPeer')):
-          run(common+[unit+'.pas'],unit+'.log')
+          run(common+(owner_assembler if unit=='GraphOwner' else [])+[unit+'.pas'],unit+'.log')
         for unit in ('GraphTypes','GraphOwner','GraphPeer'):
           (work/(unit+'.pas')).rename(work/(unit+'.pas.hidden'))
         run(common+['OwnershipGraph.dpr'],'compile.log')
@@ -218,7 +229,7 @@ def main():
         # Rebuild only the producer unit with a changed live callback target.
         # The unchanged source-free consumer must observe and reject that edge.
         (work/'GraphOwner.pas.hidden').rename(work/'GraphOwner.pas')
-        run(common+['-dAUDIT_NEGATIVE','GraphOwner.pas'],'negative-producer.log')
+        run(common+owner_assembler+['-dAUDIT_NEGATIVE','GraphOwner.pas'],'negative-producer.log')
         (work/'GraphOwner.pas').rename(work/'GraphOwner.pas.hidden')
         run(common+['OwnershipGraph.dpr'],'negative-link.log')
         p=subprocess.run([str(binary)],cwd=work,capture_output=True,text=True,timeout=20)

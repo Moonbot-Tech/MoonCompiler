@@ -92,11 +92,11 @@ and finalization order. Producer sources are hidden before compiling the consume
 both unit orders must pass. A changed callback in one rebuilt producer must be
 rejected by the unchanged consumer's runtime oracle.
 
-Qualification selects `--mode release --mode debug` on Windows and additionally
-`--mode full-dwarf --mode pie` on Linux. The explicit selection matters: the
-runner's `--mode external` reproduces an existing Linux `-Aas` limitation where
-shared generic symbols from two producer units lack COMDAT groups. It fails on
-both the baseline and the CFI candidate and is not included in the passing count.
+Qualification selects `--mode release --mode debug` on Windows. Linux also checks
+full DWARF, PIE, GNU assembler Debug/Release/full DWARF/PIE and `-CX-`, plus mixed
+native/GNU assembler producer objects in both directions, with and without PIE.
+These configurations cover canonical generic COMDAT ownership, direct calls,
+source-free PPUs and a changed producer consumed by the existing caller.
 
 ## Shared libraries and foreign frames
 
@@ -107,7 +107,6 @@ address ranges in a C -> Pascal -> C -> Pascal stack. Exceptions cross the C fra
 and must execute both cleanups. A truncated stack must fail the chain oracle.
 Linux requires `gcc`, `nm` and the ordinary native linker tools.
 
-The shared-library corpus includes the external assembler path. It does not claim
-that the separate multi-unit generic COMDAT limitation above is fixed. Pascal SO
+The shared-library corpus includes the external assembler path. Pascal SO
 finalization is checked at process completion; immediate physical unloading at
 `UnloadLibrary` is not asserted. Native C unload finalization is checked separately.

@@ -198,6 +198,11 @@ implementation
         result := asminfo^.labelprefix+'$set$'+tostr(setcount);
       end;
 
+    function is_generic_comdat_section(const aname:string):boolean;
+      begin
+        result:=(target_info.system=system_x86_64_linux) and (pos('$mgs',lower(aname))>0);
+      end;
+
     function is_smart_section(atype:TAsmSectiontype):boolean;
       begin
         { For bss we need to set some flags that are target dependent,
@@ -354,7 +359,8 @@ implementation
         secname : string;
       begin
         if (cs_create_pic in current_settings.moduleswitches) and
-           not(target_info.system in systems_darwin) then
+           not(target_info.system in systems_darwin) and
+           not is_generic_comdat_section(aname) then
           secname:=secnames_pic[atype]
         else
           secname:=secnames[atype];
@@ -405,7 +411,7 @@ implementation
         if atype=sec_note then
           secname:='.note'+aname;
 
-        if is_smart_section(atype) and (aname<>'') then
+        if (is_smart_section(atype) or (is_generic_comdat_section(aname) and (atype<>sec_user))) and (aname<>'') then
           begin
             case aorder of
               secorder_begin :
@@ -513,6 +519,26 @@ implementation
         usesectionflags: boolean;
       begin
         writer.AsmLn;
+        if is_generic_comdat_section(aname) then
+          begin
+            { Use the same group key as the native ELF object writer. }
+            s:=sectionname(atype,aname,aorder);
+            writer.AsmWrite('.section ');
+            writer.AsmWrite(s);
+            writer.AsmWrite(',"'+sectionflags(secflags));
+            if atype=sec_threadvar then
+              writer.AsmWrite('T');
+            writer.AsmWrite('G",@');
+            if secprogbits=SPB_NOBITS then
+              writer.AsmWrite('nobits')
+            else
+              writer.AsmWrite('progbits');
+            writer.AsmWrite(',".group.');
+            writer.AsmWrite(s);
+            writer.AsmWriteln('",comdat');
+            LastSecType:=atype;
+            exit;
+          end;
         usesectionflags:=false;
         usesectionprogbits:=false;
         case target_info.system of

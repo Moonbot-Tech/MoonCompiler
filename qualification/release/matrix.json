@@ -11,7 +11,9 @@
     "version_contract": ["qualification/build-driver"],
     "ppu_format_contract": ["qualification/build-driver"],
     "product_config_gate": ["qualification/build-driver"],
-    "release_metadata": ["qualification/build-driver", "qualification/suite/scripts", "qualification/suite/tests/smoke", "qualification/suite/tests/rtti", "RTL-test/semantic"],
+    "release_metadata": ["qualification/build-driver", "qualification/metadata-crosscheck", "qualification/suite/scripts", "qualification/suite/tests/smoke", "qualification/suite/tests/rtti", "RTL-test/semantic"],
+    "generic_sharing": ["qualification/build-driver/generic_sharing_gate.py", "qualification/suite/tests/generic-sharing", "qualification/suite/tests/rtti", "RTL-test/semantic"],
+    "generic_sharing_gas": ["qualification/build-driver/generic_sharing_gate.py", "qualification/suite/tests/generic-sharing", "qualification/suite/tests/rtti", "RTL-test/semantic"],
     "unit_scope": ["qualification/build-driver"],
     "zlib_objects": ["qualification/build-driver", "qualification/performance/tools"],
     "rtl_profile": ["qualification/build-driver"],
@@ -423,8 +425,35 @@
       },
       "needs": ["build", "sync"],
       "resource": "release_metadata",
-      "timeout": 300,
+      "timeout": 900,
       "expected": "RELEASE_METADATA_GATE_PASS"
+    },
+    {
+      "id": "generic_sharing",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/build-driver/generic_sharing_gate.py", "--compiler", "{pp}", "--results", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/build-driver/generic_sharing_gate.py", "--compiler", "{pp}", "--results", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "generic_sharing",
+      "estimated_seconds_by_platform": {"win64": 120, "linux": 90},
+      "timeout": 900,
+      "expected": "GENERIC_SHARING_PASS 129"
+    },
+    {
+      "id": "generic_sharing_gas",
+      "mode": "medium",
+      "platforms": ["linux"],
+      "commands": {
+        "linux": ["{python}", "{root}/qualification/build-driver/generic_sharing_gate.py", "--compiler", "{pp}", "--assembler", "gas", "--results", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "generic_sharing",
+      "estimated_seconds_by_platform": {"linux": 90},
+      "timeout": 900,
+      "expected": "GENERIC_SHARING_PASS 129"
     },
     {
       "id": "unit_scope",

@@ -49,6 +49,7 @@ interface
 
      Tx86InstrWriter=class(TCPUInstrWriter)
        private
+        procedure WriteSymbol(const aname:string);
         procedure WriteReference(var ref : treference);
         procedure WriteOper(const o:toper);
         procedure WriteOper_jmp(const o:toper);
@@ -150,6 +151,19 @@ interface
                             Tx86InstrWriter
  ****************************************************************************}
 
+    procedure Tx86InstrWriter.WriteSymbol(const aname:string);
+      begin
+        { A leading dollar is an immediate operand marker in AT&T syntax. }
+        if (aname<>'') and (aname[1]='$') then
+          begin
+            owner.writer.AsmWrite('"');
+            owner.writer.AsmWrite(aname);
+            owner.writer.AsmWrite('"');
+          end
+        else
+          owner.writer.AsmWrite(aname);
+      end;
+
     procedure Tx86InstrWriter.WriteReference(var ref : treference);
       begin
         with ref do
@@ -161,9 +175,12 @@ interface
            if segment<>NR_NO then
              owner.writer.AsmWrite(gas_regname(segment)+':');
            if assigned(symbol) then
-             owner.writer.AsmWrite(symbol.name);
+             WriteSymbol(symbol.name);
            if assigned(relsymbol) then
-             owner.writer.AsmWrite('-'+relsymbol.name);
+             begin
+               owner.writer.AsmWrite('-');
+               WriteSymbol(relsymbol.name);
+             end;
            case ref.refaddr of
              addr_pic:
                begin
@@ -263,7 +280,7 @@ interface
               begin
                 owner.writer.AsmWrite('$');
                 if assigned(o.ref^.symbol) then
-                 owner.writer.AsmWrite(o.ref^.symbol.name);
+                 WriteSymbol(o.ref^.symbol.name);
                 if o.ref^.offset>0 then
                  owner.writer.AsmWrite('+'+tostr(o.ref^.offset))
                 else
@@ -316,7 +333,7 @@ interface
                 end
               else
                 begin
-                  owner.writer.AsmWrite(o.ref^.symbol.name);
+                  WriteSymbol(o.ref^.symbol.name);
                   if o.ref^.refaddr=addr_pic then
                     owner.writer.AsmWrite('@PLT');
                   if o.ref^.offset>0 then

@@ -112,6 +112,9 @@ type
     Code: Integer;
     constructor Create(N: Integer);
   end;
+  TGeneric<T>=class
+  public class function Value(N: Integer): Integer; static;
+  end;
   [TMark(337)]
   TBeacon=class
   public function Value(N: Integer): Integer;
@@ -122,7 +125,8 @@ function RunPlugin: Integer; cdecl;
 implementation
 var Held: IToken; Text: UnicodeString; Destroyed, Calls: Integer;
 constructor TMarkAttribute.Create(N: Integer); begin Code:=N; end;
-function TBeacon.Value(N: Integer): Integer; begin Result:=N*13+7; end;
+class function TGeneric<T>.Value(N: Integer): Integer; begin Result:=N*13+7; end;
+function TBeacon.Value(N: Integer): Integer; begin Result:=TGeneric<Integer>.Value(N); end;
 destructor TToken.Destroy; begin Inc(Destroyed); inherited; end;
 function RunPlugin: Integer; cdecl;
 var C: TRttiContext; R: TRttiType; O: TBeacon; Matches: Integer;

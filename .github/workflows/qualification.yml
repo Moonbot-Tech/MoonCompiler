@@ -96,6 +96,8 @@ jobs:
             --output .qualification/ci-linux-private-ppu
           python3 qualification/build-driver/generic_sharing_gate.py \
             --compiler "$pp" --results .qualification/ci-linux-generic-sharing
+          python3 qualification/build-driver/generic_sharing_gate.py \
+            --compiler "$pp" --assembler gas --results .qualification/ci-linux-generic-sharing-gas
           python3 qualification/compiler-resource-case/run_gate.py \
             --compiler "$pp" --config "$cfg" \
             --output .qualification/ci-linux-resource-case
