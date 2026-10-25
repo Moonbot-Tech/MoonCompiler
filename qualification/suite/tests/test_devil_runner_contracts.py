@@ -719,6 +719,23 @@ Fatal: Compilation aborted
         self.assertEqual(rtl_test["MODES"]["o2"], ["-O2", *release[1:]])
         self.assertEqual(rtl_test["MODES"]["o3"], release)
 
+    def test_chimera_inline_oracle_is_scoped_to_the_paired_body(self) -> None:
+        def note(site: str, name: str) -> str:
+            return f'{site}(34,1) Note: Call to subroutine "function {name}:Boolean;" marked as inline is not inlined'
+
+        for prefix in ("", "R:\\tree\\", "/tmp/tree/"):
+            with self.subTest(prefix=prefix):
+                site = prefix + "chimera_tape_pure.inc"
+                lines = [note(site, name) for name in sorted(run_chimera_gate.EXPECT_REFUSED)]
+                unrelated = [note("chimera_life.pas", "Born"), note("mormot.core.text.pas", "IdemPChar")]
+                self.assertEqual(run_chimera_gate.refused_names("\n".join(lines + unrelated)),
+                                 run_chimera_gate.EXPECT_REFUSED)
+                self.assertNotEqual(run_chimera_gate.refused_names("\n".join(lines[1:] + unrelated)),
+                                    run_chimera_gate.EXPECT_REFUSED)
+                self.assertNotEqual(run_chimera_gate.refused_names("\n".join(lines + [note(site, "Unexpected")])),
+                                    run_chimera_gate.EXPECT_REFUSED)
+        self.assertEqual(run_chimera_gate.refused_names(note("other.pas", "XAfter")), set())
+
     def test_chimera_refuses_an_incomplete_mormot_on_every_platform(self) -> None:
         # without the pinned checkout Linux Chimera reported one failed build
         # and 55 unexecuted census rows as findings instead of its missing input

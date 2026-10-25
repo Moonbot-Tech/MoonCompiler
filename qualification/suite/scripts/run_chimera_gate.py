@@ -102,23 +102,24 @@ SWITCHES = (
 
 # Чистые шаги прохода по ленте. Химера подключает их текст ДВАЖДЫ: из листового
 # юнита, откуда вставка работает, и из юнита в кольце зависимостей, откуда она
-# мертва. Значит компилятор обязан отказаться ровно от этих девяти и ни от чего
-# больше — иначе одна из двух половин оси исчезла.
+# мертва. В этом общем теле компилятор обязан отказаться ровно от этих девяти.
+# Отказы автоинлайнера в остальных органах и зависимостях не описывают эту ось.
 EXPECT_REFUSED = {
     "XAfter", "XBucket", "XDelta", "XEma", "XIsSell", "XMinuteRaw",
     "XMinuteSlot", "XNotional", "XSameSecond",
 }
 
 REFUSED = re.compile(r"marked as inline is not inlined")
+INLINE_SITE = re.compile(r"(?:^|[/\\])chimera_tape_pure\.inc\(\d+,\d+\) ")
 NAMED = re.compile(r'"(?:function|procedure)\s+(\w+)')
 COVER = re.compile(r"^CHI_COVER\s+(\S+)(.*)$")
 
 
 def refused_names(text: str) -> set[str]:
-    """Имена подпрограмм, которые компилятор вставить отказался."""
+    """Отказы вставки в общем теле leaf/cycle, без чужих auto-inline notes."""
     names = set()
     for line in text.splitlines():
-        if not REFUSED.search(line) or "fpcx64mm" in line:
+        if not REFUSED.search(line) or not INLINE_SITE.search(line):
             continue
         found = NAMED.search(line)
         if found:
