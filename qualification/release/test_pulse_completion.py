@@ -42,6 +42,56 @@ def matrix():
 
 
 class CompletionContracts(unittest.TestCase):
+    def test_admission_burst_keeps_first_clean_pair_and_stays_bounded(self):
+        case = completion.full.Case("demo", "case", "rtl", "System", "single-cpu", 0.0)
+        for clean_after in (0, 6, 20, completion.MAX_PAIR_ATTEMPTS):
+            with self.subTest(clean_after=clean_after), tempfile.TemporaryDirectory() as temporary:
+                calls = []
+                def acquire(executable, program, name, variant, repeat, duration, category, cpu, output, **kw):
+                    attempt = len(calls) // 2
+                    result = {**record(name, variant, repeat, valid=attempt >= clean_after),
+                              "program": program, "affinity": cpu, "log": str(output / variant),
+                              "speed": 1000 - attempt}
+                    calls.append(result)
+                    return result
+                with (mock.patch.object(completion.full.method, "run_one", side_effect=acquire),
+                      mock.patch.object(completion.full.method, "record_metrics", side_effect=lambda r, *a, **k: r["derived"])):
+                    pair = completion.full.run_pair(case, 3, 60,
+                        {(v, "demo", 3): Path(v) for v in completion.full.SYSTEMS}, (0, 4), (0, 2),
+                        {("demo", "case"): (100, 60)}, Path(temporary), "admission", False, 0,
+                        "grid", max_attempts=completion.MAX_PAIR_ATTEMPTS)
+                attempts = min(clean_after + 1, completion.MAX_PAIR_ATTEMPTS)
+                self.assertEqual(len(calls), 2 * attempts)
+                self.assertTrue(all(r["speed"] == 1001 - attempts for r in pair))
+                old = [{**r, "derived": {"valid": False}} for r in pair]
+                if clean_after < completion.MAX_PAIR_ATTEMPTS:
+                    self.assertEqual(len(pair[0]["rejected_pair_attempts"]), 2 * clean_after)
+                    self.assertEqual(completion.replacement_pair("demo/case", 3, old, pair, (100, 60)), pair)
+                else:
+                    with self.assertRaisesRegex(ValueError, "replacement is dirty"):
+                        completion.replacement_pair("demo/case", 3, old, pair, (100, 60))
+
+    def test_batch_retry_never_replaces_early_clean_pair_with_faster_late_pair(self):
+        cases = [completion.full.Case("move", name, "rtl", "System", "memory-local", 0.0)
+                 for name in ("early", "late")]
+        with tempfile.TemporaryDirectory() as temporary:
+            def acquire(executable, program, names, variant, repeat, duration, category, cpu, output, *args, **kw):
+                attempt = int(output.name.rsplit("-a", 1)[1])
+                return [{**record(name, variant, repeat, valid=name == "early" or attempt >= 20),
+                         "affinity": cpu, "log": str(output / variant), "speed": 1000 - attempt}
+                        for name in names]
+            with (mock.patch.object(completion.full.method, "run_many", side_effect=acquire),
+                  mock.patch.object(completion.full.method, "record_metrics", side_effect=lambda r, *a, **k: r["derived"])):
+                measured = completion.full.run_case_batch_pair(cases, 3, 60,
+                    {(v, "move", 3): Path(v) for v in completion.full.SYSTEMS}, (0, 4), Path(temporary),
+                    "admission", 0, {("move", name): (100, 60) for name in ("early", "late")},
+                    "grid", max_attempts=completion.MAX_PAIR_ATTEMPTS)
+        for row in measured:
+            expected = 0 if row["case"] == "early" else 20
+            self.assertEqual(row["pair_attempt"], expected)
+            self.assertEqual(row["speed"], 1000 - expected)
+            self.assertEqual(len(row["rejected_pair_attempts"]), 2 * expected)
+
     def test_frozen_missing_pair_replays_whole_original_move_process(self):
         raw = matrix()
         missing, counts = completion.freeze_missing(raw)

@@ -296,7 +296,12 @@ a full invocation; the controller retains and verifies every prior origin log.
 An original run without passing A/A controls is not eligible for completion;
 repeat the full Pulse instead.
 
-The completion budget is six attempts per missing pair. The source bridge accepts
+The completion budget is 32 admission attempts per missing pair or new
+confirmation pair. It stops at the first clean pair, preserving every rejected
+attempt; it never selects by measured speed. Persistent interference still
+fails qualification. Fresh A/A controls keep their normal budget and criteria.
+This avoids restarting the whole completion after a brief burst of background
+work. The source bridge accepts
 only the exact reviewed old/new Git blobs for batch aggregation and log naming;
 the workload and idle guards are unchanged. The historical RoundTo baseline
 digest difference is accepted only with a full mathematical proof of the

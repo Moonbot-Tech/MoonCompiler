@@ -26,6 +26,8 @@ import qualify_measurement_method as method
 
 
 MEASUREMENT_ROOT = "qualification/performance"
+# Admission retries only: the first clean pair wins, regardless of its speed.
+MAX_PAIR_ATTEMPTS = 32
 ALLOWED_METHOD_BRIDGE = {
     "qualification/performance/tools/pulse_full.py": (
         "432dc7fef51f4ece42e8c90f26ed624b70bc70a9", "8ed152684df57941ffad9e2ad00427cb96f97d9e"),
@@ -429,7 +431,7 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
         result["release_validation"] = {"proved_noncomparable": origin["proved_noncomparable"]}
     result["completion"] = {
         "origin": origin,
-        "max_attempts": 6,
+        "max_attempts": MAX_PAIR_ATTEMPTS,
         "completion_head": result["git_head"],
         "original_runner_rejections": raw.get("runner_rejections"),
         "frozen_missing": frozen_missing,
@@ -445,7 +447,7 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
     }
     (output / "COMPLETION_ORIGIN.json").write_text(
         json.dumps({"origin": origin, "completion_head": result["git_head"],
-                    "max_attempts": 6,
+                    "max_attempts": MAX_PAIR_ATTEMPTS,
                     "frozen_missing": frozen_missing,
                     "frozen_move_batches": result["completion"]["frozen_move_batches"]}, indent=2) + "\n",
         encoding="utf-8",
@@ -485,7 +487,7 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
                 measured = full.run_case_batch_pair(
                     [cases[item] for item in members], repeat, durations.pop(),
                     images, cpu_pair, output, "completion-" + category, orientation,
-                    iterations, raw["stack_phase"], max_attempts=6)
+                    iterations, raw["stack_phase"], max_attempts=MAX_PAIR_ATTEMPTS)
             finally:
                 pair_pool.give(cpu_pair)
             retain_attempt(output, members, repeat, measured)
@@ -513,7 +515,7 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
                     cpu_pair, multithread_cpus, iterations, output,
                     "completion-" + case.category,
                     not (full.POLICIES[case.category].exclusive or case.exclusive),
-                    orientation, raw["stack_phase"], max_attempts=6)
+                    orientation, raw["stack_phase"], max_attempts=MAX_PAIR_ATTEMPTS)
             finally:
                 pair_pool.give(cpu_pair)
             retain_attempt(output, [name], repeat, measured)
@@ -572,7 +574,7 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
                 measured = full.run_stage(
                     group, 0, 12, policy.initial_ms, confirm_images, single_cpus,
                     multithread_cpus, iterations, directory, category,
-                    batch_processes=False, stack_plan=raw["stack_phase"], max_attempts=6)
+                    batch_processes=False, stack_plan=raw["stack_phase"], max_attempts=MAX_PAIR_ATTEMPTS)
                 (output / f"COMPLETION_CONFIRMATION_{category}.json").write_text(
                     json.dumps(measured, ensure_ascii=False, separators=(",", ":")) + "\n",
                     encoding="utf-8",
