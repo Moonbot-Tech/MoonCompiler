@@ -506,12 +506,12 @@ end;
 procedure TransformFile(const InputName,OutputName,Objcopy: string);
 const Required: array[0..3] of string=('debug_info','debug_abbrev','debug_line','debug_aranges');
 var Original,Final: TBytes; Before,After: TSections; IsPE,Compressed,Dummy,OtherPE: Boolean;
-    I,J: SizeInt; Dir,Image: string; Found: Boolean;
+    I,J: SizeInt; Dir,Image: string; Found,DirCreated: Boolean;
     {$ifdef unix} Mode: Stat; {$endif}
 begin
   Need(ExpandFileName(InputName)<>ExpandFileName(OutputName),'input and output must differ');
   Need(not FileExists(OutputName),'output already exists'); Original:=Load(InputName);
-  Dir:=OutputName+'.sections'; Need(not DirectoryExists(Dir),'temporary directory already exists');
+  Dir:=ExtractFilePath(ExpandFileName(OutputName))+'.mccompact-'+IntToStr(GetProcessID); DirCreated:=False;
   Save(OutputName,Original);
   {$ifdef unix}
   Need(fpStat(InputName,Mode)=0,'cannot read input permissions');
@@ -525,7 +525,7 @@ begin
         (Before[I].Name<>'.debug_types') and (Before[I].Name<>'.debug_macro') and
         (Before[I].Name<>'.debug_macinfo'),'cross-section DWARF references: preserve original');
     end;
-    Need(CreateDir(Dir),'cannot create temporary directory'); Dir:=IncludeTrailingPathDelimiter(Dir);
+    Need(CreateDir(Dir),'cannot create temporary directory'); DirCreated:=True; Dir:=IncludeTrailingPathDelimiter(Dir);
     { External binutils need only short ASCII paths, even for Unicode output. }
     Image:=Dir+'image.bin'; Need(RenameFile(OutputName,Image),'cannot stage executable');
     if Compressed then Execute(Objcopy,Dir,['--decompress-debug-sections','image.bin']);
@@ -574,7 +574,7 @@ begin
     end;
   end;
   { Every path is inside our newly created temporary directory. }
-  if DirectoryExists(Dir) then begin
+  if DirCreated then begin
     DeleteFile(Dir+'image.bin');
     for I:=0 to High(Required) do DeleteFile(Dir+Required[I]);
     DeleteFile(Dir+'debug_info.new'); DeleteFile(Dir+'debug_line.new'); DeleteFile(Dir+'debug_aranges.new');

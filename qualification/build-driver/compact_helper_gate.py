@@ -22,38 +22,70 @@ def verify_paths(compiler: Path, helper: Path) -> dict:
         assert run([image]).strip()=='HELPER_RUNTIME_PASS'
         if not win: image.chmod(0o751)
         original=image.read_bytes()
-        # A long leaf with non-ASCII input AND output; extended Windows spelling
-        # is the integration regression, without requiring a long child cwd.
-        leaf='я'*(130 if win else 80)
-        source=work/(leaf+'.input');source.write_bytes(original)
-        if not win: source.chmod(0o751)
         def argument(path):
             return '\\\\?\\'+str(path) if win else str(path)
         result={}
-        for label,tool in [('compact',objcopy),('fallback',sys.executable)]:
-            output=work/(leaf+'.'+label)
-            message=run([helper,argument(source),argument(output),tool])
-            assert source.read_bytes()==original,'input changed'
-            assert not Path(str(output)+'.sections').exists(),'owned workspace leaked'
-            assert output.stat().st_mode&0o777==source.stat().st_mode&0o777,'output mode changed'
-            if label=='compact':
-                assert message.startswith('COMPACT '),message
-                assert output.read_bytes()!=original,'no actual transformation'
-            else:
-                assert message.startswith('UNCHANGED:'),message
-                assert output.read_bytes()==original,'fallback changed bytes'
-            executable=work/(label+('.exe' if win else ''))
-            output.rename(executable)
-            assert run([executable]).strip()=='HELPER_RUNTIME_PASS'
-            result[label]=message.strip()
-        # Existing paths belong to somebody else; refusal cannot delete them.
-        for directory in (False,True):
-            output=work/('occupied-dir' if directory else 'occupied-file')
-            sentinel=Path(str(output)+'.sections')/'sentinel' if directory else output
-            sentinel.parent.mkdir(exist_ok=True);sentinel.write_bytes(b'foreign data')
-            p=subprocess.run([str(helper),str(source),str(output),objcopy],cwd=work,capture_output=True,timeout=60)
-            assert p.returncode!=0 and sentinel.read_bytes()==b'foreign data','foreign path changed'
-            assert source.read_bytes()==original
+        long_parent=work/('каталог-'+'п'*20)/'destination-output'
+        long_parent.mkdir(parents=True)
+        for parent_label,parent in [('short',work),('unicode-parent',long_parent)]:
+            foreign=parent/'.mccompact-foreign'
+            foreign.mkdir();(foreign/'sentinel').write_bytes(b'foreign data')
+            for leaf_label,leaf in [('short','input'),('unicode-leaf','я'*(130 if win else 80))]:
+                source=parent/(leaf+'.exe');source.write_bytes(original)
+                if not win: source.chmod(0o751)
+                key=parent_label+'-'+leaf_label
+                for label,tool in [('compact',objcopy),('fallback',sys.executable)]:
+                    output=parent/(leaf+'.exe.mccompact-new')
+                    message=run([helper,argument(source),argument(output),tool])
+                    assert source.read_bytes()==original,'input changed'
+                    assert win or output.stat().st_mode&0o777==source.stat().st_mode&0o777,'output mode changed'
+                    if label=='compact':
+                        assert message.startswith('COMPACT '),message
+                        assert output.read_bytes()!=original,'no actual transformation'
+                    else:
+                        assert message.startswith('UNCHANGED:'),message
+                        assert output.read_bytes()==original,'fallback changed bytes'
+                    executable=work/(key+'-'+label+('.exe' if win else ''))
+                    output.rename(executable)
+                    assert run([executable]).strip()=='HELPER_RUNTIME_PASS'
+                    assert set(parent.glob('.mccompact-*'))=={foreign},'owned workspace leaked'
+                    assert (foreign/'sentinel').read_bytes()==b'foreign data'
+                    result[key+'-'+label]=message.strip()
+            # Distinct outputs in one directory must not share a workspace.
+            processes=[]
+            for index in range(3):
+                output=parent/('parallel-'+str(index)+'.exe')
+                processes.append((output,subprocess.Popen([str(helper),argument(source),argument(output),objcopy],cwd=work,stdout=subprocess.PIPE,stderr=subprocess.PIPE)))
+            for output,process in processes:
+                stdout,stderr=process.communicate(timeout=60)
+                assert process.returncode==0 and stdout.decode('utf-8').startswith('COMPACT '),(stdout,stderr)
+                assert run([output]).strip()=='HELPER_RUNTIME_PASS'
+                assert win or output.stat().st_mode&0o777==source.stat().st_mode&0o777
+            assert set(parent.glob('.mccompact-*'))=={foreign},'parallel workspace leaked'
+            result[parent_label+'-parallel']=len(processes)
+        # Existing output is never ours; reject without changing its contents.
+        output=work/'occupied-file';output.write_bytes(b'foreign data')
+        p=subprocess.run([str(helper),str(source),str(output),objcopy],cwd=work,capture_output=True,timeout=60)
+        assert p.returncode!=0 and output.read_bytes()==b'foreign data'
+        if not win:
+            # Arrange an exact PID collision before exec, without a timing race.
+            for directory in (False,True):
+                def occupy():
+                    path=work/('.mccompact-'+str(os.getpid()))
+                    if directory:
+                        path.mkdir();path=path/'sentinel'
+                    path.write_bytes(b'foreign data')
+                output=work/('collision-dir' if directory else 'collision-file')
+                p=subprocess.Popen([str(helper),str(source),str(output),objcopy],cwd=work,stdout=subprocess.PIPE,stderr=subprocess.PIPE,preexec_fn=occupy)
+                stdout,stderr=p.communicate(timeout=60)
+                foreign=work/('.mccompact-'+str(p.pid))
+                sentinel=foreign/'sentinel' if directory else foreign
+                assert p.returncode==0 and b'UNCHANGED: cannot create temporary directory' in stdout,(stdout,stderr)
+                assert sentinel.read_bytes()==b'foreign data'
+                assert output.read_bytes()==original and output.stat().st_mode&0o777==0o751
+            result['collision-file-and-directory']='preserved'
+        assert source.read_bytes()==original
+
         return result
 
 def verify_helper(toolchain: Path) -> dict:
