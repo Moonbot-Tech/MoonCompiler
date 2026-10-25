@@ -73,7 +73,11 @@ A failure does not cancel unrelated checks within its stage. It blocks later
 stages; the report retains every failure and every completed attempt. Fix the
 findings as a batch, update both checkouts, and repeat the same command/run
 folders. The candidate is frozen again at the beginning of that invocation.
-A changed HEAD after final Light has begun requires new run folders.
+If HEAD changes, final Light can run again only after every Full result still
+matches the current inputs and its saved log. It replays every Light job on the
+new exact HEAD and verifies the previously qualified SDK without rebuilding it.
+Changed product inputs first require the affected Full checks to pass again;
+source changes during a running invocation still fail that invocation.
 
 The coordinator does not update source checkouts. Install the intended committed
 revision on both hosts before running it. Do not rebuild or edit a checkout
@@ -90,8 +94,12 @@ ignored configuration (for example, `"12,14"`), or pass
 pairs of distinct available physical CPUs and keeps its runner off them. The
 multithread set still uses the normal full host selection, so eight-worker
 cases remain in the release corpus. The selection is part of the Pulse job's
-command fingerprint and ledger; repeat it on resume. It does not change the
-12 fresh pairs, semantic checks, A/A, idle guards or confirmation.
+command fingerprint and ledger; repeat it on resume. After an intact failed
+Pulse attempt, a full retry may choose new cores before final Light. That retry
+starts a complete new Pulse attempt; it does not import old pairs, and retains
+prior logs and unaffected functional results. Bounded completion still uses its
+original CPU plan. No path changes the 12 pairs, semantic checks, A/A, idle
+guards or confirmation.
 
 ## Optimizer and object-format contracts
 

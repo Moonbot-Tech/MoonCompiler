@@ -338,7 +338,7 @@ def main() -> int:
                         help="installed origin baseline for full B/C Pulse")
     parser.add_argument("--baseline-mm-source", type=Path, help="MM source for an older baseline archive")
     parser.add_argument("--pulse-single-cpus", default="",
-                        help="physical CPU pairs for single-CPU Pulse cases; pass identically on resume")
+                        help="physical CPU pairs; may change only for a fresh full retry after failed Pulse")
     parser.add_argument("--pulse-complete-from", type=Path,
                         help="previous full Pulse output to complete without replacing valid pairs")
     parser.add_argument("--pulse-complete-sha256", default="", help="expected original raw gzip SHA-256")
@@ -411,7 +411,13 @@ def main() -> int:
     if state.get("skip_pulse", False) != args.skip_pulse:
         parser.error("Pulse scope changed; use a new run directory")
     if state.get("pulse_single_cpus", "") != args.pulse_single_cpus:
-        parser.error("Pulse single-CPU selection changed; use a new run directory")
+        failed = state.get("results", {}).get("pulse_report", {})
+        if (args.action != "run" or args.mode != "full" or state.get("final_head") is not None
+                or any(pulse_completion)
+                or failed.get("status") != "fail" or not evidence_intact(failed)):
+            parser.error("Pulse CPU changes require a fresh full retry after an intact failed attempt")
+        # The changed command invalidates Pulse's signature. Keep prior logs and
+        # all unaffected results; no pairs from the old allocation are imported.
     state["pulse_single_cpus"] = args.pulse_single_cpus
     location = {"host": host_platform.node(), "root": str(ROOT.resolve())}
     if state.get("location", location) != location:
@@ -474,8 +480,8 @@ def main() -> int:
         if args.action == "run" and incomplete:
             parser.error("full discovery is not green for current source inputs: "
                          + ", ".join(incomplete))
-        if state["final_head"] not in (None, head):
-            parser.error("final HEAD changed; use a new run directory")
+        # Full signatures/evidence above must still match. A new HEAD replays
+        # every Light job below because final reuse also requires that exact HEAD.
         state["final_head"] = head
         results = state["final_results"]
     else:
