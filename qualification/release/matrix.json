@@ -440,7 +440,7 @@
       "resource": "generic_sharing",
       "estimated_seconds_by_platform": {"win64": 120, "linux": 90},
       "timeout": 900,
-      "expected": "GENERIC_SHARING_PASS 129"
+      "expected": "GENERIC_SHARING_PASS 152"
     },
     {
       "id": "generic_sharing_gas",
@@ -453,7 +453,7 @@
       "resource": "generic_sharing",
       "estimated_seconds_by_platform": {"linux": 90},
       "timeout": 900,
-      "expected": "GENERIC_SHARING_PASS 129"
+      "expected": "GENERIC_SHARING_PASS 152"
     },
     {
       "id": "unit_scope",
