@@ -171,7 +171,9 @@ interface
           aitconst_gottpoff,
           aitconst_tpoff,
           aitconst_tlsgd,
-          aitconst_tlsdesc
+          aitconst_tlsdesc,
+          { Internal assembler only: a complete DW_CFA_advance_loc instruction. }
+          aitconst_dwarf_advance_loc
         );
 
         tairealconsttype = (
@@ -2276,6 +2278,21 @@ implementation
     function tai_const.size:longint;
       begin
         case consttype of
+          aitconst_dwarf_advance_loc:
+            begin
+              if (value<0) or (qword(value)>high(dword)) then
+                internalerror(2026102501);
+              if value=0 then
+                result:=0
+              else if value<=63 then
+                result:=1
+              else if value<=255 then
+                result:=2
+              else if value<=65535 then
+                result:=3
+              else
+                result:=5;
+            end;
           aitconst_8bit :
             result:=1;
           aitconst_16bit,aitconst_16bit_unaligned :

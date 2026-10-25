@@ -296,7 +296,7 @@ Implementation
 {$ifdef hasunix}
       unix,
 {$endif}
-      cutils,cfileutl,
+      cutils,cfileutl,dwarfbase,
 {$ifdef memdebug}
       cclasses,
 {$endif memdebug}
@@ -1877,7 +1877,7 @@ Implementation
                                begin
                                  { leb128 relative constants are not relocatable, but other types are,
                                    given that objsym belongs to the current section. }
-                                 if (Tai_const(hp).consttype in [aitconst_uleb128bit,aitconst_sleb128bit]) or
+                                 if (Tai_const(hp).consttype in [aitconst_uleb128bit,aitconst_sleb128bit,aitconst_dwarf_advance_loc]) or
                                     (objsym.objsection<>ObjData.CurrObjSec) then
                                    InternalError(200404124);
                                end
@@ -3453,7 +3453,7 @@ Implementation
                        end
                      else if objsymend.objsection<>objsym.objsection then
                        begin
-                         if (Tai_const(hp).consttype in [aitconst_uleb128bit,aitconst_sleb128bit]) or
+                         if (Tai_const(hp).consttype in [aitconst_uleb128bit,aitconst_sleb128bit,aitconst_dwarf_advance_loc]) or
                             (objsym.objsection<>ObjData.CurrObjSec) then
                            internalerror(200905042);
                        end
@@ -3937,7 +3937,7 @@ Implementation
                        end
                      else if objsymend.objsection<>objsym.objsection then
                        begin
-                         if (Tai_const(hp).consttype in [aitconst_uleb128bit,aitconst_sleb128bit]) or
+                         if (Tai_const(hp).consttype in [aitconst_uleb128bit,aitconst_sleb128bit,aitconst_dwarf_advance_loc]) or
                             (objsym.objsection<>ObjData.CurrObjSec) then
                            internalerror(2019010301);
                        end
@@ -3958,6 +3958,29 @@ Implementation
                        end;
                    end;
                  case tai_const(hp).consttype of
+                   aitconst_dwarf_advance_loc:
+                     begin
+                       { Emitted only on little-endian x86-64, with code alignment 1. }
+                       d:=tai_const(hp).size;
+                       case d of
+                         0: ;
+                         1:
+                           begin
+                             b:=DW_CFA_advance_loc or byte(tai_const(hp).value);
+                             ObjData.writebytes(b,1);
+                           end;
+                         2,3,5:
+                           begin
+                             case d of
+                               2: b:=DW_CFA_advance_loc1;
+                               3: b:=DW_CFA_advance_loc2;
+                               5: b:=DW_CFA_advance_loc4;
+                             end;
+                             ObjData.writebytes(b,1);
+                             ObjData.writebytes(tai_const(hp).value,d-1);
+                           end;
+                       end;
+                     end;
                    aitconst_64bit,
                    aitconst_32bit,
                    aitconst_16bit,

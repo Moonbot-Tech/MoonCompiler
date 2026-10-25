@@ -52,6 +52,73 @@ def frames(exe, work):
     return result
 
 
+def cfa_encoding(common, out):
+    """Exercise the normative width boundaries using actual assembled code distances."""
+    distances = (0, 1, 63, 64, 255, 256, 65535, 65536)
+    source = 'program CfaEncoding; {$asmmode att}\n'
+    for distance in distances:
+        source += (f"procedure Adv{distance}; assembler; nostackframe; public name 'Adv{distance}';\n"
+                   'asm\n.cfi_def_cfa_offset 8\n')
+        source += '.balign 1\n' if distance == 0 else 'nop\n' * distance
+        source += '.cfi_def_cfa_offset 8\nend;\n'
+    source += """procedure SavedRegister; assembler; nostackframe; public name 'SavedRegister';
+asm
+pushq %rbx
+.cfi_def_cfa_offset 16
+.cfi_offset %rbx,-16
+nop
+popq %rbx
+.cfi_def_cfa_offset 8
+.cfi_restore %rbx
+end;
+begin
+"""
+    source += ''.join(f'Adv{distance};\n' for distance in distances)
+    source += 'SavedRegister; Halt(0); end.\n'
+    rows = []
+    for label, flags in [('small', []), ('large', ['-Xa']), ('external', ['-Aas'])]:
+        work = out / ('cfa-' + label)
+        work.mkdir()
+        (work / 'CfaEncoding.dpr').write_text(source)
+        run(common + ['-B', '-O2', '-Xs-', *flags, '-FU.', '-FE.', 'CfaEncoding.dpr'], work, 'compile.log')
+        exe = work / 'CfaEncoding'
+        run([exe], work, 'runtime.log')
+        text = run(['readelf', '--wide', '--debug-dump=frames', exe], work, 'frames.log')
+        symbols = run(['nm', '--defined-only', exe], work, 'symbols.log')
+        fdes = {}
+        for block in re.split(r'\n\s*\n', text):
+            match = re.search(r'^([0-9a-f]+)\s+([0-9a-f]+)\s+[0-9a-f]+\s+FDE cie=[0-9a-f]+ '
+                              r'pc=([0-9a-f]+)\.\.([0-9a-f]+)', block, re.M)
+            if match:
+                offset, length, start, end = [int(value, 16) for value in match.groups()]
+                fdes[start] = dict(offset=offset, length=length, size=end-start, body=block)
+        cases = []
+        for distance in distances:
+            matches = re.findall(r'^([0-9a-f]+) [tT] Adv' + str(distance) + r'$', symbols, re.M)
+            assert len(matches) == 1, (distance, matches)
+            frame = fdes[int(matches[0], 16)]
+            advances = [(kind, int(delta)) for kind, delta in
+                        re.findall(r'DW_CFA_(advance_loc[124]?):\s+(\d+) to', frame['body'])]
+            assert frame['size'] == distance + 1, (label, distance, frame)
+            assert sum(delta for _, delta in advances) == distance, (label, distance, advances)
+            if label != 'external':
+                kind = ('advance_loc' if distance <= 63 else 'advance_loc1' if distance <= 255
+                        else 'advance_loc2' if distance <= 65535 else 'advance_loc4')
+                assert advances == ([] if distance == 0 else [(kind, distance)]), (label, distance, advances)
+            cases.append(dict(distance=distance, advances=advances, length=frame['length']))
+        matches = re.findall(r'^([0-9a-f]+) [tT] SavedRegister$', symbols, re.M)
+        assert len(matches) == 1, matches
+        saved = fdes[int(matches[0], 16)]['body']
+        assert 'DW_CFA_offset: r3 (rbx) at cfa-16' in saved, saved
+        assert 'DW_CFA_restore: r3 (rbx)' in saved, saved
+        assert 'DW_CFA_offset_extended' not in saved and 'DW_CFA_restore_extended' not in saved, saved
+        if label == 'small':
+            assert all((frame['length'] + 4) % 4 == 0 for frame in fdes.values())
+            assert any((case['length'] + 4) % 8 == 4 for case in cases), cases
+        rows.append(dict(case='cfa-' + label, functions=cases))
+    return rows
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--compiler', type=Path, required=True)
@@ -101,6 +168,7 @@ def main():
         if expected:
             assert 'R_X86_64_PC32' in text and 'relocation truncated' in text, text
         rows.append(dict(case='far-' + label, expected_exit=expected))
+    rows.extend(cfa_encoding(common, out))
     (out / 'results.json').write_text(json.dumps(dict(
         compiler_sha256=hashlib.sha256(compiler.read_bytes()).hexdigest(), cases=rows), indent=2))
     print('UNWIND_ENCODING_PASS', len(rows))

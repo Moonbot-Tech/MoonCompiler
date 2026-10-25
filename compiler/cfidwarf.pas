@@ -208,10 +208,35 @@ implementation
           aitconst_32bit,aitconst_16bit,aitconst_8bit
         );
       var
-        i : integer;
+        i, first, regno: integer;
+        encodedop: byte;
       begin
-        list.concat(tai_const.create_8bit(op));
-        for i:=0 to ops-1 do
+        { Resolve the final code distance in the internal assembler, after
+          instruction sizes and alignment are known. }
+        if (op in [DW_CFA_advance_loc1,DW_CFA_advance_loc4]) and
+           (target_info.system=system_x86_64_linux) and (af_outputbinary in target_asm.flags) then
+          begin
+            list.concat(tai_const.create_rel_sym(aitconst_dwarf_advance_loc,oper[0].beginsym,oper[0].endsym));
+            exit;
+          end;
+        first:=0;
+        encodedop:=op;
+        { DWARF primary opcodes carry register numbers 0..63 in the opcode. }
+        if (op in [DW_CFA_offset_extended,DW_CFA_restore_extended]) and
+           (ops>0) and (oper[0].typ=dop_reg) then
+          begin
+            regno:=dwarf_reg(oper[0].register);
+            if (regno>=0) and (regno<64) then
+              begin
+                if op=DW_CFA_offset_extended then
+                  encodedop:=DW_CFA_offset or regno
+                else
+                  encodedop:=DW_CFA_restore or regno;
+                first:=1;
+              end;
+          end;
+        list.concat(tai_const.create_8bit(encodedop));
+        for i:=first to ops-1 do
           begin
             case oper[i].typ of
               dop_const :
@@ -410,7 +435,10 @@ implementation
           }
           generate_initial_instructions(list);
 
-          list.concat(cai_align.create_zeros(sizeof(pint)));
+          if compact_eh then
+            list.concat(cai_align.create_zeros(4))
+          else
+            list.concat(cai_align.create_zeros(sizeof(pint)));
           list.concat(tai_label.create(lenendlabel));
 
         end;
@@ -523,7 +551,12 @@ implementation
                 end;
               DW_CFA_End_Frame :
                 begin
-                  list.concat(cai_align.create_zeros(sizeof(pint)));
+                  { PC-relative 32-bit FDE fields require only four-byte alignment.
+                    Keep the end of the section pointer-aligned, as before. }
+                  if compact_eh and assigned(hp.next) then
+                    list.concat(cai_align.create_zeros(4))
+                  else
+                    list.concat(cai_align.create_zeros(sizeof(pint)));
                   list.concat(tai_label.create(lenendlabel));
                   lenstartlabel:=nil;
                   lenendlabel:=nil;
