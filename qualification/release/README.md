@@ -293,16 +293,26 @@ No measurements are reused. The original SDK and build evidence stay frozen,
 and final Light is still required. If that fresh full run needs completion, only
 its last failed attempt can become the new source. Its hashed command must prove
 a full invocation; the controller retains and verifies every prior origin log.
-An original run without passing A/A controls is not eligible for completion;
-repeat the full Pulse instead.
+An original run with a genuine A/A cost or semantic failure is not eligible for
+completion. There is one narrowly checked recovery for historical runs which
+continued after a failed preflight: exactly five of its six original A/A pairs
+must already satisfy the unchanged cost and semantic checks, and the remaining
+pair must have been rejected only by core/SMT admission with all counters valid.
+Completion remeasures that pair with its original calibration image, fixed work,
+CPU assignment, order and stack phase. It preserves the five accepted pairs and
+the original failed control, and requires the complete six-pair A/A to pass.
+A fresh A/A and the full independent confirmation are still required. Any other
+preflight failure requires a new full run. New full runs save `preflight.json`
+and stop before the corpus if preflight fails.
 
 The completion budget is 32 admission attempts per missing pair or new
 confirmation pair. It stops at the first clean pair, preserving every rejected
 attempt; it never selects by measured speed. Persistent interference still
-fails qualification. Fresh A/A controls keep their normal budget and criteria.
+fails qualification. A/A uses the same admission budget and unchanged six-pair
+cost and semantic criteria.
 This avoids restarting the whole completion after a brief burst of background
 work. The source bridge accepts
-only the exact reviewed old/new Git blobs for batch aggregation and log naming;
+only the exact reviewed old/new Git blobs for preflight admission and fail-fast behavior;
 the workload and idle guards are unchanged. The historical RoundTo baseline
 digest difference is accepted only with a full mathematical proof of the
 candidate result: `semantic_match` remains false and that row has no speed

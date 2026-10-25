@@ -1329,6 +1329,7 @@ def run_fast_preflight(
     multithread_cpus: tuple[int, ...],
     output: Path,
     stack_plan: str = "grid",
+    max_attempts: int = 3,
 ) -> dict[str, object]:
     [case], _ = l2_calibration(
         [Case("calibration", "asm-dependent-add", "calibration", "instruction", "single-cpu")]
@@ -1354,15 +1355,24 @@ def run_fast_preflight(
         output,
         "preflight-fast",
         stack_plan=stack_plan,
+        max_attempts=max_attempts,
     )
+    return preflight_result(records, case)
+
+
+def preflight_cost_matches(analysis: dict) -> bool:
+    work = analysis["metrics"]["work_cycles_per_op"]
+    return (analysis["semantic_match"] and 0.99 <= float(work["median"]) <= 1.01
+            and float(work["central_error_percent"]) <= 1.5)
+
+
+def preflight_result(records: list[dict], case: Case) -> dict:
     analysis = analyze_case(records, case)
     work = analysis["metrics"]["work_cycles_per_op"]
     passed = (
-        analysis["semantic_match"]
-        and analysis["valid_pairs"] == 6
+        analysis["valid_pairs"] == 6
         and len(work["ratios"]) == 6
-        and 0.99 <= float(work["median"]) <= 1.01
-        and float(work["central_error_percent"]) <= 1.5
+        and preflight_cost_matches(analysis)
     )
     return {"passed": passed, "case": asdict(case), "analysis": analysis}
 
@@ -1448,7 +1458,7 @@ def confirm_changes(result, built, cases, single_cpus, multithread_cpus, iterati
     programs = sorted({case.program for case in selected})
     images = image_copies(directory, built, programs, 12)
     result["confirmation_preflight"] = run_fast_preflight(
-        built, single_cpus, multithread_cpus, directory, stack_plan)
+        built, single_cpus, multithread_cpus, directory, stack_plan, max_attempts=32)
     for category, policy in POLICIES.items():
         group = [case for case in selected if case.category == category]
         if not group:
@@ -2118,10 +2128,13 @@ def run() -> int:
                 )
                 if args.qualification_preflight
                 else run_fast_preflight(
-                    built, single_cpus, multithread_cpus, output, args.stack_phase
+                    built, single_cpus, multithread_cpus, output, args.stack_phase, max_attempts=32
                 )
             )
             result["stand_preflight_failed"] = not result["preflight"]["passed"]
+            (output / "preflight.json").write_text(json.dumps(result["preflight"], indent=2) + "\n", encoding="utf-8")
+            if result["stand_preflight_failed"]:
+                raise RuntimeError("Pulse A/A preflight failed before corpus measurement; inspect preflight.json")
         measurement_started = time.perf_counter()
 
         # The sample count is fixed before observing results. No optional

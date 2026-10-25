@@ -13,6 +13,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 
@@ -85,6 +86,48 @@ def records(candidate_values: list[float]) -> list[dict[str, object]]:
 
 
 class PulseFullTests(unittest.TestCase):
+    def test_preflight_requires_six_clean_pairs_matching_cost_and_semantics(self):
+        case = FULL.Case("calibration", "asm-dependent-add", "calibration", "instruction", "single-cpu", 0.0)
+        self.assertTrue(FULL.preflight_result(records([100.0] * 6), case)["passed"])
+        missing = records([100.0] * 6)
+        missing[3]["derived"]["valid"] = False
+        self.assertFalse(FULL.preflight_result(missing, case)["passed"])
+        self.assertFalse(FULL.preflight_result(records([102.0] * 6), case)["passed"])
+        semantic = records([100.0] * 6)
+        semantic[3]["case_definition"]["oracle"] = "other"
+        self.assertFalse(FULL.preflight_result(semantic, case)["passed"])
+
+    def test_full_stops_before_corpus_when_preflight_fails(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            mm = root / "mm.pas"
+            mm.write_text("fixture")
+            args = SimpleNamespace(output=root / "out", programs="calibration", cases="",
+                baseline_toolchain=root, candidate_toolchain=root, baseline_mm_source=mm,
+                candidate_mm_source=mm, single_cpus="", skip_preflight=False,
+                qualification_preflight=False, build_jobs=1, pairs=12, core_rest_ms=50,
+                keep_machine_settings=True, stack_phase="grid")
+            case = FULL.Case("calibration", "asm-dependent-add", "calibration", "instruction", "single-cpu", 0.0)
+            built = {v: {"calibration": root / "image.exe"} for v in FULL.SYSTEMS}
+            with (mock.patch.object(FULL, "parse_args", return_value=args),
+                  mock.patch.object(FULL, "benchmark_cpu_sets", return_value=((0, 2, 4, 6), (0, 2, 4, 6))),
+                  mock.patch.object(FULL.pulse, "build", return_value=built),
+                  mock.patch.object(FULL.pulse, "buildable_everywhere", return_value=(["calibration"], {})),
+                  mock.patch.object(FULL, "discover_matrix", return_value=[case]),
+                  mock.patch.object(FULL, "l2_calibration", return_value=([case], {"event": "fixture"})),
+                  mock.patch.object(FULL, "image_copies", return_value={}),
+                  mock.patch.object(FULL.method, "keep_runner_off"),
+                  mock.patch.object(FULL.pulse, "git_text", return_value="fixture"),
+                  mock.patch.object(FULL.pulse, "moon_toolchain_identity", return_value={}),
+                  mock.patch.object(FULL.time, "sleep"),
+                  mock.patch.object(FULL, "run_fast_preflight", return_value={"passed": False}) as preflight,
+                  mock.patch.object(FULL, "run_stage", side_effect=AssertionError("corpus entered")) as corpus):
+                with self.assertRaisesRegex(RuntimeError, "before corpus measurement"):
+                    FULL.run()
+            corpus.assert_not_called()
+            self.assertEqual(preflight.call_args.kwargs["max_attempts"], 32)
+            self.assertEqual(json.loads((args.output / "preflight.json").read_text()), {"passed": False})
+
     def test_single_cpu_override_keeps_eight_multithread_cores_and_rejects_bad_pairs(self) -> None:
         physical = tuple(range(0, 16, 2))
         with (mock.patch.object(FULL.method, "windows_physical_cpus", return_value=physical),

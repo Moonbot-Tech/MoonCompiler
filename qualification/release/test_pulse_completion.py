@@ -1,6 +1,7 @@
 """Portable refusal and batch-context contracts for bounded Pulse completion."""
 
 import gzip
+import copy
 import hashlib
 import json
 import os
@@ -41,7 +42,81 @@ def matrix():
     return {"stack_phase": "grid", "cases": rows}
 
 
+def preflight_matrix():
+    case = completion.full.Case("calibration", "asm-dependent-add", "calibration", "instruction", "single-cpu", 0.0)
+    records = []
+    for repeat in range(6):
+        for variant in completion.full.SYSTEMS:
+            valid = not (repeat == 4 and variant == "moon-candidate")
+            item = record(case.name, variant, repeat, valid=valid)
+            item.update(program="calibration", category="single-cpu", sha256="same-calibration")
+            item["derived"].update(sample_count=3, accepted_samples=3, core_idle_valid=True, sibling_guard_valid=valid)
+            records.append(item)
+    return {"stack_phase": "grid", "machine": {"single_affinity": [0, 1], "multithread_affinity": [0, 2]},
+            "preflight": {"passed": False, "case": completion.asdict(case), "analysis": {
+                "semantic_match": True, "valid_pairs": 5, "records": records,
+                "metrics": {"work_cycles_per_op": {"median": 1.0, "central_error_percent": 0.1}}}}}
+
+
 class CompletionContracts(unittest.TestCase):
+    def test_only_one_admission_gap_can_complete_original_preflight(self):
+        raw = preflight_matrix()
+        self.assertEqual(set(completion.repairable_preflight(raw)["missing"]),
+                         {("calibration/asm-dependent-add", 4)})
+        for change in ("cost", "spread", "semantic", "count", "counter", "reason", "phase", "duplicate"):
+            bad = copy.deepcopy(raw)
+            analysis = bad["preflight"]["analysis"]
+            rejected = next(r for r in analysis["records"] if not r["derived"]["valid"])
+            if change == "cost":
+                analysis["metrics"]["work_cycles_per_op"]["median"] = 1.02
+            elif change == "spread":
+                analysis["metrics"]["work_cycles_per_op"]["central_error_percent"] = 1.6
+            elif change == "semantic":
+                analysis["semantic_match"] = False
+            elif change == "count":
+                analysis["valid_pairs"] = 4
+            elif change == "counter":
+                rejected["derived"]["accepted_samples"] = 0
+            elif change == "reason":
+                rejected["derived"]["sibling_guard_valid"] = True
+            elif change == "phase":
+                rejected["stack_phase"] += 16
+            else:
+                rejected["repeat"] = 5
+            with self.subTest(change=change):
+                try:
+                    plan = completion.repairable_preflight(bad)
+                except ValueError:
+                    plan = None
+                self.assertIsNone(plan)
+
+    def test_preflight_repair_preserves_five_pairs_and_original_failed_control(self):
+        raw = preflight_matrix()
+        before = copy.deepcopy(raw)
+        original = raw["preflight"]["analysis"]["records"]
+        pair = [copy.deepcopy(row) for row in original if row["repeat"] == 4]
+        for row in pair:
+            row["derived"]["valid"] = True
+        def analyze(records, case):
+            return {"passed": True, "analysis": {"records": records, "valid_pairs": 6}}
+        pool = mock.Mock()
+        pool.take.return_value = (0, 1)
+        built = {"moon-candidate": {"calibration": Path("calibration.exe")}}
+        with tempfile.TemporaryDirectory() as temporary:
+            with (mock.patch.object(completion.full, "PairPool", return_value=pool),
+                  mock.patch.object(completion.full, "image_copies", return_value={}) as images,
+                  mock.patch.object(completion.full, "run_pair", return_value=pair) as run,
+                  mock.patch.object(completion.full, "preflight_result", side_effect=analyze)):
+                result = completion.repair_original_preflight(raw, built, Path(temporary))
+            self.assertTrue(result["passed"])
+            self.assertEqual(raw, before)
+            self.assertEqual([r for r in result["analysis"]["records"] if r["repeat"] != 4],
+                             [r for r in original if r["repeat"] != 4])
+            self.assertEqual(run.call_args.kwargs["max_attempts"], completion.MAX_PAIR_ATTEMPTS)
+            self.assertEqual(images.call_args.args[1], {
+                system: {"calibration": Path("calibration.exe")} for system in completion.full.SYSTEMS})
+            self.assertEqual(len((Path(temporary) / "COMPLETION_ATTEMPTS.jsonl").read_text().splitlines()), 1)
+
     def test_admission_burst_keeps_first_clean_pair_and_stays_bounded(self):
         case = completion.full.Case("demo", "case", "rtl", "System", "single-cpu", 0.0)
         for clean_after in (0, 6, 20, completion.MAX_PAIR_ATTEMPTS):

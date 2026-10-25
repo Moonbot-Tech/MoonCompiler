@@ -30,9 +30,9 @@ MEASUREMENT_ROOT = "qualification/performance"
 MAX_PAIR_ATTEMPTS = 32
 ALLOWED_METHOD_BRIDGE = {
     "qualification/performance/tools/pulse_full.py": (
-        "432dc7fef51f4ece42e8c90f26ed624b70bc70a9", "8ed152684df57941ffad9e2ad00427cb96f97d9e"),
+        "8ed152684df57941ffad9e2ad00427cb96f97d9e", "f77b4c57581d5a176ec171085b2b5eb94d3bceff"),
     "qualification/performance/tools/test_pulse_full.py": (
-        "75786a40ef07f30bde2a8b1397ab1135bf8a8ab3", "83fffea8aabaa1f2849e484a4c8c153c88183898"),
+        "83fffea8aabaa1f2849e484a4c8c153c88183898", "06a44b615b5526551868e33d676a4cdece6f660a"),
 }
 
 
@@ -159,7 +159,8 @@ def source_raw(source: Path, expected_sha: str, logs_sha: str) -> tuple[dict, di
         refuse("original candidate left out a full-corpus program")
     if not raw.get("confirmation_required"):
         refuse("original release confirmation was not required")
-    if not (raw.get("preflight") or {}).get("passed") or not raw.get("confirmation_preflight"):
+    preflight_gap = repairable_preflight(raw)
+    if (not (raw.get("preflight") or {}).get("passed") or not raw.get("confirmation_preflight")) and not preflight_gap:
         refuse("original A/A failed or confirmation A/A is missing")
     try:
         noncomparable = pulse_roundto_oracle.prove(raw)
@@ -202,6 +203,8 @@ def verify_binaries(raw: dict, baseline: Path, candidate: Path,
                 image_hashes[record["variant"], record["program"]].add(record["sha256"])
     calibration_sha = sha256(built["moon-candidate"]["calibration"])
     for part in (raw.get("preflight"), raw.get("confirmation_preflight")):
+        if part is None and repairable_preflight(raw):
+            continue
         analysis = (part or {}).get("analysis", {})
         records = analysis.get("records", [])
         if (len(records) != 12 or not analysis.get("semantic_match") or
@@ -216,20 +219,20 @@ def verify_binaries(raw: dict, baseline: Path, candidate: Path,
     return built
 
 
-def freeze_missing(raw: dict) -> tuple[dict[tuple[str, int], list[dict]], dict[tuple[str, str], tuple[int, int]]]:
+def freeze_missing(raw: dict, pair_count: int = 12) -> tuple[dict[tuple[str, int], list[dict]], dict[tuple[str, str], tuple[int, int]]]:
     missing: dict[tuple[str, int], list[dict]] = {}
     iterations: dict[tuple[str, str], tuple[int, int]] = {}
     for name, row in raw["cases"].items():
         program, case = name.split("/", 1)
         records = row["final"]["records"]
-        if len(records) != 24:
-            refuse(f"original case does not have exactly twelve pairs: {name}")
+        if len(records) != 2 * pair_count:
+            refuse(f"original case does not have exactly {pair_count} pairs: {name}")
         by_repeat: dict[int, list[dict]] = defaultdict(list)
         for record in records:
             if record["program"] + "/" + record["case"] != name or record["category"] != row["category"]:
                 refuse(f"original record belongs to another case/category: {name}")
             by_repeat[int(record["repeat"])].append(record)
-        if set(by_repeat) != set(range(12)) or any(
+        if set(by_repeat) != set(range(pair_count)) or any(
             len(pair) != 2 or {record["variant"] for record in pair} != set(full.SYSTEMS)
             for pair in by_repeat.values()
         ):
@@ -245,13 +248,69 @@ def freeze_missing(raw: dict) -> tuple[dict[tuple[str, int], list[dict]], dict[t
         iterations[program, case] = counts.pop(), durations.pop()
         bad = [repeat for repeat, pair in by_repeat.items()
                if not all(record["derived"]["valid"] for record in pair)]
-        if row["final"]["valid_pairs"] != 12 - len(bad):
+        if row["final"]["valid_pairs"] != pair_count - len(bad):
             refuse(f"analysis and raw validity disagree: {name}")
         for repeat in bad:
             missing[name, repeat] = by_repeat[repeat]
     if not missing:
         refuse("source has no missing clean pairs")
     return missing, iterations
+
+
+def repairable_preflight(raw: dict) -> dict | None:
+    """Only a complete six-pair A/A with one admission gap and matching costs."""
+    preflight = raw.get("preflight") or {}
+    if preflight.get("passed"):
+        return None
+    analysis = preflight.get("analysis") or {}
+    if analysis.get("valid_pairs") != 5 or not full.preflight_cost_matches(analysis):
+        return None
+    case = full.Case(**preflight["case"])
+    if (case.program, case.name, case.category) != ("calibration", "asm-dependent-add", "single-cpu"):
+        refuse("original A/A calibration case differs")
+    matrix = {"stack_phase": raw["stack_phase"], "cases": {
+        "calibration/asm-dependent-add": {**asdict(case), "case": case.name, "final": analysis}}}
+    missing, iterations = freeze_missing(matrix, pair_count=6)
+    if len(missing) != 1:
+        refuse("original A/A does not have exactly one missing pair")
+    for pair in missing.values():
+        for record in pair:
+            metrics = record["derived"]
+            if not metrics["valid"] and (not metrics.get("sample_count")
+                    or metrics.get("accepted_samples") != metrics["sample_count"]
+                    or not (metrics.get("core_idle_valid") is False or metrics.get("sibling_guard_valid") is False)):
+                return None
+    return {"case": case, "missing": missing, "iterations": iterations}
+
+
+def repair_original_preflight(raw: dict, built: dict, output: Path) -> dict:
+    plan = repairable_preflight(raw)
+    if plan is None:
+        return copy.deepcopy(raw["preflight"])
+    case = plan["case"]
+    (name, repeat), old = next(iter(plan["missing"].items()))
+    single = tuple(raw["machine"]["single_affinity"])
+    multi = tuple(raw["machine"]["multithread_affinity"])
+    assigned = original_cpu_pair(old, case.category, single, multi)
+    original_image = built["moon-candidate"]["calibration"]
+    images = full.image_copies(output / "original-preflight", {
+        system: {"calibration": original_image} for system in full.SYSTEMS}, ["calibration"], 6)
+    pool = full.PairPool([assigned])
+    cpu_pair = pool.take()
+    try:
+        pair = full.run_pair(case, repeat, plan["iterations"][case.program, case.name][1], images,
+            cpu_pair, multi, plan["iterations"], output, "original-preflight",
+            not case.exclusive, 0 if old[0]["variant"] == full.SYSTEMS[0] else 1,
+            raw["stack_phase"], max_attempts=MAX_PAIR_ATTEMPTS)
+    finally:
+        pool.give(cpu_pair)
+    retain_attempt(output, ["original-preflight/" + name], repeat, pair)
+    replacement_pair(name, repeat, old, pair, plan["iterations"][case.program, case.name])
+    records = [record for record in raw["preflight"]["analysis"]["records"] if record["repeat"] != repeat] + pair
+    result = full.preflight_result(records, case)
+    if not result["passed"]:
+        refuse("repaired original A/A does not pass the unchanged six-pair control")
+    return result
 
 
 def case_descriptors(raw: dict, built: dict[str, dict[str, Path]]) -> dict[str, full.Case]:
@@ -440,7 +499,8 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
         "new_repair_records": {},
         "new_context_records": fresh_context,
         "fresh_preflight": None,
-        "original_confirmation_preflight": copy.deepcopy(raw["confirmation_preflight"]),
+        "original_preflight": copy.deepcopy(raw["preflight"]),
+        "original_confirmation_preflight": copy.deepcopy(raw.get("confirmation_preflight")),
         "original_confirmations": {name: copy.deepcopy(row["confirmation"])
                                    for name, row in raw["cases"].items() if row.get("confirmation")},
         "new_confirmations": [],
@@ -459,8 +519,12 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
     settings = method.windows_machine_settings if os.name == "nt" else method.linux_machine_settings
     with settings() as machine_state:
         result["completion"]["machine_settings"] = machine_state
+        result["preflight"] = repair_original_preflight(raw, built, output)
+        result["stand_preflight_failed"] = not result["preflight"]["passed"]
+        (output / "COMPLETION_ORIGINAL_PREFLIGHT.json").write_text(
+            json.dumps(result["preflight"], indent=2) + "\n", encoding="utf-8")
         result["completion"]["fresh_preflight"] = full.run_fast_preflight(
-            built, single_cpus, multithread_cpus, output, raw["stack_phase"])
+            built, single_cpus, multithread_cpus, output, raw["stack_phase"], max_attempts=MAX_PAIR_ATTEMPTS)
         (output / "COMPLETION_PREFLIGHT.json").write_text(
             json.dumps(result["completion"]["fresh_preflight"], ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
@@ -547,7 +611,7 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
             row["verdict"] = full.verdict(cases[name], final)
         needed = shortlist(result)
         original_confirmed = set(result["completion"]["original_confirmations"])
-        repeat_confirmations = (not raw["confirmation_preflight"]["passed"] or
+        repeat_confirmations = (not (raw.get("confirmation_preflight") or {}).get("passed") or
                                 any(row["final"]["valid_pairs"] != 12
                                     for row in result["completion"]["original_confirmations"].values()))
         confirmation_names = needed | original_confirmed if repeat_confirmations else needed - original_confirmed
@@ -557,7 +621,7 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
             confirm_images = full.image_copies(directory, built,
                                                sorted({case.program for case in new_confirmations}), 12)
             confirm_preflight = full.run_fast_preflight(
-                built, single_cpus, multithread_cpus, directory, raw["stack_phase"])
+                built, single_cpus, multithread_cpus, directory, raw["stack_phase"], max_attempts=MAX_PAIR_ATTEMPTS)
             result["completion"]["confirmation_preflight"] = confirm_preflight
             (output / "COMPLETION_CONFIRMATION_PREFLIGHT.json").write_text(
                 json.dumps(confirm_preflight, ensure_ascii=False, indent=2) + "\n",

@@ -106,6 +106,11 @@ websocket, 0.467-0.493 for inflate), while on a core the host's builds shared,
 single processes ran up to twice as slow (the websocket from 736 to 1451 cycles
 per frame under Delphi) and two rows stayed unresolved after three attempts.
 
+The A/A control is completed before the corpus starts. Its six pairs retain
+the first clean attempt, with at most 32 admission attempts per pair; cost and
+semantic criteria are unchanged. A failed control is saved in `preflight.json`
+and stops the full run before corpus measurement.
+
 The measurement plan is fixed before reading results: 12 fresh process pairs
 per case, with alternating core/order assignment. A separate unscored calibration
 chooses equal iteration counts for both sides, including batched Move cases.
