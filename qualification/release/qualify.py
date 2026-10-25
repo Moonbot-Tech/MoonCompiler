@@ -265,7 +265,17 @@ def bind_pulse_completion(state: dict, completion: tuple[str, str, str], run_dir
     previous = tuple(state.get("pulse_completion", ("", "", "")))
     if completion == previous:
         return
-    if any(previous) or not all(completion) or state.get("final_head") is not None:
+    if any(previous) and not any(completion) and state.get("final_head") is None:
+        failed = state.get("results", {}).get("pulse_report", {})
+        origin = state.get("pulse_completion_origin", {})
+        if (not origin or failed.get("attempt", 0) <= origin["attempt"]
+                or failed.get("status") != "fail" or not evidence_intact(failed)):
+            raise ValueError("A fresh full Pulse requires an intact failed completion attempt")
+        # Abandon reuse, never the evidence or frozen SDK. An empty command
+        # starts all measurements again; the retained origin forbids rebinding.
+        state["pulse_completion"] = completion
+        return
+    if state.get("pulse_completion_origin") or any(previous) or not all(completion) or state.get("final_head") is not None:
         raise ValueError("Pulse completion source changed; use a new run directory")
     source_result = state.get("results", {}).get("pulse_report", {})
     if source_result.get("status") != "fail" or not evidence_intact(source_result):

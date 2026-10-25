@@ -277,6 +277,14 @@ run normally. Accepted original pairs remain byte-for-byte in the result; old
 invalid attempts and new attempts keep separate logs and provenance. The stock
 release validator still requires correct semantics and 12 valid pairs for every
 case and confirmation. Any remaining gap is a failed qualification.
+If completion itself fails, its original evidence must still be retained. Remove
+all three completion arguments to start a fresh full Pulse in the same ledger;
+this is allowed only after a failed completion attempt bound from that ledger.
+No measurements are reused. The original SDK and build evidence stay frozen,
+rebinding to another source remains forbidden, and final Light is still required.
+An original run without passing A/A controls is not eligible for completion;
+repeat the full Pulse instead.
+
 The completion budget is six attempts per missing pair. The source bridge accepts
 only the exact reviewed old/new Git blobs for batch aggregation and log naming;
 the workload and idle guards are unchanged. The historical RoundTo baseline
