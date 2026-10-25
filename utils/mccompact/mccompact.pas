@@ -584,6 +584,11 @@ end;
 
 var Dir: string; I: SizeInt; Owner,NextOwner: TMethodOwner;
 begin
+  { File names and process arguments must not depend on the Windows ANSI code page. }
+  {$ifdef windows}
+  SetMultiByteConversionCodePage(CP_UTF8);
+  SetMultiByteRTLFileSystemCodePage(CP_UTF8);
+  {$endif}
   if (ParamCount=1) and (ParamStr(1)='--version') then begin
     WriteLn('MoonCompiler compact DWARF helper 1'); Halt(0);
   end;

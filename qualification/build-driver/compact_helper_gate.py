@@ -7,8 +7,11 @@ def verify_paths(compiler: Path, helper: Path) -> dict:
     win=os.name=='nt'
     objcopy=str(compiler.parent/'objcopy.exe') if win else shutil.which('objcopy')
     assert objcopy,'objcopy missing'
-    with tempfile.TemporaryDirectory(prefix='mccompact-gate-') as temporary:
-        work=Path(temporary)
+    def argument(path):
+        text=str(path)
+        return '\\\\?\\'+text if win and not text.startswith('\\\\?\\') else text
+    with tempfile.TemporaryDirectory(prefix='mccompact-gate-',dir=argument(tempfile.gettempdir())) as temporary:
+        work=Path(temporary[4:] if win else temporary)  # cmd/ppas require an ordinary build cwd
         def run(args, expected=0):
             p=subprocess.run([str(x) for x in args],cwd=work,capture_output=True,timeout=60)
             assert p.returncode==expected,(args,p.returncode,p.stdout,p.stderr)
@@ -22,19 +25,24 @@ def verify_paths(compiler: Path, helper: Path) -> dict:
         assert run([image]).strip()=='HELPER_RUNTIME_PASS'
         if not win: image.chmod(0o751)
         original=image.read_bytes()
-        def argument(path):
-            return '\\\\?\\'+str(path) if win else str(path)
         result={}
-        long_parent=work/('каталог-'+'п'*20)/'destination-output'
+        long_parent=work/('\u6f22\U0001f680-каталог-'+'п'*20)/'destination-output'
+        long_parent=Path(argument(long_parent))
         long_parent.mkdir(parents=True)
+        unicode_tool=work/'tool-\u6f22\U0001f680-кириллица'/'objcopy.exe'
+        if win:
+            unicode_tool.parent.mkdir()
+            shutil.copy2(objcopy,unicode_tool)
         for parent_label,parent in [('short',work),('unicode-parent',long_parent)]:
+            parent=Path(argument(parent))
+            current_objcopy=str(unicode_tool) if win and parent_label=='unicode-parent' else objcopy
             foreign=parent/'.mccompact-foreign'
             foreign.mkdir();(foreign/'sentinel').write_bytes(b'foreign data')
-            for leaf_label,leaf in [('short','input'),('unicode-leaf','я'*(130 if win else 80))]:
+            for leaf_label,leaf in [('short','input'),('unicode-leaf','я'*(130 if win else 80)),('unrepresentable-leaf','\u6f22\U0001f680'*20)]:
                 source=parent/(leaf+'.exe');source.write_bytes(original)
                 if not win: source.chmod(0o751)
                 key=parent_label+'-'+leaf_label
-                for label,tool in [('compact',objcopy),('fallback',sys.executable)]:
+                for label,tool in [('compact',current_objcopy),('fallback',sys.executable)]:
                     output=parent/(leaf+'.exe.mccompact-new')
                     message=run([helper,argument(source),argument(output),tool])
                     assert source.read_bytes()==original,'input changed'
@@ -55,7 +63,7 @@ def verify_paths(compiler: Path, helper: Path) -> dict:
             processes=[]
             for index in range(3):
                 output=parent/('parallel-'+str(index)+'.exe')
-                processes.append((output,subprocess.Popen([str(helper),argument(source),argument(output),objcopy],cwd=work,stdout=subprocess.PIPE,stderr=subprocess.PIPE)))
+                processes.append((output,subprocess.Popen([str(helper),argument(source),argument(output),current_objcopy],cwd=work,stdout=subprocess.PIPE,stderr=subprocess.PIPE)))
             for output,process in processes:
                 stdout,stderr=process.communicate(timeout=60)
                 assert process.returncode==0 and stdout.decode('utf-8').startswith('COMPACT '),(stdout,stderr)
