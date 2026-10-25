@@ -119,6 +119,7 @@ Type
     FOnRunCommandEvent: TOnRunCommandEvent;
     FProcessOptions : TProcessOptions;
     FRunCommandSleepTime: Integer;
+    FOutputCodePage: TSystemCodePage;
     FStartupOptions : TStartupOptions;
     FFillAttribute : Cardinal;
     FApplicationName : TProcessString;
@@ -213,6 +214,7 @@ Type
     Property InheritHandles : Boolean Read FInheritHandles Write FInheritHandles;
     Property OnRunCommandEvent : TOnRunCommandEvent Read FOnRunCommandEvent Write FOnRunCommandEvent;
     Property RunCommandSleepTime : Integer read FRunCommandSleepTime write FRunCommandSleepTime;
+    Property OutputCodePage: TSystemCodePage read FOutputCodePage write FOutputCodePage;
     {$ifdef UNIX}
     property OnForkEvent : TProcessForkEvent Read FForkEvent Write FForkEvent;
     {$endif UNIX}
@@ -404,6 +406,7 @@ begin
   FEnvironment:=TProcessStringList.Create;
   FParameters:=TProcessStringList.Create;
   FRunCommandSleepTime:=100;
+  FOutputCodePage:=DefaultSystemCodePage;
   FOnRunCommandEvent:=@IntOnIdleSleep;
   FSkipCommandLineQuotes:=False;
   For HT in TProcessHandleType do
@@ -669,26 +672,40 @@ end;
 Const
   READ_BYTES = 65536; // not too small to avoid fragmentation when reading large files.
 
+// This buffer API exposes bytes: one byte value (0..255) per string element.
+// BytesRead and DataLength count byte values, not decoded Unicode characters.
+// Decode only after collection, because a character can span several reads.
 function TProcess.ReadInputStream(p:TInputPipeStream;var BytesRead:integer;var DataLength:integer;var data:string;MaxLoops:integer=10):boolean;
-var Available, NumBytes: integer;
+var
+  Available, NumBytes: Integer;
+  {$IF SIZEOF(CHAR)=2}
+  Tail: PChar;
+  I: Integer;
+  {$ENDIF}
 begin
-    Available:=P.NumBytesAvailable;
-    result:=Available>0;
-    if not result then
-     exit;
-    while (available > 0) and (MaxLoops>0) do
+  Available:=P.NumBytesAvailable;
+  Result:=Available>0;
+  while (Available>0) and (MaxLoops>0) do
+    begin
+    if BytesRead>High(Integer)-Available then
+      raise ERangeError.Create('Process output exceeds the buffer limit');
+    if BytesRead+Available>DataLength then
       begin
-        if (BytesRead + available > DataLength) then
-          begin
-            DataLength:=BytesRead + max(READ_BYTES,available);
-            Setlength(Data,DataLength);
-          end;
-        NumBytes := p.Read(data[1+BytesRead], Available);
-        if NumBytes > 0 then
-          Inc(BytesRead, NumBytes);
-        Available:=P.NumBytesAvailable;
-        dec(MaxLoops);
+      DataLength:=BytesRead+Max(Min(READ_BYTES,High(Integer)-BytesRead),Available);
+      SetLength(Data,DataLength);
       end;
+    NumBytes:=p.Read(Data[BytesRead+1],Available);
+    if NumBytes<=0 then Break;
+    {$IF SIZEOF(CHAR)=2}
+    // Expand backwards inside the unused tail, so no unread byte is overwritten.
+    Tail:=@Data[BytesRead+1];
+    for I:=NumBytes-1 downto 0 do
+      Tail[I]:=Char(PByte(Tail)[I]);
+    {$ENDIF}
+    Inc(BytesRead,NumBytes);
+    Available:=P.NumBytesAvailable;
+    Dec(MaxLoops);
+    end;
 end;
 
 function TProcess.ReadInputStream(p:TInputPipeStream;data:TStream;MaxLoops:integer=10):boolean;
@@ -705,8 +722,8 @@ begin
     Exit;
   while (available > 0) and (MaxLoops>0) do
   begin
-    ReadBytes := Output.Read({%H-}Buffer, min(BufSize,Available));
-    data.Write(Buffer, ReadBytes);
+    ReadBytes := p.Read({%H-}Buffer, min(BufSize,Available));
+    data.WriteBuffer(Buffer, ReadBytes);
     Available:=P.NumBytesAvailable;
     dec(MaxLoops);
   end;
@@ -724,56 +741,68 @@ end;
 function TProcess.RunCommandLoop(out outputstring:string;
                             out stderrstring:string; out anexitstatus:integer):integer;
 var
-    bytesread : integer;
-    outputlength, stderrlength : integer;
-    stderrbytesread : integer;
-    gotoutput,gotoutputstderr : boolean;
+  BytesRead, OutputLength, StderrLength, StderrBytesRead: Integer;
+  GotOutput, GotOutputStderr: Boolean;
+
+  procedure DecodeOutput(var Data: string; Count: Integer);
+  {$IF SIZEOF(CHAR)=2}
+  var
+    Bytes: RawByteString;
+    I: Integer;
+  {$ENDIF}
+  begin
+    {$IF SIZEOF(CHAR)=2}
+    SetLength(Bytes,Count);
+    for I:=1 to Count do
+      Bytes[I]:=AnsiChar(Ord(Data[I]));
+    SetCodePage(Bytes,FOutputCodePage,False);
+    Data:=string(Bytes);
+    {$ELSE}
+    SetLength(Data,Count);
+    {$ENDIF}
+  end;
+
 begin
-  result:=-1;
+  Result:=-1;
+  AnExitStatus:=-1;
+  BytesRead:=0;
+  OutputLength:=0;
+  StderrBytesRead:=0;
+  StderrLength:=0;
+  try
     try
-    Options := Options + [poUsePipes];
-    bytesread:=0;
-    outputlength:=0;
-    stderrbytesread:=0;
-    stderrlength:=0;
-    Execute;
-    while Running do
+      Options:=Options+[poUsePipes];
+      Execute;
+      while Running do
+        begin
+        // Read only available data and alternate channels to prevent pipe deadlock.
+        GotOutput:=ReadInputStream(Output,BytesRead,OutputLength,OutputString,1);
+        GotOutputStderr:=False;
+        if Assigned(Stderr) then
+          GotOutputStderr:=ReadInputStream(Stderr,StderrBytesRead,StderrLength,StderrString,1);
+        if (poRunIdle in Options) and not GotOutput and not GotOutputStderr and Assigned(FOnRunCommandEvent) then
+          FOnRunCommandEvent(Self,Nil,RunCommandIdle,'');
+        end;
+      ReadInputStream(Output,BytesRead,OutputLength,OutputString,250);
+      if Assigned(Stderr) then
+        ReadInputStream(Stderr,StderrBytesRead,StderrLength,StderrString,250);
+      AnExitStatus:=ExitStatus;
+      Result:=0;
+    finally
+      // Also expose partial output on error. Decode once, before either event.
+      DecodeOutput(OutputString,BytesRead);
+      DecodeOutput(StderrString,StderrBytesRead);
+    end;
+    if Assigned(FOnRunCommandEvent) then
+      FOnRunCommandEvent(Self,Nil,RunCommandFinished,'');
+  except
+    on E: Exception do
       begin
-        // Only call ReadFromStream if Data from corresponding stream
-        // is already available, otherwise, on  linux, the read call
-        // is blocking, and thus it is not possible to be sure to handle
-        // big data amounts bboth on output and stderr pipes. PM.
-        gotoutput:=ReadInputStream(output,BytesRead,OutputLength,OutputString,1);
-        // The check for assigned(P.stderr) is mainly here so that
-        // if we use poStderrToOutput in p.Options, we do not access invalid memory.
-        gotoutputstderr:=false;
-        if assigned(stderr) then
-            gotoutputstderr:=ReadInputStream(StdErr,StdErrBytesRead,StdErrLength,StdErrString,1);
-
-        if (porunidle in options) and not gotoutput and not gotoutputstderr and Assigned(FOnRunCommandEvent) Then
-          FOnRunCommandEvent(self,Nil,RunCommandIdle,'');
+      Result:=1;
+      if Assigned(FOnRunCommandEvent) then
+        FOnRunCommandEvent(Self,Nil,RunCommandException,E.Message);
       end;
-    // Get left output after end of execution
-    ReadInputStream(output,BytesRead,OutputLength,OutputString,250);
-    setlength(outputstring,BytesRead);
-    if assigned(stderr) then
-      ReadInputStream(StdErr,StdErrBytesRead,StdErrLength,StdErrString,250);
-    setlength(stderrstring,StderrBytesRead);
-    anexitstatus:=exitstatus;
-    result:=0; // we came to here, document that.
-    if Assigned(FOnRunCommandEvent) then          // allow external apps to react to that and finish GUI
-      FOnRunCommandEvent(self,Nil,RunCommandFinished,'');
-
-    except
-      on e : Exception do
-         begin
-           result:=1;
-           setlength(outputstring,BytesRead);
-           setlength(stderrstring,StderrBytesRead);
-           if Assigned(FOnRunCommandEvent) then
-             FOnRunCommandEvent(self,Nil,RunCommandException,e.Message);
-         end;
-     end;
+  end;
 end;
 
 { Functions without StderrString }

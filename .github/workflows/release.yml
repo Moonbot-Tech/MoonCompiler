@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v2.5.0
+        default: v2.5.1
 
 permissions:
   contents: read
@@ -186,6 +186,11 @@ jobs:
           python3 qualification/rtl-ownership/run_gate.py \
             --compiler "$RUNNER_TEMP/smoke/toolchain/bin/fpc" \
             --output "$RUNNER_TEMP/smoke/rtl-ownership"
+      - name: Verify process output using the unpacked archive
+        run: |
+          python3 qualification/process-output/run_gate.py --codepage-api \
+            --compiler "$RUNNER_TEMP/smoke/toolchain/bin/fpc" \
+            --output "$RUNNER_TEMP/smoke/process-output"
       - name: Install the archive with the driver
         # ./build toolchain ARCHIVE: the driver's own install path (archive
         # checks, the IDE configuration for this clone, atomic swap), then the
@@ -396,6 +401,13 @@ jobs:
             --compiler "$env:RUNNER_TEMP\smoke\toolchain\bin\x86_64-win64\fpc.exe" `
             --output "$env:RUNNER_TEMP\smoke\rtl-ownership"
           If ($LASTEXITCODE -ne 0) { throw 'RTL ownership archive contracts failed' }
+      - name: Verify process output using the unpacked archive
+        shell: powershell
+        run: |
+          python qualification/process-output/run_gate.py --codepage-api `
+            --compiler "$env:RUNNER_TEMP\smoke\toolchain\bin\x86_64-win64\fpc.exe" `
+            --output "$env:RUNNER_TEMP\smoke\process-output"
+          If ($LASTEXITCODE -ne 0) { throw 'Process output archive contracts failed' }
       - name: Install the archive with the driver
         # .\build.ps1 toolchain ARCHIVE: the driver's own install path
         # (archive checks, atomic swap), then the contracts over the installed

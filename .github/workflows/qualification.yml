@@ -276,6 +276,10 @@ jobs:
             --mormot mormot --results .qualification/ci-linux-dwarf-sections
       - name: Run RTL semantic matrix
         run: python3 RTL-test/run.py --jobs 4
+      - name: Run process-output contracts
+        run: |
+          python3 qualification/process-output/run_gate.py --codepage-api \
+            --compiler toolchain/bin/fpc --output .qualification/ci-linux-process-output
       - name: Run HTTP, MIME, ZIP and optional Brotli contracts
         run: |
           python3 qualification/suite/scripts/run_runtime_mormot_gate.py \
@@ -699,6 +703,13 @@ jobs:
             --rtl .\toolchain\units\x86_64-win64\rtl `
             --mormot .\mormot --product-mm --results .\.qualification\ci-win64-runtime
           If ($LASTEXITCODE -ne 0) { throw 'Runtime contracts failed' }
+      - name: Run process-output contracts
+        shell: powershell
+        run: |
+          python .\qualification\process-output\run_gate.py --codepage-api `
+            --compiler .\toolchain\bin\x86_64-win64\fpc.exe `
+            --output .\.qualification\ci-win64-process-output
+          If ($LASTEXITCODE -ne 0) { throw 'Process output contracts failed' }
       - name: Run installed SDK boundary and connection contracts
         shell: powershell
         run: |

@@ -1,3 +1,23 @@
+# MoonCompiler 2.5.1: correct child-process output
+
+`RunCommand`, `RunCommandInDir` and `TProcess.RunCommandLoop` now return correctly
+decoded stdout and stderr in the Unicode SDK. Byte counts no longer index UTF-16
+storage directly. Characters split across pipe reads are decoded after collection;
+embedded NULs and existing virtual read overrides are preserved.
+
+`TProcess.OutputCodePage` selects the child's text encoding, defaulting to the
+system code page. Binary stream APIs remain byte-preserving. The stream overload
+of `ReadInputStream` now reads the supplied channel, including stderr, instead of
+always reading stdout. Partial destination writes are completed; a destination
+that stops accepting data raises an error instead of silently losing output.
+See [Capturing child-process output](PROCESS_OUTPUT.md).
+
+Install the complete SDK and rebuild application and third-party PPUs.
+`MOONCOMPILER_FULLVERSION` is 20501; `CompilerVersion` remains 2.5, the FPC base
+version remains 3.3.1, and MoonORMot 15 remains required.
+
+---
+
 # MoonCompiler 2.5.0: smaller applications with complete runtime metadata
 
 Release builds now keep the information deployed applications need for exception

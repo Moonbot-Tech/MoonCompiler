@@ -69,6 +69,7 @@
     "rtl_ownership": ["qualification/rtl-ownership", "packages/rtl-objpas/src/inc/rtti.pp", "compiler/ncgrtti.pas", "rtl/inc/psabieh.inc", "rtl/win64/seh64.inc"],
     "rtl_ownership_oracle": ["qualification/rtl-ownership"],
     "event_wait": ["qualification/event-wait", "RTL-test/semantic/event_wait_contract_semantic.dpr", "rtl/unix/cthreads.pp", "rtl/linux/pthread.inc"],
+    "process_output": ["qualification/process-output", "packages/fcl-process"],
     "divmod_pair": ["qualification/optimizer-core/divmod", "tests/test/cg/tdivmodpair1.pp"],
     "range_loop": ["qualification/optimizer-core/range-loop", "tests/test/cg/trangeprovenloop1.pp"],
     "memory_order": ["qualification/optimizer-core/memory-order", "qualification/performance/tools"],
@@ -1756,6 +1757,20 @@
         "linux": 10
       },
       "expected": "RTL_OWNERSHIP PASS"
+    },
+    {
+      "id": "process_output",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/process-output/run_gate.py", "--codepage-api", "--compiler", "{fpc}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/process-output/run_gate.py", "--codepage-api", "--compiler", "{fpc}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "process_output",
+      "estimated_seconds_by_platform": {"win64": 15, "linux": 10},
+      "timeout": 300,
+      "expected": "RUNCOMMAND_GATE PASS"
     },
     {
       "id": "event_wait",
