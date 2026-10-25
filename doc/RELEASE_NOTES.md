@@ -22,6 +22,8 @@ tables use shorter standard encodings while retaining the rules for every
 instruction address. Interrupted prologues and epilogues, foreign C frames,
 exceptions and shared-library calls have dedicated runtime checks. Long function
 names and line-table boundaries are also covered by permanent regression tests.
+Metadata compaction handles long Unicode output filenames; a tool failure keeps
+the original executable bytes and permissions.
 
 The Release profile uses separate SDK units and `release-compact` application
 directories. Build systems that inspect static symbols can retain them with

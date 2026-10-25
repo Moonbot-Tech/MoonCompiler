@@ -550,6 +550,8 @@ def check_long_utf8_names(compiler: Path, root: Path, cwd: Path) -> str:
                                               f"-FU{out}", f"-o{executable}", str(source)], cwd=cwd)
             if f"{source.name}(3," not in compiled.stdout:
                 fail(f"diagnostic lost the full UTF-8 source name: {compiled.stdout}")
+            if profile == "RELEASE" and "COMPACT " not in compiled.stdout:
+                fail(f"long UTF-8 output bypassed metadata compaction: {compiled.stdout}")
             runnable = out / "unicodeleaf.exe"
             shutil.copyfile(executable, runnable)
             run = subprocess.run([str(runnable)], capture_output=True, text=True)

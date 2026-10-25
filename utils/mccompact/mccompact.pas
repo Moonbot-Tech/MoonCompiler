@@ -469,12 +469,12 @@ begin
   end;
 end;
 
-procedure Execute(const Tool: string; const Args: array of string);
+procedure Execute(const Tool,Directory: string; const Args: array of string);
 var P: TProcess; I: Integer;
 begin
   P:=TProcess.Create(nil);
   try
-    P.Executable:=Tool; P.Options:=[poWaitOnExit];
+    P.Executable:=Tool; P.CurrentDirectory:=Directory; P.Options:=[poWaitOnExit];
     for I:=0 to High(Args) do P.Parameters.Add(Args[I]);
     P.Execute; Need(P.ExitStatus=0,'objcopy failed');
   finally P.Free end;
@@ -506,7 +506,7 @@ end;
 procedure TransformFile(const InputName,OutputName,Objcopy: string);
 const Required: array[0..3] of string=('debug_info','debug_abbrev','debug_line','debug_aranges');
 var Original,Final: TBytes; Before,After: TSections; IsPE,Compressed,Dummy,OtherPE: Boolean;
-    I,J: SizeInt; Dir: string; Found: Boolean;
+    I,J: SizeInt; Dir,Image: string; Found: Boolean;
     {$ifdef unix} Mode: Stat; {$endif}
 begin
   Need(ExpandFileName(InputName)<>ExpandFileName(OutputName),'input and output must differ');
@@ -526,23 +526,25 @@ begin
         (Before[I].Name<>'.debug_macinfo'),'cross-section DWARF references: preserve original');
     end;
     Need(CreateDir(Dir),'cannot create temporary directory'); Dir:=IncludeTrailingPathDelimiter(Dir);
-    if Compressed then Execute(Objcopy,['--decompress-debug-sections',OutputName]);
+    { External binutils need only short ASCII paths, even for Unicode output. }
+    Image:=Dir+'image.bin'; Need(RenameFile(OutputName,Image),'cannot stage executable');
+    if Compressed then Execute(Objcopy,Dir,['--decompress-debug-sections','image.bin']);
     for I:=0 to High(Required) do begin
       Found:=False; for J:=0 to High(Before) do if Before[J].Name='.'+Required[I] then Found:=True;
       Need(Found,'required DWARF section missing');
-      Execute(Objcopy,['--dump-section','.'+Required[I]+'='+Dir+Required[I],OutputName]);
+      Execute(Objcopy,Dir,['--dump-section','.'+Required[I]+'='+Required[I],'image.bin']);
     end;
     Info:=Load(Dir+'debug_info'); Abbrev:=Load(Dir+'debug_abbrev'); Lines:=Load(Dir+'debug_line'); Aranges:=Load(Dir+'debug_aranges');
     ParseInfo; SelectRecords; Rewrite;
     Need((RemovedMethods<>0) or (RemovedSequences<>0),'no removable compact records');
     Save(Dir+'debug_info.new',NewInfo); Save(Dir+'debug_line.new',NewLines); Save(Dir+'debug_aranges.new',NewAranges);
-    Execute(Objcopy,['--update-section','.debug_info='+Dir+'debug_info.new',
-      '--update-section','.debug_line='+Dir+'debug_line.new',
-      '--update-section','.debug_aranges='+Dir+'debug_aranges.new',OutputName]);
-    Final:=Load(OutputName); After:=Sections(Final,OtherPE,Dummy);
-    if IsPE then begin FixPE(Final,After,Before); Save(OutputName,Final) end;
-    if Compressed then Execute(Objcopy,['--compress-debug-sections=zlib',OutputName]);
-    Final:=Load(OutputName); After:=Sections(Final,OtherPE,Dummy);
+    Execute(Objcopy,Dir,['--update-section','.debug_info=debug_info.new',
+      '--update-section','.debug_line=debug_line.new',
+      '--update-section','.debug_aranges=debug_aranges.new','image.bin']);
+    Final:=Load(Image); After:=Sections(Final,OtherPE,Dummy);
+    if IsPE then begin FixPE(Final,After,Before); Save(Image,Final) end;
+    if Compressed then Execute(Objcopy,Dir,['--compress-debug-sections=zlib','image.bin']);
+    Final:=Load(Image); After:=Sections(Final,OtherPE,Dummy);
     for I:=0 to High(Before) do begin
       if IsPE then Found:=Pos('.debug_',Before[I].Name)<>1
       else Found:=Before[I].Flags and 2<>0;
@@ -560,12 +562,20 @@ begin
       end;
       Need(Found,'runtime section disappeared');
     end;
+    Need(RenameFile(Image,OutputName),'cannot install compact output');
     WriteLn('COMPACT methods=',RemovedMethods,' sequences=',RemovedSequences,' bytes=',Length(Original)-Length(Final));
   except
-    on E: Exception do begin Save(OutputName,Original); WriteLn('UNCHANGED: ',E.Message) end;
+    on E: Exception do begin
+      Save(OutputName,Original);
+      {$ifdef unix}
+      Need(fpChmod(OutputName,Mode.st_mode)=0,'cannot preserve input permissions');
+      {$endif}
+      WriteLn('UNCHANGED: ',E.Message);
+    end;
   end;
   { Every path is inside our newly created temporary directory. }
   if DirectoryExists(Dir) then begin
+    DeleteFile(Dir+'image.bin');
     for I:=0 to High(Required) do DeleteFile(Dir+Required[I]);
     DeleteFile(Dir+'debug_info.new'); DeleteFile(Dir+'debug_line.new'); DeleteFile(Dir+'debug_aranges.new');
     RemoveDir(ExcludeTrailingPathDelimiter(Dir));
