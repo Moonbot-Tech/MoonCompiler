@@ -69,14 +69,19 @@ def main():
                 for a, b in [('ConsumerA, ConsumerB', 'ConsumerB, ConsumerA'),
                              ('StateA, StateB', 'StateB, StateA'),
                              ('UnwindA, UnwindB', 'UnwindB, UnwindA'), ('Core,A,B', 'Core,B,A'),
-                             ('System.Rtti,A,B', 'System.Rtti,B,A'), ('System.SysUtils,A,B', 'System.SysUtils,B,A')]:
+                             ('System.Rtti,A,B', 'System.Rtti,B,A'),
+                             ('MappingA, MappingB', 'MappingB, MappingA'),
+                             ('ForwardA, ForwardB', 'ForwardB, ForwardA'),
+                             ('System.SysUtils,A,B', 'System.SysUtils,B,A')]:
                     value = value.replace(a, b)
                 p.write_text(value)
         return work
 
     def verify(case, output, reverse=False, changed=False):
         pairs = dict(line.split('=', 1) for line in output.splitlines() if '=' in line)
-        if case == 'semantic':
+        if case in ('mapping', 'forward'):
+            assert output == ('MAPPING_FORWARD_PASS\n' if case == 'mapping' else 'FORWARD_PASS\n'), output
+        elif case == 'semantic':
             assert len(pairs) == 15, pairs
             assert pairs.pop('INIT_COUNT') == '5', pairs
             for key, value in pairs.items():
@@ -140,7 +145,9 @@ def main():
                 assert unicode_values[1] == unicode_values[3], pairs
                 assert pairs['Unicode_OUTER_SAME'] == 'TRUE', pairs
 
-    cases = [('semantic', 'Semantic', ['ConsumerA', 'ConsumerB']),
+    cases = [('mapping', 'Mapping', ['MappingA', 'MappingB']),
+             ('forward', 'Forward', ['ForwardA', 'ForwardB']),
+             ('semantic', 'Semantic', ['ConsumerA', 'ConsumerB']),
              ('lifetime', 'Life', ['StateA', 'StateB']),
              ('nested', 'Probe', ['A', 'B']),
              ('keys', 'Keys', ['ConsumerA', 'ConsumerB']),
@@ -175,6 +182,24 @@ def main():
         verify('const-program', output)
         rows.append(dict(case=work.name, output=output))
         print('PASS', profile, 'identity, lifetime, nested, keys, catalog, long names', flush=True)
+
+    # The runtime oracle must reject a deliberately wrong explicit mapping.
+    for profile, flags in [('debug', ['-O-']), ('o2', ['-dRELEASE', '-O2']), ('o3', ['-dRELEASE', '-O3'])]:
+        work = prepare('mapping-negative-'+profile, 'mapping')
+        compile(work, 'Mapping.dpr', flags+['-B', '-dWRONG_MAPPING'])
+        binary = work/('Mapping.exe' if os.name == 'nt' else 'Mapping')
+        p = subprocess.run([str(binary)], cwd=work, capture_output=True, text=True, timeout=30)
+        (work/'negative.log').write_text(p.stdout+p.stderr)
+        assert p.returncode == 91 and 'CONTRACT_REJECTED: MAPPING: main dispatch' in p.stdout, (p.returncode, p.stdout, p.stderr)
+        rows.append(dict(case=work.name, negative_rejected=True))
+    # Unimplemented concrete/other formal arguments cannot bind to a compatible interface.
+    for program in ('WrongConcrete', 'WrongFormal'):
+        work = prepare('mapping-'+program, 'mapping')
+        command = common+['-dRELEASE', '-O2', '-Fu'+str(work), '-FU'+str(work), '-FE'+str(work), program+'.dpr']
+        p = subprocess.run(command, cwd=work, capture_output=True, text=True, timeout=90)
+        (work/'negative.log').write_text(p.stdout+p.stderr)
+        assert p.returncode != 0 and 'Interface identifier expected' in p.stdout, (p.returncode, p.stdout, p.stderr)
+        rows.append(dict(case=work.name, negative_rejected=True))
 
     # The initial template switches are persisted even without explicit directives.
     for checked in (False, True):

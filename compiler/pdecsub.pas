@@ -874,31 +874,25 @@ implementation
 
         function handle_generic_interface:boolean;
           var
-            i : longint;
-            sym : ttypesym;
+            i,j : longint;
             typesrsym : tsym;
             typesrsymtable : tsymtable;
-            hierarchy,
-            specializename,
-            prettyname: ansistring;
-            error : boolean;
-            genname,
-            ugenname : tidstring;
-            module : tmodule;
+            params : array of tdef;
+            intfdef : tobjectdef;
+            prettyname : ansistring;
+            error,match : boolean;
           begin
             result:=false;
             if not assigned(genericparams) then
               exit;
-            specializename:='$';
+            setlength(params,genericparams.count);
             prettyname:='';
             error:=false;
             for i:=0 to genericparams.count-1 do
               begin
-                sym:=ttypesym(genericparams[i]);
-                { ToDo: position }
-                if not searchsym(upper(sym.RealName),typesrsym,typesrsymtable) then
+                if not searchsym(upper(ttypesym(genericparams[i]).realname),typesrsym,typesrsymtable) then
                   begin
-                    message1(sym_e_id_not_found,sym.name);
+                    message1(sym_e_id_not_found,ttypesym(genericparams[i]).name);
                     error:=true;
                     continue;
                   end;
@@ -908,10 +902,7 @@ implementation
                     error:=true;
                     continue;
                   end;
-                module:=find_module_from_symtable(ttypesym(typesrsym).typedef.owner);
-                if not assigned(module) then
-                  internalerror(2016112803);
-                specializename:=specializename+'_$'+hexstr(module.moduleid,8)+'$$'+ttypesym(typesrsym).typedef.unique_id_str;
+                params[i]:=ttypesym(typesrsym).typedef;
                 if i>0 then
                   prettyname:=prettyname+',';
                 prettyname:=prettyname+ttypesym(typesrsym).prettyname;
@@ -922,31 +913,34 @@ implementation
                 srsym:=generrorsym;
                 exit;
               end;
-
             if not searchsym(sp,typesrsym,typesrsymtable) or (typesrsym.typ<>typesym) then
               begin
                 identifier_not_found(sp);
                 srsym:=generrorsym;
                 exit;
               end;
-
-            module:=find_module_from_symtable(ttypesym(typesrsym).owner);
-            if not assigned(module) then
-              internalerror(2022102105);
-
-            hierarchy:=ttypesym(typesrsym).typedef.ownerhierarchyname;
-            if hierarchy<>'' then
-              hierarchy:='.'+hierarchy;
-
-            genname:=generate_generic_name(sp,specializename,module.modulename^+hierarchy);
-            ugenname:=upper(genname);
-
-            srsym:=search_object_name(ugenname,false);
-            if not assigned(srsym) then
+            { A mapping names an implemented interface, not a predicted mangled symbol. }
+            for i:=0 to tobjectdef(astruct).ImplementedInterfaces.count-1 do
               begin
-                Message1(type_e_generic_declaration_does_not_match,sp+'<'+prettyname+'>');
-                srsym:=generrorsym;
+                intfdef:=TImplementedInterface(tobjectdef(astruct).ImplementedInterfaces[i]).intfdef;
+                if (intfdef.genericdef<>ttypesym(typesrsym).typedef) or
+                   not assigned(intfdef.genericparas) or (intfdef.genericparas.count<>length(params)) then
+                  continue;
+                match:=true;
+                for j:=0 to high(params) do
+                  if intfdef.get_generic_param_def(j)<>params[j] then
+                    begin
+                      match:=false;
+                      break;
+                    end;
+                if match then
+                  begin
+                    srsym:=intfdef.typesym;
+                    exit;
+                  end;
               end;
+            Message1(type_e_generic_declaration_does_not_match,sp+'<'+prettyname+'>');
+            srsym:=generrorsym;
           end;
 
         procedure specialize_generic_interface;
@@ -1081,10 +1075,10 @@ implementation
                  end
                else
                  { in case of a generic or specialized interface we need to use the
-                   name of the def instead of the symbol, so that always the correct
-                   name is used }
+                   name of the implemented def; an alias can name an equivalent
+                   specialization from another parsing context }
                  if [df_generic,df_specialization]*ttypesym(srsym).typedef.defoptions<>[] then
-                   sp:=tobjectdef(ttypesym(srsym).typedef).objname^;
+                   sp:=ImplIntf.IntfDef.objname^;
                { must be a directly implemented interface }
                if Assigned(ImplIntf.ImplementsGetter) then
                  Message2(parser_e_implements_no_mapping,ImplIntf.IntfDef.typename,astruct.objrealname^);

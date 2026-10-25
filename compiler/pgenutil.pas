@@ -2026,8 +2026,10 @@ uses
               hierarchy:='.'+hierarchy;
             hierarchy:=hmodule.modulename^+hierarchy;
           end;
-        finalspecializename:=generate_generic_name(context.genname,context.specializename,hierarchy);
-        if not parse_generic and (genericdef.typ<>procdef) then
+        { A forward specialization keeps the identity chosen at its declaration. }
+        if assigned(context.forwarddef) then
+          finalspecializename:=context.forwarddef.typesym.realname
+        else if not parse_generic and (genericdef.typ<>procdef) then
           begin
             canonicalkey:=generic_semantic_type_key(genericdef)+'<';
             for i:=0 to context.paramlist.count-1 do
@@ -2035,7 +2037,9 @@ uses
             canonicalkey:=canonicalkey+'>';
             canonicalhash:=UpdateFnv64(InitFnv64,canonicalkey[1],length(canonicalkey));
             finalspecializename:=copy(context.genname,1,high(finalspecializename)-20)+'$MGS'+hexstr(canonicalhash,16);
-          end;
+          end
+        else
+          finalspecializename:=generate_generic_name(context.genname,context.specializename,hierarchy);
         ufinalspecializename:=upper(finalspecializename);
         if genericdef.typ=procdef then
           prettyname:=tprocdef(genericdef).procsym.prettyname
