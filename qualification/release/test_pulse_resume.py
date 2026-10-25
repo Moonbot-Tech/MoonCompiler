@@ -80,6 +80,38 @@ class PulseResumeTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 qualify.bind_pulse_completion(state, completion, root, 'original-sdk')
 
+    def test_new_full_failure_can_supply_new_completion_without_losing_history(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            state, first, log = self.fixture(root)
+            qualify.bind_pulse_completion(state, first, root, 'original-sdk')
+            original = copy.deepcopy(state['pulse_completion_origin'])
+            for attempt in (2, 3):
+                failed_log = log.with_name(f'pulse_report-{attempt:04d}.log')
+                command = ['pulse_release.py'] + (['--complete-from', first[0]] if attempt == 2 else [])
+                failed_log.write_text('COMMAND ' + json.dumps(command) + '\nfailed\n')
+                state['results']['pulse_report'] = dict(original, attempt=attempt, log=str(failed_log),
+                                                       log_identity=qualify.digest_paths([failed_log]))
+                if attempt == 2:
+                    qualify.bind_pulse_completion(state, ('', '', ''), root, 'original-sdk')
+                    before = copy.deepcopy(state)
+                    rejected_source = (str(root / 'discovery/jobs/pulse_report/attempt-0002/out'),
+                                       'c' * 64, 'd' * 64)
+                    with self.assertRaises(ValueError):
+                        qualify.bind_pulse_completion(state, rejected_source, root, 'original-sdk')
+                    self.assertEqual(state, before)
+                    with self.assertRaises(ValueError):
+                        qualify.bind_pulse_completion(state, first, root, 'original-sdk')
+            fresh = (str(root / 'discovery/jobs/pulse_report/attempt-0003/out'), 'c' * 64, 'd' * 64)
+            qualify.bind_pulse_completion(state, fresh, root, 'original-sdk')
+            self.assertEqual(state['pulse_completion_history'], [original])
+            self.assertEqual(state['pulse_completion_origin']['attempt'], 3)
+            with self.assertRaises(ValueError):
+                qualify.bind_pulse_completion(state, first, root, 'original-sdk')
+            log.write_text('changed old evidence')
+            with self.assertRaises(ValueError):
+                qualify.bind_pulse_completion(state, fresh, root, 'original-sdk')
+
     def test_bound_origin_evidence_stays_required(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -204,7 +236,7 @@ raise SystemExit(0 if complete else 2)
                 self.assertEqual((root / 'builds.txt').read_text(), 'build\n')
 
 
-    def test_failed_completion_restarts_fresh_full(self):
+    def test_full_completion_cycle_keeps_one_build(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             subprocess.run(['git', 'init', '-q', str(root)], check=True)
@@ -229,7 +261,7 @@ from pathlib import Path
 Path(sys.argv[1]).mkdir(parents=True)
 complete = '--complete-from' in sys.argv
 Path(sys.argv[1], 'record').write_text('fresh-' + Path(sys.argv[1]).parent.name)
-passed = not complete and Path(sys.argv[1]).parent.name == 'attempt-0003'
+passed = complete and Path(sys.argv[1]).parent.name == 'attempt-0004'
 print('PULSE_PASS' if passed else 'COMPLETION_REFUSED' if complete else 'MEASUREMENT_REJECTED')
 raise SystemExit(0 if passed else 2)
 """
@@ -260,7 +292,7 @@ raise SystemExit(0 if passed else 2)
                 self.assertEqual(rejected['attempt'], 2)
                 self.assertIn('COMPLETION_REFUSED', Path(rejected['log']).read_text())
                 argv[:] = full_argv
-                self.assertEqual(qualify.main(), 0)
+                self.assertEqual(qualify.main(), 1)
                 restarted = json.loads((run / 'state.json').read_text())
                 self.assertEqual(restarted['results']['pulse_report']['attempt'], 3)
                 self.assertEqual(restarted['pulse_completion'], ['', '', ''])
@@ -288,6 +320,31 @@ raise SystemExit(0 if passed else 2)
                 self.assertTrue(qualify.evidence_intact(rejected))
                 for result in (original, rejected, restarted['results']['pulse_report']):
                     self.assertTrue(Path(result['log']).exists())
+                fresh_source = run / 'discovery/jobs/pulse_report/attempt-0003/out'
+                argv += ['--pulse-complete-from', str(fresh_source), '--pulse-complete-sha256', 'c' * 64,
+                         '--pulse-complete-logs-sha256', 'd' * 64]
+                self.assertEqual(qualify.main(), 0)
+                completed = json.loads((run / 'state.json').read_text())
+                self.assertEqual(completed['results']['pulse_report']['attempt'], 4)
+                self.assertEqual(completed['pulse_completion_history'], [original])
+                self.assertEqual(completed['pulse_completion_origin'], restarted['results']['pulse_report'])
+                self.assertEqual(completed['results']['build'], initial['results']['build'])
+                self.assertEqual(completed['product_identity'], initial['product_identity'])
+                command = json.loads(Path(completed['results']['pulse_report']['log']).read_text()
+                                     .splitlines()[0].removeprefix('COMMAND '))
+                self.assertEqual(Path(command[command.index('--complete-from') + 1]), fresh_source)
+                self.assertEqual((source / 'record').read_bytes(), original_record)
+                self.assertEqual((fresh_source / 'record').read_text(), 'fresh-attempt-0003')
+                before = (run / 'state.json').read_bytes()
+                for damaged_path in (root / 'toolchain/sdk', Path(original['log']), build_log):
+                    saved = damaged_path.read_bytes()
+                    damaged_path.write_text('damaged historical input')
+                    with self.assertRaises(SystemExit):
+                        qualify.main()
+                    self.assertEqual((run / 'state.json').read_bytes(), before)
+                    damaged_path.write_bytes(saved)
+                for result in (original, rejected, restarted['results']['pulse_report']):
+                    self.assertTrue(qualify.evidence_intact(result))
                 argv[argv.index('full')] = 'light'
                 argv.append('--final')
                 self.assertEqual(qualify.main(), 0)
@@ -302,6 +359,27 @@ raise SystemExit(0 if passed else 2)
             with self.assertRaises(ValueError):
                 qualify.bind_pulse_completion(state, ('', '', ''), root, 'original-sdk')
             self.assertEqual(state, before)
+
+    def test_new_origin_requires_valid_command_evidence(self):
+        cases = ('COMMAND broken', 'COMMAND {}', 'COMMAND null', 'COMMAND []',
+                 'COMMAND [42]', '["pulse_release.py"]', '',
+                 'COMMAND ["pulse_release.py", "--complete-from", "old"]')
+        for line in cases:
+            with self.subTest(line=line), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                state, first, log = self.fixture(root)
+                qualify.bind_pulse_completion(state, first, root, 'original-sdk')
+                origin = copy.deepcopy(state['pulse_completion_origin'])
+                failed_log = log.with_name('pulse_report-0002.log')
+                failed_log.write_text(line + '\nfailed\n')
+                state['results']['pulse_report'] = dict(origin, attempt=2, log=str(failed_log),
+                                                       log_identity=qualify.digest_paths([failed_log]))
+                qualify.bind_pulse_completion(state, ('', '', ''), root, 'original-sdk')
+                before = copy.deepcopy(state)
+                source = (str(root / 'discovery/jobs/pulse_report/attempt-0002/out'), 'c' * 64, 'd' * 64)
+                with self.assertRaises(ValueError):
+                    qualify.bind_pulse_completion(state, source, root, 'original-sdk')
+                self.assertEqual(state, before)
 
 if __name__ == '__main__':
     unittest.main()

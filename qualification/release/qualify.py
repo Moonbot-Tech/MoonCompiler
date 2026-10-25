@@ -260,7 +260,9 @@ def evidence_intact(result: dict) -> bool:
 def bind_pulse_completion(state: dict, completion: tuple[str, str, str], run_dir: Path, product: str) -> None:
     if state.get("pulse_completion_origin") and product != state.get("product_identity"):
         raise ValueError("Pulse completion requires the original installed product bytes")
-    if state.get("pulse_completion_origin") and not evidence_intact(state["pulse_completion_origin"]):
+    origins = state.get("pulse_completion_history", []) + ([state["pulse_completion_origin"]]
+                                                         if state.get("pulse_completion_origin") else [])
+    if any(not evidence_intact(origin) for origin in origins):
         raise ValueError("Original failed Pulse evidence changed")
     previous = tuple(state.get("pulse_completion", ("", "", "")))
     if completion == previous:
@@ -271,11 +273,9 @@ def bind_pulse_completion(state: dict, completion: tuple[str, str, str], run_dir
         if (not origin or failed.get("attempt", 0) <= origin["attempt"]
                 or failed.get("status") != "fail" or not evidence_intact(failed)):
             raise ValueError("A fresh full Pulse requires an intact failed completion attempt")
-        # Abandon reuse, never the evidence or frozen SDK. An empty command
-        # starts all measurements again; the retained origin forbids rebinding.
         state["pulse_completion"] = completion
         return
-    if state.get("pulse_completion_origin") or any(previous) or not all(completion) or state.get("final_head") is not None:
+    if any(previous) or not all(completion) or state.get("final_head") is not None:
         raise ValueError("Pulse completion source changed; use a new run directory")
     source_result = state.get("results", {}).get("pulse_report", {})
     if source_result.get("status") != "fail" or not evidence_intact(source_result):
@@ -285,6 +285,18 @@ def bind_pulse_completion(state: dict, completion: tuple[str, str, str], run_dir
         raise ValueError("Pulse completion must use this run's last failed attempt")
     if not product or product != state.get("product_identity"):
         raise ValueError("Pulse completion requires the original installed product bytes")
+    origin = state.get("pulse_completion_origin")
+    if origin:
+        with Path(source_result["log"]).open(encoding="utf-8") as stream:
+            command_line = stream.readline()
+        if not command_line.startswith("COMMAND "):
+            raise ValueError("Failed Pulse log lacks its command evidence")
+        command = json.loads(command_line[len("COMMAND "):])
+        if (source_result["attempt"] <= origin["attempt"] or not isinstance(command, list) or not command
+                or any(not isinstance(arg, str) for arg in command)
+                or "--complete-from" in command):
+            raise ValueError("A new completion source requires a fresh failed full Pulse attempt")
+        state.setdefault("pulse_completion_history", []).append(dict(origin))
     # Preserve the failed observation; completion validates its raw/log hashes
     # and measures only missing pairs. A new command signature forces that job.
     state["pulse_completion_origin"] = dict(source_result)

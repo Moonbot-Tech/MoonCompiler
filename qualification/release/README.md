@@ -264,9 +264,9 @@ run, keep the same run directory. Before final Light begins, the controller can
 bind that completion source once, preserving the failed observation and its
 unchanged log. The installed SDK and its reusable build evidence must still
 match; completion refuses any discovery rebuild. Other unchanged checks retain
-their original evidence. Changing an already bound source or CPU selection
-requires a new run directory. Do not edit results or the ledger to mark a failure
-passing.
+their original evidence. A bound source cannot be replaced by another partial
+measurement. Changing CPU selection requires a new run directory. Do not edit
+results or the ledger to mark a failure passing.
 
 Completion freezes the missing repeat grid before measurement. It verifies the
 original and current source method, toolchains, memory managers, executable
@@ -277,11 +277,14 @@ run normally. Accepted original pairs remain byte-for-byte in the result; old
 invalid attempts and new attempts keep separate logs and provenance. The stock
 release validator still requires correct semantics and 12 valid pairs for every
 case and confirmation. Any remaining gap is a failed qualification.
+
 If completion itself fails, its original evidence must still be retained. Remove
 all three completion arguments to start a fresh full Pulse in the same ledger;
 this is allowed only after a failed completion attempt bound from that ledger.
 No measurements are reused. The original SDK and build evidence stay frozen,
-rebinding to another source remains forbidden, and final Light is still required.
+and final Light is still required. If that fresh full run needs completion, only
+its last failed attempt can become the new source. Its hashed command must prove
+a full invocation; the controller retains and verifies every prior origin log.
 An original run without passing A/A controls is not eligible for completion;
 repeat the full Pulse instead.
 
