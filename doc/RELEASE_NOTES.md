@@ -1,3 +1,40 @@
+# MoonCompiler 2.5.0: smaller applications with complete runtime metadata
+
+Release builds now keep the information deployed applications need for exception
+reports: function names, source files, lines and address ranges. Debugger-only
+descriptions of local variables, parameters and types are omitted from Release;
+Debug retains full information, including the SDK units. Linux compresses the
+remaining diagnostic sections automatically. No new runtime dependency is added.
+
+Generic specializations shared by multiple units no longer carry separate copies
+of equivalent code and runtime type descriptions. Type identity, reflective
+discovery, attributes, virtual dispatch and managed-value lifetime are preserved.
+Immutable RTTI names and parameter descriptions are shared without changing the
+public RTTI record layout. Runtime RTTI is distinct from debugger metadata and is
+retained wherever the language and application require it.
+
+Linux GNU assembler builds (`-Aas`) preserve the same shared generic ownership,
+including mixed native/GNU assembler objects and PIE. Canonical symbol names are
+quoted where AT&T syntax would otherwise interpret them as immediate operands.
+
+Equivalent diagnostic records are compacted after linking. Linux stack-recovery
+tables use shorter standard encodings while retaining the rules for every
+instruction address. Interrupted prologues and epilogues, foreign C frames,
+exceptions and shared-library calls have dedicated runtime checks. Long function
+names and line-table boundaries are also covered by permanent regression tests.
+
+The Release profile uses separate SDK units and `release-compact` application
+directories. Build systems that inspect static symbols can retain them with
+`-Xs-` before their own packaging or signing step. See [Building Applications](PROJECT_BUILD.md#profiles)
+and [Diagnostics](DIAGNOSTICS.md).
+
+Install the complete SDK and rebuild application and third-party PPUs. The PPU
+format changed for shared generic ownership; mixing old and new compiled units
+is rejected. `MOONCOMPILER_FULLVERSION` is 20500, `CompilerVersion` is 2.5, and the
+FPC base version remains 3.3.1. MoonORMot 15 remains required.
+
+---
+
 # MoonCompiler 2.4.17: smaller Linux executables with retained diagnostics
 
 Linux applications can keep runtime function names and source lines while using
