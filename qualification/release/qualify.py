@@ -257,6 +257,30 @@ def evidence_intact(result: dict) -> bool:
         return False
 
 
+def bind_pulse_completion(state: dict, completion: tuple[str, str, str], run_dir: Path, product: str) -> None:
+    if state.get("pulse_completion_origin") and product != state.get("product_identity"):
+        raise ValueError("Pulse completion requires the original installed product bytes")
+    if state.get("pulse_completion_origin") and not evidence_intact(state["pulse_completion_origin"]):
+        raise ValueError("Original failed Pulse evidence changed")
+    previous = tuple(state.get("pulse_completion", ("", "", "")))
+    if completion == previous:
+        return
+    if any(previous) or not all(completion) or state.get("final_head") is not None:
+        raise ValueError("Pulse completion source changed; use a new run directory")
+    source_result = state.get("results", {}).get("pulse_report", {})
+    if source_result.get("status") != "fail" or not evidence_intact(source_result):
+        raise ValueError("Pulse completion needs an intact failed attempt from this run")
+    source = run_dir / "discovery/jobs/pulse_report" / f"attempt-{source_result['attempt']:04d}" / "out"
+    if Path(completion[0]).resolve() != source.resolve():
+        raise ValueError("Pulse completion must use this run's last failed attempt")
+    if not product or product != state.get("product_identity"):
+        raise ValueError("Pulse completion requires the original installed product bytes")
+    # Preserve the failed observation; completion validates its raw/log hashes
+    # and measures only missing pairs. A new command signature forces that job.
+    state["pulse_completion_origin"] = dict(source_result)
+    state["pulse_completion"] = completion
+
+
 def show_status(jobs: list[dict], results: dict, head: str, signatures: dict[str, str]) -> None:
     counts = {"pass": 0, "carried": 0, "stale": 0, "fail": 0, "pending": 0, "blocked": 0}
     for job in jobs:
@@ -367,9 +391,6 @@ def main() -> int:
     if state.get("pulse_single_cpus", "") != args.pulse_single_cpus:
         parser.error("Pulse single-CPU selection changed; use a new run directory")
     state["pulse_single_cpus"] = args.pulse_single_cpus
-    if tuple(state.get("pulse_completion", ("", "", ""))) != pulse_completion:
-        parser.error("Pulse completion source changed; use a new run directory")
-    state["pulse_completion"] = pulse_completion
     location = {"host": host_platform.node(), "root": str(ROOT.resolve())}
     if state.get("location", location) != location:
         parser.error("run state belongs to another host or checkout")
@@ -402,7 +423,19 @@ def main() -> int:
         if state.get("baseline_identity", baseline_id) != baseline_id:
             parser.error("baseline bytes changed; use a new run directory")
         state["baseline_identity"] = baseline_id
+    try:
+        bind_pulse_completion(state, pulse_completion, run_dir, product)
+    except ValueError as error:
+        parser.error(str(error))
     signatures = input_signatures(jobs, args.platform, head, product, baseline_id)
+    if state.get("pulse_completion_origin") and has_build and not args.final:
+        build = next(job for job in jobs if job["id"] == "build")
+        previous_build = state["results"].get("build", {})
+        if (previous_build.get("status") != "pass" or build.get("always_run")
+                or previous_build.get("input_signature") != signatures["build"]
+                or not evidence_intact(previous_build)
+                or build.get("head_bound") and previous_build.get("head") != head):
+            parser.error("Pulse completion cannot rebuild its frozen product; build evidence or inputs changed")
     if has_build and product != state.get("product_identity"):
         state["results"].pop("build", None)
         state["final_results"].pop("build", None)

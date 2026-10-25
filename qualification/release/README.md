@@ -259,8 +259,14 @@ manifest is verified and left unchanged. Append `--pulse-complete-from
 ORIGINAL_OUT --pulse-complete-sha256 RAW_SHA --pulse-complete-logs-sha256
 LOGS_SHA` to the ordinary `qualify.py run --mode full` command, or set `pulse_complete_from`,
 `pulse_complete_sha256` and `pulse_complete_logs_sha256` for that host in the
-`qualify_both.py` host config. Use a new qualification run directory; do not edit
-the old result or qualification ledger to mark it passing.
+`qualify_both.py` host config. For the last failed Pulse attempt of the current
+run, keep the same run directory. Before final Light begins, the controller can
+bind that completion source once, preserving the failed observation and its
+unchanged log. The installed SDK and its reusable build evidence must still
+match; completion refuses any discovery rebuild. Other unchanged checks retain
+their original evidence. Changing an already bound source or CPU selection
+requires a new run directory. Do not edit results or the ledger to mark a failure
+passing.
 
 Completion freezes the missing repeat grid before measurement. It verifies the
 original and current source method, toolchains, memory managers, executable
