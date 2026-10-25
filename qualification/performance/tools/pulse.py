@@ -409,6 +409,8 @@ def build_moon(
         *([] if moon_cfg.with_name("moon-base.cfg").is_file() else
           [f"@{Path(__file__).with_name('pulse_legacy_release.cfg')}"]),
         "-B",
+        # Pulse inspects static symbols; ordinary releases may strip them.
+        "-Xs-",
         *(f"-Fu{path}" for path in unit_paths),
         *(f"-Fi{path}" for path in unit_paths),
         *(f"-Fo{path}" for path in unit_paths),
@@ -418,9 +420,9 @@ def build_moon(
     args.extend(extra_options or [])
     args.extend(STAND_EXTRA_OPTIONS)
     if not IS_WINDOWS:
-        # Preserve static relocation metadata for code-identity checks. This
-        # changes no loadable instructions or allocation/timing paths.
-        args.append('-k--emit-relocs')
+        # GNU ld cannot combine retained relocations with compressed DWARF.
+        # Both are non-loadable metadata used by the code-identity checks.
+        args.extend(['-k--compress-debug-sections=none', '-k--emit-relocs'])
     args.extend(moon_mm_options(default_mm, mm_source))
     if program == 'threads' and not default_mm:
         args.extend(['-dFPCMM_SMALLPOOL_REUSE_TEST', '-dFPCMM_MEDIUMLASTFREE_TEST'])

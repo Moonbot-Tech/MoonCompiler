@@ -42,7 +42,7 @@ def main():
     includes = {}
     def expand_base(match):
         path = Path(match[1].strip().strip('"')).resolve()
-        assert path.name == "moon-base.cfg", f"unexpected installed configuration include: {path}"
+        assert path.name in {"moon-base.cfg", "moon-release-base.cfg"}, f"unexpected installed configuration include: {path}"
         includes[str(path)] = sha(path)
         return path.read_text().replace("$FPCBINDIR", toolbin.as_posix())
     cfg.write_text(re.sub(r"^#INCLUDE\s+([^\n]+)$", expand_base, config_text, flags=re.M))

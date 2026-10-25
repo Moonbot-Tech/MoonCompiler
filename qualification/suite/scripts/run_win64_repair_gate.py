@@ -719,7 +719,7 @@ def verify_short_bool_prune(assembly: Path) -> None:
     }
     seen = set()
     for match in re.finditer(
-        r"^P\$TSHORTBOOLPRUNE1\$_\$TBOX\S*_PICK\$(\w+)\$\$LONGINT:$", text, re.M
+        r"^(?:P\$TSHORTBOOLPRUNE1\$|\$MGS\$)_\$TBOX\S*_PICK\$(\w+)\$\$LONGINT:$", text, re.M
     ):
         kind = match.group(1)
         end = text.find(".section", match.end())

@@ -31,6 +31,11 @@ class ReleaseProfileTests(unittest.TestCase):
             # The product config owns the language; the builder must not
             # substitute its old partial profile after reading that config.
             self.assertNotIn("-Mdelphi", command)
+            self.assertIn("-Xs-", command)
+            self.assertGreater(command.index("-Xs-"), command.index(f"@{config}"))
+            if not pulse.IS_WINDOWS:
+                self.assertIn("-k--emit-relocs", command)
+                self.assertIn("-k--compress-debug-sections=none", command)
 
     def test_legacy_toolchain_receives_the_old_drivers_release_profile(self):
         with tempfile.TemporaryDirectory() as temporary:
