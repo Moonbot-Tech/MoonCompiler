@@ -1,7 +1,7 @@
 program lazarus_hash_contract;
 {$mode objfpc}{$H+}{$R+}{$Q+}
 
-uses SysUtils, LazEditHighlighterUtils;
+uses SysUtils, LazEditHighlighterUtils, LookupStringList;
 
 type
   TRange = class(TLazHighlighterRangeForDictionary)
@@ -71,7 +71,25 @@ begin
     raise Exception.Create('range lifetime');
 end;
 
+procedure CheckStringList;
+var
+  List: TLookupStringList;
 begin
+  List := TLookupStringList.Create;
+  try
+    List.Add('entry');
+    if not List.Contains('entry') or (List.IndexOf('entry') <> 0) then
+      raise Exception.Create('Lazarus insertion did not update the lookup index');
+    List.Delete(0);
+    if List.Contains('entry') then
+      raise Exception.Create('Lazarus deletion did not update the lookup index');
+  finally
+    List.Free;
+  end;
+end;
+
+begin
+  CheckStringList;
   Check($80000000);
   Check($FFFFFFFF);
   WriteLn('LAZARUS_HASH_CONTRACT_PASS');

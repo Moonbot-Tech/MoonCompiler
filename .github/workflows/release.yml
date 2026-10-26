@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Version used in dry-run artifact names
         required: true
-        default: v2.5.1
+        default: v2.5.2
 
 permissions:
   contents: read
@@ -210,6 +210,7 @@ jobs:
           python3 qualification/build-driver/zlib_objects_gate.py
           python3 qualification/build-driver/rtl_profile_gate.py
           python3 qualification/build-driver/version_contract.py
+          python3 qualification/build-driver/stringlist_profiles_gate.py
       - uses: actions/upload-artifact@v4
         with:
           name: toolchain-linux-x86-64
@@ -441,6 +442,8 @@ jobs:
           If ($LASTEXITCODE -ne 0) { throw 'Installed RTL profile contract failed' }
           python .\qualification\build-driver\version_contract.py
           If ($LASTEXITCODE -ne 0) { throw 'Installed version contract failed' }
+          python .\qualification\build-driver\stringlist_profiles_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'Installed string-list profile contracts failed' }
       - uses: actions/upload-artifact@v4
         with:
           name: toolchain-win64-x86-64

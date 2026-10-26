@@ -1,3 +1,22 @@
+# MoonCompiler 2.5.2: restore Lazarus string-list insertion
+
+The IDE/FPC RTL again calls the two-argument virtual `TStringList.InsertItem`
+before assigning an associated object. This restores the insertion hooks used by
+Lazarus subclasses: debugger type patterns initialize correctly at startup, and
+lookup lists update their search index. Thanks to Ivan (Cooler2) for the fix and
+regression test in [PR #2](https://github.com/Moonbot-Tech/MoonCompiler/pull/2).
+
+The Unicode application RTL keeps its Delphi-compatible three-argument insertion
+contract, including object visibility inside overrides. CI now checks both RTL
+profiles at O-/O2/O3 and repeats these checks after installing release archives.
+
+For an existing source checkout, rebuild the SDK and Lazarus before launching;
+see [Lazarus](../README.md#lazarus). Install the complete SDK and rebuild application
+and third-party PPUs. `MOONCOMPILER_FULLVERSION` is 20502; `CompilerVersion`
+remains 2.5, the FPC base remains 3.3.1, and MoonORMot 15 remains required.
+
+---
+
 # MoonCompiler 2.5.1: correct child-process output
 
 `RunCommand`, `RunCommandInDir` and `TProcess.RunCommandLoop` now return correctly

@@ -38,6 +38,7 @@ jobs:
         run: |
           python3 qualification/build-driver/ptop_contract.py
           python3 qualification/build-driver/version_contract.py
+          python3 qualification/build-driver/stringlist_profiles_gate.py
           python3 qualification/build-driver/ppu_format_contract.py
           python3 qualification/build-driver/config_contract_gate.py
           python3 qualification/build-driver/product_config_gate.py
@@ -374,6 +375,8 @@ jobs:
           If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           python .\qualification\build-driver\version_contract.py
           If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
+          python .\qualification\build-driver\stringlist_profiles_gate.py
+          If ($LASTEXITCODE -ne 0) { throw 'String-list profile contracts failed' }
           python .\qualification\build-driver\ppu_format_contract.py
           If ($LASTEXITCODE -ne 0) { throw 'Qualification command failed' }
           python .\qualification\build-driver\config_contract_gate.py

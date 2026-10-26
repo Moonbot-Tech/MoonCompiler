@@ -89,7 +89,7 @@ Linux:
 
 ```bash
 mkdir -p ~/moon/toolchain && cd ~/moon
-tar -xzf ~/Downloads/mooncompiler-toolchain-v2.5.1-linux-x86-64.tar.gz -C toolchain
+tar -xzf ~/Downloads/mooncompiler-toolchain-v2.5.2-linux-x86-64.tar.gz -C toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain/bin/fpc hello.dpr
 toolchain/bin/fpc -dRELEASE hello.dpr
@@ -99,7 +99,7 @@ Win64 PowerShell:
 
 ```powershell
 New-Item -ItemType Directory -Force C:\Moon | Set-Location
-Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.5.1-win64.zip -DestinationPath toolchain
+Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.5.2-win64.zip -DestinationPath toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain\bin\x86_64-win64\fpc.exe hello.dpr
 toolchain\bin\x86_64-win64\fpc.exe -dRELEASE hello.dpr
@@ -418,10 +418,30 @@ The pinned Lazarus version builds and launches with one command:
 ```
 
 On its first run, the driver builds the compiler, checks out the supported
-Lazarus commit, and creates an isolated IDE configuration. Lazarus sources are
-not patched. The toolchain contains two non-overlapping profiles: a normal FPC
+Lazarus commit, and creates an isolated IDE configuration. The driver applies
+the bundled compatibility adjustments automatically; no manual source edits are
+needed. The toolchain contains two non-overlapping profiles: a normal FPC
 ABI for the IDE/LCL itself, and a Unicode product profile for Delphi-compatible
 applications.
+
+Since 2.5.2, the IDE profile preserves the FPC `TStringList` insertion hooks used
+by Lazarus subclasses. The Unicode application profile retains the Delphi
+insertion contract. Both profiles are checked independently in CI.
+
+When upgrading an existing source checkout, rebuild both the SDK and Lazarus
+before launching; the launcher reuses an IDE executable that already exists:
+
+```bash
+./build compiler
+./build lazarus
+./lazarus
+```
+
+```powershell
+.\build.ps1 compiler
+.\build.ps1 lazarus
+.\lazarus.ps1
+```
 
 Lazarus provides the editor, navigation, debugger, and designer. The product
 build of a larger `.dpr` is the toolchain's `fpc` with the project's
