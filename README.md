@@ -424,6 +424,13 @@ needed. The toolchain contains two non-overlapping profiles: a normal FPC
 ABI for the IDE/LCL itself, and a Unicode product profile for Delphi-compatible
 applications.
 
+No extra flags are needed with these scripts. For a custom Lazarus build, use
+the compiler and `fpc.cfg` from `toolchain/ide`: the driver builds `bigide` with
+`OPT=-O3`, and the IDE configuration supplies `-dMOONCOMPILER_VANILLA_RUNTIME`.
+Do not add `-dUNICODERTL` or reuse the application's `.mooncompiler` profile
+when building the IDE/LCL. These select different string ABIs; adding a define
+to the Lazarus command line cannot change an already compiled RTL.
+
 Since 2.5.2, the IDE profile preserves the FPC `TStringList` insertion hooks used
 by Lazarus subclasses. The Unicode application profile retains the Delphi
 insertion contract. Both profiles are checked independently in CI.
