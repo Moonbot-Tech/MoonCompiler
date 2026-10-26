@@ -2043,7 +2043,18 @@ begin
         DupIgnore : Exit;
         DupError : Error(SDuplicateString,0)
       end;
+{$ifdef UNICODERTL}
   InsertItem(Result,S,AObject);
+{$else UNICODERTL}
+   BeginUpdate;
+   try
+     InsertItem (Result,S);
+     if (aObject<>Nil) then
+      Objects[Result]:=AObject;
+   finally
+     EndUpdate;
+   end;
+{$endif UNICODERTL}
 end;
 
 function TStringList.Add(const S: string): Integer;
