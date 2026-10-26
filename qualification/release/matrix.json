@@ -9,6 +9,7 @@
     "devil_light": ["qualification/suite", "qualification/release/inputs.py"],
     "ptop_contract": ["qualification/build-driver"],
     "version_contract": ["qualification/build-driver"],
+    "stringlist_profiles": ["qualification/build-driver/stringlist_profiles_gate.py", "qualification/build-driver/stringlist_object_contract.pp", "tests/test/units/classes/tstringlistinsertitem.pp"],
     "ppu_format_contract": ["qualification/build-driver"],
     "product_config_gate": ["qualification/build-driver"],
     "release_metadata": ["qualification/build-driver", "qualification/metadata-crosscheck", "qualification/suite/scripts", "qualification/suite/tests/smoke", "qualification/suite/tests/rtti", "RTL-test/semantic"],
@@ -367,6 +368,20 @@
       "resource": "version_contract",
       "estimated_seconds_by_platform": {"win64": 2, "linux": 1},
       "timeout": 3600
+    },
+    {
+      "id": "stringlist_profiles",
+      "mode": "light",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/build-driver/stringlist_profiles_gate.py"],
+        "linux": ["{python}", "{root}/qualification/build-driver/stringlist_profiles_gate.py"]
+      },
+      "needs": ["build"],
+      "resource": "stringlist_profiles",
+      "expected": "STRINGLIST_PROFILES_PASS 12",
+      "estimated_seconds_by_platform": {"win64": 4, "linux": 2},
+      "timeout": 120
     },
     {
       "id": "ppu_format_contract",
