@@ -16,4 +16,9 @@ export PP="$IDE_FPC"
 export PPC_CONFIG_PATH="$IDE_TOOLCHAIN/etc"
 export LAZARUSDIR="$LAZARUS_SOURCE"
 unset FPCDIR
+# The WSLg compositor crashes when a window that has a transient child is
+# destroyed, which the IDE does on its first run; Xwayland is not affected.
+if [[ -z ${GDK_BACKEND-} && -d /mnt/wslg ]]; then
+  export GDK_BACKEND=x11
+fi
 exec "$LAZARUS_EXE" "--pcp=$PRIMARY_CONFIG" "$@"

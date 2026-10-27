@@ -431,6 +431,10 @@ Do not add `-dUNICODERTL` or reuse the application's `.mooncompiler` profile
 when building the IDE/LCL. These select different string ABIs; adding a define
 to the Lazarus command line cannot change an already compiled RTL.
 
+Under WSLg, `./lazarus` selects the GTK X11 backend (Xwayland) unless
+`GDK_BACKEND` is already set: the WSLg compositor crashes when a window that has
+a transient child is destroyed, and the IDE does this on its first run.
+
 Since 2.5.2, the IDE profile preserves the FPC `TStringList` insertion hooks used
 by Lazarus subclasses. The Unicode application profile retains the Delphi
 insertion contract. Both profiles are checked independently in CI.
