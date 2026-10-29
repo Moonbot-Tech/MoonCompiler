@@ -43,6 +43,7 @@ unit optloop;
     { reads from the trees of pi and of the routines nested in it, which are
       as parsed, what each routine does to the routines around it }
     procedure collect_nested_access(pi : tprocinfo);
+    procedure eliminate_dead_static_initializers(node : tnode);
 
   implementation
 
@@ -1011,6 +1012,57 @@ unit optloop;
             exit(true);
       end;
 
+
+    function collect_static_regvar(var n : tnode; arg : pointer) : foreachnoderesult;
+      var
+        sym : tabstractnormalvarsym;
+      begin
+        result:=fen_false;
+        if (n.nodetype<>loadn) or
+           (tloadnode(n).symtableentry.typ<>staticvarsym) then
+          exit;
+        sym:=tabstractnormalvarsym(tloadnode(n).symtableentry);
+        if not assigned(sym.owner) or
+           (sym.owner.symtabletype<>staticsymtable) or
+           (sym.varoptions*[vo_is_external,vo_is_dll_var,vo_is_thread_var,
+             vo_is_public,vo_is_weak_external,vo_has_global_ref,vo_has_mangledname,vo_volatile]<>[]) then
+          exit;
+        if sym.is_regvar(false,true) and not sym.addr_taken and
+           not sym.different_scope and not sym.noregvarinitneeded and
+           (tfplist(arg).indexof(sym)<0) then
+          tfplist(arg).add(sym);
+      end;
+
+    procedure eliminate_dead_static_initializers(node : tnode);
+      var
+        syms : tfplist;
+        sym : tabstractnormalvarsym;
+        cache : tlivenesscache;
+        continuations : tflowcontinuations;
+        i : longint;
+        live : boolean;
+      begin
+        syms:=tfplist.create;
+        try
+          foreachnodestatic(node,@collect_static_regvar,syms);
+          for i:=0 to syms.count-1 do
+            begin
+              sym:=tabstractnormalvarsym(syms[i]);
+              cache.entries:=nil;
+              cache.count:=0;
+              cache.labels:=nil;
+              cache.contexts:=nil;
+              fillchar(continuations,sizeof(continuations),0);
+              { The caller excludes labels and assembler. Reuse the existing
+                EH/loop continuation solver without publishing DFA facts. }
+              live:=analyze_loop_exception_liveness(node,sym,continuations,@cache);
+              if not live then
+                sym.noregvarinitneeded:=true;
+            end;
+        finally
+          syms.free;
+        end;
+      end;
 
     function find_nonlocal_loop_entry(var n : tnode;
       arg : pointer) : foreachnoderesult;
@@ -3825,10 +3877,11 @@ unit optloop;
     function invalidatesloweredloopbase(var n : tnode;
       arg : pointer) : foreachnoderesult;
       begin
-        if n.nodetype=calln then
-          result:=fen_norecurse_true
-        else
-          result:=invalidatesimplicitarraybase(n,arg);
+        if (n.nodetype in [calln,tryexceptn,tryfinallyn,raisen]) or
+           ((n.nodetype=loadn) and
+            (tloadnode(n).symtableentry.typ=absolutevarsym)) then
+          exit(fen_norecurse_true);
+        result:=invalidatesimplicitarraybase(n,arg);
       end;
 
 
@@ -3839,7 +3892,7 @@ unit optloop;
       begin
         result:=false;
         if not(sym.typ in [localvarsym,paravarsym]) or
-           sym.addr_taken or
+           sym.addr_taken or sym.different_scope or
            (vo_volatile in sym.varoptions) then
           exit;
         if (sym.typ=paravarsym) and

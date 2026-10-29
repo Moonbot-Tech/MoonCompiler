@@ -116,6 +116,9 @@ jobs:
           python3 qualification/optimizer-core/real-folds/run_real_folds_gate.py \
             --compiler "$pp" --config "$cfg" \
             --output .qualification/ci-linux-real-folds
+          python3 qualification/optimizer-core/analytics/run_gate.py \
+            --compiler "$pp" --config "$cfg" --modes O3 checked \
+            --output .qualification/ci-linux-analytics
           python3 qualification/optimizer-core/consttemp-lifetime/run_consttemp_gate.py \
             --compiler "$pp" --config "$cfg" \
             --output .qualification/ci-linux-consttemp
@@ -494,6 +497,10 @@ jobs:
             --compiler $Compiler --config $Config `
             --output .\.qualification\ci-win64-real-folds
           If ($LASTEXITCODE -ne 0) { throw 'Real-folds gate failed' }
+          python .\qualification\optimizer-core\analytics\run_gate.py `
+            --compiler $Compiler --config $Config --modes O3 checked `
+            --output .\.qualification\ci-win64-analytics
+          If ($LASTEXITCODE -ne 0) { throw 'Analytics gate failed' }
           python .\qualification\optimizer-core\consttemp-lifetime\run_consttemp_gate.py `
             --compiler $Compiler --config $Config `
             --output .\.qualification\ci-win64-consttemp

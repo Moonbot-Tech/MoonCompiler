@@ -1,0 +1,166 @@
+[
+  {
+    "source": "scalar_guard_page.dpr",
+    "inputs": [
+      ""
+    ],
+    "last_lines": [
+      "ACCESS_FIRST"
+    ],
+    "purpose": "Preserve the first observable exception."
+  },
+  {
+    "source": "fp_state_double.dpr",
+    "inputs": [
+      ""
+    ],
+    "last_lines": [
+      "FP_STATE_PASS 2048"
+    ],
+    "purpose": "Bitwise result and MXCSR flags, 16 special values, four rounding modes, both branches; noinline O- reference."
+  },
+  {
+    "source": "fp_state_single_wide.dpr",
+    "inputs": [
+      ""
+    ],
+    "last_lines": [
+      "FP_STATE_PASS 2048"
+    ],
+    "purpose": "Bitwise result and MXCSR flags, 16 special values, four rounding modes, both branches; noinline O- reference."
+  },
+  {
+    "source": "fp_state_single.dpr",
+    "inputs": [
+      ""
+    ],
+    "last_lines": [
+      "FP_STATE_PASS 2048"
+    ],
+    "purpose": "Bitwise result and MXCSR flags, 16 special values, four rounding modes, both branches; noinline O- reference."
+  },
+  {
+    "source": "array_local_while_outer_eh.dpr",
+    "inputs": [
+      "0",
+      "1",
+      "4"
+    ],
+    "last_lines": [
+      "0",
+      "9",
+      "36"
+    ],
+    "purpose": "Real sibling EH; candidate must cache the unchanged local/value descriptor outside the loop."
+  },
+  {
+    "source": "array_local_repeat_outer_eh.dpr",
+    "inputs": [
+      "0",
+      "1",
+      "4"
+    ],
+    "last_lines": [
+      "0",
+      "9",
+      "36"
+    ],
+    "purpose": "Real sibling EH; candidate must cache the unchanged local/value descriptor outside the loop."
+  },
+  {
+    "source": "array_value_while_outer_eh.dpr",
+    "inputs": [
+      "0",
+      "1",
+      "4"
+    ],
+    "last_lines": [
+      "0",
+      "9",
+      "36"
+    ],
+    "purpose": "Real sibling EH; candidate must cache the unchanged local/value descriptor outside the loop."
+  },
+  {
+    "source": "array_value_inner_eh.dpr",
+    "inputs": [
+      "0",
+      "1",
+      "4"
+    ],
+    "last_lines": [
+      "0",
+      "9",
+      "36"
+    ],
+    "purpose": "An EH region inside the loop remains a cache barrier."
+  },
+  {
+    "source": "array_external_variant_record.dpr",
+    "inputs": [
+      "0",
+      "1",
+      "4"
+    ],
+    "last_lines": [
+      "0",
+      "9",
+      "630"
+    ],
+    "purpose": "Mutation through a generated-name alias reaches the descriptor; retain replacement semantics."
+  },
+  {
+    "source": "array_external_incdec.dpr",
+    "inputs": [
+      "0",
+      "1",
+      "4"
+    ],
+    "last_lines": [
+      "0",
+      "9",
+      "630"
+    ],
+    "purpose": "Mutation through a generated-name alias reaches the descriptor; retain replacement semantics."
+  },
+  {
+    "source": "threaded_captured.dpr",
+    "inputs": [
+      ""
+    ],
+    "last_lines": [
+      "78"
+    ],
+    "purpose": "Captured local changed by a nested worker through a static link; addr_taken alone is insufficient."
+  },
+  {
+    "source": "threaded_alias.dpr",
+    "inputs": [
+      ""
+    ],
+    "last_lines": [
+      "78"
+    ],
+    "purpose": "External link-name alias with a synchronized descriptor replacement."
+  },
+  {
+    "source": "threaded_alias_atomic.dpr",
+    "inputs": [
+      ""
+    ],
+    "last_lines": [
+      "78"
+    ],
+    "purpose": "External link-name alias with a synchronized descriptor replacement."
+  },
+  {
+    "source": "entry_alias_observer.dpr",
+    "inputs": [
+      ""
+    ],
+    "last_lines": [
+      "0 51"
+    ],
+    "purpose": "Opaque call observes BSS aliases before the first register-value definition; spills must stay private."
+  }
+]

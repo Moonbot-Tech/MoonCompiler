@@ -1525,8 +1525,7 @@ implementation
          compiler temps, so introducing the address temp any earlier would
          hide otherwise profitable invariant index arithmetic from LICM. }
        if (cs_opt_loopstrength in current_settings.optimizerswitches) and
-          (pi_dfaavailable in flags) and
-          not(pi_has_label in flags) then
+          (flags*[pi_has_assembler_block,pi_is_assembler,pi_has_label]=[]) then
          OptimizeLoopVectorBases(code);
 
        { diagnostic effect-model observe point: the future LICM position -
@@ -1571,7 +1570,11 @@ implementation
          generation, so refresh once after the final tree mutation instead of
          trusting stale or copied live-in sets. }
        if assigned(dfabuilder) then
-         dfabuilder.redodfainfo(code);
+         dfabuilder.redodfainfo(code)
+       else if (cs_opt_nodedfa in current_settings.optimizerswitches) and
+          (pi_uses_exceptions in flags) and
+          (flags*[pi_has_assembler_block,pi_is_assembler,pi_has_label]=[]) then
+         eliminate_dead_static_initializers(code);
 
        { A managed temp requests the implicit finally frame in its pass_1, and
          the request outlives it: the result temp of an inlined getter that

@@ -55,6 +55,7 @@
     "loop_address": ["qualification/optimizer-core/loop-address"],
     "loop_regvar": ["qualification/optimizer-core/loop-regvar", "tests/test/cg/tloopregvarpromote1.pp", "tests/test/cg/tloopcompareorient1.pp"],
     "real_folds": ["qualification/optimizer-core/real-folds", "qualification/performance/tools", "tests/test/cg/tfoldruntimereal1.pp", "tests/test/cg/tobservableintrinsics1.pp", "tests/test/cg/tfloatminselect1.pp", "tests/test/cg/tdelphinegativezero1.pp", "tests/test/cg/tifminmaxtarget1.pp"],
+    "analytics": ["qualification/optimizer-core/analytics", "tests/test/cg", "RTL-test/semantic"],
     "fold_guards": ["qualification/optimizer-core/fold-guards", "qualification/performance/tools", "tests/test/cg/tobservablesimplify1.pp", "tests/test/cg/trangefoldobservable1.pp", "tests/test/cg/trotatefold1.pp", "tests/test/cg/tshortboolprune1.pp", "tests/test/cg/tinlinecheckedruntime1.pp"],
     "sqr_fold": ["qualification/optimizer-core/sqr-fold", "qualification/performance/tools"],
     "const_register": ["qualification/optimizer-core/const-register", "qualification/performance/tools"],
@@ -1595,6 +1596,20 @@
       "resource": "real_folds",
       "estimated_seconds_by_platform": {"win64": 2, "linux": 1},
       "timeout": 3600
+    },
+    {
+      "id": "analytics",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/analytics/run_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--modes", "O3", "checked", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/analytics/run_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--modes", "O3", "checked", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "analytics",
+      "estimated_seconds_by_platform": {"win64": 180, "linux": 90},
+      "timeout": 600,
+      "expected": "ANALYTICS_GATE_PASS"
     },
     {
       "id": "fold_guards",

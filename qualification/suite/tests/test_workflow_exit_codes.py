@@ -170,6 +170,7 @@ class StandChainContracts(unittest.TestCase):
             'qualification/optimizer-core/consttemp-lifetime/run_consttemp_gate.py',
             'qualification/optimizer-core/loop-address/run_loop_address_gate.py',
             'qualification/optimizer-core/real-folds/run_real_folds_gate.py',
+            'qualification/optimizer-core/analytics/run_gate.py',
             'qualification/optimizer-core/fold-guards/run_fold_guards_gate.py',
             'qualification/optimizer-core/sqr-fold/run_sqr_fold_gate.py',
             'qualification/optimizer-core/getter-borrow/run_getter_borrow_gate.py',

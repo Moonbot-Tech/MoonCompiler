@@ -1435,6 +1435,16 @@ unit opteffect;
         liveout : boolean;
       end;
 
+    function reads_private_static(var n : tnode; arg : pointer) : foreachnoderesult;
+      begin
+        result:=fen_false;
+        if (n.nodetype=loadn) and
+           ((tloadnode(n).symtableentry=tabstractvarsym(arg)) or
+            (tloadnode(n).symtableentry.typ=absolutevarsym)) and
+           ((not(nf_write in n.flags)) or (nf_modify in n.flags)) then
+          result:=fen_norecurse_true;
+      end;
+
     function effect_reads_sym(n : tnode; sym : tabstractvarsym) : boolean;
       var
         e : teffect;
@@ -1443,7 +1453,9 @@ unit opteffect;
         try
           tree_effect(n,e);
           result:=e.runbounded or
-            (assigned(e.rsyms) and (e.rsyms.indexof(sym)>=0));
+            (assigned(e.rsyms) and (e.rsyms.indexof(sym)>=0)) or
+            ((sym.typ=staticvarsym) and
+             foreachnodestatic(n,@reads_private_static,sym));
         finally
           effect_done(e);
         end;

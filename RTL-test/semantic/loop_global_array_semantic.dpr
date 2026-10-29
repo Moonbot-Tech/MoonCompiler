@@ -52,7 +52,7 @@ begin
 {$push}{$Q-}{$R-}
   for I := 0 to N - 1 do
   begin
-    GInts[I] := Int32(UInt32(I * 747796405 + 2891336453));
+    GInts[I] := Int32(UInt32((UInt64(I) * 747796405 + 2891336453) and $FFFFFFFF));
     GBytes[I] := Byte(I * 31 + 7);
     GRecs[I].A := I * 3;
     GRecs[I].B := -I;
