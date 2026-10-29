@@ -1022,6 +1022,7 @@ begin
   if FOwnsStream then
     FreeAndNil(FStream);
   FClosed:=True;
+  FNoDataInStream:=True;
 end;
 
 function TStreamReader.IsEof: Boolean;
@@ -1055,8 +1056,8 @@ begin
         FBufferedTextPosition:=SegmentEnd;
         If C=#13 then
           begin
-          If (FBufferedTextPosition>=Length(FBufferedText)) and
-             not FNoDataInStream then
+          While (FBufferedTextPosition>=Length(FBufferedText)) and
+                not FNoDataInStream do
             FillBuffer;
           If (FBufferedTextPosition<Length(FBufferedText)) and
              (FBufferedText[FBufferedTextPosition+1]=#10) then
