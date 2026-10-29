@@ -1,0 +1,16 @@
+[package]
+name = "moon-showcase-rust"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "showcase_rust"
+path = "showcase.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "=1.0.151"
+libc = "0.2"
+
+[profile.release]
+opt-level = 3

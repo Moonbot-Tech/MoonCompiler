@@ -1,0 +1,18 @@
+{
+  "full_level_rows": 36636,
+  "checks": [
+    "valid-boundary-0",
+    "valid-boundary-1",
+    "valid-boundary-2",
+    "valid-boundary-3",
+    "rejected-invalid-0",
+    "rejected-invalid-1",
+    "rejected-invalid-2",
+    "rejected-invalid-3",
+    "rejected-invalid-4",
+    "rejected-invalid-5",
+    "rejected-invalid-6",
+    "rejected-invalid-7",
+    "oracle-rejects-corrupted-level"
+  ]
+}

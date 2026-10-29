@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
 from pathlib import Path
@@ -18,11 +19,18 @@ PULSE_ADD_PATTERN = re.compile(r"\bAdd\s*\(\s*'([^']+)'", re.DOTALL)
 CASE_CONTRACTS = {
     "PulseRunCase/v1": PULSE_CASE_PATTERN,
     "PulseAdd/v1": PULSE_ADD_PATTERN,
+    "PulsePaced/v1": None,
 }
 
 
 def declared_pulse_cases(source: Path, contract: str) -> list[str]:
     """Return the ordered literal case matrix registered by a Pulse program."""
+    if contract == "PulsePaced/v1":
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "CASES" for t in node.targets):
+                return list(ast.literal_eval(node.value))
+        return []
     pattern = CASE_CONTRACTS.get(contract)
     if pattern is None:
         raise ValueError(f"unknown Pulse case contract: {contract}")

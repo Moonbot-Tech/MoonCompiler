@@ -1,0 +1,32 @@
+{
+  "full_level_rows": 36636,
+  "checks": [
+    "valid-boundary-0",
+    "valid-boundary-1",
+    "valid-boundary-2",
+    "valid-boundary-3",
+    "valid-boundary-4",
+    "valid-boundary-5",
+    "valid-boundary-6",
+    "valid-boundary-7",
+    "valid-boundary-8",
+    "valid-boundary-9",
+    "valid-boundary-10",
+    "valid-boundary-11",
+    "valid-boundary-12",
+    "valid-boundary-13",
+    "valid-boundary-14",
+    "valid-boundary-15",
+    "valid-boundary-16",
+    "valid-boundary-17",
+    "rejected-invalid-0",
+    "rejected-invalid-1",
+    "rejected-invalid-2",
+    "rejected-invalid-3",
+    "rejected-invalid-4",
+    "rejected-invalid-5",
+    "rejected-invalid-6",
+    "rejected-invalid-7",
+    "oracle-rejects-corrupted-level"
+  ]
+}

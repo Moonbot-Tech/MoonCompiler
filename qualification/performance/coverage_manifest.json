@@ -16,6 +16,10 @@
     "memory-manager",
     "multithread",
     "thread-lifecycle",
+    "clocks",
+    "paced-workers",
+    "order-workers",
+    "moonshot-idle",
     "application-pipeline",
     "product-forms"
   ],
@@ -399,6 +403,54 @@
         "lifetime": ["returned"],
         "memory": ["heap"],
         "concurrency": ["independent"]
+      }
+    },
+    {
+      "id": "clocks",
+      "status": "implemented",
+      "source": "threads/pulse_clocks.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": ["sysutils-tick64", "thread-tick64", "calendar-now", "stopwatch", "event-ready", "event-poll", "queued-callbacks"],
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "type": ["unsigned-integer"]
+      }
+    },
+    {
+      "id": "paced-workers",
+      "status": "implemented",
+      "source": "tools/pulse_wakeups.py",
+      "generated_source": "threads/pulse_thread_wakeups.dpr",
+      "case_contract": "PulsePaced/v1",
+      "cases": ["idle", "one-event", "event80", "sleep16", "event16", "signal16", "clock16", "clock-libc16", "queue8", "sync8", "queue1", "paced-event", "paced-clock", "paced-queue"],
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "concurrency": ["independent", "producer-consumer"]
+      }
+    },
+    {
+      "id": "order-workers",
+      "status": "implemented",
+      "source": "tools/pulse_orders.py",
+      "generated_source": "threads/pulse_order_workers.dpr",
+      "case_contract": "PulsePaced/v1",
+      "cases": ["orders", "wait", "selected"],
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "concurrency": ["independent", "producer-consumer"]
+      }
+    },
+    {
+      "id": "moonshot-idle",
+      "status": "implemented",
+      "source": "tools/pulse_moonshot.py",
+      "generated_source": "threads/pulse_moonshot_idle.dpr",
+      "case_contract": "PulsePaced/v1",
+      "cases": ["quiet", "no-format", "wait", "response", "cpu", "cpu-no-format", "no-filter", "cpu-no-filter"],
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "type": ["double", "unicode-string"],
+        "concurrency": ["independent", "producer-consumer"]
       }
     },
     {

@@ -6,6 +6,11 @@ Start with the [purpose of Pulse](../../doc/PERFORMANCE_QUALIFICATION.md#the-que
 Case counts are not a product verdict. `Move(X,X,N)` is no longer a performance
 case; its accepted cost buys the ordinary copy path an omitted equality check.
 
+Mostly sleeping threads require both useful-work CPU and event response time.
+Use the [order-worker program](threads/README.md#order-worker-cpu-and-response-time)
+for that question; its paced waits are deliberately outside adaptive throughput
+calibration. `clocks` covers the component paths inside the regular Pulse runner.
+
 One release comparison: `python qualification/performance/tools/pulse_both.py --config <hosts.json>`
 (host settings: `tools/pulse_both.example.json`). `REPORT.md` contains the top 10
 useful gains, top 10 practical regressions/TODO, accepted trade-offs and numerical
@@ -48,6 +53,12 @@ and deliberately deferred improvements are in
 [`../../doc/BACKLOG.md`](../../doc/BACKLOG.md).
 
 ## Current state
+
+The [thread and clock programs](threads/README.md) also cover mostly waiting
+workers: 92 periodic event waiters, clock reads and main-thread log delivery.
+Use `tools/pulse_wakeups.py` for that paced workload; it reports process CPU
+and actual wake counts rather than treating sleeping wall time as throughput.
+The `clocks` family runs through the ordinary Pulse entry points.
 
 Pulse consists of independent programs across compiler, RTL, MM, and workload
 layers. `local-pressure` measures the cost of calling a procedure with
@@ -337,3 +348,8 @@ as `tsc_overhead`, and not silently subtracted.
 `results` and build directories are intentionally excluded from Git. The final
 qualification runner stores versioned evidence separately together with
 compiler/config/MM, source, and executable hashes.
+
+The standalone [quiet order-polling program](threads/MOONSHOT_IDLE.md) compares
+CPU cost and selected-thread event response for a source-derived 92-worker
+scenario. It is registered in the coverage manifest and run explicitly with
+`tools/pulse_moonshot.py`; paced waits are not throughput-score cases.

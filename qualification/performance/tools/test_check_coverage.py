@@ -50,6 +50,12 @@ class PulseCaseContractTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unknown Pulse case contract"):
                 CHECK_COVERAGE.declared_pulse_cases(source, "unknown")
 
+    def test_extracts_paced_matrix_without_executing_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "runner.py"
+            source.write_text("raise RuntimeError('must not execute')\nCASES = {'idle': ('idle', 92, 16), 'queue': ('queue', 92, 16)}\n")
+            self.assertEqual(CHECK_COVERAGE.declared_pulse_cases(source, "PulsePaced/v1"), ["idle", "queue"])
+
 
 if __name__ == "__main__":
     unittest.main()

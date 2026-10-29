@@ -75,6 +75,7 @@ PROGRAMS["timestamp-events"] = PERF_ROOT / "text" / "pulse_timestamp_events.dpr"
 PROGRAMS["sorted-lookup"] = PERF_ROOT / "text" / "pulse_sorted_lookup.dpr"
 PROGRAMS["ordinal-scan"] = PERF_ROOT / "dictionary" / "pulse_ordinal_scan.dpr"
 PROGRAMS["thread-lifecycle"] = PERF_ROOT / "threads" / "pulse_thread_lifecycle.dpr"
+PROGRAMS["clocks"] = PERF_ROOT / "threads" / "pulse_clocks.dpr"
 MOON_ONLY_PROGRAMS = frozenset({"repairs"})
 DEFAULT_PROGRAMS = tuple(name for name in PROGRAMS if name not in MOON_ONLY_PROGRAMS)
 PINNED_MORMOT = ROOT / ".qualification" / "deps" / "moonormot"

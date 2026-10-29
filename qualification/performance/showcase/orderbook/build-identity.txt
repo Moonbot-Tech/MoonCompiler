@@ -1,0 +1,7 @@
+bc778d843057b302022630fe9076173aba8e03fae09f6ed33df4a7d4d54dda11  bin/orderbook_moon
+1039796deb24d17622335046cb0d9ce7e72697f2a40551ef9d2a3d1c0f6eeda1  bin/orderbook_rust
+3954232bdc31a67c818213f75306d8e8c48ba28b84b645351a1b5573113f5a68  /mnt/mooncompiler252/showcase-20261029/compiler-stand/combined/compiler/ppcx64
+cce8d5770b90e30d5d2f84ee9a927e5128314d0ad7f1b5e7b4678c5a16aff8d9  /mnt/mooncompiler252/showcase-20261029/compiler-stand/product.cfg
+1f8515a2e2895d212a58126e4b837a6481fddc6b
+rustc 1.97.1 (8bab26f4f 2026-07-14)
+Moon: -n @product.cfg -dRELEASE -O3; Rust: Cargo release opt-level=3
