@@ -47,11 +47,11 @@ interface
 {$IFDEF FPC_DOTTEDUNITS}
 uses
     System.RtlConsts, System.Classes, System.SysUtils, System.Generics.MemoryExpanders, System.Generics.Defaults,
-    System.Generics.Helpers, System.Generics.Strings, System.Types, System.Rtti;
+    System.Generics.Helpers, System.Generics.Strings, System.Types, System.Rtti, System.TypInfo;
 {$ELSE FPC_DOTTEDUNITS}
 uses
     RtlConsts, Classes, SysUtils, Generics.MemoryExpanders, Generics.Defaults,
-    Generics.Helpers, Generics.Strings, Types, Rtti;
+    Generics.Helpers, Generics.Strings, Types, Rtti, TypInfo;
 {$ENDIF FPC_DOTTEDUNITS}
 
 {.$define EXTRA_WARNINGS}

@@ -327,18 +327,32 @@ type
   end;
 
   TOpenAddressingLP<OPEN_ADDRESSING_CONSTRAINTS> = class(TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>)
+  private class var
+    FUtf8SliceDefault: Pointer;
+  private
+    { Keep comparer initialization and its interface temporary off the hot path. }
+    class function InitUtf8Slice: Pointer; static; noinline;
+    function TryGetValueUtf8Converted(AKey: PAnsiChar; AByteLength: SizeInt; var AValue: TValue): Boolean;
   private type // for workaround Lazarus bug #25613
     _TItem = record
       Hash: UInt32;
       Pair: TPair<TKey, TValue>;
     end;
   protected
+    function FindConvertedUtf8Key(const AKey: TKey): SizeInt; virtual;
     procedure NotifyIndexChange(AFrom, ATo: SizeInt); virtual;
     function Rehash(ASizePow2: SizeInt; AForce: Boolean = False): Boolean; override;
     function DoRemove(AIndex: SizeInt; ACollectionNotification: TCollectionNotification): TValue; override;
     function FindBucketIndex(const AItems: TArray<TItem>; const AKey: TKey; out AHash: UInt32): SizeInt; override; overload;
     function FindBucketIndexForHash(const AItems: TArray<TItem>; const AKey: TKey;
       var AHash: UInt32): SizeInt; override;
+  public
+    { A borrowed UTF-8 slice, valid for this call only. No terminator is required.
+      UTF8String/RawByteString with the default comparer use the bytes directly.
+      Other AnsiString encodings, UnicodeString, WideString and custom comparers
+      use a converted owning key. Other key kinds are rejected.
+      nil is valid only with zero length. }
+    function TryGetValueUtf8(AKey: PAnsiChar; AByteLength: SizeInt; var AValue: TValue): Boolean;
   end;
 
   // More info and TODO
@@ -709,6 +723,7 @@ type
       this one exists to stay a call }
     function FindKey(const AKey: TKey): SizeInt; noinline;
   protected
+    function FindConvertedUtf8Key(const AKey: TKey): SizeInt; override;
     function FindBucketIndex(const AItems: TArray<TItem>; const AKey: TKey; out AHash: UInt32): SizeInt; override; overload;
     function FindBucketIndexForHash(const AItems: TArray<TItem>; const AKey: TKey;
       var AHash: UInt32): SizeInt; override;

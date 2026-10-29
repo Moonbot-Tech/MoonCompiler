@@ -1016,6 +1016,117 @@ end;
 
 { TOpenAddressingLP<DICTIONARY_CONSTRAINTS> }
 
+class function TOpenAddressingLP<OPEN_ADDRESSING_CONSTRAINTS>.InitUtf8Slice: Pointer;
+var
+  LCodePage: TSystemCodePage;
+begin
+  Result := nil;
+  if (GetTypeKind(TKey) = tkAString) and (TClass(THashFactory) = TDefaultHashFactory) then
+  begin
+    LCodePage := GetTypeData(TypeInfo(TKey))^.CodePage;
+    if (LCodePage = CP_UTF8) or (LCodePage = CP_NONE) then
+    begin
+      Result := Pointer(TEqualityComparer<TKey>.Default);
+      InterlockedCompareExchangePointer(FUtf8SliceDefault, Result, nil);
+    end;
+  end;
+end;
+
+function TOpenAddressingLP<OPEN_ADDRESSING_CONSTRAINTS>.TryGetValueUtf8Converted(
+  AKey: PAnsiChar; AByteLength: SizeInt; var AValue: TValue): Boolean;
+var
+  LUtf8: UTF8String;
+  LKey: TKey;
+  LCodePage: TSystemCodePage;
+  LIndex: SizeInt;
+begin
+  SetString(LUtf8, AKey, AByteLength);
+  case GetTypeKind(TKey) of
+    tkAString:
+      begin
+        PRawByteString(@LKey)^ := LUtf8;
+        LCodePage := GetTypeData(TypeInfo(TKey))^.CodePage;
+        { CP_ACP/CP_NONE are dynamically encoded byte strings. A UTF-8 query
+          retains its encoding; only a fixed target code page is transcoded. }
+        if (LCodePage <> CP_NONE) and (LCodePage <> CP_ACP) then
+          SetCodePage(PRawByteString(@LKey)^, LCodePage, True);
+      end;
+    tkUString: PUnicodeString(@LKey)^ := UTF8Decode(LUtf8);
+    tkWString: PWideString(@LKey)^ := UTF8Decode(LUtf8);
+  else
+    raise EArgumentException.Create('TryGetValueUtf8 requires AnsiString, UnicodeString or WideString keys');
+  end;
+  LIndex := FindConvertedUtf8Key(LKey);
+  Result := LIndex >= 0;
+  if Result then
+    AValue := FItems[LIndex].Pair.Value
+  else
+    AValue := Default(TValue);
+end;
+
+function TOpenAddressingLP<OPEN_ADDRESSING_CONSTRAINTS>.FindConvertedUtf8Key(const AKey: TKey): SizeInt;
+var
+  LHash: UInt32;
+begin
+  { A comparer may resize the dictionary while hashing. Acquire the current
+    table after that callback. The flat descendant uses its own hash policy. }
+  LHash := UInt32(FEqualityComparer.GetHashCode(AKey)) or UInt32.GetSignMask;
+  Result := FindBucketIndexForHash(FItems, AKey, LHash);
+end;
+
+function TOpenAddressingLP<OPEN_ADDRESSING_CONSTRAINTS>.TryGetValueUtf8(
+  AKey: PAnsiChar; AByteLength: SizeInt; var AValue: TValue): Boolean;
+var
+  LHash: UInt32;
+  LIndex, LProbe, LMask: SizeInt;
+  LDefault: Pointer;
+  LItem: PItem;
+  LCodePage: TSystemCodePage;
+begin
+  if (AByteLength < 0) or ((AKey = nil) and (AByteLength <> 0)) then
+    raise EArgumentException.Create('Invalid UTF-8 key slice');
+  if GetTypeKind(TKey) = tkAString then
+  begin
+    LDefault := FUtf8SliceDefault;
+    if LDefault = nil then
+      LDefault := InitUtf8Slice;
+    if (LDefault <> nil) and (Pointer(FEqualityComparer) = LDefault) then
+    begin
+      LHash := THashFactory.GetHashCode(AKey, AByteLength, 0) or UInt32.GetSignMask;
+      LMask := Length(FItems) - 1;
+      if LMask >= 0 then
+      begin
+        LProbe := 0;
+        LIndex := LHash and LMask;
+        repeat
+          LItem := @FItems[LIndex];
+          if (LItem.Hash and UInt32.GetSignMask) = 0 then
+            Break;
+          if LItem.Hash = LHash then
+          begin
+            { RawByteString may hold another code page. Preserve the ordinary
+              comparer contract instead of replacing conversion with memcmp. }
+            LCodePage := StringCodePage(PRawByteString(@LItem.Pair.Key)^);
+            if (AByteLength <> 0) and (LCodePage <> CP_UTF8) and (LCodePage <> CP_NONE) then
+              Exit(TryGetValueUtf8Converted(AKey, AByteLength, AValue));
+            if (Length(PRawByteString(@LItem.Pair.Key)^) = AByteLength) and
+              ((AByteLength = 0) or CompareMem(Pointer(PRawByteString(@LItem.Pair.Key)^), AKey, AByteLength)) then
+            begin
+              AValue := LItem.Pair.Value;
+              Exit(True);
+            end;
+          end;
+          Inc(LProbe);
+          LIndex := TProbeSequence.Probe(LProbe, LHash) and LMask;
+        until False;
+      end;
+      AValue := Default(TValue);
+      Exit(False);
+    end;
+  end;
+  Result := TryGetValueUtf8Converted(AKey, AByteLength, AValue);
+end;
+
 function TOpenAddressingLP<OPEN_ADDRESSING_CONSTRAINTS>.Rehash(
   ASizePow2: SizeInt; AForce: Boolean): Boolean;
 var
@@ -1167,6 +1278,14 @@ end;
 
 { TOpenAddressingLinearLP: flat path }
 
+function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.FindConvertedUtf8Key(const AKey: TKey): SizeInt;
+begin
+  if FFlat then
+    Result := FindKey(AKey)
+  else
+    Result := inherited FindConvertedUtf8Key(AKey);
+end;
+
 class function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.FlatKind: Boolean;
 begin
   { key kinds whose default comparer is plain equality of the value
@@ -1311,11 +1430,59 @@ end;
 function TOpenAddressingLinearLP<TKey, TValue, THashFactory>.FindKey(const AKey: TKey): SizeInt;
 var
   LHash: UInt32;
+  LBase, LItem: PItem;
+  m: SizeInt;
+  LProbeHash: UInt32;
 begin
-  if (GetTypeKind(TKey) in FlatKinds) and FFlat then
-    Result := FlatFind(FItems, AKey, LHash)
+  if GetTypeKind(TKey) in [tkUString, tkAString] then
+  begin
+    if not FFlat then
+      Exit(FindBucketIndex(FItems, AKey, LHash));
+    { Keep the string hash and probe in one body: passing the unused hash
+      through nested inline out parameters spills lookup state to the stack. }
+    if GetTypeKind(TKey) = tkUString then
+      LProbeHash := THashFactory.GetHashCode(@PUnicodeString(@AKey)^[1],
+        Length(PUnicodeString(@AKey)^) * SizeOf(UnicodeChar), 0)
+    else
+      LProbeHash := THashFactory.GetHashCode(@PAnsiString(@AKey)^[1], Length(PAnsiString(@AKey)^), 0);
+    LProbeHash := LProbeHash or UInt32.GetSignMask;
+    { A user hash factory can resize the dictionary. Read its storage only
+      after the callback, and keep the probe hash separate from the out slot. }
+    LBase := Pointer(FItems);
+    m := Length(FItems);
+    if m <> 0 then
+    begin
+      Result := LProbeHash and (m - 1);
+      LItem := @LBase[Result];
+      repeat
+        if (LItem.Hash and UInt32.GetSignMask) = 0 then
+          Exit(not Result);
+        if LItem.Hash = LProbeHash then
+        begin
+          if GetTypeKind(TKey) = tkUString then
+          begin
+            if PUnicodeString(@AKey)^ = PUnicodeString(@LItem.Pair.Key)^ then Exit;
+          end
+          else if PAnsiString(@AKey)^ = PAnsiString(@LItem.Pair.Key)^ then Exit;
+        end;
+        Inc(Result);
+        Inc(LItem);
+        if Result = m then
+        begin
+          Result := 0;
+          LItem := LBase;
+        end;
+      until False;
+    end;
+    Exit(-1);
+  end
   else
-    Result := FindBucketIndex(FItems, AKey, LHash);
+  begin
+    if (GetTypeKind(TKey) in FlatKinds) and FFlat then
+      Result := FlatFind(FItems, AKey, LHash)
+    else
+      Result := FindBucketIndex(FItems, AKey, LHash);
+  end;
 end;
 
 constructor TOpenAddressingLinearLP<TKey, TValue, THashFactory>.Create(ACapacity: SizeInt;

@@ -158,6 +158,10 @@ CURRENT_TREE_UNIT_DIRS = {
     "dictionary_rehash_ownership_semantic": ROOT / "packages" / "rtl-generics" / "src",
     "list_insert_reserved_semantic": ROOT / "packages" / "rtl-generics" / "src",
     "dictionary_factory_cache_semantic": ROOT / "packages" / "rtl-generics" / "src",
+    "dictionary_string_lookup_utf8_semantic": ROOT / "packages" / "rtl-generics" / "src",
+    "dictionary_string_lookup_unicode_semantic": ROOT / "packages" / "rtl-generics" / "src",
+    "dictionary_utf8_slice_semantic": ROOT / "packages" / "rtl-generics" / "src",
+    "dictionary_utf8_slice_extended_semantic": ROOT / "packages" / "rtl-generics" / "src",
     "html_encoding_spans_semantic": ROOT / "packages" / "vcl-compat" / "src",
     "text_stream_encoding_semantic": (
         ROOT / "packages" / "fcl-base" / "src",
