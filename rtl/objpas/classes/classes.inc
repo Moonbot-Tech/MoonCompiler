@@ -620,7 +620,7 @@ begin
     try
 {$endif}
       Result:=ThreadQueueHead;
-      lNow:=Now;
+      if Assigned(Result) and (Result^.ExecuteAfter<>0) then lNow:=Now;
       While Assigned(Result) and (Result^.ExecuteAfter<>0) and (Result^.ExecuteAfter>lNow) do
         begin
         lPrev:=Result;

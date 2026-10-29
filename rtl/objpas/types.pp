@@ -668,6 +668,7 @@ begin
   EnterCriticalSection(MultiEventLock);
   try
 {$endif}
+    if FSignaled then Exit;
     FSignaled:=True;
 {$ifdef FPC_HAS_FEATURE_THREADING}
     Waiter:=MultiEventWaiters;
@@ -715,13 +716,10 @@ begin
     if Events[I]=nil then
       raise EArgumentNilException.Create('The event list contains nil');
 {$ifdef FPC_HAS_FEATURE_THREADING}
-  Waiter.Wake:=BasicEventCreate(nil,True,False,'');
-  if Waiter.Wake=nil then
-    Exit(wrError);
-  Started:=SysUtils.GetTickCount64;
+  Waiter.Wake:=nil;
+  Started:=0;
+  if (Timeout<>0) and (Timeout<>High(Cardinal)) then Started:=SysUtils.GetTickCount64;
   EnterCriticalSection(MultiEventLock);
-  Waiter.Next:=MultiEventWaiters;
-  MultiEventWaiters:=@Waiter;
   try
 {$endif}
     repeat
@@ -737,6 +735,7 @@ begin
         Exit(wrSignaled);
       Index:=-1;
 {$ifdef FPC_HAS_FEATURE_THREADING}
+      if Timeout=0 then Exit(wrTimeout);
       Remaining:=Timeout;
       if Timeout<>High(Cardinal) then
         begin
@@ -744,6 +743,19 @@ begin
         if Elapsed>=Timeout then
           Exit(wrTimeout);
         Remaining:=Timeout-Elapsed;
+        end;
+      if Waiter.Wake=nil then
+        begin
+        LeaveCriticalSection(MultiEventLock);
+        try
+          Waiter.Wake:=BasicEventCreate(nil,True,False,'');
+        finally
+          EnterCriticalSection(MultiEventLock);
+        end;
+        if Waiter.Wake=nil then Exit(wrError);
+        Waiter.Next:=MultiEventWaiters;
+        MultiEventWaiters:=@Waiter;
+        Continue;
         end;
       { Check and arm under one lock: a signal cannot be lost between them. }
       BasicEventResetEvent(Waiter.Wake);
@@ -761,12 +773,15 @@ begin
     until False;
 {$ifdef FPC_HAS_FEATURE_THREADING}
   finally
-    Link:=@MultiEventWaiters;
-    while Link^<>@Waiter do
-      Link:=@Link^^.Next;
-    Link^:=Waiter.Next;
+    if Waiter.Wake<>nil then
+      begin
+      Link:=@MultiEventWaiters;
+      while Link^<>@Waiter do
+        Link:=@Link^^.Next;
+      Link^:=Waiter.Next;
+      end;
     LeaveCriticalSection(MultiEventLock);
-    BasicEventDestroy(Waiter.Wake);
+    if Waiter.Wake<>nil then BasicEventDestroy(Waiter.Wake);
   end;
 {$endif}
 end;

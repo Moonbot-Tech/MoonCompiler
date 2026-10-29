@@ -88,7 +88,8 @@ begin
     Exit(wrSignaled);
   if Timeout=0 then
     Exit(wrTimeout);
-  Start:=GetTickCount64;
+  Start:=0;
+  if Timeout<>INFINITE then Start:=GetTickCount64;
   for I:=1 to FSpinCount do
   begin
     TThread.SpinWait(1);
@@ -157,6 +158,7 @@ begin
 end;
 
 function TLightweightSemaphore.Release(Count: Integer): Integer;
+var I: Integer;
 begin
   if Count<=0 then
     raise EArgumentOutOfRangeException.Create('Release count must be positive');
@@ -169,7 +171,10 @@ begin
     Exit;
   TMonitor.Enter(FGuard);
   try
-    TMonitor.PulseAll(FGuard);
+    if Count>=InterlockedCompareExchange(FWaiters,0,0) then
+      TMonitor.PulseAll(FGuard)
+    else
+      for I:=1 to Count do TMonitor.Pulse(FGuard);
   finally
     TMonitor.Exit(FGuard);
   end;
@@ -185,7 +190,8 @@ begin
     Exit(wrSignaled);
   if Timeout=0 then
     Exit(wrTimeout);
-  Start:=GetTickCount64;
+  Start:=0;
+  if Timeout<>INFINITE then Start:=GetTickCount64;
   for I:=1 to 10 do
   begin
     TThread.SpinWait(1);

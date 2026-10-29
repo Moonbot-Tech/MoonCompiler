@@ -53,6 +53,22 @@ unit cthreads;
 interface
 {$S-}
 
+{$if defined(linux) and not defined(android)}
+{$ifdef FPC_DOTTEDUNITS}
+uses LinuxApi;
+{$else}
+uses Linux;
+{$endif}
+
+{ Explicit scheduling access for a live Pascal/pthread handle. The registry
+  pins its kernel TID during the call; the caller still owns thread lifetime
+  and serialization of scheduling changes. No exception or implicit boost.
+  False reports fpGetErrno. A successful set does not prove slice support:
+  older kernels may ignore Runtime for SCHED_OTHER; read back at preflight. }
+function TryGetCThreadScheduling(ThreadHandle: TThreadID; out Attributes: TSchedAttr): Boolean;
+function TrySetCThreadScheduling(ThreadHandle: TThreadID; const Attributes: TSchedAttr): Boolean;
+{$endif}
+
 {$ifndef dynpthreads}   // If you have problems compiling this on FreeBSD 5.x
  {$linklib c}           // try adding -Xf
  {$if not defined(Darwin) and not defined(iphonesim) and not defined(Android)}
@@ -75,7 +91,7 @@ implementation
 {$IFDEF FPC_DOTTEDUNITS}
 Uses
 {$if defined(Linux) and not defined(Android)}
-  LinuxApi, UnixApi.SysCall,
+  UnixApi.SysCall,
 {$endif}
   UnixApi.Base,
   UnixApi.Unix,
@@ -88,7 +104,7 @@ Uses
 {$ELSE FPC_DOTTEDUNITS}
 Uses
 {$if defined(Linux) and not defined(Android)}
-  Linux, Syscall,
+  Syscall,
 {$endif}
   BaseUnix,
   unix,
@@ -112,6 +128,25 @@ procedure fpc_threaderror; [external name 'FPC_THREADERROR'];
 
 { Include OS specific parts. }
 {$i pthread.inc}
+
+{$if defined(linux) and not defined(android)}
+{$ifdef cpu64}
+function EventLibcClock(Id: LongInt; Stamp: PTimeSpec): LongInt;
+  cdecl; external 'c' name 'clock_gettime';
+function EventLibcErrno: PLongInt; cdecl; external 'c' name '__errno_location';
+function EventClock(Id: LongInt; Stamp: PTimeSpec): LongInt; inline;
+begin
+  Result:=EventLibcClock(Id,Stamp);
+  if Result<>0 then fpSetErrno(EventLibcErrno^);
+end;
+{$else}
+function EventClock(Id: LongInt; Stamp: PTimeSpec): LongInt; inline;
+begin
+  Result:=clock_gettime(Id,Stamp);
+end;
+{$endif}
+{$endif}
+
 
 Type  PINTRTLEvent = ^TINTRTLEvent;
       TINTRTLEvent = record
@@ -764,7 +799,7 @@ end;
         NativeError:=pthread_tryjoin_np(pthread_t(ThreadHandle),@Value)
       else
         begin
-          if clock_gettime(CLOCK_MONOTONIC,@Deadline)<>0 then
+          if EventClock(CLOCK_MONOTONIC,@Deadline)<>0 then
             begin
               NativeError:=fpGetErrno;
               exit;
@@ -787,7 +822,7 @@ end;
               NativeError:=pthread_tryjoin_np(pthread_t(ThreadHandle),@Value);
               if NativeError<>ESysEBUSY then
                 break;
-              if clock_gettime(CLOCK_MONOTONIC,@Current)<>0 then
+              if EventClock(CLOCK_MONOTONIC,@Current)<>0 then
                 begin
                   NativeError:=fpGetErrno;
                   break;
@@ -842,6 +877,50 @@ end;
 {$endif}
       fpSetErrno(NativeError);
     end;
+
+{$if defined(linux) and not defined(android)}
+  function AccessCThreadScheduling(ThreadHandle: TThreadID; Attributes: PSchedAttr; WriteAttributes: Boolean): Boolean;
+  var
+    P: PPriorityThread;
+    OldCancelState: cint;
+  begin
+    Result:=False;
+    { Errno may initialize a foreign thread; do this before taking our lock. }
+    if pthread_getspecific(tlskey)=nil then HookThread;
+    EnsurePriorityProcess;
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,@OldCancelState);
+    pthread_mutex_lock(@PriorityState^.Lock);
+    P:=FindPriorityThread(ThreadHandle);
+    if P<>nil then
+      if WriteAttributes then
+        Result:=sched_setattr(P^.Tid,Attributes,0)=0
+      else
+        Result:=sched_getattr(P^.Tid,Attributes,SizeOf(TSchedAttr),0)=0;
+    pthread_mutex_unlock(@PriorityState^.Lock);
+    pthread_setcancelstate(OldCancelState,nil);
+  end;
+
+  function TryGetCThreadScheduling(ThreadHandle: TThreadID; out Attributes: TSchedAttr): Boolean;
+  begin
+    FillChar(Attributes,SizeOf(Attributes),0);
+    Result:=AccessCThreadScheduling(ThreadHandle,@Attributes,False);
+  end;
+
+  function TrySetCThreadScheduling(ThreadHandle: TThreadID; const Attributes: TSchedAttr): Boolean;
+  var
+    Copy: TSchedAttr;
+  begin
+    { The typed wrapper owns exactly one TSchedAttr, not an extensible buffer. }
+    if Attributes.Size>SizeOf(TSchedAttr) then
+      begin
+        fpSetErrno(ESysE2BIG);
+        exit(False);
+      end;
+    { The kernel may write Size back on E2BIG; preserve the caller's const record. }
+    Copy:=Attributes;
+    Result:=AccessCThreadScheduling(ThreadHandle,@Copy,True);
+  end;
+{$endif}
 
     function CThreadSetPriority(threadHandle: TThreadID; Prio: longint): boolean;
 {$if defined(LINUX) and not defined(ANDROID)}
@@ -1064,11 +1143,7 @@ Const
 
 function IntBasicEventCreate(EventAttributes : Pointer; AManualReset,InitialState : Boolean;const Name : ansistring):pEventState;
 var
-  MAttr : pthread_mutexattr_t;
   res   : cint;
-{$if defined(Linux) and not defined(Android)}
-  timespec: ttimespec;
-{$ifend}
 begin
   new(plocaleventstate(result));
   plocaleventstate(result)^.FManualReset:=AManualReset;
@@ -1083,33 +1158,14 @@ begin
     fpc_threaderror;
   end;
 
-  if clock_gettime(CLOCK_MONOTONIC_RAW, @timespec) = 0 then
-  begin
-    res := pthread_condattr_setclock(@plocaleventstate(result)^.FAttr, CLOCK_MONOTONIC_RAW);
-  end
-  else
-  begin
-    res := -1; // No support for CLOCK_MONOTONIC_RAW
-  end;
-
-  if (res = 0) then
-  begin
-    plocaleventstate(result)^.FClockID := CLOCK_MONOTONIC_RAW;
-  end
-  else
-  begin
-    res := pthread_condattr_setclock(@plocaleventstate(result)^.FAttr, CLOCK_MONOTONIC);
-    if (res = 0) then
-    begin
-      plocaleventstate(result)^.FClockID := CLOCK_MONOTONIC;
-    end
-    else
+  res := pthread_condattr_setclock(@plocaleventstate(result)^.FAttr, CLOCK_MONOTONIC);
+  if res<>0 then
     begin
       pthread_condattr_destroy(@plocaleventstate(result)^.FAttr);
       FreeMem(result);
       fpc_threaderror;
     end;
-  end;
+  plocaleventstate(result)^.FClockID:=CLOCK_MONOTONIC;
 
   res := pthread_cond_init(@plocaleventstate(result)^.FCondVar, @plocaleventstate(result)^.FAttr);
   if (res <> 0) then
@@ -1127,19 +1183,7 @@ begin
   end;
 {$ifend}
 
-  res:=pthread_mutexattr_init(@MAttr);
-  if res=0 then
-    begin
-      res:=pthread_mutexattr_settype(@MAttr,longint(_PTHREAD_MUTEX_RECURSIVE));
-      if Res=0 then
-        Res:=pthread_mutex_init(@plocaleventstate(result)^.feventsection,@MAttr)
-      else
-        res:=pthread_mutex_init(@plocaleventstate(result)^.feventsection,nil);
-    end
-  else
-    res:=pthread_mutex_init(@plocaleventstate(result)^.feventsection,nil);
-
-  pthread_mutexattr_destroy(@MAttr);
+  res:=pthread_mutex_init(@plocaleventstate(result)^.feventsection,nil);
   if res <> 0 then
     begin
       pthread_cond_destroy(@plocaleventstate(result)^.FCondVar);
@@ -1182,15 +1226,30 @@ begin
   pthread_mutex_unlock(@plocaleventstate(state)^.feventsection);
 end;
 
-procedure IntbasiceventSetEvent(state:peventstate);
+procedure IntbasiceventSetEvent(State: PEventState);
+var
+  Notify, Manual: Boolean;
 begin
-  pthread_mutex_lock(@plocaleventstate(state)^.feventsection);
-  plocaleventstate(state)^.Fisset:=true;
-  if not(plocaleventstate(state)^.FManualReset) then
-    pthread_cond_signal(@plocaleventstate(state)^.Fcondvar)
-  else
-    pthread_cond_broadcast(@plocaleventstate(state)^.Fcondvar);
-  pthread_mutex_unlock(@plocaleventstate(state)^.feventsection);
+  Notify:=False;
+  pthread_mutex_lock(@PLocalEventState(State)^.FEventSection);
+  if not PLocalEventState(State)^.FIsSet then
+    begin
+      PLocalEventState(State)^.FIsSet:=True;
+      Notify:=PLocalEventState(State)^.FWaiters<>0;
+      if Notify then
+        begin
+          { Destroy must also wait for the notification after mutex release. }
+          InterlockedIncrement(PLocalEventState(State)^.FWaiters);
+          Manual:=PLocalEventState(State)^.FManualReset;
+        end;
+    end;
+  pthread_mutex_unlock(@PLocalEventState(State)^.FEventSection);
+  if Notify then
+    begin
+      if Manual then pthread_cond_broadcast(@PLocalEventState(State)^.FCondVar)
+      else pthread_cond_signal(@PLocalEventState(State)^.FCondVar);
+      InterlockedDecrement(PLocalEventState(State)^.FWaiters);
+    end;
 end;
 
 function IntbasiceventWaitFor(Timeout : Cardinal;state:peventstate;FUseComWait : Boolean=False) : longint;
@@ -1199,6 +1258,9 @@ var
   errres: cint;
   isset: boolean;
   tnow : timeval;
+{$if defined(linux) and not defined(android)}
+  Duration: QWord;
+{$endif}
 begin
 
   { safely check whether we are being destroyed, if so immediately return. }
@@ -1214,11 +1276,12 @@ begin
   { interlockeddecrement() at the end                                 }
   interlockedincrement(plocaleventstate(state)^.FWaiters);
 
+  errres := 0;
   //Wait without timeout using pthread_cond_wait
   if Timeout = $FFFFFFFF then
     begin
-      while (not plocaleventstate(state)^.FIsSet) and (not plocaleventstate(state)^.FDestroying) do
-        pthread_cond_wait(@plocaleventstate(state)^.Fcondvar, @plocaleventstate(state)^.feventsection);
+      while (not plocaleventstate(state)^.FIsSet) and (not plocaleventstate(state)^.FDestroying) and (errres=0) do
+        errres := pthread_cond_wait(@plocaleventstate(state)^.Fcondvar, @plocaleventstate(state)^.feventsection);
     end
   else if Timeout = 0 then
     errres := ESysETIMEDOUT
@@ -1226,7 +1289,7 @@ begin
     begin
       //Wait with timeout using pthread_cond_timedwait
 {$if defined(Linux) and not defined(Android)}
-      if clock_gettime(plocaleventstate(state)^.FClockID, @timespec) <> 0 then
+      if EventClock(plocaleventstate(state)^.FClockID, @timespec) <> 0 then
       begin
         Result := Ord(wrError);
         { Match the normal exit order: the last waiter keeps the state alive
@@ -1235,8 +1298,9 @@ begin
         interlockeddecrement(plocaleventstate(state)^.FWaiters);
         Exit;
       end;
-      timespec.tv_sec  := timespec.tv_sec + (clong(timeout) div 1000);
-      timespec.tv_nsec := ((clong(timeout) mod 1000) * 1000000) + (timespec.tv_nsec);
+      Duration:=WaitDurationUS(Timeout);
+      Inc(timespec.tv_sec,Duration div 1000000);
+      Inc(timespec.tv_nsec,(Duration mod 1000000)*1000);
 {$else}
       // TODO: FIX-ME: Also use monotonic clock for other *nix targets
       fpgettimeofday(@tnow, nil);
@@ -1248,10 +1312,9 @@ begin
           inc(timespec.tv_sec);
           dec(timespec.tv_nsec, 1000000000);
         end;
-      errres := 0;
       while (not plocaleventstate(state)^.FDestroying) and
             (not plocaleventstate(state)^.FIsSet) and
-            (errres<>ESysETIMEDOUT) do
+            (errres=0) do
         errres := pthread_cond_timedwait(@plocaleventstate(state)^.Fcondvar,
                                          @plocaleventstate(state)^.feventsection,
                                          @timespec);
@@ -1354,33 +1417,63 @@ begin
   pthread_mutex_unlock(@p^.mutex);
 end;
 
-procedure intRTLEventWaitForTimeout(AEvent: PRTLEvent;timeout : longint);
-  var
-    p : pintrtlevent;
-    errres : cint;
-    timespec : ttimespec;
-    tnow : timeval;
-
-  begin
-    p:=pintrtlevent(aevent);
-    fpgettimeofday(@tnow,nil);
-    timespec.tv_sec:=tnow.tv_sec+(timeout div 1000);
-    timespec.tv_nsec:=(timeout mod 1000)*1000000 + tnow.tv_usec*1000;
-    if timespec.tv_nsec >= 1000000000 then
+procedure intRTLEventWaitForTimeout(AEvent: PRTLEvent; Timeout: LongInt);
+var
+  P: PINTRTLEvent;
+  ErrRes: cint;
+  Deadline: TTimeSpec;
+  NowTime: TimeVal;
+  HasLock: Boolean;
+{$if defined(linux) and not defined(android)}
+  Duration: QWord;
+{$endif}
+begin
+  P:=PINTRTLEvent(AEvent);
+  HasLock:=False;
+  if Timeout>0 then
     begin
-      inc(timespec.tv_sec);
-      dec(timespec.tv_nsec, 1000000000);
+      HasLock:=pthread_mutex_trylock(@P^.Mutex)=0;
+      if HasLock then
+        if P^.IsSet then
+          begin
+            P^.IsSet:=False;
+            pthread_mutex_unlock(@P^.Mutex);
+            Exit;
+          end;
+      { The deadline precedes a contended lock, so contention consumes the
+        original timeout budget. Ready and zero waits do not read a clock. }
+{$if defined(linux) and defined(cpu64) and not defined(android)}
+      if EventClock(CLOCK_REALTIME,@Deadline)<>0 then
+        begin
+          if HasLock then pthread_mutex_unlock(@P^.Mutex);
+          Exit;
+        end;
+{$else}
+      fpGetTimeOfDay(@NowTime,nil);
+      Deadline.tv_sec:=NowTime.tv_sec;
+      Deadline.tv_nsec:=NowTime.tv_usec*1000;
+{$endif}
+{$if defined(linux) and not defined(android)}
+      Duration:=WaitDurationUS(Timeout);
+      Inc(Deadline.tv_sec,Duration div 1000000);
+      Inc(Deadline.tv_nsec,(Duration mod 1000000)*1000);
+{$else}
+      Inc(Deadline.tv_sec,Timeout div 1000);
+      Inc(Deadline.tv_nsec,(Timeout mod 1000)*1000000);
+{$endif}
+      if Deadline.tv_nsec>=1000000000 then
+        begin
+          Inc(Deadline.tv_sec);
+          Dec(Deadline.tv_nsec,1000000000);
+        end;
     end;
-    errres:=0;
-    pthread_mutex_lock(@p^.mutex);
-    while (not p^.isset) and
-          (errres <> ESysETIMEDOUT) do
-      begin
-        errres:=pthread_cond_timedwait(@p^.condvar, @p^.mutex, @timespec);
-      end;
-    p^.isset:=false;
-    pthread_mutex_unlock(@p^.mutex);
-  end;
+  if not HasLock then pthread_mutex_lock(@P^.Mutex);
+  ErrRes:=0;
+  while (Timeout>0) and not P^.IsSet and (ErrRes=0) do
+    ErrRes:=pthread_cond_timedwait(@P^.CondVar,@P^.Mutex,@Deadline);
+  P^.IsSet:=False;
+  pthread_mutex_unlock(@P^.Mutex);
+end;
 
 
 type

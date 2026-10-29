@@ -127,6 +127,56 @@ private libc layout. Single-threaded fork children establish their own identity;
 as with the rest of the RTL, arbitrary Pascal work after a multithreaded fork is
 not supported before exec. Windows priority behavior is unchanged.
 
+### Explicit Linux scheduling attributes
+
+`CThreads.TryGetCThreadScheduling(ThreadID, out Attributes)` and
+`TrySetCThreadScheduling(ThreadID, const Attributes)` expose `Linux.TSchedAttr`
+for a live Pascal thread. Both return `False` with `BaseUnix.fpGetErrno` on
+failure; they do not raise exceptions or change an event's scheduling policy.
+Pass `Worker.ThreadID` or `GetCurrentThreadID`. These are pthread handles, not
+kernel TIDs; do not cast them to the PID argument of a native Linux syscall.
+
+The caller owns the thread's lifetime and serializes changes to its scheduling
+profile. The RTL resolves and pins the native TID during each call; it does not
+retain the object or validate a handle after its lifetime ends. A finished
+registered thread returns `ESRCH`. The typed setter rejects sizes larger than
+`SizeOf(TSchedAttr)` with `E2BIG` and preserves its const argument on errors.
+The lower-level `Linux.sched_getattr` / `sched_setattr` bindings take a native
+TID and a pointer, with the Linux ABI and `-1`/errno convention.
+
+`TSchedAttr` contains Size, Policy, Flags, Nice, Priority, Runtime, Deadline,
+Period, UtilMin and UtilMax. Time fields are nanoseconds. Keep unrelated fields
+when modifying a profile. For ordinary `SCHED_OTHER` threads, supporting kernels
+allow an explicit fair-scheduler slice in Runtime. This is not a nonpreemptible
+time reservation. Older kernels may accept the setter but ignore that field:
+read back the profile during setup before enabling an optimization.
+
+`sched_getattr` returns the effective slice, not its automatic/custom mode.
+To restore a **known automatic** original mode, set Runtime to zero. Restoring
+the effective numeric value instead installs a custom slice. An application
+that already owns a custom profile must retain that profile itself. Increasing
+priority may require privileges; check both applying and restoring a profile.
+Do not let a denied scheduling request discard otherwise valid application work.
+
+### Optional timeout granularity on Linux
+
+`Unix.SetWaitGranularityUS(15625)` opts the process into rounding positive
+relative `SysUtils.Sleep`, direct `TEvent` and internal `RTLEvent` timeout
+durations up to multiples of 15.625 ms.
+For example, 16 ms becomes 31.25 ms and 80 ms becomes 93.75 ms. The default is
+zero (no rounding). This is explicit duration rounding, not emulation of the
+Windows scheduler or synchronization of all deadlines to a common clock phase.
+
+Set the policy once before starting worker threads. Zero-time polls, infinite
+waits and ready events retain their meaning. Signaling an event still releases
+its waiter immediately, subject to OS scheduling; it does not wait for the
+rounded timeout. The setting also affects short sleeps: `Sleep(1)` becomes
+15.625 ms. Review retry/backoff code before opting in. `TSemaphore`, `TMutex`
+and timed thread joins use other primitives and are not changed. Higher-level
+wrappers retain their outer elapsed-time budget: another notification can make
+a MultiWait/Lightweight wait finish before the rounded leaf deadline. This
+switch does not make every higher-level `WaitFor(16)` last exactly 31.25 ms.
+
 ## Completion counters
 
 Construct `TCountdownEvent` with the number of outstanding operations (default

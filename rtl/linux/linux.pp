@@ -275,6 +275,35 @@ function modify_ldt(func:cint;p:pointer;bytecount:culong):cint;
 
 procedure sched_yield; {$ifdef FPC_USE_LIBC} cdecl; external name 'sched_yield'; {$endif}
 
+const
+  SCHED_OTHER = 0;
+  SCHED_FIFO = 1;
+  SCHED_RR = 2;
+  SCHED_BATCH = 3;
+  SCHED_IDLE = 5;
+  SCHED_DEADLINE = 6;
+  SCHED_FLAG_RESET_ON_FORK = $01;
+  SCHED_FLAG_UTIL_CLAMP_MIN = $20;
+  SCHED_FLAG_UTIL_CLAMP_MAX = $40;
+
+type
+  { Linux sched_attr ABI, version 1. Runtime/Deadline/Period are nanoseconds.
+    Pid in sched_*attr is a kernel TID, NOT a Pascal/pthread TThreadID.
+    sched_getattr reports the effective fair slice, not whether it is custom;
+    Runtime=0 in sched_setattr restores the kernel's automatic fair slice. }
+  TSchedAttr = record
+    Size, Policy: cuint32;
+    Flags: cuint64;
+    Nice: cint32;
+    Priority: cuint32;
+    Runtime, Deadline, Period: cuint64;
+    UtilMin, UtilMax: cuint32;
+  end;
+  PSchedAttr = ^TSchedAttr;
+
+function sched_getattr(Pid: TPid; Attr: PSchedAttr; Size, Flags: cuint): cint;
+function sched_setattr(Pid: TPid; Attr: PSchedAttr; Flags: cuint): cint;
+
 type
   EPoll_Data = record
     case integer of
@@ -661,14 +690,33 @@ function riscv_hwprobe(pairs:priscv_hwprobe; pair_count:size_t; cpusetsize:size_
 implementation
 
 
-{$if not defined(FPC_USE_LIBC) or defined(cpui386) or defined(cpux86_64)}
-{ needed for modify_ldt on x86 }
+{ sched_*attr use syscalls also with libc: older supported libc versions do not
+  export their wrappers. This avoids raising the SDK's libc version floor. }
 {$IFDEF FPC_DOTTEDUNITS}
 Uses UnixApi.SysCall;
 {$ELSE FPC_DOTTEDUNITS}
 Uses Syscall;
 {$ENDIF FPC_DOTTEDUNITS}
-{$endif not defined(FPC_USE_LIBC) or defined(cpui386) or defined(cpux86_64)}
+
+function sched_getattr(Pid: TPid; Attr: PSchedAttr; Size, Flags: cuint): cint;
+begin
+{$if declared(syscall_nr_sched_getattr)}
+  sched_getattr:=do_syscall(syscall_nr_sched_getattr,TSysParam(Pid),TSysParam(Attr),Size,Flags);
+{$else}
+  fpSetErrno(ESysENOSYS);
+  sched_getattr:=-1;
+{$endif}
+end;
+
+function sched_setattr(Pid: TPid; Attr: PSchedAttr; Flags: cuint): cint;
+begin
+{$if declared(syscall_nr_sched_setattr)}
+  sched_setattr:=do_syscall(syscall_nr_sched_setattr,TSysParam(Pid),TSysParam(Attr),Flags);
+{$else}
+  fpSetErrno(ESysENOSYS);
+  sched_setattr:=-1;
+{$endif}
+end;
 
 {$ifndef FPC_USE_LIBC}
 function Sysinfo(Info: PSysinfo): cInt;

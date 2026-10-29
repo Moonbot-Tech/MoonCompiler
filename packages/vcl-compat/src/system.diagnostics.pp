@@ -91,6 +91,11 @@ uses
 
 {$ENDIF FPC_DOTTEDUNITS}
 
+{$if defined(linux) and defined(cpu64)}
+function StopwatchClock(Id: LongInt; Stamp: PTimeSpec): LongInt;
+  cdecl; external 'c' name 'clock_gettime';
+{$endif}
+
 { TStopwatch }
 
 function TStopwatch.GetElapsedTimespanTicks: Int64;
@@ -177,7 +182,10 @@ var
   res: timespec;
 
 begin
-  clock_gettime(CLOCK_MONOTONIC, @res);
+{$if defined(cpu64)}
+  if StopwatchClock(CLOCK_MONOTONIC,@res)<>0 then
+{$endif}
+    clock_gettime(CLOCK_MONOTONIC,@res);
   Result:=((Int64(100*StopWatchResolution)*res.tv_sec)+res.tv_nsec) div 100;
 end;
 

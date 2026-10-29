@@ -66,6 +66,13 @@ Const
   MAP_TYPE      = BU.MAP_TYPE;          { Mask for type of mapping }
   MAP_FIXED     = BU.MAP_FIXED;         { Interpret addr exactly }
 
+{$if defined(linux) and not defined(android)}
+{ Opt-in relative wait rounding. Configure before starting worker threads.
+  Zero keeps native timeouts. Signals, polls and clock readings are unchanged. }
+procedure SetWaitGranularityUS(GranularityUS: Cardinal);
+function WaitDurationUS(TimeoutMS: Cardinal): QWord;
+{$endif}
+
 {** Time/Date Handling **}
 
 type
@@ -194,6 +201,28 @@ Uses
 Uses
   Syscall;
 {$ENDIF FPC_DOTTEDUNITS}
+{$endif}
+
+{$if defined(linux) and not defined(android)}
+var
+  WaitGranularityUS: Cardinal = 0;
+
+procedure SetWaitGranularityUS(GranularityUS: Cardinal);
+begin
+  WaitGranularityUS:=GranularityUS;
+end;
+
+function WaitDurationUS(TimeoutMS: Cardinal): QWord;
+var
+  Quantum: Cardinal;
+  Duration: QWord;
+begin
+  Duration:=QWord(TimeoutMS)*1000;
+  Quantum:=WaitGranularityUS;
+  if (Quantum>1) and (TimeoutMS<>0) and (TimeoutMS<>High(Cardinal)) then
+    Duration:=((Duration+Quantum-1) div Quantum)*Quantum;
+  WaitDurationUS:=Duration;
+end;
 {$endif}
 
 {$i unxovl.inc}
