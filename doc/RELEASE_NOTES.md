@@ -1,3 +1,44 @@
+# MoonCompiler 2.5.3: cheaper waits, clocks and string lookups
+
+Linux time reads now use libc's vDSO path while retaining their clock semantics
+and fallbacks. Ready events, polling and indefinite waits avoid unnecessary
+deadline work. MultiWait creates its underlying wait object only when blocking
+is required; lightweight semaphores avoid waking every waiter for one permit.
+Queued callbacks without a scheduled execution time no longer read calendar time.
+
+Applications can explicitly select coarser Linux relative wait durations with
+`Unix.SetWaitGranularityUS`, and inspect or adjust a live thread's scheduling
+attributes through the new CThreads API. Defaults retain native timing and
+priorities; event signals do not wait for the timeout quantum. See
+[thread coordination](THREAD_COORDINATION.md) for contracts and limitations.
+
+String dictionaries avoid redundant work in ordinary lookup. The new
+`TryGetValueUtf8(PAnsiChar, SizeInt, out Value)` on existing dictionaries lets
+parsers look up a bounded UTF-8 key directly in an input buffer. Standard
+UTF8String keys require no temporary query string; other encodings and custom
+comparers preserve their normal semantics. See [string dictionaries](STRING_DICTIONARIES.md).
+
+The optimizer removes unused incoming private-static register values even when
+a surrounding exception handler prevents general data-flow analysis. It also
+reuses proven-stable local array descriptors in loops with unrelated surrounding
+exception handling. Alias, mutation, nested-scope and exception-order controls
+remain in force.
+
+TStreamReader now handles UTF-16 CR/LF split across short reads and closing a
+reader during a read. Lazarus defaults to X11 under WSLg unless the caller
+explicitly selected a backend.
+
+MoonORMot **16** is required. Its OpenSSL backend reuses the default trust store
+for up to one hour, with explicit invalidation through `OpenSslClearDefaultTrust`.
+Each TLS connection still verifies its certificate and hostname. Custom trust
+configuration and Windows SChannel retain their previous behavior.
+
+Install the complete SDK, update the sibling MoonORMot checkout and cleanly
+rebuild application and third-party PPUs. `MOONCOMPILER_FULLVERSION` is 20503;
+`CompilerVersion` remains 2.5 and the FPC base remains 3.3.1.
+
+---
+
 # MoonCompiler 2.5.2: restore Lazarus string-list insertion
 
 The IDE/FPC RTL again calls the two-argument virtual `TStringList.InsertItem`
