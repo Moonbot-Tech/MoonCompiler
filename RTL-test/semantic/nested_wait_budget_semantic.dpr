@@ -68,7 +68,7 @@ begin
   Run(0);
   Run(1000000);
   SetWaitGranularityUS(0);
-  Writeln('NESTED_BUDGET_PASS');
+  WriteLn('NESTED_BUDGET_PASS');
 end.
 {$else}
 begin

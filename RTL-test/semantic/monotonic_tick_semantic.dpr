@@ -53,7 +53,7 @@ begin
     If SysUtils.GetTickCount64 <> UInt64(6000000123) then Halt(2);
     If TThread.GetTickCount64 <> UInt64(6000000123) then Halt(3);
     If TStopwatch.GetTimeStamp <> Int64(60000001234567) then Halt(5);
-    WriteLn('MONOTONIC_TICK_FIXED_PASS');
+    WriteLn('MONOTONIC_TICK_FIXED_VERIFIED');
     Halt(0);
   end;
   If ParamStr(1) = 'fallback' then begin
@@ -68,21 +68,21 @@ begin
     After:=UInt64(TStopwatch.GetTimeStamp);
     If (After<Before) or (After-Before>10000000) then Halt(6);
     {$endif}
-    WriteLn('MONOTONIC_TICK_FALLBACK_PASS');
+    WriteLn('MONOTONIC_TICK_FALLBACK_VERIFIED');
     Halt(0);
   end;
   {$ifdef LINUX}
   If ParamStr(1)='calendar-fixed' then begin
     CalendarMs:=Round((Now-EncodeDate(1970,1,1))*86400000);
     If Abs(CalendarMs-Int64(1700000123456))>1 then Halt(7);
-    WriteLn('CALENDAR_FIXED_PASS');
+    WriteLn('CALENDAR_FIXED_VERIFIED');
     Halt(0);
   end;
   If ParamStr(1)='calendar-fallback' then begin
     fpGetTimeOfDay(@RawTime,nil);
     CalendarMs:=Round((Now-EncodeDate(1970,1,1))*86400000);
     If Abs(CalendarMs-(RawTime.tv_sec*1000+RawTime.tv_usec div 1000))>1000 then Halt(8);
-    WriteLn('CALENDAR_FALLBACK_PASS');
+    WriteLn('CALENDAR_FALLBACK_VERIFIED');
     Halt(0);
   end;
   {$endif}

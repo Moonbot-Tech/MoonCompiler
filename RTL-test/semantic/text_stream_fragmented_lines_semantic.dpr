@@ -170,5 +170,5 @@ begin
   CheckCloseDuringRead('x'#13#10,'',TEncoding.Unicode,1,1);
   CheckCloseDuringRead('x'#13#10,'x',TEncoding.Unicode,1,5);
   CheckCloseDuringRead(StringOfChar('q',256),StringOfChar('q',128),TEncoding.UTF8,128,1);
-  Writeln('TEXT_STREAM_FRAGMENTED_LINES_PASS');
+  WriteLn('TEXT_STREAM_FRAGMENTED_LINES_PASS');
 end.

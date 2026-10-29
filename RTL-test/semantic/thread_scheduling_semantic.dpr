@@ -90,7 +90,7 @@ begin
   Check(fpGetErrno=ESysEPERM,'denied errno');
   Check(TryGetCThreadScheduling(GetCurrentThreadID,B),'read after refusal');
   Check(B.Nice<>-20,'refusal changed priority');
-  WriteLn('THREAD_SCHEDULING_DENIED_PASS');
+  WriteLn('THREAD_SCHEDULING_DENIED_VERIFIED');
 end;
 
 procedure Slice;
@@ -150,7 +150,7 @@ begin
   finally
     Check(TrySetCThreadScheduling(GetCurrentThreadID,Reset),'restore standalone probe state');
   end;
-  WriteLn('THREAD_SCHEDULING_URGENT_PASS');
+  WriteLn('THREAD_SCHEDULING_URGENT_VERIFIED');
 end;
 
 var

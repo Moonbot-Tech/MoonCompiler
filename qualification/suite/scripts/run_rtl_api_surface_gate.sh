@@ -56,6 +56,7 @@ cc -std=c11 -Wall -Wextra -Werror -shared -fPIC -pthread "$source_root/thread_wa
 cc -std=c11 -Wall -Wextra -Werror -shared -fPIC "$source_root/thread_wait_fault.c" -ldl -o "$run/thread-wait-fault.so"
 cc -std=c11 -Wall -Wextra -Werror -shared -fPIC "$source_root/cwstring_iconv_counter.c" -ldl -o "$run/cwstring-iconv-counter.so"
 export MOON_WAIT_TLS_HELPER="$run/thread-wait-tls.so"
+export MOON_WAIT_FAULT_HELPER="$run/thread-wait-fault.so"
 
 cases=0
 executions=0

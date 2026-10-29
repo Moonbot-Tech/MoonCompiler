@@ -70,7 +70,7 @@
     "pool_monitor": ["qualification/thread-pool", "RTL-test/run.py", "packages/vcl-compat/src/system.threading.pp"],
     "rtl_ownership": ["qualification/rtl-ownership", "packages/rtl-objpas/src/inc/rtti.pp", "compiler/ncgrtti.pas", "rtl/inc/psabieh.inc", "rtl/win64/seh64.inc"],
     "rtl_ownership_oracle": ["qualification/rtl-ownership"],
-    "event_wait": ["qualification/event-wait", "RTL-test/semantic/event_wait_contract_semantic.dpr", "rtl/unix/cthreads.pp", "rtl/linux/pthread.inc"],
+    "event_wait": ["qualification/event-wait", "RTL-test/semantic/event_wait_contract_semantic.dpr", "RTL-test/semantic/monotonic_tick_semantic.dpr", "rtl/unix/cthreads.pp", "rtl/linux/pthread.inc"],
     "process_output": ["qualification/process-output", "packages/fcl-process"],
     "divmod_pair": ["qualification/optimizer-core/divmod", "tests/test/cg/tdivmodpair1.pp"],
     "range_loop": ["qualification/optimizer-core/range-loop", "tests/test/cg/trangeprovenloop1.pp"],

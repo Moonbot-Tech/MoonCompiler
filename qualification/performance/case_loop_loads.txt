@@ -6,6 +6,8 @@
 # case_loop_loads_win64.txt and case_loop_loads_linux.txt.  A new load in a case loop, or a line no
 # load matches, fails the judge.
 
+clocks P$PULSE_CLOCKS_$$_READYEVENT$LONGINT$$QWORD U_$SYSTEM_$$_CURRENTTM  # product: SetEvent dispatches through the current thread manager; caching this hook in the benchmark would bypass the public API being measured
+
 name-lookup P$PULSE_NAME_LOOKUP_$$_CASELOOKUP$LONGINT$$QWORD U_$P$PULSE_NAME_LOOKUP_$$_QUERIES  # prepared incoming query: compared with each dictionary name; indexed by the outer request loop
 abi P$PULSE_ABI_$$_CASEARRAYCONST$LONGINT$$QWORD U_$P$PULSE_ABI_$$_ARRAYVALUE  # case input: prepared before the case; trace: not executed in the traced call
 abi P$PULSE_ABI_$$_CASEARRAYVALUE$LONGINT$$QWORD U_$P$PULSE_ABI_$$_ARRAYVALUE  # case input: prepared before the case; trace: not executed in the traced call

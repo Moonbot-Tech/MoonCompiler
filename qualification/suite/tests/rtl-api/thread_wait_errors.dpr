@@ -17,7 +17,7 @@ begin
   Gate:=RTLEventCreate;
   W:=TWorker.Create(false);
   If GetEnvironmentVariable('MOON_WAIT_FAULT')='clock-error' then begin
-    Helper:=LoadLibrary(AnsiString(GetEnvironmentVariable('MOON_WAIT_TLS_HELPER')));
+    Helper:=LoadLibrary(AnsiString(GetEnvironmentVariable('MOON_WAIT_FAULT_HELPER')));
     If Helper=0 then Halt(10);
     ClockFault:=TClockFault(GetProcedureAddress(Helper,'wait_deny_clock'));
     If not Assigned(ClockFault) then Halt(11);

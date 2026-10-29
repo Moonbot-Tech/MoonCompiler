@@ -1,6 +1,7 @@
 program tbranchscalarreuse1;
 
 {$mode delphi}{$H+}{$inline off}
+{$modeswitch inlinevars}
 
 uses SysUtils, Math;
 

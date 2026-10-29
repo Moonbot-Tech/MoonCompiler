@@ -120,7 +120,7 @@ begin
   SetWaitGranularityUS(High(Cardinal));
   Check(WaitDurationUS(High(Cardinal)-1)=4294967295000,'largest quantum and finite timeout');
   SetWaitGranularityUS(0);
-  Writeln('WAIT_GRANULARITY_PASS');
+  WriteLn('WAIT_GRANULARITY_PASS');
 end.
 {$else}
 begin

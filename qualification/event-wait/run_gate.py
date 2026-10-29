@@ -211,7 +211,7 @@ def main():
     parser.add_argument("--output", type=Path, default=root / ".qualification/event-wait")
     parser.add_argument("--compiler-option", action="append", default=[])
     parser.add_argument("--profiles", nargs="+", default=["O-", "O2", "O3"])
-    parser.add_argument("--cases", nargs="+", default=["contract", "ready", "poll", "clock", "destroy", "internal", "condition-error", "notifier-lifetime", "state-futex"])
+    parser.add_argument("--cases", nargs="+", default=["contract", "ready", "poll", "clock", "destroy", "internal", "condition-error", "notifier-lifetime", "state-futex", "clocks"])
     args = parser.parse_args()
     compiler = str(Path(args.compiler).resolve())
     raw_source = args.source.read_text(encoding="utf-8")
@@ -227,6 +227,22 @@ def main():
         shutil.copyfile(args.test, out / args.test.name)
         flags = [compiler, *args.compiler_option, "-" + profile, "-Fi" + str(out), "-Fu" + str(out), "-FU" + str(out), "-FE" + str(out)]
         run(flags + ["cthreads.pp"], out, log)
+        if "clocks" in args.cases:
+            library = out / "tick-clock-fault.so"
+            run(["cc", "-shared", "-fPIC", "-Wall", "-Wextra", "-Werror",
+                 str(root / "qualification/event-wait/tick_clock_fault.c"), "-ldl", "-o", str(library)], out, log)
+            run(flags + [str(root / "RTL-test/semantic/monotonic_tick_semantic.dpr")], out, log)
+            for mode, setting, marker in [
+                ("fixed", "MOON_TICK_TEST=fixed", "MONOTONIC_TICK_FIXED_VERIFIED"),
+                ("fallback", "MOON_TICK_TEST=fail", "MONOTONIC_TICK_FALLBACK_VERIFIED"),
+                ("calendar-fixed", "MOON_CALENDAR_TEST=fixed", "CALENDAR_FIXED_VERIFIED"),
+                ("calendar-fallback", "MOON_CALENDAR_TEST=fail", "CALENDAR_FALLBACK_VERIFIED"),
+            ]:
+                output = run(["env", "TZ=UTC0", "LD_PRELOAD=" + str(library), setting,
+                              str(out / "monotonic_tick_semantic"), mode], out, log)
+                if output.strip() != marker:
+                    raise RuntimeError(output)
+                print(f"PASS {profile} clocks {mode}", flush=True)
         run(flags + ["-dEVENT_PROBE", args.test.name], out, log)
         for name in ['internal_event_probe', 'condition_error_probe', 'notification_lifetime_probe']:
             shutil.copyfile(root / 'qualification/event-wait' / (name + '.dpr'), out / (name + '.dpr'))
@@ -235,6 +251,8 @@ def main():
             shutil.copyfile(root / "qualification/event-wait/state_futex_probe.dpr", out / "state_futex_probe.dpr")
             run(flags + ["state_futex_probe.dpr"], out, log)
         for case in args.cases:
+            if case == "clocks":
+                continue
             if case == "state-futex":
                 if not state_futex_source:
                     print(f"SKIP {profile} state-futex (pthread backend)", flush=True)

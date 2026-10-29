@@ -5,6 +5,22 @@
 #include <pthread.h>
 #include <errno.h>
 typedef void *(*lookup_fn)(void *, const char *);
+typedef int (*clock_fn)(clockid_t, struct timespec *);
+static _Thread_local int deny_clock;
+int wait_deny_clock(void) {
+    deny_clock = 1;
+    return 0;
+}
+int clock_gettime(clockid_t clock, struct timespec *stamp) {
+    /* Fail the calling thread's actual libc/vDSO provider. A syscall-only
+       seccomp filter cannot inject an error into a successful vDSO read. */
+    if (deny_clock) {
+        errno = EPERM;
+        return -1;
+    }
+    clock_fn real = (clock_fn)dlsym(RTLD_NEXT, "clock_gettime");
+    return real(clock, stamp);
+}
 static int broken_join(pthread_t t, void **v, clockid_t c, const struct timespec *d) {
     (void)t; (void)v; (void)c; (void)d;
     return EINVAL;
