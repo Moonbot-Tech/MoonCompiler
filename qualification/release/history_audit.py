@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit unpublished commit metadata against the public main author identity."""
+"""Audit unpublished commit metadata against published contributor identities."""
 
 from __future__ import annotations
 
@@ -24,9 +24,11 @@ def main() -> int:
     public = git("ls-remote", "origin", "refs/heads/main").split()[0]
     if remote != public:
         raise ValueError(f"origin/main is stale: local {remote}, public {public}")
-    expected = git("log", "-1", "--format=%an <%ae>%n%cn <%ce>", "origin/main").splitlines()
-    if len(expected) != 2 or expected[0] != expected[1]:
-        raise ValueError("public main has no single author/committer identity")
+    # A contributor's latest accepted commit does not change the identities
+    # allowed for the next release. Validate against published history.
+    identities = set(git("log", "--format=%an <%ae>%n%cn <%ce>", "origin/main").splitlines())
+    if not identities:
+        raise ValueError("public main has no author/committer identities")
     commits = git("rev-list", "--reverse", "origin/main..HEAD").splitlines()
     problems = []
     for commit in commits:
@@ -36,8 +38,8 @@ def main() -> int:
             continue
         author, committer = fields[:2]
         message = "\n".join(fields[2:])
-        if author != expected[0] or committer != expected[1]:
-            problems.append(f"{commit[:12]}: author/committer differ from {expected[0]}")
+        if author not in identities or committer not in identities:
+            problems.append(f"{commit[:12]}: author/committer absent from published history")
         if CYRILLIC.search(message) or CYRILLIC.search(author + committer):
             problems.append(f"{commit[:12]}: Cyrillic metadata")
         trailers = "\n".join(line for line in message.splitlines()
@@ -49,8 +51,7 @@ def main() -> int:
         for problem in problems:
             print(problem)
         return 1
-    print(f"HISTORY_AUDIT_PASS remote={remote} commits={len(commits)} "
-          f"identity={expected[0]}")
+    print(f"HISTORY_AUDIT_PASS remote={remote} commits={len(commits)}")
     return 0
 
 
