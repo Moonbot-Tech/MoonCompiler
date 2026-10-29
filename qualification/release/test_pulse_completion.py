@@ -176,6 +176,33 @@ class CompletionContracts(unittest.TestCase):
         self.assertEqual(individual, [])
         self.assertEqual(counts["move", "hot-a0-a0-n0"], (100, 60))
 
+    def test_completion_waits_only_for_required_pairs_but_runs_the_full_context(self):
+        cases = [completion.full.Case("move", name, "rtl", "System", "memory-local", 0.0)
+                 for name in ("needed", "context")]
+        calls = []
+        def acquire(executable, program, names, variant, repeat, duration, category, cpu, output, *args, **kw):
+            self.assertEqual(names, ["needed", "context"])
+            calls.append(variant)
+            return [record(name, variant, repeat, valid=name == "needed") for name in names]
+        with tempfile.TemporaryDirectory() as temporary:
+            with (mock.patch.object(completion.full.method, "run_many", side_effect=acquire),
+                  mock.patch.object(completion.full.method, "record_metrics", side_effect=lambda r, *a, **k: r["derived"])):
+                measured = completion.full.run_case_batch_pair(cases, 4, 60,
+                    {(v, "move", 4): Path(v) for v in completion.full.SYSTEMS}, (0, 1), Path(temporary),
+                    "completion", 0, {("move", case.name): (100, 60) for case in cases},
+                    max_attempts=32, required_names={"needed"})
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(measured), 4)
+        self.assertTrue(all(row["derived"]["valid"] for row in measured if row["case"] == "needed"))
+        self.assertTrue(all(not row["derived"]["valid"] for row in measured if row["case"] == "context"))
+
+    def test_invalid_required_batch_subset_is_refused_before_measurement(self):
+        case = completion.full.Case("move", "needed", "rtl", "System", "memory-local", 0.0)
+        for names in (set(), {"foreign"}):
+            with self.subTest(names=names), self.assertRaisesRegex(ValueError, "nonempty subset"):
+                completion.full.run_case_batch_pair([case], 0, 60, {}, (0, 1), Path("unused"),
+                                                     "completion", 0, {}, required_names=names)
+
     def test_missing_or_duplicate_repeat_refused(self):
         raw = matrix()
         records = raw["cases"]["move/hot-a0-a0-n0"]["final"]["records"]
@@ -240,6 +267,14 @@ class CompletionContracts(unittest.TestCase):
         old = [record("name", "moon-candidate", 3), record("name", "moon-baseline", 3)]
         old[0]["affinity"], old[1]["affinity"] = [7], [8]
         self.assertEqual(completion.original_cpu_pair(old, "memory-local", (7, 8), (0, 2)), (7, 8))
+
+    def test_previous_admission_revision_has_an_exact_reviewed_bridge(self):
+        name = "qualification/performance/tools/pulse_full.py"
+        before = {name: completion.PREVIOUS_ADMISSION_BLOB}
+        after = {name: completion.ALLOWED_METHOD_BRIDGE[name][1]}
+        with (mock.patch.object(completion, "git", return_value=""),
+              mock.patch.object(completion, "measurement_blobs", side_effect=[before, after])):
+            self.assertIn(name, completion.verify_method("previous")["changed_git_blobs"])
 
     def test_changed_batch_context_refused(self):
         raw = matrix()

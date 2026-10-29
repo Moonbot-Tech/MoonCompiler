@@ -327,6 +327,13 @@ Partially completed Move batches still execute their full original context,
 without replacing earlier accepted observations. Every new attempt requires its
 own A/A control. This does not select faster observations or turn dirty pairs
 into accepted measurements.
+Only the missing cases of a partially completed Move batch must acquire new
+clean pairs: already accepted context cases still execute, but cannot force
+another retry. Windows targets 100 ms rather than 60 ms per process: fixed-work
+runs had taken 38 ms after a 60 ms calibration target, below the existing
+50 ms observation window. This policy change requires a fresh full Windows
+matrix; old accepted pairs are not mixed with the new work budget. Linux's
+unchanged policy can reuse its evidence through the exact reviewed source bridge.
 
 Archive smoke packages the installed toolchain, unpacks outside the repository,
 places pinned MoonORMot beside it, builds/runs Debug and Release consumers, then

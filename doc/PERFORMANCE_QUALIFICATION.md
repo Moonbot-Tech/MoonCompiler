@@ -180,7 +180,7 @@ it can supply evidence only for cases that have no clean pair yet. The two
 sides of a pair always come from the same attempt. Every attempt has a separate
 log, and later, faster results cannot replace an already accepted pair.
 
-On Windows, single-core categories target 60 ms of total timed work across
+On Windows, single-core categories target 100 ms of total timed work across
 three samples. This gives a calibration margin above the existing 50 ms minimum
 for observing sibling idle during useful work. When that window is observable
 and its counters are present, the sibling must be at least 99% idle across the

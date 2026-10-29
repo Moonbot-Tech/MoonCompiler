@@ -60,7 +60,7 @@ class Policy:
     exclusive: bool
 
 
-WINDOWS_OBSERVABLE_WORK_MS = 60 if os.name == "nt" else 0  # 50 ms counter window plus calibration margin.
+WINDOWS_OBSERVABLE_WORK_MS = 100 if os.name == "nt" else 0  # 50 ms counter window plus placement/calibration margin.
 POLICIES = {
     "single-cpu": Policy(max(6, WINDOWS_OBSERVABLE_WORK_MS), 3, 2, False),
     "memory-local": Policy(max(6, WINDOWS_OBSERVABLE_WORK_MS), 3, 2, False),
@@ -1075,10 +1075,14 @@ def run_case_batch_pair(
     iteration_cache: dict[tuple[str, str], tuple[int, int]],
     stack_plan: str = "grid",
     max_attempts: int = 3,
+    required_names: set[str] | None = None,
 ) -> list[dict[str, object]]:
     if not cases or len({case.program for case in cases}) != 1:
         raise ValueError("a process batch must contain cases from one program")
     category = cases[0].category
+    required = {case.name for case in cases} if required_names is None else set(required_names)
+    if not required or not required <= {case.name for case in cases}:
+        raise ValueError("required batch cases must be a nonempty subset of the process context")
     if category not in ("single-cpu", "memory-local") or any(
         case.category != category for case in cases
     ):
@@ -1178,7 +1182,7 @@ def run_case_batch_pair(
                     }
                     for row in rows
                 )
-        if len(accepted) == len(cases):
+        if required <= accepted.keys():
             break
     result = [row for case in cases for row in (accepted.get(case.name) or last[case.name])]
     for row in result:

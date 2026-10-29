@@ -30,10 +30,11 @@ MEASUREMENT_ROOT = "qualification/performance"
 MAX_PAIR_ATTEMPTS = 32
 ALLOWED_METHOD_BRIDGE = {
     "qualification/performance/tools/pulse_full.py": (
-        "8ed152684df57941ffad9e2ad00427cb96f97d9e", "f77b4c57581d5a176ec171085b2b5eb94d3bceff"),
+        "8ed152684df57941ffad9e2ad00427cb96f97d9e", "736a40608aaa6c5e492d8022e3ec80011fb35da9"),
     "qualification/performance/tools/test_pulse_full.py": (
         "83fffea8aabaa1f2849e484a4c8c153c88183898", "06a44b615b5526551868e33d676a4cdece6f660a"),
 }
+PREVIOUS_ADMISSION_BLOB = "f77b4c57581d5a176ec171085b2b5eb94d3bceff"
 
 
 def sha256(path: Path) -> str:
@@ -131,8 +132,10 @@ def verify_method(old_head: str) -> dict[str, str]:
     old = measurement_blobs(old_head)
     current = measurement_blobs("HEAD")
     changed = sorted(name for name in old.keys() | current.keys() if old.get(name) != current.get(name))
-    if any(name not in ALLOWED_METHOD_BRIDGE or
-           (old.get(name), current.get(name)) != ALLOWED_METHOD_BRIDGE[name] for name in changed):
+    allowed = {name: {bridge} for name, bridge in ALLOWED_METHOD_BRIDGE.items()}
+    name = "qualification/performance/tools/pulse_full.py"
+    allowed[name].add((PREVIOUS_ADMISSION_BLOB, ALLOWED_METHOD_BRIDGE[name][1]))
+    if any((old.get(name), current.get(name)) not in allowed.get(name, set()) for name in changed):
         refuse(f"build or measurement source changed since {old_head[:12]}: {changed[:8]}")
     return {"source_head": old_head, "completion_head": git("rev-parse", "HEAD"),
             "changed_git_blobs": {name: {"before": old[name], "after": current[name]} for name in changed}}
@@ -643,7 +646,9 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
                 measured = full.run_case_batch_pair(
                     [cases[item] for item in members], repeat, durations.pop(),
                     images, cpu_pair, output, "completion-" + category, orientation,
-                    iterations, raw["stack_phase"], max_attempts=MAX_PAIR_ATTEMPTS)
+                    iterations, raw["stack_phase"], max_attempts=MAX_PAIR_ATTEMPTS,
+                    required_names={item.split("/", 1)[1] for item in members
+                                    if (item, repeat) in missing and (item, repeat) not in replacement})
             finally:
                 pair_pool.give(cpu_pair)
             retain_attempt(output, members, repeat, measured)
