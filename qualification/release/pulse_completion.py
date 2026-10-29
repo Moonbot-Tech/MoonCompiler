@@ -1,4 +1,4 @@
-"""Explicit one-pass completion of rejected full-Pulse pairs (draft for review)."""
+"""Bounded, resumable completion of rejected full-Pulse pairs."""
 
 from __future__ import annotations
 
@@ -446,6 +446,97 @@ def retain_attempt(output: Path, members: list[str], repeat: int, measured: list
                                 ensure_ascii=False, separators=(",", ":")) + "\n")
 
 
+def resume_pairs(output: Path, plan: dict, missing: dict, iterations: dict) -> tuple[dict, list[dict]]:
+    """Keep the first clean observation from earlier attempts of this exact job."""
+    replacement, receipts = {}, []
+    attempt = output.parent.name
+    if output.name != "out" or not attempt.startswith("attempt-") or not attempt[8:].isdigit():
+        return replacement, receipts
+    expected = json.loads(json.dumps(plan))
+    allowed = {(tuple(row["members"]), row["repeat"]) for row in plan["frozen_move_batches"]}
+    batched = {(name, repeat) for members, repeat in allowed for name in members}
+    allowed.update(((name,), repeat) for name, repeat in missing if (name, repeat) not in batched)
+    for directory in sorted(output.parent.parent.glob("attempt-*/out")):
+        number = directory.parent.name[8:]
+        journal = directory / "COMPLETION_ATTEMPTS.jsonl"
+        preflight = directory / "COMPLETION_PREFLIGHT.json"
+        prior_plan = directory / "COMPLETION_ORIGIN.json"
+        if (not number.isdigit() or int(number) >= int(attempt[8:]) or not journal.is_file()
+                or not preflight.is_file() or not prior_plan.is_file()):
+            continue
+        prior = json.loads(prior_plan.read_text(encoding="utf-8"))
+        # The current completion HEAD may differ only in controller code, not measurement code.
+        keys = ("source", "raw_sha256", "source_head", "logs")
+        if (any(prior["origin"].get(key) != expected["origin"].get(key) for key in keys)
+                or any(prior.get(key) != expected.get(key)
+                       for key in ("frozen_missing", "frozen_move_batches", "max_attempts"))):
+            continue
+        if not json.loads(preflight.read_text(encoding="utf-8")).get("passed"):
+            continue
+        bridge = verify_method(prior["completion_head"])
+        data = journal.read_bytes()
+        receipt = {"source": str(directory), "method_bridge": bridge,
+                   "plan_sha256": sha256(prior_plan), "preflight_sha256": sha256(preflight),
+                   "journal_sha256": hashlib.sha256(data).hexdigest(), "logs": {}, "pairs": []}
+        parsed_logs, image_hashes = {}, {}
+        for line in data.splitlines(keepends=True):
+            if not line.endswith(b"\n"):
+                break  # An interrupted append cannot supply evidence.
+            stage = json.loads(line)
+            members, repeat = stage["members"], stage["repeat"]
+            if members == ["original-preflight/calibration/asm-dependent-add"]:
+                continue  # Original A/A recovery is checked separately on every invocation.
+            if (tuple(members), repeat) not in allowed:
+                refuse(f"resumed stage changed its frozen process context: {journal}")
+            measured = stage["records"]
+            if len(measured) != 2 * len(members):
+                refuse(f"resumed stage has incomplete records: {journal}")
+            for name in members:
+                key = name, repeat
+                if key not in missing or key in replacement:
+                    continue
+                pair = [row for row in measured if row["program"] + "/" + row["case"] == name
+                        and row["repeat"] == repeat]
+                if len(pair) != 2:
+                    refuse(f"resumed stage has an incomplete pair: {name}")
+                for row, old in zip(pair, missing[key]):
+                    if row["category"] != old["category"]:
+                        refuse(f"resumed category differs: {name}")
+                    multithread = row["category"] == "multithread"
+                    metrics = method.record_metrics(row, multithread, work_only=not multithread)
+                    if metrics != row["derived"]:
+                        refuse(f"resumed metrics differ from original raw counters: {name}")
+                if not all(row["derived"]["valid"] for row in pair):
+                    continue
+                replacement_pair(name, repeat, missing[key], pair, iterations[tuple(name.split("/", 1))])
+                for row in pair:
+                    log, image = Path(row["log"]), Path(row["executable"])
+                    if not log.resolve().is_relative_to(directory.resolve()) or not log.is_file():
+                        refuse(f"resumed log is missing or outside its attempt: {log}")
+                    if not image.resolve().is_relative_to(directory.resolve()) or not image.is_file():
+                        refuse(f"resumed executable is missing or outside its attempt: {image}")
+                    if image not in image_hashes:
+                        image_hashes[image] = sha256(image)
+                    if image_hashes[image] != row["sha256"]:
+                        refuse(f"resumed executable changed: {image}")
+                    if log not in parsed_logs:
+                        parsed_logs[log] = method.parse_measurement_output(
+                            log.read_text(encoding="utf-8"), row["program"],
+                            [item.split("/", 1)[1] for item in members], len(row["samples"]), log)
+                        receipt["logs"][str(log)] = sha256(log)
+                    definitions, samples = parsed_logs[log]
+                    if definitions[row["case"]] != row["case_definition"] or samples[row["case"]] != row["samples"]:
+                        refuse(f"resumed record differs from its process log: {log}")
+                replacement[key] = pair
+                receipt["pairs"].append([name, repeat])
+        if receipt["pairs"]:
+            snapshot = output / (directory.parent.name + "-COMPLETION_ATTEMPTS.jsonl")
+            snapshot.write_bytes(data)
+            receipt["journal_snapshot"] = str(snapshot)
+            receipts.append(receipt)
+    return replacement, receipts
+
+
 def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
              baseline: Path, candidate: Path, baseline_mm: Path, candidate_mm: Path,
              expected_single_cpus: str = "") -> None:
@@ -481,7 +572,6 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
             "iterations": fixed[0], "duration_ms": fixed[1],
             "executables_sha256": [record["sha256"] for record in old],
         })
-    replacement: dict[tuple[str, int], list[dict]] = {}
     fresh_context: list[dict] = []
     result = copy.deepcopy(raw)
     result["git_head"] = git("rev-parse", "HEAD")
@@ -505,13 +595,13 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
                                    for name, row in raw["cases"].items() if row.get("confirmation")},
         "new_confirmations": [],
     }
-    (output / "COMPLETION_ORIGIN.json").write_text(
-        json.dumps({"origin": origin, "completion_head": result["git_head"],
-                    "max_attempts": MAX_PAIR_ATTEMPTS,
-                    "frozen_missing": frozen_missing,
-                    "frozen_move_batches": result["completion"]["frozen_move_batches"]}, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    plan = {"origin": origin, "completion_head": result["git_head"], "max_attempts": MAX_PAIR_ATTEMPTS,
+            "frozen_missing": frozen_missing, "frozen_move_batches": result["completion"]["frozen_move_batches"]}
+    (output / "COMPLETION_ORIGIN.json").write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
+    replacement, receipts = resume_pairs(output, plan, missing, iterations)
+    result["completion"]["resumed_attempts"] = receipts
+    (output / "COMPLETION_RESUME.json").write_text(json.dumps(receipts, indent=2) + "\n", encoding="utf-8")
+    print(f"PULSE_COMPLETION_RESUMED pairs={len(replacement)} remaining={len(missing) - len(replacement)}", flush=True)
     cpu_pairs = [(single_cpus[index], single_cpus[index + 1])
                  for index in range(0, len(single_cpus), 2)]
     pair_pools = {pair: full.PairPool([pair]) for pair in cpu_pairs}
@@ -532,6 +622,8 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
         if not result["completion"]["fresh_preflight"]["passed"]:
             refuse("fresh A/A preflight failed")
         for members, repeat in batches:
+            if all((name, repeat) not in missing or (name, repeat) in replacement for name in members):
+                continue
             name = next(name for name in members if (name, repeat) in missing)
             old = missing[name, repeat]
             orientation = 0 if old[0]["variant"] == full.SYSTEMS[0] else 1
@@ -560,13 +652,15 @@ def complete(source: Path, source_sha: str, source_logs_sha: str, output: Path,
             for item in members:
                 pair = [record for record in measured
                         if record["program"] + "/" + record["case"] == item]
-                if (item, repeat) in missing:
+                if (item, repeat) in missing and (item, repeat) not in replacement:
                     replacement[item, repeat] = replacement_pair(
                         item, repeat, missing[item, repeat], pair,
                         iterations[tuple(item.split("/", 1))])
                 else:
                     fresh_context.extend(pair)
         for name, repeat in individual:
+            if (name, repeat) in replacement:
+                continue
             case = cases[name]
             old = missing[name, repeat]
             orientation = 0 if old[0]["variant"] == full.SYSTEMS[0] else 1

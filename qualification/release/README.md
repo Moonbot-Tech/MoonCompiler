@@ -318,6 +318,16 @@ digest difference is accepted only with a full mathematical proof of the
 candidate result: `semantic_match` remains false and that row has no speed
 comparison.
 
+Repeating the same bounded-completion command resumes the first clean pairs
+already saved by earlier attempts of that job. It verifies the identical frozen
+source and work plan, measurement source, executable bytes, raw counters and
+process logs. A journal snapshot and log hashes accompany the reused pairs;
+an interrupted final journal append is ignored. Only missing pairs are measured.
+Partially completed Move batches still execute their full original context,
+without replacing earlier accepted observations. Every new attempt requires its
+own A/A control. This does not select faster observations or turn dirty pairs
+into accepted measurements.
+
 Archive smoke packages the installed toolchain, unpacks outside the repository,
 places pinned MoonORMot beside it, builds/runs Debug and Release consumers, then
 installs the archive through `build toolchain` in a separate checkout. This is
