@@ -1,11 +1,16 @@
 """Independent oracles and full document validation. Run separately from measurement processes."""
 
+import argparse
 import json
 import math
 import pathlib
 import subprocess
 
 from audit_timer_oracle import timer_checksum
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--json-only", action="store_true", help="Check only the applied JSON examples")
+args = parser.parse_args()
 
 root = pathlib.Path(__file__).resolve().parent
 data = root / "data"
@@ -56,6 +61,9 @@ for engine in ("moon", "rust"):
     same(info, json.loads(target.read_bytes()))
 print("FULL_EXCHANGE_DOCUMENT_PASS", flush=True)
 del info
+if args.json_only:
+    (root / "expected.json").write_text(json.dumps(expected, indent=2))
+    raise SystemExit(0)
 
 prefix_b = [0.0]
 prefix_s = [0.0]

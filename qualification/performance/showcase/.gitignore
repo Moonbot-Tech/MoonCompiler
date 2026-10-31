@@ -1,6 +1,7 @@
 __pycache__/
-bin/
-common/
+!bin/
+bin/*
+!bin/linux-x86_64/
 data/
 results/
 sdk/
@@ -9,6 +10,9 @@ units-*/
 validation/
 *.log
 *.tar.gz
+!inputs/data-20261029.tar.gz
 expected.json
 BINARIES.sha256
 BUILD_ENVIRONMENT.txt
+
+.reproduce/
