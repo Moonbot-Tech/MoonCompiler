@@ -658,6 +658,50 @@ end;
 
 function IOCreateSymbolicLinkW(Link, Target: PWideChar; Flags: DWORD): ByteBool;
   stdcall; external 'kernel32' name 'CreateSymbolicLinkW';
+
+procedure CopyUnprivilegedLink(const Source,Destination: UnicodeString; IsDirectory: Boolean);
+type
+  TLinkData = packed record
+    Tag: DWORD;
+    DataLength,Reserved,TargetOffset,TargetLength,PrintOffset,PrintLength: Word;
+    Flags: DWORD;
+    Path: array[0..8181] of WideChar;
+  end;
+var
+  Handle: THandle;
+  Data: TLinkData;
+  Count: DWORD;
+  Target: UnicodeString;
+begin
+  { CopyFileEx requires SeCreateSymbolicLinkPrivilege even in Developer Mode.
+    Read the link itself: FileGetSymLinkTarget resolves relative targets and
+    rejects dangling links, so it cannot be used to reproduce their contents. }
+  Handle:=CreateFileW(PWideChar(Source),0,FILE_SHARE_READ or FILE_SHARE_WRITE or FILE_SHARE_DELETE,
+    nil,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT or FILE_FLAG_BACKUP_SEMANTICS,0);
+  if Handle=INVALID_HANDLE_VALUE then
+    RaisePathError(Source,GetLastOSError);
+  try
+    if not DeviceIoControl(Handle,$900A8 { FSCTL_GET_REPARSE_POINT },nil,0,@Data,SizeOf(Data),@Count,nil) then
+      RaisePathError(Source,GetLastOSError);
+    if (Count<20) or (Data.Tag<>IO_REPARSE_TAG_SYMLINK) or (Data.TargetLength=0) or
+       ((Data.TargetOffset or Data.TargetLength) and 1<>0) or
+       (20+DWORD(Data.TargetOffset)+Data.TargetLength>Count) then
+      RaisePathError(Source,ERROR_INVALID_DATA);
+    SetString(Target,PWideChar(@Data.Path[Data.TargetOffset div SizeOf(WideChar)]),Data.TargetLength div SizeOf(WideChar));
+  finally
+    CloseHandle(Handle);
+  end;
+  { Substitute names use the NT prefix; CreateSymbolicLink accepts its Win32
+    equivalent. Relative targets must remain relative to the new link. }
+  if Data.Flags and 1=0 then
+    begin
+    if Copy(Target,1,4)<>'\??\' then
+      RaisePathError(Source,ERROR_NOT_SUPPORTED);
+    Target:='\\?\'+Copy(Target,5,MaxInt);
+    end;
+  if not IOCreateSymbolicLinkW(PWideChar(Destination),PWideChar(Target),Ord(IsDirectory) or 2) then
+    RaisePathError(Destination,GetLastOSError);
+end;
 {$endif}
 
 function CreatePathLink(const Link,Target: string): Boolean;
@@ -2997,7 +3041,12 @@ var
               CopyFlags:=CopyFlags or $80; { COPY_FILE_DIRECTORY, Windows 10 build 19041+ }
             if CopyFileExW(PWideChar(WideSource),PWideChar(WideDestination),nil,nil,nil,
                 CopyFlags)=0 then
-              RaisePathError(ToPath,GetLastOSError);
+              begin
+              if GetLastError=ERROR_PRIVILEGE_NOT_HELD then
+                CopyUnprivilegedLink(WideSource,WideDestination,Rec.IsDirectory)
+              else
+                RaisePathError(ToPath,GetLastOSError);
+              end;
 {$endif}
             end
           else if Rec.IsDirectory then

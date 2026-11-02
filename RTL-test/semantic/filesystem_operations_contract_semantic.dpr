@@ -114,6 +114,9 @@ begin
   {$ENDIF}
   Check(TFile.ReadAllText(Root+'/src/relative-dir/a.txt')='changed','relative directory resolves from link parent');
   Check(TFile.CreateSymLink(Root+'/src/dangling.txt','not-created.txt'),'dangling link');
+  TDirectory.CreateDirectory(Root+'/src/not-created-dir');
+  Check(TFile.CreateSymLink(Root+'/src/dangling-dir','not-created-dir'),'directory link before target removal');
+  TDirectory.Delete(Root+'/src/not-created-dir');
   Check(TFile.CreateSymLink(Root+'/src/cycle',Root+'/src'),'directory cycle');
   Check(Length(TDirectory.GetFiles(Root+'/src','a.txt',TSearchOption.soAllDirectories))=1,'enumeration does not follow directory links');
   TDirectory.Copy(Root+'/src',Root+'/link-copy');
@@ -123,6 +126,9 @@ begin
   Check(TFile.ReadAllText(Root+'/link-copy/relative-dir/a.txt')='copied target','relative directory link stays relative');
   TFile.WriteAllText(Root+'/link-copy/not-created.txt','late target');
   Check(TFile.ReadAllText(Root+'/link-copy/dangling.txt')='late target','dangling link preserved');
+  TDirectory.CreateDirectory(Root+'/link-copy/not-created-dir');
+  TFile.WriteAllText(Root+'/link-copy/not-created-dir/data','late directory target');
+  Check(TFile.ReadAllText(Root+'/link-copy/dangling-dir/data')='late directory target','dangling directory kind preserved');
   Check(TDirectory.Exists(Root+'/link-copy/cycle'),'copied directory link remains usable');
   TDirectory.Delete(Root+'/link-copy',True);
   Check(TFile.ReadAllText(Target)='new','delete copy does not delete target');

@@ -13,9 +13,14 @@ their existing type and range checks. Raw stream reads still copy bytes without
 validating the destination's declared type.
 
 The same review fixes optimized comparison trees with `UInt64` labels above
-`High(Int64)` and constant/inlined `ByteBool`, `WordBool` and `LongBool` cases.
-The latter now use Boolean truth semantics consistently instead of losing the
-`True` branch for a different nonzero representation.
+`High(Int64)` and explicitly typed, constant and inlined Boolean cases.
+`ByteBool`, `WordBool` and `LongBool` labels use Boolean truth consistently.
+Full Boolean ranges preserve selector calls, short-circuit evaluation and
+checked exceptions instead of discarding their evaluation.
+
+On Windows with Developer Mode, `TDirectory.Copy` can also create symbolic-link
+copies without administrator privileges. Relative targets and dangling file or
+directory links retain their meaning; referenced files are not copied instead.
 
 Install the complete SDK and rebuild application and third-party PPUs, including
 units that contain case statements. MoonORMot **16** remains required.
