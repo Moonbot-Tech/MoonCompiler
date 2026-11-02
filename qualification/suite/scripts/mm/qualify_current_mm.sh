@@ -132,6 +132,9 @@ compile_test product memory-chaos-diagnostic memory_chaos.dpr \
 compile_test product memory-mm-diagnostic memory_mm_diagnostic.dpr \
   -dFPCX64MM_DIAGNOSTIC -dFPCMM_SMALLLASTFREE_TEST \
   -dFPCMM_MEDIUMLASTFREE_TEST
+compile_test product memory-small-pool-diagnostic memory_deferred_small_pool_diagnostic.dpr \
+  -dFPCX64MM_DIAGNOSTIC -dFPCMM_SMALLLASTFREE_TEST \
+  -dFPCMM_MEDIUMLASTFREE_TEST
 
 repeat_test small-pool-finalize \
   "$build/small-pool-finalize/small-pool-finalize"
@@ -165,6 +168,24 @@ for profile in server product; do
     "$build/memory-zero-copy-$profile/memory-zero-copy-$profile"
   grep -q 'MEMORY_ZERO_COPY_CONTRACT_PASS' \
     "$results/memory-zero-copy-$profile/run.log"
+done
+pooldiag=$build/memory-small-pool-diagnostic/memory-small-pool-diagnostic
+run_one diagnostic-small-pool-healthy "$pooldiag" healthy
+grep -q 'DEFERRED_SMALL_POOL_DIAGNOSTIC_PASS' \
+  "$results/diagnostic-small-pool-healthy/run.log"
+for mode in owner header size nonempty chain cycle interior; do
+  if run_one "diagnostic-small-pool-$mode" "$pooldiag" "$mode"; then
+    echo "small-pool diagnostic accepted corruption: $mode" >&2
+    exit 1
+  fi
+  test "$(cat "$results/diagnostic-small-pool-$mode/run.status")" = 218
+  operation=medium-last-free-small-pool
+  case "$mode" in
+    chain) operation=medium-last-free-access ;;
+    cycle) operation=medium-last-free-cycle ;;
+  esac
+  grep -q "^FPCX64MM_DIAGNOSTIC first-violation operation=$operation " \
+    "$results/diagnostic-small-pool-$mode/run.log"
 done
 run_one memory-mega-full "$build/memory-mega/memory-mega" full "$seed"
 grep -q 'MEMORY_MEGA_PASS' "$results/memory-mega-full/run.log"

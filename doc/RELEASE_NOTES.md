@@ -22,6 +22,12 @@ On Windows with Developer Mode, `TDirectory.Copy` can also create symbolic-link
 copies without administrator privileges. Relative targets and dangling file or
 directory links retain their meaning; referenced files are not copied instead.
 
+The allocator's optional diagnostic mode correctly validates empty internal
+small-block pools awaiting deferred release. These pools have no user-allocation
+registry entry; they no longer cause a false heap-corruption report. Physical
+block boundaries, ownership and list corruption remain checked. Ordinary
+allocation and release paths are unchanged.
+
 Install the complete SDK and rebuild application and third-party PPUs, including
 units that contain case statements. MoonORMot **16** remains required.
 `MOONCOMPILER_FULLVERSION` is 20504; `CompilerVersion` remains 2.5.

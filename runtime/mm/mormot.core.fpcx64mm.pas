@@ -2304,13 +2304,69 @@ begin
   end;
 end;
 
+function DiagPendingSmallPool(P: pointer; Info: PMediumBlockInfo): boolean;
+var
+  pool: PMediumBlockPoolHeader;
+  block, limit: PByte;
+  count, poollimit, header, size: PtrUInt;
+begin
+  result := false;
+  try
+    count := 0;
+    poollimit := HeapStatus.Medium.CurrentBytes div MediumBlockPoolSizeMem + 1;
+    pool := Info^.PoolsCircularList.NextMediumBlockPoolHeader;
+    while pool <> @Info^.PoolsCircularList do
+    begin
+      inc(count);
+      if count > poollimit then
+        exit;
+      limit := PByte(pool) + MediumBlockPoolSize;
+      if (PtrUInt(P) >= PtrUInt(pool) + MediumBlockPoolHeaderSize) and
+         (PtrUInt(P) < PtrUInt(limit)) then
+      begin
+        {$ifdef FPCMM_MS_MEDIUM}
+        if pool^.Reserved1 <> PtrUInt(Info) then
+          exit;
+        {$endif FPCMM_MS_MEDIUM}
+        // A queued empty small pool is internal, without a user registry entry.
+        // Validate its real physical block boundary before interpreting it.
+        if (Info^.SequentialFeedBytesLeft <> 0) and
+           (PtrUInt(Info^.LastSequentiallyFed) >= PtrUInt(pool)) and
+           (PtrUInt(Info^.LastSequentiallyFed) <= PtrUInt(limit)) then
+          block := Info^.LastSequentiallyFed
+        else
+          block := PByte(pool) + MediumBlockPoolHeaderSize;
+        while (PtrUInt(block) >= PtrUInt(pool) + MediumBlockPoolHeaderSize) and
+              (PtrUInt(block) <= PtrUInt(P)) do
+        begin
+          header := PPtrUInt(block - BlockHeaderSize)^;
+          size := header and DropMediumAndLargeFlagsMask;
+          if (header and IsMediumBlockFlag = 0) or (size < 16) or
+             (size > PtrUInt(limit - block)) then
+            exit;
+          if block = P then
+            exit((header and ExtractSmallFlagsMask =
+                    IsMediumBlockFlag or IsSmallBlockPoolInUseFlag) and
+                 (size >= SmallBlockPoolHeaderSize) and
+                 (PSmallBlockPoolHeader(P)^.BlocksInUse = 0));
+          inc(block, size);
+        end;
+        exit;
+      end;
+      pool := pool^.NextMediumBlockPoolHeader;
+    end;
+  except
+    result := false;
+  end;
+end;
+
 procedure DiagVerifyOneMediumLastFree(Info: PMediumBlockInfo;
-  var Count: PtrUInt);
+  var Count: PtrUInt; SmallPoolsOnly: boolean = false);
 var
   node, next: PPointer;
   traversed, slot, seg, actual, header, owner: PtrUInt;
   recordinfo: TDiagRecord;
-  found: boolean;
+  found, smallpool: boolean;
   kind: byte;
 begin
   node := Info^.LastFree;
@@ -2329,34 +2385,54 @@ begin
     end;
     try
       next := node^;
+      header := PPtrUInt(PByte(node) - BlockHeaderSize)^;
     except
       DiagLatchPointer('medium-last-free-access', node);
       DiagRaiseIfFailed;
     end;
-    if not DiagInspect(node, kind, actual, header, owner) or
-       (kind <> DiagMedium)
-       {$ifdef FPCMM_MS_MEDIUM} or
-       (owner <> PtrUInt(Info))
-       {$endif FPCMM_MS_MEDIUM} then
+    smallpool := header and IsSmallBlockPoolInUseFlag <> 0;
+    {$ifdef FPCMM_SMALLNOTWITHMEDIUM}
+    if smallpool <> SmallPoolsOnly then
     begin
       DiagLatchPointer('medium-last-free-owner', node);
       DiagRaiseIfFailed;
     end;
-    FillChar(recordinfo, SizeOf(recordinfo), 0);
-    seg := DiagSegmentOf(node);
-    DiagLockAcquire(DiagSegLocks[seg].Locked);
-    found := DiagFind(node, slot);
-    if found then
-      recordinfo := DiagRegistry[slot];
-    DiagLockRelease(DiagSegLocks[seg].Locked);
-    if not found or (recordinfo.State <> DiagFreed) or
-       (recordinfo.Kind <> DiagMedium)
-       {$ifdef FPCMM_MS_MEDIUM} or
-       (recordinfo.Owner <> PtrUInt(Info))
-       {$endif FPCMM_MS_MEDIUM} then
+    {$endif FPCMM_SMALLNOTWITHMEDIUM}
+    if smallpool then
     begin
-      DiagLatch('medium-last-free-registry', node, recordinfo, found);
-      DiagRaiseIfFailed;
+      if not DiagPendingSmallPool(node, Info) then
+      begin
+        DiagLatchPointer('medium-last-free-small-pool', node);
+        DiagRaiseIfFailed;
+      end;
+    end
+    else
+    begin
+      if not DiagInspect(node, kind, actual, header, owner) or
+         (kind <> DiagMedium)
+       {$ifdef FPCMM_MS_MEDIUM} or
+         (owner <> PtrUInt(Info))
+       {$endif FPCMM_MS_MEDIUM} then
+      begin
+        DiagLatchPointer('medium-last-free-owner', node);
+        DiagRaiseIfFailed;
+      end;
+      FillChar(recordinfo, SizeOf(recordinfo), 0);
+      seg := DiagSegmentOf(node);
+      DiagLockAcquire(DiagSegLocks[seg].Locked);
+      found := DiagFind(node, slot);
+      if found then
+        recordinfo := DiagRegistry[slot];
+      DiagLockRelease(DiagSegLocks[seg].Locked);
+      if not found or (recordinfo.State <> DiagFreed) or
+         (recordinfo.Kind <> DiagMedium)
+       {$ifdef FPCMM_MS_MEDIUM} or
+         (recordinfo.Owner <> PtrUInt(Info))
+       {$endif FPCMM_MS_MEDIUM} then
+      begin
+        DiagLatch('medium-last-free-registry', node, recordinfo, found);
+        DiagRaiseIfFailed;
+      end;
     end;
     inc(traversed);
     inc(Count);
@@ -2376,7 +2452,7 @@ begin
   {$endif FPCMM_MS_MEDIUM}
   {$ifdef FPCMM_SMALLNOTWITHMEDIUM}
   for i := 0 to high(SmallMediumBlockInfo) do
-    DiagVerifyOneMediumLastFree(@SmallMediumBlockInfo[i], Count);
+    DiagVerifyOneMediumLastFree(@SmallMediumBlockInfo[i], Count, true);
   {$endif FPCMM_SMALLNOTWITHMEDIUM}
 end;
 
