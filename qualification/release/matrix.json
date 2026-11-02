@@ -52,6 +52,7 @@
     "imm64": ["qualification/optimizer-core/imm64"],
     "asm_numbers": ["qualification/compiler-asm-numbers"],
     "register_width": ["qualification/optimizer-core/register-width"],
+    "case_storage": ["qualification/optimizer-core/case-storage"],
     "loop_address": ["qualification/optimizer-core/loop-address"],
     "loop_regvar": ["qualification/optimizer-core/loop-regvar", "tests/test/cg/tloopregvarpromote1.pp", "tests/test/cg/tloopcompareorient1.pp"],
     "real_folds": ["qualification/optimizer-core/real-folds", "qualification/performance/tools", "tests/test/cg/tfoldruntimereal1.pp", "tests/test/cg/tobservableintrinsics1.pp", "tests/test/cg/tfloatminselect1.pp", "tests/test/cg/tdelphinegativezero1.pp", "tests/test/cg/tifminmaxtarget1.pp"],
@@ -1438,6 +1439,20 @@
       "resource": "constructors",
       "estimated_seconds_by_platform": {"win64": 11, "linux": 5},
       "timeout": 3600
+    },
+    {
+      "id": "case_storage",
+      "mode": "medium",
+      "platforms": ["win64", "linux"],
+      "commands": {
+        "win64": ["{python}", "{root}/qualification/optimizer-core/case-storage/run_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"],
+        "linux": ["{python}", "{root}/qualification/optimizer-core/case-storage/run_gate.py", "--compiler", "{pp}", "--config", "{cfg}", "--output", "{job_dir}/out"]
+      },
+      "needs": ["build"],
+      "resource": "case_storage",
+      "estimated_seconds_by_platform": {"win64": 45, "linux": 45},
+      "timeout": 300,
+      "expected": "CASE_STORAGE_GATE_PASS modes=7"
     },
     {
       "id": "register_width",

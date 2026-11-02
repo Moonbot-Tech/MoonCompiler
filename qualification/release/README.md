@@ -116,6 +116,7 @@ Medium (including Light) and the two platform CI jobs run these installed-toolch
 | `machine_facts` | Exact implicit USE/DEF facts, deterministic diagnostics with unchanged code, and rejection of stale generation facts. |
 | `seh_regvar`, `address_gvn`, `managed_load_cse`, `loop_base` | Runtime oracles plus generated-code controls with the pass enabled, disabled and at its default; both useful work removal and unsafe boundaries are checked. |
 | `optimizer_ppu` | Cold artifact determinism, warm PPU reuse and rejection of a real legacy PPU. |
+| `case_storage` | Unknown enum/subrange values reach the fallback across dispatch strategies; 64-bit boundary labels, Boolean folding, stream input and warm PPU consumers preserve semantics. |
 | `zeroext` | Seeds 1 and 24 through expression, unary, folding, unit and generic carriers in four compiler modes; no findings or accepted deviations. |
 | `win_bigobj`, `linux_large_elf` | Actual large object section indexes and successful link/run beyond the small-object format boundary. Each runs only on its target OS. |
 | `win_stack` | Win64 default and explicit stack sizes with both linkers, plus internal-linker runtime checks. |

@@ -221,6 +221,8 @@ jobs:
           python3 qualification/optimizer-core/imm64/run_gate.py --compiler "$pp"
           python3 qualification/optimizer-core/register-width/run_gate.py \
             --compiler "$pp" --output .qualification/ci-linux-register-width
+          python3 qualification/optimizer-core/case-storage/run_gate.py \
+            --compiler "$pp" --config toolchain/etc/moon-base.cfg --output .qualification/ci-linux-case-storage
           python3 qualification/optimizer-core/loop-address/run_loop_address_gate.py \
             --compiler "$pp" --config toolchain/etc/moon-base.cfg \
             --objdump "$(command -v objdump)" \
@@ -657,6 +659,11 @@ jobs:
             --objdump $env:MOON_OBJDUMP `
             --output .\.qualification\ci-win64-loop-address
           If ($LASTEXITCODE -ne 0) { throw 'Loop-address gate failed' }
+          python .\qualification\optimizer-core\case-storage\run_gate.py `
+            --compiler .\toolchain\bin\x86_64-win64\ppcx64.exe `
+            --config .\toolchain\bin\x86_64-win64\moon-base.cfg `
+            --output .\.qualification\ci-win64-case-storage
+          If ($LASTEXITCODE -ne 0) { throw 'Case-storage gate failed' }
       - name: Run issue-tracker contract
         shell: powershell
         run: |

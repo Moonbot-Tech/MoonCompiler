@@ -55,6 +55,8 @@ interface
        end;
 
        tcgcasenode = class(tcasenode)
+          function pass_1: tnode;override;
+          function dogetcopy: tnode;override;
           {
             Emits the case node statement. Contrary to the intel
             80x86 version, this version does not emit jump tables,
@@ -72,6 +74,8 @@ interface
 
           { true, if we can omit the range check of the jump table }
           jumptable_no_range : boolean;
+          { Strategy hint only; never authorizes an unchecked dispatch. }
+          declared_bounds_covered : boolean;
           { has the implementation jumptable support }
           min_label : tconstexprint;
 
@@ -571,6 +575,28 @@ implementation
 {*****************************************************************************
                             TCGCASENODE
 *****************************************************************************}
+
+
+    function tcgcasenode.dogetcopy: tnode;
+      begin
+        result:=inherited dogetcopy;
+        tcgcasenode(result).declared_bounds_covered:=declared_bounds_covered;
+      end;
+
+
+    { Keep the existing short-case strategy independently of storage guards. }
+    function tcgcasenode.pass_1: tnode;
+      var
+        lv,hv: TConstExprInt;
+      begin
+        declared_bounds_covered:=false;
+        if is_ordinal(left.resultdef) and assigned(labels) then
+          begin
+            getrange(left.resultdef,lv,hv);
+            declared_bounds_covered:=(lv=case_get_min(labels)) and (hv=case_get_max(labels));
+          end;
+        result:=inherited pass_1;
+      end;
 
 
     { Analyse the nodes following the else label - if empty, change to end label }
@@ -1114,23 +1140,24 @@ implementation
           else
             greaterlabel:=p^.greater^.labellabel;
 
-          { calculate labels for left and right }
+          { Machine comparisons consume the low 64-bit payload. An unsigned
+            label above High(Int64) is valid, not a signed constant conversion. }
           { no range label: }
           if p^._low=p^._high then
             begin
               if greaterlabel=lesslabel then
-                hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList, opsize, OC_NE,p^._low,hregister, lesslabel)
+                hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList, opsize, OC_NE,p^._low.svalue,hregister, lesslabel)
               else
                 begin
-                  hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList,opsize, jmp_lt,p^._low,hregister, lesslabel);
-                  hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList,opsize, jmp_gt,p^._low,hregister, greaterlabel);
+                  hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList,opsize, jmp_lt,p^._low.svalue,hregister, lesslabel);
+                  hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList,opsize, jmp_gt,p^._low.svalue,hregister, greaterlabel);
                 end;
               hlcg.a_jmp_always(current_asmdata.CurrAsmList,blocklabel(p^.blockid));
             end
           else
             begin
-              hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList,opsize,jmp_lt,p^._low, hregister, lesslabel);
-              hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList,opsize,jmp_gt,p^._high,hregister, greaterlabel);
+              hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList,opsize,jmp_lt,p^._low.svalue, hregister, lesslabel);
+              hlcg.a_cmp_const_reg_label(current_asmdata.CurrAsmList,opsize,jmp_gt,p^._high.svalue,hregister, greaterlabel);
               hlcg.a_jmp_always(current_asmdata.CurrAsmList,blocklabel(p^.blockid));
             end;
            if assigned(p^.less) then
@@ -1317,7 +1344,7 @@ implementation
                         if max_dist>4*labelcnt then
                           max_dist:=min(max_dist,2048);
 
-                        if jumptable_no_range then
+                        if declared_bounds_covered then
                           max_linear_list:=4
                         else
                           max_linear_list:=2;

@@ -918,6 +918,15 @@ implementation
              elseblock:=nil;
            end;
 
+         { A raw read or explicit cast can put an unnamed value into an
+           enum/subrange. Lower case against its storage domain, not only its
+           declared values. All dispatch strategies must preserve the else
+           path; the same-width internal conversion adds no runtime work. }
+         if is_ordinal(left.resultdef) and
+            not is_boolean(left.resultdef) and
+            not is_128bit(left.resultdef) then
+           inserttypeconv_internal(left,cgsize_orddef(def_cgsize(left.resultdef)));
+
          { evaluates the case expression }
          firstpass(left);
          set_varstate(left,vs_read,[vsf_must_be_valid]);
@@ -1131,7 +1140,9 @@ implementation
         tmp: pcaselabel;
       begin
         result:=nil;
-        if left.nodetype=ordconstn then
+        { Boolean case uses truth values, including noncanonical cbool True.
+          Let pass_1 lower it to an if before constant folding. }
+        if (left.nodetype=ordconstn) and not is_boolean(left.resultdef) then
           begin
             tmp:=flabels;
             { check all case labels until we find one that fits }
@@ -1450,8 +1461,12 @@ implementation
           end
         else if labelcoverage=typcount then
           begin
-            { labels for all values of the operand are present, but an extra else block is present }
-            MessagePos(elseblock.fileinfo, cg_w_unreachable_code);
+            { An enum/subrange can contain other storage values after raw
+              input. Covering its named values does not make else unreachable. }
+            if not is_boolean(left.resultdef) then
+              get_physical_ord_range(left.resultdef,lv,hv);
+            if labelcoverage=hv-lv then
+              MessagePos(elseblock.fileinfo, cg_w_unreachable_code);
           end;
       end;
 
