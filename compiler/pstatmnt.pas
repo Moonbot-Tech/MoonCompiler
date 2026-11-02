@@ -477,6 +477,16 @@ implementation
                      hl2:=get_ordinal_value(trangenode(p).right);
                      if hl1>hl2 then
                        CGMessage(parser_e_case_lower_less_than_upper_bound);
+                     { Preserve source range ordering, then classify the
+                       Boolean values covered by that numeric interval. }
+                     if is_boolean(casedef) and ((hl1<>0) or (hl2<>0)) then
+                       begin
+                         if (hl1<=0) and (hl2>=0) then
+                           hl1:=0
+                         else
+                           hl1:=1;
+                         hl2:=1;
+                       end;
                      if not casedeferror then
                        begin
                          adaptrange(casedef,hl1,false,false,cs_check_range in current_settings.localswitches);
@@ -507,6 +517,8 @@ implementation
                  else
                    begin
                      hl1:=get_ordinal_value(p);
+                     if is_boolean(casedef) then
+                       hl1:=ord(hl1<>0);
                      if not casedeferror then
                        adaptrange(casedef,hl1,false,false,cs_check_range in current_settings.localswitches);
                      casenode.addlabel(blockid,hl1,hl1);

@@ -755,6 +755,7 @@ implementation
     function tcasenode.pass_1 : tnode;
       var
          i: integer;
+         otherlabel: pcaselabel;
          node_thenblock, node_elseblock, if_node,temp_cleanup : tnode;
          tempcaseexpr : ttempcreatenode;
          if_block, init_block: tblocknode;
@@ -1039,25 +1040,28 @@ implementation
              case blocks.count of
                2:
                  begin
-                   if boolean(qword(flabels^._low))=false then
+                   { A typed cbool True may sort below False (all bits set). }
+                   otherlabel:=flabels^.less;
+                   if not assigned(otherlabel) then
+                     otherlabel:=flabels^.greater;
+                   if flabels^._low=0 then
                      begin
-                       node_thenblock:=pcaseblock(blocks[flabels^.greater^.blockid])^.statement;
+                       node_thenblock:=pcaseblock(blocks[otherlabel^.blockid])^.statement;
                        node_elseblock:=pcaseblock(blocks[flabels^.blockid])^.statement;
-                       pcaseblock(blocks[flabels^.greater^.blockid])^.statement:=nil;
                      end
                    else
                      begin
                        node_thenblock:=pcaseblock(blocks[flabels^.blockid])^.statement;
-                       node_elseblock:=pcaseblock(blocks[flabels^.less^.blockid])^.statement;
-                       pcaseblock(blocks[flabels^.less^.blockid])^.statement:=nil;
+                       node_elseblock:=pcaseblock(blocks[otherlabel^.blockid])^.statement;
                      end;
+                   pcaseblock(blocks[otherlabel^.blockid])^.statement:=nil;
                    pcaseblock(blocks[flabels^.blockid])^.statement:=nil;
                  end;
                1:
                  begin
                    if flabels^._low=flabels^._high then
                      begin
-                       if boolean(qword(flabels^._low))=false then
+                       if flabels^._low=0 then
                          begin
                            node_thenblock:=elseblock;
                            node_elseblock:=pcaseblock(blocks[flabels^.blockid])^.statement;
@@ -1072,9 +1076,21 @@ implementation
                      end
                    else
                      begin
-                       result:=pcaseblock(blocks[flabels^.blockid])^.statement;
+                       if might_have_sideeffects(left,[mhs_exceptions]) then
+                         begin
+                           result:=internalstatements(stmt);
+                           tempcaseexpr:=ctempcreatenode.create(
+                             left.resultdef,left.resultdef.size,tt_persistent,true);
+                           addstatement(stmt,tempcaseexpr);
+                           addstatement(stmt,cassignmentnode.create(ctemprefnode.create(tempcaseexpr),left));
+                           left:=nil;
+                           addstatement(stmt,ctempdeletenode.create(tempcaseexpr));
+                           addstatement(stmt,pcaseblock(blocks[flabels^.blockid])^.statement);
+                         end
+                       else
+                         result:=pcaseblock(blocks[flabels^.blockid])^.statement;
                        pcaseblock(blocks[flabels^.blockid])^.statement:=nil;
-                       elseblock:=nil;
+                       FreeAndNil(elseblock);
                        exit;
                      end;
                  end;

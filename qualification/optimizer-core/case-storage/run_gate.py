@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import subprocess
 from check_shapes import run_shapes
+from boolean_cases import generate as generate_booleans, negative_sources
 
 MODES = {"O-": ["-O-"], "O1": ["-O1"], "O2": ["-O2"], "O3": ["-O3"],
          "Os": ["-O2", "-Os"], "checked": ["-O3", "-Cr", "-Co"], "ppu": ["-O3"]}
@@ -151,6 +152,7 @@ def main():
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     checks, functions = generate(output, args.delphi)
+    boolean_source, boolean_checks, boolean_functions = generate_booleans(output, args.delphi)
     results = []
     for mode in (["O3"] if args.delphi else args.modes):
         directory = output / mode
@@ -174,13 +176,27 @@ def main():
         executable = directory / ("case_stream_bool.exe" if os.name == "nt" else "case_stream_bool")
         if run([str(executable)], directory, "stream-run", 30).strip() != "CASE_STREAM_BOOL_PASS":
             raise RuntimeError("Raw stream or Boolean case contract failed")
-        results.append({"mode": mode, "checks": checks})
+        run(command + [str(boolean_source)], directory, "boolean-compile")
+        executable = directory / ("bool_matrix.exe" if os.name == "nt" else "bool_matrix")
+        if run([str(executable)], directory, "boolean-run", 30).strip() != f"BOOL_FORMS_PASS checks={boolean_checks}":
+            raise RuntimeError("Boolean labels or selector effects failed")
+        results.append({"mode": mode, "checks": checks, "boolean_checks": boolean_checks})
         print(mode, actual, flush=True)
+    for source in negative_sources(output):
+        result = subprocess.run(command + [str(source)], cwd=directory, capture_output=True, text=True, timeout=30)
+        diagnostic = result.stdout + result.stderr
+        (output / (source.stem + ".log")).write_text(diagnostic, encoding="utf-8")
+        expected = "Duplicate case label"
+        if source.stem == "typed_reverse_order":
+            expected = "Low bound exceeds high bound" if args.delphi else "Upper bound of case range is less than lower bound"
+        if not result.returncode or expected not in diagnostic or "Internal error" in diagnostic or "EAccessViolation" in diagnostic:
+            raise RuntimeError(f"{source.stem}: expected frontend diagnostic {expected!r}, got {diagnostic}")
     shapes = {} if args.delphi else run_shapes(compiler, args.config.resolve(), output/"shapes")
     report = {"status": "pass", "shapes": shapes, "compiler_sha256": hashlib.sha256(compiler.read_bytes()).hexdigest(),
-              "checks_per_mode": checks, "functions": functions, "results": results}
+              "checks_per_mode": checks + boolean_checks, "functions": functions + boolean_functions,
+              "negative_compile_checks": 3, "results": results}
     (output/"result.json").write_text(json.dumps(report, indent=2)+"\n", encoding="utf-8")
-    print(f"CASE_STORAGE_GATE_PASS modes={len(results)} checks={checks*len(results)}")
+    print(f"CASE_STORAGE_GATE_PASS modes={len(results)} checks={(checks+boolean_checks)*len(results)}")
 
 
 if __name__ == "__main__":
