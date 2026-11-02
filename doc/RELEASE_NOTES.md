@@ -1,3 +1,28 @@
+# MoonCompiler 2.5.4: safe case dispatch for unknown values
+
+An enum or integer subrange read from a binary stream can contain a value
+outside its declaration. `case` now routes unmatched stored values to `else`,
+or continues after the statement when there is no `else`, instead of indexing
+beyond a jump table or selecting an incorrect branch. This includes dense,
+sparse, grouped and range-based dispatch, with optimizations and runtime range
+checks enabled or disabled. The selector is still evaluated once.
+
+The compiler uses the selector's storage width and signedness for dispatch;
+it retains jump tables and comparison optimizations. Ordinary assignments keep
+their existing type and range checks. Raw stream reads still copy bytes without
+validating the destination's declared type.
+
+The same review fixes optimized comparison trees with `UInt64` labels above
+`High(Int64)` and constant/inlined `ByteBool`, `WordBool` and `LongBool` cases.
+The latter now use Boolean truth semantics consistently instead of losing the
+`True` branch for a different nonzero representation.
+
+Install the complete SDK and rebuild application and third-party PPUs, including
+units that contain case statements. MoonORMot **16** remains required.
+`MOONCOMPILER_FULLVERSION` is 20504; `CompilerVersion` remains 2.5.
+
+---
+
 # MoonCompiler 2.5.3: cheaper waits, clocks and string lookups
 
 Linux time reads now use libc's vDSO path while retaining their clock semantics
