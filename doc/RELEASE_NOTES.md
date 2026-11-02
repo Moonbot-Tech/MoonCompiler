@@ -29,7 +29,7 @@ block boundaries, ownership and list corruption remain checked. Ordinary
 allocation and release paths are unchanged.
 
 Install the complete SDK and rebuild application and third-party PPUs, including
-units that contain case statements. MoonORMot **16** remains required.
+units that contain case statements. MoonORMot **17** is required.
 `MOONCOMPILER_FULLVERSION` is 20504; `CompilerVersion` remains 2.5.
 
 ---
