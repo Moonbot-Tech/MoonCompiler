@@ -338,7 +338,6 @@ Var
   Size : SizeInt;
   temp : ansistring;
 begin
-  res:='';
   Size:=Length(S2);
   if Size>0 then
     begin
@@ -346,7 +345,9 @@ begin
         Size:=high(res);
       widestringmanager.Unicode2AnsiMoveProc(PUnicodeChar(Pointer(S2)),temp,DefaultSystemCodePage,Size);
       res:=temp;
-    end;
+    end
+  else
+    res:='';
 end;
 {$endif FPC_HAS_UNICODESTR_TO_SHORTSTR}
 

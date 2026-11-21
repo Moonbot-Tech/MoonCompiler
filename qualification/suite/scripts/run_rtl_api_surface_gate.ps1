@@ -40,6 +40,7 @@ $Cases = @(
   @{ Name = 'rtl_api_dictionary_scan_contracts'; Expected = 'RTL_API_DICTIONARY_SCAN_CONTRACTS_OK' },
   @{ Name = 'rtl_api_dynarray_managed_contracts'; Expected = 'RTL_API_DYNARRAY_MANAGED_CONTRACTS_OK' },
   @{ Name = 'rtl_api_unicode_copy_contracts'; Expected = 'RTL_API_UNICODE_COPY_CONTRACTS_OK' },
+  @{ Name = 'shortstring_publication'; Expected = 'SHORTSTRING_PUBLICATION_OK' },
   @{ Name = 'rtl_api_array_copy'; Expected = 'RTL_API_ARRAY_COPY_OK' },
   @{ Name = 'rtl_api_fphttp_nodelay'; Expected = 'RTL_API_FPHTTP_NODELAY_OK' },
   @{ Name = 'rtl_api_fphttp_overload_response'; Expected = 'RTL_API_FPHTTP_OVERLOAD_RESPONSE_OK' }
@@ -155,6 +156,7 @@ $Inputs = @(
   (Join-Path $SourceRoot 'rtl_api_dictionary_scan_contracts.dpr'),
   (Join-Path $SourceRoot 'rtl_api_dynarray_managed_contracts.dpr'),
   (Join-Path $SourceRoot 'rtl_api_unicode_copy_contracts.dpr'),
+  (Join-Path $SourceRoot 'shortstring_publication.dpr'),
   (Join-Path $SourceRoot 'rtl_api_array_copy.dpr'),
   (Join-Path $SourceRoot 'rtl_api_fphttp_nodelay.dpr'),
   (Join-Path $SourceRoot 'rtl_api_fphttp_overload_response.dpr'),

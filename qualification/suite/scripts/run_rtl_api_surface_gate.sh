@@ -64,7 +64,7 @@ executions=0
 for case_name in cwstring_utf8_contracts thread_wait_contracts rtl_api_release231_contracts rtl_api_freetype_contracts rtl_api_portability_contracts rtl_api_regex_contracts rtl_api_posix_contracts rtl_api_compiler_identity rtl_api_threading_contracts thread_priority_best_effort queue244_assignment_contracts queue244_notification_contracts rtl_api_url_async_contracts rtl_api_json_builder_contracts rtl_api_release21_contracts rtl_api_timezone_provider_contracts rtl_api_surface rtl_api_stringbuilder_contracts \
     rtl_api_variant_dictionary_contracts rtl_api_bcd_value_contracts rtl_api_encoding_contracts rtl_api_utf8_decode_contracts rtl_api_datetime_unix_contracts rtl_api_sorted_find_contracts \
     rtl_api_queue_contracts rtl_api_dictionary_capacity_contracts rtl_api_comparer_factory_contracts \
-    rtl_api_text_operations_contracts rtl_api_dictionary_scan_contracts rtl_api_unicode_copy_contracts rtl_api_array_copy \
+    rtl_api_text_operations_contracts rtl_api_dictionary_scan_contracts rtl_api_unicode_copy_contracts shortstring_publication rtl_api_array_copy \
     rtl_api_dynarray_managed_contracts rtl_api_fphttp_nodelay rtl_api_fphttp_overload_response; do
   if [[ "$case_name" == cwstring_utf8_contracts ]]; then
     expected=CWSTRING_UTF8_CONTRACTS_OK
@@ -128,6 +128,8 @@ for case_name in cwstring_utf8_contracts thread_wait_contracts rtl_api_release23
     expected=RTL_API_DYNARRAY_MANAGED_CONTRACTS_OK
   elif [[ "$case_name" == rtl_api_unicode_copy_contracts ]]; then
     expected=RTL_API_UNICODE_COPY_CONTRACTS_OK
+  elif [[ "$case_name" == shortstring_publication ]]; then
+    expected=SHORTSTRING_PUBLICATION_OK
   elif [[ "$case_name" == rtl_api_array_copy ]]; then
     expected=RTL_API_ARRAY_COPY_OK
   elif [[ "$case_name" == rtl_api_fphttp_nodelay ]]; then
@@ -243,6 +245,7 @@ done
     "$source_root/rtl_api_dictionary_scan_contracts.dpr" \
     "$source_root/rtl_api_dynarray_managed_contracts.dpr" \
     "$source_root/rtl_api_unicode_copy_contracts.dpr" \
+    "$source_root/shortstring_publication.dpr" \
     "$source_root/rtl_api_array_copy.dpr" \
     "$source_root/rtl_api_fphttp_nodelay.dpr" \
     "$source_root/rtl_api_fphttp_overload_response.dpr" \

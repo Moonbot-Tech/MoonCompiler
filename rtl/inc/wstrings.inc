@@ -149,7 +149,6 @@ Var
   Size : SizeInt;
   temp : ansistring;
 begin
-  res:='';
   Size:=Length(S2);
   if Size>0 then
     begin
@@ -157,7 +156,9 @@ begin
         Size:=high(res);
       widestringmanager.Wide2AnsiMoveProc(PWideChar(S2),temp,DefaultSystemCodePage,Size);
       res:=temp;
-    end;
+    end
+  else
+    res:='';
 end;
 
 
