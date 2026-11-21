@@ -958,6 +958,7 @@
     "toolchain_sha256": "f0374806f73c8e6f1ea93a779c749620295d8ccee79d80afae7fd370a0b26ed4"
   },
   "BRO-3": {
+    "windows_cpu": "AMD Ryzen 7 5800X 8-Core Processor",
     "cases": {
       "abi/dynamic-array-const": 0.08227646130020798,
       "abi/dynamic-array-value": 0.04951825041302482,

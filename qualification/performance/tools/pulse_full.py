@@ -117,6 +117,12 @@ def stack_phase(plan: str, pair: int) -> int | None:
     return int(plan)
 
 
+def windows_cpu_name() -> str:
+    import winreg
+    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as key:
+        return winreg.QueryValueEx(key, "ProcessorNameString")[0].strip()
+
+
 def l2_calibration(
     cases: list[Case], table: Path = L2_CALIBRATION
 ) -> tuple[list[Case], dict[str, object]]:
@@ -128,6 +134,8 @@ def l2_calibration(
     machine = platform.node()
     tables = json.loads(table.read_text(encoding="utf-8")) if table.is_file() else {}
     section = tables.get(machine) or {}
+    if section.get("windows_cpu") and (os.name != "nt" or section["windows_cpu"] != windows_cpu_name()):
+        section = {}
     rates = section.get("cases", {})
     measured = [
         replace(case, l2_misses_per_kcycle=rates.get(f"{case.program}/{case.name}"))

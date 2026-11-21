@@ -293,6 +293,7 @@ def run() -> int:
         "unclean": sorted(unclean),
     }
     if windows:
+        section["windows_cpu"] = pulse_full.windows_cpu_name()
         section["profile_interval_100ns"] = args.windows_profile_interval
     alone = sorted(
         name

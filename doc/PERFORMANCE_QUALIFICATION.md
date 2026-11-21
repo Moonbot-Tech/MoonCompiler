@@ -136,7 +136,8 @@ A case of a concurrent category runs alone when its L2 misses exceed 0.2 per
 light traffic, so a missing calibration lengthens the run instead of weakening
 it. `pulse_l2_calibration.py` measures the rates into
 `qualification/performance/pulse_l2_misses.json`, one section per machine keyed
-by its host name; another host, even with the same OS, uses none. The section
+by its host name. New Windows calibrations also record the CPU model so
+replacing the processor invalidates the old rates. The section
 records the counted event: the core's requests to L3 with hardware prefetches,
 on Linux Intel `0x4f2e` and on Linux AMD (Zen 2 to Zen 5) the sum
 `0x964+0xff71+0xff72` (demand misses of both L1 caches in L2 plus L2 prefetches
