@@ -63,6 +63,8 @@ PROGRAMS = {
         "repairs",
         "hot-rtl",
         "product-forms",
+        "strategy-filters",
+        "ema-filters",
     )
 }
 PROGRAMS["local-pressure"] = PERF_ROOT / "local-pressure" / "pulse_local_pressure.dpr"

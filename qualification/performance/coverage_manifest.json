@@ -21,7 +21,9 @@
     "order-workers",
     "moonshot-idle",
     "application-pipeline",
-    "product-forms"
+    "product-forms",
+    "strategy-filters",
+    "ema-filters"
   ],
   "required_axis_values": {
     "target": ["win64", "linux-x86_64"],
@@ -487,6 +489,38 @@
         "lifetime": ["write-only", "read-write", "copied", "returned", "escaped", "exception"],
         "call": ["inline", "autoinline", "indirect", "virtual", "interface", "generic", "ppu-boundary"],
         "memory": ["stack", "heap", "l1", "l2", "llc", "dram", "sequential", "random"],
+        "concurrency": ["single-unlocked"]
+      }
+    },
+    {
+      "id": "strategy-filters",
+      "status": "implemented",
+      "source": "strategy-filters/pulse_strategy-filters.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": ["cached-thresholds", "early-rejection", "station-list-scan", "recompute-limits", "read-clock", "format-rejection"],
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["inlining", "register-allocation", "branch-lowering", "address-alias", "exception-cleanup"],
+        "type": ["signed-integer", "double", "enum-set", "unicode-string"],
+        "lifetime": ["read-write", "copied", "returned", "early-exit"],
+        "call": ["inline", "noinline", "generic", "ppu-boundary"],
+        "memory": ["heap", "sequential", "random"],
+        "concurrency": ["single-unlocked"]
+      }
+    },
+    {
+      "id": "ema-filters",
+      "status": "implemented",
+      "source": "ema-filters/pulse_ema-filters.dpr",
+      "case_contract": "PulseRunCase/v1",
+      "cases": ["one-band", "eight-bands", "delayed-history", "channel-envelope", "alternative-groups", "missing-channel"],
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "optimization": ["copy-propagation", "inlining", "register-allocation", "branch-lowering", "address-alias"],
+        "type": ["signed-integer", "double", "enum-set"],
+        "lifetime": ["read-write", "copied", "early-exit"],
+        "call": ["inline", "noinline", "generic", "ppu-boundary"],
+        "memory": ["heap", "sequential", "random"],
         "concurrency": ["single-unlocked"]
       }
     },

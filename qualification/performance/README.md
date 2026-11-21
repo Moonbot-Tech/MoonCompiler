@@ -54,6 +54,10 @@ and deliberately deferred improvements are in
 
 ## Current state
 
+Two standalone programs model filter and EMA workloads on generated station data.
+Select `--programs strategy-filters,ema-filters` to run their twelve scenarios.
+[Workloads and units of measurement](strategy-filters/README.md).
+
 The [thread and clock programs](threads/README.md) also cover mostly waiting
 workers: 92 periodic event waiters, clock reads and main-thread log delivery.
 Use `tools/pulse_wakeups.py` for that paced workload; it reports process CPU
