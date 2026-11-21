@@ -1,3 +1,27 @@
+# MoonCompiler 2.5.5
+
+Assigning a nonempty `UnicodeString` or `WideString` to a `ShortString` now
+preserves the previous contents while the character conversion runs. Previously
+the RTL cleared the destination first, so even replacing `'K'` with `'K'` could
+expose an empty string to a reader. A concurrent read of a multi-byte update
+can still observe a mixture of old and new bytes.
+
+The compiler can eliminate an extra copy of an unmanaged record or array
+returned by an inlined getter when evaluating its receiver or index needs
+a temporary. For example, reading a 64-byte record with
+`Entry := List.Items[GetIndex()]` can copy the element directly into
+`Entry`. The index check and exception behavior are preserved.
+
+Pulse adds twelve synthetic workloads covering filter evaluation, moving-average
+history and selection of rule groups. Each program checks its results before
+timing. See the [benchmark description](../qualification/performance/strategy-filters/README.md).
+
+Install the complete SDK and rebuild application and third-party units.
+MoonORMot **17** is required. `MOONCOMPILER_FULLVERSION` is 20505 and
+`CompilerVersion` remains 2.5.
+
+---
+
 # MoonCompiler 2.5.4: safe case dispatch for unknown values
 
 An enum or integer subrange read from a binary stream can contain a value
