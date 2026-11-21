@@ -16,18 +16,16 @@ arguments from binary operators: current Moon builds already match the measured
 DCC64 behavior for operators. [`probe/inlineorder.dpr`](probe/inlineorder.dpr)
 pins this boundary for stateful inline methods.
 
-## Why it is not fixed now
+## Product example and decision
 
-Object Pascal does not promise an argument evaluation order. Therefore both
-sequences preserve the language semantics when source does not hide dependent
-side effects in adjacent arguments. A search in MoonBot and Arbitrage found no
-proven live call that relies on this order; the finding arose in a synthetic
-Pascal-vs-ASM component, retained as the separate Devil `asm-oracle`, not in a
-product Chimera composition.
+Consider a binary protocol that writes a mode byte followed by a Boolean.
+Its reader evaluates `Apply(ReadByte, ReadBool)` on a shared stream cursor. For input `01 00`,
+an independent Win64 probe returned mode 1 and False with Delphi 12.2,
+and mode 0 and True with Moon 2.5.4. Reading the fields into two locals in
+wire order returned mode 1 and False on both.
 
-Changing the order would affect lowering of all calls, hidden parameters,
-managed temporaries, and both ABIs. Without a live need, that is a
-disproportionate pre-release risk. The boundary remains explicit: dependent
-state reads/mutations must be evaluated in separate statements. If a real
-product call appears, this decision is reconsidered against its exact form, not
-against a general promise of parity.
+The protocol requires a read order. Express it with successive statements before
+calling the handler. The [Delphi reference](https://docwiki.embarcadero.com/RADStudio/Athens/en/Procedures_and_Functions_%28Delphi%29#Calling_Conventions)
+does not promise left-to-right evaluation for the default register convention.
+The observed DCC64 order remains useful for compatibility testing. The portable
+application repair works with the existing call lowering on both compilers.
