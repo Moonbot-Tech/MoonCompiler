@@ -28,3 +28,19 @@ assignment helper, no release and no finalizer, and `KeepToCall`,
 the RR-06 hole stays closed. The
 compiler before the repair fails the borrowed forms: each took a reference,
 a release and an implicit cleanup frame.
+
+The same gate also runs `run_record_copy_gate.py`. An unmanaged record/array
+returned by an inline getter is copied once, including a receiver or index
+computed by a call and range/overflow-checked builds. `record_copy_probe.dpr`
+checks whole-record values, lower/upper index bounds, exceptions before the
+destination write, aliased inputs and the value snapshot passed to a mutating
+`const` consumer. It inspects ten x86-64 routines for a single copy.
+`aggregate_sizes.dpr` covers record and static-array sizes 1, 2, 4, 8, 16, 32
+and 64 bytes with side effects and repeated temporary lifetimes. Both run at
+O0/O2/O3, with checks, with automatic inlining, and without register variables.
+
+The standalone copy gate accepts the same `--compiler`, `--config` and
+`--output` arguments. The probe's optional `chain`, `index` or `simple`
+argument times a fixed number of operations (second argument, default 50M).
+That timing is a local mechanism benchmark, not an application or Pulse
+qualification result. The default gate does not run the benchmark.

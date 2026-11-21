@@ -139,6 +139,9 @@ def main():
             shrunk.append(f'{name} {insns}/{calls} < {ref_insns}/{ref_calls}')
     if problems:
         fail('-O3 object:\n  ' + '\n  '.join(problems))
+    print(execute([sys.executable, str(HERE / 'run_record_copy_gate.py'), '--compiler', str(args.compiler.resolve()),
+                   '--config', str(args.config.resolve()), '--output', str(args.output / 'record-copy')],
+                  args.output, args.output / 'record-copy.log').strip())
     note = ('; shorter than the reference, renew it with --record: ' + ', '.join(shrunk)) if shrunk else ''
     print(f'GETTER_BORROW_GATE_PASS O2/O3 run; O3 {target}: {len(BORROWED)} borrowed forms without a reference, '
           f'{len(KEPT)} kept forms with their own, no routine above the reference{note}')

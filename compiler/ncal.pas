@@ -7892,12 +7892,12 @@ implementation
              not source_owns_value(srcnode) then
             exit;
 
-          { A result without finalization keeps the shape in which the block
-            creates its temp first and releases it right after the
-            assignment: that temp is a register the block frees where the
-            source's temps die, and reading the source at the consumer
-            instead only lengthens their lives. }
+          { Keep the original temp layout for unmanaged scalar results.
+            Records and arrays can also return the source directly when
+            receiver/index temps surround the assignment: the checks below
+            preserve the lifetime of every temp read by the source. }
           if not is_managed_type(destdef) and
+             not(destdef.typ in [recorddef,arraydef]) and
              ((createindex<>0) or (assignindex<>stmts.count-3)) then
             exit;
 
