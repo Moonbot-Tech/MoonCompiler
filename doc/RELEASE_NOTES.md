@@ -1,4 +1,4 @@
-# MoonCompiler 2.5.5
+# MoonCompiler 2.5.5: ShortString conversions and inlined record getters
 
 Assigning a nonempty `UnicodeString` or `WideString` to a `ShortString` now
 preserves the previous contents while the character conversion runs. Previously
