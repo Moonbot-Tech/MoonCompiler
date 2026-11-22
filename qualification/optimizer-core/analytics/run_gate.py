@@ -167,7 +167,12 @@ def check_case(case, mode, args, compilers, output):
                     binary_sha256=binary_hash,
                 )
             )
-        executable.unlink()
+        try:
+            executable.unlink()
+        except PermissionError as error:
+            if getattr(error, "winerror", None) != 32:
+                raise
+            print(f"Retaining busy executable in its private output directory: {executable}", flush=True)
         executable.with_suffix(".o").unlink(missing_ok=True)
     for value in inputs:
         if observations[("candidate", value)] != observations[("baseline", value)]:
