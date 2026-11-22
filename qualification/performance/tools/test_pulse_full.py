@@ -543,7 +543,7 @@ class PulseFullTests(unittest.TestCase):
             table = Path(directory) / "rates.json"
             table.write_text(json.dumps({"stand": {"windows_cpu": "Original", "cases": {"layout/read": 0.01}}}))
             case = FULL.Case("layout", "read", "codegen+memory", "compiler", "memory-local")
-            for cpu, expected in (("Original", 0.01), ("Replacement", None)):
+            for cpu, expected in (("Original", 0.01), ("Replacement", None), ("", None)):
                 with (
                     self.subTest(cpu=cpu),
                     mock.patch.object(FULL.platform, "node", return_value="stand"),
@@ -552,6 +552,22 @@ class PulseFullTests(unittest.TestCase):
                 ):
                     measured, _ = FULL.l2_calibration([case], table)
                     self.assertEqual(measured[0].l2_misses_per_kcycle, expected)
+
+    def test_windows_calibration_applies_only_to_its_measured_cores(self) -> None:
+        case = FULL.Case("layout", "read", "codegen+memory", "compiler", "memory-local")
+        section = {"windows_cpu": "Hybrid", "windows_cpus": [4, 8, 16, 20], "cases": {"layout/read": 0.01}}
+        with tempfile.TemporaryDirectory() as directory:
+            table = Path(directory) / "rates.json"
+            table.write_text(json.dumps({"stand": section}))
+            with (
+                mock.patch.object(FULL.platform, "node", return_value="stand"),
+                mock.patch.object(FULL.os, "name", "nt"),
+                mock.patch.object(FULL, "windows_cpu_name", return_value="Hybrid"),
+            ):
+                for cpus, expected in (((4, 8), 0.01), ((4, 8, 16, 20), 0.01), ((4, 5), None), ((), None)):
+                    with self.subTest(cpus=cpus):
+                        measured, _ = FULL.l2_calibration([case], table, single_cpus=cpus)
+                        self.assertEqual(measured[0].l2_misses_per_kcycle, expected)
 
     def test_calibration_event_defaults_to_the_cores_requests_to_l3(self) -> None:
         self.assertEqual(CALIBRATION.counted_event(None, "vendor_id\t: GenuineIntel\n"), "0x4f2e")
@@ -1322,7 +1338,7 @@ class PulseFullTests(unittest.TestCase):
                     with mock.patch.object(FULL.platform, "node", return_value="stand"):
                         measured, _ = FULL.l2_calibration([
                             FULL.Case("workloads", "binary-trees-depth-10", "codegen+mm", "compiler", "single-cpu")
-                        ], table)
+                        ], table, single_cpus=(3,))
                     if contaminated:
                         self.assertIsNone(measured[0].l2_misses_per_kcycle)
                         self.assertTrue(measured[0].exclusive)

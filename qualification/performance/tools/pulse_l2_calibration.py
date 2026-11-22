@@ -294,6 +294,9 @@ def run() -> int:
     }
     if windows:
         section["windows_cpu"] = pulse_full.windows_cpu_name()
+        if not section["windows_cpu"]:
+            raise SystemExit("Cannot identify the Windows processor for this calibration.")
+        section["windows_cpus"] = sorted(set(cpus))
         section["profile_interval_100ns"] = args.windows_profile_interval
     alone = sorted(
         name

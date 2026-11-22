@@ -332,7 +332,7 @@ def case_descriptors(raw: dict, built: dict[str, dict[str, Path]]) -> dict[str, 
               for case in cases}
     if actual != original or len(cases) != len(raw["cases"]):
         refuse("measured case set/metadata differs from executable discovery")
-    cases, provenance = full.l2_calibration(cases)
+    cases, provenance = full.l2_calibration(cases, single_cpus=tuple(raw["machine"]["single_affinity"]))
     if provenance != {key: raw["l2_calibration"][key] for key in provenance}:
         refuse("host L2 calibration provenance differs")
     exclusive = sorted(f"{case.program}/{case.name}" for case in cases

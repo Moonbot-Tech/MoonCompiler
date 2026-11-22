@@ -119,12 +119,15 @@ def stack_phase(plan: str, pair: int) -> int | None:
 
 def windows_cpu_name() -> str:
     import winreg
-    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as key:
-        return winreg.QueryValueEx(key, "ProcessorNameString")[0].strip()
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as key:
+            return winreg.QueryValueEx(key, "ProcessorNameString")[0].strip()
+    except OSError:
+        return ""
 
 
 def l2_calibration(
-    cases: list[Case], table: Path = L2_CALIBRATION
+    cases: list[Case], table: Path = L2_CALIBRATION, *, single_cpus: tuple[int, ...] = ()
 ) -> tuple[list[Case], dict[str, object]]:
     """Attach the L2 misses measured on this machine; a case without them runs alone.
 
@@ -135,6 +138,9 @@ def l2_calibration(
     tables = json.loads(table.read_text(encoding="utf-8")) if table.is_file() else {}
     section = tables.get(machine) or {}
     if section.get("windows_cpu") and (os.name != "nt" or section["windows_cpu"] != windows_cpu_name()):
+        section = {}
+    measured_cpus = section.get("windows_cpus")
+    if measured_cpus is not None and (not single_cpus or not set(single_cpus).issubset(measured_cpus)):
         section = {}
     rates = section.get("cases", {})
     measured = [
@@ -1344,7 +1350,7 @@ def run_fast_preflight(
     max_attempts: int = 3,
 ) -> dict[str, object]:
     [case], _ = l2_calibration(
-        [Case("calibration", "asm-dependent-add", "calibration", "instruction", "single-cpu")]
+        [Case("calibration", "asm-dependent-add", "calibration", "instruction", "single-cpu")], single_cpus=single_cpus
     )
     source = built["moon-candidate"]["calibration"]
     images: dict[tuple[str, str, int], Path] = {}
@@ -1945,7 +1951,7 @@ def run() -> int:
     programs, left_out = pulse.buildable_everywhere(built, programs)
     if not programs:
         raise ValueError(f"no selected program is built by both toolchains: {left_out}")
-    cases, calibration = l2_calibration(select_cases(discover_matrix(built, programs), args.cases))
+    cases, calibration = l2_calibration(select_cases(discover_matrix(built, programs), args.cases), single_cpus=single_cpus)
     names, unhostable_cases = hostable([f"{case.program}/{case.name}" for case in cases], multithread_cpus)
     cases = [case for case, name in zip(cases, [f"{case.program}/{case.name}" for case in cases]) if name in set(names)]
     unhostable.update(unhostable_cases)
