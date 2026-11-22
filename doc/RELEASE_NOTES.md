@@ -1,3 +1,21 @@
+# MoonCompiler 2.5.6: faster Win64 WebSocket decompression
+
+The Win64 SDK ships a faster zlib decoder. DEFLATE represents repeated data
+with a length and a distance back to earlier bytes. When a match lies entirely
+in one contiguous part of the history window, the decoder now copies the
+whole match with zlib's block-copy routine. Matches that extend into the
+output can depend on bytes just written and still expand in order.
+
+On an Intel Core Ultra 9 275HX, the Pulse workload that decompresses 256
+WebSocket messages used 19.4% fewer thread cycles on an efficiency core
+and 8.2% fewer on a performance core than with 2.5.5.
+
+Install the SDK and rebuild your Win64 application to link the updated
+decoder. MoonORMot **17** is required. `MOONCOMPILER_FULLVERSION` is 20506
+and `CompilerVersion` remains 2.5.
+
+---
+
 # MoonCompiler 2.5.5: ShortString conversions and inlined record getters
 
 Assigning a nonempty `UnicodeString` or `WideString` to a `ShortString` now
