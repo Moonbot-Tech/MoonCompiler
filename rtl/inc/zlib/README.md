@@ -72,6 +72,10 @@ candidate check but extends matches byte by byte. In a product Pulse series
 (7 fresh processes per side, same oracle, sibling-idle samples), this change
 made the packet 1.5-1.8 % and ZIP entry 1.7 % cheaper than the full flag;
 fastest history stayed level. The identical-binary control was within 0.2 %.
+On Win64, when a decompression match lies wholly in a contiguous part of
+the history window, `inflate_fast` copies it with zlib's existing `zmemcpy`.
+A match that continues into the output still uses forward expansion so it
+can read the bytes it has just produced.
 The Linux objects are
 position-independent (they link into a PIE and into a shared library) with
 hidden symbols (`-fvisibility=hidden`, zlib's own `HAVE_HIDDEN`: a shared

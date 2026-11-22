@@ -6,8 +6,8 @@ compiler.  The objects of x86_64-win64 come from MinGW-w64 GCC (or Clang for
 x86_64-w64-windows-gnu) and take nothing from a C runtime; those of
 x86_64-linux come from a Linux GCC (or Clang for x86_64-linux-gnu) and take
 memcpy/memset of the C library every Linux program of the toolchain links.
-Both targets use the upstream archive; Win64 patches the short-match check
-after extraction, while Linux uses zlib's UNALIGNED_OK path.
+Both targets use the upstream archive. Win64 patches deflate's short-match
+check and inflate's contiguous history copy after extraction.
 
 Run: python3 build.py [--target x86_64-win64|x86_64-linux] [--cc ...] [--nm ...] [--objcopy ...]
 """
@@ -66,6 +66,21 @@ with tempfile.TemporaryDirectory(prefix='moon-zlib-') as temp:
                 raise SystemExit('zlib 1.3.1 deflate.c no longer matches the Win64 candidate-check patch')
             code = code.replace(old, new)
         source.write_bytes(code)
+        # A match wholly inside the history window cannot overlap the output.
+        # Other matches can grow by reading bytes they have just written.
+        source = src / 'inffast.c'
+        code = source.read_bytes()
+        old = b'                        from += wnext - op;\n                        if (op < len) {'
+        new = b'''                        from += wnext - op;
+                        if (op >= len) {
+                            zmemcpy(out, from, len);
+                            out += len;
+                            continue;
+                        }
+                        else {'''
+        if code.count(old) != 1:
+            raise SystemExit('zlib 1.3.1 inffast.c no longer matches the Win64 history-copy patch')
+        source.write_bytes(code.replace(old, new))
     # Z_SOLO: no C library at all (the allocator comes from the z_stream, the
     # unit always supplies it); the rest keeps GCC from inventing memcpy/memset
     # calls or stack probes, so the Win64 objects have no undefined symbols.

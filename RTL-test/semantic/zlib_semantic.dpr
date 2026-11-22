@@ -172,6 +172,53 @@ begin
   end;
 end;
 
+{ A stored block seeds the window. The fixed Huffman block that follows
+  contains three (length, distance) pairs and six literal bytes. }
+procedure HistoryAndOverlappingMatches;
+const
+  Tail: array[0..12] of Byte = ($43,$E7,$13,$52,$37,$8A,$12,$93,$92,$53,$52,$D3,$00);
+var
+  Seed: array[0..36] of Byte;
+  Expected: array[0..343] of Byte;
+  Output: array[0..511] of Byte;
+  S: z_stream;
+  I: Integer;
+begin
+  Seed[0] := 0;
+  Seed[1] := 32;
+  Seed[2] := 0;
+  Seed[3] := $DF;
+  Seed[4] := $FF;
+  for I := 0 to 31 do begin
+    Seed[I + 5] := I;
+    Expected[I] := I;
+  end;
+  for I := 32 to 47 do Expected[I] := Expected[I - 16];   { entirely in history }
+  for I := 48 to 79 do Expected[I] := Expected[I - 40];   { history into current output }
+  for I := 80 to 337 do Expected[I] := Expected[I - 3];   { overlapping current output }
+  for I := 338 to 343 do Expected[I] := Ord('a') + I - 338;
+  S := Default(z_stream);
+  Check(inflateInit2(S, -15) = Z_OK, 'raw match stream init');
+  try
+    S.next_in := @Seed[0];
+    S.avail_in := SizeOf(Seed);
+    S.next_out := @Output[0];
+    S.avail_out := 32;
+    Check(inflate(S, Z_NO_FLUSH) = Z_OK, 'stored history block');
+    Check((S.avail_out = 0) and CompareMem(@Output[0], @Expected[0], 32), 'history seed intact');
+    FillChar(Output, SizeOf(Output), $CC);
+    S.next_in := @Tail[0];
+    S.avail_in := SizeOf(Tail);
+    S.next_out := @Output[0];
+    S.avail_out := SizeOf(Output);
+    Check(inflate(S, Z_NO_FLUSH) = Z_STREAM_END, 'match block completed');
+    Check((S.avail_in = 0) and (S.total_out = SizeOf(Expected)) and
+      CompareMem(@Output[0], @Expected[32], SizeOf(Expected) - 32), 'history and overlapping match bytes');
+  finally
+    inflateEnd(S);
+  end;
+end;
+
 { two independent gzip frames through one z_stream with inflateReset in
   between (the exchange feed pattern: every message is its own gzip member) }
 procedure ResetBetweenFrames;
@@ -777,6 +824,7 @@ begin
   Framing;
   CheckValues;
   Piecewise;
+  HistoryAndOverlappingMatches;
   ResetBetweenFrames;
   Streams;
   Helpers;
