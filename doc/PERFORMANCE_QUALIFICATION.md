@@ -137,9 +137,10 @@ light traffic, so a missing calibration lengthens the run instead of weakening
 it. `pulse_l2_calibration.py` measures the rates into
 `qualification/performance/pulse_l2_misses.json`, one section per machine keyed
 by its host name. New Windows calibrations record the processor model and
-the logical CPUs used. Select those CPUs or a subset with `--single-cpus`
-to use their measured rates. This keeps performance cores and efficiency cores
-on hybrid processors from inheriting each other's measurements. The section
+the logical CPUs used. On hybrid processors, pass cores from a single efficiency
+class to the calibrator's `--cpu` option. Each scenario runs on one of those
+cores, so a calibration that mixes classes cannot give a rate for each class.
+Use those CPUs or a subset with `--single-cpus` in the comparison. The section
 records the counted event: the core's requests to L3 with hardware prefetches,
 on Linux Intel `0x4f2e` and on Linux AMD (Zen 2 to Zen 5) the sum
 `0x964+0xff71+0xff72` (demand misses of both L1 caches in L2 plus L2 prefetches
