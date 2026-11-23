@@ -307,6 +307,8 @@ type
     procedure InitializeList; virtual;
     procedure InternalInsert(AIndex: SizeInt; const AValue: T);
   private
+    function StorageIndex(Value: Pointer; ElementSize: SizeUInt): SizeInt; inline;
+    procedure InsertSpareSlots(AIndex, SourceIndex, ACount: SizeInt; SingleItem: Boolean);
     function GetItem(AIndex: SizeInt): T; inline;
     procedure SetItem(AIndex: SizeInt; const AValue: T); inline;
     class procedure SwapUnmanaged(var Left, Right: T); static; inline;
@@ -2072,7 +2074,30 @@ begin
   Result := GetEnumerator;
 end;
 
+function TList<T>.StorageIndex(Value: Pointer; ElementSize: SizeUInt): SizeInt;
+var
+  Offset: SizeUInt;
+begin
+  if PtrUInt(Value) >= PtrUInt(Pointer(FItems)) then
+  begin
+    Offset := PtrUInt(Value) - PtrUInt(Pointer(FItems));
+    if Offset < SizeUInt(Length(FItems)) * ElementSize then Exit(Offset div ElementSize);
+  end;
+  Result := -1;
+end;
+
+procedure TList<T>.InsertSpareSlots(AIndex, SourceIndex, ACount: SizeInt; SingleItem: Boolean);
+var
+  Saved: TArrayOfT;
+begin
+  Saved := Copy(FItems, SourceIndex, ACount);
+  if SingleItem then InternalInsert(AIndex, Saved[0])
+  else InsertRange(AIndex, Saved);
+end;
+
 function TList<T>.Add(const AValue: T): SizeInt;
+var
+  SourceIndex: SizeInt;
 begin
   Result := FLength;
   { the two virtual calls below (PrepareAddingItem, Notify) cost more than
@@ -2088,7 +2113,14 @@ begin
   end
   else
   begin
+    if System.HasWeakRef(T) then SourceIndex := StorageIndex(@AValue, SizeOf(T));
     Result := PrepareAddingItem;
+    if System.HasWeakRef(T) and (SourceIndex >= 0) then
+    begin
+      FItems[Result] := FItems[SourceIndex];
+      Notify(FItems[SourceIndex], cnAdded);
+      Exit;
+    end;
     FItems[Result] := AValue;
     Notify(AValue, cnAdded);
   end;
@@ -2123,6 +2155,8 @@ end;
 {$ENDIF}
 
 procedure TList<T>.InternalInsert(AIndex: SizeInt; const AValue: T);
+var
+  SourceIndex: SizeInt;
 begin
   { As in Add, spare capacity in an exact unsubscribed list needs no virtual
     preparation or notification. Managed operators can install a subscriber
@@ -2136,6 +2170,16 @@ begin
     Exit;
   end;
 
+  if System.HasWeakRef(T) then
+  begin
+    SourceIndex := StorageIndex(@AValue, SizeOf(T));
+    if (SourceIndex = FLength) and (AIndex < FLength) then
+    begin
+      { The first spare slot will be finalized to make room for the shift. }
+      InsertSpareSlots(AIndex, SourceIndex, 1, True);
+      Exit;
+    end;
+  end;
   if AIndex <> PrepareAddingItem then
   begin
     { PrepareAddingItem has made one previously spare capacity slot part of
@@ -2152,8 +2196,15 @@ begin
       initialized destination (the Delphi 'initialize gap, assign' order);
       no-op for plain types (dvl-0059) }
     System.Initialize(FItems[AIndex]);
+    if System.HasWeakRef(T) and (SourceIndex >= AIndex) and (SourceIndex < FLength - 1) then Inc(SourceIndex);
   end;
 
+  if System.HasWeakRef(T) and (SourceIndex >= 0) then
+  begin
+    FItems[AIndex] := FItems[SourceIndex];
+    Notify(FItems[SourceIndex], cnAdded);
+    Exit;
+  end;
   FItems[AIndex] := AValue;
   Notify(AValue, cnAdded);
 end;
@@ -2168,7 +2219,7 @@ end;
 
 procedure TList<T>.InsertRange(AIndex: SizeInt; const AValues: array of T);
 var
-  i: SizeInt;
+  i, SourceIndex: SizeInt;
   LLength: SizeInt;
   LValue: ^T;
   LDirect: Boolean;
@@ -2179,6 +2230,16 @@ begin
   LLength := Length(AValues);
   if LLength = 0 then
     Exit;
+  if System.HasWeakRef(T) then
+  begin
+    SourceIndex := StorageIndex(@AValues[0], SizeOf(T));
+    if (SourceIndex >= 0) and (LLength > FLength - SourceIndex) then
+    begin
+      { Raw List can include spare slots overwritten by the insertion. }
+      InsertSpareSlots(AIndex, SourceIndex, LLength, False);
+      Exit;
+    end;
+  end;
 
   { a managed RECORD - or a static ARRAY reaching one - may carry
     Copy/Assign management operators, which the byte-wise arm
@@ -2225,6 +2286,12 @@ begin
   LValue := @AValues[0];
   for i := AIndex to Pred(AIndex + LLength) do
   begin
+    if System.HasWeakRef(T) and (SourceIndex >= 0) then
+    begin
+      if SourceIndex < AIndex then LValue := @FItems[SourceIndex]
+      else LValue := @FItems[SourceIndex + LLength];
+      Inc(SourceIndex);
+    end;
     FItems[i] := LValue^;
     Notify(LValue^, cnAdded);
     Inc(LValue);

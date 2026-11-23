@@ -24,6 +24,8 @@ type
     Id: Integer;
   end;
 
+  TEmpty = record end;
+
 var
   Destroyed: Integer;
 
@@ -156,6 +158,71 @@ begin
   end;
 end;
 
+procedure TestListStorageArguments(Spare: Boolean);
+var
+  List: TList<TRow>;
+  Rows: TArray<TRow>;
+  Owners: array[1..3] of IInterface;
+  Row: TRow;
+  I: Integer;
+
+  procedure CheckIds(const Ids: array of Integer);
+  var
+    K: Integer;
+  begin
+    Check(List.Count = Length(Ids), 'list alias count');
+    for K := 0 to High(Ids) do
+      Check((List.List[K].Id = Ids[K]) and
+        (Pointer(List.List[K].Link) = Pointer(Owners[Ids[K]])), 'list alias value');
+  end;
+
+begin
+  List := TList<TRow>.Create;
+  try
+    for I := 1 to 3 do Owners[I] := TInterfacedObject.Create;
+    for I := 1 to 2 do begin
+      Row.Id := I;
+      Row.Link := Owners[I];
+      List.Add(Row);
+    end;
+    List.Capacity := List.Count + Ord(Spare);
+    List.Insert(0, List.List[0]);
+    CheckIds([1, 1, 2]);
+    List.Capacity := List.Count;
+    List.Add(List.List[2]);
+    CheckIds([1, 1, 2, 2]);
+    List.Capacity := List.Count + Ord(Spare);
+    if Spare then begin
+      List.List[4].Id := 3;
+      List.List[4].Link := Owners[3];
+    end;
+    List.InsertRange(2, List.List);
+    if Spare then CheckIds([1, 1, 1, 1, 2, 2, 3, 2, 2])
+    else CheckIds([1, 1, 1, 1, 2, 2, 2, 2]);
+    Rows := List.ToArray;
+    for I := 1 to 3 do Owners[I] := nil;
+    for I := 0 to High(Rows) do
+      Check((Pointer(Rows[I].Link) = nil) and (Pointer(List.List[I].Link) = nil), 'list alias deregistration');
+  finally
+    List.Free;
+  end;
+end;
+
+procedure TestEmptyElements;
+var
+  List: TList<TEmpty>;
+  Empty: TEmpty;
+begin
+  List := TList<TEmpty>.Create;
+  try
+    List.Add(Empty);
+    List.Insert(0, Empty);
+    Check(List.Count = 2, 'zero-sized elements');
+  finally
+    List.Free;
+  end;
+end;
+
 procedure TestArrayOperations;
 var
   A, B: TArray<TRow>;
@@ -205,5 +272,8 @@ begin
   TestCollections;
   TestArrayOperations;
   TestForeign;
+  TestListStorageArguments(False);
+  TestListStorageArguments(True);
+  TestEmptyElements;
   WriteLn('WEAK_INTERFACE_FIELDS_PASS');
 end.
