@@ -53,6 +53,9 @@
             begin
                freshcarrier:=true;
                newp:=getmem(size);
+{$ifdef FPC_WEAK_ARRAY_ELEMENTS}
+               if not Assigned(newp) then HandleError(203);
+{$endif}
                newdata:=newp+1;
                { make an unique copy }
                movelen:=oldlen;
@@ -83,13 +86,24 @@
                movelen:=oldlen;
                if newlen<movelen then
                  movelen:=newlen;
+{$ifdef FPC_WEAK_ARRAY_ELEMENTS}
+               realp:=p-sizeof(tdynarray);
+               if newlen=oldlen then
+                 newp:=realp
+               else if newlen<oldlen then
+                 newp:=DeleteWeakArrayRange(realp,newlen,oldlen-newlen,elesize,eletypemngd)
+               else if WeakTableActive then
+                 newp:=GrowWeakArrayOwnership(realp,size,elesize)
+               else
+                 begin
+                   newp:=reallocmem(realp,size);
+                   if not Assigned(newp) then HandleError(203);
+                 end;
+{$else}
                { Finalize if shrinking. }
                if assigned(eletypemngd) and (newlen<oldlen) then
                  int_finalizearray(p+elesize*newlen,eletypemngd,oldlen-newlen);
                realp:=p-sizeof(tdynarray);
-{$ifdef FPC_WEAK_ARRAY_ELEMENTS}
-               newp:=ResizeWeakArrayOwnership(realp,size,elesize);
-{$else}
                newp:=reallocmem(realp,size);
 {$endif}
                { ReallocMem may move the carrier.  Publish that address before
@@ -103,6 +117,9 @@
           movelen:=0;
           freshcarrier:=true;
           newp:=AllocMem(size);
+{$ifdef FPC_WEAK_ARRAY_ELEMENTS}
+          if not Assigned(newp) then HandleError(203);
+{$endif}
           newdata:=newp+1;
        end;
      if newlen>oldlen then

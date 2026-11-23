@@ -71,29 +71,49 @@ begin
 end;
 
 {$ifdef FPC_HAS_FEATURE_CLASSES}
-function ResizeWeakArrayOwnership(Header: PDynArray; NewSize, ElementSize: SizeInt): PDynArray;
+function GrowWeakArrayOwnership(Header: PDynArray; NewSize, ElementSize: SizeInt): PDynArray;
 var
-  OldSize, Kept: SizeInt;
+  OldSize: SizeInt;
 begin
   OldSize:=SizeOf(TDynArray)+(Header^.High+1)*ElementSize;
-  Kept:=OldSize;
-  if Kept>NewSize then Kept:=NewSize;
+  if NewSize=OldSize then exit(Header);
   Result:=GetMem(NewSize);
-  if not Assigned(Result) then
-    begin
-      if NewSize<=OldSize then exit(Header);
-      RunError(203);
-    end;
-  WeakMoveOwned(Header^,Result^,Kept);
+  if not Assigned(Result) then HandleError(203);
+  WeakMoveOwned(Header^,Result^,OldSize);
+  FreeMem(Header);
+end;
+
+{ Allocate before finalizing anything. An allocator may raise or return nil.
+  Both failures leave the caller's array and its registered owners intact. }
+function DeleteWeakArrayRange(Header: PDynArray; First, Count, ElementSize: SizeInt; ElemInfo: Pointer): PDynArray;
+var
+  Before, After, NewLen: SizeInt;
+begin
+  NewLen:=Header^.High+1-Count;
+  Before:=First*ElementSize;
+  After:=(NewLen-First)*ElementSize;
+  Result:=GetMem(SizeOf(TDynArray)+NewLen*ElementSize);
+  if not Assigned(Result) then HandleError(203);
+  try
+    int_FinalizeArray(Pointer(Header+1)+Before,ElemInfo,Count);
+  except
+    FreeMem(Result);
+    raise;
+  end;
+  Result^.refcount:=1;
+  Result^.high:=NewLen-1;
+  WeakMoveOwned(Header[1],Result[1],Before);
+  if After<>0 then
+    WeakMoveOwned((Pointer(Header+1)+Before+Count*ElementSize)^,(Pointer(Result+1)+Before)^,After);
   FreeMem(Header);
 end;
 {$endif}
 
-function ResizeArrayOwnership(Header: PDynArray; NewSize, ElementSize: SizeInt; ElemInfo: Pointer): PDynArray; inline;
+function GrowArrayOwnership(Header: PDynArray; NewSize, ElementSize: SizeInt; ElemInfo: Pointer): PDynArray; inline;
 begin
 {$ifdef FPC_HAS_FEATURE_CLASSES}
   if WeakTableActive and ContainsWeakInterfaceFields(ElemInfo) then
-    Result:=ResizeWeakArrayOwnership(Header,NewSize,ElementSize)
+    Result:=GrowWeakArrayOwnership(Header,NewSize,ElementSize)
   else
 {$endif}
     Result:=ReallocMem(Header,NewSize);
@@ -729,11 +749,11 @@ procedure fpc_dynarray_delete(var p : pointer;source,count : SizeInt;pti : point
               if assigned(eletypemngd) then
                 int_FinalizeArray(pointer(oldp)+source*elesize,
                   eletypemngd,count);
-              MoveArrayOwnership((pointer(oldp)+(source+count)*elesize)^,
+              move((pointer(oldp)+(source+count)*elesize)^,
                 (pointer(oldp)+source*elesize)^,
-                (newlen-source)*elesize,eletypemngd);
+                (newlen-source)*elesize);
               realp:=newp;
-              newp:=ResizeArrayOwnership(realp,elesize*newlen+sizeof(tdynarray),elesize,eletypemngd);
+              newp:=reallocmem(realp,elesize*newlen+sizeof(tdynarray));
               newp^.high:=newlen-1;
               p:=newp+1;
               exit;
@@ -765,16 +785,57 @@ procedure fpc_dynarray_delete(var p : pointer;source,count : SizeInt;pti : point
             int_FinalizeArray(pointer(oldp)+source*elesize,eletypemngd,count);
 
           { close the gap by moving the trailing elements to the front }
-          MoveArrayOwnership((pointer(oldp)+(source+count)*elesize)^,(pointer(oldp)+source*elesize)^,(newlen-source)*elesize,eletypemngd);
+          move((pointer(oldp)+(source+count)*elesize)^,(pointer(oldp)+source*elesize)^,(newlen-source)*elesize);
 
           { resize the array }
           realp:=oldp-1;
-          newp:=ResizeArrayOwnership(realp,elesize*newlen+sizeof(tdynarray),elesize,eletypemngd);
+          newp:=reallocmem(realp,elesize*newlen+sizeof(tdynarray));
         end;
     newp^.high:=newlen-1;
     p:=newp+1;
   end;
 
+
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+procedure fpc_dynarray_delete_weak(var p: Pointer; First, Count: SizeInt; Info: Pointer); compilerproc;
+var
+  Header: PDynArray;
+  Data: PDynArrayTypeData;
+  OldLen: SizeInt;
+  Detached: Pointer;
+begin
+  if not Assigned(p) or (Count<=0) then exit;
+  Header:=PDynArray(p)-1;
+  OldLen:=Header^.High+1;
+  if SizeUInt(First)>=SizeUInt(OldLen) then exit;
+  if Count>OldLen-First then Count:=OldLen-First;
+  if Count=OldLen then
+    begin
+      fpc_dynarray_clear(p,Info);
+      exit;
+    end;
+  Data:=PDynArrayTypeData(aligntoqword(Info+2+PByte(Info)[1]));
+  if Header^.RefCount=1 then
+    p:=DeleteWeakArrayRange(Header,First,Count,Data^.elSize,PPointer(Data^.elType)^)+1
+  else
+    begin
+      { Detach using the same managed copy as SetLength. Publish only after
+        both the copy and the allocation for the shortened array succeed. }
+      Detached:=p;
+      fpc_dynarray_incr_ref(Detached);
+      try
+        int_dynarray_setlength_weak(Detached,Info,1,@OldLen);
+        Header:=DeleteWeakArrayRange(PDynArray(Detached)-1,First,Count,Data^.elSize,PPointer(Data^.elType)^);
+        Detached:=Header+1;
+      except
+        fpc_dynarray_clear(Detached,Info);
+        raise;
+      end;
+      fpc_dynarray_clear(p,Info);
+      p:=Detached;
+    end;
+end;
+{$endif}
 
 { Move owners in a unique array.  The caller acquires any new values first
   if copying them can raise; ReallocMem leaves the old carrier on failure. }
@@ -1082,7 +1143,7 @@ procedure fpc_dynarray_concat_multi(var dest : pointer; pti: pointer; const sarr
               ownership and construct only appended copies. }
             oldlen:=olddestp[-1].high+1;
             realp:=olddestp-1;
-            newp:=ResizeArrayOwnership(realp,totallen*elesize+sizeof(tdynarray),elesize,eletypemngd);
+            newp:=GrowArrayOwnership(realp,totallen*elesize+sizeof(tdynarray),elesize,eletypemngd);
             dest:=newp+1;
             copydest:=pointer(newp+1)+oldlen*elesize;
             constructed:=0;
@@ -1252,7 +1313,7 @@ procedure fpc_dynarray_concat(var dest : pointer; pti: pointer; const src1,src2 
             oldlen:=olddestp[-1].high+1;
             src2len:=pdynarray(src2)[-1].high+1;
             realp:=olddestp-1;
-            newp:=ResizeArrayOwnership(realp,totallen*elesize+sizeof(tdynarray),elesize,eletypemngd);
+            newp:=GrowArrayOwnership(realp,totallen*elesize+sizeof(tdynarray),elesize,eletypemngd);
             dest:=newp+1;
             copysrc:=src2;
             if copysrc=olddestp then

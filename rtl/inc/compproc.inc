@@ -87,6 +87,7 @@ procedure fpc_dynarray_setlength(var p : pointer;pti : pointer; dimcount : sizei
 procedure fpc_dynarray_setlength_record(var p : pointer;pti : pointer; dimcount : sizeint;dims : pdynarrayindex); compilerproc;
 {$ifdef FPC_HAS_FEATURE_CLASSES}
 procedure fpc_dynarray_setlength_weak(var p : pointer;pti : pointer; dimcount : sizeint;dims : pdynarrayindex); compilerproc;
+procedure fpc_dynarray_delete_weak(var p: Pointer; First, Count: SizeInt; Info: Pointer); compilerproc;
 {$endif}
 procedure fpc_dynarray_assign(var dest : pointer; src : pointer; ti: pointer); compilerproc;
 { no reference to the Delete()/Insert() intrinsic, due to typeinfo parameter }

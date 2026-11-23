@@ -6386,7 +6386,10 @@ implementation
            procname:='fpc_ansistr_delete'
          else if is_dynamic_array(first) then
            begin
-             procname:='fpc_dynarray_delete';
+             if has_weak_fields(tarraydef(first).elementdef) then
+               procname:='fpc_dynarray_delete_weak'
+             else
+               procname:='fpc_dynarray_delete';
              { recreate the parameters as array pointer, src, count, typeinfo }
              newn:=ccallparanode.create(caddrnode.create_internal
                   (crttinode.create(tstoreddef(first),initrtti,rdt_normal)),

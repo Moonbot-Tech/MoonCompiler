@@ -116,9 +116,9 @@ end;
 
 function NewWeakTable(Buckets: SizeUInt): PWeakTable;
 begin
-  if Buckets>(High(SizeInt)-SizeOf(TWeakTable)) div (2*SizeOf(Pointer)) then RunError(203);
+  if Buckets>(High(SizeInt)-SizeOf(TWeakTable)) div (2*SizeOf(Pointer)) then HandleError(203);
   Result:=AllocMem(SizeOf(TWeakTable)+2*Buckets*SizeOf(Pointer));
-  if not Assigned(Result) then RunError(203);
+  if not Assigned(Result) then HandleError(203);
   Result^.ByPage:=Pointer(Result+1);
   Result^.ByTarget:=Result^.ByPage+Buckets;
   Result^.Mask:=Buckets-1;
@@ -245,7 +245,7 @@ begin
       if not Assigned(Spare) then
         begin
           New(Spare);
-          if not Assigned(Spare) then RunError(203);
+          if not Assigned(Spare) then HandleError(203);
         end;
       if Assigned(SpareTable) then begin FreeMem(SpareTable); SpareTable:=nil end;
       if Buckets<>0 then SpareTable:=NewWeakTable(Buckets);
