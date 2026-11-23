@@ -2951,205 +2951,171 @@ begin
     end;
 end;
 
-function TryISOStrToDate(const aString: string; out outDate: TDateTime): Boolean;
+{ All callers supply bounded, fixed-width decimal fields. High(Word) is
+  outside the valid range of every date and time field, including the year. }
+function ISOField(const S: string; First, Count: SizeInt): Word;
 var
-  xYear, xMonth, xDay, I: LongInt;
+  I: SizeInt;
 begin
-  outDate:=0;
-  for I:=1 to Length(aString) do
-    if ((Length(aString)=7) or (Length(aString)=10)) and ((I=5) or (I=8)) then
-      begin
-      if aString[I]<>'-' then
-        Exit(False);
-      end
-    else if not (aString[I] in ['0'..'9']) then
-      Exit(False);
-  case Length(aString) of
-    4: Result :=                                        // YYYY
-          TryStrToInt(aString, xYear) and
-          TryEncodeDate(xYear, 1, 1, outDate);
-    6: Result :=                                        // YYYYMM
-          TryStrToInt(Copy(aString, 1, 4), xYear) and
-          TryStrToInt(Copy(aString, 5, 2), xMonth) and
-          TryEncodeDate(xYear, xMonth, 1, outDate);
-    7: Result :=                                        // YYYY-MM
-          TryStrToInt(Copy(aString, 1, 4), xYear) and
-          TryStrToInt(Copy(aString, 6, 2), xMonth) and
-          TryEncodeDate(xYear, xMonth, 1, outDate);
-    8: Result :=                                        // YYYYMMDD
-          TryStrToInt(Copy(aString, 1, 4), xYear) and
-          TryStrToInt(Copy(aString, 5, 2), xMonth) and
-          TryStrToInt(Copy(aString, 7, 2), xDay) and
-          TryEncodeDate(xYear, xMonth, xDay, outDate);
-    10: Result :=                                       //YYYY-MM-DD
-          TryStrToInt(Copy(aString, 1, 4), xYear) and
-          TryStrToInt(Copy(aString, 6, 2), xMonth) and
-          TryStrToInt(Copy(aString, 9, 2), xDay) and
-          TryEncodeDate(xYear, xMonth, xDay, outDate);
-  else
-    Result := False;
-  end;
-  if not Result then
-    outDate := 0;
+  Result:=0;
+  for I:=First to First+Count-1 do
+    begin
+    if not (S[I] in ['0'..'9']) then
+      Exit(High(Word));
+    Result:=Result*10+Ord(S[I])-Ord('0');
+    end;
 end;
 
-
-function TryISOStrToTime(const aString: string; Out outTime: TDateTime): Boolean;
+function TryISODate(const S: string; Len: SizeInt; DayRequired: Boolean; out D: TDateTime;
+  CalendarOnly: Boolean = False): Boolean;
 var
-  xHour, xMinute, xSecond, xLength, res, I: LongInt;
-  xFractionalSecond: Extended;
-  tmp: String;
+  Y, WeekDay: Word;
+  P, N: SizeInt;
+  ExtendedForm: Boolean;
 begin
-  outTime:=0;
-  Result := True;
-  xLength := Length(aString);
-  if (xLength>0) and (aString[xLength] = 'Z') then
-  begin
-    Dec(xLength);
-  end else
-  if (xLength>6) and CharInSet(aString[xLength-5], ['+', '-']) then
-  begin
-    Result :=
-      TryStrToInt(Copy(aString, xLength-4, 2), xHour) and
-      (aString[xLength-2] = ':') and
-      TryStrToInt(Copy(aString, xLength-1, 2), xMinute);
-    Dec(xLength, 6);
-  end else
-  if (xLength>5) and CharInSet(aString[xLength-4], ['+', '-']) then
-  begin
-    Result :=
-      TryStrToInt(Copy(aString, xLength-3, 2), xHour) and
-      TryStrToInt(Copy(aString, xLength-1, 2), xMinute);
-    Dec(xLength, 5);
-  end else
-  if (xLength>3) and CharInSet(aString[xLength-2], ['+', '-']) then
-  begin
-    Result :=
-      TryStrToInt(Copy(aString, xLength-1, 2), xHour);
-    Dec(xLength, 3);
-  end;
-  if not Result then
-  begin
-    outTime := 0;
-    Exit;
-  end;
+  Result:=False;
+  D:=0;
+  if (Len<4) or (Len>10) then Exit;
+  Y:=ISOField(S,1,4);
+  if (Y=0) or (Y>9999) then Exit;
+  if Len=4 then Exit(not DayRequired and TryEncodeDate(Y,1,1,D));
+  ExtendedForm:=S[5]='-';
+  P:=5+Ord(ExtendedForm);
+  N:=Len-P+1;
+  if N=0 then Exit;
+  if S[P]='W' then
+    begin
+    if CalendarOnly then Exit;
+    Inc(P);
+    Dec(N);
+    WeekDay:=1;
+    if ExtendedForm and (N>=3) and (S[Len-1]='-') then
+      begin
+      WeekDay:=ISOField(S,Len,1);
+      Dec(N,2);
+      end
+    else if not ExtendedForm and (N=3) then
+      begin
+      WeekDay:=ISOField(S,Len,1);
+      Dec(N);
+      end;
+    Result:=(N in [1,2]) and TryEncodeDateWeek(Y,ISOField(S,P,N),D,WeekDay);
+    end
+  else
+    case N of
+      2: Result:=not DayRequired and TryEncodeDate(Y,ISOField(S,P,2),1,D);
+      3: Result:=not CalendarOnly and TryEncodeDateDay(Y,ISOField(S,P,3),D);
+      4: Result:=not ExtendedForm and TryEncodeDate(Y,ISOField(S,P,2),ISOField(S,P+2,2),D);
+      5: Result:=ExtendedForm and (S[P+2]='-') and TryEncodeDate(Y,ISOField(S,P,2),ISOField(S,P+3,2),D);
+    end;
+end;
 
-  { The numeric converters accept signs, exponents and hexadecimal input.
-    ISO fields accept decimal digits only, with separators in fixed positions. }
-  for I:=1 to xLength do
-    if not (aString[I] in ['0'..'9']) then
-      if not (((I=3) or (I=6)) and (aString[I]=':')) and
-         not (((I=7) or (I=9)) and (aString[I] in ['.',','])) then
-        Exit(False);
+function TryISOStrToDate(const aString: string; out outDate: TDateTime): Boolean;
+begin
+  Result:=TryISODate(aString,Length(aString),False,outDate);
+end;
 
-  case xLength of
-    2: Result :=                                          // HH
-          TryStrToInt(Copy(aString,1,2), xHour) and
-          TryEncodeTime(xHour, 0, 0, 0, outTime);
-    4: Result :=                                          // HHNN
-          TryStrToInt(Copy(aString, 1, 2), xHour) and
-          TryStrToInt(Copy(aString, 3, 2), xMinute) and
-          TryEncodeTime(xHour, xMinute, 0, 0, outTime);
-    5: Result :=                                          // HH:NN
-          TryStrToInt(Copy(aString, 1, 2), xHour) and
-          (aString[3] = ':') and
-          TryStrToInt(Copy(aString, 4, 2), xMinute) and
-          TryEncodeTime(xHour, xMinute, 0, 0, outTime);
-    6: Result :=                                          // HHNNSS
-          TryStrToInt(Copy(aString, 1, 2), xHour) and
-          TryStrToInt(Copy(aString, 3, 2), xMinute) and
-          TryStrToInt(Copy(aString, 5, 2), xSecond) and
-          TryEncodeTime(xHour, xMinute, xSecond, 0, outTime);
-    else
-       if (xLength >= 8) and (aString[3] = ':') and (aString[6] = ':') then
-       begin
-         Result :=                            // HH:NN:SS
-           TryStrToInt(Copy(aString, 1, 2), xHour) and
-           TryStrToInt(Copy(aString, 4, 2), xMinute) and
-           TryStrToInt(Copy(aString, 7, 2), xSecond) and
-           TryEncodeTime(xHour, xMinute, xSecond, 0, outTime);
-         if Result and (xLength >= 9) then
-         begin
-           if (xLength=9) or not (aString[9] in ['.',',']) then
-             Exit(False);
-           tmp := copy(aString, 10, xLength-9);
-           for I:=1 to Length(tmp) do
-             if not (tmp[I] in ['0'..'9']) then
-               Exit(False);
-           val('.' + tmp, xFractionalSecond, res);
-           Result := (res = 0);
-           if Result then
-             outTime := outTime + xFractionalSecond * OneSecond;
-         end;
-       end else
-       if (xLength >= 7) and (aString[7] in ['.', ',']) then
-       begin
-         Result :=                         // HHNNSS
-           TryStrToInt(Copy(aString, 1, 2), xHour) and
-           TryStrToInt(Copy(aString, 3, 2), xMinute) and
-           TryStrToInt(Copy(aString, 5, 2), xSecond) and
-           TryEncodeTime(xHour, xMinute, xSecond, 0, outTime);
-         tmp := copy(aString, 8, xLength-7);
-         if tmp='' then
-           Exit(False);
-         for I:=1 to Length(tmp) do
-           if not (tmp[I] in ['0'..'9']) then
-             Exit(False);
-         if Result and (tmp <> '') then
-         begin                           // HHNNSS.[z] (0 or several z)
-           val('.'+tmp, xFractionalSecond, res);
-           Result := res = 0;
-           if Result then
-             outTime := outTime + xFractionalSecond * OneSecond;
-         end;
-       end else
-         Result := false;
-  end;
+function TryISOClock(const S: string; First: SizeInt; out T: TDateTime; out Offset: Integer): Boolean;
+var
+  Last, P, I: SizeInt;
+  H, M, Sec: Word;
+  Fraction: Extended;
+  Err: Integer;
+  Colons: Boolean;
+begin
+  Result:=False;
+  T:=0;
+  Offset:=0;
+  Last:=Length(S);
+  if Last-First+1<2 then Exit;
+  if S[Last]='Z' then
+    Dec(Last)
+  else
+    begin
+    P:=First+2;
+    while (P<=Last) and not (S[P] in ['+','-']) do Inc(P);
+    if P<=Last then
+      begin
+      if not TryISOTZStrToTZOffset(Copy(S,P,Last-P+1),Offset) then Exit;
+      Last:=P-1;
+      end;
+    end;
+  if Last-First+1<2 then Exit;
+  H:=ISOField(S,First,2);
+  P:=First+2;
+  if P>Last then Exit(TryEncodeTime(H,0,0,0,T));
+  Colons:=S[P]=':';
+  Inc(P,Ord(Colons));
+  if P+1>Last then Exit;
+  M:=ISOField(S,P,2);
+  Inc(P,2);
+  Sec:=0;
+  Fraction:=0;
+  if P<=Last then
+    begin
+    if Colons then
+      begin
+      if S[P]<>':' then Exit;
+      Inc(P);
+      end;
+    if P+1>Last then Exit;
+    Sec:=ISOField(S,P,2);
+    Inc(P,2);
+    if P<=Last then
+      begin
+      if not (S[P] in ['.',',']) or (P=Last) then Exit;
+      for I:=P+1 to Last do
+        if not (S[I] in ['0'..'9']) then Exit;
+      Val('.'+Copy(S,P+1,Last-P),Fraction,Err);
+      if Err<>0 then Exit;
+      end;
+    end;
+  { Delphi accepts hour 24 and second 60 as a carry into the next day
+    or minute. Apply the zone after combining this time with the date. }
+  if (H>24) or (M>=60) or (Sec>60) then Exit;
+  { Round the whole seconds to TDateTime first, as in TryEncodeTime. }
+  T:=TDateTime(((H*MinsPerHour+M)*SecsPerMin+Sec)*MSecsPerSec)/MSecsPerDay;
+  if Fraction<>0 then T:=T+Fraction*OneSecond;
+  Result:=True;
+end;
 
-  if not Result then
-    outTime := 0;
+function TryISOStrToTime(const aString: string; out outTime: TDateTime): Boolean;
+var
+  Offset: Integer;
+begin
+  Result:=TryISOClock(aString,1,outTime,Offset);
+end;
+
+function ParseISODateTime(const S: string; AllowDateZ: Boolean; out D: TDateTime; out Offset: Integer): Boolean;
+var
+  P, L: SizeInt;
+  DatePart, TimePart: TDateTime;
+begin
+  D:=0;
+  Offset:=0;
+  L:=Length(S);
+  if L=0 then Exit(False);
+  P:=1;
+  while (P<=L) and (P<=11) and not (S[P] in ['T',' ']) do Inc(P);
+  if (P>L) or (P>11) then
+    begin
+    if AllowDateZ and (S[L]='Z') then Dec(L);
+    { The standalone date helper also accepts YYYYMM. The timestamp API
+      historically accepts YYYY and YYYY-MM as its reduced calendar forms. }
+    if (L=6) and (S[5]<>'W') then Exit(False);
+    Exit(TryISODate(S,L,False,D,L<Length(S)));
+    end;
+  if P=1 then Exit((S[1]='T') and TryISOClock(S,2,D,Offset) and (ISOField(S,2,2)<24));
+  { A space separator and Z on a bare date are legacy calendar-date forms. }
+  Result:=TryISODate(S,P-1,True,DatePart,S[P]=' ') and TryISOClock(S,P+1,TimePart,Offset);
+  if Result then D:=DatePart+TimePart;
 end;
 
 function TryISOStrToDateTime(const aString: string; out outDateTime: TDateTime): Boolean;
 var
-  xLength: Integer;
-  sDate,sTime : String;
-  xDate, xTime: TDateTime;
-
+  Offset: Integer;
 begin
-  xLength := Length(aString);
-  if (xLength = 0) then
-    exit(false);
-
-  if (aString[1]='T') then
-    begin
-    Result := TryISOStrToTime(copy(aString, 2, Length(aString)-1), outDateTime);
-    exit;
-  end;
-
-  if (xLength in [4 {YYYY}, 7 {YYYY-MM}, 8 {YYYYMMDD}, 10 {YYYY-MM-DD}]) then
-    begin
-    Result := TryISOStrToDate(aString, outDateTime);
-    exit;
-    end;
-
-  if (xLength>11) and CharInSet(aString[11], [' ', 'T']) then   // YYYY-MM-DDT...
-    begin
-    sDate:=Copy(aString, 1, 10);
-    sTime:=Copy(aString, 12, Length(aString))
-    end
-  else if (xLength>9) and CharInSet(aString[9], [' ', 'T']) then    // YYYYMMDDT...
-    begin
-    sDate:=Copy(aString, 1, 8);
-    sTime:=Copy(aString, 10, Length(aString));
-    end
-  else
-    exit(False);
-  Result:=TryISOStrToDate(sDate, xDate)  and TryISOStrToTime(sTime, xTime);
-  if Result then
-    outDateTime := xDate+xTime
-  else
-    outDateTime := 0;
+  Result:=ParseISODateTime(aString,False,outDateTime,Offset);
 end;
 
 Function TryISOTZStrToTZOffset(const TZ: String; out TZOffset: Integer): Boolean;
@@ -3189,53 +3155,17 @@ begin
     Raise EConvertError.CreateFmt('Invalid ISO timezone string',[TZ]);
 end;
 
-Function TryISO8601ToDate(const DateString: string; out ADateTime: TDateTime;ReturnUTC : Boolean = True) : Boolean;
-
-
-Var
-  S,TZ : String;
-  L,Offset,TZOffset : Integer;
-
+Function TryISO8601ToDate(const DateString: string; out ADateTime: TDateTime; ReturnUTC: Boolean = True): Boolean;
+var
+  Offset: Integer;
 begin
-  S:=DateString;
-  L:=Length(S);
-  if L=0 then
-    exit(False);
-  if S[L]='Z' then
+  Result:=ParseISODateTime(DateString,True,ADateTime,Offset);
+  if Result then
     begin
-    TZ:='Z';
-    S:=Copy(S,1,L-1);
-    end
-  else if ((L>11) and ((S[11] in ['T',' ']) or (S[9] in ['T',' ']))) or // make sure that we dont't have date-only
-          (S[1]='T') then
-  begin
-    If (S[L-2] in ['+','-']) then
-    begin
-    TZ:=Copy(S,L-2,3);
-    S:=Copy(S,1,L-3);
-    end
-  else If (S[L-4] in ['+','-']) then
-    begin
-    TZ:=Copy(S,L-4,5);
-    S:=Copy(S,1,L-5);
-    end
-  else If (S[L-5] in ['+','-']) and ((L > 13) or (S[1]='T')) then  // do not confuse with '2021-05-21T13'
-    begin
-    TZ:=Copy(S,L-5,6);
-    S:=Copy(S,1,L-6);
+    ADateTime:=IncMinute(ADateTime,Offset);
+    if not ReturnUTC then
+      ADateTime:=IncMinute(ADateTime,-GetLocalTimeOffset(ADateTime,True));
     end;
-  end;
-  Result:=TryIsoStrToDateTime(S,aDateTime) and TryISOTZStrToTZOffset(TZ,TZOffset);
-  if not Result then
-    exit;
-  aDateTime:=IncMinute(aDateTime,TZOffSet);
-  // offset for UTC or not
-  if ReturnUTC then
-    Offset:=0
-  else
-    OffSet:=-GetLocalTimeOffset(ADateTime, True);
-  aDateTime:=IncMinute(aDateTime,Offset);
-  Result:=True;
 end;
 
 Function ISO8601ToDate(const DateString: string; ReturnUTC : Boolean = True): TDateTime;
