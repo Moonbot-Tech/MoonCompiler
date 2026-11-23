@@ -307,6 +307,7 @@ type
     procedure InitializeList; virtual;
     procedure InternalInsert(AIndex: SizeInt; const AValue: T);
   private
+    function TryInsertBorrowed(AIndex: SizeInt; const AValue: T): Boolean; noinline;
     procedure InsertFromStorage(AIndex: SizeInt; Value: Pointer; ElementSize: SizeUInt; ACount: SizeInt; SingleItem: Boolean);
     procedure OpenGap(AIndex, OldCount, ACount: SizeInt; InitializeGap: Boolean); inline;
     function GetItem(AIndex: SizeInt): T; inline;
@@ -2132,6 +2133,26 @@ begin
   end;
 end;
 
+{ Keep address-taking outside Add and InternalInsert. Even a constant-false
+  generic branch taking @AValue makes the compiler spill an integer argument. }
+function TList<T>.TryInsertBorrowed(AIndex: SizeInt; const AValue: T): Boolean;
+var
+  Source: Pointer;
+begin
+  Source := @AValue;
+  {$push}{$Q-}{$R-}
+  Result := ListItemMayAlias and (PtrUInt(Source) - PtrUInt(Pointer(FItems)) < SizeUInt(Length(FItems)) * SizeOf(T));
+  {$pop}
+  if not Result and IsManagedType(T) and not ListItemMayAlias and (AIndex < FLength) and (FLength <= High(FItems)) then
+  begin
+    { A by-value interface or string can still borrow the last strong owner
+      in a spare slot which the insertion is about to release. }
+    Source := @FItems[FLength];
+    Result := (PPointer(@AValue)^ <> nil) and (PPointer(@AValue)^ = PPointer(Source)^);
+  end;
+  if Result then InsertFromStorage(AIndex, Source, SizeOf(T), 1, True);
+end;
+
 function TList<T>.Add(const AValue: T): SizeInt;
 begin
   Result := FLength;
@@ -2146,15 +2167,8 @@ begin
     Inc(FLength);
     FItems[Result] := AValue;
   end
-  else
+  else if not ListItemMayAlias or not TryInsertBorrowed(Result, AValue) then
   begin
-    {$push}{$Q-}{$R-}
-    if ListItemMayAlias and (PtrUInt(@AValue) - PtrUInt(Pointer(FItems)) < SizeUInt(Length(FItems)) * SizeOf(T)) then
-    {$pop}
-    begin
-      InsertFromStorage(Result, @AValue, SizeOf(T), 1, True);
-      Exit;
-    end;
     Result := PrepareAddingItem;
     FItems[Result] := AValue;
     Notify(AValue, cnAdded);
@@ -2191,21 +2205,7 @@ end;
 
 procedure TList<T>.InternalInsert(AIndex: SizeInt; const AValue: T);
 begin
-  {$push}{$Q-}{$R-}
-  if ListItemMayAlias and (PtrUInt(@AValue) - PtrUInt(Pointer(FItems)) < SizeUInt(Length(FItems)) * SizeOf(T)) then
-  {$pop}
-  begin
-    InsertFromStorage(AIndex, @AValue, SizeOf(T), 1, True);
-    Exit;
-  end;
-  { A scalar interface or string can arrive by value without retaining its
-    target. Keep a populated spare slot which owns that very target alive. }
-  if IsManagedType(T) and not ListItemMayAlias and (AIndex < FLength) and (FLength <= High(FItems)) then
-    if (PPointer(@AValue)^ <> nil) and (PPointer(@AValue)^ = PPointer(@FItems[FLength])^) then
-    begin
-      InsertFromStorage(AIndex, @FItems[FLength], SizeOf(T), 1, True);
-      Exit;
-    end;
+  if (ListItemMayAlias or IsManagedType(T)) and TryInsertBorrowed(AIndex, AValue) then Exit;
   if (FLength <= High(FItems)) and DirectStorage then
   begin
     Inc(FLength);
