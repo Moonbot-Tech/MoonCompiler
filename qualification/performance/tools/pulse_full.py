@@ -137,8 +137,12 @@ def l2_calibration(
     machine = platform.node()
     tables = json.loads(table.read_text(encoding="utf-8")) if table.is_file() else {}
     section = tables.get(machine) or {}
-    if section.get("windows_cpu") and (os.name != "nt" or section["windows_cpu"] != windows_cpu_name()):
-        section = {}
+    if section.get("windows_cpu"):
+        cpu = windows_cpu_name() if os.name == "nt" else ""
+        if section["windows_cpu"] != cpu:
+            section = tables.get(f"{machine}/{cpu}", {})
+            if not cpu or section.get("windows_cpu") != cpu:
+                section = {}
     measured_cpus = section.get("windows_cpus")
     if measured_cpus is not None and (not single_cpus or not set(single_cpus).issubset(measured_cpus)):
         section = {}

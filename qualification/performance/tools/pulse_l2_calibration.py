@@ -325,7 +325,11 @@ def run() -> int:
         if args.table.is_file()
         else {"schema": 2}
     )
-    table[platform.node()] = section
+    machine = platform.node()
+    cpu = section.get("windows_cpu")
+    if cpu and table.get(machine, {}).get("windows_cpu") not in (None, cpu):
+        machine = f"{machine}/{cpu}"
+    table[machine] = section
     temporary = args.table.with_name(args.table.name + ".tmp")
     temporary.write_text(
         json.dumps(table, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"

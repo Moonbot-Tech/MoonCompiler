@@ -541,9 +541,12 @@ class PulseFullTests(unittest.TestCase):
     def test_windows_hardware_replacement_invalidates_l2_rates(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             table = Path(directory) / "rates.json"
-            table.write_text(json.dumps({"stand": {"windows_cpu": "Original", "cases": {"layout/read": 0.01}}}))
+            table.write_text(json.dumps({
+                "stand": {"windows_cpu": "Original", "cases": {"layout/read": 0.01}},
+                "stand/Second": {"windows_cpu": "Second", "cases": {"layout/read": 0.04}},
+            }))
             case = FULL.Case("layout", "read", "codegen+memory", "compiler", "memory-local")
-            for cpu, expected in (("Original", 0.01), ("Replacement", None), ("", None)):
+            for cpu, expected in (("Original", 0.01), ("Second", 0.04), ("Replacement", None), ("", None)):
                 with (
                     self.subTest(cpu=cpu),
                     mock.patch.object(FULL.platform, "node", return_value="stand"),
