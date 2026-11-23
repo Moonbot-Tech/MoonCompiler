@@ -7,6 +7,12 @@ type
   TTarget = class(TInterfacedObject)
     destructor Destroy; override;
   end;
+  TCounter = class(TObject, IInterface)
+    Owners, ZeroTransitions: Integer;
+    function QueryInterface(constref IID: TGUID; out Obj): HResult; {$ifdef windows}stdcall{$else}cdecl{$endif};
+    function _AddRef: LongInt; {$ifdef windows}stdcall{$else}cdecl{$endif};
+    function _Release: LongInt; {$ifdef windows}stdcall{$else}cdecl{$endif};
+  end;
   TRow = record
     Link: IInterface;
     Id: Integer;
@@ -37,6 +43,58 @@ end;
 procedure Check(OK: Boolean; const Operation: string);
 begin
   if not OK then raise Exception.Create(Operation);
+end;
+
+function TCounter.QueryInterface(constref IID: TGUID; out Obj): HResult;
+begin
+  if GetInterface(IID, Obj) then Result := 0 else Result := E_NOINTERFACE;
+end;
+
+function TCounter._AddRef: LongInt;
+begin
+  Inc(Owners);
+  Result := Owners;
+end;
+
+function TCounter._Release: LongInt;
+begin
+  Dec(Owners);
+  if Owners = 0 then Inc(ZeroTransitions);
+  Result := Owners;
+end;
+
+procedure StoreSpare(List: TList<IInterface>; Counter: TCounter);
+var
+  Value: IInterface;
+begin
+  Value := Counter;
+  List.List[List.Count] := Value;
+end;
+
+procedure CheckScalarOwner;
+var
+  List: TList<IInterface>;
+  Counter: TCounter;
+  Empty: array[0..0] of IInterface;
+begin
+  Counter := TCounter.Create;
+  List := TList<IInterface>.Create;
+  try
+    List.Capacity := 3;
+    List.Add(nil);
+    StoreSpare(List, Counter);
+    List.Insert(0, List.List[List.Count]);
+    Check((Counter.Owners = 1) and (Counter.ZeroTransitions = 0), 'scalar owner lost during insert');
+    StoreSpare(List, Counter);
+    Empty[0] := nil;
+    List.AddRange(Empty);
+    Check(Counter.Owners = 1, 'range overwrote an owned spare slot');
+    List.Clear;
+    Check((Counter.Owners = 0) and (Counter.ZeroTransitions = 1), 'scalar owner release count');
+  finally
+    List.Free;
+    Counter.Free;
+  end;
 end;
 
 procedure CheckOwners(Spare: Integer);
@@ -134,6 +192,7 @@ begin
   CheckOwners(0);
   CheckOwners(4);
   CheckUnmanaged;
+  CheckScalarOwner;
   CheckAssignment;
   WriteLn('TLIST_SOURCE_ALIAS_PASS');
 end.

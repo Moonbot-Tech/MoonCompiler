@@ -2082,7 +2082,13 @@ procedure TList<T>.OpenGap(AIndex, OldCount, ACount: SizeInt; InitializeGap: Boo
 var
   I: SizeInt;
 begin
-  if AIndex = OldCount then Exit;
+  if AIndex = OldCount then
+  begin
+    { Block copies overwrite initialized capacity even when there is no shift. }
+    if IsManagedType(T) and not InitializeGap then
+      for I := OldCount to OldCount + ACount - 1 do System.Finalize(FItems[I]);
+    Exit;
+  end;
   { The backing array owns its spare slots too. Release the newly occupied
     tail before shifting ownership; only element-wise assignment needs live
     initialized destinations in the gap. }
@@ -2198,6 +2204,14 @@ begin
     InsertFromStorage(AIndex, @AValue, SizeOf(T), 1, True);
     Exit;
   end;
+  { A scalar interface or string can arrive by value without retaining its
+    target. Keep a populated spare slot which owns that very target alive. }
+  if IsManagedType(T) and not ListItemMayAlias and (AIndex < FLength) and (FLength <= High(FItems)) then
+    if (PPointer(@AValue)^ <> nil) and (PPointer(@AValue)^ = PPointer(@FItems[FLength])^) then
+    begin
+      InsertFromStorage(AIndex, @FItems[FLength], SizeOf(T), 1, True);
+      Exit;
+    end;
   if (FLength <= High(FItems)) and DirectStorage then
   begin
     Inc(FLength);
