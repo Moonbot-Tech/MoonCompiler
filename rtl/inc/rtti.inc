@@ -29,6 +29,30 @@ begin
   end
 end;
 
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+function ContainsWeakInterfaceFields(Info: Pointer): Boolean;
+var
+  R: PRecordInfoInit;
+  Field: PRecordElement;
+  I: LongInt;
+begin
+  Result:=False;
+  if not Assigned(Info) then exit;
+  if PTypeKind(Info)^=tkArray then
+    exit(ContainsWeakInterfaceFields(PArrayInfo(aligntoqword(Info+2+PByte(Info)[1]))^.ElInfo^));
+  if not (PTypeKind(Info)^ in [tkRecord,tkObject]) then exit;
+  R:=RTTIRecordInfoInit(Info);
+  if R=RTTIRecordInfoInit(TypeInfo(TWeakInterfaceSlot)) then exit(True);
+  Field:=AlignTypeData(Pointer(@R^.Count)+SizeOf(R^.Count));
+  for I:=1 to R^.Count do
+    begin
+      if ContainsWeakInterfaceFields(Field^.TypeInfo^) then exit(True);
+      Inc(Field);
+    end;
+end;
+
+{$endif}
+
 const
   RTTISpecialSize = 49;
   RTTIManagedSizes: array[TTypeKind] of uint8 = { 0 — unmanaged, RTTISpecialSize — special (array/record/object), otherwise manBuiltin of that size. }

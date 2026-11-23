@@ -232,6 +232,7 @@ type
   protected
     FLength: SizeInt;
     FItems: TArrayOfT;
+    class procedure RelocateOwned(const Source; var Dest; Bytes: SizeInt); static; inline;
 
     class function GrowCapacity(ACapacity: SizeInt): SizeInt; static; inline;
     function PrepareAddingItem: SizeInt; virtual;
@@ -1270,6 +1271,14 @@ begin
   TArrayHelper<T>.Copy(ASource, ADestination, ACount);
 end;
 
+class procedure TCustomList<T>.RelocateOwned(const Source; var Dest; Bytes: SizeInt);
+begin
+  if System.HasWeakRef(T) then
+    System.WeakMoveOwned(Source,Dest,Bytes)
+  else
+    System.Move(Source,Dest,Bytes);
+end;
+
 { TArrayHelper<T> }
 
 class procedure TArrayHelper<T>.QSort(p: PT; n, reasonable: SizeUint; const cmp: IComparer<T>);
@@ -1877,7 +1886,7 @@ begin
     For plain types all of this compiles to the bare Move (dvl-0059) }
   System.Finalize(FItems[AIndex]);
   if AIndex <> FLength then
-    System.Move(FItems[AIndex + 1], FItems[AIndex], (FLength - AIndex) * SizeOf(T));
+    RelocateOwned(FItems[AIndex + 1], FItems[AIndex], (FLength - AIndex) * SizeOf(T));
   System.Initialize(FItems[FLength]);
 
   Notify(Result, ACollectionNotification);
@@ -2122,7 +2131,7 @@ begin
   begin
     Inc(FLength);
     if AIndex <> FLength - 1 then
-      System.Move(FItems[AIndex], FItems[AIndex + 1], (FLength - AIndex - 1) * SizeOf(T));
+      RelocateOwned(FItems[AIndex], FItems[AIndex + 1], (FLength - AIndex - 1) * SizeOf(T));
     FItems[AIndex] := AValue;
     Exit;
   end;
@@ -2137,7 +2146,7 @@ begin
       value. }
     if IsManagedType(T) then
       System.Finalize(FItems[Pred(Count)]);
-    System.Move(FItems[AIndex], FItems[AIndex + 1], ((Count - AIndex) - 1) * SizeOf(T));
+    RelocateOwned(FItems[AIndex], FItems[AIndex + 1], ((Count - AIndex) - 1) * SizeOf(T));
     { the shift moved the slot's ownership up - the gap is born again, so
       the assignment below runs the user's Assign into a live, freshly
       initialized destination (the Delphi 'initialize gap, assign' order);
@@ -2191,7 +2200,7 @@ begin
     if IsManagedType(T) then
       for i := Count - LLength to Pred(Count) do
         System.Finalize(FItems[i]);
-    System.Move(FItems[AIndex], FItems[AIndex + LLength], ((Count - AIndex) - LLength) * SizeOf(T));
+    RelocateOwned(FItems[AIndex], FItems[AIndex + LLength], ((Count - AIndex) - LLength) * SizeOf(T));
     { the tail shift moved the gap slots' ownership up; the direct path
       overwrites the gap bitwise and never reads it, the per-element path
       assigns into live destinations - so the gap is born again for it
@@ -2373,7 +2382,7 @@ begin
     System.Finalize(FItems[AIndex]);
     Dec(FLength);
     if AIndex <> FLength then
-      System.Move(FItems[AIndex + 1], FItems[AIndex],
+      RelocateOwned(FItems[AIndex + 1], FItems[AIndex],
         (FLength - AIndex) * SizeOf(T));
     System.Initialize(FItems[FLength]);
   end
@@ -2405,7 +2414,7 @@ begin
       for i := AIndex to Pred(AIndex + ACount) do
         System.Finalize(FItems[i]);
     if LMoveDelta <> 0 then
-      System.Move(FItems[AIndex + ACount], FItems[AIndex],
+      RelocateOwned(FItems[AIndex + ACount], FItems[AIndex],
         LMoveDelta * SizeOf(T));
     if IsManagedType(T) then
       for i := Count - ACount to Pred(Count) do
@@ -2422,10 +2431,10 @@ begin
   if IsManagedType(T) then
     for i := 0 to High(LDeleted) do
       System.Finalize(LDeleted[i]);
-  System.Move(FItems[AIndex], LDeleted[0], ACount * SizeOf(T));
+  RelocateOwned(FItems[AIndex], LDeleted[0], ACount * SizeOf(T));
 
   if LMoveDelta <> 0 then
-    System.Move(FItems[AIndex + ACount], FItems[AIndex], LMoveDelta * SizeOf(T));
+    RelocateOwned(FItems[AIndex + ACount], FItems[AIndex], LMoveDelta * SizeOf(T));
   { the vacated tail slots are born again instead of zeroed; unmanaged
     slots past Count stay dead bytes }
   if IsManagedType(T) then
@@ -2478,9 +2487,9 @@ begin
   { Move ownership without invoking Initialize, Finalize or a managed-record
     Assign operator.  The spare byte keeps zero-sized specializations legal;
     no move includes it. }
-  System.Move(Left, Temp, SizeOf(T));
-  System.Move(Right, Left, SizeOf(T));
-  System.Move(Temp, Right, SizeOf(T));
+  RelocateOwned(Left, Temp, SizeOf(T));
+  RelocateOwned(Right, Left, SizeOf(T));
+  RelocateOwned(Temp, Right, SizeOf(T));
 end;
 
 class procedure TList<T>.SwapOwned(var Left, Right: T);
@@ -2528,12 +2537,12 @@ begin
     every slot holds a live value throughout (dvl-0059 meta-audit; the
     old typed temp + Default reset + FillChar ran the operators over
     dead zeroes) }
-  System.Move(FItems[AIndex], LTemp, SizeOf(T));
+  RelocateOwned(FItems[AIndex], LTemp, SizeOf(T));
   if AIndex < ANewIndex then
-    System.Move(FItems[Succ(AIndex)], FItems[AIndex], (ANewIndex - AIndex) * SizeOf(T))
+    RelocateOwned(FItems[Succ(AIndex)], FItems[AIndex], (ANewIndex - AIndex) * SizeOf(T))
   else
-    System.Move(FItems[ANewIndex], FItems[Succ(ANewIndex)], (AIndex - ANewIndex) * SizeOf(T));
-  System.Move(LTemp, FItems[ANewIndex], SizeOf(T));
+    RelocateOwned(FItems[ANewIndex], FItems[Succ(ANewIndex)], (AIndex - ANewIndex) * SizeOf(T));
+  RelocateOwned(LTemp, FItems[ANewIndex], SizeOf(T));
 end;
 
 function TList<T>.First: T;
@@ -3049,7 +3058,7 @@ begin
     if IsManagedType(T) and (FLow > 0) then
       for i := 0 to Pred(FLow) do
         System.Finalize(FItems[i]);
-    System.Move(FItems[FLow], FItems[0], (FLength - FLow) * SizeOf(T));
+    RelocateOwned(FItems[FLow], FItems[0], (FLength - FLow) * SizeOf(T));
     { the shift moved the tail slots' ownership to the front; every
       capacity slot stays alive, so the vacated tail is born again
       instead of zeroed - zero slots would hand the user's Finalize

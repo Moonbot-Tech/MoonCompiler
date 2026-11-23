@@ -284,6 +284,7 @@ interface
           procedure ppuwrite(ppufile:tcompilerppufile);override;final;
           procedure set_externalname(const s:string);virtual;
           function bitoffset: asizeuint;
+          function is_weak_interface: boolean;
           { storage width in bits, honouring composablerecords
             per-field `bitsize N` override; falls back to the natural
             packed bit size of the field's type when no override is set }
@@ -2260,6 +2261,12 @@ implementation
     procedure tfieldvarsym.set_externalname(const s: string);
       begin
         internalerror(2014033001);
+      end;
+
+
+    function tfieldvarsym.is_weak_interface: boolean;
+      begin
+        result:=vo_weak_interface in varoptions;
       end;
 
 

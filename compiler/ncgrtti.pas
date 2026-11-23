@@ -916,7 +916,10 @@ implementation
             fe := pfield_entry(fields[i]);
             sym := fe^.sym;
             maybe_add_comment(tcb,'RTTI begin field '+tostr(i)+': '+sym.prettyname);
-            write_rtti_reference(tcb,tfieldvarsym(sym).vardef,rt);
+            if (rt=initrtti) and tfieldvarsym(sym).is_weak_interface then
+              write_rtti_reference(tcb,search_system_type('TWEAKINTERFACESLOT').typedef,initrtti)
+            else
+              write_rtti_reference(tcb,tfieldvarsym(sym).vardef,rt);
             tcb.emit_ord_const(fe^.offset,sizeuinttype);
             maybe_add_comment(tcb,'RTTI end field '+tostr(i)+': '+sym.prettyname);
             dispose(fe);
@@ -1059,6 +1062,13 @@ implementation
           offset : asizeint;
         end;
 
+      function field_flags(field:tfieldvarsym):byte;
+        begin
+          result:=visibility_to_rtti_flags(field.visibility);
+          if field.is_weak_interface then
+            result:=result or $80; { TypInfo.RTTIFlagWeakInterface }
+        end;
+
       procedure collect_flatten(curdef:tabstractrecorddef; base:asizeint; into:tfplist);
         var
           k,m   : longint;
@@ -1151,7 +1161,7 @@ implementation
             else
               tcb.emit_tai(Tai_const.Create_sym(RTTIWriter.get_rtti_label(fldsym.vardef,fullrtti,true)),voidpointertype);
             { FieldVisibility }
-            tcb.emit_ord_const(visibility_to_rtti_flags(fldsym.visibility),u8inttype);
+            tcb.emit_ord_const(field_flags(fldsym),u8inttype);
             { Name }
             tcb.emit_pooled_shortstring_const_ref(rtti_string(fldsym.realname,nil,def));
             { Attribute table }
@@ -1174,7 +1184,7 @@ implementation
               tcb.emit_tai(Tai_const.Create_sym(RTTIWriter.get_rtti_label(voidpointertype,fullrtti,true)),voidpointertype)
             else
               tcb.emit_tai(Tai_const.Create_sym(RTTIWriter.get_rtti_label(fldsym.vardef,fullrtti,true)),voidpointertype);
-            tcb.emit_ord_const(visibility_to_rtti_flags(fldsym.visibility),u8inttype);
+            tcb.emit_ord_const(field_flags(fldsym),u8inttype);
             tcb.emit_pooled_shortstring_const_ref(rtti_string(fldsym.realname,nil,def));
             write_attribute_data(tcb,fldsym.rtti_attribute_list);
             tcb.end_anonymous_record;
@@ -1271,6 +1281,7 @@ implementation
            hpropsym : tpropertysym;
            propaccesslist : tpropaccesslist;
            staticref : tsym;
+           staticthreadvar : boolean;
         begin
            hpropsym:=tpropertysym(sym);
            repeat
@@ -1288,6 +1299,7 @@ implementation
            else if propaccesslist.firstsym^.sym.typ=fieldvarsym then
              begin
                 staticref:=nil;
+                staticthreadvar:=false;
                 if (sp_static in sym.symoptions) and (sp_static in propaccesslist.firstsym^.sym.symoptions) then
                   begin
                     staticref:=propaccesslist.firstsym^.sym;
@@ -1295,7 +1307,8 @@ implementation
                     staticref:=tabsolutevarsym(staticref).ref.firstsym^.sym;
                     { TLS metadata needs callable accessors; preserve its old
                       offset representation until that mechanism exists. }
-                    if vo_is_thread_var in tstaticvarsym(staticref).varoptions then
+                    staticthreadvar:=vo_is_thread_var in tstaticvarsym(staticref).varoptions;
+                    if staticthreadvar then
                       staticref:=nil;
                   end;
                 address:=0;
@@ -1334,6 +1347,14 @@ implementation
                        else
                          internalerror(2019050523);
                      end;
+                     if not assigned(hp^.next) and (hp^.sltype in [sl_load,sl_subscript]) and
+                        tfieldvarsym(hp^.sym).is_weak_interface then
+                       begin
+                         if staticthreadvar then
+                           messagepos(sym.fileinfo,parser_e_weak_threadlocal_property)
+                         else if pap=palt_write then
+                           proctypesinfo:=proctypesinfo or $80; { TypInfo.RTTIFlagWeakInterface }
+                       end;
                      hp:=hp^.next;
                   end;
                 if assigned(staticref) then

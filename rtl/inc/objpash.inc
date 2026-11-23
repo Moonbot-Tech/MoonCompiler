@@ -614,7 +614,19 @@
     constructor Create; unimplemented;
   end;
 
-  WeakAttribute = class(TUnimplementedAttribute);
+  WeakAttribute = class(TUnimplementedAttribute)
+  public
+    constructor Create;
+  end;
+
+  { Operational RTTI for a weak field. Public RTTI retains its interface type. }
+  TWeakInterfaceSlot = record
+    Value: Pointer;
+    class operator Initialize(var Slot: TWeakInterfaceSlot);
+    class operator Finalize(var Slot: TWeakInterfaceSlot);
+    class operator Copy(constref Source: TWeakInterfaceSlot; var Dest: TWeakInterfaceSlot);
+    class operator AddRef(var Slot: TWeakInterfaceSlot);
+  end;
   UnsafeAttribute = class(TUnimplementedAttribute);
   RefAttribute = class(TUnimplementedAttribute);
   VolatileAttribute = class(TUnimplementedAttribute);
@@ -921,6 +933,11 @@ Type
     class procedure WritePtr(Ptr: TPtrWrapper; Ofs: SizeInt; Value: TPtrWrapper); static; inline;
     class procedure WritePtr(Ptr, Value: TPtrWrapper); static; inline;
   end;
+
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+procedure AssignWeakInterface(var D: Pointer; const S: Pointer);
+procedure WeakMoveOwned(const Source; var Dest; Size: SizeInt);
+{$endif}
 
 Const
   // In Delphi System.SysInit

@@ -717,9 +717,10 @@ implementation
           in_typeinfo_x,
           in_objc_encode_x,
           in_gettypekind_x,
+          in_hasweakref_x,
           in_ismanagedtype_x:
             begin
-              if (l in [in_typeinfo_x,in_gettypekind_x,in_ismanagedtype_x]) or
+              if (l in [in_typeinfo_x,in_gettypekind_x,in_ismanagedtype_x,in_hasweakref_x]) or
                  (m_objectivec1 in current_settings.modeswitches) then
                 begin
                   consume(_LKLAMMER);
@@ -738,7 +739,7 @@ implementation
                   begin
                     ttypenode(p1).allowed:=true;
                     { allow helpers for TypeInfo }
-                    if l in [in_typeinfo_x,in_gettypekind_x,in_ismanagedtype_x] then
+                    if l in [in_typeinfo_x,in_gettypekind_x,in_ismanagedtype_x,in_hasweakref_x] then
                       ttypenode(p1).helperallowed:=true;
                   end;
     {              else
@@ -2068,6 +2069,11 @@ implementation
 
 
     { emit the hoist code for one operand }
+    function is_weak_swap_field(n: tnode): boolean; inline;
+      begin
+        result:=(n.nodetype=subscriptn) and tsubscriptnode(n).vs.is_weak_interface;
+      end;
+
     procedure prepare_swap_operand(var op: tswapoperand; var stmt: tstatementnode; temps: tfplist);
       var
         para : tcallparanode;
@@ -2076,7 +2082,9 @@ implementation
           begin
             { an addressable operand is read and written through its address so
               that a side-effecting index expression in it runs once }
-            if (node_complexity(op.n)>3) and valid_for_addr(op.n,false) then
+            if is_weak_swap_field(op.n) then
+              hoist_swap_instance(tsubscriptnode(op.n).left,stmt,temps)
+            else if (node_complexity(op.n)>3) and valid_for_addr(op.n,false) then
               hoist_swap_addr(op.n,stmt,temps);
             exit;
           end;
@@ -2211,7 +2219,10 @@ implementation
             result:=cerrornode.create;
             exit;
           end;
-        if not assigned(op1.prop) and not assigned(op2.prop) then
+        { A direct weak field needs its normal assignment, even when the
+          other operand is a strong reference to the same interface type. }
+        if not assigned(op1.prop) and not assigned(op2.prop) and
+           not is_weak_swap_field(n1) and not is_weak_swap_field(n2) then
           exit;
         if not equal_defs(op1.def,op2.def) then
           begin

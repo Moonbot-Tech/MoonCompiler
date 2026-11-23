@@ -1443,12 +1443,12 @@ implementation
                                     for the first fields, we simply copy. for the last one we bind.}
                                   While (attr_element_count>1) do
                                     begin
-                                    trtti_attribute_list.copyandbind(rtti_attrs_def,tfieldvarsym(fieldlist[FldCount]).rtti_attribute_list);
+                                    trtti_attribute_list.copyandbind(rtti_attrs_def,tfieldvarsym(fieldlist[FldCount]).rtti_attribute_list,tsym(fieldlist[FldCount]));
                                     inc(fldcount);
                                     dec(attr_element_count);
                                     end;
                                   if fldCount<FieldList.Count then
-                                    trtti_attribute_list.bind(rtti_attrs_def,tfieldvarsym(fieldlist[FldCount]).rtti_attribute_list)
+                                    trtti_attribute_list.bind(rtti_attrs_def,tfieldvarsym(fieldlist[FldCount]).rtti_attribute_list,tsym(fieldlist[FldCount]))
                                   else
                                     rtti_attrs_def.free;
                                     rtti_attrs_def := nil;

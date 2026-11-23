@@ -117,6 +117,7 @@ implementation
         systemunit.insertsym(csyssym.create('Delete',in_delete_x_y_z));
         systemunit.insertsym(csyssym.create('GetTypeKind',in_gettypekind_x));
         systemunit.insertsym(csyssym.create('IsManagedType',in_ismanagedtype_x));
+        systemunit.insertsym(csyssym.create('HasWeakRef',in_hasweakref_x));
         systemunit.insertsym(csyssym.create('IsConstValue',in_isconstvalue_x));
         systemunit.insertsym(csyssym.create('fpc_eh_return_data_regno', in_const_eh_return_data_regno));
         systemunit.insertsym(csyssym.create('AtomicIncrement',in_atomic_inc));

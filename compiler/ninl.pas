@@ -184,7 +184,10 @@ implementation
          exit;
        if (eledef.typ=recorddef) or is_object(eledef) or
           ((eledef.typ=arraydef) and not is_dynamic_array(eledef)) then
-         result:='fpc_dynarray_setlength_record';
+         if has_weak_fields(eledef) then
+           result:='fpc_dynarray_setlength_weak'
+         else
+           result:='fpc_dynarray_setlength_record';
      end;
 
 
@@ -2991,6 +2994,7 @@ implementation
                   end;
                 end;
               in_gettypekind_x,
+              in_hasweakref_x,
               in_ismanagedtype_x:
                 { the kind and the managedness of a known type are constants,
                   like its size: folded while the body is type checked, they
@@ -3008,6 +3012,8 @@ implementation
                           internalerror(2026092801);
                         result:=genenumnode(tenumsym(sym));
                       end
+                    else if inlinenumber=in_hasweakref_x then
+                      result:=cordconstnode.create(ord(has_weak_fields(left.resultdef)),resultdef,false)
                     else
                       result:=cordconstnode.create(ord(left.resultdef.needs_inittable),resultdef,false);
                   end;
@@ -3919,6 +3925,7 @@ implementation
                   resultdef:=typekindtype;
                 end;
 
+              in_hasweakref_x,
               in_ismanagedtype_x:
                 begin
                   if target_info.system in systems_managed_vm then
@@ -4834,6 +4841,9 @@ implementation
               result:=genenumnode(tenumsym(sym));
             end;
 
+          in_hasweakref_x:
+            result:=cordconstnode.create(ord(has_weak_fields(left.resultdef)),resultdef,false);
+
           in_ismanagedtype_x:
             begin
               if left.resultdef.needs_inittable then
@@ -5643,6 +5653,23 @@ implementation
            begin
              result:=cnothingnode.create;
              exit;
+           end;
+         if has_weak_fields(para1.left.resultdef) then
+           begin
+             { Preserve bitwise swap semantics for the rest of the record,
+               including user-defined managed record operators. }
+             newblock:=internalstatements(newstatement);
+             rawdef:=carraydef.getreusable(u8inttype,elemsize);
+             tmpnode:=ctempcreatenode.create(rawdef,elemsize,tt_persistent,false);
+             addstatement(newstatement,tmpnode);
+             addstatement(newstatement,ccallnode.createintern('fpc_weak_swap_owned',
+               ccallparanode.create(cordconstnode.create(elemsize,sizesinttype,false),
+               ccallparanode.create(caddrnode.create_internal(ctemprefnode.create(tmpnode)),
+               ccallparanode.create(caddrnode.create_internal(para1.left.getcopy),
+               ccallparanode.create(caddrnode.create_internal(para2.left.getcopy),nil))))));
+             addstatement(newstatement,ctempdeletenode.create(tmpnode));
+             firstpass(tnode(newblock));
+             exit(newblock);
            end;
          { register-sized operands swap through an integer temp; the rest
            through a byte array (a plain memory exchange) }

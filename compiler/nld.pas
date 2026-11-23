@@ -1219,7 +1219,7 @@ implementation
             result:=ttemprefnode(node).tempinfo^.owner;
         end;
 
-      function consume_result_temp(temp:ttempcreatenode):tnode;
+      function consume_result_temp(temp:ttempcreatenode; hasweak:boolean):tnode;
         var
           owner: townedresulttemp;
           bytes: tarraydef;
@@ -1260,7 +1260,12 @@ implementation
           addstatement(body,ctemprefnode.create(dest));
           addstatement(body,right);
           addstatement(body,cnodeutils.finalize_data_node(ctemprefnode.create(dest)));
-          if left.resultdef.size<>0 then
+          if hasweak then
+            addstatement(body,ccallnode.createintern('WEAKMOVEOWNED',
+              ccallparanode.create(cordconstnode.create(left.resultdef.size,sizesinttype,false),
+              ccallparanode.create(ctemprefnode.create(dest),
+              ccallparanode.create(ctemprefnode.create(carrier),nil)))))
+          else if left.resultdef.size<>0 then
             addstatement(body,cassignmentnode.create(cderefnode.create(ctypeconvnode.create_internal(
               caddrnode.create_internal(ctemprefnode.create(dest)),cpointerdef.getreusable(bytes))),
               ctemprefnode.create(carrier)));
@@ -1299,7 +1304,7 @@ implementation
         hdef: tdef;
         hs: string;
         needrtti,
-        defaultarrayassign: boolean;
+        defaultarrayassign,weakresult: boolean;
         resulttemp: ttempcreatenode;
       begin
          result:=nil;
@@ -1388,10 +1393,11 @@ implementation
             not(target_info.system in systems_garbage_collected_managed_types) then
          begin
            resulttemp:=tempreturnfromcall(false);
-           if assigned(resulttemp) and has_custom_value_lifetime(left.resultdef) and
+           weakresult:=assigned(resulttemp) and has_weak_fields(left.resultdef);
+           if assigned(resulttemp) and (weakresult or has_custom_value_lifetime(left.resultdef)) and
               (target_info.system in [system_x86_64_win64,system_x86_64_linux]) then
              begin
-               result:=consume_result_temp(resulttemp);
+               result:=consume_result_temp(resulttemp,weakresult);
                firstpass(result);
                exit;
              end;
@@ -1458,7 +1464,9 @@ implementation
               end
             else if is_interfacecom_or_dispinterface(left.resultdef) then
               begin
-                if assigned(tempreturnfromcall(true)) then
+                if (left.nodetype=subscriptn) and tsubscriptnode(left).vs.is_weak_interface then
+                  hs:='fpc_weak_intf_assign'
+                else if assigned(tempreturnfromcall(true)) then
                   begin
                     hp:=ccallparanode.create(ctypeconvnode.create_internal(
                         caddrnode.create_internal(right),voidpointertype),
@@ -1469,8 +1477,9 @@ implementation
                     left:=nil;
                     right:=nil;
                     exit;
-                  end;
-                hs:='fpc_intf_assign';
+                  end
+                else
+                  hs:='fpc_intf_assign';
               end
             else if is_dynamic_array(left.resultdef) then
               begin

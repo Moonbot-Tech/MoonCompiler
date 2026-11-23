@@ -84,11 +84,12 @@ interface
           rtti_attributes : TFPObjectList;
           { if the attribute list is bound to a def or symbol }
           is_bound : Boolean;
-          class procedure bind(var dangling,owned:trtti_attribute_list);
-          class procedure copyandbind(alist :trtti_attribute_list; var owned : trtti_attribute_list);
+          class procedure bind(var dangling,owned:trtti_attribute_list; field:tsym=nil);
+          class procedure copyandbind(alist :trtti_attribute_list; var owned : trtti_attribute_list; field:tsym=nil);
           procedure addattribute(atypesym:tsym;typeconstr:tdef;constructorcall:tnode;constref paras:array of tnode);
           procedure addattribute(attr:trtti_attribute);
           destructor destroy; override;
+          procedure bind_weak_field(field:tsym);
           function get_attribute_count:longint;
           procedure buildderef;
           procedure deref;
@@ -3535,7 +3536,37 @@ implementation
       end;
 
 
-    class procedure trtti_attribute_list.bind(var dangling,owned:trtti_attribute_list);
+    procedure trtti_attribute_list.bind_weak_field(field:tsym);
+      var
+        i:longint;
+        attr:trtti_attribute;
+        weaktype:ttypesym;
+      begin
+        weaktype:=try_search_system_type('WEAKATTRIBUTE');
+        if not assigned(weaktype) then
+          exit;
+        for i:=0 to get_attribute_count-1 do
+          begin
+            attr:=trtti_attribute(rtti_attributes[i]);
+            if ttypesym(attr.typesym).typedef<>weaktype.typedef then
+              continue;
+            if assigned(field) and not(sp_static in field.symoptions) then
+              begin
+                if is_class(tfieldvarsym(field).vardef) then
+                  exit; { Desktop class references already have no ownership. }
+                if is_interfacecom_or_dispinterface(tfieldvarsym(field).vardef) then
+                  begin
+                    include(tfieldvarsym(field).varoptions,vo_weak_interface);
+                    exit;
+                  end;
+              end;
+            messagepos(attr.constructorcall.fileinfo,parser_e_unsupported_weak_declaration);
+            exit;
+          end;
+      end;
+
+
+    class procedure trtti_attribute_list.bind(var dangling,owned:trtti_attribute_list; field:tsym);
       begin
         if assigned(owned) then
           internalerror(2019071001);
@@ -3543,17 +3574,20 @@ implementation
           exit;
         if dangling.is_bound then
           internalerror(2019071002);
+        dangling.bind_weak_field(field);
         current_module.used_rtti_attrs.concatlistcopy(dangling.rtti_attributes);
         dangling.is_bound:=true;
         owned:=dangling;
         dangling:=nil;
       end;
 
-    class procedure trtti_attribute_list.copyandbind(alist : trtti_attribute_list; var owned: trtti_attribute_list);
+    class procedure trtti_attribute_list.copyandbind(alist : trtti_attribute_list; var owned: trtti_attribute_list; field:tsym);
     var
       i,j : Integer;
       attr,newattribute : trtti_attribute;
     begin
+      if assigned(field) then
+        alist.bind_weak_field(field);
       if owned=Nil then
         owned:=trtti_attribute_list.Create;
       owned.is_bound:=True;

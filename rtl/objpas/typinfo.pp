@@ -150,6 +150,7 @@ unit TypInfo;
 
       RTTIFlagVisibilityMask   = 3;
       RTTIFlagStrictVisibility = 1 shl 2;
+      RTTIFlagWeakInterface    = $80; { extended field Flags or field writer in TPropInfo.PropProcs }
 
    type
       TTypeKinds = set of TTypeKind;
@@ -2963,6 +2964,17 @@ begin
 end;
 
 
+procedure WriteWeakInterfaceProp(Instance: TObject; PropInfo: PPropInfo; Value: Pointer); inline;
+var
+  Destination: Pointer;
+begin
+  Destination:=Pointer(PropInfo^.SetProc);
+  if not PropInfo^.IsStatic then
+    Destination:=Pointer(Instance)+PtrUInt(Destination);
+  AssignWeakInterface(PPointer(Destination)^,Value);
+end;
+
+
 Procedure SetOrdProp(Instance : TObject;PropInfo : PPropInfo;Value : Int64);
 
 type
@@ -2974,6 +2986,11 @@ var
   DataSize: Integer;
   AMethod : TMethod;
 begin
+  if PropInfo^.PropProcs and RTTIFlagWeakInterface<>0 then
+    begin
+      WriteWeakInterfaceProp(Instance,PropInfo,Pointer(PtrUInt(Value)));
+      exit;
+    end;
   if PropInfo^.PropType^.Kind in [tkInt64,tkQword
   { why do we have to handle classes here, see also below? (FK) }
 {$ifdef cpu64}
@@ -3340,7 +3357,10 @@ begin
       begin
         case (PropInfo^.PropProcs shr 2) and 3 of
           ptField:
-            PInterface(Pointer(Instance)+PtrUInt(PropInfo^.SetProc))^:=Value;
+            if PropInfo^.PropProcs and RTTIFlagWeakInterface<>0 then
+              WriteWeakInterfaceProp(Instance,PropInfo,Pointer(Value))
+            else
+              PInterface(Pointer(Instance)+PtrUInt(PropInfo^.SetProc))^:=Value;
           ptStatic,
           ptVirtual:
             begin
@@ -3389,7 +3409,10 @@ end;
 procedure SetRawInterfaceProp(Instance: TObject; PropInfo: PPropInfo; const Value: Pointer);
 
 begin
-  SetPointerProp(Instance,PropInfo,Value);
+  if PropInfo^.PropProcs and RTTIFlagWeakInterface<>0 then
+    WriteWeakInterfaceProp(Instance,PropInfo,Value)
+  else
+    SetPointerProp(Instance,PropInfo,Value);
 end;
 
 { ---------------------------------------------------------------------

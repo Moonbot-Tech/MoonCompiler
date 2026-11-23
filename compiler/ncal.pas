@@ -1481,7 +1481,14 @@ implementation
                        { now that the resulting type is know we can insert the required
                          typeconvs for the array constructor }
                        if parasym.vardef.typ=arraydef then
-                         tarrayconstructornode(left).force_type(tarraydef(parasym.vardef).elementdef);
+                         begin
+                           tarrayconstructornode(left).force_type(tarraydef(parasym.vardef).elementdef);
+                           { The stack copy for an open-array constructor needs its own weak slots. }
+                           if is_open_array(parasym.vardef) and assigned(tarrayconstructornode(left).left) and
+                              has_weak_fields(tarraydef(parasym.vardef).elementdef) then
+                             inserttypeconv(left,carraydef.getreusable(tarraydef(parasym.vardef).elementdef,
+                               tarraydef(left.resultdef).highrange+1));
+                         end;
                      end;
                   end;
 
@@ -1552,6 +1559,14 @@ implementation
                      typecheckpass(tnode(block));
                      left:=block;
                    end;
+
+                 { An ordinary writable interface reference lets the callee
+                   retain or release the weak slot as though it were strong. }
+                 if (parasym.varspez in [vs_var,vs_out]) and
+                    is_interfacecom_or_dispinterface(parasym.vardef) and
+                    (left.nodetype=subscriptn) and tsubscriptnode(left).vs.is_weak_interface then
+                   CGMessagePos2(left.fileinfo,type_e_incompatible_types,
+                     '[Weak] interface field','strong var/out interface variable');
 
                  { check var strings }
                  if (cs_strict_var_strings in current_settings.localswitches) and

@@ -1841,6 +1841,12 @@ parser_e_align_bitalign_exclusive=03406_E_"align" and "bitalign" are mutually ex
 % The `align N` and `bitalign N` pre-body modifiers both express
 % alignment in different units. Specifying both is ambiguous: pick
 % bytes (align) or bits (bitalign), not both.
+parser_e_weak_threadlocal_property=03447_E_A weak field inside a class threadvar requires a property accessor method for RTTI
+% The address of the field must be obtained for the calling thread.
+
+parser_e_unsupported_weak_declaration=03446_E_[Weak] requires an instance field of a class or a COM interface type
+% Weak storage is available for instance fields. Class references keep desktop non-ARC semantics.
+
 parser_e_composition_in_class_var=03443_E_"$1" is not allowed in a "class var" or "class threadvar" section
 % Embeds, inline anonymous records and \var{pad} define the instance
 % memory layout of a record, while a \var{class var} section declares

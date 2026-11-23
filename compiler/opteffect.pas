@@ -906,7 +906,7 @@ unit opteffect;
           in_lo_word,in_hi_word,in_lo_long,in_hi_long,in_lo_qword,in_hi_qword,
           in_ord_x,in_chr_byte,in_assigned_x,
           in_sizeof_x,in_bitsizeof_x,in_typeof_x,in_typeinfo_x,
-          in_gettypekind_x,in_ismanagedtype_x,in_isconstvalue_x,
+          in_gettypekind_x,in_ismanagedtype_x,in_hasweakref_x,in_isconstvalue_x,
           in_ror_x,in_ror_x_y,in_rol_x,in_rol_x_y,in_sar_x,in_sar_x_y,
           in_bsf_x,in_bsr_x,in_popcnt_x,
           in_addr_x,in_ofs_x,in_prefetch_var,in_default_x,

@@ -79,6 +79,8 @@ var
          result := aobject;
       end;
 
+    {$i weakintf.inc}
+
     { interface helpers }
     procedure fpc_intf_decr_ref(var i: pointer);[public,alias: 'FPC_INTF_DECR_REF']; compilerproc;
       var
@@ -1015,23 +1017,37 @@ end;
 
         var
            vmt  : PVmt;
+           parent : PPVmt;
            temp : pointer;
         begin
+           if WeakTableActive then
+             ClearWeakTarget(Self);
            vmt := PVmt(ClassType);
            while vmt<>nil do
              begin
+               { System.TObject has no managed fields; its monitor is handled separately below. }
+               if vmt=PVmt(Pointer(TObject)) then break;
                Temp:= vmt^.vInitTable;
 {$ifdef FPC_HAS_FEATURE_RTTI}
                { The RTTI format matches one for records, except the type is tkClass.
                  Since FinalizeRecordFields does not check the type, calling it yields the desired result. }
                if Assigned(Temp) then
-                 FinalizeRecordFields(Self,aligntoqword(Temp+2+PByte(Temp)[1]));
+                 begin
+                   FinalizeRecordFields(Self,aligntoqword(Temp+2+PByte(Temp)[1]));
+                   { A field finalizer may have published Self to a new weak slot. }
+                   if WeakTableActive then ClearWeakTarget(Self);
+                 end;
 {$endif def FPC_HAS_FEATURE_RTTI}
-               vmt:= vmt^.vParent;
+               parent:=vmt^.vParentRef;
+               if not Assigned(parent) then break;
+               vmt:=parent^;
              end;
            {$IFDEF FPC_HAS_FEATURE_MONITOR}
            if Assigned(_MonitorData) then
-             TMonitor.FreeMonitorData(_MonitorData);
+             begin
+               TMonitor.FreeMonitorData(_MonitorData);
+               if WeakTableActive then ClearWeakTarget(Self);
+             end;
            {$ENDIF}
         end;
 
@@ -1562,6 +1578,11 @@ end;
     constructor TUnimplementedAttribute.Create;
     begin
       inherited;
+    end;
+
+    constructor WeakAttribute.Create;
+    begin
+      inherited Create;
     end;
 
 

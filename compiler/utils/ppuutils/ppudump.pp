@@ -3253,7 +3253,8 @@ type
     str  : string[30];
   end;
 const
-  varopt : array[1..ord(high(tvaroption))] of tvaropt=(
+  varopt : array[0..ord(high(tvaroption))] of tvaropt=(
+     (mask:vo_weak_interface;  str:'WeakInterface'),
      (mask:vo_is_external;     str:'External'),
      (mask:vo_is_dll_var;      str:'DLLVar'),
      (mask:vo_is_thread_var;   str:'ThreadVar'),
@@ -3342,7 +3343,7 @@ begin
        TPpuParamDef(VarDef).Spez:=psHidden;
      write([space,'      Options : ']);
      first:=true;
-     for i:=1 to high(varopt) do
+     for i:=low(varopt) to high(varopt) do
       if (varopt[i].mask in varoptions) then
        begin
          if first then

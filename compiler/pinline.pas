@@ -633,10 +633,20 @@ implementation
            exit;
          end;
 
-        { 2 arguments? }
+        destppn:=ppn;
+        if assigned(ppn.right) then
+          destppn:=tcallparanode(ppn.right);
+        if (destppn.left.nodetype=subscriptn) and tsubscriptnode(destppn.left).vs.is_weak_interface then
+          begin
+            { Public RTTI exposes the declared interface. Initialize and Finalize
+              use the same operational type as the enclosing record. }
+            destppn.left:=cderefnode.create(ctypeconvnode.create_internal(caddrnode.create_internal(destppn.left),
+              cpointerdef.getreusable(search_system_type('TWEAKINTERFACESLOT').typedef)));
+            do_typecheckpass(destppn.left);
+          end;
+
         if assigned(ppn.right) then
          begin
-           destppn:=tcallparanode(ppn.right);
            { create call to fpc_initialize/finalize_array }
            npara:=ccallparanode.create(ctypeconvnode.create
                      (ppn.left,s32inttype),

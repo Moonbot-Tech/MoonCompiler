@@ -53,6 +53,52 @@ type
        );
    end;
 
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+function WeakTableActive: Boolean; forward;
+function ContainsWeakInterfaceFields(Info: Pointer): Boolean; forward;
+{$endif}
+
+{ Only ownership transfers move registered addresses. Copies create independent
+  registrations through the element's ordinary operational RTTI. }
+procedure MoveArrayOwnership(const Source; var Dest; Bytes: SizeInt; ElemInfo: Pointer); inline;
+begin
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+  if WeakTableActive and ContainsWeakInterfaceFields(ElemInfo) then
+    WeakMoveOwned(Source,Dest,Bytes)
+  else
+{$endif}
+    Move(Source,Dest,Bytes);
+end;
+
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+function ResizeWeakArrayOwnership(Header: PDynArray; NewSize, ElementSize: SizeInt): PDynArray;
+var
+  OldSize, Kept: SizeInt;
+begin
+  OldSize:=SizeOf(TDynArray)+(Header^.High+1)*ElementSize;
+  Kept:=OldSize;
+  if Kept>NewSize then Kept:=NewSize;
+  Result:=GetMem(NewSize);
+  if not Assigned(Result) then
+    begin
+      if NewSize<=OldSize then exit(Header);
+      RunError(203);
+    end;
+  WeakMoveOwned(Header^,Result^,Kept);
+  FreeMem(Header);
+end;
+{$endif}
+
+function ResizeArrayOwnership(Header: PDynArray; NewSize, ElementSize: SizeInt; ElemInfo: Pointer): PDynArray; inline;
+begin
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+  if WeakTableActive and ContainsWeakInterfaceFields(ElemInfo) then
+    Result:=ResizeWeakArrayOwnership(Header,NewSize,ElementSize)
+  else
+{$endif}
+    Result:=ReallocMem(Header,NewSize);
+end;
+
 procedure fpc_dynarray_rangecheck(p : pointer;i : tdynarrayindex);[Public,Alias:'FPC_DYNARRAY_RANGECHECK']; compilerproc;
   begin
      if not(assigned(p)) or (i<0) or (i>pdynarray(p-sizeof(tdynarray))^.high) then
@@ -290,149 +336,17 @@ procedure int_dynarray_setlength_record(var p : pointer;pti : pointer;
   the callers that only have RTTI here.  It is correct for every element type. }
 procedure fpc_dynarray_setlength_record(var p : pointer;pti : pointer;
   dimcount : sizeint;dims : pdynarrayindex);[Public,Alias:'FPC_DYNARR_SETLENGTH_RECORD']; compilerproc;
+{$i dynarrsetlen.inc}
 
-  var
-     i : tdynarrayindex;
-     movelen,size,_size,elesize,oldlen,newlen,constructed : sizeint;
-     { contains the "fixed" pointers where the refcount }
-     { and high are at positive offsets                 }
-     realp,newp : pdynarray;
-     ti,eletypemngd,olddata,newdata : pointer;
-     customcopy,custominitialize,freshcarrier : boolean;
-
-  begin
-     newlen:=dims[0];
-     { negative or zero length? }
-     if newlen<=0 then
-       begin
-         { negative length is not allowed }
-         if newlen<0 then
-           HandleErrorAddrFrameInd(201,get_pc_addr,get_frame);
-         { if the new dimension is 0, we've to release all data }
-         fpc_dynarray_clear(p,pti);
-         exit;
-       end;
-
-     { skip kind and name }
-     ti:=aligntoqword(Pointer(pti)+2+PByte(pti)[1]);
-
-     elesize:=pdynarraytypedata(ti)^.elSize;
-     { only set if type needs finalization }
-     eletypemngd:=pdynarraytypedata(ti)^.elType;
-     if assigned(eletypemngd) then
-       eletypemngd:=PPointer(eletypemngd)^;
-
-     { determine new memory size, throw a runtime error on overflow }
-{$push} {$q+,r+}
-     size:=elesize*newlen+sizeof(tdynarray);
-{$pop}
-
-     olddata:=p;
-     if assigned(p) then
-       oldlen:=pdynarray(p-sizeof(tdynarray))^.high+1
-     else
-       oldlen:=0;
-     customcopy:=false;
-     if assigned(olddata) then
-       if pdynarray(olddata-sizeof(tdynarray))^.refcount<>1 then
-         customcopy:=dynarray_copy_may_raise(eletypemngd);
-     custominitialize:=(newlen>oldlen) and
-       dynarray_has_custom_operation(eletypemngd,rotInitialize,_size);
-
-     if assigned(p) then
-       begin
-          if pdynarray(p-sizeof(tdynarray))^.refcount<>1 then
-            begin
-               freshcarrier:=true;
-               newp:=getmem(size);
-               newdata:=newp+1;
-               { make an unique copy }
-               movelen:=oldlen;
-               if newlen<movelen then
-                 movelen:=newlen;
-               if customcopy then
-                 begin
-                   constructed:=0;
-                   try
-                     dynarray_copy_managed(p,newdata,eletypemngd,
-                       movelen,elesize,constructed);
-                     dynarray_finish_copy(newdata,eletypemngd,movelen,constructed);
-                   except
-                     dynarray_discard_custom(newp,eletypemngd,constructed);
-                     raise;
-                   end;
-                 end
-               else
-                 begin
-                   move(p^,newdata^,elesize*movelen);
-                   if assigned(eletypemngd) then
-                     int_AddRefArray(newdata,eletypemngd,movelen);
-                 end;
-            end
-          else
-            begin
-               freshcarrier:=false;
-               movelen:=oldlen;
-               if newlen<movelen then
-                 movelen:=newlen;
-               { Finalize if shrinking. }
-               if assigned(eletypemngd) and (newlen<oldlen) then
-                 int_finalizearray(p+elesize*newlen,eletypemngd,oldlen-newlen);
-               realp:=p-sizeof(tdynarray);
-               newp:=reallocmem(realp,size);
-               { ReallocMem may move the carrier.  Publish that address before
-                 a custom Initialize can raise; the old logical length in the
-                 header keeps the caller's array valid on failure. }
-               p:=newp+1;
-            end;
-       end
-     else
-       begin
-          movelen:=0;
-          freshcarrier:=true;
-          newp:=AllocMem(size);
-          newdata:=newp+1;
-       end;
-     if newlen>oldlen then
-       begin
-          { Initialize new items. }
-          if oldlen<>0 then { Skip if AllocMem was used. CAREFUL: Assigned(p) won’t work because of fpc_dynarray_clear above. }
-            fillchar((pointer(newp)+sizeof(tdynarray)+elesize*oldlen)^,(newlen-oldlen)*elesize,0);
-          if custominitialize then
-            try
-              int_InitializeArray(pointer(newp)+sizeof(tdynarray)+elesize*oldlen,
-                eletypemngd,newlen-oldlen);
-            except
-              if freshcarrier then
-                begin
-                  try
-                    if movelen>0 then
-                      int_FinalizeArray(newdata,eletypemngd,movelen);
-                  finally
-                    freemem(newp);
-                  end;
-                end;
-              raise;
-            end;
-       end;
-     if freshcarrier then
-       begin
-         { p still owns olddata here: construction above cannot strand it. }
-         if assigned(olddata) then
-           fpc_dynarray_clear(p,pti);
-         p:=newdata;
-       end;
-     newp^.refcount:=1;
-     newp^.high:=newlen-1;
-     { handle nested arrays }
-     if dimcount>1 then
-       begin
-          for i:=0 to newlen-1 do
-            int_dynarray_setlength(pointer((pointer(newp)+sizeof(tdynarray)+i*elesize)^),
-              pdynarraytypedata(ti)^.elType2^,dimcount-1,@dims[1]);
-       end;
-  end;
-
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+procedure fpc_dynarray_setlength_weak(var p : pointer;pti : pointer;
+  dimcount : sizeint;dims : pdynarrayindex);[Public,Alias:'FPC_DYNARR_SETLENGTH_WEAK']; compilerproc;
+{$define FPC_WEAK_ARRAY_ELEMENTS}
+{$i dynarrsetlen.inc}
+{$undef FPC_WEAK_ARRAY_ELEMENTS}
+procedure int_dynarray_setlength_weak(var p : pointer;pti : pointer;
+  dimcount : sizeint;dims : pdynarrayindex);[external name 'FPC_DYNARR_SETLENGTH_WEAK'];
+{$endif}
 
 procedure fpc_dynarray_setlength(var p : pointer;pti : pointer;
   dimcount : sizeint;dims : pdynarrayindex);[Public,Alias:'FPC_DYNARR_SETLENGTH']; compilerproc;
@@ -484,7 +398,12 @@ procedure fpc_dynarray_setlength(var p : pointer;pti : pointer;
            leave already finalized slots while the old length remains. }
          if PTypeKind(eletypemngd)^ in [tkRecord,tkObject,tkArray] then
            begin
-             int_dynarray_setlength_record(p,pti,dimcount,dims);
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+             if WeakTableActive and ContainsWeakInterfaceFields(eletypemngd) then
+               int_dynarray_setlength_weak(p,pti,dimcount,dims)
+             else
+{$endif}
+               int_dynarray_setlength_record(p,pti,dimcount,dims);
              exit;
            end;
        end;
@@ -810,11 +729,11 @@ procedure fpc_dynarray_delete(var p : pointer;source,count : SizeInt;pti : point
               if assigned(eletypemngd) then
                 int_FinalizeArray(pointer(oldp)+source*elesize,
                   eletypemngd,count);
-              move((pointer(oldp)+(source+count)*elesize)^,
+              MoveArrayOwnership((pointer(oldp)+(source+count)*elesize)^,
                 (pointer(oldp)+source*elesize)^,
-                (newlen-source)*elesize);
+                (newlen-source)*elesize,eletypemngd);
               realp:=newp;
-              newp:=reallocmem(realp,elesize*newlen+sizeof(tdynarray));
+              newp:=ResizeArrayOwnership(realp,elesize*newlen+sizeof(tdynarray),elesize,eletypemngd);
               newp^.high:=newlen-1;
               p:=newp+1;
               exit;
@@ -846,11 +765,11 @@ procedure fpc_dynarray_delete(var p : pointer;source,count : SizeInt;pti : point
             int_FinalizeArray(pointer(oldp)+source*elesize,eletypemngd,count);
 
           { close the gap by moving the trailing elements to the front }
-          move((pointer(oldp)+(source+count)*elesize)^,(pointer(oldp)+source*elesize)^,(newlen-source)*elesize);
+          MoveArrayOwnership((pointer(oldp)+(source+count)*elesize)^,(pointer(oldp)+source*elesize)^,(newlen-source)*elesize,eletypemngd);
 
           { resize the array }
           realp:=oldp-1;
-          newp:=reallocmem(realp,elesize*newlen+sizeof(tdynarray));
+          newp:=ResizeArrayOwnership(realp,elesize*newlen+sizeof(tdynarray),elesize,eletypemngd);
         end;
     newp^.high:=newlen-1;
     p:=newp+1;
@@ -997,10 +916,10 @@ procedure fpc_dynarray_insert(var p : pointer;source : SizeInt;data : pointer;co
               end;
               raise;
             end;
-            move(oldp[1],newp[1],source*elesize);
-            move((pointer(oldp+1)+source*elesize)^,
+            MoveArrayOwnership(oldp[1],newp[1],source*elesize,eletypemngd);
+            MoveArrayOwnership((pointer(oldp+1)+source*elesize)^,
               (pointer(newp+1)+(source+count)*elesize)^,
-              (oldlen-source)*elesize);
+              (oldlen-source)*elesize,eletypemngd);
             freemem(oldp);
           end
         else
@@ -1163,7 +1082,7 @@ procedure fpc_dynarray_concat_multi(var dest : pointer; pti: pointer; const sarr
               ownership and construct only appended copies. }
             oldlen:=olddestp[-1].high+1;
             realp:=olddestp-1;
-            newp:=reallocmem(realp,totallen*elesize+sizeof(tdynarray));
+            newp:=ResizeArrayOwnership(realp,totallen*elesize+sizeof(tdynarray),elesize,eletypemngd);
             dest:=newp+1;
             copydest:=pointer(newp+1)+oldlen*elesize;
             constructed:=0;
@@ -1333,7 +1252,7 @@ procedure fpc_dynarray_concat(var dest : pointer; pti: pointer; const src1,src2 
             oldlen:=olddestp[-1].high+1;
             src2len:=pdynarray(src2)[-1].high+1;
             realp:=olddestp-1;
-            newp:=reallocmem(realp,totallen*elesize+sizeof(tdynarray));
+            newp:=ResizeArrayOwnership(realp,totallen*elesize+sizeof(tdynarray),elesize,eletypemngd);
             dest:=newp+1;
             copysrc:=src2;
             if copysrc=olddestp then

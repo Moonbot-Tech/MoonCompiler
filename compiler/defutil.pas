@@ -179,6 +179,8 @@ interface
     {# Returns true if p is a C99-style flexible array member (`array[] of T`) }
     function is_flexible_array(p : tdef) : boolean;
 
+    function has_weak_fields(p: tdef): boolean;
+
     {# Returns true if p is a record whose last field is a flexible array member }
     function record_has_flexible_array_field(p : tdef) : boolean;
 
@@ -485,7 +487,7 @@ implementation
     uses
        verbose,cutils,cclasses,
        symbase,
-       symtable, // search_system_type
+       symutil,symtable, // search_system_type
        symsym,
        cpuinfo;
 
@@ -1011,6 +1013,30 @@ implementation
       begin
          result:=(p.typ=arraydef) and (ado_IsFlexibleArray in tarraydef(p).arrayoptions);
       end;
+
+    function has_weak_fields(p: tdef): boolean;
+      var
+        sym: tsym;
+        st: tsymtable;
+        i: longint;
+      begin
+        result:=false;
+        if not assigned(p) then exit;
+        if p.typ=arraydef then
+          exit(is_normal_array(p) and has_weak_fields(tarraydef(p).elementdef));
+        if (p.typ<>recorddef) and not is_object(p) then exit;
+        st:=tabstractrecorddef(p).symtable;
+        if not assigned(st) then exit;
+        if (p.typ=objectdef) and has_weak_fields(tobjectdef(p).childof) then exit(true);
+        for i:=0 to st.symlist.count-1 do
+          begin
+            sym:=tsym(st.symlist[i]);
+            if is_normal_fieldvarsym(sym) and
+               (tfieldvarsym(sym).is_weak_interface or has_weak_fields(tfieldvarsym(sym).vardef)) then
+              exit(true);
+          end;
+      end;
+
 
     function record_has_flexible_array_field(p : tdef) : boolean;
       var

@@ -7724,6 +7724,9 @@ var
 begin
   case (FPropInfo^.PropProcs shr 2) and 3 of
     ptField:
+      if FPropInfo^.PropProcs and RTTIFlagWeakInterface<>0 then
+        SetInterfaceProp(nil,FPropInfo,AValue.Cast(FPropInfo^.PropType).AsInterface)
+      else
       {$ifdef cpui8086}
       { convert to the correct pointer type }
       AssignRttiValue(AValue.Cast(FPropInfo^.PropType), PPointer(@(FPropInfo^.SetProc))^);
@@ -7911,7 +7914,9 @@ begin
   if Not Assigned(FieldType) then
     raise EInsufficientRtti.Create(SErrNoFieldRtti);
   FldAddr:=PByte(aInstance)+Offset;
-  if aValue.TypeInfo=FieldType.Handle then
+  if FHandle^.Flags and RTTIFlagWeakInterface<>0 then
+    AssignWeakInterface(PPointer(FldAddr)^,Pointer(aValue.Cast(FieldType.Handle).AsInterface))
+  else if aValue.TypeInfo=FieldType.Handle then
     AssignRttiValue(aValue, FldAddr)
   else
     AssignRttiValue(aValue.Cast(FieldType.Handle), FldAddr);

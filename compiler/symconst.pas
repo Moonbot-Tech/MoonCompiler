@@ -640,7 +640,7 @@ type
   tpropertyoptions=set of tpropertyoption;
 
   { options for variables }
-  tvaroption=(vo_none,
+  tvaroption=(vo_weak_interface, { instance field; this PPU bit was previously unused }
     vo_is_external,
     vo_is_dll_var,
     vo_is_thread_var,

@@ -1031,12 +1031,14 @@ implementation
                 begin
                   while attr_element_count>1 do
                     begin
-                      trtti_attribute_list.copyandbind(rtti_attrs_def,(current_structdef.symtable.SymList[fldCount] as tfieldvarsym).rtti_attribute_list);
+                      trtti_attribute_list.copyandbind(rtti_attrs_def,(current_structdef.symtable.SymList[fldCount] as tfieldvarsym).rtti_attribute_list,
+                        tsym(current_structdef.symtable.SymList[fldCount]));
                       inc(fldCount);
                       dec(attr_element_count);
                     end;
                   if fldCount<current_structdef.symtable.SymList.Count then
-                    trtti_attribute_list.bind(rtti_attrs_def,(current_structdef.symtable.SymList[fldCount] as tfieldvarsym).rtti_attribute_list);
+                    trtti_attribute_list.bind(rtti_attrs_def,(current_structdef.symtable.SymList[fldCount] as tfieldvarsym).rtti_attribute_list,
+                      tsym(current_structdef.symtable.SymList[fldCount]));
                 end;
               continue;
             end;
@@ -1226,12 +1228,14 @@ implementation
                                   begin
                                   While (attr_element_count>1) do
                                     begin
-                                    trtti_attribute_list.copyandbind(rtti_attrs_def,(current_structdef.symtable.SymList[fldCount] as tfieldvarsym).rtti_attribute_list);
+                                    trtti_attribute_list.copyandbind(rtti_attrs_def,(current_structdef.symtable.SymList[fldCount] as tfieldvarsym).rtti_attribute_list,
+                                      tsym(current_structdef.symtable.SymList[fldCount]));
                                     inc(fldcount);
                                     dec(attr_element_count);
                                     end;
                                   if fldCount<current_structdef.symtable.SymList.Count then
-                                    trtti_attribute_list.bind(rtti_attrs_def,(current_structdef.symtable.SymList[fldCount] as tfieldvarsym).rtti_attribute_list);
+                                    trtti_attribute_list.bind(rtti_attrs_def,(current_structdef.symtable.SymList[fldCount] as tfieldvarsym).rtti_attribute_list,
+                                      tsym(current_structdef.symtable.SymList[fldCount]));
                                   end;
                               end;
                           end

@@ -121,6 +121,7 @@ type
      in_faraddr_x         = 97,
      in_volatile_x        = 98,
      in_ismanagedtype_x   = 99,
+     in_hasweakref_x      = 111,
 
 { Internal constant functions }
      in_const_sqr        = 100,

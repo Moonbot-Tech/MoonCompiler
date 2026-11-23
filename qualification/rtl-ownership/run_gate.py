@@ -17,6 +17,7 @@ CASES = {
     "AcquiredExceptionContract": ([["--direct"], ["--acquire"]], "ACQUIRED_EXCEPTION_LIFETIME_PASS"),
     "StackOwnershipContract": ([[x] + trace for x in ["--direct", "--acquire"] for trace in [[], ["--trace"]]], "STALE_RAISE_LIST_ENTRIES=0"),
     "ExceptionOwnership": ([[mode, trace] for mode in ["balanced", "multi", "nested", "reraise", "saved-raise", "replacement", "finally-replace", "thread", "fatal"] for trace in ["plain", "trace"]], "EXCEPTION_OWNERSHIP_PASS"),
+    "RttiWeakPpu": ([[]], "WEAK_PPU_PASS"),
     "StaticPropertyAudit": ([[]], "AUDIT_PASS"),
     "FinallyNeighbors": ([[m] for m in ["nested", "local-catch", "outer-catch", "local-handled", "av-replacement", "replacement-av", "av-outer-catch"]], "PASS "),
     "SEHLocalUnwindAudit": ([[mode] for mode in ["exit", "break", "continue"]], "PASS"),
@@ -61,10 +62,10 @@ def main():
             source = Path(__file__).resolve().parent / "cases" / (name + ".dpr")
             command = [*prefix, "-B", *flags, "-dFPCX64MM_DIAGNOSTIC", "-dFPCMM_REPORTMEMORYLEAKS", "-FU" + str(out), "-FE" + str(out)]
             command += ["-Fu" + str(unit.resolve()) for unit in args.unit_dir]
-            if name == "StaticPropertyAudit":
+            if name in ("StaticPropertyAudit", "RttiWeakPpu"):
                 isolated = out / "unit-source"
                 isolated.mkdir(exist_ok=True)
-                unit = isolated / "StaticPropertyTypes.pas"
+                unit = isolated / ("WeakInterfaceTypes.pas" if name == "RttiWeakPpu" else "StaticPropertyTypes.pas")
                 shutil.copyfile(source.with_name(unit.name), unit)
                 unit_build = subprocess.run(command + [str(unit)], cwd=out, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
                 (out / "unit-build.log").write_bytes(unit_build.stdout)
@@ -76,6 +77,16 @@ def main():
                 source = target
                 command.remove("-B")
                 command += ["-Fu" + str(out)]
+            if name == "RttiWeakPpu":
+                diagnostics = {"CHECK_STRONG_VAR": b"strong var/out interface variable",
+                               "CHECK_STRONG_OUT": b"strong var/out interface variable",
+                               "CHECK_WEAK_THREADVAR": b"requires a property accessor method for RTTI"}
+                for define, diagnostic in diagnostics.items():
+                    probe = subprocess.run([*command, "-d" + define, str(source)], cwd=out,
+                                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+                    (out / (define + ".log")).write_bytes(probe.stdout)
+                    if probe.returncode == 0 or diagnostic not in probe.stdout:
+                        raise RuntimeError(f"Expected weak parameter diagnostic: {out / (define + '.log')}")
             command.append(str(source))
             build = subprocess.run(command, cwd=out, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
             (out / "build.log").write_bytes((repr(command) + "\n").encode() + build.stdout)
