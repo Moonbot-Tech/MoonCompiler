@@ -1,3 +1,30 @@
+# MoonCompiler 2.6.0
+
+An interface instance field marked `[Weak]` can point back to its owner
+without keeping the owner alive. Releasing the last strong reference clears
+the field to `nil`. Assigning the field to an ordinary interface variable
+retains the object for the lifetime of that variable. The same rules apply
+to records, copies returned from functions and elements relocated by the RTL.
+Weak fields keep the size and physical representation of an interface pointer.
+
+A target must report its Pascal object identity and share the System runtime
+that clears the field. Code that can release the last owner on another thread
+must synchronize that release with reading the weak field. Ordinary writable
+`var` and `out` interface parameters require a strong variable. Use a local
+interface variable for such a call and assign the result to the weak field.
+
+`TryISO8601ToDate` now accepts ISO week dates, ordinal dates and midnight
+written as `24:00`, including a date rollover before applying a UTC offset.
+The date/time parsers reject duplicate zone suffixes and offsets outside their
+supported range. Check the Boolean result when importing external timestamps.
+The Linux x86-64 zlib decoder also uses block copies for contiguous history
+matches during raw DEFLATE decompression, including WebSocket messages.
+
+Rebuild application units with this SDK. MoonORMot **17** is required.
+`CompilerVersion` is 2.6 and `MOONCOMPILER_FULLVERSION` is 20600.
+
+---
+
 # MoonCompiler 2.5.6: faster Win64 WebSocket decompression
 
 The Win64 SDK ships a faster zlib decoder. DEFLATE represents repeated data
