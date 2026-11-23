@@ -2082,13 +2082,7 @@ procedure TList<T>.OpenGap(AIndex, OldCount, ACount: SizeInt; InitializeGap: Boo
 var
   I: SizeInt;
 begin
-  if AIndex = OldCount then
-  begin
-    { Block copies overwrite initialized capacity even when there is no shift. }
-    if IsManagedType(T) and not InitializeGap then
-      for I := OldCount to OldCount + ACount - 1 do System.Finalize(FItems[I]);
-    Exit;
-  end;
+  if AIndex = OldCount then Exit;
   { The backing array owns its spare slots too. Release the newly occupied
     tail before shifting ownership; only element-wise assignment needs live
     initialized destinations in the gap. }
@@ -2241,7 +2235,7 @@ end;
 procedure TList<T>.InsertRange(AIndex: SizeInt; const AValues: array of T);
 var
   i: SizeInt;
-  LLength: SizeInt;
+  LLength, OldCount, Spare: SizeInt;
   LValue: ^T;
   LDirect: Boolean;
 begin
@@ -2272,13 +2266,15 @@ begin
     misclassification, not a canon we reproduce) (dvl-0059) }
   LDirect := DirectStorage and not (IsManagedType(T) and (GetTypeKind(T) in [tkRecord, tkArray]));
 
-  if LDirect and (LLength <= Length(FItems) - FLength) then
+  Spare := Length(FItems) - FLength;
+  if LDirect and (LLength <= Spare) then
   begin
+    OldCount := FLength;
     Inc(FLength, LLength);
-    OpenGap(AIndex, FLength - LLength, LLength, False);
   end
   else
-    OpenGap(AIndex, PrepareAddingRange(LLength), LLength, not LDirect);
+    OldCount := PrepareAddingRange(LLength);
+  OpenGap(AIndex, OldCount, LLength, not LDirect);
 
   { exact TList<T> without a subscriber never needs the virtual Notify
     call, so the elements go in as one block copy; the sources stay alive
@@ -2286,6 +2282,13 @@ begin
     (strings take the flattened loop with a hoisted multithread gate) }
   if LDirect then
   begin
+    { Freshly grown slots are already empty. An append can overwrite owners
+      in previously reserved slots; bulk Finalize skips trailing nils. }
+    if IsManagedType(T) and (AIndex = OldCount) and (Spare > 0) then
+    begin
+      if Spare > LLength then Spare := LLength;
+      System.Finalize(FItems[AIndex], Spare);
+    end;
     System.Move(AValues[0], FItems[AIndex], LLength * SizeOf(T));
     if IsManagedType(T) then
       fpc_addref_array(@FItems[AIndex], TypeInfo(T), LLength);
