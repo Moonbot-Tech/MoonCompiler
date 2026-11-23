@@ -7,6 +7,10 @@ retains the object for the lifetime of that variable. The same rules apply
 to records, copies returned from functions and elements relocated by the RTL.
 Weak fields keep the size and physical representation of an interface pointer.
 
+A list can now insert or append records taken directly from its own backing
+array, including overlapping ranges. Both copies retain their interface fields
+when the list grows or shifts elements.
+
 A target must report its Pascal object identity and share the System runtime
 that clears the field. Code that can release the last owner on another thread
 must synchronize that release with reading the weak field. Ordinary writable

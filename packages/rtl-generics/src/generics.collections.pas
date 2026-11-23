@@ -307,8 +307,8 @@ type
     procedure InitializeList; virtual;
     procedure InternalInsert(AIndex: SizeInt; const AValue: T);
   private
-    function StorageIndex(Value: Pointer; ElementSize: SizeUInt): SizeInt; inline;
-    procedure InsertSpareSlots(AIndex, SourceIndex, ACount: SizeInt; SingleItem: Boolean);
+    procedure InsertFromStorage(AIndex: SizeInt; Value: Pointer; ElementSize: SizeUInt; ACount: SizeInt; SingleItem: Boolean);
+    procedure OpenGap(AIndex, OldCount, ACount: SizeInt; InitializeGap: Boolean); inline;
     function GetItem(AIndex: SizeInt): T; inline;
     procedure SetItem(AIndex: SizeInt; const AValue: T); inline;
     class procedure SwapUnmanaged(var Left, Right: T); static; inline;
@@ -2074,30 +2074,65 @@ begin
   Result := GetEnumerator;
 end;
 
-function TList<T>.StorageIndex(Value: Pointer; ElementSize: SizeUInt): SizeInt;
+{ Aggregate const parameters can borrow a slot. Scalars passed by value keep
+  their original code, including in callers which inline Add. }
+{$define ListItemMayAlias := ((SizeOf(T) > SizeOf(Pointer)) or (GetTypeKind(T) in [tkArray,tkRecord,tkObject,tkSString,tkVariant,tkSet,tkFile]))}
+
+procedure TList<T>.OpenGap(AIndex, OldCount, ACount: SizeInt; InitializeGap: Boolean);
 var
-  Offset: SizeUInt;
+  I: SizeInt;
 begin
-  if PtrUInt(Value) >= PtrUInt(Pointer(FItems)) then
-  begin
-    Offset := PtrUInt(Value) - PtrUInt(Pointer(FItems));
-    if Offset < SizeUInt(Length(FItems)) * ElementSize then Exit(Offset div ElementSize);
-  end;
-  Result := -1;
+  if AIndex = OldCount then Exit;
+  { The backing array owns its spare slots too. Release the newly occupied
+    tail before shifting ownership; only element-wise assignment needs live
+    initialized destinations in the gap. }
+  if IsManagedType(T) then
+    for I := OldCount to OldCount + ACount - 1 do System.Finalize(FItems[I]);
+  RelocateOwned(FItems[AIndex], FItems[AIndex + ACount], (OldCount - AIndex) * SizeOf(T));
+  if IsManagedType(T) and InitializeGap then
+    for I := AIndex to AIndex + ACount - 1 do System.Initialize(FItems[I]);
 end;
 
-procedure TList<T>.InsertSpareSlots(AIndex, SourceIndex, ACount: SizeInt; SingleItem: Boolean);
+procedure TList<T>.InsertFromStorage(AIndex: SizeInt; Value: Pointer; ElementSize: SizeUInt; ACount: SizeInt; SingleItem: Boolean);
 var
   Saved: TArrayOfT;
+  Source, OldCount, FirstSpare, LastSpare, I: SizeInt;
+  Item: PT;
 begin
-  Saved := Copy(FItems, SourceIndex, ACount);
-  if SingleItem then InternalInsert(AIndex, Saved[0])
-  else InsertRange(AIndex, Saved);
+  { Save the index before growth can replace the buffer. This path is only
+    entered for a byte inside the allocation, which excludes empty records. }
+  Source := (PtrUInt(Value) - PtrUInt(Pointer(FItems))) div ElementSize;
+  OldCount := FLength;
+  if Source < OldCount then
+  begin
+    FirstSpare := OldCount;
+    LastSpare := Source + ACount;
+  end
+  else
+  begin
+    FirstSpare := Source;
+    LastSpare := OldCount + ACount;
+  end;
+  if FirstSpare < LastSpare then SetLength(Saved, LastSpare - FirstSpare);
+
+  if SingleItem then PrepareAddingItem else PrepareAddingRange(ACount);
+  { These are the only source slots which will be overwritten. Take ownership
+    without invoking a user Assign on a temporary. }
+  for I := FirstSpare to LastSpare - 1 do
+    SwapOwned(Saved[I - FirstSpare], FItems[I]);
+  OpenGap(AIndex, OldCount, ACount, True);
+  for I := 0 to ACount - 1 do
+  begin
+    if (Source >= FirstSpare) and (Source < LastSpare) then Item := @Saved[Source - FirstSpare]
+    else if (Source >= AIndex) and (Source < OldCount) then Item := @FItems[Source + ACount]
+    else Item := @FItems[Source];
+    FItems[AIndex + I] := Item^;
+    Notify(Item^, cnAdded);
+    Inc(Source);
+  end;
 end;
 
 function TList<T>.Add(const AValue: T): SizeInt;
-var
-  SourceIndex: SizeInt;
 begin
   Result := FLength;
   { the two virtual calls below (PrepareAddingItem, Notify) cost more than
@@ -2113,14 +2148,14 @@ begin
   end
   else
   begin
-    if System.HasWeakRef(T) then SourceIndex := StorageIndex(@AValue, SizeOf(T));
-    Result := PrepareAddingItem;
-    if System.HasWeakRef(T) and (SourceIndex >= 0) then
+    {$push}{$Q-}{$R-}
+    if ListItemMayAlias and (PtrUInt(@AValue) - PtrUInt(Pointer(FItems)) < SizeUInt(Length(FItems)) * SizeOf(T)) then
+    {$pop}
     begin
-      FItems[Result] := FItems[SourceIndex];
-      Notify(FItems[SourceIndex], cnAdded);
+      InsertFromStorage(Result, @AValue, SizeOf(T), 1, True);
       Exit;
     end;
+    Result := PrepareAddingItem;
     FItems[Result] := AValue;
     Notify(AValue, cnAdded);
   end;
@@ -2155,59 +2190,31 @@ end;
 {$ENDIF}
 
 procedure TList<T>.InternalInsert(AIndex: SizeInt; const AValue: T);
-var
-  SourceIndex: SizeInt;
 begin
-  { As in Add, spare capacity in an exact unsubscribed list needs no virtual
-    preparation or notification. Managed operators can install a subscriber
-    during insertion, so keep their original notification path. }
-  if not IsManagedType(T) and (FLength <= High(FItems)) and DirectStorage then
+  {$push}{$Q-}{$R-}
+  if ListItemMayAlias and (PtrUInt(@AValue) - PtrUInt(Pointer(FItems)) < SizeUInt(Length(FItems)) * SizeOf(T)) then
+  {$pop}
+  begin
+    InsertFromStorage(AIndex, @AValue, SizeOf(T), 1, True);
+    Exit;
+  end;
+  if (FLength <= High(FItems)) and DirectStorage then
   begin
     Inc(FLength);
-    if AIndex <> FLength - 1 then
-      RelocateOwned(FItems[AIndex], FItems[AIndex + 1], (FLength - AIndex - 1) * SizeOf(T));
+    OpenGap(AIndex, FLength - 1, 1, True);
     FItems[AIndex] := AValue;
+    { An assignment or a management operator may install a callback. The
+      receiver here is exactly TList<T>, so Notify has no other observer. }
+    if IsManagedType(T) and Assigned(FOnNotify) then Notify(AValue, cnAdded);
     Exit;
   end;
 
-  if System.HasWeakRef(T) then
-  begin
-    SourceIndex := StorageIndex(@AValue, SizeOf(T));
-    if (SourceIndex = FLength) and (AIndex < FLength) then
-    begin
-      { The first spare slot will be finalized to make room for the shift. }
-      InsertSpareSlots(AIndex, SourceIndex, 1, True);
-      Exit;
-    end;
-  end;
-  if AIndex <> PrepareAddingItem then
-  begin
-    { PrepareAddingItem has made one previously spare capacity slot part of
-      Count.  That slot is already alive because the backing dynamic array
-      initializes its full capacity; bury its idle value before the shift
-      overwrites it.  Otherwise a custom Initialize which owns a resource is
-      leaked even though ordinary strings hide the bug with their nil idle
-      value. }
-    if IsManagedType(T) then
-      System.Finalize(FItems[Pred(Count)]);
-    RelocateOwned(FItems[AIndex], FItems[AIndex + 1], ((Count - AIndex) - 1) * SizeOf(T));
-    { the shift moved the slot's ownership up - the gap is born again, so
-      the assignment below runs the user's Assign into a live, freshly
-      initialized destination (the Delphi 'initialize gap, assign' order);
-      no-op for plain types (dvl-0059) }
-    System.Initialize(FItems[AIndex]);
-    if System.HasWeakRef(T) and (SourceIndex >= AIndex) and (SourceIndex < FLength - 1) then Inc(SourceIndex);
-  end;
-
-  if System.HasWeakRef(T) and (SourceIndex >= 0) then
-  begin
-    FItems[AIndex] := FItems[SourceIndex];
-    Notify(FItems[SourceIndex], cnAdded);
-    Exit;
-  end;
+  OpenGap(AIndex, PrepareAddingItem, 1, True);
   FItems[AIndex] := AValue;
   Notify(AValue, cnAdded);
 end;
+
+{$undef ListItemMayAlias}
 
 procedure TList<T>.Insert(AIndex: SizeInt; const AValue: T);
 begin
@@ -2219,7 +2226,7 @@ end;
 
 procedure TList<T>.InsertRange(AIndex: SizeInt; const AValues: array of T);
 var
-  i, SourceIndex: SizeInt;
+  i: SizeInt;
   LLength: SizeInt;
   LValue: ^T;
   LDirect: Boolean;
@@ -2230,15 +2237,14 @@ begin
   LLength := Length(AValues);
   if LLength = 0 then
     Exit;
-  if System.HasWeakRef(T) then
+  { Unsigned distance tests membership with one comparison. A lower address
+    wraps beyond the allocation; the product fits because FItems exists. }
+  {$push}{$Q-}{$R-}
+  if PtrUInt(@AValues[0]) - PtrUInt(Pointer(FItems)) < SizeUInt(Length(FItems)) * SizeOf(T) then
+  {$pop}
   begin
-    SourceIndex := StorageIndex(@AValues[0], SizeOf(T));
-    if (SourceIndex >= 0) and (LLength > FLength - SourceIndex) then
-    begin
-      { Raw List can include spare slots overwritten by the insertion. }
-      InsertSpareSlots(AIndex, SourceIndex, LLength, False);
-      Exit;
-    end;
+    InsertFromStorage(AIndex, @AValues[0], SizeOf(T), LLength, False);
+    Exit;
   end;
 
   { a managed RECORD - or a static ARRAY reaching one - may carry
@@ -2250,26 +2256,15 @@ begin
     addref.  DCC64 itself runs the operators here for both kinds
     (its pointer-sized managed-array crash is its own TListHelper
     misclassification, not a canon we reproduce) (dvl-0059) }
-  LDirect := DirectStorage and
-    not (IsManagedType(T) and (GetTypeKind(T) in [tkRecord, tkArray]));
+  LDirect := DirectStorage and not (IsManagedType(T) and (GetTypeKind(T) in [tkRecord, tkArray]));
 
-  if AIndex <> PrepareAddingRange(LLength) then
+  if LDirect and (LLength <= Length(FItems) - FLength) then
   begin
-    { The LLength newly occupied tail slots were already initialized as
-      capacity.  They are destinations of the shift, so release their idle
-      values before ownership is moved over them. }
-    if IsManagedType(T) then
-      for i := Count - LLength to Pred(Count) do
-        System.Finalize(FItems[i]);
-    RelocateOwned(FItems[AIndex], FItems[AIndex + LLength], ((Count - AIndex) - LLength) * SizeOf(T));
-    { the tail shift moved the gap slots' ownership up; the direct path
-      overwrites the gap bitwise and never reads it, the per-element path
-      assigns into live destinations - so the gap is born again for it
-      (zeroing it would hand the user's Finalize dead zeroes later) }
-    if IsManagedType(T) and not LDirect then
-      for i := AIndex to Pred(AIndex + LLength) do
-        System.Initialize(FItems[i]);
-  end;
+    Inc(FLength, LLength);
+    OpenGap(AIndex, FLength - LLength, LLength, False);
+  end
+  else
+    OpenGap(AIndex, PrepareAddingRange(LLength), LLength, not LDirect);
 
   { exact TList<T> without a subscriber never needs the virtual Notify
     call, so the elements go in as one block copy; the sources stay alive
@@ -2286,12 +2281,6 @@ begin
   LValue := @AValues[0];
   for i := AIndex to Pred(AIndex + LLength) do
   begin
-    if System.HasWeakRef(T) and (SourceIndex >= 0) then
-    begin
-      if SourceIndex < AIndex then LValue := @FItems[SourceIndex]
-      else LValue := @FItems[SourceIndex + LLength];
-      Inc(SourceIndex);
-    end;
     FItems[i] := LValue^;
     Notify(LValue^, cnAdded);
     Inc(LValue);
