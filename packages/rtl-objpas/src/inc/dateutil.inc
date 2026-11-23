@@ -3015,7 +3015,7 @@ begin
   Result:=TryISODate(aString,Length(aString),False,outDate);
 end;
 
-function TryISOClock(const S: string; First: SizeInt; out T: TDateTime; out Offset: Integer): Boolean;
+function TryISOClock(const S: string; First: SizeInt; out T: TDateTime; out Offset: Integer; out Carry: Boolean): Boolean;
 var
   Last, P, I: SizeInt;
   H, M, Sec: Word;
@@ -3026,6 +3026,7 @@ begin
   Result:=False;
   T:=0;
   Offset:=0;
+  Carry:=False;
   Last:=Length(S);
   if Last-First+1<2 then Exit;
   if S[Last]='Z' then
@@ -3073,6 +3074,7 @@ begin
   { Delphi accepts hour 24 and second 60 as a carry into the next day
     or minute. Apply the zone after combining this time with the date. }
   if (H>24) or (M>=60) or (Sec>60) then Exit;
+  Carry:=(H=24) or (Sec=60);
   { Round the whole seconds to TDateTime first, as in TryEncodeTime. }
   T:=TDateTime(((H*MinsPerHour+M)*SecsPerMin+Sec)*MSecsPerSec)/MSecsPerDay;
   if Fraction<>0 then T:=T+Fraction*OneSecond;
@@ -3082,14 +3084,16 @@ end;
 function TryISOStrToTime(const aString: string; out outTime: TDateTime): Boolean;
 var
   Offset: Integer;
+  Carry: Boolean;
 begin
-  Result:=TryISOClock(aString,1,outTime,Offset);
+  Result:=TryISOClock(aString,1,outTime,Offset,Carry);
 end;
 
 function ParseISODateTime(const S: string; AllowDateZ: Boolean; out D: TDateTime; out Offset: Integer): Boolean;
 var
   P, L: SizeInt;
   DatePart, TimePart: TDateTime;
+  Carry: Boolean;
 begin
   D:=0;
   Offset:=0;
@@ -3105,10 +3109,20 @@ begin
     if (L=6) and (S[5]<>'W') then Exit(False);
     Exit(TryISODate(S,L,False,D,L<Length(S)));
     end;
-  if P=1 then Exit((S[1]='T') and TryISOClock(S,2,D,Offset) and (ISOField(S,2,2)<24));
+  if P=1 then Exit((S[1]='T') and TryISOClock(S,2,D,Offset,Carry) and (ISOField(S,2,2)<24));
   { A space separator and Z on a bare date are legacy calendar-date forms. }
-  Result:=TryISODate(S,P-1,True,DatePart,S[P]=' ') and TryISOClock(S,P+1,TimePart,Offset);
-  if Result then D:=DatePart+TimePart;
+  Result:=TryISODate(S,P-1,True,DatePart,S[P]=' ') and TryISOClock(S,P+1,TimePart,Offset,Carry);
+  if Result then
+    begin
+    { Keep the SDK's existing calendar-date rounding. Newly supported dates
+      before the epoch use the negative fractional convention of TDateTime. }
+    if (DatePart<0) and (Carry or
+       not (((P=11) and (S[5]='-') and (S[8]='-')) or
+            ((P=9) and (S[5] in ['0'..'9'])))) then
+      D:=ComposeDateTime(DatePart+Trunc(TimePart),TimePart)
+    else
+      D:=DatePart+TimePart;
+    end;
 end;
 
 function TryISOStrToDateTime(const aString: string; out outDateTime: TDateTime): Boolean;

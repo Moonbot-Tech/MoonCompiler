@@ -46,6 +46,11 @@ begin
   ExpectDate('2024060',EncodeDate(2024,2,29));
   ExpectDate('2024-366',EncodeDate(2024,12,31));
   ExpectDate('1900-060',EncodeDate(1900,3,1));
+  ExpectDate('1899-363T12:00Z',EncodeDateTime(1899,12,29,12,0,0,0));
+  ExpectDate('1899-W52-4T24:01Z',EncodeDateTime(1899,12,29,0,1,0,0));
+  ExpectDate('1899-12-29T24:01Z',EncodeDateTime(1899,12,30,0,1,0,0));
+  ExpectDate('1899-12-28T23:59:60.5Z',EncodeDateTime(1899,12,29,0,0,0,500));
+  ExpectDate('1899-12-28T11:59:60Z',EncodeDateTime(1899,12,28,12,0,0,0));
   ExpectDate('2024-01-01 12:30',EncodeDateTime(2024,1,1,12,30,0,0));
   ExpectDate('2024-01-01Z',EncodeDate(2024,1,1));
   ExpectDate('T12:30',EncodeTime(12,30,0,0));
