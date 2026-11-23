@@ -172,17 +172,29 @@ begin
   end;
 end;
 
-{ A stored block seeds the window. The fixed Huffman block that follows
-  contains three (length, distance) pairs and six literal bytes. }
+{ A stored block seeds the window. Tail encodes the exact matches below,
+  followed by six literals so the last match can still use inflate_fast. }
 procedure HistoryAndOverlappingMatches;
 const
-  Tail: array[0..12] of Byte = ($43,$E7,$13,$52,$37,$8A,$12,$93,$92,$53,$52,$D3,$00);
+  Tail: array[0..27] of Byte = ($43,$E7,$13,$52,$37,$8A,$08,$50,$84,$00,$41,$05,$A4,$0A,
+    $90,$48,$8C,$02,$42,$D6,$27,$26,$25,$A7,$A4,$A6,$01,$00);
 var
   Seed: array[0..36] of Byte;
-  Expected: array[0..343] of Byte;
-  Output: array[0..511] of Byte;
+  Expected: array[0..824] of Byte;
+  Output: array[0..1151] of Byte;
   S: z_stream;
-  I: Integer;
+  I, Pos: Integer;
+
+  procedure Match(Count, Distance: Integer);
+  var
+    J: Integer;
+  begin
+    for J := 1 to Count do begin
+      Expected[Pos] := Expected[Pos - Distance];
+      Inc(Pos);
+    end;
+  end;
+
 begin
   Seed[0] := 0;
   Seed[1] := 32;
@@ -193,10 +205,19 @@ begin
     Seed[I + 5] := I;
     Expected[I] := I;
   end;
-  for I := 32 to 47 do Expected[I] := Expected[I - 16];   { entirely in history }
-  for I := 48 to 79 do Expected[I] := Expected[I - 40];   { history into current output }
-  for I := 80 to 337 do Expected[I] := Expected[I - 3];   { overlapping current output }
-  for I := 338 to 343 do Expected[I] := Ord('a') + I - 338;
+  Pos := 32;
+  Match(16, 16);  { entirely in history }
+  Match(32, 40);  { history into current output }
+  Match(258, 3);  { repeated pattern and partial last copy }
+  Match(31, 7);
+  Match(32, 1);
+  Match(33, 33);  { adjacent, disjoint source and destination }
+  Match(48, 17);
+  Match(47, 5);
+  Match(258, 1);
+  Match(32, 127);
+  Check(Pos + 6 = SizeOf(Expected), 'match fixture length');
+  for I := 0 to 5 do Expected[Pos + I] := Ord('a') + I;
   S := Default(z_stream);
   Check(inflateInit2(S, -15) = Z_OK, 'raw match stream init');
   try
@@ -216,6 +237,39 @@ begin
       CompareMem(@Output[0], @Expected[32], SizeOf(Expected) - 32), 'history and overlapping match bytes');
   finally
     inflateEnd(S);
+  end;
+end;
+
+procedure FullHistoryWindow;
+const
+  { Two 16-byte matches at distances 64 and 43, then six literals. }
+  Block: array[0..11] of Byte = ($43,$D7,$8F,$AE,$34,$31,$29,$39,$25,$35,$0D,$00);
+  WindowSize = 32768;
+var
+  Dictionary: array[0..WindowSize + 18] of Byte;
+  Output: array[0..511] of Byte;
+  S: z_stream;
+  I, Extra: Integer;
+begin
+  for I := 0 to High(Dictionary) do Dictionary[I] := Byte((I xor (I shr 8)) and $FF);
+  for Extra in [0, 19] do begin
+    S := Default(z_stream);
+    Check(inflateInit2(S, -15) = Z_OK, 'raw window init');
+    try
+      Check(inflateSetDictionary(S, @Dictionary[0], WindowSize) = Z_OK, 'full 32 KiB window');
+      If Extra <> 0 then
+        Check(inflateSetDictionary(S, @Dictionary[WindowSize], Extra) = Z_OK, 'advance window cursor');
+      S.next_in := @Block[0];
+      S.avail_in := SizeOf(Block);
+      S.next_out := @Output[0];
+      S.avail_out := SizeOf(Output);
+      Check(inflate(S, Z_NO_FLUSH) = Z_STREAM_END, 'raw full-window block completed');
+      Check((S.total_out = 38) and CompareMem(@Output[0], @Dictionary[WindowSize + Extra - 64], 16)
+        and CompareMem(@Output[16], @Dictionary[WindowSize + Extra - 27], 16),
+        'history with cursor at zero, before wrap, and across wrap');
+    finally
+      inflateEnd(S);
+    end;
   end;
 end;
 
@@ -825,6 +879,7 @@ begin
   CheckValues;
   Piecewise;
   HistoryAndOverlappingMatches;
+  FullHistoryWindow;
   ResetBetweenFrames;
   Streams;
   Helpers;

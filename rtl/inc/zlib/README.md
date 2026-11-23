@@ -3,8 +3,9 @@
 `System.ZLib` (`packages/vcl-compat/src/system.zlib.pp`) is the Delphi
 `System.ZLib` surface written for MoonCompiler from its behavioural contract
 and RFC 1950/1951/1952. The compression code behind it is **zlib 1.3.1**
-under the zlib licence; the upstream archive is unmodified, and `build.py`
-adjusts Win64's candidate check after extraction. No Embarcadero source was consulted.
+under the zlib licence. After extracting the upstream archive, `build.py`
+adjusts the inflate fast path on both targets and the deflate candidate check
+on Win64. No Embarcadero source was consulted.
 
 `zlib-1.3.1.tar.gz` is the upstream release archive
 (SHA-256 `9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23`,
@@ -76,6 +77,17 @@ On Win64, when a decompression match lies wholly in a contiguous part of
 the history window, `inflate_fast` copies it with zlib's existing `zmemcpy`.
 A match that continues into the output still uses forward expansion so it
 can read the bytes it has just produced.
+On Linux x86-64 the fast decoder reads each two-byte Huffman refill with one
+unaligned load. A match in any contiguous part of the history window goes to
+libc's `memcpy`. For a match of at least 32 bytes in the current output, a
+distance of one becomes a fill. For other distances, the decoder copies at
+most the number of bytes already available and doubles that span after each
+full copy. Each source and destination pair is disjoint. With these block
+operations in libc, the Linux build uses `-O2` for `inffast.c`.
+
+WebSocket permessage-deflate can retain history between messages. With
+`server_no_context_takeover` the server starts each message with a fresh
+history, so short incoming messages benefit less from history copies.
 The Linux objects are
 position-independent (they link into a PIE and into a shared library) with
 hidden symbols (`-fvisibility=hidden`, zlib's own `HAVE_HIDDEN`: a shared

@@ -6,8 +6,8 @@ compiler.  The objects of x86_64-win64 come from MinGW-w64 GCC (or Clang for
 x86_64-w64-windows-gnu) and take nothing from a C runtime; those of
 x86_64-linux come from a Linux GCC (or Clang for x86_64-linux-gnu) and take
 memcpy/memset of the C library every Linux program of the toolchain links.
-Both targets use the upstream archive. Win64 patches deflate's short-match
-check and inflate's contiguous history copy after extraction.
+Both targets use the upstream archive with target-specific changes to the
+inflate fast path. Win64 also adjusts deflate's short-match check.
 
 Run: python3 build.py [--target x86_64-win64|x86_64-linux] [--cc ...] [--nm ...] [--objcopy ...]
 """
@@ -16,6 +16,13 @@ from pathlib import Path
 import subprocess
 import tarfile
 import tempfile
+
+
+def patch_block(code, old, new):
+    if code.count(old) != 1:
+        raise SystemExit('zlib 1.3.1 inffast.c no longer matches the inflate patch')
+    return code.replace(old, new)
+
 
 TARGETS = {
     # target: (default C compiler, Clang target triple)
@@ -66,10 +73,10 @@ with tempfile.TemporaryDirectory(prefix='moon-zlib-') as temp:
                 raise SystemExit('zlib 1.3.1 deflate.c no longer matches the Win64 candidate-check patch')
             code = code.replace(old, new)
         source.write_bytes(code)
-        # A match wholly inside the history window cannot overlap the output.
-        # Other matches can grow by reading bytes they have just written.
-        source = src / 'inffast.c'
-        code = source.read_bytes()
+    source = src / 'inffast.c'
+    code = source.read_bytes()
+    if a.target == 'x86_64-win64':
+        # A match wholly inside this part of the window cannot overlap the output.
         old = b'                        from += wnext - op;\n                        if (op < len) {'
         new = b'''                        from += wnext - op;
                         if (op >= len) {
@@ -78,9 +85,52 @@ with tempfile.TemporaryDirectory(prefix='moon-zlib-') as temp:
                             continue;
                         }
                         else {'''
-        if code.count(old) != 1:
-            raise SystemExit('zlib 1.3.1 inffast.c no longer matches the Win64 history-copy patch')
-        source.write_bytes(code.replace(old, new))
+        code = patch_block(code, old, new)
+    else:
+        # Both fast-loop refills already have two input bytes available.
+        # A fixed-size builtin accepts unaligned input on x86-64.
+        for width in (12, 16):
+            join = b'\n' + b' ' * width
+            byte = b'hold += (unsigned long)(*in++) << bits;'
+            old = join.join((byte, b'bits += 8;', byte, b'bits += 8;'))
+            new = join.join((b'unsigned short word;', b'__builtin_memcpy(&word, in, sizeof(word));',
+                             b'hold += (unsigned long)word << bits;', b'in += 2;', b'bits += 16;'))
+            code = patch_block(code, old, new)
+        # op is the distance back from the window cursor. A single copy is
+        # safe if the source ends before both the cursor and the physical wrap.
+        old = b'                    from = window;\n                    if (wnext == 0)'
+        new = b'''                    unsigned history_end = op <= wnext ? wnext : wsize + wnext;
+                    unsigned pos = history_end - op;
+                    if (len <= op && len <= wsize - pos) {
+                        zmemcpy(out, window + pos, len);
+                        out += len;
+                        continue;
+                    }
+''' + old
+        code = patch_block(code, old, new)
+        # DEFLATE permits a match to generate its own source. At each step
+        # [from, out) already exists; copying at most that much is disjoint.
+        old = b'                    from = out - dist;          /* copy direct from output */'
+        new = old + b'''
+                    if (len >= 32) {
+                        unsigned copy = dist;
+                        if (copy == 1) {
+                            __builtin_memset(out, *from, len);
+                        }
+                        else {
+                            while (copy < len) {
+                                zmemcpy(out, from, copy);
+                                out += copy;
+                                len -= copy;
+                                copy += copy;
+                            }
+                            zmemcpy(out, from, len);
+                        }
+                        out += len;
+                        continue;
+                    }'''
+        code = patch_block(code, old, new)
+    source.write_bytes(code)
     # Z_SOLO: no C library at all (the allocator comes from the z_stream, the
     # unit always supplies it); the rest keeps GCC from inventing memcpy/memset
     # calls or stack probes, so the Win64 objects have no undefined symbols.
@@ -154,6 +204,8 @@ with tempfile.TemporaryDirectory(prefix='moon-zlib-') as temp:
     per_source = {name: ['-O3'] for name in ('zutil', 'inflate', 'inffast', 'inftrees')}
     per_source.update({name: ['-DLIT_MEM'] for name in ('deflate', 'trees')})
     if a.target == 'x86_64-linux':
+        # Long matches now use libc. Keep the remaining short loops at -O2.
+        del per_source['inffast']
         per_source['deflate'].append('-DUNALIGNED_OK')
     objects = []
     for name in sources:
