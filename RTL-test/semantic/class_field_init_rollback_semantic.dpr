@@ -191,5 +191,5 @@ begin
   end;
   ExerciseComposite(True);
   ExerciseComposite(False);
-  Writeln('CLASS_FIELD_INIT_ROLLBACK_PASS');
+  WriteLn('CLASS_FIELD_INIT_ROLLBACK_PASS');
 end.
