@@ -158,6 +158,18 @@ Use an explicit clearing operation on the intended buffer. It clears only
 that storage when execution reaches the call; it does not clear other copies
 of the secret or protect a path which exits before the clearing operation.
 
+## External assemblers on Win64
+
+With SDK 2.6.0, `-Amasm` can emit `ALIGN 32` in a segment that does not
+allow that alignment, and placeholder directives for DWARF frame data.
+Microsoft ML64 rejects the resulting assembly file. Use the default internal
+PE/COFF assembler for Win64 builds.
+
+The external GNU assembler route (`-Aas`) can also fail when linking
+separately compiled units that instantiate the same generic. Rebuilding
+Integrated Mega with that switch on SDK 2.6.0 reports duplicate comparer
+methods, VMTs and RTTI symbols. Its standard PE/COFF build links successfully.
+
 ## External GNU linking of Win64 DLLs
 
 The optional external GNU linker route (`-Xe`) has a known failure for Win64
