@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+      # Retry publication from an attested release run without rebuilding or moving its tag.
+      - 'publish-sdk-*'
   workflow_dispatch:
     inputs:
       release_tag:
@@ -17,15 +19,39 @@ permissions:
 jobs:
   validate-tag:
     runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
     outputs:
       tag: ${{ steps.tag.outputs.value }}
       version: ${{ steps.tag.outputs.version }}
       source_sha: ${{ steps.tag.outputs.source_sha }}
+      signed_run: ${{ steps.signed.outputs.run_id }}
     steps:
+      - id: signed
+        if: startsWith(github.ref, 'refs/tags/publish-sdk-')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=${GITHUB_REF_NAME#publish-sdk-}
+          [[ "$run_id" =~ ^[0-9]+$ ]]
+          source=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq '
+            select(.path == ".github/workflows/release.yml" and .event == "push" and .status == "completed")
+            | [.head_branch, .head_sha] | @tsv')
+          IFS=$'\t' read -r tag sha <<< "$source"
+          [[ "$tag" == v* && "$sha" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha)" == "$sha" ]]
+          platforms=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" --jq '
+            [.jobs[] | select(.conclusion == "success") | .name | select(. == "linux-x86-64" or . == "win64-x86-64")]
+            | sort | join(" ")')
+          [[ "$platforms" == 'linux-x86-64 win64-x86-64' ]]
+          printf 'tag=%s\nsha=%s\nrun_id=%s\n' "$tag" "$sha" "$run_id" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.signed.outputs.sha || github.sha }}
       - id: tag
         env:
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+          RELEASE_TAG: ${{ steps.signed.outputs.tag || (github.event_name == 'workflow_dispatch' && inputs.release_tag) || github.ref_name }}
         run: |
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
             echo "release tag must use vMAJOR.MINOR.PATCH[-PRERELEASE]" >&2
@@ -58,6 +84,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ needs.validate-tag.outputs.source_sha }}
       - name: Verify qualification evidence and authorized release scope
         env:
           GH_TOKEN: ${{ github.token }}
@@ -76,6 +103,7 @@ jobs:
 
   linux-x86-64:
     needs: [validate-tag, qualification-proof]
+    if: needs.validate-tag.outputs.signed_run == ''
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
@@ -226,6 +254,7 @@ jobs:
 
   win64-x86-64:
     needs: [validate-tag, qualification-proof]
+    if: needs.validate-tag.outputs.signed_run == ''
     runs-on: windows-2022
     timeout-minutes: 90
     env:
@@ -459,8 +488,13 @@ jobs:
 
   publish:
     needs: [validate-tag, qualification-proof, linux-x86-64, win64-x86-64]
+    if: >-
+      !cancelled() && needs.qualification-proof.result == 'success' &&
+      (needs.validate-tag.outputs.signed_run != '' ||
+      (needs.linux-x86-64.result == 'success' && needs.win64-x86-64.result == 'success'))
     runs-on: ubuntu-24.04
     permissions:
+      actions: read
       contents: write
       id-token: write
       attestations: write
@@ -470,10 +504,15 @@ jobs:
       GH_REPO: ${{ github.repository }}
       RELEASE_TAG: ${{ needs.validate-tag.outputs.tag }}
       RELEASE_VERSION: ${{ needs.validate-tag.outputs.version }}
+      SIGNED_RUN: ${{ needs.validate-tag.outputs.signed_run }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-tag.outputs.source_sha }}
       - uses: actions/download-artifact@v4
         with:
+          github-token: ${{ github.token }}
+          run-id: ${{ needs.validate-tag.outputs.signed_run || github.run_id }}
           pattern: toolchain-*
           path: dist
           merge-multiple: true
@@ -481,12 +520,23 @@ jobs:
         working-directory: dist
         run: sha256sum mooncompiler-toolchain-* > SHA256SUMS
       - name: Attest release assets
+        if: env.SIGNED_RUN == ''
         uses: actions/attest@v4
         with:
           subject-path: |
             dist/*.zip
             dist/*.tar.gz
             dist/SHA256SUMS
+      - name: Verify signatures from the original tagged build
+        if: env.SIGNED_RUN != ''
+        env:
+          SOURCE_SHA: ${{ needs.validate-tag.outputs.source_sha }}
+        run: |
+          for asset in dist/*; do
+            gh attestation verify "$asset" --repo "$GH_REPO" --source-digest "$SOURCE_SHA" \
+              --source-ref "refs/tags/$RELEASE_TAG" --signer-workflow "$GH_REPO/.github/workflows/release.yml" \
+              --deny-self-hosted-runners
+          done
       - name: Publish GitHub Release
         if: github.event_name == 'push'
         run: |
@@ -510,7 +560,7 @@ jobs:
             --notes-file "$RUNNER_TEMP/release-notes.md"
           )
           [[ "$RELEASE_TAG" != *-* ]] || release_options+=(--prerelease)
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+          if [[ -z "$SIGNED_RUN" ]] && gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" \
               dist/mooncompiler-toolchain-* dist/SHA256SUMS --clobber
           else
