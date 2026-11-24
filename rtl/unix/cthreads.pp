@@ -641,6 +641,7 @@ end;
     var
       ti : pthreadinfo;
       thread_attr : pthread_attr_t;
+      stack_error, create_error: cint;
     begin
 {$ifdef DEBUG_MT}
       writeln('Creating new thread');
@@ -689,11 +690,14 @@ end;
       { Publish the handle before the child can enter user code. }
       pthread_mutex_lock(@PriorityState^.Lock);
 {$endif}
-      // set the stack size
-      if ((stacksize<>0) and (pthread_attr_setstacksize(@thread_attr, stacksize)<>0)) or
-         // and create the thread
-         (pthread_create(ppthread_t(@threadid), @thread_attr, @ThreadMain,ti) <> 0) then
-
+      stack_error:=0;
+      if stacksize<>0 then
+        stack_error:=pthread_attr_setstacksize(@thread_attr,stacksize);
+      if stack_error=0 then
+        create_error:=pthread_create(ppthread_t(@threadid),@thread_attr,@ThreadMain,ti)
+      else
+        create_error:=stack_error;
+      if create_error<>0 then
         begin
 {$if defined(LINUX) and not defined(ANDROID)}
           priority_free(ti^.priority);
@@ -710,7 +714,17 @@ end;
 {$endif}
       ;
       { A replaceable heap callback must not run under the priority lock. }
-      if threadid=TThreadID(0) then dispose(ti);
+      if threadid=TThreadID(0) then
+        begin
+          dispose(ti);
+{$if defined(LINUX) and not defined(ANDROID)}
+          if stack_error<>0 then
+            PThreadCreateFailure.Operation:='pthread_attr_setstacksize'
+          else
+            PThreadCreateFailure.Operation:='pthread_create';
+          PThreadCreateFailure.Code:=create_error;
+{$endif}
+        end;
       CBeginThread:=threadid;
       pthread_attr_destroy(@thread_attr);
 {$ifdef DEBUG_MT}

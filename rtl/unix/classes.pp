@@ -97,6 +97,132 @@ uses
   ;
 {$ENDIF FPC_DOTTEDUNITS}
 
+{$if defined(linux) and not defined(android)}
+function LinuxThreadCreateError(StackSize: SizeUInt): string;
+var
+  Status, Limits, Memory, Groups: string;
+
+  function ReadKernelFile(const Name: string): string;
+  var
+    FD, Count: LongInt;
+    Buffer: array[0..4095] of AnsiChar;
+    Chunk: RawByteString;
+  begin
+    Result:='';
+    FD:=FileOpen(Name,fmOpenRead or fmShareDenyNone);
+    if FD<0 then exit;
+    try
+      repeat
+        Count:=fpRead(FD,Buffer,SizeOf(Buffer));
+        if Count<=0 then break;
+        SetString(Chunk,PAnsiChar(@Buffer[0]),Count);
+        Result:=Result+string(Chunk);
+      until False;
+      Result:=Trim(Result);
+    finally
+      FileClose(FD);
+    end;
+  end;
+
+  function Field(const Text, Key: string): string;
+  var
+    P, E: SizeInt;
+  begin
+    P:=Pos(#10+Key,#10+Text);
+    if P=0 then exit('?');
+    Inc(P,Length(Key));
+    E:=Pos(#10,Text,P);
+    if E=0 then E:=Length(Text)+1;
+    Result:=Trim(Copy(Text,P,E-P));
+  end;
+
+  function SoftLimit(const Key: string): string;
+  begin
+    Result:=Field(Limits,Key);
+    Result:=Copy(Result,1,Pos(' ',Result+' ')-1);
+  end;
+
+  procedure AddLimits(const Root, Group: string; Unified: Boolean);
+  var
+    Dir, Values: string;
+
+    procedure AddPair(const LabelText, MaxFile, CurrentFile: string);
+    var Limit: string;
+    begin
+      Limit:=ReadKernelFile(Dir+'/'+MaxFile);
+      if Limit='' then exit;
+      Values:=Values+' '+LabelText+'='+ReadKernelFile(Dir+'/'+CurrentFile)+'/'+Limit;
+      if MaxFile='pids.max' then
+        Values:=Values+' max-events='+Field(ReadKernelFile(Dir+'/pids.events'),'max ');
+    end;
+
+  begin
+    if (Group='') or (Group[1]<>'/') or (Pos('/../',Group+'/')<>0) then exit;
+    Dir:=ExcludeTrailingPathDelimiter(Root+Group);
+    if not DirectoryExists(Dir) then begin
+      Result:=Result+' ['+Dir+' unavailable]';
+      exit;
+    end;
+    repeat
+      Values:='';
+      AddPair('pids','pids.max','pids.current');
+      if Unified then begin
+        AddPair('memory','memory.max','memory.current');
+        AddPair('swap','memory.swap.max','memory.swap.current');
+      end else begin
+        AddPair('memory','memory.limit_in_bytes','memory.usage_in_bytes');
+        AddPair('memory+swap','memory.memsw.limit_in_bytes','memory.memsw.usage_in_bytes');
+      end;
+      if Values<>'' then Result:=Result+' ['+Dir+Values+']';
+      if Dir=Root then break;
+      Dir:=ExtractFileDir(Dir);
+    until False;
+  end;
+
+const CGroupRoot = '/sys/fs/cgroup';
+var
+  Group, Controllers: string;
+  Lines: TStringList;
+  I, P: SizeInt;
+begin
+  Result:='Failed to create new thread';
+  if PThreadCreateFailure.Operation<>nil then
+    Result:=Result+Format(' (%s returned %d, stack=%d bytes)',
+      [string(PThreadCreateFailure.Operation),PThreadCreateFailure.Code,StackSize]);
+  { The original pthread error must survive unavailable diagnostics, including low memory. }
+  try
+    Status:=ReadKernelFile('/proc/self/status');
+    Limits:=ReadKernelFile('/proc/self/limits');
+    Memory:=ReadKernelFile('/proc/meminfo');
+    Result:=Result+'; Threads='+Field(Status,'Threads:')+' VmSize='+Field(Status,'VmSize:')+
+      ' RLIMIT_AS(bytes)='+SoftLimit('Max address space')+' RLIMIT_NPROC='+SoftLimit('Max processes')+
+      '; MemAvailable='+Field(Memory,'MemAvailable:')+' SwapFree='+Field(Memory,'SwapFree:')+
+      ' CommitLimit='+Field(Memory,'CommitLimit:')+' Committed_AS='+Field(Memory,'Committed_AS:');
+    Groups:=ReadKernelFile('/proc/thread-self/cgroup');
+    if Groups='' then Groups:=ReadKernelFile('/proc/self/cgroup');
+    Lines:=TStringList.Create;
+    try
+      Lines.Text:=Groups;
+      for I:=0 to Lines.Count-1 do begin
+        Group:=Lines[I];
+        Delete(Group,1,Pos(':',Group));
+        P:=Pos(':',Group);
+        Controllers:=Copy(Group,1,P-1);
+        Delete(Group,1,P);
+        if Controllers='' then AddLimits(CGroupRoot,Group,True)
+        else begin
+          if (Pos(',pids,',','+Controllers+',')<>0) or (Pos(',memory,',','+Controllers+',')<>0) then
+            AddLimits(CGroupRoot+'/'+Controllers,Group,False);
+        end;
+      end;
+    finally
+      Lines.Free;
+    end;
+  except
+  end;
+end;
+{$endif}
+
 {$IFDEF LINUX}
 {$DEFINE HAS_TTHREAD_GETSYSTEMTIMES}
 class function TThread.GetSystemTimes(out aSystemTimes : TSystemTimes) : Boolean;

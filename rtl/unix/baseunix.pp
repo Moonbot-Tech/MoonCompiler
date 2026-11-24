@@ -51,6 +51,15 @@ Uses UnixType;
   procedure fpseterrno(err:longint); external name 'FPC_SYS_SETERRNO';
   property errno : cint read fpgeterrno write fpseterrno;
 
+{$if defined(linux) and not defined(android)}
+  { BeginThread returns a zero handle. Keep the native failure for its caller. }
+  threadvar
+    PThreadCreateFailure: record
+      Operation: PAnsiChar;
+      Code: cint;
+    end;
+{$endif}
+
 {$i bunxovlh.inc}
 
 {$i genfunch.inc}

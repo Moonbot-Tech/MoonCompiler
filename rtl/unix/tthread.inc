@@ -169,9 +169,16 @@ begin
   FFatalException := nil;
   FSuspendedInternal := not CreateSuspended;
   WRITE_DEBUG('creating thread, self = ',ptruint(self));
+{$if defined(linux) and not defined(android)}
+  PThreadCreateFailure.Operation:=nil; { a custom thread manager may return no native error }
+{$endif}
   FHandle:= BeginThread(@ThreadFunc, Pointer(Self), FThreadID, StackSize);
   if FHandle = TThreadID(0) then
+{$if defined(linux) and not defined(android)}
+    raise EThread.Create(LinuxThreadCreateError(StackSize));
+{$else}
     raise EThread.create('Failed to create new thread');
+{$endif}
   WRITE_DEBUG('TThread.Create done, fhandle = ', ptruint(fhandle));
 end;
 
