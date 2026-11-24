@@ -38,6 +38,12 @@ jobs:
             echo "tag $RELEASE_TAG does not match MoonCompiler $product_version" >&2
             exit 1
           }
+          expected="# MoonCompiler $product_version"
+          heading=$(head -n 1 doc/RELEASE_NOTES.md)
+          [[ "$heading" == "$expected" || "$heading" == "$expected:"* ]] || {
+            echo "Release notes do not match $RELEASE_TAG" >&2
+            exit 1
+          }
           echo "value=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "version=$product_version" >> "$GITHUB_OUTPUT"
           echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -488,11 +494,8 @@ jobs:
           import os, re
           from pathlib import Path
           from urllib.parse import urljoin
-          version = os.environ['RELEASE_VERSION']
           base = f"https://github.com/{os.environ['GH_REPO']}/blob/{os.environ['RELEASE_TAG']}/"
           notes = Path('doc/RELEASE_NOTES.md').read_text(encoding='utf-8').split('\n---\n', 1)[0].strip()
-          if not notes.startswith(f'# MoonCompiler {version}:'):
-              raise SystemExit('Release notes do not match the release version')
           notes = re.sub(r'(?<=\]\()(?!https?://|#)([^)]+)',
                          lambda match: urljoin(base + 'doc/', match[0]), notes)
           notes += f'\n\nDownload the archive for your platform and follow the [Quick Start]({base}README.md#quick-start). SHA256SUMS and GitHub artifact attestations accompany the binaries.\n'
