@@ -74,16 +74,16 @@ end;
 type
   TBreadthTransform<T> = class
   type
-    TStep = reference to function(const Value: T; Delta: Integer): T;
+    TBreadthTransformStep = reference to function(const Value: T; Delta: Integer): T;
     TRun = reference to function(Delta: Integer): T;
   public
-    class function Start(Initial: T; const Apply: TStep): TRun; static;
+    class function Start(Initial: T; const Apply: TBreadthTransformStep): TRun; static;
   end;
 
-class function TBreadthTransform<T>.Start(Initial: T; const Apply: TStep): TRun;
+class function TBreadthTransform<T>.Start(Initial: T; const Apply: TBreadthTransformStep): TRun;
 var
   Current: T;
-  Step: TStep;
+  Step: TBreadthTransformStep;
 begin
   Current := Initial;
   Step := Apply;
@@ -134,6 +134,129 @@ begin
   Actual := Number(19);
   Check(Actual = 94000000021, 'breadth-generic-closure-specialization-keeps-own-state');
   Mix(UInt64(Actual));
+end;
+
+type
+  TBreadthRawLookup = function(Key: Int64; Scale: Double): TCrossEntry of object;
+  TBreadthRefLookup = reference to function(Key: Int64; Scale: Double): TCrossEntry;
+
+  TBreadthLookupSource = class
+    Caption: AnsiString;
+    Bias: Int64;
+    function Lookup(Key: Int64; Scale: Double): TCrossEntry; virtual;
+  end;
+
+  TBreadthLookupDerived = class(TBreadthLookupSource)
+    function Lookup(Key: Int64; Scale: Double): TCrossEntry; override;
+  end;
+
+function TBreadthLookupSource.Lookup(Key: Int64; Scale: Double): TCrossEntry;
+begin
+  Result.Code := Key + Bias + Trunc(Scale * 16.0);
+  Result.Text := Caption + '!';
+end;
+
+function TBreadthLookupDerived.Lookup(Key: Int64; Scale: Double): TCrossEntry;
+begin
+  Result := inherited Lookup(Key, Scale);
+  Inc(Result.Code, 101);
+  Result.Text := Result.Text + '^';
+end;
+
+procedure RunBreadthMethodReferenceBinding;
+var
+  First, Second: TBreadthLookupSource;
+  Raw, Independent: TBreadthRawLookup;
+  Saved, Other: TBreadthRefLookup;
+  Actual: TCrossEntry;
+begin
+  First := TBreadthLookupSource.Create;
+  try
+    Second := TBreadthLookupDerived.Create;
+    try
+      First.Caption := 'original';
+      First.Bias := OpaqueI(546);
+      Second.Caption := 'replacement';
+      Second.Bias := OpaqueI(-217);
+      Raw := First.Lookup;
+      Saved := Raw;
+      Raw := Second.Lookup;
+      Independent := First.Lookup;
+      Other := Independent;
+      { Converting a method variable captures its slot. A second variable
+        supplies an independent receiver even after Raw gets rebound. }
+      Actual := Saved(OpaqueI(47000000019), OpaqueD(0.5));
+      Check((Actual.Code = 46999999911) and (Actual.Text = AnsiString('replacement!^')),
+        'breadth-method-ref-follows-method-variable-rebind');
+      Actual := Other(OpaqueI(-16000000071), OpaqueD(-1.75));
+      Check((Actual.Code = -15999999553) and (Actual.Text = AnsiString('original!')),
+        'breadth-method-ref-keeps-separate-target');
+      Raw := First.Lookup;
+      First.Caption := 'updated';
+      Actual := Saved(OpaqueI(17), OpaqueD(0.25));
+      Check((Actual.Code = 567) and (Actual.Text = AnsiString('updated!')), 'breadth-method-ref-binds-live-instance-state');
+      Mix(UInt64(Actual.Code));
+    finally
+      Saved := nil;
+      Other := nil;
+      Second.Free;
+    end;
+  finally
+    First.Free;
+  end;
+end;
+
+procedure RunBreadthCapturedGenericSort;
+const
+  Names: array[0..3] of AnsiString = ('b', 'x', 'a', 'r');
+  Codes: array[0..3] of Int64 = (90000000003, -41, 90000000003, 17);
+  Ascending: array[0..3] of Integer = (1, 3, 2, 0);
+  Descending: array[0..3] of Integer = (0, 2, 3, 1);
+var
+  List: TList<TCrossEntry>;
+  Comparison: TComparison<TCrossEntry>;
+  Comparer: IComparer<TCrossEntry>;
+  Saved: TArray<TCrossEntry>;
+  Item: TCrossEntry;
+  Direction, Calls, I: Integer;
+begin
+  Direction := 1;
+  Calls := 0;
+  Comparison := function(const L, R: TCrossEntry): Integer
+    begin
+      Inc(Calls);
+      If L.Code < R.Code then
+        Exit(-Direction);
+      If L.Code > R.Code then
+        Exit(Direction);
+      Result := Direction * CompareStr(string(L.Text), string(R.Text));
+    end;
+  Comparer := TComparer<TCrossEntry>.Construct(Comparison);
+  List := TList<TCrossEntry>.Create;
+  try
+    for I := Low(Names) to High(Names) do begin
+      Item.Code := OpaqueI(Codes[I]);
+      Item.Text := Names[I];
+      List.Add(Item);
+    end;
+    List.Sort(Comparer);
+    Check(Calls > 0, 'breadth-closure-sort-uses-captured-comparer');
+    Saved := List.ToArray;
+    Calls := 0;
+    Direction := -1;
+    List.Sort(Comparer);
+    Check(Calls > 0, 'breadth-closure-sort-recalls-same-comparer');
+    for I := Low(Names) to High(Names) do begin
+      Check((Saved[I].Code = Codes[Ascending[I]]) and (Saved[I].Text = Names[Ascending[I]]),
+        'breadth-closure-sort-preserves-first-managed-snapshot');
+      Item := List[I];
+      Check((Item.Code = Codes[Descending[I]]) and (Item.Text = Names[Descending[I]]),
+        'breadth-closure-sort-captures-changed-direction');
+      Mix(UInt64(Item.Code));
+    end;
+  finally
+    List.Free;
+  end;
 end;
 {$endif}
 
@@ -364,6 +487,19 @@ begin
 end;
 {$endif}
 
+{$I mega_modern_shadowed.inc}
+{$I mega_modern_assign.inc}
+{$I mega_modern_iteration.inc}
+{$I mega_modern_textreader.inc}
+{$I mega_modern_textwriter.inc}
+{$I mega_modern_rttipacket.inc}
+{$I mega_modern_boxedcast.inc}
+{$I mega_modern_queuedclosure.inc}
+{$I mega_modern_outclosure.inc}
+{$I mega_modern_indexedrtti.inc}
+{$I mega_modern_reflectwire.inc}
+{$I mega_modern_atomicwrappers.inc}
+
 procedure RunModernBreadthForms;
 begin
 {$ifdef HAS_ANON}
@@ -377,5 +513,39 @@ begin
   RunBreadthOperatorArrayLifecycle;
   RunBreadthOperatorInitializationFailure;
   RunBreadthOperatorCallerStorage;
+  RunBreadthManagedAssign;
+{$endif}
+{$ifdef HAS_ANON}
+  RunBreadthMethodReferenceBinding;
+  RunBreadthCapturedGenericSort;
+{$endif}
+{$if defined(HAS_ANON) and defined(HAS_INLINEVAR)}
+  RunBreadthShadowedClosure;
+  RunBreadthHandlerClosure;
+  RunBreadthLoopCapture;
+{$ifend}
+{$if defined(HAS_ANON) and defined(BREADTH_MAIN_FORCE_QUEUE)}
+  RunBreadthQueuedClosure;
+{$ifend}
+{$ifdef BREADTH_HAS_TEXT_STREAMS}
+  RunBreadthBufferedTextReader;
+  RunBreadthBufferedTextWriter;
+{$endif}
+{$ifdef BREADTH_HAS_EXTENDED_METHODS}
+  RunBreadthRttiEndpoint;
+{$endif}
+{$ifdef BREADTH_HAS_TVALUE_CAST}
+  RunBreadthBoxedClassCast;
+{$endif}
+{$ifdef HAS_ANON}
+  RunBreadthManagedOutClosure;
+{$endif}
+{$ifdef BREADTH_HAS_EXTENDED_METHODS}
+  RunBreadthIndexedRtti;
+  RunBreadthReflectSettingsWire;
+{$endif}
+{$ifdef BREADTH_HAS_TYPED_INTERLOCKED}
+  RunBreadthAtomicObjects;
+  RunBreadthAtomicFloating;
 {$endif}
 end;

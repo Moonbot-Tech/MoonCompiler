@@ -14,6 +14,8 @@ type
     LabelText: AnsiString;
   end;
 
+  TBreadthUnitMap = function(const Input: TBreadthUnitStamp; Step: Int64; Scale: Double): TBreadthUnitStamp of object;
+
 var
   BreadthUnitCoefficient: Integer;
 
@@ -23,11 +25,31 @@ procedure BreadthResetSequence(Initial: Integer);
 function BreadthReadSequence: Integer;
 function BreadthAdvanceSequence(Delta: Integer): Integer;
 function BreadthNextStamp(const Prefix: AnsiString; Delta: Integer): TBreadthUnitStamp; inline;
+function BreadthMapUnitStamp(const Input: TBreadthUnitStamp; Step: Int64; Scale: Double;
+  Map: TBreadthUnitMap): TBreadthUnitStamp; inline;
+
+function BreadthReadUnitResource: UnicodeString;
+
+type
+  {$RTTI EXPLICIT METHODS([vcPublic])}
+  TBreadthRttiEndpoint = class
+  public
+    Mark: Int64;
+    function Packet(Left: Int64; Scale: Double; const Text: UnicodeString; Right: Int64): UnicodeString; cdecl;
+  end;
 
 implementation
 
+resourcestring
+  BreadthStatusResource = 'unit'#0'resource';
+
 var
   Sequence: Integer;
+
+function BreadthReadUnitResource: UnicodeString;
+begin
+  Result := UnicodeString(LoadResString(@BreadthStatusResource));
+end;
 
 procedure BreadthChangeCoefficient(Delta: Integer);
 begin
@@ -61,4 +83,18 @@ begin
   Result.LabelText := Prefix + '!';
 end;
 
+function BreadthMapUnitStamp(const Input: TBreadthUnitStamp; Step: Int64; Scale: Double;
+  Map: TBreadthUnitMap): TBreadthUnitStamp;
+var
+  First: TBreadthUnitStamp;
+begin
+  First := Map(Input, Step, Scale);
+  Result := Map(First, Step - 17, -Scale);
+end;
+
+function TBreadthRttiEndpoint.Packet(Left: Int64; Scale: Double; const Text: UnicodeString; Right: Int64): UnicodeString;
+begin
+  Mark := Left + Right + Trunc(Scale * 8.0);
+  Result := Text + '!';
+end;
 end.

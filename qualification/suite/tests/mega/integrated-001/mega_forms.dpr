@@ -36,8 +36,9 @@ uses
 {$ifdef FPC}
   {$ifdef UNIX}cthreads, cwstring,{$endif}
 {$endif}
-  SysUtils, Variants, Classes, Math, TypInfo, Generics.Collections,
-  mega_breadth_unit, mega_portable
+  SysUtils, Variants, Classes, Math, TypInfo, Rtti, Character, SyncObjs, IniFiles, Generics.Collections, Generics.Defaults,
+  {$ifdef FPC}Types,{$else}Winapi.ActiveX,{$endif}
+  mega_breadth_unit, mega_breadth_genericbase, mega_breadth_genericconsumer, mega_portable
 {$ifdef FPC}
   , mega_runtime_fpc
 {$endif}
@@ -54,7 +55,7 @@ const
 
 { Two accumulators: "core" compiles on every tested compiler including the
   stable references; "modern" additionally needs Delphi-compatibility
-  features (anonymous methods, inline var). Core digests must agree across
+  features (anonymous methods, inline var, newer RTL APIs). Core digests must agree across
   ALL compilers; modern digests across the compilers that have the features
   - that comparison IS the fork-vs-Delphi compatibility verdict. }
 var
