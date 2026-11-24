@@ -80,6 +80,10 @@ function Invoke-FormsProgram([string]$Name, [string]$Source) {
       "-FU$Out" "-FE$Out" "-o$Out\$Name.exe" (Join-Path $Root $Source) `
       *> $CompileLog
     If ($LASTEXITCODE -ne 0) { throw "$Name/$Option did not compile" }
+    If ($Name -eq 'mega_forms') {
+      python (Join-Path $PSScriptRoot 'check_atomic_forms.py') $Compiler (Join-Path $Out 'mega_forms.o')
+      If ($LASTEXITCODE -ne 0) { throw "$Name/$Option atomic code generation failed" }
+    }
 
     foreach ($Seed in $Seeds) {
       $Log = Join-Path $Run "$Name-$($Option.ToLowerInvariant()).seed-$Seed.log"
@@ -136,6 +140,7 @@ Invoke-FormsProgram 'mega_forms' 'tests\mega\integrated-001\mega_forms.dpr'
 Invoke-PublicRttiKnownRepro
 
 $Inputs = @($Compiler, $Config, $SummaryOracle,
+  (Join-Path $PSScriptRoot 'check_atomic_forms.py'),
   (Join-Path $Root 'tests\known\rtti_public_method_code_address.pas'))
 $Inputs += Get-ChildItem -File -Recurse -Path `
   (Join-Path $Root 'tests\mega\omni'), `

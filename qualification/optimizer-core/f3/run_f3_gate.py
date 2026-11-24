@@ -128,6 +128,9 @@ def main() -> int:
     try:
         plain_text, plain_exe, plain_asm = compile_one(
             args.compiler, args.rtl, False, tmp / "plain")
+        for opcode in ("cmpxchgl", "xaddl"):
+            if not re.search(r"^[ \t]*lock[ \t]+" + opcode + r"\b", plain_asm, re.M | re.I):
+                failures.append(f"external assembler output is missing lock {opcode}")
         diag1_text, diag1_exe, diag1_asm = compile_one(
             args.compiler, args.rtl, True, tmp / "diag1")
         diag2_text, diag2_exe, diag2_asm = compile_one(

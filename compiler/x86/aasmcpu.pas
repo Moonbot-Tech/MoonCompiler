@@ -603,6 +603,7 @@ interface
 
          constructor op_reg_reg(op : tasmop;_size : topsize;_op1,_op2 : tregister);
          constructor op_reg_ref(op : tasmop;_size : topsize;_op1 : tregister;const _op2 : treference);
+         constructor op_locked_reg_ref(op : tasmop;_size : topsize;reg : tregister;const ref : treference);
          constructor op_reg_const(op:tasmop; _size: topsize; _op1: tregister; _op2: aint);
 
          constructor op_const_reg(op : tasmop;_size : topsize;_op1 : aint;_op2 : tregister);
@@ -669,6 +670,8 @@ interface
       public
          { code placement: never encode this relative jump as a short jump }
          forcenear : boolean;
+         { Keep a generated atomic memory operation indivisible through register allocation. }
+         lockprefix : boolean;
          procedure SetOperandOrder(order:TOperandOrder);
          function is_same_reg_move(regtype: Tregistertype):boolean;override;
          { register spilling code }
@@ -1155,6 +1158,13 @@ implementation
          ops:=2;
          loadreg(0,_op1);
          loadref(1,_op2);
+      end;
+
+
+    constructor taicpu.op_locked_reg_ref(op : tasmop;_size : topsize;reg : tregister;const ref : treference);
+      begin
+        op_reg_ref(op,_size,reg,ref);
+        lockprefix:=true;
       end;
 
 
@@ -2367,8 +2377,7 @@ implementation
 
            { Calculate instruction size }
            InsSize:=calcsize(insentry);
-           if padprefix>0 then
-            inc(InsSize,padprefix);
+           inc(InsSize,padprefix+ord(lockprefix));
            if segprefix<>NR_NO then
             inc(InsSize);
            if NeedAddrPrefix then
@@ -2405,6 +2414,7 @@ implementation
     const
       { code placement: the DS override, a no-op in long mode }
       padprefixbyte : byte = $3E;
+      lockprefixbyte : byte = $F0;
       segprefixes: array[NR_ES..NR_GS] of Byte=(
       // es  cs   ss   ds   fs   gs
         $26, $2E, $36, $3E, $64, $65
@@ -2413,6 +2423,7 @@ implementation
     procedure taicpu.Pass2(objdata:TObjData);
       var
         i : longint;
+        prefixsize : byte;
       begin
         { error in pass1 ? }
         if insentry=nil then
@@ -2421,12 +2432,15 @@ implementation
         { code placement: padding prefixes in front of everything else.
           GenCode measures rip-relative displacements from InsEnd, so the
           prefix bytes move the start and leave the size for the duration }
-        if padprefix>0 then
+        prefixsize:=padprefix+ord(lockprefix);
+        if prefixsize>0 then
           begin
             for i:=1 to padprefix do
               objdata.writebytes(padprefixbyte,1);
-            inc(InsOffset,padprefix);
-            dec(InsSize,padprefix);
+            if lockprefix then
+              objdata.writebytes(lockprefixbyte,1);
+            inc(InsOffset,prefixsize);
+            dec(InsSize,prefixsize);
           end;
         { Segment override }
         if (segprefix>=NR_ES) and (segprefix<=NR_GS) then
@@ -2451,10 +2465,10 @@ implementation
         end;
         { Generate the instruction }
         GenCode(objdata);
-        if padprefix>0 then
+        if prefixsize>0 then
           begin
-            dec(InsOffset,padprefix);
-            inc(InsSize,padprefix);
+            dec(InsOffset,prefixsize);
+            inc(InsSize,prefixsize);
           end;
       end;
 
@@ -2523,7 +2537,7 @@ implementation
       begin
         result:=false;
 {$ifdef x86_64}
-        if (insentry=nil) or (inssize<=0) or (ops=0) or (segprefix<>NR_NO) or usesvex then
+        if (insentry=nil) or (inssize<=0) or (ops=0) or lockprefix or (segprefix<>NR_NO) or usesvex then
           exit;
         case opcode of
           A_JMP,A_Jcc,A_CALL,A_RET,A_RETN,

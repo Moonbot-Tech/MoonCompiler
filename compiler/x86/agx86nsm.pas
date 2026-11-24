@@ -1149,7 +1149,10 @@ interface
                 end
                else
                 begin
-                  prefix:='';
+                  if taicpu(hp).lockprefix then
+                    prefix:='lock '
+                  else
+                    prefix:='';
 {$ifndef i8086}
                   { We need to explicitely set
                     word prefix to get selectors

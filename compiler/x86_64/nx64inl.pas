@@ -166,8 +166,7 @@ implementation
                   end
                 else
                   cg.a_load_reg_reg(list,cgsz,cgsz,valreg,hreg);
-                list.concat(taicpu.op_none(A_LOCK,S_NO));
-                list.concat(taicpu.op_reg_ref(A_XADD,opsz,hreg,href));
+                list.concat(taicpu.op_locked_reg_ref(A_XADD,opsz,hreg,href));
                 if inlinenumber=in_atomic_dec then
                   cg.a_op_reg_reg(list,OP_SUB,cgsz,valreg,hreg)
                 else
@@ -180,8 +179,7 @@ implementation
                 else
                   delta:=1;
                 cg.a_load_const_reg(list,cgsz,delta,hreg);
-                list.concat(taicpu.op_none(A_LOCK,S_NO));
-                list.concat(taicpu.op_reg_ref(A_XADD,opsz,hreg,href));
+                list.concat(taicpu.op_locked_reg_ref(A_XADD,opsz,hreg,href));
                 cg.a_op_const_reg(list,OP_ADD,cgsz,delta,hreg);
               end;
             location_reset(location,LOC_REGISTER,cgsz);
@@ -207,8 +205,7 @@ implementation
             cg.getcpuregister(list,NR_RAX);
             cg.a_load_loc_reg(list,cgsz,cmppara.left.location,
               cg.makeregsize(list,NR_RAX,cgsz));
-            list.concat(taicpu.op_none(A_LOCK,S_NO));
-            list.concat(taicpu.op_reg_ref(A_CMPXCHG,opsz,valreg,href));
+            list.concat(taicpu.op_locked_reg_ref(A_CMPXCHG,opsz,valreg,href));
             hreg:=cg.getintregister(list,cgsz);
             cg.a_load_reg_reg(list,cgsz,cgsz,cg.makeregsize(list,NR_RAX,cgsz),hreg);
             cg.ungetcpuregister(list,NR_RAX);

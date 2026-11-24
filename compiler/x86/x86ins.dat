@@ -214,7 +214,7 @@ xmmreg,xmmrm,imm      \334\2\x0F\xC2\110\26           WILLAMETTE,SSE2,SM2,SB,AR2
 void                  \332\324\1\xA7                  8086
 
 [CMPXCHG,cmpxchgX]
-(Ch_All, Ch_WOverflowFlag, Ch_WSignFlag, Ch_WZeroFlag, Ch_WAuxiliaryFlag, Ch_WCarryFlag, Ch_WParityFlag)
+(Ch_All, Ch_RWEAX, Ch_Rop1, Ch_RWop2, Ch_WOverflowFlag, Ch_WSignFlag, Ch_WZeroFlag, Ch_WAuxiliaryFlag, Ch_WCarryFlag, Ch_WParityFlag)
 regmem,reg16|32|64    \320\2\x0F\xB1\101              PENT,SM
 rm8,reg8              \2\x0F\xB0\101                  PENT
 
@@ -2097,7 +2097,7 @@ void                  \3\x0F\x01\xC6                  PRIV ;WRMSRNS
 imm,reg64             \350\362\333\377\1\xF6\210\40   X86_64,PRIV ;MSR_IMM
 
 [XADD,xaddX]
-(Ch_All, Ch_WOverflowFlag, Ch_WSignFlag, Ch_WZeroFlag, Ch_WAuxiliaryFlag, Ch_WCarryFlag, Ch_WParityFlag)
+(Ch_All, Ch_RWop1, Ch_RWop2, Ch_WOverflowFlag, Ch_WSignFlag, Ch_WZeroFlag, Ch_WAuxiliaryFlag, Ch_WCarryFlag, Ch_WParityFlag)
 mem,reg16|32|64       \320\2\x0F\xC1\101              486,SM
 rm8,reg8              \2\x0F\xC0\101                  486
 reg8,reg8             \2\x0F\xC0\101                  486

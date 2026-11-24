@@ -13,6 +13,23 @@ compiler semantics.
 AUTOINLINE remains enabled in Release; the related defects were repaired at
 their specific producer, optimizer, and lifetime sites.
 
+## x86-64 atomic operations on object fields
+
+With SDK 2.6.0, reading an occupied counter using
+`AtomicCmpExchange(Item.Count, 0, 0)` could raise an illegal-instruction fault.
+If the compiler had to reload the object address from the stack, it could put
+the address load between the `LOCK` prefix and `CMPXCHG`. Generated atomic
+operations now carry their prefix on the instruction itself, including `XADD`
+for increments and decrements.
+
+The optimizer also needs to know which values these instructions overwrite.
+After an unsuccessful compare-exchange, the accumulator contains the observed
+value. After an exchange-add, its source register contains the old value.
+Both effects are now explicit in the instruction table. Mega checks chained
+operations against independent field values, and the Forms gate verifies that
+the compiled functions still use addresses reloaded from the stack.
+[Atomic forms](../qualification/suite/tests/mega/integrated-001/mega_atomic_address.inc)
+
 ## Weak interface fields
 
 Before 2.6.0, a field declared `[Weak] Parent: IInterface` retained its

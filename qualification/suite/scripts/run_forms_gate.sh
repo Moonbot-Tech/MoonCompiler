@@ -96,6 +96,9 @@ run_program() {
       -dTRY_DELPHI_EQUALITY_COMPARER \
       -FU"$out" -FE"$out" -o"$out/$name" "$ROOT/$source" \
       >"$RUN/$name-${option,,}.compile.log" 2>&1
+    if [[ $name == mega_forms ]]; then
+      python3 "$ROOT/scripts/check_atomic_forms.py" "$FPC" "$out/mega_forms.o"
+    fi
     for seed in "${SEEDS[@]}"; do
       log="$RUN/$name-${option,,}.seed-$seed.log"
       set +e
@@ -130,7 +133,7 @@ run_program mega_forms tests/mega/integrated-001/mega_forms.dpr
 run_public_rtti_known_repro
 
 {
-  sha256sum "$FPC" "$CFG" "$SUMMARY_ORACLE" \
+  sha256sum "$FPC" "$CFG" "$SUMMARY_ORACLE" "$ROOT/scripts/check_atomic_forms.py" \
     "$ROOT/tests/known/rtti_public_method_code_address.pas"
   find "$ROOT/tests/mega/omni" "$ROOT/tests/mega/integrated-001" -type f \
     \( -name '*.pas' -o -name '*.pp' -o -name '*.inc' -o -name '*.dpr' \) \

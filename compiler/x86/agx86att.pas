@@ -381,6 +381,8 @@ interface
               end;
           end;
         owner.writer.AsmWrite(#9);
+        if taicpu(hp).lockprefix then
+          owner.writer.AsmWrite('lock ');
         { movsd should not be translated to movsl when there
           are (xmm) arguments }
         if (op=A_MOVSD) and (taicpu(hp).ops>0) then

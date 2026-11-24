@@ -43,11 +43,24 @@ begin
   Result := Saved + Leaf(Value) + Saved;
 end;
 
+function AtomicPair(var Counter: LongInt; Expected, Delta: LongInt): LongInt; noinline;
+var
+  Previous: LongInt;
+begin
+  Previous := AtomicCmpExchange(Counter, 3, Expected);
+  Result := Previous + AtomicIncrement(Counter, Delta);
+end;
+
 var
   Values: TValues;
-  I: Integer;
+  I, Counter: Integer;
   A, B, C: QWord;
 begin
+  Counter := 61;
+  if AtomicPair(Counter, 20, 7) <> 129 then Halt(1);
+  if (Counter <> 68) then Halt(2);
+  if AtomicPair(Counter, 68, -4) <> 67 then Halt(3);
+  if (Counter <> -1) then Halt(4);
   GlobalBias := 7;
   for I := Low(Values) to High(Values) do
     Values[I] := QWord(I * 11 + 5);

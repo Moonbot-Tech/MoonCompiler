@@ -12682,6 +12682,8 @@ begin
   end;
 end;
 
+{$I mega_atomic_address.inc}
+
 procedure RunCoreForms;
 var
   Forms: array[0..191] of TFormProc;
@@ -12812,6 +12814,7 @@ begin
   Add(RunIssueSliceAForms);
   Add(RunIssueSliceBForms);
   ShuffleAndRun(Forms, Count, True);
+  RunAtomicAddressForms;
 end;
 
 procedure RunModernForms;

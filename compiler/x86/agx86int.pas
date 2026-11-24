@@ -869,8 +869,10 @@ implementation
                        prefix:='';
                      end;
                 end
+               else if taicpu(hp).lockprefix then
+                 prefix:='lock '
                else
-                prefix:= '';
+                 prefix:='';
                if (asminfo^.id = as_i386_wasm) and
                  (taicpu(hp).opsize=S_W) and
                  (fixed_opcode=A_PUSH) and
