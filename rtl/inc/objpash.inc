@@ -254,7 +254,7 @@
           function GetMonitorData: Pointer; inline;
        {$ENDIF}
        strict private
-          class procedure InitZeroedInstance(instance : pointer);
+          class procedure InitZeroedInstance(instance : pointer; ownsStorage : boolean); inline;
        protected
           function GetDisposed : Boolean; inline;
           Property Disposed : Boolean Read GetDisposed;

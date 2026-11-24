@@ -582,16 +582,46 @@ end;
             end;
         end;
 
-      class procedure TObject.InitZeroedInstance(instance : pointer);
-
-        var
-           vmt  : PVmt;
-           inittable : pointer;
-           Res : ^TRTTIRecordOpOffsetEntry;
 {$ifdef FPC_HAS_FEATURE_RTTI}
-           mopinittable : PRTTIRecordOpOffsetTable;
-{$endif def FPC_HAS_FEATURE_RTTI}
-           i : longword;
+      function ClassFieldInfo(Vmt: PVmt): PRecordInfoInit; inline;
+        var
+          ti: Pointer;
+        begin
+          ti:=Vmt^.vInitTable;
+          if Assigned(ti) then
+            Result:=aligntoqword(ti+2+PByte(ti)[1])
+          else
+            Result:=nil;
+        end;
+
+      procedure InitializeManagedInstance(Instance: TObject; Vmt: PVmt; Info: PRecordInfoInit; OwnsStorage: Boolean);
+        begin
+          try
+            InitializeClassFields(Pointer(Instance),Vmt,Info);
+          except
+            try
+              if WeakTableActive then ClearWeakTarget(Instance);
+              {$ifdef FPC_HAS_FEATURE_MONITOR}
+              if assigned(Instance.GetMonitorData) then
+                begin
+                  TMonitor.FreeMonitorData(Instance.GetMonitorData);
+                  if WeakTableActive then ClearWeakTarget(Instance);
+                end;
+              {$endif}
+            finally
+              if OwnsStorage then FreeMem(Pointer(Instance));
+            end;
+            raise;
+          end;
+        end;
+{$endif}
+
+      class procedure TObject.InitZeroedInstance(instance : pointer; ownsStorage : boolean);
+
+{$ifdef FPC_HAS_FEATURE_RTTI}
+        var
+           info : PRecordInfoInit;
+{$endif}
         begin
            { insert VMT pointer into the new created memory area }
            { (in class methods self contains the VMT!)           }
@@ -611,36 +641,23 @@ end;
              InitInterfacePointers(self,instance);
 
 {$ifdef FPC_HAS_FEATURE_RTTI}
-           { for management operators like initialize call int_initialize }
-           vmt := PVmt(self);
-           if assigned(vmt) then
-             begin
-               inittable:=vmt^.vInitTable;
-               if assigned(inittable) then
-                 begin
-                   mopinittable:=RTTIRecordMopInitTable(inittable);
-                   if assigned(mopinittable) then
-                     begin
-                       {$push}
-                       { ensure that no range check errors pop up with the [0..0] array }
-                       {$R-}
-                       i:=mopinittable^.Count;
-                       Res:=@mopinittable^.Entries[0];
-                       while i>0 do
-                         begin
-                           TRTTIRecVarOp(Res^.ManagmentOperator)(PByte(Instance)+Res^.FieldOffset);
-                           inc(Res);
-                           dec(i);
-                         end;
-                       {$pop}
-                     end;
-                 end;
-             end;
+           info:=ClassFieldInfo(PVmt(Self));
+           if assigned(info) and assigned(info^.InitRecordOpTable) then
+             InitializeManagedInstance(TObject(Instance),PVmt(Self),info,ownsStorage);
 {$endif def FPC_HAS_FEATURE_RTTI}
 
            {$IFDEF ENABLE_OBJECTHOOK}
            If Assigned(AllocateObjectHook) then
-             AllocateObjectHook(TObject(Instance));
+             try
+               AllocateObjectHook(TObject(Instance));
+             except
+               try
+                 TObject(Instance).CleanupInstance;
+               finally
+                 if ownsStorage then FreeMem(Instance);
+               end;
+               raise;
+             end;
            {$ENDIF}
         end;
 
@@ -648,7 +665,7 @@ end;
 
         begin
           FillChar(Instance^, InstanceSize, 0);
-          InitZeroedInstance(Instance);
+          InitZeroedInstance(Instance,false);
           InitInstance:=TObject(Instance);
         end;
 
@@ -668,7 +685,7 @@ end;
         begin
            p:=AllocMem(InstanceSize);
            if p<>nil then
-              InitZeroedInstance(p);
+             InitZeroedInstance(p,true);
         end;
 
       procedure TObject.FreeInstance;

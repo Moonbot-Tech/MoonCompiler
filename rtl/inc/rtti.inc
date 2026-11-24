@@ -263,12 +263,6 @@ begin
     end;
 end;
 
-function RTTIRecordMopInitTable(ti: Pointer): PRTTIRecordOpOffsetTable;
-begin
-  ti:=aligntoqword(ti+2+PByte(ti)[1]);
-  Result:=PRecordInfoInit(ti)^.InitRecordOpTable;
-end;
-
 procedure InitializeRecord(Data : pointer;Ri : PRecordInfoInit); forward;
 
 const
@@ -291,7 +285,13 @@ begin
     RTTIFlattenInitializePointer: { pointer }
       PPointer(Data)^:=Nil;
     1: { record }
-      InitializeRecord(Data,RTTIRecordInfoInit(TypeInfo));
+      begin
+        ri:=RTTIRecordInfoInit(TypeInfo);
+        if ri^.Count<>0 then
+          InitializeRecord(Data,ri)
+        else if Assigned(ri^.RecordOp) and Assigned(ri^.RecordOp^.Initialize) then
+          ri^.RecordOp^.Initialize(Data);
+      end;
     2: { array }
       with PArrayInfo(aligntoqword(typeInfo+2+PByte(typeInfo)[1]))^ do
         int_InitializeArray(data,ElInfo^,ElCount);
@@ -336,6 +336,40 @@ begin
     raise;
   end;
 end;
+
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+procedure InitializeClassFields(Instance: Pointer; Vmt: PVmt; Ri: PRecordInfoInit);
+var
+  Parent: PVmt;
+  Field: PRecordElement;
+begin
+  Parent:=Vmt^.vParent;
+  if Assigned(Parent) and (Parent<>PVmt(Pointer(TObject))) then
+    InitializeClassFields(Instance,Parent,ClassFieldInfo(Parent));
+  if not Assigned(Ri) then
+    exit;
+  try
+    if Ri^.Count=1 then
+      begin
+        { No earlier sibling needs rolling back if the only field raises. }
+        Field:=AlignTypeData(Pointer(@Ri^.Count)+SizeOf(Ri^.Count));
+        InlinedInitialize(Instance+Field^.Offset,Field^.TypeInfo^);
+      end
+    else
+      InitializeRecord(Instance,Ri);
+  except
+    { InitializeRecord has unwound this class's fields. Only completed
+      ancestors remain, in derived-to-base finalization order. }
+    while Assigned(Parent) do
+      begin
+        Ri:=ClassFieldInfo(Parent);
+        if Assigned(Ri) then FinalizeRecordFields(Instance,Ri);
+        Parent:=Parent^.vParent;
+      end;
+    raise;
+  end;
+end;
+{$endif}
 
 Procedure fpc_Initialize (Data,TypeInfo : pointer);[Public,Alias : 'FPC_INITIALIZE'];  compilerproc;
 begin
@@ -560,6 +594,8 @@ procedure InitializeArrayElements(data,typeinfo : pointer;count : SizeInt);
   var
     sample,size,initialized : SizeInt;
     ri : PRecordInfoInit;
+    init: TRTTIRecVarOp;
+    element: PByte;
   begin
     sample:=RTTIManagedSizes[PTypeKind(typeinfo)^];
     if sample<>RTTISpecialSize then
@@ -573,11 +609,25 @@ procedure InitializeArrayElements(data,typeinfo : pointer;count : SizeInt);
         size:=ri^.size;
         initialized:=0;
         try
-          while initialized<count do
+          if (ri^.Count=0) and Assigned(ri^.RecordOp) and Assigned(ri^.RecordOp^.Initialize) then
             begin
-              InitializeRecord(data+size*initialized,ri);
-              inc(initialized);
-            end;
+              { No managed subfields. Call the element initializer directly
+                while retaining the same completed-prefix rollback. }
+              init:=ri^.RecordOp^.Initialize;
+              element:=data;
+              while initialized<count do
+                begin
+                  init(element);
+                  inc(initialized);
+                  inc(element,size);
+                end;
+            end
+          else
+            while initialized<count do
+              begin
+                InitializeRecord(data+size*initialized,ri);
+                inc(initialized);
+              end;
         except
           while initialized>0 do
             begin

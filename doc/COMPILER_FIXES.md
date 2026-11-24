@@ -35,6 +35,17 @@ emitted any code. A target runs that optional pass only when it supplies an
 instruction scheduler. The [register-allocation test](../qualification/optimizer-core/f3/README.md)
 compares the x86-64 assembly with the switch on and off.
 
+## An exception while initializing an object's fields
+
+Before the constructor body runs, the RTL initializes custom-managed record
+fields. If the third element of a class-owned array raised in `Initialize`,
+SDK 2.6.0 left the first two elements live and leaked the object's allocation.
+The class initializer now uses the same typed field and array rollback as a
+local record and cleans up completed base-class fields when a derived field
+raises. A buffer supplied by the caller to `InitInstance` stays with its
+caller. Classes without custom field initializers skip the traversal.
+[Class initialization test](../RTL-test/semantic/class_field_init_rollback_semantic.dpr)
+
 ## Weak interface fields
 
 Before 2.6.0, a field declared `[Weak] Parent: IInterface` retained its

@@ -157,6 +157,8 @@ type
   end;
 
 function RTTIManagementAndSize(typeInfo: Pointer; op: TRTTIRecOpType; out size: SizeInt; onlyCustomOps: boolean): boolean; forward;
-function RTTIRecordMopInitTable(ti: Pointer): PRTTIRecordOpOffsetTable; forward;
+{$ifdef FPC_HAS_FEATURE_CLASSES}
+procedure InitializeClassFields(Instance: Pointer; Vmt: PVmt; Ri: PRecordInfoInit); forward;
+{$endif}
 
 {$pop}
