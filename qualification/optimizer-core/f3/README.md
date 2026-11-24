@@ -15,6 +15,10 @@ It checks that:
 - repeated observation is deterministic;
 - enabling observation changes neither generated assembly nor runtime output.
 
+The same example builds with an explicit `-OoSCHEDULE`. The x86-64 target
+has no instruction scheduler, so the generated assembly must match the
+ordinary build. This also covers shared build profiles that request scheduling.
+
 `run_f3_scaling.py` separately generates large straight-line procedures and
 checks that ADDRESSGVN machine-fact construction scales linearly enough for
 production use and leaves their assembly byte-identical.  The generous timing

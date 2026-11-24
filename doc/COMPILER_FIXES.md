@@ -30,6 +30,11 @@ operations against independent field values, and the Forms gate verifies that
 the compiled functions still use addresses reloaded from the stack.
 [Atomic forms](../qualification/suite/tests/mega/integrated-001/mega_atomic_address.inc)
 
+An explicit `-OoSCHEDULE` could also crash the x86-64 compiler before it
+emitted any code. A target runs that optional pass only when it supplies an
+instruction scheduler. The [register-allocation test](../qualification/optimizer-core/f3/README.md)
+compares the x86-64 assembly with the switch on and off.
+
 ## Weak interface fields
 
 Before 2.6.0, a field declared `[Weak] Parent: IInterface` retained its

@@ -388,6 +388,9 @@ Unit aopt;
       var
         p : TAsmScheduler;
       begin
+        { A shared build profile may request SCHEDULE on a target with no scheduler. }
+        if not assigned(cpreregallocscheduler) then
+          exit;
         p:=cpreregallocscheduler.Create(AsmL);
         p.Optimize;
         p.free;

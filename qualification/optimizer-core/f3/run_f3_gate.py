@@ -53,10 +53,10 @@ def link_args() -> list[str]:
 
 
 def compile_one(compiler: Path, rtl: Path, diagnostic: bool,
-                outdir: Path) -> tuple[str, Path, str]:
+                outdir: Path, *options: str) -> tuple[str, Path, str]:
     outdir.mkdir(parents=True, exist_ok=True)
     cmd = [
-        str(compiler), "-Mdelphi", "-O3", "-n",
+        str(compiler), "-Mdelphi", "-O3", "-n", *options,
         "-dMOONCOMPILER_VANILLA_RUNTIME", "-al", "-Aas",
         f"-Fu{rtl}", f"-FE{outdir}", f"-FU{outdir}",
     ] + link_args()
@@ -128,6 +128,10 @@ def main() -> int:
     try:
         plain_text, plain_exe, plain_asm = compile_one(
             args.compiler, args.rtl, False, tmp / "plain")
+        _, _, scheduled_asm = compile_one(
+            args.compiler, args.rtl, False, tmp / "schedule", "-OoSCHEDULE")
+        if scheduled_asm != plain_asm:
+            failures.append("requesting SCHEDULE without an x86-64 scheduler changed generated assembly")
         for opcode in ("cmpxchgl", "xaddl"):
             if not re.search(r"^[ \t]*lock[ \t]+" + opcode + r"\b", plain_asm, re.M | re.I):
                 failures.append(f"external assembler output is missing lock {opcode}")
