@@ -30,7 +30,6 @@ failure.
 | FPC #41679 | A self-specialized generic record with a nested record type terminates the Linux x86-64 compiler internally; the current Win64 compiler accepts the fixture. |
 | QP-32 | A nested generic callback returning another generic `reference to function` is rejected after the specialization scanner loses the outer declaration boundary. [Fixture](../qualification/suite/fixtures/tracker/qp-32/qp_32.dpr). |
 | QP-53 | A nested specialization of a generic record inside an aggregate remains behind a fail-closed guard; merely removing the guard causes a compiler AV. [Fixture](../qualification/suite/fixtures/tracker/qp-53/qp_53.dpr). |
-| MB-06 | `Random(High(UInt64))` cannot select an overload. Narrowing the untyped out-of-range constant automatically would change general overload semantics. [Fixture](../qualification/suite/fixtures/tracker/mb-06/mb_06.dpr). |
 | `tw40453.pp` | `generic set of T` inside a generic procedure conflicts with the `System` definition at O2/O3. |
 | `tw41282.pp` | A nested procedure capturing `var ShortString` causes internal error `200409241` at O2/O3. |
 | `-Fa<unit>` without a PPU | A unit named with `-Fa` that has no compiled PPU on the unit path and must be compiled from its source ends in internal error `2026032615` (`ctask.pas`, `finishmodule` → `do_recompile`), with every compiler of the RTL profile stand and the product toolchain alike. The product runtime prefix (`-Fafpwinmonitor` and the Linux units) always has installed PPUs and is not affected; a program that needs such a unit lists it in `uses` instead. |
@@ -41,9 +40,9 @@ from `tests/webtbs`.
 
 ## Accepted language and runtime differences
 
-These results are intentional boundaries, not unfixed wrong-code. Devil keeps
-the exact forms registered, so an expansion or a different failure remains a
-regression.
+Devil tracks the numbered cases in the table below. The linked RTL and
+ownership tests cover the corresponding lifetime and API boundaries. A
+different failure or a failure outside the listed forms remains a regression.
 
 | Surface | Boundary |
 |---|---|
@@ -56,7 +55,7 @@ regression.
 | Rare rejected forms (`dvl-0021`, `dvl-0022`) | `varargs` without `external` and an element outside a `set` domain are not supported product forms. |
 | Explicit source mode (`dvl-0023`) | A source-level `{$mode ...}` directive naming a mode other than Delphi (`objfpc`, `fpc`, `tp`, ...) switches that unit to it under FPC rules; `String` stays Unicode. `{$mode delphi}` is a no-op while the product configuration's Delphi profile is active, and `{$mode delphiunicode}` only adds the system source code page, as in Delphi (see [Compiler Fixes](COMPILER_FIXES.md#mode-delphi-repeated-inside-a-unit)). |
 | Side effects and `inline` (`dvl-0056`) | Two side-effecting calls retain the same sequential semantics whether or not they inline; DCC64 changes the measured order after inlining. |
-| Call argument order (`dvl-0069`) | Ordinary arguments are evaluated right to left, while DCC64 currently evaluates them left to right. Pascal does not define the order; dependent side effects must be split into statements. |
+| Call argument order (`dvl-0069`) | Pascal leaves the evaluation order of ordinary call arguments unspecified. In `Apply(ReadByte, ReadBool)`, MoonCompiler evaluates the right argument first and Delphi 12.2 Win64 evaluates the left one first. Both build open-array constructors left to right in the tested forms. Read fields from a shared stream into locals in wire order before the call. [Comparison](../qualification/suite/tests/devil/findings/dvl-0069-call-argument-evaluation-order/FINDING.md). |
 | Case-insensitive text search of plain ASCII (`AnsiSameText`, `StartsText`, `EndsText`, `ContainsText`, `ReplaceText`, `StringReplace` with `rfIgnoreCase`, `TStringList.IndexOf`/`IndexOfName` with `UseLocale`) | Text made only of printable ASCII (`$20..$7E`) is compared by ASCII case folding without a locale call; everything else goes through the locale as before. On Windows this is exactly what `CompareStringW(NORM_IGNORECASE)` and `LCMapStringW(LCMAP_UPPERCASE)` answer for such text in every locale, Turkish and Azeri included (the RTL does not pass the linguistic-casing flags). On Linux the RTL folds through `towupper` of the process locale, and under `tr_TR`/`az_AZ` that maps `i` to a dotted capital I: there `AnsiSameText('i', 'I')` is `True` in MoonCompiler and `False` in the locale routine. |
 
 ### Variant text carrier
@@ -96,6 +95,31 @@ that reads raw `VType` can observe the carrier. The exact oracle is
   uniformly. A safe repair requires one decimal core and a complete
   cross-API, cross-platform matrix; Delphi itself is not consistent across all
   four APIs. This work remains in the [Backlog](BACKLOG.md).
+
+### Weak interface fields
+
+- **Targets.** A weak interface field can track a Pascal object that exposes
+  its identity through `IObjectInstance` and shares the holder's `System`
+  runtime. Assigning an external COM object without that identity, or an
+  object from a DLL with a separate `System`, produces runtime error 228
+  (`EIntfCastError` with `SysUtils`). The previous field value is preserved.
+  If the target implements interfaces without reference counting, its owner
+  controls destruction even while an ordinary interface local exists.
+  A class-typed field such as `[Weak] Parent: TObject` remains an ordinary
+  object pointer and can still point at a destroyed object. [Interface lifetime test](../RTL-test/semantic/weak_interface_fields_semantic.dpr).
+- **Multiple threads.** If another thread can release the last strong owner,
+  use the same lock for that release and for copying the weak field into a
+  strong local. Then use the local after unlocking. Testing the field for
+  `nil` and reading it again leaves a race between the two operations.
+- **Writable arguments and raw memory.** An ordinary `var` or `out` interface
+  parameter requires a strong variable. Pass a local, then assign the result
+  back to the weak field. For `var`, initialize the local from the field first.
+  Use typed assignment for records containing weak fields. Bytewise `Move`,
+  `FillChar` and pointer writes bypass the RTL's tracking of field addresses.
+- **Thread-local RTTI properties.** A class property backed directly by a weak
+  field inside a `class threadvar` record requires an accessor method when
+  property RTTI is emitted. Direct access to the record field is supported.
+  [PPU and compile-time checks](../qualification/rtl-ownership/cases/RttiWeakPpu.dpr).
 
 ### Record, lifetime, and RTTI boundaries
 

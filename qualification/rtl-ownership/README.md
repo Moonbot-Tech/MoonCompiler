@@ -12,15 +12,18 @@ result buffers; static property metadata consumed from a PPU without its source;
 acquired exceptions, nested replacement, bare rethrow, cross-thread ownership,
 `TThread.FatalException`, finally replacement and hardware exceptions. Windows
 also checks Exit/Break/Continue through a throwing finally inside an outer catch.
-Class-threadvar RTTI accessors are outside this gate; ordinary static class
-storage and direct thread-local access are distinct contracts.
+The weak-field PPU test assigns a weak record field across a unit boundary
+and checks that it clears when its target is destroyed. Three compile-time
+probes also check the diagnostics for passing that field to a strong `var` or
+`out` interface parameter and for exposing a weak `class threadvar` subfield
+directly as an RTTI property. [Test source](cases/RttiWeakPpu.dpr).
 
 Every process must exit successfully, print its completion marker and emit
 exactly one `FPCX64MM_DIAGNOSTIC live-blocks=0` result. A correct value and exit
 code alone do not prove absence of leaks. `test_gate.py` checks that missing,
 duplicate and nonzero balance reports fail acceptance.
 
-The default matrix has 195 Windows and 186 Linux executions. Both qualification
+The default matrix has 198 Windows and 189 Linux executions. Both qualification
 and release archive checks run it. Linux callback tests use libffi (`libffi-dev`
 on Debian/Ubuntu). `--group`, `--profiles`, `--config`, `--bindir` and repeated
 `--unit-dir` options support isolated repair stands; release checks use only the

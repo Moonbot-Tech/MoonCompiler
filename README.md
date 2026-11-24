@@ -242,6 +242,12 @@ example:
 For the full catalogue of symptoms, causes, and regression tests, see
 [Compiler Fixes](doc/COMPILER_FIXES.md).
 
+A child can refer back to a reference-counted parent through a field such as `[Weak] Parent: IInterface;`.
+The field leaves the parent's reference count unchanged and becomes `nil` when the
+parent is destroyed. Assigning it to an ordinary interface variable keeps the
+parent alive while the caller uses it. See the [worked example](doc/COMPILER_FIXES.md#weak-interface-fields)
+and the [threading and ownership limits](doc/KNOWN_ISSUES.md#weak-interface-fields).
+
 Generic classes and records shared by independent units retain one copy of their
 methods, class tables and RTTI. This reduces executable size without removing
 reflection or report information; see [Generic Sharing](doc/GENERIC_SHARING.md).

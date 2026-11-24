@@ -149,9 +149,13 @@ share flags describe which access is allowed to other handles.
 
 `TURLEncoding.EncodePath` preserves path separators and escapes spaces as `%20`.
 `URLDecode` preserves literal `+`; `FormDecode` treats it as a space.
-`TryISO8601ToDate` returns `False` for malformed/out-of-range timezone offsets;
-the throwing conversion reports an error. Moon does not reproduce Delphi versions
-whose `Try` entry point throws for that malformed timezone input.
+`TryISO8601ToDate` accepts calendar dates, ISO week dates (`2024-W01-1`) and
+ordinal dates (`2024-060` is 29 February). End-of-day midnight advances the
+date before applying the UTC offset. For example, `2024-01-01T24:00+02:00`
+represents 22:00 UTC on 1 January. Duplicate or out-of-range offsets make
+`TryISO8601ToDate` return `False`, and `ISO8601ToDate` raises an exception.
+Some Delphi versions also raise in the `Try` call for malformed offsets.
+[Date validation cases](../RTL-test/semantic/iso8601_validation_semantic.dpr).
 
 `TJSONIterator.Next` enters root object/array contents automatically; `Recurse`
 explicitly enters a nested container. Exhausting that level resumes its parent;
@@ -224,10 +228,10 @@ application-level confirmation mechanism before retrying such operations.
 
 ## Compiler identity
 
-`System.CompilerVersion` and `{$IF CompilerVersion ...}` identify MoonCompiler:
-2.4 in release 2.4.1. They do not pretend to be Delphi 36. Use
-`MOONCOMPILER_FULLVERSION` for ordered version comparisons: major × 10000 +
-minor × 100 + patch, or 20401 for 2.4.1. A real number cannot distinguish
+`System.CompilerVersion` and `{$IF CompilerVersion ...}` identify MoonCompiler
+and report 2.6 in SDK 2.6.0. For ordered version comparisons, use
+`MOONCOMPILER_FULLVERSION` (major × 10000 + minor × 100 + patch, or 20600
+for 2.6.0). A real number cannot distinguish
 2.10 from 2.1. `FPC_FULLVERSION` and `fpc -iV` continue to report the underlying
 FPC ABI version. Existing Delphi feature checks must distinguish the compiler
 instead of interpreting the Moon version as a Delphi release number.

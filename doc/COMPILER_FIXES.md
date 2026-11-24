@@ -13,6 +13,56 @@ compiler semantics.
 AUTOINLINE remains enabled in Release; the related defects were repaired at
 their specific producer, optimizer, and lifetime sites.
 
+## Weak interface fields
+
+Before 2.6.0, a field declared `[Weak] Parent: IInterface` retained its
+target. A parent that owned its child could therefore stay alive through the
+child's back-reference. In 2.6.0 the compiler recognizes the built-in
+`System.Weak` attribute on interface instance fields of classes and records.
+The RTL tracks each field and clears it during destruction of its target.
+
+```pascal
+type
+  TChild = class
+    [Weak] Parent: IInterface;
+  end;
+
+procedure Example;
+var
+  Child: TChild;
+  Owner, Held: IInterface;
+begin
+  Child := TChild.Create;
+  try
+    Owner := TInterfacedObject.Create;
+    Child.Parent := Owner;
+    Held := Child.Parent;
+    Owner := nil;
+    Assert(Child.Parent <> nil);  // Held still owns the parent.
+    Held := nil;
+    Assert(Child.Parent = nil);
+  finally
+    Child.Free;
+  end;
+end;
+```
+
+Typed record assignment, array resizing and `TList<T>` operations preserve the
+weak references in the resulting records. Writes through `TRttiField.SetValue`
+and `SetInterfaceProp` also honor the destination field's ownership. Use
+`[System.Weak]` if the unit declares its own `WeakAttribute`.
+[Lifetime and collections test](../RTL-test/semantic/weak_interface_fields_semantic.dpr) ·
+[RTTI test](../RTL-test/semantic/weak_interface_rtti_semantic.dpr) ·
+[Supported targets and threading limits](KNOWN_ISSUES.md#weak-interface-fields).
+
+## Inserting a list's own elements
+
+When `TList<T>.Insert` shifted its backing array or `Add` grew it, an argument
+such as `List.List[0]` could refer to storage that had already moved or been
+cleared. This also affected records with ordinary strong interfaces. The RTL
+preserves the source across the change, including overlapping ranges and
+managed values in reserved slots. [List ownership test](../RTL-test/semantic/tlist_source_alias_semantic.dpr).
+
 ## Resource filenames inherited from Windows projects
 
 On a case-sensitive filesystem, a directive such as `{$R *.FMX}` could not find
