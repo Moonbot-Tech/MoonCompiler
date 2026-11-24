@@ -563,18 +563,11 @@ def verify_inline_managed_forwarding(assembly: Path) -> None:
 
 def verify_observable_intrinsics(assembly: Path) -> None:
     text = assembly.read_text(encoding="utf-8", errors="replace")
-    atomic_discard = assembly_procedure(
-        text,
-        "P$TOBSERVABLEINTRINSICS1_$$_ATOMICDISCARD$$LONGINT:",
-    )
-    if atomic_discard.count("\tlock") != 1 or atomic_discard.count("\txadd") != 1:
-        raise RuntimeError("discarded atomic expression lost or duplicated its update")
-    atomic_pair = assembly_procedure(
-        text,
-        "P$TOBSERVABLEINTRINSICS1_$$_ATOMICPAIR$$LONGINT:",
-    )
-    if atomic_pair.count("\tlock") != 2 or atomic_pair.count("\txadd") != 2:
-        raise RuntimeError("repeated atomic expression was folded or duplicated incorrectly")
+    for name, count in (("ATOMICDISCARD", 1), ("ATOMICPAIR", 2)):
+        body = assembly_procedure(text, f"P$TOBSERVABLEINTRINSICS1_$$_{name}$$LONGINT:")
+        operations = [line.split()[:2] for line in body.splitlines() if line.lstrip().startswith(("lock", "xadd"))]
+        if operations != [["lock", "xaddl"]] * count:
+            raise RuntimeError(f"{name}: expected {count} locked counter updates, found {operations}")
     volatile_discard = assembly_procedure(
         text,
         "P$TOBSERVABLEINTRINSICS1_$$_VOLATILEDISCARD$$LONGINT:",
