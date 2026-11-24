@@ -229,9 +229,9 @@ application-level confirmation mechanism before retrying such operations.
 ## Compiler identity
 
 `System.CompilerVersion` and `{$IF CompilerVersion ...}` identify MoonCompiler
-and report 2.6 in SDK 2.6.0. For ordered version comparisons, use
-`MOONCOMPILER_FULLVERSION` (major × 10000 + minor × 100 + patch, or 20600
-for 2.6.0). A real number cannot distinguish
+and report 2.6 in SDK 2.6.1. For ordered version comparisons, use
+`MOONCOMPILER_FULLVERSION` (major × 10000 + minor × 100 + patch, or 20601
+for 2.6.1). A real number cannot distinguish
 2.10 from 2.1. `FPC_FULLVERSION` and `fpc -iV` continue to report the underlying
 FPC ABI version. Existing Delphi feature checks must distinguish the compiler
 instead of interpreting the Moon version as a Delphi release number.

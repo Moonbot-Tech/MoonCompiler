@@ -1,3 +1,23 @@
+# MoonCompiler 2.6.1
+
+On Win64 and Linux x86-64, `AtomicCmpExchange` on an object field could
+raise an illegal-instruction fault when the compiler reloaded the object's
+address. The compiler now keeps `LOCK` attached to the atomic instruction
+and tracks the registers changed by compare-exchange and exchange-add.
+This also fixes chained operations that use the value observed by a failed
+comparison or the value returned by an atomic addition.
+
+If a managed record field raises during object initialization, the RTL now
+finalizes the fields already initialized and releases the object allocated
+by `NewInstance`. Memory supplied by the caller to `InitInstance` remains
+owned by the caller. An explicit `-OoSCHEDULE` also works on x86-64.
+
+Install the complete SDK and rebuild the application and its units so existing
+object files are regenerated. MoonORMot **17** is required. `CompilerVersion`
+remains 2.6 and `MOONCOMPILER_FULLVERSION` is 20601.
+
+---
+
 # MoonCompiler 2.6.0
 
 An interface instance field marked `[Weak]` can point back to its owner
