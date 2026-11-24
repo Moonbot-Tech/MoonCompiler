@@ -99,6 +99,17 @@ These programs intentionally intertwine forms more heavily than minimal
 fixtures and are closer to a large application. They run at O2/O3 with six
 fixed seeds.
 
+The hand-written [Integrated Mega](../tests/mega/integrated-001/mega_forms.dpr)
+includes [combinations of code forms](../tests/mega/integrated-001/mega_breadth.inc)
+with independent expected results. Examples include signed division with both
+quotients and remainders live, checked writes into indexed storage, and a
+method pointer returning a managed record with arguments passed on the stack.
+The [atomic forms](../tests/mega/integrated-001/mega_atomic_address.inc)
+keep twenty object addresses live across nested atomic operations in one thread.
+Before executing the program, the gate disassembles both routines and checks
+that an address is reloaded from the stack and every `CMPXCHG` and `XADD`
+carries its lock prefix.
+
 Omni checks code forms, but it does not prove completeness of the public Delphi
 RTL API. A missing declaration creates no AST and is therefore invisible to the
 runtime/optimizer corpus until a test explicitly calls that overload. This is

@@ -37,7 +37,7 @@ uses
   {$ifdef UNIX}cthreads, cwstring,{$endif}
 {$endif}
   SysUtils, Variants, Classes, Math, TypInfo, Generics.Collections,
-  mega_portable
+  mega_breadth_unit, mega_portable
 {$ifdef FPC}
   , mega_runtime_fpc
 {$endif}
@@ -12683,6 +12683,8 @@ begin
 end;
 
 {$I mega_atomic_address.inc}
+{$I mega_breadth.inc}
+{$I mega_modern_breadth.inc}
 
 procedure RunCoreForms;
 var
@@ -12815,6 +12817,7 @@ begin
   Add(RunIssueSliceBForms);
   ShuffleAndRun(Forms, Count, True);
   RunAtomicAddressForms;
+  RunBreadthForms;
 end;
 
 procedure RunModernForms;
@@ -12863,6 +12866,7 @@ begin
 {$endif}
   if Count > 0 then
     ShuffleAndRun(Forms, Count, False);
+  RunModernBreadthForms;
 end;
 
 procedure ReadSeed;
