@@ -156,6 +156,14 @@ a pending local reference to it. Schedule that ownership change after the
 load. References waiting in the global resolver have separate lifetime
 tracking.
 
+### Zero-width regex separators
+
+With empty matches explicitly enabled, Moon skips a zero-width separator
+exactly at `StartPos`. Delphi 12.2 splits there. For example, on
+`ABC` the pattern `(?=B)` starting at position 2 returns one field in
+Moon and two in Delphi. A consuming separator at that position is applied
+in both SDKs.
+
 ### Fractional seconds before the Unix epoch
 
 `DateTimeToUnix` in SDK 2.6.1 rounds a fractional timestamp before

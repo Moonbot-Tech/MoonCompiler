@@ -16,9 +16,9 @@ their specific producer, optimizer, and lifetime sites.
 ## Delimited text split at the requested starting position
 
 `TRegEx.Split` now consumes a nonempty delimiter beginning exactly at
-`StartPos`. A leading delimiter produces an empty first field. The split
-also counts the requested number of parts correctly when the start is inside
-the input. [Split boundary test](../RTL-test/semantic/regex_split_boundary_semantic.dpr)
+`StartPos`. A leading delimiter produces an empty first field. Limits of three or more apply to the actual fields when the start
+is inside the input. Delphi and Moon treat a limit of two as unlimited for
+an interior starting position. [Split boundary test](../RTL-test/semantic/regex_split_boundary_semantic.dpr)
 
 ## Invalid GUID byte arrays
 
