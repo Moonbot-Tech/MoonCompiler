@@ -1219,32 +1219,23 @@ begin
   RttiType := FSharedRttiCtx.GetType(ATypeInf);
   if RttiType = nil then
     Exit;
-  for Field in RttiType.GetDeclaredFields do
+  for Field in RttiType.GetFields do
     aMembers.Add(Field);
-  for Prop in RttiType.GetDeclaredProperties do
+  for Prop in RttiType.GetProperties do
     aMembers.Add(Prop);
 end;
 
 function TJsonDefaultContractResolver.ShouldIncludeMember(const aMember: TRttiMember; aMemberSerialization: TJsonMemberSerialization
   ): Boolean;
-var
-  HasJsonIn: Boolean;
 begin
-  HasJsonIn := TJsonInlineAttributes.GetAttribute(aMember, JsonInAttribute) <> nil;
   case aMemberSerialization of
-    TJsonMemberSerialization.Fields:
-      Result := (aMember is TRttiField) or HasJsonIn;
     TJsonMemberSerialization.&Public:
-      begin
-        if aMember is TRttiProperty then
-          Result := TRttiProperty(aMember).Visibility >= mvPublished
-        else
-          Result := HasJsonIn;
-      end;
+      Result:=aMember.Visibility in [mvPublic,mvPublished];
+    TJsonMemberSerialization.Fields:
+      Result:=(aMember is TRttiField) or (TJsonInlineAttributes.GetAttribute(aMember,JsonInAttribute)<>nil);
     TJsonMemberSerialization.&In:
-      Result := HasJsonIn;
-  else
-    Result := False;
+      Result:=TJsonInlineAttributes.GetAttribute(aMember,JsonInAttribute)<>nil;
+    else Result:=False;
   end;
 end;
 
