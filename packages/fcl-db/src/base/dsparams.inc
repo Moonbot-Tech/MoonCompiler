@@ -931,7 +931,7 @@ end;
 Procedure TParam.SetAsFMTBCD(const AValue: TBCD);
 begin
   FDataType:=ftFMTBcd;
-  FValue:=VarFmtBCDCreate(AValue);
+  Value:=VarFmtBCDCreate(AValue);
 end;
 
 Procedure TParam.SetDataType(AValue: TFieldType);
