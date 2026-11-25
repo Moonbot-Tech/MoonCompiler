@@ -1070,6 +1070,23 @@ end;
 {$I mega_breadth_collectionupdate.inc}
 {$I mega_breadth_viewportgeometry.inc}
 {$I mega_breadth_defaultkeyorder.inc}
+{$I mega_breadth_componentmove.inc}
+{$I mega_breadth_bytesstream.inc}
+{$I mega_breadth_synchronizecallback.inc}
+{$I mega_breadth_bitconverter.inc}
+{$I mega_breadth_weekschedule.inc}
+{$I mega_breadth_calibrationtext.inc}
+{$I mega_breadth_statementformat.inc}
+{$I mega_breadth_jobtermination.inc}
+{$I mega_breadth_unicodeform.inc}
+{$I mega_breadth_configtokens.inc}
+{$I mega_breadth_sessionretry.inc}
+{$I mega_breadth_routesplice.inc}
+{$I mega_breadth_decimalties.inc}
+{$I mega_breadth_scopedmodes.inc}
+{$I mega_breadth_latebitslots.inc}
+{$I mega_breadth_ansiformatwindow.inc}
+{$I mega_breadth_nullableamount.inc}
 {$I mega_breadth_ifinherit.inc}
 {$I mega_breadth_sliceowners.inc}
 {$I mega_breadth_cscan.inc}
@@ -1277,4 +1294,22 @@ begin
   RunBreadthCollectionUpdate;
   RunBreadthViewportGeometry;
   RunBreadthDefaultKeyOrder;
+  RunBreadthComponentMove;
+  RunBreadthBytesStreamGrowth;
+  RunBreadthSynchronousCallbacks;
+  RunBreadthBitConverterWindow;
+  RunBreadthWeekSchedule;
+  RunBreadthCalibrationText;
+  RunBreadthStatementFormat;
+  RunBreadthJobTermination;
+  RunBreadthUnicodeFormValue;
+  RunBreadthConfigTokens;
+  RunBreadthSessionFactoryRetry;
+  RunBreadthRouteSplice;
+  RunBreadthDecimalTiePolicy;
+  RunBreadthScopedModeSettings;
+  RunBreadthLateBitSlots;
+  RunBreadthAnsiFormatWindow;
+  RunBreadthNullableAmountOrder;
+  RunBreadthFixedPointConversion;
 end;

@@ -6,7 +6,7 @@ program mega_forms;
   case lowering, float conversions, Currency, record ABI, COW strings, ...).
   Every check has an independent oracle and a stable kebab-case name, so a
   failure survives minimization and re-verification after a compiler fix.
-  Single-threaded on purpose: thread interleaving already lives in mega_test.
+  Threaded forms use explicit handoffs. Scheduling stress lives in mega_test.
   Compiles unchanged with FPC (-Mdelphi) and Delphi 12.2 Win64; the final
   digest must be identical for every compiler/option tuple. }
 
@@ -45,7 +45,9 @@ uses
   mega_breadth_unit, mega_breadth_genericbase, mega_breadth_genericconsumer, mega_portable
 {$ifdef BREADTH_HAS_PRODUCT_IO}
   , System.JSON, System.IOUtils, System.ZLib, System.RegularExpressions, System.NetEncoding, System.Hash
-  , System.JSON.Serializers
+  , System.JSON.Serializers, System.JSON.Readers, System.JSON.Types, System.JSON.Writers
+  , System.TimeSpan, System.Net.URLClient, System.Math.Vectors, System.Masks
+  , System.Threading, System.Messaging, System.Diagnostics, System.JSON.Builders
   {$ifdef FPC}, DB, FmtBcd{$else}, Data.DB, Data.FmtBcd{$endif}
 {$endif}
 {$ifdef FPC}

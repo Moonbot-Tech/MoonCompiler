@@ -512,6 +512,43 @@ end;
 {$I mega_modern_largefile.inc}
 {$I mega_modern_joblimits.inc}
 {$I mega_modern_regexsplit.inc}
+{$I mega_modern_preparedstatement.inc}
+{$I mega_modern_inidisk.inc}
+{$I mega_modern_jsontokens.inc}
+{$I mega_modern_durationfield.inc}
+{$I mega_modern_snapshotgate.inc}
+{$I mega_modern_endpointedit.inc}
+{$I mega_modern_affineviewport.inc}
+{$I mega_modern_literalrule.inc}
+{$I mega_modern_variantreceipt.inc}
+{$I mega_modern_importfilemask.inc}
+{$I mega_modern_legacyticketfile.inc}
+{$I mega_modern_quotedfeedlayout.inc}
+{$I mega_modern_gzipattachment.inc}
+{$I mega_modern_receiptauth.inc}
+{$I mega_modern_pooledexports.inc}
+{$I mega_modern_legacytextwindow.inc}
+{$I mega_modern_importannotations.inc}
+{$I mega_modern_panelnotice.inc}
+{$I mega_modern_pausedjobclock.inc}
+{$I mega_modern_commandenvelope.inc}
+{$I mega_modern_localizedcache.inc}
+{$I mega_modern_archivepath.inc}
+{$I mega_modern_utf8importwindow.inc}
+{$I mega_modern_blobsnapshot.inc}
+{$I mega_modern_archivecopyretry.inc}
+{$I mega_modern_encodedlog.inc}
+{$I mega_modern_publishsettings.inc}
+{$I mega_modern_directorycursor.inc}
+{$I mega_modern_sqlcalendar.inc}
+{$I mega_modern_reportlines.inc}
+{$I mega_modern_ipv6reportlink.inc}
+{$I mega_modern_japaneselabel.inc}
+{$I mega_modern_archivetimestamp.inc}
+{$I mega_modern_requestheaders.inc}
+{$I mega_modern_budgetmetadata.inc}
+{$I mega_modern_strategywire.inc}
+{$I mega_modern_strategycommit.inc}
 
 procedure RunModernBreadthForms;
 begin
@@ -585,5 +622,45 @@ begin
   RunBreadthSemaphoreSlots;
   RunBreadthCountdownReset;
   RunBreadthRegexSplit;
+  RunBreadthPreparedStatement;
+  RunBreadthIniDiskCommit;
+  RunBreadthJsonTokenWriter;
+  RunBreadthJsonTokenReader;
+  RunBreadthDurationField;
+  RunBreadthSnapshotGate;
+  RunBreadthEndpointEdit;
+  RunBreadthAffineViewport;
+  RunBreadthLiteralRule;
+  RunBreadthVariantReceipt;
+  RunBreadthImportFileMask;
+  RunBreadthLegacyTicketFile;
+  RunBreadthQuotedFeedLayout;
+  RunBreadthGzipAttachment;
+  RunBreadthReceiptAuth;
+{$ifdef HAS_ANON}
+  RunBreadthPooledExports;
+{$endif}
+  RunBreadthLegacyTextWindow;
+  RunBreadthImportAnnotations;
+  RunBreadthDetachPanelNotification;
+  RunBreadthPausedJobClock;
+  RunBreadthCommandEnvelope;
+  RunBreadthLocalizedRouteCache;
+  RunBreadthArchivePath;
+  RunBreadthUtf8ImportWindow;
+  RunBreadthBlobSnapshot;
+  RunBreadthArchiveCopyRetry;
+  RunBreadthEncodedLogAppend;
+  RunBreadthPublishBinarySettings;
+  RunBreadthDirectoryCursor;
+  RunBreadthSqlCalendarValues;
+  RunBreadthReadReportLines;
+  RunBreadthIPv6ReportLink;
+  RunBreadthJapaneseLabel;
+  RunBreadthArchiveTimestamp;
+  RunBreadthRequestHeaders;
+  RunBreadthBudgetMetadata;
+  RunBreadthStrategyWireBridge;
+  RunBreadthCommitExternalStrategy;
 {$endif}
 end;
