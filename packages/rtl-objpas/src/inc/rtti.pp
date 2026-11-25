@@ -799,6 +799,7 @@ type
     FParams:  TRttiParameterArray;
     FReadMethod: TRttiMethod;
     FWriteMethod: TRttiMethod;
+    function AccessorAddress(Proc: CodePointer; Kind: Byte; Instance: Pointer): CodePointer;
     procedure GetAccessors;
     //function GetIsDefault: Boolean; virtual;
     function GetIndexParameters: TRttiParameterArray; virtual;
@@ -6105,7 +6106,6 @@ begin
      or Assigned(FWriteMethod)
      or not (IsReadable or IsWritable) then
     Exit;
-  { not tested on virtual methods }
   if IsReadable then
     FReadMethod := Parent.GetMethod(ReadProc);
   if IsWritable then
@@ -6200,22 +6200,32 @@ begin
   end;
 end;
 
+function TRttiIndexedProperty.AccessorAddress(Proc: CodePointer; Kind: Byte; Instance: Pointer): CodePointer;
+var
+  Vmt: TClass;
+begin
+  case Kind and 3 of
+    ptStatic: Result:=Proc;
+    ptVirtual:
+      begin
+        if Instance=nil then
+          Vmt:=Parent.AsInstance.MetaClassType
+        else
+          Vmt:=TObject(Instance).ClassType;
+        Result:=PCodePointer(Pointer(Vmt)+PtrUInt(Proc))^;
+      end;
+    else Result:=nil;
+  end;
+end;
+
 function TRttiIndexedProperty.GetReadProc: CodePointer;
 begin
-  if (FPropInfo^.PropProcs and 3)=ptStatic then
-    Result := FPropInfo^.GetProc
-  else
-    { ptVirtual }
-    Result := PCodePointer(Pointer(Parent.AsInstance.MetaClassType)+PtrUInt(FPropInfo^.GetProc))^;
+  Result:=AccessorAddress(FPropInfo^.GetProc,FPropInfo^.PropProcs,nil);
 end;
 
 function TRttiIndexedProperty.GetWriteProc: CodePointer;
 begin
-  if (FPropInfo^.PropProcs and 3)=ptStatic then
-    Result := FPropInfo^.SetProc
-  else
-    { ptVirtual }
-    Result := PCodePointer(Pointer(Parent.AsInstance.MetaClassType)+PtrUInt(FPropInfo^.SetProc))^;
+  Result:=AccessorAddress(FPropInfo^.SetProc,FPropInfo^.PropProcs shr 2,nil);
 end;
 
 function TRttiIndexedProperty.GetName: string;
@@ -6295,7 +6305,9 @@ begin
     argList[J] := aArgs[I].Cast(TypeInfoFromRtti(params[I].ParamType));
     Inc(J);
     end;
-  Result := {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}Rtti.Invoke(ReadProc, argList, ccReg, FPropInfo^.PropType, FPropInfo^.IsStatic, False);
+  Result := {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}Rtti.Invoke(
+    AccessorAddress(FPropInfo^.GetProc,FPropInfo^.PropProcs,aInstance), argList, ccReg,
+    FPropInfo^.PropType, FPropInfo^.IsStatic, False);
 end;
 
 procedure TRttiIndexedProperty.SetValue(aInstance: Pointer;
@@ -6330,7 +6342,9 @@ begin
     Inc(J);
   end;
   argList[J] := aValue.Cast(FPropInfo^.PropType);
-  {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}Rtti.Invoke(WriteProc, argList, ccReg, FPropInfo^.PropType, FPropInfo^.IsStatic, False);
+  {$IFDEF FPC_DOTTEDUNITS}System.{$ENDIF}Rtti.Invoke(
+    AccessorAddress(FPropInfo^.SetProc,FPropInfo^.PropProcs shr 2,aInstance), argList, ccReg,
+    nil, FPropInfo^.IsStatic, False);
 end;
 
 function TRttiIndexedProperty.ToString: string;
