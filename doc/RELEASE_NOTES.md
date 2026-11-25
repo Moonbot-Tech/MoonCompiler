@@ -11,6 +11,8 @@
 - JSON number nodes read signed 64-bit identifiers exactly. Serialization
   includes inherited fields and honours the selected visibility mode.
   Explicit decimal SQL parameters preserve their value during master binding.
+- GUID construction reports an invalid byte count through the expected
+  argument exception.
 - Linux thread creation failures report the pthread operation, error code and
   resource limits. Repeated priority registration of a live thread avoids an
   allocation that could terminate the process under memory pressure.

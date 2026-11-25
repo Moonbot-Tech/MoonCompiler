@@ -13,6 +13,13 @@ compiler semantics.
 AUTOINLINE remains enabled in Release; the related defects were repaired at
 their specific producer, optimizer, and lifetime sites.
 
+## Invalid GUID byte arrays
+
+The two `TGUID.Create` overloads that accept byte arrays raise
+`EArgumentException` when the input is too short or the trailing group
+has a length other than eight. Constructing the previous error message
+could itself raise a formatting exception. [GUID argument test](../RTL-test/semantic/guid_byte_arguments_semantic.dpr)
+
 ## Linux thread registration and failure reports
 
 When a thread already has an entry in the priority registry, registering it

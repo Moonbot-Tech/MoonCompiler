@@ -19,7 +19,7 @@ CASES = (
     "numeric_overload_precision", "typed_const_character_pointers",
     "reader_value_transfer", "reader_fixup_lifetime", "reader_fixup_registration",
     "reader_typed_component_reference", "stream_adapter_copy", "variant_array_coordinates", "rtti_indexed_setter",
-    "thread_destruction", "database_decimal_parameter", "json_public_members",
+    "thread_destruction", "database_decimal_parameter", "json_public_members", "guid_byte_arguments",
 )
 
 

@@ -26,7 +26,7 @@ Class Function TGUIDHelper.Create(const B: TBytes; AStartIndex: Cardinal; DataEn
 
 begin
   if ((System.Length(B)-AStartIndex)<16) then
-    raise EArgumentException.CreateFmt('The length of a GUID array must be at least %d',[]);
+    raise EArgumentException.Create('The length of a GUID array must be at least 16');
   Result:=Create(B,AStartIndex,DataEndian=TEndian.Big);
 end;
 
@@ -40,7 +40,7 @@ Class Function TGUIDHelper.Create(A: Integer; B: SmallInt; C: SmallInt; const D:
 
 begin
   if (System.Length(D)<>8) then
-    raise EArgumentException.CreateFmt('The length of a GUID array must be %d',[]);
+    raise EArgumentException.Create('The length of a GUID array must be 8');
   Result:=Create(Cardinal(A),Word(B),Word(C),D[0],D[1],D[2],D[3],D[4],D[5],D[6],D[7]);
 end;
 
