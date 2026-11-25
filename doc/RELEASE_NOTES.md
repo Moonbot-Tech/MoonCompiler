@@ -11,6 +11,8 @@
   Bounded string splitting keeps empty fields inside the input.
 - The two-argument SQL text rewriter can replace named placeholders without
   pre-creating parameters. Database driver overloads keep their binding maps.
+- Editing a URI query keeps the original spelling of untouched keys and
+  values. Updating one copy of a URI leaves the other copy intact.
 - File copies preserve modification times. Linux file and directory time
   accessors keep milliseconds, including during the autumn clock change.
 
