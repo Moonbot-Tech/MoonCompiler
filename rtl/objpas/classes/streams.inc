@@ -2703,37 +2703,80 @@ end;
 
 
 function TStreamAdapter.CopyTo(stm: IStream; cb: LargeUint; out cbRead: LargeUint; out cbWritten: Largeuint): HResult; stdcall;
-var
-  sz: dword;
-  buffer : array[0..1023] of byte;
-begin
-  if m_bReverted then
-    begin
-      Result := STG_E_REVERTED;
-      Exit;
-    end;
 
-  // the method is similar to TStream.CopyFrom => use CopyFrom implementation
-  cbWritten := 0;
-  cbRead := 0;
-  while cb > 0 do
-    begin
-      if (cb > sizeof(buffer)) then
-        sz := sizeof(Buffer)
-      else
-        sz := cb;
-      sz := FStream.Read(buffer[0],sz);
-      inc(cbRead, sz);
-      stm.Write(@buffer[0], sz, @sz);
-      inc(cbWritten, sz);
-      if sz = 0 then
-        begin
-          Result := E_FAIL;
-          Exit;
-        end;
-      dec(cb, sz);
-    end;
+  function CompleteWrite(Buffer: PByte; Size: Longint; var Written, Unwritten: DWord): HResult;
+  var
+    N: DWord;
+  begin
+    while Written < DWord(Size) do
+      begin
+        if Written = 0 then Exit(STG_E_MEDIUMFULL);
+        Unwritten := DWord(Size) - Written;
+        N := 0;
+        Result := stm.Write(Buffer + Written, Unwritten, @N);
+        if Result < 0 then
+          begin
+            if N <= Unwritten then Dec(Unwritten, N);
+            Exit;
+          end;
+        if N = 0 then Exit(STG_E_MEDIUMFULL);
+        if N > Unwritten then Exit(STG_E_WRITEFAULT);
+        Inc(Written, N);
+      end;
+    if Written <> DWord(Size) then Exit(STG_E_WRITEFAULT);
+    Result := S_OK;
+  end;
+
+var
+  Buffer: array[0..2047] of Byte;
+  Requested, Received: Longint;
+  Written: DWord;
+  Remaining: LargeUInt;
+  Unwritten: DWord;
+begin
   Result := S_OK;
+  Remaining := cb;
+  Unwritten := 0;
+  if m_bReverted then
+    Result := STG_E_REVERTED
+  else if (cb <> 0) and (stm = nil) then
+    Result := STG_E_INVALIDPOINTER
+  else
+    try
+      while Remaining <> 0 do
+        begin
+          Requested := SizeOf(Buffer);
+          if Remaining < Requested then Requested := Remaining;
+          Received := FStream.Read(Buffer, Requested);
+          if Received = 0 then Break;
+          if DWord(Received) > DWord(Requested) then
+            begin
+              Result := STG_E_READFAULT;
+              Break;
+            end;
+          Dec(Remaining, Received);
+          Unwritten := Received;
+          Written := 0;
+          Result := stm.Write(@Buffer[0], Received, @Written);
+          if Result < 0 then
+            begin
+              if Written <= Unwritten then Dec(Unwritten, Written);
+              Break;
+            end;
+          if Written <> DWord(Received) then
+            begin
+              Result := CompleteWrite(@Buffer[0], Received, Written, Unwritten);
+              if Result < 0 then Break;
+            end;
+          Unwritten := 0;
+        end;
+    except
+      on E: EOutOfMemory do Result := STG_E_INSUFFICIENTMEMORY;
+      else Result := E_UNEXPECTED;
+    end;
+  if Result > 0 then Result := S_OK;
+  if @cbRead <> nil then cbRead := cb - Remaining;
+  if @cbWritten <> nil then cbWritten := cb - Remaining - Unwritten;
 end;
 
 function TStreamAdapter.Commit(grfCommitFlags: DWORD): HResult; stdcall;
