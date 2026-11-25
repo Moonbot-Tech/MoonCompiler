@@ -55,6 +55,7 @@ PROGRAMS = {
         "zlib",
         "mm",
         "rtl",
+        "rtl-boundaries",
         "rtl-collections",
         "threads",
         "workloads",

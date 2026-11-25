@@ -291,6 +291,11 @@ repairs P$PULSE_REPAIRS_$$_CASEVARIANCE4$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_DO
 repairs P$PULSE_REPAIRS_$$_CASEVARIANTDICTIONARY$LONGINT$$QWORD U_$P$PULSE_REPAIRS_$$_VARIANTDICTIONARY  # case input: prepared before the case; trace 0/512 in flight
 repairs P$PULSE_REPAIRS_$$_CASEVARIANTDICTIONARY$LONGINT$$QWORD U_$SYSTEM_$$_VARIANTMANAGER  # product: System.VariantManager: variant operations inline call through it; trace 0/128 in flight
 
+rtl-boundaries P$PULSE_RTL_BOUNDARIES_$$_CASEVECTOR$LONGINT$$QWORD U_$SYSTEM_$$_VARIANTMANAGER  # indexed Variant access dispatches through the RTL manager
+rtl-boundaries P$PULSE_RTL_BOUNDARIES_$$_CASEMATRIX$LONGINT$$QWORD U_$SYSTEM_$$_VARIANTMANAGER  # indexed Variant access dispatches through the RTL manager
+rtl-boundaries P$PULSE_RTL_BOUNDARIES_$$_CASECUBE$LONGINT$$QWORD U_$SYSTEM_$$_VARIANTMANAGER  # indexed Variant access dispatches through the RTL manager
+rtl-boundaries P$PULSE_RTL_BOUNDARIES_$$_CASESMALLCUBE$LONGINT$$QWORD U_$SYSTEM_$$_VARIANTMANAGER  # indexed Variant access dispatches through the RTL manager
+rtl-boundaries P$PULSE_RTL_BOUNDARIES_$$_CASERESIZE$LONGINT$$QWORD U_$SYSTEM_$$_VARIANTMANAGER  # indexed access to the retained and newly allocated cells
 rtl P$PULSE_RTL_$$_CASEDYNAMICARRAYCOPY$LONGINT$$QWORD U_$P$PULSE_RTL_$$_INTEGERDATA  # case input: prepared before the case; trace 0/4 in flight
 rtl P$PULSE_RTL_$$_CASEHELPERINDEXOFSTRING$LONGINT$$QWORD U_$P$PULSE_RTL_$$_SEARCHTEXT  # case input: prepared before the case; trace 0/2 in flight
 rtl P$PULSE_RTL_$$_CASEMEMORYSTREAM$LONGINT$$QWORD U_$P$PULSE_RTL_$$_BYTEDATA  # case input: prepared before the case; trace 0/6 in flight

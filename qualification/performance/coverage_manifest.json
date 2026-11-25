@@ -7,6 +7,7 @@
     "calls-abi",
     "arithmetic",
     "repair-regressions",
+    "rtl-boundaries",
     "loops-control",
     "memory-layout",
     "json-text",
@@ -105,6 +106,21 @@
     ]
   },
   "families": [
+    {
+      "id": "rtl-boundaries",
+      "status": "implemented",
+      "source": "rtl-boundaries/pulse_rtl-boundaries.dpr",
+      "case_contract": "PulseAdd/v1",
+      "cases": ["reader-object", "reader-interface", "vararray-1d", "vararray-2d", "vararray-3d", "vararray-3d-2x2x2", "vararray-redim", "copy-64", "copy-32781", "vararray-copy-compare", "rtti-indexed-integer", "rtti-indexed-string"],
+      "coverage": {
+        "target": ["win64", "linux-x86_64"],
+        "type": ["interface", "variant", "signed-integer"],
+        "lifetime": ["read-write", "copied"],
+        "call": ["virtual", "interface", "ppu-boundary"],
+        "memory": ["heap", "sequential"],
+        "concurrency": ["single-unlocked"]
+      }
+    },
     {
       "id": "calibration",
       "status": "implemented",

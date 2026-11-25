@@ -22,6 +22,7 @@ SYNC_FILES = (
     "qualification/performance/common/pulse_harness.pas",
     "qualification/performance/common/pulse_process_metrics.pas",
     "qualification/performance/repairs/pulse_repairs.dpr",
+    "qualification/performance/rtl-boundaries/pulse_rtl-boundaries.dpr",
     "qualification/performance/threads/pulse_threads.dpr",
     "qualification/performance/threads/pulse_thread_lifecycle.dpr",
     "qualification/performance/threads/pulse_clocks.dpr",

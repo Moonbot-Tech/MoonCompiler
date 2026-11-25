@@ -154,6 +154,34 @@ it. If a completed medium or long run fails only on process drift,
 `pulse.py retry <result-directory>` repeats only the rejected mirrored case
 matrices and never turns persistent drift into an aggregate result.
 
+`rtl-boundaries` runs the same twelve normal-path cases on Delphi Win64 and
+MoonCompiler Win64/Linux. Each reader operation loads a binary component graph
+and consumes either an object reference or a typed interface. Before dispatching
+through the interface, the program checks its identity against the child's
+queried interface. The three Variant index cases each write 64 cells and then
+read them all back (128 operations), arranged as 64, 8×8 or 4×4×4. A fourth
+case checks all eight cells of a 2×2×2 cube, whose stride is correct across
+the tested SDKs, so Linux has a comparable 3D workload. The resize
+case grows and shrinks the last dimension of a 1-based matrix and checks fresh
+and retained cells (two resizes). The copy-and-compare case makes an independent
+copy of an eight-cell Variant array containing numbers and strings, compares
+its values and releases it. MoonCompiler supports whole-array comparison.
+Delphi 12.2 Win64 raises `EVariantInvalidOpError` in `VarSameValue` for this
+pair of arrays. Compare this row between MoonCompiler SDKs only.
+The two IStream cases copy exactly 64 or
+32,781 bytes between prepared memory streams (one transfer). The preflight
+checks status, both counts, positions, every copied byte and the following
+guard byte. Two indexed-property setters consume an integer and a managed string
+through preloaded RTTI descriptors and prepared arguments. Fixture construction runs outside the timed loop.
+
+Use `pulse_rtl-boundaries list all` for discovery and
+`pulse_rtl-boundaries quick <case>` for an individual oracle. A wrong result
+exits before the first timing sample for that case. SDK 2.6.1 fails
+`reader-interface` and `rtti-indexed-string` on both targets and
+`vararray-3d` on Linux. Select the
+remaining rows with `pulse.py run --mode medium --programs rtl-boundaries
+--cases rtl-boundaries/<case>,...` for a before/after timing comparison.
+
 The coverage contract is checked separately:
 
 ```powershell

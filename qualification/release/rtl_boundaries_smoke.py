@@ -18,7 +18,8 @@ CASES = (
     "anonymous_cleanup_external_owner", "asm_delphi_operands", "forcequeue_first_thread",
     "numeric_overload_precision", "typed_const_character_pointers",
     "reader_value_transfer", "reader_fixup_lifetime", "reader_fixup_registration",
-    "thread_destruction",
+    "reader_typed_component_reference", "stream_adapter_copy", "variant_array_coordinates", "rtti_indexed_setter",
+    "thread_destruction", "database_decimal_parameter", "json_public_members",
 )
 
 
@@ -113,7 +114,8 @@ def main():
         ctypes.windll.kernel32.SetErrorMode(3)
     compiler = args.compiler.resolve(strict=True)
     output = args.out.resolve()
-    cases = CASES + (("windows_boundaries", "win64_classes_callbacks") if os.name == "nt" else ())
+    cases = CASES + (("windows_boundaries", "win64_classes_callbacks") if os.name == "nt"
+                     else ("linux_thread_creation_error",))
     suffix = ".exe" if os.name == "nt" else ""
     wait_sources = ROOT / "qualification" / "suite" / "tests" / "rtl-api"
     wait_env = os.environ.copy()
