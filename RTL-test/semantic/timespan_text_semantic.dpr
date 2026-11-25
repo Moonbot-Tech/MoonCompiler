@@ -34,5 +34,9 @@ begin
   if not TTimeSpan.TryParse('00:00:.05', Span) or (Span.Ticks <> 500000) then Halt(6);
   if TTimeSpan.TryParse('99:99', Span) or TTimeSpan.TryParse('+2', Span) or
      TTimeSpan.TryParse('2.', Span) or TTimeSpan.TryParse('+01:30', Span) then Halt(7);
+  if TTimeSpan.TryParse('--01:00:00', Span) or TTimeSpan.TryParse('01:-2:00', Span) or
+     TTimeSpan.TryParse('01:$0F:00', Span) or TTimeSpan.TryParse('01:02:03junk', Span) or
+     TTimeSpan.TryParse('00:00:01' + #0 + 'junk', Span) then Halt(8);
+  if not TTimeSpan.TryParse('25:00:00', Span) or (Span.Ticks <> 900000000000) then Halt(9);
   WriteLn('TIMESPAN_TEXT_PASS');
 end.

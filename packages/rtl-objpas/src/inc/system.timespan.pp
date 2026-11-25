@@ -303,15 +303,32 @@ end;
 class function TTimeSpan.TryParse(const S: string; out Value: TTimeSpan
   ): Boolean;
 var
-  I, Last, FirstColon, NextColon, Dot, Start, NumberStart: SizeInt;
-  Part, Scale: Integer;
-  Seconds, Fraction, Ticks: Int64;
+  I, Last: SizeInt;
+  Part, HoursPart, MinutesPart, Scale: Cardinal;
+  Seconds, Fraction, Limit, Ticks: QWord;
   Negative: Boolean;
 
-  function ReadPart(After: SizeInt; out Number: Integer): Boolean;
+  function ReadDecimal(out Number: Cardinal): Boolean;
+  var
+    Start: SizeInt;
+    Digit: Cardinal;
   begin
-    Result := TryStrToInt(Copy(S, I, After - I), Number);
-    I := After + 1;
+    Start := I;
+    Number := 0;
+    while (I <= Last) and (S[I] in ['0'..'9']) do
+    begin
+      Digit := Ord(S[I]) - Ord('0');
+      if Number > (High(Cardinal) - Digit) div 10 then Exit(False);
+      Number := Number * 10 + Digit;
+      Inc(I);
+    end;
+    Result := I <> Start;
+  end;
+
+  function Consume(C: Char): Boolean; inline;
+  begin
+    Result := (I <= Last) and (S[I] = C);
+    if Result then Inc(I);
   end;
 
 begin
@@ -319,58 +336,35 @@ begin
   I := 1;
   Last := Length(S);
   while (I <= Last) and (S[I] in [' ', #9]) do Inc(I);
-  while (Last >= I) and (S[Last] in [' ', #9]) do Dec(Last);
-  Negative := (I <= Last) and (S[I] = '-');
-  if Negative then Inc(I);
-  NumberStart := I;
-  Seconds := 0;
+  while (I <= Last) and (S[Last] in [' ', #9]) do Dec(Last);
+  Negative := Consume('-');
+  if not ReadDecimal(Part) then Exit(False);
   Fraction := 0;
-  FirstColon := Pos(':', S, I);
-  if FirstColon = 0 then
-  begin
-    { A lone decimal integer denotes days. }
-    for Start := I to Last do
-      if not (S[Start] in ['0'..'9']) then Exit(False);
-    if not ReadPart(Last + 1, Part) then Exit(False);
-    Seconds := Int64(Part) * 86400;
-  end
+  if I > Last then
+    Seconds := QWord(Part) * 86400
   else
   begin
-    Dot := Pos('.', S, I);
-    if (Dot <> 0) and (Dot < FirstColon) then
+    Seconds := 0;
+    HoursPart := Part;
+    if Consume('.') then
     begin
-      if not ReadPart(Dot, Part) then Exit(False);
-      Seconds := Int64(Part) * 86400;
+      Seconds := QWord(Part) * 86400;
+      if not ReadDecimal(HoursPart) then Exit(False);
     end;
-    if not ReadPart(FirstColon, Part) then Exit(False);
-    Inc(Seconds, Int64(Part) * 3600);
-    NextColon := Pos(':', S, I);
-    if NextColon = 0 then
+    if not Consume(':') or not ReadDecimal(MinutesPart) then Exit(False);
+    Inc(Seconds, QWord(HoursPart) * 3600 + QWord(MinutesPart) * 60);
+    if Consume(':') then
     begin
-      { hh:mm is a clock interval. Keep the existing extended hour/minute
-        ranges for three-component input produced by older Moon programs. }
-      for Start := NumberStart to Last do
-        if not (S[Start] in ['0'..'9', '.', ':']) then Exit(False);
-      if (Part < 0) or (Part > 23) or not ReadPart(Last + 1, Part) or
-         (Part < 0) or (Part > 59) then Exit(False);
-      Inc(Seconds, Int64(Part) * 60);
-    end
-    else
-    begin
-      if not ReadPart(NextColon, Part) then Exit(False);
-      Inc(Seconds, Int64(Part) * 60);
-      Dot := Pos('.', S, I);
-      if Dot = 0 then Dot := Last + 1;
-      if (I = Dot) and (Dot <= Last) then
-        I := Dot + 1
-      else
+      { Older Moon files may use more than 23 hours or 59 minutes/seconds. }
+      if I > Last then Exit(False);
+      if S[I] <> '.' then
       begin
-        if not ReadPart(Dot, Part) then Exit(False);
+        if not ReadDecimal(Part) then Exit(False);
         Inc(Seconds, Part);
       end;
-      if Dot <= Last then
+      if Consume('.') then
       begin
-        if Last - Dot > 7 then Exit(False);
+        if Last - I + 1 > 7 then Exit(False);
         Scale := TicksPerSecond;
         while I <= Last do
         begin
@@ -380,20 +374,18 @@ begin
           Inc(I);
         end;
       end;
-    end;
+    end
+    else if (HoursPart > 23) or (MinutesPart > 59) then
+      Exit(False);
   end;
-  if Negative then
-  begin
-    Seconds := -Seconds;
-    Fraction := -Fraction;
-  end;
-  if (Seconds < Low(Int64) div TicksPerSecond) or (Seconds > High(Int64) div TicksPerSecond) then
-    Exit(False);
-  Ticks := Seconds * TicksPerSecond;
-  if ((Fraction < 0) and (Ticks < Low(Int64) - Fraction)) or
-     ((Fraction > 0) and (Ticks > High(Int64) - Fraction)) then
-    Exit(False);
-  Value.FTicks := Ticks + Fraction;
+  if I <= Last then Exit(False);
+  Limit := QWord(High(Int64)) + Ord(Negative);
+  if Seconds > (Limit - Fraction) div TicksPerSecond then Exit(False);
+  Ticks := Seconds * TicksPerSecond + Fraction;
+  if Negative and (Ticks <> 0) then
+    Value.FTicks := -Int64(Ticks - 1) - 1
+  else
+    Value.FTicks := Int64(Ticks);
   Result := True;
 end;
 
