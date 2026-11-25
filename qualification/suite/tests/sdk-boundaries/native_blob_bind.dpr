@@ -65,6 +65,7 @@ begin
         Q.SQL.Text := 'select b, octet_length(b), t from blob_probe';
         Q.Open;
         Check(not Q.EOF, 'missing row');
+        Check(Q.Fields[2].AsString = TextValue, 'decoded text');
         Actual := Q.Fields[2].AsBytes;
         Check((Length(Actual) = Length(ExpectedText)) and
               CompareMem(Pointer(Actual), Pointer(ExpectedText), Length(ExpectedText)), 'stored text bytes');
