@@ -24,7 +24,7 @@ their specific producer, optimizer, and lifetime sites.
 | Split a delimited row with a count | The last empty field is excluded only at the end of the input. An empty column inside a bounded result keeps its position. | [Bounded splitting](../RTL-test/semantic/string_split_count_semantic.dpr) |
 | Rewrite SQL without binding | The two-argument `ParseSQL(SQL, False)` rewrites placeholders independently of the parameter collection. Overloads that return a binding map keep the original validation. | [SQL rewrite](../RTL-test/semantic/params_sql_rewrite_semantic.dpr) |
 | Edit a URI query | An unrelated literal plus, percent escape or bare field keeps its original wire spelling. Record copies retain independent edits. Reading a parameter by name still returns decoded text. | [Query edits](../RTL-test/semantic/uri_query_edits_semantic.dpr) |
-| Copy or inspect a modification time | A copy preserves the filesystem timestamp. On Linux the local getters retain milliseconds, and the UTC getter distinguishes both instances of a repeated local hour. | [File timestamps](../RTL-test/semantic/ioutils_api_semantic.dpr) |
+| Copy or inspect a modification time | A copy transfers the native modification time when the destination permits setting it. On Linux the local getters retain milliseconds, and the UTC getter distinguishes both instances of a repeated local hour. | [File timestamps](../RTL-test/semantic/ioutils_api_semantic.dpr) |
 
 ## Delimited text split at the requested starting position
 

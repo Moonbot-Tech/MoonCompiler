@@ -13,8 +13,9 @@
   pre-creating parameters. Database driver overloads keep their binding maps.
 - Editing a URI query keeps the original spelling of untouched keys and
   values. Updating one copy of a URI leaves the other copy intact.
-- File copies preserve modification times. Linux file and directory time
-  accessors keep milliseconds, including during the autumn clock change.
+- File copies transfer modification times at native precision when the destination
+  permits timestamp updates. Linux file and directory time accessors keep
+  milliseconds, including during the autumn clock change.
 
 Install the complete SDK and rebuild the application and its units. MoonORMot
 17 or newer is required.
