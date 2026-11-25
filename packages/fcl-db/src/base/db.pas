@@ -1518,7 +1518,7 @@ type
 
 { TParams }
 
-  TSQLParseOption = (spoCreate,spoEscapeSlash,spoEscapeRepeat,spoUseMacro);
+  TSQLParseOption = (spoCreate,spoEscapeSlash,spoEscapeRepeat,spoUseMacro,spoUsePositions);
   TSQLParseOptions = Set of TSQLParseOption;
 
   TParams = class(TCollection)

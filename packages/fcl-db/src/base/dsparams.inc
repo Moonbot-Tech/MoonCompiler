@@ -238,6 +238,7 @@ var
 
 begin
   PO:=CreateParseOpts(DoCreate,True,True);
+  if not DoCreate then Include(PO,spoUsePositions);
   Result := DoParseSQL(SQL,PO,psInterbase, pb, ' ',rs);
 end;
 
@@ -440,7 +441,9 @@ begin
             // else find ParameterIndex
             else
               begin
-                if ParamName<>'' then
+                if spoUsePositions in Options then
+                  ParameterIndex:=ParamCount-1
+                else if ParamName<>'' then
                   ParameterIndex:=ParamByName(ParamName).Index
                 else
                 begin
