@@ -147,6 +147,15 @@ that reads raw `VType` can observe the carrier. The exact oracle is
   Registration, interposition, and removal of RTTI from dynamically loaded or
   unloaded packages are not implemented.
 
+### Custom attributes on method parameters
+
+A parameter annotated with a custom attribute compiles and appears in
+`TRttiMethod.GetParameters`, but its `GetAttributes` returns an empty array.
+This matters to frameworks that infer argument binding or validation from
+parameter annotations. Put the binding on the method or supply an explicit
+mapping from parameter name to binding. Class and method annotations are
+available through RTTI. [Parameter attribute probe](../qualification/suite/tests/known/rtti_parameter_attributes.pas).
+
 ### Changing component ownership from a resource callback
 
 Keep the root and recipients of local property references alive until
