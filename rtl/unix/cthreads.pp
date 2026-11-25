@@ -237,24 +237,35 @@ begin
   InterlockedExchange(PriorityOwner,Pid);
 end;
 
+{ Called with PriorityState^.Lock held. A parent's newly published entry
+  may still be waiting for its child to fill in the native TID. }
+function LookupPriorityThread(Handle: TThreadID): PPriorityThread;
+begin
+  Result:=PriorityState^.Threads;
+  while (Result<>nil) and (Result^.Handle<>Handle) do Result:=Result^.Next;
+end;
+
 procedure RegisterPriorityThread;
 var
-  P, Existing: PPriorityThread;
+  Handle: TThreadID;
+  Existing, P: PPriorityThread;
 begin
   EnsurePriorityProcess;
+  Handle:=TThreadID(pthread_self());
+  pthread_mutex_lock(@PriorityState^.Lock);
+  Existing:=LookupPriorityThread(Handle);
+  pthread_mutex_unlock(@PriorityState^.Lock);
+  if Existing<>nil then exit;
+
+  { The creator publishes its child's handle before releasing the lock.
+    A live native thread is the only other registrar of its own handle. }
   P:=NewPriorityThread;
-  P^.Handle:=TThreadID(pthread_self());
+  P^.Handle:=Handle;
   P^.Tid:=priority_gettid;
   pthread_mutex_lock(@PriorityState^.Lock);
-  Existing:=PriorityState^.Threads;
-  while (Existing<>nil) and (Existing^.Handle<>P^.Handle) do Existing:=Existing^.Next;
-  if Existing=nil then begin
-    P^.Next:=PriorityState^.Threads;
-    PriorityState^.Threads:=P;
-    P:=nil;
-  end;
+  P^.Next:=PriorityState^.Threads;
+  PriorityState^.Threads:=P;
   pthread_mutex_unlock(@PriorityState^.Lock);
-  priority_free(P);
 end;
 
 procedure ReleasePriorityThread;
@@ -279,8 +290,7 @@ end;
 function FindPriorityThread(Handle: TThreadID): PPriorityThread;
 begin
   repeat
-    Result:=PriorityState^.Threads;
-    while (Result<>nil) and (Result^.Handle<>Handle) do Result:=Result^.Next;
+    Result:=LookupPriorityThread(Handle);
     if Result=nil then begin
       fpSetErrno(ESysESRCH);
       exit;

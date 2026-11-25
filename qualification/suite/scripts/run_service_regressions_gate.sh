@@ -54,6 +54,10 @@ run_case() {
         -UaSystem.Generics.Collections=Generics.Collections
       )
       ;;
+    priority-malloc)
+      cc -std=c11 -O2 -Wall -Wextra -Werror -c "$ROOT/tests/smoke/priority_malloc_count.c" -o "$RUN/priority_malloc_count.o"
+      source_paths=(-k--wrap=malloc "-k$RUN/priority_malloc_count.o")
+      ;;
     external-asm)
       source_paths=(-al)
       ;;
@@ -269,6 +273,7 @@ run_cdecl_array_const_ppu_replay() {
   done
 }
 
+run_case priority_repeat_registration PRIORITY_REGISTRATION_NO_ALLOC_OK priority-malloc
 run_case thread_priority_linux THREAD_PRIORITY_LINUX_OK plain
 run_case thread_priority_lifecycle THREAD_PRIORITY_LIFECYCLE_OK plain
 run_case service_compiler_regressions SERVICE_COMPILER_REGRESSIONS_OK plain
@@ -374,6 +379,7 @@ run_rejected mode_delphi_noop 'Syntax error'
 python3 "$ROOT/scripts/run_exit_runtime_gate.py" --compiler "$FPC" --config "$CFG" --results "$RUN/exit-runtime"
 {
   sha256sum "$FPC" "$CFG" "$ROOT/scripts/run_exit_runtime_gate.py" "$ROOT/tests/smoke/exit_runtime_contract.pas" \
+    "$ROOT/tests/smoke/priority_repeat_registration.pas" "$ROOT/tests/smoke/priority_malloc_count.c" \
     "$ROOT/tests/smoke/thread_priority_linux.pas" \
     "$ROOT/tests/smoke/thread_priority_lifecycle.pas" \
     "$ROOT/tests/smoke/service_compiler_regressions.pas" \
