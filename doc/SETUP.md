@@ -29,7 +29,7 @@ repository):
 
 ```bash
 mkdir -p ~/moon/toolchain && cd ~/moon
-tar -xzf ~/Downloads/mooncompiler-toolchain-v2.6.3-linux-x86-64.tar.gz -C toolchain
+tar -xzf ~/Downloads/mooncompiler-toolchain-v2.6.4-linux-x86-64.tar.gz -C toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain/bin/fpc hello.dpr && ./hello
 ```
@@ -38,7 +38,7 @@ Win64 x86-64 PowerShell:
 
 ```powershell
 New-Item -ItemType Directory -Force C:\Moon | Set-Location
-Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.6.3-win64.zip -DestinationPath toolchain
+Expand-Archive $HOME\Downloads\mooncompiler-toolchain-v2.6.4-win64.zip -DestinationPath toolchain
 git clone https://github.com/Moonbot-Tech/MoonORMot mormot
 toolchain\bin\x86_64-win64\fpc.exe hello.dpr; .\hello.exe
 ```
@@ -67,13 +67,13 @@ driver:
 sudo apt-get install --no-install-recommends git gcc libffi-dev
 git clone https://github.com/Moonbot-Tech/MoonCompiler.git
 cd MoonCompiler
-./build toolchain ~/Downloads/mooncompiler-toolchain-v2.6.3-linux-x86-64.tar.gz
+./build toolchain ~/Downloads/mooncompiler-toolchain-v2.6.4-linux-x86-64.tar.gz
 ```
 
 ```powershell
 git clone https://github.com/Moonbot-Tech/MoonCompiler.git
 Set-Location MoonCompiler
-.\build.ps1 toolchain $HOME\Downloads\mooncompiler-toolchain-v2.6.3-win64.zip
+.\build.ps1 toolchain $HOME\Downloads\mooncompiler-toolchain-v2.6.4-win64.zip
 ```
 
 The driver validates the target platform, extracts into a staging directory
@@ -89,8 +89,8 @@ installing a release archive.
 Replace the complete toolchain, then cleanly rebuild your application and all
 third-party units. Do not copy old PPUs or object files into the new installation,
 and keep the Lazarus/IDE FPC-ABI units separate from the Unicode application units.
-SDK 2.6.3 accepts MoonORMot 17 or newer for the runtime units built over it.
-An existing version 17 checkout used with SDK 2.5.6 also satisfies 2.6.3.
+SDK 2.6.4 accepts MoonORMot 17 or newer for the runtime units built over it.
+An existing version 17 checkout used with SDK 2.5.6 also satisfies 2.6.4.
 Update an older checkout in the directory your application actually uses.
 The application build command remains `fpc`. [Release notes](RELEASE_NOTES.md).
 

@@ -1,3 +1,19 @@
+# MoonCompiler 2.6.4
+
+- Binary SQL parameters loaded from streams or files preserve every byte,
+  including embedded zeros and an odd last byte. An empty BLOB remains distinct
+  from SQL NULL. The previous parameter value survives an incomplete read.
+- SQLDB passes binary values to Firebird in segments, and renders binary SQL
+  literals for MySQL and SQL Server. SQLite reads the same byte sequence
+  through the parameter API.
+- The [HTTP header collection guide](PLATFORM_API.md#http-header-collections)
+  shows how to replace a single field or retain repeated fields on Moon and Delphi.
+
+Install the complete SDK and rebuild the application and its units. MoonORMot
+17 or newer is required.
+
+---
+
 # MoonCompiler 2.6.3
 
 - Moving a named component to a different owner clears the field in the old
