@@ -701,7 +701,7 @@ begin
     FindDataTimeToDateTime(Data.ftCreationTime,Result)
   {$else}
     {$ifdef unix}
-      {$ifdef use_statx}
+      {$if defined(use_statx)}
         Result:=LocalFileDateTime(data.stx_ctime.tv_sec,data.stx_ctime.tv_nsec)
       {$elseif defined(linux)}
         Result:=LocalFileDateTime(data.st_ctime,data.st_ctime_nsec)
@@ -720,7 +720,7 @@ begin
     FindDataTimeToDateTime(Data.ftLastAccessTime,Result)
   {$else}
     {$ifdef unix}
-      {$ifdef use_statx}
+      {$if defined(use_statx)}
         Result:=LocalFileDateTime(data.stx_atime.tv_sec,data.stx_atime.tv_nsec)
       {$elseif defined(linux)}
         Result:=LocalFileDateTime(data.st_atime,data.st_atime_nsec)
@@ -739,7 +739,7 @@ begin
     FindDataTimeToDateTime(Data.ftLastWriteTime,Result)
   {$else}
     {$ifdef unix}
-      {$ifdef use_statx}
+      {$if defined(use_statx)}
         Result:=LocalFileDateTime(data.stx_mtime.tv_sec,data.stx_mtime.tv_nsec)
       {$elseif defined(linux)}
         Result:=LocalFileDateTime(data.st_mtime,data.st_mtime_nsec)
