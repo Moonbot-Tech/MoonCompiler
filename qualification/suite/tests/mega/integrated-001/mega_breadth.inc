@@ -1059,6 +1059,17 @@ end;
 {$I mega_breadth_fixup.inc}
 {$I mega_breadth_timestamps.inc}
 {$I mega_breadth_threadlocal.inc}
+{$I mega_breadth_routeprofile.inc}
+{$I mega_breadth_ownedcommands.inc}
+{$I mega_breadth_listsplice.inc}
+{$I mega_breadth_guidwire.inc}
+{$I mega_breadth_virtualdefaults.inc}
+{$I mega_breadth_settingsrecall.inc}
+{$I mega_breadth_interfacecontroller.inc}
+{$I mega_breadth_componentalias.inc}
+{$I mega_breadth_collectionupdate.inc}
+{$I mega_breadth_viewportgeometry.inc}
+{$I mega_breadth_defaultkeyorder.inc}
 {$I mega_breadth_ifinherit.inc}
 {$I mega_breadth_sliceowners.inc}
 {$I mega_breadth_cscan.inc}
@@ -1254,4 +1265,16 @@ begin
   RunBreadthIniTransfer;
   RunBreadthProtocolTimestamps;
   RunBreadthThreadLocalTokens;
+  RunBreadthRouteProfileHelper;
+  RunBreadthOwnedCommandQueue;
+  RunBreadthOwnedCommandStack;
+  RunBreadthManagedListSplice;
+  RunBreadthGuidByteWindow;
+  RunBreadthVirtualDefaults;
+  RunBreadthSettingsRecall;
+  RunBreadthInterfaceController;
+  RunBreadthComponentAlias;
+  RunBreadthCollectionUpdate;
+  RunBreadthViewportGeometry;
+  RunBreadthDefaultKeyOrder;
 end;

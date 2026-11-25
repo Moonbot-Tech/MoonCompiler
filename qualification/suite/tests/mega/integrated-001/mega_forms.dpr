@@ -40,7 +40,8 @@ uses
   {$ifdef UNIX}cthreads, cwstring,{$endif}
 {$endif}
   SysUtils, Variants, Classes, Math, TypInfo, Rtti, Character, SyncObjs, IniFiles, DateUtils, Generics.Collections, Generics.Defaults,
-  {$ifdef FPC}Types,{$else}Winapi.ActiveX,{$endif}
+  Types,
+  {$ifndef FPC}Winapi.ActiveX,{$endif}
   mega_breadth_unit, mega_breadth_genericbase, mega_breadth_genericconsumer, mega_portable
 {$ifdef BREADTH_HAS_PRODUCT_IO}
   , System.JSON, System.IOUtils, System.ZLib, System.RegularExpressions, System.NetEncoding, System.Hash

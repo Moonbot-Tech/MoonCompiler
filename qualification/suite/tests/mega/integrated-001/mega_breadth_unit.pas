@@ -16,6 +16,16 @@ type
 
   TBreadthUnitMap = function(const Input: TBreadthUnitStamp; Step: Int64; Scale: Double): TBreadthUnitStamp of object;
 
+  TBreadthRouteProfile = record
+    Ticket: Int64;
+    Caption: UnicodeString;
+  end;
+
+  TBreadthRouteProfileHelper = record helper for TBreadthRouteProfile
+    function WithSuffix(const Suffix: UnicodeString; Delta: Int64): TBreadthRouteProfile; overload; inline;
+    function WithSuffix(const Suffixes: array of UnicodeString; Delta: Int64): TBreadthRouteProfile; overload;
+  end;
+
 var
   BreadthUnitCoefficient: Integer;
 
@@ -49,6 +59,23 @@ resourcestring
 
 var
   Sequence: Integer;
+
+function TBreadthRouteProfileHelper.WithSuffix(const Suffix: UnicodeString; Delta: Int64): TBreadthRouteProfile;
+begin
+  Result := Self;
+  Result.Caption := Caption + Suffix;
+  Inc(Result.Ticket, Delta);
+end;
+
+function TBreadthRouteProfileHelper.WithSuffix(const Suffixes: array of UnicodeString; Delta: Int64): TBreadthRouteProfile;
+var
+  Suffix: UnicodeString;
+begin
+  Result := Self;
+  for Suffix in Suffixes do
+    Result.Caption := Result.Caption + Suffix;
+  Inc(Result.Ticket, Delta);
+end;
 
 function BreadthReadUnitResource: UnicodeString;
 begin

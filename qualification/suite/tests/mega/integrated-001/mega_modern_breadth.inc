@@ -508,6 +508,10 @@ end;
 {$I mega_modern_dbparams.inc}
 {$I mega_modern_digestbytes.inc}
 {$I mega_modern_jsonschema.inc}
+{$I mega_modern_directoryrules.inc}
+{$I mega_modern_largefile.inc}
+{$I mega_modern_joblimits.inc}
+{$I mega_modern_regexsplit.inc}
 
 procedure RunModernBreadthForms;
 begin
@@ -574,5 +578,12 @@ begin
   RunBreadthHashStreamWindow;
   RunBreadthHashSnapshots;
   RunBreadthJsonStrategySchema;
+{$ifdef HAS_ANON}
+  RunBreadthDirectoryRules;
+{$endif}
+  RunBreadthLargeFilePosition;
+  RunBreadthSemaphoreSlots;
+  RunBreadthCountdownReset;
+  RunBreadthRegexSplit;
 {$endif}
 end;
