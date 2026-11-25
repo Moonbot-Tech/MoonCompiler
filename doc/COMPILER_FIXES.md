@@ -13,6 +13,13 @@ compiler semantics.
 AUTOINLINE remains enabled in Release; the related defects were repaired at
 their specific producer, optimizer, and lifetime sites.
 
+## Delimited text split at the requested starting position
+
+`TRegEx.Split` now consumes a nonempty delimiter beginning exactly at
+`StartPos`. A leading delimiter produces an empty first field. The split
+also counts the requested number of parts correctly when the start is inside
+the input. [Split boundary test](../RTL-test/semantic/regex_split_boundary_semantic.dpr)
+
 ## Invalid GUID byte arrays
 
 The two `TGUID.Create` overloads that accept byte arrays raise

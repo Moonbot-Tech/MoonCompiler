@@ -1478,8 +1478,7 @@ end;
 procedure TPerlRegEx.SplitCapture(const aStrings: TStrings; aLimit: Integer; aOffset: Integer);
 
 var
-  NewStart,LastEnd,Matches: Integer;
-  DoCopy : Boolean;
+  NewStart,LastEnd,Matches,MatchSize: Integer;
 
 begin
   if Not Assigned(aStrings) then
@@ -1493,17 +1492,20 @@ begin
   if (aOffset>0) then
     Dec(aLimit);
   LastEnd:=0; // Last match pos
-  Matches:=1;
+  { Match the adjustment to aLimit for a noninitial start position. }
+  Matches:=Ord(aOffset<=0);
   repeat
     NewStart:=FirstOffset; // Start of current match
-    DoCopy:=(NewStart>aOffset);
-    if DoCopy then
+    if NewStart>=aOffset then
       begin
-      aStrings.Add(Copy(Subject,LastEnd+1,NewStart-LastEnd)); // Copy everything since last match.
-      if GroupCount > 0 then
-        aStrings.Add(Groups[GroupCount]);
-      Inc(Matches);
-      LastEnd:=NewStart+MatchedLength; // update last match pos.
+      MatchSize:=MatchedLength;
+      if (NewStart<>aOffset) or (MatchSize<>0) then
+        begin
+        aStrings.Add(Copy(Subject,LastEnd+1,NewStart-LastEnd));
+        if GroupCount>0 then aStrings.Add(Groups[GroupCount]);
+        Inc(Matches);
+        LastEnd:=NewStart+MatchSize;
+        end;
       end;
   until ((aLimit>1) and (Matches>=aLimit)) or not MatchAgain;
   aStrings.Add(TREString(Copy(FSubject,LastEnd+1,FSubjectLength-LastEnd)));

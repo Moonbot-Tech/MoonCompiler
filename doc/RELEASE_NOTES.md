@@ -12,6 +12,8 @@
 - JSON number nodes read signed 64-bit identifiers exactly. Serialization
   includes inherited fields and honours the selected visibility mode.
   Explicit decimal SQL parameters preserve their value during master binding.
+- Splitting delimited text keeps an empty leading column and recognizes a
+  delimiter exactly at the requested starting character.
 - GUID construction reports an invalid byte count through the expected
   argument exception.
 - Linux thread creation failures report the pthread operation, error code and
