@@ -685,6 +685,16 @@ end;
 
 { TDateTimeInfoRec }
 
+{$ifdef linux}
+function LocalFileDateTime(Seconds, Nanoseconds: Int64): TDateTime;
+var
+  Year, Month, Day, Hour, Minute, Second: Word;
+begin
+  EpochToLocal(Seconds,Year,Month,Day,Hour,Minute,Second);
+  Result:=ComposeDateTime(EncodeDate(Year,Month,Day),EncodeTime(Hour,Minute,Second,Nanoseconds div 1000000));
+end;
+{$endif}
+
 function TDateTimeInfoRec.GetCreationTime: TDateTime;
 begin
   {$if defined(windows) and not defined(win16)}
@@ -692,7 +702,9 @@ begin
   {$else}
     {$ifdef unix}
       {$ifdef use_statx}
-        Result:=FileDateToDateTime(data.stx_ctime.tv_sec)
+        Result:=LocalFileDateTime(data.stx_ctime.tv_sec,data.stx_ctime.tv_nsec)
+      {$elseif defined(linux)}
+        Result:=LocalFileDateTime(data.st_ctime,data.st_ctime_nsec)
       {$else}
         Result:=FileDateToDateTime(data.st_ctime)
       {$endif}
@@ -709,7 +721,9 @@ begin
   {$else}
     {$ifdef unix}
       {$ifdef use_statx}
-        Result:=FileDateToDateTime(data.stx_atime.tv_sec)
+        Result:=LocalFileDateTime(data.stx_atime.tv_sec,data.stx_atime.tv_nsec)
+      {$elseif defined(linux)}
+        Result:=LocalFileDateTime(data.st_atime,data.st_atime_nsec)
       {$else}
         Result:=FileDateToDateTime(data.st_atime)
       {$endif}
@@ -726,7 +740,9 @@ begin
   {$else}
     {$ifdef unix}
       {$ifdef use_statx}
-        Result:=FileDateToDateTime(data.stx_mtime.tv_sec)
+        Result:=LocalFileDateTime(data.stx_mtime.tv_sec,data.stx_mtime.tv_nsec)
+      {$elseif defined(linux)}
+        Result:=LocalFileDateTime(data.st_mtime,data.st_mtime_nsec)
       {$else}
         Result:=FileDateToDateTime(data.st_mtime)
       {$endif}

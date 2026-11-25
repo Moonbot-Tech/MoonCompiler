@@ -340,6 +340,7 @@ uses
   {$EndIf}
   {$IfDef Unix}
     UnixApi.Base,
+    {$IFDEF LINUX}LinuxApi,{$ENDIF}
   {$EndIf}
    System.DateUtils
   ;
@@ -353,6 +354,7 @@ uses
   {$EndIf}
   {$IfDef UNIX}
     BaseUnix,
+    {$IFDEF LINUX}Linux,{$ENDIF}
   {$EndIf}
    DateUtils
   ;
@@ -1860,8 +1862,27 @@ class procedure TFile.GetFileTimestamps(const aFilename: TFileName; var aCreate,
 
 var
   DateTime: TDateTimeInfoRec;
+{$IFDEF LINUX}
+  Info: TStat;
 
+  function UTCStamp(Seconds, Nanoseconds: Int64): TDateTime;
+  begin
+    Result:=IncMilliSecond(UnixToDateTime(Seconds),Nanoseconds div 1000000);
+  end;
+{$ENDIF}
 begin
+{$IFDEF LINUX}
+  if IsUTC then
+    begin
+    { Local timestamps cannot distinguish the two instants in a daylight-saving fold. }
+    if fpStat(UTF8Encode(aFilename),Info)<>0 then
+      raise EInOutError.CreateFmt(SErrFileNotFound,[aFilename]);
+    aCreate:=UTCStamp(Info.st_ctime,Info.st_ctime_nsec);
+    aWrite:=UTCStamp(Info.st_mtime,Info.st_mtime_nsec);
+    aAccess:=UTCStamp(Info.st_atime,Info.st_atime_nsec);
+    Exit;
+    end;
+{$ENDIF}
    if FileGetDateTimeInfo(aFileName,DateTime) then
      begin
      aCreate:=DateTime.CreationTime;
@@ -2047,6 +2068,11 @@ type
     );
   TCopyFileFlags = set of TCopyFileFlag;
 
+{$IFDEF LINUX}
+const
+  UTIME_OMIT_VALUE = (1 shl 30)-2;
+{$ENDIF}
+
 
 function CopyFile(const SrcFilename, DestFilename: string; Flags: TCopyFileFlags; ExceptionOnError: Boolean): boolean;
 var
@@ -2054,6 +2080,13 @@ var
   DestHandle: THandle;
   Buffer: array[1..4096] of byte;
   ReadCount, WriteCount, TryCount: LongInt;
+{$IFDEF MSWINDOWS}
+  WriteTime: TFileTime;
+{$ENDIF}
+{$IFDEF LINUX}
+  Info: TStat;
+  Times: TTimeSpecArr;
+{$ENDIF}
 begin
   Result:=False;
   if SameFileIdentity(SrcFilename,DestFilename) then
@@ -2121,11 +2154,31 @@ begin
             Exit;
         end;
       until false;
+{$IF DEFINED(MSWINDOWS) OR DEFINED(LINUX)}
+      if TCopyFileFlag.cffPreserveTime in Flags then
+        begin
+{$IFDEF MSWINDOWS}
+        if GetFileTime(SrcHandle,nil,nil,@WriteTime) then
+          SetFileTime(DestHandle,nil,nil,@WriteTime);
+{$ELSE}
+        if fpFStat(SrcHandle,Info)=0 then
+          begin
+          Times[0].tv_sec:=0;
+          Times[0].tv_nsec:=UTIME_OMIT_VALUE;
+          Times[1].tv_sec:=Info.st_mtime;
+          Times[1].tv_nsec:=Info.st_mtime_nsec;
+          fpFUtimens(DestHandle,Times);
+          end;
+{$ENDIF}
+        end;
+{$ENDIF}
     finally
       FileClose(DestHandle);
     end;
-    if (TCopyFileFlag.cffPreserveTime in Flags) then
+{$IF NOT DEFINED(MSWINDOWS) AND NOT DEFINED(LINUX)}
+    if TCopyFileFlag.cffPreserveTime in Flags then
       FileSetDate(DestFilename, FileGetDate(SrcHandle));
+{$ENDIF}
     Result:=True;
   finally
     FileClose(SrcHandle);
@@ -2229,14 +2282,41 @@ end;
 {$IFDEF UNIX}
 var
   Info: TStat;
-  Times: TUTimBuf;
   FileNameBytes: RawByteString;
+{$IFDEF LINUX}
+  Times: TTimeSpecArr;
+  procedure FillTime(Index: Integer; Value: PDateTime);
+  begin
+    if Value=nil then
+      begin
+      Times[Index].tv_sec:=0;
+      Times[Index].tv_nsec:=UTIME_OMIT_VALUE;
+      end
+    else
+      begin
+      Times[Index].tv_sec:=DateTimeToUnix(Value^,IsUTC);
+      Times[Index].tv_nsec:=MilliSecondOf(Value^)*1000000;
+      end;
+  end;
+{$ELSE}
+  Times: TUTimBuf;
+{$ENDIF}
 begin
   FileNameBytes:=UTF8Encode(aFilename);
+{$IFDEF LINUX}
+  if (aWrite<>nil) or (aAccess<>nil) then
+    begin
+    FillTime(0,aAccess);
+    FillTime(1,aWrite);
+    if utimensat(AT_FDCWD,PAnsiChar(FileNameBytes),Times,0)<>0 then
+      RaiseLastOSError;
+    Exit;
+    end;
+{$ENDIF}
   if fpStat(PAnsiChar(FileNameBytes),Info)<>0 then
     RaiseLastOSError;
-  { POSIX has no portable creation-time setter.  Delphi likewise validates
-    the path and deliberately leaves creation time unchanged. }
+  { POSIX creation time cannot be set; the path must still exist. }
+{$IFNDEF LINUX}
   if (aWrite=Nil) and (aAccess=Nil) then
     Exit;
   Times.actime:=Info.st_atime;
@@ -2247,6 +2327,7 @@ begin
     Times.modtime:=DateTimeToUnix(aWrite^,IsUTC);
   if fpUTime(PAnsiChar(FileNameBytes),@Times)<>0 then
     RaiseLastOSError;
+{$ENDIF}
 end;
 {$ELSE UNIX}
 begin
