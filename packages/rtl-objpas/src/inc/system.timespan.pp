@@ -239,47 +239,24 @@ begin
   result.fticks:=fticks-ts.FTicks;
 end;
 
-//   "[-]d.hh:mm:ss.ff"  according to mscorlib spec.
 function TTimeSpan.ToString: string;
-var  dd,hh,mm,ss,ms : integer;
-     res : int64;
-     moredays : boolean;
-     s : string;
+var
+  DaysPart, HoursPart, MinutesPart, SecondsPart, Fraction: Integer;
+  Remainder: Int64;
 begin
-  dd:= abs(fticks) div TicksPerDay;
-  res:= abs(fticks) mod TicksPerDay;
-  moredays:=res<>0;
-  hh := res div TicksPerHour;
-  res:= res mod TicksPerHour;
-  mm:=  res div TicksPerMinute;
-  res:= res mod TicksPerMinute;
-  ss:=  res div TicksPerSecond;
-  ms:=  res mod TicksPerSecond;
-  if sign(fticks)=-1 then
-     result:='-'
-  else
-     result:='';
-  if (dd<>0) then
-    begin
-      result:=result+inttostr(dd);
-      if moredays then
-        result:=result+'.';
-    end;
-  // always hhmmss according to comments of parse() docs.
-  result:=result+format('%.2d',[hh])+':';
-  result:=result+format('%.2d',[mm])+':';
-  // .parse docs
-
-  // 7 digit fractional part. Since resolution is .1us, 7 digits is sub ms integer padded with zeroes
-  if ms<>0 then
-    result:=result+format('%.2d',[ss])+'.'+ Format('%.*d',[7, ms])
-    // scan from back to remove trailing zeroes?
-  else
-    result:=result+inttostr(ss);
-  dd:=length(result);
-  while (dd>0) and (result[dd]='0') do
-    dec(dd);
-  setlength(result,dd);
+  DaysPart := Abs(FTicks div TicksPerDay);
+  Remainder := Abs(FTicks mod TicksPerDay);
+  HoursPart := Remainder div TicksPerHour;
+  MinutesPart := Remainder div TicksPerMinute mod 60;
+  SecondsPart := Remainder div TicksPerSecond mod 60;
+  Fraction := Remainder mod TicksPerSecond;
+  Result := Format('%.2d:%.2d:%.2d', [HoursPart, MinutesPart, SecondsPart]);
+  if Fraction <> 0 then
+    Result := Result + Format('.%.7d', [Fraction]);
+  if DaysPart <> 0 then
+    Result := IntToStr(DaysPart) + '.' + Result;
+  if FTicks < 0 then
+    Result := '-' + Result;
 end;
 
 class function TTimeSpan.FromDays(Value: Double): TTimeSpan;
@@ -328,8 +305,11 @@ class function TTimeSpan.TryParse(const S: string; out Value: TTimeSpan
 var i,len,k,v2 : integer;
     v : longint;
     sgn : boolean;
+    seconds, fraction, ticks: Int64;
 begin
   value.fticks:=0;
+  seconds:=0;
+  fraction:=0;
   i:=1; len:=length(s);
   while (i<=len) and (s[i]=' ') do // skip spaces.
    inc(i);
@@ -345,7 +325,7 @@ begin
     begin
       if not trystrtoint(copy (s,i,k-i),v) then
         exit(false);
-       value.fticks:=int64(v)*ticksperday;
+       seconds:=Int64(v)*86400;
        i:=k+1;
     end;
   k:=pos(':',s,i);
@@ -353,14 +333,14 @@ begin
     exit(false);
   if not trystrtoint(copy (s,i,k-i),v) then
     exit(false);
-  value.fticks:=value.fticks+int64(v)*TicksPerHour;
+  seconds:=seconds+Int64(v)*3600;
   i:=k+1;
   k:=pos(':',s,i);
   if k=0 then     // min part mandatory.
     exit(false);
   if not trystrtoint(copy (s,i,k-i),v) then
     exit(false);
-   value.fticks:=value.fticks+int64(v)*TicksPerMinute;
+   seconds:=seconds+Int64(v)*60;
   i:=k+1;
   k:=pos('.',s,i);
   if k=0 then     // sec part mandatory, but the dot at the end not.
@@ -371,27 +351,41 @@ begin
     end;
   if not trystrtoint(copy (s,i,k-i),v) then
     exit(false);
-  value.fticks:=value.fticks+int64(v)*TicksPerSecond;
-  if k>len then
-    exit(true);
-  i:=k+1;
-  k:=pos(' ',s,i); // there could be trailing whitespace.
-  if k=0 then
-    k:=len+1;     // simulate hypothetical point after end of string
-  if not trystrtoint(copy (s,i,k-i),v) then
-    exit(false);
-  k:=k-i; // digits.
-  v2:=1;
-  while (k<7) do
+  Inc(seconds,v);
+  if (k<=len) and (s[k]='.') then
+  begin
+    i:=k+1;
+    k:=i;
+    while (k<=len) and (s[k]>='0') and (s[k]<='9') do
+      Inc(k);
+    if k-i>7 then
+      Exit(False);
+    if k>i then
     begin
-      v2:=v2*10;
-      inc(k);
+      if not TryStrToInt(Copy(s,i,k-i),v) then
+        Exit(False);
+      fraction:=v;
+      for v2:=k-i to 6 do
+        fraction:=fraction*10;
     end;
-  value.fticks:=value.fticks+int64(v)*v2;
+  end;
+  while (k<=len) and (s[k]=' ') do
+    Inc(k);
+  if k<=len then
+    Exit(False);
   if sgn then
-    value.fticks:=-value.fticks;
-  result:=true;
-  // currently doesn't check that after the last space there can be other characters, assumes it is all whitespace
+  begin
+    seconds:=-seconds;
+    fraction:=-fraction;
+  end;
+  if (seconds<Low(Int64) div TicksPerSecond) or (seconds>High(Int64) div TicksPerSecond) then
+    Exit(False);
+  ticks:=seconds*TicksPerSecond;
+  if ((fraction<0) and (ticks<Low(Int64)-fraction)) or
+     ((fraction>0) and (ticks>High(Int64)-fraction)) then
+    Exit(False);
+  value.fticks:=ticks+fraction;
+  Result:=True;
 end;
 
 class operator TTimeSpan.Add(const Left, Right: TTimeSpan): TTimeSpan;
