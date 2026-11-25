@@ -13,6 +13,65 @@ compiler semantics.
 AUTOINLINE remains enabled in Release; the related defects were repaired at
 their specific producer, optimizer, and lifetime sites.
 
+## Linux thread registration and failure reports
+
+When a thread already has an entry in the priority registry, registering it
+again now requires no allocation. This avoids runtime error 203 under memory
+pressure. A failed thread creation records the pthread operation, its error
+code and the process and cgroup limits visible at the time of failure.
+[Allocation test](../qualification/suite/tests/smoke/priority_repeat_registration.pas)
+
+## JSON fields inherited by a DTO
+
+The JSON serializer includes inherited members when building a contract.
+`Public` includes public and published members. A private field annotated
+with `JsonIn` is available in the opt-in mode. `JsonIgnore` still suppresses
+members. In older SDKs the public mode could omit an ID or serialize an
+annotated private field. [Member-mode test](../RTL-test/semantic/json_public_members_semantic.dpr)
+
+## JSON identifiers and decimal SQL parameters
+
+`TJSONNumber.AsInt64` accepts decimal integers throughout the signed 64-bit
+range. An explicitly assigned `TParam.AsFMTBCD` now binds its value, so a
+master dataset cannot replace it with a field of the same name before SQL
+execution. [JSON number test](../RTL-test/semantic/json_numeric_boundaries_semantic.dpr)
+and [SQL parameter test](../RTL-test/semantic/database_decimal_parameter_semantic.dpr).
+
+## Assigning to indexed properties through RTTI
+
+A setter takes the indices and value and returns no result. SDK 2.6.1
+invoked it as a function returning the property type. With a string
+property, the hidden result displaced the actual arguments. The reader
+and writer also have separate dispatch metadata. Each now selects its
+own accessor, including overrides on the actual object.
+[Indexed property test](../RTL-test/semantic/rtti_indexed_setter_semantic.dpr)
+
+## Component references stored in forms and resources
+
+When a resource names a component for an interface property, the reader now
+looks up the interface declared by that property. This applies both to
+components already present and to references resolved later in another root.
+Previously a call through the property could dispatch to a different method.
+An explicit nil releases the previous owner through the property setter.
+[Component reference test](../RTL-test/semantic/reader_typed_component_reference_semantic.dpr)
+
+## Multidimensional Variant arrays
+
+Resizing changes the last dimension while preserving its lower bound and the
+values at existing coordinates. On Linux the address calculation now uses the
+same dimension order as Windows. Two distinct 3D cells could previously
+share one address. A locked array keeps its storage until the last unlock.
+A failed copy or allocation permits a subsequent retry on the original array.
+[Array contract test](../RTL-test/semantic/variant_array_coordinates_semantic.dpr)
+
+## Copying an IStream to the end
+
+`TStreamAdapter.CopyTo` reports success when it reaches EOF and returns the
+number of bytes copied. It continues after a short positive read and sends
+the remaining bytes after a partial write. Errors reported by the destination
+reach the caller. Applications can omit either output counter.
+[Stream adapter test](../RTL-test/semantic/stream_adapter_copy_semantic.dpr)
+
 ## x86-64 atomic operations on object fields
 
 With SDK 2.6.0, reading an occupied counter using

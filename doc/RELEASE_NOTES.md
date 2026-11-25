@@ -1,3 +1,23 @@
+# MoonCompiler 2.6.2
+
+- Component streaming resolves typed interface properties locally and across
+  forms. Indexed property assignment through RTTI delivers the actual indices
+  and value to the correct setter, including overridden setters.
+- Multidimensional Variant arrays retain the correct coordinates during a
+  resize. Linux also respects locks and keeps the original array usable after
+  an allocation failure.
+- Stream copies to EOF succeed and report bytes transferred. Short writes
+  continue with the remaining bytes, and destination errors propagate.
+- JSON number nodes read signed 64-bit identifiers exactly. Serialization
+  includes inherited fields and honours the selected visibility mode.
+  Explicit decimal SQL parameters preserve their value during master binding.
+- Linux thread creation failures report the pthread operation, error code and
+  resource limits. Repeated priority registration of a live thread avoids an
+  allocation that could terminate the process under memory pressure.
+
+Install the complete SDK and rebuild the application and its units to pick up
+the RTL repairs. The runtime requires MoonORMot 17 or newer.
+
 # MoonCompiler 2.6.1
 
 On Win64 and Linux x86-64, `AtomicCmpExchange` on an object field could

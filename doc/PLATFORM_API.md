@@ -226,12 +226,35 @@ the request automatically. A timeout or cancellation alone does not prove that
 the server did not execute it. Applications need an idempotency key or another
 application-level confirmation mechanism before retrying such operations.
 
+## JSON member selection
+
+`TJsonMemberSerialization.Public` reads and writes public and published
+members, including inherited members. `Fields` also includes inherited
+fields and is the default. Upgrading a class whose base fields were absent
+from 2.6.1 output can therefore add keys to its JSON. For a fixed wire
+schema, mark excluded members with `JsonIgnore` or use the explicit
+`In` mode.
+
+## Multidimensional Variant arrays
+
+In the corrected RTL, multidimensional `Variant` arrays on Linux x86-64 use
+the Delphi layout: consecutive elements in the buffer exposed by
+`VarArrayLock` advance the leftmost index first. `VarArrayRedim` changes the
+last dimension and preserves existing coordinates. Unlock the array before
+resizing it.
+
+If an older Linux build persisted bytes taken directly from a multidimensional
+`VarArrayLock` buffer, decode that format explicitly before migrating the data.
+Files written through indexed access keep the element order chosen by the
+application. Ordinary Pascal arrays and one-dimensional Variant buffers keep
+their existing representation.
+
 ## Compiler identity
 
 `System.CompilerVersion` and `{$IF CompilerVersion ...}` identify MoonCompiler
-and report 2.6 in SDK 2.6.1. For ordered version comparisons, use
-`MOONCOMPILER_FULLVERSION` (major × 10000 + minor × 100 + patch, or 20601
-for 2.6.1). A real number cannot distinguish
+and report 2.6 in SDK 2.6.2. For ordered version comparisons, use
+`MOONCOMPILER_FULLVERSION` (major × 10000 + minor × 100 + patch, or 20602
+for 2.6.2). A real number cannot distinguish
 2.10 from 2.1. `FPC_FULLVERSION` and `fpc -iV` continue to report the underlying
 FPC ABI version. Existing Delphi feature checks must distinguish the compiler
 instead of interpreting the Moon version as a Delphi release number.
