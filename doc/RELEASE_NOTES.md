@@ -1,3 +1,22 @@
+# MoonCompiler 2.6.3
+
+- Moving a named component to a different owner clears the field in the old
+  owner and delivers its removal notification. RTTI reads and writes all four
+  decimal places of a Currency property, including values whose scaled integer
+  exceeds the precision of a Double.
+- A negative interval keeps its sign while being parsed. Formatting and reading
+  a complete interval preserves every tick, including whole seconds ending in
+  zero and both ends of the signed 64-bit range.
+- The streaming JSON writer escapes the full UTF-16 range in ASCII-only mode.
+  Bounded string splitting keeps empty fields inside the input.
+- The two-argument SQL text rewriter can replace named placeholders without
+  pre-creating parameters. Database driver overloads keep their binding maps.
+
+Install the complete SDK and rebuild the application and its units. MoonORMot
+17 or newer is required.
+
+---
+
 # MoonCompiler 2.6.2
 
 - Component streaming resolves typed interface properties locally and across
@@ -22,6 +41,8 @@
 
 Install the complete SDK and rebuild the application and its units to pick up
 the RTL repairs. The runtime requires MoonORMot 17 or newer.
+
+---
 
 # MoonCompiler 2.6.1
 
