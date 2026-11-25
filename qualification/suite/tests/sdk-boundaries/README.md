@@ -15,6 +15,13 @@ The release archive gate includes these same consumers. It compiles against the
 installed units without source overlays. Linux needs a C compiler for the foreign
 stack frame and the system `libsqlite3.so.0`; Windows uses `winsqlite3.dll`.
 
+The Linux `native_blob` release job writes and reads BLOBs with embedded
+Firebird 3 and a private MySQL 8 server on a Unix socket. Run it as an ordinary
+user with `bash qualification/suite/tests/sdk-boundaries/run_native_blob.sh TOOLCHAIN_FPC`.
+On Ubuntu 24.04 it uses `firebird3.0-server-core`, `firebird3.0-utils`,
+`mysql-server-core-8.0`, `mysql-client-core-8.0` and `libmysqlclient21`.
+Both databases and the server data directory are temporary.
+
 Run the source-controlled CPU/connect fixtures and real loopback network tests:
 
 ```text

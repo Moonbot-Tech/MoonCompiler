@@ -3382,6 +3382,18 @@
       "expected": "RTL_BOUNDARIES_ARCHIVE_PASS"
     },
     {
+      "id": "native_blob",
+      "mode": "medium",
+      "platforms": ["linux"],
+      "commands": {
+        "linux": ["bash", "{root}/qualification/suite/tests/sdk-boundaries/run_native_blob.sh", "{fpc}"]
+      },
+      "needs": ["build"],
+      "resource": "native_blob",
+      "timeout": 180,
+      "expected": "NATIVE_BLOB_BIND_PASS TMySQL80Connection"
+    },
+    {
       "id": "sdk_network",
       "mode": "medium",
       "platforms": ["win64", "linux"],

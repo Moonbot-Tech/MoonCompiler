@@ -14,12 +14,13 @@ var
   Tx: TSQLTransaction;
   Q: TSQLQuery;
   Stream: TBytesStream;
-  Bytes, Actual: TBytes;
+  Bytes, Actual, ExpectedText: TBytes;
   N, I, Mode: Integer;
 begin
   Tx := TSQLTransaction.Create(nil);
   Q := TSQLQuery.Create(nil);
   try
+    ExpectedText := BytesOf(RawByteString(UTF8Encode(TextValue)));
     Tx.Database := Conn;
     Q.Database := Conn;
     Q.Transaction := Tx;
@@ -61,10 +62,12 @@ begin
         Q.ParamByName('t').AsMemo := TextValue;
         Q.ExecSQL;
         Tx.Commit;
-        Q.SQL.Text := 'select b, octet_length(b), octet_length(t) from blob_probe';
+        Q.SQL.Text := 'select b, octet_length(b), t from blob_probe';
         Q.Open;
         Check(not Q.EOF, 'missing row');
-        Check(Q.Fields[2].AsInteger = Length(UTF8Encode(TextValue)), 'text length');
+        Actual := Q.Fields[2].AsBytes;
+        Check((Length(Actual) = Length(ExpectedText)) and
+              CompareMem(Pointer(Actual), Pointer(ExpectedText), Length(ExpectedText)), 'stored text bytes');
         Check(Q.Fields[0].IsNull = (N < 0), 'NULL vs empty');
         if N >= 0 then
           begin
