@@ -252,6 +252,50 @@ end;
 
 { TUnresolvedReference }
 
+{ A component may expose several different interface pointers. Resolve the
+  view declared by the property before passing it to the RTTI setter. }
+procedure SetTypedComponentReference(var Instance: TPersistent; var PropInfo: PPropInfo; C: TComponent);
+var
+  Value: IInterface;
+  Data: PTypeData;
+begin
+  if C <> nil then
+    begin
+      Data := GetTypeData(PropInfo^.PropType);
+      if ifHasGuid in Data^.IntfFlags then Supports(C, Data^.Guid, Value);
+    end;
+  { QueryInterface may reenter the global resolver and release the receiver. }
+  if (Instance <> nil) and (PropInfo <> nil) then
+    SetInterfaceProp(Instance, PropInfo, Value);
+end;
+
+procedure SetComponentReference(var Instance: TPersistent; var PropInfo: PPropInfo; C: TComponent);
+var
+  Raw: Pointer;
+  IID: ShortString;
+begin
+  case PropInfo^.PropType^.Kind of
+    tkInterface:
+      SetTypedComponentReference(Instance, PropInfo, C);
+    tkInterfaceRaw:
+      begin
+        Raw := nil;
+        if C <> nil then
+          begin
+            IID := GetTypeData(PropInfo^.PropType)^.IIDStr;
+            if IID = '' then
+              raise EReadError.CreateFmt(SInterfaceNoIIDStr, [PropInfo^.PropType^.Name]);
+            if not C.GetInterface(IID, Raw) then
+              raise EReadError.CreateFmt(SComponentDoesntImplement, [C.ClassName, IID]);
+          end;
+        if (Instance <> nil) and (PropInfo <> nil) then
+          SetRawInterfaceProp(Instance, PropInfo, Raw);
+      end;
+    else
+      SetObjectProp(Instance, PropInfo, C);
+  end;
+end;
+
 Function TUnresolvedReference.Resolve(var Instance : TPersistent) : Boolean;
 
 Var
@@ -265,7 +309,7 @@ begin
     C:=FindNestedComponent(C,FRelative);
     Result:=C<>Nil;
     If Result then
-      SetObjectProp(Instance, FPropInfo,C);
+      SetComponentReference(Instance, FPropInfo,C);
     end;
 end;
 
