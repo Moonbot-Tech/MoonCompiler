@@ -29,5 +29,10 @@ begin
   if TTimeSpan.TryParse('10675199.02:48:05.4775808', Span) or
      TTimeSpan.TryParse('-10675199.02:48:05.4775809', Span) or
      TTimeSpan.TryParse('00:00:01.12345678', Span) then Halt(3);
+  if not TTimeSpan.TryParse('-2', Span) or (Span.Ticks <> -1728000000000) then Halt(4);
+  if not TTimeSpan.TryParse('1.02:03', Span) or (Span.Ticks <> 937800000000) then Halt(5);
+  if not TTimeSpan.TryParse('00:00:.05', Span) or (Span.Ticks <> 500000) then Halt(6);
+  if TTimeSpan.TryParse('99:99', Span) or TTimeSpan.TryParse('+2', Span) or
+     TTimeSpan.TryParse('2.', Span) or TTimeSpan.TryParse('+01:30', Span) then Halt(7);
   WriteLn('TIMESPAN_TEXT_PASS');
 end.

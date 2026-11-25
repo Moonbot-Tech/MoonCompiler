@@ -302,90 +302,99 @@ end;
 
 class function TTimeSpan.TryParse(const S: string; out Value: TTimeSpan
   ): Boolean;
-var i,len,k,v2 : integer;
-    v : longint;
-    sgn : boolean;
-    seconds, fraction, ticks: Int64;
+var
+  I, Last, FirstColon, NextColon, Dot, Start, NumberStart: SizeInt;
+  Part, Scale: Integer;
+  Seconds, Fraction, Ticks: Int64;
+  Negative: Boolean;
+
+  function ReadPart(After: SizeInt; out Number: Integer): Boolean;
+  begin
+    Result := TryStrToInt(Copy(S, I, After - I), Number);
+    I := After + 1;
+  end;
+
 begin
-  value.fticks:=0;
-  seconds:=0;
-  fraction:=0;
-  i:=1; len:=length(s);
-  while (i<=len) and (s[i]=' ') do // skip spaces.
-   inc(i);
-  sgn:=(i<=len) and (s[i]='-');
-  if sgn then
-    inc(i);
-  k:=pos('.',s,i);
-  v:=pos(':',s,i);
-  if k>v then        // difference dot for days[.]hrs vs dot for sec[.]millisecs
-                     // If : is earlier, there is no days dot.
-    k:=0;
-  if k<>0 then
-    begin
-      if not trystrtoint(copy (s,i,k-i),v) then
-        exit(false);
-       seconds:=Int64(v)*86400;
-       i:=k+1;
-    end;
-  k:=pos(':',s,i);
-  if k=0 then     // hr part mandatory.
-    exit(false);
-  if not trystrtoint(copy (s,i,k-i),v) then
-    exit(false);
-  seconds:=seconds+Int64(v)*3600;
-  i:=k+1;
-  k:=pos(':',s,i);
-  if k=0 then     // min part mandatory.
-    exit(false);
-  if not trystrtoint(copy (s,i,k-i),v) then
-    exit(false);
-   seconds:=seconds+Int64(v)*60;
-  i:=k+1;
-  k:=pos('.',s,i);
-  if k=0 then     // sec part mandatory, but the dot at the end not.
-    begin
-      k:=pos(' ',s,i); // there could be trailing whitespace.
-      if k=0 then
-        k:=len+1;     // simulate hypothetical point after end of string
-    end;
-  if not trystrtoint(copy (s,i,k-i),v) then
-    exit(false);
-  Inc(seconds,v);
-  if (k<=len) and (s[k]='.') then
+  Value.FTicks := 0;
+  I := 1;
+  Last := Length(S);
+  while (I <= Last) and (S[I] in [' ', #9]) do Inc(I);
+  while (Last >= I) and (S[Last] in [' ', #9]) do Dec(Last);
+  Negative := (I <= Last) and (S[I] = '-');
+  if Negative then Inc(I);
+  NumberStart := I;
+  Seconds := 0;
+  Fraction := 0;
+  FirstColon := Pos(':', S, I);
+  if FirstColon = 0 then
   begin
-    i:=k+1;
-    k:=i;
-    while (k<=len) and (s[k]>='0') and (s[k]<='9') do
-      Inc(k);
-    if k-i>7 then
-      Exit(False);
-    if k>i then
+    { A lone decimal integer denotes days. }
+    for Start := I to Last do
+      if not (S[Start] in ['0'..'9']) then Exit(False);
+    if not ReadPart(Last + 1, Part) then Exit(False);
+    Seconds := Int64(Part) * 86400;
+  end
+  else
+  begin
+    Dot := Pos('.', S, I);
+    if (Dot <> 0) and (Dot < FirstColon) then
     begin
-      if not TryStrToInt(Copy(s,i,k-i),v) then
-        Exit(False);
-      fraction:=v;
-      for v2:=k-i to 6 do
-        fraction:=fraction*10;
+      if not ReadPart(Dot, Part) then Exit(False);
+      Seconds := Int64(Part) * 86400;
+    end;
+    if not ReadPart(FirstColon, Part) then Exit(False);
+    Inc(Seconds, Int64(Part) * 3600);
+    NextColon := Pos(':', S, I);
+    if NextColon = 0 then
+    begin
+      { hh:mm is a clock interval. Keep the existing extended hour/minute
+        ranges for three-component input produced by older Moon programs. }
+      for Start := NumberStart to Last do
+        if not (S[Start] in ['0'..'9', '.', ':']) then Exit(False);
+      if (Part < 0) or (Part > 23) or not ReadPart(Last + 1, Part) or
+         (Part < 0) or (Part > 59) then Exit(False);
+      Inc(Seconds, Int64(Part) * 60);
+    end
+    else
+    begin
+      if not ReadPart(NextColon, Part) then Exit(False);
+      Inc(Seconds, Int64(Part) * 60);
+      Dot := Pos('.', S, I);
+      if Dot = 0 then Dot := Last + 1;
+      if (I = Dot) and (Dot <= Last) then
+        I := Dot + 1
+      else
+      begin
+        if not ReadPart(Dot, Part) then Exit(False);
+        Inc(Seconds, Part);
+      end;
+      if Dot <= Last then
+      begin
+        if Last - Dot > 7 then Exit(False);
+        Scale := TicksPerSecond;
+        while I <= Last do
+        begin
+          if not (S[I] in ['0'..'9']) then Exit(False);
+          Scale := Scale div 10;
+          Inc(Fraction, (Ord(S[I]) - Ord('0')) * Scale);
+          Inc(I);
+        end;
+      end;
     end;
   end;
-  while (k<=len) and (s[k]=' ') do
-    Inc(k);
-  if k<=len then
-    Exit(False);
-  if sgn then
+  if Negative then
   begin
-    seconds:=-seconds;
-    fraction:=-fraction;
+    Seconds := -Seconds;
+    Fraction := -Fraction;
   end;
-  if (seconds<Low(Int64) div TicksPerSecond) or (seconds>High(Int64) div TicksPerSecond) then
+  if (Seconds < Low(Int64) div TicksPerSecond) or (Seconds > High(Int64) div TicksPerSecond) then
     Exit(False);
-  ticks:=seconds*TicksPerSecond;
-  if ((fraction<0) and (ticks<Low(Int64)-fraction)) or
-     ((fraction>0) and (ticks>High(Int64)-fraction)) then
+  Ticks := Seconds * TicksPerSecond;
+  if ((Fraction < 0) and (Ticks < Low(Int64) - Fraction)) or
+     ((Fraction > 0) and (Ticks > High(Int64) - Fraction)) then
     Exit(False);
-  value.fticks:=ticks+fraction;
-  Result:=True;
+  Value.FTicks := Ticks + Fraction;
+  Result := True;
 end;
 
 class operator TTimeSpan.Add(const Left, Right: TTimeSpan): TTimeSpan;
