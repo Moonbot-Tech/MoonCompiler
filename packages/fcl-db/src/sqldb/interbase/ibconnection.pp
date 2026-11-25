@@ -1153,41 +1153,53 @@ var
     TransactionHandle : pointer;
     BlobId            : ISC_QUAD;
     BlobHandle        : Isc_blob_Handle;
-    BlobSize,
-    BlobBytesWritten  : longint;
+    Bytes: TBytes;
+    Data: PAnsiChar;
+    Remaining: SizeInt;
+    SegmentSize: Word;
   begin
     {$push}
     {$R-}
     with cursor as TIBCursor do
       begin
       TransactionHandle := aTransation.Handle;
+      if (VSQLVar^.sqlsubtype <> isc_blob_text) and
+         (AParam.DataType in [ftBlob, ftBytes, ftVarBytes, ftGraphic, ftParadoxOle, ftDBaseOle, ftTypedBinary, ftOraBlob]) then
+        begin
+        Bytes := AParam.AsBytes;
+        Data := PAnsiChar(Pointer(Bytes));
+        Remaining := Length(Bytes);
+        end
+      else
+        begin
+        if VSQLVar^.sqlsubtype = isc_blob_text then
+          s := GetAsString(AParam)
+        else
+          s := AParam.AsString;
+        Data := PAnsiChar(s);
+        Remaining := Length(s);
+        end;
       BlobHandle := FB_API_NULLHANDLE;
       if isc_create_blob(@FStatus[0], @FDatabaseHandle, @TransactionHandle, @BlobHandle, @BlobId) <> 0 then
        CheckError('TIBConnection.CreateBlobStream', FStatus);
 
-      if VSQLVar^.sqlsubtype = isc_blob_text then
-        s := GetAsString(AParam)
-      else
-        s := AParam.AsString; // to avoid unwanted conversions keep it synchronized with TBlobField.GetAsVariant
-                              // best would be use AsBytes, but for now let it as is
-      BlobSize := Length(s);
-
-      BlobBytesWritten := 0;
-      i := 0;
-
-      // Write in segments of MAXBLOBSEGMENTSIZE, as that is the fastest.
-      // We ignore BlobSegmentSize property.
-      while BlobBytesWritten < (BlobSize-MAXBLOBSEGMENTSIZE) do
-        begin
-        isc_put_segment(@FStatus[0], @BlobHandle, MAXBLOBSEGMENTSIZE, @s[(i*MAXBLOBSEGMENTSIZE)+1]);
-        inc(BlobBytesWritten,MAXBLOBSEGMENTSIZE);
-        inc(i);
-        end;
-      if BlobBytesWritten <> BlobSize then
-        isc_put_segment(@FStatus[0], @BlobHandle, BlobSize-BlobBytesWritten, @s[(i*MAXBLOBSEGMENTSIZE)+1]);
-
-      if isc_close_blob(@FStatus[0], @BlobHandle) <> 0 then
-        CheckError('TIBConnection.CreateBlobStream isc_close_blob', FStatus);
+      try
+        while Remaining > 0 do
+          begin
+          if Remaining > MAXBLOBSEGMENTSIZE then SegmentSize := MAXBLOBSEGMENTSIZE
+          else SegmentSize := Remaining;
+          if isc_put_segment(@FStatus[0], @BlobHandle, SegmentSize, Data) <> 0 then
+            CheckError('TIBConnection.SetBlobParam isc_put_segment', FStatus);
+          Inc(Data, SegmentSize);
+          Dec(Remaining, SegmentSize);
+          end;
+        if isc_close_blob(@FStatus[0], @BlobHandle) <> 0 then
+          CheckError('TIBConnection.SetBlobParam isc_close_blob', FStatus);
+      except
+        if BlobHandle <> FB_API_NULLHANDLE then
+          isc_cancel_blob(@FStatus[0], @BlobHandle);
+        raise;
+      end;
 
       Move(BlobId, VSQLVar^.SQLData^, VSQLVar^.SQLLen);
       end;

@@ -20,7 +20,7 @@ CASES = (
     "reader_value_transfer", "reader_fixup_lifetime", "reader_fixup_registration",
     "reader_typed_component_reference", "stream_adapter_copy", "variant_array_coordinates", "rtti_indexed_setter", "component_class_alias",
     "thread_destruction", "database_decimal_parameter", "json_public_members", "guid_byte_arguments", "regex_split_boundary",
-    "component_transfer", "currency_property_exact", "json_writer_escape",
+    "component_transfer", "currency_property_exact", "json_writer_escape", "database_blob_stream",
     "params_sql_rewrite", "string_split_count", "timespan_text", "ioutils_api", "uri_query_edits",
 )
 

@@ -591,8 +591,42 @@ begin
     Result:=FValue;
 end;
 
-Function TParam.GetAsBytes: TBytes;
+const
+  BinaryBlobTypes = [ftBlob, ftGraphic, ftParadoxOle, ftDBaseOle, ftTypedBinary, ftOraBlob];
+
+{ A one-dimensional byte array may have a nonzero lower bound. }
+function ParamByteCount(const V: Variant): SizeInt; inline;
 begin
+  if (VarType(V) = (varArray or varByte)) and (VarArrayDimCount(V) = 1) then
+    Result := SizeInt(VarArrayHighBound(V, 1)) - VarArrayLowBound(V, 1) + 1
+  else
+    Result := -1;
+end;
+
+procedure CopyParamBytes(const V: Variant; Dest: Pointer; Count: SizeInt);
+var
+  Source: Pointer;
+begin
+  if Count = 0 then Exit;
+  Source := VarArrayLock(V);
+  try
+    Move(Source^, Dest^, Count);
+  finally
+    VarArrayUnlock(V);
+  end;
+end;
+
+Function TParam.GetAsBytes: TBytes;
+var
+  Count: SizeInt;
+begin
+  Count := ParamByteCount(FValue);
+  if Count >= 0 then
+    begin
+    SetLength(Result, Count);
+    CopyParamBytes(FValue, Pointer(Result), Count);
+    Exit;
+    end;
   if IsNull then
     Result:=nil
   else if VarIsArray(FValue) then
@@ -669,19 +703,17 @@ begin
 end;
 
 Function TParam.GetAsString: string;
-var P: Pointer;
+var
+  Count: SizeInt;
 begin
   If IsNull then
     Result:=''
-  else if (FDataType in [ftBytes, ftVarBytes, ftBlob]) and VarIsArray(FValue) then
+  else if (FDataType in BinaryBlobTypes + [ftBytes, ftVarBytes]) and VarIsArray(FValue) then
   begin
-    SetLength(Result, (VarArrayHighBound(FValue, 1) + 1) div SizeOf(Char));
-    P := VarArrayLock(FValue);
-    try
-      Move(P^, Result[1], Length(Result) * SizeOf(Char));
-    finally
-      VarArrayUnlock(FValue);
-    end;
+    Count := ParamByteCount(FValue);
+    if Count < 0 then Count := VarArrayHighBound(FValue, 1) + 1;
+    SetLength(Result, Count div SizeOf(Char));
+    CopyParamBytes(FValue, Pointer(Result), Length(Result) * SizeOf(Char));
   end
   else
     Result:=FValue;
@@ -1136,6 +1168,15 @@ Var
   ws : WideString;
   l  : Integer;
 begin
+  if FDataType in BinaryBlobTypes + [ftBytes, ftVarBytes] then
+    begin
+    l := ParamByteCount(FValue);
+    if l >= 0 then
+      begin
+      CopyParamBytes(FValue, Buffer, l);
+      Exit;
+      end;
+    end;
   case FDataType of
     ftUnknown  : DatabaseErrorFmt(SUnknownParamFieldType,[Name],DataSet);
     ftSmallint : PSmallint(Buffer)^:=AsSmallInt;
@@ -1199,6 +1240,11 @@ end;
 
 Function TParam.GetDataSize: Integer;
 begin
+  if DataType in BinaryBlobTypes + [ftBytes, ftVarBytes] then
+    begin
+    Result := ParamByteCount(FValue);
+    if Result >= 0 then Exit;
+    end;
   Result:=0;
   case DataType of
     ftUnknown  : DatabaseErrorFmt(SUnknownParamFieldType,[Name],DataSet);
@@ -1255,12 +1301,68 @@ begin
   end;
 end;
 
+procedure ReadParamBlob(Stream: TStream; var Value: Variant);
+var
+  Small: array[0..63] of Byte;
+  Count: Int64;
+  NewValue: Variant;
+  OldValue: TVarData;
+  Dest: Pointer;
+begin
+  Count := Stream.Size;
+  if (Count < 0) or (Count > High(Integer)) then
+    raise EStreamError.Create('BLOB size exceeds the parameter size range');
+  if Count <= SizeOf(Small) then
+    begin
+    { Read before modifying Value. A stream can fail or re-enter this parameter. }
+    if Count > 0 then Stream.ReadBuffer(Small, Count);
+    if (ParamByteCount(Value) = Count) and (VarArrayLowBound(Value, 1) = 0) then
+      begin
+      if Count > 0 then
+        begin
+        Dest := VarArrayLock(Value);
+        try
+          Move(Small, Dest^, Count);
+        finally
+          VarArrayUnlock(Value);
+        end;
+        end;
+      Exit;
+      end;
+    end;
+  NewValue := VarArrayCreate([0, Count - 1], varByte);
+  if Count > 0 then
+    begin
+    Dest := VarArrayLock(NewValue);
+    try
+      if Count <= SizeOf(Small) then
+        Move(Small, Dest^, Count)
+      else
+        Stream.ReadBuffer(Dest^, Count);
+    finally
+      VarArrayUnlock(NewValue);
+    end;
+    end;
+  { Transfer the completed array without a deep copy. The local releases the old value. }
+  OldValue := TVarData(Value);
+  TVarData(Value) := TVarData(NewValue);
+  TVarData(NewValue) := OldValue;
+end;
+
 Procedure TParam.LoadFromStream(Stream: TStream; BlobType: TBlobType);
 
 Var
   Temp : String;
 
 begin
+  if BlobType in BinaryBlobTypes then
+    begin
+    Stream.Position := 0;
+    ReadParamBlob(Stream, FValue);
+    FDataType := BlobType;
+    FBound := True;
+    Exit;
+    end;
   FDataType:=BlobType;
   With Stream do
     begin

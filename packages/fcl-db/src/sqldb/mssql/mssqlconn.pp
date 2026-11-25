@@ -374,17 +374,8 @@ begin
 end;
 
 function TMSSQLConnection.GetAsSQLText(Param: TParam): string;
-  function IsBinary(const s: string): boolean;
-  var i: integer;
-  begin
-    for i:=1 to length(s) do if s[i] < #9 then Exit(true);
-    Exit(false);
-  end;
-  function StrToHex(const s: string): string;
-  begin
-    setlength(Result, 2*length(s));
-    BinToHex(PAnsiChar(s), PAnsiChar(Result), length(s));
-  end;
+var
+  Bytes: TBytes;
 begin
   if not Param.IsNull then
     case Param.DataType of
@@ -394,15 +385,20 @@ begin
         else
           Result:='0';
       ftString, ftFixedChar, ftMemo:
-        //if IsBinary(Param.AsString) then
-        //  Result := '0x' + StrToHex(Param.AsString)
-        //else
         Result := 'N' + inherited GetAsSQLText(Param);
       ftDateTime:
         // ISO 8601 format is unambiguous; is not affected by the SET DATEFORMAT or SET LANGUAGE setting.
         Result := '''' + FormatDateTime('yyyy-mm-dd"T"hh:nn:ss.zzz', Param.AsDateTime, FSQLFormatSettings) + '''';
       ftBlob, ftBytes, ftVarBytes:
-        Result := '0x' + StrToHex(Param.AsString);
+        begin
+        Bytes := Param.AsBytes;
+        Result := '0x';
+        if Length(Bytes) > 0 then
+          begin
+          SetLength(Result, 2 + 2 * Length(Bytes));
+          BinToHex(Pointer(Bytes), PChar(@Result[3]), Length(Bytes));
+          end;
+        end;
       else
         Result := inherited GetAsSQLText(Param);
     end

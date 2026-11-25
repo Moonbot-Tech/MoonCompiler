@@ -559,6 +559,32 @@ begin
       end;
 end;
 
+function BinarySQLLiteral(const Bytes: TBytes): string;
+var
+  I: SizeInt;
+begin
+  { Printable ASCII can pass through the connection encoding verbatim.
+    Avoid quotes and backslashes so the literal works in both SQL escape modes. }
+  if Length(Bytes) > 6 then
+    begin
+    I := 0;
+    while (I < Length(Bytes)) and (Bytes[I] in [32..38, 40..91, 93..126]) do Inc(I);
+    if I = Length(Bytes) then
+      begin
+      Result := '_binary''';
+      SetLength(Result, Length(Bytes) + 9);
+      for I := 0 to High(Bytes) do Result[9 + I] := Char(Bytes[I]);
+      Result[Length(Result)] := '''';
+      Exit;
+      end;
+    end;
+  SetLength(Result, 3 + 2 * Length(Bytes));
+  Result[1] := 'X';
+  Result[2] := '''';
+  if Length(Bytes) > 0 then BinToHex(Pointer(Bytes), PChar(@Result[3]), Length(Bytes));
+  Result[Length(Result)] := '''';
+end;
+
 function TConnectionName.GetAsSQLText(Param: TParam) : string;
 
 begin
@@ -567,7 +593,7 @@ begin
   else if Param.DataType in [ftString,ftFixedChar,ftMemo] then
     Result := '''' + EscapeString(GetAsString(Param)) + ''''
   else if Param.DataType in [ftBlob,ftBytes,ftVarBytes] then
-    Result := '''' + EscapeString(Param.AsString) + ''''
+    Result := BinarySQLLiteral(Param.AsBytes)
   else
     Result := inherited GetAsSQLText(Param);
 end;
