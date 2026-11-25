@@ -132,10 +132,46 @@ that reads raw `VType` can observe the carrier. The exact oracle is
   [`inline_const_var_parameter_rejected.pas`](../qualification/suite/tests/smoke/inline_const_var_parameter_rejected.pas).
 - Repeated managed interface function results can be released at a different
   intermediate point. All objects are released by scope exit; product code
-  must not depend on the temporary refcount between statements.
+  must not depend on the temporary refcount between statements. This also
+  applies when an automatically inlined helper calls a record constructor
+  that raises after acquiring an interface. At O3 the temporary can keep
+  its owner alive until the outer routine exits. Use explicit cleanup in
+  the constructor's exception handler when the resource must close at the
+  point of failure.
+- Direct RTTI method calls on Linux x86-64 require an invocation backend.
+  Add `ffi.manager` to the application's `uses` when it calls
+  `TRttiMethod.Invoke` directly. `System.JSON.Serializers` already includes
+  the manager. Field access via `TRttiField.GetValue` and `SetValue` works
+  independently of that backend.
 - `TRttiContext.GetTypes` is qualified for statically linked executables.
   Registration, interposition, and removal of RTTI from dynamically loaded or
   unloaded packages are not implemented.
+
+### Changing component ownership from a resource callback
+
+Keep the root and recipients of local property references alive until
+`ReadComponent` returns. During interface lookup or a property setter,
+destroying a recipient that the same reader still has to populate can leave
+a pending local reference to it. Schedule that ownership change after the
+load. References waiting in the global resolver have separate lifetime
+tracking.
+
+### Fractional seconds before the Unix epoch
+
+`DateTimeToUnix` in SDK 2.6.1 rounds a fractional timestamp before
+1970 down to the previous second. Delphi 12.2 Win64 truncates it toward
+zero. For example, 1969-12-31 23:59:59.875 UTC gives −1 in Moon and 0
+in Delphi. Whole seconds agree. Choose an explicit rounding rule when
+deriving second-based keys for historical data.
+[Pre-epoch conversion probe](../qualification/suite/tests/known/datetime_to_unix_pre_epoch_fraction.pas).
+
+### Aborting a queued callback
+
+If a callback posted with `TThread.ForceQueue` raises `EAbort`,
+`CheckSynchronize` propagates it and leaves later callbacks for the next
+call. Delphi 12.2 Win64 continues draining the queue. Handle an expected
+cancellation inside the callback when subsequent updates must run in the
+same call to `CheckSynchronize`.
 
 ### Linux `Extended`
 
