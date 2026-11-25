@@ -1,7 +1,8 @@
 # MoonCompiler 2.6.2
 
 - Component streaming resolves typed interface properties locally and across
-  forms. Indexed property assignment through RTTI delivers the actual indices
+  forms. A form loaded through a class alias can be saved and reopened under
+  the canonical class name. Indexed property assignment through RTTI delivers the actual indices
   and value to the correct setter, including overridden setters.
 - Multidimensional Variant arrays retain the correct coordinates during a
   resize. Linux also respects locks and keeps the original array usable after

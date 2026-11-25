@@ -53,6 +53,12 @@ and writer also have separate dispatch metadata. Each now selects its
 own accessor, including overrides on the actual object.
 [Indexed property test](../RTL-test/semantic/rtti_indexed_setter_semantic.dpr)
 
+## Reloading a component saved under its new name
+
+`RegisterClassAlias` now registers the canonical class name as well. A form
+can be loaded using the old component name, saved, and reopened using the
+current name in the same process. [Round-trip test](../RTL-test/semantic/component_class_alias_semantic.dpr)
+
 ## Component references stored in forms and resources
 
 When a resource names a component for an interface property, the reader now

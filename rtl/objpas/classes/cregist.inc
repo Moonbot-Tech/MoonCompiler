@@ -45,6 +45,7 @@ procedure RegisterClassAlias(AClass: TPersistentClass; const Alias: string);
     I:=-1;
     ClassList.LockList;
     try
+      RegisterClass(AClass);
       if ClassAliasList=nil then
         ClassAliasList := TStringList.Create
       else
