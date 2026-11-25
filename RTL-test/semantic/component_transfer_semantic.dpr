@@ -46,6 +46,20 @@ begin
     end;
     B.Reject:=False;
     Check((Item.Owner=A) and (A.Route=Item) and (A.Removes=0),'rejected transfer changed ownership');
+    A.Reject:=True;
+    try
+      try
+        if ExplicitDetach then A.RemoveComponent(Item) else B.InsertComponent(Item);
+        raise Exception.Create('old owner accepted rejected removal');
+      except
+        on EComponentError do ;
+      end;
+    finally
+      A.Reject:=False;
+    end;
+    Check((Item.Owner=A) and (A.ComponentCount=1) and (A.Components[0]=Item) and (A.Route=Item) and
+      (A.Removes=0),'old owner changed on rejected removal');
+    Check((B.ComponentCount=0) and (B.Route=nil) and (B.Inserts=0),'new owner changed on rejected removal');
     if ExplicitDetach then A.RemoveComponent(Item);
     B.InsertComponent(Item);
     Check((A.Route=nil) and (A.ComponentCount=0) and (A.Removes=1),'old owner');

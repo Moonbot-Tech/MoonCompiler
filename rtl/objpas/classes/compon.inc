@@ -661,11 +661,11 @@ end;
 Procedure TComponent.RemoveComponent(AComponent: TComponent);
 
 begin
+  ValidateRename(AComponent,AComponent.FName,'');
   Notification(AComponent,opRemove);
   AComponent.SetReference(False);
   Remove(AComponent);
   Acomponent.Setdesigning(False);
-  ValidateRename(AComponent,AComponent.FName,'');
 end;
 
 
