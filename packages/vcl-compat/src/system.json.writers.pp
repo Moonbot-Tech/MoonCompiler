@@ -1544,7 +1544,7 @@ begin
         #9: sb.Append('\t');     // Tab
         #0..#7, #11, #14..#31:   // Other control characters
           sb.AppendFormat('\u%0.4x', [Ord(Ch)]);
-        #127..#255:              // Extended ASCII
+        #127..High(Char):
           begin
             if FStringEscapeHandling = TJsonStringEscapeHandling.EscapeNonAscii then
               sb.AppendFormat('\u%0.4x', [Ord(Ch)])
