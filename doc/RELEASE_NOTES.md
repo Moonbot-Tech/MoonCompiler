@@ -11,6 +11,8 @@
   Bounded string splitting keeps empty fields inside the input.
 - The two-argument SQL text rewriter can replace named placeholders without
   pre-creating parameters. Database driver overloads keep their binding maps.
+- File copies preserve modification times. Linux file and directory time
+  accessors keep milliseconds, including during the autumn clock change.
 
 Install the complete SDK and rebuild the application and its units. MoonORMot
 17 or newer is required.

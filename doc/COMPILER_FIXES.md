@@ -13,6 +13,18 @@ compiler semantics.
 AUTOINLINE remains enabled in Release; the related defects were repaired at
 their specific producer, optimizer, and lifetime sites.
 
+## SDK 2.6.3 application contracts
+
+| Operation | What the repair preserves | Regression test |
+|---|---|---|
+| Move a component between owners | Ownership, the old and new published fields, and the removal notification agree. A rejected transfer keeps the old owner. | [Component transfer](../RTL-test/semantic/component_transfer_semantic.dpr) |
+| Read or write a Currency property through RTTI | The field or accessor receives the full signed, scaled 64-bit value. Conversion from another numeric type still uses the existing conversion path. | [Exact Currency](../RTL-test/semantic/currency_property_exact_semantic.dpr) |
+| Format and read a time interval | Whole seconds, fractions, signs and the extreme tick values round-trip. | [TimeSpan text](../RTL-test/semantic/timespan_text_semantic.dpr) |
+| Export JSON with EscapeNonAscii | Characters above U+00FF are escaped in names and values. A supplementary character is represented by two escaped UTF-16 units. | [JSON writer](../RTL-test/semantic/json_writer_escape_semantic.dpr) |
+| Split a delimited row with a count | The last empty field is excluded only at the end of the input. An empty column inside a bounded result keeps its position. | [Bounded splitting](../RTL-test/semantic/string_split_count_semantic.dpr) |
+| Rewrite SQL without binding | The two-argument `ParseSQL(SQL, False)` rewrites placeholders independently of the parameter collection. Overloads that return a binding map keep the original validation. | [SQL rewrite](../RTL-test/semantic/params_sql_rewrite_semantic.dpr) |
+| Copy or inspect a modification time | A copy preserves the filesystem timestamp. On Linux the local getters retain milliseconds, and the UTC getter distinguishes both instances of a repeated local hour. | [File timestamps](../RTL-test/semantic/ioutils_api_semantic.dpr) |
+
 ## Delimited text split at the requested starting position
 
 `TRegEx.Split` now consumes a nonempty delimiter beginning exactly at
