@@ -42,13 +42,8 @@ type
   TNetHeader = TNameValuePair;
   TNetHeaders = array of TNetHeader;
 
-  { A header collection over a TNetHeaders array, kept in insertion order.
-    Value[] reads the first header of that name (the case of the name does
-    not matter), '' when absent; writing it replaces the first one or appends.
-    Add always appends (a second Set-Cookie is legitimate); Delete(name)
-    removes every header of the name; the mutators answer the collection
-    itself, so calls chain.  Iterable with for-in.  Names[]/Values[] by
-    index raise EListError outside 0..Count-1. }
+  { Iterable in insertion order. Add, Append, Clear and Delete return Self.
+    Names[] and Values[] raise EListError outside 0..Count-1. }
   TURLHeaders = class(TPersistent)
   public type
     TEnumerator = record
@@ -70,12 +65,16 @@ type
     procedure Guard(AIndex: Integer);
   public
     function FindItem(const AName: string): Integer;
+    { Both Add overloads append in Moon. Delphi replaces an existing name.
+      Use Value[AName] for portable updates and Append for repeated fields. }
     function Add(const AHeader: TNetHeader): TURLHeaders; overload;
     function Add(const AName, AValue: string): TURLHeaders; overload;
+    { Both Append overloads keep every entry in the supplied order. }
     function Append(const AHeaders: TNetHeaders): TURLHeaders; overload;
     function Append(const AHeaders: TURLHeaders): TURLHeaders; overload;
     function Clear: TURLHeaders;
     function Delete(AIndex: Integer): TURLHeaders; overload;
+    { Removes all occurrences, ignoring case. }
     function Delete(const AName: string): TURLHeaders; overload;
     procedure Assign(ASource: TPersistent); overload; override;
     procedure Assign(const AHeaders: TNetHeaders); reintroduce; overload;
@@ -85,6 +84,8 @@ type
     property Headers: TNetHeaders read FHeaders;
     property Names[AIndex: Integer]: string read GetNames;
     property Values[AIndex: Integer]: string read GetValues;
+    { Reads or updates the first match, ignoring case. A missing name reads as ''
+      and is appended on assignment. }
     property Value[const AName: string]: string read GetValue write SetValue; default;
   end;
 

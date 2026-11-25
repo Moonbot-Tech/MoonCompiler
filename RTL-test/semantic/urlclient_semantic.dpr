@@ -63,8 +63,7 @@ begin
     except
       on EConvertError do ;
     end;
-    { the Delphi surface beyond Value[]: Add appends even a repeated name,
-      Count/Names/Values by index, the enumerator, ToString, Append, Delete(index) }
+    { Moon Add preserves repeated names. Portable callers use Append for repeats. }
     H2.Add('Set-Cookie', 'a=1').Add(TNetHeader.Create('Set-Cookie', 'b=2'));
     Check((H2.Count = 2) and (H2['set-cookie'] = 'a=1') and (H2.Names[1] = 'Set-Cookie') and (H2.Values[1] = 'b=2'),
       'Add appends, Value reads the first, Names/Values by index');
@@ -93,6 +92,8 @@ begin
     Check(I = 3, 'for-in enumerates every header');
     H2.Delete('set-cookie');
     Check((H2.Count = 2) and (H2.FindItem('Set-Cookie') = -1), 'Delete(name) removes all of them');
+    H2.Clear.Append(TNetHeaders.Create(TNetHeader.Create('Set-Cookie', 'a=1'), TNetHeader.Create('set-cookie', 'b=2')));
+    Check((H2.Count = 2) and (H2.Value['SET-COOKIE'] = 'a=1') and (H2.Values[1] = 'b=2'), 'Append preserves both cookies');
     L := TStringList.Create;
     try
       L.Add('Accept=text/*');

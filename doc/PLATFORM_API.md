@@ -198,6 +198,23 @@ groups, lookaround, replacements, collection lifetimes and allocation balance.
 The source archive, native build recipe, binary manifests and notices are in
 [`packages/libpcre/native`](../packages/libpcre/native). See [Licensing](LICENSING.md).
 
+## HTTP header collections
+
+In `System.Net.URLClient.TURLHeaders`, use assignment to set a single-valued
+field. Use `Append` to retain repeated fields such as `Set-Cookie`.
+
+```pascal
+Headers.Value['Content-Type'] := 'application/json';
+Headers.Append(TNetHeaders.Create(TNetHeader.Create('Set-Cookie', 'a=1'),
+                                  TNetHeader.Create('Set-Cookie', 'b=2')));
+```
+
+Both overloads of `Add` append in Moon. Delphi's `Add` replaces an existing
+field of the same name. Reading or assigning `Value[Name]` uses the first
+match, ignoring case. If a Moon collection already contains duplicates and
+must contain exactly one, call `Delete(Name)` before assigning the value.
+To read every occurrence, iterate over the collection in insertion order.
+
 ## HTTP transport diagnostics
 
 The existing `ENetException` descendants expose Moon-specific `Reason`, `Outcome`
