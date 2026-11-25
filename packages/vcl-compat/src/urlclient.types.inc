@@ -7,6 +7,7 @@
     FScheme, FUsername, FPassword, FHost, FPath, FQuery, FFragment: string;
     FPort: Integer;
     FParams: TURIParameters;
+    function EditedQuery(Index: Integer; const Param: TURIParameter; Remove: Boolean): string;
     procedure SetQuery(const Value: string);
     procedure SetParams(const Value: TURIParameters);
     function GetParameter(I: Integer): TURIParameter;

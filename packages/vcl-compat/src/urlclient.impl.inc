@@ -136,28 +136,96 @@ begin
   Result := TURLEncoding.URIDecode(Value, PlusAsSpaces);
 end;
 
+function DecodeQueryText(const Query: string; First, Count: Integer): string;
+var
+  C: Char;
+begin
+  Result := Copy(Query, First, Count);
+  for C in Result do
+    if (Ord(C) > 127) or (C = '%') or (C = '+') then
+      Exit(TURI.URLDecode(Result, True));
+end;
+
+function DecodeQueryField(const Query: string; First, After: Integer; out Sep: Integer): TURIParameter;
+begin
+  Sep := First;
+  while (Sep < After) and (Query[Sep] <> '=') do Inc(Sep);
+  Result.Name := DecodeQueryText(Query, First, Sep - First);
+  if Sep < After then
+    Result.Value := DecodeQueryText(Query, Sep + 1, After - Sep - 1)
+  else
+    Result.Value := '';
+end;
+
+function EndOfQueryField(const Query: string; First: Integer): Integer;
+begin
+  Result := Pos('&', Query, First);
+  If Result = 0 then Result := Length(Query) + 1;
+end;
+
+function EncodeQueryField(const Param: TURIParameter): string;
+begin
+  Result := TURI.URLEncode(Param.Name) + '=' + TURI.URLEncode(Param.Value);
+end;
+
 procedure TURI.SetQuery(const Value: string);
 var
-  Start, Stop, Sep, N: Integer;
-  Item: string;
+  First, After, N, Sep: Integer;
 begin
   FQuery := Value;
   FParams := nil;
-  Start := 1;
-  while Start <= Length(Value) do begin
-    Stop := Start;
-    while (Stop <= Length(Value)) and (Value[Stop] <> '&') do
-      Inc(Stop);
-    Item := Copy(Value, Start, Stop - Start);
-    Sep := Pos('=', Item);
+  First := 1;
+  while First <= Length(Value) do begin
+    After := EndOfQueryField(Value, First);
     N := Length(FParams);
     SetLength(FParams, N + 1);
-    If Sep = 0 then
-      FParams[N] := TURIParameter.Create(URLDecode(Item, True), '')
-    else
-      FParams[N] := TURIParameter.Create(URLDecode(Copy(Item, 1, Sep - 1), True),
-        URLDecode(Copy(Item, Sep + 1, MaxInt), True));
-    Start := Stop + 1;
+    FParams[N] := DecodeQueryField(Value, First, After, Sep);
+    First := After + 1;
+  end;
+end;
+
+{ Params exposes a writable array. Reconcile its edits and the requested
+  change against the original query, copying intervening wire text verbatim. }
+function TURI.EditedQuery(Index: Integer; const Param: TURIParameter; Remove: Boolean): string;
+var
+  I, First, After, Sep, Keep, ReplaceFrom, ReplaceTo: Integer;
+  Old: TURIParameter;
+  Current: ^TURIParameter;
+  Replacement: string;
+begin
+  Result := '';
+  After := 0;
+  Keep := 1;
+  for I := 0 to High(FParams) do begin
+    First := After + 1;
+    After := EndOfQueryField(FQuery, First);
+    ReplaceFrom := First;
+    ReplaceTo := After;
+    if (I = Index) and Remove then begin
+      Replacement := '';
+      if After <= Length(FQuery) then Inc(ReplaceTo)
+      else if (First > 2) and (FQuery[First - 2] <> '&') then Dec(ReplaceFrom);
+    end else begin
+      if I = Index then Current := @Param else Current := @FParams[I];
+      Old := DecodeQueryField(FQuery, First, After, Sep);
+      if Old.Name = Current^.Name then begin
+        if Old.Value = Current^.Value then Continue;
+        ReplaceFrom := Sep;
+        Replacement := '=' + URLEncode(Current^.Value);
+      end else if Old.Value = Current^.Value then begin
+        ReplaceTo := Sep;
+        Replacement := URLEncode(Current^.Name);
+        if (Replacement = '') and (Sep = After) then Replacement := '=';
+      end else
+        Replacement := EncodeQueryField(Current^);
+    end;
+    Result := Result + Copy(FQuery, Keep, ReplaceFrom - Keep) + Replacement;
+    Keep := ReplaceTo;
+  end;
+  Result := Result + Copy(FQuery, Keep, MaxInt);
+  if Index = Length(FParams) then begin
+    if (Result <> '') and (Result[Length(Result)] <> '&') then Result := Result + '&';
+    Result := Result + EncodeQueryField(Param);
   end;
 end;
 
@@ -170,7 +238,7 @@ begin
   for Param in FParams do begin
     If FQuery <> '' then
       FQuery := FQuery + '&';
-    FQuery := FQuery + URLEncode(Param.Name) + '=' + URLEncode(Param.Value);
+    FQuery := FQuery + EncodeQueryField(Param);
   end;
 end;
 
@@ -182,10 +250,14 @@ begin
 end;
 
 procedure TURI.SetParameter(I: Integer; const Value: TURIParameter);
+var
+  Updated: string;
 begin
   GetParameter(I);
+  Updated := EditedQuery(I, Value, False);
+  if DynArrayRefCount(Pointer(FParams)) <> 1 then FParams := Copy(FParams);
   FParams[I] := Value;
-  SetParams(FParams);
+  FQuery := Updated;
 end;
 
 function TURI.GetParameterByName(const Name: string): string;
@@ -216,21 +288,22 @@ begin
 end;
 
 procedure TURI.AddParameter(const AParameter: TURIParameter);
+var
+  Updated: string;
 begin
-  SetLength(FParams, Length(FParams) + 1);
-  FParams[High(FParams)] := AParameter;
-  SetParams(FParams);
+  Updated := EditedQuery(Length(FParams), AParameter, False);
+  Insert(AParameter, FParams, Length(FParams));
+  FQuery := Updated;
 end;
 
 procedure TURI.DeleteParameter(AIndex: Integer);
 var
-  I: Integer;
+  Updated: string;
 begin
   GetParameter(AIndex);
-  for I := AIndex to High(FParams) - 1 do
-    FParams[I] := FParams[I + 1];
-  SetLength(FParams, Length(FParams) - 1);
-  SetParams(FParams);
+  Updated := EditedQuery(AIndex, FParams[AIndex], True);
+  System.Delete(FParams, AIndex, 1);
+  FQuery := Updated;
 end;
 
 procedure TURI.DeleteParameter(const AName: string);
