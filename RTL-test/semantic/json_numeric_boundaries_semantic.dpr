@@ -96,6 +96,18 @@ begin
   finally Node.Free; end;
 end;
 
+procedure CheckInt64Node(const Source: string; Expected: Int64; Reject: Boolean = False);
+var Node: TJSONNumber; N: Int64; Rejected: Boolean;
+begin
+  Node:=TJSONObject.ParseJSONValue(Source) as TJSONNumber;
+  try
+    Rejected:=False;
+    try N:=Node.AsInt64 except on E: EConvertError do Rejected:=True end;
+    Check(Rejected=Reject,'AsInt64 conversion of '+Source);
+    if not Reject then Check(N=Expected,'AsInt64 value of '+Source);
+  finally Node.Free end;
+end;
+
 procedure CheckSerializer;
 var
   S: TJsonSerializer;
@@ -145,6 +157,13 @@ begin
   Check((V.AsExtended=-42) and (V.AsDouble=-42) and (V.AsSingle=-42),'signed RTTI control');
   CheckDOM('9223372036854775808');
   CheckDOM('18446744073709551615');
+  CheckInt64Node('2147483648',2147483648);
+  CheckInt64Node('9007199254740993',9007199254740993);
+  CheckInt64Node('-9007199254740989',-9007199254740989);
+  CheckInt64Node('-9223372036854775808',Low(Int64));
+  CheckInt64Node('9223372036854775807',High(Int64));
+  CheckInt64Node('9223372036854775808',0,True);
+  CheckInt64Node('1.25',0,True);
   CheckDOM('1e0');
   CheckDOM('18446744073709551616');
   for ObjectReader:=False to True do begin

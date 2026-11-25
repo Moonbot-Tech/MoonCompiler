@@ -1710,10 +1710,10 @@ end;
 
 function TJSONNumber.GetAsInt64: Int64;
 begin
-  {$IFDEF SIZEOF(Char)=2}
+  {$IF SIZEOF(Char)=2}
   Result:=StrToInt64(Value);
   {$ELSE}
-  Result:=StrToInt(UTF8Encode(Value));
+  Result:=StrToInt64(UTF8Encode(Value));
   {$ENDIF}
 end;
 
