@@ -1493,7 +1493,7 @@ Var
 {$ENDIF}
 
 begin
-  if System.Length(Self)=0 then
+  if (ACount<=0) or (System.Length(Self)=0) then
     exit(nil);
 {$IFNDEF IS_SHORTSTRINGHELPER}
   { Unquoted splitting: one pass over the text, the next separator found
@@ -1504,7 +1504,6 @@ begin
     scanned character and regrows in small steps. }
   if AQuoteStart=#0 then
     begin
-      if ACount<0 then exit(nil);
       SrcLen:=System.Length(Self);
       PS:=PTStringChar(Pointer(Self));
       PE:=PS+SrcLen;
@@ -1550,7 +1549,7 @@ begin
           Inc(Len);
           end;
         LastSep:=Sep+1;
-        if ((ACount>0) and (Len>=ACount)) or (LastSep>SrcLen) then Break;
+        if (Len>=ACount) or (LastSep>SrcLen) then Break;
         if High(Separators)=0 then
           begin
           Sep:=IndexChar((PS+LastSep)^,SrcLen-LastSep,Separators[0]);
@@ -1581,7 +1580,7 @@ begin
             end;
           end;
       until False;
-      If (TStringSplitOptions.ExcludeLastEmpty=Options) then
+      If (LastSep>SrcLen) and (TStringSplitOptions.ExcludeLastEmpty=Options) then
         if (Len > 0) and (Result[Len-1] = '') then
           dec(Len);
       SetLength(Result,Len);
@@ -1591,7 +1590,7 @@ begin
   Result:=nil;
   Len:=0;
   LastSep:=0;
-  While ((ACount=0) or (Len<ACount)) and (LastSep<=System.Length(Self)) do
+  While (Len<ACount) and (LastSep<=System.Length(Self)) do
     begin
     Sep:=NextSep(LastSep);
     if Sep<0 then
@@ -1606,7 +1605,7 @@ begin
     LastSep:=Sep+1;
     end;
 
-  if (TStringSplitOptions.ExcludeLastEmpty=Options) then
+  if (LastSep>System.Length(Self)) and (TStringSplitOptions.ExcludeLastEmpty=Options) then
     if (Len > 0) and (Result[Len-1] = '') then
       dec(Len);
 
@@ -1654,7 +1653,6 @@ Const
       Result:=Self.IndexOfAnyUnQuoted(Separators,AQuoteStart,AQuoteEnd,StartIndex,Match)
     else
       Result:=Self.IndexOfAny(Separators,StartIndex,Length,Match);
-    if Result<>-1 then
   end;
 
   Procedure MaybeGrow(Curlen : SizeInt);
@@ -1669,13 +1667,13 @@ Var
   T : TStringType;
 
 begin
-  if System.Length(Self)=0 then
+  if (ACount<=0) or (System.Length(Self)=0) then
     exit(nil);
   SetLength(Result,BlockSize);
   Len:=0;
   LastSep:=0;
   Sep:=NextSep(0,Match);
-  While (Sep<>-1) and ((ACount=0) or (Len<ACount)) do
+  While (Sep<>-1) and (Len<ACount) do
     begin
     T:=SubString(LastSep,Sep-LastSep);
     If (T<>'') or (not (TStringSplitOptions.ExcludeEmpty=Options)) then
@@ -1687,21 +1685,17 @@ begin
     LastSep:=Sep+System.Length(Separators[Match]);
     Sep:=NextSep(LastSep,Match);
     end;
-  if (LastSep<=Length) and ((ACount=0) or (Len<ACount)) then
+  if (LastSep<=Length) and (Len<ACount) then
     begin
     T:=SubString(LastSep);
 //    Writeln('Examining >',T,'< at pos,',LastSep,' till pos ',Sep);
-    If (T<>'') or (not (TStringSplitOptions.ExcludeEmpty=Options)) then
+    If (T<>'') or (TStringSplitOptions.None=Options) then
       begin
       MaybeGrow(Len);
       Result[Len]:=T;
       Inc(Len);
       end;
     end;
-
-  If (TStringSplitOptions.ExcludeLastEmpty=Options) then
-    if (Len > 0) and (Result[Len-1] = '') then
-      dec(Len);
 
   SetLength(Result,Len);
 end;
