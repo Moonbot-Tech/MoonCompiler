@@ -105,6 +105,7 @@ begin
     Conn.CharSet := 'UTF8';
     end;
   try
+    if not MySQL then TIBConnection(Conn).CreateDB;
     Exercise(Conn, MySQL);
     Writeln('NATIVE_BLOB_BIND_PASS ', Conn.ClassName);
   finally

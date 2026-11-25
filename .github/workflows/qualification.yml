@@ -26,7 +26,7 @@ jobs:
             make binutils gcc fp-compiler-3.2.2 python3 coreutils util-linux \
             libffi-dev libfreetype6-dev fonts-dejavu-core \
             libunwind8 zlib1g libssl3t64 openssl ca-certificates libsqlite3-0 iproute2
-          sudo apt-get install --no-install-recommends -y firebird3.0-server-core firebird3.0-utils \
+          sudo apt-get install --no-install-recommends -y firebird3.0-server-core \
             mysql-server-core-8.0 mysql-client-core-8.0 libmysqlclient21
           test "$(fpc -iV)" = 3.2.2
       - name: Build product toolchain

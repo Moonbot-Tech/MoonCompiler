@@ -16,7 +16,6 @@ trap cleanup EXIT
 cd "$work"
 "$compiler" -dRELEASE "-FU$work" "-FE$work" "$source_dir/native_blob_bind.dpr"
 export FIREBIRD_LOCK="$work" FIREBIRD_TMP="$work"
-printf "create database '%s' user 'SYSDBA';\n" "$work/probe.fdb" | isql-fb -q -bail
 ./native_blob_bind "$work/probe.fdb"
 
 export MYSQL_UNIX_PORT="$work/mysql.sock"
