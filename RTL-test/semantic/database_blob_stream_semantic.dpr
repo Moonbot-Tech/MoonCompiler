@@ -1,7 +1,7 @@
 program database_blob_stream_semantic;
 
 {$mode delphi}{$H+}
-uses SysUtils, Classes, Variants, DB, SQLDB, SQLite3Conn, SQLite3Dyn, MSSQLConn, MySQL80Conn;
+uses SysUtils, Classes, Variants, DB, BufDataset, SQLDB, SQLite3Conn, SQLite3Dyn, MSSQLConn, MySQL80Conn;
 
 type
   TInputStream = class(TMemoryStream)
@@ -32,8 +32,8 @@ end;
 
 procedure CheckParameter;
 var
-  Params: TParams;
-  Param, SavedParam: TParam;
+  Params, SavedParams: TParams;
+  Param: TParam;
   Stream: TInputStream;
   Bytes, Buffer: TBytes;
   Snapshot: Variant;
@@ -41,10 +41,10 @@ var
   N, I: Integer;
 begin
   Params := TParams.Create(nil);
+  SavedParams := TParams.Create(nil);
   Stream := TInputStream.Create;
   try
     Param := Params.CreateParam(ftBlob, 'blob', ptInput);
-    SavedParam := Params.CreateParam(ftBlob, 'saved', ptInput);
     for BlobType in [ftBlob, ftGraphic, ftParadoxOle, ftDBaseOle, ftTypedBinary, ftOraBlob] do
       for N in TArray<Integer>.Create(0, 1, 3, 63, 64, 65, 256, 65536) do
         begin
@@ -61,15 +61,17 @@ begin
         FillChar(Buffer[0], N + 2, $aa);
         Param.GetData(@Buffer[1]);
         Check((Buffer[0] = $aa) and (Buffer[N + 1] = $aa), 'GetData guards');
+        SavedParams.Assign(Params);
+        Check(SavedParams.IsEqual(Params), 'equal binary values');
         if N = 0 then Continue;
         Check(CompareMem(@Buffer[1], Pointer(Bytes), N), 'GetData payload');
         Snapshot := Param.Value;
-        SavedParam.Assign(Param);
         Bytes[0] := Bytes[0] xor $ff;
         Stream.Position := 0;
         Stream.WriteBuffer(Bytes[0], N);
         Param.LoadFromStream(Stream, BlobType);
-        Check((Integer(Snapshot[0]) = $41) and (SavedParam.AsBytes[0] = $41), 'previous value changed');
+        Check(not SavedParams.IsEqual(Params), 'unequal binary values');
+        Check((Integer(Snapshot[0]) = $41) and (SavedParams[0].AsBytes[0] = $41), 'previous value changed');
         Buffer := Param.AsBytes;
         Buffer[0] := 0;
         CheckBytes(Param.AsBytes, Bytes);
@@ -100,7 +102,57 @@ begin
     Check(Param.IsNull, 'NULL');
   finally
     Stream.Free;
+    SavedParams.Free;
     Params.Free;
+  end;
+end;
+
+procedure CheckFieldAndFile;
+var
+  Params: TParams;
+  Param: TParam;
+  DataSet: TBufDataset;
+  Bytes: TBytes;
+  FileName: string;
+  Stream: TFileStream;
+begin
+  FileName := GetTempFileName;
+  Params := TParams.Create(nil);
+  DataSet := TBufDataset.Create(nil);
+  try
+    Bytes := TBytes.Create($41, 0, $ff);
+    Stream := TFileStream.Create(FileName, fmCreate);
+    try
+      Stream.WriteBuffer(Bytes[0], Length(Bytes));
+    finally
+      Stream.Free;
+    end;
+    Param := Params.CreateParam(ftBlob, 'p', ptInput);
+    Param.LoadFromFile(FileName, ftBlob);
+    DataSet.FieldDefs.Add('payload', ftBlob);
+    DataSet.FieldDefs.Add('limited', ftVarBytes, 3);
+    DataSet.CreateDataset;
+    DataSet.Append;
+    Param.AssignToField(DataSet.Fields[0]);
+    CheckBytes(DataSet.Fields[0].AsBytes, Bytes);
+    Param.Assign(DataSet.Fields[0]);
+    CheckBytes(Param.AsBytes, Bytes);
+    Param.AssignFromField(DataSet.Fields[0]);
+    CheckBytes(Param.AsBytes, Bytes);
+    Param.DataType := ftBytes;
+    CheckBytes(Param.AsBytes, Bytes);
+    Param.DataType := ftVarBytes;
+    CheckBytes(Param.AsBytes, Bytes);
+    Param.AsBlob := TBytes.Create(1, 0, 2, 3, 4);
+    Param.AssignToField(DataSet.Fields[1]);
+    CheckBytes(DataSet.Fields[1].AsBytes, TBytes.Create(1, 0, 2));
+    Param.Clear;
+    Param.AssignToField(DataSet.Fields[0]);
+    Check(DataSet.Fields[0].IsNull, 'NULL field');
+  finally
+    DataSet.Free;
+    Params.Free;
+    DeleteFile(FileName);
   end;
 end;
 
@@ -164,6 +216,7 @@ end;
 
 begin
   CheckParameter;
+  CheckFieldAndFile;
   CheckDrivers;
   WriteLn('DATABASE_BLOB_STREAM_PASS');
 end.

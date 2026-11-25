@@ -591,9 +591,6 @@ begin
     Result:=FValue;
 end;
 
-const
-  BinaryBlobTypes = [ftBlob, ftGraphic, ftParadoxOle, ftDBaseOle, ftTypedBinary, ftOraBlob];
-
 { A one-dimensional byte array may have a nonzero lower bound. }
 function ParamByteCount(const V: Variant): SizeInt; inline;
 begin
@@ -708,7 +705,7 @@ var
 begin
   If IsNull then
     Result:=''
-  else if (FDataType in BinaryBlobTypes + [ftBytes, ftVarBytes]) and VarIsArray(FValue) then
+  else if (FDataType in ftBinaryBlobTypes + [ftBytes, ftVarBytes]) and VarIsArray(FValue) then
   begin
     Count := ParamByteCount(FValue);
     if Count < 0 then Count := VarArrayHighBound(FValue, 1) + 1;
@@ -778,14 +775,37 @@ begin
 end;
 
 Function TParam.IsEqual(AValue: TParam): Boolean;
+var
+  Count: SizeInt;
+  Left, Right: Pointer;
 begin
   Result:=(Name=AValue.Name)
           and (IsNull=AValue.IsNull)
           and (Bound=AValue.Bound)
           and (DataType=AValue.DataType)
           and (ParamType=AValue.ParamType)
-          and (VarType(FValue)=VarType(AValue.FValue))
-          and (FValue=AValue.FValue);
+          and (VarType(FValue)=VarType(AValue.FValue));
+  if not Result then Exit;
+  Count := ParamByteCount(FValue);
+  if Count < 0 then
+    begin
+    if VarIsArray(FValue) then Exit(VarSameValue(FValue, AValue.FValue));
+    Exit(FValue = AValue.FValue);
+    end;
+  if (Count <> ParamByteCount(AValue.FValue)) or
+     (VarArrayLowBound(FValue, 1) <> VarArrayLowBound(AValue.FValue, 1)) then Exit(False);
+  if Count = 0 then Exit(True);
+  Left := VarArrayLock(FValue);
+  try
+    Right := VarArrayLock(AValue.FValue);
+    try
+      Result := CompareMem(Left, Right, Count);
+    finally
+      VarArrayUnlock(AValue.FValue);
+    end;
+  finally
+    VarArrayUnlock(FValue);
+  end;
 end;
 
 Procedure TParam.SetAsBCD(const AValue: Currency);
@@ -976,6 +996,12 @@ Var
 
 begin
   if FDataType=AValue then Exit;
+  if (AValue in ftBinaryBlobTypes + [ftBytes, ftVarBytes]) and
+     (FDataType in ftBinaryBlobTypes + [ftBytes, ftVarBytes]) and (ParamByteCount(FValue) >= 0) then
+    begin
+    FDataType := AValue;
+    Exit;
+    end;
   FDataType:=AValue;
   VT:=FieldTypetoVariantMap[AValue];
   If (VT=varError) then
@@ -1026,8 +1052,15 @@ Procedure TParam.AssignField(Field: TField);
 begin
   if Assigned(Field) then
     begin
-    // Need TField.Value
-    AssignFieldValue(Field,Field.Value);
+    {$IF SIZEOF(Char)=2}
+    if (Field.DataType in ftBinaryBlobTypes) and (Field is TBlobField) then
+      begin
+      AssignFromField(Field);
+      Size := Field.DataSize;
+      end
+    else
+    {$ENDIF}
+      AssignFieldValue(Field,Field.Value);
     Name:=Field.FieldName;
     end
   else
@@ -1040,6 +1073,14 @@ end;
 Procedure TParam.AssignToField(Field : TField);
 
 begin
+  if Assigned(Field) and (FDataType in ftBinaryBlobTypes + [ftBytes, ftVarBytes]) and
+     (Field.DataType in ftBinaryBlobTypes + [ftBytes, ftVarBytes]) and
+     (IsNull or (ParamByteCount(FValue) >= 0)) then
+    begin
+    if IsNull then Field.Clear
+    else Field.AsBytes := AsBytes;
+    Exit;
+    end;
   if Assigned(Field) then
     case FDataType of
       ftUnknown  : DatabaseErrorFmt(SUnknownParamFieldType,[Name],DataSet);
@@ -1081,10 +1122,35 @@ begin
 end;
 
 Procedure TParam.AssignFromField(Field : TField);
-
+{$IF SIZEOF(Char)=2}
+var
+  Stream: TStream;
+{$ENDIF}
 begin
   if Assigned(Field) then
     begin
+    {$IF SIZEOF(Char)=2}
+    if (Field.DataType in ftBinaryBlobTypes) and (Field is TBlobField) then
+      begin
+      if Field.IsNull then
+        begin
+        FDataType := Field.DataType;
+        Clear;
+        FBound := True;
+        end
+      else
+        begin
+        Stream := Field.DataSet.CreateBlobStream(Field, bmRead);
+        try
+          if Stream = nil then DatabaseError('Cannot open parameter BLOB stream', DataSet);
+          LoadFromStream(Stream, Field.DataType);
+        finally
+          Stream.Free;
+        end;
+        end;
+      Exit;
+      end;
+    {$ENDIF}
     FDataType:=Field.DataType;
     case Field.DataType of
       ftUnknown  : DatabaseErrorFmt(SUnknownParamFieldType,[Name],DataSet);
@@ -1168,7 +1234,7 @@ Var
   ws : WideString;
   l  : Integer;
 begin
-  if FDataType in BinaryBlobTypes + [ftBytes, ftVarBytes] then
+  if FDataType in ftBinaryBlobTypes + [ftBytes, ftVarBytes] then
     begin
     l := ParamByteCount(FValue);
     if l >= 0 then
@@ -1240,7 +1306,7 @@ end;
 
 Function TParam.GetDataSize: Integer;
 begin
-  if DataType in BinaryBlobTypes + [ftBytes, ftVarBytes] then
+  if DataType in ftBinaryBlobTypes + [ftBytes, ftVarBytes] then
     begin
     Result := ParamByteCount(FValue);
     if Result >= 0 then Exit;
@@ -1301,6 +1367,7 @@ begin
   end;
 end;
 
+{$IF SIZEOF(Char)=2}
 procedure ReadParamBlob(Stream: TStream; var Value: Variant);
 var
   Small: array[0..63] of Byte;
@@ -1348,6 +1415,7 @@ begin
   TVarData(Value) := TVarData(NewValue);
   TVarData(NewValue) := OldValue;
 end;
+{$ENDIF}
 
 Procedure TParam.LoadFromStream(Stream: TStream; BlobType: TBlobType);
 
@@ -1355,7 +1423,8 @@ Var
   Temp : String;
 
 begin
-  if BlobType in BinaryBlobTypes then
+  {$IF SIZEOF(Char)=2}
+  if BlobType in ftBinaryBlobTypes then
     begin
     Stream.Position := 0;
     ReadParamBlob(Stream, FValue);
@@ -1363,6 +1432,7 @@ begin
     FBound := True;
     Exit;
     end;
+  {$ENDIF}
   FDataType:=BlobType;
   With Stream do
     begin

@@ -3134,12 +3134,12 @@ end;
 procedure TBinaryField.SetAsBytes(const AValue: TBytes);
 var Buf: array[0..dsMaxStringSize] of byte;
     DynBuf: TBytes;
-    Len: Word;
+    Len: SizeInt;
     P: PByte;
 begin
   Len := Length(AValue);
-  if Len >= DataSize then
-    P := @AValue[0]
+  if (DataType <> ftVarBytes) and (Len >= DataSize) then
+    P := Pointer(AValue)
   else begin
     if DataSize <= dsMaxStringSize then
       P := @Buf[0]
@@ -3148,12 +3148,14 @@ begin
       P := @DynBuf[0];
     end;
     if DataType = ftVarBytes then begin
+      if Len > Size then Len := Size;
+      if Len > High(Word) then Len := High(Word);
       PWord(P)^ := Len;
       if Len>0 then
         Move(AValue[0], P[sizeof(Word)], Len);
     end
     else begin // ftBytes
-      Move(AValue[0], P^, Len);
+      if Len > 0 then Move(AValue[0], P^, Len);
       FillChar(P[Len], DataSize-Len, 0); // right pad with #0
     end;
   end;

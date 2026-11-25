@@ -389,7 +389,7 @@ begin
       ftDateTime:
         // ISO 8601 format is unambiguous; is not affected by the SET DATEFORMAT or SET LANGUAGE setting.
         Result := '''' + FormatDateTime('yyyy-mm-dd"T"hh:nn:ss.zzz', Param.AsDateTime, FSQLFormatSettings) + '''';
-      ftBlob, ftBytes, ftVarBytes:
+      ftBlob, ftGraphic, ftParadoxOle, ftDBaseOle, ftTypedBinary, ftOraBlob, ftBytes, ftVarBytes:
         begin
         Bytes := Param.AsBytes;
         Result := '0x';

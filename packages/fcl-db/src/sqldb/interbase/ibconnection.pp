@@ -81,7 +81,7 @@ type
   TIBTrans = Class(TSQLHandle)
     protected
     TransactionHandle   : pointer;
-    TPB                 : string;                // Transaction parameter buffer
+    TPB                 : RawByteString;         // Transaction parameter buffer
     Status              : TStatusVector;
   end;
 
@@ -195,6 +195,16 @@ uses
   StrUtils, FmtBCD;
 {$ENDIF FPC_DOTTEDUNITS}
 
+
+function ConnectionBytes(const Text: string; CodePage: TSystemCodePage): RawByteString;
+begin
+  {$IF SIZEOF(Char)=2}
+  Result := UTF8Encode(Text);
+  SetCodePage(Result, CodePage, True);
+  {$ELSE}
+  Result := Text;
+  {$ENDIF}
+end;
 
 procedure TIBConnection.CheckError(const ProcName : string; Status : PISC_STATUS);
 
@@ -331,7 +341,8 @@ Var
   tpbv,version : ansichar;
   prVal :String;
   pInt :^Int32;
-  LTPB : String; // Local TPB
+  LTPB : RawByteString; // Local TPB
+  TableNameBytes: RawByteString;
   IBTrans : TIBTrans;
 
 Begin
@@ -368,7 +379,9 @@ Begin
             Begin
             If prVal='' Then
               DatabaseErrorFmt('Table name must be specified for "%s"',[S],Self);
-            LTPB:=LTPB+AnsiChar(Length(prVal))+prVal;
+            TableNameBytes := ConnectionBytes(prVal, CodePage);
+            if Length(TableNameBytes) > High(Byte) then DatabaseError('Firebird table name too long', Self);
+            LTPB := LTPB + AnsiChar(Length(TableNameBytes)) + TableNameBytes;
             End;
           isc_tpb_lock_timeout:
             Begin
@@ -440,6 +453,7 @@ procedure TIBConnection.CreateDB;
 var ASQLDatabaseHandle,
     ASQLTransactionHandle : pointer;
     CreateSQL : String;
+    StatementBytes: AnsiString;
     pagesize : String;
 begin
   CheckDisConnected;
@@ -464,7 +478,8 @@ begin
   if CharSet <> '' then
     CreateSQL := CreateSQL + ' DEFAULT CHARACTER SET ' + CharSet;
 
-  if isc_dsql_execute_immediate(@FStatus[0],@ASQLDatabaseHandle,@ASQLTransactionHandle,length(CreateSQL),@CreateSQL[1],Dialect,nil) <> 0 then
+  StatementBytes := CreateSQL;
+  if isc_dsql_execute_immediate(@FStatus[0],@ASQLDatabaseHandle,@ASQLTransactionHandle,0,PAnsiChar(StatementBytes),Dialect,nil) <> 0 then
     CheckError('CreateDB', FStatus);
 
   if isc_detach_database(@FStatus[0], @ASQLDatabaseHandle) <> 0 then
@@ -673,25 +688,30 @@ const
   isc_dpb_config = 87;
   CStr_WireCompression = 'WireCompression=true';
 var
-  ADatabaseName: String;
-  DPB: string;
+  ADatabaseName: AnsiString;
+  DPB: RawByteString;
   HN : String;
 
+  procedure AddItem(Tag: Byte; const Bytes: AnsiString);
+  begin
+    if Length(Bytes) > High(Byte) then DatabaseError('Firebird connection parameter too long', Self);
+    DPB := DPB + AnsiChar(Tag) + AnsiChar(Length(Bytes)) + Bytes;
+  end;
+
 begin
-  DPB := chr(isc_dpb_version1);
+  DPB := AnsiChar(isc_dpb_version1);
   if (UserName <> '') then
   begin
-    DPB := DPB + chr(isc_dpb_user_name) + chr(Length(UserName)) + UserName;
+    AddItem(isc_dpb_user_name, UserName);
     if (Password <> '') then
-      DPB := DPB + chr(isc_dpb_password) + chr(Length(Password)) + Password;
+      AddItem(isc_dpb_password, Password);
   end;
   if (Role <> '') then
-     DPB := DPB + chr(isc_dpb_sql_role_name) + chr(Length(Role)) + Role;
+     AddItem(isc_dpb_sql_role_name, Role);
   if Length(CharSet) > 0 then
-    DPB := DPB + Chr(isc_dpb_lc_ctype) + Chr(Length(CharSet)) + CharSet;
+    AddItem(isc_dpb_lc_ctype, CharSet);
   if WireCompression or (SameText(Params.values['WireCompression'],'true')) then
-    DPB := DPB + Chr(isc_dpb_config) + Chr(Length(CStr_WireCompression)) +
-           CStr_WireCompression;
+    AddItem(isc_dpb_config, CStr_WireCompression);
 
   FDatabaseHandle := nil;
   HN:=HostName;
@@ -703,8 +723,8 @@ begin
     end
   else
     ADatabaseName := DatabaseName;
-  if isc_attach_database(@FStatus[0], Length(ADatabaseName), @ADatabaseName[1],
-    @FDatabaseHandle, Length(DPB), @DPB[1]) <> 0 then
+  if isc_attach_database(@FStatus[0], Length(ADatabaseName), PAnsiChar(ADatabaseName),
+    @FDatabaseHandle, Length(DPB), PAnsiChar(DPB)) <> 0 then
     CheckError('DoInternalConnect', FStatus);
 end;
 
@@ -844,6 +864,7 @@ end;
 procedure TIBConnection.PrepareStatement(cursor: TSQLCursor;ATransaction : TSQLTransaction;buf : string; AParams : TParams);
 
 var DatabaseHandle : pointer;
+    StatementBytes : RawByteString;
     x     : Smallint;
     info_request   : string;
     resbuf         : array[0..7] of byte;
@@ -867,7 +888,8 @@ begin
         Log(detActualSQL,Buf);
       end;
 
-    if isc_dsql_prepare(@Status[0], @TransactionHandle, @StatementHandle, 0, @Buf[1], Dialect, nil) <> 0 then
+    StatementBytes := ConnectionBytes(Buf, CodePage);
+    if isc_dsql_prepare(@Status[0], @TransactionHandle, @StatementHandle, 0, PAnsiChar(StatementBytes), Dialect, nil) <> 0 then
       CheckError('PrepareStatement', Status);
 
     if assigned(AParams) and (AParams.count > 0) then
@@ -1163,8 +1185,7 @@ var
     with cursor as TIBCursor do
       begin
       TransactionHandle := aTransation.Handle;
-      if (VSQLVar^.sqlsubtype <> isc_blob_text) and
-         (AParam.DataType in [ftBlob, ftBytes, ftVarBytes, ftGraphic, ftParadoxOle, ftDBaseOle, ftTypedBinary, ftOraBlob]) then
+      if (VSQLVar^.sqlsubtype <> isc_blob_text) and (AParam.DataType in ftBinaryBlobTypes + [ftBytes, ftVarBytes]) then
         begin
         Bytes := AParam.AsBytes;
         Data := PAnsiChar(Pointer(Bytes));

@@ -592,7 +592,7 @@ begin
     Result := 'Null'
   else if Param.DataType in [ftString,ftFixedChar,ftMemo] then
     Result := '''' + EscapeString(GetAsString(Param)) + ''''
-  else if Param.DataType in [ftBlob,ftBytes,ftVarBytes] then
+  else if Param.DataType in ftBinaryBlobTypes + [ftBytes, ftVarBytes] then
     Result := BinarySQLLiteral(Param.AsBytes)
   else
     Result := inherited GetAsSQLText(Param);
@@ -666,10 +666,16 @@ end;
 function TConnectionName.EscapeString(const Str: ansistring): ansistring;
 
 var
-  Len : integer;
+  Len: culong;
 begin
   SetLength(result,length(str)*2+1);
-  Len := mysql_real_escape_string(FMySQL,PAnsiChar(Result),PAnsiChar(Str),length(Str));
+  {$IFDEF MYSQL57_UP}
+  if Assigned(mysql_real_escape_string_quote) then
+    Len := mysql_real_escape_string_quote(FMySQL, pcchar(Result), pcchar(Str), Length(Str), Ord(''''))
+  else
+  {$ENDIF}
+    Len := mysql_real_escape_string(FMySQL,PAnsiChar(Result),PAnsiChar(Str),length(Str));
+  if Len = High(culong) then MySQLError(FMySQL, SErrExecuting, Self);
   SetLength(result,Len);
 end;
 

@@ -2500,6 +2500,7 @@ const
   // incorrect results
   ftBlobTypes = [ftBlob, ftMemo, ftGraphic, ftFmtMemo, ftParadoxOle,
     ftDBaseOle, ftTypedBinary, ftOraBlob, ftOraClob, ftWideMemo];
+  ftBinaryBlobTypes = ftBlobTypes - [ftMemo, ftFmtMemo, ftOraClob, ftWideMemo];
 
   ObjectFieldTypes = [ftADT, ftArray, ftReference, ftDataSet];
 
