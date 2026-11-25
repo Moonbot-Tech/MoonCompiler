@@ -58,7 +58,7 @@ end;
 function VariantClear(var Varg: TVarData): HRESULT;stdcall;
 begin
   With Varg do
-    if (VType and varArray)=varArray then
+    if (VType and (varArray or varByRef))=varArray then
       begin
         Result:=SafeArrayDestroy(VArray);
         if Result<>VAR_OK then
@@ -99,7 +99,7 @@ begin
     exit;
   With VargSrc do
     begin
-    if (VType and varArray) <> 0 then
+    if (VType and (varArray or varByRef)) = varArray then
       Result:=SafeArrayCopy(VArray,VargDest.VArray)
     else
       begin
@@ -127,7 +127,7 @@ begin
             Exit(VAR_BADVARTYPE);
           end;
         end;
-        VargDest.VType:=VType;
+    if Result=VAR_OK then VargDest.VType:=VType;
     end;
 end;
 
@@ -254,42 +254,46 @@ end;
 Function CheckVarArrayAndCalculateAddress(psa: PVarArray;
   Indices: PVarArrayCoorArray; var Address: Pointer; Lockit: Boolean): HRESULT;
 var
-  I,D,Count,Idx : LongInt;
-
+  I: Integer;
+  Idx: Int64;
+  Count: SizeInt;
 begin
   Result:=CheckVarArray(psa);
   Address:=nil;
-  Count:=0;
   If Result<>VAR_OK then
     exit;
-  D:=0;
+  Count:=0;
+  { Bounds[0] is the rightmost dimension. The leftmost subscript varies fastest. }
   for I:=0 to psa^.DimCount-1 do
     begin
-      Idx:=Indices^[psa^.DimCount-I-1] - psa^.Bounds[I].LowBound;
-      if (Idx<0) or (Idx>=psa^.Bounds[I].ElementCount) then
+      Idx:=Int64(Indices^[psa^.DimCount-1-I])-psa^.Bounds[I].LowBound;
+      if QWord(Idx)>=LongWord(psa^.Bounds[I].ElementCount) then
         Exit(VAR_BADINDEX);
-      if I=0 then
-        Count:=Idx
-      else
-        Inc(Count,Idx*D);
-      Inc(D,psa^.Bounds[I].ElementCount);
+      Count:=Count*psa^.Bounds[I].ElementCount+SizeInt(Idx);
     end;
   Address:=SafeArrayCalculateElementAddress(psa, Count);
   if LockIt then
     Result:=SafeArrayLock(psa);
 end;
 
-Function SafeArrayElementTotal(psa: PVarArray): Integer;
-
+{$push}{$Q+}
+Function SafeArrayElementTotal(psa: PVarArray; FirstCount: Longint): SizeInt;
 var
   I: Integer;
-
 begin
-  Result:=1;
-  With psa^ do
-   for I:=0 to DimCount - 1 do
-     Result:=Result*Bounds[I].ElementCount;
+  if FirstCount=0 then Exit(0);
+  for I:=1 to psa^.DimCount-1 do
+    if psa^.Bounds[I].ElementCount=0 then Exit(0);
+  Result:=FirstCount;
+  for I:=1 to psa^.DimCount-1 do
+    Result:=Result*psa^.Bounds[I].ElementCount;
 end;
+
+Function SafeArrayByteSize(psa: PVarArray; Count: SizeInt): SizeInt;
+begin
+  Result:=Count*psa^.ElementSize;
+end;
+{$pop}
 
 type
   TVariantArrayType = (vatNormal, vatInterface, vatWideString, vatVariant);
@@ -313,10 +317,10 @@ Function SafeArrayClearDataSpace(psa: PVarArray; WipeBytes: Boolean {= True}): H
 var
   vat: TVariantArrayType;
   P : Pointer;
-  J,Count : Integer;
+  J,Count : SizeInt;
 begin
   try
-    count:=SafeArrayElementTotal(psa);
+    count:=SafeArrayElementTotal(psa,psa^.Bounds[0].ElementCount);
     vat:=VariantArrayType(psa);
     case vat of
       vatNormal : FillChar(psa^.Data^,Count*psa^.ElementSize,0);
@@ -336,7 +340,7 @@ begin
          for j := 0 to Count - 1 do
            begin
            P := SafeArrayCalculateElementAddress(psa,j);
-           VariantClear(PVarData(P)^);
+           VarClear(PVariant(P)^);
            end;
     end;
     Result:=VAR_OK;
@@ -350,10 +354,10 @@ Function SafeArrayCopyDataSpace(psa, psaOut: PVarArray): HRESULT;
 var
   vat: TVariantArrayType;
   P1,P2 : Pointer;
-  J,Count : Integer;
+  J,Count : SizeInt;
 begin
   try
-    Count:=SafeArrayElementTotal(psa);
+    Count:=SafeArrayElementTotal(psa,psa^.Bounds[0].ElementCount);
     vat:=VariantArrayType(psa);
     case vat of
       vatNormal: Move(psa^.Data^,psaOut^.Data^,Count*psa^.ElementSize);
@@ -376,7 +380,7 @@ begin
            begin
            P1 := SafeArrayCalculateElementAddress(psa,j);
            P2 := SafeArrayCalculateElementAddress(psaOut,j);
-           VariantCopy(PVarData(P2)^,PVarData(P2)^);
+           PVariant(P2)^:=PVariant(P1)^;
            end;
     end;
     Result:=VAR_OK;
@@ -426,8 +430,10 @@ Function SafeArrayCreate(VarType, Dim: DWord; const Bounds: TVarArrayBoundArray)
     I   : DWord;
   begin
     Result:=nil;
-    if Not (VarType in Supportedpsas) Then
+    if (Dim=0) or (Dim>High(Word)) or not (VarType in Supportedpsas) then
       exit;
+    for i:=0 to Dim-1 do
+      if Bounds[i].ElementCount<0 then exit;
     Res:=SafeArrayAllocDescriptor(Dim, Result);
     if Res<>VAR_OK then
       exit;
@@ -453,7 +459,9 @@ Function SafeArrayAllocDescriptor(DimCount: Dword; var psa: PVarArray): HRESULT;
 begin
   try
     { one bound item is included in TVarArray }
+    if (DimCount=0) or (DimCount>High(Word)) then Exit(VAR_INVALIDARG);
     psa:=GetMem(SizeOf(TVarArray) + SizeOf(TVarArrayBound)*(DimCount-1));
+    if psa=nil then Exit(VAR_OUTOFMEMORY);
     Result:=VAR_OK;
   except
     On E : Exception do
@@ -462,17 +470,17 @@ begin
 end;
 
 Function SafeArrayAllocData(psa: PVarArray): HRESULT;stdcall;
+var
+  Bytes: SizeInt;
 begin
   try
-    With psa^ do
-      begin
-        Data:=GetMem(SafeArrayElementTotal(psa)*ElementSize);
-        fillchar(Data^,SafeArrayElementTotal(psa)*ElementSize,0);
-      end;
+    Bytes:=SafeArrayByteSize(psa,SafeArrayElementTotal(psa,psa^.Bounds[0].ElementCount));
+    psa^.Data:=AllocMem(Bytes);
+    if (Bytes<>0) and (psa^.Data=nil) then Exit(VAR_OUTOFMEMORY);
     Result:=VAR_OK;
   except
-    On E : Exception do
-      Result:=ExceptionToVariantError(E);
+    On E: EIntOverflow do Result:=VAR_OUTOFMEMORY;
+    On E: Exception do Result:=ExceptionToVariantError(E);
   end;
 end;
 
@@ -527,33 +535,51 @@ begin
   end;
 end;
 
+{ Some memory managers return nil on allocation failure. Publish the new
+  buffer only after success; a failed physical shrink can keep its capacity. }
+Function ResizeArrayStorage(psa: PVarArray; Bytes: SizeInt): Boolean;
+var
+  Storage: Pointer;
+begin
+  Storage:=psa^.Data;
+  try
+    Result:=(ReAllocMem(Storage,Bytes)<>nil) or (Bytes=0);
+  except
+    on EOutOfMemory do Result:=False;
+  end;
+  if Result then psa^.Data:=Storage;
+end;
+
 Function SafeArrayRedim(psa: PVarArray; const NewBound: TVarArrayBound): HRESULT;stdcall;
 
 var
   vat: TVariantArrayType;
-  i, D,j,count : Integer;
+  OldCount, NewCount, NewBytes, J: SizeInt;
   P : Pointer;
 
 begin
   Result:=CheckVarArray(psa);
   if Result <> VAR_OK then
     exit;
-  if (psa^.Flags and ARR_FIXEDSIZE) <> 0 then
+  if ((psa^.Flags and ARR_FIXEDSIZE) <> 0) or (NewBound.ElementCount<0) then
     Exit(VAR_INVALIDARG);
+  Result:=CheckArrayUnlocked(psa);
+  if Result<>VAR_OK then
+    exit;
   Result:=SafeArrayLock(psa);
   if Result<>VAR_OK then
     exit;
   try
-    D:=NewBound.ElementCount - psa^.Bounds[0].ElementCount;
-    for i:=1 to psa^.DimCount - 1 do
-      D:=D*psa^.Bounds[i].ElementCount;
-    if D<>0 then
+    OldCount:=SafeArrayElementTotal(psa,psa^.Bounds[0].ElementCount);
+    NewCount:=SafeArrayElementTotal(psa,NewBound.ElementCount);
+    if OldCount<>NewCount then
       begin
-      Count:=SafeArrayElementTotal(psa);
-      if D<0 then
+      NewBytes:=SafeArrayByteSize(psa,NewCount);
+      if NewCount<OldCount then
         begin
         vat:=VariantArrayType(psa);
-        for j:=Count-1 downto Count+D do
+        if vat<>vatNormal then
+          for j:=OldCount-1 downto NewCount do
           begin
           P:=SafeArrayCalculateElementAddress(psa,j);
           if vat = vatInterface then
@@ -561,16 +587,21 @@ begin
           else if vat=vatWideString then
             WideString(PPointer(P)^):=''
           else if vat=vatVariant then
-            VariantClear(PVarData(P)^);
+            VarClear(PVariant(P)^);
           end;
         end;
-      ReAllocMem(psa^.Data,(Count+D)*psa^.ElementSize);
-      if D>0 then
-        fillchar((PAnsiChar(psa^.Data)+Count*psa^.ElementSize)^,D*psa^.ElementSize,0);
+      if ResizeArrayStorage(psa,NewBytes) then
+        begin
+        if NewCount>OldCount then
+          FillChar(SafeArrayCalculateElementAddress(psa,OldCount)^,(NewCount-OldCount)*psa^.ElementSize,0);
+        end
+      else if NewCount>OldCount then
+        Result:=VAR_OUTOFMEMORY;
       end;
-    psa^.Bounds[0].ElementCount:=NewBound.ElementCount;
-    psa^.Bounds[0].LowBound:=NewBound.LowBound;
+    if Result=VAR_OK then
+      psa^.Bounds[0]:=NewBound;
   except
+    On E: EIntOverflow do Result:=VAR_OUTOFMEMORY;
     On E : Exception do
       Result:=ExceptionToVariantError(E);
   end;
@@ -583,45 +614,39 @@ var
   i : Integer;
 
 begin
-  Result:=CheckVarArray(psa);
-  if Result<>VAR_OK then
-    exit;
+  psaOut:=nil;
   Result:=SafeArrayLock(psa);
-  if Result<>VAR_OK then
-    exit;
+  if Result<>VAR_OK then exit;
   try
     Result:=SafeArrayAllocDescriptor(psa^.DimCount,psaOut);
-    if Result<>VAR_OK then
-      Exit;
-    try
-      With psaOut^ do
-        begin
+    if Result<>VAR_OK then exit;
+    with psaOut^ do
+      begin
         Flags:=psa^.Flags;
         ElementSize:=psa^.ElementSize;
-        LockCount := 0;
+        LockCount:=0;
         DimCount:=psa^.DimCount;
         for i:=0 to DimCount-1 do
+          Bounds[i]:=psa^.Bounds[i];
+      end;
+    Result:=SafeArrayAllocData(psaOut);
+    if Result=VAR_OK then
+      begin
+        Result:=SafeArrayCopyDataSpace(psa,psaOut);
+        if Result<>VAR_OK then
           begin
-          Bounds[i].ElementCount:=psa^.Bounds[i].ElementCount;
-          Bounds[i].LowBound:=psa^.Bounds[i].LowBound;
+            SafeArrayClearDataSpace(psaOut,False);
+            FreeMem(psaOut^.Data);
           end;
-        end;
-      Result:=SafeArrayAllocData(psaOut);
-      if Result<>VAR_OK then
-        exit;
-      Result:=SafeArrayCopyDataSpace(psa, psaOut);
-    finally
-      if Result<>VAR_OK then
-        begin
+      end;
+    if Result<>VAR_OK then
+      begin
         SafeArrayDestroyDescriptor(psaOut);
         psaOut:=nil;
-        end;
-    end;
-  except
-    On E : Exception do
-      Result:=ExceptionToVariantError(E)
+      end;
+  finally
+    SetUnlockResult(psa,Result);
   end;
-  SetUnlockResult(psa,Result);
 end;
 
 Function SafeArrayCopyData(psa, psaOut: PVarArray): HRESULT;stdcall;
@@ -676,16 +701,17 @@ begin
     Result:=VAR_BADINDEX;
 end;
 
-Function SafeArrayGetUBound(psa: PVarArray; Dim : DWord; var UBound: LongInt): HRESULT;stdcall;
+Function SafeArrayGetUBound(psa: PVarArray; Dim: DWord; var UBound: LongInt): HRESULT;stdcall;
+var
+  Last: Int64;
 begin
   Result:=CheckVarArray(psa);
-  if Result<>VAR_OK then
-    exit;
-  if (Dim>0) and (Dim<=psa^.DimCount) then
-    UBound:=psa^.Bounds[psa^.dimcount-Dim].LowBound +
-            psa^.Bounds[psa^.dimcount-Dim].ElementCount-1
-  else
-    Result:=VAR_BADINDEX
+  if Result<>VAR_OK then exit;
+  if (Dim=0) or (Dim>psa^.DimCount) then Exit(VAR_BADINDEX);
+  with psa^.Bounds[psa^.DimCount-Dim] do
+    Last:=Int64(LowBound)+ElementCount-1;
+  if (Last<Low(LongInt)) or (Last>High(LongInt)) then Exit(VAR_OVERFLOW);
+  UBound:=Last;
 end;
 
 Function SafeArrayGetDim(psa: PVarArray): HRESULT;stdcall;

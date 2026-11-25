@@ -481,7 +481,7 @@ begin
   Dims := aDims;
   Bounds := aBounds;
 
-  GetMem(Coords, SizeOf(SizeInt) * Dims);
+  GetMem(Coords, SizeOf(LongInt) * Dims);
   { initialize coordinate counter }
   for i:= 0 to Pred(Dims) do
     Coords^[i] := Bounds^[i].LowBound;
@@ -490,43 +490,27 @@ end;
 
 function TVariantArrayIterator.Next: Boolean;
 var
-  Finished : Boolean;
-
-  procedure IncDim(Dim : SizeInt);
-  begin
-    if Finished then
-      Exit;
-
-    Inc(Coords^[Dim]);
-    if Coords^[Dim] >= Bounds^[Dim].LowBound + Bounds^[Dim].ElementCount then begin
-      Coords^[Dim]:=Bounds^[Dim].LowBound;
-      if Dim > 0 then
-        IncDim(Pred(Dim))
-      else
-        Finished := True;
-    end;
-  end;
-
-
+  Dim: SizeInt;
 begin
-  Finished := False;
-  IncDim(Pred(Dims));
-  Result := not Finished;
+  for Dim:=Dims-1 downto 0 do
+    with Bounds^[Dim] do
+      if Int64(Coords^[Dim])-LowBound < ElementCount-1 then
+        begin
+          Inc(Coords^[Dim]);
+          Exit(True);
+        end
+      else
+        Coords^[Dim]:=LowBound;
+  Result:=False;
 end;
-
 
 function TVariantArrayIterator.AtEnd: Boolean;
 var
-  i,l : sizeint;
+  I: SizeInt;
 begin
-  result:=false;
-  l:=Pred(dims);
-  I:=0;
-  While (not Result) and (I<=L) do
-    begin
-    Result:=Coords^[i] >= (Bounds^[i].LowBound + Bounds^[i].ElementCount);
-    inc(i);
-    end;
+  for I:=0 to Dims-1 do
+    if Bounds^[I].ElementCount=0 then Exit(True);
+  Result:=False;
 end;
 
 {$pop}// {$r-} for TVariantArrayIterator
@@ -2513,14 +2497,11 @@ end;
 procedure DoVarClearArray(var VArray: TVarData);
 var
   arr: pvararray;
-  i, cnt: cardinal;
+  i, cnt: SizeUInt;
   data: pvardata;
 begin
-  if VArray.vtype and varTypeMask = varVariant then begin
-    if WordBool(VArray.vType and varByRef) then
-      arr:=PVarArray(VArray.vPointer^)
-    else
-      arr:=VArray.vArray;
+  if VArray.vtype and (varTypeMask or varByRef) = varVariant then begin
+    arr:=VArray.vArray;
     VarResultCheck(SafeArrayAccessData(arr, data));
     try
       { Calculation total number of elements in the array }
@@ -2579,6 +2560,18 @@ type
 
 procedure DoVarCopyNoInd(var Dest: TVarData; const Source: TVarData); forward;
 
+type
+  TLocalArrayBounds = array[0..63] of TVarArrayBound;
+  TExtraArrayBounds = array of TVarArrayBound;
+
+function ArrayBoundsStorage(Dims: Integer; var Local: TLocalArrayBounds;
+  var Extra: TExtraArrayBounds): PVarArrayBoundArray; inline;
+begin
+  if Dims<=Length(Local) then Exit(@Local);
+  SetLength(Extra,Dims);
+  Result:=@Extra[0];
+end;
+
 procedure DoVarCopyArray(var aDest: TVarData; const aSource: TVarData; aCallback: TVarArrayCopyCallback);
 var
   SourceArray : PVarArray;
@@ -2586,7 +2579,9 @@ var
   DestArray   : PVarArray;
   DestPtr     : Pointer;
 
-  Bounds      : array[0..63] of TVarArrayBound;
+  LocalBounds : TLocalArrayBounds;
+  ExtraBounds : TExtraArrayBounds;
+  Bounds      : PVarArrayBoundArray;
   Iterator    : TVariantArrayIterator;
 
   Dims        : Integer;
@@ -2598,21 +2593,21 @@ begin
       VarResultCheck(VAR_INVALIDARG);
 
     if (vType and varTypeMask) = varVariant then begin
-
       if (vType and varByRef) <> 0 then
         SourceArray := PVarArray(vPointer^)
       else
         SourceArray := vArray;
 
       Dims := SourceArray^.DimCount;
+      Bounds:=ArrayBoundsStorage(Dims,LocalBounds,ExtraBounds);
       for i := 0 to Pred(Dims) do
-        with Bounds[i] do begin
+        with Bounds^[i] do begin
           VarResultCheck(SafeArrayGetLBound(SourceArray, Succ(i), LowBound));
           VarResultCheck(SafeArrayGetUBound(SourceArray, Succ(i), HighBound));
           ElementCount := HighBound - LowBound + 1;
         end;
 
-      DestArray := SafeArrayCreate(varVariant, Dims, PVarArrayBoundArray(@Bounds)^);
+      DestArray := SafeArrayCreate(varVariant, Dims, Bounds^);
       if not Assigned(DestArray) then
         VarArrayCreateError;
 
@@ -2622,7 +2617,7 @@ begin
         vArray := DestArray;
       end;
 
-      Iterator.Init(Dims, @Bounds);
+      Iterator.Init(Dims, Bounds);
       try
         if not(Iterator.AtEnd) then
           repeat
@@ -3092,14 +3087,11 @@ begin
       else
         p:=src.vArray;
 
-{$push}
-{$r-}
-      if highbound<p^.Bounds[p^.dimcount-1].LowBound-1 then
+      newbounds.LowBound:=p^.Bounds[0].LowBound;
+      if (highbound < Low(LongInt)) or (highbound < Int64(newbounds.LowBound)-1) or (highbound > High(LongInt)) or
+         (highbound >= Int64(newbounds.LowBound)+High(LongInt)) then
         VarInvalidArgError;
-
-      newbounds.LowBound:=p^.Bounds[p^.dimcount-1].LowBound;
-{$pop}
-      newbounds.ElementCount:=highbound-newbounds.LowBound+1;
+      newbounds.ElementCount:=Int64(highbound)-newbounds.LowBound+1;
 
       VarResultCheck(SafeArrayRedim(p,newbounds));
     end
@@ -3597,19 +3589,22 @@ function DoVarArraySameValue(const A, B: Variant): Boolean;
   var
     i: Integer;
     Dims: Integer;
-    Bounds: array[0..63] of TVarArrayBound;
+    LocalBounds: TLocalArrayBounds;
+    ExtraBounds: TExtraArrayBounds;
+    Bounds: PVarArrayBoundArray;
     Iterator: TVariantArrayIterator;
     vA, vB: Variant;
   begin
     if (VarArrayDimCount(A) <> VarArrayDimCount(B)) then Exit(false);
     Dims := VarArrayDimCount(A);
+    Bounds:=ArrayBoundsStorage(Dims,LocalBounds,ExtraBounds);
     for i := 1 to Dims do begin
       if (VarArrayLowBound(A, i) <> VarArrayLowBound(B, i)) then Exit(false);
       if (VarArrayHighBound(A, i) <> VarArrayHighBound(B, i)) then Exit(false);
-      Bounds[Pred(i)].lowbound := VarArrayLowBound(A, i);
-      Bounds[Pred(i)].elementcount := VarArrayHighBound(A, i) - VarArrayLowBound(A, i) + 1;
+      Bounds^[Pred(i)].lowbound := VarArrayLowBound(A, i);
+      Bounds^[Pred(i)].elementcount := VarArrayHighBound(A, i) - VarArrayLowBound(A, i) + 1;
     end;
-    Iterator.Init(Dims, @Bounds);
+    Iterator.Init(Dims, Bounds);
     try
       if not(Iterator.AtEnd) then
         repeat
@@ -3747,17 +3742,25 @@ function VarArrayCreate(const Bounds: array of SizeInt; aVarType: TVarType): Var
   var
     hp : PVarArrayBoundArray;
     p : pvararray;
-    i,lengthb : SizeInt;
+    i,lengthb,Lo,Hi : SizeInt;
   begin
     if not(VarTypeIsValidArrayType(aVarType)) or odd(length(Bounds)) then
       VarArrayCreateError;
     lengthb:=length(Bounds) div 2;
+    if (lengthb=0) or (lengthb>High(Word)) then VarArrayCreateError;
+    hp:=nil;
     try
       GetMem(hp,lengthb*SizeOf(TVarArrayBound));
+      if hp=nil then VarArrayCreateError;
       for i:=0 to lengthb-1 do
         begin
-          hp^[i].LowBound:=Bounds[i*2];
-          hp^[i].ElementCount:=Bounds[i*2+1]-Bounds[i*2]+1;
+          Lo:=Bounds[i*2];
+          Hi:=Bounds[i*2+1];
+          if (Lo<Low(LongInt)) or (Lo>High(LongInt)) or (Hi<Low(LongInt)) or (Hi>High(LongInt)) or
+             (Hi<Int64(Lo)-1) or (Hi>=Int64(Lo)+High(LongInt)) then
+            VarArrayCreateError;
+          hp^[i].LowBound:=Lo;
+          hp^[i].ElementCount:=Int64(Hi)-Lo+1;
         end;
       SysVarClear(Result);
 
@@ -3778,9 +3781,14 @@ function VarArrayCreate(const Bounds: array of SizeInt; aVarType: TVarType): Var
 function VarArrayCreate(const Bounds: PVarArrayBoundArray; Dims : SizeInt; aVarType: TVarType): Variant;
   var
     p : pvararray;
+    I: SizeInt;
   begin
-    if not(VarTypeIsValidArrayType(aVarType)) then
+    if (Bounds=nil) or (Dims<=0) or (Dims>High(Word)) or not VarTypeIsValidArrayType(aVarType) then
       VarArrayCreateError;
+    for I:=0 to Dims-1 do
+      with Bounds^[I] do
+        if (ElementCount<0) or (Int64(LowBound)+ElementCount-1>High(LongInt)) or
+           ((ElementCount=0) and (LowBound=Low(LongInt))) then VarArrayCreateError;
     SysVarClear(Result);
 
     p:=SafeArrayCreate(aVarType,Dims,Bounds^);
@@ -3832,10 +3840,11 @@ function VarArrayDimCount(const A: Variant) : LongInt;
     while hv.vType=varByRef or varVariant do
       hv:=TVarData(hv.vPointer^);
 
-    if (hv.vType and varArray)<>0 then
-      Result:=hv.vArray^.DimCount
+    if (hv.vType and varArray)=0 then Exit(0);
+    if (hv.vType and varByRef)<>0 then
+      Result:=PVarArray(hv.vPointer^)^.DimCount
     else
-      Result:=0;
+      Result:=hv.vArray^.DimCount;
   end;
 
 
@@ -3871,7 +3880,7 @@ function VarArrayRef(const A: Variant): Variant;
     if (TVarData(a).vType and varByRef)=0 then
       TVarData(Result).vPointer:=@TVarData(a).vArray
     else
-      TVarData(Result).vPointer:=@TVarData(a).vPointer;
+      TVarData(Result).vPointer:=TVarData(a).vPointer;
   end;
 
 
