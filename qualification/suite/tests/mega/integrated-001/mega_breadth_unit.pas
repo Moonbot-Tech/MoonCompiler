@@ -19,6 +19,10 @@ type
 var
   BreadthUnitCoefficient: Integer;
 
+threadvar
+  BreadthThreadToken: Int64;
+
+function BreadthReadThreadToken(out Address: Pointer): Int64;
 procedure BreadthChangeCoefficient(Delta: Integer);
 function BreadthUnitDecode(Value: Int64): TBreadthUnitCode; inline;
 procedure BreadthResetSequence(Initial: Integer);
@@ -49,6 +53,12 @@ var
 function BreadthReadUnitResource: UnicodeString;
 begin
   Result := UnicodeString(LoadResString(@BreadthStatusResource));
+end;
+
+function BreadthReadThreadToken(out Address: Pointer): Int64;
+begin
+  Address := @BreadthThreadToken;
+  Result := BreadthThreadToken;
 end;
 
 procedure BreadthChangeCoefficient(Delta: Integer);

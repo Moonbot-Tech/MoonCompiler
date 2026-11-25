@@ -1058,6 +1058,7 @@ end;
 {$I mega_breadth_assert.inc}
 {$I mega_breadth_fixup.inc}
 {$I mega_breadth_timestamps.inc}
+{$I mega_breadth_threadlocal.inc}
 {$I mega_breadth_ifinherit.inc}
 {$I mega_breadth_sliceowners.inc}
 {$I mega_breadth_cscan.inc}
@@ -1251,4 +1252,6 @@ begin
   RunBreadthSharedGeneric;
   RunBreadthStackOwners;
   RunBreadthIniTransfer;
+  RunBreadthProtocolTimestamps;
+  RunBreadthThreadLocalTokens;
 end;

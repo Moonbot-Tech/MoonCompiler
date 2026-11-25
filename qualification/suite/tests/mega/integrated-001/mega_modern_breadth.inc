@@ -499,6 +499,15 @@ end;
 {$I mega_modern_indexedrtti.inc}
 {$I mega_modern_reflectwire.inc}
 {$I mega_modern_atomicwrappers.inc}
+{$I mega_modern_jsonpath.inc}
+{$I mega_modern_filewindow.inc}
+{$I mega_modern_compressionframe.inc}
+{$I mega_modern_regexroute.inc}
+{$I mega_modern_workhandoff.inc}
+{$I mega_modern_webvalues.inc}
+{$I mega_modern_dbparams.inc}
+{$I mega_modern_digestbytes.inc}
+{$I mega_modern_jsonschema.inc}
 
 procedure RunModernBreadthForms;
 begin
@@ -547,5 +556,23 @@ begin
 {$ifdef BREADTH_HAS_TYPED_INTERLOCKED}
   RunBreadthAtomicObjects;
   RunBreadthAtomicFloating;
+{$endif}
+{$ifdef BREADTH_HAS_PRODUCT_IO}
+  RunBreadthJsonSpan;
+  RunBreadthJsonClone;
+  RunBreadthBufferedFileWindow;
+  RunBreadthInflateFrame;
+  RunBreadthDeflateFrame;
+  RunBreadthRegexGroups;
+  RunBreadthRegexReplacement;
+  RunBreadthThreadedWork;
+  RunBreadthBase64Window;
+  RunBreadthBase64Alphabet;
+  RunBreadthWebText;
+  RunBreadthParamsCheckpoint;
+  RunBreadthParamsDecimal;
+  RunBreadthHashStreamWindow;
+  RunBreadthHashSnapshots;
+  RunBreadthJsonStrategySchema;
 {$endif}
 end;

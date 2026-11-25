@@ -29,6 +29,9 @@ program mega_forms;
   {$define HAS_ANON}
   {$define HAS_INLINEVAR}
 {$endif}
+{$if not defined(FPC) or defined(MOONCOMPILER_UNICODE_DEFAULT)}
+  {$define BREADTH_HAS_PRODUCT_IO}
+{$ifend}
 {$APPTYPE CONSOLE}
 {$Q-}{$R-}
 
@@ -36,9 +39,14 @@ uses
 {$ifdef FPC}
   {$ifdef UNIX}cthreads, cwstring,{$endif}
 {$endif}
-  SysUtils, Variants, Classes, Math, TypInfo, Rtti, Character, SyncObjs, IniFiles, Generics.Collections, Generics.Defaults,
+  SysUtils, Variants, Classes, Math, TypInfo, Rtti, Character, SyncObjs, IniFiles, DateUtils, Generics.Collections, Generics.Defaults,
   {$ifdef FPC}Types,{$else}Winapi.ActiveX,{$endif}
   mega_breadth_unit, mega_breadth_genericbase, mega_breadth_genericconsumer, mega_portable
+{$ifdef BREADTH_HAS_PRODUCT_IO}
+  , System.JSON, System.IOUtils, System.ZLib, System.RegularExpressions, System.NetEncoding, System.Hash
+  , System.JSON.Serializers
+  {$ifdef FPC}, DB, FmtBcd{$else}, Data.DB, Data.FmtBcd{$endif}
+{$endif}
 {$ifdef FPC}
   , mega_runtime_fpc
 {$endif}
