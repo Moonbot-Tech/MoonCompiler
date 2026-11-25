@@ -1266,6 +1266,8 @@ Procedure SetRawByteStrProp(Instance: TObject; PropInfo: PPropInfo; const Value:
 
 {$ifndef FPUNONE}
 Function  GetFloatProp(Instance: TObject; PropInfo : PPropInfo) : Extended;
+Function  GetCurrencyProp(Instance: TObject; PropInfo: PPropInfo): Currency;
+Procedure SetCurrencyProp(Instance: TObject; PropInfo: PPropInfo; Value: Currency);
 Function  GetFloatProp(Instance: TObject; const PropName: string): Extended;
 Procedure SetFloatProp(Instance: TObject; const PropName: string; Value: Extended);
 Procedure SetFloatProp(Instance: TObject; PropInfo : PPropInfo;  Value : Extended);
@@ -3937,7 +3939,7 @@ end;
   Float properties
   ---------------------------------------------------------------------}
 
-function GetFloatProp(Instance : TObject;PropInfo : PPropInfo) : Extended;
+generic function ReadFloatProp<T>(Instance: TObject; PropInfo: PPropInfo): T;
 
 type
   TGetExtendedProc = function:Extended of object;
@@ -4005,7 +4007,7 @@ begin
 end;
 
 
-Procedure SetFloatProp(Instance : TObject;PropInfo : PPropInfo; Value : Extended);
+generic procedure WriteFloatProp<T>(Instance: TObject; PropInfo: PPropInfo; Value: T);
 
 type
   TSetExtendedProc = procedure(const AValue: Extended) of object;
@@ -4076,6 +4078,26 @@ begin
   end;
 end;
 
+
+function GetFloatProp(Instance: TObject; PropInfo: PPropInfo): Extended;
+begin
+  Result:=specialize ReadFloatProp<Extended>(Instance,PropInfo);
+end;
+
+procedure SetFloatProp(Instance: TObject; PropInfo: PPropInfo; Value: Extended);
+begin
+  specialize WriteFloatProp<Extended>(Instance,PropInfo,Value);
+end;
+
+function GetCurrencyProp(Instance: TObject; PropInfo: PPropInfo): Currency;
+begin
+  Result:=specialize ReadFloatProp<Currency>(Instance,PropInfo);
+end;
+
+procedure SetCurrencyProp(Instance: TObject; PropInfo: PPropInfo; Value: Currency);
+begin
+  specialize WriteFloatProp<Currency>(Instance,PropInfo,Value);
+end;
 
 function GetFloatProp(Instance: TObject; const PropName: string): Extended;
 begin

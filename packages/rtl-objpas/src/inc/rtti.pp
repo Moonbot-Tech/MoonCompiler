@@ -7675,7 +7675,7 @@ begin
       case GetTypeData(FPropInfo^.PropType)^.FloatType of
         ftCurr   :
           begin
-            Values.Cur := Currency(GetFloatProp(TObject(Instance), FPropInfo));
+            Values.Cur := GetCurrencyProp(TObject(Instance), FPropInfo);
             TValue.Make(@Values.Cur, FPropInfo^.PropType, Result);
           end;
         ftSingle :
@@ -7799,7 +7799,11 @@ begin
     tkInterface:
       SetInterfaceProp(TObject(Instance), FPropInfo, AValue.AsInterface);
     tkFloat:
-      SetFloatProp(TObject(Instance), FPropInfo, AValue.AsExtended);
+      if (GetTypeData(FPropInfo^.PropType)^.FloatType=ftCurr) and
+         (AValue.Kind=tkFloat) and (AValue.TypeData^.FloatType=ftCurr) then
+        SetCurrencyProp(TObject(Instance), FPropInfo, AValue.AsCurrency)
+      else
+        SetFloatProp(TObject(Instance), FPropInfo, AValue.AsExtended);
     tkDynArray:
       SetDynArrayProp(TObject(Instance), FPropInfo, PPointer(AValue.GetReferenceToRawData)^);
   else
