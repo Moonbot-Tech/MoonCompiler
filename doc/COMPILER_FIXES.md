@@ -55,7 +55,7 @@ own accessor, including overrides on the actual object.
 
 ## Reloading a component saved under its new name
 
-`RegisterClassAlias` now registers the canonical class name as well. A form
+For an available name, `RegisterClassAlias` now registers the canonical class name as well. A form
 can be loaded using the old component name, saved, and reopened using the
 current name in the same process. [Round-trip test](../RTL-test/semantic/component_class_alias_semantic.dpr)
 

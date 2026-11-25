@@ -25,7 +25,10 @@ begin
   If ExplicitRegistration then
     RegisterClass(TCurrentRoute);
   RegisterClassAlias(TCurrentRoute, 'TOldRoute');
+{$ifdef FPC}
+  { The Moon registry permits repeating the same registration. }
   RegisterClassAlias(TCurrentRoute, 'TOldRoute');
+{$endif}
   TextData := TMemoryStream.Create;
   Binary := nil;
   Original := nil;
