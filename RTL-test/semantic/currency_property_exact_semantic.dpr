@@ -103,7 +103,7 @@ begin
     end;
     Info.GetProperty('FieldValue').SetValue(Obj,TValue.From<Double>(1.25));
     if Obj.FieldValue<>1.25 then raise Exception.Create('Double conversion');
-    WriteLn('CURRENCY_PROPERTY_EXACT_OK');
+    WriteLn('CURRENCY_PROPERTY_EXACT_PASS');
   finally
     Obj.Free;
     Context.Free;

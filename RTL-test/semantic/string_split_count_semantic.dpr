@@ -24,5 +24,5 @@ begin
   Check(Row.Split([Delimiter], '"', '"', 2, TStringSplitOptions.ExcludeLastEmpty), ['prod', '']);
   Check(Row.Split([Delimiter], -1, TStringSplitOptions.None), []);
   Check(Row.Split([Delimiter], '"', '"', 8, TStringSplitOptions.ExcludeLastEmpty), ['prod', '', '"tag::x"']);
-  WriteLn('STRING_SPLIT_COUNT_OK');
+  WriteLn('STRING_SPLIT_COUNT_PASS');
 end.

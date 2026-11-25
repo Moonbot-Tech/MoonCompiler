@@ -52,5 +52,5 @@ begin
   finally
     P.Free;
   end;
-  WriteLn('PARAMS_SQL_REWRITE_OK');
+  WriteLn('PARAMS_SQL_REWRITE_PASS');
 end.

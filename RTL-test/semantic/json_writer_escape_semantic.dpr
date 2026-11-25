@@ -35,5 +35,5 @@ begin
   if LowerCase(Wire) <> LowerCase('{"' + Encoded + '":"' + Encoded + '"}') then Halt(1);
   if Pos(#$03BB + #$D83D + #$DE80, Render(S, TJsonStringEscapeHandling.Default)) = 0 then Halt(2);
   if Render('json', TJsonStringEscapeHandling.EscapeNonAscii) <> '{"json":"json"}' then Halt(3);
-  WriteLn('JSON_WRITER_ESCAPE_OK');
+  WriteLn('JSON_WRITER_ESCAPE_PASS');
 end.

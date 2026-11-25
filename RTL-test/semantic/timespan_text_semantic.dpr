@@ -29,5 +29,5 @@ begin
   if TTimeSpan.TryParse('10675199.02:48:05.4775808', Span) or
      TTimeSpan.TryParse('-10675199.02:48:05.4775809', Span) or
      TTimeSpan.TryParse('00:00:01.12345678', Span) then Halt(3);
-  WriteLn('TIMESPAN_TEXT_OK');
+  WriteLn('TIMESPAN_TEXT_PASS');
 end.
