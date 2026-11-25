@@ -1,11 +1,15 @@
 # MoonCompiler 2.6.4
 
-- Binary SQL parameters loaded from streams or files preserve every byte,
+- In the Unicode SDK, binary SQL parameters loaded from streams or files preserve every byte,
   including embedded zeros and an odd last byte. An empty BLOB remains distinct
-  from SQL NULL. The previous parameter value survives an incomplete read.
+  from SQL NULL. Copying and comparing parameters preserves their payload.
+  The previous parameter value survives an incomplete read. The ANSI Lazarus
+  profile retains its existing streamed component format.
 - SQLDB passes binary values to Firebird in segments, and renders binary SQL
   literals for MySQL and SQL Server. SQLite reads the same byte sequence
-  through the parameter API.
+  through the parameter API. Firebird prepares SQL using the connection code
+  page. MySQL text parameters also retain quotes and backslashes when the
+  session enables `NO_BACKSLASH_ESCAPES` with a quote-aware client library.
 - The [HTTP header collection guide](PLATFORM_API.md#http-header-collections)
   shows how to replace a single field or retain repeated fields on Moon and Delphi.
 

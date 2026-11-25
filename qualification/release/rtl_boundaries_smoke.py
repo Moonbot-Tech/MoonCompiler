@@ -20,7 +20,7 @@ CASES = (
     "reader_value_transfer", "reader_fixup_lifetime", "reader_fixup_registration",
     "reader_typed_component_reference", "stream_adapter_copy", "variant_array_coordinates", "rtti_indexed_setter", "component_class_alias",
     "thread_destruction", "database_decimal_parameter", "json_public_members", "guid_byte_arguments", "regex_split_boundary",
-    "component_transfer", "currency_property_exact", "json_writer_escape", "database_blob_stream",
+    "component_transfer", "currency_property_exact", "json_writer_escape",
     "params_sql_rewrite", "string_split_count", "timespan_text", "ioutils_api", "uri_query_edits",
 )
 
@@ -50,9 +50,12 @@ def sdk_boundaries(compiler, directory, options):
     shutil.copy2(source / "make_resources.py", directory)
     run([sys.executable, "make_resources.py"], directory)
     count = 0
-    for name, marker in cases:
-        shutil.copy2(source / (name + ".dpr"), directory)
-        run([str(compiler), *options, name + ".dpr"], directory)
+    fixtures = [(source / (name + ".dpr"), marker) for name, marker in cases]
+    fixtures.append((SOURCES / "database_blob_stream_semantic.dpr", "DATABASE_BLOB_STREAM_PASS"))
+    for fixture, marker in fixtures:
+        name = fixture.stem
+        shutil.copy2(fixture, directory)
+        run([str(compiler), *options, fixture.name], directory)
         result = run([str(directory / (name + suffix))], directory)
         if not any(line == marker or line.startswith(marker + " ") for line in result.splitlines()):
             raise RuntimeError(f"Missing SDK result {name}: {result}")
