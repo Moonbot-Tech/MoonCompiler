@@ -111,6 +111,42 @@ Procedure RaiseLastWin32Error;
 function GetFileVersion(const AFileName: Ansistring): Cardinal;
 function GetFileVersion(const AFileName: UnicodeString): Cardinal;
 
+{ Dynamic package (Delphi BPL equivalent) support.
+
+  A package DLL exports its unit initialization/finalization table under
+  the well-known name 'INITFINAL' (see pkgutil.export_package_initfinal in
+  the compiler). LoadPackage loads the DLL and runs the initialization of
+  the units the package contains; UnloadPackage runs their finalization,
+  notifies the registered module-unload procs (Classes uses this to drop
+  classes registered from the departing image), frees the DLL and notifies
+  once more with handle 0, which reclaims what a package unmapped as a
+  dependency left behind (see the comment in UnloadPackage).
+
+  Delphi's unload contract applies unchanged: before UnloadPackage free
+  every instance created from the package and let no reference -- string
+  literals included -- outlive the image. Packages shared between the host
+  and other packages must be pinned (linked at load time or loaded
+  explicitly), otherwise FreeLibrary unmaps them together with the last
+  dynamic referrer.
+
+  One consequence of the second notification is worth spelling out: a package
+  that calls AddModuleUnloadProc and forgets the matching RemoveModuleUnloadProc
+  in its finalization now dies immediately, because that round jumps through
+  the leftover code pointer *after* FreeLibrary has unmapped it. The same
+  package used to survive its own unload and fault at the next one instead.
+  Dying at the violation is the better behaviour, but it is a real change for
+  code that was getting away with the bug. }
+
+type
+  TModuleUnloadProc = procedure(Module: HMODULE);
+
+procedure AddModuleUnloadProc(Proc: TModuleUnloadProc);
+procedure RemoveModuleUnloadProc(Proc: TModuleUnloadProc);
+procedure InitializePackage(Module: HMODULE);
+procedure FinalizePackage(Module: HMODULE);
+function LoadPackage(const Name: string): HMODULE;
+procedure UnloadPackage(Module: HMODULE);
+
 procedure GetFormatSettings;
 procedure GetLocaleFormatSettings(LCID: Integer; var FormatSettings: TFormatSettings); platform;
 
@@ -148,6 +184,161 @@ function Win32Check(res:boolean):boolean;inline;
 procedure RaiseLastWin32Error;
   begin
     RaiseLastOSError;
+  end;
+
+
+{ Package support }
+
+const
+  { same limit as maxunits in rtl/inc/system.inc }
+  PkgMaxUnits = 1024;
+
+type
+  { mirrors TInitFinalRec/TInitFinalTable in rtl/inc/system.inc -- the
+    layout of the table the compiler emits and packages export as
+    'INITFINAL'. Duplicated here because the system unit keeps its copy
+    in the implementation section. }
+  TPkgInitFinalRec = record
+    InitProc,
+    FinalProc : TProcedure;
+{$ifdef FPC_INITFINAL_HASUNITNAME}
+    UnitName : ^ShortString;
+{$endif FPC_INITFINAL_HASUNITNAME}
+  end;
+  TPkgInitFinalTable = record
+    TableCount,
+    InitCount : PtrUInt;
+    Procs : array[1..PkgMaxUnits] of TPkgInitFinalRec;
+  end;
+  PPkgInitFinalTable = ^TPkgInitFinalTable;
+
+var
+  ModuleUnloadProcs : array of TModuleUnloadProc;
+
+procedure AddModuleUnloadProc(Proc: TModuleUnloadProc);
+  begin
+    SetLength(ModuleUnloadProcs,Length(ModuleUnloadProcs)+1);
+    ModuleUnloadProcs[High(ModuleUnloadProcs)]:=Proc;
+  end;
+
+
+procedure RemoveModuleUnloadProc(Proc: TModuleUnloadProc);
+  var
+    i,j : sizeint;
+  begin
+    for i:=High(ModuleUnloadProcs) downto 0 do
+      if ModuleUnloadProcs[i]=Proc then
+        begin
+          for j:=i to High(ModuleUnloadProcs)-1 do
+            ModuleUnloadProcs[j]:=ModuleUnloadProcs[j+1];
+          SetLength(ModuleUnloadProcs,Length(ModuleUnloadProcs)-1);
+        end;
+  end;
+
+
+function GetPkgInitFinalTable(Module: HMODULE): PPkgInitFinalTable;
+  begin
+    Result:=PPkgInitFinalTable(GetProcAddress(Module,'INITFINAL'));
+    if Result=nil then
+      raise EPackageError.CreateFmt('Module %x does not export INITFINAL - not a package',[PtrUInt(Module)]);
+  end;
+
+
+procedure InitializePackage(Module: HMODULE);
+  var
+    t : PPkgInitFinalTable;
+    i : PtrUInt;
+  begin
+    t:=GetPkgInitFinalTable(Module);
+    { resume after InitCount so initializing twice is harmless }
+    i:=t^.InitCount;
+    try
+      while i<t^.TableCount do
+        begin
+          inc(i);
+          if assigned(t^.Procs[i].InitProc) then
+            t^.Procs[i].InitProc();
+          t^.InitCount:=i;
+        end;
+    except
+      { roll back the part that did initialize, then let the error out }
+      FinalizePackage(Module);
+      raise;
+    end;
+  end;
+
+
+procedure FinalizePackage(Module: HMODULE);
+  var
+    t : PPkgInitFinalTable;
+  begin
+    t:=GetPkgInitFinalTable(Module);
+    while t^.InitCount>0 do
+      begin
+        { decrement first: a Halt inside the finalization code must not
+          re-enter this entry (same rule as FinalizeUnits) }
+        dec(t^.InitCount);
+        if assigned(t^.Procs[t^.InitCount+1].FinalProc) then
+          t^.Procs[t^.InitCount+1].FinalProc();
+      end;
+  end;
+
+
+function LoadPackage(const Name: string): HMODULE;
+  begin
+    Result:=LoadLibraryW(PWideChar(UnicodeString(Name)));
+    if Result=0 then
+      raise EPackageError.CreateFmt('Could not load package %s: %s',[Name,SysErrorMessage(GetLastError)]);
+    try
+      InitializePackage(Result);
+    except
+      FreeLibrary(Result);
+      raise;
+    end;
+  end;
+
+
+procedure UnloadPackage(Module: HMODULE);
+  var
+    i : sizeint;
+  begin
+    { run the contained units' finalization while the image is intact... }
+    FinalizePackage(Module);
+    { ...then let subscribers drop what still points into the image
+      (Classes unregisters the departing image's classes here) }
+    for i:=High(ModuleUnloadProcs) downto 0 do
+      ModuleUnloadProcs[i](Module);
+    FreeLibrary(Module);
+    { Notify a second time with a handle that can match no image. FreeLibrary
+      above dropped the reference counts of everything this package requires,
+      so a required package held by nothing else was just unmapped -- without a
+      module unload notification of its own. Its entries were still mapped and
+      committed during the first round, so neither an ownership nor a staleness
+      test could select them, and they would linger pointing into an unmapped
+      image: RegisterClass registers the whole ancestor chain, so registering a
+      class from the departing package also registers ancestors owned by the
+      package it requires, and GetClass dereferences those entries (ClassNameIs
+      reads the VMT).
+
+      Handle 0 belongs to no loaded image, so no ownership test can select a
+      live class and effectively only the staleness check decides. (On a
+      region that is already free VirtualQuery leaves AllocationBase
+      undefined -- 0 in practice -- so an ownership test may happen to match
+      there as well, but that is precisely the memory the staleness check
+      drops anyway.) A live class always sits in a mapped, committed image,
+      and a dependency another loaded package still references stays mapped,
+      so both survive. Subscribers that only compare against the passed
+      handle are simply a no-op here.
+
+      Deliberate deviation: Delphi's UnloadPackage notifies only before
+      FreeLibrary. This fork accepts the difference because it exists to
+      support a common runtime package with design-time packages requiring it,
+      which is exactly the shape that produces these cross-image ancestors.
+      Without the second round the dangling entries are reclaimed only when
+      some later unload happens to run the sweep while the image is still
+      unmapped, leaving an access violation open until then. }
+    for i:=High(ModuleUnloadProcs) downto 0 do
+      ModuleUnloadProcs[i](0);
   end;
 
 
