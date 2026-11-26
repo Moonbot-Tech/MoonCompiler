@@ -65,7 +65,7 @@ implementation
        { symtable }
        symconst,symbase,symcpu,symcreat,defutil,defcmp,symtable,symutil,
        { pass 1 }
-       ninl,ncon,nobj,ngenutil,nld,nmem,ncal,nset,nbas,nflw,nmat,pass_1,
+       ninl,ncon,ncnv,nobj,ngenutil,nld,nmem,ncal,nset,nbas,nflw,nmat,pass_1,
        { parser }
        scanner,
        pbase,pexpr,ptype,ptconst,pdecsub,pdecvar,pdecobj,pgenutil,pparautl,
@@ -1987,6 +1987,15 @@ implementation
                 begin
                    consume(_EQ);
                    p:=comp_expr([ef_accept_equal]);
+                   { A one-character literal outside ASCII (an accented Latin letter, a Hangul syllable) is a WideChar
+                     constant, which the ordconstn branch below does not take:
+                     it only knows AnsiChar. Turn it into a string constant so it
+                     follows the same path as any other resourcestring. }
+                   if is_constwidecharnode(p) then
+                     begin
+                       inserttypeconv(p,cunicodestringtype);
+                       typecheckpass(p);
+                     end;
                    storetokenpos:=current_tokenpos;
                    current_tokenpos:=filepos;
                    sym:=nil;

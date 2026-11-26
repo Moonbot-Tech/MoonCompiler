@@ -366,6 +366,11 @@ interface
     { To be called when the language mode is finally determined }
     Function SetCompileMode(const s:string; changeInit: boolean):boolean;
     Function SetCompileModeSwitch(s:string; changeInit: boolean):boolean;
+    { Make the mode marker macro (FPC_DELPHI, FPC_UNLEASHED, ...) match
+      current_settings.modeswitches. Mode markers are system macros shared by
+      all modules, while the mode itself is per module; call this whenever the
+      settings of a module are (re)loaded. }
+    procedure SyncModeMacro;
     procedure SetAppType(NewAppType:tapptype);
 
     var
@@ -441,6 +446,21 @@ implementation
          end;
         is_keyword:=(current_scanner.pattern=tokeninfo^[ttoken(high)].str) and
                     ((tokeninfo^[ttoken(high)].keyword*current_settings.modeswitches)<>[]);
+      end;
+
+
+    { The source code page a mode starts with when none was given explicitly
+      (-Fc, the codepage directive or a BOM). Unleashed mode reads UTF-8: it is a new
+      dialect without legacy sources to keep, and a non-ASCII literal read in
+      the ISO-8859-1 default splits into one character per byte (a two-letter
+      Korean literal gets Length 6). The other modes keep the historical
+      default. }
+    function ModeDefaultSourceCodePage: tstringencoding;
+      begin
+        if m_unleashed in current_settings.modeswitches then
+          result:=CP_UTF8
+        else
+          result:=default_settings.sourcecodepage;
       end;
 
 
@@ -565,12 +585,12 @@ implementation
                   doesn't overwrite the sourcecodepage }
                 exclude(current_settings.moduleswitches,cs_system_codepage);
                 if not(cs_explicit_codepage in current_settings.moduleswitches) then
-                  current_settings.sourcecodepage:=default_settings.sourcecodepage;
+                  current_settings.sourcecodepage:=ModeDefaultSourceCodePage;
                 if changeinit then
                   begin
                     exclude(init_settings.moduleswitches,cs_system_codepage);
                     if not(cs_explicit_codepage in init_settings.moduleswitches) then
-                      init_settings.sourcecodepage:=default_settings.sourcecodepage;
+                      init_settings.sourcecodepage:=ModeDefaultSourceCodePage;
                   end;
               end;
           end;
@@ -590,6 +610,50 @@ implementation
     begin
       _temp_scanner:=avalue;
     end;
+
+    procedure SyncModeMacro;
+      const
+        markers : array[0..7] of string[20] = ('FPC_UNLEASHED','FPC_DELPHI','FPC_TP','FPC_OBJFPC',
+          'FPC_GPC','FPC_MACPAS','FPC_ISO','FPC_EXTENDEDPASCAL');
+      var
+        i : longint;
+        name : string[20];
+      begin
+        { Nothing to bring in line while no macro stack is active (a saved
+          global state may carry none), or for a module that was loaded from
+          its PPU and has no local macro table; the next module that starts
+          compiling syncs again. }
+        if not assigned(macrosymtablestack) or
+           (assigned(current_module) and not assigned(current_module.localmacrosymtable)) then
+          exit;
+        { m_unleashed first: the unleashed set includes m_objfpc }
+        if (m_unleashed in current_settings.modeswitches) then
+          name:='FPC_UNLEASHED'
+        else if (m_delphi in current_settings.modeswitches) then
+          name:='FPC_DELPHI'
+        else if (m_tp7 in current_settings.modeswitches) then
+          name:='FPC_TP'
+        else if (m_objfpc in current_settings.modeswitches) then
+          name:='FPC_OBJFPC'
+{$ifdef gpc_mode}
+        else if (m_gpc in current_settings.modeswitches) then
+          name:='FPC_GPC'
+{$endif}
+        else if (m_mac in current_settings.modeswitches) then
+          name:='FPC_MACPAS'
+        else if (m_iso in current_settings.modeswitches) then
+          name:='FPC_ISO'
+        else if (m_extpas in current_settings.modeswitches) then
+          name:='FPC_EXTENDEDPASCAL'
+        else
+          name:='';
+        for i:=low(markers) to high(markers) do
+          if (markers[i]<>name) and defined_macro(markers[i]) then
+            undef_system_macro(markers[i]);
+        if (name<>'') and not defined_macro(name) then
+          def_system_macro(name);
+      end;
+
 
     Function SetCompileMode(const s:string; changeInit: boolean):boolean;
       var
@@ -843,46 +907,7 @@ implementation
              end;
 {$endif i8086}
 
-            { Undefine old symbol }
-            if (m_unleashed in oldmodeswitches) then
-              undef_system_macro('FPC_UNLEASHED')
-            else if (m_delphi in oldmodeswitches) then
-              undef_system_macro('FPC_DELPHI')
-            else if (m_tp7 in oldmodeswitches) then
-              undef_system_macro('FPC_TP')
-            else if (m_objfpc in oldmodeswitches) then
-              undef_system_macro('FPC_OBJFPC')
-{$ifdef gpc_mode}
-            else if (m_gpc in oldmodeswitches) then
-              undef_system_macro('FPC_GPC')
-{$endif}
-            else if (m_mac in oldmodeswitches) then
-              undef_system_macro('FPC_MACPAS')
-            else if (m_iso in oldmodeswitches) then
-              undef_system_macro('FPC_ISO')
-            else if (m_extpas in oldmodeswitches) then
-              undef_system_macro('FPC_EXTENDEDPASCAL');
-
-            { define new symbol in unleashed,delphi,objfpc,tp,gpc,macpas mode }
-            { m_unleashed first: the unleashed set includes m_objfpc }
-            if (m_unleashed in current_settings.modeswitches) then
-              def_system_macro('FPC_UNLEASHED')
-            else if (m_delphi in current_settings.modeswitches) then
-              def_system_macro('FPC_DELPHI')
-            else if (m_tp7 in current_settings.modeswitches) then
-              def_system_macro('FPC_TP')
-            else if (m_objfpc in current_settings.modeswitches) then
-              def_system_macro('FPC_OBJFPC')
-{$ifdef gpc_mode}
-            else if (m_gpc in current_settings.modeswitches) then
-              def_system_macro('FPC_GPC')
-{$endif}
-            else if (m_mac in current_settings.modeswitches) then
-              def_system_macro('FPC_MACPAS')
-            else if (m_iso in current_settings.modeswitches) then
-              def_system_macro('FPC_ISO')
-            else if (m_extpas in current_settings.modeswitches) then
-              def_system_macro('FPC_EXTENDEDPASCAL');
+            SyncModeMacro;
          end;
 
         SetCompileMode:=b;
