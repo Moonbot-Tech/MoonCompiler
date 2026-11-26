@@ -11,6 +11,7 @@ python qualification/compiler-unleashed-mode/run_gate.py \
 | `marker-directive-delphi` | The reverse direction: a Delphi-mode program using an unleashed unit |
 | `resourcestring-single-char`, `-fc` | A `resourcestring` of one character outside ASCII (`'예'`, `'é'`) is a WideChar constant and was rejected with "Illegal expression". Two characters and ASCII were fine |
 | `utf8-unleashed-default` | Unleashed mode reads a source without BOM and without `-Fc` as UTF-8. The historical ISO-8859-1 default split a two-letter Korean literal into six characters |
+| `interpolated-string-unicode` | `$'{N}건 조회했습니다.'` is ten characters. The interpolation was built in an AnsiString, so in a Unicode string profile every non-ASCII fragment went through the ANSI code page (thirteen characters, broken text) |
 | `utf8-delphi-control` | Control: Delphi mode keeps its historical default unchanged |
 
 Expected values are Unicode code points (U+C608 = 50696, U+D55C = 54620, ...),

@@ -30,6 +30,9 @@ CASES = [
     # Unleashed reads a source without BOM or -Fc as UTF-8.
     ('utf8-unleashed-default', 'utf8_unleashed.pas', [],
      ['2 54620 44544']),
+    # An interpolated string with arguments is a `string`, not an AnsiString.
+    ('interpolated-string-unicode', 'interp_unicode.pas', [],
+     ['10 44148 46']),
     # Delphi mode keeps the historical ISO-8859-1 default.
     ('utf8-delphi-control', 'utf8_delphi_control.pas', [],
      ['6']),

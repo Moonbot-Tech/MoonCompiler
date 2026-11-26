@@ -6369,8 +6369,15 @@ implementation
                  else
                    begin
                      { has expressions - generate WriteStr(temp, fragments...) }
-                     interp_temp:=ctempcreatenode.create(cansistringtype,
-                       cansistringtype.size,tt_persistent,true);
+                     { The result has the type of `string`: AnsiString broke
+                       every non-ASCII fragment and argument in a Unicode string
+                       profile (the text went through the ANSI code page). }
+                     if m_default_unicodestring in current_settings.modeswitches then
+                       interp_temp:=ctempcreatenode.create(cunicodestringtype,
+                         cunicodestringtype.size,tt_persistent,true)
+                     else
+                       interp_temp:=ctempcreatenode.create(cansistringtype,
+                         cansistringtype.size,tt_persistent,true);
                      { append temp destination at end of chain (reverseparameters
                        in handle_read_write will move it to front) }
                      interp_last:=interp_paras;
