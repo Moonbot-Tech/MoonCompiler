@@ -643,6 +643,13 @@ implementation
                     datatcb.queue_emit_asmsym(
                       current_asmdata.RefAsmSymbol(classdef.vmt_mangledname,AT_DATA,true),
                       tfieldvarsym(classdef.vmt_field).vardef);
+                    { The field class table is data, so no code reference
+                      records the VMT of another unit for the package import
+                      pass: a published field whose class lives in a package
+                      left VMT_$...$indirect undefined at link time. }
+                    if (tf_supports_packages in target_info.flags) and
+                       (find_module_from_symtable(classdef.owner)<>current_module) then
+                      current_module.add_extern_asmsym(classdef.vmt_mangledname,AB_EXTERNAL,AT_DATA);
                   end;
                 classtabledef:=datatcb.end_anonymous_record;
                 tcb.finish_internal_data_builder(datatcb,classtable,classtabledef,sizeof(pint));

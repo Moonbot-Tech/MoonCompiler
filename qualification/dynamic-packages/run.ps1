@@ -180,6 +180,9 @@ try {
   Build-Packages $Stage $Packages
   Build-Host $Stage 'host2.pas' $Packages
   Test-Host $Stage 'host2.exe' 0 @('sales(base:acme)', 'host2 ok') | Out-Null
+  # a published field whose class lives in a package
+  Build-Host $Stage 'host_fields.pas' $Packages
+  Test-Host $Stage 'host_fields.exe' 0 @('host_fields ok') | Out-Null
 
   # Stage 3: unit initialization inside a load-time package.
   $Stage = New-Stage 'stage3'
