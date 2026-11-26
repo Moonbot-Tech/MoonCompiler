@@ -1,0 +1,11 @@
+package PlainPkg;
+
+{$mode delphi}
+
+requires
+  rtlpkg;
+
+contains
+  PlainUnit;
+
+end.

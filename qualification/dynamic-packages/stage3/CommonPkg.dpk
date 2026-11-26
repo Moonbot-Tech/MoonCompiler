@@ -1,0 +1,11 @@
+package CommonPkg;
+
+{$mode delphi}
+
+requires
+  rtlpkg;
+
+contains
+  InitUnit;
+
+end.

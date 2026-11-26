@@ -1,0 +1,13 @@
+package Reg2Pkg;
+
+{$mode delphi}
+{$DESIGNONLY}
+
+requires
+  rtlpkg,
+  BasePkg;
+
+contains
+  Reg2Unit;
+
+end.

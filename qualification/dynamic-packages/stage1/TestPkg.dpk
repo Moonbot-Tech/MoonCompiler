@@ -1,0 +1,11 @@
+package TestPkg;
+
+{$mode delphi}
+
+requires
+  rtlpkg;
+
+contains
+  PkgUnit;
+
+end.

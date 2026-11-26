@@ -1,0 +1,19 @@
+package rtlpkg;
+
+{$mode delphi}
+
+{ Run-only: this package exists to be linked with -FP, never installed.
+  With no kind directive it reads PACKAGEFLAGS = 0 and still exports a
+  REGPROCS table (empty), so it passes the gates a design-time host loader
+  applies -- and uninstalling it would finalize the RTL underneath the
+  running process. Run-only still links with -FP, which is the only way
+  any host uses it. }
+{$RUNONLY}
+
+contains
+  system,
+  objpas,
+  sysutils,
+  classes;
+
+end.

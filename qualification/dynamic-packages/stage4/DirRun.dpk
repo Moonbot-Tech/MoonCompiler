@@ -1,0 +1,13 @@
+package DirRun;
+
+{$mode delphi}
+
+{$IMPLICITBUILD OFF}
+
+requires
+  rtlpkg;
+
+contains
+  PlainUnit;
+
+end.
