@@ -108,7 +108,18 @@ implementation
 
         { idxreg := TLSKey^ (process-wide TLS slot index) }
         idxreg:=cg.getaddressregister(current_asmdata.CurrAsmList);
-        reference_reset_symbol(href,current_asmdata.RefAsmSymbol('_FPC_TlsKey',AT_DATA,false),0,sizeof(pint),[]);
+        { Treat this exactly like FPC_THREADVAR_RELOCATE above: the symbol
+          also belongs to the system unit. With a direct reference and no
+          extern asm registration, a program consuming packages (-FP) gets no
+          import entry and fails to link with "Undefined symbol: _FPC_TlsKey",
+          although the name appears nowhere in its source. The dereference
+          depth is unchanged: when cgx86.make_direct_ref meets an indirect
+          symbol it loads the pointer into a register once and rebases the
+          reference, so the two loads below read the same values as with a
+          direct reference. }
+        reference_reset_symbol(href,current_asmdata.RefAsmSymbol('_FPC_TlsKey',AT_DATA,indirect),0,sizeof(pint),[]);
+        if not issystemunit then
+          current_module.add_extern_asmsym('_FPC_TlsKey',AB_EXTERNAL,AT_DATA);
         cg.a_load_ref_reg(current_asmdata.CurrAsmList,OS_ADDR,OS_ADDR,href,idxreg);
         reference_reset_base(href,idxreg,0,ctempposinvalid,4,[]);
         cg.a_load_ref_reg(current_asmdata.CurrAsmList,OS_32,OS_INT,href,idxreg);

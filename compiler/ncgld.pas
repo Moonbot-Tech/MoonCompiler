@@ -71,7 +71,7 @@ implementation
       systems,
       verbose,globals,constexp,fmodule,
       nutils,
-      symtable,symconst,symdef,defutil,paramgr,ncon,nbas,ncgrtti,
+      symbase,symtable,symconst,symdef,defutil,paramgr,ncon,nbas,ncgrtti,
       aasmbase,aasmtai,
       cgbase,pass_2,
       procinfo,
@@ -433,6 +433,7 @@ implementation
         alignment: longint;
         indirect : boolean;
         name : TSymStr;
+        st : tsymtable;
       begin
         { we don't know the size of all arrays }
         newsize:=def_cgsize(resultdef);
@@ -710,7 +711,41 @@ implementation
                       { def_cgsize does not work for tprocdef, so we use pd.address_type }
                       location.size:=def_cgsize(pd.address_type);
                       if not(po_weakexternal in pd.procoptions) then
-                        location.reference.symbol:=current_asmdata.RefAsmSymbol(procdef.mangledname,AT_FUNCTION)
+                        begin
+                          location.reference.symbol:=current_asmdata.RefAsmSymbol(procdef.mangledname,AT_FUNCTION);
+                          { Taking the address of a routine of another unit is a
+                            reference the package import pass has to see. A call
+                            reaches it through the unit's imported symbols, but
+                            @TSomeClass.StaticMethod does not, so a program that
+                            links such a unit statically against a package that
+                            contains the routine's unit failed to link
+                            (TMarshal.UnfixString from SysUtils). Record the
+                            procsym as imported, the same entry a call leaves. }
+                          if tf_supports_packages in target_info.flags then
+                            begin
+                              if find_module_from_symtable(procdef.owner)<>current_module then
+                                current_module.addimportedsym(tprocsym(symtableentry),true)
+                              else
+                                begin
+                                  { The other side of the same gap: a package
+                                    exports an implementation-only routine only
+                                    when it carries df_has_global_ref, which
+                                    addsymref sets for calls from inlinable
+                                    bodies but not for address loads, since it
+                                    gets no def for them. An automatically
+                                    inlined SetMonitorManager in another unit
+                                    then needs @SysMonitorGetObjectDataFunc,
+                                    which the RTL package did not export. The
+                                    def is known here and the unit's PPU is
+                                    written after code generation. }
+                                  st:=procdef.owner;
+                                  while assigned(st) and (st.symtabletype in [objectsymtable,recordsymtable]) do
+                                    st:=tdef(st.defowner).owner;
+                                  if assigned(st) and (st.symtabletype=staticsymtable) then
+                                    include(procdef.defoptions,df_has_global_ref);
+                                end;
+                            end;
+                        end
                       else
                         location.reference.symbol:=current_asmdata.WeakRefAsmSymbol(procdef.mangledname,AT_FUNCTION);
                    end;

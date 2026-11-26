@@ -110,7 +110,8 @@ unit i_win;
                             tf_winlikewidestring,tf_no_pic_supported,
                             tf_dwarf_only_local_labels,
                             tf_no_generic_stackcheck,tf_has_winlike_resources,
-                            tf_safecall_exceptions,tf_no_backquote_support,tf_supports_hidden_symbols];
+                            tf_safecall_exceptions,tf_no_backquote_support,tf_supports_hidden_symbols,
+                            tf_supports_packages];
             cpu          : cpu_x86_64;
             unit_env     : 'WIN64UNITS';
             extradefines : 'MSWINDOWS;WINDOWS';
@@ -119,7 +120,9 @@ unit i_win;
             scriptext    : '.bat';
             smartext     : '.sl';
             unitext      : '.ppu';
-            unitlibext   : '.ppl';
+            { Package libraries use a dedicated extension so that they can be
+              told apart from plain DLLs when scanning a directory. }
+            unitlibext   : '.fpl';
             asmext       : '.s';
             objext       : '.o';
             resext       : '.res';

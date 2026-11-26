@@ -3498,13 +3498,14 @@ implementation
          { static symbols that are used in public functions must be exported
            for packages as well }
          if ([tf_supports_packages,tf_supports_hidden_symbols]<=target_info.flags) and
-             (owner.symtabletype=staticsymtable) and
              assigned(current_procinfo) and
              (
                (
+                 (owner.symtabletype=staticsymtable) and
                  (sym.typ=staticvarsym) and
                  ([vo_is_public,vo_has_global_ref]*tstaticvarsym(sym).varoptions=[])
                ) or (
+                 (owner.symtabletype=staticsymtable) and
                  (sym.typ=localvarsym) and
                  assigned(tlocalvarsym(sym).defaultconstsym) and
                  ([vo_is_public,vo_has_global_ref]*tstaticvarsym(tlocalvarsym(sym).defaultconstsym).varoptions=[])
@@ -3512,6 +3513,21 @@ implementation
                  (sym.typ=procsym) and
                  assigned(def) and
                  (def.typ=procdef) and
+                 (
+                   { `owner` is sym.owner walked out of object/record/enum
+                     symtables (see above), so this also covers methods of
+                     implementation types -- e.g. HeapInc.ThreadState.Orphan,
+                     which every package consumer needs. Do not replace it with the def's
+                     owner: a method's def owner is the objectsymtable. }
+                   (owner.symtabletype=staticsymtable) or
+                   { An overload declared only in the implementation, whose name
+                     already exists in the interface, is attached to the
+                     *interface* procsym -- so `owner` is the global symtable
+                     while the procdef itself is static. Without this the package
+                     fails to export a routine its own inlined interface wrapper
+                     calls (observed: sysutils Trim(S,mode)). }
+                   (assigned(def.owner) and (def.owner.symtabletype=staticsymtable))
+                 ) and
                  not (df_has_global_ref in def.defoptions) and
                  not (po_public in tprocdef(def).procoptions)
                )

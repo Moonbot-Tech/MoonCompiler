@@ -133,6 +133,7 @@ const
   ibpackagefiles   = 92;
   ibpackagename    = 93;
   ibrecsymtableoptions = 94;
+  ibpackageflags   = 95;
   { target-specific things }
   iblinkotherframeworks = 100;
   ibjvmnamespace = 101;
@@ -530,6 +531,7 @@ begin
   // ibrecsymtableoptions: entry_name:='ibrecsymtableoptions';
   ibpackagefiles: entry_name:='ibpackagefiles';
   ibpackagename: entry_name:='ibpackagename';
+  ibpackageflags: entry_name:='ibpackageflags';
   { target-specific things }
   iblinkotherframeworks: entry_name:='iblinkotherframeworks';
   ibjvmnamespace: entry_name:='ibjvmnamespace';

@@ -833,11 +833,17 @@ var
                 package:=pkg^.package;
                 Message2(unit_u_loading_from_package,modulename^,pkg^.package.packagename^);
 
-                { now load the unit and all used units }
+                { Follow the same protocol as try_load_ppufile: mark the module
+                  as loading and only pull in the interface here. Driving
+                  load_usedunits is continueloadppu's job -- it knows how to
+                  defer to the ctask scheduler (store_state, stay at ms_load)
+                  when a used unit answers "not ready yet". The previous code
+                  called load_usedunits inline and treated that answer as an
+                  internal error (2026020415), which made any package unit
+                  with not-yet-loaded dependencies fatal. }
+                state:=ms_load;
+                fromppu:=true;
                 load_interface;
-                if not load_usedunits then
-                  internalerror(2026020415);
-                Message1(unit_u_finished_loading_unit,modulename^);
 
                 result:=true;
                 break;
@@ -2161,6 +2167,8 @@ var
 
     function tppumodule.load_usedunits: boolean;
       { self is a ppu (or in a package) }
+      var
+        waitm : tmodule;
       begin
         Result:=true;
         if current_module<>self then
@@ -2234,8 +2242,27 @@ var
           the scc_tree_crc_wait is outdated.
           If all used units are compiled, continue.
           otherwise some used units might still change }
-        if find_used_unit_compiling<>nil then
-          exit(false);
+        waitm:=find_used_unit_compiling;
+        if waitm<>nil then
+          begin
+            { ★ Write the answer back into scc_tree_crc_wait -- ppuloadcancontinue
+              reads that field to decide whether this module may be continued, and
+              it is otherwise only maintained by processqueue's scc pass
+              (ttask_handler.search_finished_scc).
+
+              ttask_handler.finishmodule drains modules without running that pass,
+              so with a stale nil the gate keeps saying "yes" while this routine
+              keeps saying "not yet": the same module is picked and delayed
+              forever, with no output and no progress detection.
+
+              Observed with a package containing a unit whose dependency
+              WINAPI.WINCODEC waits for WINAPI.DCOMMON: the compiler looped
+              without output and never finished (604 s of CPU). The value is
+              the one this function has just computed, so the scc pass cannot
+              disagree when it recomputes it. }
+            scc_tree_crc_wait:=waitm;
+            exit(false);
+          end;
 
         { check that all used units have their crc and checksums match }
         if not ppu_check_used_crcs then
@@ -2386,8 +2413,19 @@ var
 
       if ppu_waitingfor_crc and (scc_tree_crc_wait<>nil) then
         begin
-          firstwaiting:=scc_tree_crc_wait;
-          exit; { the final load step needs all used units and their used units }
+          { scc_tree_crc_wait is a cache. processqueue refreshes it every pass
+            (ttask_handler.search_finished_scc clears and recomputes it), but
+            ttask_handler.finishmodule drains modules without that pass -- there
+            it is only ever set, by load_usedunits. So treat it as a hint: once
+            the module it names is done, drop it and fall through to the real
+            check, otherwise this gate would stay shut forever in that loop. }
+          if scc_tree_crc_wait.state in [ms_compiled,ms_processed] then
+            scc_tree_crc_wait:=nil
+          else
+            begin
+              firstwaiting:=scc_tree_crc_wait;
+              exit; { the final load step needs all used units and their used units }
+            end;
         end;
 
       pu:=tused_unit(used_units.first);
@@ -2457,14 +2495,20 @@ var
         if Result then
           begin
             do_reload:=false;
-            state:=ms_compiled;
-            { PPU is not needed anymore }
-            if assigned(ppufile) then
-             begin
-               discardppu;
-             end;
-            { add the unit to the used units list of the program }
+
+            { add the unit to the used units list of the program.
+              Do this before continueloadppu: the unit belongs to the package
+              whether or not its dependencies are ready yet, and this routine
+              runs only once per module (loadppu handles ms_registered only;
+              resumption goes straight to continueloadppu). }
             usedunits.concat(tused_unit.create(self,true,false,nil));
+
+            { Drive load_usedunits through the standard machinery. On success
+              load_usedunits itself advances the state to ms_compiled and
+              continueloadppu discards the ppu stream; on "dependency not
+              ready" it stores the global state and leaves the module at
+              ms_load for the scheduler to resume. }
+            continueloadppu;
           end;
       end;
 

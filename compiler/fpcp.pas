@@ -52,7 +52,10 @@ interface
       procedure readcontainedunits;
       procedure readrequiredpackages;
       procedure readpputable;
+      procedure writepackageflags;
+      procedure readpackageflags;
     public
+      packageflags : longword;
       constructor create(const pn:string);
       destructor destroy; override;
       procedure loadpcp;
@@ -172,7 +175,7 @@ implementation
         singlepathstring:=FixPath(s,false);
         { Check for package file }
         { TODO }
-        found:=package_exists({target_info.pkginfoext}'.pcp',hs);
+        found:=package_exists({target_info.pkginfoext}'.fcp',hs);
         if found then
           begin
             setfilename(hs,false);
@@ -230,7 +233,7 @@ implementation
         else
           if (OutputExeDir<>'') then
             p:=OutputExeDir;
-      pcpfilename:=p+n+{target_info.pkginfoext}'.pcp';
+      pcpfilename:=p+n+{target_info.pkginfoext}'.fcp';
     end;
 
   procedure tpcppackage.writecontainernames;
@@ -238,6 +241,22 @@ implementation
       pcpfile.putstring(pplfilename);
       //pcpfile.putstring(ppafilename);
       pcpfile.writeentry(ibpackagefiles);
+    end;
+
+  procedure tpcppackage.writepackageflags;
+    begin
+      pcpfile.putlongint(longint(packageflags));
+      pcpfile.writeentry(ibpackageflags);
+    end;
+
+  procedure tpcppackage.readpackageflags;
+    begin
+      if pcpfile.readentry<>ibpackageflags then
+        begin
+          message(package_f_pcp_read_error);
+          internalerror(2026072701);
+        end;
+      packageflags:=longword(pcpfile.getlongint);
     end;
 
   procedure tpcppackage.writecontainedunits;
@@ -413,6 +432,7 @@ implementation
     begin
       inherited create(pn);
 
+      packageflags:=0;
       setfilename(pn+'.ppk',true);
     end;
 
@@ -449,6 +469,8 @@ implementation
 
       readcontainernames;
 
+      readpackageflags;
+
       readrequiredpackages;
 
       readcontainedunits;
@@ -470,6 +492,8 @@ implementation
       pcpfile.writeentry(ibpackagename);
 
       writecontainernames;
+
+      writepackageflags;
 
       writerequiredpackages;
 

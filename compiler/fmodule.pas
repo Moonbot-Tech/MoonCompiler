@@ -177,6 +177,13 @@ interface
         headerflags   : cardinal;  { the PPU header flags }
         longversion   : cardinal;  { longer version than what fits in the ppu header }
         moduleflags   : tmoduleflags; { ppu flags that do not need to be known by just reading the ppu header }
+        { Package kind, from the DESIGNONLY / RUNONLY directives in a .dpk.
+          Deliberately not a tmoduleflag: that set is serialised into every
+          .ppu as a 4-byte set and is already 30 members deep, and a
+          package's kind is a property of the package, not of a unit -- it
+          travels in the .pcp instead. }
+        package_designonly : boolean;
+        package_runonly    : boolean;
         islibrary     : boolean;  { if it is a library (win32 dll) }
         IsPackage     : boolean;
         change_endian : boolean;  { if the unit is loaded on a system with a different endianess than it was compiled on }
@@ -272,6 +279,11 @@ interface
         inlinevarcounter : cardinal;
         consume_semicolon_after_uses : Boolean;
         initfinalchecked : boolean;
+        { Separate marker for the Register-procedure walk. It must not share
+          initfinalchecked: by the time the registration table is collected,
+          InsertInitFinalTable has already set that flag on every module, so
+          reusing it would silently yield an empty table. }
+        regprocchecked : boolean;
         functypechecked : boolean;
 
         { contains a list of types that are extended by helper types; the key is
@@ -759,6 +771,10 @@ implementation
         headerflags:=0;
         longversion:=0;
         moduleflags:=[];
+        package_designonly:=false;
+        package_runonly:=false;
+        initfinalchecked:=false;
+        regprocchecked:=false;
         scanner:=nil;
         unitmap:=nil;
         unitmapsize:=0;
@@ -1207,6 +1223,10 @@ implementation
         headerflags:=0;
         longversion:=0;
         moduleflags:=[];
+        package_designonly:=false;
+        package_runonly:=false;
+        initfinalchecked:=false;
+        regprocchecked:=false;
         mainfilepos.line:=0;
         mainfilepos.column:=0;
         mainfilepos.fileindex:=0;

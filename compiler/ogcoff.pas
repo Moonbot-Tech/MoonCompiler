@@ -414,6 +414,11 @@ implementation
        PE_SCN_MEM_READ               = $40000000;
        PE_SCN_MEM_WRITE              = $80000000;
 
+       { One IMAGE_IMPORT_DESCRIPTOR. The import descriptor table is a run of
+         these ended by an all-zero one, so a table of this size holds only
+         that terminator - no imported DLL at all. UpdateImports uses it. }
+       PE_IMPORT_DESCRIPTOR_SIZE = 20;
+
        PE_DATADIR_EDATA = 0;
        PE_DATADIR_IDATA = 1;
        PE_DATADIR_RSRC = 2;
@@ -3255,11 +3260,34 @@ const pemagic : array[0..3] of byte = (
                   end;
             end;
 
+          { A package can end up importing nothing at all.  .idata is then a
+            single 20-byte IMAGE_IMPORT_DESCRIPTOR of zeroes - the terminator
+            with no descriptor before it - and .idata$4 is an empty section
+            sitting right after it.  Measured on such a package: the whole
+            .idata section is 20 zero bytes, IMPORT ends up (RVA, size 0x14)
+            over that terminator, IAT ends up (section end, size 0), and the
+            loader rejects the image with ERROR_INVALID_PARAMETER (87).
+
+            Note ilt_start is NOT nil in that case, so testing it alone is not
+            enough: it points at the empty .idata$4, which is exactly one
+            descriptor past the section start.  Measure the descriptor table
+            instead - one entry means zero imported DLLs.
+
+            Leave both directories zeroed then: an image with no import
+            directory is valid and the loader simply skips the step.  Same
+            class as the empty .reloc section dropped in MemPos_ExeSection - a
+            directory published for a table that has no entries.  Here the
+            section itself is harmless, so only the directory is suppressed.
+
+            The old else branch was marked "should not happen" because programs
+            and ordinary libraries always import something.  Packages broke
+            that assumption, so cover the nil case as well. }
+          if (ilt_start=nil) or
+             (ilt_start.mempos-exesec.mempos<=PE_IMPORT_DESCRIPTOR_SIZE) then
+            exit;
+
           peoptheader.DataDirectory[PE_DATADIR_IDATA].vaddr:=exesec.mempos;
-          if Assigned(ilt_start) then
-            peoptheader.DataDirectory[PE_DATADIR_IDATA].size:=ilt_start.mempos-exesec.mempos
-          else  { should not happen }
-            peoptheader.DataDirectory[PE_DATADIR_IDATA].size:=exesec.Size;
+          peoptheader.DataDirectory[PE_DATADIR_IDATA].size:=ilt_start.mempos-exesec.mempos;
 
           if Assigned(iat_start) and Assigned(iat_end) then
             begin
@@ -3940,9 +3968,46 @@ const pemagic : array[0..3] of byte = (
 
 
       procedure TPECoffexeoutput.MemPos_ExeSection(const aname:string);
+        var
+          exesec : TExeSection;
+          i : longint;
+          isempty : boolean;
         begin
           if aname='.reloc' then
-            GenerateRelocs;
+            begin
+              GenerateRelocs;
+              { A small image can end up with no base relocations at all
+                (seen with a package DLL containing a single tiny unit).
+                Emitting the section anyway produces a zero-VirtualSize
+                section header whose RVA collides with the next section,
+                and the loader rejects the DLL with ERROR_BAD_EXE_FORMAT.
+                Drop the empty section instead: the PE header writer then
+                sets PE_FILE_RELOCS_STRIPPED (it checks for the section's
+                absence) and UpdateDataDir leaves the reloc directory
+                zeroed. }
+              exesec:=FindExeSection('.reloc');
+              if assigned(exesec) then
+                begin
+                  isempty:=true;
+                  for i:=0 to exesec.ObjSectionList.Count-1 do
+                    if TObjSection(exesec.ObjSectionList[i]).Size<>0 then
+                      begin
+                        isempty:=false;
+                        break;
+                      end;
+                  if isempty then
+                    begin
+                      for i:=0 to ExeSectionList.Count-1 do
+                        if ExeSectionList[i]=exesec then
+                          begin
+                            ExeSectionList[i]:=nil;
+                            break;
+                          end;
+                      ExeSectionList.Pack;
+                      exit;
+                    end;
+                end;
+            end;
           inherited;
         end;
 
