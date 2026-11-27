@@ -51,8 +51,9 @@ const
   { 44: tai_align_abstract serializes fixedfill and padbytes;
     45: tai_align_abstract additionally serializes its placement purpose;
     47: unit symbols retain their physical module binding;
-    48: generic runtime types use shared semantic linker identities. }
-  CurrentPPULongVersion = 48;
+    48: generic runtime types use shared semantic linker identities;
+    49: ibreexportunits, the interface units passed on by "uses export". }
+  CurrentPPULongVersion = 49;
 
 { unit flags }
   uf_big_endian          = $000004;

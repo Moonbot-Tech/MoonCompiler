@@ -121,6 +121,8 @@ interface
           procedure freederefunitimportsyms;
           procedure writesourcefiles;
           procedure writeusedunit(intf:boolean);
+          procedure writereexportunits;
+          procedure readreexportunits;
           procedure writelinkcontainer(var p:tlinkcontainer;id:byte;strippath:boolean);
           procedure writederefmap;
           procedure writederefdata;
@@ -1015,6 +1017,52 @@ var
       end;
 
 
+    { The interface units this unit passes on ("uses export"): their names, in
+      uses order. Part of the interface: it changes what the users of this
+      unit see, so it counts in the crc. Written only when there is one. }
+    procedure tppumodule.writereexportunits;
+      var
+        hp : tused_unit;
+        any : boolean;
+      begin
+        any:=false;
+        hp:=tused_unit(used_units.first);
+        while assigned(hp) do
+          begin
+            if hp.in_interface and hp.reexport then
+              begin
+                ppufile.putstring(hp.u.realmodulename^);
+                any:=true;
+              end;
+            hp:=tused_unit(hp.next);
+          end;
+        if any then
+          ppufile.writeentry(ibreexportunits);
+      end;
+
+
+    procedure tppumodule.readreexportunits;
+      var
+        hs : string;
+        hp : tused_unit;
+      begin
+        while not ppufile.endofentry do
+          begin
+            hs:=upper(ppufile.getstring);
+            hp:=tused_unit(used_units.first);
+            while assigned(hp) do
+              begin
+                if hp.u.modulename^=hs then
+                  begin
+                    hp.reexport:=true;
+                    break;
+                  end;
+                hp:=tused_unit(hp.next);
+              end;
+          end;
+      end;
+
+
     procedure tppumodule.writelinkcontainer(var p:tlinkcontainer;id:byte;strippath:boolean);
       var
         hcontainer : tlinkcontainer;
@@ -1658,6 +1706,8 @@ var
 {$ENDIF}
              ibloadunit :
                readloadunit;
+             ibreexportunits :
+               readreexportunits;
              iblinkunitofiles :
                readlinkcontainer(LinkUnitOFiles);
              iblinkunitstaticlibs :
@@ -1808,6 +1858,7 @@ var
 
          { write interface uses }
          writeusedunit(true);
+         writereexportunits;
 
          { write the objectfiles and libraries that come for this unit,
            preserve the containers because they are still needed to load
@@ -1988,6 +2039,7 @@ var
 
          { the interface units affect the crc }
          writeusedunit(true);
+         writereexportunits;
 
          { deref data of interface that affect the crc }
          derefdata.reset;

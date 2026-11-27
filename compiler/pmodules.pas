@@ -723,17 +723,48 @@ implementation
          filepos : tfileposinfo;
          isnew,
          aliasuse,
-         implicitproductunit : boolean;
+         implicitproductunit,
+         exportall,
+         firstitem,
+         reexportitem,
+         viareexport : boolean;
          aliasitem: TCmdStrListItem;
 
 
       begin
         consume(_USES);
+        { "uses export A, B;": every unit of the clause is passed on;
+          "uses A, export B;": that one only (unleashed). "export" is no
+          reserved word: followed by an identifier it is the marker, else
+          it is a unit of that name. }
+        exportall:=false;
+        firstitem:=true;
         repeat
           s:=current_scanner.pattern;
           sorg:=current_scanner.orgpattern;
           filepos:=current_tokenpos;
-          consume(_ID);
+          reexportitem:=exportall;
+          if (m_unleashed in current_settings.modeswitches) and
+             (current_scanner.token=_ID) and (current_scanner.idtoken=_EXPORT) then
+            begin
+              consume(_ID);
+              if current_scanner.token=_ID then
+                begin
+                  reexportitem:=true;
+                  { right after USES: the whole clause }
+                  if firstitem then
+                    exportall:=true;
+                  if not curr.in_interface then
+                    Message1(parser_e_reexport_uses_in_implementation,current_scanner.orgpattern);
+                  s:=current_scanner.pattern;
+                  sorg:=current_scanner.orgpattern;
+                  filepos:=current_tokenpos;
+                  consume(_ID);
+                end;
+            end
+          else
+            consume(_ID);
+          firstitem:=false;
           while current_scanner.token=_POINT do
             begin
               consume(_POINT);
@@ -827,9 +858,11 @@ implementation
                        insert_unit_alias(curr,hp2,sorg);
                    end;
                end;
-             if assigned(pu) and not (implicitproductunit or aliasuse) then
+             { already visible: a unit used before re-exports it }
+             viareexport:=assigned(pu) and (pu.via_reexport or pu.via_project);
+             if assigned(pu) and not (implicitproductunit or aliasuse or viareexport) then
                Message1(sym_e_duplicate_id,s);
-             if not (implicitproductunit or aliasuse) then
+             if not (implicitproductunit or aliasuse or viareexport) then
                begin
                  { Create unitsym, we need to use the name as specified, we
                    can not use the modulename because that can be different
@@ -837,7 +870,8 @@ implementation
                  current_tokenpos:=filepos;
                  unitsym:=cunitsym.create(sorg,nil);
                  { the current module uses the unit hp2 }
-                 curr.addusedunit(hp2,true,unitsym);
+                 pu:=curr.addusedunit(hp2,true,unitsym);
+                 pu.reexport:=reexportitem and curr.in_interface;
                end;
            end
           else
@@ -851,6 +885,48 @@ implementation
            break;
          until false;
        end;
+
+    { --project-uses=Lumi,...: the units every unit and program of the
+      project uses, registered before its own uses clause is read, as if they
+      stood first in it (its own units win). A unit that is one of them does
+      not get itself. True if any was added. }
+    function addprojectuses(curr: tmodule): boolean;
+      var
+        hs,s : ansistring;
+        hp : tmodule;
+        pu : tused_unit;
+        isnew : boolean;
+      begin
+        result:=false;
+        hs:=projectuses;
+        repeat
+          s:=GetToken(hs,',');
+          if s='' then
+            break;
+          if Upper(s)=curr.modulename^ then
+            continue;
+          { A project unit whose interface is not compiled yet is what is
+            loading curr: curr is one of its dependencies, and giving it the
+            project unit would be a circular reference (with -B, the units
+            the project unit uses are compiled in the same run). Looked up
+            before registerunit, which would report the cycle. }
+          hp:=tmodule(loaded_units.first);
+          while assigned(hp) and (hp.modulename^<>Upper(s)) do
+            hp:=tmodule(hp.next);
+          if assigned(hp) and
+             (hp.state in [ms_registered,ms_load,ms_compile,ms_compiling_wait,ms_compiling_waitintf]) then
+            continue;
+          hp:=registerunit(curr,s,'',isnew);
+          if isnew then
+            usedunits.concat(tused_unit.create(hp,curr.in_interface,true,nil));
+          if assigned(curr.findusedunit(hp)) then
+            continue;
+          pu:=curr.addusedunit(hp,true,cunitsym.create(s,nil));
+          pu.via_project:=true;
+          result:=true;
+        until false;
+      end;
+
 
     procedure checkrequiredfirstunit(curr: tmodule);
       var
@@ -870,7 +946,7 @@ implementation
           if expected='' then
             break;
           inc(index);
-          while assigned(pu) and not pu.in_uses do
+          while assigned(pu) and (not pu.in_uses or pu.via_project) do
             pu:=tused_unit(pu.next);
           if assigned(pu) then
             actual:=pu.u.modulename^
@@ -978,6 +1054,48 @@ implementation
        aliasitem: TCmdStrListItem;
        unitsymtable: tabstractunitsymtable;
 
+       procedure pushsymtable(m: tmodule);
+         begin
+           if assigned(preservest) then
+             symtablestack.pushafter(m.globalsymtable,preservest)
+           else
+             symtablestack.push(m.globalsymtable);
+           if (m_mac in current_settings.modeswitches) and
+              assigned(m.globalmacrosymtable) then
+             macrosymtablestack.push(m.globalmacrosymtable);
+         end;
+
+       { The units m passes on ("uses export"), and the ones they pass on,
+         become visible here as if they stood in the uses clause right
+         before m: m's own names win. They are used units of _module, so its
+         ppu records their crc and a change of their interface recompiles it;
+         a unit symbol makes the qualified names (UI.Forms.TForm) work. }
+       procedure connectreexports(m: tmodule);
+         var
+           rp,np : tused_unit;
+         begin
+           rp:=tused_unit(m.used_units.first);
+           while assigned(rp) do
+             begin
+               if rp.in_interface and rp.reexport and
+                  (rp.u<>_module) and
+                  assigned(rp.u.globalsymtable) and
+                  not assigned(_module.findusedunit(rp.u)) then
+                 begin
+                   connectreexports(rp.u);
+                   np:=_module.addusedunit(rp.u,false,nil);
+                   np.via_reexport:=true;
+                   np.checksum:=rp.u.crc;
+                   np.interface_checksum:=rp.u.interface_crc;
+                   np.indirect_checksum:=rp.u.indirect_crc;
+                   rp.u.adddependency(_module,_module.in_interface);
+                   insert_unit_alias(_module,rp.u,rp.u.realmodulename^);
+                   pushsymtable(rp.u);
+                 end;
+               rp:=tused_unit(rp.next);
+             end;
+         end;
+
      begin
        // writeln(_module.get_modulename,': Connecting units');
        pu:=tused_unit(_module.used_units.first);
@@ -1057,15 +1175,11 @@ implementation
                    aliasitem:=TCmdStrListItem(aliasitem.next);
                  end;
              end;
+           { what it re-exports first, so that its own names win }
+           connectreexports(pu.u);
            { add to symtable stack }
            // Writeln('Adding used unit symtable ',pu.u.globalsymtable.name^,' (',pu.u.globalsymtable.DefList.Count, ' defs) to stack');
-           if assigned(preservest) then
-             symtablestack.pushafter(pu.u.globalsymtable,preservest)
-           else
-             symtablestack.push(pu.u.globalsymtable);
-           if (m_mac in current_settings.modeswitches) and
-              assigned(pu.u.globalmacrosymtable) then
-             macrosymtablestack.push(pu.u.globalmacrosymtable);
+           pushsymtable(pu.u);
 
            end;
          pu:=tused_unit(pu.next);
@@ -1742,7 +1856,8 @@ type
          unitname : ansistring;
          unitname8 : string[8];
          feature : tfeature;
-         load_ok : boolean;
+         load_ok,
+         projectused : boolean;
 
       begin
          result:=true;
@@ -1855,6 +1970,18 @@ type
          if not(cs_compilesystem in current_settings.moduleswitches) then
            load_ok:=loaddefaultunits(curr) and load_ok;
 
+         { the project's own uses come first }
+         projectused:=false;
+         if not(cs_compilesystem in current_settings.moduleswitches) and
+            (projectuses<>'') then
+           begin
+             if Assigned(curr) then
+               curr.Loadlocalnamespacelist
+             else
+               current_namespacelist:=Nil;
+             projectused:=addprojectuses(curr);
+           end;
+
          { insert qualifier for the system unit (allows system.writeln) }
          if not(cs_compilesystem in current_settings.moduleswitches) and
             (current_scanner.token=_USES) then
@@ -1876,7 +2003,18 @@ type
              curr.consume_semicolon_after_uses:=true;
            end
          else
-           curr.consume_semicolon_after_uses:=false;
+           begin
+             curr.consume_semicolon_after_uses:=false;
+             if projectused then
+               begin
+                 load_ok:=loadunits(curr,true) and load_ok and not tmodule.ctask_fast_backtrack;
+                 if curr.state in [ms_compiled,ms_processed] then
+                   begin
+                     Message1(parser_u_already_compiled,curr.realmodulename^);
+                     exit;
+                   end;
+               end;
+           end;
 
          { move the global symtable from the temporary local to global }
          current_module.globalsymtable:=current_module.localsymtable;
@@ -3338,7 +3476,8 @@ type
          sc : TProgramParamArray;
          i : Longint;
          feature : tfeature;
-         load_ok : boolean;
+         load_ok,
+         projectused : boolean;
 
       begin
          result:=true;
@@ -3454,6 +3593,17 @@ type
                end;
            end;
 
+         { the project's own uses come first }
+         projectused:=false;
+         if projectuses<>'' then
+           begin
+             if Assigned(curr) then
+               curr.Loadlocalnamespacelist
+             else
+               current_namespacelist:=Nil;
+             projectused:=addprojectuses(curr);
+           end;
+
          { Load the units used by the program we compile. }
          if current_scanner.token=_USES then
            begin
@@ -3470,7 +3620,7 @@ type
           else begin
             curr.consume_semicolon_after_uses:=false;
             checkrequiredfirstunit(curr);
-            if productruntimeprefixenabled then
+            if productruntimeprefixenabled or projectused then
               load_ok:=loadunits(curr,false) and load_ok;
             if tmodule.ctask_fast_backtrack then
              load_ok:=false; { some used units are not fully compiled }

@@ -1844,6 +1844,10 @@ parser_e_align_bitalign_exclusive=03406_E_"align" and "bitalign" are mutually ex
 parser_e_weak_threadlocal_property=03447_E_A weak field inside a class threadvar requires a property accessor method for RTTI
 % The address of the field must be obtained for the calling thread.
 
+parser_e_reexport_uses_in_implementation=03448_E_A used unit can be re-exported ("export $1") only in the interface uses clause
+% "uses export" passes the used units on to the units that use this one, which see
+% only its interface. In the implementation uses clause there is nothing to pass on.
+
 parser_e_unsupported_weak_declaration=03446_E_[Weak] requires an instance field of a class or a COM interface type
 % Weak storage is available for instance fields. Class references keep desktop non-ARC semantics.
 

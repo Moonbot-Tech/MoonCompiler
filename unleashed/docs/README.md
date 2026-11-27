@@ -108,6 +108,10 @@ Declare variables at the point of first use, with type inference (`var x := expr
 
 `f(var x)` at an `out`-argument position declares a fresh variable typed from the parameter and scoped to the enclosing block; `f(_)` discards the output. No more pre-declaring a throwaway local for every `Try*` routine. Accepted only at an `out` parameter, resolved after overload selection, and a declared identifier `_` always wins over the discard meaning, so existing code is unaffected. Modeswitch `outvar`.
 
+### [Re-exporting Units](uses-export.md)
+
+`uses export A, B;` in a unit's interface passes A and B on to the units that use it: one name in a uses clause brings a whole set, the unit's own names win, the passed-on units stay reachable by their qualified names, and a change in their interface recompiles the users. `export` before a later unit passes on that one only. `--project-uses=A,B` gives every unit and program of a project the same uses.
+
 ### [Statement Expressions](statement-expressions.md)
 
 `if`, `case`, and `try` as expressions that yield a value, computed where it is consumed. Only the taken branch is evaluated, numeric branches widen to a common type, and `try X except 'fallback'` turns an exception into a value. Each branch is a single expression - value-less statements (`raise`, `exit`) are rejected. Modeswitch `statementexpressions`.
