@@ -400,6 +400,9 @@ Const
        { ordered explicit program/library unit prefix required by
          --required-first-unit }
        requiredfirstunit : TIDString;
+       { --project-uses=A,B: units every unit and program uses, as the first
+         of its uses clause (a project-wide uses) }
+       projectuses : ansistring;
        // lowercased glob patterns from `--rttiexpose=` CLI flags;
        // per-unit patterns from `{$rttiexpose}` directive live on tmodule
        cli_rtti_expose_patterns : TCmdStrList;
@@ -1870,6 +1873,7 @@ implementation
         namespacelist:=TCmdStrList.Create;
         pinnedunitfiles:=TLinkStrMap.Create;
         requiredfirstunit:='';
+        projectuses:='';
         cli_rtti_expose_patterns:=TCmdStrList.Create;
         premodule_namespacelist:=TCmdStrList.Create;
         current_namespacelist:=Nil;

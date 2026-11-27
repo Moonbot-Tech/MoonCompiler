@@ -1675,6 +1675,20 @@ begin
       end;
     exit;
   end;
+  if opt.StartsWith('--project-uses=') then begin
+    { units every unit and program of the project uses (lumi.json "uses") }
+    more:=Copy(opt,Length('--project-uses=')+1);
+    if (more='') or (more[1]=',') or (more[Length(more)]=',') or (Pos(',,',more)>0) then
+      IllegalPara(opt);
+    { the options are read more than once: add each unit once }
+    if Pos(','+Upper(more)+',',','+Upper(projectuses)+',')=0 then
+      begin
+        if projectuses<>'' then
+          projectuses:=projectuses+',';
+        projectuses:=projectuses+more;
+      end;
+    exit;
+  end;
   if opt.StartsWith('--required-first-unit=') then begin
     more:=Upper(Copy(opt,Length('--required-first-unit=')+1));
     if (more='') or (more[1]=',') or (more[Length(more)]=',') or

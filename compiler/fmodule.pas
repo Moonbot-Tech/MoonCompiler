@@ -130,6 +130,15 @@ interface
         unitsym         : tunitsym;
         aliases         : TCmdStrList; { additional spellings of this dependency }
         dependent_added : boolean;
+        { `uses export X` in the interface: the units using this one see X's
+          interface too (connect_loaded_units) }
+        reexport        : boolean;
+        { added by connect_loaded_units because a used unit re-exports it;
+          naming it in a uses clause as well is no duplicate }
+        via_reexport    : boolean;
+        { added by --project-uses: naming it in the uses clause too is no
+          duplicate, and it is not the first explicit unit }
+        via_project     : boolean;
         constructor create(_u : tmodule;intface,inuses:boolean;usym:tunitsym);
         destructor destroy; override;
         procedure check_hints;
@@ -1705,6 +1714,28 @@ implementation
     procedure tmodule.allunitsused;
       var
         pu : tused_unit;
+
+      { A unit that passes others on ("uses export") is used when a name of
+        one of them is: "uses Lumi" for TForm is no unused unit. }
+      function reexportused(m: tmodule; depth: longint): boolean;
+        var
+          rp : tused_unit;
+        begin
+          result:=false;
+          if depth>32 then
+            exit;
+          rp:=tused_unit(m.used_units.first);
+          while assigned(rp) do
+            begin
+              if rp.in_interface and rp.reexport and
+                 (rp.u.moduleid<length(unitmap)) and
+                 (unitmap[rp.u.moduleid].u=rp.u) and
+                 ((unitmap[rp.u.moduleid].refs>0) or reexportused(rp.u,depth+1)) then
+                exit(true);
+              rp:=tused_unit(rp.next);
+            end;
+        end;
+
       begin
         pu:=tused_unit(used_units.first);
         while assigned(pu) do
@@ -1717,7 +1748,10 @@ implementation
                   this is for units with an initialization/finalization }
                 if (unitmap[pu.u.moduleid].refs=0) and
                    pu.in_uses and
-                   ((pu.u.moduleflags * [mf_init,mf_finalize])=[]) then
+                   ((pu.u.moduleflags * [mf_init,mf_finalize])=[]) and
+                   { passed on: used by the users of this unit }
+                   not pu.reexport and
+                   not reexportused(pu.u,0) then
                   CGMessagePos2(pu.unitsym.fileinfo,sym_n_unit_not_used,pu.u.realmodulename^,realmodulename^);
               end;
             pu:=tused_unit(pu.next);
