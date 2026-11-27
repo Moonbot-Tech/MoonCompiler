@@ -33,6 +33,12 @@ CASES = [
     # An interpolated string with arguments is a `string`, not an AnsiString.
     ('interpolated-string-unicode', 'interp_unicode.pas', [],
      ['10 44148 46']),
+    # An if / case expression of string constants is a `string`.
+    ('statement-expression-string', 'stmtexpr_string.pas', [],
+     ['2 54620 300 2 45208']),
+    # Auto-property initializers run in a class without a constructor.
+    ('auto-property-no-constructor', 'autoprop_noctor.pas', [],
+     ['800 group 800']),
     # Delphi mode keeps the historical ISO-8859-1 default.
     ('utf8-delphi-control', 'utf8_delphi_control.pas', [],
      ['6']),

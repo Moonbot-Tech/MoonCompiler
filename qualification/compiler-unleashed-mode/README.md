@@ -12,6 +12,8 @@ python qualification/compiler-unleashed-mode/run_gate.py \
 | `resourcestring-single-char`, `-fc` | A `resourcestring` of one character outside ASCII (`'예'`, `'é'`) is a WideChar constant and was rejected with "Illegal expression". Two characters and ASCII were fine |
 | `utf8-unleashed-default` | Unleashed mode reads a source without BOM and without `-Fc` as UTF-8. The historical ISO-8859-1 default split a two-letter Korean literal into six characters |
 | `interpolated-string-unicode` | `$'{N}건 조회했습니다.'` is ten characters. The interpolation was built in an AnsiString, so in a Unicode string profile every non-ASCII fragment went through the ANSI code page (thirteen characters, broken text) |
+| `statement-expression-string` | `if` / `case` expressions whose branches are string constants are a `string`. They were a ShortString: a 300-character constant came out as 255 characters, `'한글'` went through the ANSI code page |
+| `auto-property-no-constructor` | Auto-property initializers (`property Width: Integer = 800;`) of a class without a constructor of its own. Only the direct parent's constructors were inherited, so a TPersistent descendant (TObject.Create is two levels up) kept 0 |
 | `utf8-delphi-control` | Control: Delphi mode keeps its historical default unchanged |
 
 Expected values are Unicode code points (U+C608 = 50696, U+D55C = 54620, ...),

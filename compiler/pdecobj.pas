@@ -1804,11 +1804,13 @@ implementation
 {$endif}
                 end;
               { a class carrying auto-property initializers but no constructor of
-                its own needs an inherited one so the initializers get applied }
+                its own needs an inherited one so the initializers get applied;
+                from any ancestor: TPersistent declares none, TObject.Create
+                is two levels up }
               if is_class(current_structdef) and
                  assigned(tobjectdef(current_structdef).auto_prop_init_fields) and
                  not struct_has_own_constructor(current_structdef) then
-                add_missing_parent_constructors_intf(tobjectdef(current_structdef),false,vis_none);
+                add_missing_ancestor_constructors_intf(tobjectdef(current_structdef));
               { need method to hold the initialization code for typed constants? }
               if (target_info.system in systems_typed_constants_node_init) and
                  not is_any_interface_kind(current_structdef) then
