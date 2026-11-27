@@ -1,0 +1,26 @@
+package rtlpkg;
+
+{$mode delphi}
+
+{ The RTL package with Rtti and the generic collections, as an application
+  platform ships it. Unit Rtti references the catalog FPC_RTTITYPETABLES,
+  which only programs used to get: this package failed to link. }
+{$RUNONLY}
+
+contains
+  system,
+  objpas,
+  sysutils,
+  classes,
+  types,
+  math,
+  typinfo,
+  rtti,
+  generics.strings,
+  generics.memoryexpanders,
+  generics.helpers,
+  generics.hashes,
+  generics.defaults,
+  generics.collections;
+
+end.

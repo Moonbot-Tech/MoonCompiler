@@ -1,0 +1,15 @@
+package BaseVerPkg;
+
+{$mode delphi}
+
+{ A versioned package, as Delphi's rtl290.bpl: the suffix goes into the
+  library name, which keeps the package extension (BaseVerPkg42.fpl). }
+{$LIBSUFFIX '42'}
+
+requires
+  rtlpkg;
+
+contains
+  BaseVerUnit;
+
+end.

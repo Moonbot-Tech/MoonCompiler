@@ -1,0 +1,12 @@
+package BasePkg;
+
+{$mode delphi}
+{$DESIGNONLY}
+
+requires
+  rtlpkg;
+
+contains
+  BaseRegUnit;
+
+end.

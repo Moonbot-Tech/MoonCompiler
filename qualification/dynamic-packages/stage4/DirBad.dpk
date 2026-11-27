@@ -1,0 +1,13 @@
+package DirBad;
+
+{$mode delphi}
+{$DESIGNONLY}
+{$RUNONLY}
+
+requires
+  rtlpkg;
+
+contains
+  PlainUnit;
+
+end.

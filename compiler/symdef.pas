@@ -2890,7 +2890,12 @@ implementation
        if assigned(owner) then
          begin
            tmod:=find_module_from_symtable(owner);
-            if assigned(tmod) and assigned(current_module) and (tmod<>current_module) then
+            { A package legitimately registers definitions owned by the units it
+              contains: it has to export their public symbols from the package library.
+              The check added for issue 41443 predates packages being buildable,
+              so it does not know about that case. }
+            if assigned(tmod) and assigned(current_module) and (tmod<>current_module) and
+               not current_module.ispackage then
               begin
                 comment(v_error,'Definition '+fullownerhierarchyname(false,true)+' from module '+tmod.mainsource+' registered with current module '+current_module.mainsource);
               end;

@@ -1,0 +1,8 @@
+package rtlpkg;
+
+{$mode delphi}
+
+contains
+  system;
+
+end.

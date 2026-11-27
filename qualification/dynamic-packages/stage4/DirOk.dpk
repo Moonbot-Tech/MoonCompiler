@@ -1,0 +1,13 @@
+package DirOk;
+
+{$mode delphi}
+{$DESIGNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtlpkg;
+
+contains
+  PlainUnit;
+
+end.

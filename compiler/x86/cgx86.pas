@@ -693,6 +693,20 @@ unit cgx86;
         href : treference;
         hreg : tregister;
       begin
+        { An "$indirect" slot defined in this module is rebound from AB_INDIRECT
+          to AB_GLOBAL by tai_symbol.Create_global. Referencing it here would read
+          the 8-byte pointer slot as the data itself (2026-10-09: abs masks in the
+          system unit, wrong values and misaligned SSE access). A caller referencing
+          its own module's symbol must ask for the direct symbol instead, as
+          FPC_EMPTYCHAR, FPC_THREADVAR_RELOCATE and the abs masks do. }
+        if assigned(ref.symbol) and
+           not(ref.symbol.bind in asmsymbindindirect) and
+           (length(ref.symbol.name)>length(suffix_indirect)) and
+           { cheap first-character filter before the comparison, this runs for every symbol reference }
+           (ref.symbol.name[length(ref.symbol.name)-length(suffix_indirect)+1]='$') and
+           (CompareByte(ref.symbol.name[length(ref.symbol.name)-length(suffix_indirect)+1],
+              suffix_indirect[1],length(suffix_indirect))=0) then
+          internalerror(2026100960);
         if assigned(ref.symbol) and (ref.symbol.bind in asmsymbindindirect) then
           begin
             { load the symbol into a register }

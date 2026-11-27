@@ -516,6 +516,28 @@ unit scandir;
         do_moduleflagswitch(mf_package_deny,true);
       end;
 
+    procedure dir_designonly;
+      begin
+        if current_module.package_runonly then
+          Message(package_e_designonly_and_runonly);
+        current_module.package_designonly:=true;
+      end;
+
+    procedure dir_implicitbuild;
+      begin
+        { Accepted for Delphi .dpk source compatibility and ignored: we have no
+          implicit build step. Consume the ON/OFF argument the same way
+          do_moduleflagswitch does, so it does not leak into the token stream. }
+        current_scanner.readoptionalstate('+');
+      end;
+
+    procedure dir_runonly;
+      begin
+        if current_module.package_designonly then
+          Message(package_e_designonly_and_runonly);
+        current_module.package_runonly:=true;
+      end;
+
     procedure dir_description;
       begin
         if not (target_info.system in systems_all_windows+[system_i386_os2,system_i386_emx,
@@ -2250,6 +2272,7 @@ unit scandir;
         AddDirective('DEBUGINFO',directive_all, @dir_debuginfo);
         AddDirective('DEFINITIONINFO',directive_all, @dir_definitioninfo);
         AddDirective('DENYPACKAGEUNIT',directive_all,@dir_denypackageunit);
+        AddDirective('DESIGNONLY',directive_all,@dir_designonly);
         AddDirective('DESCRIPTION',directive_all, @dir_description);
         AddDirective('ENDREGION',directive_all, @dir_endregion);
         AddDirective('ENTRYPOINT',directive_all, @dir_entrypoint);
@@ -2275,6 +2298,7 @@ unit scandir;
         AddDirective('IEEEERRORS',directive_all,@dir_ieeeerrors);
         AddDirective('IOCHECKS',directive_all, @dir_iochecks);
         AddDirective('IMAGEBASE',directive_all, @dir_imagebase);
+        AddDirective('IMPLICITBUILD',directive_all,@dir_implicitbuild);
         AddDirective('IMPLICITEXCEPTIONS',directive_all, @dir_implicitexceptions);
         AddDirective('IMPORTEDDATA',directive_all, @dir_importeddata);
         AddDirective('INCLUDEPATH',directive_all, @dir_includepath);
@@ -2333,6 +2357,7 @@ unit scandir;
         AddDirective('REFERENCEINFO',directive_all, @dir_referenceinfo);
         AddDirective('REGION',directive_all, @dir_region);
         AddDirective('RESOURCE',directive_all, @dir_resource);
+        AddDirective('RUNONLY',directive_all,@dir_runonly);
         AddDirective('SATURATION',directive_all, @dir_saturation);
         AddDirective('SAFEFPUEXCEPTIONS',directive_all, @dir_safefpuexceptions);
         AddDirective('SCOPEDENUMS',directive_all, @dir_scopedenums);

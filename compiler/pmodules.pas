@@ -448,7 +448,15 @@ implementation
         { Units only required for main module }
         if not(curr.is_unit) then
          begin
-           if productruntimeprefixenabled then
+           { A package never takes the product runtime prefix. The memory
+             manager and the monitor are process-wide: the host program
+             installs them once and every package shares them through the
+             System unit of the RTL package it requires. A package that
+             linked its own copy would install a second memory manager on
+             load. The prefix units are also only queued here, and
+             proc_package runs in one pass without a wait point, so it would
+             export them before they are loaded. }
+           if productruntimeprefixenabled and not curr.ispackage then
              begin
                { Valgrind and ASan require the C memory manager.  Otherwise
                  every MoonCompiler program starts with the bundled MM. }
@@ -2326,6 +2334,7 @@ type
         module_name: ansistring;
         pentry: ppackageentry;
         feature : tfeature;
+        load_ok : boolean;
       begin
          Result:=True;
          Status.IsPackage:=true;
@@ -2381,6 +2390,12 @@ type
 
          curr.setmodulename(module_name);
          curr.ispackage:=true;
+         { A package library gets its own extension so that it can be told apart
+           from a plain DLL without opening it and reading PACKAGEFLAGS. The base
+           name was already derived by setfilename() in the constructor, where
+           ispackage was not known yet, so only the extension is swapped here. }
+         if target_info.unitlibext<>'' then
+           curr.sharedlibfilename:=ChangeFileExt(curr.sharedlibfilename,target_info.unitlibext);
          exportlib.preparelib(module_name);
          pkg:=tpcppackage.create(module_name);
 
@@ -2462,6 +2477,32 @@ type
              for feature:=low(tfeature) to high(tfeature) do
                if feature in features then
                  def_system_macro('FPC_HAS_FEATURE_'+featurestr[feature]);
+           end
+         else
+           begin
+             { No requires clause, so nothing provides system -- link it in the
+               way proc_program and proc_unit do. Without this the intern types
+               (uinttype, voidpointertype, bool32type, ...) stay nil and the
+               DLLMain stub built by create_main_proc dereferences them.
+
+               ⚠ This has to stay *after* load_packages. Loading system earlier
+               makes it a plain unit of this package, and a later `requires`
+               can no longer supply it -- the package then statically links the
+               whole RTL instead of importing it. }
+             load_ok:=loadsystemunit(curr);
+
+             for feature:=low(tfeature) to high(tfeature) do
+               if feature in features then
+                 def_system_macro('FPC_HAS_FEATURE_'+featurestr[feature]);
+
+             if not(cs_compilesystem in current_settings.moduleswitches) then
+               load_ok:=loaddefaultunits(curr) and load_ok;
+
+             { TODO: proc_program/proc_unit go to ms_compiling_wait here so ctask
+               can finish the dependencies first. proc_package runs in one pass
+               and has no such exit point yet. }
+             if not load_ok then
+               Message1(parser_e_packages_not_supported,target_info.name);
            end;
 
          { Load the units used by the program we compile. }
@@ -2577,6 +2618,37 @@ type
              { Note: all contained units are considered as used }
            end;
 
+         { Emit this package's own initialization/finalization table, covering
+           the units it contains (units of required packages are filtered out
+           in get_init_final_list).
+
+           A package linked at load time is initialized by the program: the
+           program's own table lists the package's units and references their
+           INIT$ entry points through the import table. A package loaded at
+           run time has no such help, so it publishes its table under the
+           well-known name PACKAGE_INITFINAL for the loader to walk. }
+         cnodeutils.InsertInitFinalTable(curr);
+         { The catalog of discoverable RTTI types of the units this package
+           contains (FPC_RTTITYPETABLES). Unit Rtti references it by name
+           (TRttiContext.GetTypes); a package that links Rtti - because it
+           contains it, or because a unit of it uses Generics.Collections -
+           failed to link without it. Like a program's, the catalog covers
+           this image only. }
+         cnodeutils.InsertRttiTypesTablesTable;
+         cnodeutils.InsertPackageFlags(curr);
+         { The design-time registration table. A RUNONLY package is by
+           definition not installable, so it gets none; a package with no kind
+           directive does get one, because "either use" is Delphi's default
+           and such a package can be installed. }
+         if not curr.package_runonly then
+           cnodeutils.InsertRegProcsTable(curr);
+         exportlib.ignoreduplicates:=true;
+         pkgutil.export_package_initfinal;
+         pkgutil.export_package_packageflags;
+         if not curr.package_runonly then
+           pkgutil.export_package_regprocs;
+         exportlib.ignoreduplicates:=false;
+
          if target_info.system in systems_all_windows+systems_nativent then
            begin
              main_procinfo:=create_main_proc('_PkgEntryPoint',potype_pkgstub,curr.localsymtable);
@@ -2611,7 +2683,15 @@ type
               add_package_unit_ref(hp2.package);
             if hp2.is_unit and
                not assigned(hp2.globalsymtable) then
-              loaded_units.remove(hp2);
+              begin
+                { Hand the module over to unloaded_units, the way proc_program
+                  does. loaded_units.remove only unlinks -- dropping the module
+                  here leaves curr.used_units pointing at storage that gets
+                  recycled, and the ctask cycle walk then reads it back as
+                  garbage (observed: used_units field holding ASCII text). }
+                loaded_units.remove(hp2);
+                unloaded_units.concat(hp2);
+              end;
           end;
 
          exportlib.ignoreduplicates:=true;
@@ -2720,8 +2800,20 @@ type
                  if (cs_link_deffile in current_settings.globalswitches) then
                    deffile.writefile;
 
+                 if curr.package_designonly then
+                   pkg.packageflags:=pkg.packageflags or 1;
+                 if curr.package_runonly then
+                   pkg.packageflags:=pkg.packageflags or 2;
+
                  { generate the pcp file }
                  pkg.savepcp;
+
+                 { before freeing modules, free used_units -- proc_create_executable
+                   does the same. Without it curr.used_units keeps pointing at the
+                   modules destroyed just below, and ctask's cycle walk reads them
+                   back as recycled memory. }
+                 curr.used_units.free;
+                 curr.used_units:=TLinkedList.Create;
 
                  { insert all .o files from all loaded units and
                    unload the units, we don't need them anymore.
@@ -2762,6 +2854,16 @@ type
              pkg.free;
              pkg := nil;
           end;
+
+         { Tell ctask the module is done. proc_program_after_parsing sets the
+           same pair; without it the package stays at ms_compile, processqueue
+           does not take the `not main_module.scc_tree_unfinished` exit and
+           loops once more over modules this routine has already freed. }
+         if curr.state<>ms_moduleerror then
+           begin
+             curr.crc_final:=true;
+             curr.state:=ms_compiled;
+           end;
       end;
 
     procedure proc_create_executable(curr, sysinitmod: tmodule; islibrary : boolean);
@@ -3339,6 +3441,7 @@ type
          i : Longint;
          feature : tfeature;
          load_ok : boolean;
+         pentry : ppackageentry;
 
       begin
          result:=true;
@@ -3411,6 +3514,18 @@ type
          { load all packages, so we know whether a unit is contained inside a
            package or not }
          load_packages;
+
+         { A design-time package belongs to the IDE, never to a program.
+           Delphi rejects this at compile time and so do we; the reverse
+           direction (a run-time-only package being installed) cannot be
+           known here and is the host's call. }
+         for i:=0 to packagelist.count-1 do
+           begin
+             pentry:=ppackageentry(packagelist[i]);
+             if assigned(pentry^.package) and
+                ((tpcppackage(pentry^.package).packageflags and 1)<>0) then
+               Message1(package_e_designonly_in_program,pentry^.realpkgname);
+           end;
 
          { set implementation flag }
          curr.in_interface:=false;

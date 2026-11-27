@@ -1,0 +1,12 @@
+package SalesPkg;
+
+{$mode delphi}
+
+requires
+  rtlpkg,
+  CommonPkg;
+
+contains
+  SalesUnit;
+
+end.

@@ -1,4 +1,4 @@
-{
+﻿{
     Copyright (c) 1998-2002 by Florian Klaempfl
 
     Generate x86 inline nodes
@@ -95,7 +95,7 @@ implementation
       verbose,compinnr,fmodule,
       defutil,
       aasmbase,aasmdata,aasmcpu,
-      symconst,symtype,symdef,symcpu,
+      symconst,symtype,symdef,symcpu,symtable,
       ncnv,
       htypechk,
       cgbase,pass_1,pass_2,
@@ -842,10 +842,31 @@ implementation
 
      procedure tx86inlinenode.second_abs_real;
 
+       { The masks are defined in the system unit. There they must be read
+         directly: once math.inc has emitted the mask, its "$indirect" slot is
+         defined with tai_symbol.Create_global, which rebinds it from AB_INDIRECT
+         to AB_GLOBAL. make_direct_ref then no longer recognises it, and the
+         and[p]s/and[p]d below read the 8-byte pointer slot itself as the 16-byte
+         mask - a wrong value, and an access violation whenever the slot is not
+         16-byte aligned. Same rule as FPC_EMPTYCHAR (ncgcnv) and
+         FPC_THREADVAR_RELOCATE (ncgld/nx86ld). }
+       function is_system_unit:boolean; inline;
+         begin
+           result:=(
+                     assigned(current_module.globalsymtable) and
+                     (current_module.globalsymtable=systemunit)
+                   ) or
+                   (
+                     not assigned(current_module.globalsymtable) and
+                     (current_module.localsymtable=systemunit)
+                   );
+         end;
+
        function needs_indirect:boolean; inline;
          begin
            result:=(tf_supports_packages in target_info.flags) and
-                     (target_info.system in systems_indirect_var_imports);
+                     (target_info.system in systems_indirect_var_imports) and
+                     not is_system_unit;
          end;
 
        var
@@ -869,7 +890,8 @@ implementation
                  begin
                    sym:=current_asmdata.RefAsmSymbol(target_info.cprefix+'FPC_ABSMASK_SINGLE',AT_DATA,needs_indirect);
                    reference_reset_symbol(href,sym,0,4,[]);
-                   current_module.add_extern_asmsym(sym);
+                   if not is_system_unit then
+                     current_module.add_extern_asmsym(sym);
                    tcgx86(cg).make_simple_ref(current_asmdata.CurrAsmList, href);
                    if UseAVX then
                      current_asmdata.CurrAsmList.concat(taicpu.op_ref_reg_reg(
@@ -881,7 +903,8 @@ implementation
                  begin
                    sym:=current_asmdata.RefAsmSymbol(target_info.cprefix+'FPC_ABSMASK_DOUBLE',AT_DATA,needs_indirect);
                    reference_reset_symbol(href,sym,0,4,[]);
-                   current_module.add_extern_asmsym(sym);
+                   if not is_system_unit then
+                     current_module.add_extern_asmsym(sym);
                    tcgx86(cg).make_simple_ref(current_asmdata.CurrAsmList, href);
                    if UseAVX then
                      current_asmdata.CurrAsmList.concat(taicpu.op_ref_reg_reg(

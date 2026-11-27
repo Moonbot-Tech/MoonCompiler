@@ -237,6 +237,24 @@ Use the default internal Win64 linker, or select it explicitly with `-Xi`.
 This limitation is specific to the external GNU DLL route; it does not extend
 to the default internal route or to externally linked executables.
 
+## Dynamic packages
+
+[Dynamic packages](DYNAMIC_PACKAGES.md) are a Win64 feature; Linux x86-64
+does not build `package` sources. Within Win64:
+
+- A unit contained in a package is compiled on its own before the package.
+  Compiling it from source together with `-FP` ends in internal error
+  `2013053103`; compiling the package with such a unit's source and no PPU
+  ends in internal error `2026032615`.
+- `TRttiContext.GetTypes` lists the types of the module it is linked into. A
+  program's catalog does not include the units of the packages it requires or
+  loads.
+- Unload safety is the program's responsibility, as in Delphi: no reference
+  into an unloaded package (registered class, string constant, method
+  pointer) may survive `UnloadPackage`.
+- Use the default internal linker; the external GNU DLL route above is not
+  accepted for packages either.
+
 ## Qualification environment exceptions
 
 These failures measure the lab's network, not compiled code.

@@ -3498,13 +3498,14 @@ implementation
          { static symbols that are used in public functions must be exported
            for packages as well }
          if ([tf_supports_packages,tf_supports_hidden_symbols]<=target_info.flags) and
-             (owner.symtabletype=staticsymtable) and
              assigned(current_procinfo) and
              (
                (
+                 (owner.symtabletype=staticsymtable) and
                  (sym.typ=staticvarsym) and
                  ([vo_is_public,vo_has_global_ref]*tstaticvarsym(sym).varoptions=[])
                ) or (
+                 (owner.symtabletype=staticsymtable) and
                  (sym.typ=localvarsym) and
                  assigned(tlocalvarsym(sym).defaultconstsym) and
                  ([vo_is_public,vo_has_global_ref]*tstaticvarsym(tlocalvarsym(sym).defaultconstsym).varoptions=[])
@@ -3512,6 +3513,21 @@ implementation
                  (sym.typ=procsym) and
                  assigned(def) and
                  (def.typ=procdef) and
+                 (
+                   { `owner` is sym.owner walked out of object/record/enum
+                     symtables (see above), so this also covers methods of
+                     implementation types -- e.g. HeapInc.ThreadState.Orphan,
+                     which every package consumer needs. Do not replace it with the def's
+                     owner: a method's def owner is the objectsymtable. }
+                   (owner.symtabletype=staticsymtable) or
+                   { An overload declared only in the implementation, whose name
+                     already exists in the interface, is attached to the
+                     *interface* procsym -- so `owner` is the global symtable
+                     while the procdef itself is static. Without this the package
+                     fails to export a routine its own inlined interface wrapper
+                     calls (observed: sysutils Trim(S,mode)). }
+                   (assigned(def.owner) and (def.owner.symtabletype=staticsymtable))
+                 ) and
                  not (df_has_global_ref in def.defoptions) and
                  not (po_public in tprocdef(def).procoptions)
                )
@@ -3520,7 +3536,14 @@ implementation
              procowner:=current_procinfo.procdef.owner;
              while procowner.symtabletype in [objectsymtable,recordsymtable] do
                procowner:=tdef(procowner.defowner).owner;
-             if procowner.symtabletype=globalsymtable then
+             { An inline routine of the implementation is expanded into the
+               interface inline routines that call it, and so reaches other
+               modules as well: the system unit's InlinedInitialize, inlined
+               into the compilerproc fpc_Initialize, put InitializeRecord and
+               the RTTIFlattenInitialize table into every consumer, and a
+               package did not export them. }
+             if (procowner.symtabletype=globalsymtable) or
+                (po_inline in current_procinfo.procdef.procoptions) then
                begin
                  if sym.typ=procsym then
                    current_procinfo.add_local_ref_def(def)

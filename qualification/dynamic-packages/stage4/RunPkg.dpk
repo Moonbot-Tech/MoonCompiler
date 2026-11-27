@@ -1,0 +1,12 @@
+package RunPkg;
+
+{$mode delphi}
+{$RUNONLY}
+
+requires
+  rtlpkg;
+
+contains
+  PlainUnit;
+
+end.

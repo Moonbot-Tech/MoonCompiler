@@ -43,6 +43,13 @@ interface
     end;
     pinitfinalentry = ^tinitfinalentry;
 
+    { one contained unit that publishes a design-time Register procedure }
+    tregprocentry = record
+      module : tmodule;
+      regpd  : tprocdef;
+    end;
+    pregprocentry = ^tregprocentry;
+
     tnodeutils = class
       class function call_fail_node:tnode; virtual;
       class function initialize_data_node(p:tnode; force: boolean):tnode; virtual;
@@ -114,6 +121,8 @@ interface
 
       class function create_main_procdef(const name: string; potype:tproctypeoption; ps: tprocsym):tdef; virtual;
       class procedure InsertInitFinalTable(main : tmodule);
+      class procedure InsertPackageFlags(main : tmodule);
+      class procedure InsertRegProcsTable(main : tmodule);
      protected
       class procedure InsertRuntimeInits(const prefix:string;list:TLinkedList;unitflag:tmoduleflag); virtual;
       class procedure InsertRuntimeInitsTablesTable(const prefix,tablename:string;unitflag:tmoduleflag); virtual;
@@ -122,6 +131,8 @@ interface
 
       class function get_init_final_list(main : tmodule): tfplist;
       class procedure release_init_final_list(list:tfplist);
+
+      class function get_register_proc_list(main : tmodule): tfplist;
      public
       class procedure InsertThreadvarTablesTable; virtual;
       class procedure InsertThreadvars; virtual;
@@ -1241,6 +1252,16 @@ implementation
       hp:=tused_unit(m.used_units.first);
       while assigned(hp) do
        begin
+         { When building a package, units that belong to a *required* package
+           are initialized by that package (or by the program that links it),
+           not by us -- skip them so each unit appears in exactly one table. }
+         if current_module.ispackage and
+            assigned(hp.u.package) and
+            (hp.u.package<>current_module.package) then
+           begin
+             hp:=tused_unit(hp.next);
+             continue;
+           end;
          if (not hp.u.initfinalchecked) then
            begin
            hp.u.initfinalchecked:=True;
@@ -1300,6 +1321,77 @@ implementation
       if not assigned(list) then
         internalerror(2017051901);
       TFPList.FreeAndNilDisposing(list,typeinfo(tinitfinalentry));
+    end;
+
+
+  class function tnodeutils.get_register_proc_list(main : tmodule):tfplist;
+
+    { A design-time unit publishes its registrations through a parameterless
+      procedure named Register, exactly as in Delphi. }
+    function find_register(m : tmodule):tprocdef;
+      var
+        sym : tsymentry;
+        ps : tprocsym;
+        pd : tprocdef;
+        j : longint;
+      begin
+        result:=nil;
+        if not assigned(m.globalsymtable) then
+          exit;
+        sym:=tsymentry(m.globalsymtable.Find('REGISTER'));
+        if not assigned(sym) or (sym.typ<>procsym) then
+          exit;
+        ps:=tprocsym(sym);
+        for j:=0 to ps.procdeflist.count-1 do
+          begin
+            pd:=tprocdef(ps.procdeflist[j]);
+            if (pd.returndef=voidtype) and
+               assigned(pd.paras) and
+               (pd.paras.count=0) then
+              begin
+                result:=pd;
+                exit;
+              end;
+          end;
+      end;
+
+    procedure addusedunits(m : tmodule; list : tfplist);
+      var
+        hp : tused_unit;
+        entry : pregprocentry;
+        pd : tprocdef;
+      begin
+        hp:=tused_unit(m.used_units.first);
+        while assigned(hp) do
+          begin
+            { units of a required package are that package's business }
+            if current_module.ispackage and
+               assigned(hp.u.package) and
+               (hp.u.package<>current_module.package) then
+              begin
+                hp:=tused_unit(hp.next);
+                continue;
+              end;
+            if not hp.u.regprocchecked then
+              begin
+                hp.u.regprocchecked:=true;
+                addusedunits(hp.u,list);
+                pd:=find_register(hp.u);
+                if assigned(pd) then
+                  begin
+                    new(entry);
+                    entry^.module:=hp.u;
+                    entry^.regpd:=pd;
+                    list.add(entry);
+                  end;
+              end;
+            hp:=tused_unit(hp.next);
+          end;
+      end;
+
+    begin
+      result:=tfplist.create;
+      addusedunits(main,result);
     end;
 
 
@@ -1448,6 +1540,89 @@ implementation
 
       unitinits.free;
       unitinits := nil;
+    end;
+
+
+  class procedure tnodeutils.InsertPackageFlags(main : tmodule);
+    var
+      tcb : ttai_typedconstbuilder;
+      flagsdef : tdef;
+      flags : longword;
+    begin
+      flags:=0;
+      if main.package_designonly then
+        flags:=flags or 1;
+      if main.package_runonly then
+        flags:=flags or 2;
+
+      tcb:=ctai_typedconstbuilder.create([tcalo_make_dead_strippable,tcalo_new_section]);
+      tcb.begin_anonymous_record('',default_settings.packrecords,sizeof(pint),
+        targetinfos[target_info.system]^.alignment.recordalignmin);
+      tcb.emit_ord_const(flags,u32inttype);
+      flagsdef:=tcb.end_anonymous_record;
+
+      current_asmdata.asmlists[al_globals].concatlist(
+        tcb.get_final_asmlist(
+          current_asmdata.DefineAsmSymbol('PACKAGEFLAGS',AB_GLOBAL,AT_DATA,flagsdef),
+          flagsdef,
+          sec_data,'PACKAGEFLAGS',const_align(sizeof(pint))
+        )
+      );
+
+      tcb.free;
+    end;
+
+
+  class procedure tnodeutils.InsertRegProcsTable(main : tmodule);
+    var
+      entries : tfplist;
+      tcb : ttai_typedconstbuilder;
+      tabledef : tdef;
+      entry : pregprocentry;
+      namelbl : tasmlabel;
+      nametcb : ttai_typedconstbuilder;
+      namedef : tdef;
+      i : longint;
+    begin
+      entries:=get_register_proc_list(main);
+
+      tcb:=ctai_typedconstbuilder.create([tcalo_make_dead_strippable,tcalo_new_section]);
+      tcb.begin_anonymous_record('',default_settings.packrecords,sizeof(pint),
+        targetinfos[target_info.system]^.alignment.recordalignmin);
+
+      { tablecount }
+      tcb.emit_ord_const(entries.count,aluuinttype);
+
+      for i:=0 to entries.count-1 do
+        begin
+          entry:=pregprocentry(entries[i]);
+          tcb.emit_procdef_const(entry^.regpd);
+          { a contained unit's Register is always same-image (the skip rule at
+            get_init_final_list removes any unit living in another DLL before
+            emission is reached). kept for symmetry with insert_init_final_table. }
+          if entry^.module<>current_module then
+            current_module.addimportedsym(entry^.regpd.procsym);
+
+          { Add pointer to unit name }
+          tcb.start_internal_data_builder(current_asmdata.asmlists[al_globals],sec_rodata,'',nametcb,namelbl);
+          namedef:=nametcb.emit_shortstring_const(rtti_string(entry^.module.realmodulename^));
+          tcb.finish_internal_data_builder(nametcb,namelbl,namedef,sizeof(pint));
+          tcb.queue_init(charpointertype);
+          tcb.queue_emit_asmsym(namelbl,namedef);
+        end;
+
+      { Add to data segment }
+      tabledef:=tcb.end_anonymous_record;
+      current_asmdata.asmlists[al_globals].concatlist(
+        tcb.get_final_asmlist(
+          current_asmdata.DefineAsmSymbol('REGPROCS',AB_GLOBAL,AT_DATA,tabledef),
+          tabledef,
+          sec_data,'REGPROCS',const_align(sizeof(pint))
+        )
+      );
+
+      tcb.free;
+      TFPList.FreeAndNilDisposing(entries,typeinfo(tregprocentry));
     end;
 
 
@@ -1611,7 +1786,13 @@ implementation
       hp:=tused_unit(usedunits.first);
       while assigned(hp) do
        begin
-         if unitflag in hp.u.moduleflags then
+         if (unitflag in hp.u.moduleflags) and
+            { The GetTypes catalog lists only the units linked into this
+              module. A unit of a required package lives in another image,
+              which does not export its per-unit table; the catalog of a
+              program therefore does not cover dynamic packages (see
+              doc/KNOWN_ISSUES.md). }
+            not ((unitflag=mf_rttitypes) and assigned(hp.u.package)) then
           begin
             tcb.emit_tai(
               Tai_const.Createname(make_mangledname(prefix,hp.u.globalsymtable,''),0),

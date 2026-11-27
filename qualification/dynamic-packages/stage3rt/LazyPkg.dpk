@@ -1,0 +1,11 @@
+package LazyPkg;
+
+{$mode delphi}
+
+requires
+  rtlpkg;
+
+contains
+  LazyUnit;
+
+end.
