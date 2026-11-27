@@ -280,6 +280,8 @@ var
       current_filepos:=oldcurrent_filepos;
       current_settings:=old_settings;
       status.verbosity:=old_verbosity;
+      { another module may have changed the shared mode marker macros }
+      SyncModeMacro;
 
       { restore message settings which were recorded prior to unit switch }
       RestoreLocalVerbosity(current_settings.pmessage);

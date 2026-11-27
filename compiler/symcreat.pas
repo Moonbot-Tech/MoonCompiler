@@ -78,6 +78,13 @@ interface
     the same for the (emulated) virtual class methods }
   procedure add_missing_parent_constructors_intf(obj: tobjectdef; addvirtclassmeth: boolean; forcevis: tvisibility);
 
+  { like add_missing_parent_constructors_intf, but takes the constructors
+    from every ancestor, not only the direct parent: those a closer ancestor
+    does not hide by name. For a class with auto-property initializers and
+    no constructor of its own, so that TPersistent descendants get one from
+    TObject.Create. }
+  procedure add_missing_ancestor_constructors_intf(obj: tobjectdef);
+
   { goes through all defs in st to add implementations for synthetic methods
     added earlier }
   procedure add_synthetic_method_implementations(st: tsymtable);
@@ -417,6 +424,66 @@ implementation
           childpd.synthetickind:=tsk_anon_inherited;
           include(obj.objectoptions,oo_has_constructor);
         end;
+    end;
+
+
+  procedure add_missing_ancestor_constructors_intf(obj: tobjectdef);
+    var
+      ancestor: tobjectdef;
+      def: tdef;
+      parentpd,
+      childpd: tprocdef;
+      i: longint;
+      srsym: tsym;
+      srsymtable: tsymtable;
+      hidden: TFPHashList;
+    begin
+      if oo_is_external in obj.objectoptions then
+        exit;
+      { constructor names a closer ancestor declares: they hide the same
+        names further up }
+      hidden:=TFPHashList.Create;
+      try
+        ancestor:=obj.childof;
+        while assigned(ancestor) do
+          begin
+            for i:=0 to tobjectsymtable(ancestor.symtable).deflist.count-1 do
+              begin
+                def:=tdef(tobjectsymtable(ancestor.symtable).deflist[i]);
+                if (def.typ<>procdef) or
+                   (tprocdef(def).proctypeoption<>potype_constructor) or
+                   not is_visible_for_object(tprocdef(def),obj) then
+                  continue;
+                parentpd:=tprocdef(def);
+                if assigned(hidden.Find(parentpd.procsym.name)) then
+                  continue;
+                if searchsym_in_record(obj,parentpd.procsym.name,srsym,srsymtable) and
+                   (srsym.typ=procsym) and
+                   assigned(tprocsym(srsym).find_procdef_bytype_and_para(
+                     potype_constructor,parentpd.paras,nil,
+                     [cpo_ignorehidden,cpo_ignoreuniv,cpo_openequalisexact])) then
+                  continue;
+                childpd:=tprocdef(parentpd.getcopyas(procdef,pc_normal_no_hidden,'',true));
+                if po_virtualmethod in childpd.procoptions then
+                  include(childpd.procoptions,po_overridingmethod);
+                include(childpd.procoptions,po_ignore_for_overload_resolution);
+                finish_copied_procdef(childpd,parentpd.procsym.realname,obj.symtable,obj);
+                exclude(childpd.procoptions,po_external);
+                childpd.synthetickind:=tsk_anon_inherited;
+                include(obj.objectoptions,oo_has_constructor);
+              end;
+            for i:=0 to tobjectsymtable(ancestor.symtable).deflist.count-1 do
+              begin
+                def:=tdef(tobjectsymtable(ancestor.symtable).deflist[i]);
+                if (def.typ=procdef) and (tprocdef(def).proctypeoption=potype_constructor) and
+                   not assigned(hidden.Find(tprocdef(def).procsym.name)) then
+                  hidden.Add(tprocdef(def).procsym.name,def);
+              end;
+            ancestor:=ancestor.childof;
+          end;
+      finally
+        hidden.Free;
+      end;
     end;
 
 

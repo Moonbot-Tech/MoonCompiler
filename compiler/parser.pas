@@ -458,6 +458,11 @@ implementation
          macrosymtablestack.push(initialmacrosymtable);
          macrosymtablestack.push(module.localmacrosymtable);
 
+         { The mode marker macros live in the shared initial macro table, so a
+           $MODE directive of a previously compiled unit may have changed them.
+           Bring them back in line with this module's mode. }
+         SyncModeMacro;
+
          { read the first token }
          current_scanner.readtoken(false);
 

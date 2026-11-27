@@ -12,6 +12,8 @@ One line enables everything:
 
 `{$mode unleashed}` is based on `objfpc`. Every modeswitch-gated feature can also be enabled individually from `objfpc` / `delphi` with `{$modeswitch X}`, and switched back off inside an unleashed unit with `{$modeswitch X-}`. The one hard rule is backward compatibility: new constructs are recognized only when their switch is active, so existing Pascal keeps compiling unchanged.
 
+Source text is read as UTF-8 in `{$mode unleashed}` (and with `-Munleashed`) when no code page is given explicitly by a BOM, `-Fc` or `{$codepage}`. The other modes keep the historical ISO-8859-1 default, so `'한글'` in a BOM-less file is two characters in unleashed mode and six bytes-as-characters in the others.
+
 ### Modeswitches on by default in `{$mode unleashed}`
 
 | Modeswitch | Feature |

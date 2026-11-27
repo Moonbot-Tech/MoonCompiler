@@ -205,7 +205,22 @@ implementation
         end;
       end;
 
-    function branch_type(olddef, branchdef: tdef): tdef; inline;
+    { The type `string` has in this mode: what branches made only of string
+      constants and characters evaluate to (a ShortString temporary truncated
+      them at 255 characters and, in a Unicode string profile, sent every
+      non-ASCII character through the ANSI code page). }
+    function default_string_def: tdef;
+      begin
+        if m_default_unicodestring in current_settings.modeswitches then
+          result:=cunicodestringtype
+        else if cs_refcountedstrings in current_settings.localswitches then
+          result:=cansistringtype
+        else
+          result:=cshortstringtype;
+      end;
+
+
+    function branch_type(olddef, branchdef: tdef): tdef;
       begin
         olddef:=constructor_to_dynarray(olddef);
         branchdef:=constructor_to_dynarray(branchdef);
@@ -216,8 +231,9 @@ implementation
             (is_anychar(olddef) and is_string(branchdef)) then
           result:=branchdef
         else if (is_anychar(olddef) and is_chararray(branchdef)) or
-                (is_chararray(olddef) and is_anychar(branchdef)) then
-          result:=cansistringtype
+                (is_chararray(olddef) and is_anychar(branchdef)) or
+                (is_chararray(olddef) and is_chararray(branchdef)) then
+          result:=default_string_def
         else if is_widestring(branchdef) or
                 ((is_ansistring(olddef) or is_shortstring(olddef) or is_chararray(olddef)) and is_widechar(branchdef)) then
           result:=cwidestringtype
@@ -231,8 +247,8 @@ implementation
         else if (is_chararray(olddef) or is_chararray(branchdef)) and
                 ((is_chararray(olddef) or is_shortstring(olddef)) and
                  (is_chararray(branchdef) or is_shortstring(branchdef))) then
-          { Promote to shortstring when mixing chararray (const string) types,
-            so the temp variable is large enough for any branch value }
+          { a string constant with a ShortString: ShortString, as large as
+            any branch value can be }
           result:=cshortstringtype
         else if is_chararray(olddef) and (is_ansistring(branchdef) or is_unicodestring(branchdef)) then
           result:=branchdef
