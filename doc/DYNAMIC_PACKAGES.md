@@ -22,6 +22,12 @@ target only.
 A package library has its own extension so that a tool scanning a directory
 can tell installable packages from plain DLLs without opening them.
 
+`{$LIBSUFFIX}` and `{$LIBPREFIX}` version the library name as in Delphi
+(`rtl290.bpl`): `{$LIBSUFFIX '42'}` in `Base.dpk` yields `Base42.fpl`, still
+with the package extension, next to `Base.fcp`. `requires Base` keeps the
+package name; a package or host that requires it imports from `Base42.fpl`,
+so packages of different versions can sit side by side.
+
 ## Building
 
 The order is part of the contract:
@@ -81,11 +87,12 @@ that do not use packages are built the same way.
 
 ## Qualification
 
-`qualification/dynamic-packages/run.ps1 -RunId <id>` builds and runs five
+`qualification/dynamic-packages/run.ps1 -RunId <id>` builds and runs six
 stages: import from a required package, cross-package inheritance and
 `is`/`as`, unit initialization in a load-time package, `LoadPackage` /
 `GetClass` / `UnloadPackage` including the unload hooks, and package kinds,
-`PACKAGEFLAGS`, design-time registration and the two rejections.
+`PACKAGEFLAGS`, design-time registration and the two rejections; versioned
+library names (`LIBSUFFIX`/`LIBPREFIX`) at load time and at run time.
 
 ## Limitations
 

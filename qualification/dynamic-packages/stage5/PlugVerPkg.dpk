@@ -1,0 +1,17 @@
+package PlugVerPkg;
+
+{$mode delphi}
+
+{ Prefix and suffix together (xPlugVerPkg42.fpl). It requires BaseVerPkg by
+  its package name; the import names the versioned library file. }
+{$LIBPREFIX 'x'}
+{$LIBSUFFIX '42'}
+
+requires
+  rtlpkg,
+  BaseVerPkg;
+
+contains
+  PlugVerUnit;
+
+end.

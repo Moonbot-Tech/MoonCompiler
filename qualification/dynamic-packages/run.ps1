@@ -233,6 +233,30 @@ try {
   Test-PackageFlags $Stage 'RunPkg.fpl' 2
   Test-Host $Stage 'host13.exe' 0 @() | Out-Null
   Test-Host $Stage 'host14.exe' 0 @() | Out-Null
+
+  # Stage 5: versioned package names (LIBSUFFIX/LIBPREFIX). The library keeps
+  # the package extension, and a package that requires another names the
+  # versioned file in its import.
+  $Stage = New-Stage 'stage5'
+  Push-Location $Stage
+  try {
+    Build-Ok $Stage 'rtlpkg.dpk' @('-WB110000000', 'rtlpkg.dpk')
+    Build-Ok $Stage 'BaseVerUnit.pas' @('BaseVerUnit.pas')
+    Build-Ok $Stage 'BaseVerPkg.dpk' @('-WB120000000', 'BaseVerPkg.dpk')
+    Build-Ok $Stage 'PlugVerUnit.pas' @('PlugVerUnit.pas')
+    Build-Ok $Stage 'PlugVerPkg.dpk' @('-WB130000000', 'PlugVerPkg.dpk')
+    foreach ($File in @('BaseVerPkg42.fpl', 'BaseVerPkg.fcp', 'xPlugVerPkg42.fpl', 'PlugVerPkg.fcp')) {
+      If (-not (Test-Path -LiteralPath $File)) { Add-Failure "stage5 produced no $File" }
+    }
+    foreach ($File in @('BaseVerPkg42.dll', 'xPlugVerPkg42.dll')) {
+      If (Test-Path -LiteralPath $File) { Add-Failure "stage5 produced ${File}: a versioned package lost its extension" }
+    }
+    Write-Host '  [OK]   BaseVerPkg42.fpl, xPlugVerPkg42.fpl'
+    Build-Ok $Stage 'host15.pas' @('-FPrtlpkg', '-FPBaseVerPkg', 'host15.pas')
+  } finally {
+    Pop-Location
+  }
+  Test-Host $Stage 'host15.exe' 0 @('plugin(base)', 'host15 ok') | Out-Null
 } catch {
   Add-Failure $_.Exception.Message
 }

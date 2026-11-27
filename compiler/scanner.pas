@@ -1093,6 +1093,16 @@ implementation
         current_scanner.ifpreprocstack(pp_ifopt,@opt_check,scan_c_ifopt_found);
       end;
 
+    { setfilename() derives the library name with the plain DLL extension; a
+      package (already marked by the package header, which precedes these
+      directives) keeps its own one, as in the package header itself }
+    procedure keep_package_extension;
+      begin
+        with current_module do
+          if ispackage and (target_info.unitlibext<>'') then
+            sharedlibfilename:=ChangeFileExt(sharedlibfilename,target_info.unitlibext);
+      end;
+
     procedure dir_libprefix;
       var
         s : string;
@@ -1105,6 +1115,7 @@ implementation
         outputprefix := stringdup(s);
         with current_module do
          setfilename(paramfn, paramallowoutput);
+        keep_package_extension;
       end;
 
     procedure dir_libsuffix;
@@ -1119,6 +1130,7 @@ implementation
         outputsuffix := stringdup(s);
         with current_module do
           setfilename(paramfn, paramallowoutput);
+        keep_package_extension;
       end;
 
     procedure dir_extension;
