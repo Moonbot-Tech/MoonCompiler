@@ -824,6 +824,17 @@ implementation
           pkgentry : ppackageentry;
           unitentry : pcontainedunit;
         begin
+          result.sym:=nil;
+          result.pkg:=nil;
+          { A DLL import thunk (_$dll$kernel32$GetCurrentProcessId, see
+            make_dllmangledname) belongs to the image that calls the DLL: every
+            module imports the function from the DLL itself. A unit of a
+            required package can list the same name among its public symbols,
+            but the package does not export it, so resolving the thunk there
+            made the module unloadable (STATUS_ENTRYPOINT_NOT_FOUND). }
+          if (target_info.system in systems_all_windows+systems_nativent) and
+             (copy(symname,1,6)='_$dll$') then
+            exit;
           for i:=0 to packagelist.count-1 do
             begin
               pkgentry:=ppackageentry(packagelist[i]);
@@ -1000,7 +1011,15 @@ implementation
               continue;
             if not (df_has_global_ref in def.defoptions) then
               continue;
-            import_proc_symbol(tprocdef(def),pkg);
+            { a routine of a DLL (GetCurrentProcessId in the system unit's
+              implementation): imported from the DLL by every module, as
+              processimportedsyms does for interface ones. The package does
+              not export the import thunk; importing it from there made the
+              module unloadable (STATUS_ENTRYPOINT_NOT_FOUND). }
+            if [po_external,po_has_importdll]*tprocdef(def).procoptions=[po_external,po_has_importdll] then
+              import_external_proc(tprocdef(def))
+            else
+              import_proc_symbol(tprocdef(def),pkg);
           end;
       end;
 

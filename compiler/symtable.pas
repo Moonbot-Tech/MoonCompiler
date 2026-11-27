@@ -3536,7 +3536,14 @@ implementation
              procowner:=current_procinfo.procdef.owner;
              while procowner.symtabletype in [objectsymtable,recordsymtable] do
                procowner:=tdef(procowner.defowner).owner;
-             if procowner.symtabletype=globalsymtable then
+             { An inline routine of the implementation is expanded into the
+               interface inline routines that call it, and so reaches other
+               modules as well: the system unit's InlinedInitialize, inlined
+               into the compilerproc fpc_Initialize, put InitializeRecord and
+               the RTTIFlattenInitialize table into every consumer, and a
+               package did not export them. }
+             if (procowner.symtabletype=globalsymtable) or
+                (po_inline in current_procinfo.procdef.procoptions) then
                begin
                  if sym.typ=procsym then
                    current_procinfo.add_local_ref_def(def)

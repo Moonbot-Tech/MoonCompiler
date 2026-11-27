@@ -257,6 +257,19 @@ try {
     Pop-Location
   }
   Test-Host $Stage 'host15.exe' 0 @('plugin(base)', 'host15 ok') | Out-Null
+
+  # Stage 6: an RTL package with Rtti and the generic collections, and a
+  # package using them: generic lists, a managed record, Rtti, a kernel32
+  # routine System also imports. Each used to fail: the RTL package did not
+  # link (FPC_RTTITYPETABLES), the other one imported System symbols the RTL
+  # package does not export and did not load.
+  $Stage = New-Stage 'stage6'
+  $Packages = @(
+    @('rtlpkg', '110000000'),
+    @('GenPkg', '120000000', 'GenUnit'))
+  Build-Packages $Stage $Packages
+  Build-Host $Stage 'host16.pas' $Packages
+  Test-Host $Stage 'host16.exe' 0 @('2 info 2 TItem 1', 'host16 ok') | Out-Null
 } catch {
   Add-Failure $_.Exception.Message
 }

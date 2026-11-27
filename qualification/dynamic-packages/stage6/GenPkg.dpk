@@ -1,0 +1,11 @@
+package GenPkg;
+
+{$mode delphi}
+
+requires
+  rtlpkg;
+
+contains
+  GenUnit;
+
+end.

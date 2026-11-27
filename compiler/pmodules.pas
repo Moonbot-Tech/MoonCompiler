@@ -2628,6 +2628,13 @@ type
            run time has no such help, so it publishes its table under the
            well-known name PACKAGE_INITFINAL for the loader to walk. }
          cnodeutils.InsertInitFinalTable(curr);
+         { The catalog of discoverable RTTI types of the units this package
+           contains (FPC_RTTITYPETABLES). Unit Rtti references it by name
+           (TRttiContext.GetTypes); a package that links Rtti - because it
+           contains it, or because a unit of it uses Generics.Collections -
+           failed to link without it. Like a program's, the catalog covers
+           this image only. }
+         cnodeutils.InsertRttiTypesTablesTable;
          cnodeutils.InsertPackageFlags(curr);
          { The design-time registration table. A RUNONLY package is by
            definition not installable, so it gets none; a package with no kind
